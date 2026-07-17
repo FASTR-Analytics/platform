@@ -81,6 +81,12 @@ function AIContextSync() {
       case "settings":
         setAIContext({ mode: "viewing_settings" });
         break;
+      case "dashboards":
+        setAIContext({ mode: "viewing_dashboards" });
+        break;
+      case "cache":
+        setAIContext({ mode: "viewing_cache" });
+        break;
     }
   });
 

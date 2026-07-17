@@ -1,179 +1,179 @@
-import { t3 } from "lib";
-import { Button, Select, StateHolderFormError, createFormAction } from "panther";
-import { For, Show, createMemo, createSignal, onMount } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { t3 } from"lib";
+import { Button, Select, StateHolderFormError, createFormAction } from"panther";
+import { For, Show, createMemo, createSignal, onMount } from"solid-js";
+import { serverActions } from"~/server_actions";
 
 type Props = {
-  adminAreaLevel: 2 | 3 | 4;
-  close: (p: unknown) => void;
+ adminAreaLevel: 2 | 3 | 4;
+ close: (p: unknown) => void;
 };
 
 type FeatureGroup = {
-  key: string;
-  areaId: string;
-  sourceName: string | null;
-  count: number;
+ key: string;
+ areaId: string;
+ sourceName: string | null;
+ count: number;
 };
 
 export function GeoJsonEditModal(p: Props) {
-  const [loading, setLoading] = createSignal(true);
-  const [error, setError] = createSignal<string | null>(null);
-  const [featureGroups, setFeatureGroups] = createSignal<FeatureGroup[]>([]);
-  const [adminAreaOptions, setAdminAreaOptions] = createSignal<Array<{ value: string; label: string }>>([]);
+ const [loading, setLoading] = createSignal(true);
+ const [error, setError] = createSignal<string | null>(null);
+ const [featureGroups, setFeatureGroups] = createSignal<FeatureGroup[]>([]);
+ const [adminAreaOptions, setAdminAreaOptions] = createSignal<Array<{ value: string; label: string }>>([]);
 
-  onMount(async () => {
-    try {
-      const [geoRes, optionsRes] = await Promise.all([
-        serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }),
-        serverActions.getAdminAreaOptionsForLevel({ level: p.adminAreaLevel }),
+ onMount(async () => {
+ try {
+ const [geoRes, optionsRes] = await Promise.all([
+ serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }),
+ serverActions.getAdminAreaOptionsForLevel({ level: p.adminAreaLevel }),
       ]);
 
-      if (!geoRes.success) {
-        setError(geoRes.err ?? "Failed to load GeoJSON");
-        setLoading(false);
-        return;
+ if (!geoRes.success) {
+ setError(geoRes.err ??"Failed to load GeoJSON");
+ setLoading(false);
+ return;
       }
 
-      if (!optionsRes.success) {
-        setError(optionsRes.err ?? "Failed to load admin areas");
-        setLoading(false);
-        return;
+ if (!optionsRes.success) {
+ setError(optionsRes.err ??"Failed to load admin areas");
+ setLoading(false);
+ return;
       }
 
-      setAdminAreaOptions(optionsRes.data);
+ setAdminAreaOptions(optionsRes.data);
 
-      const parsed = JSON.parse(geoRes.data.geojson) as {
-        type: "FeatureCollection";
-        features: Array<{
-          properties: { area_id?: string; source_name?: string; dhis2_name?: string };
+ const parsed = JSON.parse(geoRes.data.geojson) as {
+ type:"FeatureCollection";
+ features: Array<{
+ properties: { area_id?: string; source_name?: string; dhis2_name?: string };
         }>;
       };
 
-      const groups = new Map<string, FeatureGroup>();
-      for (const feature of parsed.features) {
-        const areaId = feature.properties?.area_id ?? "";
+ const groups = new Map<string, FeatureGroup>();
+ for (const feature of parsed.features) {
+ const areaId = feature.properties?.area_id ??"";
         // Support both new (source_name) and old (dhis2_name) formats
-        const sourceName = feature.properties?.source_name ?? feature.properties?.dhis2_name ?? null;
+ const sourceName = feature.properties?.source_name ?? feature.properties?.dhis2_name ?? null;
 
         // Group by source_name for unmatched features, otherwise by area_id
-        const groupKey = areaId === "" ? `__unmatched__${sourceName ?? ""}` : areaId;
+ const groupKey = areaId ===""?`__unmatched__${sourceName ??""}`: areaId;
 
-        if (!groups.has(groupKey)) {
-          groups.set(groupKey, { key: groupKey, areaId, sourceName, count: 0 });
+ if (!groups.has(groupKey)) {
+ groups.set(groupKey, { key: groupKey, areaId, sourceName, count: 0 });
         }
-        groups.get(groupKey)!.count++;
+ groups.get(groupKey)!.count++;
       }
 
       // Sort: unmatched first, then by area name
-      const sortedGroups = [...groups.values()].sort((a, b) => {
-        if (a.areaId === "" && b.areaId !== "") return -1;
-        if (a.areaId !== "" && b.areaId === "") return 1;
-        if (a.areaId === "" && b.areaId === "") {
-          return (a.sourceName ?? "").localeCompare(b.sourceName ?? "");
+ const sortedGroups = [...groups.values()].sort((a, b) => {
+ if (a.areaId ===""&& b.areaId !=="") return -1;
+ if (a.areaId !==""&& b.areaId ==="") return 1;
+ if (a.areaId ===""&& b.areaId ==="") {
+ return (a.sourceName ??"").localeCompare(b.sourceName ??"");
         }
-        return a.areaId.localeCompare(b.areaId);
+ return a.areaId.localeCompare(b.areaId);
       });
-      setFeatureGroups(sortedGroups);
+ setFeatureGroups(sortedGroups);
 
       // Initialize current mappings (keyed by group.key)
-      const initial: Record<string, string> = {};
-      for (const group of sortedGroups) {
-        initial[group.key] = group.areaId;
+ const initial: Record<string, string> = {};
+ for (const group of sortedGroups) {
+ initial[group.key] = group.areaId;
       }
-      setCurrentMappings(initial);
+ setCurrentMappings(initial);
 
-      setLoading(false);
+ setLoading(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load data");
-      setLoading(false);
+ setError(e instanceof Error ? e.message :"Failed to load data");
+ setLoading(false);
     }
   });
 
-  const hasSourceNames = createMemo(() => featureGroups().some((g) => g.sourceName !== null));
-  const unmatchedCount = createMemo(() => featureGroups().filter((g) => g.areaId === "").length);
-  const matchedCount = createMemo(() => featureGroups().filter((g) => g.areaId !== "").length);
+ const hasSourceNames = createMemo(() => featureGroups().some((g) => g.sourceName !== null));
+ const unmatchedCount = createMemo(() => featureGroups().filter((g) => g.areaId ==="").length);
+ const matchedCount = createMemo(() => featureGroups().filter((g) => g.areaId !=="").length);
 
   // Track the current mapping for each feature group (starts as the stored area_id)
-  const [currentMappings, setCurrentMappings] = createSignal<Record<string, string>>({});
+ const [currentMappings, setCurrentMappings] = createSignal<Record<string, string>>({});
 
-  const hasChanges = createMemo(() => {
-    const current = currentMappings();
-    return featureGroups().some((g) => current[g.key] !== g.areaId);
+ const hasChanges = createMemo(() => {
+ const current = currentMappings();
+ return featureGroups().some((g) => current[g.key] !== g.areaId);
   });
 
-  const selectOptions = createMemo(() => [
-    { value: "", label: t3({ en: "— Not mapped —", fr: "— Non mappé —", pt: "— Não associado —" }) },
+ const selectOptions = createMemo(() => [
+    { value:"", label: t3({ en:"— Not mapped —", fr:"— Non mappé —", pt:"— Não associado —"}) },
     ...adminAreaOptions(),
   ]);
 
-  function handleMappingChange(groupKey: string, newAreaId: string) {
-    setCurrentMappings((prev) => ({
+ function handleMappingChange(groupKey: string, newAreaId: string) {
+ setCurrentMappings((prev) => ({
       ...prev,
       [groupKey]: newAreaId,
     }));
   }
 
-  // Build remapping for save: only include changed mappings ("" = explicit unmap)
-  function buildRemapping(): Record<string, string> {
-    const current = currentMappings();
-    const result: Record<string, string> = {};
-    for (const group of featureGroups()) {
-      const newAreaId = current[group.key];
-      if (newAreaId !== undefined && newAreaId !== group.areaId) {
+  // Build remapping for save: only include changed mappings (""= explicit unmap)
+ function buildRemapping(): Record<string, string> {
+ const current = currentMappings();
+ const result: Record<string, string> = {};
+ for (const group of featureGroups()) {
+ const newAreaId = current[group.key];
+ if (newAreaId !== undefined && newAreaId !== group.areaId) {
         // For unmatched features, use __source__ prefix so server can match by source_name
-        if (group.areaId === "" && group.sourceName) {
-          result[`__source__${group.sourceName}`] = newAreaId;
+ if (group.areaId ===""&& group.sourceName) {
+ result[`__source__${group.sourceName}`] = newAreaId;
         } else {
-          result[group.areaId] = newAreaId;
+ result[group.areaId] = newAreaId;
         }
       }
     }
-    return result;
+ return result;
   }
 
-  const saveAction = createFormAction(
-    async () => {
-      const map = buildRemapping();
-      if (Object.keys(map).length === 0) {
-        return { success: false, err: t3({ en: "No changes to save", fr: "Aucune modification à enregistrer", pt: "Nenhuma alteração a guardar" }) };
+ const saveAction = createFormAction(
+ async () => {
+ const map = buildRemapping();
+ if (Object.keys(map).length === 0) {
+ return { success: false, err: t3({ en:"No changes to save", fr:"Aucune modification à enregistrer", pt:"Nenhuma alteração a guardar"}) };
       }
 
-      const res = await serverActions.remapGeoJson({
-        adminAreaLevel: p.adminAreaLevel,
-        remapping: map,
+ const res = await serverActions.remapGeoJson({
+ adminAreaLevel: p.adminAreaLevel,
+ remapping: map,
       });
 
-      if (res.success) {
-        p.close(undefined);
+ if (res.success) {
+ p.close(undefined);
       }
 
-      return res;
+ return res;
     },
     () => {},
   );
 
-  function handleDownload() {
-    serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }).then((res) => {
-      if (!res.success) return;
-      const blob = new Blob([res.data.geojson], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `geojson_aa${p.adminAreaLevel}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+ function handleDownload() {
+ serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }).then((res) => {
+ if (!res.success) return;
+ const blob = new Blob([res.data.geojson], { type:"application/json"});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement("a");
+ a.href = url;
+ a.download =`geojson_aa${p.adminAreaLevel}.json`;
+ a.click();
+ URL.revokeObjectURL(url);
     });
   }
 
-  return (
-    <div class="ui-pad-lg ui-spy" style={{ "min-width": "600px", "max-height": "80vh", "overflow-y": "auto" }}>
+ return (
+    <div class="ui-pad-lg ui-spy"style={{"min-width":"600px","max-height":"80vh","overflow-y":"auto"}}>
       <div class="font-700 text-lg">
-        {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON", pt: "Editar a associação GeoJSON" })} — AA{p.adminAreaLevel}
+        {t3({ en:"Edit GeoJSON Mapping", fr:"Modifier le mappage GeoJSON", pt:"Editar a associação GeoJSON"})} — AA{p.adminAreaLevel}
       </div>
 
       <Show when={loading()}>
         <div class="text-base-content-muted py-8 text-center">
-          {t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
+          {t3({ en:"Loading...", fr:"Chargement...", pt:"A carregar..."})}
         </div>
       </Show>
 
@@ -183,49 +183,49 @@ export function GeoJsonEditModal(p: Props) {
 
       <Show when={!loading() && !error()}>
         <div class="text-base-content-muted text-sm">
-          {matchedCount()} {t3({ en: "mapped", fr: "mappés", pt: "associados" })}
+          {matchedCount()} {t3({ en:"mapped", fr:"mappés", pt:"associados"})}
           <Show when={unmatchedCount() > 0}>
-            {" "}<span class="text-warning">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés", pt: "não associados" })}</span>
+            {""}<span class="text-warning">· {unmatchedCount()} {t3({ en:"unmatched", fr:"non mappés", pt:"não associados"})}</span>
           </Show>
         </div>
 
-        <div class="border-border max-h-96 overflow-auto rounded border">
-          <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
+        <div class="max-h-96 overflow-auto rounded border">
+          <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
             <div class="w-1/2">
               {hasSourceNames()
-                ? t3({ en: "Source Name", fr: "Nom source", pt: "Nome de origem" })
-                : t3({ en: "Current Mapping", fr: "Mappage actuel", pt: "Associação atual" })}
+                ? t3({ en:"Source Name", fr:"Nom source", pt:"Nome de origem"})
+                : t3({ en:"Current Mapping", fr:"Mappage actuel", pt:"Associação atual"})}
             </div>
-            <div class="w-1/2">{t3({ en: "Map to Admin Area", fr: "Mapper vers zone admin", pt: "Associar a zona administrativa" })}</div>
+            <div class="w-1/2">{t3({ en:"Map to Admin Area", fr:"Mapper vers zone admin", pt:"Associar a zona administrativa"})}</div>
           </div>
           <For each={featureGroups()}>
             {(group) => (
-              <div class={`border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 ${group.areaId === "" ? "bg-warning-subtle" : ""}`}>
+              <div class={`border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 ${group.areaId ===""?"bg-warning-subtle":""}`}>
                 <div class="w-1/2">
                   <div class="text-sm">
                     {group.sourceName ?? group.areaId}
-                    <Show when={group.areaId === ""}>
-                      {" "}<span class="text-warning text-xs">{t3({ en: "(unmatched)", fr: "(non mappé)", pt: "(não associado)" })}</span>
+                    <Show when={group.areaId ===""}>
+                      {""}<span class="text-warning text-xs">{t3({ en:"(unmatched)", fr:"(non mappé)", pt:"(não associado)"})}</span>
                     </Show>
                   </div>
-                  <Show when={group.areaId !== "" && group.sourceName && group.sourceName !== group.areaId}>
+                  <Show when={group.areaId !==""&& group.sourceName && group.sourceName !== group.areaId}>
                     <div class="ui-text-caption">
-                      {t3({ en: "Currently mapped to", fr: "Actuellement mappé vers", pt: "Atualmente associado a" })}: {group.areaId}
+                      {t3({ en:"Currently mapped to", fr:"Actuellement mappé vers", pt:"Atualmente associado a"})}: {group.areaId}
                     </div>
                   </Show>
                   <Show when={group.count > 1}>
                     <div class="ui-text-caption">
-                      ({group.count} {t3({ en: "features", fr: "entités", pt: "entidades" })})
+                      ({group.count} {t3({ en:"features", fr:"entités", pt:"entidades"})})
                     </div>
                   </Show>
                 </div>
                 <div class="w-1/2">
                   <Select
-                    options={selectOptions()}
-                    value={currentMappings()[group.key] ?? ""}
-                    onChange={(v) => handleMappingChange(group.key, v)}
-                    fullWidth
-                    size="sm"
+ options={selectOptions()}
+ value={currentMappings()[group.key] ??""}
+ onChange={(v) => handleMappingChange(group.key, v)}
+ fullWidth
+ size="sm"
                   />
                 </div>
               </div>
@@ -237,18 +237,18 @@ export function GeoJsonEditModal(p: Props) {
 
         <div class="ui-gap-sm flex">
           <Button
-            onClick={saveAction.click}
-            state={saveAction.state()}
-            disabled={!hasChanges()}
-            intent="primary"
+ onClick={saveAction.click}
+ state={saveAction.state()}
+ disabled={!hasChanges()}
+ intent="primary"
           >
-            {t3({ en: "Save changes", fr: "Enregistrer", pt: "Guardar as alterações" })}
+            {t3({ en:"Save changes", fr:"Enregistrer", pt:"Guardar as alterações"})}
           </Button>
-          <Button intent="neutral" onClick={handleDownload} iconName="download">
-            {t3({ en: "Download GeoJSON", fr: "Télécharger GeoJSON", pt: "Transferir o GeoJSON" })}
+          <Button intent="neutral"onClick={handleDownload} iconName="download">
+            {t3({ en:"Download GeoJSON", fr:"Télécharger GeoJSON", pt:"Transferir o GeoJSON"})}
           </Button>
-          <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+          <Button intent="neutral"onClick={() => p.close(undefined)}>
+            {t3({ en:"Cancel", fr:"Annuler", pt:"Cancelar"})}
           </Button>
         </div>
       </Show>

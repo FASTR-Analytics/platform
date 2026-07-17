@@ -65,7 +65,7 @@ substitution — S9/S10 display), `encodeRawCsvHeader` (S6),
 
 **`server/exposed_env_vars.ts`** — the env nexus: every environment variable is
 read once here into a `_`-prefixed export, and nothing else may call
-`Deno.env.get` (the ban is PLAN_DOC_ENFORCEMENT item 11). Exactly 42 server
+`Deno.env.get` (the ban is PLAN_ENFORCEMENT item 11). Exactly 42 server
 files import it. Required vars fail fast at import time with a named error;
 optional ones default. The domains it carries: instance identity/language/
 calendar, sandbox + assets paths (S8/S4), Postgres coords (S2), Anthropic +

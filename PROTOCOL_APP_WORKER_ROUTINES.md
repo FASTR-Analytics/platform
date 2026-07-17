@@ -70,7 +70,7 @@ Each routine is a folder under `server/worker_routines/` with two files:
 
 - `worker.ts` — the worker entry point, opening with the standard preamble
   (currently hand-copied into all six routines — the shared `runWorker()`
-  wrapper is PLAN_DOC_ENFORCEMENT item 8):
+  wrapper is PLAN_ENFORCEMENT item 8):
 
   ```ts
   (self as unknown as Worker).onmessage = (e) => {

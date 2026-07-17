@@ -1,29 +1,29 @@
-import { t3, type DatasetStagingResult } from "lib";
-import { Button, createButtonAction, toNum0 } from "panther";
-import { Match, Switch } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { t3, type DatasetStagingResult } from"lib";
+import { Button, createButtonAction, toNum0 } from"panther";
+import { Match, Switch } from"solid-js";
+import { serverActions } from"~/server_actions";
 
 type Props = {
-  step3Result: DatasetStagingResult | undefined;
-  silentFetch: () => Promise<void>;
+ step3Result: DatasetStagingResult | undefined;
+ silentFetch: () => Promise<void>;
 };
 
 export function Step3(p: Props) {
-  const save = createButtonAction(
+ const save = createButtonAction(
     () => serverActions.updateDatasetStaging({}),
-    p.silentFetch,
+ p.silentFetch,
   );
 
-  const needsSaving = () => !p.step3Result;
+ const needsSaving = () => !p.step3Result;
 
-  return (
+ return (
     <div class="ui-spy ui-pad">
       <div class="ui-spy-sm">
-        <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données", pt: "Preparação dos dados" })}</div>
+        <div class="font-700 text-lg">{t3({ en:"Data Staging", fr:"Préparation des données", pt:"Preparação dos dados"})}</div>
         <Switch>
           <Match when={!p.step3Result}>
-            <div class="border-border rounded border p-4">
-              {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation.", pt: "Pronto para preparar os dados CSV. Isto irá validar e preparar os dados para importação." })}
+            <div class="rounded border p-4">
+              {t3({ en:"Ready to stage CSV data. This will validate and prepare the data for import.", fr:"Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation.", pt:"Pronto para preparar os dados CSV. Isto irá validar e preparar os dados para importação."})}
             </div>
           </Match>
           <Match when={p.step3Result}>
@@ -31,11 +31,11 @@ export function Step3(p: Props) {
               <div class="text-success-700 flex items-center gap-2">
                 <span>✓</span>
                 <span>
-                  {t3({ en: "CSV data staged successfully", fr: "Données CSV préparées avec succès", pt: "Dados CSV preparados com sucesso" })}
+                  {t3({ en:"CSV data staged successfully", fr:"Données CSV préparées avec succès", pt:"Dados CSV preparados com sucesso"})}
                 </span>
               </div>
               <div class="text-success mt-2 text-sm">
-                {t3({ en: "Total rows staged", fr: "Total de lignes préparées", pt: "Total de linhas preparadas" })}:{" "}
+                {t3({ en:"Total rows staged", fr:"Total de lignes préparées", pt:"Total de linhas preparadas"})}:{""}
                 {toNum0(p.step3Result!.finalStagingRowCount)}
               </div>
             </div>
@@ -44,13 +44,13 @@ export function Step3(p: Props) {
       </div>
       <div class="ui-gap-sm flex">
         <Button
-          onClick={save.click}
-          intent="success"
-          state={save.state()}
-          disabled={!needsSaving()}
-          iconName="database"
+ onClick={save.click}
+ intent="success"
+ state={save.state()}
+ disabled={!needsSaving()}
+ iconName="database"
         >
-          {t3({ en: "Start staging", fr: "Commencer la préparation", pt: "Iniciar a preparação" })}
+          {t3({ en:"Start staging", fr:"Commencer la préparation", pt:"Iniciar a preparação"})}
         </Button>
       </div>
     </div>

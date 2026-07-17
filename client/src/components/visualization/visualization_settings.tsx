@@ -1,139 +1,139 @@
-import { APIResponseNoData, t3, TC, VisualizationFolder } from "lib";
+import { APIResponseNoData, t3, TC, VisualizationFolder } from"lib";
 import {
-  AlertComponentProps,
-  AlertFormHolder,
-  Button,
-  Input,
-  Select,
-  createButtonAction,
-  createFormAction,
-} from "panther";
-import { Show, createSignal } from "solid-js";
-import { serverActions } from "~/server_actions";
-import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _METRIC_INFO_CACHE } from "~/state/project/t2_presentation_objects";
-import { _REPLICANT_OPTIONS_CACHE } from "~/state/project/t2_replicant_options";
+ AlertComponentProps,
+ AlertFormHolder,
+ Button,
+ Input,
+ Select,
+ createButtonAction,
+ createFormAction,
+} from"panther";
+import { Show, createSignal } from"solid-js";
+import { serverActions } from"~/server_actions";
+import { _PO_DETAIL_CACHE, _PO_ITEMS_CACHE, _METRIC_INFO_CACHE } from"~/state/project/t2_presentation_objects";
+import { _REPLICANT_OPTIONS_CACHE } from"~/state/project/t2_replicant_options";
 
 export function VisualizationSettings(
-  p: AlertComponentProps<
+ p: AlertComponentProps<
     {
-      projectId: string;
-      presentationObjectId: string;
-      resultsObjectId: string;
-      metricId: string;
-      moduleId: string;
-      isDefault: boolean;
-      existingLabel: string;
-      currentFolderId: string | null;
-      folders: VisualizationFolder[];
-      mutateFunc: (newLabel: string) => Promise<APIResponseNoData>;
+ projectId: string;
+ presentationObjectId: string;
+ resultsObjectId: string;
+ metricId: string;
+ moduleId: string;
+ isDefault: boolean;
+ existingLabel: string;
+ currentFolderId: string | null;
+ folders: VisualizationFolder[];
+ mutateFunc: (newLabel: string) => Promise<APIResponseNoData>;
     },
-    "NEEDS_UPDATE"
+"NEEDS_UPDATE"
   >,
 ) {
-  const [tempLabel, setTempLabel] = createSignal<string>(p.existingLabel);
-  const [tempFolderId, setTempFolderId] = createSignal<string>(p.currentFolderId ?? "_none");
+ const [tempLabel, setTempLabel] = createSignal<string>(p.existingLabel);
+ const [tempFolderId, setTempFolderId] = createSignal<string>(p.currentFolderId ??"_none");
 
-  const folderOptions = () => [
-    { value: "_none", label: t3(TC.general) },
+ const folderOptions = () => [
+    { value:"_none", label: t3(TC.general) },
     ...p.folders.map((f) => ({ value: f.id, label: f.label })),
   ];
 
-  const save = createFormAction(
-    async (e: MouseEvent) => {
-      e.preventDefault();
-      const goodLabel = tempLabel().trim();
-      if (!goodLabel) {
-        return { success: false, err: t3(TC.mustEnterName) };
+ const save = createFormAction(
+ async (e: MouseEvent) => {
+ e.preventDefault();
+ const goodLabel = tempLabel().trim();
+ if (!goodLabel) {
+ return { success: false, err: t3(TC.mustEnterName) };
       }
-      const newFolderId = tempFolderId() === "_none" ? null : tempFolderId();
-      const folderChanged = newFolderId !== p.currentFolderId;
-      if (folderChanged) {
-        const folderRes = await serverActions.updatePresentationObjectFolder({
-          projectId: p.projectId,
-          po_id: p.presentationObjectId,
-          folderId: newFolderId,
+ const newFolderId = tempFolderId() ==="_none"? null : tempFolderId();
+ const folderChanged = newFolderId !== p.currentFolderId;
+ if (folderChanged) {
+ const folderRes = await serverActions.updatePresentationObjectFolder({
+ projectId: p.projectId,
+ po_id: p.presentationObjectId,
+ folderId: newFolderId,
         });
-        if (!folderRes.success) {
-          return folderRes;
+ if (!folderRes.success) {
+ return folderRes;
         }
       }
-      return p.mutateFunc(goodLabel);
+ return p.mutateFunc(goodLabel);
     },
     () => p.close("NEEDS_UPDATE"),
   );
 
-  const clearCache = createButtonAction(
-    async () => {
-      await _PO_DETAIL_CACHE.clearEntry({
-        projectId: p.projectId,
-        presentationObjectId: p.presentationObjectId,
+ const clearCache = createButtonAction(
+ async () => {
+ await _PO_DETAIL_CACHE.clearEntry({
+ projectId: p.projectId,
+ presentationObjectId: p.presentationObjectId,
       });
 
-      await _METRIC_INFO_CACHE.clearEntry({
-        projectId: p.projectId,
-        metricId: p.metricId,
+ await _METRIC_INFO_CACHE.clearEntry({
+ projectId: p.projectId,
+ metricId: p.metricId,
       });
 
       // Clear all items for this results object (all fetchConfig variations)
-      await _PO_ITEMS_CACHE.clearEntriesWithPrefix([
-        p.projectId,
-        p.resultsObjectId,
+ await _PO_ITEMS_CACHE.clearEntriesWithPrefix([
+ p.projectId,
+ p.resultsObjectId,
       ]);
 
       // Clear all replicant options for this results object (all replicateBy and fetchConfig variations)
-      await _REPLICANT_OPTIONS_CACHE.clearEntriesWithPrefix([
-        p.projectId,
-        p.resultsObjectId,
+ await _REPLICANT_OPTIONS_CACHE.clearEntriesWithPrefix([
+ p.projectId,
+ p.resultsObjectId,
       ]);
 
-      return { success: true };
+ return { success: true };
     },
     () => p.close("NEEDS_UPDATE"),
   );
 
-  const closeButton = async () => p.close(undefined);
+ const closeButton = async () => p.close(undefined);
 
-  return (
+ return (
     <AlertFormHolder
-      formId="visualization-settings"
-      header={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation", pt: "Definições da visualização" })}
-      savingState={p.isDefault ? undefined : save.state()}
-      saveFunc={p.isDefault ? undefined : save.click}
-      cancelFunc={closeButton}
-      cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" }) : t3(TC.cancel)}
+ formId="visualization-settings"
+ header={t3({ en:"Visualization settings", fr:"Paramètres de la visualisation", pt:"Definições da visualização"})}
+ savingState={p.isDefault ? undefined : save.state()}
+ saveFunc={p.isDefault ? undefined : save.click}
+ cancelFunc={closeButton}
+ cancelButtonText={p.isDefault ? t3({ en:"Close", fr:"Fermer", pt:"Fechar"}) : t3(TC.cancel)}
     >
       <div class="ui-spy">
         <Show when={!p.isDefault}>
           <Input
-            label={t3({ en: "Visualization name", fr: "Nom de la visualisation", pt: "Nome da visualização" })}
-            value={tempLabel()}
-            onChange={setTempLabel}
-            fullWidth
-            autoFocus
+ label={t3({ en:"Visualization name", fr:"Nom de la visualisation", pt:"Nome da visualização"})}
+ value={tempLabel()}
+ onChange={setTempLabel}
+ fullWidth
+ autoFocus
           />
           <Select
-            label={t3(TC.folder)}
-            options={folderOptions()}
-            value={tempFolderId()}
-            onChange={setTempFolderId}
-            fullWidth
+ label={t3(TC.folder)}
+ options={folderOptions()}
+ value={tempFolderId()}
+ onChange={setTempFolderId}
+ fullWidth
           />
         </Show>
 
-        <div class="border-border rounded border ui-pad ui-spy-sm">
+        <div class="rounded border ui-pad ui-spy-sm">
           <div class="text-xs text-base-content-muted">
-            {t3({ en: "Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr: "Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes.", pt: "Limpar os dados em cache desta visualização. Utilize esta opção se a visualização estiver a mostrar dados desatualizados." })}
+            {t3({ en:"Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr:"Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes.", pt:"Limpar os dados em cache desta visualização. Utilize esta opção se a visualização estiver a mostrar dados desatualizados."})}
           </div>
           <div class="">
 
             <Button
-              onClick={clearCache.click}
-              state={clearCache.state()}
-              iconName="trash"
-              outline
-              type="button"
+ onClick={clearCache.click}
+ state={clearCache.state()}
+ iconName="trash"
+ outline
+ type="button"
             >
-              {t3({ en: "Clear cache", fr: "Vider le cache", pt: "Limpar cache" })}
+              {t3({ en:"Clear cache", fr:"Vider le cache", pt:"Limpar cache"})}
             </Button>
           </div>
         </div>

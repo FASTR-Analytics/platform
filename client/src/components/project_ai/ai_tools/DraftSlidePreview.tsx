@@ -1,159 +1,159 @@
 import {
-  t3,
-  getStartingConfigForSlideDeck,
-  PAGE_HEIGHT_DU,
-  PAGE_WIDTH_DU,
-  type AiSlideInput,
-  type MetricWithStatus,
-  type Slide,
-  type SlideDeckConfig,
-} from "lib";
-import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
+ t3,
+ getStartingConfigForSlideDeck,
+ PAGE_HEIGHT_DU,
+ PAGE_WIDTH_DU,
+ type AiSlideInput,
+ type MetricWithStatus,
+ type Slide,
+ type SlideDeckConfig,
+} from"lib";
+import type { AlertComponentProps, PageInputs, StateHolder } from"panther";
 import {
-  Button,
-  LoadingIndicator,
-  ModalContainer,
-  openComponent,
-  PageHolder,
-} from "panther";
+ Button,
+ LoadingIndicator,
+ ModalContainer,
+ openComponent,
+ PageHolder,
+} from"panther";
 import {
-  createSignal,
-  ErrorBoundary,
-  Match,
-  onMount,
-  Show,
-  Switch,
-} from "solid-js";
-import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { useAIProjectContext } from "~/components/project_ai/context";
-import { projectState } from "~/state/project/t1_store";
-import { AddToDeckModal } from "./AddToDeckModal";
-import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
+ createSignal,
+ ErrorBoundary,
+ Match,
+ onMount,
+ Show,
+ Switch,
+} from"solid-js";
+import { convertAiInputToSlide } from"~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
+import { convertSlideToPageInputs } from"~/generate_slide_deck/convert_slide_to_page_inputs";
+import { useAIProjectContext } from"~/components/project_ai/context";
+import { projectState } from"~/state/project/t1_store";
+import { AddToDeckModal } from"./AddToDeckModal";
+import { addSlideDirectlyToDeck } from"./add_slide_to_deck";
 
 type SlideState = {
-  pageInputs: PageInputs;
-  convertedSlide: Slide;
+ pageInputs: PageInputs;
+ convertedSlide: Slide;
 };
 
 type Props = {
-  projectId: string;
-  slideInput: AiSlideInput;
-  metrics: MetricWithStatus[];
+ projectId: string;
+ slideInput: AiSlideInput;
+ metrics: MetricWithStatus[];
 };
 
 export function DraftSlidePreview(p: Props) {
-  const { aiContext } = useAIProjectContext();
+ const { aiContext } = useAIProjectContext();
 
-  const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
-    status: "loading",
-    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." }),
+ const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
+ status:"loading",
+ msg: t3({ en:"Loading slide...", fr:"Chargement de la diapositive...", pt:"A carregar diapositivo..."}),
   });
 
-  function getDeckConfig(): SlideDeckConfig {
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide_deck") {
-      return ctx.getDeckConfig();
+ function getDeckConfig(): SlideDeckConfig {
+ const ctx = aiContext();
+ if (ctx.mode ==="editing_slide_deck") {
+ return ctx.getDeckConfig();
     }
-    return getStartingConfigForSlideDeck("Draft");
+ return getStartingConfigForSlideDeck("Draft");
   }
 
-  async function buildSlide() {
-    try {
-      const deckConfig = getDeckConfig();
-      const convertedSlide = await convertAiInputToSlide(
-        p.projectId,
-        p.slideInput,
-        p.metrics,
-        deckConfig,
+ async function buildSlide() {
+ try {
+ const deckConfig = getDeckConfig();
+ const convertedSlide = await convertAiInputToSlide(
+ p.projectId,
+ p.slideInput,
+ p.metrics,
+ deckConfig,
       );
-      const renderRes = await convertSlideToPageInputs(
-        p.projectId,
-        convertedSlide,
-        undefined,
-        deckConfig,
+ const renderRes = await convertSlideToPageInputs(
+ p.projectId,
+ convertedSlide,
+ undefined,
+ deckConfig,
       );
-      if (!renderRes.success) {
-        setSlideState({ status: "error", err: renderRes.err });
-        return;
+ if (!renderRes.success) {
+ setSlideState({ status:"error", err: renderRes.err });
+ return;
       }
-      setSlideState({
-        status: "ready",
-        data: { pageInputs: renderRes.data, convertedSlide },
+ setSlideState({
+ status:"ready",
+ data: { pageInputs: renderRes.data, convertedSlide },
       });
     } catch (err) {
-      setSlideState({
-        status: "error",
-        err: err instanceof Error ? err.message : "Failed to render slide",
+ setSlideState({
+ status:"error",
+ err: err instanceof Error ? err.message :"Failed to render slide",
       });
     }
   }
 
-  onMount(() => {
-    buildSlide();
+ onMount(() => {
+ buildSlide();
   });
 
-  function openExpandedView() {
-    const state = slideState();
-    if (state.status !== "ready") return;
-    openComponent<ExpandedSlideModalProps, void>({
-      element: ExpandedSlideModal,
-      props: {
-        pageInputs: state.data.pageInputs,
-        onAddToDeck: handleAddToDeck,
-        addToDeckLabel:
-          aiContext().mode === "editing_slide_deck"
-            ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
-            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" }),
+ function openExpandedView() {
+ const state = slideState();
+ if (state.status !=="ready") return;
+ openComponent<ExpandedSlideModalProps, void>({
+ element: ExpandedSlideModal,
+ props: {
+ pageInputs: state.data.pageInputs,
+ onAddToDeck: handleAddToDeck,
+ addToDeckLabel:
+ aiContext().mode ==="editing_slide_deck"
+            ? t3({ en:"Add to this deck", fr:"Ajouter au deck", pt:"Adicionar a esta apresentação"})
+            : t3({ en:"Add to slide deck", fr:"Ajouter à un deck", pt:"Adicionar a uma apresentação"}),
       },
     });
   }
 
-  async function handleAddToDeck() {
-    const state = slideState();
-    if (state.status !== "ready") return;
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide_deck") {
-      await addSlideDirectlyToDeck(p.projectId, state.data.convertedSlide, ctx);
+ async function handleAddToDeck() {
+ const state = slideState();
+ if (state.status !=="ready") return;
+ const ctx = aiContext();
+ if (ctx.mode ==="editing_slide_deck") {
+ await addSlideDirectlyToDeck(p.projectId, state.data.convertedSlide, ctx);
     } else {
-      await openComponent({
-        element: AddToDeckModal,
-        props: {
-          projectId: p.projectId,
-          slide: state.data.convertedSlide,
-          slideDecks: projectState.slideDecks,
-          slideDeckFolders: projectState.slideDeckFolders,
+ await openComponent({
+ element: AddToDeckModal,
+ props: {
+ projectId: p.projectId,
+ slide: state.data.convertedSlide,
+ slideDecks: projectState.slideDecks,
+ slideDeckFolders: projectState.slideDeckFolders,
         },
       });
     }
   }
 
-  return (
+ return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-border bg-base-100 max-w-[400px] rounded border">
+      <div class="bg-base-100 max-w-[400px] rounded border">
         <div
-          class="cursor-pointer p-1.5"
-          onClick={openExpandedView}
+ class="cursor-pointer p-1.5"
+ onClick={openExpandedView}
         >
           <div class="pointer-events-none">
             <SlideStateWrapper state={slideState()} />
           </div>
         </div>
         {/* Actions are hidden on error — the card still renders so the error
-            message is visible (mirrors DraftVisualizationPreview) instead of
-            the whole preview vanishing under a "slide preview shown" line. */}
-        <Show when={slideState().status !== "error"}>
-          <div class="border-border flex gap-1.5 border-t p-1.5">
+ message is visible (mirrors DraftVisualizationPreview) instead of
+ the whole preview vanishing under a"slide preview shown"line. */}
+        <Show when={slideState().status !=="error"}>
+          <div class="flex gap-1.5 border-t p-1.5">
             <Button
-              size="sm"
-              outline
-              iconName="maximize"
-              onClick={openExpandedView}
+ size="sm"
+ outline
+ iconName="maximize"
+ onClick={openExpandedView}
             />
-            <Button size="sm" outline onClick={handleAddToDeck}>
-              {aiContext().mode === "editing_slide_deck"
-                ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
-                : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
+            <Button size="sm"outline onClick={handleAddToDeck}>
+              {aiContext().mode ==="editing_slide_deck"
+                ? t3({ en:"Add to this deck", fr:"Ajouter au deck", pt:"Adicionar a esta apresentação"})
+                : t3({ en:"Add to slide deck", fr:"Ajouter à un deck", pt:"Adicionar a uma apresentação"})}
             </Button>
           </div>
         </Show>
@@ -163,28 +163,28 @@ export function DraftSlidePreview(p: Props) {
 }
 
 type SlideStateWrapperProps = {
-  state: StateHolder<SlideState>;
+ state: StateHolder<SlideState>;
 };
 
 function SlideStateWrapper(p: SlideStateWrapperProps) {
-  return (
+ return (
     <Switch>
-      <Match when={p.state.status === "loading"}>
+      <Match when={p.state.status ==="loading"}>
         <div class="aspect-video text-xs">
           <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad />
         </div>
       </Match>
-      <Match when={p.state.status === "error"}>
+      <Match when={p.state.status ==="error"}>
         <div class="text-danger aspect-video text-xs">
-          {(p.state as { err?: string }).err ?? "Error"}
+          {(p.state as { err?: string }).err ??"Error"}
         </div>
       </Match>
-      <Match when={p.state.status === "ready"} keyed>
+      <Match when={p.state.status ==="ready"} keyed>
         <div class="aspect-video overflow-hidden">
           <PageHolder
-            pageInputs={(p.state as { data: SlideState }).data.pageInputs}
-            pageWidthDu={PAGE_WIDTH_DU}
-            pageHeightDu={PAGE_HEIGHT_DU}
+ pageInputs={(p.state as { data: SlideState }).data.pageInputs}
+ pageWidthDu={PAGE_WIDTH_DU}
+ pageHeightDu={PAGE_HEIGHT_DU}
           />
         </div>
       </Match>
@@ -193,40 +193,40 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
 }
 
 type ExpandedSlideModalProps = {
-  pageInputs: PageInputs;
-  onAddToDeck: () => void;
-  addToDeckLabel: string;
+ pageInputs: PageInputs;
+ onAddToDeck: () => void;
+ addToDeckLabel: string;
 };
 
 function ExpandedSlideModal(
-  p: AlertComponentProps<ExpandedSlideModalProps, void>,
+ p: AlertComponentProps<ExpandedSlideModalProps, void>,
 ) {
-  return (
+ return (
     <ModalContainer
-      width="2xl"
-      rightButtons={
+ width="2xl"
+ rightButtons={
         // eslint-disable-next-line jsx-key
         [
           <Button
-            outline
-            onClick={() => {
-              p.close(undefined);
-              p.onAddToDeck();
+ outline
+ onClick={() => {
+ p.close(undefined);
+ p.onAddToDeck();
             }}
           >
             {p.addToDeckLabel}
           </Button>,
           <Button onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+            {t3({ en:"Close", fr:"Fermer", pt:"Fechar"})}
           </Button>,
         ]
       }
     >
-      <div class="border-border aspect-video overflow-hidden rounded border">
+      <div class="aspect-video overflow-hidden rounded border">
         <PageHolder
-          pageInputs={p.pageInputs}
-          pageWidthDu={PAGE_WIDTH_DU}
-          pageHeightDu={PAGE_HEIGHT_DU}
+ pageInputs={p.pageInputs}
+ pageWidthDu={PAGE_WIDTH_DU}
+ pageHeightDu={PAGE_HEIGHT_DU}
         />
       </div>
     </ModalContainer>

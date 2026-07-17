@@ -1,42 +1,42 @@
-import { OtherUser, t3 } from "lib";
+import { OtherUser, t3 } from"lib";
 import {
-  AlertComponentProps,
-  AlertFormHolder,
-  Input,
-  createFormAction,
-} from "panther";
-import { createSignal } from "solid-js";
-import { serverActions } from "~/server_actions";
+ AlertComponentProps,
+ AlertFormHolder,
+ Input,
+ createFormAction,
+} from"panther";
+import { createSignal } from"solid-js";
+import { serverActions } from"~/server_actions";
 
 export function AddProjectForm(
-  p: AlertComponentProps<
+ p: AlertComponentProps<
     {
-      users: OtherUser[];
+ users: OtherUser[];
     },
     { newProjectId: string }
   >,
 ) {
   // Temp state
 
-  const [tempLabel, setTempLabel] = createSignal<string>("");
+ const [tempLabel, setTempLabel] = createSignal<string>("");
   // const [tempDatasetsToEnable, setTempDatasetsToEnable] = createSignal<
-  //   DatasetType[]
+  // DatasetType[]
   // >(["hmis"]);
   // const [tempModulesToEnable, setTempModulesToEnable] = createSignal<string[]>(
   //   [],
   // );
   // const [tempProjectUsers, setTempProjectUsers] = createStore<
   //   {
-  //     email: string;
-  //     role: ProjectUserRoleType;
-  //     isGlobalAdmin: boolean;
+  // email: string;
+  // role: ProjectUserRoleType;
+  // isGlobalAdmin: boolean;
   //   }[]
   // >(
-  //   structuredClone(
-  //     p.users.map((otherUser) => ({
-  //       email: otherUser.email,
-  //       isGlobalAdmin: otherUser.isGlobalAdmin,
-  //       role: "none",
+  // structuredClone(
+  // p.users.map((otherUser) => ({
+  // email: otherUser.email,
+  // isGlobalAdmin: otherUser.isGlobalAdmin,
+  // role:"none",
   //     })),
   //   ),
   // );
@@ -45,90 +45,90 @@ export function AddProjectForm(
 
   // const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const save = createFormAction(
-    async (e: MouseEvent) => {
-      e.preventDefault();
-      const goodLabel = tempLabel().trim();
-      if (!goodLabel) {
-        return { success: false, err: t3({ en: "You must enter a project name", fr: "Vous devez saisir un nom de projet", pt: "Tem de introduzir um nome de projeto" }) };
+ const save = createFormAction(
+ async (e: MouseEvent) => {
+ e.preventDefault();
+ const goodLabel = tempLabel().trim();
+ if (!goodLabel) {
+ return { success: false, err: t3({ en:"You must enter a project name", fr:"Vous devez saisir un nom de projet", pt:"Tem de introduzir um nome de projeto"}) };
       }
 
       // const users = structuredClone(
-      //   p.users.map((otherUser) => ({
-      //     email: otherUser.email,
-      //     isGlobalAdmin: otherUser.isGlobalAdmin,
-      //     role: "none",
+      // p.users.map((otherUser) => ({
+      // email: otherUser.email,
+      // isGlobalAdmin: otherUser.isGlobalAdmin,
+      // role:"none",
       //   })),
       // );
-      return await serverActions.createProject({
-        label: goodLabel,
-        datasetsToEnable: [],
-        modulesToEnable: [],
-        projectEditors: [],
-        projectViewers: [],
+ return await serverActions.createProject({
+ label: goodLabel,
+ datasetsToEnable: [],
+ modulesToEnable: [],
+ projectEditors: [],
+ projectViewers: [],
       });
     },
-    async () => {},
+ async () => {},
     (data) => p.close({ newProjectId: data!.newProjectId }),
   );
 
-  return (
+ return (
     <AlertFormHolder
-      formId="add-project"
-      header={t3({ en: "Create project", fr: "Créer un projet", pt: "Criar projeto" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      wider
+ formId="add-project"
+ header={t3({ en:"Create project", fr:"Créer un projet", pt:"Criar projeto"})}
+ savingState={save.state()}
+ saveFunc={save.click}
+ cancelFunc={() => p.close(undefined)}
+ wider
     >
       {/* <Switch>
-        <Match when={save.state().status === "loading"}>
+        <Match when={save.state().status ==="loading"}>
           <ProgressBar
-            progressFrom0To100={progressFrom0To100()}
-            progressMsg={progressMsg()}
+ progressFrom0To100={progressFrom0To100()}
+ progressMsg={progressMsg()}
           />
         </Match>
         <Match when={true}> */}
       <div class="ui-spy">
         <Input
-          label={t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" })}
-          value={tempLabel()}
-          onChange={setTempLabel}
-          fullWidth
-          autoFocus
+ label={t3({ en:"Project name", fr:"Nom du projet", pt:"Nome do projeto"})}
+ value={tempLabel()}
+ onChange={setTempLabel}
+ fullWidth
+ autoFocus
         />
         {/* <StateHolderWrapper state={p.instanceDetail.state()}>
           {(keyedInstanceDetail) => {
-            return (
+ return (
               <div class="ui-spy">
                 <MultiSelect
-                  label={t("Enable datasets")}
-                  options={_POSSIBLE_DATASETS
+ label={t("Enable datasets")}
+ options={_POSSIBLE_DATASETS
                     .filter((d) => {
-                      return keyedInstanceDetail.datasetsWithData.includes(
-                        d.datasetType,
+ return keyedInstanceDetail.datasetsWithData.includes(
+ d.datasetType,
                       );
                     })
                     .map((d) => {
-                      return {
-                        value: d.datasetType,
-                        label: d.label,
+ return {
+ value: d.datasetType,
+ label: d.label,
                       };
                     })}
-                  values={tempDatasetsToEnable()}
-                  onChange={setTempDatasetsToEnable}
+ values={tempDatasetsToEnable()}
+ onChange={setTempDatasetsToEnable}
                 />
                 <MultiSelect
-                  label={t("Enable modules")}
-                  options={getSelectOptionsFromIdLabel(getPossibleModules(getInstanceCountryIso3()))}
-                  values={tempModulesToEnable()}
-                  onChange={setTempModulesToEnable}
+ label={t("Enable modules")}
+ options={getSelectOptionsFromIdLabel(getPossibleModules(getInstanceCountryIso3()))}
+ values={tempModulesToEnable()}
+ onChange={setTempModulesToEnable}
                 />
                 <LabelHolder label={t("User permissions")}>
                   <For each={tempProjectUsers}>
                     {(pu, i_pu) => {
-                      return (
-                        <div class="ui-gap border-border flex border-t py-1 text-sm">
+ return (
+                        <div class="ui-gap flex border-t py-1 text-sm">
                           <div class="flex-1">&rarr; {pu.email}</div>
                           <div class="">
                             <Switch>
@@ -137,27 +137,27 @@ export function AddProjectForm(
                               </Match>
                               <Match when={true}>
                                 <RadioGroup
-                                  horizontal
-                                  options={[
+ horizontal
+ options={[
                                     {
-                                      value: "none",
-                                      label: t2(T.FRENCH_UI_STRINGS.none),
+ value:"none",
+ label: t2(T.FRENCH_UI_STRINGS.none),
                                     },
                                     {
-                                      value: "viewer",
-                                      label: t("Viewer"),
+ value:"viewer",
+ label: t("Viewer"),
                                     },
                                     {
-                                      value: "editor",
-                                      label: t2(T.FRENCH_UI_STRINGS.editor),
+ value:"editor",
+ label: t2(T.FRENCH_UI_STRINGS.editor),
                                     },
                                   ]}
-                                  value={pu.role}
-                                  onChange={(v) => {
-                                    setTempProjectUsers(
-                                      i_pu(),
-                                      "role",
-                                      v as ProjectUserRoleType,
+ value={pu.role}
+ onChange={(v) => {
+ setTempProjectUsers(
+ i_pu(),
+"role",
+ v as ProjectUserRoleType,
                                     );
                                   }}
                                 />

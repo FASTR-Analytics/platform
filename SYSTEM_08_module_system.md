@@ -190,7 +190,7 @@ triggerRunnableModules(ppk)  ◄── dependents may now be runnable ───�
 ```
 
 **Split source of truth.** `modules.dirty` holds **only**
-`queued | ready | error` (no `CHECK` constraint yet — PLAN_DOC_ENFORCEMENT item
+`queued | ready | error` (no `CHECK` constraint yet — PLAN_ENFORCEMENT item
 5; any other value makes `getModuleDirtyOrRunning` throw and breaks the whole
 project's dirty read). The client-facing fourth status, `running`, is
 synthesized in `running_tasks_map.ts`: a module is `queued` in the DB the entire
@@ -274,8 +274,8 @@ reintroduces the stale-clobber and respawn races — and must re-trigger.
 **No crash recovery exists.** The map is in-memory and the repo-root `main.ts`
 has no resume step: after a server crash/deploy, `dirty='queued'` modules sit
 until some later action calls `triggerRunnableModules`. Don't write code that
-relies on queued work surviving a restart (the boot-sweep fix is the surviving
-piece of PLAN_DOC_ENFORCEMENT item 2).
+relies on queued work surviving a restart (the boot-sweep fix is an Open item
+below).
 
 **The two-key results-object edge.** Propagation matches `ds.moduleId`;
 readiness gating queries by `ds.resultsObjectId` joined through
@@ -336,8 +336,8 @@ substitution. Markers replaced via `str.replaceAll`: `COUNTRY_ISO3` →
 `__DOUBLE_UNDERSCORE__` markers. The 4-input-type block is **triplicated**
 across the generators, and the default/HFA generators wrap values in single
 quotes **without escaping** (only the calculated-indicators path validates
-identifiers) — these strings execute as real R; hardening + factoring is
-PLAN_DOC_ENFORCEMENT item 7.
+identifiers) — these strings execute as real R; hardening + factoring is an
+Open item below.
 
 **Results ingestion** (`storeResultsObject`). Read the CSV headers (first 16 KB,
 Papa.parse); `getCreateTableStatementFromCsvHeaders` maps each header to its
@@ -401,13 +401,21 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
 ## Open items
 
 > Code findings from the review cycle are parked here; items already tracked in
-> PLAN_DOC_ENFORCEMENT get pointers, not restatements.
+> PLAN_ENFORCEMENT get pointers, not restatements.
 
-- **Tracked in PLAN_DOC_ENFORCEMENT:** boot-time recovery sweep for
-  `dirty='queued'` modules (the surviving piece of item 2 — its leaked-
-  connection and stuck-running bullets shipped 2026-07-02); `CHECK` on
-  `modules.dirty` (item 5); harden/factor the R-source interpolation (item 7);
+- **Tracked in PLAN_ENFORCEMENT:** `CHECK` on `modules.dirty` (item 5);
   shared `runWorker()` preamble wrapper (item 8).
+- **Boot-time recovery sweep for `dirty='queued'` modules.** The running map
+  is in-memory and `main.ts` has no resume step: after a crash/deploy, queued
+  modules sit until some later action calls `triggerRunnableModules`. Fix: a
+  startup sweep calling `triggerRunnableModules` per project. (The companion
+  leaked-connection and stuck-running bugs shipped 2026-07-02.)
+- **Harden the R-source interpolation.** The default and HFA script
+  generators wrap config `text`/`select`/`number` values in single quotes
+  with no escaping (only the calculated-indicators path validates
+  identifiers), and the 4-input-type substitution block is triplicated —
+  validate-by-type or escape every value, and factor the block so quoting
+  can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Assert the two-key invariant at install/update time** — a `results_object`
   dataSource's `moduleId` must own its `resultsObjectId`.
 - **Dead logic:** `getModulesListForAI` tests `rawModule.dirty === "true"`

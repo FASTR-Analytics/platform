@@ -1,134 +1,134 @@
-import { t3 } from "lib";
-import { Slider } from "panther";
-import { createUniqueId, JSX, Show } from "solid-js";
+import { t3 } from"lib";
+import { Slider } from"panther";
+import { createUniqueId, JSX, Show } from"solid-js";
 
 type TextStyleDefaults = {
-  size: number;
-  bold: boolean;
-  italic: boolean;
+ size: number;
+ bold: boolean;
+ italic: boolean;
 };
 
 type TextStylePopoverProps = {
-  size: number;
-  onSizeChange: (size: number) => void;
-  bold: boolean;
-  onBoldChange: (bold: boolean) => void;
-  italic: boolean;
-  onItalicChange: (italic: boolean) => void;
-  sizeMin?: number;
-  sizeMax?: number;
-  defaults?: TextStyleDefaults;
-  onReset?: () => void;
-  label?: string;
+ size: number;
+ onSizeChange: (size: number) => void;
+ bold: boolean;
+ onBoldChange: (bold: boolean) => void;
+ italic: boolean;
+ onItalicChange: (italic: boolean) => void;
+ sizeMin?: number;
+ sizeMax?: number;
+ defaults?: TextStyleDefaults;
+ onReset?: () => void;
+ label?: string;
 };
 
 const POSITION_STYLE = {
-  top: "anchor(bottom)",
-  left: "anchor(left)",
+ top:"anchor(bottom)",
+ left:"anchor(left)",
 };
 
 export function TextStylePopover(p: TextStylePopoverProps) {
-  const id = createUniqueId();
-  const popoverId = `text-style-popover-${id}`;
-  const anchorName = `--text-style-anchor-${id}`;
-  let popoverRef: HTMLDivElement | undefined;
+ const id = createUniqueId();
+ const popoverId =`text-style-popover-${id}`;
+ const anchorName =`--text-style-anchor-${id}`;
+ let popoverRef: HTMLDivElement | undefined;
 
-  const sizeMin = () => p.sizeMin ?? 2;
-  const sizeMax = () => p.sizeMax ?? 20;
+ const sizeMin = () => p.sizeMin ?? 2;
+ const sizeMax = () => p.sizeMax ?? 20;
 
-  return (
+ return (
     <div class="select-none">
       <Show when={p.label}>
         <div class="ui-label">{p.label}</div>
       </Show>
       <button
-        type="button"
-        class="ui-hoverable-base-100 border-border flex items-center gap-2 rounded border px-3 py-1.5"
-        style={{ "anchor-name": anchorName } as JSX.CSSProperties}
+ type="button"
+ class="ui-hoverable-base-100 flex items-center gap-2 rounded border px-3 py-1.5"
+ style={{"anchor-name": anchorName } as JSX.CSSProperties}
         // @ts-ignore - popovertarget is valid HTML
-        popovertarget={popoverId}
+ popovertarget={popoverId}
       >
         <span class="text-sm tabular-nums">{p.size}</span>
         <span
-          class="w-5 rounded py-0.5 text-xs"
-          classList={{
-            "bg-primary text-primary-content": p.bold,
-            "bg-base-200 text-base-content": !p.bold,
+ class="w-5 rounded py-0.5 text-xs"
+ classList={{
+"bg-primary text-primary-content": p.bold,
+"bg-base-200 text-base-content": !p.bold,
           }}
         >
-          B
+ B
         </span>
         <span
-          class="w-5 rounded py-0.5 text-xs italic"
-          classList={{
-            "bg-primary text-primary-content": p.italic,
-            "bg-base-200 text-base-content": !p.italic,
+ class="w-5 rounded py-0.5 text-xs italic"
+ classList={{
+"bg-primary text-primary-content": p.italic,
+"bg-base-200 text-base-content": !p.italic,
           }}
         >
-          I
+ I
         </span>
       </button>
       <div
-        ref={popoverRef}
-        id={popoverId}
+ ref={popoverRef}
+ id={popoverId}
         // @ts-ignore - popover is valid HTML
-        popover
-        style={
+ popover
+ style={
           {
-            position: "absolute",
-            "position-anchor": anchorName,
-            margin: "6px",
-            background: "transparent",
-            border: "none",
-            padding: "0",
+ position:"absolute",
+"position-anchor": anchorName,
+ margin:"6px",
+ background:"transparent",
+ border:"none",
+ padding:"0",
             ...POSITION_STYLE,
           } as JSX.CSSProperties
         }
       >
         <div class="bg-base-100 w-64 rounded border p-3 shadow-floating select-none">
           <Slider
-            label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
-            min={sizeMin()}
-            max={sizeMax()}
-            step={1}
-            value={p.size}
-            onChange={p.onSizeChange}
-            fullWidth
-            showValueInLabel
+ label={t3({ en:"Size", fr:"Taille", pt:"Tamanho"})}
+ min={sizeMin()}
+ max={sizeMax()}
+ step={1}
+ value={p.size}
+ onChange={p.onSizeChange}
+ fullWidth
+ showValueInLabel
           />
           <div class="mt-3 flex gap-2">
             <button
-              type="button"
-              class="flex-1 cursor-pointer rounded border py-1.5 text-sm font-700"
-              classList={{
-                "bg-primary text-primary-content border-primary": p.bold,
-                "text-base-content border-border ui-hoverable-base-100":
+ type="button"
+ class="flex-1 cursor-pointer rounded border py-1.5 text-sm font-700"
+ classList={{
+"bg-primary text-primary-content border-primary": p.bold,
+"text-base-content ui-hoverable-base-100":
                   !p.bold,
               }}
-              onClick={() => p.onBoldChange(!p.bold)}
+ onClick={() => p.onBoldChange(!p.bold)}
             >
-              {t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
+              {t3({ en:"Bold", fr:"Gras", pt:"Negrito"})}
             </button>
             <button
-              type="button"
-              class="flex-1 cursor-pointer rounded border py-1.5 text-sm italic"
-              classList={{
-                "bg-primary text-primary-content border-primary": p.italic,
-                "text-base-content border-border ui-hoverable-base-100":
+ type="button"
+ class="flex-1 cursor-pointer rounded border py-1.5 text-sm italic"
+ classList={{
+"bg-primary text-primary-content border-primary": p.italic,
+"text-base-content ui-hoverable-base-100":
                   !p.italic,
               }}
-              onClick={() => p.onItalicChange(!p.italic)}
+ onClick={() => p.onItalicChange(!p.italic)}
             >
-              {t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
+              {t3({ en:"Italic", fr:"Italique", pt:"Itálico"})}
             </button>
           </div>
           <Show when={p.defaults && p.onReset}>
             <button
-              type="button"
-              class="text-base-content border-border ui-hoverable-base-100 mt-3 w-full rounded border py-1.5 text-sm"
-              onClick={() => p.onReset?.()}
+ type="button"
+ class="text-base-content ui-hoverable-base-100 mt-3 w-full rounded border py-1.5 text-sm"
+ onClick={() => p.onReset?.()}
             >
-              {t3({ en: "Reset to default", fr: "Réinitialiser", pt: "Repor predefinição" })}
+              {t3({ en:"Reset to default", fr:"Réinitialiser", pt:"Repor predefinição"})}
             </button>
           </Show>
         </div>

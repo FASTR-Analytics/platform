@@ -166,7 +166,7 @@ export function Dhis2StepTime(p: Props) {
                 })}
               </Match>
             </Switch>
-            <Button onClick={p.onBackToCredentials} outline size="sm">
+            <Button onClick={p.onBackToCredentials} intent="danger" size="sm">
               {t3({ en: "Back to step 1", fr: "Retour à l'étape 1", pt: "Voltar ao passo 1" })}
             </Button>
           </div>

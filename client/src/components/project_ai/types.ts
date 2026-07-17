@@ -49,6 +49,14 @@ export type AIContextViewingSettings = {
   mode: "viewing_settings";
 };
 
+export type AIContextViewingDashboards = {
+  mode: "viewing_dashboards";
+};
+
+export type AIContextViewingCache = {
+  mode: "viewing_cache";
+};
+
 // Editing contexts (working on specific items)
 export type AIContextEditingSlideDeck = {
   mode: "editing_slide_deck";
@@ -125,6 +133,8 @@ export type AIContext =
   | AIContextViewingMetrics
   | AIContextViewingModules
   | AIContextViewingSettings
+  | AIContextViewingDashboards
+  | AIContextViewingCache
   | AIContextEditingSlideDeck
   | AIContextEditingSlide
   | AIContextEditingVisualization;

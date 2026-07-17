@@ -1,55 +1,55 @@
-import { t3, type MetricGroup, type MetricWithStatus } from "lib";
-import { For, Show } from "solid-js";
-import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
+import { t3, type MetricGroup, type MetricWithStatus } from"lib";
+import { For, Show } from"solid-js";
+import { getDisplayDisaggregationLabel } from"~/state/instance/_util_disaggregation_label";
 
 type Props = {
-  metricGroup: MetricGroup;
-  selectedMetricId: string;
-  onSelect: (metricId: string) => void;
+ metricGroup: MetricGroup;
+ selectedMetricId: string;
+ onSelect: (metricId: string) => void;
 };
 
 function getStatusTooltip(status: MetricWithStatus["status"]): string {
-  switch (status) {
-    case "module_not_installed":
-      return t3({ en: "Module not installed", fr: "Module non installé", pt: "Módulo não instalado" });
-    case "results_not_ready":
-      return t3({ en: "Module not yet run", fr: "Module pas encore exécuté", pt: "Módulo ainda não executado" });
-    case "error":
-      return t3({ en: "Module has errors", fr: "Le module a des erreurs", pt: "O módulo tem erros" });
-    default:
-      return "";
+ switch (status) {
+ case"module_not_installed":
+ return t3({ en:"Module not installed", fr:"Module non installé", pt:"Módulo não instalado"});
+ case"results_not_ready":
+ return t3({ en:"Module not yet run", fr:"Module pas encore exécuté", pt:"Módulo ainda não executado"});
+ case"error":
+ return t3({ en:"Module has errors", fr:"Le module a des erreurs", pt:"O módulo tem erros"});
+ default:
+ return"";
   }
 }
 
 export function MetricCard(p: Props) {
-  const hasVariants = () => p.metricGroup.variants.length > 1;
-  const firstMetric = () => p.metricGroup.variants[0];
+ const hasVariants = () => p.metricGroup.variants.length > 1;
+ const firstMetric = () => p.metricGroup.variants[0];
 
-  const isGroupSelected = () =>
-    p.metricGroup.variants.some((v) => v.id === p.selectedMetricId);
+ const isGroupSelected = () =>
+ p.metricGroup.variants.some((v) => v.id === p.selectedMetricId);
 
-  const canSelectGroup = () =>
-    !hasVariants() && firstMetric().status === "ready";
+ const canSelectGroup = () =>
+    !hasVariants() && firstMetric().status ==="ready";
 
-  const handleGroupClick = () => {
-    if (canSelectGroup()) {
-      p.onSelect(firstMetric().id);
+ const handleGroupClick = () => {
+ if (canSelectGroup()) {
+ p.onSelect(firstMetric().id);
     }
   };
 
-  return (
+ return (
     <div
-      class="ui-pad border-border rounded border transition-colors"
-      classList={{
-        "bg-primary-subtle border-primary": isGroupSelected(),
-        "bg-base-100": !isGroupSelected() && !canSelectGroup(),
-        "ui-hoverable-base-100": canSelectGroup() && !isGroupSelected(),
-        "cursor-pointer": canSelectGroup(),
-        "opacity-40": !hasVariants() && firstMetric().status !== "ready",
+ class="ui-pad rounded border transition-colors"
+ classList={{
+"bg-primary-subtle border-primary": isGroupSelected(),
+"bg-base-100": !isGroupSelected() && !canSelectGroup(),
+"ui-hoverable-base-100": canSelectGroup() && !isGroupSelected(),
+"cursor-pointer": canSelectGroup(),
+"opacity-40": !hasVariants() && firstMetric().status !=="ready",
       }}
-      onClick={handleGroupClick}
-      title={
-        !hasVariants() && firstMetric().status !== "ready"
+ onClick={handleGroupClick}
+ title={
+        !hasVariants() && firstMetric().status !=="ready"
           ? getStatusTooltip(firstMetric().status)
           : undefined
       }
@@ -74,25 +74,25 @@ export function MetricCard(p: Props) {
 
         <Show when={(firstMetric().vizPresets?.length ?? 0) > 0}>
           <div class="text-primary text-xs">
-            {firstMetric().vizPresets!.length}{" "}
+            {firstMetric().vizPresets!.length}{""}
             {firstMetric().vizPresets!.length === 1
-              ? t3({ en: "preset", fr: "préréglage", pt: "predefinição" })
-              : t3({ en: "presets", fr: "préréglages", pt: "predefinições" })}
+              ? t3({ en:"preset", fr:"préréglage", pt:"predefinição"})
+              : t3({ en:"presets", fr:"préréglages", pt:"predefinições"})}
           </div>
         </Show>
 
         <Show when={hasVariants()}>
-          <div class="border-border border-t pt-2">
+          <div class="border-t pt-2">
             <div class="ui-text-caption mb-1">
-              {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :", pt: "Selecione o nível geográfico:" })}
+              {t3({ en:"Select geographic level:", fr:"Sélectionnez le niveau géographique :", pt:"Selecione o nível geográfico:"})}
             </div>
             <div class="flex flex-wrap gap-1">
-            <For each={p.metricGroup.variants.filter((v) => v.status === "ready")}>
+            <For each={p.metricGroup.variants.filter((v) => v.status ==="ready")}>
               {(variant) => (
                 <VariantRow
-                  variant={variant}
-                  isSelected={p.selectedMetricId === variant.id}
-                  onSelect={() => p.onSelect(variant.id)}
+ variant={variant}
+ isSelected={p.selectedMetricId === variant.id}
+ onSelect={() => p.onSelect(variant.id)}
                 />
               )}
             </For>
@@ -105,25 +105,25 @@ export function MetricCard(p: Props) {
 }
 
 type VariantRowProps = {
-  variant: MetricWithStatus;
-  isSelected: boolean;
-  onSelect: () => void;
+ variant: MetricWithStatus;
+ isSelected: boolean;
+ onSelect: () => void;
 };
 
 function VariantRow(p: VariantRowProps) {
-  return (
+ return (
     <div
-      class="rounded px-2 py-1 text-sm transition-colors cursor-pointer"
-      classList={{
-        "bg-primary-subtle font-700": p.isSelected,
-        "ui-hoverable-base-200": !p.isSelected,
+ class="rounded px-2 py-1 text-sm transition-colors cursor-pointer"
+ classList={{
+"bg-primary-subtle font-700": p.isSelected,
+"ui-hoverable-base-200": !p.isSelected,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        p.onSelect();
+ onClick={(e) => {
+ e.stopPropagation();
+ p.onSelect();
       }}
     >
-      {p.variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
+      {p.variant.variantLabel || t3({ en:"Default", fr:"Par défaut", pt:"Predefinição"})}
     </div>
   );
 }

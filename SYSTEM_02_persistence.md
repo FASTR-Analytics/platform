@@ -139,7 +139,7 @@ connection can write freely, and the flag merely **doubles** the pooled
 connections per database (a `_READ_ONLY` and a `_READ_AND_WRITE` entry, up to 20
 each — size Postgres `max_connections` accordingly). Treat the parameter as
 cache-namespacing, not a safety boundary (decision tracked as
-PLAN_DOC_ENFORCEMENT item 15).
+PLAN_ENFORCEMENT item 15).
 
 ## The canonical DB-function shape
 
@@ -253,7 +253,7 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   **only** sanctioned manual escaper, used for hand-built `VALUES` tuples in the
   bulk paths (the HFA dataset functions and the HFA staging worker). The
   HMIS/structure staging paths still inline their own `''`-doubling — one shared
-  helper + a ban on manual tuple escaping is PLAN_DOC_ENFORCEMENT item 6.
+  helper + a ban on manual tuple escaping is PLAN_ENFORCEMENT item 6.
 - **`.unsafe()`** runs raw SQL with no parameterization — ~20 call sites, all
   trusted-internal, in four groups: (1) the **bulk ingest paths** (S6-owned:
   `datasets_in_project_{hfa,hmis,iceh}.ts`, `instance/dataset_{hfa,hmis}.ts`,
@@ -383,7 +383,7 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   attempts) against a specific table. There are **7 near-identical copies**
   (deck/slide/report/presentation-object/dashboard/dashboard-item/
   dashboard-item-group) differing only by table name — consolidation is
-  PLAN_DOC_ENFORCEMENT item 16. (Projects/folders/tokens use
+  PLAN_ENFORCEMENT item 16. (Projects/folders/tokens use
   `crypto.randomUUID()` instead.)
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
   log/usage families predate it (`AddLog`, `GetLogs`, `SetUserUnlimitedAi`,
@@ -416,7 +416,7 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   dump's stored-JSON shapes stay stale until the next server restart.
 - The restore body's fresh `getPgConnection(projectId)` pool is never `.end()`ed
   — one leaked pool per restore.
-- Tracked in PLAN_DOC_ENFORCEMENT: one bulk-escape helper + ban hand-built
+- Tracked in PLAN_ENFORCEMENT: one bulk-escape helper + ban hand-built
   `VALUES` (item 6), decide the `READ_ONLY` flag (item 15), consolidate
   `generateUnique*Id` — now 7 copies (item 16).
 - Standardize the PascalCase DB-function stragglers to camelCase.

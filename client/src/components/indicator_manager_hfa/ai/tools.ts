@@ -449,11 +449,18 @@ export function buildHfaIndicatorTools() {
           const v = computeIndicatorValidation(codeByVar.get(ind.varName) ?? [], dict, other, ind.type);
           return { varName: ind.varName, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent, issues: v.issues };
         });
+        const withIssues = results.filter((r) => r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0);
+        const confirmed = await confirmGate({
+          title: "Save validation status",
+          text: `Save the computed ready/error status for ${results.length} indicator(s)? (${withIssues.length} with issues)`,
+          confirmButtonLabel: "Save",
+        });
+        if (!confirmed) return { applied: false, reason: "User cancelled — validation was computed but not saved.", validated: results.length, withIssues };
         const persistRes = await serverActions.bulkUpdateHfaIndicatorValidation({
           updates: results.map((r) => ({ varName: r.varName, hasSyntaxError: r.hasSyntaxError, codeConsistent: r.codeConsistent })),
         });
         if (!persistRes.success) throw new Error("Validation was computed but could not be saved.");
-        return { validated: results.length, withIssues: results.filter((r) => r.hasSyntaxError || !r.codeConsistent || r.issues.length > 0) };
+        return { validated: results.length, withIssues };
       },
       inProgressLabel: () => "Validating r-code...",
       completionMessage: (input) => (input.varNames ? `Validated ${input.varNames.length} indicator(s)` : "Validated all indicators"),

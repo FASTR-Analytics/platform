@@ -295,6 +295,10 @@ function getModeInstructions(aiContext: AIContext): string {
       return getViewingModulesInstructions();
     case "viewing_settings":
       return getViewingSettingsInstructions();
+    case "viewing_dashboards":
+      return getViewingDashboardsInstructions();
+    case "viewing_cache":
+      return getViewingCacheInstructions();
     case "editing_slide_deck":
       return getEditingSlideDeckInstructions(aiContext.deckLabel);
     case "editing_slide":
@@ -470,6 +474,36 @@ function getViewingSettingsInstructions(): string {
   return `# Current View: Project Settings
 
 The user is viewing project settings (users, roles, configuration).
+
+## Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Answer questions about the project
+- Help with data exploration or analysis`;
+}
+
+function getViewingDashboardsInstructions(): string {
+  return `# Current View: Dashboards
+
+The user is viewing the project's dashboards.
+
+## Available Tools
+
+${getAllToolsList()}
+
+## Actions
+
+- Answer questions about the project
+- Help with data exploration or analysis`;
+}
+
+function getViewingCacheInstructions(): string {
+  return `# Current View: Cache (developer tab)
+
+The user is viewing the developer cache tab.
 
 ## Available Tools
 

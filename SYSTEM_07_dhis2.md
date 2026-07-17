@@ -254,7 +254,7 @@ carry en/fr/pt.
   CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
-  the structured fields (also PLAN_DOC_ENFORCEMENT item 13).
+  the structured fields.
 - The structure stager's inline org-unit paging (S5 file,
   `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
   fetcher that doesn't exist yet.

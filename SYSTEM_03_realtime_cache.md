@@ -149,7 +149,7 @@ wrappers: `notifyProjectConfigUpdated`, `notifyProjectModulesUpdated`,
 `notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~46 call sites,
 re-exported via `task_management/mod.ts`) → `notifyProjectLastUpdatedV2` (no
 other callers) → `notifyProjectV2({ type: "last_updated", … })`. Three layers
-for one event — collapse tracked as PLAN_DOC_ENFORCEMENT item 12. For now:
+for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now:
 **call `notifyLastUpdated`** from routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
@@ -187,7 +187,7 @@ clients and caches stale with no error.
   items).
 - Vestigial `_v2` on the project route path, channel string, filename, and
   `notifyProjectLastUpdatedV2` — no v1 survives; the instance side has no
-  suffix. Don't extend the pattern (PLAN_DOC_ENFORCEMENT item 21).
+  suffix. Don't extend the pattern (PLAN_ENFORCEMENT item 21).
 - The two client consumers diverge on reconnect and parsing: instance
   `_MAX_CONNECTION_ATTEMPTS = 5` + raw `JSON.parse`; project
   `MAX_CONNECTION_ATTEMPTS = 3` + `parseJsonOrThrow` (Open items).
@@ -269,7 +269,7 @@ and each layer has a distinct job:
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
 replicant_opts); unifying them behind a shared key-builder is
-PLAN_DOC_ENFORCEMENT item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
+PLAN_ENFORCEMENT item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
 `ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 (tombstone comment in
 `dataset.ts`): once the HMIS display route's vizItems moved to the import
 ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
@@ -345,7 +345,7 @@ bump.
   `last_updated → notify` triangle is enforced by hand in ~26 files. A
   write-helper that does mutate + stamp + notify together (or a dev assertion
   flagging mutations without a notify) would make audit §4.3.1 mechanical.
-- Tracked in PLAN_DOC_ENFORCEMENT: collapse the notify indirection (item 12),
+- Tracked in PLAN_ENFORCEMENT: collapse the notify indirection (item 12),
   shared cache key-builder + one separator (item 9), retire vestigial `_v2`
   naming (item 21 sweep).
 - Factor one canonical SSE connection helper (subscribe-before-build, drain,

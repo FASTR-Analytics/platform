@@ -1,20 +1,20 @@
-import { inferPeriodFormatFromValue, PeriodBounds, PeriodFilter, t3 } from "lib";
+import { inferPeriodFormatFromValue, PeriodBounds, PeriodFilter, t3 } from"lib";
 import {
-  AlertComponentProps,
-  AlertFormHolder,
-  Checkbox,
-  RadioGroup,
-  Slider,
-  createFormAction,
-} from "panther";
-import { createSignal, Match, Show, Switch } from "solid-js";
-import { createStore, unwrap } from "solid-js/store";
-import { serverActions } from "~/server_actions";
+ AlertComponentProps,
+ AlertFormHolder,
+ Checkbox,
+ RadioGroup,
+ Slider,
+ createFormAction,
+} from"panther";
+import { createSignal, Match, Show, Switch } from"solid-js";
+import { createStore, unwrap } from"solid-js/store";
+import { serverActions } from"~/server_actions";
 
 type Props = {
-  projectId: string;
-  visualizationIds: string[];
-  periodBounds?: PeriodBounds;
+ projectId: string;
+ visualizationIds: string[];
+ periodBounds?: PeriodBounds;
 };
 
 type ReturnType = { lastUpdated: string } | undefined;
@@ -23,105 +23,105 @@ type ReturnType = { lastUpdated: string } | undefined;
 // between relative and bounded filter types without losing slider state.
 // Converted to a clean PeriodFilter on save.
 type EditableFilter = {
-  filterType: NonNullable<PeriodFilter>["filterType"];
-  nMonths?: number;
-  nYears?: number;
-  nQuarters?: number;
-  min: number;
-  max: number;
+ filterType: NonNullable<PeriodFilter>["filterType"];
+ nMonths?: number;
+ nYears?: number;
+ nQuarters?: number;
+ min: number;
+ max: number;
 };
 
 function toPeriodFilter(e: EditableFilter): NonNullable<PeriodFilter> {
-  switch (e.filterType) {
-    case "custom":
-    case "from_month":
-      return {
-        filterType: e.filterType,
-        min: e.min,
-        max: e.max,
+ switch (e.filterType) {
+ case"custom":
+ case"from_month":
+ return {
+ filterType: e.filterType,
+ min: e.min,
+ max: e.max,
       };
-    case "last_n_months":
-      return { filterType: e.filterType, nMonths: e.nMonths ?? 12 };
-    case "last_n_calendar_years":
-      return { filterType: e.filterType, nYears: e.nYears ?? 1 };
-    case "last_n_calendar_quarters":
-      return { filterType: e.filterType, nQuarters: e.nQuarters ?? 4 };
-    case "last_calendar_year":
-      return { filterType: e.filterType };
-    case "last_calendar_quarter":
-      return { filterType: e.filterType };
+ case"last_n_months":
+ return { filterType: e.filterType, nMonths: e.nMonths ?? 12 };
+ case"last_n_calendar_years":
+ return { filterType: e.filterType, nYears: e.nYears ?? 1 };
+ case"last_n_calendar_quarters":
+ return { filterType: e.filterType, nQuarters: e.nQuarters ?? 4 };
+ case"last_calendar_year":
+ return { filterType: e.filterType };
+ case"last_calendar_quarter":
+ return { filterType: e.filterType };
   }
 }
 
 export function EditCommonPropertiesModal(
-  p: AlertComponentProps<Props, ReturnType>
+ p: AlertComponentProps<Props, ReturnType>
 ) {
-  const [enablePeriodFilter, setEnablePeriodFilter] = createSignal(false);
+ const [enablePeriodFilter, setEnablePeriodFilter] = createSignal(false);
 
-  const [tempPeriodFilter, setTempPeriodFilter] = createStore<EditableFilter>({
-    filterType: "last_n_months",
-    nMonths: 12,
-    min: p.periodBounds?.min ?? 0,
-    max: p.periodBounds?.max ?? 100,
+ const [tempPeriodFilter, setTempPeriodFilter] = createStore<EditableFilter>({
+ filterType:"last_n_months",
+ nMonths: 12,
+ min: p.periodBounds?.min ?? 0,
+ max: p.periodBounds?.max ?? 100,
   });
 
-  const save = createFormAction(
-    async (e: MouseEvent) => {
-      e.preventDefault();
+ const save = createFormAction(
+ async (e: MouseEvent) => {
+ e.preventDefault();
 
-      if (!enablePeriodFilter()) {
-        return { success: false, err: "No properties selected to update" };
+ if (!enablePeriodFilter()) {
+ return { success: false, err:"No properties selected to update"};
       }
 
-      const result = await serverActions.batchUpdatePresentationObjectsPeriodFilter(
+ const result = await serverActions.batchUpdatePresentationObjectsPeriodFilter(
         {
-          projectId: p.projectId,
-          presentationObjectIds: p.visualizationIds,
-          periodFilter: toPeriodFilter(unwrap(tempPeriodFilter)),
+ projectId: p.projectId,
+ presentationObjectIds: p.visualizationIds,
+ periodFilter: toPeriodFilter(unwrap(tempPeriodFilter)),
         }
       );
 
-      if (!result.success) {
-        return result;
+ if (!result.success) {
+ return result;
       }
 
-      return { success: true, data: { lastUpdated: result.data.lastUpdated } };
+ return { success: true, data: { lastUpdated: result.data.lastUpdated } };
     },
     (data) => {
-      if (data) {
-        p.close({ lastUpdated: data.lastUpdated });
+ if (data) {
+ p.close({ lastUpdated: data.lastUpdated });
       }
     }
   );
 
-  const header = t3({ en: `Edit common properties for ${p.visualizationIds.length} visualizations`, fr: `Modifier les propriétés communes de ${p.visualizationIds.length} visualisations`, pt: `Editar propriedades comuns de ${p.visualizationIds.length} visualizações` });
+ const header = t3({ en:`Edit common properties for ${p.visualizationIds.length} visualizations`, fr:`Modifier les propriétés communes de ${p.visualizationIds.length} visualisations`, pt:`Editar propriedades comuns de ${p.visualizationIds.length} visualizações`});
 
-  return (
+ return (
     <AlertFormHolder
-      formId="edit-common-properties"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={!enablePeriodFilter()}
+ formId="edit-common-properties"
+ header={header}
+ savingState={save.state()}
+ saveFunc={save.click}
+ cancelFunc={() => p.close(undefined)}
+ disableSaveButton={!enablePeriodFilter()}
     >
       <div class="space-y-4">
         <div class="text-sm text-base-content-muted">
-          {t3({ en: `Changes will be applied to all ${p.visualizationIds.length} selected visualizations.`, fr: `Les modifications seront appliquées aux ${p.visualizationIds.length} visualisations sélectionnées.`, pt: `As alterações serão aplicadas a todas as ${p.visualizationIds.length} visualizações selecionadas.` })}
+          {t3({ en:`Changes will be applied to all ${p.visualizationIds.length} selected visualizations.`, fr:`Les modifications seront appliquées aux ${p.visualizationIds.length} visualisations sélectionnées.`, pt:`As alterações serão aplicadas a todas as ${p.visualizationIds.length} visualizações selecionadas.`})}
         </div>
 
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3({ en: "Update period filter", fr: "Mettre à jour le filtre de période", pt: "Atualizar filtro de período" })}
-            checked={enablePeriodFilter()}
-            onChange={(checked) => {
-              setEnablePeriodFilter(checked);
-              if (checked && p.periodBounds) {
-                setTempPeriodFilter({
-                  filterType: "last_n_months",
-                  nMonths: 12,
-                  min: p.periodBounds.min,
-                  max: p.periodBounds.max,
+ label={t3({ en:"Update period filter", fr:"Mettre à jour le filtre de période", pt:"Atualizar filtro de período"})}
+ checked={enablePeriodFilter()}
+ onChange={(checked) => {
+ setEnablePeriodFilter(checked);
+ if (checked && p.periodBounds) {
+ setTempPeriodFilter({
+ filterType:"last_n_months",
+ nMonths: 12,
+ min: p.periodBounds.min,
+ max: p.periodBounds.max,
                 });
               }
             }}
@@ -129,223 +129,223 @@ export function EditCommonPropertiesModal(
 
           <Show when={enablePeriodFilter() && p.periodBounds} keyed>
             {(keyedBounds) => {
-              const displayFilterType = () => {
-                const ft = tempPeriodFilter.filterType;
-                if (ft === "last_calendar_year") return "last_n_calendar_years";
-                if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
-                return ft;
+ const displayFilterType = () => {
+ const ft = tempPeriodFilter.filterType;
+ if (ft ==="last_calendar_year") return"last_n_calendar_years";
+ if (ft ==="last_calendar_quarter") return"last_n_calendar_quarters";
+ return ft;
               };
-              const periodOption = inferPeriodFormatFromValue(keyedBounds.min);
-              return (
+ const periodOption = inferPeriodFormatFromValue(keyedBounds.min);
+ return (
                 <div class="ui-spy-sm pb-4 pl-4">
                   <RadioGroup
-                    value={displayFilterType()}
-                    options={
-                      periodOption === "year"
+ value={displayFilterType()}
+ options={
+ periodOption ==="year"
                         ? [
                           {
-                            value: "last_n_months",
-                            label: t3({ en: "Last year", fr: "Dernière année", pt: "Último ano" }),
+ value:"last_n_months",
+ label: t3({ en:"Last year", fr:"Dernière année", pt:"Último ano"}),
                           },
                           {
-                            value: "custom",
-                            label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
+ value:"custom",
+ label: t3({ en:"Custom", fr:"Personnalisé", pt:"Personalizado"}),
                           },
                         ]
-                        : periodOption === "quarter_id"
+                        : periodOption ==="quarter_id"
                           ? [
                             {
-                              value: "last_n_months",
-                              label: t3({ en: "Last N quarters", fr: "Derniers N trimestres", pt: "Últimos N trimestres" }),
+ value:"last_n_months",
+ label: t3({ en:"Last N quarters", fr:"Derniers N trimestres", pt:"Últimos N trimestres"}),
                             },
                             {
-                              value: "from_month",
-                              label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique", pt: "A partir de um trimestre específico" }),
+ value:"from_month",
+ label: t3({ en:"From specific quarter", fr:"À partir d'un trimestre spécifique", pt:"A partir de um trimestre específico"}),
                             },
                             {
-                              value: "custom",
-                              label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
+ value:"custom",
+ label: t3({ en:"Custom", fr:"Personnalisé", pt:"Personalizado"}),
                             },
                           ]
                           : [
                             {
-                              value: "last_n_months",
-                              label: t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" }),
+ value:"last_n_months",
+ label: t3({ en:"Last N months", fr:"Derniers N mois", pt:"Últimos N meses"}),
                             },
                             {
-                              value: "from_month",
-                              label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui", pt: "A partir de um mês específico até ao presente" }),
+ value:"from_month",
+ label: t3({ en:"From specific month to present", fr:"À partir d'un mois spécifique jusqu'à aujourd'hui", pt:"A partir de um mês específico até ao presente"}),
                             },
                             {
-                              value: "last_n_calendar_years",
-                              label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes", pt: "Últimos N anos civis completos" }),
+ value:"last_n_calendar_years",
+ label: t3({ en:"Last N full calendar years", fr:"Dernières N années civiles complètes", pt:"Últimos N anos civis completos"}),
                             },
                             {
-                              value: "last_n_calendar_quarters",
-                              label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets", pt: "Últimos N trimestres civis completos" }),
+ value:"last_n_calendar_quarters",
+ label: t3({ en:"Last N full calendar quarters", fr:"Derniers N trimestres civils complets", pt:"Últimos N trimestres civis completos"}),
                             },
                             {
-                              value: "custom",
-                              label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
+ value:"custom",
+ label: t3({ en:"Custom", fr:"Personnalisé", pt:"Personalizado"}),
                             },
                           ]
                     }
-                    onChange={(v) => {
-                      setTempPeriodFilter("filterType", v as EditableFilter["filterType"]);
-                      if (v === "last_n_calendar_years") setTempPeriodFilter("nYears", 1);
-                      if (v === "last_n_calendar_quarters") setTempPeriodFilter("nQuarters", 1);
+ onChange={(v) => {
+ setTempPeriodFilter("filterType", v as EditableFilter["filterType"]);
+ if (v ==="last_n_calendar_years") setTempPeriodFilter("nYears", 1);
+ if (v ==="last_n_calendar_quarters") setTempPeriodFilter("nQuarters", 1);
                     }}
                   />
                   <Show
-                    when={
-                      tempPeriodFilter.filterType === "last_n_months" &&
-                      periodOption === "quarter_id"
+ when={
+ tempPeriodFilter.filterType ==="last_n_months"&&
+ periodOption ==="quarter_id"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
-                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 4}</label>
+                    <div class="ui-gap-sm ui-pad rounded border">
+                      <label class="text-sm">{t3({ en:"Number of quarters", fr:"Nombre de trimestres", pt:"Número de trimestres"})}: {tempPeriodFilter.nQuarters ?? 4}</label>
                       <Slider
-                        value={tempPeriodFilter.nQuarters ?? 4}
-                        onChange={(nQuarters) => {
-                          setTempPeriodFilter("nQuarters", nQuarters);
+ value={tempPeriodFilter.nQuarters ?? 4}
+ onChange={(nQuarters) => {
+ setTempPeriodFilter("nQuarters", nQuarters);
                         }}
-                        min={1}
-                        max={20}
-                        step={1}
+ min={1}
+ max={20}
+ step={1}
                       />
                     </div>
                   </Show>
                   <Show
-                    when={
-                      tempPeriodFilter.filterType === "last_n_months" &&
-                      periodOption === "period_id"
+ when={
+ tempPeriodFilter.filterType ==="last_n_months"&&
+ periodOption ==="period_id"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
-                      <label class="text-sm">{t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}: {tempPeriodFilter.nMonths ?? 12}</label>
+                    <div class="ui-gap-sm ui-pad rounded border">
+                      <label class="text-sm">{t3({ en:"Number of months", fr:"Nombre de mois", pt:"Número de meses"})}: {tempPeriodFilter.nMonths ?? 12}</label>
                       <Slider
-                        value={tempPeriodFilter.nMonths ?? 12}
-                        onChange={(nMonths) => {
-                          setTempPeriodFilter("nMonths", nMonths);
+ value={tempPeriodFilter.nMonths ?? 12}
+ onChange={(nMonths) => {
+ setTempPeriodFilter("nMonths", nMonths);
                         }}
-                        min={1}
-                        max={24}
-                        step={1}
+ min={1}
+ max={24}
+ step={1}
                       />
                     </div>
                   </Show>
                   <Show
-                    when={
-                      tempPeriodFilter.filterType === "last_n_calendar_years" ||
-                      tempPeriodFilter.filterType === "last_calendar_year"
+ when={
+ tempPeriodFilter.filterType ==="last_n_calendar_years"||
+ tempPeriodFilter.filterType ==="last_calendar_year"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
-                      <label class="text-sm">{t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}: {tempPeriodFilter.nYears ?? 1}</label>
+                    <div class="ui-gap-sm ui-pad rounded border">
+                      <label class="text-sm">{t3({ en:"Number of years", fr:"Nombre d'années", pt:"Número de anos"})}: {tempPeriodFilter.nYears ?? 1}</label>
                       <Slider
-                        value={tempPeriodFilter.nYears ?? 1}
-                        onChange={(nYears) => {
-                          setTempPeriodFilter("filterType", "last_n_calendar_years");
-                          setTempPeriodFilter("nYears", nYears);
+ value={tempPeriodFilter.nYears ?? 1}
+ onChange={(nYears) => {
+ setTempPeriodFilter("filterType","last_n_calendar_years");
+ setTempPeriodFilter("nYears", nYears);
                         }}
-                        min={1}
-                        max={10}
-                        step={1}
+ min={1}
+ max={10}
+ step={1}
                       />
                     </div>
                   </Show>
                   <Show
-                    when={
-                      tempPeriodFilter.filterType === "last_n_calendar_quarters" ||
-                      tempPeriodFilter.filterType === "last_calendar_quarter"
+ when={
+ tempPeriodFilter.filterType ==="last_n_calendar_quarters"||
+ tempPeriodFilter.filterType ==="last_calendar_quarter"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
-                      <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 1}</label>
+                    <div class="ui-gap-sm ui-pad rounded border">
+                      <label class="text-sm">{t3({ en:"Number of quarters", fr:"Nombre de trimestres", pt:"Número de trimestres"})}: {tempPeriodFilter.nQuarters ?? 1}</label>
                       <Slider
-                        value={tempPeriodFilter.nQuarters ?? 1}
-                        onChange={(nQuarters) => {
-                          setTempPeriodFilter("filterType", "last_n_calendar_quarters");
-                          setTempPeriodFilter("nQuarters", nQuarters);
+ value={tempPeriodFilter.nQuarters ?? 1}
+ onChange={(nQuarters) => {
+ setTempPeriodFilter("filterType","last_n_calendar_quarters");
+ setTempPeriodFilter("nQuarters", nQuarters);
                         }}
-                        min={1}
-                        max={20}
-                        step={1}
+ min={1}
+ max={20}
+ step={1}
                       />
                     </div>
                   </Show>
                   <Show
-                    when={tempPeriodFilter?.filterType === "from_month"}
+ when={tempPeriodFilter?.filterType ==="from_month"}
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
-                      <label class="text-sm">{t3({ en: "Starting period", fr: "Période de début", pt: "Período inicial" })}: {tempPeriodFilter.min}</label>
+                    <div class="ui-gap-sm ui-pad rounded border">
+                      <label class="text-sm">{t3({ en:"Starting period", fr:"Période de début", pt:"Período inicial"})}: {tempPeriodFilter.min}</label>
                       <Slider
-                        value={tempPeriodFilter.min}
-                        onChange={(min) => {
-                          setTempPeriodFilter("min", min);
+ value={tempPeriodFilter.min}
+ onChange={(min) => {
+ setTempPeriodFilter("min", min);
                         }}
-                        min={p.periodBounds?.min ?? 0}
-                        max={p.periodBounds?.max ?? 100}
-                        step={1}
+ min={p.periodBounds?.min ?? 0}
+ max={p.periodBounds?.max ?? 100}
+ step={1}
                       />
                     </div>
                   </Show>
                   <Switch>
                     <Match
-                      when={
-                        tempPeriodFilter?.filterType === "custom" &&
-                        periodOption === "period_id"
+ when={
+ tempPeriodFilter?.filterType ==="custom"&&
+ periodOption ==="period_id"
                       }
                     >
-                      <div class="ui-gap-sm ui-pad border-border rounded border">
-                        <label class="text-sm">{t3({ en: "Start period", fr: "Période de début", pt: "Período de início" })}: {tempPeriodFilter.min}</label>
+                      <div class="ui-gap-sm ui-pad rounded border">
+                        <label class="text-sm">{t3({ en:"Start period", fr:"Période de début", pt:"Período de início"})}: {tempPeriodFilter.min}</label>
                         <Slider
-                          value={tempPeriodFilter.min}
-                          onChange={(min) => {
-                            setTempPeriodFilter("min", min);
+ value={tempPeriodFilter.min}
+ onChange={(min) => {
+ setTempPeriodFilter("min", min);
                           }}
-                          min={p.periodBounds?.min ?? 0}
-                          max={tempPeriodFilter.max}
-                          step={1}
+ min={p.periodBounds?.min ?? 0}
+ max={tempPeriodFilter.max}
+ step={1}
                         />
-                        <label class="text-sm">{t3({ en: "End period", fr: "Période de fin", pt: "Período de fim" })}: {tempPeriodFilter.max}</label>
+                        <label class="text-sm">{t3({ en:"End period", fr:"Période de fin", pt:"Período de fim"})}: {tempPeriodFilter.max}</label>
                         <Slider
-                          value={tempPeriodFilter.max}
-                          onChange={(max) => {
-                            setTempPeriodFilter("max", max);
+ value={tempPeriodFilter.max}
+ onChange={(max) => {
+ setTempPeriodFilter("max", max);
                           }}
-                          min={tempPeriodFilter.min}
-                          max={p.periodBounds?.max ?? 100}
-                          step={1}
+ min={tempPeriodFilter.min}
+ max={p.periodBounds?.max ?? 100}
+ step={1}
                         />
                       </div>
                     </Match>
                     <Match
-                      when={
-                        tempPeriodFilter?.filterType === "custom" &&
-                        periodOption === "year"
+ when={
+ tempPeriodFilter?.filterType ==="custom"&&
+ periodOption ==="year"
                       }
                     >
-                      <div class="ui-gap-sm ui-pad border-border rounded border">
-                        <label class="text-sm">{t3({ en: "Start year", fr: "Année de début", pt: "Ano de início" })}: {tempPeriodFilter.min}</label>
+                      <div class="ui-gap-sm ui-pad rounded border">
+                        <label class="text-sm">{t3({ en:"Start year", fr:"Année de début", pt:"Ano de início"})}: {tempPeriodFilter.min}</label>
                         <Slider
-                          value={tempPeriodFilter.min}
-                          onChange={(min) => {
-                            setTempPeriodFilter("min", min);
+ value={tempPeriodFilter.min}
+ onChange={(min) => {
+ setTempPeriodFilter("min", min);
                           }}
-                          min={p.periodBounds?.min ?? 2000}
-                          max={tempPeriodFilter.max}
-                          step={1}
+ min={p.periodBounds?.min ?? 2000}
+ max={tempPeriodFilter.max}
+ step={1}
                         />
-                        <label class="text-sm">{t3({ en: "End year", fr: "Année de fin", pt: "Ano de fim" })}: {tempPeriodFilter.max}</label>
+                        <label class="text-sm">{t3({ en:"End year", fr:"Année de fin", pt:"Ano de fim"})}: {tempPeriodFilter.max}</label>
                         <Slider
-                          value={tempPeriodFilter.max}
-                          onChange={(max) => {
-                            setTempPeriodFilter("max", max);
+ value={tempPeriodFilter.max}
+ onChange={(max) => {
+ setTempPeriodFilter("max", max);
                           }}
-                          min={tempPeriodFilter.min}
-                          max={p.periodBounds?.max ?? 2030}
-                          step={1}
+ min={tempPeriodFilter.min}
+ max={p.periodBounds?.max ?? 2030}
+ step={1}
                         />
                       </div>
                     </Match>

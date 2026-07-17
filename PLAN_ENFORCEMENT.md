@@ -1,53 +1,38 @@
-# Plan: Make the DOCs & Protocols Enforce, Not Just Describe
+# Plan: Make the System Docs & Protocols Enforce, Not Just Describe
 
-A code-tightening backlog surfaced while writing the server `DOC_*.md` files
-(see the index in `CLAUDE.md`). The docs lean descriptive _as written_; this
+A code-tightening backlog surfaced while writing the server architecture docs
+(then `DOC_*.md`, since consolidated into the `SYSTEM_NN_*.md` files —
+renamed from PLAN_DOC_ENFORCEMENT.md 2026-07-17, item numbers unchanged; 13
+cross-references cite them). The docs lean descriptive _as written_; this
 plan is the work that turns their "Rules" into things that actually fail when
 violated — plus the real defects the review found along the way.
 
+**Status refresh 2026-07-17:** items 3, 14 done; item 11 mostly done; item
+21 partially done — details inline. Everything else verified still open
+against the tree. **Scope ruling (same day): this plan holds only
+cross-cutting enforcement mechanisms and consolidation.** Plain bug fixes
+moved to their owning SYSTEM's Open items: item 1 closed (health read
+surface ruled public-by-design, SYSTEM_15; the mutating reset endpoint got
+its status-api-key guard), item 2 → SYSTEM_08 (boot recovery sweep), item 7
+→ SYSTEM_08 (R interpolation), item 13 → SYSTEM_07 (retry classification).
+Item numbers of remaining entries unchanged (cross-references cite them).
+
 **Framing:** a doc is only a _protocol_ if its rule is backed by a mechanism
 that makes the wrong thing fail (a startup check, a `CHECK` constraint, a lint,
-or a shared helper that removes the choice). Tier 1 is "fix the bug regardless."
-Tier 2 is "add the mechanism that makes a doc enforceable (and kills a bug
-class)." Tier 3 is "consolidate to remove drift risk." Tier 4 is client
-file-organisation alignment to the new
+or a shared helper that removes the choice). Tier 2 is "add the mechanism that
+makes a doc enforceable (and kills a bug class)." Tier 3 is "consolidate to
+remove drift risk." Tier 4 is client file-organisation alignment to
 `panther/protocols/PROTOCOL_UI_STRUCTURE.md`, and a final repo-wide sweep
-applies the new `PROTOCOL_ALL_TYPESCRIPT` code-quality rules.
+applies the `PROTOCOL_ALL_TYPESCRIPT` code-quality rules. (One-off bug fixes
+do NOT live here — they belong to their owning SYSTEM's Open items; the former
+Tier 1 was dissolved accordingly, see the status note above.)
 
-(Tiers 1–3 are server, surfaced by the `DOC_*.md` review; Tier 4 + the sweep
-came out of the frontend/protocol discussion and align the code to the panther
-protocols, client included.)
+(Tiers 2–3 are server, surfaced by the original server-doc review; Tier 4 +
+the sweep came out of the frontend/protocol discussion and align the code to
+the panther protocols, client included.)
 
-Work top-down: Tier 1 → the cheap Tier-2 items (3, 4, 5) → the rest. Each item
-notes the owning doc so the fix and the doc stay in sync.
-
----
-
-## Tier 1 — Real defects (fix regardless of docs)
-
-- [ ] **1. `health.ts` routes have no permission guard.** ~12 routes
-      (`/user_logs`, `/ai_usage`, `/project_activity`, `/pg_stat_statements`, …)
-      plus a **mutating** `POST /pg_stat_statements_reset` are registered raw
-      and sit behind `clerkMiddleware` (which populates, doesn't reject) with no
-      `requireGlobalPermission`. Any logged-in user — any role — can read logs /
-      AI usage / pg stats and reset stats. **Fix:** add
-      `requireGlobalPermission("can_view_logs")` (or `{ requireAdmin: true }`
-      for the reset/pg-stats endpoints) to each route, or move them behind a
-      guarded router. **File:** `server/routes/instance/health.ts`, mounting in
-      `main.ts`. **Doc:**
-      [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md).
-
-- [ ] **2. Module-run liveness: no crash recovery.** (Was three compounding
-      issues; the leaked `projectDb` on the early-return path and the
-      stuck-"running" map entry were fixed in the 2026-07-02 worker-runtime
-      batch — the early return `.end()`s both connections, and the spawn site's
-      `error` listener now feeds `handleModuleTaskEnded`. Verified 2026-07-16.)
-      Remaining:
-  - Nothing re-triggers `dirty='queued'` modules after a crash/deploy (the
-    running map is in-memory; `main.ts` has no resume step). **Fix:** add a
-    startup sweep that calls `triggerRunnableModules` per project. **Files:**
-    `server/task_management/trigger_runnable_tasks.ts`, `main.ts`. **Doc:**
-    [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md).
+Work top-down: the cheap Tier-2 items (4, 5) → the rest. Each item notes the
+owning doc so the fix and the doc stay in sync.
 
 ---
 
@@ -92,17 +77,6 @@ notes the owning doc so the fix and the doc stay in sync.
       [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) (owns the SQL-safety
       rule).
 
-- [ ] **7. Harden R-source interpolation.** The default and HFA script
-      generators interpolate config `text`/`select`/`number` values with bare
-      `'…'` wrapping and no escaping; only the calculated-indicators generator
-      validates identifiers, and `COUNTRY_ISO3` is now format-validated at the
-      write boundary. These strings execute as real R in a container. **Fix:**
-      validate-by-type or escape every interpolated value; factor the
-      triplicated 4-input-type substitution block into one function so quoting
-      can't drift. **Files:**
-      `server/server_only_funcs/get_script_with_parameters*.ts`. **Doc:**
-      [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md).
-
 ---
 
 ## Tier 3 — Consolidation that removes drift risk
@@ -110,7 +84,7 @@ notes the owning doc so the fix and the doc stay in sync.
 - [ ] **8. Shared `runWorker()` wrapper.** The worker-entry preamble
       (`onmessage → run().catch(reportError+close)`, `postMessage("READY")`,
       `alreadyRunning` guard) is hand-copied into 6 worker files with subtle
-      divergence. Factor it; pairs with the `finally`-teardown fix in item 2.
+      divergence. Factor it (the companion teardown fixes shipped 2026-07-02).
       **Files:** `server/worker_routines/*/worker.ts`,
       `instantiate_worker_generic.ts`. **Doc:**
       [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md).
@@ -132,13 +106,14 @@ notes the owning doc so the fix and the doc stay in sync.
       `server/server_only_funcs_presentation_objects/{get_possible_values,get_period_bounds,cte_manager}.ts`.
       **Doc:** [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md).
 
-- [ ] **11. Ban raw `Deno.env.get` outside `exposed_env_vars.ts`.** The AI proxy
-      and files routes re-read `ANTHROPIC_API_KEY` raw (4 sites) and hardcode
-      the Anthropic URL, despite `_ANTHROPIC_API_KEY` / `_ANTHROPIC_API_URL`
-      being exported and validated at boot. **Fix:** use the `_`-prefixed
-      exports; add a lint/grep rule against `Deno.env.get` outside
-      `exposed_env_vars.ts`. **Files:**
-      `server/routes/project/{ai_proxy,ai_files}.ts`. **Docs:**
+- [ ] **11. Ban raw `Deno.env.get` outside `exposed_env_vars.ts`.** MOSTLY
+      DONE (verified 2026-07-17): the four AI-route sites now use
+      `_ANTHROPIC_API_KEY`. Remaining: two stragglers
+      (`server/middleware/cors.ts` reads `CLIENT_ORIGIN`,
+      `server/valkey/connection.ts` reads `VALKEY_URL` — move both into
+      `exposed_env_vars.ts`) and the enforcement mechanism itself (lint/grep
+      rule against `Deno.env.get` outside `exposed_env_vars.ts`) was never
+      added. **Docs:** [SYSTEM_00_kernel.md](SYSTEM_00_kernel.md),
       [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
 
 - [ ] **12. Collapse the `notify_last_updated` indirection.**
@@ -167,7 +142,9 @@ notes the owning doc so the fix and the doc stay in sync.
       **its feature folder** if it's single-area (e.g.
       `ReplicateByOptions`/`WindowingSelector` → `visualization/`), or to
       **`_shared/`** if genuinely cross-area (`PeriodSelector`,
-      `NotAvailableBox`). "Loose at root" is not a location. **Files:**
+      `NotAvailableBox`). Exception: `PasswordGate` is dead code (SYSTEM_12
+      Open items) — delete it, don't relocate it. "Loose at root" is not a
+      location. **Files:**
       `client/src/components/`. **Protocol:** `PROTOCOL_UI_STRUCTURE` (rules
       2–3, "where does X go?" table).
 
@@ -187,10 +164,12 @@ notes the owning doc so the fix and the doc stay in sync.
 ## Repo-wide — code-quality rule sweep (client + server)
 
 - [ ] **21. Sweep for the new `PROTOCOL_ALL_TYPESCRIPT` rules 14–16.**
+      (Partially done, verified 2026-07-17:
+      `QueryConfigV2`/`buildCombinedQueryV2` no longer exist anywhere.)
   - **No vestigial versioning:** `_v2` SSE route/channel/file +
-    `notifyProjectLastUpdatedV2`, `QueryConfigV2`/`buildCombinedQueryV2` (+
-    "identical to v1" comments), `goal1_org_units_v2` — rename to the unsuffixed
-    name with a deliberate one-time migration; check the client for `vN` too.
+    `notifyProjectLastUpdatedV2`, `goal1_org_units_v2` (dhis2) — rename to the
+    unsuffixed name with a deliberate one-time migration; check the client for
+    `vN` too.
   - **No dead code:** delete commented-out back-compat functions and "old
     version" breadcrumbs (notably in the PO query pipeline).
   - **No silent failures:** the scattered `.catch(() => {})` — await, or log the
@@ -201,9 +180,6 @@ notes the owning doc so the fix and the doc stay in sync.
 
 ## Smaller / lower-priority
 
-- [ ] **13. DHIS2 retry off `error.status`, not `error.message` substring**
-      (`retry_utils.ts` — works today, brittle). **Doc:**
-      [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md).
 - [x] **14. Gate DHIS2 worker credential/URL logging** — RESOLVED: the HMIS
       DHIS2 staging worker no longer logs credentials and routes analytics
       through `getAnalyticsFromDHIS2` (verified 2026-07-14); the remaining
@@ -219,26 +195,25 @@ notes the owning doc so the fix and the doc stay in sync.
 
 ## Summary
 
-| #     | Item                                                              | Tier | Owning doc                       | Effort |
-| ----- | ----------------------------------------------------------------- | ---- | -------------------------------- | ------ |
-| 1     | Guard `health.ts` routes                                          | 1    | ACCESS_CONTROL                   | S      |
-| 2     | Module-run crash recovery (leak + stuck-running fixed 2026-07-02) | 1    | SYSTEM_08                        | S      |
-| 3     | `validateAllRoutesDefined` fails not warns                        | 2    | API_ROUTES                       | S      |
-| 4     | Startup guard-audit                                               | 2    | ACCESS_CONTROL                   | M      |
-| 5     | `CHECK` on `modules.dirty`                                        | 2    | SYSTEM_08                        | S      |
-| 6     | One bulk-escape helper                                            | 2    | IMPORT_PIPELINE, DB_ACCESS_LAYER | M      |
-| 7     | Harden R-source interpolation                                     | 2    | SYSTEM_08                        | M      |
-| 8     | Shared `runWorker()` wrapper                                      | 3    | APP_WORKER_ROUTINES              | M      |
-| 9     | Shared cache key-builder / separator                              | 3    | VALKEY_CACHE                     | M      |
-| 10    | CTEs through `CTEManager`                                         | 3    | PO_QUERY_PIPELINE                | M      |
-| 11    | Ban raw `Deno.env.get`                                            | 3    | AI_PROXY                         | S      |
-| 12    | Collapse notify indirection                                       | 3    | SSE_REALTIME                     | S      |
-| 13–16 | Smaller items                                                     | —    | various                          | S      |
-| 18    | Relocate loose-at-root components                                 | 4    | UI_STRUCTURE                     | M      |
-| 19    | Collapse `instance_dataset_*`                                     | 4    | UI_STRUCTURE                     | M      |
-| 20    | snake_case component filenames                                    | 4    | UI_STRUCTURE / TYPESCRIPT        | S      |
-| 21    | Code-quality rule sweep (14–16)                                   | repo | ALL_TYPESCRIPT                   | M      |
+(Items 1, 2, 7, 13 no longer live here — closed or moved to SYSTEM Open
+items, see the status note. Numbering is stable; 17 never existed.)
 
-**Suggested first branch:** items 1, 2, 3, 4, 5 — the defects plus the cheap
-enforcement mechanisms, where "documented → enforced" is a small diff with
-outsized payoff.
+| #     | Item                                                       | Tier | Owning doc                   | Effort |
+| ----- | ---------------------------------------------------------- | ---- | ---------------------------- | ------ |
+| 3     | `validateAllRoutesDefined` fails not warns (done)          | 2    | SYSTEM_01                    | —      |
+| 4     | Startup guard-audit                                        | 2    | SYSTEM_01                    | M      |
+| 5     | `CHECK` on `modules.dirty`                                 | 2    | SYSTEM_08                    | S      |
+| 6     | One bulk-escape helper                                     | 2    | SYSTEM_06, SYSTEM_02         | M      |
+| 8     | Shared `runWorker()` wrapper                               | 3    | PROTOCOL_APP_WORKER_ROUTINES | M      |
+| 9     | Shared cache key-builder / separator                       | 3    | SYSTEM_03                    | M      |
+| 10    | CTEs through `CTEManager`                                  | 3    | SYSTEM_09                    | M      |
+| 11    | Ban raw `Deno.env.get` (mostly done — 2 stragglers + lint) | 3    | SYSTEM_00, SYSTEM_13         | S      |
+| 12    | Collapse notify indirection                                | 3    | SYSTEM_03                    | S      |
+| 14–16 | Smaller items (14 done)                                    | —    | various                      | S      |
+| 18    | Relocate loose-at-root components                          | 4    | PROTOCOL_UI_STRUCTURE        | M      |
+| 19    | Collapse `instance_dataset_*`                              | 4    | PROTOCOL_UI_STRUCTURE        | M      |
+| 20    | snake_case component filenames                             | 4    | PROTOCOL_UI_STRUCTURE        | S      |
+| 21    | Code-quality rule sweep (14–16, partial)                   | repo | PROTOCOL_ALL_TYPESCRIPT      | M      |
+
+**Suggested first branch:** items 4 and 5 — the cheap enforcement mechanisms,
+where "documented → enforced" is a small diff with outsized payoff.
