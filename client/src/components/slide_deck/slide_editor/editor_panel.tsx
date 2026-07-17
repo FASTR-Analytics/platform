@@ -31,7 +31,7 @@ type Props = {
 
 export function SlideEditorPanel(p: Props) {
   return (
-    <div class="flex h-full flex-col overflow-auto border-r border-base-content">
+    <div class="flex h-full flex-col overflow-auto border-r border-base-content dark:border-base-300">
       <Switch>
         <Match when={p.tempSlide.type === "cover"}>
           <SlideEditorPanelCover

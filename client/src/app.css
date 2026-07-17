@@ -72,6 +72,52 @@
   --color-danger-content: #450a0a;
 }
 
+/* Opt-in dark-mode variant for one-off utility overrides (e.g.
+   dark:border-base-300). Matches the same data-theme attribute t4_ui sets. */
+@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
+
+/* Inverted "dark ribbon" surfaces — the project page header and panther's
+   HeadingBarMainRibbon / Tooltip pair bg-base-content with text-base-100 to
+   make a dark bar with light text. In dark mode base-content flips to
+   near-white, which would turn these bars solid white. Re-invert the two base
+   vars locally so the bar stays dark and descendants (base-100-intent
+   buttons, focus ring offsets) keep their light-mode semantics on top of it.
+   Panther is external, so this contextual override lives here. */
+:root[data-theme="dark"] .bg-base-content.text-base-100 {
+  --color-base-100: #fafafa;
+  --color-base-content: #27272a;
+}
+
+/* CodeMirror editors (slide text fields, report editor, version diffs) ship
+   light-theme defaults: white background, black caret, light-gray selection
+   and gutter. Retheme those from the tokens in dark mode. Selector depth is
+   deliberate — CM injects its own stylesheets at runtime, so these need to
+   out-rank .ͼ*-class rules of the same layer. Syntax-highlight token colors
+   stay CM's light-theme defaults (markdown markers/links dim slightly). */
+:root[data-theme="dark"] .cm-editor {
+  background-color: var(--color-base-100);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+:root[data-theme="dark"] .cm-editor .cm-cursor,
+:root[data-theme="dark"] .cm-editor .cm-dropCursor {
+  border-left-color: var(--color-base-content);
+}
+:root[data-theme="dark"] .cm-editor .cm-selectionLayer .cm-selectionBackground {
+  background-color: var(--color-base-300);
+}
+:root[data-theme="dark"] .cm-editor .cm-gutters {
+  background-color: var(--color-base-200);
+  color: var(--color-neutral);
+  border-right-color: var(--color-base-300);
+}
+:root[data-theme="dark"] .cm-editor .cm-activeLine {
+  background-color: color-mix(in srgb, var(--color-base-content) 6%, transparent);
+}
+:root[data-theme="dark"] .cm-editor .cm-activeLineGutter {
+  background-color: transparent;
+}
+
 @layer base {
   /* Fira Sans */
   @font-face {

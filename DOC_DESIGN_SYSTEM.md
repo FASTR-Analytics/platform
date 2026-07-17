@@ -118,6 +118,31 @@ slides, and exports keep their light document styling.
 When adding a new `--color-*` token to the `@theme` block, add its dark
 counterpart to the `:root[data-theme="dark"]` block too.
 
+Supporting rules in `app.css` (all `:root[data-theme="dark"]`-scoped):
+
+- **`dark:` variant** — a `@custom-variant dark` keyed to the same
+  `data-theme` attribute, for one-off overrides like `dark:border-base-300`
+  where a class reads as "strong dark" in light mode but glaring white in
+  dark.
+- **Inverted ribbons** — surfaces that pair `bg-base-content` with
+  `text-base-100` (project page header, panther's `HeadingBarMainRibbon` and
+  `Tooltip`) would flip to white-on-white. A contextual rule re-inverts the
+  two base vars inside `.bg-base-content.text-base-100`, so those bars stay
+  dark and `base-100`-intent buttons inside them keep working. Prefer this
+  class pair for any new inverted surface so it inherits the fix.
+- **CodeMirror** — CM ships light-theme internals (white background, black
+  caret, light selection/gutter). A `.cm-editor` block rethemes them from
+  tokens; per-editor `EditorView.theme` blocks should not hardcode colors
+  beyond what's already there.
+
+Theme-blind styling rules: never use the static Tailwind palette
+(`gray-*`/`neutral-200`/`bg-white`) for app UI — use tokens. `text-white` /
+`bg-white` are acceptable only on fixed-color surfaces (identity-color
+badges, document thumbnails, the login brand panel — which pins `text-black`
+for the same reason). Pair intent backgrounds with their `-content` color
+(`bg-danger text-danger-content`), not `text-white`, so contrast survives the
+lighter dark-mode intent colors.
+
 ---
 
 ## Typography

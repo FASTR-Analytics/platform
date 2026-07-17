@@ -201,10 +201,12 @@ function ClerkNewLogin() {
           <Show when={meta()}>
             {(m) => (
               <div>
-                <div class="text-base-content font-800 text-5xl leading-tight">
+                {/* Fixed light brand panel — pin static dark text so dark
+                    mode's light base-content doesn't wash it out. */}
+                <div class="text-black font-800 text-5xl leading-tight">
                   {m().instanceName}
                 </div>
-                <div class="text-base-content/50 mt-3 text-lg">
+                <div class="text-black/50 mt-3 text-lg">
                   {t3({
                     en: "Analytics platform",
                     fr: "Plateforme analytique",
