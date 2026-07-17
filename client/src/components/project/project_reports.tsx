@@ -474,7 +474,7 @@ export function ProjectReports(p: ExtendedProps) {
                     {report.label}
                   </div>
                   <div
-                    class="relative border rounded overflow-clip bg-white cursor-pointer"
+                    class="relative border rounded overflow-clip bg-base-100 cursor-pointer"
                     classList={{
                       "border-base-300": !isSelected(),
                       "border-primary": isSelected(),
@@ -502,7 +502,7 @@ export function ProjectReports(p: ExtendedProps) {
                       />
                     </div>
                     <div
-                      class="bg-white overflow-hidden p-4"
+                      class="bg-base-100 overflow-hidden p-4"
                       style={{ "aspect-ratio": "16/9" }}
                     >
                       <Show
