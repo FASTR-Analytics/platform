@@ -2,10 +2,13 @@ import { minimalSetup } from "codemirror";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { createEffect, onCleanup } from "solid-js";
+import { darkMode } from "~/state/t4_ui";
 
 // A CodeMirror markdown/plain editor bound directly to a Y.Text via
 // y-codemirror.next. It renders remote collaborators' carets and selections
@@ -187,6 +190,37 @@ export function attachSelectionNameHover(
   };
 }
 
+// The setups bundle defaultHighlightStyle as a FALLBACK highlighter, and its
+// markdown token colors assume a light background — the #/-/*/> marks come out
+// near-black and vanish on dark bases. In dark mode we add this non-fallback
+// highlighter (which then fully replaces the default one; uncovered tags
+// inherit the editor's text color). CSS vars keep it in sync with app.css.
+const darkMarkdownHighlight = HighlightStyle.define([
+  {
+    tag: [
+      tags.processingInstruction,
+      tags.meta,
+      tags.punctuation,
+      tags.labelName,
+      tags.string,
+      tags.contentSeparator,
+      tags.quote,
+    ],
+    color: "var(--color-neutral)",
+  },
+  { tag: tags.heading, fontWeight: "bold" },
+  { tag: [tags.link, tags.url], color: "var(--color-primary)" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strong, fontWeight: "bold" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+]);
+
+// Reads the darkMode signal — call inside a tracked scope (the effect that
+// builds the EditorView) so a theme toggle rebuilds the editor.
+export function darkMarkdownExtensions() {
+  return darkMode() ? [syntaxHighlighting(darkMarkdownHighlight)] : [];
+}
+
 function buildExtensions(
   yText: Y.Text,
   awareness: Awareness,
@@ -198,6 +232,7 @@ function buildExtensions(
     // yCollab's per-user undo takes precedence over the base keymap.
     keymap.of([...yUndoManagerKeymap]),
     minimalSetup,
+    ...darkMarkdownExtensions(),
     ...(plain ? [] : [markdown()]),
     // View-only users get a read-only editor: their keystrokes would otherwise
     // flow into the local doc, be rejected server-side ("No edit permission"),

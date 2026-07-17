@@ -118,6 +118,33 @@
   background-color: transparent;
 }
 
+/* HTML-rendered markdown (panther's AI chat renderers and
+   MarkdownPresentationJsx) colors its text via inline --md-* vars derived
+   from the static light document style — near-black, invisible on dark
+   surfaces. For markdown that is app UI (chat messages, dashboard summaries)
+   wrap the mount in .md-dark-adapt: this re-points the vars on descendants
+   (an element's own var value beats an ancestor's inline one). Markdown that
+   is a document preview (report View pane) should instead stay on a pinned
+   bg-white paper and keep its document colors. */
+:root[data-theme="dark"] .md-dark-adapt * {
+  --md-p-color: var(--color-base-content);
+  --md-h1-color: var(--color-base-content);
+  --md-h2-color: var(--color-base-content);
+  --md-h3-color: var(--color-base-content);
+  --md-h4-color: var(--color-base-content);
+  --md-h5-color: var(--color-base-content);
+  --md-h6-color: var(--color-base-content);
+  --md-list-color: var(--color-base-content);
+  --md-bq-color: var(--color-base-content);
+  --md-bq-border-color: var(--color-base-300);
+  --md-code-color: var(--color-base-content);
+  --md-code-bg: var(--color-base-300);
+  --md-link-color: var(--color-primary);
+  --md-hr-color: var(--color-base-300);
+  --md-table-border-color: var(--color-base-300);
+  --md-table-header-bg: var(--color-base-200);
+}
+
 @layer base {
   /* Fira Sans */
   @font-face {

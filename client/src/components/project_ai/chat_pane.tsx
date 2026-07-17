@@ -359,7 +359,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onRemove={p.aiDocs.removeDocument}
       />
 
-      <div class="flex-1 overflow-hidden">
+      <div class="md-dark-adapt flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}

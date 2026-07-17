@@ -4,7 +4,10 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
-import { attachSelectionNameHover } from "~/components/_shared/collab_markdown_editor";
+import {
+  attachSelectionNameHover,
+  darkMarkdownExtensions,
+} from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
@@ -169,6 +172,7 @@ export function ReportEditor(p: Props) {
         // yCollab's per-user undo takes precedence over basicSetup's keymap.
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
         basicSetup,
+        ...darkMarkdownExtensions(),
         markdown(),
         ...(p.canEdit()
           ? []

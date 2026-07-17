@@ -100,7 +100,7 @@ export function HfaIndicatorChatPane(p: Props) {
         </div>
       </div>
 
-      <div class="flex-1 overflow-hidden">
+      <div class="md-dark-adapt flex-1 overflow-hidden">
         <AIChat
           placeholder={t3({
             en: "Ask me to clean up labels or organise indicators...",

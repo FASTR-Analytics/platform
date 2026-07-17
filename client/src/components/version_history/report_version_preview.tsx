@@ -173,7 +173,7 @@ export function ReportVersionPreview(p: {
             when={mode() === "edits"}
             fallback={
               <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
-                <div class="bg-base-100 mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl">
+                <div class="bg-white mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl">
                   <MarkdownPresentationJsx
                     markdown={v.body}
                     renderImage={renderEmbedFor(v)}

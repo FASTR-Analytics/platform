@@ -133,7 +133,19 @@ Supporting rules in `app.css` (all `:root[data-theme="dark"]`-scoped):
 - **CodeMirror** — CM ships light-theme internals (white background, black
   caret, light selection/gutter). A `.cm-editor` block rethemes them from
   tokens; per-editor `EditorView.theme` blocks should not hardcode colors
-  beyond what's already there.
+  beyond what's already there. Markdown syntax token colors (the `#`/`-`/`*`
+  marks) come from CM's JS-side `defaultHighlightStyle` and can't be themed
+  from CSS — editors with markdown highlighting must also spread
+  `darkMarkdownExtensions()` (from `_shared/collab_markdown_editor.tsx`) into
+  their extension list, inside a tracked scope so a theme toggle rebuilds the
+  view.
+- **HTML-rendered markdown** (AI chat renderers, `MarkdownPresentationJsx`) —
+  text colors come from inline `--md-*` vars derived from the static light
+  document style. Markdown that is app UI (chat messages, dashboard
+  summaries) gets a `.md-dark-adapt` class on its wrapper, which re-points
+  those vars to tokens. Markdown that is a document preview (the report View
+  pane and version previews) instead sits on a pinned `bg-white` paper and
+  keeps its document colors — same rule as canvas-rendered figures.
 
 Theme-blind styling rules: never use the static Tailwind palette
 (`gray-*`/`neutral-200`/`bg-white`) for app UI — use tokens. `text-white` /
