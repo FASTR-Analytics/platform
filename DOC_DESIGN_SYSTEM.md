@@ -141,11 +141,11 @@ Supporting rules in `app.css` (all `:root[data-theme="dark"]`-scoped):
   view.
 - **HTML-rendered markdown** (AI chat renderers, `MarkdownPresentationJsx`) —
   text colors come from inline `--md-*` vars derived from the static light
-  document style. Markdown that is app UI (chat messages, dashboard
-  summaries) gets a `.md-dark-adapt` class on its wrapper, which re-points
-  those vars to tokens. Markdown that is a document preview (the report View
-  pane and version previews) instead sits on a pinned `bg-white` paper and
-  keeps its document colors — same rule as canvas-rendered figures.
+  document style, so they'd be near-black on dark surfaces. Wrap the mount in
+  `.md-dark-adapt`, which re-points those vars to tokens: used by the AI chat
+  panes, the public-viewer summary/about markdown, and the report View-pane /
+  version-history previews (the report preview follows the app theme; only
+  canvas-rendered figures and exports keep light document styling).
 
 Theme-blind styling rules: never use the static Tailwind palette
 (`gray-*`/`neutral-200`/`bg-white`) for app UI — use tokens. `text-white` /
