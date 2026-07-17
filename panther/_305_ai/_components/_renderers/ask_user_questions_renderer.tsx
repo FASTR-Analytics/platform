@@ -97,7 +97,8 @@ export function AskUserQuestionsRenderer(p: Props) {
                 "border-primary bg-primary-subtle font-700": isSelected(
                   option.label,
                 ),
-                "border-border hover:bg-base-200": !isSelected(option.label) &&
+                "border-border ui-hoverable-base-100":
+                  !isSelected(option.label) &&
                   !submitted(),
                 "border-border opacity-60": !isSelected(option.label) &&
                   submitted(),

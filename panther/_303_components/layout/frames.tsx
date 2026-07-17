@@ -66,7 +66,6 @@ type ThreeColumnResizableProps = {
   minWidths?: [number, number];
   maxWidths?: [number, number];
   resetKey?: string | number;
-  hiddenTabColor?: string;
   leftHandleHoverOffset?: HoverOffset;
   rightHandleHoverOffset?: HoverOffset;
 };
@@ -546,9 +545,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <For each={collapsedPanes()}>
             {(pane) => (
               <div
-                class={`cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
-                  p.hiddenTabColor ?? "bg-primary-subtle"
-                }`}
+                class="ui-hoverable-base-200 border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0"
                 onClick={pane.onClick}
               >
                 <div class="font-700 whitespace-nowrap text-sm">
