@@ -39,7 +39,7 @@ export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
       case "available":
         return `${baseClasses} border-primary bg-base-100 text-primary cursor-pointer hover:bg-primary hover:text-primary-content active:bg-primary-active`;
       case "locked":
-        return `${baseClasses} border-border bg-base-100 text-base-300`;
+        return `${baseClasses} bg-base-100 text-base-300`;
       default:
         return baseClasses;
     }

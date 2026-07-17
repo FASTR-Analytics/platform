@@ -29,7 +29,7 @@ function getSelectClasses(
     // deliberate skin-without-behavior composition), or neutral box
     ...(outline
       ? [`ui-outline-${intent ?? "primary"}`]
-      : ["text-base-content", "border-border", "bg-base-100"]),
+      : ["text-base-content", "bg-base-100"]),
     "rounded",
     "border",
 

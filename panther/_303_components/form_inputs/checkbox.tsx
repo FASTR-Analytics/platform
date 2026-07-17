@@ -32,7 +32,6 @@ export function Checkbox(p: CheckboxProps) {
             "appearance-none": true,
             "rounded": true,
             "border": true,
-            "border-border": !p.intentWhenChecked,
             "ui-checkbox-intent": !!p.intentWhenChecked,
             "bg-base-100": !p.intentWhenChecked,
             "text-base-content": !p.intentWhenChecked,

@@ -18,7 +18,7 @@ export function DocsBreadcrumbs(p: DocsBreadcrumbsProps) {
 
   return (
     <Show when={breadcrumbs().length > 0} keyed>
-      <div class=" ui-pad border-b">
+      <div class="ui-pad border-b">
         <nav aria-label="Breadcrumb">
           <ol class="flex items-center gap-2 text-sm">
             <For each={breadcrumbs()}>

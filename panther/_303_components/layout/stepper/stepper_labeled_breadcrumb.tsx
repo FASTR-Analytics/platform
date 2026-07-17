@@ -64,7 +64,7 @@ export function StepperLabeledBreadcrumb(p: StepperLabeledBreadcrumbProps) {
 
   return (
     <nav
-      class="w-full border-b border-border"
+      class="w-full border-b"
       aria-label="Progress"
     >
       <div class="-mb-px flex flex-wrap">

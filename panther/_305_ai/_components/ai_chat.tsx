@@ -138,7 +138,7 @@ export function AIChat(p: Props) {
         />
       </div>
       <Show when={p.showUsage && usage() && p.model}>
-        <div class="ui-pad-sm border-border border-t">
+        <div class="ui-pad-sm border-t">
           <UsageDisplay
             usage={usage()}
             model={p.model!}

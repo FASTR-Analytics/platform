@@ -155,7 +155,7 @@ export function Table<
         : "w-full"}
     >
       <Show when={enableSelection() && selectedItems().length > 0}>
-        <div class="ui-pad ui-gap bg-base-100 border-border mb-4 flex items-center rounded border">
+        <div class="ui-pad ui-gap bg-base-100 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
             {selectedItems().length}{" "}
             {p.selectionLabel || t3({ en: "item", fr: "élément", pt: "item" })}
@@ -202,8 +202,8 @@ export function Table<
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
           class={p.fitTableToAvailableHeight
-            ? "border-border h-full overflow-x-auto overflow-y-auto rounded border"
-            : "border-border overflow-x-auto rounded border"}
+            ? "h-full overflow-x-auto overflow-y-auto rounded border"
+            : "overflow-x-auto rounded border"}
           style={{
             ...(p.tableContentMaxHeight && {
               "max-height": p.tableContentMaxHeight,
@@ -357,7 +357,7 @@ const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
   const key = () => p.item[p.keyField];
 
   const rowClasses = () => {
-    const classes = ["group", "border-t", "border-border"];
+    const classes = ["group", "border-t"];
 
     if (p.onRowClick) {
       // Explicit pair, not ui-hoverable-base-100: the family carries
@@ -441,7 +441,7 @@ const GroupedRows = <
             <tr class="bg-base-200">
               <td
                 colspan={p.columns.length + (p.enableSelection ? 1 : 0)}
-                class={`border-border text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-700 uppercase tracking-wider`}
+                class={`text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-700 uppercase tracking-wider`}
               >
                 {group.label}
               </td>

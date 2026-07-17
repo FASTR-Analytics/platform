@@ -45,7 +45,7 @@ export function Input(p: Props) {
             </Match>
             <Match when>
               <label
-                class="ui-form-text ui-form-pad bg-base-200 border-border flex items-center rounded-l border-y border-l"
+                class="ui-form-text ui-form-pad bg-base-200 flex items-center rounded-l border-y border-l"
                 data-intent={p.intent}
                 data-left={!!p.searchIcon}
               >

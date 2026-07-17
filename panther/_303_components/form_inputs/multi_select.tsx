@@ -90,7 +90,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
             />
           </div>
           <Show when={!p.horizontal}>
-            <div class="border-border my-1 border-b" />
+            <div class="my-1 border-b" />
           </Show>
         </Show>
         <For each={p.options}>

@@ -74,7 +74,7 @@ export function AskUserQuestionsRenderer(p: Props) {
   });
 
   return (
-    <div ref={containerRef} class="border-border rounded border p-3">
+    <div ref={containerRef} class="rounded border p-3">
       <div class="font-700 mb-2 text-sm">{p.input.question}</div>
       <Show when={p.input.allowMultiple}>
         <div class="text-base-content-muted mb-2 text-xs">
@@ -97,10 +97,9 @@ export function AskUserQuestionsRenderer(p: Props) {
                 "border-primary bg-primary-subtle font-700": isSelected(
                   option.label,
                 ),
-                "border-border ui-hoverable-base-100":
-                  !isSelected(option.label) &&
+                " ui-hoverable-base-100": !isSelected(option.label) &&
                   !submitted(),
-                "border-border opacity-60": !isSelected(option.label) &&
+                " opacity-60": !isSelected(option.label) &&
                   submitted(),
                 "cursor-pointer": !submitted(),
                 "cursor-default": submitted(),

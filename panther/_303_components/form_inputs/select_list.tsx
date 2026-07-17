@@ -65,7 +65,7 @@ export function SelectList<T extends string = string, M = never>(
           {(item) => {
             if (!isListItem(item)) {
               if ("divider" in item) {
-                return <div class="border-border my-1 border-b" />;
+                return <div class="my-1 border-b" />;
               }
               return (
                 <div class="text-base-content-muted px-2 py-1 text-xs font-700">

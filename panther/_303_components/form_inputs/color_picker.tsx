@@ -337,7 +337,7 @@ export function ColorPicker(p: ColorPickerProps) {
       </Show>
       <button
         type="button"
-        class={`cursor-pointer select-none hover:border-base-content border-border rounded border ${padClass()}`}
+        class={`cursor-pointer select-none hover:border-base-content rounded border ${padClass()}`}
         classList={{ "w-full": p.fullWidth, block: !!p.label }}
         style={{
           "anchor-name": anchorName,
@@ -366,7 +366,7 @@ export function ColorPicker(p: ColorPickerProps) {
         data-position={position()}
         style={{ "position-anchor": anchorName } as JSX.CSSProperties}
       >
-        <div class="bg-base-100 border-border overflow-hidden rounded border p-2 shadow-floating">
+        <div class="bg-base-100 overflow-hidden rounded border p-2 shadow-floating">
           <Show
             when={isTailwind() || isSlideBackgrounds()}
             fallback={
@@ -418,7 +418,7 @@ export function ColorPicker(p: ColorPickerProps) {
             </div>
           </Show>
           <Show when={p.extraColors && p.extraColors.length > 0}>
-            <div class="border-border my-1.5 border-t" />
+            <div class="my-1.5 border-t" />
             <div class="flex gap-1">
               <For each={p.extraColors}>
                 {(color) => (
@@ -433,10 +433,10 @@ export function ColorPicker(p: ColorPickerProps) {
             </div>
           </Show>
           <Show when={p.allowCustomHex}>
-            <div class="border-border my-1.5 border-t" />
+            <div class="my-1.5 border-t" />
             <input
               type="text"
-              class="border-border w-full rounded border px-2 py-1 font-mono text-xs"
+              class="w-full rounded border px-2 py-1 font-mono text-xs"
               classList={{ "border-danger": !hexIsValid() }}
               placeholder="#hex"
               value={displayHex()}

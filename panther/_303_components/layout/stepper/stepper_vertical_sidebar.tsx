@@ -84,11 +84,11 @@ export function StepperVerticalSidebar(p: StepperVerticalSidebarProps) {
       case "current":
         return `${base} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${base} border-border bg-base-200 text-base-content`;
+        return `${base} bg-base-200 text-base-content`;
       case "available":
         return `${base} border-primary bg-base-100 text-primary`;
       case "locked":
-        return `${base} border-border bg-base-100 text-base-content-muted`;
+        return `${base} bg-base-100 text-base-content-muted`;
     }
   };
 

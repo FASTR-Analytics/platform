@@ -190,7 +190,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
         <input
           type="text"
           inputmode="numeric"
-          class={`ui-focusable font-700 border-border rounded border px-2 py-1 text-center text-lg ${comparisonColorClass()}`}
+          class={`ui-focusable font-700 rounded border px-2 py-1 text-center text-lg ${comparisonColorClass()}`}
           classList={{
             "!border-danger !text-base-content focus:!border-danger focus:!ring-danger":
               isInvalid(),

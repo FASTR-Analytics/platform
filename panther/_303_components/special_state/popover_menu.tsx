@@ -259,7 +259,7 @@ export function PopoverMenuProvider() {
       >
         <Show when={menuState()} keyed>
           {(state) => (
-            <div class="bg-base-100 border-border min-w-[160px] overflow-hidden rounded border shadow-floating">
+            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item, index) => (
                   <Show
@@ -338,7 +338,7 @@ export function PopoverMenuProvider() {
       >
         <Show when={subMenuState()} keyed>
           {(state) => (
-            <div class="bg-base-100 border-border min-w-[160px] overflow-hidden rounded border shadow-floating">
+            <div class="bg-base-100 min-w-[160px] overflow-hidden rounded border shadow-floating">
               <For each={state.items}>
                 {(item) => (
                   <Show

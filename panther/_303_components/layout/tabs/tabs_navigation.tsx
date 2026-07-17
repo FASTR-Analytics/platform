@@ -75,7 +75,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = p.tabLabelFormatter ?? labelString;
 
   const containerClasses = !isVertical
-    ? "bg-base-100 w-full border-b border-border"
+    ? "bg-base-100 w-full border-b"
     : "bg-base-100 flex w-full flex-col h-full";
 
   // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2

@@ -45,7 +45,7 @@ export function ModalContainer(p: ModalContainerProps) {
       classList={{ "max-h-[80vh]": scroll() === "content" }}
     >
       <Show when={p.title || p.topPanel}>
-        <div class="border-border border-b px-6 py-5 leading-none">
+        <div class="border-b px-6 py-5 leading-none">
           <Show
             when={p.topPanel}
             fallback={<h2 class="ui-text-heading leading-none">{p.title}</h2>}
@@ -64,7 +64,7 @@ export function ModalContainer(p: ModalContainerProps) {
         {p.children}
       </div>
       <Show when={p.leftButtons || p.rightButtons}>
-        <div class="border-border ui-gap-sm flex items-center border-t px-6 py-5">
+        <div class="ui-gap-sm flex items-center border-t px-6 py-5">
           <Show when={p.leftButtons}>
             <div class="ui-gap-sm flex items-center">
               {p.leftButtons}

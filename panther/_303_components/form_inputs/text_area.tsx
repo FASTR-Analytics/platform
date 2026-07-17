@@ -24,7 +24,6 @@ function getTextAreaClasses(
     "text-base-content",
 
     // Appearance
-    "border-border",
     "bg-base-100",
     "rounded",
     "border",

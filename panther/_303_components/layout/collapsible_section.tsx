@@ -79,7 +79,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
   };
 
   const containerClasses = () => {
-    const classes = ["border-border", "overflow-x-hidden"];
+    const classes = ["overflow-x-hidden"];
 
     if (local.borderStyle === "full") {
       classes.push("border");
@@ -133,7 +133,6 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
       <Show when={isOpen() && local.children} keyed>
         <div
           classList={{
-            "border-border": local.contentBorder,
             "border-t": local.contentBorder,
           }}
         >
