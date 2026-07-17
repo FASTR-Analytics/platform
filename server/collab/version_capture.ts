@@ -28,6 +28,7 @@ import {
   type GlobalUser,
   type ImageBlock,
   listSlideConfigTextElements,
+  liveAuthorRunLen,
   type SlideDeckConfig,
   type VersionEditor,
 } from "lib";
@@ -43,10 +44,13 @@ import {
   restoreDeckLedger,
 } from "./deck_session_ledger.ts";
 import { isRoomOpen } from "./doc_rooms.ts";
+import { flushReportRoom } from "./report_rooms.ts";
+import { flushSlideRoom } from "./slide_rooms.ts";
 import {
   getReportBodyAuthors,
   getReportDetail,
   REPORT_NOT_FOUND,
+  stripPersistedBodyAuthorTombstones,
 } from "../db/project/reports.ts";
 import {
   getSlideDeckDetail,
@@ -119,17 +123,27 @@ export async function loadReportVersionData(
   projectId: string,
   reportId: string,
 ): Promise<ReportVersionData | null> {
+  // A live room can be up to 1.5s ahead of the DB — snapshot the room's real
+  // end state (body AND the ledger's final tombstones), not the last
+  // checkpoint's. No-op when no room / nothing dirty.
+  await flushReportRoom(projectId, reportId);
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const res = await getReportDetail(projectDb, reportId);
   if (!res.success) return throwUnlessNotFound(res.err);
   // Authorship is best-effort — a failure here must not block the version.
   const authorsRes = await getReportBodyAuthors(projectDb, reportId);
+  const authors = authorsRes.success ? authorsRes.data.authors : null;
   return {
     label: res.data.label,
     body: res.data.body,
     figures: res.data.figures,
     images: res.data.images,
-    bodyAuthors: authorsRes.success ? authorsRes.data.authors : null,
+    // The two reads above aren't one snapshot — a checkpoint landing between
+    // them pairs a ledger with a different body. Equal lengths can still be a
+    // silently SHIFTED attribution, so never freeze a mismatched pair.
+    bodyAuthors: authors !== null && liveAuthorRunLen(authors) === res.data.body.length
+      ? authors
+      : null,
   };
 }
 
@@ -140,10 +154,25 @@ export async function loadDeckVersionData(
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const deckRes = await getSlideDeckDetail(projectDb, deckId);
   if (!deckRes.success) return throwUnlessNotFound(deckRes.err);
-  const slidesRes = await getSlides(projectDb, deckId);
+  let slidesRes = await getSlides(projectDb, deckId);
   // getSlides returns [] for a missing deck (never a not-found error), so any
   // failure here is transient/corrupt-row — always retry.
   if (!slidesRes.success) throw new Error(slidesRes.err);
+  // Live slide rooms can be up to 1.5s ahead of the DB (guaranteed during a
+  // max-session split, which by definition fires mid-editing). Snapshotting
+  // stale texts wouldn't just date the version — writeVersion validates each
+  // element's authorship ledger against the persisted text, so a stale text
+  // silently drops the element's exact attribution. Flush and re-read.
+  const openIds = slidesRes.data
+    .map((s) => s.id)
+    .filter((id) => isRoomOpen(projectId, "slide", id));
+  if (openIds.length > 0) {
+    for (const id of openIds) {
+      await flushSlideRoom(projectId, id);
+    }
+    slidesRes = await getSlides(projectDb, deckId);
+    if (!slidesRes.success) throw new Error(slidesRes.err);
+  }
   return {
     label: deckRes.data.label,
     deckConfig: deckRes.data.config,
@@ -206,9 +235,20 @@ async function writeVersion(
     });
     if (res.success) {
       // This version captured the tombstones; the next version only needs
-      // deletions made after this point. (Live-ledger tombstones from the
-      // last <=1.5s that missed the persisted snapshot fall back — accepted.)
+      // deletions made after this point. Compact BOTH copies of the ledger:
+      // the in-memory one (live room) and the persisted row — the room is
+      // usually already closed here (empty-grace flush drops the ledger), and
+      // a version insert doesn't bump last_updated, so without the DB strip
+      // the next room re-adopts the old tombstones and every later version
+      // re-freezes them (misattributed removals).
       compactTombstones(projectId, docId);
+      const stripRes = await stripPersistedBodyAuthorTombstones(
+        getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE"),
+        docId,
+      );
+      if (!stripRes.success) {
+        console.error("Persisted-ledger tombstone strip failed:", stripRes.err);
+      }
     }
     return res.success;
   }
@@ -247,9 +287,13 @@ async function writeVersion(
     return false;
   }
   // This version captured the element tombstones — start the next window.
+  // Compact ONLY the elements the snapshot actually captured: a ledger that
+  // failed validation (edit racing the load) keeps its tombstones for the
+  // next version instead of having them destroyed uncaptured.
   // Closed rooms have no future to attribute; drop their ledgers entirely.
   for (const s of data.slides) {
-    compactSlideElementTombstones(projectId, s.id);
+    const captured = slideEditors?.slides[s.id]?.elementAuthors;
+    compactSlideElementTombstones(projectId, s.id, Object.keys(captured ?? {}));
     if (!isRoomOpen(projectId, "slide", s.id)) {
       dropSlideElementLedgers(projectId, s.id);
     }
@@ -263,6 +307,15 @@ const tracker = createVersionTracker({
   latestHash,
   writeVersion,
 });
+
+/** An ISO stamp strictly after `prevIso` — the restore routes write two
+ *  versions back-to-back (safety, then restored) and order everywhere is
+ *  (created_at, id), so a same-millisecond pair would sort arbitrarily. */
+export function isoStrictlyAfter(prevIso: string): string {
+  return new Date(
+    Math.max(Date.now(), new Date(prevIso).getTime() + 1),
+  ).toISOString();
+}
 
 export function editorFromGlobalUser(user: GlobalUser): VersionEditor {
   return {

@@ -35,6 +35,11 @@ window), `content_hash`, `created_at`, and nullable
 - **Retention**: newest 100 per document, pruned in the writer after each
   insert ([server/db/project/versions.ts](server/db/project/versions.ts)).
   `ON DELETE CASCADE` removes versions with their parent document.
+- **Ordering**: every version query (list, lineage, latest-hash, prune)
+  orders by `(created_at, id)` — same tiebreak everywhere, so list order and
+  lineage "newer than" can never disagree. Restore writes two versions
+  back-to-back; the restored-state insert stamps `created_at` strictly after
+  the safety version's (`isoStrictlyAfter`), so the pair can't tie.
 - **Schema drift caveat**: snapshots are stored *verbatim* (no zod re-parse on
   insert — a schema change must never fail the version write). Migration
   transform blocks do NOT sweep the version tables; instead, restore/copy
@@ -64,6 +69,10 @@ A 30s sweeper drives flushes
 ([server/collab/version_capture.ts](server/collab/version_capture.ts)
 `startVersionSweeper()`, started in main.ts). Flush = detach accumulator →
 load current content → hash-dedup vs newest version → insert + prune. The
+loaders flush any LIVE room first (report room / every open slide room, then
+re-read) — a room can be up to 1.5s ahead of the DB, and snapshotting the
+stale row would both date the version and fail the ledger-vs-text validation
+below. The
 load contract is strict: **null means the document ROW IS GONE** (session
 dropped); the live loaders map only the not-found errors to null and THROW on
 anything else (connection blip, pool exhaustion, corrupt row), which — like a
@@ -117,7 +126,14 @@ hunk (a boundary character shared by two adjacent deletions can align to
 either — inherent diff ambiguity, ≤1 char). Tombstones live for ONE version
 window: `compactTombstones` drops them right after a version snapshots them
 (called in `writeVersion` and after a restore's version inserts), so a
-version's tombstones are precisely "deletions since the previous version". A
+version's tombstones are precisely "deletions since the previous version".
+Compaction covers BOTH copies: the in-memory ledger AND the persisted
+`reports.body_authors` row (`stripPersistedBodyAuthorTombstones`, guarded by
+the validity stamp so a concurrent checkpoint wins) — a version insert never
+bumps `last_updated`, so without the DB strip the next room would re-adopt
+the old tombstones (the empty-grace flush runs AFTER the room dropped its
+in-memory ledger) and every later version would re-freeze deletions from
+long-closed sessions. A
 defensive cap (~2000 tombstone runs) bounds churn-heavy sessions.
 
 The diff views split each inserted range by the step's ledger, so hover reads
@@ -135,10 +151,12 @@ restores, a stale-crdt_state re-seed, delete-then-retype mismatches, ranges
 chipped across multiple sessions — fall back to the session label, phrased
 honestly as "Added/Removed by one of: Alice A, Bob B". The ledger is
 best-effort — if it ever falls out of alignment with the body it is discarded
-(poisoned run / live-length check), never persisted wrong. Known 1.5s window:
-a max-session flush snapshots the DB ledger (last checkpoint) but compacts the
-live one, so tombstones from the final ≤1.5s of the window can miss the
-version and fall back.
+(poisoned run / live-length check), never persisted wrong. The version
+loaders flush the live room before reading (see §2), so a flush — including
+the mid-typing max-session split — snapshots the ledger's true end state; the
+old "final ≤1.5s misses the version" window is gone. Belt-and-braces, the
+report loader also refuses a ledger whose live length doesn't match the body
+it read (the two reads aren't one snapshot).
 
 ## 3. Read + restore APIs
 
@@ -158,7 +176,11 @@ schemas (fail fast, zero side effects), flush the document's live room(s)
 when it already equals the newest version by hash — on any early failure the
 drained editors are re-injected into the tracker) → ② apply the snapshot →
 ③ write a **restored-state version** with `restored_from_version_id` set.
-Nothing is ever lost, and the restore itself appears in history.
+Nothing is ever lost, and the restore itself appears in history. The
+restored-state version keeps the source snapshot's LIVE authorship runs but
+STRIPS its tombstones (`stripTombstoneRuns`) — those describe deletions
+already captured by that old version, and carried along they would
+misattribute what THIS restore removed to those long-ago deleters.
 
 Step ② by kind:
 
@@ -185,7 +207,13 @@ Step ② by kind:
   version makes retrying safe). Safe ordering: checkpoints never write
   `sort_order`, so a straggler checkpoint after the transaction can only
   rewrite config, and the safety version covers the crash window between
-  transaction and config-apply.
+  transaction and config-apply. Attribution across the restore: the safety
+  version freezes the drained session's `elementAuthors` exactly like the
+  tracker's writeVersion (compacting the captured elements' tombstones), and
+  after the restored-state insert every surviving slide's element ledgers are
+  compacted wholesale — the config re-apply floods them with unknown-deleter
+  tombstones that must not leak into the next session's version as phantom
+  removed spans.
 
 **Restore-as-copy**: `copyReportFromVersion` / `copyDeckFromVersion` create a
 brand-new document from the snapshot (decks get FRESH slide ids — the
@@ -200,7 +228,14 @@ that error as an alert — the user must not keep typing into a discarded room).
 It is also wired into `deleteSlides`, `deleteSlideDeck` and `deleteReport`,
 which previously left zombie rooms retrying failed checkpoints forever;
 `deleteSlideDeck` aborts if the pre-delete slide-id fetch fails, since
-deleting anyway would leave every live room a zombie.
+deleting anyway would leave every live room a zombie. `deleteSlides` closes
+rooms and records `removed` attribution for the ids the DB ACTUALLY deleted
+(`RETURNING id` — the delete is deck-scoped, and a requested 3-char id that
+now belongs to another deck must not have that deck's live room discarded or
+a false "removed by" recorded). `closeSlideRoom` also drops the slide's
+element ledgers AND its pending element touches — both are keyed by slide id
+alone, so left behind they would drain into whichever later session first
+records a reused id.
 
 ## 4. UI
 
@@ -245,7 +280,9 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   ("by one of: …", neutral gray) for pre-feature versions or after a restart
   (the ledger is in-memory only; there is no deck-level checkpoint row to
   persist it to — accepted, same class as the tracker's crash window). The
-  previous version loads alongside; badges degrade gracefully if it can't.
+  previous version loads alongside; a FAILED load is distinguished from
+  "oldest version" (which badges everything New) — badges and the summary are
+  suppressed with an explanatory note instead of asserting wrong attribution.
   **Element level**: clicking an EDITED slide expands it with a "Changes in
   this session" list — which title field / text block / visualization / image
   changed, who changed each one, and inline text diffs for text elements
@@ -264,7 +301,10 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   slide_editors buckets alongside `elements` (their superset): block
   add/remove comes from SET-DIFFING the layout's item-id inventory before vs
   after the transaction (`elementsAdded`/`elementsRemoved`), and Y.Text
-  delete ops (or a root-field key removal) become `elementsTextDeleted`. The
+  delete ops (or a root-field key removal) become `elementsTextDeleted` —
+  only the item's own `markdown` Y.Text counts; figConfig's three caption
+  Y.Texts are excluded (their interleaved deltas would corrupt the single
+  block ledger and mark caption trims as block text deletions). The
   set diff is deliberately semantic, NOT event-shaped: syncSlideToDoc
   collapses/unwraps containers via rebuildNodeInPlace and wholesale children
   replacement, so a deleted block frequently never appears as its own
@@ -284,16 +324,26 @@ preferring live `projectState.projectUsers` over the stored capture-time name,
   ledger, which is then dropped, never stored wrong). Deletions become
   text-carrying tombstones; `snapshotSlideElementAuthors` freezes them into
   `slide_editors.slides[id].elementAuthors` at version write (validated
-  against the persisted texts), and the element diff hands them to
+  against the persisted texts — current, because the version loader flushed
+  the rooms first), and the element diff hands them to
   `computeAttributedDiff` as `authors` — the same ghost-alignment path as
   report diffs — so even TWO people deleting in the SAME textbox each get
-  their own exactly-attributed spans. Fallback layering per removed span:
+  their own exactly-attributed spans. Blocks created WITH seeded text
+  (duplicate, AI insert, paste) get their ledger registered on the observer's
+  `added` event, seed attributed to the adder — buildNode fills the Y.Text
+  before attaching, so no delta ever announces the seed and a later
+  position-0 insert would otherwise misalign the self-init. Cleared optional
+  root fields stay covered too: `listSlideConfigTextElements` emits every
+  type field as `?? ""` (materializeSlide OMITS empty optionals, which would
+  otherwise silently drop the emptied field's tombstones at snapshot).
+  Fallback layering per removed span:
   `authors` ghost (per-span exact) → `removedLabel` (element deleter set) →
   session label. Unlike report bodies these ledgers are in-memory only
   (accepted restart window): kept alive from room create through the
   version write (room close only prunes uninformative ones), compacted
-  after the version insert succeeds, dropped when the room is gone
-  (`isRoomOpen`) or the slide row is deleted.
+  after the version insert succeeds — per CAPTURED element only, so a
+  ledger that failed validation keeps its tombstones for the next window —
+  dropped when the room is gone (`isRoomOpen`) or the slide row is deleted.
   Whole-slide deletion was already exact: the deleteSlides route records the
   deleting user in the slide-level `removed` bucket (the ghost badge reads
   it), independent of who edited the slide beforehand.

@@ -316,6 +316,27 @@ export function ensureSlideElementLedger(
   });
 }
 
+/** Register a text block created WITH seeded content mid-session (duplicate,
+ *  AI insert, paste): buildNode fills the Y.Text before attaching it, so no
+ *  delta ever announces the seed — the first later edit would then self-init
+ *  the mirror one seed short. Start the ledger from the seed, attributed to
+ *  the adder (their action put this text here; null = unknown). Deliberately
+ *  REPLACES any stale ledger a removed block left under a reused key — the
+ *  snapshot validates against the NEW block's text, so the old runs could
+ *  only misalign or pollute its ghost. */
+export function initSeededSlideElementLedger(
+  projectId: string,
+  slideId: string,
+  elementKey: string,
+  text: string,
+  email: string | null,
+): void {
+  ledgers.set(slideElementLedgerKey(projectId, slideId, elementKey), {
+    runs: text.length > 0 ? [{ len: text.length, email }] : [],
+    body: text,
+  });
+}
+
 /** Apply one element text delta. A missing ledger self-initializes: a pure
  *  insert (brand-new text, e.g. a block created mid-session) starts from ""
  *  so the writer is attributed; anything else starts from the post-state as
@@ -367,12 +388,22 @@ export function snapshotSlideElementAuthors(
   return out;
 }
 
-/** Drop tombstones on every element ledger of a slide — right after a deck
- *  version snapshotted them (mirrors compactTombstones for reports). */
+/** Drop tombstones on element ledgers of a slide — right after a deck
+ *  version snapshotted them (mirrors compactTombstones for reports). Pass
+ *  `onlyElementKeys` to compact just the elements a snapshot actually
+ *  captured: an element whose ledger didn't validate at snapshot time keeps
+ *  its tombstones for the next window instead of losing them. */
 export function compactSlideElementTombstones(
   projectId: string,
   slideId: string,
+  onlyElementKeys?: Iterable<string>,
 ): void {
+  if (onlyElementKeys !== undefined) {
+    for (const elementKey of onlyElementKeys) {
+      compactKey(slideElementLedgerKey(projectId, slideId, elementKey));
+    }
+    return;
+  }
   const prefix = slideElementPrefix(projectId, slideId);
   for (const k of ledgers.keys()) {
     if (k.startsWith(prefix)) compactKey(k);

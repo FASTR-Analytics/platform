@@ -15,6 +15,7 @@ import {
   reportFiguresSchema,
   reportImagesSchema,
   type ReportSummary,
+  stripTombstoneRuns,
 } from "lib";
 import { DBReport } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -301,6 +302,55 @@ export async function getReportBodyAuthors(
           : null,
       },
     };
+  });
+}
+
+// After a version snapshot has captured the ledger's tombstones, the
+// PERSISTED copy must start the next window too — otherwise a later room
+// re-adopts the old tombstones (a version insert doesn't bump last_updated,
+// so the stamp stays valid) and every later version re-freezes deletions from
+// long-closed sessions, misattributing removals. Strips tombstone runs from
+// body_authors IFF the row still carries the exact stamps we read — a
+// concurrent checkpoint (which persists the in-memory ledger, already
+// compacted by the caller) simply wins and the guard makes this a no-op.
+export async function stripPersistedBodyAuthorTombstones(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ stripped: boolean }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          body_authors: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT body_authors, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+    if (!row) {
+      throw new Error(REPORT_NOT_FOUND);
+    }
+    const isCurrent = row.body_authors !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+    if (!isCurrent) {
+      return { success: true, data: { stripped: false } };
+    }
+    const runs = parseJsonOrThrow<AuthorRun[]>(row.body_authors!);
+    if (!runs.some((r) => r.deletedBy !== undefined)) {
+      return { success: true, data: { stripped: false } };
+    }
+    const rows = await projectDb`
+      UPDATE reports
+      SET body_authors = ${JSON.stringify(stripTombstoneRuns(runs))}
+      WHERE id = ${reportId}
+        AND crdt_state_last_updated = ${row.crdt_state_last_updated!}
+        AND last_updated = ${row.last_updated}
+      RETURNING id
+    `;
+    return { success: true, data: { stripped: rows.length > 0 } };
   });
 }
 

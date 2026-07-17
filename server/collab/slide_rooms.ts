@@ -21,9 +21,13 @@ import {
   applySlideElementDelta,
   dropSlideElementLedgers,
   ensureSlideElementLedger,
+  initSeededSlideElementLedger,
   pruneUninformativeSlideElementLedgers,
 } from "./authorship.ts";
-import { recordSlideElementTouch } from "./deck_session_ledger.ts";
+import {
+  clearSlideElementTouches,
+  recordSlideElementTouch,
+} from "./deck_session_ledger.ts";
 import {
   applyDocUpdate,
   applyToLiveRoom,
@@ -92,6 +96,26 @@ const slideAdapter: DocRoomAdapter<Slide> = {
           email,
           td.postText,
         );
+      }
+      // Text blocks created WITH content (duplicate, AI insert, paste) seed
+      // their Y.Text before attaching, so no delta announces the seed —
+      // register their ledgers now (after the delta pass: a same-transaction
+      // delta must apply against the pre-seed state, not double-apply).
+      if (touches.added.length > 0) {
+        const docTexts = new Map(
+          listSlideDocTextElements(doc).map((t) => [t.elementKey, t.text]),
+        );
+        for (const elementKey of touches.added) {
+          const text = docTexts.get(elementKey);
+          if (text === undefined) continue; // not a text element
+          initSeededSlideElementLedger(
+            projectId,
+            slideId,
+            elementKey,
+            text,
+            email,
+          );
+        }
       }
       if (email === null) return;
       for (const elementKey of touches.touched) {
@@ -217,6 +241,7 @@ export function closeSlideRoom(
   // The slide row is gone/replaced — its text authorship has nothing left to
   // attribute (deletion of the whole slide is attributed at slide level).
   dropSlideElementLedgers(projectId, slideId);
+  clearSlideElementTouches(projectId, slideId);
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see

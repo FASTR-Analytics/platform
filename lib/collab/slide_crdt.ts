@@ -459,8 +459,15 @@ export function observeSlideDocElements(
             touched.add("layout");
           } else {
             touched.add(`block:${nodeId}`);
-            if (hasTextDelete(event)) textDeleted.add(`block:${nodeId}`);
-            collectTextDelta(event, `block:${nodeId}`);
+            // Only the item's own `markdown` Y.Text feeds the block's text
+            // ledger. figConfig holds THREE separate Y.Texts (caption /
+            // subCaption / footnote) under the same block — their interleaved
+            // deltas would corrupt the single block:<id> mirror and mark
+            // caption trims as block text deletions.
+            if (path[path.length - 1] === "markdown") {
+              if (hasTextDelete(event)) textDeleted.add(`block:${nodeId}`);
+              collectTextDelta(event, `block:${nodeId}`);
+            }
           }
         } else {
           touched.add("layout");
@@ -539,7 +546,11 @@ export function listSlideConfigTextElements(
   const out: Record<string, string> = {};
   const rec = slide as unknown as Record<string, unknown>;
   for (const f of TEXT_FIELDS_BY_TYPE[slide.type] ?? []) {
-    if (typeof rec[f] === "string") out[`field:${f}`] = rec[f] as string;
+    // Emit EVERY field of the type: a cleared optional field is OMITTED from
+    // the persisted config (materializeSlide drops empty optionals), but its
+    // ledger — mirroring "" and holding the deletion's tombstones — must
+    // still validate and freeze, or "who cleared this field" is lost.
+    out[`field:${f}`] = typeof rec[f] === "string" ? rec[f] as string : "";
   }
   if (slide.type === "content") {
     const walk = (node: unknown): void => {

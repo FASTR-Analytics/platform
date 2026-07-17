@@ -153,6 +153,18 @@ export function recordSlideElementTouch(
   if (kind !== "touched") (touch[kind] ??= new Set()).add(email);
 }
 
+/** Discard a slide's accumulated element touches — call when the slide row
+ *  is deleted or replaced (its room is being discarded). Element touches are
+ *  keyed by slide id alone, so left behind they would drain into whichever
+ *  LATER session first records a slide with this id (3-char ids get reused),
+ *  attributing old-window edits to someone else's version. */
+export function clearSlideElementTouches(
+  projectId: string,
+  slideId: string,
+): void {
+  elementTouches.delete(slideKey(projectId, slideId));
+}
+
 export function recordDeckSettingsEdited(
   projectId: string,
   deckId: string,

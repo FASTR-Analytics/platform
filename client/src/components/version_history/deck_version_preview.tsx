@@ -105,7 +105,14 @@ export function DeckVersionPreview(p: {
 }) {
   const version = createQuery(
     async (): Promise<
-      | { success: true; data: { v: DeckVersionDetail; prev: DeckVersionDetail | null } }
+      | {
+        success: true;
+        data: {
+          v: DeckVersionDetail;
+          prev: DeckVersionDetail | null;
+          prevFailed: boolean;
+        };
+      }
       | { success: false; err: string }
     > => {
       const res = await serverActions.getDeckVersion({
@@ -114,17 +121,20 @@ export function DeckVersionPreview(p: {
         version_id: p.versionId,
       });
       if (!res.success) return res;
+      // A failed previous-version load is NOT the same as "oldest version" —
+      // conflating them would positively badge every slide "New — Added by …".
       let prev: DeckVersionDetail | null = null;
+      let prevFailed = false;
       if (p.previousVersionId) {
-        // Badges degrade gracefully when the previous version can't load.
         const prevRes = await serverActions.getDeckVersion({
           projectId: p.projectId,
           deck_id: p.deckId,
           version_id: p.previousVersionId,
         });
         if (prevRes.success) prev = prevRes.data;
+        else prevFailed = true;
       }
-      return { success: true, data: { v: res.data, prev } };
+      return { success: true, data: { v: res.data, prev, prevFailed } };
     },
     t3({ en: "Loading version...", fr: "Chargement de la version...", pt: "A carregar a versão..." }),
   );
@@ -173,7 +183,7 @@ export function DeckVersionPreview(p: {
 
   return (
     <StateHolderWrapper state={version.state()}>
-      {({ v, prev }) => {
+      {({ v, prev, prevFailed }) => {
         const orderedSlides = v.slides
           .slice()
           .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -364,7 +374,9 @@ export function DeckVersionPreview(p: {
         // slides inserted near their previous position.
         const entries: DisplayEntry[] = orderedSlides.map((s) => {
           const old = prevById.get(s.id);
-          const status: "new" | "edited" | undefined = prev === null
+          const status: "new" | "edited" | undefined = prevFailed
+            ? undefined
+            : prev === null
             ? "new"
             : !old
             ? "new"
@@ -450,11 +462,17 @@ export function DeckVersionPreview(p: {
                 when={prev !== null}
                 fallback={
                   <span>
-                    {t3({
-                      en: "First version — every slide is new in this session.",
-                      fr: "Première version — chaque diapositive est nouvelle dans cette session.",
-                      pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
-                    })}
+                    {prevFailed
+                      ? t3({
+                        en: "Could not load the previous version — session changes cannot be highlighted here.",
+                        fr: "Impossible de charger la version précédente — les modifications de cette session ne peuvent pas être mises en évidence ici.",
+                        pt: "Não foi possível carregar a versão anterior — as alterações desta sessão não podem ser destacadas aqui.",
+                      })
+                      : t3({
+                        en: "First version — every slide is new in this session.",
+                        fr: "Première version — chaque diapositive est nouvelle dans cette session.",
+                        pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
+                      })}
                   </span>
                 }
               >

@@ -27,6 +27,7 @@ import {
   drainVersionEditors,
   editorFromGlobalUser,
   hashVersionData,
+  isoStrictlyAfter,
   loadDeckVersionData,
   recordVersionEdit,
 } from "../../collab/version_capture.ts";
@@ -35,6 +36,10 @@ import {
   recordDeckSettingsEdited,
   restoreDeckLedger,
 } from "../../collab/deck_session_ledger.ts";
+import {
+  compactSlideElementTombstones,
+  snapshotSlideElementAuthors,
+} from "../../collab/authorship.ts";
 import { remapCollidingSlideIds } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { log } from "../../middleware/logging.ts";
@@ -42,6 +47,7 @@ import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
 import {
   type DeckVersionSlide,
+  listSlideConfigTextElements,
   type Slide,
   slideConfigSchema,
   SlideDeckConfig,
@@ -397,12 +403,29 @@ defineRoute(
     if (!current) {
       return c.json({ success: false as const, err: "Slide deck not found" });
     }
+    // Freeze the drained session's per-character element authorship into the
+    // safety version, exactly like the tracker's writeVersion does — without
+    // this, the pre-restore session's exact text attribution is lost and its
+    // uncaptured tombstones would leak into the NEXT session's version.
+    if (drainedSlideEditors) {
+      for (const s of current.slides) {
+        const sl = drainedSlideEditors.slides[s.id];
+        if (!sl) continue;
+        const authors = snapshotSlideElementAuthors(
+          projectId,
+          s.id,
+          listSlideConfigTextElements(s.config),
+        );
+        if (Object.keys(authors).length > 0) sl.elementAuthors = authors;
+      }
+    }
+    const safetyCreatedAt = new Date().toISOString();
     const currentHash = hashVersionData(current);
     const latestRes = await latestDeckVersionHash(projectDb, params.deck_id);
     if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
       const safetyRes = await insertDeckVersion(projectDb, {
         deckId: params.deck_id,
-        createdAt: new Date().toISOString(),
+        createdAt: safetyCreatedAt,
         label: current.label,
         deckConfig: current.deckConfig,
         slides: current.slides,
@@ -413,6 +436,16 @@ defineRoute(
       if (!safetyRes.success) {
         reinjectDrained();
         return c.json(safetyRes);
+      }
+      // The safety version captured these tombstones — start the next window
+      // for exactly the elements it captured (mirrors writeVersion).
+      for (const s of current.slides) {
+        const captured = drainedSlideEditors?.slides[s.id]?.elementAuthors;
+        compactSlideElementTombstones(
+          projectId,
+          s.id,
+          Object.keys(captured ?? {}),
+        );
       }
     }
 
@@ -515,7 +548,10 @@ defineRoute(
     };
     const restoredRes = await insertDeckVersion(projectDb, {
       deckId: params.deck_id,
-      createdAt: new Date().toISOString(),
+      // Strictly after the safety version even within one millisecond — the
+      // two are ordered by (created_at, id) everywhere, and a tie would let
+      // the restored state sort BEFORE the state it replaced.
+      createdAt: isoStrictlyAfter(safetyCreatedAt),
       label: version.label,
       deckConfig,
       slides: restoredSlides,
@@ -525,6 +561,14 @@ defineRoute(
     });
     if (!restoredRes.success) {
       console.error("Restored-state version insert failed:", restoredRes.err);
+    }
+
+    // A room-path restore floods the surviving slides' element ledgers with
+    // unknown-deleter tombstones from the config rewrite (syncSlideToDoc) —
+    // like the report route's compactTombstones, they must not leak into the
+    // next session's version as phantom removed spans.
+    for (const s of plan.toUpdate) {
+      compactSlideElementTombstones(projectId, s.id);
     }
 
     return c.json({ success: true as const, data: { lastUpdated } });

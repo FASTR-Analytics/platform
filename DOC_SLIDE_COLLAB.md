@@ -118,7 +118,11 @@ user-facing behavior.
   **Y.Text** — this is what makes character merging and remote carets
   possible. Optional fields exist as empty Y.Text so editors can bind before
   first input; `materializeSlide` omits optional-empties and keeps required
-  ones. `syncText` applies a minimal single-region 2-way diff.
+  ones. `syncText` applies a line-anchored multi-hunk diff (patience-style;
+  regions it can't anchor collapse to one splice) — separate edit regions
+  stay separate ops, so a routed full-body save doesn't tombstone/re-author
+  everything between two distant edits or revert co-editors' text in the
+  span.
 - **Layout tree**: nested Y.Maps keyed by node id under a `children` Y.Map,
   ordered by a `fracIndex` fractional-index key
   ([fractional-indexing](https://www.npmjs.com/package/fractional-indexing)) —
@@ -393,7 +397,8 @@ simpler document model:
   autosave off for good (offline edits accumulate in the doc and the reconnect
   catch-up ships them — a parallel REST save would double-apply); registry
   edits flow through the doc while live; the AI accept applies as a minimal
-  single-region diff so it merges with concurrent peer typing; close-flush
+  line-anchored multi-hunk diff so it merges with concurrent peer typing;
+  close-flush
   mirrors the slide rules (never-ready → REST flush; ready+offline →
   best-effort REST flush of the doc state; live → the room finalizes). AI
   edits need no busy-guard: they apply through the proposing user's own live

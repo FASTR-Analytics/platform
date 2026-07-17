@@ -87,7 +87,7 @@ export async function insertReportVersion(
       WHERE report_id = ${args.reportId} AND id NOT IN (
         SELECT id FROM report_versions
         WHERE report_id = ${args.reportId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT ${VERSIONS_KEEP}
       )
     `;
@@ -104,7 +104,7 @@ export async function latestReportVersionHash(
       await projectDb<{ content_hash: string }[]>`
         SELECT content_hash FROM report_versions
         WHERE report_id = ${reportId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT 1
       `
     ).at(0);
@@ -126,7 +126,7 @@ export async function listReportVersions(
         (octet_length(body) + octet_length(figures) + octet_length(images)) AS size_bytes
       FROM report_versions
       WHERE report_id = ${reportId}
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, id DESC
     `;
     return {
       success: true,
@@ -200,11 +200,13 @@ export async function getReportVersionLineage(
     if (!base) {
       throw new Error("Version not found");
     }
+    // Strictly after the base by the SAME (created_at, id) order every other
+    // version query uses — a plain created_at >= would pull in an equal-stamp
+    // version that the list actually shows as OLDER, reversing a diff step.
     const newer = await projectDb<LineageRow[]>`
       SELECT id, created_at, editors, body, body_authors FROM report_versions
       WHERE report_id = ${reportId}
-        AND created_at >= ${base.created_at}
-        AND id != ${versionId}
+        AND (created_at, id) > (${base.created_at}, ${base.id})
       ORDER BY created_at ASC, id ASC
     `;
     const toStep = (r: LineageRow): ReportVersionLineageStep => ({
@@ -342,7 +344,7 @@ export async function insertDeckVersion(
       WHERE deck_id = ${args.deckId} AND id NOT IN (
         SELECT id FROM deck_versions
         WHERE deck_id = ${args.deckId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT ${VERSIONS_KEEP}
       )
     `;
@@ -359,7 +361,7 @@ export async function latestDeckVersionHash(
       await projectDb<{ content_hash: string }[]>`
         SELECT content_hash FROM deck_versions
         WHERE deck_id = ${deckId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT 1
       `
     ).at(0);
@@ -383,7 +385,7 @@ export async function listDeckVersions(
         json_array_length(slides::json) AS slide_count
       FROM deck_versions
       WHERE deck_id = ${deckId}
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, id DESC
     `;
     return {
       success: true,

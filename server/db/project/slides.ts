@@ -280,28 +280,36 @@ export async function saveSlideCheckpoint(
   });
 }
 
-// Delete slides
+// Delete slides. Returns the ids ACTUALLY deleted — the delete is scoped to
+// this deck, so a requested id that belongs to another deck (3-char ids get
+// reused) is a no-op here and must not have its room closed or its removal
+// attributed.
 export async function deleteSlides(
   projectDb: Sql,
   deckId: string,
   slideIds: string[]
-): Promise<APIResponseWithData<{ deletedCount: number }>> {
+): Promise<APIResponseWithData<{ deletedIds: string[]; deletedCount: number }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
 
-    await projectDb.begin((sql) => [
-      sql`
+    const deletedIds = await projectDb.begin(async (sql) => {
+      const deleted = await sql<{ id: string }[]>`
         DELETE FROM slides
         WHERE slide_deck_id = ${deckId} AND id = ANY(${slideIds})
-      `,
-      sql`
+        RETURNING id
+      `;
+      await sql`
         UPDATE slide_decks SET last_updated = ${lastUpdated}
         WHERE id = ${deckId}
-      `,
-      reSequence(sql, deckId),
-    ]);
+      `;
+      await reSequence(sql, deckId);
+      return deleted.map((r) => r.id);
+    });
 
-    return { success: true, data: { deletedCount: slideIds.length } };
+    return {
+      success: true,
+      data: { deletedIds, deletedCount: deletedIds.length },
+    };
   });
 }
 

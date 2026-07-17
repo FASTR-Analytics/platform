@@ -28,11 +28,16 @@ import { compactTombstones } from "../../collab/authorship.ts";
 import {
   drainVersionEditors,
   editorFromGlobalUser,
+  isoStrictlyAfter,
   loadReportVersionData,
   recordVersionEdit,
   reportContentHash,
 } from "../../collab/version_capture.ts";
-import { reportFiguresSchema, reportImagesSchema } from "lib";
+import {
+  reportFiguresSchema,
+  reportImagesSchema,
+  stripTombstoneRuns,
+} from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
@@ -501,10 +506,11 @@ defineRoute(
       projectDb,
       params.report_id,
     );
+    const safetyCreatedAt = new Date().toISOString();
     if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
       const safetyRes = await insertReportVersion(projectDb, {
         reportId: params.report_id,
-        createdAt: new Date().toISOString(),
+        createdAt: safetyCreatedAt,
         label: current.label,
         body: current.body,
         figures: current.figures,
@@ -567,7 +573,10 @@ defineRoute(
     // the dedup chain and duplicate versions).
     const restoredRes = await insertReportVersion(projectDb, {
       reportId: params.report_id,
-      createdAt: new Date().toISOString(),
+      // Strictly after the safety version even within one millisecond — the
+      // two are ordered by (created_at, id) everywhere, and a tie would let
+      // the restored state sort BEFORE the state it replaced.
+      createdAt: isoStrictlyAfter(safetyCreatedAt),
       label: version.label,
       body: version.body,
       figures,
@@ -581,8 +590,13 @@ defineRoute(
         bodyAuthors: version.bodyAuthors,
       }),
       restoredFromVersionId: version.id,
-      // The restored text keeps the authorship it had in the source version.
-      bodyAuthors: version.bodyAuthors,
+      // The restored text keeps the authorship it had in the source version —
+      // LIVE runs only. The source's tombstones describe deletions made in
+      // that old session (already captured by that version); carried along
+      // they would misattribute what THIS restore removed to those deleters.
+      bodyAuthors: version.bodyAuthors
+        ? stripTombstoneRuns(version.bodyAuthors)
+        : null,
     });
     if (!restoredRes.success) {
       console.error("Restored-state version insert failed:", restoredRes.err);
