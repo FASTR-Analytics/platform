@@ -1,3 +1,12 @@
+[TBD] [user] [changed] - Refined border styling for a more consistent visual appearance across the interface
+[TBD] [user] [added] - AI assistant now recognizes when you are viewing Dashboards or Cache tabs
+[TBD] [user] [added] - Confirmation prompt before saving bulk indicator validation results
+[TBD] [user] [changed] - "Back to step 1" button in DHIS2 import wizard is now more visually distinct
+[TBD] [user] [changed] - Font picker options now highlight on hover for easier selection
+[TBD] [admin] [added] - AI assistant now recognizes Dashboards and Cache views
+[TBD] [admin] [changed] - Bulk indicator validation now asks for confirmation before saving
+[TBD] [admin] [fixed] - Consistent border styling across the entire interface
+[TBD] [admin] [changed] - Error-state buttons now use clearer danger styling
 [TBD] [user] [fixed] - Dashboard and chart thumbnails now refresh automatically after data updates
 [TBD] [user] [fixed] - Admin-only actions now appear and disappear correctly when permissions change
 [TBD] [user] [changed] - Improved visual consistency of borders, text colors, and status badges throughout the platform
