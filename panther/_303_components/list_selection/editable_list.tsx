@@ -120,7 +120,7 @@ export function EditableList<T extends string, M = never>(
       <div
         class="flex cursor-pointer select-none items-center gap-1 rounded p-1 text-sm"
         classList={{
-          "hover:bg-base-100-hover active:bg-base-100-active": !(
+          "ui-hoverable-base-100": !(
             selectable() && controller.isSelected(item.id)
           ),
           "bg-base-200": selectable() && controller.isSelected(item.id),

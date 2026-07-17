@@ -107,11 +107,14 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
       <div
         class={`${headerPadding()} flex items-center`}
         classList={{
-          "cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active":
-            !local.shadedHeader,
-          "cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active":
-            !!local.shadedHeader,
-          "bg-base-200": !!local.shadedHeader,
+          "ui-hoverable-base-100": !local.shadedHeader && !local.activeHeader,
+          "ui-hoverable-base-200": !!local.shadedHeader && !local.activeHeader,
+          // activeHeader is a clickable wash — pending the clickable-wash
+          // audit. Its wash utility would beat the family's states, so the
+          // family is scoped off and the affordance is carried explicitly
+          // (hover feedback is cursor-only here for now).
+          "cursor-pointer select-none": !!local.activeHeader,
+          "bg-base-200": !!local.shadedHeader && !!local.activeHeader,
           "font-700": local.boldHeader,
           "text-primary": local.activeHeader,
           "bg-primary-subtle": local.activeHeader,

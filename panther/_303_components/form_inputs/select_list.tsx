@@ -77,8 +77,7 @@ export function SelectList<T extends string = string, M = never>(
               <div
                 class="cursor-pointer rounded px-2 py-1 text-sm"
                 classList={{
-                  "select-none hover:bg-base-100-hover active:bg-base-100-active":
-                    item.id !== p.value,
+                  "ui-hoverable-base-100": item.id !== p.value,
                   [`ui-fill-${p.intent}`]: !!p.intent && item.id === p.value,
                   [`ui-hoverable-${p.intent}`]: !!p.intent &&
                     item.id === p.value,

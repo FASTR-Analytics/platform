@@ -49,7 +49,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       if (isActive(id)) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
       }
-      return `${baseClasses} border-transparent text-base-content hover:bg-base-100-hover active:bg-base-100-active hover:text-primary hover:border-primary/40`;
+      return `${baseClasses} ui-hoverable-base-100 border-transparent text-base-content hover:text-primary hover:border-primary/40`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
@@ -60,7 +60,9 @@ export function TabsNavigation<T extends string = string, M = never>(
       if (isActive(id)) {
         return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
       }
-      return `${baseClasses} text-base-content hover:text-primary hover:bg-base-100`;
+      // ui-hoverable-base-100, not the old hover:bg-base-100 — that was an
+      // invisible hover on the sidebar's own base-100 background.
+      return `${baseClasses} ui-hoverable-base-100 text-base-content hover:text-primary`;
     }
   };
 

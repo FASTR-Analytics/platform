@@ -244,9 +244,7 @@ export function Table<
                           column.alignH,
                         )
                       } font-700 text-base-content text-xs uppercase tracking-wider ${
-                        column.sortable
-                          ? "hover:bg-base-100-hover cursor-pointer select-none"
-                          : ""
+                        column.sortable ? "ui-hoverable-base-100" : ""
                       }`}
                       style={{ width: column.width }}
                       onClick={() => handleSort(column)}
@@ -362,7 +360,13 @@ const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
     const classes = ["group", "border-t", "border-border"];
 
     if (p.onRowClick) {
-      classes.push("hover:bg-base-100-hover", "cursor-pointer");
+      // Explicit pair, not ui-hoverable-base-100: the family carries
+      // select-none, which would break selecting/copying cell text.
+      classes.push(
+        "hover:bg-base-100-hover",
+        "active:bg-base-100-active",
+        "cursor-pointer",
+      );
     }
 
     return classes.join(" ");

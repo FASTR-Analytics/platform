@@ -195,8 +195,7 @@ function NavItemComponent(p: {
           "border-primary": isActive(),
           "text-base-content": !isActive(),
           "border-transparent": !isActive(),
-          "select-none hover:bg-base-100-hover active:bg-base-100-active":
-            !isActive(),
+          "ui-hoverable-base-100": !isActive(),
         }}
         onClick={handleLabelClick}
         role="link"
