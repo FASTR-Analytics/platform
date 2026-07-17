@@ -1,83 +1,83 @@
-import { t3 } from"lib";
-import { HeadingBar, StateHolderWrapper, createQuery } from"panther";
-import { createEffect, createSignal, For, onCleanup } from"solid-js";
-import { serverActions } from"~/server_actions";
-import { projectState } from"~/state/project/t1_store";
-import { getClientVizCacheStatuses, type ClientVizCacheStatus } from"~/state/clear_caches";
+import { t3 } from "lib";
+import { HeadingBar, StateHolderWrapper, createQuery } from "panther";
+import { createEffect, createSignal, For, onCleanup } from "solid-js";
+import { serverActions } from "~/server_actions";
+import { projectState } from "~/state/project/t1_store";
+import { getClientVizCacheStatuses, type ClientVizCacheStatus } from "~/state/clear_caches";
 
 export function ProjectCache() {
- const cacheQuery = createQuery(
+  const cacheQuery = createQuery(
     () => serverActions.getCacheStatus({ projectId: projectState.id }),
- t3({ en:"Loading cache status...", fr:"Chargement du statut du cache...", pt:"A carregar o estado da cache..."}),
+    t3({ en: "Loading cache status...", fr: "Chargement du statut du cache...", pt: "A carregar o estado da cache..." }),
   );
 
- return (
+  return (
     <div class="flex h-full flex-col overflow-hidden">
-      <HeadingBar heading={t3({ en:"Cache Status", fr:"Statut du cache", pt:"Estado da cache"})} />
+      <HeadingBar heading={t3({ en: "Cache Status", fr: "Statut du cache", pt: "Estado da cache" })} />
       <div class="flex-1 overflow-y-auto">
         <StateHolderWrapper state={cacheQuery.state()}>
           {(data) => {
- const [refreshCount, setRefreshCount] = createSignal(0);
- const [clientStatuses, setClientStatuses] = createSignal<ClientVizCacheStatus[]>([]);
+            const [refreshCount, setRefreshCount] = createSignal(0);
+            const [clientStatuses, setClientStatuses] = createSignal<ClientVizCacheStatus[]>([]);
 
- createEffect(() => {
- refreshCount();
- const id = projectState.id;
- const vizs = data.visualizations;
- const controller = new AbortController();
- onCleanup(() => controller.abort());
- async function load() {
- try {
- const statuses = await getClientVizCacheStatuses(id, vizs);
- if (controller.signal.aborted) return;
- setClientStatuses(statuses);
+            createEffect(() => {
+              refreshCount();
+              const id = projectState.id;
+              const vizs = data.visualizations;
+              const controller = new AbortController();
+              onCleanup(() => controller.abort());
+              async function load() {
+                try {
+                  const statuses = await getClientVizCacheStatuses(id, vizs);
+                  if (controller.signal.aborted) return;
+                  setClientStatuses(statuses);
                 } catch (err) {
- console.error("getClientVizCacheStatuses failed:", err);
+                  console.error("getClientVizCacheStatuses failed:", err);
                 }
               }
- load();
+              load();
             });
 
- const clientMap = (): Map<string, ClientVizCacheStatus> => {
- const map = new Map<string, ClientVizCacheStatus>();
- for (const s of clientStatuses()) map.set(s.id, s);
- return map;
+            const clientMap = (): Map<string, ClientVizCacheStatus> => {
+              const map = new Map<string, ClientVizCacheStatus>();
+              for (const s of clientStatuses()) map.set(s.id, s);
+              return map;
             };
 
- const serverRows = (): VizRow[] =>
- data.visualizations.map((viz) => ({
- id: viz.id,
- label: viz.label,
- poDetailCached: viz.poDetailCached,
- metricInfoCached: viz.metricInfoCached,
- poItemsCount: viz.poItemsCount,
- replicantOptionsCount: viz.replicantOptionsCount,
+            const serverRows = (): VizRow[] =>
+              data.visualizations.map((viz) => ({
+                id: viz.id,
+                label: viz.label,
+                poDetailCached: viz.poDetailCached,
+                metricInfoCached: viz.metricInfoCached,
+                poItemsCount: viz.poItemsCount,
+                replicantOptionsCount: viz.replicantOptionsCount,
               }));
 
- const clientRows = (): VizRow[] =>
- data.visualizations.map((viz) => {
- const s = clientMap().get(viz.id);
- return {
- id: viz.id,
- label: viz.label,
- poDetailCached: s?.poDetailCached ?? false,
- metricInfoCached: s?.metricInfoCached ?? false,
- poItemsCount: s?.poItemsCount ?? 0,
- replicantOptionsCount: s?.replicantOptionsCount ?? 0,
+            const clientRows = (): VizRow[] =>
+              data.visualizations.map((viz) => {
+                const s = clientMap().get(viz.id);
+                return {
+                  id: viz.id,
+                  label: viz.label,
+                  poDetailCached: s?.poDetailCached ?? false,
+                  metricInfoCached: s?.metricInfoCached ?? false,
+                  poItemsCount: s?.poItemsCount ?? 0,
+                  replicantOptionsCount: s?.replicantOptionsCount ?? 0,
                 };
               });
 
- return (
+            return (
               <div class="ui-pad flex flex-col ui-gap">
                 <div class="text-sm">
-                  {t3({ en:"Server-side (Valkey)", fr:"Côté serveur (Valkey)", pt:"Lado do servidor (Valkey)"})}
+                  {t3({ en: "Server-side (Valkey)", fr: "Côté serveur (Valkey)", pt: "Lado do servidor (Valkey)" })}
                 </div>
                 <div class="flex items-center ui-gap-sm text-sm">
-                  <span>{t3({ en:"Valkey", fr:"Valkey", pt:"Valkey"})}:</span>
-                  <span class={data.valkeyConnected ?"text-success":"text-danger"}>
+                  <span>{t3({ en: "Valkey", fr: "Valkey", pt: "Valkey" })}:</span>
+                  <span class={data.valkeyConnected ? "text-success" : "text-danger"}>
                     {data.valkeyConnected
-                      ? t3({ en:"Connected", fr:"Connecté", pt:"Ligado"})
-                      : t3({ en:"Not connected", fr:"Non connecté", pt:"Não ligado"})}
+                      ? t3({ en: "Connected", fr: "Connecté", pt: "Ligado" })
+                      : t3({ en: "Not connected", fr: "Non connecté", pt: "Não ligado" })}
                   </span>
                 </div>
 
@@ -85,14 +85,14 @@ export function ProjectCache() {
 
                 <div class="border-t pt-4 mt-2 flex items-center justify-between">
                   <div class="text-sm">
-                    {t3({ en:"Client-side (IndexedDB)", fr:"Côté client (IndexedDB)", pt:"Lado do cliente (IndexedDB)"})}
+                    {t3({ en: "Client-side (IndexedDB)", fr: "Côté client (IndexedDB)", pt: "Lado do cliente (IndexedDB)" })}
                   </div>
                   <button
- type="button"
- class="text-xs text-base-content-muted hover:text-base-content"
- onClick={() => setRefreshCount((n) => n + 1)}
+                    type="button"
+                    class="text-xs text-base-content-muted hover:text-base-content"
+                    onClick={() => setRefreshCount((n) => n + 1)}
                   >
-                    {t3({ en:"Refresh", fr:"Actualiser", pt:"Atualizar"})}
+                    {t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
                   </button>
                 </div>
 
@@ -107,34 +107,34 @@ export function ProjectCache() {
 }
 
 type VizRow = {
- id: string;
- label: string;
- poDetailCached: boolean;
- metricInfoCached: boolean;
- poItemsCount: number;
- replicantOptionsCount: number;
+  id: string;
+  label: string;
+  poDetailCached: boolean;
+  metricInfoCached: boolean;
+  poItemsCount: number;
+  replicantOptionsCount: number;
 };
 
 function VisualizationsTable(p: { rows: VizRow[] }) {
- return (
+  return (
     <div>
       <div class="mb-2 text-sm">
-        {t3({ en:"Visualizations", fr:"Visualisations", pt:"Visualizações"})} ({p.rows.length})
+        {t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })} ({p.rows.length})
       </div>
       <table class="w-full text-sm border-collapse">
         <thead>
           <tr class="border-b text-left text-xs text-base-content-muted">
-            <th class="pb-1 pr-4">{t3({ en:"Label", fr:"Libellé", pt:"Rótulo"})}</th>
-            <th class="pb-1 pr-4">{t3({ en:"PO Detail", fr:"Détail PO", pt:"Detalhe PO"})}</th>
-            <th class="pb-1 pr-4">{t3({ en:"Metric Info", fr:"Info indicateur", pt:"Informação da métrica"})}</th>
-            <th class="pb-1 pr-4">{t3({ en:"PO Items", fr:"Éléments PO", pt:"Elementos PO"})}</th>
-            <th class="pb-1">{t3({ en:"Replicant Opts", fr:"Options réplicant", pt:"Opções de replicante"})}</th>
+            <th class="pb-1 pr-4">{t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "PO Detail", fr: "Détail PO", pt: "Detalhe PO" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "Metric Info", fr: "Info indicateur", pt: "Informação da métrica" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "PO Items", fr: "Éléments PO", pt: "Elementos PO" })}</th>
+            <th class="pb-1">{t3({ en: "Replicant Opts", fr: "Options réplicant", pt: "Opções de replicante" })}</th>
           </tr>
         </thead>
         <tbody>
           <For each={p.rows}>
             {(row) => (
-              <tr class="border-b">
+              <tr class="border-b border-border">
                 <td class="py-1 pr-4">{row.label}</td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.poDetailCached} /></td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.metricInfoCached} /></td>
@@ -150,17 +150,17 @@ function VisualizationsTable(p: { rows: VizRow[] }) {
 }
 
 function CacheIndicator(p: { cached: boolean }) {
- return (
-    <span class={p.cached ?"text-success":"text-base-content-muted"}>
-      {p.cached ?"✓":"—"}
+  return (
+    <span class={p.cached ? "text-success" : "text-base-content-muted"}>
+      {p.cached ? "✓" : "—"}
     </span>
   );
 }
 
 function CacheCount(p: { count: number }) {
- return (
-    <span class={p.count > 0 ?"text-success":"text-base-content-muted"}>
-      {p.count > 0 ? p.count :"—"}
+  return (
+    <span class={p.count > 0 ? "text-success" : "text-base-content-muted"}>
+      {p.count > 0 ? p.count : "—"}
     </span>
   );
 }

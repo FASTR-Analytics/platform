@@ -42,7 +42,7 @@ export function DocsSidebar(p: DocsSidebarProps) {
   };
 
   return (
-    <div class="bg-base-100 border-border h-full overflow-auto border-r">
+    <div class="bg-base-100 h-full overflow-auto border-r">
       <For each={p.rootItems}>
         {(item) => (
           <CollapsibleSection

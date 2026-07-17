@@ -1,75 +1,75 @@
 import {
- AlertComponentProps,
- Button,
- ModalContainer,
- StateHolderFormError,
- createFormAction,
-} from"panther";
-import { For } from"solid-js";
-import { createStore } from"solid-js/store";
-import { serverActions } from"~/server_actions";
-import { t3, TC, type UserPermission, USER_PERMISSIONS, INSTANCE_PERMISSION_LABELS } from"lib";
+  AlertComponentProps,
+  Button,
+  ModalContainer,
+  StateHolderFormError,
+  createFormAction,
+} from "panther";
+import { For } from "solid-js";
+import { createStore } from "solid-js/store";
+import { serverActions } from "~/server_actions";
+import { t3, TC, type UserPermission, USER_PERMISSIONS, INSTANCE_PERMISSION_LABELS } from "lib";
 
-type TriState = true | false |"unchanged";
+type TriState = true | false | "unchanged";
 
 function cycleTriState(current: TriState): TriState {
- if (current ==="unchanged") return true;
- if (current === true) return false;
- return"unchanged";
+  if (current === "unchanged") return true;
+  if (current === true) return false;
+  return "unchanged";
 }
 
 type Props = {
- emails: string[];
+  emails: string[];
 };
 
 export function BulkEditPermissionsForm(
- p: AlertComponentProps<Props, undefined>,
+  p: AlertComponentProps<Props, undefined>,
 ) {
- const [state, setState] = createStore<Record<UserPermission, TriState>>(
- Object.fromEntries(
- USER_PERMISSIONS.map((k) => [k,"unchanged"as TriState]),
+  const [state, setState] = createStore<Record<UserPermission, TriState>>(
+    Object.fromEntries(
+      USER_PERMISSIONS.map((k) => [k, "unchanged" as TriState]),
     ) as Record<UserPermission, TriState>,
   );
 
- const save = createFormAction(
- async (e: MouseEvent) => {
- e.preventDefault();
- const permissions: Partial<Record<UserPermission, boolean>> = {};
- for (const key of USER_PERMISSIONS) {
- const val = state[key];
- if (val !=="unchanged") {
- permissions[key] = val;
+  const save = createFormAction(
+    async (e: MouseEvent) => {
+      e.preventDefault();
+      const permissions: Partial<Record<UserPermission, boolean>> = {};
+      for (const key of USER_PERMISSIONS) {
+        const val = state[key];
+        if (val !== "unchanged") {
+          permissions[key] = val;
         }
       }
- return serverActions.bulkUpdateUserPermissions({
- emails: p.emails,
- permissions,
+      return serverActions.bulkUpdateUserPermissions({
+        emails: p.emails,
+        permissions,
       });
     },
- async () => {},
+    async () => {},
     () => p.close(undefined),
   );
 
- const userCount = p.emails.length;
+  const userCount = p.emails.length;
 
- return (
+  return (
     <ModalContainer
- width="sm"
- title={t3({ en:`Edit permissions for ${userCount} user${userCount === 1 ?"":"s"}`, fr:`Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ?"":"s"}`, pt:`Editar permissões para ${userCount} utilizador${userCount === 1 ?"":"es"}`})}
- leftButtons={[
+      width="sm"
+      title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}`, pt: `Editar permissões para ${userCount} utilizador${userCount === 1 ? "" : "es"}` })}
+      leftButtons={[
         <Button
- onClick={save.click}
- intent="success"
- state={save.state()}
- iconName="save"
+          onClick={save.click}
+          intent="success"
+          state={save.state()}
+          iconName="save"
         >
           {t3(TC.save)}
         </Button>,
         <Button
- onClick={() => p.close(undefined)}
- intent="neutral"
- iconName="x"
- outline
+          onClick={() => p.close(undefined)}
+          intent="neutral"
+          iconName="x"
+          outline
         >
           {t3(TC.cancel)}
         </Button>,
@@ -77,14 +77,14 @@ export function BulkEditPermissionsForm(
     >
       <div class="space-y-1">
         <div class="ui-text-caption mb-2">
-          {t3({ en:"Click to cycle: unchanged \u2192 true \u2192 false", fr:"Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux", pt:"Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso"})}
+          {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux", pt: "Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso" })}
         </div>
         <For each={USER_PERMISSIONS}>
           {(key: UserPermission) => (
             <TriStateCheckbox
- label={t3(INSTANCE_PERMISSION_LABELS[key])}
- value={state[key]}
- onChange={() => setState(key, cycleTriState(state[key]))}
+              label={t3(INSTANCE_PERMISSION_LABELS[key])}
+              value={state[key]}
+              onChange={() => setState(key, cycleTriState(state[key]))}
             />
           )}
         </For>
@@ -95,33 +95,33 @@ export function BulkEditPermissionsForm(
 }
 
 function TriStateCheckbox(p: {
- label: string;
- value: TriState;
- onChange: () => void;
+  label: string;
+  value: TriState;
+  onChange: () => void;
 }) {
- const icon = () => {
- if (p.value === true) return"✓";
- if (p.value === false) return"✗";
- return"—";
+  const icon = () => {
+    if (p.value === true) return "✓";
+    if (p.value === false) return "✗";
+    return "—";
   };
 
- const boxClass = () => {
- const base ="w-4 h-4 rounded border flex items-center justify-center text-xs flex-none";
- if (p.value === true)
- return`${base} bg-primary border-primary text-primary-content`;
- if (p.value === false)
- return`${base} border-danger text-danger-subtle-content bg-danger-subtle font-700`;
- return`${base} bg-base-200 text-base-content`;
+  const boxClass = () => {
+    const base = "w-4 h-4 rounded border flex items-center justify-center text-xs flex-none";
+    if (p.value === true)
+      return `${base} bg-primary border-primary text-primary-content`;
+    if (p.value === false)
+      return `${base} border-danger text-danger-subtle-content bg-danger-subtle font-700`;
+    return `${base} bg-base-200 border-border text-base-content`;
   };
 
- const labelClass = () => {
- if (p.value ==="unchanged") return"text-sm text-base-content-muted";
- if (p.value === false) return"text-sm text-danger";
- return"text-sm";
+  const labelClass = () => {
+    if (p.value === "unchanged") return "text-sm text-base-content-muted";
+    if (p.value === false) return "text-sm text-danger";
+    return "text-sm";
   };
 
- return (
-    <label class="flex items-center gap-2 cursor-pointer select-none py-1"onClick={() => p.onChange()}>
+  return (
+    <label class="flex items-center gap-2 cursor-pointer select-none py-1" onClick={() => p.onChange()}>
       <span class={boxClass()}>{icon()}</span>
       <span class={labelClass()}>{p.label}</span>
     </label>

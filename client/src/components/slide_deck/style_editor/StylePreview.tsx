@@ -1,70 +1,70 @@
-import { t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from"lib";
-import type { SlideDeckConfig } from"lib";
+import { t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import type { SlideDeckConfig } from "lib";
 import {
- PageHolder,
- validateBrandColor,
- type PageInputs,
- getBaseText,
-} from"panther";
-import { createEffect, createSignal, onCleanup, Show } from"solid-js";
-import { buildStyleForSlide } from"~/generate_slide_deck/convert_slide_to_page_inputs";
-import { FASTR_LOGO_VALUES } from"~/components/_shared/fastr_logos";
-import { getBackgroundDetail, type BackgroundDetail } from"~/generate_slide_deck/get_overlay_image";
-import { getImgFromCacheOrFetch } from"~/state/project/t2_images";
-import { _SERVER_HOST } from"~/server_actions";
+  PageHolder,
+  validateBrandColor,
+  type PageInputs,
+  getBaseText,
+} from "panther";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
+import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
+import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
+import { _SERVER_HOST } from "~/server_actions";
 
 type StylePreviewProps = {
- config: SlideDeckConfig;
+  config: SlideDeckConfig;
 };
 
 async function loadLogos(
- selected: string[],
- availableCustom: string[],
+  selected: string[],
+  availableCustom: string[],
 ): Promise<HTMLImageElement[]> {
- const result: HTMLImageElement[] = [];
- for (const logo of selected) {
- const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
- if (isFastrLogo || availableCustom.includes(logo)) {
- const url = isFastrLogo ?`/${logo}`:`${_SERVER_HOST}/${logo}`;
- const resImg = await getImgFromCacheOrFetch(url);
- if (resImg.success) {
- result.push(resImg.data);
+  const result: HTMLImageElement[] = [];
+  for (const logo of selected) {
+    const isFastrLogo = FASTR_LOGO_VALUES.includes(logo);
+    if (isFastrLogo || availableCustom.includes(logo)) {
+      const url = isFastrLogo ? `/${logo}` : `${_SERVER_HOST}/${logo}`;
+      const resImg = await getImgFromCacheOrFetch(url);
+      if (resImg.success) {
+        result.push(resImg.data);
       }
     }
   }
- return result;
+  return result;
 }
 
 function getCoverPageInputs(
- config: SlideDeckConfig,
- bgDetail: BackgroundDetail,
- logos: HTMLImageElement[],
+  config: SlideDeckConfig,
+  bgDetail: BackgroundDetail,
+  logos: HTMLImageElement[],
 ): PageInputs {
- const style = buildStyleForSlide({ type:"cover", title:""}, config, bgDetail.pattern);
- return {
- type:"cover",
- title: t3({ en:"Title", fr:"Titre", pt:"Título"}),
- subTitle: t3({ en:"Subtitle", fr:"Sous-titre", pt:"Subtítulo"}),
- style,
- overlay: bgDetail.overlay,
- titleLogos: logos,
+  const style = buildStyleForSlide({ type: "cover", title: "" }, config, bgDetail.pattern);
+  return {
+    type: "cover",
+    title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
+    subTitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
+    style,
+    overlay: bgDetail.overlay,
+    titleLogos: logos,
   };
 }
 
 function getSectionPageInputs(
- config: SlideDeckConfig,
- bgDetail: BackgroundDetail,
+  config: SlideDeckConfig,
+  bgDetail: BackgroundDetail,
 ): PageInputs {
- const style = buildStyleForSlide({ type:"section", sectionTitle:""}, config, bgDetail.pattern);
- return {
- type:"section",
- sectionTitle: t3({ en:"Section", fr:"Section", pt:"Secção"}),
- style,
- overlay: bgDetail.overlay,
+  const style = buildStyleForSlide({ type: "section", sectionTitle: "" }, config, bgDetail.pattern);
+  return {
+    type: "section",
+    sectionTitle: t3({ en: "Section", fr: "Section", pt: "Secção" }),
+    style,
+    overlay: bgDetail.overlay,
   };
 }
 
-const LOREM_TEXT =`Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+const LOREM_TEXT = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet.
 
@@ -73,113 +73,113 @@ Consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut 
 At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.`;
 
 function getContentPageInputs(
- config: SlideDeckConfig,
- headerLogos: HTMLImageElement[],
- footerLogos: HTMLImageElement[],
+  config: SlideDeckConfig,
+  headerLogos: HTMLImageElement[],
+  footerLogos: HTMLImageElement[],
 ): PageInputs {
- const style = buildStyleForSlide(
-    { type:"content", layout: { type:"item", id:"a", data: { type:"text", markdown:""} } },
- config,
+  const style = buildStyleForSlide(
+    { type: "content", layout: { type: "item", id: "a", data: { type: "text", markdown: "" } } },
+    config,
   );
- return {
- type:"freeform",
- header: t3({ en:"Header", fr:"En-tête", pt:"Cabeçalho"}),
- footer: config.globalFooterText || t3({ en:"Footer", fr:"Pied de page", pt:"Rodapé"}),
- headerLogos,
- footerLogos,
- content: {
- type:"item",
- id:"a",
- data: {
- markdown: LOREM_TEXT,
- style: { text: { base: { fontSize: getBaseText().fontSize } } },
+  return {
+    type: "freeform",
+    header: t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" }),
+    footer: config.globalFooterText || t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
+    headerLogos,
+    footerLogos,
+    content: {
+      type: "item",
+      id: "a",
+      data: {
+        markdown: LOREM_TEXT,
+        style: { text: { base: { fontSize: getBaseText().fontSize } } },
       },
     },
- style,
+    style,
   };
 }
 
 export function StylePreview(p: StylePreviewProps) {
- const colorError = () => {
- if (p.config.colorTheme.type !=="custom") return null;
- const v = validateBrandColor(p.config.colorTheme.primary);
- return v.valid ? null : v.reason;
+  const colorError = () => {
+    if (p.config.colorTheme.type !== "custom") return null;
+    const v = validateBrandColor(p.config.colorTheme.primary);
+    return v.valid ? null : v.reason;
   };
 
- const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(undefined);
- const [coverLogos, setCoverLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
- const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
- const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(undefined);
+  const [coverLogos, setCoverLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
 
   // Spread so every element read is tracked: per-index writes
-  // (setTempConfig("logos","availableCustom", i, v)) keep the array
+  // (setTempConfig("logos", "availableCustom", i, v)) keep the array
   // reference, so tracking only the reference would miss them.
- const availableCustom = () => [...p.config.logos.availableCustom];
+  const availableCustom = () => [...p.config.logos.availableCustom];
 
- createEffect(() => {
- const config = p.config;
-    //`config`is the bare store root (untracked) — read getBackgroundDetail's
+  createEffect(() => {
+    const config = p.config;
+    // `config` is the bare store root (untracked) — read getBackgroundDetail's
     // actual inputs explicitly so the preview re-runs when they change
- const _overlay = config.overlay;
- const _colorTheme = JSON.stringify(config.colorTheme);
- const _treatment = config.coverAndSectionTreatment;
- const controller = new AbortController();
- onCleanup(() => controller.abort());
- async function load() {
- const detail = await getBackgroundDetail(config);
- if (controller.signal.aborted) return;
- setBgDetail(detail);
+    const _overlay = config.overlay;
+    const _colorTheme = JSON.stringify(config.colorTheme);
+    const _treatment = config.coverAndSectionTreatment;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const detail = await getBackgroundDetail(config);
+      if (controller.signal.aborted) return;
+      setBgDetail(detail);
     }
- load();
+    load();
   });
 
- createEffect(() => {
- const selected = p.config.logos.cover.selected;
- const custom = availableCustom();
- const controller = new AbortController();
- onCleanup(() => controller.abort());
- async function load() {
- const logos = await loadLogos(selected, custom);
- if (controller.signal.aborted) return;
- setCoverLogos(logos);
+  createEffect(() => {
+    const selected = p.config.logos.cover.selected;
+    const custom = availableCustom();
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setCoverLogos(logos);
     }
- load();
+    load();
   });
 
- createEffect(() => {
- const selected = p.config.logos.header.selected;
- const custom = availableCustom();
- const controller = new AbortController();
- onCleanup(() => controller.abort());
- async function load() {
- const logos = await loadLogos(selected, custom);
- if (controller.signal.aborted) return;
- setHeaderLogos(logos);
+  createEffect(() => {
+    const selected = p.config.logos.header.selected;
+    const custom = availableCustom();
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setHeaderLogos(logos);
     }
- load();
+    load();
   });
 
- createEffect(() => {
- const selected = p.config.logos.footer.selected;
- const custom = availableCustom();
- const controller = new AbortController();
- onCleanup(() => controller.abort());
- async function load() {
- const logos = await loadLogos(selected, custom);
- if (controller.signal.aborted) return;
- setFooterLogos(logos);
+  createEffect(() => {
+    const selected = p.config.logos.footer.selected;
+    const custom = availableCustom();
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const logos = await loadLogos(selected, custom);
+      if (controller.signal.aborted) return;
+      setFooterLogos(logos);
     }
- load();
+    load();
   });
 
- const coverInputs = () => getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
- const sectionInputs = () => getSectionPageInputs(p.config, bgDetail() ?? {});
- const contentInputs = () => getContentPageInputs(p.config, headerLogos() ?? [], footerLogos() ?? []);
+  const coverInputs = () => getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
+  const sectionInputs = () => getSectionPageInputs(p.config, bgDetail() ?? {});
+  const contentInputs = () => getContentPageInputs(p.config, headerLogos() ?? [], footerLogos() ?? []);
 
- return (
+  return (
     <div>
       <div class="ui-label">
-        {t3({ en:"Preview", fr:"Aperçu", pt:"Pré-visualização"})}
+        {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
       </div>
       <Show when={colorError()}>
         <div class="border border-danger rounded bg-danger-subtle flex items-center justify-center py-8">
@@ -187,40 +187,40 @@ export function StylePreview(p: StylePreviewProps) {
         </div>
       </Show>
       <Show when={!colorError()}>
-        <div class="flex gap-4"style={{"max-width":"1600px"}}>
+        <div class="flex gap-4" style={{ "max-width": "1600px" }}>
           <div class="flex-1">
             <div class="ui-text-caption mb-1">
-              {t3({ en:"Cover", fr:"Couverture", pt:"Capa"})}
+              {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
             </div>
-            <div class="border rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
- pageInputs={coverInputs()}
- pageWidthDu={PAGE_WIDTH_DU}
- pageHeightDu={PAGE_HEIGHT_DU}
+                pageInputs={coverInputs()}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>
           <div class="flex-1">
             <div class="ui-text-caption mb-1">
-              {t3({ en:"Section", fr:"Section", pt:"Secção"})}
+              {t3({ en: "Section", fr: "Section", pt: "Secção" })}
             </div>
-            <div class="border rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
- pageInputs={sectionInputs()}
- pageWidthDu={PAGE_WIDTH_DU}
- pageHeightDu={PAGE_HEIGHT_DU}
+                pageInputs={sectionInputs()}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>
           <div class="flex-1">
             <div class="ui-text-caption mb-1">
-              {t3({ en:"Content", fr:"Contenu", pt:"Conteúdo"})}
+              {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
             </div>
-            <div class="border rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
- pageInputs={contentInputs()}
- pageWidthDu={PAGE_WIDTH_DU}
- pageHeightDu={PAGE_HEIGHT_DU}
+                pageInputs={contentInputs()}
+                pageWidthDu={PAGE_WIDTH_DU}
+                pageHeightDu={PAGE_HEIGHT_DU}
               />
             </div>
           </div>

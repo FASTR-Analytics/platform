@@ -734,7 +734,7 @@
 
   /* Checkbox with intent - unchecked state */
   .ui-checkbox-intent {
-    @apply border-border bg-base-100;
+    @apply bg-base-100;
   }
 
   /* Checkbox intent colors when checked (data-attr matrix — the checkbox
@@ -1120,6 +1120,6 @@
     border-radius: var(--radius);
   }
   .ui-vizgraph-node-default {
-    @apply bg-base-100 border-border text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
+    @apply bg-base-100 text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
   }
 }

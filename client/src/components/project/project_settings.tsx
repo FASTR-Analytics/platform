@@ -1,225 +1,225 @@
 import {
- ProjectUser,
- PROJECT_PERMISSIONS,
- PROJECT_PERMISSION_LABELS,
- t3,
- TC,
- H_USERS,
-} from"lib";
+  ProjectUser,
+  PROJECT_PERMISSIONS,
+  PROJECT_PERMISSION_LABELS,
+  t3,
+  TC,
+  H_USERS,
+} from "lib";
 import {
- Button,
- FrameTop,
- HeadingBar,
- Icon,
- SettingsSection,
- openAlert,
- openComponent,
- createDeleteAction,
- createButtonAction,
- StateHolderWrapper,
- createQuery,
-} from"panther";
-import { Match, Show, Switch, For, createSignal } from"solid-js";
-import { clerk } from"~/components/LoggedInWrapper";
-import { Table, TableColumn, type BulkAction } from"panther";
-import { EditLabelForm } from"~/components/forms_editors/edit_label";
-import { BulkEditProjectPermissionsForm } from"~/components/forms_editors/bulk_edit_project_permissions_form";
-import { SelectProjectUserRole } from"~/components/forms_editors/select_project_user_role";
-import { serverActions } from"~/server_actions";
-import { _SERVER_HOST } from"~/server_actions";
-import { CopyProjectForm } from"./copy_project";
-import { CreateBackupForm } from"./create_backup_form";
-import { CreateRestoreFromFileForm } from"./restore_from_file_form";
-import { DisplayProjectUserRole } from"../forms_editors/display_project_user_role.tsx";
-import { projectState } from"~/state/project/t1_store";
+  Button,
+  FrameTop,
+  HeadingBar,
+  Icon,
+  SettingsSection,
+  openAlert,
+  openComponent,
+  createDeleteAction,
+  createButtonAction,
+  StateHolderWrapper,
+  createQuery,
+} from "panther";
+import { Match, Show, Switch, For, createSignal } from "solid-js";
+import { clerk } from "~/components/LoggedInWrapper";
+import { Table, TableColumn, type BulkAction } from "panther";
+import { EditLabelForm } from "~/components/forms_editors/edit_label";
+import { BulkEditProjectPermissionsForm } from "~/components/forms_editors/bulk_edit_project_permissions_form";
+import { SelectProjectUserRole } from "~/components/forms_editors/select_project_user_role";
+import { serverActions } from "~/server_actions";
+import { _SERVER_HOST } from "~/server_actions";
+import { CopyProjectForm } from "./copy_project";
+import { CreateBackupForm } from "./create_backup_form";
+import { CreateRestoreFromFileForm } from "./restore_from_file_form";
+import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
+import { projectState } from "~/state/project/t1_store";
 
 // Backup types
 interface BackupFileInfo {
- name: string;
- size: number;
- type:"main"|"project"|"metadata"|"log"|"other";
+  name: string;
+  size: number;
+  type: "main" | "project" | "metadata" | "log" | "other";
 }
 
 interface ProjectBackupInfo {
- project_id: string;
- project_label: string;
- folder: string;
- timestamp: string;
- backup_date: string;
- size: number;
- file_count: number;
- files: BackupFileInfo[];
+  project_id: string;
+  project_label: string;
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
 }
 
 interface BackupInfo {
- folder: string;
- timestamp: string;
- backup_date: string;
- total_projects: number;
- backed_up_projects: number;
- size: number;
- file_count: number;
- files: BackupFileInfo[];
+  folder: string;
+  timestamp: string;
+  backup_date: string;
+  total_projects: number;
+  backed_up_projects: number;
+  size: number;
+  file_count: number;
+  files: BackupFileInfo[];
 }
 
 type Props = {
- backToHome: () => void;
+  backToHome: () => void;
 };
 
 export function ProjectSettings(p: Props) {
   // Actions
 
- async function attemptCopyProject() {
- const res = await openComponent({
- element: CopyProjectForm,
- props: {
- projectId: projectState.id,
+  async function attemptCopyProject() {
+    const res = await openComponent({
+      element: CopyProjectForm,
+      props: {
+        projectId: projectState.id,
       },
     });
- if (res) {
- await openAlert({
- title: t3({ en:"Project copy started", fr:"Copie du projet lancée", pt:"Cópia do projeto iniciada"}),
- text: t3({
- en:"Your project is being copied in the background. This may take several minutes. It will appear on the home page once copying is complete.",
- fr:"Votre projet est en cours de copie en arrière-plan. Cela peut prendre plusieurs minutes. Il apparaîtra sur la page d'accueil une fois la copie terminée.",
- pt:"O seu projeto está a ser copiado em segundo plano. Isto pode demorar vários minutos. Aparecerá na página inicial assim que a cópia estiver concluída.",
+    if (res) {
+      await openAlert({
+        title: t3({ en: "Project copy started", fr: "Copie du projet lancée", pt: "Cópia do projeto iniciada" }),
+        text: t3({
+          en: "Your project is being copied in the background. This may take several minutes. It will appear on the home page once copying is complete.",
+          fr: "Votre projet est en cours de copie en arrière-plan. Cela peut prendre plusieurs minutes. Il apparaîtra sur la page d'accueil une fois la copie terminée.",
+          pt: "O seu projeto está a ser copiado em segundo plano. Isto pode demorar vários minutos. Aparecerá na página inicial assim que a cópia estiver concluída.",
         }),
       });
- p.backToHome();
+      p.backToHome();
     }
   }
 
- async function attemptUpdateProjectLabel() {
- const _res = await openComponent({
- element: EditLabelForm,
- props: {
- headerText: t3({
- en:"Edit project name",
- fr:"Modifier le nom du projet",
- pt:"Editar o nome do projeto",
+  async function attemptUpdateProjectLabel() {
+    const _res = await openComponent({
+      element: EditLabelForm,
+      props: {
+        headerText: t3({
+          en: "Edit project name",
+          fr: "Modifier le nom du projet",
+          pt: "Editar o nome do projeto",
         }),
- existingLabel: projectState.label,
- mutateFunc: (newLabel) =>
- serverActions.updateProject({
- project_id: projectState.id,
- projectId: projectState.id,
- label: newLabel,
- aiContext: projectState.aiContext,
+        existingLabel: projectState.label,
+        mutateFunc: (newLabel) =>
+          serverActions.updateProject({
+            project_id: projectState.id,
+            projectId: projectState.id,
+            label: newLabel,
+            aiContext: projectState.aiContext,
           }),
       },
     });
   }
 
- async function attemptUpdateProjectAiContext() {
- const _res = await openComponent({
- element: EditLabelForm,
- props: {
- headerText: t3({
- en:"Edit project context",
- fr:"Modifier le contexte du projet",
- pt:"Editar o contexto do projeto",
+  async function attemptUpdateProjectAiContext() {
+    const _res = await openComponent({
+      element: EditLabelForm,
+      props: {
+        headerText: t3({
+          en: "Edit project context",
+          fr: "Modifier le contexte du projet",
+          pt: "Editar o contexto do projeto",
         }),
- existingLabel: projectState.aiContext,
- mutateFunc: (newAiContext) =>
- serverActions.updateProject({
- project_id: projectState.id,
- projectId: projectState.id,
- label: projectState.label,
- aiContext: newAiContext,
+        existingLabel: projectState.aiContext,
+        mutateFunc: (newAiContext) =>
+          serverActions.updateProject({
+            project_id: projectState.id,
+            projectId: projectState.id,
+            label: projectState.label,
+            aiContext: newAiContext,
           }),
- textArea: true,
+        textArea: true,
       },
     });
   }
 
- async function attemptSelectUserRole(users: ProjectUser[]) {
- await openComponent({
- element: SelectProjectUserRole,
- props: {
- projectId: projectState.id,
- projectLabel: projectState.label,
- users,
+  async function attemptSelectUserRole(users: ProjectUser[]) {
+    await openComponent({
+      element: SelectProjectUserRole,
+      props: {
+        projectId: projectState.id,
+        projectLabel: projectState.label,
+        users,
       },
     });
   }
 
- async function attemptBulkEditPermissions(users: ProjectUser[]) {
- const emails = users.map((u) => u.email);
- await openComponent({
- element: BulkEditProjectPermissionsForm,
- props: {
- projectId: projectState.id,
- emails,
+  async function attemptBulkEditPermissions(users: ProjectUser[]) {
+    const emails = users.map((u) => u.email);
+    await openComponent({
+      element: BulkEditProjectPermissionsForm,
+      props: {
+        projectId: projectState.id,
+        emails,
       },
     });
   }
 
- async function attemptDisplayUserRole(user: ProjectUser) {
- await openComponent({
- element: DisplayProjectUserRole,
- props: {
- projectId: projectState.id,
- user,
+  async function attemptDisplayUserRole(user: ProjectUser) {
+    await openComponent({
+      element: DisplayProjectUserRole,
+      props: {
+        projectId: projectState.id,
+        user,
       },
     });
   }
 
- const lockProject = createButtonAction(
+  const lockProject = createButtonAction(
     () =>
- serverActions.setProjectLockStatus({
- project_id: projectState.id,
- projectId: projectState.id,
- lockAction:"lock",
+      serverActions.setProjectLockStatus({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        lockAction: "lock",
       }),
- async () => {},
+    async () => {},
   );
 
- const unlockProject = createButtonAction(
+  const unlockProject = createButtonAction(
     () =>
- serverActions.setProjectLockStatus({
- project_id: projectState.id,
- projectId: projectState.id,
- lockAction:"unlock",
+      serverActions.setProjectLockStatus({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        lockAction: "unlock",
       }),
- async () => {},
+    async () => {},
   );
 
- async function attemptDeleteProject() {
- const deleteAction = createDeleteAction(
+  async function attemptDeleteProject() {
+    const deleteAction = createDeleteAction(
       {
- text: t3({
- en:"Are you sure you want to delete this project?",
- fr:"Êtes-vous sûr de vouloir supprimer ce projet ?",
- pt:"Tem a certeza de que pretende eliminar este projeto?",
+        text: t3({
+          en: "Are you sure you want to delete this project?",
+          fr: "Êtes-vous sûr de vouloir supprimer ce projet ?",
+          pt: "Tem a certeza de que pretende eliminar este projeto?",
         }),
- itemList: [projectState.label],
+        itemList: [projectState.label],
       },
       () =>
- serverActions.deleteProject({
- project_id: projectState.id,
- projectId: projectState.id,
+        serverActions.deleteProject({
+          project_id: projectState.id,
+          projectId: projectState.id,
         }),
- async () => {},
- p.backToHome,
+      async () => {},
+      p.backToHome,
     );
 
- await deleteAction.click();
+    await deleteAction.click();
   }
 
- return (
+  return (
     <FrameTop
- panelChildren={
+      panelChildren={
         <HeadingBar
- heading={t3(TC.settings)}
- class=""
- ensureHeightAsIfButton
+          heading={t3(TC.settings)}
+          class="border-border"
+          ensureHeightAsIfButton
         ></HeadingBar>
       }
     >
       <div class="ui-pad ui-spy">
         <SettingsSection
- header={t3({ en:"Project name", fr:"Nom du projet", pt:"Nome do projeto"})}
- rightChildren={
+          header={t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" })}
+          rightChildren={
             <Show when={!projectState.isLocked}>
               <Button onClick={attemptUpdateProjectLabel} iconName="settings">
                 {t3(TC.edit)}
@@ -230,26 +230,26 @@ export function ProjectSettings(p: Props) {
           <div class="">{projectState.label}</div>
         </SettingsSection>
         <SettingsSection
- header={t3({ en:"Project users", fr:"Utilisateurs du projet", pt:"Utilizadores do projeto"})}
+          header={t3({ en: "Project users", fr: "Utilisateurs du projet", pt: "Utilizadores do projeto" })}
         >
           <ProjectUserTable
- users={projectState.projectUsers}
- onUserClick={attemptSelectUserRole}
- onBulkEditPermissions={attemptBulkEditPermissions}
- onDisplayUserRole={attemptDisplayUserRole}
+            users={projectState.projectUsers}
+            onUserClick={attemptSelectUserRole}
+            onBulkEditPermissions={attemptBulkEditPermissions}
+            onDisplayUserRole={attemptDisplayUserRole}
           />
         </SettingsSection>
         <SettingsSection
- header={t3({
- en:"Project context for AI interpretation",
- fr:"Contexte du projet pour l'interprétation de l'IA",
- pt:"Contexto do projeto para a interpretação da IA",
+          header={t3({
+            en: "Project context for AI interpretation",
+            fr: "Contexte du projet pour l'interprétation de l'IA",
+            pt: "Contexto do projeto para a interpretação da IA",
           })}
- rightChildren={
+          rightChildren={
             <Show when={!projectState.isLocked}>
               <Button
- onClick={attemptUpdateProjectAiContext}
- iconName="settings"
+                onClick={attemptUpdateProjectAiContext}
+                iconName="settings"
               >
                 {t3(TC.edit)}
               </Button>
@@ -258,7 +258,7 @@ export function ProjectSettings(p: Props) {
         >
           <div class="">
             {projectState.aiContext ||
- t3({ en:"No context set", fr:"Aucun contexte défini", pt:"Nenhum contexto definido"})}
+              t3({ en: "No context set", fr: "Aucun contexte défini", pt: "Nenhum contexto definido" })}
           </div>
         </SettingsSection>
 
@@ -269,80 +269,80 @@ export function ProjectSettings(p: Props) {
         <Switch>
           <Match when={projectState.isLocked}>
             <SettingsSection
- header={t3({
- en:"Project lock status",
- fr:"Statut de verrouillage du projet",
- pt:"Estado de bloqueio do projeto",
+              header={t3({
+                en: "Project lock status",
+                fr: "Statut de verrouillage du projet",
+                pt: "Estado de bloqueio do projeto",
               })}
- rightChildren={
+              rightChildren={
                 <Button
- onClick={unlockProject.click}
- state={unlockProject.state()}
+                  onClick={unlockProject.click}
+                  state={unlockProject.state()}
                 >
-                  {t3({ en:"Unlock project", fr:"Déverrouiller le projet", pt:"Desbloquear o projeto"})}
+                  {t3({ en: "Unlock project", fr: "Déverrouiller le projet", pt: "Desbloquear o projeto" })}
                 </Button>
               }
             >
               <div class="ui-gap-sm text-danger flex">
                 <span class="">
                   {t3({
- en:"Project is currently locked",
- fr:"Le projet est actuellement verrouillé",
- pt:"O projeto está atualmente bloqueado",
+                    en: "Project is currently locked",
+                    fr: "Le projet est actuellement verrouillé",
+                    pt: "O projeto está atualmente bloqueado",
                   })}
                 </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <Icon iconName="lock"/>
+                  <Icon iconName="lock" />
                 </span>
               </div>
             </SettingsSection>
           </Match>
           <Match when={!projectState.isLocked}>
             <SettingsSection
- header={t3({
- en:"Project lock status",
- fr:"Statut de verrouillage du projet",
- pt:"Estado de bloqueio do projeto",
+              header={t3({
+                en: "Project lock status",
+                fr: "Statut de verrouillage du projet",
+                pt: "Estado de bloqueio do projeto",
               })}
- rightChildren={
+              rightChildren={
                 <Button onClick={lockProject.click} state={lockProject.state()}>
-                  {t3({ en:"Lock project", fr:"Verrouiller le projet", pt:"Bloquear o projeto"})}
+                  {t3({ en: "Lock project", fr: "Verrouiller le projet", pt: "Bloquear o projeto" })}
                 </Button>
               }
             >
               <div class="ui-gap-sm flex">
                 <span class="">
                   {t3({
- en:"Project is currently unlocked",
- fr:"Le projet est actuellement déverrouillé",
- pt:"O projeto está atualmente desbloqueado",
+                    en: "Project is currently unlocked",
+                    fr: "Le projet est actuellement déverrouillé",
+                    pt: "O projeto está atualmente desbloqueado",
                   })}
                 </span>
                 <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <Icon iconName="unlock"/>
+                  <Icon iconName="unlock" />
                 </span>
               </div>
             </SettingsSection>
           </Match>
         </Switch>
 
-        <SettingsSection header={t3({ en:"Backups", fr:"Sauvegardes", pt:"Cópias de segurança"})}>
+        <SettingsSection header={t3({ en: "Backups", fr: "Sauvegardes", pt: "Cópias de segurança" })}>
           <ProjectBackups projectId={projectState.id} />
         </SettingsSection>
 
         <div class="ui-gap flex">
           <Show when={!projectState.isLocked}>
             <Button
- onClick={attemptDeleteProject}
- intent="danger"
- outline
- iconName="trash"
+              onClick={attemptDeleteProject}
+              intent="danger"
+              outline
+              iconName="trash"
             >
-              {t3({ en:"Delete project", fr:"Supprimer le projet", pt:"Eliminar o projeto"})}
+              {t3({ en: "Delete project", fr: "Supprimer le projet", pt: "Eliminar o projeto" })}
             </Button>
           </Show>
           <Button onClick={attemptCopyProject} outline iconName="copy">
-            {t3({ en:"Copy project", fr:"Copier le projet", pt:"Copiar o projeto"})}
+            {t3({ en: "Copy project", fr: "Copier le projet", pt: "Copiar o projeto" })}
           </Button>
         </div>
       </div>
@@ -351,169 +351,169 @@ export function ProjectSettings(p: Props) {
 }
 
 function CentralReportingSection() {
- const setCentralReporting = createButtonAction(
- async () => {
- const res = await serverActions.setProjectCentralReportingStatus({
- project_id: projectState.id,
- projectId: projectState.id,
- isCentralReporting: !projectState.isCentralReporting,
+  const setCentralReporting = createButtonAction(
+    async () => {
+      const res = await serverActions.setProjectCentralReportingStatus({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        isCentralReporting: !projectState.isCentralReporting,
       });
- if (!res.success) {
- await openAlert({ title:"Cannot set central reporting project", text: res.err });
- return res;
+      if (!res.success) {
+        await openAlert({ title: "Cannot set central reporting project", text: res.err });
+        return res;
       }
- return res;
+      return res;
     },
- async () => {},
+    async () => {},
   );
 
- return (
+  return (
     <SettingsSection
- header="Central reporting project"
- rightChildren={
+      header="Central reporting project"
+      rightChildren={
         <Button onClick={setCentralReporting.click} state={setCentralReporting.state()}>
-          {projectState.isCentralReporting ?"Remove central reporting designation":"Set as central reporting project"}
+          {projectState.isCentralReporting ? "Remove central reporting designation" : "Set as central reporting project"}
         </Button>
       }
     >
       <div>
         {projectState.isCentralReporting
-          ?"This project is currently designated as the central reporting project. It is only visible to h_users."
-          :"This project is not designated as the central reporting project."}
+          ? "This project is currently designated as the central reporting project. It is only visible to h_users."
+          : "This project is not designated as the central reporting project."}
       </div>
     </SettingsSection>
   );
 }
 
 function hasPermissions(user: ProjectUser): boolean {
- return PROJECT_PERMISSIONS.some((k) => user[k]);
+  return PROJECT_PERMISSIONS.some((k) => user[k]);
 }
 
 function isProjectAdmin(user: ProjectUser): boolean {
- return PROJECT_PERMISSIONS.every((k) => user[k]);
+  return PROJECT_PERMISSIONS.every((k) => user[k]);
 }
 
 function getPermissionSummary(user: ProjectUser): string {
- const active = PROJECT_PERMISSIONS.filter((k) => user[k]);
- if (active.length === 0)
- return t3({ en:"Does not have access", fr:"N'a pas accès", pt:"Não tem acesso"});
- const shown = active
+  const active = PROJECT_PERMISSIONS.filter((k) => user[k]);
+  if (active.length === 0)
+    return t3({ en: "Does not have access", fr: "N'a pas accès", pt: "Não tem acesso" });
+  const shown = active
     .slice(0, 5)
     .map((k) => t3(PROJECT_PERMISSION_LABELS[k]))
-    .join(",");
- if (active.length > 5)
- return`${shown}, +${active.length - 5} ${t3({ en:"more", fr:"de plus", pt:"mais"})}`;
- return shown;
+    .join(", ");
+  if (active.length > 5)
+    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus", pt: "mais" })}`;
+  return shown;
 }
 
 type ProjectUserWithRole = ProjectUser & { roleSortValue: number };
 
 function getRoleSortValue(user: ProjectUser): number {
- if (user.isGlobalAdmin) return 0;
- if (hasPermissions(user)) return 1;
- return 2;
+  if (user.isGlobalAdmin) return 0;
+  if (hasPermissions(user)) return 1;
+  return 2;
 }
 
 function ProjectUserTable(p: {
- users: ProjectUser[];
- onUserClick?: (users: ProjectUser[]) => void;
- onBulkEditPermissions?: (users: ProjectUser[]) => void;
- onDisplayUserRole?: (user: ProjectUser) => void;
+  users: ProjectUser[];
+  onUserClick?: (users: ProjectUser[]) => void;
+  onBulkEditPermissions?: (users: ProjectUser[]) => void;
+  onDisplayUserRole?: (user: ProjectUser) => void;
 }) {
- const usersWithRole = (): ProjectUserWithRole[] =>
- p.users
+  const usersWithRole = (): ProjectUserWithRole[] =>
+    p.users
       .filter((u) => !H_USERS.includes(u.email))
       .map((u) => ({ ...u, roleSortValue: getRoleSortValue(u) }));
 
- const columns: TableColumn<ProjectUserWithRole>[] = [
+  const columns: TableColumn<ProjectUserWithRole>[] = [
     {
- key:"firstName",
- header: t3({ en:"Name", fr:"Nom", pt:"Nome"}),
- sortable: true,
- render: (user) => {
- const name = [user.firstName, user.lastName].filter(Boolean).join("");
- return name
+      key: "firstName",
+      header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
+      sortable: true,
+      render: (user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        return name
           ? <span class="text-sm">{name}</span>
           : <span class="text-base-content-muted text-sm">—</span>;
       },
     },
     {
- key:"email",
- header: t3(TC.email),
- sortable: true,
+      key: "email",
+      header: t3(TC.email),
+      sortable: true,
     },
     {
- key:"roleSortValue",
- header: t3({ en:"Role", fr:"Rôle", pt:"Função"}),
- sortable: true,
- render: (user) => (
+      key: "roleSortValue",
+      header: t3({ en: "Role", fr: "Rôle", pt: "Função" }),
+      sortable: true,
+      render: (user) => (
         <Show
- when={user.isGlobalAdmin}
- fallback={
+          when={user.isGlobalAdmin}
+          fallback={
             <Show
- when={isProjectAdmin(user)}
- fallback={
+              when={isProjectAdmin(user)}
+              fallback={
                 <span
- class={`text-sm ${!hasPermissions(user) ?"text-base-content-muted":""}`}
+                  class={`text-sm ${!hasPermissions(user) ? "text-base-content-muted" : ""}`}
                 >
                   {getPermissionSummary(user)}
                 </span>
               }
             >
               <span class="text-primary text-sm">
-                {t3({ en:"Project Admin", fr:"Administrateur du projet", pt:"Administrador do projeto"})}
+                {t3({ en: "Project Admin", fr: "Administrateur du projet", pt: "Administrador do projeto" })}
               </span>
             </Show>
           }
         >
           <span class="text-primary">
             {t3({
- en:"Instance administrator",
- fr:"Administrateur d'instance",
- pt:"Administrador da instância",
+              en: "Instance administrator",
+              fr: "Administrateur d'instance",
+              pt: "Administrador da instância",
             })}
           </span>
         </Show>
       ),
     },
     {
- key:"actions",
- header:"",
- alignH:"right",
- render: (user) => (
-        <div class={user.isGlobalAdmin ?"invisible":""}>
+      key: "actions",
+      header: "",
+      alignH: "right",
+      render: (user) => (
+        <div class={user.isGlobalAdmin ? "invisible" : ""}>
           <Button
- onClick={(e) => {
- e.stopPropagation();
- p.onUserClick?.([user]);
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onUserClick?.([user]);
             }}
- intent="base-100"
- iconName="pencil"
+            intent="base-100"
+            iconName="pencil"
           />
         </div>
       ),
     },
   ];
 
- const bulkActions: BulkAction<ProjectUserWithRole>[] = [
+  const bulkActions: BulkAction<ProjectUserWithRole>[] = [
     {
- label: t3({ en:"Edit permissions", fr:"Modifier les permissions", pt:"Editar permissões"}),
- intent:"primary",
- outline: true,
- onClick: (users) => p.onBulkEditPermissions?.(users),
+      label: t3({ en: "Edit permissions", fr: "Modifier les permissions", pt: "Editar permissões" }),
+      intent: "primary",
+      outline: true,
+      onClick: (users) => p.onBulkEditPermissions?.(users),
     },
   ];
 
- return (
+  return (
     <Table
- data={usersWithRole()}
- columns={columns}
- keyField="email"
- defaultSort={{ key:"role", direction:"asc"}}
- noRowsMessage={t3({ en:"No users", fr:"Aucun utilisateur", pt:"Nenhum utilizador"})}
- selectionLabel={t3({ en:"user", fr:"utilisateur", pt:"utilizador"})}
- bulkActions={bulkActions}
- tableContentMaxHeight="500px"
+      data={usersWithRole()}
+      columns={columns}
+      keyField="email"
+      defaultSort={{ key: "role", direction: "asc" }}
+      noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Nenhum utilizador" })}
+      selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
+      bulkActions={bulkActions}
+      tableContentMaxHeight="500px"
     />
   );
 }
@@ -521,364 +521,364 @@ function ProjectUserTable(p: {
 // Helper to check if a backup name matches the automatic date format
 const isAutomaticBackup = (folderName: string): boolean => {
   // Match format: YYYY-MM-DD_HH-MM-SS
- const datePattern = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
- return datePattern.test(folderName);
+  const datePattern = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+  return datePattern.test(folderName);
 };
 
 // Helper to extract date from automatic backup folder name
 const extractDate = (folderName: string): string => {
- return folderName.split("_")[0]; // Returns"YYYY-MM-DD"
+  return folderName.split("_")[0]; // Returns "YYYY-MM-DD"
 };
 
 interface GroupedBackups {
- date?: string; // For automatic backups grouped by date
- isCustom?: boolean; // For custom backups folder
- backups: ProjectBackupInfo[];
+  date?: string; // For automatic backups grouped by date
+  isCustom?: boolean; // For custom backups folder
+  backups: ProjectBackupInfo[];
 }
 
 function ProjectBackups(props: { projectId: string }) {
- const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
- new Set(),
+  const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
+    new Set(),
   );
 
- const toggleGroup = (groupKey: string) => {
- setExpandedGroups((prev: Set<string>) => {
- const newSet = new Set(prev);
- if (newSet.has(groupKey)) {
- newSet.delete(groupKey);
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups((prev: Set<string>) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
       } else {
- newSet.add(groupKey);
+        newSet.add(groupKey);
       }
- return newSet;
+      return newSet;
     });
   };
 
- const backupsQuery = createQuery<ProjectBackupInfo[]>(async () => {
- const token = await clerk.session?.getToken();
- const headers: HeadersInit = {"Project-Id": props.projectId };
- if (token) {
- headers["Authorization"] =`Bearer ${token}`;
+  const backupsQuery = createQuery<ProjectBackupInfo[]>(async () => {
+    const token = await clerk.session?.getToken();
+    const headers: HeadersInit = { "Project-Id": props.projectId };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
- const response = await fetch(`${_SERVER_HOST}/api/all-projects-backups`, {
- headers,
+    const response = await fetch(`${_SERVER_HOST}/api/all-projects-backups`, {
+      headers,
     });
 
- if (!response.ok) {
- return {
- success: false,
- err:`Failed to fetch backups: ${response.status}`,
+    if (!response.ok) {
+      return {
+        success: false,
+        err: `Failed to fetch backups: ${response.status}`,
       };
     }
 
- let data: any;
- try {
- data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
     } catch {
- return { success: false, err:"Invalid response from server"};
+      return { success: false, err: "Invalid response from server" };
     }
 
- if (!data.success) {
- return { success: false, err: data.err ||"Failed to fetch backups"};
+    if (!data.success) {
+      return { success: false, err: data.err || "Failed to fetch backups" };
     }
 
- const allBackups = data.backups || [];
+    const allBackups = data.backups || [];
 
- const projectBackups = allBackups
+    const projectBackups = allBackups
       .map((backup: any) => {
- const projectFiles = backup.files.filter(
+        const projectFiles = backup.files.filter(
           (file: BackupFileInfo) =>
- file.type ==="project"&& file.name.includes(props.projectId),
+            file.type === "project" && file.name.includes(props.projectId),
         );
- if (projectFiles.length === 0) return null;
- const projectSize = projectFiles.reduce(
+        if (projectFiles.length === 0) return null;
+        const projectSize = projectFiles.reduce(
           (sum: number, file: BackupFileInfo) => sum + file.size,
- 0,
+          0,
         );
- return {
+        return {
           ...backup,
- files: projectFiles,
- size: projectSize,
- file_count: projectFiles.length,
+          files: projectFiles,
+          size: projectSize,
+          file_count: projectFiles.length,
         };
       })
       .filter((backup: any) => backup !== null);
 
- return { success: true, data: projectBackups };
+    return { success: true, data: projectBackups };
   });
 
   // Group backups by date or custom
- const getGroupedBackups = (
- backups: ProjectBackupInfo[],
+  const getGroupedBackups = (
+    backups: ProjectBackupInfo[],
   ): GroupedBackups[] => {
- const dateGroups = new Map<string, ProjectBackupInfo[]>();
- const customBackups: ProjectBackupInfo[] = [];
+    const dateGroups = new Map<string, ProjectBackupInfo[]>();
+    const customBackups: ProjectBackupInfo[] = [];
 
- backups.forEach((backup: ProjectBackupInfo) => {
- if (isAutomaticBackup(backup.folder)) {
- const date = extractDate(backup.folder);
- if (!dateGroups.has(date)) {
- dateGroups.set(date, []);
+    backups.forEach((backup: ProjectBackupInfo) => {
+      if (isAutomaticBackup(backup.folder)) {
+        const date = extractDate(backup.folder);
+        if (!dateGroups.has(date)) {
+          dateGroups.set(date, []);
         }
- dateGroups.get(date)!.push(backup);
+        dateGroups.get(date)!.push(backup);
       } else {
- customBackups.push(backup);
+        customBackups.push(backup);
       }
     });
 
- const groups: GroupedBackups[] = [];
+    const groups: GroupedBackups[] = [];
 
     // Add date groups (sorted newest first)
- const sortedDates = Array.from(dateGroups.keys()).sort((a, b) =>
- b.localeCompare(a),
+    const sortedDates = Array.from(dateGroups.keys()).sort((a, b) =>
+      b.localeCompare(a),
     );
- sortedDates.forEach((date) => {
- const backupsInGroup = dateGroups.get(date)!;
+    sortedDates.forEach((date) => {
+      const backupsInGroup = dateGroups.get(date)!;
       // Sort backups within the group by time (newest first)
- backupsInGroup.sort((a, b) => b.folder.localeCompare(a.folder));
- groups.push({
- date,
- backups: backupsInGroup,
+      backupsInGroup.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        date,
+        backups: backupsInGroup,
       });
     });
 
     // Add custom backups group if any exist
- if (customBackups.length > 0) {
- customBackups.sort((a, b) => b.folder.localeCompare(a.folder));
- groups.push({
- isCustom: true,
- backups: customBackups,
+    if (customBackups.length > 0) {
+      customBackups.sort((a, b) => b.folder.localeCompare(a.folder));
+      groups.push({
+        isCustom: true,
+        backups: customBackups,
       });
     }
 
- return groups;
+    return groups;
   };
 
- const formatBytes = (bytes: number): string => {
- if (bytes === 0) return"0 B";
- const k = 1024;
- const sizes = ["B","KB","MB","GB"];
- const i = Math.floor(Math.log(bytes) / Math.log(k));
- return`${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
- const downloadFile = async (folder: string, fileName: string) => {
- try {
- const token = await clerk.session?.getToken();
- const headers: HeadersInit = {
-"Project-Id": props.projectId,
+  const downloadFile = async (folder: string, fileName: string) => {
+    try {
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit = {
+        "Project-Id": props.projectId,
       };
- if (token) {
- headers["Authorization"] =`Bearer ${token}`;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
- console.log("Downloading file:", folder, fileName);
- const response = await fetch(
-`${_SERVER_HOST}/api/backups/${folder}/${fileName}`,
+      console.log("Downloading file:", folder, fileName);
+      const response = await fetch(
+        `${_SERVER_HOST}/api/backups/${folder}/${fileName}`,
         {
- headers,
+          headers,
         },
       );
- if (response.ok) {
- const blob = await response.blob();
- const url = window.URL.createObjectURL(blob);
- const a = document.createElement("a");
- a.href = url;
- a.download = fileName;
- document.body.appendChild(a);
- a.click();
- document.body.removeChild(a);
- window.URL.revokeObjectURL(url);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
       } else {
- console.error("Download failed:", response.status, response.statusText);
+        console.error("Download failed:", response.status, response.statusText);
       }
     } catch (error) {
- console.error("Download failed:", error);
+      console.error("Download failed:", error);
     }
   };
 
- const restoreBackup = async (folder: string, fileName: string) => {
- try {
- const token = await clerk.session?.getToken();
- const headers: HeadersInit = {};
- const projectId = props.projectId;
- if (token) {
- headers["Authorization"] =`Bearer ${token}`;
+  const restoreBackup = async (folder: string, fileName: string) => {
+    try {
+      const token = await clerk.session?.getToken();
+      const headers: HeadersInit = {};
+      const projectId = props.projectId;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
- headers["Content-Type"] ="application/json";
- headers["Project-Id"] = projectId;
- const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
- method:"POST",
- headers,
- body: JSON.stringify({ folder, fileName, projectId }),
+      headers["Content-Type"] = "application/json";
+      headers["Project-Id"] = projectId;
+      const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ folder, fileName, projectId }),
       });
 
- if (!response.ok) {
- const data = await response.json();
- return { success: false, err: data.err ||"Failed to restore"};
+      if (!response.ok) {
+        const data = await response.json();
+        return { success: false, err: data.err || "Failed to restore" };
       }
 
- const data = await response.json();
- if (!data.success) {
- return { success: false, err: data.err ||"Restore failed"};
+      const data = await response.json();
+      if (!data.success) {
+        return { success: false, err: data.err || "Restore failed" };
       }
 
       // Force full page reload after successful restore to clear all cached data
- window.location.reload();
+      window.location.reload();
 
- return { success: true };
+      return { success: true };
     } catch (error) {
- console.error("Backup restore failed", error);
+      console.error("Backup restore failed", error);
     }
   };
 
- const attemptCreateBackup = async () => {
- await openComponent({
- element: CreateBackupForm,
- props: {
- projectId: props.projectId,
- createBackupFunc: async (backupName: string) => {
- const token = await clerk.session?.getToken();
- const headers: HeadersInit = {
-"Project-Id": props.projectId,
+  const attemptCreateBackup = async () => {
+    await openComponent({
+      element: CreateBackupForm,
+      props: {
+        projectId: props.projectId,
+        createBackupFunc: async (backupName: string) => {
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {
+            "Project-Id": props.projectId,
           };
- if (token) {
- headers["Authorization"] =`Bearer ${token}`;
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
           }
- const response = await fetch(
-`${_SERVER_HOST}/api/create-backup/${backupName}`,
+          const response = await fetch(
+            `${_SERVER_HOST}/api/create-backup/${backupName}`,
             {
- method:"POST",
- headers,
+              method: "POST",
+              headers,
             },
           );
 
- if (!response.ok) {
- return { success: false as const, err:"Failed to create backup"};
+          if (!response.ok) {
+            return { success: false as const, err: "Failed to create backup" };
           }
 
- const data = await response.json();
+          const data = await response.json();
 
- if (!data.success) {
- return {
- success: false as const,
- err: data.err ||"Backup failed",
+          if (!data.success) {
+            return {
+              success: false as const,
+              err: data.err || "Backup failed",
             };
           }
 
- return { success: true as const };
+          return { success: true as const };
         },
- silentFetch: async () => {
- backupsQuery.silentFetch();
+        silentFetch: async () => {
+          backupsQuery.silentFetch();
         },
       },
     });
   };
 
- const attemptRestoreBackup = async () => {
- await openComponent({
- element: CreateRestoreFromFileForm,
- props: {
- restoreBackupFunc: async (file: File) => {
+  const attemptRestoreBackup = async () => {
+    await openComponent({
+      element: CreateRestoreFromFileForm,
+      props: {
+        restoreBackupFunc: async (file: File) => {
           // Read file as base64 (handle large files properly)
- const arrayBuffer = await file.arrayBuffer();
- const bytes = new Uint8Array(arrayBuffer);
- let binary ="";
- const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
- for (let i = 0; i < bytes.length; i += chunkSize) {
- binary += String.fromCharCode.apply(
- null,
- Array.from(bytes.subarray(i, i + chunkSize)),
+          const arrayBuffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          const chunkSize = 0x8000; // 32KB chunks to avoid stack overflow
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(
+              null,
+              Array.from(bytes.subarray(i, i + chunkSize)),
             );
           }
- const base64 = btoa(binary);
+          const base64 = btoa(binary);
 
- const token = await clerk.session?.getToken();
- const headers: HeadersInit = {
-"Content-Type":"application/json",
+          const token = await clerk.session?.getToken();
+          const headers: HeadersInit = {
+            "Content-Type": "application/json",
           };
- if (token) {
- headers["Authorization"] =`Bearer ${token}`;
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
           }
- headers["Project-Id"] = props.projectId;
+          headers["Project-Id"] = props.projectId;
 
- const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
- method:"POST",
- headers,
- body: JSON.stringify({
- projectId: props.projectId,
- fileData: base64,
- fileName: file.name,
+          const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              projectId: props.projectId,
+              fileData: base64,
+              fileName: file.name,
             }),
           });
 
- if (!response.ok) {
- const data = await response.json();
- return {
- success: false as const,
- err: data.err ||"Failed to restore",
+          if (!response.ok) {
+            const data = await response.json();
+            return {
+              success: false as const,
+              err: data.err || "Failed to restore",
             };
           }
 
- const data = await response.json();
- if (!data.success) {
- return {
- success: false as const,
- err: data.err ||"Restore failed",
+          const data = await response.json();
+          if (!data.success) {
+            return {
+              success: false as const,
+              err: data.err || "Restore failed",
             };
           }
 
           // Force full page reload after successful restore to clear all cached data
- window.location.reload();
+          window.location.reload();
 
- return { success: true as const };
+          return { success: true as const };
         },
       },
     });
   };
 
- const formatTime = (folderName: string): string => {
+  const formatTime = (folderName: string): string => {
     // Extract time from YYYY-MM-DD_HH-MM-SS format
- const timePart = folderName.split("_")[1];
- if (!timePart) return folderName;
- return timePart.replace(/-/g,":");
+    const timePart = folderName.split("_")[1];
+    if (!timePart) return folderName;
+    return timePart.replace(/-/g, ":");
   };
 
- return (
+  return (
     <div>
       <div class="mb-3 flex items-center justify-end">
         <div class="flex gap-2">
           <Button onClick={attemptCreateBackup} size="sm">
-            {t3({ en:"Create backup", fr:"Créer une sauvegarde", pt:"Criar cópia de segurança"})}
+            {t3({ en: "Create backup", fr: "Créer une sauvegarde", pt: "Criar cópia de segurança" })}
           </Button>
           <Button onClick={attemptRestoreBackup} size="sm">
-            {t3({ en:"Restore from file", fr:"Restaurer depuis un fichier", pt:"Restaurar a partir de ficheiro"})}
+            {t3({ en: "Restore from file", fr: "Restaurer depuis un fichier", pt: "Restaurar a partir de ficheiro" })}
           </Button>
           <Button
- onClick={() => backupsQuery.fetch()}
- iconName="refresh"
- size="sm"
- outline
+            onClick={() => backupsQuery.fetch()}
+            iconName="refresh"
+            size="sm"
+            outline
           >
-            {t3({ en:"Refresh", fr:"Actualiser", pt:"Atualizar"})}
+            {t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
           </Button>
         </div>
       </div>
       <StateHolderWrapper state={backupsQuery.state()} noPad>
         {(backups) => {
- const grouped = getGroupedBackups(backups);
- return (
+          const grouped = getGroupedBackups(backups);
+          return (
             <>
               <div class="text-base-content-muted mb-3 text-sm">
-                {`${backups.length} ${t3({ en:"backup(s) available", fr:"sauvegarde(s) disponible(s)", pt:"cópia(s) de segurança disponível(eis)"})}`}
+                {`${backups.length} ${t3({ en: "backup(s) available", fr: "sauvegarde(s) disponible(s)", pt: "cópia(s) de segurança disponível(eis)" })}`}
               </div>
               <Show
- when={grouped.length > 0}
- fallback={
+                when={grouped.length > 0}
+                fallback={
                   <div class="text-base-content-muted">
                     {t3({
- en:"No backups available for this project",
- fr:"Aucune sauvegarde disponible pour ce projet",
- pt:"Nenhuma cópia de segurança disponível para este projeto",
+                      en: "No backups available for this project",
+                      fr: "Aucune sauvegarde disponible pour ce projet",
+                      pt: "Nenhuma cópia de segurança disponível para este projeto",
                     })}
                   </div>
                 }
@@ -886,35 +886,35 @@ function ProjectBackups(props: { projectId: string }) {
                 <div class="flex flex-col gap-2">
                   <For each={grouped}>
                     {(group: GroupedBackups) => {
- const groupKey = group.isCustom ?"custom": group.date!;
- const isExpanded = () => expandedGroups().has(groupKey);
+                      const groupKey = group.isCustom ? "custom" : group.date!;
+                      const isExpanded = () => expandedGroups().has(groupKey);
 
- return (
+                      return (
                         <div class="flex flex-col">
                           <button
- onClick={() => toggleGroup(groupKey)}
- class="flex ui-hoverable-base-100 items-center justify-between rounded border p-3 text-left"
+                            onClick={() => toggleGroup(groupKey)}
+                            class="flex ui-hoverable-base-100 items-center justify-between rounded border border-border p-3 text-left"
                           >
                             <div class="flex items-center gap-2">
                               <Show
- when={isExpanded()}
- fallback={<Icon iconName="chevronRight"/>}
+                                when={isExpanded()}
+                                fallback={<Icon iconName="chevronRight" />}
                               >
-                                <Icon iconName="chevronDown"/>
+                                <Icon iconName="chevronDown" />
                               </Show>
                               <span>
                                 {group.isCustom
                                   ? t3({
- en:"Custom Backups",
- fr:"Sauvegardes personnalisées",
- pt:"Cópias de segurança personalizadas",
+                                      en: "Custom Backups",
+                                      fr: "Sauvegardes personnalisées",
+                                      pt: "Cópias de segurança personalizadas",
                                     })
                                   : group.date}
                               </span>
                               <span class="text-base-content-muted text-sm">
-                                ({group.backups.length}{""}
-                                {t3({ en:"backup", fr:"sauvegarde", pt:"cópia de segurança"})}
-                                {group.backups.length !== 1 ?"s":""})
+                                ({group.backups.length}{" "}
+                                {t3({ en: "backup", fr: "sauvegarde", pt: "cópia de segurança" })}
+                                {group.backups.length !== 1 ? "s" : ""})
                               </span>
                             </div>
                           </button>
@@ -923,7 +923,7 @@ function ProjectBackups(props: { projectId: string }) {
                             <div class="mt-2 ml-6 flex flex-col gap-2">
                               <For each={group.backups}>
                                 {(backup: ProjectBackupInfo) => (
-                                  <div class="flex items-center justify-between rounded border bg-white p-3">
+                                  <div class="flex items-center justify-between rounded border border-border bg-white p-3">
                                     <div class="flex flex-col gap-1">
                                       <span>
                                         {group.isCustom
@@ -936,29 +936,29 @@ function ProjectBackups(props: { projectId: string }) {
                                     </div>
                                     <div class="flex gap-2">
                                       <Button
- onClick={() =>
- downloadFile(
- backup.folder,
- backup.files[0].name,
+                                        onClick={() =>
+                                          downloadFile(
+                                            backup.folder,
+                                            backup.files[0].name,
                                           )
                                         }
- iconName="download"
- intent="primary"
- size="sm"
+                                        iconName="download"
+                                        intent="primary"
+                                        size="sm"
                                       >
                                         {t3(TC.download)}
                                       </Button>
                                       <Button
- onClick={() =>
- restoreBackup(
- backup.folder,
- backup.files[0].name,
+                                        onClick={() =>
+                                          restoreBackup(
+                                            backup.folder,
+                                            backup.files[0].name,
                                           )
                                         }
- size="sm"
- outline
+                                        size="sm"
+                                        outline
                                       >
-                                        {t3({ en:"Restore", fr:"Restaurer", pt:"Restaurar"})}
+                                        {t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" })}
                                       </Button>
                                     </div>
                                   </div>

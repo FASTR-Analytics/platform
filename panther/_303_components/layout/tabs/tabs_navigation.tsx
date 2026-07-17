@@ -42,14 +42,16 @@ export function TabsNavigation<T extends string = string, M = never>(
       // container's continuous underline (see containerClasses + rowClasses
       // below for the -mb-px trick). Active tab covers with primary; inactive
       // tab is transparent so the container line shows through — producing a
-      // single clean rail across the whole tab strip.
+      // single clean rail across the whole tab strip. The inactive arm needs
+      // bg-clip-padding: the family's opaque rest bg would otherwise paint
+      // under the transparent border strip and hide the rail.
       const baseClasses =
         "ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer select-none border-b-2";
 
       if (isActive(id)) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
       }
-      return `${baseClasses} ui-hoverable-base-100 border-transparent text-base-content hover:text-primary hover:border-primary/40`;
+      return `${baseClasses} ui-hoverable-base-100 bg-clip-padding border-transparent text-base-content hover:text-primary hover:border-primary/40`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";

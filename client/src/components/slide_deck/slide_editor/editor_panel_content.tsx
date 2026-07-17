@@ -1,416 +1,416 @@
 import type {
- ContentSlide,
- ContentBlock,
- ContentSlideSplit,
- ContentSlideSplitFill,
- FigureBlock,
- TextBlock,
- TextSizeKey,
- ImageBlock,
- LogoVisibility,
-} from"lib";
-import { DEFAULT_TEXT_SIZE_KEY, t3, TEXT_SIZE_KEYS } from"lib";
-import type { PatternType } from"panther";
+  ContentSlide,
+  ContentBlock,
+  ContentSlideSplit,
+  ContentSlideSplitFill,
+  FigureBlock,
+  TextBlock,
+  TextSizeKey,
+  ImageBlock,
+  LogoVisibility,
+} from "lib";
+import { DEFAULT_TEXT_SIZE_KEY, t3, TEXT_SIZE_KEYS } from "lib";
+import type { PatternType } from "panther";
 import {
- TextArea,
- OpenEditorProps,
- findById,
- LayoutNode,
- Select,
- Button,
- RadioGroup,
- getSelectOptions,
- Slider,
- Checkbox,
-} from"panther";
-import { createSignal, Match, Setter, Show, Switch } from"solid-js";
-import { instanceState } from"~/state/instance/t1_store";
-import { SetStoreFunction } from"solid-js/store";
-import { convertBlockType } from"../slide_transforms/convert_block_type";
-import { MarkdownGuide } from"~/components/_markdown_guide";
+  TextArea,
+  OpenEditorProps,
+  findById,
+  LayoutNode,
+  Select,
+  Button,
+  RadioGroup,
+  getSelectOptions,
+  Slider,
+  Checkbox,
+} from "panther";
+import { createSignal, Match, Setter, Show, Switch } from "solid-js";
+import { instanceState } from "~/state/instance/t1_store";
+import { SetStoreFunction } from "solid-js/store";
+import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { MarkdownGuide } from "~/components/_markdown_guide";
 
 type Props = {
- projectId: string;
- tempSlide: ContentSlide;
- setTempSlide: SetStoreFunction<any>;
- selectedBlockId: string | undefined;
- setSelectedBlockId: Setter<string | undefined>;
- openEditor: <TProps, TReturn>(
- v: OpenEditorProps<TProps, TReturn>,
+  projectId: string;
+  tempSlide: ContentSlide;
+  setTempSlide: SetStoreFunction<any>;
+  selectedBlockId: string | undefined;
+  setSelectedBlockId: Setter<string | undefined>;
+  openEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
- contentTab:"slide"|"block";
- setContentTab: Setter<"slide"|"block">;
- onShowLayoutMenu: (x: number, y: number) => void;
- onEditVisualization: () => void;
- onSelectVisualization: () => void;
- onCreateVisualization: () => void;
- showHeaderLogosByDefault: boolean;
- showFooterLogosByDefault: boolean;
- hasGlobalFooterText: boolean;
+  contentTab: "slide" | "block";
+  setContentTab: Setter<"slide" | "block">;
+  onShowLayoutMenu: (x: number, y: number) => void;
+  onEditVisualization: () => void;
+  onSelectVisualization: () => void;
+  onCreateVisualization: () => void;
+  showHeaderLogosByDefault: boolean;
+  showFooterLogosByDefault: boolean;
+  hasGlobalFooterText: boolean;
 };
 
 function getLogoVisibilityOptions(showByDefault: boolean) {
- return [
+  return [
     {
- value:"inherit",
- label: t3({
- en: showByDefault ?"Default (show)":"Default (hide)",
- fr: showByDefault ?"Défaut (afficher)":"Défaut (masquer)",
- pt: showByDefault ?"Predefinição (mostrar)":"Predefinição (ocultar)",
+      value: "inherit",
+      label: t3({
+        en: showByDefault ? "Default (show)" : "Default (hide)",
+        fr: showByDefault ? "Défaut (afficher)" : "Défaut (masquer)",
+        pt: showByDefault ? "Predefinição (mostrar)" : "Predefinição (ocultar)",
       }),
     },
-    { value:"show", label: t3({ en:"Show", fr:"Afficher", pt:"Mostrar"}) },
-    { value:"hide", label: t3({ en:"Hide", fr:"Masquer", pt:"Ocultar"}) },
+    { value: "show", label: t3({ en: "Show", fr: "Afficher", pt: "Mostrar" }) },
+    { value: "hide", label: t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" }) },
   ];
 }
 
 export function SlideEditorPanelContent(p: Props) {
   // Cache block data by blockId+type for restoration when switching back
- const blockTypeCache = new Map<string, ContentBlock>();
+  const blockTypeCache = new Map<string, ContentBlock>();
 
- function cacheKey(blockId: string, blockType: string) {
- return`${blockId}_${blockType}`;
+  function cacheKey(blockId: string, blockType: string) {
+    return `${blockId}_${blockType}`;
   }
 
- function getCurrentBlock(): ContentBlock | undefined {
- if (!p.selectedBlockId) return undefined;
- const result = findById(p.tempSlide.layout, p.selectedBlockId);
- if (!result || result.node.type !=="item") return undefined;
- return result.node.data;
+  function getCurrentBlock(): ContentBlock | undefined {
+    if (!p.selectedBlockId) return undefined;
+    const result = findById(p.tempSlide.layout, p.selectedBlockId);
+    if (!result || result.node.type !== "item") return undefined;
+    return result.node.data;
   }
 
- function updateSelectedBlock(updater: (block: ContentBlock) => ContentBlock) {
- if (!p.selectedBlockId) return;
+  function updateSelectedBlock(updater: (block: ContentBlock) => ContentBlock) {
+    if (!p.selectedBlockId) return;
 
- function updateNode(
- node: LayoutNode<ContentBlock>,
+    function updateNode(
+      node: LayoutNode<ContentBlock>,
     ): LayoutNode<ContentBlock> {
- if (node.id === p.selectedBlockId && node.type ==="item") {
- return { ...node, data: updater(node.data) };
+      if (node.id === p.selectedBlockId && node.type === "item") {
+        return { ...node, data: updater(node.data) };
       }
- if (node.type ==="rows"|| node.type ==="cols") {
- return { ...node, children: node.children.map(updateNode) };
+      if (node.type === "rows" || node.type === "cols") {
+        return { ...node, children: node.children.map(updateNode) };
       }
- return node;
+      return node;
     }
 
- const newLayout = updateNode(p.tempSlide.layout);
- p.setTempSlide("layout", newLayout);
+    const newLayout = updateNode(p.tempSlide.layout);
+    p.setTempSlide("layout", newLayout);
   }
 
- function handleBlockTypeChange(newType: string) {
- if (!p.selectedBlockId) return;
- const current = getCurrentBlock();
- if (!current || current.type === newType) return;
+  function handleBlockTypeChange(newType: string) {
+    if (!p.selectedBlockId) return;
+    const current = getCurrentBlock();
+    if (!current || current.type === newType) return;
 
     // Cache current block before switching
- blockTypeCache.set(cacheKey(p.selectedBlockId, current.type), current);
+    blockTypeCache.set(cacheKey(p.selectedBlockId, current.type), current);
 
     // Check cache for target type
- const cached = blockTypeCache.get(cacheKey(p.selectedBlockId, newType));
- if (cached) {
- updateSelectedBlock(() => cached);
+    const cached = blockTypeCache.get(cacheKey(p.selectedBlockId, newType));
+    if (cached) {
+      updateSelectedBlock(() => cached);
     } else {
- const newLayout = convertBlockType(
- p.tempSlide.layout,
- p.selectedBlockId,
- newType as"text"|"figure"|"image",
+      const newLayout = convertBlockType(
+        p.tempSlide.layout,
+        p.selectedBlockId,
+        newType as "text" | "figure" | "image",
       );
- p.setTempSlide("layout", newLayout);
+      p.setTempSlide("layout", newLayout);
     }
   }
 
- return (
+  return (
     <div class="flex h-full w-full flex-col">
       <div class="flex w-full flex-none border-b">
         <div
- class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
- onClick={() => p.setContentTab("slide")}
- data-selected={p.contentTab ==="slide"}
+          class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
+          onClick={() => p.setContentTab("slide")}
+          data-selected={p.contentTab === "slide"}
         >
           {t3({
- en:"Header / Footer",
- fr:"En-tête / Pied de page",
- pt:"Cabeçalho / Rodapé",
+            en: "Header / Footer",
+            fr: "En-tête / Pied de page",
+            pt: "Cabeçalho / Rodapé",
           })}
         </div>
         <div
- class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
- onClick={() => p.setContentTab("block")}
- data-selected={p.contentTab ==="block"}
+          class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
+          onClick={() => p.setContentTab("block")}
+          data-selected={p.contentTab === "block"}
         >
-          {t3({ en:"Content", fr:"Contenu", pt:"Conteúdo"})}
+          {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
         </div>
       </div>
 
       <div class="h-0 w-full flex-1">
         <Switch>
-          <Match when={p.contentTab ==="slide"}>
+          <Match when={p.contentTab === "slide"}>
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy-sm">
                 <TextArea
- label={t3({ en:"Header", fr:"En-tête", pt:"Cabeçalho"})}
- value={p.tempSlide.header ??""}
- onChange={(v: string) =>
- p.setTempSlide("header", v || undefined)
+                  label={t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" })}
+                  value={p.tempSlide.header ?? ""}
+                  onChange={(v: string) =>
+                    p.setTempSlide("header", v || undefined)
                   }
- fullWidth
- height="60px"
+                  fullWidth
+                  height="60px"
                 />
                 <TextArea
- label={t3({
- en:"Sub Header",
- fr:"Sous-en-tête",
- pt:"Subcabeçalho",
+                  label={t3({
+                    en: "Sub Header",
+                    fr: "Sous-en-tête",
+                    pt: "Subcabeçalho",
                   })}
- value={p.tempSlide.subHeader ??""}
- onChange={(v: string) =>
- p.setTempSlide("subHeader", v || undefined)
+                  value={p.tempSlide.subHeader ?? ""}
+                  onChange={(v: string) =>
+                    p.setTempSlide("subHeader", v || undefined)
                   }
- fullWidth
- height="40px"
+                  fullWidth
+                  height="40px"
                 />
                 <TextArea
- label={t3({ en:"Date", fr:"Date", pt:"Data"})}
- value={p.tempSlide.date ??""}
- onChange={(v: string) =>
- p.setTempSlide("date", v || undefined)
+                  label={t3({ en: "Date", fr: "Date", pt: "Data" })}
+                  value={p.tempSlide.date ?? ""}
+                  onChange={(v: string) =>
+                    p.setTempSlide("date", v || undefined)
                   }
- fullWidth
- height="40px"
+                  fullWidth
+                  height="40px"
                 />
                 <Select
- label={t3({
- en:"Header logos",
- fr:"Logos d'en-tête",
- pt:"Logótipos do cabeçalho",
+                  label={t3({
+                    en: "Header logos",
+                    fr: "Logos d'en-tête",
+                    pt: "Logótipos do cabeçalho",
                   })}
- value={p.tempSlide.showHeaderLogos ??"inherit"}
- options={getLogoVisibilityOptions(p.showHeaderLogosByDefault)}
- onChange={(v) =>
- p.setTempSlide(
-"showHeaderLogos",
- v ==="inherit"? undefined : (v as LogoVisibility),
+                  value={p.tempSlide.showHeaderLogos ?? "inherit"}
+                  options={getLogoVisibilityOptions(p.showHeaderLogosByDefault)}
+                  onChange={(v) =>
+                    p.setTempSlide(
+                      "showHeaderLogos",
+                      v === "inherit" ? undefined : (v as LogoVisibility),
                     )
                   }
                 />
               </div>
-              <hr class="mt-3 mb-1"/>
+              <hr class="border-border mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Show
- when={!p.hasGlobalFooterText}
- fallback={
+                  when={!p.hasGlobalFooterText}
+                  fallback={
                     <div class="ui-text-caption">
                       {t3({
- en:"Footer text is set at the deck level",
- fr:"Le texte de pied de page est défini au niveau du diaporama",
- pt:"O texto do rodapé é definido ao nível da apresentação",
+                        en: "Footer text is set at the deck level",
+                        fr: "Le texte de pied de page est défini au niveau du diaporama",
+                        pt: "O texto do rodapé é definido ao nível da apresentação",
                       })}
                     </div>
                   }
                 >
                   <TextArea
- label={t3({
- en:"Footer text",
- fr:"Texte de pied de page",
- pt:"Texto do rodapé",
+                    label={t3({
+                      en: "Footer text",
+                      fr: "Texte de pied de page",
+                      pt: "Texto do rodapé",
                     })}
- value={p.tempSlide.footer ??""}
- onChange={(v: string) =>
- p.setTempSlide("footer", v || undefined)
+                    value={p.tempSlide.footer ?? ""}
+                    onChange={(v: string) =>
+                      p.setTempSlide("footer", v || undefined)
                     }
- fullWidth
- height="40px"
+                    fullWidth
+                    height="40px"
                   />
                 </Show>
                 <Select
- label={t3({
- en:"Footer logos",
- fr:"Logos de pied de page",
- pt:"Logótipos do rodapé",
+                  label={t3({
+                    en: "Footer logos",
+                    fr: "Logos de pied de page",
+                    pt: "Logótipos do rodapé",
                   })}
- value={p.tempSlide.showFooterLogos ??"inherit"}
- options={getLogoVisibilityOptions(p.showFooterLogosByDefault)}
- onChange={(v) =>
- p.setTempSlide(
-"showFooterLogos",
- v ==="inherit"? undefined : (v as LogoVisibility),
+                  value={p.tempSlide.showFooterLogos ?? "inherit"}
+                  options={getLogoVisibilityOptions(p.showFooterLogosByDefault)}
+                  onChange={(v) =>
+                    p.setTempSlide(
+                      "showFooterLogos",
+                      v === "inherit" ? undefined : (v as LogoVisibility),
                     )
                   }
                 />
               </div>
-              <hr class="mt-3 mb-1"/>
+              <hr class="border-border mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Checkbox
- label={t3({
- en:"Add split panel",
- fr:"Ajouter panneau divisé",
- pt:"Adicionar painel dividido",
+                  label={t3({
+                    en: "Add split panel",
+                    fr: "Ajouter panneau divisé",
+                    pt: "Adicionar painel dividido",
                   })}
- checked={!!p.tempSlide.split}
- onChange={(checked) => {
- if (checked) {
- p.setTempSlide("split", {
- placement:"left",
- sizeAsPct: 15,
- fill: { type:"plain"},
+                  checked={!!p.tempSlide.split}
+                  onChange={(checked) => {
+                    if (checked) {
+                      p.setTempSlide("split", {
+                        placement: "left",
+                        sizeAsPct: 15,
+                        fill: { type: "plain" },
                       } satisfies ContentSlideSplit);
                     } else {
- p.setTempSlide("split", undefined);
+                      p.setTempSlide("split", undefined);
                     }
                   }}
                 />
                 <Show when={p.tempSlide.split}>
                   <Select
- label={t3({ en:"Placement", fr:"Placement", pt:"Posicionamento"})}
- value={p.tempSlide.split!.placement}
- options={[
+                    label={t3({ en: "Placement", fr: "Placement", pt: "Posicionamento" })}
+                    value={p.tempSlide.split!.placement}
+                    options={[
                       {
- value:"left",
- label: t3({ en:"Left", fr:"Gauche", pt:"Esquerda"}),
+                        value: "left",
+                        label: t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }),
                       },
                       {
- value:"right",
- label: t3({ en:"Right", fr:"Droite", pt:"Direita"}),
+                        value: "right",
+                        label: t3({ en: "Right", fr: "Droite", pt: "Direita" }),
                       },
                     ]}
- onChange={(v) =>
- p.setTempSlide(
-"split",
-"placement",
- v as"left"|"right",
+                    onChange={(v) =>
+                      p.setTempSlide(
+                        "split",
+                        "placement",
+                        v as "left" | "right",
                       )
                     }
- fullWidth
+                    fullWidth
                   />
                   <Select
- label={t3({ en:"Size", fr:"Taille", pt:"Tamanho"})}
- value={String(p.tempSlide.split!.sizeAsPct)}
- options={[
-                      { value:"5", label:"5%"},
-                      { value:"10", label:"10%"},
-                      { value:"15", label:"15%"},
-                      { value:"20", label:"20%"},
-                      { value:"25", label:"25%"},
-                      { value:"30", label:"30%"},
-                      { value:"35", label:"35%"},
-                      { value:"40", label:"40%"},
-                      { value:"45", label:"45%"},
-                      { value:"50", label:"50%"},
+                    label={t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
+                    value={String(p.tempSlide.split!.sizeAsPct)}
+                    options={[
+                      { value: "5", label: "5%" },
+                      { value: "10", label: "10%" },
+                      { value: "15", label: "15%" },
+                      { value: "20", label: "20%" },
+                      { value: "25", label: "25%" },
+                      { value: "30", label: "30%" },
+                      { value: "35", label: "35%" },
+                      { value: "40", label: "40%" },
+                      { value: "45", label: "45%" },
+                      { value: "50", label: "50%" },
                     ]}
- onChange={(v) =>
- p.setTempSlide("split","sizeAsPct", Number(v))
+                    onChange={(v) =>
+                      p.setTempSlide("split", "sizeAsPct", Number(v))
                     }
- fullWidth
+                    fullWidth
                   />
                   <Select
- label={t3({ en:"Fill", fr:"Remplissage", pt:"Preenchimento"})}
- value={p.tempSlide.split!.fill.type}
- options={[
-                      { value:"plain", label: t3({ en:"Plain", fr:"Uni", pt:"Liso"}) },
+                    label={t3({ en: "Fill", fr: "Remplissage", pt: "Preenchimento" })}
+                    value={p.tempSlide.split!.fill.type}
+                    options={[
+                      { value: "plain", label: t3({ en: "Plain", fr: "Uni", pt: "Liso" }) },
                       {
- value:"pattern",
- label: t3({ en:"Pattern", fr:"Motif", pt:"Padrão"}),
+                        value: "pattern",
+                        label: t3({ en: "Pattern", fr: "Motif", pt: "Padrão" }),
                       },
                       {
- value:"image",
- label: t3({ en:"Image", fr:"Image", pt:"Imagem"}),
+                        value: "image",
+                        label: t3({ en: "Image", fr: "Image", pt: "Imagem" }),
                       },
                     ]}
- onChange={(v) => {
- if (v ==="plain") {
- p.setTempSlide("split","fill", { type:"plain"});
-                      } else if (v ==="pattern") {
- p.setTempSlide("split","fill", {
- type:"pattern",
- patternType:"ovals",
+                    onChange={(v) => {
+                      if (v === "plain") {
+                        p.setTempSlide("split", "fill", { type: "plain" });
+                      } else if (v === "pattern") {
+                        p.setTempSlide("split", "fill", {
+                          type: "pattern",
+                          patternType: "ovals",
                         });
-                      } else if (v ==="image") {
- p.setTempSlide("split","fill", {
- type:"image",
- imgFile:"",
+                      } else if (v === "image") {
+                        p.setTempSlide("split", "fill", {
+                          type: "image",
+                          imgFile: "",
                         });
                       }
                     }}
- fullWidth
+                    fullWidth
                   />
-                  <Show when={p.tempSlide.split!.fill.type ==="pattern"}>
+                  <Show when={p.tempSlide.split!.fill.type === "pattern"}>
                     <Select
- label={t3({ en:"Pattern", fr:"Motif", pt:"Padrão"})}
- value={
+                      label={t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
+                      value={
                         (
- p.tempSlide.split!.fill as {
- type:"pattern";
- patternType: PatternType;
+                          p.tempSlide.split!.fill as {
+                            type: "pattern";
+                            patternType: PatternType;
                           }
                         ).patternType
                       }
- options={[
+                      options={[
                         {
- value:"ovals",
- label: t3({ en:"Ovals", fr:"Ovales", pt:"Ovais"}),
+                          value: "ovals",
+                          label: t3({ en: "Ovals", fr: "Ovales", pt: "Ovais" }),
                         },
                         {
- value:"circles",
- label: t3({ en:"Circles", fr:"Cercles", pt:"Círculos"}),
+                          value: "circles",
+                          label: t3({ en: "Circles", fr: "Cercles", pt: "Círculos" }),
                         },
                         {
- value:"dots",
- label: t3({ en:"Dots", fr:"Points", pt:"Pontos"}),
+                          value: "dots",
+                          label: t3({ en: "Dots", fr: "Points", pt: "Pontos" }),
                         },
                         {
- value:"lines",
- label: t3({ en:"Lines", fr:"Lignes", pt:"Linhas"}),
+                          value: "lines",
+                          label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
                         },
                         {
- value:"grid",
- label: t3({ en:"Grid", fr:"Grille", pt:"Grelha"}),
+                          value: "grid",
+                          label: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
                         },
                         {
- value:"chevrons",
- label: t3({ en:"Chevrons", fr:"Chevrons", pt:"Galões"}),
+                          value: "chevrons",
+                          label: t3({ en: "Chevrons", fr: "Chevrons", pt: "Galões" }),
                         },
                         {
- value:"waves",
- label: t3({ en:"Waves", fr:"Vagues", pt:"Ondas"}),
+                          value: "waves",
+                          label: t3({ en: "Waves", fr: "Vagues", pt: "Ondas" }),
                         },
                         {
- value:"noise",
- label: t3({ en:"Noise", fr:"Bruit", pt:"Ruído"}),
+                          value: "noise",
+                          label: t3({ en: "Noise", fr: "Bruit", pt: "Ruído" }),
                         },
                       ]}
- onChange={(v) =>
- p.setTempSlide("split","fill", {
- type:"pattern",
- patternType: v as PatternType,
+                      onChange={(v) =>
+                        p.setTempSlide("split", "fill", {
+                          type: "pattern",
+                          patternType: v as PatternType,
                         })
                       }
- fullWidth
+                      fullWidth
                     />
                   </Show>
-                  <Show when={p.tempSlide.split!.fill.type ==="image"}>
+                  <Show when={p.tempSlide.split!.fill.type === "image"}>
                     <Select
- label={t3({ en:"Image", fr:"Image", pt:"Imagem"})}
- options={getSelectOptions(
- instanceState.assets
+                      label={t3({ en: "Image", fr: "Image", pt: "Imagem" })}
+                      options={getSelectOptions(
+                        instanceState.assets
                           .filter((f) => f.isImage)
                           .map((f) => f.fileName),
                       )}
- value={
+                      value={
                         (
- p.tempSlide.split!.fill as {
- type:"image";
- imgFile: string;
+                          p.tempSlide.split!.fill as {
+                            type: "image";
+                            imgFile: string;
                           }
                         ).imgFile
                       }
- onChange={(v) =>
- p.setTempSlide("split","fill", {
- type:"image",
- imgFile: v,
+                      onChange={(v) =>
+                        p.setTempSlide("split", "fill", {
+                          type: "image",
+                          imgFile: v,
                         })
                       }
- fullWidth
+                      fullWidth
                     />
                   </Show>
                 </Show>
@@ -418,16 +418,16 @@ export function SlideEditorPanelContent(p: Props) {
             </div>
           </Match>
 
-          <Match when={p.contentTab ==="block"}>
+          <Match when={p.contentTab === "block"}>
             <div class="h-full overflow-auto">
               <Show
- when={getCurrentBlock()}
- fallback={
+                when={getCurrentBlock()}
+                fallback={
                   <div class="ui-pad text-base-content-muted text-sm">
                     {t3({
- en:"Click a block on the canvas to edit it",
- fr:"Cliquez sur un bloc du canevas pour le modifier",
- pt:"Clique num bloco na área de edição para o editar",
+                      en: "Click a block on the canvas to edit it",
+                      fr: "Cliquez sur un bloc du canevas pour le modifier",
+                      pt: "Clique num bloco na área de edição para o editar",
                     })}
                   </div>
                 }
@@ -435,245 +435,245 @@ export function SlideEditorPanelContent(p: Props) {
                 <div class="ui-pad ui-spy">
                   <div class="ui-gap-sm flex items-end">
                     <Select
- label={t3({ en:"Content type", fr:"Type de contenu", pt:"Tipo de conteúdo"})}
- options={[
+                      label={t3({ en: "Content type", fr: "Type de contenu", pt: "Tipo de conteúdo" })}
+                      options={[
                         {
- value:"text",
- label: t3({ en:"Text", fr:"Texte", pt:"Texto"}),
+                          value: "text",
+                          label: t3({ en: "Text", fr: "Texte", pt: "Texto" }),
                         },
                         {
- value:"figure",
- label: t3({
- en:"Visualization",
- fr:"Visualisation",
- pt:"Visualização",
+                          value: "figure",
+                          label: t3({
+                            en: "Visualization",
+                            fr: "Visualisation",
+                            pt: "Visualização",
                           }),
                         },
                         {
- value:"image",
- label: t3({ en:"Image", fr:"Image", pt:"Imagem"}),
+                          value: "image",
+                          label: t3({ en: "Image", fr: "Image", pt: "Imagem" }),
                         },
                       ]}
- value={getCurrentBlock()?.type}
- onChange={handleBlockTypeChange}
- fullWidth
+                      value={getCurrentBlock()?.type}
+                      onChange={handleBlockTypeChange}
+                      fullWidth
                     />
                     <Button
- outline
- onClick={(e: MouseEvent) => {
- const rect = (
- e.currentTarget as HTMLElement
+                      outline
+                      onClick={(e: MouseEvent) => {
+                        const rect = (
+                          e.currentTarget as HTMLElement
                         ).getBoundingClientRect();
- p.onShowLayoutMenu(rect.left, rect.bottom);
+                        p.onShowLayoutMenu(rect.left, rect.bottom);
                       }}
                     >
-                      {t3({ en:"Layout", fr:"Mise en page", pt:"Disposição"})}
+                      {t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" })}
                     </Button>
                   </div>
                   <Switch>
-                    <Match when={getCurrentBlock()?.type ==="text"}>
+                    <Match when={getCurrentBlock()?.type === "text"}>
                       <TextArea
- label={t3({ en:"Text", fr:"Texte", pt:"Texto"})}
- value={(getCurrentBlock() as TextBlock).markdown}
- onChange={(v: string) =>
- updateSelectedBlock((b: any) => ({
+                        label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
+                        value={(getCurrentBlock() as TextBlock).markdown}
+                        onChange={(v: string) =>
+                          updateSelectedBlock((b: any) => ({
                             ...b,
- markdown: v,
+                            markdown: v,
                           }))
                         }
- fullWidth
- height="300px"
+                        fullWidth
+                        height="300px"
                       />
                       <Select
- label={t3({
- en:"Text background",
- fr:"Arrière-plan du texte",
- pt:"Fundo do texto",
+                        label={t3({
+                          en: "Text background",
+                          fr: "Arrière-plan du texte",
+                          pt: "Fundo do texto",
                         })}
- options={[
+                        options={[
                           {
- value:"none",
- label: t3({ en:"None", fr:"Aucun", pt:"Nenhum"}),
+                            value: "none",
+                            label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }),
                           },
                           {
- value:"primary",
- label: t3({
- en:"Theme color",
- fr:"Couleur du thème",
- pt:"Cor do tema",
+                            value: "primary",
+                            label: t3({
+                              en: "Theme color",
+                              fr: "Couleur du thème",
+                              pt: "Cor do tema",
                             }),
                           },
                           {
- value:"grey",
- label: t3({ en:"Light grey", fr:"Gris clair", pt:"Cinzento claro"}),
+                            value: "grey",
+                            label: t3({ en: "Light grey", fr: "Gris clair", pt: "Cinzento claro" }),
                           },
                           {
- value:"success",
- label: t3({ en:"Green", fr:"Vert", pt:"Verde"}),
+                            value: "success",
+                            label: t3({ en: "Green", fr: "Vert", pt: "Verde" }),
                           },
                           {
- value:"danger",
- label: t3({ en:"Red", fr:"Rouge", pt:"Vermelho"}),
+                            value: "danger",
+                            label: t3({ en: "Red", fr: "Rouge", pt: "Vermelho" }),
                           },
                         ]}
- value={
+                        value={
                           (getCurrentBlock() as TextBlock).style
-                            ?.textBackground ??"none"
+                            ?.textBackground ?? "none"
                         }
- onChange={(v: string) =>
- updateSelectedBlock((b) => {
- const tb = b as TextBlock;
- return {
+                        onChange={(v: string) =>
+                          updateSelectedBlock((b) => {
+                            const tb = b as TextBlock;
+                            return {
                               ...tb,
- style: { ...tb.style, textBackground: v },
+                              style: { ...tb.style, textBackground: v },
                             };
                           })
                         }
- fullWidth
+                        fullWidth
                       />
 
                       <MarkdownGuide />
 
                       {/* <>
                         {(() => {
- const TICK_LABEL_KEYS = new Set<TextSizeKey>([
-"3xs",
-"xs",
-"m",
-"xl",
-"3xl",
-"6xl",
+                          const TICK_LABEL_KEYS = new Set<TextSizeKey>([
+                            "3xs",
+                            "xs",
+                            "m",
+                            "xl",
+                            "3xl",
+                            "6xl",
                           ]);
- const blockIndex = () => {
- const key =
+                          const blockIndex = () => {
+                            const key =
                               (getCurrentBlock() as TextBlock).style
                                 ?.textSize ?? DEFAULT_TEXT_SIZE_KEY;
- const idx = TEXT_SIZE_KEYS.indexOf(key);
- return idx >= 0
+                            const idx = TEXT_SIZE_KEYS.indexOf(key);
+                            return idx >= 0
                               ? idx
                               : TEXT_SIZE_KEYS.indexOf(DEFAULT_TEXT_SIZE_KEY);
                           };
- const [dragIndex, setDragIndex] = createSignal<
- number | undefined
+                          const [dragIndex, setDragIndex] = createSignal<
+                            number | undefined
                           >(undefined);
- const displayIndex = () =>
- dragIndex() ?? blockIndex();
- const disableReset = () =>
+                          const displayIndex = () =>
+                            dragIndex() ?? blockIndex();
+                          const disableReset = () =>
                             (getCurrentBlock() as TextBlock).style?.textSize ===
- DEFAULT_TEXT_SIZE_KEY ||
+                              DEFAULT_TEXT_SIZE_KEY ||
                             (getCurrentBlock() as TextBlock).style ===
- undefined;
- return (
+                              undefined;
+                          return (
                             <div class="ui-gap-sm flex items-center">
                               <Slider
- label={t3({
- en:"Text size",
- fr:"Taille du texte",
- pt:"Tamanho do texto",
+                                label={t3({
+                                  en: "Text size",
+                                  fr: "Taille du texte",
+                                  pt: "Tamanho do texto",
                                 })}
- value={displayIndex()}
- onChange={(i) => setDragIndex(i)}
- onRelease={(i) => {
- setDragIndex(undefined);
- const key = TEXT_SIZE_KEYS[i];
- updateSelectedBlock((b) => {
- const tb = b as TextBlock;
- return {
+                                value={displayIndex()}
+                                onChange={(i) => setDragIndex(i)}
+                                onRelease={(i) => {
+                                  setDragIndex(undefined);
+                                  const key = TEXT_SIZE_KEYS[i];
+                                  updateSelectedBlock((b) => {
+                                    const tb = b as TextBlock;
+                                    return {
                                       ...tb,
- style: { ...tb.style, textSize: key },
+                                      style: { ...tb.style, textSize: key },
                                     };
                                   });
                                 }}
- min={0}
- max={TEXT_SIZE_KEYS.length - 1}
- step={1}
- showValueInLabel
- valueInLabelFormatter={(i) =>
- TEXT_SIZE_KEYS[i]?.toUpperCase() ??""
+                                min={0}
+                                max={TEXT_SIZE_KEYS.length - 1}
+                                step={1}
+                                showValueInLabel
+                                valueInLabelFormatter={(i) =>
+                                  TEXT_SIZE_KEYS[i]?.toUpperCase() ?? ""
                                 }
- ticks={{
- major: TEXT_SIZE_KEYS.map((_, i) => i),
- showLabels: true,
- labelFormatter: (i) =>
- TICK_LABEL_KEYS.has(TEXT_SIZE_KEYS[i])
+                                ticks={{
+                                  major: TEXT_SIZE_KEYS.map((_, i) => i),
+                                  showLabels: true,
+                                  labelFormatter: (i) =>
+                                    TICK_LABEL_KEYS.has(TEXT_SIZE_KEYS[i])
                                       ? TEXT_SIZE_KEYS[i].toUpperCase()
-                                      :"",
+                                      : "",
                                 }}
- fullWidth
+                                fullWidth
                               />
 
                               <Button
- outline
- onClick={() => {
- setDragIndex(undefined);
- updateSelectedBlock((b) => {
- const tb = b as TextBlock;
- return {
+                                outline
+                                onClick={() => {
+                                  setDragIndex(undefined);
+                                  updateSelectedBlock((b) => {
+                                    const tb = b as TextBlock;
+                                    return {
                                       ...tb,
- style: {
+                                      style: {
                                         ...tb.style,
- textSize: DEFAULT_TEXT_SIZE_KEY,
+                                        textSize: DEFAULT_TEXT_SIZE_KEY,
                                       },
                                     };
                                   });
                                 }}
- iconName="refresh"
- disabled={disableReset()}
+                                iconName="refresh"
+                                disabled={disableReset()}
                               ></Button>
                             </div>
                           );
                         })()}
                       </> */}
                     </Match>
-                    <Match when={getCurrentBlock()?.type ==="figure"}>
+                    <Match when={getCurrentBlock()?.type === "figure"}>
                       {(() => {
- const block = () => getCurrentBlock() as FigureBlock;
- const hasBundle = () => block().bundle !== undefined;
- return (
+                        const block = () => getCurrentBlock() as FigureBlock;
+                        const hasBundle = () => block().bundle !== undefined;
+                        return (
                           <div class="ui-gap-sm flex flex-col">
                             <Show when={hasBundle()}>
                               <Button onClick={() => p.onEditVisualization()}>
                                 {t3({
- en:"Edit Visualization",
- fr:"Modifier la visualisation",
- pt:"Editar visualização",
+                                  en: "Edit Visualization",
+                                  fr: "Modifier la visualisation",
+                                  pt: "Editar visualização",
                                 })}
                               </Button>
                             </Show>
                             <Button onClick={() => p.onSelectVisualization()}>
                               {hasBundle()
                                 ? t3({
- en:"Switch Visualization",
- fr:"Changer de visualisation",
- pt:"Trocar visualização",
+                                    en: "Switch Visualization",
+                                    fr: "Changer de visualisation",
+                                    pt: "Trocar visualização",
                                   })
                                 : t3({
- en:"Select Visualization",
- fr:"Sélectionner la visualisation",
- pt:"Selecionar visualização",
+                                    en: "Select Visualization",
+                                    fr: "Sélectionner la visualisation",
+                                    pt: "Selecionar visualização",
                                   })}
                             </Button>
                             <Button onClick={() => p.onCreateVisualization()}>
                               {t3({
- en:"Create New Visualization",
- fr:"Créer une nouvelle visualisation",
- pt:"Criar nova visualização",
+                                en: "Create New Visualization",
+                                fr: "Créer une nouvelle visualisation",
+                                pt: "Criar nova visualização",
                               })}
                             </Button>
                             <Show when={hasBundle()}>
                               <Button
- intent="danger"
- outline
- onClick={() =>
- updateSelectedBlock(() => ({
- type:"figure",
+                                intent="danger"
+                                outline
+                                onClick={() =>
+                                  updateSelectedBlock(() => ({
+                                    type: "figure",
                                   }))
                                 }
                               >
                                 {t3({
- en:"Remove Visualization",
- fr:"Supprimer la visualisation",
- pt:"Remover visualização",
+                                  en: "Remove Visualization",
+                                  fr: "Supprimer la visualisation",
+                                  pt: "Remover visualização",
                                 })}
                               </Button>
                             </Show>
@@ -681,10 +681,10 @@ export function SlideEditorPanelContent(p: Props) {
                         );
                       })()}
                     </Match>
-                    <Match when={getCurrentBlock()?.type ==="image"}>
+                    <Match when={getCurrentBlock()?.type === "image"}>
                       <ImageBlockEditor
- block={() => getCurrentBlock() as ImageBlock}
- updateSelectedBlock={updateSelectedBlock}
+                        block={() => getCurrentBlock() as ImageBlock}
+                        updateSelectedBlock={updateSelectedBlock}
                       />
                     </Match>
                   </Switch>
@@ -699,83 +699,83 @@ export function SlideEditorPanelContent(p: Props) {
 }
 
 function ImageBlockEditor(p: {
- block: () => ImageBlock;
- updateSelectedBlock: (updater: (block: ContentBlock) => ContentBlock) => void;
+  block: () => ImageBlock;
+  updateSelectedBlock: (updater: (block: ContentBlock) => ContentBlock) => void;
 }) {
- return (
+  return (
     <div class="ui-spy">
       <Select
- label={t3({ en:"Image file", fr:"Fichier image", pt:"Ficheiro de imagem"})}
- options={getSelectOptions(
- instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName),
+        label={t3({ en: "Image file", fr: "Fichier image", pt: "Ficheiro de imagem" })}
+        options={getSelectOptions(
+          instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName),
         )}
- value={p.block().imgFile}
- onChange={(v: string) =>
- p.updateSelectedBlock((b) => ({ ...b, imgFile: v }))
+        value={p.block().imgFile}
+        onChange={(v: string) =>
+          p.updateSelectedBlock((b) => ({ ...b, imgFile: v }))
         }
- fullWidth
+        fullWidth
       />
       <Show when={p.block().imgFile}>
         <RadioGroup
- label={t3({ en:"Image fit", fr:"Ajustement de l'image", pt:"Ajuste da imagem"})}
- value={p.block().style?.imgFit ??"contain"}
- options={[
+          label={t3({ en: "Image fit", fr: "Ajustement de l'image", pt: "Ajuste da imagem" })}
+          value={p.block().style?.imgFit ?? "contain"}
+          options={[
             {
- value:"cover",
- label: t3({
- en:"Cover whole area",
- fr:"Couvrir toute la zone",
- pt:"Cobrir toda a área",
+              value: "cover",
+              label: t3({
+                en: "Cover whole area",
+                fr: "Couvrir toute la zone",
+                pt: "Cobrir toda a área",
               }),
             },
             {
- value:"contain",
- label: t3({
- en:"Fit inside area",
- fr:"Adapter à l'intérieur de la zone",
- pt:"Ajustar dentro da área",
+              value: "contain",
+              label: t3({
+                en: "Fit inside area",
+                fr: "Adapter à l'intérieur de la zone",
+                pt: "Ajustar dentro da área",
               }),
             },
           ]}
- onChange={(v: string) =>
- p.updateSelectedBlock((b) => {
- const ib = b as ImageBlock;
- return {
+          onChange={(v: string) =>
+            p.updateSelectedBlock((b) => {
+              const ib = b as ImageBlock;
+              return {
                 ...ib,
- style: { ...ib.style, imgFit: v as"cover"|"contain"},
+                style: { ...ib.style, imgFit: v as "cover" | "contain" },
               };
             })
           }
         />
-        <Show when={(p.block().style?.imgFit ??"contain") ==="contain"}>
+        <Show when={(p.block().style?.imgFit ?? "contain") === "contain"}>
           <Select
- label={t3({ en:"Alignment", fr:"Alignement", pt:"Alinhamento"})}
- options={[
-              { value:"center", label: t3({ en:"Center", fr:"Centre", pt:"Centro"}) },
-              { value:"top", label: t3({ en:"Top", fr:"Haut", pt:"Cima"}) },
-              { value:"bottom", label: t3({ en:"Bottom", fr:"Bas", pt:"Baixo"}) },
-              { value:"left", label: t3({ en:"Left", fr:"Gauche", pt:"Esquerda"}) },
-              { value:"right", label: t3({ en:"Right", fr:"Droite", pt:"Direita"}) },
+            label={t3({ en: "Alignment", fr: "Alignement", pt: "Alinhamento" })}
+            options={[
+              { value: "center", label: t3({ en: "Center", fr: "Centre", pt: "Centro" }) },
+              { value: "top", label: t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
+              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
+              { value: "left", label: t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }) },
+              { value: "right", label: t3({ en: "Right", fr: "Droite", pt: "Direita" }) },
             ]}
- value={p.block().style?.imgAlign ??"center"}
- onChange={(v: string) =>
- p.updateSelectedBlock((b) => {
- const ib = b as ImageBlock;
- return {
+            value={p.block().style?.imgAlign ?? "center"}
+            onChange={(v: string) =>
+              p.updateSelectedBlock((b) => {
+                const ib = b as ImageBlock;
+                return {
                   ...ib,
- style: {
+                  style: {
                     ...ib.style,
- imgAlign: v as
-                      |"center"
-                      |"top"
-                      |"bottom"
-                      |"left"
-                      |"right",
+                    imgAlign: v as
+                      | "center"
+                      | "top"
+                      | "bottom"
+                      | "left"
+                      | "right",
                   },
                 };
               })
             }
- fullWidth
+            fullWidth
           />
         </Show>
       </Show>

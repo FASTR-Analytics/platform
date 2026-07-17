@@ -1,96 +1,96 @@
 import {
- ItemsHolderDatasetHmisDisplay,
- getAbcQualScale,
- getCalendar,
- t3,
- type IndicatorType,
- type InstanceConfigFacilityColumns,
-} from"lib";
+  ItemsHolderDatasetHmisDisplay,
+  getAbcQualScale,
+  getCalendar,
+  t3,
+  type IndicatorType,
+  type InstanceConfigFacilityColumns,
+} from "lib";
 import {
- FigureInputs,
- ChartHolder,
- FrameLeftResizable,
- MultiSelect,
- RadioGroup,
- StateHolder,
- StateHolderWrapper,
- getSelectOptionsWithFirstCapital,
- toNum0,
- type CustomFigureStyleOptions,
-} from"panther";
+  FigureInputs,
+  ChartHolder,
+  FrameLeftResizable,
+  MultiSelect,
+  RadioGroup,
+  StateHolder,
+  StateHolderWrapper,
+  getSelectOptionsWithFirstCapital,
+  toNum0,
+  type CustomFigureStyleOptions,
+} from "panther";
 import {
- Show,
- createEffect,
- createMemo,
- createSignal,
- type Setter,
-} from"solid-js";
-import { createStore } from"solid-js/store";
-import { getDatasetHmisDisplayInfoFromCacheOrFetch } from"~/state/instance/t2_datasets";
-import { instanceState } from"~/state/instance/t1_store";
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  type Setter,
+} from "solid-js";
+import { createStore } from "solid-js/store";
+import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
- versionId: number;
- indicatorMappingsVersion: string;
- facilityColumns: InstanceConfigFacilityColumns;
+  versionId: number;
+  indicatorMappingsVersion: string;
+  facilityColumns: InstanceConfigFacilityColumns;
 };
 
 export function DatasetItemsHolder(p: Props) {
- const [rawOrCommon, setRawOrCommon] = createSignal<IndicatorType>("common");
+  const [rawOrCommon, setRawOrCommon] = createSignal<IndicatorType>("common");
 
- const [itemsHolder, setItemsHolder] = createSignal<
- StateHolder<ItemsHolderDatasetHmisDisplay>
+  const [itemsHolder, setItemsHolder] = createSignal<
+    StateHolder<ItemsHolderDatasetHmisDisplay>
   >({
- status:"loading",
- msg: t3({ en:"Fetching data...", fr:"Récupération des données...", pt:"A obter dados..."}),
+    status: "loading",
+    msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   });
 
- async function attemptGetDatatable(
- rawOrCommonIndicators: IndicatorType,
- versionId: number,
- indicatorMappingsVersion: string,
+  async function attemptGetDatatable(
+    rawOrCommonIndicators: IndicatorType,
+    versionId: number,
+    indicatorMappingsVersion: string,
   ) {
- setItemsHolder({
- status:"loading",
- msg: t3({ en:"Fetching data...", fr:"Récupération des données...", pt:"A obter dados..."}),
+    setItemsHolder({
+      status: "loading",
+      msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
     });
- const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
- rawOrCommonIndicators,
- versionId,
- indicatorMappingsVersion,
- p.facilityColumns,
- instanceState.maxAdminArea,
- instanceState.hmisImportRunActive,
+    const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
+      rawOrCommonIndicators,
+      versionId,
+      indicatorMappingsVersion,
+      p.facilityColumns,
+      instanceState.maxAdminArea,
+      instanceState.hmisImportRunActive,
     );
- if (res.success === false) {
- setItemsHolder({ status:"error", err: res.err });
- return;
+    if (res.success === false) {
+      setItemsHolder({ status: "error", err: res.err });
+      return;
     }
     // if (res.data.vizItems.length === 0) {
-    // setItemsHolder({
-    // status:"error",
-    // err:"There is no data to display. Import some data.",
+    //   setItemsHolder({
+    //     status: "error",
+    //     err: "There is no data to display. Import some data.",
     //   });
-    // return;
+    //   return;
     // }
- setItemsHolder({
- status:"ready",
- data: res.data,
+    setItemsHolder({
+      status: "ready",
+      data: res.data,
     });
   }
 
- createEffect(() => {
- attemptGetDatatable(rawOrCommon(), p.versionId, p.indicatorMappingsVersion);
+  createEffect(() => {
+    attemptGetDatatable(rawOrCommon(), p.versionId, p.indicatorMappingsVersion);
   });
 
- return (
+  return (
     <StateHolderWrapper state={itemsHolder()}>
       {(keyedDatasetItems) => {
- return (
+        return (
           <DatasetDisplayPresentation
- displayItems={keyedDatasetItems}
- rawOrCommon={rawOrCommon()}
- setRawOrCommon={setRawOrCommon}
+            displayItems={keyedDatasetItems}
+            rawOrCommon={rawOrCommon()}
+            setRawOrCommon={setRawOrCommon}
           />
         );
       }}
@@ -99,156 +99,156 @@ export function DatasetItemsHolder(p: Props) {
 }
 
 type DatasetDisplayPresentationProps = {
- displayItems: ItemsHolderDatasetHmisDisplay;
- rawOrCommon: IndicatorType;
- setRawOrCommon: Setter<IndicatorType>;
+  displayItems: ItemsHolderDatasetHmisDisplay;
+  rawOrCommon: IndicatorType;
+  setRawOrCommon: Setter<IndicatorType>;
 };
 
 function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
- const [vizConfig, setVizConfig] = createStore({
- value:"count"as"count"|"sum",
- figureType:"chart"as"table"|"chart",
- indicators: p.displayItems.indicators.map((ind) => ind.value),
+  const [vizConfig, setVizConfig] = createStore({
+    value: "count" as "count" | "sum",
+    figureType: "chart" as "table" | "chart",
+    indicators: p.displayItems.indicators.map((ind) => ind.value),
   });
 
- const filteredVizItems = createMemo(() => {
- const indicatorsToVizualize = vizConfig.indicators;
- if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
- return p.displayItems.vizItems;
+  const filteredVizItems = createMemo(() => {
+    const indicatorsToVizualize = vizConfig.indicators;
+    if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
+      return p.displayItems.vizItems;
     }
- return p.displayItems.vizItems.filter((row) => {
- return indicatorsToVizualize?.includes(row["indicator_id"]) ?? true;
+    return p.displayItems.vizItems.filter((row) => {
+      return indicatorsToVizualize?.includes(row["indicator_id"]) ?? true;
     });
   });
 
- const figureInputs = createMemo<StateHolder<FigureInputs>>(() => {
- const jsonArray = filteredVizItems();
+  const figureInputs = createMemo<StateHolder<FigureInputs>>(() => {
+    const jsonArray = filteredVizItems();
 
- const value = vizConfig.value;
- const figureType = vizConfig.figureType;
+    const value = vizConfig.value;
+    const figureType = vizConfig.figureType;
 
- const showLegend =
- vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
+    const showLegend =
+      vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
 
- const style: CustomFigureStyleOptions = {
- surrounds: {
- legendPosition: showLegend ? undefined :"none",
+    const style: CustomFigureStyleOptions = {
+      surrounds: {
+        legendPosition: showLegend ? undefined : "none",
       },
- legend: {
- maxLegendItemsInOneColumn: 1,
+      legend: {
+        maxLegendItemsInOneColumn: 1,
       },
- seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
- yScaleAxis: {
- tickLabelFormatter: toNum0,
+      seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
+      yScaleAxis: {
+        tickLabelFormatter: toNum0,
       },
- xPeriodAxis: {
- calendar: getCalendar(),
+      xPeriodAxis: {
+        calendar: getCalendar(),
       },
- content: {
- lines: {
- joinAcrossGaps: false,
- func: {
- show: true,
- color: showLegend ? 666 : { key:"base300"},
+      content: {
+        lines: {
+          joinAcrossGaps: false,
+          func: {
+            show: true,
+            color: showLegend ? 666 : { key: "base300" },
           },
         },
- tableCells: {
- textFormatter: (info) => toNum0(info.value),
+        tableCells: {
+          textFormatter: (info) => toNum0(info.value),
         },
       },
     };
 
- const figureData: FigureInputs =
- figureType ==="chart"
+    const figureData: FigureInputs =
+      figureType === "chart"
         ? {
- timeseriesData: {
- jsonArray,
- jsonDataConfig: {
- valueProps: [value],
- periodProp:"period_id",
- periodType:"year-month",
- seriesProp:"indicator_id",
- labelReplacements:
- p.displayItems.indicatorLabelReplacements,
- yScaleAxisLabel:
- value ==="count"
-                    ? t3({ en:"Number of records", fr:"Nombre d'enregistrements", pt:"Número de registos"})
-                    : t3({ en:"Number of service counts", fr:"Nombre de prestations de services", pt:"Número de prestações de serviços"}),
+            timeseriesData: {
+              jsonArray,
+              jsonDataConfig: {
+                valueProps: [value],
+                periodProp: "period_id",
+                periodType: "year-month",
+                seriesProp: "indicator_id",
+                labelReplacements:
+                  p.displayItems.indicatorLabelReplacements,
+                yScaleAxisLabel:
+                  value === "count"
+                    ? t3({ en: "Number of records", fr: "Nombre d'enregistrements", pt: "Número de registos" })
+                    : t3({ en: "Number of service counts", fr: "Nombre de prestations de services", pt: "Número de prestações de serviços" }),
               },
             },
- style,
+            style,
           }
         : {
- tableData: {
- jsonArray,
- jsonDataConfig: {
- valueProps: [value],
- colProp:"indicator_id",
- rowProp:"period_id",
- sort: { col:"by-label", row:"by-label"},
- labelReplacements:
- p.displayItems.indicatorLabelReplacements,
+            tableData: {
+              jsonArray,
+              jsonDataConfig: {
+                valueProps: [value],
+                colProp: "indicator_id",
+                rowProp: "period_id",
+                sort: { col: "by-label", row: "by-label" },
+                labelReplacements:
+                  p.displayItems.indicatorLabelReplacements,
               },
             },
- style,
+            style,
           };
- return { status:"ready", data: figureData };
+    return { status: "ready", data: figureData };
   });
 
- return (
+  return (
     <FrameLeftResizable
- startingWidth={300}
- maxWidth={800}
- hoverOffset="offset-for-border-1-on-left"
- panelChildren={
-        <div class="ui-pad ui-spy h-full w-full border-r">
+      startingWidth={300}
+      maxWidth={800}
+      hoverOffset="offset-for-border-1-on-left"
+      panelChildren={
+        <div class="ui-pad ui-spy border-border h-full w-full border-r">
           <RadioGroup
- label={t3({ en:"Common or DHIS2 indicators", fr:"Indicateurs communs ou DHIS2", pt:"Indicadores comuns ou DHIS2"})}
- options={[
-              { value:"common", label: t3({ en:"Common indicators", fr:"Indicateurs communs", pt:"Indicadores comuns"}) },
-              { value:"raw", label: t3({ en:"DHIS2 indicators", fr:"Indicateurs DHIS2", pt:"Indicadores DHIS2"}) },
+            label={t3({ en: "Common or DHIS2 indicators", fr: "Indicateurs communs ou DHIS2", pt: "Indicadores comuns ou DHIS2" })}
+            options={[
+              { value: "common", label: t3({ en: "Common indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" }) },
+              { value: "raw", label: t3({ en: "DHIS2 indicators", fr: "Indicateurs DHIS2", pt: "Indicadores DHIS2" }) },
             ]}
- value={p.rawOrCommon}
- onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
+            value={p.rawOrCommon}
+            onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
           />
           <RadioGroup
- label={t3({ en:"Value", fr:"Valeur", pt:"Valor"})}
- options={[
-              { value:"count", label: t3({ en:"Number of records", fr:"Nombre d'enregistrements", pt:"Número de registos"}) },
-              { value:"sum", label: t3({ en:"Number of service counts", fr:"Nombre de prestations de services", pt:"Número de prestações de serviços"}) },
+            label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
+            options={[
+              { value: "count", label: t3({ en: "Number of records", fr: "Nombre d'enregistrements", pt: "Número de registos" }) },
+              { value: "sum", label: t3({ en: "Number of service counts", fr: "Nombre de prestations de services", pt: "Número de prestações de serviços" }) },
             ]}
- value={vizConfig.value}
- onChange={(v) => setVizConfig("value", v as"count"|"sum")}
+            value={vizConfig.value}
+            onChange={(v) => setVizConfig("value", v as "count" | "sum")}
           />
           <RadioGroup
- label={t3({ en:"Format", fr:"Format", pt:"Formato"})}
- options={getSelectOptionsWithFirstCapital(["chart","table"])}
- value={vizConfig.figureType}
- onChange={(v) => setVizConfig("figureType", v as"table"|"chart")}
+            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
+            options={getSelectOptionsWithFirstCapital(["chart", "table"])}
+            value={vizConfig.figureType}
+            onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
           />
           <MultiSelect
- label={t3({ en:"Indicators", fr:"Indicateurs", pt:"Indicadores"})}
- options={p.displayItems.indicators}
- values={vizConfig.indicators}
- onChange={(v) => setVizConfig("indicators", v)}
- showSelectAll
+            label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+            options={p.displayItems.indicators}
+            values={vizConfig.indicators}
+            onChange={(v) => setVizConfig("indicators", v)}
+            showSelectAll
           />
         </div>
       }
     >
       <div class="ui-pad h-full w-full overflow-auto">
         <Show
- when={vizConfig.indicators.length > 0}
- fallback={
-            <span class="text-sm">{t3({ en:"You must select at least one indicator", fr:"Vous devez sélectionner au moins un indicateur", pt:"Tem de selecionar pelo menos um indicador"})}</span>
+          when={vizConfig.indicators.length > 0}
+          fallback={
+            <span class="text-sm">{t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur", pt: "Tem de selecionar pelo menos um indicador" })}</span>
           }
         >
           <StateHolderWrapper state={figureInputs()}>
             {(keyedInputs) => {
- return (
+              return (
                 <ChartHolder
- chartInputs={keyedInputs}
- height={vizConfig.figureType ==="chart"?"flex":"ideal"}
+                  chartInputs={keyedInputs}
+                  height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );
             }}

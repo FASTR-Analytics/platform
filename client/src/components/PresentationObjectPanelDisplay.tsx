@@ -1,385 +1,385 @@
 import {
- createMetricLookup,
- getMetricDisplayLabel,
- groupMetricsByLabel,
- InstalledModuleSummary,
- MetricWithStatus,
- PresentationObjectSummary,
- ProjectState,
- SlideDeckFolder,
- SlideDeckSummary,
- VisualizationFolder,
- VisualizationGroupingMode,
- t3,
- TC,
-} from"lib";
+  createMetricLookup,
+  getMetricDisplayLabel,
+  groupMetricsByLabel,
+  InstalledModuleSummary,
+  MetricWithStatus,
+  PresentationObjectSummary,
+  ProjectState,
+  SlideDeckFolder,
+  SlideDeckSummary,
+  VisualizationFolder,
+  VisualizationGroupingMode,
+  t3,
+  TC,
+} from "lib";
 import {
- Button,
- Checkbox,
- createSelectionController,
- FrameLeftResizable,
- getColor,
- openAlert,
- openComponent,
- Select,
- SelectionCircle,
- SelectList,
- showMenu,
- createDeleteAction,
- type ListItem,
- type MenuItem,
-} from"panther";
-import { createEffect, createSignal, For, Show } from"solid-js";
+  Button,
+  Checkbox,
+  createSelectionController,
+  FrameLeftResizable,
+  getColor,
+  openAlert,
+  openComponent,
+  Select,
+  SelectionCircle,
+  SelectList,
+  showMenu,
+  createDeleteAction,
+  type ListItem,
+  type MenuItem,
+} from "panther";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import {
- vizGroupingMode,
- setVizGroupingMode,
- vizSelectedGroup,
- setVizSelectedGroup,
- hideUnreadyVisualizations,
- setHideUnreadyVisualizations,
- vizSortMode,
-} from"~/state/t4_ui";
-import { sortBySortMode } from"~/components/_shared/sort_control";
-import { serverActions } from"~/server_actions";
-import { PresentationObjectMiniDisplay } from"./PresentationObjectMiniDisplay";
-import { NotAvailableBox } from"./NotAvailableBox";
-import { EditFolderModal } from"./project/edit_folder_modal";
-import { MoveToFolderModal } from"./project/move_to_folder_modal";
-import { DuplicateVisualization } from"./visualization/duplicate_visualization";
-import { CreateSlideFromVisualizationModal } from"./visualization/create_slide_from_visualization_modal";
-import { EditCommonPropertiesModal } from"./visualization/edit_common_properties_modal";
-import { useAIProjectContext } from"~/components/project_ai";
+  vizGroupingMode,
+  setVizGroupingMode,
+  vizSelectedGroup,
+  setVizSelectedGroup,
+  hideUnreadyVisualizations,
+  setHideUnreadyVisualizations,
+  vizSortMode,
+} from "~/state/t4_ui";
+import { sortBySortMode } from "~/components/_shared/sort_control";
+import { serverActions } from "~/server_actions";
+import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
+import { NotAvailableBox } from "./NotAvailableBox";
+import { EditFolderModal } from "./project/edit_folder_modal";
+import { MoveToFolderModal } from "./project/move_to_folder_modal";
+import { DuplicateVisualization } from "./visualization/duplicate_visualization";
+import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_from_visualization_modal";
+import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
+import { useAIProjectContext } from "~/components/project_ai";
 
 function getGroupingOptions(): {
- value: VisualizationGroupingMode;
- label: string;
+  value: VisualizationGroupingMode;
+  label: string;
 }[] {
- return [
-    { value:"folders", label: t3({ en:"By folder", fr:"Par dossier", pt:"Por pasta"}) },
-    { value:"module", label: t3({ en:"By module", fr:"Par module", pt:"Por módulo"}) },
-    { value:"metric", label: t3({ en:"By metric", fr:"Par métrique", pt:"Por métrica"}) },
-    // { value:"ownership", label: t3({ en:"By ownership", fr:"Par propriétaire", pt:"Por proprietário"}) },
-    { value:"flat", label: t3({ en:"Flat list", fr:"Liste plate", pt:"Lista simples"}) },
+  return [
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
+    { value: "module", label: t3({ en: "By module", fr: "Par module", pt: "Por módulo" }) },
+    { value: "metric", label: t3({ en: "By metric", fr: "Par métrique", pt: "Por métrica" }) },
+    // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire", pt: "Por proprietário" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate", pt: "Lista simples" }) },
   ];
 }
 
 type GroupOption = {
- value: string;
- label: string;
- count: number;
- color?: string | null;
+  value: string;
+  label: string;
+  count: number;
+  color?: string | null;
 };
 
 type SubGroupConfig = {
- getGroupKey: (po: PresentationObjectSummary) => string;
- getGroupLabel: (key: string, modules: InstalledModuleSummary[]) => string;
- getGroupOrder: (modules: InstalledModuleSummary[]) => string[];
+  getGroupKey: (po: PresentationObjectSummary) => string;
+  getGroupLabel: (key: string, modules: InstalledModuleSummary[]) => string;
+  getGroupOrder: (modules: InstalledModuleSummary[]) => string[];
 };
 
 type Props = {
- projectState: ProjectState;
- searchText: string;
- onClick: (presentationObject: PresentationObjectSummary) => void;
+  projectState: ProjectState;
+  searchText: string;
+  onClick: (presentationObject: PresentationObjectSummary) => void;
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
 
- const metricModuleMap = () =>
- new Map(p.projectState.metrics.map((m) => [m.id, m.moduleId]));
+  const metricModuleMap = () =>
+    new Map(p.projectState.metrics.map((m) => [m.id, m.moduleId]));
 
- const readyMetricIds = () =>
- new Set(
- p.projectState.metrics
-        .filter((m) => m.status ==="ready")
+  const readyMetricIds = () =>
+    new Set(
+      p.projectState.metrics
+        .filter((m) => m.status === "ready")
         .map((m) => m.id),
     );
 
- const filteredBySearch = () => {
- let vizs = p.projectState.visualizations;
+  const filteredBySearch = () => {
+    let vizs = p.projectState.visualizations;
 
- if (hideUnreadyVisualizations()) {
- const ready = readyMetricIds();
- vizs = vizs.filter((po) => ready.has(po.metricId));
+    if (hideUnreadyVisualizations()) {
+      const ready = readyMetricIds();
+      vizs = vizs.filter((po) => ready.has(po.metricId));
     }
 
- if (p.searchText.length < 3) return vizs;
- const searchLower = p.searchText.toLowerCase();
- return vizs.filter((po) => po.label.toLowerCase().includes(searchLower));
+    if (p.searchText.length < 3) return vizs;
+    const searchLower = p.searchText.toLowerCase();
+    return vizs.filter((po) => po.label.toLowerCase().includes(searchLower));
   };
 
- const groupOptions = (): GroupOption[] => {
- const vizs = filteredBySearch();
- const mode = vizGroupingMode();
+  const groupOptions = (): GroupOption[] => {
+    const vizs = filteredBySearch();
+    const mode = vizGroupingMode();
 
- switch (mode) {
- case"folders": {
- const defaults = vizs.filter((v) => v.isDefault && !v.createdByAI);
- const generalCount = vizs.filter(
+    switch (mode) {
+      case "folders": {
+        const defaults = vizs.filter((v) => v.isDefault && !v.createdByAI);
+        const generalCount = vizs.filter(
           (v) => v.folderId === null && !v.isDefault && !v.createdByAI,
         ).length;
- const groups: GroupOption[] = [
+        const groups: GroupOption[] = [
           {
- value:"_defaults",
- label: t3({ en:"Defaults", fr:"Par défaut", pt:"Predefinições"}),
- count: defaults.length,
+            value: "_defaults",
+            label: t3({ en: "Defaults", fr: "Par défaut", pt: "Predefinições" }),
+            count: defaults.length,
           },
-          { value:"_unfiled", label: t3(TC.general), count: generalCount },
+          { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
- groups.push(
+        groups.push(
           ...p.projectState.visualizationFolders.map((f) => ({
- value: f.id,
- label: f.label,
- count: vizs.filter((v) => v.folderId === f.id && !v.isDefault)
+            value: f.id,
+            label: f.label,
+            count: vizs.filter((v) => v.folderId === f.id && !v.isDefault)
               .length,
- color: f.color,
+            color: f.color,
           })),
         );
- return groups;
+        return groups;
       }
 
- case"module":
- return p.projectState.projectModules.map((m) => ({
- value: m.id,
- label: m.label,
- count: vizs.filter((v) => metricModuleMap().get(v.metricId) === m.id)
+      case "module":
+        return p.projectState.projectModules.map((m) => ({
+          value: m.id,
+          label: m.label,
+          count: vizs.filter((v) => metricModuleMap().get(v.metricId) === m.id)
             .length,
         }));
 
- case"metric": {
- const metricGroups = groupMetricsByLabel(p.projectState.metrics);
- const moduleOrder = new Map(
- p.projectState.projectModules.map((m, i) => [m.id, i]),
+      case "metric": {
+        const metricGroups = groupMetricsByLabel(p.projectState.metrics);
+        const moduleOrder = new Map(
+          p.projectState.projectModules.map((m, i) => [m.id, i]),
         );
- return metricGroups
+        return metricGroups
           .filter((group) => {
             // Only include groups that have visualizations
- return group.variants.some((m) =>
- vizs.some((v) => v.metricId === m.id),
+            return group.variants.some((m) =>
+              vizs.some((v) => v.metricId === m.id),
             );
           })
           .sort((a, b) => {
- const moduleA = a.variants[0].moduleId;
- const moduleB = b.variants[0].moduleId;
- const moduleOrderA = moduleOrder.get(moduleA) ?? 999;
- const moduleOrderB = moduleOrder.get(moduleB) ?? 999;
- if (moduleOrderA !== moduleOrderB) {
- return moduleOrderA - moduleOrderB;
+            const moduleA = a.variants[0].moduleId;
+            const moduleB = b.variants[0].moduleId;
+            const moduleOrderA = moduleOrder.get(moduleA) ?? 999;
+            const moduleOrderB = moduleOrder.get(moduleB) ?? 999;
+            if (moduleOrderA !== moduleOrderB) {
+              return moduleOrderA - moduleOrderB;
             }
- return a.variants[0].id.localeCompare(b.variants[0].id);
+            return a.variants[0].id.localeCompare(b.variants[0].id);
           })
           .map((group) => {
- const count = group.variants.reduce(
+            const count = group.variants.reduce(
               (sum, m) => sum + vizs.filter((v) => v.metricId === m.id).length,
- 0,
+              0,
             );
- return {
- value: group.label,
- label: group.label,
- count,
+            return {
+              value: group.label,
+              label: group.label,
+              count,
             };
           });
       }
 
- case"flat":
- return [
+      case "flat":
+        return [
           {
- value:"_all",
- label: t3({
- en:"All Visualizations",
- fr:"Toutes les visualisations",
- pt:"Todas as visualizações",
+            value: "_all",
+            label: t3({
+              en: "All Visualizations",
+              fr: "Toutes les visualisations",
+              pt: "Todas as visualizações",
             }),
- count: vizs.length,
+            count: vizs.length,
           },
         ];
 
- default:
- return [];
+      default:
+        return [];
     }
   };
 
- const filteredVisualizations = () => {
- const vizs = filteredBySearch();
- const group = vizSelectedGroup();
- const mode = vizGroupingMode();
+  const filteredVisualizations = () => {
+    const vizs = filteredBySearch();
+    const group = vizSelectedGroup();
+    const mode = vizGroupingMode();
 
- if (!group) return [];
+    if (!group) return [];
 
- let selected: PresentationObjectSummary[];
- switch (mode) {
- case"folders":
- if (group ==="_defaults") {
- selected = vizs.filter((v) => v.isDefault && !v.createdByAI);
-        } else if (group ==="_unfiled") {
- selected = vizs.filter(
+    let selected: PresentationObjectSummary[];
+    switch (mode) {
+      case "folders":
+        if (group === "_defaults") {
+          selected = vizs.filter((v) => v.isDefault && !v.createdByAI);
+        } else if (group === "_unfiled") {
+          selected = vizs.filter(
             (v) => v.folderId === null && !v.isDefault && !v.createdByAI,
           );
         } else {
- selected = vizs.filter((v) => v.folderId === group && !v.isDefault);
+          selected = vizs.filter((v) => v.folderId === group && !v.isDefault);
         }
- break;
+        break;
 
- case"module":
- selected = vizs.filter(
+      case "module":
+        selected = vizs.filter(
           (v) => metricModuleMap().get(v.metricId) === group,
         );
- break;
+        break;
 
- case"metric": {
+      case "metric": {
         // group is the metric label, find all metric IDs with that label
- const metricGroups = groupMetricsByLabel(p.projectState.metrics);
- const metricGroup = metricGroups.find((g) => g.label === group);
- if (!metricGroup) {
- selected = [];
+        const metricGroups = groupMetricsByLabel(p.projectState.metrics);
+        const metricGroup = metricGroups.find((g) => g.label === group);
+        if (!metricGroup) {
+          selected = [];
         } else {
- const metricIds = new Set(metricGroup.variants.map((m) => m.id));
- selected = vizs.filter((v) => metricIds.has(v.metricId));
+          const metricIds = new Set(metricGroup.variants.map((m) => m.id));
+          selected = vizs.filter((v) => metricIds.has(v.metricId));
         }
- break;
+        break;
       }
 
- default:
- selected = vizs;
+      default:
+        selected = vizs;
     }
 
- return sortBySortMode(
- selected,
- vizSortMode(),
+    return sortBySortMode(
+      selected,
+      vizSortMode(),
       (po) => po.label,
       (po) => po.lastUpdated,
     );
   };
 
- const subGroupConfig = (): SubGroupConfig | null => {
- const group = vizSelectedGroup();
- const mode = vizGroupingMode();
+  const subGroupConfig = (): SubGroupConfig | null => {
+    const group = vizSelectedGroup();
+    const mode = vizGroupingMode();
 
-    // Sub-group by module for Defaults folder or"default"in ownership
- if (mode ==="folders"&& group ==="_defaults") {
- return {
- getGroupKey: (po) => metricModuleMap().get(po.metricId) ??"",
- getGroupLabel: (key, modules) =>
- modules.find((m) => m.id === key)?.label ?? key,
- getGroupOrder: (modules) => modules.map((m) => m.id),
+    // Sub-group by module for Defaults folder or "default" in ownership
+    if (mode === "folders" && group === "_defaults") {
+      return {
+        getGroupKey: (po) => metricModuleMap().get(po.metricId) ?? "",
+        getGroupLabel: (key, modules) =>
+          modules.find((m) => m.id === key)?.label ?? key,
+        getGroupOrder: (modules) => modules.map((m) => m.id),
       };
     }
 
     // Sub-group by metric for module view
- if (mode ==="module") {
- const lookup = createMetricLookup(p.projectState.metrics);
- return {
- getGroupKey: (po) => po.metricId,
- getGroupLabel: (key) => {
- const metric = lookup.get(key);
- return metric ? getMetricDisplayLabel(metric) : key;
+    if (mode === "module") {
+      const lookup = createMetricLookup(p.projectState.metrics);
+      return {
+        getGroupKey: (po) => po.metricId,
+        getGroupLabel: (key) => {
+          const metric = lookup.get(key);
+          return metric ? getMetricDisplayLabel(metric) : key;
         },
- getGroupOrder: () => [], // Empty = use natural order from visualizations
+        getGroupOrder: () => [], // Empty = use natural order from visualizations
       };
     }
 
     // Sub-group by variant for metric view (only if metric has multiple variants)
- if (mode ==="metric"&& group) {
- const metricGroups = groupMetricsByLabel(p.projectState.metrics);
- const metricGroup = metricGroups.find((g) => g.label === group);
- if (metricGroup && metricGroup.variants.length > 1) {
- const lookup = createMetricLookup(p.projectState.metrics);
- return {
- getGroupKey: (po) => po.metricId,
- getGroupLabel: (key) => {
- const metric = lookup.get(key);
- return metric?.variantLabel ||"Default";
+    if (mode === "metric" && group) {
+      const metricGroups = groupMetricsByLabel(p.projectState.metrics);
+      const metricGroup = metricGroups.find((g) => g.label === group);
+      if (metricGroup && metricGroup.variants.length > 1) {
+        const lookup = createMetricLookup(p.projectState.metrics);
+        return {
+          getGroupKey: (po) => po.metricId,
+          getGroupLabel: (key) => {
+            const metric = lookup.get(key);
+            return metric?.variantLabel || "Default";
           },
- getGroupOrder: () => metricGroup.variants.map((m) => m.id),
+          getGroupOrder: () => metricGroup.variants.map((m) => m.id),
         };
       }
     }
 
- return null;
+    return null;
   };
 
- createEffect(() => {
- vizGroupingMode();
- const groups = groupOptions();
- const current = vizSelectedGroup();
- if (groups.length > 0 && !groups.find((g) => g.value === current)) {
- setVizSelectedGroup(groups[0].value);
+  createEffect(() => {
+    vizGroupingMode();
+    const groups = groupOptions();
+    const current = vizSelectedGroup();
+    if (groups.length > 0 && !groups.find((g) => g.value === current)) {
+      setVizSelectedGroup(groups[0].value);
     }
   });
 
- function handleFolderContextMenu(e: MouseEvent, folderId: string) {
- e.preventDefault();
- e.stopPropagation();
- const folder = p.projectState.visualizationFolders.find(
+  function handleFolderContextMenu(e: MouseEvent, folderId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const folder = p.projectState.visualizationFolders.find(
       (f) => f.id === folderId,
     );
- if (!folder) return;
+    if (!folder) return;
 
- const items: MenuItem[] = [
+    const items: MenuItem[] = [
       {
- label: t3({
- en:"Rename / Change color...",
- fr:"Renommer / Changer la couleur...",
- pt:"Mudar o nome / Alterar a cor...",
+        label: t3({
+          en: "Rename / Change color...",
+          fr: "Renommer / Changer la couleur...",
+          pt: "Mudar o nome / Alterar a cor...",
         }),
- icon:"pencil",
- onClick: async () => {
- await openComponent({
- element: EditFolderModal,
- props: {
- projectId: p.projectState.id,
- folder,
+        icon: "pencil",
+        onClick: async () => {
+          await openComponent({
+            element: EditFolderModal,
+            props: {
+              projectId: p.projectState.id,
+              folder,
             },
           });
         },
       },
       {
- label: t3({ en:"Delete folder", fr:"Supprimer le dossier", pt:"Eliminar pasta"}),
- icon:"trash",
- intent:"danger",
- onClick: async () => {
- const deleteAction = createDeleteAction(
- t3({
- en:"Are you sure you want to delete this folder? Visualizations will be moved to General.",
- fr:"Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général.",
- pt:"Tem a certeza de que pretende eliminar esta pasta? As visualizações serão movidas para Geral.",
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
+        icon: "trash",
+        intent: "danger",
+        onClick: async () => {
+          const deleteAction = createDeleteAction(
+            t3({
+              en: "Are you sure you want to delete this folder? Visualizations will be moved to General.",
+              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les visualisations seront déplacées dans Général.",
+              pt: "Tem a certeza de que pretende eliminar esta pasta? As visualizações serão movidas para Geral.",
             }),
             () =>
- serverActions.deleteVisualizationFolder({
- projectId: p.projectState.id,
- folder_id: folderId,
+              serverActions.deleteVisualizationFolder({
+                projectId: p.projectState.id,
+                folder_id: folderId,
               }),
             () => {},
           );
- await deleteAction.click();
+          await deleteAction.click();
         },
       },
     ];
- showMenu({
- anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
- items,
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
     });
   }
 
- const renderGroupOption = (item: ListItem<string>) => {
- const opt = groupOptions().find((g) => g.value === item.id);
- if (!opt) return <span>{item.label}</span>;
+  const renderGroupOption = (item: ListItem<string>) => {
+    const opt = groupOptions().find((g) => g.value === item.id);
+    if (!opt) return <span>{item.label}</span>;
 
- const mode = vizGroupingMode();
- if (mode ==="folders") {
- const isUserFolder = !item.id.startsWith("_");
- return (
+    const mode = vizGroupingMode();
+    if (mode === "folders") {
+      const isUserFolder = !item.id.startsWith("_");
+      return (
         <div
- class="flex items-center gap-2"
- onContextMenu={
- isUserFolder
+          class="flex items-center gap-2"
+          onContextMenu={
+            isUserFolder
               ? (e) => handleFolderContextMenu(e, item.id)
               : undefined
           }
         >
           <div
- class="h-2.5 w-2.5 flex-none rounded-full"
- style={{
-"background-color": opt.color ?? getColor({ key:"base300"}),
+            class="h-2.5 w-2.5 flex-none rounded-full"
+            style={{
+              "background-color": opt.color ?? getColor({ key: "base300" }),
             }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
@@ -387,7 +387,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         </div>
       );
     }
- return (
+    return (
       <div class="flex items-center justify-between gap-2">
         <span class="truncate">{opt.label}</span>
         <span class="ui-text-caption">({opt.count})</span>
@@ -395,58 +395,58 @@ export function PresentationObjectPanelDisplay(p: Props) {
     );
   };
 
- return (
+  return (
     <FrameLeftResizable
- startingWidth={180}
- minWidth={170}
- maxWidth={300}
- hoverOffset="offset-for-border-1-on-left"
- panelChildren={
-        <div class="flex h-full w-full flex-col border-r">
-          <div class="flex flex-col gap-2 border-b p-3">
+      startingWidth={180}
+      minWidth={170}
+      maxWidth={300}
+      hoverOffset="offset-for-border-1-on-left"
+      panelChildren={
+        <div class="border-border flex h-full w-full flex-col border-r">
+          <div class="border-border flex flex-col gap-2 border-b p-3">
             <Select
- options={getGroupingOptions()}
- value={vizGroupingMode()}
- onChange={(v) =>
- setVizGroupingMode(v as VisualizationGroupingMode)
+              options={getGroupingOptions()}
+              value={vizGroupingMode()}
+              onChange={(v) =>
+                setVizGroupingMode(v as VisualizationGroupingMode)
               }
- fullWidth
+              fullWidth
             />
             <Checkbox
- label={t3({
- en:"Hide unavailable",
- fr:"Masquer les indisponibles",
- pt:"Ocultar indisponíveis",
+              label={t3({
+                en: "Hide unavailable",
+                fr: "Masquer les indisponibles",
+                pt: "Ocultar indisponíveis",
               })}
- checked={hideUnreadyVisualizations()}
- onChange={setHideUnreadyVisualizations}
+              checked={hideUnreadyVisualizations()}
+              onChange={setHideUnreadyVisualizations}
             />
           </div>
           <div class="flex-1 overflow-auto p-2">
             <SelectList
- items={groupOptions().map((g) => ({
- id: g.value,
- label: g.label,
+              items={groupOptions().map((g) => ({
+                id: g.value,
+                label: g.label,
               }))}
- value={vizSelectedGroup() ?? undefined}
- onChange={setVizSelectedGroup}
- renderItem={renderGroupOption}
- fullWidth
+              value={vizSelectedGroup() ?? undefined}
+              onChange={setVizSelectedGroup}
+              renderItem={renderGroupOption}
+              fullWidth
             />
-            <Show when={vizGroupingMode() ==="folders"}>
+            <Show when={vizGroupingMode() === "folders"}>
               <div class="py-3">
                 <Button
- size="sm"
- outline
- iconName="plus"
- onClick={async () => {
- await openComponent({
- element: EditFolderModal,
- props: { projectId: p.projectState.id },
+                  size="sm"
+                  outline
+                  iconName="plus"
+                  onClick={async () => {
+                    await openComponent({
+                      element: EditFolderModal,
+                      props: { projectId: p.projectState.id },
                     });
                   }}
                 >
-                  {t3({ en:"New folder", fr:"Nouveau dossier", pt:"Nova pasta"})}
+                  {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
                 </Button>
               </div>
             </Show>
@@ -455,283 +455,283 @@ export function PresentationObjectPanelDisplay(p: Props) {
       }
     >
       <VisualizationGrid
- projectId={p.projectState.id}
- visualizations={filteredVisualizations()}
- folders={p.projectState.visualizationFolders}
- modules={p.projectState.projectModules}
- metrics={p.projectState.metrics}
- slideDecks={p.projectState.slideDecks}
- slideDeckFolders={p.projectState.slideDeckFolders}
- subGroupConfig={subGroupConfig()}
- onClick={p.onClick}
- searchText={p.searchText}
+        projectId={p.projectState.id}
+        visualizations={filteredVisualizations()}
+        folders={p.projectState.visualizationFolders}
+        modules={p.projectState.projectModules}
+        metrics={p.projectState.metrics}
+        slideDecks={p.projectState.slideDecks}
+        slideDeckFolders={p.projectState.slideDeckFolders}
+        subGroupConfig={subGroupConfig()}
+        onClick={p.onClick}
+        searchText={p.searchText}
       />
     </FrameLeftResizable>
   );
 }
 
 type VisualizationGridProps = {
- projectId: string;
- visualizations: PresentationObjectSummary[];
- folders: VisualizationFolder[];
- modules: InstalledModuleSummary[];
- metrics: MetricWithStatus[];
- slideDecks: SlideDeckSummary[];
- slideDeckFolders: SlideDeckFolder[];
- subGroupConfig: SubGroupConfig | null;
- onClick: (po: PresentationObjectSummary) => void;
- searchText: string;
+  projectId: string;
+  visualizations: PresentationObjectSummary[];
+  folders: VisualizationFolder[];
+  modules: InstalledModuleSummary[];
+  metrics: MetricWithStatus[];
+  slideDecks: SlideDeckSummary[];
+  slideDeckFolders: SlideDeckFolder[];
+  subGroupConfig: SubGroupConfig | null;
+  onClick: (po: PresentationObjectSummary) => void;
+  searchText: string;
 };
 
 function VisualizationGrid(p: VisualizationGridProps) {
- const metricLookup = () => createMetricLookup(p.metrics);
- const { notifyAI } = useAIProjectContext();
+  const metricLookup = () => createMetricLookup(p.metrics);
+  const { notifyAI } = useAIProjectContext();
 
- const getOrderedVisualizationIds = (): string[] => {
- if (!p.subGroupConfig) {
- return p.visualizations.map((po) => po.id);
+  const getOrderedVisualizationIds = (): string[] => {
+    if (!p.subGroupConfig) {
+      return p.visualizations.map((po) => po.id);
     }
 
- const { getGroupKey, getGroupOrder } = p.subGroupConfig;
- const order = getGroupOrder(p.modules);
- const groups = new Map<string, PresentationObjectSummary[]>();
+    const { getGroupKey, getGroupOrder } = p.subGroupConfig;
+    const order = getGroupOrder(p.modules);
+    const groups = new Map<string, PresentationObjectSummary[]>();
 
- for (const po of p.visualizations) {
- const key = getGroupKey(po);
- if (!groups.has(key)) groups.set(key, []);
- groups.get(key)!.push(po);
+    for (const po of p.visualizations) {
+      const key = getGroupKey(po);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(po);
     }
 
- const keys =
- order.length > 0
+    const keys =
+      order.length > 0
         ? [
             ...order.filter((key) => groups.has(key)),
             ...Array.from(groups.keys()).filter((key) => !order.includes(key)),
           ]
         : Array.from(groups.keys());
 
- const orderedIds: string[] = [];
- for (const key of keys) {
- const items = groups.get(key)!;
- for (const po of items) {
- orderedIds.push(po.id);
+    const orderedIds: string[] = [];
+    for (const key of keys) {
+      const items = groups.get(key)!;
+      for (const po of items) {
+        orderedIds.push(po.id);
       }
     }
- return orderedIds;
+    return orderedIds;
   };
 
- const selection = createSelectionController<string>({
- ids: () => getOrderedVisualizationIds(),
- mode:"multi",
- onSelectionChange: (ids) =>
- notifyAI({ type:"selected_visualizations", vizIds: ids }),
+  const selection = createSelectionController<string>({
+    ids: () => getOrderedVisualizationIds(),
+    mode: "multi",
+    onSelectionChange: (ids) =>
+      notifyAI({ type: "selected_visualizations", vizIds: ids }),
   });
 
- const visualIndexMap = (): Map<string, number> => {
- const ids = getOrderedVisualizationIds();
- const map = new Map<string, number>();
- ids.forEach((id, idx) => map.set(id, idx));
- return map;
+  const visualIndexMap = (): Map<string, number> => {
+    const ids = getOrderedVisualizationIds();
+    const map = new Map<string, number>();
+    ids.forEach((id, idx) => map.set(id, idx));
+    return map;
   };
 
- async function handleMoveToFolder(po: PresentationObjectSummary) {
- const idsToMove = selection.getBatchIds(po.id);
+  async function handleMoveToFolder(po: PresentationObjectSummary) {
+    const idsToMove = selection.getBatchIds(po.id);
 
- await openComponent({
- element: MoveToFolderModal,
- props: {
- projectId: p.projectId,
- presentationObjectIds: idsToMove,
- currentFolderId: po.folderId,
- folders: p.folders,
+    await openComponent({
+      element: MoveToFolderModal,
+      props: {
+        projectId: p.projectId,
+        presentationObjectIds: idsToMove,
+        currentFolderId: po.folderId,
+        folders: p.folders,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleEditCommonProperties(po: PresentationObjectSummary) {
- const idsToEdit = selection.getBatchIds(po.id);
+  async function handleEditCommonProperties(po: PresentationObjectSummary) {
+    const idsToEdit = selection.getBatchIds(po.id);
 
- if (idsToEdit.length === 1) {
- p.onClick(po);
- return;
+    if (idsToEdit.length === 1) {
+      p.onClick(po);
+      return;
     }
 
- const firstViz = p.visualizations.find((v) => v.id === idsToEdit[0]);
- if (!firstViz) return;
+    const firstViz = p.visualizations.find((v) => v.id === idsToEdit[0]);
+    if (!firstViz) return;
 
- const metricInfoRes =
- await serverActions.getResultsValueInfoForPresentationObject({
- projectId: p.projectId,
- metricId: firstViz.metricId,
+    const metricInfoRes =
+      await serverActions.getResultsValueInfoForPresentationObject({
+        projectId: p.projectId,
+        metricId: firstViz.metricId,
       });
 
- await openComponent({
- element: EditCommonPropertiesModal,
- props: {
- projectId: p.projectId,
- visualizationIds: idsToEdit,
- periodBounds: metricInfoRes.success
+    await openComponent({
+      element: EditCommonPropertiesModal,
+      props: {
+        projectId: p.projectId,
+        visualizationIds: idsToEdit,
+        periodBounds: metricInfoRes.success
           ? metricInfoRes.data.periodBounds
           : undefined,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleCreateSlides(po: PresentationObjectSummary) {
- const idsToCreate = selection.getBatchIds(po.id);
+  async function handleCreateSlides(po: PresentationObjectSummary) {
+    const idsToCreate = selection.getBatchIds(po.id);
 
     // Get visualization details
- const vizsToCreate = idsToCreate
+    const vizsToCreate = idsToCreate
       .map((id) => p.visualizations.find((v) => v.id === id))
       .filter((v): v is PresentationObjectSummary => v !== undefined);
 
     // Check if any selected viz is replicated (when creating multiple)
- const hasReplicated = vizsToCreate.some((v) => v.replicateBy);
+    const hasReplicated = vizsToCreate.some((v) => v.replicateBy);
 
- if (hasReplicated && vizsToCreate.length > 1) {
- await openAlert({
- title: t3({
- en:"Cannot batch create slides",
- fr:"Création de diapositives en lot impossible",
- pt:"Não é possível criar diapositivos em lote",
+    if (hasReplicated && vizsToCreate.length > 1) {
+      await openAlert({
+        title: t3({
+          en: "Cannot batch create slides",
+          fr: "Création de diapositives en lot impossible",
+          pt: "Não é possível criar diapositivos em lote",
         }),
- text: t3({
- en:"Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
- fr:"La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement.",
- pt:"A criação de diapositivos em lote só é suportada para visualizações não replicadas. Desselecione as visualizações replicadas ou crie-as individualmente.",
+        text: t3({
+          en: "Batch slide creation is only supported for non-replicated visualizations. Please deselect replicated visualizations or create them individually.",
+          fr: "La création de diapositives en lot n'est possible que pour les visualisations non répliquées. Veuillez désélectionner les visualisations répliquées ou les créer individuellement.",
+          pt: "A criação de diapositivos em lote só é suportada para visualizações não replicadas. Desselecione as visualizações replicadas ou crie-as individualmente.",
         }),
- intent:"danger",
+        intent: "danger",
       });
- return;
+      return;
     }
 
     // Open modal (works for both single replicated and batch modes)
- const vizIds = vizsToCreate.map((v) => v.id);
- const vizLabels = vizsToCreate.map((v) => v.label);
+    const vizIds = vizsToCreate.map((v) => v.id);
+    const vizLabels = vizsToCreate.map((v) => v.label);
 
- await openComponent({
- element: CreateSlideFromVisualizationModal,
- props: {
- projectId: p.projectId,
- visualizationIds: vizIds,
- visualizationLabels: vizLabels,
- replicateBy:
- vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
- metrics: p.metrics,
- slideDecks: p.slideDecks,
- slideDeckFolders: p.slideDeckFolders,
+    await openComponent({
+      element: CreateSlideFromVisualizationModal,
+      props: {
+        projectId: p.projectId,
+        visualizationIds: vizIds,
+        visualizationLabels: vizLabels,
+        replicateBy:
+          vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
+        metrics: p.metrics,
+        slideDecks: p.slideDecks,
+        slideDeckFolders: p.slideDeckFolders,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleDuplicate(po: PresentationObjectSummary) {
- const idsToDuplicate = selection.getBatchIds(po.id);
+  async function handleDuplicate(po: PresentationObjectSummary) {
+    const idsToDuplicate = selection.getBatchIds(po.id);
 
- const poDetails = idsToDuplicate
+    const poDetails = idsToDuplicate
       .map((id) => p.visualizations.find((v) => v.id === id))
       .filter((v): v is PresentationObjectSummary => v !== undefined)
       .map((v) => ({ id: v.id, label: v.label, folderId: v.folderId }));
 
- await openComponent({
- element: DuplicateVisualization,
- props: {
- projectId: p.projectId,
- poDetails,
- folders: p.folders,
+    await openComponent({
+      element: DuplicateVisualization,
+      props: {
+        projectId: p.projectId,
+        poDetails,
+        folders: p.folders,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleDelete(po: PresentationObjectSummary) {
- const idsToDelete = selection.getBatchIds(po.id);
- const confirmText =
- idsToDelete.length > 1
+  async function handleDelete(po: PresentationObjectSummary) {
+    const idsToDelete = selection.getBatchIds(po.id);
+    const confirmText =
+      idsToDelete.length > 1
         ? t3({
- en:`Are you sure you want to delete ${idsToDelete.length} visualizations?`,
- fr:`Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?`,
- pt:`Tem a certeza de que pretende eliminar ${idsToDelete.length} visualizações?`,
+            en: `Are you sure you want to delete ${idsToDelete.length} visualizations?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} visualisations ?`,
+            pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} visualizações?`,
           })
         : t3({
- en:"Are you sure you want to delete this visualization?",
- fr:"Êtes-vous sûr de vouloir supprimer cette visualisation ?",
- pt:"Tem a certeza de que pretende eliminar esta visualização?",
+            en: "Are you sure you want to delete this visualization?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette visualisation ?",
+            pt: "Tem a certeza de que pretende eliminar esta visualização?",
           });
 
- const deleteAction = createDeleteAction(
- confirmText,
- async () => {
- const promises = idsToDelete.map((id) =>
- serverActions.deletePresentationObject({
- projectId: p.projectId,
- po_id: id,
+    const deleteAction = createDeleteAction(
+      confirmText,
+      async () => {
+        const promises = idsToDelete.map((id) =>
+          serverActions.deletePresentationObject({
+            projectId: p.projectId,
+            po_id: id,
           }),
         );
- const results = await Promise.all(promises);
- const failed = results.filter((r) => !r.success);
- if (failed.length > 0) {
- return failed[0];
+        const results = await Promise.all(promises);
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) {
+          return failed[0];
         }
- return results[0];
+        return results[0];
       },
       () => {
- selection.clear();
+        selection.clear();
         // SSE will handle refresh
       },
     );
- await deleteAction.click();
+    await deleteAction.click();
   }
 
- const renderCard = (po: PresentationObjectSummary, index: number) => (
+  const renderCard = (po: PresentationObjectSummary, index: number) => (
     <VisualizationCard
- projectId={p.projectId}
- po={po}
- folders={p.folders}
- metrics={p.metrics}
- metricLookup={metricLookup()}
- isSelected={selection.isSelected(po.id)}
- selectedCount={selection.selectedCount()}
- index={index}
- onCardClick={(e) => {
- e.stopPropagation();
- selection.handleClick(po.id, e, () => p.onClick(po));
+      projectId={p.projectId}
+      po={po}
+      folders={p.folders}
+      metrics={p.metrics}
+      metricLookup={metricLookup()}
+      isSelected={selection.isSelected(po.id)}
+      selectedCount={selection.selectedCount()}
+      index={index}
+      onCardClick={(e) => {
+        e.stopPropagation();
+        selection.handleClick(po.id, e, () => p.onClick(po));
       }}
- onCircleClick={(e) => selection.handleClick(po.id, e)}
- onOpen={() => p.onClick(po)}
- onDuplicate={() => handleDuplicate(po)}
- onDelete={() => handleDelete(po)}
- onMoveToFolder={() => handleMoveToFolder(po)}
- onEditCommonProperties={() => handleEditCommonProperties(po)}
- onCreateSlides={() => handleCreateSlides(po)}
+      onCircleClick={(e) => selection.handleClick(po.id, e)}
+      onOpen={() => p.onClick(po)}
+      onDuplicate={() => handleDuplicate(po)}
+      onDelete={() => handleDelete(po)}
+      onMoveToFolder={() => handleMoveToFolder(po)}
+      onEditCommonProperties={() => handleEditCommonProperties(po)}
+      onCreateSlides={() => handleCreateSlides(po)}
     />
   );
 
- const emptyMessage = () => (
+  const emptyMessage = () => (
     <div class="text-base-content-muted text-sm">
       {p.searchText.length >= 3
         ? t3({
- en:"No matching visualizations",
- fr:"Aucune visualisation correspondante",
- pt:"Nenhuma visualização correspondente",
+            en: "No matching visualizations",
+            fr: "Aucune visualisation correspondante",
+            pt: "Nenhuma visualização correspondente",
           })
-        : t3({ en:"No visualizations", fr:"Aucune visualisation", pt:"Nenhuma visualização"})}
+        : t3({ en: "No visualizations", fr: "Aucune visualisation", pt: "Nenhuma visualização" })}
     </div>
   );
 
- return (
+  return (
     <Show
- when={p.subGroupConfig}
- fallback={
+      when={p.subGroupConfig}
+      fallback={
         <div
- class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
- onClick={() => selection.clear()}
+          class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          onClick={() => selection.clear()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
             {(po, i) => renderCard(po, i())}
@@ -740,20 +740,20 @@ function VisualizationGrid(p: VisualizationGridProps) {
       }
     >
       {(config) => {
- const grouped = () => {
- const { getGroupKey, getGroupLabel, getGroupOrder } = config();
- const order = getGroupOrder(p.modules);
- const groups = new Map<string, PresentationObjectSummary[]>();
+        const grouped = () => {
+          const { getGroupKey, getGroupLabel, getGroupOrder } = config();
+          const order = getGroupOrder(p.modules);
+          const groups = new Map<string, PresentationObjectSummary[]>();
 
- for (const po of p.visualizations) {
- const key = getGroupKey(po);
- if (!groups.has(key)) groups.set(key, []);
- groups.get(key)!.push(po);
+          for (const po of p.visualizations) {
+            const key = getGroupKey(po);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(po);
           }
 
           // Use provided order, or natural order from visualizations if order is empty
- const keys =
- order.length > 0
+          const keys =
+            order.length > 0
               ? [
                   ...order.filter((key) => groups.has(key)),
                   ...Array.from(groups.keys()).filter(
@@ -762,29 +762,29 @@ function VisualizationGrid(p: VisualizationGridProps) {
                 ]
               : Array.from(groups.keys());
 
- return keys.map((key) => ({
- key,
- label: getGroupLabel(key, p.modules),
- items: groups.get(key)!,
+          return keys.map((key) => ({
+            key,
+            label: getGroupLabel(key, p.modules),
+            items: groups.get(key)!,
           }));
         };
 
- return (
+        return (
           <div
- class="h-full w-full overflow-auto"
- onClick={() => selection.clear()}
+            class="h-full w-full overflow-auto"
+            onClick={() => selection.clear()}
           >
             <Show
- when={grouped().length > 0}
- fallback={<div class="ui-pad">{emptyMessage()}</div>}
+              when={grouped().length > 0}
+              fallback={<div class="ui-pad">{emptyMessage()}</div>}
             >
               <For each={grouped()}>
                 {(group, i) => (
                   <div
- class="mb-6"
- classList={{"pt-4": i() === 0,"pt-2": i() > 0 }}
+                    class="mb-6"
+                    classList={{ "pt-4": i() === 0, "pt-2": i() > 0 }}
                   >
-                    <div class="mx-4 mb-3 flex items-center gap-3 border-b pb-2">
+                    <div class="border-border mx-4 mb-3 flex items-center gap-3 border-b pb-2">
                       <span class="text-base-content font-700 text-sm">
                         {group.label}
                       </span>
@@ -795,7 +795,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
                     <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start px-4 pt-1 pb-4">
                       <For each={group.items}>
                         {(po) =>
- renderCard(po, visualIndexMap().get(po.id) ?? 0)
+                          renderCard(po, visualIndexMap().get(po.id) ?? 0)
                         }
                       </For>
                     </div>
@@ -811,119 +811,119 @@ function VisualizationGrid(p: VisualizationGridProps) {
 }
 
 type VisualizationCardProps = {
- projectId: string;
- po: PresentationObjectSummary;
- folders: VisualizationFolder[];
- metrics: MetricWithStatus[];
- metricLookup: Map<string, MetricWithStatus>;
- isSelected: boolean;
- selectedCount: number;
- index: number;
- onOpen: () => void;
- onCardClick: (e: MouseEvent) => void;
- onCircleClick: (e: MouseEvent) => void;
- onDuplicate: () => void;
- onDelete: () => void;
- onMoveToFolder: () => void;
- onEditCommonProperties: () => void;
- onCreateSlides: () => void;
+  projectId: string;
+  po: PresentationObjectSummary;
+  folders: VisualizationFolder[];
+  metrics: MetricWithStatus[];
+  metricLookup: Map<string, MetricWithStatus>;
+  isSelected: boolean;
+  selectedCount: number;
+  index: number;
+  onOpen: () => void;
+  onCardClick: (e: MouseEvent) => void;
+  onCircleClick: (e: MouseEvent) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onMoveToFolder: () => void;
+  onEditCommonProperties: () => void;
+  onCreateSlides: () => void;
 };
 
 function VisualizationCard(p: VisualizationCardProps) {
- async function handleContextMenu(e: MouseEvent) {
- e.preventDefault();
+  async function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
 
- const isMultiSelect = p.isSelected && p.selectedCount > 1;
+    const isMultiSelect = p.isSelected && p.selectedCount > 1;
 
- const deleteLabel = isMultiSelect
+    const deleteLabel = isMultiSelect
       ? t3({
- en:`Delete ${p.selectedCount} visualizations`,
- fr:`Supprimer ${p.selectedCount} visualisations`,
- pt:`Eliminar ${p.selectedCount} visualizações`,
+          en: `Delete ${p.selectedCount} visualizations`,
+          fr: `Supprimer ${p.selectedCount} visualisations`,
+          pt: `Eliminar ${p.selectedCount} visualizações`,
         })
       : t3(TC.delete);
 
- const createSlidesLabel = isMultiSelect
+    const createSlidesLabel = isMultiSelect
       ? t3({
- en:`Create ${p.selectedCount} slides...`,
- fr:`Créer ${p.selectedCount} diapositives...`,
- pt:`Criar ${p.selectedCount} diapositivos...`,
+          en: `Create ${p.selectedCount} slides...`,
+          fr: `Créer ${p.selectedCount} diapositives...`,
+          pt: `Criar ${p.selectedCount} diapositivos...`,
         })
-      : t3({ en:"Create slide...", fr:"Créer une diapositive...", pt:"Criar diapositivo..."});
+      : t3({ en: "Create slide...", fr: "Créer une diapositive...", pt: "Criar diapositivo..." });
 
- const moveToFolderLabel = isMultiSelect
+    const moveToFolderLabel = isMultiSelect
       ? t3({
- en:`Move ${p.selectedCount} visualizations to folder...`,
- fr:`Déplacer ${p.selectedCount} visualisations vers un dossier...`,
- pt:`Mover ${p.selectedCount} visualizações para uma pasta...`,
+          en: `Move ${p.selectedCount} visualizations to folder...`,
+          fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...`,
+          pt: `Mover ${p.selectedCount} visualizações para uma pasta...`,
         })
-      : t3({ en:"Move to folder...", fr:"Déplacer vers un dossier...", pt:"Mover para uma pasta..."});
+      : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." });
 
- const duplicateLabel = isMultiSelect
+    const duplicateLabel = isMultiSelect
       ? t3({
- en:`Duplicate ${p.selectedCount} visualizations...`,
- fr:`Dupliquer ${p.selectedCount} visualisations...`,
- pt:`Duplicar ${p.selectedCount} visualizações...`,
+          en: `Duplicate ${p.selectedCount} visualizations...`,
+          fr: `Dupliquer ${p.selectedCount} visualisations...`,
+          pt: `Duplicar ${p.selectedCount} visualizações...`,
         })
-      : t3({ en:"Duplicate...", fr:"Dupliquer...", pt:"Duplicar..."});
+      : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." });
 
- const items: MenuItem[] = [];
+    const items: MenuItem[] = [];
 
- if (isMultiSelect) {
- items.push({
- label: t3({
- en:"Edit common properties...",
- fr:"Modifier les propriétés communes...",
- pt:"Editar propriedades comuns...",
+    if (isMultiSelect) {
+      items.push({
+        label: t3({
+          en: "Edit common properties...",
+          fr: "Modifier les propriétés communes...",
+          pt: "Editar propriedades comuns...",
         }),
- icon:"pencil",
- onClick: p.onEditCommonProperties,
+        icon: "pencil",
+        onClick: p.onEditCommonProperties,
       });
     } else {
- items.push({
- label: t3({
- en:"Edit visualization",
- fr:"Modifier la visualisation",
- pt:"Editar visualização",
+      items.push({
+        label: t3({
+          en: "Edit visualization",
+          fr: "Modifier la visualisation",
+          pt: "Editar visualização",
         }),
- icon:"pencil",
- onClick: p.onOpen,
+        icon: "pencil",
+        onClick: p.onOpen,
       });
     }
- if (!p.po.isDefault) {
- items.push({
- label: moveToFolderLabel,
- icon:"folder",
- onClick: p.onMoveToFolder,
+    if (!p.po.isDefault) {
+      items.push({
+        label: moveToFolderLabel,
+        icon: "folder",
+        onClick: p.onMoveToFolder,
       });
     }
- items.push(
+    items.push(
       {
- label: createSlidesLabel,
- icon:"plus",
- onClick: p.onCreateSlides,
+        label: createSlidesLabel,
+        icon: "plus",
+        onClick: p.onCreateSlides,
       },
       {
- label: duplicateLabel,
- icon:"copy",
- onClick: p.onDuplicate,
+        label: duplicateLabel,
+        icon: "copy",
+        onClick: p.onDuplicate,
       },
       {
- label: deleteLabel,
- icon:"trash",
- intent:"danger",
- onClick: p.onDelete,
+        label: deleteLabel,
+        icon: "trash",
+        intent: "danger",
+        onClick: p.onDelete,
       },
     );
- showMenu({
- anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
- items,
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
     });
   }
 
- const isReady = () => p.metricLookup.get(p.po.metricId)?.status ==="ready";
+  const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
 
- return (
+  return (
     <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
       <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
@@ -931,62 +931,62 @@ function VisualizationCard(p: VisualizationCardProps) {
         </div>
       </div>
       <div
- class="relative cursor-pointer rounded border p-2"
- classList={{
-"": !p.isSelected,
-"border-primary": p.isSelected,
-"hover:border-primary": !p.isSelected,
+        class="relative cursor-pointer rounded border p-2"
+        classList={{
+          "border-border": !p.isSelected,
+          "border-primary": p.isSelected,
+          "hover:border-primary": !p.isSelected,
         }}
- onClick={p.onCardClick}
- onContextMenu={handleContextMenu}
+        onClick={p.onCardClick}
+        onContextMenu={handleContextMenu}
       >
         <SelectionCircle isSelected={p.isSelected} onClick={p.onCircleClick} />
         {/* The card stays interactive even when the metric has no results, so it
- can still be selected and deleted (via the context menu). Only the
- inner preview falls back to the"Not available"placeholder. */}
+            can still be selected and deleted (via the context menu). Only the
+            inner preview falls back to the "Not available" placeholder. */}
         <Show
- when={isReady()}
- fallback={<NotAvailableBox fillAreaNotAvailable />}
+          when={isReady()}
+          fallback={<NotAvailableBox fillAreaNotAvailable />}
         >
           <PresentationObjectMiniDisplay
- projectId={p.projectId}
- presentationObjectId={p.po.id}
- moduleId={
- p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ??""
+            projectId={p.projectId}
+            presentationObjectId={p.po.id}
+            moduleId={
+              p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
             }
- shapeType={"force-aspect-video"}
+            shapeType={"force-aspect-video"}
           />
         </Show>
       </div>
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en:"REPLICATED", fr:"RÉPLIQUÉ", pt:"REPLICADO"})}:{""}
-            {p.po.replicateBy ==="admin_area_2"
-              ?"AA2"
-              : p.po.replicateBy ==="admin_area_3"
-                ?"AA3"
-                :"Indicator"}
+            {t3({ en: "REPLICATED", fr: "RÉPLIQUÉ", pt: "REPLICADO" })}:{" "}
+            {p.po.replicateBy === "admin_area_2"
+              ? "AA2"
+              : p.po.replicateBy === "admin_area_3"
+                ? "AA3"
+                : "Indicator"}
           </div>
         </Show>
         <Show when={!p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en:"FILTERED", fr:"FILTRÉ", pt:"FILTRADO"})}
+            {t3({ en: "FILTERED", fr: "FILTRÉ", pt: "FILTRADO" })}
           </div>
         </Show>
         <Show when={p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en:"REPL. & FILT.", fr:"REMPL. & FILT.", pt:"REPL. & FILT."})}
+            {t3({ en: "REPL. & FILT.", fr: "REMPL. & FILT.", pt: "REPL. & FILT." })}
           </div>
         </Show>
         <Show when={p.po.createdByAI}>
           <div class="bg-danger font-400 text-base-100 rounded px-1 py-0.5 text-xs">
- AI
+            AI
           </div>
         </Show>
         <Show when={!p.po.createdByAI && p.po.isDefault}>
           <div class="bg-success font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en:"Default", fr:"Par défaut", pt:"Predefinição"})}
+            {t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
           </div>
         </Show>
       </div>

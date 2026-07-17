@@ -1,185 +1,185 @@
 import {
- t3,
- type DatasetUploadAttemptSummary,
-} from"lib";
+  t3,
+  type DatasetUploadAttemptSummary,
+} from "lib";
 import {
- Button,
- FrameRight,
- FrameTop,
- getEditorWrapper,
- createButtonAction,
- toPct0,
-} from"panther";
+  Button,
+  FrameRight,
+  FrameTop,
+  getEditorWrapper,
+  createButtonAction,
+  toPct0,
+} from "panther";
 import {
- Match,
- Show,
- Switch,
- createSignal,
- onCleanup,
- onMount,
-} from"solid-js";
-import { DatasetHmisUploadAttemptForm } from"~/components/instance_dataset_hmis_import";
-import { DatasetHmisDhis2Runs } from"./dhis2_run";
-import { serverActions } from"~/server_actions";
-import { instanceState } from"~/state/instance/t1_store";
-import { DeleteData } from"./_delete_data";
-import { ImportLedger } from"./_import_ledger";
-import { PreviousImports } from"./_previous_imports";
-import { DatasetItemsHolder } from"./dataset_items_holder";
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis_import";
+import { DatasetHmisDhis2Runs } from "./dhis2_run";
+import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
+import { DeleteData } from "./_delete_data";
+import { ImportLedger } from "./_import_ledger";
+import { PreviousImports } from "./_previous_imports";
+import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
- backToInstance: () => void;
+  backToInstance: () => void;
 };
 
 export function InstanceDatasetHmis(p: Props) {
- const { openEditor, EditorWrapper } = getEditorWrapper();
+  const { openEditor, EditorWrapper } = getEditorWrapper();
 
- const [uploadAttempt, setUploadAttempt] = createSignal<
- DatasetUploadAttemptSummary | undefined
+  const [uploadAttempt, setUploadAttempt] = createSignal<
+    DatasetUploadAttemptSummary | undefined
   >(undefined);
 
- async function fetchUploadAttempt() {
- try {
- const result = await serverActions.getDatasetHmisDetail({});
- if (result.success) {
- setUploadAttempt(result.data.uploadAttempt);
+  async function fetchUploadAttempt() {
+    try {
+      const result = await serverActions.getDatasetHmisDetail({});
+      if (result.success) {
+        setUploadAttempt(result.data.uploadAttempt);
       }
     } catch {
       // Silent fail
     }
   }
 
- let pollingInterval: ReturnType<typeof setInterval> | undefined;
+  let pollingInterval: ReturnType<typeof setInterval> | undefined;
 
- onMount(() => {
- fetchUploadAttempt();
- pollingInterval = setInterval(async () => {
- if (uploadAttempt() !== undefined) {
- await fetchUploadAttempt();
+  onMount(() => {
+    fetchUploadAttempt();
+    pollingInterval = setInterval(async () => {
+      if (uploadAttempt() !== undefined) {
+        await fetchUploadAttempt();
       }
     }, 5000);
   });
 
- onCleanup(() => {
- if (pollingInterval !== undefined) {
- clearInterval(pollingInterval);
+  onCleanup(() => {
+    if (pollingInterval !== undefined) {
+      clearInterval(pollingInterval);
     }
   });
 
   // The wizard is CSV-only (DHIS2 imports are runs): the source type is set
   // at creation so the wizard opens straight at the CSV upload step.
- const newUploadAttempt = createButtonAction(
- async () => {
- const res = await serverActions.createDatasetUploadAttempt({});
- if (!res.success) {
- return res;
+  const newUploadAttempt = createButtonAction(
+    async () => {
+      const res = await serverActions.createDatasetUploadAttempt({});
+      if (!res.success) {
+        return res;
       }
- return await serverActions.setDatasetUploadSourceType({
- sourceType:"csv",
+      return await serverActions.setDatasetUploadSourceType({
+        sourceType: "csv",
       });
     },
- fetchUploadAttempt,
- openUploadAttempt,
+    fetchUploadAttempt,
+    openUploadAttempt,
   );
 
- async function openUploadAttempt() {
- await openEditor({
- element: DatasetHmisUploadAttemptForm,
- props: {
- silentFetch: fetchUploadAttempt,
+  async function openUploadAttempt() {
+    await openEditor({
+      element: DatasetHmisUploadAttemptForm,
+      props: {
+        silentFetch: fetchUploadAttempt,
       },
     });
   }
 
- async function openDhis2Runs() {
- await openEditor({
- element: DatasetHmisDhis2Runs,
- props: {
- silentFetch: fetchUploadAttempt,
+  async function openDhis2Runs() {
+    await openEditor({
+      element: DatasetHmisDhis2Runs,
+      props: {
+        silentFetch: fetchUploadAttempt,
       },
     });
   }
 
- async function viewPreviousImports() {
- await openEditor({
- element: PreviousImports,
- props: {
+  async function viewPreviousImports() {
+    await openEditor({
+      element: PreviousImports,
+      props: {
       },
     });
   }
 
- async function viewImportLedger() {
- await openEditor({
- element: ImportLedger,
- props: {},
+  async function viewImportLedger() {
+    await openEditor({
+      element: ImportLedger,
+      props: {},
     });
   }
 
- async function deleteData() {
- const versionId = instanceState.datasetVersions.hmis;
- if (versionId === undefined) return;
- await openEditor({
- element: DeleteData,
- props: {
- hmisVersionId: versionId,
- indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
- facilityColumns: instanceState.facilityColumns,
- silentFetch: fetchUploadAttempt,
+  async function deleteData() {
+    const versionId = instanceState.datasetVersions.hmis;
+    if (versionId === undefined) return;
+    await openEditor({
+      element: DeleteData,
+      props: {
+        hmisVersionId: versionId,
+        indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
+        facilityColumns: instanceState.facilityColumns,
+        silentFetch: fetchUploadAttempt,
       },
     });
   }
 
- return (
+  return (
     <EditorWrapper>
       <FrameTop
- panelChildren={
+        panelChildren={
           <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft"onClick={p.backToInstance} />
+            <Button iconName="chevronLeft" onClick={p.backToInstance} />
             <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en:"DATA SOURCE", fr:"SOURCE DE DONNÉES", pt:"FONTE DE DADOS"})}
+              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
               <span class="font-400 ml-4">
-                {t3({ en:"HMIS Data", fr:"Données HMIS", pt:"Dados HMIS"})}
+                {t3({ en: "HMIS Data", fr: "Données HMIS", pt: "Dados HMIS" })}
               </span>
             </div>
           </div>
         }
       >
         <FrameRight
- panelChildren={
+          panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy border-border flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
-                  {t3({ en:"Imports", fr:"Importations", pt:"Importações"})}
+                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Show when={instanceState.hmisScheduledImportAttention}>
                   <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
                     {t3({
- en:"A scheduled DHIS2 import needs attention.",
- fr:"Une importation DHIS2 planifiée nécessite votre attention.",
- pt:"Uma importação DHIS2 agendada precisa de atenção.",
+                      en: "A scheduled DHIS2 import needs attention.",
+                      fr: "Une importation DHIS2 planifiée nécessite votre attention.",
+                      pt: "Uma importação DHIS2 agendada precisa de atenção.",
                     })}
                   </div>
                 </Show>
                 <div class="">
                   <Button
- onClick={openDhis2Runs}
- iconName="databaseImport"
- fullWidth
+                    onClick={openDhis2Runs}
+                    iconName="databaseImport"
+                    fullWidth
                   >
                     {t3({
- en:"Import from DHIS2",
- fr:"Importer depuis DHIS2",
- pt:"Importar do DHIS2",
+                      en: "Import from DHIS2",
+                      fr: "Importer depuis DHIS2",
+                      pt: "Importar do DHIS2",
                     })}
                   </Button>
                 </div>
                 <Show when={instanceState.hmisImportRunsQueued > 0}>
-                  <div class="ui-pad bg-base-200 rounded border text-sm">
-                    {instanceState.hmisImportRunsQueued}{""}
+                  <div class="ui-pad border-border bg-base-200 rounded border text-sm">
+                    {instanceState.hmisImportRunsQueued}{" "}
                     {t3({
- en:"DHIS2 import(s) queued.",
- fr:"importation(s) DHIS2 en file d'attente.",
- pt:"importação(ões) DHIS2 em fila.",
+                      en: "DHIS2 import(s) queued.",
+                      fr: "importation(s) DHIS2 en file d'attente.",
+                      pt: "importação(ões) DHIS2 em fila.",
                     })}
                   </div>
                 </Show>
@@ -187,113 +187,113 @@ export function InstanceDatasetHmis(p: Props) {
                   <Match when={!uploadAttempt()}>
                     <div class="">
                       <Button
- onClick={newUploadAttempt.click}
- state={newUploadAttempt.state()}
- iconName="upload"
- fullWidth
+                        onClick={newUploadAttempt.click}
+                        state={newUploadAttempt.state()}
+                        iconName="upload"
+                        fullWidth
                       >
                         {t3({
- en:"Upload CSV file",
- fr:"Téléverser un fichier CSV",
- pt:"Carregar um ficheiro CSV",
+                          en: "Upload CSV file",
+                          fr: "Téléverser un fichier CSV",
+                          pt: "Carregar um ficheiro CSV",
                         })}
                       </Button>
                     </div>
                   </Match>
                   <Match when={uploadAttempt()} keyed>
                     {(keyedUploadAttempt) => {
- return (
+                      return (
                         <div
- class="ui-pad ui-hoverable-base-200 rounded border"
- onClick={openUploadAttempt}
+                          class="ui-pad border-border ui-hoverable-base-200 rounded border"
+                          onClick={openUploadAttempt}
                         >
                           <Switch>
                             <Match
- when={
- keyedUploadAttempt.status.status ===
-"complete"
+                              when={
+                                keyedUploadAttempt.status.status ===
+                                "complete"
                               }
                             >
                               <div class="text-sm">
                                 {t3({
- en:"Import is complete! Click to view and remove.",
- fr:"Importation terminée ! Cliquez pour consulter et supprimer.",
- pt:"Importação concluída! Clique para ver e remover.",
+                                  en: "Import is complete! Click to view and remove.",
+                                  fr: "Importation terminée ! Cliquez pour consulter et supprimer.",
+                                  pt: "Importação concluída! Clique para ver e remover.",
                                 })}
                               </div>
                             </Match>
                             <Match
- when={
- keyedUploadAttempt.status.status ===
-"error"
+                              when={
+                                keyedUploadAttempt.status.status ===
+                                "error"
                               }
                             >
                               <div class="text-danger text-sm">
                                 {t3({
- en:"Error with upload. Click to view.",
- fr:"Erreur lors du téléversement. Cliquez pour consulter.",
- pt:"Erro no carregamento. Clique para ver.",
+                                  en: "Error with upload. Click to view.",
+                                  fr: "Erreur lors du téléversement. Cliquez pour consulter.",
+                                  pt: "Erro no carregamento. Clique para ver.",
                                 })}
                               </div>
                             </Match>
                             <Match
- when={
- keyedUploadAttempt.status.status ==="staging"
+                              when={
+                                keyedUploadAttempt.status.status === "staging"
                               }
- keyed
+                              keyed
                             >
                               <div class="ui-spy-sm text-center">
                                 <div class="">
                                   {t3({
- en:"Staging underway",
- fr:"Préparation en cours",
- pt:"Preparação em curso",
+                                    en: "Staging underway",
+                                    fr: "Préparation en cours",
+                                    pt: "Preparação em curso",
                                   })}
                                 </div>
                                 <div class="font-700 text-lg">
                                   {toPct0(
                                     ((
- keyedUploadAttempt.status as any
+                                      keyedUploadAttempt.status as any
                                     )?.progress ?? 0) / 100,
                                   )}
                                 </div>
                                 <div class="text-xs">
                                   {t3({
- en:"This number will automatically update. No need to refresh.",
- fr:"Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
- pt:"Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
+                                    en: "This number will automatically update. No need to refresh.",
+                                    fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                    pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
                                   })}
                                 </div>
                               </div>
                             </Match>
                             <Match
- when={
- keyedUploadAttempt.status.status ===
-"integrating"
+                              when={
+                                keyedUploadAttempt.status.status ===
+                                "integrating"
                               }
- keyed
+                              keyed
                             >
                               <div class="ui-spy-sm text-center">
                                 <div class="">
                                   {t3({
- en:"Integrating underway",
- fr:"Intégration en cours",
- pt:"Integração em curso",
+                                    en: "Integrating underway",
+                                    fr: "Intégration en cours",
+                                    pt: "Integração em curso",
                                   })}
                                 </div>
                                 <div class="font-700 text-lg">
                                   {toPct0(
                                     //@ts-ignore
                                     ((
- keyedUploadAttempt.status as any
+                                      keyedUploadAttempt.status as any
                                     )?.progress ?? 0) / 100,
                                   )}
                                 </div>
                                 <div class="text-xs">
                                   {t3({
- en:"This number will automatically update. No need to refresh.",
- fr:"Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
- pt:"Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
+                                    en: "This number will automatically update. No need to refresh.",
+                                    fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.",
+                                    pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página.",
                                   })}
                                 </div>
                               </div>
@@ -301,9 +301,9 @@ export function InstanceDatasetHmis(p: Props) {
                             <Match when={true}>
                               <div class="text-sm">
                                 {t3({
- en:"Import in draft stage. Click to continue.",
- fr:"Importation en cours de préparation. Cliquez pour continuer.",
- pt:"Importação em fase de rascunho. Clique para continuar.",
+                                  en: "Import in draft stage. Click to continue.",
+                                  fr: "Importation en cours de préparation. Cliquez pour continuer.",
+                                  pt: "Importação em fase de rascunho. Clique para continuar.",
                                 })}
                               </div>
                             </Match>
@@ -317,44 +317,44 @@ export function InstanceDatasetHmis(p: Props) {
                   <div class="ui-spy text-sm">
                     <div class="">
                       <Button
- onClick={viewImportLedger}
- outline
- fullWidth
- iconName="databaseImport"
+                        onClick={viewImportLedger}
+                        outline
+                        fullWidth
+                        iconName="databaseImport"
                       >
                         {t3({
- en:"Import status by indicator",
- fr:"État des importations par indicateur",
- pt:"Estado das importações por indicador",
+                          en: "Import status by indicator",
+                          fr: "État des importations par indicateur",
+                          pt: "Estado das importações por indicador",
                         })}
                       </Button>
                     </div>
                     <div class="">
                       <Button
- onClick={viewPreviousImports}
- outline
- fullWidth
- iconName="folder"
+                        onClick={viewPreviousImports}
+                        outline
+                        fullWidth
+                        iconName="folder"
                       >
                         {t3({
- en:"View previous imports",
- fr:"Importations précédentes",
- pt:"Ver importações anteriores",
+                          en: "View previous imports",
+                          fr: "Importations précédentes",
+                          pt: "Ver importações anteriores",
                         })}
                       </Button>
                     </div>
                     <div class="">
                       <Button
- onClick={deleteData}
- intent="danger"
- iconName="trash"
- outline
- fullWidth
+                        onClick={deleteData}
+                        intent="danger"
+                        iconName="trash"
+                        outline
+                        fullWidth
                       >
                         {t3({
- en:"Delete data",
- fr:"Supprimer les données",
- pt:"Eliminar os dados",
+                          en: "Delete data",
+                          fr: "Supprimer les données",
+                          pt: "Eliminar os dados",
                         })}
                       </Button>
                     </div>
@@ -366,19 +366,19 @@ export function InstanceDatasetHmis(p: Props) {
         >
           <div class="h-full w-full">
             <Show
- when={instanceState.datasetVersions.hmis}
- fallback={
+              when={instanceState.datasetVersions.hmis}
+              fallback={
                 <div class="ui-pad">
-                  {t3({ en:"No data", fr:"Aucune donnée", pt:"Sem dados"})}
+                  {t3({ en: "No data", fr: "Aucune donnée", pt: "Sem dados" })}
                 </div>
               }
- keyed
+              keyed
             >
               {(versionId) => (
                 <DatasetItemsHolder
- versionId={versionId}
- indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
- facilityColumns={instanceState.facilityColumns}
+                  versionId={versionId}
+                  indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
+                  facilityColumns={instanceState.facilityColumns}
                 />
               )}
             </Show>

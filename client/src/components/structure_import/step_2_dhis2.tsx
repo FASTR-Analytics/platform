@@ -1,75 +1,75 @@
-import { createSignal } from"solid-js";
+import { createSignal } from "solid-js";
 import {
- t3,
- type StructureDhis2OrgUnitSelection,
- type FacilityFamily,
-} from"lib";
+  t3,
+  type StructureDhis2OrgUnitSelection,
+  type FacilityFamily,
+} from "lib";
 import {
- Button,
- StateHolderFormError,
- StateHolderWrapper,
- Table,
- createFormAction,
- createQuery,
- toNum0,
-} from"panther";
-import { serverActions } from"~/server_actions";
+  Button,
+  StateHolderFormError,
+  StateHolderWrapper,
+  Table,
+  createFormAction,
+  createQuery,
+  toNum0,
+} from "panther";
+import { serverActions } from "~/server_actions";
 
 type Props = {
- step2Result: StructureDhis2OrgUnitSelection | undefined;
- family: FacilityFamily;
- silentFetch: () => Promise<void>;
+  step2Result: StructureDhis2OrgUnitSelection | undefined;
+  family: FacilityFamily;
+  silentFetch: () => Promise<void>;
 };
 
 export function Step2_Dhis2(p: Props) {
- const [selectedLevels, setSelectedLevels] = createSignal<Set<number>>(
- new Set(p.step2Result?.selectedLevels ?? []),
+  const [selectedLevels, setSelectedLevels] = createSignal<Set<number>>(
+    new Set(p.step2Result?.selectedLevels ?? []),
   );
- const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
+  const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);
 
   // Get organization unit metadata from DHIS2 cache
- const orgUnitMetadata = createQuery(
+  const orgUnitMetadata = createQuery(
     () =>
- serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({
- family: p.family,
+      serverActions.structureStep2Dhis2_GetOrgUnitsMetadata({
+        family: p.family,
       }),
- t3({ en:"Loading organization units...", fr:"Chargement des unités organisationnelles...", pt:"A carregar unidades organizacionais..."}),
+    t3({ en: "Loading organization units...", fr: "Chargement des unités organisationnelles...", pt: "A carregar unidades organizacionais..." }),
   );
 
- function updateSelection() {
- setNeedsSaving(true);
+  function updateSelection() {
+    setNeedsSaving(true);
   }
 
- const save = createFormAction(async () => {
- const selection: StructureDhis2OrgUnitSelection = {
- selectedLevels: Array.from(selectedLevels()),
+  const save = createFormAction(async () => {
+    const selection: StructureDhis2OrgUnitSelection = {
+      selectedLevels: Array.from(selectedLevels()),
     };
 
- if (selection.selectedLevels.length === 0) {
- return {
- success: false,
- err: t3({ en:"Please select at least one level", fr:"Veuillez sélectionner au moins un niveau", pt:"Selecione pelo menos um nível"}),
+    if (selection.selectedLevels.length === 0) {
+      return {
+        success: false,
+        err: t3({ en: "Please select at least one level", fr: "Veuillez sélectionner au moins un niveau", pt: "Selecione pelo menos um nível" }),
       };
     }
 
- return serverActions.structureStep2Dhis2_SetOrgUnitSelection({
- family: p.family,
- selectedLevels: selection.selectedLevels,
+    return serverActions.structureStep2Dhis2_SetOrgUnitSelection({
+      family: p.family,
+      selectedLevels: selection.selectedLevels,
     });
   }, p.silentFetch);
 
- return (
+  return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <div class="font-700 pb-4 text-lg">
-          {t3({ en:"Select Organization Unit Levels to Import", fr:"Sélectionner les niveaux d'unités organisationnelles à importer", pt:"Selecionar os níveis de unidades organizacionais a importar"})}
+          {t3({ en: "Select Organization Unit Levels to Import", fr: "Sélectionner les niveaux d'unités organisationnelles à importer", pt: "Selecionar os níveis de unidades organizacionais a importar" })}
         </div>
 
         <StateHolderWrapper state={orgUnitMetadata.state()} noPad>
           {(metadata) => {
- return (
+            return (
               <div class="ui-spy">
-                {/* <div class="bg-base-200 ui-pad rounded border"> */}
+                {/* <div class="bg-base-200 border-border ui-pad rounded border"> */}
                 {/* <div class="mb-4"> */}
                 {/* <div class="font-700 mb-2 text-sm">
                       {t("Organization Unit Levels")}
@@ -78,44 +78,44 @@ export function Step2_Dhis2(p: Props) {
                       {t("Select which levels to import")}
                     </div> */}
                 <Table
- data={metadata.levels.sort((a, b) => a.level - b.level)}
- columns={[
+                  data={metadata.levels.sort((a, b) => a.level - b.level)}
+                  columns={[
                     {
- header: t3({ en:"Level Name", fr:"Nom du niveau", pt:"Nome do nível"}),
- key:"displayName",
- render: (level) => level.displayName || level.name,
+                      header: t3({ en: "Level Name", fr: "Nom du niveau", pt: "Nome do nível" }),
+                      key: "displayName",
+                      render: (level) => level.displayName || level.name,
                     },
                     {
- header: t3({ en:"Level", fr:"Niveau", pt:"Nível"}),
- key:"level",
- render: (level) => String(level.level),
+                      header: t3({ en: "Level", fr: "Niveau", pt: "Nível" }),
+                      key: "level",
+                      render: (level) => String(level.level),
                     },
                     {
- header: t3({ en:"Units", fr:"Unités", pt:"Unidades"}),
- key:"count",
- render: (level) => toNum0(level.count),
+                      header: t3({ en: "Units", fr: "Unités", pt: "Unidades" }),
+                      key: "count",
+                      render: (level) => toNum0(level.count),
                     },
                   ]}
- keyField="level"
- selectedKeys={() => selectedLevels()}
- setSelectedKeys={(keys) => {
- setSelectedLevels(keys);
- updateSelection();
+                  keyField="level"
+                  selectedKeys={() => selectedLevels()}
+                  setSelectedKeys={(keys) => {
+                    setSelectedLevels(keys);
+                    updateSelection();
                   }}
                 />
                 {/* </div> */}
                 {/* </div> */}
 
-                <div class="rounded border p-3 text-sm">
+                <div class="border-border rounded border p-3 text-sm">
                   <div class="ui-spy-sm">
                     <div class="text-base-content">
-                      <strong>{t3({ en:"Selection Summary", fr:"Résumé de la sélection", pt:"Resumo da seleção"})}:</strong>
+                      <strong>{t3({ en: "Selection Summary", fr: "Résumé de la sélection", pt: "Resumo da seleção" })}:</strong>
                     </div>
                     <div class="text-base-content-muted">
-                      {selectedLevels().size} {t3({ en:"levels selected", fr:"niveaux sélectionnés", pt:"níveis selecionados"})}
+                      {selectedLevels().size} {t3({ en: "levels selected", fr: "niveaux sélectionnés", pt: "níveis selecionados" })}
                     </div>
                     {/* <div class="text-base-content-muted mt-2 text-xs">
-                      {t("Total organization units available")}:{""}
+                      {t("Total organization units available")}:{" "}
                       {metadata.levels
                         .reduce((sum, level) => sum + level.count, 0)
                         .toLocaleString()}
@@ -131,13 +131,13 @@ export function Step2_Dhis2(p: Props) {
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Button
- onClick={save.click}
- intent="success"
- state={save.state()}
- disabled={!needsSaving() || selectedLevels().size === 0}
- iconName="save"
+          onClick={save.click}
+          intent="success"
+          state={save.state()}
+          disabled={!needsSaving() || selectedLevels().size === 0}
+          iconName="save"
         >
-          {t3({ en:"Save selection", fr:"Sauvegarder la sélection", pt:"Guardar seleção"})}
+          {t3({ en: "Save selection", fr: "Sauvegarder la sélection", pt: "Guardar seleção" })}
         </Button>
       </div>
     </div>

@@ -1,146 +1,146 @@
-import { t3, type SlideDeckConfig } from"lib";
-import { createSignal, createEffect, Show } from"solid-js";
-import { convertSlideToPageInputs } from"~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from"panther";
-import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from"lib";
-import { getSlideFromCacheOrFetch } from"~/state/project/t2_slides";
-import { projectState } from"~/state/project/t1_store";
+import { t3, type SlideDeckConfig } from "lib";
+import { createSignal, createEffect, Show } from "solid-js";
+import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from "panther";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
+import { projectState } from "~/state/project/t1_store";
 
 type Props = {
- projectId: string;
- deckId: string;
- slideId: string;
- index: number;
- isSelected: boolean;
- selectedCount: number;
- slideSize: number;
- fillWidth: boolean;
- onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
- onEdit: () => void;
- onDelete: () => void;
- onDuplicate: () => void;
- deckConfig: SlideDeckConfig;
+  projectId: string;
+  deckId: string;
+  slideId: string;
+  index: number;
+  isSelected: boolean;
+  selectedCount: number;
+  slideSize: number;
+  fillWidth: boolean;
+  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  deckConfig: SlideDeckConfig;
 };
 
 export function SlideCard(p: Props) {
- const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
- status:"loading",
- msg: t3({ en:"Loading...", fr:"Chargement...", pt:"A carregar..."}),
+  const [pageInputs, setPageInputs] = createSignal<StateHolder<PageInputs>>({
+    status: "loading",
+    msg: t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
   });
 
   // Fetch slide from cache, reactive to state updates
- let fetchRunId = 0;
- createEffect(async () => {
- projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
- const config = p.deckConfig; // Track synchronously before first await
- const index = p.index;
- const runId = ++fetchRunId;
+  let fetchRunId = 0;
+  createEffect(async () => {
+    projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
+    const config = p.deckConfig; // Track synchronously before first await
+    const index = p.index;
+    const runId = ++fetchRunId;
 
- const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
- if (runId !== fetchRunId) return;
+    const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    if (runId !== fetchRunId) return;
 
- if (!res.success) {
- setPageInputs({ status:"error", err: res.err });
- return;
+    if (!res.success) {
+      setPageInputs({ status: "error", err: res.err });
+      return;
     }
 
- const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, index, config);
- if (runId !== fetchRunId) return;
- setPageInputs(getQueryStateFromApiResponse(renderRes));
+    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, index, config);
+    if (runId !== fetchRunId) return;
+    setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
 
- function handleContextMenu(e: MouseEvent) {
- e.preventDefault();
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
 
- const deleteLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en:`Delete ${p.selectedCount} slides`, fr:`Supprimer ${p.selectedCount} diapositives`, pt:`Eliminar ${p.selectedCount} diapositivos`})
-      : t3({ en:"Delete slide", fr:"Supprimer la diapositive", pt:"Eliminar diapositivo"});
+    const deleteLabel = p.isSelected && p.selectedCount > 1
+      ? t3({ en: `Delete ${p.selectedCount} slides`, fr: `Supprimer ${p.selectedCount} diapositives`, pt: `Eliminar ${p.selectedCount} diapositivos` })
+      : t3({ en: "Delete slide", fr: "Supprimer la diapositive", pt: "Eliminar diapositivo" });
 
- const duplicateLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en:`Duplicate ${p.selectedCount} slides`, fr:`Dupliquer ${p.selectedCount} diapositives`, pt:`Duplicar ${p.selectedCount} diapositivos`})
-      : t3({ en:"Duplicate slide", fr:"Dupliquer la diapositive", pt:"Duplicar diapositivo"});
+    const duplicateLabel = p.isSelected && p.selectedCount > 1
+      ? t3({ en: `Duplicate ${p.selectedCount} slides`, fr: `Dupliquer ${p.selectedCount} diapositives`, pt: `Duplicar ${p.selectedCount} diapositivos` })
+      : t3({ en: "Duplicate slide", fr: "Dupliquer la diapositive", pt: "Duplicar diapositivo" });
 
- const items: MenuItem[] = [
+    const items: MenuItem[] = [
       {
- label: t3({ en:"Edit slide", fr:"Modifier la diapositive", pt:"Editar diapositivo"}),
- icon:"pencil",
- onClick: p.onEdit,
+        label: t3({ en: "Edit slide", fr: "Modifier la diapositive", pt: "Editar diapositivo" }),
+        icon: "pencil",
+        onClick: p.onEdit,
       },
       {
- label: duplicateLabel,
- icon:"copy",
- onClick: p.onDuplicate,
+        label: duplicateLabel,
+        icon: "copy",
+        onClick: p.onDuplicate,
       },
       {
- label: deleteLabel,
- icon:"trash",
- intent:"danger",
- onClick: p.onDelete,
+        label: deleteLabel,
+        icon: "trash",
+        intent: "danger",
+        onClick: p.onDelete,
       },
     ];
- showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
- return (
+  return (
     <div
- classList={{"sortable-selected": p.isSelected }}
- style={{ width: p.fillWidth ?"100%":`${p.slideSize}px`}}
+      classList={{ "sortable-selected": p.isSelected }}
+      style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
     >
       <div class="mb-2 text-base-content text-center text-sm">
         {p.index + 1}
       </div>
       <div
- class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
- classList={{
-"": !p.isSelected,
-"border-primary": p.isSelected,
-"hover:border-primary": !p.isSelected,
+        class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
+        classList={{
+          "border-border": !p.isSelected,
+          "border-primary": p.isSelected,
+          "hover:border-primary": !p.isSelected,
         }}
- onContextMenu={handleContextMenu}
- onClick={(e) => {
- e.stopPropagation();
- p.onCardClick(e, false);
+        onContextMenu={handleContextMenu}
+        onClick={(e) => {
+          e.stopPropagation();
+          p.onCardClick(e, false);
         }}
       >
         <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
- classList={{
-"bg-primary text-primary-content opacity-100": p.isSelected,
-"border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
+          classList={{
+            "bg-primary text-primary-content opacity-100": p.isSelected,
+            "border border-border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
           }}
- onClick={(e) => p.onCardClick(e, true)}
+          onClick={(e) => p.onCardClick(e, true)}
         >
-          <svg class="h-4 w-4"fill="currentColor"viewBox="0 0 20 20">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
             <path
- fill-rule="evenodd"
- d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
- clip-rule="evenodd"
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clip-rule="evenodd"
             />
           </svg>
         </div>
-        <Show when={pageInputs().status ==="loading"}>
+        <Show when={pageInputs().status === "loading"}>
           <div
- class="bg-base-200 flex items-center justify-center"
- style={{"aspect-ratio":"16/9"}}
+            class="bg-base-200 flex items-center justify-center"
+            style={{ "aspect-ratio": "16/9" }}
           >
-            <div class="text-sm">{t3({ en:"Loading...", fr:"Chargement...", pt:"A carregar..."})}</div>
+            <div class="text-sm">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
           </div>
         </Show>
-        <Show when={pageInputs().status ==="error"}>
+        <Show when={pageInputs().status === "error"}>
           <PageHolder
- pageInputs={undefined}
- pageWidthDu={PAGE_WIDTH_DU}
- pageHeightDu={PAGE_HEIGHT_DU}
- simpleError
- externalError={(pageInputs() as { err: string }).err}
+            pageInputs={undefined}
+            pageWidthDu={PAGE_WIDTH_DU}
+            pageHeightDu={PAGE_HEIGHT_DU}
+            simpleError
+            externalError={(pageInputs() as { err: string }).err}
           />
         </Show>
-        <Show when={pageInputs().status ==="ready"}>
+        <Show when={pageInputs().status === "ready"}>
           <PageHolder
- pageInputs={(pageInputs() as { data: PageInputs }).data}
- pageWidthDu={PAGE_WIDTH_DU}
- pageHeightDu={PAGE_HEIGHT_DU}
- simpleError
+            pageInputs={(pageInputs() as { data: PageInputs }).data}
+            pageWidthDu={PAGE_WIDTH_DU}
+            pageHeightDu={PAGE_HEIGHT_DU}
+            simpleError
           />
         </Show>
       </div>

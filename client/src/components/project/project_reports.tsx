@@ -1,346 +1,346 @@
 import {
- ReportGroupingMode,
- ReportPreview,
- ReportSummary,
- t3,
- TC,
-} from"lib";
+  ReportGroupingMode,
+  ReportPreview,
+  ReportSummary,
+  t3,
+  TC,
+} from "lib";
 import {
- Button,
- createSelectionController,
- FrameLeftResizable,
- FrameTop,
- HeadingBar,
- OpenEditorProps,
- Select,
- SelectionCircle,
- SelectList,
- getColor,
- openComponent,
- showMenu,
- createDeleteAction,
- type ListItem,
- type MenuItem,
-} from"panther";
-import { For, Show, createEffect, createSignal } from"solid-js";
-import { AddReportForm } from"./add_report";
-import { EditReportFolderModal } from"./edit_report_folder_modal";
-import { MoveReportToFolderModal } from"./move_report_to_folder_modal";
-import { DuplicateReportModal } from"./duplicate_report_modal";
-import { ProjectReport } from"../report";
-import { projectState } from"~/state/project/t1_store";
-import { useAIProjectContext } from"~/components/project_ai/context";
+  Button,
+  createSelectionController,
+  FrameLeftResizable,
+  FrameTop,
+  HeadingBar,
+  OpenEditorProps,
+  Select,
+  SelectionCircle,
+  SelectList,
+  getColor,
+  openComponent,
+  showMenu,
+  createDeleteAction,
+  type ListItem,
+  type MenuItem,
+} from "panther";
+import { For, Show, createEffect, createSignal } from "solid-js";
+import { AddReportForm } from "./add_report";
+import { EditReportFolderModal } from "./edit_report_folder_modal";
+import { MoveReportToFolderModal } from "./move_report_to_folder_modal";
+import { DuplicateReportModal } from "./duplicate_report_modal";
+import { ProjectReport } from "../report";
+import { projectState } from "~/state/project/t1_store";
+import { useAIProjectContext } from "~/components/project_ai/context";
 import {
- reportGroupingMode,
- setReportGroupingMode,
- reportSelectedGroup,
- setReportSelectedGroup,
- reportSortMode,
- setReportSortMode,
-} from"~/state/t4_ui";
-import { SortControl, sortBySortMode } from"~/components/_shared/sort_control";
-import { serverActions } from"~/server_actions";
+  reportGroupingMode,
+  setReportGroupingMode,
+  reportSelectedGroup,
+  setReportSelectedGroup,
+  reportSortMode,
+  setReportSortMode,
+} from "~/state/t4_ui";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
+import { serverActions } from "~/server_actions";
 
 function previewCounts(preview: ReportPreview): string {
- const parts: string[] = [];
- if (preview.figureCount > 0) {
- parts.push(
- t3({
- en:`${preview.figureCount} ${preview.figureCount === 1 ?"figure":"figures"}`,
- fr:`${preview.figureCount} figure${preview.figureCount === 1 ?"":"s"}`,
- pt:`${preview.figureCount} figura${preview.figureCount === 1 ?"":"s"}`,
+  const parts: string[] = [];
+  if (preview.figureCount > 0) {
+    parts.push(
+      t3({
+        en: `${preview.figureCount} ${preview.figureCount === 1 ? "figure" : "figures"}`,
+        fr: `${preview.figureCount} figure${preview.figureCount === 1 ? "" : "s"}`,
+        pt: `${preview.figureCount} figura${preview.figureCount === 1 ? "" : "s"}`,
       }),
     );
   }
- if (preview.imageCount > 0) {
- parts.push(
- t3({
- en:`${preview.imageCount} ${preview.imageCount === 1 ?"image":"images"}`,
- fr:`${preview.imageCount} image${preview.imageCount === 1 ?"":"s"}`,
- pt:`${preview.imageCount} imagem${preview.imageCount === 1 ?"":"ns"}`,
+  if (preview.imageCount > 0) {
+    parts.push(
+      t3({
+        en: `${preview.imageCount} ${preview.imageCount === 1 ? "image" : "images"}`,
+        fr: `${preview.imageCount} image${preview.imageCount === 1 ? "" : "s"}`,
+        pt: `${preview.imageCount} imagem${preview.imageCount === 1 ? "" : "ns"}`,
       }),
     );
   }
- return parts.join("·");
+  return parts.join(" · ");
 }
 
 function getGroupingOptions(): { value: ReportGroupingMode; label: string }[] {
- return [
-    { value:"folders", label: t3({ en:"By folder", fr:"Par dossier", pt:"Por pasta"}) },
-    { value:"flat", label: t3({ en:"Flat list", fr:"Liste simple", pt:"Lista simples"}) },
+  return [
+    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
+    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }) },
   ];
 }
 
 type GroupOption = {
- value: string;
- label: string;
- count: number;
- color?: string | null;
+  value: string;
+  label: string;
+  count: number;
+  color?: string | null;
 };
 
 type ExtendedProps = {
- openProjectEditor: <TProps, TReturn>(
- v: OpenEditorProps<TProps, TReturn>,
+  openProjectEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
 };
 
 export function ProjectReports(p: ExtendedProps) {
- const { aiContext } = useAIProjectContext();
+  const { aiContext } = useAIProjectContext();
 
- async function openReport(reportId: string, reportLabel: string) {
- await p.openProjectEditor({
- element: ProjectReport,
- props: {
- reportId,
- reportLabel,
- projectState: projectState,
- returnToContext: aiContext(),
+  async function openReport(reportId: string, reportLabel: string) {
+    await p.openProjectEditor({
+      element: ProjectReport,
+      props: {
+        reportId,
+        reportLabel,
+        projectState: projectState,
+        returnToContext: aiContext(),
       },
     });
   }
 
- const [searchText, setSearchText] = createSignal<string>("");
+  const [searchText, setSearchText] = createSignal<string>("");
 
- const filteredBySearch = () => {
- const reports = projectState.reports;
- if (searchText().length < 3) return reports;
- const searchLower = searchText().toLowerCase();
- return reports.filter((r) => r.label.toLowerCase().includes(searchLower));
+  const filteredBySearch = () => {
+    const reports = projectState.reports;
+    if (searchText().length < 3) return reports;
+    const searchLower = searchText().toLowerCase();
+    return reports.filter((r) => r.label.toLowerCase().includes(searchLower));
   };
 
- const groupOptions = (): GroupOption[] => {
- const reports = filteredBySearch();
- const mode = reportGroupingMode();
+  const groupOptions = (): GroupOption[] => {
+    const reports = filteredBySearch();
+    const mode = reportGroupingMode();
 
- switch (mode) {
- case"folders": {
- const generalCount = reports.filter((r) => r.folderId === null).length;
- const groups: GroupOption[] = [
-          { value:"_unfiled", label: t3(TC.general), count: generalCount },
+    switch (mode) {
+      case "folders": {
+        const generalCount = reports.filter((r) => r.folderId === null).length;
+        const groups: GroupOption[] = [
+          { value: "_unfiled", label: t3(TC.general), count: generalCount },
         ];
- groups.push(
+        groups.push(
           ...projectState.reportFolders.map((f) => ({
- value: f.id,
- label: f.label,
- count: reports.filter((r) => r.folderId === f.id).length,
- color: f.color,
+            value: f.id,
+            label: f.label,
+            count: reports.filter((r) => r.folderId === f.id).length,
+            color: f.color,
           })),
         );
- return groups;
+        return groups;
       }
- case"flat":
- return [
-          { value:"_all", label: t3({ en:"All reports", fr:"Tous les rapports", pt:"Todos os relatórios"}), count: reports.length },
+      case "flat":
+        return [
+          { value: "_all", label: t3({ en: "All reports", fr: "Tous les rapports", pt: "Todos os relatórios" }), count: reports.length },
         ];
- default:
- return [];
+      default:
+        return [];
     }
   };
 
- const filteredReports = () => {
- const reports = filteredBySearch();
- const group = reportSelectedGroup();
- const mode = reportGroupingMode();
+  const filteredReports = () => {
+    const reports = filteredBySearch();
+    const group = reportSelectedGroup();
+    const mode = reportGroupingMode();
 
- if (!group) return [];
+    if (!group) return [];
 
- let selected: ReportSummary[];
- switch (mode) {
- case"folders":
- if (group ==="_unfiled") {
- selected = reports.filter((r) => r.folderId === null);
+    let selected: ReportSummary[];
+    switch (mode) {
+      case "folders":
+        if (group === "_unfiled") {
+          selected = reports.filter((r) => r.folderId === null);
         } else {
- selected = reports.filter((r) => r.folderId === group);
+          selected = reports.filter((r) => r.folderId === group);
         }
- break;
- default:
- selected = reports;
+        break;
+      default:
+        selected = reports;
     }
 
- return sortBySortMode(
- selected,
- reportSortMode(),
+    return sortBySortMode(
+      selected,
+      reportSortMode(),
       (r) => r.label,
       (r) => r.lastUpdated,
     );
   };
 
- createEffect(() => {
- reportGroupingMode();
- const groups = groupOptions();
- const current = reportSelectedGroup();
- if (groups.length > 0 && !groups.find((g) => g.value === current)) {
- setReportSelectedGroup(groups[0].value);
+  createEffect(() => {
+    reportGroupingMode();
+    const groups = groupOptions();
+    const current = reportSelectedGroup();
+    if (groups.length > 0 && !groups.find((g) => g.value === current)) {
+      setReportSelectedGroup(groups[0].value);
     }
   });
 
- const selection = createSelectionController<string>({
- ids: () => filteredReports().map((r) => r.id),
- mode:"multi",
+  const selection = createSelectionController<string>({
+    ids: () => filteredReports().map((r) => r.id),
+    mode: "multi",
   });
 
- async function handleMoveToFolder(report: ReportSummary) {
- const idsToMove = selection.getBatchIds(report.id);
+  async function handleMoveToFolder(report: ReportSummary) {
+    const idsToMove = selection.getBatchIds(report.id);
 
- await openComponent({
- element: MoveReportToFolderModal,
- props: {
- projectId: projectState.id,
- reportIds: idsToMove,
- currentFolderId: report.folderId,
- folders: projectState.reportFolders,
+    await openComponent({
+      element: MoveReportToFolderModal,
+      props: {
+        projectId: projectState.id,
+        reportIds: idsToMove,
+        currentFolderId: report.folderId,
+        folders: projectState.reportFolders,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleDuplicate(report: ReportSummary) {
- const idsToDuplicate = selection.getBatchIds(report.id);
+  async function handleDuplicate(report: ReportSummary) {
+    const idsToDuplicate = selection.getBatchIds(report.id);
 
- const reportDetails = idsToDuplicate
+    const reportDetails = idsToDuplicate
       .map((id) => projectState.reports.find((r) => r.id === id))
       .filter((r): r is ReportSummary => r !== undefined)
       .map((r) => ({ id: r.id, label: r.label, folderId: r.folderId }));
 
- await openComponent({
- element: DuplicateReportModal,
- props: {
- projectId: projectState.id,
- reportDetails,
- folders: projectState.reportFolders,
+    await openComponent({
+      element: DuplicateReportModal,
+      props: {
+        projectId: projectState.id,
+        reportDetails,
+        folders: projectState.reportFolders,
       },
     });
 
- selection.clear();
+    selection.clear();
   }
 
- async function handleDelete(report: ReportSummary) {
- const idsToDelete = selection.getBatchIds(report.id);
+  async function handleDelete(report: ReportSummary) {
+    const idsToDelete = selection.getBatchIds(report.id);
 
- const confirmText =
- idsToDelete.length > 1
-        ? t3({ en:`Are you sure you want to delete ${idsToDelete.length} reports?`, fr:`Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?`, pt:`Tem a certeza de que pretende eliminar ${idsToDelete.length} relatórios?`})
-        : t3({ en:"Are you sure you want to delete this report?", fr:"Êtes-vous sûr de vouloir supprimer ce rapport ?", pt:"Tem a certeza de que pretende eliminar este relatório?"});
+    const confirmText =
+      idsToDelete.length > 1
+        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} reports?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?`, pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} relatórios?` })
+        : t3({ en: "Are you sure you want to delete this report?", fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?", pt: "Tem a certeza de que pretende eliminar este relatório?" });
 
- const deleteAction = createDeleteAction(
- confirmText,
- async () => {
- const promises = idsToDelete.map((id) =>
- serverActions.deleteReport({
- projectId: projectState.id,
- report_id: id,
+    const deleteAction = createDeleteAction(
+      confirmText,
+      async () => {
+        const promises = idsToDelete.map((id) =>
+          serverActions.deleteReport({
+            projectId: projectState.id,
+            report_id: id,
           }),
         );
- const results = await Promise.all(promises);
- const failed = results.filter((r) => !r.success);
- if (failed.length > 0) {
- return failed[0];
+        const results = await Promise.all(promises);
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) {
+          return failed[0];
         }
- return results[0];
+        return results[0];
       },
       () => {
- selection.clear();
+        selection.clear();
       },
     );
- await deleteAction.click();
+    await deleteAction.click();
   }
 
- function handleContextMenu(e: MouseEvent, report: ReportSummary) {
- e.preventDefault();
+  function handleContextMenu(e: MouseEvent, report: ReportSummary) {
+    e.preventDefault();
 
- const isMultiSelect =
- selection.isSelected(report.id) && selection.selectedCount() > 1;
- const count = selection.selectedCount();
+    const isMultiSelect =
+      selection.isSelected(report.id) && selection.selectedCount() > 1;
+    const count = selection.selectedCount();
 
- const items: MenuItem[] = [
+    const items: MenuItem[] = [
       {
- label: isMultiSelect
-          ? t3({ en:`Move ${count} reports to folder...`, fr:`Déplacer ${count} rapports vers un dossier...`, pt:`Mover ${count} relatórios para uma pasta...`})
-          : t3({ en:"Move to folder...", fr:"Déplacer vers un dossier...", pt:"Mover para uma pasta..."}),
- icon:"folder",
- onClick: () => handleMoveToFolder(report),
+        label: isMultiSelect
+          ? t3({ en: `Move ${count} reports to folder...`, fr: `Déplacer ${count} rapports vers un dossier...`, pt: `Mover ${count} relatórios para uma pasta...` })
+          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." }),
+        icon: "folder",
+        onClick: () => handleMoveToFolder(report),
       },
       {
- label: isMultiSelect
-          ? t3({ en:`Duplicate ${count} reports...`, fr:`Dupliquer ${count} rapports...`, pt:`Duplicar ${count} relatórios...`})
-          : t3({ en:"Duplicate...", fr:"Dupliquer...", pt:"Duplicar..."}),
- icon:"copy",
- onClick: () => handleDuplicate(report),
+        label: isMultiSelect
+          ? t3({ en: `Duplicate ${count} reports...`, fr: `Dupliquer ${count} rapports...`, pt: `Duplicar ${count} relatórios...` })
+          : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
+        icon: "copy",
+        onClick: () => handleDuplicate(report),
       },
       {
- label: isMultiSelect
-          ? t3({ en:`Delete ${count} reports`, fr:`Supprimer ${count} rapports`, pt:`Eliminar ${count} relatórios`})
+        label: isMultiSelect
+          ? t3({ en: `Delete ${count} reports`, fr: `Supprimer ${count} rapports`, pt: `Eliminar ${count} relatórios` })
           : t3(TC.delete),
- icon:"trash",
- intent:"danger",
- onClick: () => handleDelete(report),
+        icon: "trash",
+        intent: "danger",
+        onClick: () => handleDelete(report),
       },
     ];
- showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
- function handleFolderContextMenu(e: MouseEvent, folderId: string) {
- e.preventDefault();
- e.stopPropagation();
- const folder = projectState.reportFolders.find((f) => f.id === folderId);
- if (!folder) return;
+  function handleFolderContextMenu(e: MouseEvent, folderId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const folder = projectState.reportFolders.find((f) => f.id === folderId);
+    if (!folder) return;
 
- const items: MenuItem[] = [
+    const items: MenuItem[] = [
       {
- label: t3({ en:"Rename / Change color...", fr:"Renommer / Changer la couleur...", pt:"Mudar o nome / Mudar a cor..."}),
- icon:"pencil",
- onClick: async () => {
- await openComponent({
- element: EditReportFolderModal,
- props: {
- projectId: projectState.id,
- folder,
+        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur...", pt: "Mudar o nome / Mudar a cor..." }),
+        icon: "pencil",
+        onClick: async () => {
+          await openComponent({
+            element: EditReportFolderModal,
+            props: {
+              projectId: projectState.id,
+              folder,
             },
           });
         },
       },
       {
- label: t3({ en:"Delete folder", fr:"Supprimer le dossier", pt:"Eliminar pasta"}),
- icon:"trash",
- intent:"danger",
- onClick: async () => {
- const deleteAction = createDeleteAction(
- t3({ en:"Are you sure you want to delete this folder? Reports will be moved to General.", fr:"Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général.", pt:"Tem a certeza de que pretende eliminar esta pasta? Os relatórios serão movidos para Geral."}),
+        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
+        icon: "trash",
+        intent: "danger",
+        onClick: async () => {
+          const deleteAction = createDeleteAction(
+            t3({ en: "Are you sure you want to delete this folder? Reports will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général.", pt: "Tem a certeza de que pretende eliminar esta pasta? Os relatórios serão movidos para Geral." }),
             () =>
- serverActions.deleteReportFolder({
- projectId: projectState.id,
- folder_id: folderId,
+              serverActions.deleteReportFolder({
+                projectId: projectState.id,
+                folder_id: folderId,
               }),
             () => { },
           );
- await deleteAction.click();
+          await deleteAction.click();
         },
       },
     ];
- showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
   }
 
- const renderGroupOption = (item: ListItem<string>) => {
- const opt = groupOptions().find((g) => g.value === item.id);
- if (!opt) return <span>{item.label}</span>;
+  const renderGroupOption = (item: ListItem<string>) => {
+    const opt = groupOptions().find((g) => g.value === item.id);
+    if (!opt) return <span>{item.label}</span>;
 
- const mode = reportGroupingMode();
- if (mode ==="folders") {
- const isUserFolder = !item.id.startsWith("_");
- return (
+    const mode = reportGroupingMode();
+    if (mode === "folders") {
+      const isUserFolder = !item.id.startsWith("_");
+      return (
         <div
- class="flex items-center gap-2"
- onContextMenu={
- isUserFolder
+          class="flex items-center gap-2"
+          onContextMenu={
+            isUserFolder
               ? (e) => handleFolderContextMenu(e, item.id)
               : undefined
           }
         >
           <div
- class="h-2.5 w-2.5 flex-none rounded-full"
- style={{
-"background-color": opt.color ?? getColor({ key:"base300"}),
+            class="h-2.5 w-2.5 flex-none rounded-full"
+            style={{
+              "background-color": opt.color ?? getColor({ key: "base300" }),
             }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
@@ -348,7 +348,7 @@ export function ProjectReports(p: ExtendedProps) {
         </div>
       );
     }
- return (
+    return (
       <div class="flex items-center justify-between gap-2">
         <span class="truncate">{opt.label}</span>
         <span class="ui-text-caption">({opt.count})</span>
@@ -356,87 +356,87 @@ export function ProjectReports(p: ExtendedProps) {
     );
   };
 
- async function attemptAddReport() {
- const group = reportSelectedGroup();
- const currentFolderId =
- reportGroupingMode() ==="folders"&& group && !group.startsWith("_")
+  async function attemptAddReport() {
+    const group = reportSelectedGroup();
+    const currentFolderId =
+      reportGroupingMode() === "folders" && group && !group.startsWith("_")
         ? group
         : null;
- const res = await openComponent({
- element: AddReportForm,
- props: {
- projectId: projectState.id,
- folders: projectState.reportFolders,
- currentFolderId,
+    const res = await openComponent({
+      element: AddReportForm,
+      props: {
+        projectId: projectState.id,
+        folders: projectState.reportFolders,
+        currentFolderId,
       },
     });
- if (res === undefined) {
- return;
+    if (res === undefined) {
+      return;
     }
- const report = projectState.reports.find((r) => r.id === res.newReportId);
- await openReport(res.newReportId, report?.label || t3({ en:"Report", fr:"Rapport", pt:"Relatório"}));
+    const report = projectState.reports.find((r) => r.id === res.newReportId);
+    await openReport(res.newReportId, report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }));
   }
 
- return (
+  return (
     <FrameTop
- panelChildren={
+      panelChildren={
         <HeadingBar
- heading={t3({ en:"Reports", fr:"Rapports", pt:"Relatórios"})}
- searchText={searchText()}
- setSearchText={setSearchText}
- class=""
- centerChildren={
+          heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
+          searchText={searchText()}
+          setSearchText={setSearchText}
+          class="border-border"
+          centerChildren={
             <SortControl value={reportSortMode()} onChange={setReportSortMode} />
           }
         >
           <Show when={!projectState.isLocked}>
             <Button onClick={attemptAddReport} iconName="plus">
-              {t3({ en:"Create report", fr:"Créer un rapport", pt:"Criar relatório"})}
+              {t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
             </Button>
           </Show>
         </HeadingBar>
       }
     >
       <FrameLeftResizable
- startingWidth={180}
- minWidth={170}
- maxWidth={300}
- hoverOffset="offset-for-border-1-on-left"
- panelChildren={
-          <div class="flex h-full w-full flex-col border-r">
-            <div class="border-b p-3">
+        startingWidth={180}
+        minWidth={170}
+        maxWidth={300}
+        hoverOffset="offset-for-border-1-on-left"
+        panelChildren={
+          <div class="border-border flex h-full w-full flex-col border-r">
+            <div class="border-border border-b p-3">
               <Select
- options={getGroupingOptions()}
- value={reportGroupingMode()}
- onChange={(v) => setReportGroupingMode(v as ReportGroupingMode)}
- fullWidth
+                options={getGroupingOptions()}
+                value={reportGroupingMode()}
+                onChange={(v) => setReportGroupingMode(v as ReportGroupingMode)}
+                fullWidth
               />
             </div>
             <div class="flex-1 overflow-auto p-2">
               <SelectList
- items={groupOptions().map((g) => ({
- id: g.value,
- label: g.label,
+                items={groupOptions().map((g) => ({
+                  id: g.value,
+                  label: g.label,
                 }))}
- value={reportSelectedGroup() ?? undefined}
- onChange={setReportSelectedGroup}
- renderItem={renderGroupOption}
- fullWidth
+                value={reportSelectedGroup() ?? undefined}
+                onChange={setReportSelectedGroup}
+                renderItem={renderGroupOption}
+                fullWidth
               />
-              <Show when={reportGroupingMode() ==="folders"}>
+              <Show when={reportGroupingMode() === "folders"}>
                 <div class="py-3">
                   <Button
- size="sm"
- outline
- iconName="plus"
- onClick={async () => {
- await openComponent({
- element: EditReportFolderModal,
- props: { projectId: projectState.id },
+                    size="sm"
+                    outline
+                    iconName="plus"
+                    onClick={async () => {
+                      await openComponent({
+                        element: EditReportFolderModal,
+                        props: { projectId: projectState.id },
                       });
                     }}
                   >
-                    {t3({ en:"New folder", fr:"Nouveau dossier", pt:"Nova pasta"})}
+                    {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
                   </Button>
                 </div>
               </Show>
@@ -445,67 +445,67 @@ export function ProjectReports(p: ExtendedProps) {
         }
       >
         <div
- class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
- onClick={() => selection.clear()}
+          class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          onClick={() => selection.clear()}
         >
           <For
- each={filteredReports()}
- fallback={
+            each={filteredReports()}
+            fallback={
               <div class="text-base-content-muted text-sm">
                 {searchText().length >= 3
-                  ? t3({ en:"No matching reports", fr:"Aucun rapport correspondant", pt:"Nenhum relatório correspondente"})
-                  : t3({ en:"No reports yet", fr:"Aucun rapport pour le moment", pt:"Ainda não há relatórios"})}
+                  ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant", pt: "Nenhum relatório correspondente" })
+                  : t3({ en: "No reports yet", fr: "Aucun rapport pour le moment", pt: "Ainda não há relatórios" })}
               </div>
             }
           >
             {(report) => {
- const isSelected = () => selection.isSelected(report.id);
- return (
+              const isSelected = () => selection.isSelected(report.id);
+              return (
                 <div class="group grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid row-span-2 gap-y-1">
                   <div class="font-400 text-base-content text-xs italic select-none pointer-events-none pb-1">
                     {report.label}
                   </div>
                   <div
- class="relative border rounded overflow-clip bg-white cursor-pointer"
- classList={{
-"": !isSelected(),
-"border-primary": isSelected(),
-"hover:border-primary": !isSelected(),
+                    class="relative border rounded overflow-clip bg-white cursor-pointer"
+                    classList={{
+                      "border-border": !isSelected(),
+                      "border-primary": isSelected(),
+                      "hover:border-primary": !isSelected(),
                     }}
- onClick={(e) => {
- e.stopPropagation();
- selection.handleClick(report.id, e, () =>
- openReport(report.id, report.label),
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selection.handleClick(report.id, e, () =>
+                        openReport(report.id, report.label),
                       );
                     }}
- onContextMenu={(e) => handleContextMenu(e, report)}
+                    onContextMenu={(e) => handleContextMenu(e, report)}
                   >
                     <SelectionCircle
- isSelected={isSelected()}
- onClick={(e) => selection.handleClick(report.id, e)}
+                      isSelected={isSelected()}
+                      onClick={(e) => selection.handleClick(report.id, e)}
                     />
                     <div
- class="bg-white overflow-hidden p-4"
- style={{"aspect-ratio":"16/9"}}
+                      class="bg-white overflow-hidden p-4"
+                      style={{ "aspect-ratio": "16/9" }}
                     >
                       <Show
- when={report.preview.lines.length > 0}
- fallback={
+                        when={report.preview.lines.length > 0}
+                        fallback={
                           <div class="ui-text-caption italic">
-                            {t3({ en:"Empty report", fr:"Rapport vide", pt:"Relatório vazio"})}
+                            {t3({ en: "Empty report", fr: "Rapport vide", pt: "Relatório vazio" })}
                           </div>
                         }
                       >
                         <For each={report.preview.lines}>
                           {(line) => (
                             <div
- class="truncate text-[0.7rem] leading-snug"
- classList={{
-"text-base-content font-700":
- line.headingLevel === 1,
-"text-base-content font-400":
- line.headingLevel >= 2,
-"text-base-content-muted": line.headingLevel === 0,
+                              class="truncate text-[0.7rem] leading-snug"
+                              classList={{
+                                "text-base-content font-700":
+                                  line.headingLevel === 1,
+                                "text-base-content font-400":
+                                  line.headingLevel >= 2,
+                                "text-base-content-muted": line.headingLevel === 0,
                               }}
                             >
                               {line.text}
@@ -514,9 +514,9 @@ export function ProjectReports(p: ExtendedProps) {
                         </For>
                       </Show>
                       <Show
- when={
- report.preview.figureCount > 0 ||
- report.preview.imageCount > 0
+                        when={
+                          report.preview.figureCount > 0 ||
+                          report.preview.imageCount > 0
                         }
                       >
                         <div class="text-base-content-muted pt-2 text-[0.65rem]">

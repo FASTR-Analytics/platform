@@ -1,34 +1,34 @@
-import { t3, type PresentationOption } from"lib";
+import { t3, type PresentationOption } from "lib";
 
 type Props = {
- type: PresentationOption;
- isSelected: boolean;
- isDisabled: boolean;
- disabledReason?: string;
- onSelect: () => void;
+  type: PresentationOption;
+  isSelected: boolean;
+  isDisabled: boolean;
+  disabledReason?: string;
+  onSelect: () => void;
 };
 
 const TYPE_LABELS: Record<PresentationOption, { en: string; fr: string; pt: string }> = {
- table: { en:"Table", fr:"Tableau", pt:"Tabela"},
- timeseries: { en:"Time series", fr:"Série temporelle", pt:"Série temporal"},
- chart: { en:"Bar chart", fr:"Graphique en barres", pt:"Gráfico de barras"},
- map: { en:"Map", fr:"Carte", pt:"Mapa"},
+  table: { en: "Table", fr: "Tableau", pt: "Tabela" },
+  timeseries: { en: "Time series", fr: "Série temporelle", pt: "Série temporal" },
+  chart: { en: "Bar chart", fr: "Graphique en barres", pt: "Gráfico de barras" },
+  map: { en: "Map", fr: "Carte", pt: "Mapa" },
 };
 
 export function TypeCard(p: Props) {
- return (
+  return (
     <button
- type="button"
- class="ui-pad flex w-full items-center justify-center rounded border transition-colors"
- classList={{
-"bg-primary-subtle border-primary font-700": p.isSelected,
-"ui-hoverable-base-100": !p.isSelected && !p.isDisabled,
-"bg-base-200 opacity-40 cursor-not-allowed": p.isDisabled,
+      type="button"
+      class="ui-pad border-border flex w-full items-center justify-center rounded border transition-colors"
+      classList={{
+        "bg-primary-subtle border-primary font-700": p.isSelected,
+        "ui-hoverable-base-100": !p.isSelected && !p.isDisabled,
+        "bg-base-200 opacity-40 cursor-not-allowed": p.isDisabled,
       }}
- disabled={p.isDisabled}
- title={p.isDisabled ? p.disabledReason : undefined}
- onClick={() => {
- if (!p.isDisabled) p.onSelect();
+      disabled={p.isDisabled}
+      title={p.isDisabled ? p.disabledReason : undefined}
+      onClick={() => {
+        if (!p.isDisabled) p.onSelect();
       }}
     >
       {t3(TYPE_LABELS[p.type])}
