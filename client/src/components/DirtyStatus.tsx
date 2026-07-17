@@ -7,9 +7,7 @@ export function ProjectRunStatus() {
   return (
     <Show when={projectState.anyRunning}>
       <div
-        class="ui-intent-fill ui-intent-outline data-[running=true]:ui-running bg-base-100 font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border px-3 py-1.5 align-middle text-sm leading-none text-white data-[width=true]:w-full data-[border=false]:border-transparent data-[border=true]:border-[currentColor]"
-        data-intent={"neutral"}
-        data-outline={true}
+        class="data-[running=true]:ui-running bg-base-100 font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border px-3 py-1.5 align-middle text-sm leading-none text-white data-[width=true]:w-full data-[border=false]:border-transparent data-[border=true]:border-[currentColor]"
         data-border={false}
         data-running={projectState.anyRunning}
       >
@@ -39,9 +37,7 @@ export function DirtyStatus(p: Props) {
   });
   return (
     <div
-      class="ui-intent-fill ui-intent-outline data-[running=true]:ui-running font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border border-[currentColor] px-3 py-1.5 align-middle text-sm leading-none data-[width=true]:w-full"
-      data-intent={intent()}
-      data-outline={true}
+      class={`ui-outline-${intent()} data-[running=true]:ui-running font-400 inline-flex flex-none select-none items-center justify-center whitespace-nowrap rounded border border-[currentColor] px-3 py-1.5 align-middle text-sm leading-none data-[width=true]:w-full`}
       data-running={rawStatus() === "running"}
     >
       {ds()}

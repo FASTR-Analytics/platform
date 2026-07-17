@@ -127,7 +127,7 @@ export function DashboardSettings(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          class="border-base-300"
+          class="border-border"
           heading={t3({
             en: "Dashboard settings",
             fr: "Paramètres du tableau de bord",
@@ -198,7 +198,7 @@ export function DashboardSettings(p: Props) {
         <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
           <div class="ui-spy">
             <div class="ui-spy-sm">
-              <div class="text-base-content/70 font-700 text-sm">
+              <div class="text-base-content-muted font-700 text-sm">
                 {t3({
                   en: "Custom logos (uploaded image assets)",
                   fr: "Logos personnalisés (images téléversées)",

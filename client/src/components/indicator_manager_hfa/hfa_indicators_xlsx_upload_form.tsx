@@ -378,7 +378,7 @@ function ReconcileStep(p: {
       <div class="font-700 text-base">
         {t3({ en: "Map time points", fr: "Mapper les points temporels", pt: "Mapear pontos temporais" })}
       </div>
-      <div class="text-neutral text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: `XLSX has ${N} code column(s). Platform has ${M} time point(s).`,
           fr: `Le classeur contient ${N} colonne(s) de code. La plateforme a ${M} point(s) temporel(s).`,

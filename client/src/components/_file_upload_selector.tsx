@@ -97,7 +97,7 @@ export function FileUploadSelector(p: Props) {
       <Show
         when={!waitingForAsset()}
         fallback={
-          <div class="text-neutral py-2 text-sm">
+          <div class="text-base-content-muted py-2 text-sm">
             {t3({
               en: "Processing upload...",
               fr: "Traitement du téléversement...",

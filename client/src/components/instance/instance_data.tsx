@@ -121,7 +121,7 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">
@@ -173,7 +173,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("geojson")}
                   >
                     <div class="font-700 pb-2">
@@ -216,7 +216,7 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("facilities_hmis")}
                   >
                     <div class="font-700 pb-2">
@@ -249,7 +249,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hmis")}
                   >
                     <div class="font-700 pb-2">
@@ -273,7 +273,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("indicators")}
                   >
                     <div class="font-700 pb-2">
@@ -379,7 +379,7 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("facilities_hfa")}
                   >
                     <div class="font-700 pb-2">
@@ -412,7 +412,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_time_points")}
                   >
                     <div class="font-700 pb-2">
@@ -448,7 +448,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_weights")}
                   >
                     <div class="font-700 pb-2">
@@ -463,7 +463,7 @@ export function InstanceData(p: Props) {
                         (tp) => tp.weightCount > 0,
                       )}
                       fallback={
-                        <div class="text-neutral text-xs">
+                        <div class="ui-text-caption">
                           {t3({
                             en: "No weights imported",
                             fr: "Aucune pondération importée",
@@ -495,7 +495,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa")}
                   >
                     <div class="font-700 pb-2">
@@ -519,7 +519,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_indicators")}
                   >
                     <div class="font-700 pb-2">
@@ -570,7 +570,7 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable border-base-300 ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("iceh")}
                   >
                     <div class="font-700 pb-2">

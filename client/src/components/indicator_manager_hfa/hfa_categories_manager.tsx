@@ -41,7 +41,7 @@ export function HfaCategoriesManager(p: Props) {
 
   return (
     <div class="flex h-full">
-      <div class="border-base-300 flex w-1/2 flex-none flex-col border-r pr-4">
+      <div class="border-border flex w-1/2 flex-none flex-col border-r pr-4">
         <CategoriesPane
           categories={p.categories}
           selectedCategoryId={p.selectedCategoryId}
@@ -52,7 +52,7 @@ export function HfaCategoriesManager(p: Props) {
         <Show
           when={selectedCategory()}
           fallback={
-            <div class="text-neutral pt-2 text-sm">
+            <div class="text-base-content-muted pt-2 text-sm">
               {t3({
                 en: "Select a category to manage its sub-categories.",
                 fr: "Sélectionnez une catégorie pour gérer ses sous-catégories.",
@@ -156,7 +156,7 @@ function CategoriesPane(p: {
         <Show
           when={items.length > 0}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {t3({ en: "No categories", fr: "Aucune catégorie", pt: "Nenhuma categoria" })}
             </div>
           }
@@ -204,14 +204,14 @@ function CategoryRow(p: {
     <div
       class="flex cursor-pointer items-center gap-2 rounded px-3 py-2"
       classList={{
-        "bg-primary/10 font-700": p.selected,
-        "bg-base-200 hover:bg-base-300": !p.selected,
+        "bg-primary-subtle font-700": p.selected,
+        "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !p.selected,
       }}
       onClick={p.onSelect}
     >
       <div class="min-w-0 flex-1">
         <div class="truncate">{p.category.label}</div>
-        <div class="text-neutral font-mono text-xs">{p.category.id}</div>
+        <div class="ui-text-caption font-mono">{p.category.id}</div>
       </div>
       <Show when={p.onEdit}>
         <Button
@@ -324,7 +324,7 @@ function SubCategoriesPane(p: {
         <Show
           when={items.length > 0}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {t3({
                 en: "No sub-categories in this category",
                 fr: "Aucune sous-catégorie dans cette catégorie",
@@ -340,7 +340,7 @@ function SubCategoriesPane(p: {
                 {items.map((sc) => (
                   <div class="bg-base-200 flex items-center gap-2 rounded px-3 py-2">
                     <span class="flex-1">{sc.label}</span>
-                    <span class="text-neutral font-mono text-xs">{sc.id}</span>
+                    <span class="ui-text-caption font-mono">{sc.id}</span>
                   </div>
                 ))}
               </div>
@@ -351,7 +351,7 @@ function SubCategoriesPane(p: {
                 <div class="bg-base-200 flex items-center gap-2 rounded px-3 py-2">
                   <div class="min-w-0 flex-1">
                     <div class="truncate">{sc.label}</div>
-                    <div class="text-neutral font-mono text-xs">{sc.id}</div>
+                    <div class="ui-text-caption font-mono">{sc.id}</div>
                   </div>
                   <Button
                     onClick={() => handleEdit(sc)}

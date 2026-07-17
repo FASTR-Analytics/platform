@@ -18,7 +18,7 @@ export function Step2(p: Props) {
         {t3({ en: "Confirm import", fr: "Confirmer l'importation", pt: "Confirmar a importação" })}
       </h3>
 
-      <div class="border-base-300 rounded border p-4">
+      <div class="border-border rounded border p-4">
         <h4 class="font-700 mb-2">
           {t3({ en: "Data to import", fr: "Données à importer", pt: "Dados a importar" })}
         </h4>

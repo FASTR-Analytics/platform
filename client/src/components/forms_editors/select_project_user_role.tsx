@@ -116,7 +116,7 @@ export function SelectProjectUserRole(
         fallback={<div>{t3(TC.loading)}</div>}
       >
         <div>
-          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
+          <div class="font-700 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
           <div class="flex gap-2">
           <For each={PERMISSION_PRESETS}>
             {(preset) => (
@@ -137,7 +137,7 @@ export function SelectProjectUserRole(
           <For each={PROJECT_PERMISSION_CATEGORIES}>
             {(category) => (
               <div class="space-y-1">
-                <div class="font-600 text-sm">{t3(category.label)}</div>
+                <div class="font-700 text-sm">{t3(category.label)}</div>
                 <For each={category.permissions}>
                   {(key) => (
                     <Checkbox

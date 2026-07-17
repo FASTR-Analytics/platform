@@ -172,8 +172,8 @@ there first. Recommended order for this backlog:
    principle to style.
 4. Tier 2 — opportunistic.
 
-This backlog is also the **spine of SYSTEM_13 (AI assistant) in
-PLAN_DOC_CONSOLIDATION.md**: organize that doc around the
-"read-projection = write-schema = stored-shape" principle and inventory every AI
-tool against it. Write SYSTEM_13 *after* the figure work proves the principle out
-— documenting the surface before restructuring it would be stale on arrival.
+This backlog is also the **spine of a SYSTEM_13 restructuring**: organize that
+doc around the "read-projection = write-schema = stored-shape" principle and
+inventory every AI tool against it. Do it *after* the figure work proves the
+principle out — restructuring the doc before the surface would be stale on
+arrival.

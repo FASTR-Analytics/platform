@@ -344,14 +344,14 @@ export function ProjectReports(p: ExtendedProps) {
             }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
-          <span class="text-neutral text-xs">({opt.count})</span>
+          <span class="ui-text-caption">({opt.count})</span>
         </div>
       );
     }
     return (
       <div class="flex items-center justify-between gap-2">
         <span class="truncate">{opt.label}</span>
-        <span class="text-neutral text-xs">({opt.count})</span>
+        <span class="ui-text-caption">({opt.count})</span>
       </div>
     );
   };
@@ -384,7 +384,7 @@ export function ProjectReports(p: ExtendedProps) {
           heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-base-300"
+          class="border-border"
           centerChildren={
             <SortControl value={reportSortMode()} onChange={setReportSortMode} />
           }
@@ -403,8 +403,8 @@ export function ProjectReports(p: ExtendedProps) {
         maxWidth={300}
         hoverOffset="offset-for-border-1-on-left"
         panelChildren={
-          <div class="border-base-300 flex h-full w-full flex-col border-r">
-            <div class="border-base-300 border-b p-3">
+          <div class="border-border flex h-full w-full flex-col border-r">
+            <div class="border-border border-b p-3">
               <Select
                 options={getGroupingOptions()}
                 value={reportGroupingMode()}
@@ -451,7 +451,7 @@ export function ProjectReports(p: ExtendedProps) {
           <For
             each={filteredReports()}
             fallback={
-              <div class="text-neutral text-sm">
+              <div class="text-base-content-muted text-sm">
                 {searchText().length >= 3
                   ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant", pt: "Nenhum relatório correspondente" })
                   : t3({ en: "No reports yet", fr: "Aucun rapport pour le moment", pt: "Ainda não há relatórios" })}
@@ -468,7 +468,7 @@ export function ProjectReports(p: ExtendedProps) {
                   <div
                     class="relative border rounded overflow-clip bg-white cursor-pointer"
                     classList={{
-                      "border-base-300": !isSelected(),
+                      "border-border": !isSelected(),
                       "border-primary": isSelected(),
                       "hover:border-primary": !isSelected(),
                     }}
@@ -491,7 +491,7 @@ export function ProjectReports(p: ExtendedProps) {
                       <Show
                         when={report.preview.lines.length > 0}
                         fallback={
-                          <div class="text-neutral text-xs italic">
+                          <div class="ui-text-caption italic">
                             {t3({ en: "Empty report", fr: "Rapport vide", pt: "Relatório vazio" })}
                           </div>
                         }
@@ -505,7 +505,7 @@ export function ProjectReports(p: ExtendedProps) {
                                   line.headingLevel === 1,
                                 "text-base-content font-400":
                                   line.headingLevel >= 2,
-                                "text-base-content/70": line.headingLevel === 0,
+                                "text-base-content-muted": line.headingLevel === 0,
                               }}
                             >
                               {line.text}
@@ -519,7 +519,7 @@ export function ProjectReports(p: ExtendedProps) {
                           report.preview.imageCount > 0
                         }
                       >
-                        <div class="text-neutral pt-2 text-[0.65rem]">
+                        <div class="text-base-content-muted pt-2 text-[0.65rem]">
                           {previewCounts(report.preview)}
                         </div>
                       </Show>

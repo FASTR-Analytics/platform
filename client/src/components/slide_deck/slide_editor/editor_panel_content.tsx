@@ -124,7 +124,7 @@ export function SlideEditorPanelContent(p: Props) {
     <div class="flex h-full w-full flex-col">
       <div class="flex w-full flex-none border-b">
         <div
-          class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
+          class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
           onClick={() => p.setContentTab("slide")}
           data-selected={p.contentTab === "slide"}
         >
@@ -135,7 +135,7 @@ export function SlideEditorPanelContent(p: Props) {
           })}
         </div>
         <div
-          class="ui-hoverable data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
+          class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
         >
@@ -195,12 +195,12 @@ export function SlideEditorPanelContent(p: Props) {
                   }
                 />
               </div>
-              <hr class="border-base-300 mt-3 mb-1" />
+              <hr class="border-border mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Show
                   when={!p.hasGlobalFooterText}
                   fallback={
-                    <div class="text-neutral text-xs">
+                    <div class="ui-text-caption">
                       {t3({
                         en: "Footer text is set at the deck level",
                         fr: "Le texte de pied de page est défini au niveau du diaporama",
@@ -239,7 +239,7 @@ export function SlideEditorPanelContent(p: Props) {
                   }
                 />
               </div>
-              <hr class="border-base-300 mt-3 mb-1" />
+              <hr class="border-border mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Checkbox
                   label={t3({
@@ -423,7 +423,7 @@ export function SlideEditorPanelContent(p: Props) {
               <Show
                 when={getCurrentBlock()}
                 fallback={
-                  <div class="ui-pad text-base-content/70 text-sm">
+                  <div class="ui-pad text-base-content-muted text-sm">
                     {t3({
                       en: "Click a block on the canvas to edit it",
                       fr: "Cliquez sur un bloc du canevas pour le modifier",

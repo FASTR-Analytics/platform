@@ -69,11 +69,11 @@ export function ProjectCache() {
 
             return (
               <div class="ui-pad flex flex-col ui-gap">
-                <div class="font-500 text-sm">
+                <div class="text-sm">
                   {t3({ en: "Server-side (Valkey)", fr: "Côté serveur (Valkey)", pt: "Lado do servidor (Valkey)" })}
                 </div>
                 <div class="flex items-center ui-gap-sm text-sm">
-                  <span class="font-500">{t3({ en: "Valkey", fr: "Valkey", pt: "Valkey" })}:</span>
+                  <span>{t3({ en: "Valkey", fr: "Valkey", pt: "Valkey" })}:</span>
                   <span class={data.valkeyConnected ? "text-success" : "text-danger"}>
                     {data.valkeyConnected
                       ? t3({ en: "Connected", fr: "Connecté", pt: "Ligado" })
@@ -84,12 +84,12 @@ export function ProjectCache() {
                 <VisualizationsTable rows={serverRows()} />
 
                 <div class="border-t pt-4 mt-2 flex items-center justify-between">
-                  <div class="font-500 text-sm">
+                  <div class="text-sm">
                     {t3({ en: "Client-side (IndexedDB)", fr: "Côté client (IndexedDB)", pt: "Lado do cliente (IndexedDB)" })}
                   </div>
                   <button
                     type="button"
-                    class="text-xs text-base-content/60 hover:text-base-content"
+                    class="text-xs text-base-content-muted hover:text-base-content"
                     onClick={() => setRefreshCount((n) => n + 1)}
                   >
                     {t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
@@ -118,23 +118,23 @@ type VizRow = {
 function VisualizationsTable(p: { rows: VizRow[] }) {
   return (
     <div>
-      <div class="font-500 mb-2 text-sm">
+      <div class="mb-2 text-sm">
         {t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })} ({p.rows.length})
       </div>
       <table class="w-full text-sm border-collapse">
         <thead>
-          <tr class="border-b text-left text-xs text-base-content/60">
-            <th class="pb-1 pr-4 font-500">{t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}</th>
-            <th class="pb-1 pr-4 font-500">{t3({ en: "PO Detail", fr: "Détail PO", pt: "Detalhe PO" })}</th>
-            <th class="pb-1 pr-4 font-500">{t3({ en: "Metric Info", fr: "Info indicateur", pt: "Informação da métrica" })}</th>
-            <th class="pb-1 pr-4 font-500">{t3({ en: "PO Items", fr: "Éléments PO", pt: "Elementos PO" })}</th>
-            <th class="pb-1 font-500">{t3({ en: "Replicant Opts", fr: "Options réplicant", pt: "Opções de replicante" })}</th>
+          <tr class="border-b text-left text-xs text-base-content-muted">
+            <th class="pb-1 pr-4">{t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "PO Detail", fr: "Détail PO", pt: "Detalhe PO" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "Metric Info", fr: "Info indicateur", pt: "Informação da métrica" })}</th>
+            <th class="pb-1 pr-4">{t3({ en: "PO Items", fr: "Éléments PO", pt: "Elementos PO" })}</th>
+            <th class="pb-1">{t3({ en: "Replicant Opts", fr: "Options réplicant", pt: "Opções de replicante" })}</th>
           </tr>
         </thead>
         <tbody>
           <For each={p.rows}>
             {(row) => (
-              <tr class="border-b border-base-content/10">
+              <tr class="border-b border-border">
                 <td class="py-1 pr-4">{row.label}</td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.poDetailCached} /></td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.metricInfoCached} /></td>
@@ -151,7 +151,7 @@ function VisualizationsTable(p: { rows: VizRow[] }) {
 
 function CacheIndicator(p: { cached: boolean }) {
   return (
-    <span class={p.cached ? "text-success" : "text-base-content/40"}>
+    <span class={p.cached ? "text-success" : "text-base-content-muted"}>
       {p.cached ? "✓" : "—"}
     </span>
   );
@@ -159,7 +159,7 @@ function CacheIndicator(p: { cached: boolean }) {
 
 function CacheCount(p: { count: number }) {
   return (
-    <span class={p.count > 0 ? "text-success" : "text-base-content/40"}>
+    <span class={p.count > 0 ? "text-success" : "text-base-content-muted"}>
       {p.count > 0 ? p.count : "—"}
     </span>
   );

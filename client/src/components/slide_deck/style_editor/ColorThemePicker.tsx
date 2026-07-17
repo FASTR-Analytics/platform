@@ -99,8 +99,8 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         type="button"
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
         classList={{
-          "border-base-content/20": isPresetSelected(props.id),
-          "border-transparent hover:border-base-300": !isPresetSelected(
+          "border-base-content": isPresetSelected(props.id),
+          "border-transparent hover:border-border": !isPresetSelected(
             props.id,
           ),
         }}
@@ -122,7 +122,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
       </div>
       <div class="ui-spy-sm">
         <div>
-          <div class="text-neutral mb-1 text-xs">
+          <div class="ui-text-caption mb-1">
             {t3({ en: "Standard colors", fr: "Couleurs standard", pt: "Cores padrão" })}
           </div>
           <div class="flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         </div>
         <Show when={BRAND_PRESETS.length > 0}>
           <div>
-            <div class="text-neutral mb-1 text-xs">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Special colors", fr: "Couleurs spéciales", pt: "Cores especiais" })}
             </div>
             <div class="flex flex-wrap gap-1.5">
@@ -149,7 +149,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
           </div>
         </Show>
         <div>
-          <div class="text-neutral mb-1 text-xs">
+          <div class="ui-text-caption mb-1">
             {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
           </div>
           <div class="flex items-center gap-2">
@@ -157,8 +157,8 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
               type="button"
               class="flex h-7 w-7 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
               classList={{
-                "border-base-content/20": isCustomActive(),
-                "border-transparent hover:border-base-300": !isCustomActive(),
+                "border-base-content": isCustomActive(),
+                "border-transparent hover:border-border": !isCustomActive(),
               }}
               style={{
                 background:
@@ -183,7 +183,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
                 class="w-24 rounded border px-2 py-1 font-mono text-sm"
                 classList={{
                   "border-danger": !validation().valid,
-                  "border-base-300": validation().valid,
+                  "border-border": validation().valid,
                 }}
                 placeholder="#000000"
                 value={customHex()}

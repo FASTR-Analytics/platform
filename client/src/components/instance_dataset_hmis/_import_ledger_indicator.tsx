@@ -108,7 +108,7 @@ export function ImportLedgerIndicatorDetail(
       render: (row) => {
         if (!row.item) {
           return (
-            <span class="opacity-50">
+            <span class="text-base-content-muted">
               {t3({
                 en: "Never imported",
                 fr: "Jamais importé",

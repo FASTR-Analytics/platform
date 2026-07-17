@@ -36,6 +36,15 @@ import {
 } from "../validators/content_validators";
 import type { AIContext } from "~/components/project_ai/types";
 
+function throwSlideUpdateError(err: string): never {
+  if (err === "CONFLICT") {
+    throw new Error(
+      "CONFLICT: The slide was modified by someone else while this edit was in progress. Call get_slide to re-read the latest content, then retry based on the updated state.",
+    );
+  }
+  throw new Error(err);
+}
+
 function requireDeckContext(ctx: AIContext) {
   if (ctx.mode !== "editing_slide_deck") {
     if (ctx.mode === "editing_slide") {
@@ -179,14 +188,21 @@ export function getToolsForSlides(
           validateSlideTotalWordCount(textBlocks);
         }
 
+        const currentRes = await serverActions.getSlide({
+          projectId,
+          slide_id: input.slideId,
+        });
+        if (!currentRes.success) throw new Error(currentRes.err);
+
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
 
         const res = await serverActions.updateSlide({
           projectId,
           slide_id: input.slideId,
           slide: convertedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
@@ -242,8 +258,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
@@ -284,8 +301,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
@@ -435,8 +453,9 @@ export function getToolsForSlides(
           projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
+          expectedLastUpdated: currentRes.data.lastUpdated,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throwSlideUpdateError(res.err);
 
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {

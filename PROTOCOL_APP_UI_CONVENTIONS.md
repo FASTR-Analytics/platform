@@ -7,10 +7,10 @@
 > and does not restate them — read `PROTOCOL_UI_STYLING` (semantic tokens,
 > `ui-*` spacing, sentence case), `PROTOCOL_UI_COMPONENTS` (panther-first,
 > tables, modals, action creators), `PROTOCOL_UI_SOLIDJS`, and
-> `PROTOCOL_UI_STRUCTURE` (file organisation) first. Code-level patterns
-> (imports, props, form actions, control flow) are
-> `client/src/FRONTEND_STYLE_GUIDE.md`. The shell architecture these pages mount
-> into is **S14** ([SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md)).
+> `PROTOCOL_UI_STRUCTURE` (file organisation) first — code-level patterns
+> (imports, props, form actions, control flow) live there, not here. The shell
+> architecture these pages mount into is **S14**
+> ([SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md)).
 
 ## Theming — where tokens live and how to override
 
@@ -163,6 +163,10 @@ validate inside the action and return `{ success: false, err }`; fields spaced
 `ui-spy-sm`; `autoFocus` the first input. Settings pages: `SettingsSection`
 blocks inside `ui-pad ui-spy`, fields `ui-spy-sm`. Modal widths: `sm` 400 / `md`
 560 / `lg` 800 / `xl` 1000 / `2xl` 1200 / `3xl` 1400 (all clamped to viewport).
+
+**Form-draft signals:** draft state under edit uses a `temp*` prefix
+(`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
+signal.
 
 ## Icon vocabulary
 

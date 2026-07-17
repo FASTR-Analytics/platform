@@ -54,7 +54,7 @@ export function DisplayProjectUserRole(
                   <For each={PROJECT_PERMISSION_CATEGORIES}>
                     {(category) => (
                       <div class="space-y-1">
-                        <div class="font-600 text-sm">{t3(category.label)}</div>
+                        <div class="font-700 text-sm">{t3(category.label)}</div>
                         <For each={category.permissions}>
                           {(key) => (
                             <div class="flex justify-between">
@@ -93,7 +93,7 @@ export function DisplayProjectUserRole(
             <For each={PROJECT_PERMISSION_CATEGORIES}>
               {(category) => (
                 <div class="space-y-1">
-                  <div class="font-600 text-sm">{t3(category.label)}</div>
+                  <div class="font-700 text-sm">{t3(category.label)}</div>
                   <For each={category.permissions}>
                     {(key) => (
                       <div class="flex justify-between">

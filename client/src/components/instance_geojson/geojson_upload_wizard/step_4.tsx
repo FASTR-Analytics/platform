@@ -98,10 +98,10 @@ export function Step4(p: Props) {
       when={!saveCounts()}
       fallback={
         <div class="ui-spy">
-          <div class="font-600">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
+          <div class="font-700">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
           <Show when={saveCounts()} keyed>
             {(counts) => (
-              <div class="text-base-500 ui-spy-sm text-sm">
+              <div class="text-base-content-muted ui-spy-sm text-sm">
                 <div>
                   {counts.featureCount} {t3({ en: "boundaries saved", fr: "limites enregistrées", pt: "limites guardados" })}
                 </div>
@@ -126,10 +126,10 @@ export function Step4(p: Props) {
     >
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-600">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
+        <div class="font-700">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
       </div>
 
-      <div class="text-base-500 ui-spy-sm text-sm">
+      <div class="text-base-content-muted ui-spy-sm text-sm">
         <Show when={state.source() === "file"}>
           <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: {state.selectedFileName()}</div>
         </Show>
@@ -148,8 +148,8 @@ export function Step4(p: Props) {
       </div>
 
       <Show when={duplicateNames().length > 0}>
-        <div class="bg-warning/10 border-warning text-warning rounded border p-3 text-sm">
-          <div class="font-600 mb-1">
+        <div class="bg-warning-subtle border-warning text-warning-subtle-content rounded border p-3 text-sm">
+          <div class="font-700 mb-1">
             {t3({ en: "Warning: Duplicate admin area names", fr: "Attention : Noms de zones administratives en double", pt: "Atenção: nomes de zonas administrativas duplicados" })}
           </div>
           <div>

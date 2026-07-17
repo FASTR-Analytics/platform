@@ -480,7 +480,7 @@ export function EditCalculatedIndicatorForm(
             ]}
             fullWidth
           />
-          <div class="text-base-content/70 ui-form-text">
+          <div class="text-base-content-muted ui-form-text">
             {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}:{" "}
             <span class="font-mono">{previewFormatted()}</span>
           </div>

@@ -172,7 +172,7 @@ export function GeoJsonEditModal(p: Props) {
       </div>
 
       <Show when={loading()}>
-        <div class="text-base-500 py-8 text-center">
+        <div class="text-base-content-muted py-8 text-center">
           {t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
         </div>
       </Show>
@@ -182,15 +182,15 @@ export function GeoJsonEditModal(p: Props) {
       </Show>
 
       <Show when={!loading() && !error()}>
-        <div class="text-base-500 text-sm">
+        <div class="text-base-content-muted text-sm">
           {matchedCount()} {t3({ en: "mapped", fr: "mappés", pt: "associados" })}
           <Show when={unmatchedCount() > 0}>
-            {" "}<span class="text-warning font-600">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés", pt: "não associados" })}</span>
+            {" "}<span class="text-warning">· {unmatchedCount()} {t3({ en: "unmatched", fr: "non mappés", pt: "não associados" })}</span>
           </Show>
         </div>
 
-        <div class="border-base-300 max-h-96 overflow-auto rounded border">
-          <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
+        <div class="border-border max-h-96 overflow-auto rounded border">
+          <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
             <div class="w-1/2">
               {hasSourceNames()
                 ? t3({ en: "Source Name", fr: "Nom source", pt: "Nome de origem" })
@@ -200,21 +200,21 @@ export function GeoJsonEditModal(p: Props) {
           </div>
           <For each={featureGroups()}>
             {(group) => (
-              <div class={`border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 ${group.areaId === "" ? "bg-warning/10" : ""}`}>
+              <div class={`border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 ${group.areaId === "" ? "bg-warning-subtle" : ""}`}>
                 <div class="w-1/2">
                   <div class="text-sm">
                     {group.sourceName ?? group.areaId}
                     <Show when={group.areaId === ""}>
-                      {" "}<span class="text-warning text-xs font-600">{t3({ en: "(unmatched)", fr: "(non mappé)", pt: "(não associado)" })}</span>
+                      {" "}<span class="text-warning text-xs">{t3({ en: "(unmatched)", fr: "(non mappé)", pt: "(não associado)" })}</span>
                     </Show>
                   </div>
                   <Show when={group.areaId !== "" && group.sourceName && group.sourceName !== group.areaId}>
-                    <div class="text-base-400 text-xs">
+                    <div class="ui-text-caption">
                       {t3({ en: "Currently mapped to", fr: "Actuellement mappé vers", pt: "Atualmente associado a" })}: {group.areaId}
                     </div>
                   </Show>
                   <Show when={group.count > 1}>
-                    <div class="text-base-400 text-xs">
+                    <div class="ui-text-caption">
                       ({group.count} {t3({ en: "features", fr: "entités", pt: "entidades" })})
                     </div>
                   </Show>

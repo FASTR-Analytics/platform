@@ -46,7 +46,7 @@ export function SlideDeckThumbnail(p: Props) {
           class="bg-base-200 flex items-center justify-center"
           style={{ "aspect-ratio": "16/9" }}
         >
-          <div class="text-neutral text-xs">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
+          <div class="ui-text-caption">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
         </div>
       </Show>
       <Show when={pageInputs().status === "error"}>

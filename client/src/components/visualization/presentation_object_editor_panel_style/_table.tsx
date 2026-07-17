@@ -47,7 +47,7 @@ export function TableStyleControls(p: Props) {
   return (
     <>
       <Show when={modeOptions().length > 1}>
-        <div class="ui-pad bg-base-200 border-base-300 rounded border">
+        <div class="ui-pad bg-base-200 border-border rounded border">
           <RadioGroup
             label={t3({ en: "Table mode", fr: "Mode de tableau", pt: "Modo de tabela" })}
             options={modeOptions()}

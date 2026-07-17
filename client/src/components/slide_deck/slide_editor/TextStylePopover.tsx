@@ -43,7 +43,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
       </Show>
       <button
         type="button"
-        class="ui-hoverable border-base-300 flex items-center gap-2 rounded border px-3 py-1.5"
+        class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border flex items-center gap-2 rounded border px-3 py-1.5"
         style={{ "anchor-name": anchorName } as JSX.CSSProperties}
         // @ts-ignore - popovertarget is valid HTML
         popovertarget={popoverId}
@@ -99,10 +99,10 @@ export function TextStylePopover(p: TextStylePopoverProps) {
           <div class="mt-3 flex gap-2">
             <button
               type="button"
-              class="flex-1 cursor-pointer rounded border py-1.5 text-sm font-bold"
+              class="flex-1 cursor-pointer rounded border py-1.5 text-sm font-700"
               classList={{
                 "bg-primary text-primary-content border-primary": p.bold,
-                "bg-base-100 text-base-content border-base-300 hover:bg-base-200":
+                "bg-base-100 text-base-content border-border cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active":
                   !p.bold,
               }}
               onClick={() => p.onBoldChange(!p.bold)}
@@ -114,7 +114,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               class="flex-1 cursor-pointer rounded border py-1.5 text-sm italic"
               classList={{
                 "bg-primary text-primary-content border-primary": p.italic,
-                "bg-base-100 text-base-content border-base-300 hover:bg-base-200":
+                "bg-base-100 text-base-content border-border cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active":
                   !p.italic,
               }}
               onClick={() => p.onItalicChange(!p.italic)}
@@ -125,7 +125,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
           <Show when={p.defaults && p.onReset}>
             <button
               type="button"
-              class="bg-base-100 text-base-content border-base-300 hover:bg-base-200 mt-3 w-full cursor-pointer rounded border py-1.5 text-sm"
+              class="bg-base-100 text-base-content border-border cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active mt-3 w-full cursor-pointer rounded border py-1.5 text-sm"
               onClick={() => p.onReset?.()}
             >
               {t3({ en: "Reset to default", fr: "Réinitialiser", pt: "Repor predefinição" })}

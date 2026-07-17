@@ -18,10 +18,10 @@ export function Step0(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-600">{t3({ en: "Select import source", fr: "Sélectionner la source d'importation", pt: "Selecionar a fonte de importação" })}</div>
+      <div class="font-700">{t3({ en: "Select import source", fr: "Sélectionner la source d'importation", pt: "Selecionar a fonte de importação" })}</div>
 
       <div class="ui-spy-sm">
-        <label class="flex cursor-pointer items-center gap-3 rounded border border-base-300 p-4 hover:bg-base-100">
+        <label class="flex cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active items-center gap-3 rounded border border-border p-4">
           <input
             type="radio"
             name="source"
@@ -30,14 +30,14 @@ export function Step0(p: Props) {
             class="radio"
           />
           <div>
-            <div class="font-600">{t3({ en: "Upload GeoJSON file", fr: "Téléverser un fichier GeoJSON", pt: "Carregar um ficheiro GeoJSON" })}</div>
-            <div class="text-base-500 text-sm">
+            <div class="font-700">{t3({ en: "Upload GeoJSON file", fr: "Téléverser un fichier GeoJSON", pt: "Carregar um ficheiro GeoJSON" })}</div>
+            <div class="text-base-content-muted text-sm">
               {t3({ en: "Upload a GeoJSON file from your computer", fr: "Téléversez un fichier GeoJSON depuis votre ordinateur", pt: "Carregue um ficheiro GeoJSON a partir do seu computador" })}
             </div>
           </div>
         </label>
 
-        <label class="flex cursor-pointer items-center gap-3 rounded border border-base-300 p-4 hover:bg-base-100">
+        <label class="flex cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active items-center gap-3 rounded border border-border p-4">
           <input
             type="radio"
             name="source"
@@ -46,8 +46,8 @@ export function Step0(p: Props) {
             class="radio"
           />
           <div>
-            <div class="font-600">{t3({ en: "Import from DHIS2", fr: "Importer depuis DHIS2", pt: "Importar do DHIS2" })}</div>
-            <div class="text-base-500 text-sm">
+            <div class="font-700">{t3({ en: "Import from DHIS2", fr: "Importer depuis DHIS2", pt: "Importar do DHIS2" })}</div>
+            <div class="text-base-content-muted text-sm">
               {t3({ en: "Fetch organization unit boundaries directly from a DHIS2 instance", fr: "Récupérer les limites des unités d'organisation directement depuis une instance DHIS2", pt: "Obter os limites das unidades organizacionais diretamente de uma instância DHIS2" })}
             </div>
           </div>

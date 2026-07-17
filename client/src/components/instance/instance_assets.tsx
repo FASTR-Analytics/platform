@@ -150,7 +150,7 @@ function AssetFileSystem(p: {
     <Show
       when={activeType()}
       fallback={
-        <p class="text-neutral ui-pad text-sm">
+        <p class="text-base-content-muted ui-pad text-sm">
           {t3({
             en: "No assets uploaded yet",
             fr: "Aucune ressource téléversée",
@@ -203,7 +203,7 @@ function AssetTable(p: {
       header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
+        <span class="text-base-content-muted text-sm">{formatFileSize(asset.size)}</span>
       ),
     },
     {
@@ -211,7 +211,7 @@ function AssetTable(p: {
       header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-neutral text-sm">
+        <span class="text-base-content-muted text-sm">
           {formatDate(asset.lastModified)}
         </span>
       ),
@@ -224,7 +224,7 @@ function AssetTable(p: {
         <Show
           when={asset.uploaderEmail}
           fallback={
-            <span class="text-neutral/50 text-sm italic">
+            <span class="text-base-content-muted text-sm italic">
               {t3({ en: "system", fr: "système", pt: "sistema" })}
             </span>
           }

@@ -722,51 +722,6 @@ export async function getProjectUsers(
   });
 }
 
-export async function updateProjectUserRole(
-  mainDb: Sql,
-  projectId: string,
-  emails: string[],
-  role: ProjectUserRoleType,
-): Promise<APIResponseWithData<{ projectUsers: ProjectUser[] }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (!projectId) {
-      throw new Error("Project ID is required");
-    }
-    if (!emails || emails.length === 0) {
-      throw new Error("At least one email is required");
-    }
-
-    await mainDb.begin(async (sql) => {
-      const deleteQueries = emails.map(
-        (email) =>
-          sql`DELETE FROM project_user_roles WHERE email = ${email} AND project_id = ${projectId}`,
-      );
-      await Promise.all(deleteQueries);
-
-      if (role !== "none") {
-        const userInserts = emails.map(
-          (email) =>
-            sql`INSERT INTO users (email, is_admin) VALUES (${email}, false) ON CONFLICT (email) DO NOTHING`,
-        );
-        await Promise.all(userInserts);
-
-        const insertQueries = emails.map(
-          (email) =>
-            sql`INSERT INTO project_user_roles (email, project_id, role)
-              VALUES (${email}, ${projectId}, ${role})`,
-        );
-        await Promise.all(insertQueries);
-      }
-    });
-
-    const usersRes = await getProjectUsers(mainDb, projectId);
-    if (!usersRes.success) {
-      throw new Error(usersRes.err ?? "Failed to get project users");
-    }
-    return { success: true, data: { projectUsers: usersRes.data } };
-  });
-}
-
 export async function addProjectUserRole(
   mainDb: Sql,
   projectId: string,

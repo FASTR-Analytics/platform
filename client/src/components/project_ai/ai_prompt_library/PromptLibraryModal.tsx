@@ -341,7 +341,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
               title={
                 <div class="flex items-center gap-2">
                   <span>{t3({ en: "My prompts", fr: "Mes prompts", pt: "Os meus prompts" })}</span>
-                  <span class="text-base-content/50 text-xs">
+                  <span class="text-base-content-muted text-xs">
                     ({p.myCustomPrompts.length})
                   </span>
                 </div>
@@ -374,7 +374,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   <span>
                     {t3({ en: "Country prompts", fr: "Prompts pays", pt: "Prompts do país" })}
                   </span>
-                  <span class="text-base-content/50 text-xs">
+                  <span class="text-base-content-muted text-xs">
                     ({p.countryCustomPrompts.length})
                   </span>
                 </div>
@@ -405,7 +405,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
             fallback={
               p.myCustomPrompts.length === 0 &&
               p.countryCustomPrompts.length === 0 ? (
-                <div class="text-base-content/60 py-8 text-center">
+                <div class="text-base-content-muted py-8 text-center">
                   {t3({
                     en: "No prompts found matching your search.",
                     fr: "Aucun prompt correspondant à votre recherche.",
@@ -421,7 +421,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   title={
                     <div class="flex items-center gap-2">
                       <span>{cat.title}</span>
-                      <span class="text-base-content/50 text-xs">
+                      <span class="text-base-content-muted text-xs">
                         ({cat.prompts.length})
                       </span>
                     </div>
@@ -436,11 +436,11 @@ function BrowsePhase(p: BrowsePhaseProps) {
                       {(prompt) => (
                         <button
                           type="button"
-                          class="hover:bg-base-200 block w-full cursor-pointer px-3 py-2 text-left"
+                          class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active block w-full px-3 py-2 text-left"
                           onClick={() => p.onSelectPrompt(prompt, cat.title)}
                         >
                           <div class="font-700">{prompt.title}</div>
-                          <div class="text-base-content/60 truncate text-sm">
+                          <div class="text-base-content-muted truncate text-sm">
                             {prompt.content.slice(0, 120)}...
                           </div>
                         </button>
@@ -460,7 +460,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
             p.countryCustomPrompts.length === 0
           }
         >
-          <div class="text-base-content/60 mt-4">
+          <div class="text-base-content-muted mt-4">
             <div class="text-xs">{p.parseResult.message}</div>
           </div>
         </Show>
@@ -477,7 +477,7 @@ function CustomPromptItem(p: {
   canEdit: boolean;
 }) {
   return (
-    <div class="hover:bg-base-200 group flex w-full items-start px-3 py-2">
+    <div class="hover:bg-base-100-hover group flex w-full items-start px-3 py-2">
       <button
         type="button"
         class="min-w-0 flex-1 cursor-pointer text-left"
@@ -485,9 +485,9 @@ function CustomPromptItem(p: {
       >
         <div class="font-700">{p.prompt.name}</div>
         <Show when={p.prompt.category}>
-          <div class="text-base-content/50 text-xs">{p.prompt.category}</div>
+          <div class="text-base-content-muted text-xs">{p.prompt.category}</div>
         </Show>
-        <div class="text-base-content/60 truncate text-sm">
+        <div class="text-base-content-muted truncate text-sm">
           {p.prompt.content.slice(0, 120)}...
         </div>
       </button>
@@ -500,7 +500,7 @@ function CustomPromptItem(p: {
               e.stopPropagation();
               p.onEdit();
             }}
-            class="text-base-content/50 hover:text-base-content rounded p-1"
+            class="text-base-content-muted hover:text-base-content rounded p-1"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -524,7 +524,7 @@ function CustomPromptItem(p: {
               e.stopPropagation();
               p.onDelete();
             }}
-            class="text-base-content/50 hover:text-danger rounded p-1"
+            class="text-base-content-muted hover:text-danger rounded p-1"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

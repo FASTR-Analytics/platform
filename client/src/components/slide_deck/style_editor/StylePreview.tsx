@@ -179,17 +179,17 @@ export function StylePreview(p: StylePreviewProps) {
         {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
       </div>
       <Show when={colorError()}>
-        <div class="border border-danger rounded bg-danger/10 flex items-center justify-center py-8">
+        <div class="border border-danger rounded bg-danger-subtle flex items-center justify-center py-8">
           <span class="text-danger text-sm">{colorError()}</span>
         </div>
       </Show>
       <Show when={!colorError()}>
         <div class="flex gap-4" style={{ "max-width": "1600px" }}>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
                 pageInputs={coverInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -198,10 +198,10 @@ export function StylePreview(p: StylePreviewProps) {
             </div>
           </div>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Section", fr: "Section", pt: "Secção" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
                 pageInputs={sectionInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -210,10 +210,10 @@ export function StylePreview(p: StylePreviewProps) {
             </div>
           </div>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border border-border rounded overflow-hidden">
               <PageHolder
                 pageInputs={contentInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}

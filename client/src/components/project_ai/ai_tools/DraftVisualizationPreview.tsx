@@ -238,7 +238,7 @@ export function DraftVisualizationPreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+      <div class="border-border bg-base-100 max-w-[400px] rounded border">
         <div class="p-1.5">
           <Show
             when={
@@ -249,7 +249,7 @@ export function DraftVisualizationPreview(p: Props) {
           >
             {(vizFigure) => (
               <div
-                class="cursor-pointer transition-opacity hover:opacity-80"
+                class="cursor-pointer"
                 onClick={openExpandedViewForViz}
               >
                 <div class="pointer-events-none">
@@ -269,7 +269,7 @@ export function DraftVisualizationPreview(p: Props) {
           </Show>
           <Show when={p.figure.type === "from_metric"}>
             <div
-              class="cursor-pointer transition-opacity hover:opacity-80"
+              class="cursor-pointer"
               onClick={openExpandedViewForMetric}
             >
               <div class="pointer-events-none">
@@ -278,7 +278,7 @@ export function DraftVisualizationPreview(p: Props) {
             </div>
           </Show>
         </div>
-        <div class="border-base-300 flex gap-1.5 border-t p-1.5">
+        <div class="border-border flex gap-1.5 border-t p-1.5">
           <Button
             size="sm"
             outline

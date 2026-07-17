@@ -205,7 +205,7 @@ function ClerkNewLogin() {
                 <div class="text-base-content font-800 text-5xl leading-tight">
                   {m().instanceName}
                 </div>
-                <div class="text-base-content/50 mt-3 text-lg">
+                <div class="text-base-content-muted mt-3 text-lg">
                   {t3({
                     en: "Analytics platform",
                     fr: "Plateforme analytique",
@@ -215,7 +215,7 @@ function ClerkNewLogin() {
               </div>
             )}
           </Show>
-          <div class="text-neutral text-xs">
+          <div class="ui-text-caption">
             {t3({
               en: "Powered by FASTR",
               fr: "Propulsé par FASTR",
@@ -233,7 +233,7 @@ function ClerkNewLogin() {
                 <div class="font-700 text-xl">
                   {m().instanceName}
                 </div>
-                <div class="text-neutral text-sm">
+                <div class="text-base-content-muted text-sm">
                   {t3({
                     en: "Analytics platform",
                     fr: "Plateforme analytique",

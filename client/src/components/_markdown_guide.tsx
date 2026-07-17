@@ -20,22 +20,22 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   {
     syntax: "*italic*",
     label: () => t3({ en: "Italic text", fr: "Texte en italique", pt: "Texto em itálico" }),
-    labelClass: "italic text-base-content/70",
+    labelClass: "italic text-base-content-muted",
   },
   {
     syntax: "- item",
     label: () => `• ${t3({ en: "Bulleted list", fr: "Liste à puces" })}`,
-    labelClass: "text-base-content/70",
+    labelClass: "text-base-content-muted",
   },
   {
     syntax: "1. item",
     label: () => t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" }),
-    labelClass: "list-item list-decimal list-inside text-base-content/70",
+    labelClass: "list-item list-decimal list-inside text-base-content-muted",
   },
   {
     syntax: "> quote",
     label: () => t3({ en: "Quote", fr: "Citation", pt: "Citação" }),
-    labelClass: "border-base-300 border-l-2 pl-2 italic text-base-content/60",
+    labelClass: "border-border border-l-2 pl-2 italic text-base-content-muted",
   },
   {
     syntax: "[text](https://…)",
@@ -50,7 +50,7 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
 export function MarkdownGuide() {
   return (
     <div class="ui-spy-sm">
-      <div class="text-base-content/70 font-700 text-sm">
+      <div class="text-base-content-muted font-700 text-sm">
         {t3({
           en: "Formatting instructions",
           fr: "Instructions de mise en forme",
@@ -67,7 +67,7 @@ export function MarkdownGuide() {
           </div>
         )}
       </For>
-      <div class="text-base-content/60 pt-1 text-xs">
+      <div class="text-base-content-muted pt-1 text-xs">
         {t3({
           en: "Leave a blank line between paragraphs.",
           fr: "Laissez une ligne vide entre les paragraphes.",

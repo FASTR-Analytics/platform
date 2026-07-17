@@ -120,7 +120,7 @@ export function AIDocumentSelectorModal(
         <Show
           when={pdfAssets().length > 0}
           fallback={
-            <div class="text-base-content/60 py-4 text-center">
+            <div class="text-base-content-muted py-4 text-center">
               {t3({
                 en: "No PDF files found in assets.",
                 fr: "Aucun fichier PDF trouvé dans les ressources.",

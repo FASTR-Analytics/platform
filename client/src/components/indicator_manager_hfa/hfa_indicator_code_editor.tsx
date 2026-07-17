@@ -348,7 +348,7 @@ function EditorInner(p: {
 
   return (
     <div class="flex h-full flex-col">
-      <div class="border-base-300 flex-none border-b">
+      <div class="border-border flex-none border-b">
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
             <div>
@@ -450,7 +450,7 @@ function EditorInner(p: {
       </div>
 
       <div class="flex min-h-0 flex-1">
-        <div class="border-base-300 flex h-full w-48 flex-none flex-col overflow-auto border-r">
+        <div class="border-border flex h-full w-48 flex-none flex-col overflow-auto border-r">
           <div class="ui-pad-sm font-700 text-sm">
             {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
           </div>
@@ -461,15 +461,15 @@ function EditorInner(p: {
               const hasCode = () => !!codeEntry()?.rCode.trim();
               return (
                 <button
-                  class={`ui-pad-sm border-base-300 w-full border-b text-left text-sm ${
+                  class={`ui-pad-sm border-border w-full cursor-pointer border-b text-left text-sm ${
                     selectedTimePoint() === tp.timePoint
-                      ? "bg-primary/10 font-700"
-                      : "hover:bg-base-200"
+                      ? "bg-primary-subtle font-700"
+                      : "cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active"
                   }`}
                   onClick={() => setSelectedTimePoint(tp.timePoint)}
                 >
                   <div>{tp.timePoint}</div>
-                  <div class="text-base-content/50 text-xs">
+                  <div class="text-base-content-muted text-xs">
                     {hasCode() ? "" : t3({ en: "no code", fr: "aucun code", pt: "sem código" })}
                   </div>
                 </button>
@@ -543,7 +543,7 @@ function EditorInner(p: {
                                 {varInfo ? ` — ${varInfo.varLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
-                                <div class="text-base-content/60 ml-3">
+                                <div class="text-base-content-muted ml-3">
                                   {vals
                                     .map((vv) => `${vv.value}=${vv.valueLabel}`)
                                     .join(", ")}
@@ -624,7 +624,7 @@ function EditorInner(p: {
                                 {varInfo ? ` — ${varInfo.varLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
-                                <div class="text-base-content/60 ml-3">
+                                <div class="text-base-content-muted ml-3">
                                   {vals
                                     .map((vv) => `${vv.value}=${vv.valueLabel}`)
                                     .join(", ")}
@@ -714,10 +714,10 @@ function EditorInner(p: {
                             (vv) => vv.varName === v.varName,
                           );
                           return (
-                            <div class="border-base-300/50 border-b py-1 last:border-b-0">
+                            <div class="border-border border-b py-1 last:border-b-0">
                               <div class="flex items-baseline gap-2 text-xs">
                                 <span
-                                  class="ui-hoverable font-700 cursor-pointer font-mono"
+                                  class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active font-700 font-mono"
                                   onClick={() => {
                                     setState(
                                       "code",
@@ -736,15 +736,15 @@ function EditorInner(p: {
                                 >
                                   {v.varName}
                                 </span>
-                                <span class="text-base-content/60 truncate">
+                                <span class="text-base-content-muted truncate">
                                   {v.varLabel}
                                 </span>
-                                <span class="text-base-content/40 flex-none">
+                                <span class="text-base-content-muted flex-none">
                                   {v.varType}
                                 </span>
                               </div>
                               <Show when={vals.length > 0}>
-                                <div class="text-base-content/60 ml-3 text-xs">
+                                <div class="text-base-content-muted ml-3 text-xs">
                                   {vals
                                     .map((vv) => `${vv.value}=${vv.valueLabel}`)
                                     .join(", ")}

@@ -82,7 +82,7 @@ export function HfaWeights(p: Props) {
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy border-border flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
@@ -265,7 +265,7 @@ function UploadStep(p: { onNext: (csv: CsvDetails) => void }) {
 
   return (
     <div class="ui-spy">
-      <div class="text-neutral text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: "Upload a CSV with a facility ID column and a weight column. You will choose which columns to use in the next step. Each import covers one time point.",
           fr: "Téléversez un CSV avec une colonne d'identifiant d'établissement et une colonne de pondération. Vous choisirez les colonnes à utiliser à l'étape suivante. Chaque importation couvre un point temporel.",
@@ -325,7 +325,7 @@ function MapStep(p: {
 
   return (
     <div class="ui-spy">
-      <div class="text-neutral font-mono text-xs">{p.csvDetails.fileName}</div>
+      <div class="ui-text-caption font-mono">{p.csvDetails.fileName}</div>
       <div class="ui-spy-sm">
         <For
           each={[
@@ -380,7 +380,7 @@ function DoneStep(p: { result: HfaFacilityWeightsImportResult; onAgain: () => vo
         })}
       </div>
       <Show when={p.result.rowsSkippedNoWeight > 0}>
-        <div class="text-neutral text-sm">
+        <div class="text-base-content-muted text-sm">
           {t3({
             en: `${toNum0(p.result.rowsSkippedNoWeight)} blank cell(s) — not in sample`,
             fr: `${toNum0(p.result.rowsSkippedNoWeight)} cellule(s) vide(s) — hors échantillon`,

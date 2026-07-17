@@ -444,7 +444,7 @@ function ThresholdsPanel(p: {
                   onChange={(v) => setBucketColor(origI(), v)}
                   colorSet="standard"
                 />
-                <span class="text-base-content/70 text-xs">
+                <span class="text-base-content-muted text-xs">
                   {labels()[origI()]}
                 </span>
                 <Show when={p.cf.buckets.length > 2}>
@@ -464,7 +464,7 @@ function ThresholdsPanel(p: {
         </For>
         <button
           type="button"
-          class="ui-hoverable text-base-content/70 hover:text-base-content self-start text-xs underline"
+          class="cursor-pointer text-base-content-muted hover:text-base-content self-start text-xs underline"
           onClick={addRow}
         >
           {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil", pt: "+ Adicionar limiar" })}

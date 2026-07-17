@@ -255,7 +255,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
               {(schedulingInfo) => (
                 <div class="ui-pad ui-spy h-full w-full overflow-auto">
                   <Show when={attentionSchedulesOf(schedulingInfo.schedules).length > 0}>
-                    <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border">
+                    <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                       <div class="font-700">
                         {t3({
                           en: "Scheduled import needs attention",

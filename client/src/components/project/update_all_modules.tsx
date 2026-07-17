@@ -69,9 +69,9 @@ export function UpdateAllModules(
   const statusIcon = (s: ModuleStatus) => {
     switch (s) {
       case "pending":
-        return <span class="text-neutral">-</span>;
+        return <span class="text-base-content-muted">-</span>;
       case "skipped":
-        return <span class="text-neutral text-xs">—</span>;
+        return <span class="ui-text-caption">—</span>;
       case "updating":
         return <span class="text-primary animate-pulse">...</span>;
       case "done":
@@ -115,7 +115,7 @@ export function UpdateAllModules(
     >
       <div class="ui-spy">
         <Show when={updateCount() === 0 && !running() && !done()}>
-          <div class="text-neutral text-sm">
+          <div class="text-base-content-muted text-sm">
             {t3({ en: "All modules are up to date.", fr: "Tous les modules sont à jour.", pt: "Todos os módulos estão atualizados." })}
           </div>
         </Show>
@@ -140,16 +140,16 @@ export function UpdateAllModules(
                 <div class="w-8 text-center font-mono text-xs">
                   {statusIcon(statuses()[mod.id])}
                 </div>
-                <div class={hasUpdate(mod) ? "" : "text-neutral"}>
+                <div class={hasUpdate(mod) ? "" : "text-base-content-muted"}>
                   {mod.label}
                 </div>
                 <Show when={!hasUpdate(mod) && !running() && !done()}>
-                  <span class="text-neutral text-xs">
+                  <span class="ui-text-caption">
                     {t3({ en: "Up to date", fr: "À jour", pt: "Atualizado" })}
                   </span>
                 </Show>
                 <Show when={hasUpdate(mod) && !running() && !done()}>
-                  <span class="text-warning text-xs font-500">
+                  <span class="text-warning text-xs">
                     {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
                   </span>
                 </Show>

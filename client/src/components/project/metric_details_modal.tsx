@@ -21,10 +21,10 @@ export function MetricDetailsModal(
               {p.metric.label}
             </div>
             <Show when={p.metric.variantLabel}>
-              <div class="text-neutral text-base">{p.metric.variantLabel}</div>
+              <div class="text-base-content-muted text-base">{p.metric.variantLabel}</div>
             </Show>
           </div>
-          <div class="bg-primary/10 text-primary rounded px-3 py-1 text-sm">
+          <div class="bg-primary-subtle text-primary-subtle-content rounded px-3 py-1 text-sm">
             {p.metric.formatAs}
           </div>
         </div>
@@ -68,11 +68,11 @@ export function MetricDetailsModal(
       <div class="ui-spy-sm">
         <div class="ui-gap grid grid-cols-2">
           <div>
-            <div class="text-neutral font-700 text-xs">{t3({ en: "Metric ID", fr: "ID de la métrique", pt: "ID da métrica" })}</div>
+            <div class="ui-text-caption font-700">{t3({ en: "Metric ID", fr: "ID de la métrique", pt: "ID da métrica" })}</div>
             <div class="font-mono text-sm">{p.metric.id}</div>
           </div>
           <div>
-            <div class="text-neutral font-700 text-xs">
+            <div class="ui-text-caption font-700">
               {t3({ en: "Results object ID", fr: "ID de l'objet de résultats", pt: "ID do objeto de resultados" })}
             </div>
             <div class="font-mono text-sm">{p.metric.resultsObjectId}</div>
@@ -80,7 +80,7 @@ export function MetricDetailsModal(
         </div>
 
         <div>
-          <div class="text-neutral font-700 mb-1 text-xs">
+          <div class="ui-text-caption font-700 mb-1">
             {t3({ en: "Value props", fr: "Propriétés de valeur", pt: "Propriedades de valor" })}
           </div>
           <div class="ui-gap-sm flex flex-wrap">
@@ -95,7 +95,7 @@ export function MetricDetailsModal(
         </div>
 
         <div>
-          <div class="text-neutral font-700 mb-1 text-xs">
+          <div class="ui-text-caption font-700 mb-1">
             {t3({ en: "Value func", fr: "Fonction de valeur", pt: "Função de valor" })}
           </div>
           <div class="bg-base-200 font-mono rounded p-2 text-sm">
@@ -105,7 +105,7 @@ export function MetricDetailsModal(
 
         {/* <Show when={p.metric.postAggregationExpression}>
           <div>
-            <div class="text-neutral font-700 mb-1 text-xs">
+            <div class="ui-text-caption font-700 mb-1">
               {t("Post aggregation expression")}
             </div>
             <div class="bg-base-200 font-mono rounded p-2 text-sm">
@@ -115,7 +115,7 @@ export function MetricDetailsModal(
         </Show> */}
 
         <div>
-          <div class="text-neutral font-700 mb-1 text-xs">
+          <div class="ui-text-caption font-700 mb-1">
             {t3({ en: "Period options", fr: "Options de période", pt: "Opções de período" })}
           </div>
           <div class="ui-gap-sm flex flex-wrap">
@@ -130,29 +130,29 @@ export function MetricDetailsModal(
         </div>
 
         <div>
-          <div class="text-neutral font-700 mb-1 text-xs">
+          <div class="ui-text-caption font-700 mb-1">
             {t3({ en: "Disaggregation options", fr: "Options de désagrégation", pt: "Opções de desagregação" })}
           </div>
           <div class="ui-gap-sm grid grid-cols-2">
             <For each={p.metric.disaggregationOptions}>
               {(disOpt) => (
-                <div class="border-base-300 flex items-start gap-2 rounded border p-2">
+                <div class="border-border flex items-start gap-2 rounded border p-2">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
                       {t3(getDisplayDisaggregationLabel(disOpt.value))}
                     </div>
-                    <div class="font-mono text-neutral text-xs">
+                    <div class="font-mono ui-text-caption">
                       {disOpt.value}
                     </div>
                     <Show when={disOpt.allowedPresentationOptions}>
-                      <div class="text-neutral mt-1 text-xs">
+                      <div class="ui-text-caption mt-1">
                         {t3({ en: "Allowed for", fr: "Autorisé pour", pt: "Permitido para" })}:{" "}
                         {disOpt.allowedPresentationOptions!.join(", ")}
                       </div>
                     </Show>
                   </div>
                   <Show when={disOpt.isRequired}>
-                    <span class="bg-primary/10 text-primary rounded px-2 py-1 text-xs">
+                    <span class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-1 text-xs">
                       {t3({ en: "Required", fr: "Requis", pt: "Obrigatório" })}
                     </span>
                   </Show>
@@ -164,15 +164,15 @@ export function MetricDetailsModal(
 
         <Show when={p.metric.valueLabelReplacements}>
           <div>
-            <div class="text-neutral font-700 mb-1 text-xs">
+            <div class="ui-text-caption font-700 mb-1">
               {t3({ en: "Value label replacements", fr: "Remplacements des libellés de valeur", pt: "Substituições de rótulos de valor" })}
             </div>
             <div class="ui-spy-sm">
               <For each={Object.entries(p.metric.valueLabelReplacements!)}>
                 {([key, value]) => (
-                  <div class="border-base-300 flex items-center gap-2 rounded border p-2">
+                  <div class="border-border flex items-center gap-2 rounded border p-2">
                     <span class="font-mono flex-1 text-sm">{key}</span>
-                    <span class="text-neutral">→</span>
+                    <span class="text-base-content-muted">→</span>
                     <span class="font-mono flex-1 text-sm">{value}</span>
                   </div>
                 )}

@@ -33,7 +33,7 @@ export function LogoSectionEditor(p: Props) {
 
   return (
     <div class="ui-spy-sm overflow-hidden">
-      <div class="text-base-content/70 font-700 mb-2 text-sm">{p.title}</div>
+      <div class="text-base-content-muted font-700 mb-2 text-sm">{p.title}</div>
       <LogoSelector
         values={p.config.selected}
         customLogos={p.customLogos}

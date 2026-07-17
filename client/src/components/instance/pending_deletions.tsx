@@ -47,7 +47,7 @@ function ForceDeleteModal(p: AlertComponentProps<{ projectId: string; projectLab
             pt: `Tem a certeza de que pretende eliminar permanentemente "${p.projectLabel}"? Esta ação não pode ser anulada.`,
           })}
         </p>
-        <p class="text-danger text-sm font-semibold">
+        <p class="text-danger text-sm font-700">
           {t3({
             en: "All project data, visualizations, and reports will be lost forever.",
             fr: "Toutes les données, visualisations et rapports du projet seront perdus pour toujours.",
@@ -93,7 +93,7 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
         <For
           each={pendingProjects()}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {t3({
                 en: "No projects pending deletion",
                 fr: "Aucun projet en attente de suppression",
@@ -103,10 +103,10 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
           }
         >
           {(project) => (
-            <div class="border-base-300 flex items-center justify-between rounded border p-4">
+            <div class="border-border flex items-center justify-between rounded border p-4">
               <div class="ui-spy-sm">
                 <div class="font-700">{project.label}</div>
-                <div class="text-neutral text-sm">
+                <div class="text-base-content-muted text-sm">
                   {project.deletionScheduledAt
                     ? t3({
                         en: `Scheduled for deletion on ${new Date(project.deletionScheduledAt).toLocaleDateString()}`,

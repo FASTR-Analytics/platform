@@ -327,14 +327,14 @@ export function ProjectDecks(p: ExtendedProps) {
             }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
-          <span class="text-neutral text-xs">({opt.count})</span>
+          <span class="ui-text-caption">({opt.count})</span>
         </div>
       );
     }
     return (
       <div class="flex items-center justify-between gap-2">
         <span class="truncate">{opt.label}</span>
-        <span class="text-neutral text-xs">({opt.count})</span>
+        <span class="ui-text-caption">({opt.count})</span>
       </div>
     );
   };
@@ -367,7 +367,7 @@ export function ProjectDecks(p: ExtendedProps) {
           heading={t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-base-300"
+          class="border-border"
           centerChildren={
             <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
           }
@@ -388,7 +388,7 @@ export function ProjectDecks(p: ExtendedProps) {
       <Show
         when={projectState.projectModules.length > 0}
         fallback={
-          <div class="ui-pad text-neutral text-sm">
+          <div class="ui-pad text-base-content-muted text-sm">
             {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations", pt: "Tem de ativar pelo menos um módulo para criar apresentações" })}
           </div>
         }
@@ -399,8 +399,8 @@ export function ProjectDecks(p: ExtendedProps) {
           maxWidth={300}
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
-            <div class="border-base-300 flex h-full w-full flex-col border-r">
-              <div class="border-base-300 border-b p-3">
+            <div class="border-border flex h-full w-full flex-col border-r">
+              <div class="border-border border-b p-3">
                 <Select
                   options={getGroupingOptions()}
                   value={deckGroupingMode()}
@@ -449,7 +449,7 @@ export function ProjectDecks(p: ExtendedProps) {
             <For
               each={filteredDecks()}
               fallback={
-                <div class="text-neutral text-sm">
+                <div class="text-base-content-muted text-sm">
                   {searchText().length >= 3
                     ? t3({ en: "No matching decks", fr: "Aucune présentation correspondante", pt: "Nenhuma apresentação correspondente" })
                     : t3({ en: "No slide decks yet", fr: "Aucune présentation pour le moment", pt: "Ainda não há apresentações" })}
@@ -466,7 +466,7 @@ export function ProjectDecks(p: ExtendedProps) {
                     <div
                       class="relative border rounded overflow-clip bg-white cursor-pointer"
                       classList={{
-                        "border-base-300": !isSelected(),
+                        "border-border": !isSelected(),
                         "border-primary": isSelected(),
                         "hover:border-primary": !isSelected(),
                       }}
@@ -489,7 +489,7 @@ export function ProjectDecks(p: ExtendedProps) {
                             class="bg-base-200 flex items-center justify-center"
                             style={{ "aspect-ratio": "16/9" }}
                           >
-                            <span class="text-neutral text-xs">{t3({ en: "No slides", fr: "Aucune diapositive", pt: "Sem diapositivos" })}</span>
+                            <span class="ui-text-caption">{t3({ en: "No slides", fr: "Aucune diapositive", pt: "Sem diapositivos" })}</span>
                           </div>
                         }
                       >

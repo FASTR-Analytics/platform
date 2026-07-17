@@ -128,7 +128,7 @@ export function AddProjectForm(
                   <For each={tempProjectUsers}>
                     {(pu, i_pu) => {
                       return (
-                        <div class="ui-gap border-base-300 flex border-t py-1 text-sm">
+                        <div class="ui-gap border-border flex border-t py-1 text-sm">
                           <div class="flex-1">&rarr; {pu.email}</div>
                           <div class="">
                             <Switch>

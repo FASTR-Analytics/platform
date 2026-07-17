@@ -142,14 +142,14 @@ export function Step2(p: Props) {
       fallback={
         <div class="ui-spy">
           <div class="ui-spy-sm">
-            <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
-            <div class="text-base-500 text-sm">
+            <div class="font-700">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
+            <div class="text-base-content-muted text-sm">
               {t3({ en: "Select which admin area level to import and which DHIS2 level to use.", fr: "Sélectionnez le niveau administratif à importer et le niveau DHIS2 à utiliser.", pt: "Selecione o nível de zona administrativa a importar e o nível DHIS2 a utilizar." })}
             </div>
           </div>
 
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
+            <label class="text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
             <Select
               options={levelOptions}
               value={String(state.adminAreaLevel())}
@@ -159,7 +159,7 @@ export function Step2(p: Props) {
           </div>
 
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}</label>
+            <label class="text-sm">{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}</label>
             <Select
               options={dhis2LevelOptions()}
               value={state.selectedDhis2Level() !== null ? String(state.selectedDhis2Level()) : ""}
@@ -189,10 +189,10 @@ export function Step2(p: Props) {
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
-          <div class="font-600">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
+          <div class="font-700">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
           <Show when={state.analysisResult()} keyed>
             {(result) => (
-              <div class="text-base-500 text-sm">
+              <div class="text-base-content-muted text-sm">
                 {result.featureCount} {t3({ en: "features found", fr: "entités trouvées", pt: "entidades encontradas" })}
               </div>
             )}
@@ -200,7 +200,7 @@ export function Step2(p: Props) {
         </div>
 
         <div class="ui-spy-sm">
-          <label class="font-600 text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
+          <label class="text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
           <Select
             options={levelOptions}
             value={String(state.adminAreaLevel())}
@@ -210,7 +210,7 @@ export function Step2(p: Props) {
         </div>
 
         <div class="ui-spy-sm">
-          <label class="font-600 text-sm">{t3({ en: "GeoJSON property to match on", fr: "Propriété GeoJSON pour le mappage", pt: "Propriedade GeoJSON para a associação" })}</label>
+          <label class="text-sm">{t3({ en: "GeoJSON property to match on", fr: "Propriété GeoJSON pour le mappage", pt: "Propriedade GeoJSON para a associação" })}</label>
           <Select
             options={propertyOptions()}
             value={state.selectedProp()}
@@ -221,13 +221,13 @@ export function Step2(p: Props) {
 
         <Show when={state.selectedProp()}>
           <div class="ui-spy-sm">
-            <label class="font-600 text-sm">{t3({ en: "Values in selected property", fr: "Valeurs de la propriété sélectionnée", pt: "Valores da propriedade selecionada" })}</label>
-            <div class="border-base-300 max-h-40 overflow-auto rounded border">
+            <label class="text-sm">{t3({ en: "Values in selected property", fr: "Valeurs de la propriété sélectionnée", pt: "Valores da propriedade selecionada" })}</label>
+            <div class="border-border max-h-40 overflow-auto rounded border">
               {geoJsonValues().slice(0, 30).map((val) => (
                 <div class="border-base-200 px-3 py-1 text-sm border-b last:border-b-0">{val}</div>
               ))}
               <Show when={geoJsonValues().length > 30}>
-                <div class="text-base-400 px-3 py-1 text-sm">
+                <div class="text-base-content-muted px-3 py-1 text-sm">
                   ...{t3({ en: "and", fr: "et", pt: "e" })} {geoJsonValues().length - 30} {t3({ en: "more", fr: "de plus", pt: "mais" })}
                 </div>
               </Show>

@@ -20,7 +20,6 @@ import {
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
-  updateProjectUserRole,
 } from "../../db/mod.ts";
 import type { ModuleId } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
@@ -111,30 +110,6 @@ defineRoute(
       c.var.ppk.projectDb,
       c.var.ppk.projectId,
     );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesProject,
-  "updateProjectUserRole",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_users",
-  ),
-  log("updateProjectUserRole"),
-  async (c, { body }) => {
-    const res = await updateProjectUserRole(
-      c.var.mainDb,
-      c.var.ppk.projectId,
-      body.emails,
-      body.role,
-    );
-    if (res.success) {
-      notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      // V2 notify
-      notifyProjectUsersUpdated(c.var.ppk.projectId, res.data.projectUsers);
-    }
     return c.json(res);
   },
 );

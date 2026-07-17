@@ -175,7 +175,7 @@ export function InstanceProjects(p: Props) {
           <For
             each={sortedProjects()}
             fallback={
-              <div class="text-neutral text-sm">
+              <div class="text-base-content-muted text-sm">
                 {t3({
                   en: "No projects",
                   fr: "Aucun projet",
@@ -187,10 +187,10 @@ export function InstanceProjects(p: Props) {
             {(project) => {
               if (project.status !== "ready") {
                 return (
-                  <div class="ui-pad border-base-300 min-h-[150px] rounded border opacity-50">
+                  <div class="ui-pad border-border min-h-[150px] rounded border opacity-50">
                     <div class="ui-spy-sm col-span-1">
                       <div class="font-700">{project.label}</div>
-                      <div class="text-neutral text-sm">
+                      <div class="text-base-content-muted text-sm">
                         {t3({
                           en: "Copying...",
                           fr: "Copie en cours...",
@@ -204,7 +204,7 @@ export function InstanceProjects(p: Props) {
               return (
                 <a
                   href={`/?p=${project.id}`}
-                  class="ui-pad ui-hoverable border-base-300 flex min-h-[150px] flex-col justify-between rounded border"
+                  class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border flex min-h-[150px] flex-col justify-between rounded border"
                 >
                   <div class="ui-spy-sm">
                     <div class="font-700">{project.label}</div>
@@ -223,7 +223,7 @@ export function InstanceProjects(p: Props) {
                   </div>
                   <Show when={project.lastActivityAt}>
                     {(ts) => (
-                      <div class="text-neutral text-xs">
+                      <div class="ui-text-caption">
                         {formatTimeAgo(ts())}
                       </div>
                     )}

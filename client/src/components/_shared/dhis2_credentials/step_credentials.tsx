@@ -88,7 +88,7 @@ export function Dhis2StepCredentials(p: Props) {
         </Match>
         <Match when={!p.editing() && p.storedCredentials} keyed>
           {(stored) => (
-            <div class="border-base-300 ui-pad ui-spy-sm rounded border">
+            <div class="border-border ui-pad ui-spy-sm rounded border">
               <div class="text-sm">
                 {t3({
                   en: "Use stored connection:",

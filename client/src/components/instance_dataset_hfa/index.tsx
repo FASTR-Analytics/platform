@@ -110,7 +110,7 @@ export function InstanceDatasetHfa(p: Props) {
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy border-border flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">{t3({ en: "Imports", fr: "Importations", pt: "Importações" })}</div>
                 <Switch>
                   <Match when={!uploadAttempt()}>
@@ -129,7 +129,7 @@ export function InstanceDatasetHfa(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                          class="ui-pad border-border bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>

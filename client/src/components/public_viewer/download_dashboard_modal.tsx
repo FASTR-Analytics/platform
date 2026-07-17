@@ -260,7 +260,7 @@ export function DownloadDashboardModal(
         </Show>
 
         <Show when={showCount()}>
-          <div class="text-neutral text-sm">
+          <div class="text-base-content-muted text-sm">
             {t3({
               en: `This will export ${allCount()} figures.`,
               fr: `Ceci exportera ${allCount()} figures.`,
@@ -270,7 +270,7 @@ export function DownloadDashboardModal(
         </Show>
 
         <Show when={isXlsx()}>
-          <div class="text-neutral text-sm">
+          <div class="text-base-content-muted text-sm">
             {tableCount() === 0
               ? t3({
                   en: "No table figures to export.",

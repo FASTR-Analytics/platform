@@ -74,11 +74,11 @@ export function Step3(p: Props) {
   return (
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-600">
+        <div class="font-700">
           {t3({ en: "Step 3: Map GeoJSON features to admin areas", fr: "Étape 3 : Associer les entités GeoJSON aux unités administratives", pt: "Passo 3: Associar as entidades GeoJSON às zonas administrativas" })}
           {" "}AA{state.adminAreaLevel()}
         </div>
-        <div class="text-base-500 text-sm">
+        <div class="text-base-content-muted text-sm">
           {mappedCount()}/{geoJsonValues().length} {t3({ en: "mapped", fr: "mappés", pt: "associados" })}
           <Show when={unmappedGeoCount() > 0}>
             {" "}
@@ -94,8 +94,8 @@ export function Step3(p: Props) {
         </Show>
       </div>
 
-      <div class="border-base-300 max-h-96 overflow-auto rounded border">
-        <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
+      <div class="border-border max-h-96 overflow-auto rounded border">
+        <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
           <div class="w-1/2">{t3({ en: "GeoJSON value", fr: "Valeur GeoJSON", pt: "Valor GeoJSON" })}</div>
           <div class="w-1/2">{t3({ en: "Admin area", fr: "Unité administrative", pt: "Zona administrativa" })}</div>
         </div>
@@ -120,10 +120,10 @@ export function Step3(p: Props) {
             >
               <For each={group.features}>
                 {(feature) => (
-                  <div class="border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 bg-base-50">
+                  <div class="border-base-200 flex items-center border-b px-3 py-1 last:border-b-0 bg-base-200">
                     <div class="w-1/2">
                       <div class="text-sm font-mono">{group.geoVal}</div>
-                      <div class="text-base-400 text-xs">
+                      <div class="ui-text-caption">
                         uid: {feature.uid}
                         <Show when={feature.parentName}>
                           {" · "}parent: {feature.parentName}

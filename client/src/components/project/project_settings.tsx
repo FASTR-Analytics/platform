@@ -211,7 +211,7 @@ export function ProjectSettings(p: Props) {
       panelChildren={
         <HeadingBar
           heading={t3(TC.settings)}
-          class="border-base-300"
+          class="border-border"
           ensureHeightAsIfButton
         ></HeadingBar>
       }
@@ -434,7 +434,7 @@ function ProjectUserTable(p: {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return name
           ? <span class="text-sm">{name}</span>
-          : <span class="text-neutral text-sm">—</span>;
+          : <span class="text-base-content-muted text-sm">—</span>;
       },
     },
     {
@@ -454,7 +454,7 @@ function ProjectUserTable(p: {
               when={isProjectAdmin(user)}
               fallback={
                 <span
-                  class={`text-sm ${!hasPermissions(user) ? "text-neutral" : ""}`}
+                  class={`text-sm ${!hasPermissions(user) ? "text-base-content-muted" : ""}`}
                 >
                   {getPermissionSummary(user)}
                 </span>
@@ -555,7 +555,7 @@ function ProjectBackups(props: { projectId: string }) {
 
   const backupsQuery = createQuery<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
-    const headers: HeadersInit = {};
+    const headers: HeadersInit = { "Project-Id": props.projectId };
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -868,13 +868,13 @@ function ProjectBackups(props: { projectId: string }) {
           const grouped = getGroupedBackups(backups);
           return (
             <>
-              <div class="text-neutral mb-3 text-sm">
+              <div class="text-base-content-muted mb-3 text-sm">
                 {`${backups.length} ${t3({ en: "backup(s) available", fr: "sauvegarde(s) disponible(s)", pt: "cópia(s) de segurança disponível(eis)" })}`}
               </div>
               <Show
                 when={grouped.length > 0}
                 fallback={
-                  <div class="text-neutral">
+                  <div class="text-base-content-muted">
                     {t3({
                       en: "No backups available for this project",
                       fr: "Aucune sauvegarde disponible pour ce projet",
@@ -893,7 +893,7 @@ function ProjectBackups(props: { projectId: string }) {
                         <div class="flex flex-col">
                           <button
                             onClick={() => toggleGroup(groupKey)}
-                            class="flex items-center justify-between rounded border border-base-300 bg-base-100 p-3 text-left transition-colors hover:bg-base-200"
+                            class="flex cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active items-center justify-between rounded border border-border bg-base-100 p-3 text-left"
                           >
                             <div class="flex items-center gap-2">
                               <Show
@@ -902,7 +902,7 @@ function ProjectBackups(props: { projectId: string }) {
                               >
                                 <Icon iconName="chevronDown" />
                               </Show>
-                              <span class="font-medium">
+                              <span>
                                 {group.isCustom
                                   ? t3({
                                       en: "Custom Backups",
@@ -911,7 +911,7 @@ function ProjectBackups(props: { projectId: string }) {
                                     })
                                   : group.date}
                               </span>
-                              <span class="text-neutral text-sm">
+                              <span class="text-base-content-muted text-sm">
                                 ({group.backups.length}{" "}
                                 {t3({ en: "backup", fr: "sauvegarde", pt: "cópia de segurança" })}
                                 {group.backups.length !== 1 ? "s" : ""})
@@ -923,14 +923,14 @@ function ProjectBackups(props: { projectId: string }) {
                             <div class="mt-2 ml-6 flex flex-col gap-2">
                               <For each={group.backups}>
                                 {(backup: ProjectBackupInfo) => (
-                                  <div class="flex items-center justify-between rounded border border-base-300 bg-white p-3">
+                                  <div class="flex items-center justify-between rounded border border-border bg-white p-3">
                                     <div class="flex flex-col gap-1">
-                                      <span class="font-medium">
+                                      <span>
                                         {group.isCustom
                                           ? backup.folder
                                           : formatTime(backup.folder)}
                                       </span>
-                                      <span class="text-neutral text-sm">
+                                      <span class="text-base-content-muted text-sm">
                                         {formatBytes(backup.size)}
                                       </span>
                                     </div>

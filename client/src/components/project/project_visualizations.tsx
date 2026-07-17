@@ -170,7 +170,7 @@ export function ProjectVisualizations(p: Props) {
           heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-base-300"
+          class="border-border"
           centerChildren={
             <SortControl value={vizSortMode()} onChange={setVizSortMode} />
           }
@@ -199,7 +199,7 @@ export function ProjectVisualizations(p: Props) {
       <Show
         when={projectState.projectModules.length > 0}
         fallback={
-          <div class="ui-pad text-neutral text-sm">
+          <div class="ui-pad text-base-content-muted text-sm">
             {t3({
               en: "You need to enable at least one module to create visualizations",
               fr: "Vous devez activer au moins un module pour créer des visualisations",

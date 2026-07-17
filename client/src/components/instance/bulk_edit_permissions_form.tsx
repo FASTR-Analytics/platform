@@ -76,7 +76,7 @@ export function BulkEditPermissionsForm(
       ]}
     >
       <div class="space-y-1">
-        <div class="text-xs text-neutral mb-2">
+        <div class="ui-text-caption mb-2">
           {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux", pt: "Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso" })}
         </div>
         <For each={USER_PERMISSIONS}>
@@ -110,12 +110,12 @@ function TriStateCheckbox(p: {
     if (p.value === true)
       return `${base} bg-primary border-primary text-primary-content`;
     if (p.value === false)
-      return `${base} border-danger text-danger bg-danger/10 font-700`;
-    return `${base} bg-base-200 border-base-300 text-base-content`;
+      return `${base} border-danger text-danger-subtle-content bg-danger-subtle font-700`;
+    return `${base} bg-base-200 border-border text-base-content`;
   };
 
   const labelClass = () => {
-    if (p.value === "unchanged") return "text-sm text-neutral";
+    if (p.value === "unchanged") return "text-sm text-base-content-muted";
     if (p.value === false) return "text-sm text-danger";
     return "text-sm";
   };

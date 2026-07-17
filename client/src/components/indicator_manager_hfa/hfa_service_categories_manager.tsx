@@ -94,7 +94,7 @@ export function HfaServiceCategoriesManager(p: Props) {
         <Show
           when={items.length > 0}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {t3({
                 en: "No service categories",
                 fr: "Aucune catégorie de service",
@@ -110,7 +110,7 @@ export function HfaServiceCategoriesManager(p: Props) {
                 {items.map((sc) => (
                   <div class="bg-base-200 flex items-center gap-2 rounded px-3 py-2">
                     <span class="flex-1">{sc.label}</span>
-                    <span class="text-neutral font-mono text-xs">{sc.id}</span>
+                    <span class="ui-text-caption font-mono">{sc.id}</span>
                   </div>
                 ))}
               </div>
@@ -121,7 +121,7 @@ export function HfaServiceCategoriesManager(p: Props) {
                 <div class="bg-base-200 flex items-center gap-2 rounded px-3 py-2">
                   <div class="min-w-0 flex-1">
                     <div class="truncate">{sc.label}</div>
-                    <div class="text-neutral font-mono text-xs">{sc.id}</div>
+                    <div class="ui-text-caption font-mono">{sc.id}</div>
                   </div>
                   <Button
                     onClick={() => handleEdit(sc)}

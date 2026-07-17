@@ -130,9 +130,9 @@ export function DraftSlidePreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+      <div class="border-border bg-base-100 max-w-[400px] rounded border">
         <div
-          class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
+          class="cursor-pointer p-1.5"
           onClick={openExpandedView}
         >
           <div class="pointer-events-none">
@@ -143,7 +143,7 @@ export function DraftSlidePreview(p: Props) {
             message is visible (mirrors DraftVisualizationPreview) instead of
             the whole preview vanishing under a "slide preview shown" line. */}
         <Show when={slideState().status !== "error"}>
-          <div class="border-base-300 flex gap-1.5 border-t p-1.5">
+          <div class="border-border flex gap-1.5 border-t p-1.5">
             <Button
               size="sm"
               outline
@@ -222,7 +222,7 @@ function ExpandedSlideModal(
         ]
       }
     >
-      <div class="border-base-300 aspect-video overflow-hidden rounded border">
+      <div class="border-border aspect-video overflow-hidden rounded border">
         <PageHolder
           pageInputs={p.pageInputs}
           pageWidthDu={PAGE_WIDTH_DU}

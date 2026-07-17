@@ -8,6 +8,14 @@ import { log } from "../../middleware/logging.ts";
 
 export const routesEmails = new Hono();
 
+function escapeHtml(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
 type SendEmailOptions = {
   to: string;
   subject: string;
@@ -82,10 +90,10 @@ defineRoute(
 
     const html = `
 <div style="font-family: sans-serif; color: #333;">
-  <p>${message.replace(/\n/g, "<br>")}</p>
+  <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p style="font-size: 12px; color: #888;">
-    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${userEmail}.
+    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${escapeHtml(userEmail)}.
   </p>
 </div>`.trim();
 
@@ -117,7 +125,7 @@ defineRoute(
   routesEmails,
   "sendHelpEmail",
   requireGlobalPermission(),
-  log("sendFeedbackEmail"),
+  log("sendHelpEmail"),
   async (c, { body }) => {
     const { feedbackType, description, projectLabel, images } = body;
     const userEmail = c.var.globalUser.email;
@@ -125,7 +133,7 @@ defineRoute(
     const typeLabel = feedbackType === "bug" ? "Bug Report" : "Suggestion";
     const projectLine = projectLabel ? ` (Project: ${projectLabel})` : "";
     const projectHtmlLine = projectLabel
-      ? `<p><strong>Project:</strong> ${projectLabel}</p>`
+      ? `<p><strong>Project:</strong> ${escapeHtml(projectLabel)}</p>`
       : "";
 
     const userPlainText =
@@ -142,7 +150,7 @@ defineRoute(
 <div style="font-family: sans-serif; color: #333;">
   ${userHtmlBody}
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
-  <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${description.replace(/\n/g, "<br>")}</p>
+  <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${escapeHtml(description).replace(/\n/g, "<br>")}</p>
 </div>`.trim();
 
     const internalPlainText = `New ${typeLabel} from ${userEmail}${projectLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
@@ -150,18 +158,17 @@ defineRoute(
     const internalHtml = `
 <div style="font-family: sans-serif; color: #333;">
   <p><strong>Type:</strong> ${typeLabel}</p>
-  <p><strong>From:</strong> ${userEmail}</p>
+  <p><strong>From:</strong> ${escapeHtml(userEmail)}</p>
   ${projectHtmlLine}
   <p><strong>Instance:</strong> ${_INSTANCE_ID}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p><strong>Description:</strong></p>
-  <p>${description.replace(/\n/g, "<br>")}</p>
+  <p>${escapeHtml(description).replace(/\n/g, "<br>")}</p>
 </div>`.trim();
 
-    await sendEmail({ to: userEmail, subject: `We received your ${typeLabel.toLowerCase()}`, plainText: userPlainText, html: userHtml });
-
+    let deliveredCount = 0;
     for (const recipient of _FEEDBACK_EMAIL_RECIPIENTS) {
-      await sendEmail({
+      const ok = await sendEmail({
         to: recipient,
         subject: `[FASTR] New ${typeLabel} from ${userEmail}`,
         plainText: internalPlainText,
@@ -169,7 +176,17 @@ defineRoute(
         replyTo: userEmail,
         attachments: images,
       });
+      if (ok) deliveredCount++;
     }
+
+    if (deliveredCount === 0) {
+      return c.json({
+        success: false,
+        err: "Your feedback could not be delivered. Please try again later.",
+      });
+    }
+
+    await sendEmail({ to: userEmail, subject: `We received your ${typeLabel.toLowerCase()}`, plainText: userPlainText, html: userHtml });
 
     return c.json({ success: true, data: { sent: true } });
   },

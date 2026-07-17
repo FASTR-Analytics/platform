@@ -972,7 +972,7 @@ export function DashboardEditor(p: Props) {
               panelChildren={
                 <HeadingBar
                   heading={dashboard.title}
-                  class="border-base-300"
+                  class="border-border"
                   leftChildren={
                     <Button
                       iconName="chevronLeft"
@@ -1027,7 +1027,7 @@ export function DashboardEditor(p: Props) {
                 maxWidth={460}
                 hoverOffset="offset-for-border-1-on-left"
                 panelChildren={
-                  <div class="border-base-300 flex h-full w-full flex-col border-r">
+                  <div class="border-border flex h-full w-full flex-col border-r">
                     <Show
                       when={selectedGroup()}
                       fallback={

@@ -129,7 +129,7 @@ export function Dhis2RunDetail(
       }
     >
       <div class="ui-pad ui-spy h-full w-full overflow-auto">
-        <div class="border-base-300 ui-pad ui-spy-sm rounded border text-sm">
+        <div class="border-border ui-pad ui-spy-sm rounded border text-sm">
           <div class="font-700 text-base">
             {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
           </div>
@@ -175,7 +175,7 @@ export function Dhis2RunDetail(
         </div>
 
         <Show when={p.run.error}>
-          <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border">
+          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
             <div class="font-700">
               {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
             </div>
@@ -214,7 +214,7 @@ export function Dhis2RunDetail(
                 </Show>
 
                 <Show when={unknownIds.length > 0}>
-                  <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border">
+                  <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                     <div class="font-700">
                       {t3({
                         en: "Indicators not found in DHIS2",

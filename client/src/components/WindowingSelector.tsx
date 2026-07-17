@@ -274,7 +274,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
         return (
           <div class="ui-gap flex flex-col xl:grid xl:grid-cols-12 xl:items-start xl:space-y-0">
-            <div class="ui-spy-sm ui-pad border-base-300 flex-none rounded border xl:col-span-8">
+            <div class="ui-spy-sm ui-pad border-border flex-none rounded border xl:col-span-8">
               <div class="text-md font-700">
                 {t3({ en: "Time period", fr: "Période", pt: "Período" })}
               </div>
@@ -398,7 +398,7 @@ type ToggledMultiSelectProps = {
 
 function ToggledMultiSelect(p: ToggledMultiSelectProps) {
   return (
-    <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+    <div class="ui-spy-sm ui-pad border-border max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
       <div class="text-md font-700">
         {t3(p.heading)}
       </div>
@@ -432,7 +432,7 @@ type ToggledNestedMultiSelectProps = {
 
 function ToggledNestedMultiSelect(p: ToggledNestedMultiSelectProps) {
   return (
-    <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+    <div class="ui-spy-sm ui-pad border-border max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
       <div class="text-md font-700">
         {t3(p.heading)}
       </div>

@@ -586,9 +586,9 @@ cache re-key rides the read-path flip (they are not separable):
   `moduleLastRun` — accepted), a **forced** skip-gate (bundle innards are
   not strictly parsed, so the gate won't trip on its own), and the prefix
   bump where cached.
-- SYSTEM docs: S8 rewritten around the wizard+runs (do NOT write the old S8
-  prose from today's code first — PLAN_DOC_CONSOLIDATION ordering
-  interaction); S9 caching section rewritten; S2/S6 attach sections updated;
+- SYSTEM docs: S8 rewritten around the wizard+runs (S8's first prose landed
+  2026-07-16, already post-runs); S9 caching section rewritten; S2/S6 attach
+  sections updated;
   the S8→S9 "data spine" contract finally *stated* — it becomes the run-dir
   format spec, which this plan's §2 seeds.
 

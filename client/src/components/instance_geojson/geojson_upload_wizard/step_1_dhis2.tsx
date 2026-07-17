@@ -85,7 +85,7 @@ export function Step1Dhis2(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-600">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
+      <div class="font-700">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
 
       <Show when={!connected()}>
         <StateHolderWrapper state={infoQuery.state()} noPad>
@@ -93,7 +93,7 @@ export function Step1Dhis2(p: Props) {
             <Switch>
               <Match when={!useInline() && info.storedCredentials} keyed>
                 {(stored) => (
-                  <div class="border-base-300 ui-pad ui-spy-sm rounded border">
+                  <div class="border-border ui-pad ui-spy-sm rounded border">
                     <div class="text-sm">
                       {t3({
                         en: "Use stored connection:",
@@ -148,14 +148,14 @@ export function Step1Dhis2(p: Props) {
 
       <Show when={connected()}>
         <div class="ui-spy-sm">
-          <div class="font-600 text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles", pt: "Níveis DHIS2 disponíveis" })}</div>
-          <div class="text-base-500 text-sm">
+          <div class="text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles", pt: "Níveis DHIS2 disponíveis" })}</div>
+          <div class="text-base-content-muted text-sm">
             {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })} {state.dhis2ConnectionUrl()}
           </div>
         </div>
 
-        <div class="border-base-300 rounded border">
-          <div class="bg-base-100 border-base-300 flex border-b px-3 py-2 text-sm font-semibold">
+        <div class="border-border rounded border">
+          <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
             <div class="w-1/4">{t3({ en: "Level", fr: "Niveau", pt: "Nível" })}</div>
             <div class="w-1/2">{t3({ en: "Name", fr: "Nom", pt: "Nome" })}</div>
             <div class="w-1/4">{t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}</div>

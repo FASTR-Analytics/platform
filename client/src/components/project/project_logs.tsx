@@ -85,8 +85,8 @@ export function ProjectLogs(p: Props) {
     <div class="flex flex-col h-full">
         <Show when={p.filterByUser}>
         <div class="flex items-center gap-2 mb-2 text-sm">
-            <span class="text-neutral">{t3({ en: "Filtering by", fr: "Filtré par", pt: "A filtrar por" })}:</span>
-            <span class="font-medium">{p.filterByUser}</span>
+            <span class="text-base-content-muted">{t3({ en: "Filtering by", fr: "Filtré par", pt: "A filtrar por" })}:</span>
+            <span>{p.filterByUser}</span>
             <Button
             size="sm"
             intent="base-100"

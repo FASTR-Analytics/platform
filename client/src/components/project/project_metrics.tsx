@@ -65,7 +65,7 @@ export function ProjectMetrics(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })}
-          class="border-base-300"
+          class="border-border"
           ensureHeightAsIfButton></HeadingBar>
       }
     >
@@ -73,9 +73,9 @@ export function ProjectMetrics(p: Props) {
         <For each={organized()}>
           {(moduleGroup) => (
             <div class="ui-spy">
-              <div class="border-base-300 flex items-baseline gap-3 border-b pb-2">
+              <div class="border-border flex items-baseline gap-3 border-b pb-2">
                 <div class="font-700 text-base">{moduleGroup.moduleLabel}</div>
-                <div class="font-mono text-neutral text-xs">{moduleGroup.moduleId}</div>
+                <div class="font-mono ui-text-caption">{moduleGroup.moduleId}</div>
               </div>
               <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
                 <For each={moduleGroup.metricGroups}>
@@ -151,29 +151,29 @@ function MetricGroupCard(p: MetricGroupCardProps) {
   }
 
   return (
-    <div class="border-base-300 bg-base-100 rounded border">
-      <div class="ui-pad-sm border-base-300 border-b">
+    <div class="border-border bg-base-100 rounded border">
+      <div class="ui-pad-sm border-border border-b">
         <div class="font-700">{p.metricGroup.label}</div>
         <Show when={firstMetric.aiDescription}>
-          <div class="text-neutral mt-1 text-xs">
+          <div class="ui-text-caption mt-1">
             {t3(firstMetric.aiDescription!.summary)}
           </div>
         </Show>
         <Show when={hasVariants}>
-          <div class="text-neutral mt-1 text-xs">
+          <div class="ui-text-caption mt-1">
             {p.metricGroup.variants.length} {t3({ en: "variants", fr: "variantes", pt: "variantes" })}
           </div>
         </Show>
       </div>
       <div class="ui-pad-sm ui-spy-sm">
         <div class="ui-gap-sm flex flex-wrap items-center">
-          <div class="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs">
+          <div class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs">
             {firstMetric.formatAs}
           </div>
-          <div class="text-neutral text-xs">
+          <div class="ui-text-caption">
             {t3({ en: "Period", fr: "Période", pt: "Período" })}: {firstMetric.mostGranularTimePeriodColumnInResultsFile ?? t3({ en: "none", fr: "aucune", pt: "nenhum" })}
           </div>
-          <div class="text-neutral text-xs">
+          <div class="ui-text-caption">
             {firstMetric.disaggregationOptions.length} {t3({ en: firstMetric.disaggregationOptions.length !== 1 ? "disaggs" : "disagg", fr: firstMetric.disaggregationOptions.length !== 1 ? "désagrég." : "désagrég.", pt: firstMetric.disaggregationOptions.length !== 1 ? "desagreg." : "desagreg." })}
           </div>
         </div>
@@ -181,12 +181,12 @@ function MetricGroupCard(p: MetricGroupCardProps) {
           <div class="ui-spy-sm">
             <For each={p.metricGroup.variants}>
               {(variant) => (
-                <div class="border-base-300 ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
+                <div class="border-border ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
                       {variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
                     </div>
-                    <div class="font-mono text-neutral text-xs">{variant.id}</div>
+                    <div class="font-mono ui-text-caption">{variant.id}</div>
                   </div>
                   <div class="ui-gap-sm flex">
                     <Button
@@ -208,7 +208,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         </Show>
         <Show when={!hasVariants}>
           <div class="ui-gap-sm flex items-center justify-between">
-            <div class="font-mono text-neutral flex-1 text-xs">{firstMetric.id}</div>
+            <div class="font-mono ui-text-caption flex-1">{firstMetric.id}</div>
             <div class="ui-gap-sm flex">
               <Button
                 onClick={() => visualize(firstMetric)}

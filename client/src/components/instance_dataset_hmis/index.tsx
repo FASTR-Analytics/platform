@@ -147,19 +147,16 @@ export function InstanceDatasetHmis(p: Props) {
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy border-border flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Show when={instanceState.hmisScheduledImportAttention}>
-                  <div
-                    class="ui-hoverable ui-pad border-danger bg-danger/10 rounded border text-sm"
-                    onClick={openDhis2Runs}
-                  >
+                  <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
                     {t3({
-                      en: "A scheduled DHIS2 import needs attention. Click to view.",
-                      fr: "Une importation DHIS2 planifiée nécessite votre attention. Cliquez pour consulter.",
-                      pt: "Uma importação DHIS2 agendada precisa de atenção. Clique para ver.",
+                      en: "A scheduled DHIS2 import needs attention.",
+                      fr: "Une importation DHIS2 planifiée nécessite votre attention.",
+                      pt: "Uma importação DHIS2 agendada precisa de atenção.",
                     })}
                   </div>
                 </Show>
@@ -177,15 +174,12 @@ export function InstanceDatasetHmis(p: Props) {
                   </Button>
                 </div>
                 <Show when={instanceState.hmisImportRunsQueued > 0}>
-                  <div
-                    class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border text-sm"
-                    onClick={openDhis2Runs}
-                  >
+                  <div class="ui-pad border-border bg-base-200 rounded border text-sm">
                     {instanceState.hmisImportRunsQueued}{" "}
                     {t3({
-                      en: "DHIS2 import(s) queued. Click to view.",
-                      fr: "importation(s) DHIS2 en file d'attente. Cliquez pour consulter.",
-                      pt: "importação(ões) DHIS2 em fila. Clique para ver.",
+                      en: "DHIS2 import(s) queued.",
+                      fr: "importation(s) DHIS2 en file d'attente.",
+                      pt: "importação(ões) DHIS2 em fila.",
                     })}
                   </div>
                 </Show>
@@ -210,7 +204,7 @@ export function InstanceDatasetHmis(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                          class="ui-pad border-border bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>

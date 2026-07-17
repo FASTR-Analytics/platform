@@ -81,7 +81,7 @@ export function Dhis2TabCurrent(p: Props) {
       <Show
         when={p.runningRun}
         fallback={
-          <div class="border-base-300 ui-pad ui-spy-sm rounded border">
+          <div class="border-border ui-pad ui-spy-sm rounded border">
             <div class="text-sm">
               {t3({ en: "No imports running.", fr: "Aucune importation en cours.", pt: "Nenhuma importação em curso." })}
             </div>

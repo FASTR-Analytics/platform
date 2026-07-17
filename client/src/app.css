@@ -7,45 +7,20 @@
 @import "../../panther/_303_components/_fixed.css";
 
 @theme {
-  --font-*: initial;
+  /* True overrides/extensions only — everything else inherits the kit
+     defaults from _fixed.css (which already wipes and re-declares the
+     font/weight scales). */
   --font-sans: "International Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: Roboto Mono;
 
-  --font-weight-*: initial;
-  --font-weight-400: 400;
-  --font-weight-700: 700;
   --font-weight-800: 800;
 
   /* App-side scale extension (hero title on the landing screen); the kit
      wipes non-declared text sizes. */
   --text-5xl: 3rem;
 
-  --color-transparent: transparent;
-  --color-black: #000716;
-  --color-white: #ffffff;
-
-  --color-base-100: #ffffff;
-  --color-base-200: #f2f2f2;
-  --color-base-300: #cacaca;
-  --color-base-content: #2a2a2a;
-
-  --color-primary: #0e706c;
-  --color-primary-content: #ffffff;
-
-  --color-neutral: rgb(161, 161, 161);
-  --color-neutral-content: #ffffff;
-
-  --color-success: #009f70;
-  --color-success-content: #ffffff;
-
-  --color-warning: #d97706;
-  --color-warning-content: #ffffff;
-
-  --color-danger: #f04d44;
-  --color-danger-content: #ffffff;
-
-  --radius: 4px;
-  --radius-full: 9999px;
+  /* ui-running progress stripes */
+  --color-running: #426680;
+  --color-running-stripe: #1e4a66;
 }
 
 @layer base {
@@ -338,20 +313,20 @@
   }
 
   #SLIDE_EDITOR_CANVAS {
-    @apply border-base-300 border;
+    @apply border-border border;
   }
 }
 
 @utility ui-running {
-  color: white !important;
+  color: var(--color-white) !important;
   animation: 0.7s linear infinite;
   animation-name: uiRunningAnimation;
   background: linear-gradient(
     to bottom,
-    #426680,
-    #426680 50%,
-    #1e4a66 50%,
-    #1e4a66
+    var(--color-running),
+    var(--color-running) 50%,
+    var(--color-running-stripe) 50%,
+    var(--color-running-stripe)
   );
   background-size: 100% 40px;
 }

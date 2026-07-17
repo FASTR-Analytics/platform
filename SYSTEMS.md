@@ -6,8 +6,8 @@
 > Each system's description — scope, contract, prose — lives in its own
 > `SYSTEM_NN_*.md` file, whose `globs:` frontmatter is the machine-checked
 > manifest (`lint_systems.ts` asserts every tracked file is claimed by
-> exactly one system). Migration of the old `DOC_*` set into the SYSTEM
-> files: [PLAN_DOC_CONSOLIDATION.md](PLAN_DOC_CONSOLIDATION.md).
+> exactly one system). The old `DOC_*` set is fully absorbed into these
+> files (completed 2026-07-17); every SYSTEM file holds verified prose.
 
 ## The map
 
@@ -50,7 +50,7 @@ list.)
 | `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
 | `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3           | queries / CRUD / cache interleaved                    |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
-| `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S10, S3           | hottest client file (20 importers)                    |
+| `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
 | `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | install heart + read API (~540+)                      |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |

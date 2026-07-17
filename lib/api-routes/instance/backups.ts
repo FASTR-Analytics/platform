@@ -9,6 +9,7 @@ export const backupRouteRegistry = {
   getAllProjectsBackups: route({
     path: "/api/all-projects-backups",
     method: "GET",
+    requiresProject: true,
   }),
   createBackupFile: route({
     path: "/api/create-backup/:name",

@@ -496,7 +496,7 @@ export function SlideList(p: Props) {
           />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
-          <div class="text-neutral w-full py-16 text-center">
+          <div class="text-base-content-muted w-full py-16 text-center">
             {t3({
               en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
               fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",

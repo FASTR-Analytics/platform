@@ -69,12 +69,12 @@ export function Step2_Dhis2(p: Props) {
           {(metadata) => {
             return (
               <div class="ui-spy">
-                {/* <div class="bg-base-200 border-base-300 ui-pad rounded border"> */}
+                {/* <div class="bg-base-200 border-border ui-pad rounded border"> */}
                 {/* <div class="mb-4"> */}
                 {/* <div class="font-700 mb-2 text-sm">
                       {t("Organization Unit Levels")}
                     </div>
-                    <div class="text-base-content/70 mb-2 text-xs">
+                    <div class="text-base-content-muted mb-2 text-xs">
                       {t("Select which levels to import")}
                     </div> */}
                 <Table
@@ -106,15 +106,15 @@ export function Step2_Dhis2(p: Props) {
                 {/* </div> */}
                 {/* </div> */}
 
-                <div class="border-base-300 rounded border p-3 text-sm">
+                <div class="border-border rounded border p-3 text-sm">
                   <div class="ui-spy-sm">
                     <div class="text-base-content">
                       <strong>{t3({ en: "Selection Summary", fr: "Résumé de la sélection", pt: "Resumo da seleção" })}:</strong>
                     </div>
-                    <div class="text-base-content/80">
+                    <div class="text-base-content-muted">
                       {selectedLevels().size} {t3({ en: "levels selected", fr: "niveaux sélectionnés", pt: "níveis selecionados" })}
                     </div>
-                    {/* <div class="text-base-content/60 mt-2 text-xs">
+                    {/* <div class="text-base-content-muted mt-2 text-xs">
                       {t("Total organization units available")}:{" "}
                       {metadata.levels
                         .reduce((sum, level) => sum + level.count, 0)

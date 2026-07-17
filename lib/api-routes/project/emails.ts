@@ -6,7 +6,7 @@ export const emailRouteRegistry = {
     path: "/emails/slide-deck",
     method: "POST",
     body: z.object({
-      recipients: z.array(z.string()),
+      recipients: z.array(z.email()).min(1).max(50),
       message: z.string(),
       attachment: z.object({ content: z.string(), filename: z.string() }),
     }),

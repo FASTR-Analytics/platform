@@ -337,6 +337,25 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
+    if (presentationObjectIds.length === 0) {
+      return {
+        success: true,
+        data: { lastUpdated: new Date().toISOString(), updatedCount: 0 },
+      };
+    }
+
+    const defaultRows = await projectDb<{ id: string }[]>`
+      SELECT id FROM presentation_objects
+      WHERE id IN ${projectDb(presentationObjectIds)}
+        AND is_default_visualization = TRUE
+    `;
+    if (defaultRows.length > 0) {
+      return {
+        success: false,
+        err: "You cannot update a default visualization",
+      };
+    }
+
     const lastUpdated = new Date().toISOString();
 
     await projectDb.begin(async (sql: Sql) => {

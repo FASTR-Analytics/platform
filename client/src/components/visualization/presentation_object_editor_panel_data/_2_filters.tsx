@@ -137,14 +137,17 @@ function DataValuesFilter(p: DataValuesFilterProps) {
           }
           return (
             <div class="pb-4">
-              <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
+              <div class="ui-gap-sm ui-pad border-border flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                 <For each={p.poDetail.resultsValue.valueProps}>
                   {(opt) => {
                     return (
                       <div
-                        class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
+                        class="cursor-pointer rounded px-2 py-1"
+                        classList={{
+                          "bg-success text-base-100": keyedValuesFilter.includes(opt),
+                          "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !keyedValuesFilter.includes(opt),
+                        }}
                         onClick={() => toggleVal(opt)}
-                        data-selected={keyedValuesFilter.includes(opt)}
                       >
                         <span class="relative">{opt}</span>
                       </div>
@@ -322,7 +325,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                 keyed
               >
                 {(bf) => (
-                  <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                  <div class="ui-gap-sm ui-pad border-border rounded border">
                     <PeriodFilterPeriodIdSingle
                       periodBounds={p.keyedPeriodBounds}
                       periodFilter={bf}
@@ -348,7 +351,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                   keyed
                 >
                   {(bf) => (
-                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                    <div class="ui-gap-sm ui-pad border-border rounded border">
                       <PeriodFilterPeriodId
                         periodBounds={p.keyedPeriodBounds}
                         periodFilter={bf}
@@ -460,7 +463,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "no_values_available"}>
-                  <div class="ui-pad text-sm text-info">
+                  <div class="ui-pad text-sm text-base-content-muted">
                     {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension.", pt: "Nenhum dado disponível para esta dimensão." })}
                   </div>
                 </Match>
@@ -471,16 +474,21 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "ok"}>
-                  <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
+                  <div class="ui-gap-sm ui-pad border-border flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {
                         return (
                           <div
-                            class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
+                            class="cursor-pointer rounded px-2 py-1"
+                            classList={{
+                              "bg-success text-base-100": keyedFilter.values.some(
+                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
+                              ),
+                              "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !keyedFilter.values.some(
+                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
+                              ),
+                            }}
                             onClick={() => toggleVal(opt.id)}
-                            data-selected={keyedFilter.values.some(
-                              v => String(v).toLowerCase() === String(opt.id).toLowerCase()
-                            )}
                           >
                             <span class="relative">{opt.label}</span>
                           </div>
@@ -649,7 +657,7 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad border-border rounded border">
       <Slider
         label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}
         showValueInLabel
@@ -693,7 +701,7 @@ export function NYearsSelector(p: NYearsSelectorProps) {
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad border-border rounded border">
       <Slider
         label={t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}
         showValueInLabel
@@ -737,7 +745,7 @@ export function NQuartersSelector(p: NQuartersSelectorProps) {
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad border-border rounded border">
       <Slider
         label={t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}
         showValueInLabel

@@ -85,7 +85,7 @@ export function Step4(p: Props) {
         {(p.step3Result.nRowsInvalidMissingFacilityId > 0 ||
           p.step3Result.nRowsInvalidFacilityNotFound > 0 ||
           p.step3Result.nRowsDuplicated > 0) && (
-          <div class="border-danger/30 bg-danger/5 mt-4 rounded border p-3">
+          <div class="border-danger bg-danger-subtle mt-4 rounded border p-3">
             <div class="text-danger text-sm">
               {t3({ en: "Warning:", fr: "Avertissement :", pt: "Aviso:" })}{" "}
               {toNum0(
@@ -152,7 +152,7 @@ export function Step4(p: Props) {
       <div class="ui-gap-sm flex">
         <Switch>
           <Match when={p.step3Result.nRowsTotal > 0}>
-            <div class="ui-spy border-primary bg-primary/10 rounded border p-4">
+            <div class="ui-spy border-primary bg-primary-subtle rounded border p-4">
               <div class="text-primary text-sm">
                 {t3({ en: "Review the staging results above. Click 'Integrate and finalize' to complete the import process and make this data available in the dataset.", fr: "Vérifiez les résultats de préparation ci-dessus. Cliquez sur « Intégrer et finaliser » pour terminer le processus d'importation et rendre ces données disponibles dans le jeu de données.", pt: "Reveja os resultados de preparação acima. Clique em 'Integrar e finalizar' para concluir o processo de importação e disponibilizar estes dados no conjunto de dados." })}
               </div>
@@ -169,7 +169,7 @@ export function Step4(p: Props) {
             </div>
           </Match>
           <Match when={true}>
-            <div class="border-danger bg-danger/10 rounded border p-4">
+            <div class="border-danger bg-danger-subtle rounded border p-4">
               <div class="text-danger text-sm">
                 {t3({ en: "There are no rows to import. Either go back and edit this upload config, or delete the upload attempt.", fr: "Aucune ligne à importer. Retournez modifier la configuration de téléversement ou supprimez la tentative de téléversement.", pt: "Não há linhas para importar. Volte atrás e edite esta configuração de carregamento, ou elimine a tentativa de carregamento." })}
               </div>

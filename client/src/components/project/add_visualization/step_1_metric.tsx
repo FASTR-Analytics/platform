@@ -46,7 +46,7 @@ export function Step1Metric(p: Props) {
     <div class="h-full">
       <FrameLeft
         panelChildren={
-          <div class="border-base-300 ui-pad h-full w-56 border-r">
+          <div class="border-border ui-pad h-full w-56 border-r">
             <ModuleSidebar
               metricsByModule={metricsByModule()}
               selectedModule={selectedModule()}
@@ -60,7 +60,7 @@ export function Step1Metric(p: Props) {
           <Show
             when={filteredMetricGroups().length > 0}
             fallback={
-              <div class="text-neutral py-8 text-center">
+              <div class="text-base-content-muted py-8 text-center">
                 {t3({
                   en: "No metrics available",
                   fr: "Aucune métrique disponible",

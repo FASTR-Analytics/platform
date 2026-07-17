@@ -248,7 +248,7 @@ function UserTable(p: {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return name
           ? <span class="text-sm">{name}</span>
-          : <span class="text-neutral text-sm">—</span>;
+          : <span class="text-base-content-muted text-sm">—</span>;
       },
     },
     {
@@ -263,7 +263,7 @@ function UserTable(p: {
       render: (user) => {
         if (user.lastActiveTs === -1) {
           return (
-            <span class="text-neutral text-sm">
+            <span class="text-base-content-muted text-sm">
               {p.logs === undefined ? "..." : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
             </span>
           );
@@ -295,7 +295,7 @@ function UserTable(p: {
           );
         }
         return (
-          <span class={`text-sm ${!hasGlobalPermissions(user) ? "text-neutral" : ""}`}>
+          <span class={`text-sm ${!hasGlobalPermissions(user) ? "text-base-content-muted" : ""}`}>
             {getGlobalPermissionSummary(user)}
           </span>
         );

@@ -131,7 +131,7 @@ export function SlideDeckSettings(p: Props) {
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="border-base-300 rounded border px-2 py-1 text-base font-normal"
+                  class="border-border rounded border px-2 py-1 text-base font-normal"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}
@@ -197,7 +197,7 @@ export function SlideDeckSettings(p: Props) {
         <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
           <div class="grid grid-cols-4 gap-6">
             <div class="ui-spy-sm">
-              <div class="text-base-content/70 font-700 mb-2 text-sm">
+              <div class="text-base-content-muted font-700 mb-2 text-sm">
                 {t3({ en: "Custom logos", fr: "Logos personnalisés", pt: "Logótipos personalizados" })}
               </div>
               <For each={tempConfig.logos.availableCustom}>

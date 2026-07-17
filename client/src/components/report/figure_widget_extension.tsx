@@ -70,7 +70,7 @@ class EmbedWidget extends WidgetType {
           classList={{
             "border-primary border-2":
               this.resolver.getSelectedId() === this.id,
-            "border-base-300 hover:border-primary":
+            "border-border hover:border-primary":
               this.resolver.getSelectedId() !== this.id,
           }}
         >

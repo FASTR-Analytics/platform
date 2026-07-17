@@ -90,7 +90,7 @@ export function DeleteData(
           </div>
         </Show>
 
-        <div class="text-neutral text-sm">
+        <div class="text-base-content-muted text-sm">
           {t3({
             en: "Time points, sampling weights, and indicator code are kept. Manage time points on the HFA time points page.",
             fr: "Les points temporels, les pondérations d'échantillonnage et le code des indicateurs sont conservés. Gérez les points temporels sur la page des points temporels Enquêtes FOSA.",

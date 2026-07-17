@@ -60,7 +60,7 @@ export function DashboardItemGrid(p: Props) {
   );
 
   const empty = (
-    <div class="ui-pad text-neutral text-sm">
+    <div class="ui-pad text-base-content-muted text-sm">
       {t3({
         en: "No items yet. Click 'Add item' to start.",
         fr: "Aucun élément. Cliquez sur « Ajouter un élément ».",
@@ -134,13 +134,13 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
       <div class="relative">
         {/* Card-set: stacked layers behind a group card to signal "many". */}
         <Show when={isGroup()}>
-          <div class="border-base-300 bg-base-100 absolute -top-1 right-1 left-1 h-full rounded border" />
-          <div class="border-base-300 bg-base-100 absolute -top-0.5 right-0.5 left-0.5 h-full rounded border" />
+          <div class="border-border bg-base-100 absolute -top-1 right-1 left-1 h-full rounded border" />
+          <div class="border-border bg-base-100 absolute -top-0.5 right-0.5 left-0.5 h-full rounded border" />
         </Show>
         <div
           class="bg-base-100 relative cursor-pointer rounded border p-2"
           classList={{
-            "border-base-300": !isSelected(),
+            "border-border": !isSelected(),
             "border-primary": isSelected(),
             "hover:border-primary": !isSelected(),
           }}
@@ -155,7 +155,7 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
             onClick={(e) => props.p.selection.handleClick(id(), e)}
           />
           <Show when={isGroup()}>
-            <div class="bg-primary text-primary-content absolute top-2 left-2 z-10 rounded px-1 py-0.5 text-xs font-medium">
+            <div class="bg-primary text-primary-content absolute top-2 left-2 z-10 rounded px-1 py-0.5 text-xs">
               {entry().count}{" "}
               {t3({ en: "replicants", fr: "réplicants", pt: "replicantes" })}
             </div>

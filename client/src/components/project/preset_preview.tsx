@@ -73,7 +73,7 @@ export function PresetPreview(p: Props) {
   return (
     <div
       class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
-        p.selected ? "border-primary" : "border-base-300 hover:border-primary"
+        p.selected ? "border-primary" : "border-border hover:border-primary"
       }`}
       onClick={p.onClick}
     >
@@ -111,7 +111,7 @@ export function PresetPreview(p: Props) {
       <div class="px-2 pb-2">
         <div class="font-700 text-xs">{p.label}</div>
         <Show when={p.description}>
-          <div class="text-neutral text-xs">{p.description}</div>
+          <div class="ui-text-caption">{p.description}</div>
         </Show>
       </div>
     </div>
@@ -154,13 +154,13 @@ export function PresetSelector(p: PresetSelectorProps) {
         class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
           p.selectedId === CUSTOM_OPTION
             ? "border-primary"
-            : "border-base-300 hover:border-primary"
+            : "border-border hover:border-primary"
         }`}
         onClick={() => p.onSelect(CUSTOM_OPTION)}
       >
         <div class="p-2">
           <div class="bg-base-200 flex aspect-video items-center justify-center rounded">
-            <span class="text-neutral text-sm">
+            <span class="text-base-content-muted text-sm">
               {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
             </span>
           </div>
@@ -169,7 +169,7 @@ export function PresetSelector(p: PresetSelectorProps) {
           <div class="font-700 text-xs">
             {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
           </div>
-          <div class="text-neutral text-xs">
+          <div class="ui-text-caption">
             {t3({ en: "Configure manually", fr: "Configurer manuellement", pt: "Configurar manualmente" })}
           </div>
         </div>

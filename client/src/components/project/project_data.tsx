@@ -32,7 +32,7 @@ export function ProjectData(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop panelChildren={<HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-        class="border-base-300" ensureHeightAsIfButton></HeadingBar>}>
+        class="border-border" ensureHeightAsIfButton></HeadingBar>}>
         <div class="ui-pad ui-spy">
           {/* HMIS Dataset */}
           <Switch>
@@ -127,12 +127,12 @@ export function ProjectData(p: Props) {
                 );
 
                 return (
-                  <div class="border-base-300 rounded border">
-                    <div class="border-base-300 ui-pad flex items-center border-b">
+                  <div class="border-border rounded border">
+                    <div class="border-border ui-pad flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "HMIS Data", fr: "Données SNIS", pt: "Dados SNIS" })}
                         <Show when={isStale()}>
-                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
+                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs">
                             {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour", pt: "Dados da instância atualizados" })}
                           </span>
                         </Show>
@@ -364,7 +364,7 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="ui-pad border-base-300 ui-spy rounded border">
+                  <div class="ui-pad border-border ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "HMIS Data", fr: "Données SNIS", pt: "Dados SNIS" })}
@@ -375,7 +375,7 @@ export function ProjectData(p: Props) {
                             !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
-                            <div class="font-400 text-neutral text-sm">
+                            <div class="font-400 text-base-content-muted text-sm">
                               {t3({ en: "Deactivated", fr: "Désactivé", pt: "Desativado" })}
                             </div>
                           }
@@ -498,12 +498,12 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="border-base-300 rounded border">
-                    <div class="ui-pad border-base-300 flex items-center border-b">
+                  <div class="border-border rounded border">
+                    <div class="ui-pad border-border flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "HFA Data", fr: "Données d'enquêtes FOSA", pt: "Dados de inquéritos FOSA" })}
                         <Show when={isStale()}>
-                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
+                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs">
                             {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour", pt: "Dados da instância atualizados" })}
                           </span>
                         </Show>
@@ -584,7 +584,7 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="ui-pad border-base-300 ui-spy rounded border">
+                  <div class="ui-pad border-border ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "HFA Data", fr: "Données d'enquêtes FOSA", pt: "Dados de inquéritos FOSA" })}
@@ -595,7 +595,7 @@ export function ProjectData(p: Props) {
                             !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
-                            <div class="font-400 text-neutral text-sm">
+                            <div class="font-400 text-base-content-muted text-sm">
                               {t3({ en: "Deactivated", fr: "Désactivé", pt: "Desativado" })}
                             </div>
                           }
@@ -655,12 +655,12 @@ export function ProjectData(p: Props) {
                 );
 
                 return (
-                  <div class="border-base-300 rounded border">
-                    <div class="ui-pad border-base-300 flex items-center border-b">
+                  <div class="border-border rounded border">
+                    <div class="ui-pad border-border flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
                         <Show when={isStale()}>
-                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs font-500">
+                          <span class="ml-2 bg-warning text-warning-content rounded px-2 py-1 text-xs">
                             {t3({ en: "Instance data updated", fr: "Données de l'instance mises à jour", pt: "Dados da instância atualizados" })}
                           </span>
                         </Show>
@@ -740,7 +740,7 @@ export function ProjectData(p: Props) {
                 });
 
                 return (
-                  <div class="ui-pad border-base-300 ui-spy rounded border">
+                  <div class="ui-pad border-border ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
@@ -751,7 +751,7 @@ export function ProjectData(p: Props) {
                             !projectState.isLocked && instanceState.currentUserIsGlobalAdmin
                           }
                           fallback={
-                            <div class="font-400 text-neutral text-sm">
+                            <div class="font-400 text-base-content-muted text-sm">
                               {t3({ en: "Deactivated", fr: "Désactivé", pt: "Desativado" })}
                             </div>
                           }

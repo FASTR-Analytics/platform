@@ -102,7 +102,7 @@ export function ProfileForm(
           return (
             <>
               {/* Hero */}
-              <div class="border-base-300 flex flex-col items-center gap-3 border-b pt-2 pb-6">
+              <div class="border-border flex flex-col items-center gap-3 border-b pt-2 pb-6">
                 {clerk.user?.imageUrl && (
                   <button
                     type="button"
@@ -123,7 +123,7 @@ export function ProfileForm(
                       .filter(Boolean)
                       .join(" ") || "—"}
                   </div>
-                  <div class="text-neutral text-sm">{keyedUser.email}</div>
+                  <div class="text-base-content-muted text-sm">{keyedUser.email}</div>
                   <button
                     type="button"
                     class="text-primary mt-1 cursor-pointer text-xs hover:underline"
@@ -142,8 +142,8 @@ export function ProfileForm(
                   when={editingOrganisation()}
                   fallback={
                     <div class="flex items-center gap-2">
-                      <span class="text-base-content/80 text-sm flex-1">
-                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}</span>}
+                      <span class="text-base-content-muted text-sm flex-1">
+                        {organisation() || <span class="text-base-content-muted">{t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}</span>}
                       </span>
                       <Button onClick={() => setEditingOrganisation(true)} outline size="sm" iconName="pencil">
                         {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
@@ -195,7 +195,7 @@ export function ProfileForm(
                             />
                           </div>
                         )}
-                        <div class="text-neutral text-sm">
+                        <div class="text-base-content-muted text-sm">
                           {usage.isUnlimited
                             ? t3({ en: "Unlimited", fr: "Illimité", pt: "Ilimitado" })
                             : <>
@@ -231,7 +231,7 @@ export function ProfileForm(
                             />
                           </div>
                         )}
-                        <div class="text-neutral text-sm">
+                        <div class="text-base-content-muted text-sm">
                           {usage.tokensUsedThisWeek.toLocaleString()}{" "}
                           {usage.weeklyTokenLimit !== null
                             ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`

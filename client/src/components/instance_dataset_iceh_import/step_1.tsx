@@ -42,7 +42,7 @@ export function Step1(p: Props) {
       <h3 class="font-700 text-lg">
         {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH", pt: "Ficheiro Zip ICEH" })}
       </h3>
-      <p class="text-neutral">
+      <p class="text-base-content-muted">
         {t3({
           en: "Upload a zip file downloaded from the ICEH Retriever (equidade.org/retriever). The zip should contain results_csv.csv and indicators.xlsx.",
           fr: "Téléversez un fichier zip téléchargé depuis le Retriever ICEH (equidade.org/retriever). Le zip doit contenir results_csv.csv et indicators.xlsx.",

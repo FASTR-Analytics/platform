@@ -197,7 +197,7 @@ export default function Instance(p: Props) {
             panelChildren={
               <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center">
                 <div class="flex flex-0 items-center">
-                  <div class="border-base-300 font-700 border-r pr-4 text-2xl text-nowrap antialiased">
+                  <div class="border-border font-700 border-r pr-4 text-2xl text-nowrap antialiased">
                     {instanceState.instanceName}
                   </div>
                   <div class="w-24 flex-none pl-4">
@@ -274,7 +274,7 @@ export default function Instance(p: Props) {
                     />
                   </Show>
                   <div
-                    class="ui-hoverable ui-gap-sm ui-pad-sm flex items-center rounded"
+                    class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active ui-gap-sm ui-pad-sm flex items-center rounded"
                     onClick={openProfile}
                   >
                     <span class="text-primary inline-block w-5">

@@ -21,8 +21,8 @@ export function FontPicker(p: Props) {
               type="button"
               class={`cursor-pointer rounded border px-4 py-2 ${
                 selected() === font.family
-                  ? "border-primary bg-primary/10 border-2"
-                  : "border-base-300 hover:border-primary/50"
+                  ? "border-primary bg-primary-subtle border-2"
+                  : "border-border hover:border-primary"
               }`}
               style={{ "font-family": font.family }}
               onClick={() => p.onChange(font.family)}

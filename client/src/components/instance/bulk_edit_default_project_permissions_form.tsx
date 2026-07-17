@@ -60,11 +60,11 @@ export function BulkEditDefaultProjectPermissionsForm(
         <div class="font-700 text-sm">
           {p.emails.join(", ")}
         </div>
-        <div class="text-xs text-neutral">
+        <div class="ui-text-caption">
           {t3({ en: "Click to cycle: unchanged → true → false", fr: "Cliquez pour alterner : inchangé → vrai → faux", pt: "Clique para alternar: inalterado → verdadeiro → falso" })}
         </div>
         <div>
-          <div class="font-600 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
+          <div class="font-700 text-sm">{t3({ en: "Permission presets", fr: "Préréglages de permissions", pt: "Predefinições de permissões" })}</div>
           <div class="flex gap-2">
             <For each={PERMISSION_PRESETS}>
               {(preset) => (
@@ -89,7 +89,7 @@ export function BulkEditDefaultProjectPermissionsForm(
           <For each={PROJECT_PERMISSION_CATEGORIES}>
             {(category) => (
               <div class="space-y-2">
-                <div class="font-600 text-sm">{t3(category.label)}</div>
+                <div class="font-700 text-sm">{t3(category.label)}</div>
                 <For each={category.permissions}>
                   {(key) => (
                     <TriStateCheckbox
@@ -142,12 +142,12 @@ function TriStateCheckbox(p: {
     if (p.value === true)
       return `${base} bg-primary border-primary text-primary-content`;
     if (p.value === false)
-      return `${base} border-danger text-danger bg-danger/10 font-700`;
-    return `${base} bg-base-200 border-base-300 text-base-content`;
+      return `${base} border-danger text-danger-subtle-content bg-danger-subtle font-700`;
+    return `${base} bg-base-200 border-border text-base-content`;
   };
 
   const labelClass = () => {
-    if (p.value === "unchanged") return "text-sm text-neutral";
+    if (p.value === "unchanged") return "text-sm text-base-content-muted";
     if (p.value === false) return "text-sm text-danger";
     return "text-sm";
   };

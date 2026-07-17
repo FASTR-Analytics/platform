@@ -88,23 +88,23 @@ export function UpdateModule(
               <Show
                 when={data.hasUpdate}
                 fallback={
-                  <div class="bg-success/10 text-success font-500 rounded px-3 py-2 text-sm">
+                  <div class="bg-success-subtle text-success-subtle-content rounded px-3 py-2 text-sm">
                     {t3({
                       en: "Module is up to date",
                       fr: "Le module est à jour",
                       pt: "O módulo está atualizado",
                     })}
                     <Show when={data.currentGitRef}>
-                      <span class="text-neutral ml-2 font-mono text-xs">
+                      <span class="ui-text-caption ml-2 font-mono">
                         ({data.currentGitRef?.slice(0, 7)})
                       </span>
                     </Show>
                   </div>
                 }
               >
-                <div class="bg-warning/10 text-warning font-500 rounded px-3 py-2 text-sm">
+                <div class="bg-warning-subtle text-warning-subtle-content rounded px-3 py-2 text-sm">
                   {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
-                  <span class="text-neutral ml-2 font-mono text-xs">
+                  <span class="ui-text-caption ml-2 font-mono">
                     {data.currentGitRef?.slice(0, 7) ?? "?"} →{" "}
                     {data.incomingGitRef.slice(0, 7)}
                   </span>
@@ -158,7 +158,7 @@ export function UpdateModule(
               }
             >
               <div class="mb-4">
-                <div class="text-neutral text-xs mb-1">
+                <div class="ui-text-caption mb-1">
                   {t3({
                     en: "Visualization changes only",
                     fr: "Modifications d'affichage uniquement",
@@ -188,18 +188,18 @@ export function UpdateModule(
             {/* Commits since */}
             <Show when={data.commitsSince.length > 0}>
               <div class="mb-4">
-                <div class="text-neutral font-500 mb-1 text-xs uppercase">
+                <div class="ui-text-overline text-base-content-muted mb-1">
                   {t3({
                     en: "Commits since installed",
                     fr: "Commits depuis l'installation",
                     pt: "Commits desde a instalação",
                   })}
                 </div>
-                <div class="border-base-300 max-h-32 overflow-y-auto rounded border">
+                <div class="border-border max-h-32 overflow-y-auto rounded border">
                   <For each={data.commitsSince}>
                     {(commit) => (
-                      <div class="border-base-300 flex items-start gap-2 border-b px-3 py-2 text-xs last:border-b-0">
-                        <span class="text-neutral font-mono">
+                      <div class="border-border flex items-start gap-2 border-b px-3 py-2 text-xs last:border-b-0">
+                        <span class="text-base-content-muted font-mono">
                           {commit.sha.slice(0, 7)}
                         </span>
                         <span class="flex-1">{commit.message}</span>
@@ -211,7 +211,7 @@ export function UpdateModule(
             </Show>
 
             {/* Actions */}
-            <div class="border-base-300 space-y-3 rounded border p-3">
+            <div class="border-border space-y-3 rounded border p-3">
               <Checkbox
                 label={
                   <div>
@@ -222,7 +222,7 @@ export function UpdateModule(
                         pt: "Reinstalar definição",
                       })}
                     </div>
-                    <div class="text-neutral text-xs font-normal">
+                    <div class="ui-text-caption font-normal">
                       {t3({
                         en: "Update metrics, presets, and presentation objects from latest source",
                         fr: "Mettre à jour les métriques, préréglages et objets de présentation",
@@ -236,7 +236,7 @@ export function UpdateModule(
               />
 
               <Show when={reinstall()}>
-                <div class="border-base-300 border-l-2 pl-6">
+                <div class="border-border border-l-2 pl-6">
                   <Checkbox
                     label={
                       <div>
@@ -247,7 +247,7 @@ export function UpdateModule(
                             pt: "Preservar definições",
                           })}
                         </div>
-                        <div class="text-neutral text-xs font-normal">
+                        <div class="ui-text-caption font-normal">
                           {t3({
                             en: "Keep your current parameter values where possible",
                             fr: "Conserver vos valeurs de paramètres actuelles si possible",
@@ -268,7 +268,7 @@ export function UpdateModule(
                     <div>
                       {t3({ en: "Rerun module", fr: "Réexécuter le module", pt: "Reexecutar módulo" })}
                     </div>
-                    <div class="text-neutral text-xs font-normal">
+                    <div class="ui-text-caption font-normal">
                       {t3({
                         en: "Execute R script and recompute all results",
                         fr: "Exécuter le script R et recalculer tous les résultats",
@@ -284,7 +284,7 @@ export function UpdateModule(
 
             {/* Recommendation */}
             <Show when={data.recommendsRerun && !rerun()}>
-              <div class="bg-warning/10 text-warning mt-3 rounded px-3 py-2 text-xs">
+              <div class="bg-warning-subtle text-warning-subtle-content mt-3 rounded px-3 py-2 text-xs">
                 {t3({
                   en: "Compute-affecting changes detected. Rerun recommended.",
                   fr: "Changements affectant le calcul détectés. Réexécution recommandée.",
@@ -294,7 +294,7 @@ export function UpdateModule(
             </Show>
 
             <Show when={!canSubmit()}>
-              <div class="text-neutral mt-3 text-xs">
+              <div class="ui-text-caption mt-3">
                 {t3({
                   en: "Select at least one action to apply.",
                   fr: "Sélectionnez au moins une action à appliquer.",

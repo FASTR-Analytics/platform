@@ -15,7 +15,7 @@ import {
   closePgConnection,
 } from "../../db/postgres/connection_manager.ts";
 import { runProjectMigrations } from "../../db/migrations/runner.ts";
-import { log, requireGlobalPermission } from "../../middleware/mod.ts";
+import { log } from "../../middleware/mod.ts";
 
 export const routesBackups = new Hono();
 
@@ -40,7 +40,7 @@ interface ProjectBackupInfo {
 defineRoute(
   routesBackups,
   "getAllProjectsBackups",
-  requireGlobalPermission(),
+  requireProjectPermission("can_configure_settings"),
   async (c) => {
     try {
       // Get the authorization header from the incoming request

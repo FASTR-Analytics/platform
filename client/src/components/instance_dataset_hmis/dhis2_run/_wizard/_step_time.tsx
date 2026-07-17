@@ -149,7 +149,7 @@ export function Dhis2StepTime(p: Props) {
         </Switch>
 
         <Show when={needsUnattendedGate() && !p.unattendedReady}>
-          <div class="border-danger bg-danger/10 ui-pad ui-spy-sm rounded border text-sm">
+          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
             <Switch>
               <Match when={!p.hasStoredCredentials}>
                 {t3({

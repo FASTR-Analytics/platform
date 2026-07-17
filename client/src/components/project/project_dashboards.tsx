@@ -150,7 +150,7 @@ export function ProjectDashboards(p: Props) {
           heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-base-300"
+          class="border-border"
           centerChildren={
             <SortControl
               value={dashboardSortMode()}
@@ -173,7 +173,7 @@ export function ProjectDashboards(p: Props) {
         <For
           each={filtered()}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {searchText().length >= 3
                 ? t3({
                     en: "No matching dashboards",
@@ -194,7 +194,7 @@ export function ProjectDashboards(p: Props) {
               <div
                 class="group relative cursor-pointer rounded border p-3"
                 classList={{
-                  "border-base-300 hover:border-primary": !isSelected(),
+                  "border-border hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),
                 }}
                 onClick={(e) => {
@@ -210,10 +210,10 @@ export function ProjectDashboards(p: Props) {
                   onClick={(e) => selection.handleClick(dashboard.id, e)}
                 />
                 <div class="font-700 truncate text-base">{dashboard.title}</div>
-                <div class="text-neutral truncate font-mono text-xs">
+                <div class="ui-text-caption truncate font-mono">
                   /{dashboard.slug}
                 </div>
-                <div class="text-neutral flex items-center justify-between text-xs">
+                <div class="ui-text-caption flex items-center justify-between">
                   <span>
                     {dashboard.itemCount} {t3({ en: "items", fr: "éléments", pt: "elementos" })}
                   </span>
@@ -221,7 +221,7 @@ export function ProjectDashboards(p: Props) {
                     class={
                       dashboard.isPublic
                         ? "text-success font-700"
-                        : "text-neutral"
+                        : "text-base-content-muted"
                     }
                   >
                     {dashboard.isPublic

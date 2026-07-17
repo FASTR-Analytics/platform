@@ -114,7 +114,7 @@ export function GeoJsonManager(p: Props) {
           <Show
             when={instanceState.geojsonMaps.length > 0}
             fallback={
-              <div class="text-base-500 py-8 text-center">
+              <div class="text-base-content-muted py-8 text-center">
                 {t3({
                   en: "No GeoJSON maps uploaded yet. Upload a GeoJSON file to enable map visualizations.",
                   fr: "Aucune carte GeoJSON téléchargée. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",

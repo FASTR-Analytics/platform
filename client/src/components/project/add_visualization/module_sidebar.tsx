@@ -37,7 +37,7 @@ export function ModuleSidebar(p: Props) {
       renderItem={(item) => (
         <div class="flex items-center justify-between gap-2">
           <span class="truncate">{item.label}</span>
-          <span class="text-neutral shrink-0 text-xs">{item.meta}</span>
+          <span class="ui-text-caption shrink-0">{item.meta}</span>
         </div>
       )}
     />

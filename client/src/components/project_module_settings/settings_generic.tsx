@@ -112,7 +112,7 @@ export function SettingsForProjectModuleGeneric(
               <For
                 each={keyedConfig.parameterDefinitions}
                 fallback={
-                  <div class="text-neutral col-span-12">
+                  <div class="text-base-content-muted col-span-12">
                     {t3({
                       en: "No parameters for this module",
                       fr: "Aucun paramètre pour ce module",

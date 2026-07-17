@@ -46,7 +46,7 @@ export function CreateRestoreFromFileForm(
             cancelFunc={() => p.close(undefined)}
         >
             <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium">
+                <label class="text-sm">
                     {t3({ en: "Select gzipped SQL file (.sql.gz)", fr: "Sélectionner un fichier SQL compressé (.sql.gz)", pt: "Selecionar ficheiro SQL comprimido com gzip (.sql.gz)" })}
                 </label>
                 <input
@@ -56,7 +56,7 @@ export function CreateRestoreFromFileForm(
                     class="block w-full text-sm"
                 />
                 {selectedFile() && (
-                    <div class="text-sm text-neutral">
+                    <div class="text-sm text-base-content-muted">
                         {t3({ en: "Selected:", fr: "Sélectionné :", pt: "Selecionado:" })} {selectedFile()!.name}
                     </div>
                 )}

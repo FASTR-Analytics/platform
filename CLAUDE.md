@@ -15,7 +15,8 @@ application with modular R-based data processing pipelines.
 - Database: PostgreSQL (multi-database architecture)
 - Authentication: Clerk
 - AI: Anthropic Claude
-- Background Processing: Web Workers with Server-Sent Events
+- Background Processing: Web Workers (progress polled by the client; SSE
+  carries lifecycle + cache notifications)
 
 **Client**
 
@@ -34,6 +35,10 @@ application with modular R-based data processing pipelines.
 
 ## Architecture
 
+The canonical topology is [SYSTEMS.md](SYSTEMS.md) — 15 systems, each with
+its own `SYSTEM_NN_*.md` (verified prose + lint-enforced file manifest). The
+tree below is orientation only.
+
 ### Monorepo Structure
 
 ```
@@ -44,8 +49,8 @@ wb-fastr/
 │   │   ├── routes/            # Router configuration
 │   │   ├── state/             # State management & caching
 │   │   ├── server_actions/    # API client functions
-│   │   ├── generate_*/        # Chart/report/viz generation
-│   │   └── export_report/     # PDF export logic
+│   │   ├── generate_*/        # Figure/slide/viz generation
+│   │   └── exports/           # PDF/PPTX/XLSX/DOCX export logic
 │   └── package.json
 ├── server/                    # Hono backend
 │   ├── routes/                # API endpoints
@@ -59,17 +64,17 @@ wb-fastr/
 │   ├── task_management/       # Dependency tracking & execution
 │   ├── worker_routines/       # Background job processors
 │   ├── dhis2/                 # DHIS2 integration
-│   └── visualization_definitions/
+│   ├── github/ + module_loader/  # Module fetch + validation
+│   └── server_only_funcs_presentation_objects/  # Viz query engine
 ├── lib/                       # Shared types & utilities
 │   ├── types/                 # Shared TypeScript types
-│   └── translate/             # i18n system (EN/FR)
+│   └── translate/             # i18n system (EN/FR, PT in rollout)
 ├── panther/                   # External UI/viz library (DO NOT MODIFY)
-├── module_defs/               # Module definitions (source)
-│   └── {module_id}/{version}/ # R scripts + metadata
-├── module_defs_dist/          # Generated module definitions
 └── _example_instance_dir/     # Instance data (git-ignored)
     ├── databases/             # PostgreSQL data files
     ├── sandbox/               # Temp files for module execution
+    ├── runs/                  # Results-runs volume
+    ├── valkey/                # Valkey data
     └── assets/                # Uploaded files
 ```
 
@@ -105,13 +110,13 @@ wb-fastr/
 
 ### Module System
 
-**Module Definitions** (`module_defs/`)
+**Module Definitions**
 
-- Versioned R scripts with metadata
-- Parameter configurations
-- Data source requirements
-- Results object schemas
-- Built at startup via `build_module_definitions.ts`
+- Authored in the separate `wb-fastr-modules` repo (R scripts + metadata;
+  `deno task build` there regenerates each `definition.json`)
+- Fetched from GitHub and validated at install via `server/github/` +
+  `server/module_loader/` (see
+  [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md))
 
 **Module Instances**
 
@@ -161,7 +166,8 @@ wb-fastr/
 
 **Real-time Updates**
 
-- Server-Sent Events for task progress
+- Server-Sent Events for task lifecycle + cache invalidation (progress is
+  polled by the client)
 - Background worker coordination
 - Live dirty state synchronization
 
@@ -205,7 +211,7 @@ wb-fastr/
 cd client && npm install && cd ..
 
 # Create instance directory (if not exists)
-mkdir -p _example_instance_dir/{databases,sandbox,assets}
+mkdir -p _example_instance_dir/{databases,sandbox,assets,runs,valkey}
 
 # Configure environment
 cp .env.example .env
@@ -314,7 +320,7 @@ that area.
 ### Client / UI
 
 - [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md),
-  [DOC_SPECIAL_CHART_MODES.md](DOC_SPECIAL_CHART_MODES.md),
+  [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md) (FigureBundle, special chart modes),
   [SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md) (shell, translation, help buttons),
   [PROTOCOL_APP_HELP_BUTTONS.md](PROTOCOL_APP_HELP_BUTTONS.md),
   [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
@@ -431,9 +437,10 @@ Background processors for:
 - `integrate_hmis_data/` - HMIS data integration
 - `integrate_hfa_data/` - HFA data integration
 - `stage_*_data_*/` - Dataset staging
+- `import_hmis_data_dhis2/` - Scheduled DHIS2 HMIS imports
 
-Each uses Web Workers for non-blocking execution with progress streaming via
-SSE.
+Each uses Web Workers for non-blocking execution; the client polls status
+routes for progress, and SSE signals lifecycle/cache events.
 
 ### Route Registry
 

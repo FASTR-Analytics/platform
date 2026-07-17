@@ -99,7 +99,7 @@ export function ProjectModules(p: Props) {
         panelChildren={
           <HeadingBar
             heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
-            class="border-base-300"
+            class="border-border"
             ensureHeightAsIfButton
           >
             <div class="ui-gap-sm flex items-center">
@@ -109,7 +109,7 @@ export function ProjectModules(p: Props) {
                 </span>
               </Show>
               <Show when={updatesAvailableCount() > 0}>
-                <span class="text-warning font-500 text-sm">
+                <span class="text-warning text-sm">
                   {updatesAvailableCount()}{" "}
                   {t3({
                     en: "updates available",
@@ -368,8 +368,8 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   return (
-    <div class="border-base-300 rounded border">
-      <div class="ui-pad border-base-300 ui-gap-sm flex flex-wrap items-center justify-end border-b">
+    <div class="border-border rounded border">
+      <div class="ui-pad border-border ui-gap-sm flex flex-wrap items-center justify-end border-b">
         <div class="font-700 flex-none text-lg">
           <span class="mr-4">{p.thisInstalledModule.label}</span>
           <DirtyStatus
@@ -377,7 +377,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
             moduleDirtyStates={projectState.moduleDirtyStates}
           />
           <Show when={hasUpdateAvailable()}>
-            <span class="bg-warning/15 text-warning font-500 ml-2 rounded px-2 py-0.5 text-xs">
+            <span class="bg-warning-subtle text-warning-subtle-content ml-2 rounded px-2 py-0.5 text-xs">
               {t3({ en: "Update available", fr: "Mise à jour disponible", pt: "Atualização disponível" })}
             </span>
           </Show>
@@ -402,7 +402,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
           projectState.moduleDirtyStates[p.thisInstalledModule.id] === "error"
         }
         fallback={
-          <div class="ui-pad text-neutral text-xs">
+          <div class="ui-pad ui-text-caption">
             {t3({
               en: "Waiting for data or upstream modules",
               fr: "En attente des données ou des modules en amont",
@@ -426,7 +426,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
                   ? new Date(computeUpdatedAt) > lastRunDate
                   : false;
                 return (
-                  <div class="text-neutral flex flex-col gap-1 text-xs">
+                  <div class="ui-text-caption flex flex-col gap-1">
                     <div class="flex items-center gap-2">
                       <span>
                         {t3({ en: "Compute definitions", fr: "Définitions de calcul", pt: "Definições de cálculo" })}:{" "}
@@ -539,7 +539,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
   });
 
   return (
-    <div class="ui-pad border-base-300 col-span-1 flex items-center rounded border">
+    <div class="ui-pad border-border col-span-1 flex items-center rounded border">
       <div class="font-700 flex-1 text-lg">{p.thisUninstalledModuleLabel}</div>
       <Show
         when={
@@ -547,7 +547,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
           (instanceState.currentUserIsGlobalAdmin || p.canConfigureModules)
         }
         fallback={
-          <div class="font-400 text-neutral text-sm">
+          <div class="font-400 text-base-content-muted text-sm">
             {t3({ en: "Deactivated", fr: "Désactivé", pt: "Desativado" })}
           </div>
         }

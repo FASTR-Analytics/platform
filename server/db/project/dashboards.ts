@@ -265,20 +265,31 @@ export async function updateDashboard(
       ? JSON.stringify(dashboardConfigSchema.parse(update.config))
       : current.config;
 
+    // Move the global slug first; if the project-side update then fails,
+    // restore it so the slug never points at an un-updated dashboard.
+    let previousSlug: string | null = null;
     if (update.slug !== undefined) {
+      previousSlug = await getDashboardSlug(mainDb, projectId, dashboardId);
       await updateDashboardSlug(mainDb, projectId, dashboardId, update.slug);
     }
 
-    await projectDb`
-      UPDATE dashboards
-      SET title = ${nextTitle},
-          is_public = ${nextIsPublic},
-          layout = ${nextLayout},
-          config = ${nextConfig},
-          updated_at = ${now},
-          last_updated = ${now}
-      WHERE id = ${dashboardId}
-    `;
+    try {
+      await projectDb`
+        UPDATE dashboards
+        SET title = ${nextTitle},
+            is_public = ${nextIsPublic},
+            layout = ${nextLayout},
+            config = ${nextConfig},
+            updated_at = ${now},
+            last_updated = ${now}
+        WHERE id = ${dashboardId}
+      `;
+    } catch (e) {
+      if (update.slug !== undefined && previousSlug !== null) {
+        await updateDashboardSlug(mainDb, projectId, dashboardId, previousSlug);
+      }
+      throw e;
+    }
 
     return { success: true, data: { lastUpdated: now } };
   });
@@ -291,8 +302,18 @@ export async function deleteDashboard(
   dashboardId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await projectDb`DELETE FROM dashboards WHERE id = ${dashboardId}`;
+    // Release the global slug first; if the project-side delete then fails,
+    // re-insert it so a live dashboard never loses its slug row.
+    const slug = await getDashboardSlug(mainDb, projectId, dashboardId);
     await deleteDashboardSlug(mainDb, projectId, dashboardId);
+    try {
+      await projectDb`DELETE FROM dashboards WHERE id = ${dashboardId}`;
+    } catch (e) {
+      if (slug !== null) {
+        await insertDashboardSlug(mainDb, slug, projectId, dashboardId);
+      }
+      throw e;
+    }
     return { success: true };
   });
 }

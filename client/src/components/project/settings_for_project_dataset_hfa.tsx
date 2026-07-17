@@ -106,7 +106,7 @@ export function SettingsForProjectDatasetHfa(
             <StateHolderWrapper state={serviceCategoriesQuery.state()}>
               {(serviceCategories) => (
                 <div class="ui-spy max-w-lg">
-                  <div class="text-neutral text-sm">
+                  <div class="text-base-content-muted text-sm">
                     {t3({
                       en: "Choose which service categories to include in this project. Only indicators tagged with a selected category are imported. Changes take effect when the data is (re)added.",
                       fr: "Choisissez les catégories de service à inclure dans ce projet. Seuls les indicateurs associés à une catégorie sélectionnée sont importés. Les modifications prennent effet lors du (ré)ajout des données.",

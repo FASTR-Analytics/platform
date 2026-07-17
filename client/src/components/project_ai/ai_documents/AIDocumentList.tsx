@@ -8,7 +8,7 @@ export function AIDocumentList(p: {
 }) {
   return (
     <Show when={p.documents.length > 0}>
-      <div class="flex flex-wrap gap-1 px-2 py-2 border-b border-base-300">
+      <div class="flex flex-wrap gap-1 px-2 py-2 border-b border-border">
         <For each={p.documents}>
           {(doc) => (
             <div class="flex items-center gap-1 bg-base-200 rounded px-2 py-1 text-xs">

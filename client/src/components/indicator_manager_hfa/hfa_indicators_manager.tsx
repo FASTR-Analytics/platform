@@ -665,7 +665,7 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" }),
       sortable: true,
       render: (ind) =>
-        ind.shortLabel ? ind.shortLabel : <span class="text-neutral">—</span>,
+        ind.shortLabel ? ind.shortLabel : <span class="text-base-content-muted">—</span>,
     },
     {
       key: "definition",
@@ -692,7 +692,7 @@ export function HfaIndicatorsManager(p: Props) {
         const stats = statsByVarName().get(ind.varName);
         if (!stats) return "…";
         return (
-          <span class={stats.withCode === 0 ? "text-neutral" : ""}>
+          <span class={stats.withCode === 0 ? "text-base-content-muted" : ""}>
             {t3({
               en: `${stats.withCode} of ${stats.total}`,
               fr: `${stats.withCode} sur ${stats.total}`,
@@ -711,7 +711,7 @@ export function HfaIndicatorsManager(p: Props) {
         const stats = statsByVarName().get(ind.varName);
         if (!stats) return "…";
         if (stats.withCode === 0) {
-          return <span class="text-neutral">—</span>;
+          return <span class="text-base-content-muted">—</span>;
         }
         return (
           <span>
@@ -764,7 +764,7 @@ export function HfaIndicatorsManager(p: Props) {
       render: (ind) => {
         const stats = statsByVarName().get(ind.varName);
         if (!stats || stats.withCode === 0) {
-          return <span class="text-neutral">—</span>;
+          return <span class="text-base-content-muted">—</span>;
         }
         return (
           <span>
@@ -908,7 +908,7 @@ export function HfaIndicatorsManager(p: Props) {
                       </Show>
                     </div>
                     <Show when={!hfaDataAvailable()}>
-                      <div class="bg-warning/10 text-warning mb-4 flex-none rounded px-3 py-2 text-sm">
+                      <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
                         {noHfaDataMsg()}
                       </div>
                     </Show>

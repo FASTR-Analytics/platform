@@ -777,7 +777,7 @@ export function SlideEditor(p: Props) {
           <div class="bg-base-200 h-full w-full overflow-auto">
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">
-                <div class="text-base-content/70">
+                <div class="text-base-content-muted">
                   {t3({
                     en: "Rendering slide...",
                     fr: "Rendu de la diapositive...",

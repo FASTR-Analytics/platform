@@ -101,8 +101,8 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
   ): string {
     const danger = isInconsistent(moduleId, getValue);
     return danger
-      ? "text-danger bg-danger/5 ui-pad-sm sticky left-0 pl-6 text-xs"
-      : "text-neutral ui-pad-sm sticky left-0 bg-base-100 pl-6 text-xs";
+      ? "text-danger-subtle-content bg-danger-subtle ui-pad-sm sticky left-0 pl-6 text-xs"
+      : "ui-text-caption ui-pad-sm sticky left-0 bg-base-100 pl-6";
   }
 
   function rowCellClass(
@@ -110,18 +110,18 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     getValue: (mod: CompareProjectsModule) => string | undefined,
     base: string,
   ): string {
-    return isInconsistent(moduleId, getValue) ? `${base} bg-danger/5` : base;
+    return isInconsistent(moduleId, getValue) ? `${base} bg-danger-subtle` : base;
   }
 
   function dirtyBadge(dirty: string) {
     const cls =
       dirty === "ready"
-        ? "bg-success/15 text-success"
+        ? "bg-success-subtle text-success-subtle-content"
         : dirty === "error"
-          ? "bg-danger/15 text-danger"
-          : "bg-warning/15 text-warning";
+          ? "bg-danger-subtle text-danger-subtle-content"
+          : "bg-warning-subtle text-warning-subtle-content";
     return (
-      <span class={`font-500 rounded px-1.5 py-0.5 text-xs ${cls}`}>
+      <span class={`rounded px-1.5 py-0.5 text-xs ${cls}`}>
         {dirty}
       </span>
     );
@@ -129,13 +129,13 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
 
   return (
     <div class="ui-pad">
-      <table class="border-base-300 w-full border-collapse border text-sm">
+      <table class="border-border w-full border-collapse border text-sm">
         <thead>
-          <tr class="border-base-300 border-b">
-            <th class="text-neutral ui-pad-sm font-500 bg-base-100 sticky left-0 text-left"></th>
+          <tr class="border-border border-b">
+            <th class="text-base-content-muted ui-pad-sm bg-base-100 sticky left-0 text-left"></th>
             <For each={projects()}>
               {(project) => (
-                <th class="ui-pad-sm font-600 text-left whitespace-nowrap">
+                <th class="ui-pad-sm text-left whitespace-nowrap">
                   {project.label}
                 </th>
               )}
@@ -151,8 +151,8 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
               );
               return (
                 <>
-                  <tr class="border-base-300 bg-base-200/50 border-b">
-                    <td class="ui-pad-sm font-600 bg-base-200 sticky left-0">
+                  <tr class="border-border bg-base-200 border-b">
+                    <td class="ui-pad-sm font-700 bg-base-200 sticky left-0">
                       {t3(registryMod.label)}
                     </td>
                     <For each={projects()}>
@@ -162,7 +162,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                           <td class="ui-pad-sm">
                             <Show
                               when={mod}
-                              fallback={<span class="text-neutral">—</span>}
+                              fallback={<span class="text-base-content-muted">—</span>}
                             >
                               {dirtyBadge(mod!.dirty)}
                             </Show>
@@ -172,7 +172,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </For>
                   </tr>
                   <Show when={anyInstalled}>
-                    <tr class="border-base-300 border-b">
+                    <tr class="border-border border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -193,14 +193,14 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               )}
                             >
                               {mod?.computeDefGitRef?.slice(0, 7) ?? (
-                                <span class="text-neutral">—</span>
+                                <span class="text-base-content-muted">—</span>
                               )}
                             </td>
                           );
                         }}
                       </For>
                     </tr>
-                    <tr class="border-base-300 border-b">
+                    <tr class="border-border border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -221,15 +221,15 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               )}
                             >
                               {mod?.presentationDefGitRef?.slice(0, 7) ?? (
-                                <span class="text-neutral">—</span>
+                                <span class="text-base-content-muted">—</span>
                               )}
                             </td>
                           );
                         }}
                       </For>
                     </tr>
-                    <tr class="border-base-300 border-b">
-                      <td class="text-neutral ui-pad-sm bg-base-100 sticky left-0 pl-6 text-xs">
+                    <tr class="border-border border-b">
+                      <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
                         {t3({
                           en: "Presentation updated",
                           fr: "Présentation mise à jour",
@@ -246,14 +246,14 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                                   mod.presentationDefUpdatedAt,
                                 ).toLocaleDateString()
                               ) : (
-                                <span class="text-neutral">—</span>
+                                <span class="text-base-content-muted">—</span>
                               )}
                             </td>
                           );
                         }}
                       </For>
                     </tr>
-                    <tr class="border-base-300 border-b">
+                    <tr class="border-border border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -278,15 +278,15 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               )}
                             >
                               {mod?.lastRunGitRef?.slice(0, 7) ?? (
-                                <span class="text-neutral">—</span>
+                                <span class="text-base-content-muted">—</span>
                               )}
                             </td>
                           );
                         }}
                       </For>
                     </tr>
-                    <tr class="border-base-300 border-b">
-                      <td class="text-neutral ui-pad-sm bg-base-100 sticky left-0 pl-6 text-xs">
+                    <tr class="border-border border-b">
+                      <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
                         {t3({ en: "Last run at", fr: "Dernière exécution le", pt: "Última execução em" })}
                       </td>
                       <For each={projects()}>
@@ -297,7 +297,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               {mod?.lastRunAt ? (
                                 new Date(mod.lastRunAt).toLocaleDateString()
                               ) : (
-                                <span class="text-neutral">—</span>
+                                <span class="text-base-content-muted">—</span>
                               )}
                             </td>
                           );
@@ -306,7 +306,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </tr>
                     <For each={params}>
                       {(param) => (
-                        <tr class="border-base-300 border-b">
+                        <tr class="border-border border-b">
                           <td
                             class={rowHeaderClass(
                               registryMod.id,
@@ -344,7 +344,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                                     "ui-pad-sm text-xs",
                                   )}
                                 >
-                                  {value ?? <span class="text-neutral">—</span>}
+                                  {value ?? <span class="text-base-content-muted">—</span>}
                                 </td>
                               );
                             }}

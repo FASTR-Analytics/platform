@@ -44,9 +44,8 @@ singleton, language resolution, and the version flush);
 `lib/translate/t-func.ts` is owned here with **S9** a mandatory reader (calendar
 semantics feed period labels); `components/_shared/**` is owned by **S12**'s
 manifest (its `sort_control.tsx` renders this system's sort prefs). Repo-root
-`build_help_buttons.ts`, `client/src/app.css`, and
-`client/src/FRONTEND_STYLE_GUIDE.md` are outside the lint manifest but reviewed
-here.
+`build_help_buttons.ts` and `client/src/app.css` are outside the lint manifest
+but reviewed here.
 
 ## Contract
 

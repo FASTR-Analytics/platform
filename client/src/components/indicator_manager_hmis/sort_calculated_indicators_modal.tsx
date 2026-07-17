@@ -52,7 +52,7 @@ export function SortCalculatedIndicatorsModal(p: Props) {
         >
           {(item) => (
             <div class="bg-base-200 rounded px-3 py-2">
-              <span class="text-neutral mr-2 font-mono text-xs">{item.id}</span>
+              <span class="ui-text-caption mr-2 font-mono">{item.id}</span>
               {item.label}
             </div>
           )}

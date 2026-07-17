@@ -32,15 +32,15 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
   const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
   const resetTime = () => props.item.errorDetails.match(RESET_RE)?.[1] ?? null;
   return (
-    <div class="border-base-300 bg-base-100 my-1 max-w-sm rounded border p-3">
-      <div class="text-warning text-sm font-medium">
+    <div class="border-border bg-base-100 my-1 max-w-sm rounded border p-3">
+      <div class="text-warning text-sm">
         {isWeekly()
           ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte", pt: "Limite de utilização da IA do país atingido" })
           : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte", pt: "Limite diário de utilização da IA atingido" })}
       </div>
       <Show when={resetTime()}>
         {(time) => (
-          <div class="text-neutral mt-1 text-xs">
+          <div class="ui-text-caption mt-1">
             {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à", pt: "A utilização será reposta às" })} {time()}
           </div>
         )}
@@ -58,14 +58,14 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+          class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
         >
           <div class="mt-0.5">
             {expanded()
               ? <Icon iconName="chevronDown" class="h-3 w-3" />
               : <Icon iconName="chevronRight" class="h-3 w-3" />}
           </div>
-          <span class="font-medium">{props.item.errorMessage}</span>
+          <span>{props.item.errorMessage}</span>
         </button>
         <Show when={expanded()}>
           <div class="ml-4 mt-1 text-xs">{props.item.errorDetails}</div>
@@ -87,14 +87,14 @@ function SystemNoticeRenderer(props: { item: { message: string; details: string 
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+        class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
           {expanded()
             ? <Icon iconName="chevronDown" class="h-3 w-3" />
             : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
-        <span class="font-medium">{props.item.message}</span>
+        <span>{props.item.message}</span>
       </button>
       <Show when={expanded()}>
         <div class="ml-4 mt-1 text-xs">{props.item.details}</div>
@@ -418,7 +418,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
               class={usagePct()! >= 80 ? "" : "text-primary"}
             />
           </svg>
-          <span class="text-neutral text-xs">{usagePct()}% of daily AI limit used</span>
+          <span class="ui-text-caption">{usagePct()}% of daily AI limit used</span>
         </div>
       </Show>
     </div>

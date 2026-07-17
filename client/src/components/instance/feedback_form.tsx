@@ -167,7 +167,7 @@ export function FeedbackForm(
           height="140px"
         />
         <div>
-          <div class="text-base-content pb-1 text-sm font-medium">
+          <div class="text-base-content pb-1 text-sm">
             {t3({ en: "Images (optional)", fr: "Images (optionnel)", pt: "Imagens (opcional)" })}
           </div>
           <input
@@ -195,7 +195,7 @@ export function FeedbackForm(
                   </span>
                   <button
                     type="button"
-                    class="text-danger cursor-pointer opacity-60 hover:opacity-100"
+                    class="text-base-content-muted cursor-pointer hover:text-danger"
                     onClick={() =>
                       setImages((prev) => prev.filter((_, j) => j !== i()))
                     }

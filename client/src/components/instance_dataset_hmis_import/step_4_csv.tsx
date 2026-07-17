@@ -226,7 +226,7 @@ export function Step4_Csv(p: Props) {
       <div class="ui-gap-sm flex">
         <Switch>
           <Match when={p.step3Result.finalStagingRowCount > 0}>
-            <div class="ui-spy border-primary bg-primary/10 rounded border p-4">
+            <div class="ui-spy border-primary bg-primary-subtle rounded border p-4">
               <div class="text-primary text-sm">
                 {t3({ en: "Review the staging results above. Click 'Integrate and finalize' to complete the import process and make this data available in the dataset.", fr: "Vérifiez les résultats de la préparation ci-dessus. Cliquez sur « Intégrer et finaliser » pour terminer le processus d'importation et rendre ces données disponibles dans le jeu de données.", pt: "Reveja os resultados de preparação acima. Clique em 'Integrar e finalizar' para concluir o processo de importação e disponibilizar estes dados no conjunto de dados." })}
               </div>
@@ -243,7 +243,7 @@ export function Step4_Csv(p: Props) {
             </div>
           </Match>
           <Match when={true}>
-            <div class="border-danger bg-danger/10 rounded border p-4">
+            <div class="border-danger bg-danger-subtle rounded border p-4">
               <div class="text-danger text-sm">
                 {t3({ en: "There are no rows to import. Either go back and edit this upload config, or delete the upload attempt.", fr: "Il n'y a aucune ligne à importer. Retournez modifier la configuration ou supprimez la tentative d'importation.", pt: "Não há linhas para importar. Volte atrás e edite esta configuração de carregamento, ou elimine a tentativa de carregamento." })}
               </div>
