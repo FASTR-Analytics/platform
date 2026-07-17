@@ -119,7 +119,7 @@ export function HfaIndicatorCodeEditor(
             <span class="font-400 ml-4">{p.indicator.definition}</span>
           </div>
           <Show when={!p.showAi()}>
-            <Button iconName="chevronLeft" outline onClick={p.openAi}>
+            <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>
@@ -464,7 +464,7 @@ function EditorInner(p: {
                   class={`ui-pad-sm border-border w-full cursor-pointer border-b text-left text-sm ${
                     selectedTimePoint() === tp.timePoint
                       ? "bg-primary-subtle font-700"
-                      : "cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active"
+                      : "ui-hoverable-base-100"
                   }`}
                   onClick={() => setSelectedTimePoint(tp.timePoint)}
                 >
@@ -717,7 +717,7 @@ function EditorInner(p: {
                             <div class="border-border border-b py-1 last:border-b-0">
                               <div class="flex items-baseline gap-2 text-xs">
                                 <span
-                                  class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active font-700 font-mono"
+                                  class="ui-hoverable-base-200 font-700 font-mono"
                                   onClick={() => {
                                     setState(
                                       "code",

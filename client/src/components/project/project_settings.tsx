@@ -893,7 +893,7 @@ function ProjectBackups(props: { projectId: string }) {
                         <div class="flex flex-col">
                           <button
                             onClick={() => toggleGroup(groupKey)}
-                            class="flex cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active items-center justify-between rounded border border-border bg-base-100 p-3 text-left"
+                            class="flex ui-hoverable-base-100 items-center justify-between rounded border border-border p-3 text-left"
                           >
                             <div class="flex items-center gap-2">
                               <Show

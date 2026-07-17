@@ -93,7 +93,8 @@ export function Step3Configure(p: Props) {
               <For each={availableDisaggregations()}>
                 {(disOpt) => {
                   const isRequired = disOpt.isRequired;
-                  const isChecked = isRequired || p.selectedDisaggregations.includes(disOpt.value);
+                  const isChecked = () =>
+                    isRequired || p.selectedDisaggregations.includes(disOpt.value);
 
                   return (
                     <Checkbox
@@ -107,7 +108,7 @@ export function Step3Configure(p: Props) {
                           </Show>
                         </>
                       }
-                      checked={isChecked}
+                      checked={isChecked()}
                       disabled={isRequired}
                       onChange={(checked) => {
                         if (!isRequired) {

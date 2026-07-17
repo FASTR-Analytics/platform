@@ -6,7 +6,7 @@ import {
   createDeleteAction,
   type BulkAction,
 } from "panther";
-import { Show } from "solid-js";
+import { Show, createMemo } from "solid-js";
 import {
   t3,
   TC,
@@ -174,52 +174,58 @@ export function CalculatedIndicatorsTable(p: Props) {
     },
   ];
 
-  if (instanceState.currentUserIsGlobalAdmin) {
-    columns.push({
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (si) => (
-        <div class="ui-gap-sm flex justify-end">
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleEdit(si);
-            }}
-            iconName="pencil"
-            intent="base-100"
-          />
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleDuplicate(si);
-            }}
-            iconName="copy"
-            intent="base-100"
-          />
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleDelete(si);
-            }}
-            iconName="trash"
-            intent="base-100"
-          />
-        </div>
-      ),
-    });
-  }
+  const allColumns = createMemo<TableColumn<CalculatedIndicator>[]>(() => {
+    if (!instanceState.currentUserIsGlobalAdmin) return columns;
+    return [
+      ...columns,
+      {
+        key: "actions",
+        header: "",
+        alignH: "right",
+        render: (si) => (
+          <div class="ui-gap-sm flex justify-end">
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleEdit(si);
+              }}
+              iconName="pencil"
+              intent="base-100"
+            />
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleDuplicate(si);
+              }}
+              iconName="copy"
+              intent="base-100"
+            />
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleDelete(si);
+              }}
+              iconName="trash"
+              intent="base-100"
+            />
+          </div>
+        ),
+      },
+    ];
+  });
 
-  const bulkActions: BulkAction<CalculatedIndicator>[] = instanceState.currentUserIsGlobalAdmin
-    ? [
-        {
-          label: t3(TC.delete),
-          intent: "danger",
-          outline: true,
-          onClick: handleBulkDelete,
-        },
-      ]
-    : [];
+  const bulkActions = createMemo<BulkAction<CalculatedIndicator>[]>(() =>
+    instanceState.currentUserIsGlobalAdmin
+      ? [
+          {
+            label: t3(TC.delete),
+            intent: "danger",
+            outline: true,
+            onClick: handleBulkDelete,
+          },
+        ]
+      : [],
+  );
 
   return (
     <div class="flex h-full flex-col">
@@ -243,14 +249,14 @@ export function CalculatedIndicatorsTable(p: Props) {
       <div class="h-0 w-full flex-1">
         <Table
           data={p.calculatedIndicators}
-          columns={columns}
+          columns={allColumns()}
           keyField="calculated_indicator_id"
           noRowsMessage={t3({
             en: "No calculated indicators",
             fr: "Aucun indicateur calculé",
             pt: "Nenhum indicador calculado",
           })}
-          bulkActions={bulkActions}
+          bulkActions={bulkActions()}
           selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />

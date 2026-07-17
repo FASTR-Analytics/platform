@@ -136,14 +136,18 @@ export function SlideEditor(p: Props) {
   >();
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
 
-  // Render slide preview
+  // Render slide preview (run-id guard: an older in-flight render must not
+  // overwrite a newer one that resolved first)
+  let renderRunId = 0;
   async function attemptGetPageInputs(slide: Slide) {
+    const runId = ++renderRunId;
     const res = await convertSlideToPageInputs(
       p.projectId,
       slide,
       undefined,
       p.deckConfigSnapshot,
     );
+    if (runId !== renderRunId) return;
     setPageInputs(getQueryStateFromApiResponse(res));
   }
 

@@ -29,18 +29,23 @@ export function SlideCard(p: Props) {
   });
 
   // Fetch slide from cache, reactive to state updates
+  let fetchRunId = 0;
   createEffect(async () => {
     projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
     const config = p.deckConfig; // Track synchronously before first await
+    const index = p.index;
+    const runId = ++fetchRunId;
 
     const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    if (runId !== fetchRunId) return;
 
     if (!res.success) {
       setPageInputs({ status: "error", err: res.err });
       return;
     }
 
-    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, p.index, config);
+    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, index, config);
+    if (runId !== fetchRunId) return;
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 

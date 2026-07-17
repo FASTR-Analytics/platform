@@ -135,7 +135,7 @@ export function InstanceDatasetIceh(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-pad border-border bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active rounded border"
+                          class="ui-pad border-border ui-hoverable-base-200 rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>

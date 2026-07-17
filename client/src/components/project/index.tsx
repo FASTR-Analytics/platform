@@ -229,6 +229,7 @@ function ProjectInner() {
                     }
                     intent="base-100"
                     outline
+                    onBackground="base-content"
                   >
                     {t3({
                       en: "Send feedback",
@@ -242,6 +243,7 @@ function ProjectInner() {
                       iconName="chevronLeft"
                       intent="base-100"
                       outline
+                      onBackground="base-content"
                     >
                       {t3({ en: "AI", fr: "IA", pt: "IA" })}
                     </Button>

@@ -114,45 +114,63 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
+  let indicatorsRunId = 0;
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
+    const runId = ++indicatorsRunId;
     const res = await getHfaIndicatorsFromCacheOrFetch(version);
+    if (runId !== indicatorsRunId) return;
     setIndicators(getQueryStateFromApiResponse(res));
   });
 
+  let dictionaryRunId = 0;
   createEffect(async () => {
     const hfaCacheHash = instanceState.hfaCacheHash;
     if (!hfaCacheHash) return;
+    const runId = ++dictionaryRunId;
     const res = await getHfaDictionaryFromCacheOrFetch(hfaCacheHash);
+    if (runId !== dictionaryRunId) return;
     setDictionary(getQueryStateFromApiResponse(res));
   });
 
+  let categoriesRunId = 0;
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
+    const runId = ++categoriesRunId;
     const res = await serverActions.getHfaIndicatorCategories({});
+    if (runId !== categoriesRunId) return;
     setCategories(getQueryStateFromApiResponse(res));
   });
 
+  let subCategoriesRunId = 0;
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
+    const runId = ++subCategoriesRunId;
     const res = await serverActions.getHfaIndicatorSubCategories({});
+    if (runId !== subCategoriesRunId) return;
     setSubCategories(getQueryStateFromApiResponse(res));
   });
 
+  let serviceCategoriesRunId = 0;
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
+    const runId = ++serviceCategoriesRunId;
     const res = await serverActions.getHfaIndicatorServiceCategories({});
+    if (runId !== serviceCategoriesRunId) return;
     setServiceCategories(getQueryStateFromApiResponse(res));
   });
 
+  let allCodeRunId = 0;
   createEffect(async () => {
     const version = instanceState.hfaIndicatorsVersion;
     if (!version) return;
+    const runId = ++allCodeRunId;
     const res = await serverActions.getAllHfaIndicatorCode({});
+    if (runId !== allCodeRunId) return;
     setAllCode(getQueryStateFromApiResponse(res));
   });
 
@@ -777,36 +795,40 @@ export function HfaIndicatorsManager(p: Props) {
     },
   ];
 
-  if (instanceState.currentUserIsGlobalAdmin) {
-    columns.push({
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (ind) => (
-        <div class="ui-gap-sm flex justify-end">
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              const st = indicators();
-              handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []);
-            }}
-            iconName="pencil"
-            intent="base-100"
-          />
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleDelete(ind);
-            }}
-            iconName="trash"
-            intent="base-100"
-          />
-        </div>
-      ),
-    });
-  }
+  const allColumns = createMemo<TableColumn<HfaIndicator>[]>(() => {
+    if (!instanceState.currentUserIsGlobalAdmin) return columns;
+    return [
+      ...columns,
+      {
+        key: "actions",
+        header: "",
+        alignH: "right",
+        render: (ind) => (
+          <div class="ui-gap-sm flex justify-end">
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                const st = indicators();
+                handleOpenCodeEditor(ind, st.status === "ready" ? st.data : []);
+              }}
+              iconName="pencil"
+              intent="base-100"
+            />
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleDelete(ind);
+              }}
+              iconName="trash"
+              intent="base-100"
+            />
+          </div>
+        ),
+      },
+    ];
+  });
 
-  const bulkActions: BulkAction<HfaIndicator>[] =
+  const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {
@@ -816,7 +838,8 @@ export function HfaIndicatorsManager(p: Props) {
             onClick: handleBulkDelete,
           },
         ]
-      : [];
+      : [],
+  );
 
   return (
     <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
@@ -829,7 +852,7 @@ export function HfaIndicatorsManager(p: Props) {
               {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
             </div>
             <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
-              <Button iconName="chevronLeft" outline onClick={openAi}>
+              <Button iconName="chevronLeft" outline onBackground="base-200" onClick={openAi}>
                 {t3({ en: "AI", fr: "IA", pt: "IA" })}
               </Button>
             </Show>
@@ -915,14 +938,14 @@ export function HfaIndicatorsManager(p: Props) {
                     <div class="h-0 w-full flex-1">
                       <Table
                         data={keyedIndicators}
-                        columns={columns}
+                        columns={allColumns()}
                         keyField="varName"
                         noRowsMessage={t3({
                           en: "No HFA indicators configured",
                           fr: "Aucun indicateur HFA configuré",
                           pt: "Nenhum indicador HFA configurado",
                         })}
-                        bulkActions={bulkActions}
+                        bulkActions={bulkActions()}
                         selectionLabel={t3({
                           en: "indicator",
                           fr: "indicateur",

@@ -436,7 +436,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                       {(prompt) => (
                         <button
                           type="button"
-                          class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active block w-full px-3 py-2 text-left"
+                          class="ui-hoverable-base-100 block w-full px-3 py-2 text-left"
                           onClick={() => p.onSelectPrompt(prompt, cat.title)}
                         >
                           <div class="font-700">{prompt.title}</div>

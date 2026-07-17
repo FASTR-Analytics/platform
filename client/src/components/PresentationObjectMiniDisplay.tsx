@@ -1,7 +1,11 @@
 import { ReplicantValueOverride, t3 } from "lib";
 import { FigureInputs, ChartHolder, LoadingIndicator, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
-import { projectState } from "~/state/project/t1_store";
+import {
+  datasetsVersionKey,
+  moduleDataVersionKey,
+  projectState,
+} from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
 
@@ -45,6 +49,14 @@ export function PresentationObjectMiniDisplay(p: Props) {
 
   createEffect(() => {
     void projectState.lastUpdated.presentation_objects[p.presentationObjectId];
+    // Tracked version-key read so mounted thumbnails refetch when module
+    // output or dataset integration changes (the caches this renders through
+    // version on it, and cache-internal reads are untracked).
+    if (p.moduleId) {
+      moduleDataVersionKey(projectState, p.moduleId);
+    } else {
+      datasetsVersionKey(projectState);
+    }
     attemptGetFigureInputs();
   });
 

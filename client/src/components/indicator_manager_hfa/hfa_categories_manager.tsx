@@ -82,7 +82,7 @@ function CategoriesPane(p: {
   selectedCategoryId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const isAdmin = instanceState.currentUserIsGlobalAdmin;
+  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   const [items, setItems] = createStore<HfaIndicatorCategory[]>([
     ...p.categories,
   ]);
@@ -146,7 +146,7 @@ function CategoriesPane(p: {
         <div class="font-700 flex-1 text-xl">
           {t3({ en: "Categories", fr: "Catégories", pt: "Categorias" })} ({items.length})
         </div>
-        <Show when={isAdmin}>
+        <Show when={isAdmin()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -162,7 +162,7 @@ function CategoriesPane(p: {
           }
         >
           <Show
-            when={isAdmin}
+            when={isAdmin()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((cat) => (
@@ -205,7 +205,7 @@ function CategoryRow(p: {
       class="flex cursor-pointer items-center gap-2 rounded px-3 py-2"
       classList={{
         "bg-primary-subtle font-700": p.selected,
-        "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !p.selected,
+        "ui-hoverable-base-200": !p.selected,
       }}
       onClick={p.onSelect}
     >
@@ -244,7 +244,7 @@ function SubCategoriesPane(p: {
   subCategories: HfaIndicatorSubCategory[];
   allSubCategoryIds: string[];
 }) {
-  const isAdmin = instanceState.currentUserIsGlobalAdmin;
+  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   const [items, setItems] = createStore<HfaIndicatorSubCategory[]>([]);
 
   createEffect(() => {
@@ -314,7 +314,7 @@ function SubCategoriesPane(p: {
         <div class="font-700 min-w-0 flex-1 truncate text-xl">
           {t3({ en: "Sub-categories", fr: "Sous-catégories", pt: "Subcategorias" })} ({items.length})
         </div>
-        <Show when={isAdmin}>
+        <Show when={isAdmin()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -334,7 +334,7 @@ function SubCategoriesPane(p: {
           }
         >
           <Show
-            when={isAdmin}
+            when={isAdmin()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((sc) => (

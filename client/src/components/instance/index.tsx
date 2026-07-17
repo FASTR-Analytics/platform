@@ -274,7 +274,7 @@ export default function Instance(p: Props) {
                     />
                   </Show>
                   <div
-                    class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active ui-gap-sm ui-pad-sm flex items-center rounded"
+                    class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
                     onClick={openProfile}
                   >
                     <span class="text-primary inline-block w-5">

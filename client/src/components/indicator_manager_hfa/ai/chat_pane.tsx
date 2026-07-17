@@ -89,11 +89,12 @@ export function HfaIndicatorChatPane(p: Props) {
         </h3>
         <div class="ui-gap-sm flex items-center">
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
-            <Button outline intent="base-100" iconName="moreVertical" ariaLabel="Menu" />
+            <Button outline onBackground="primary" intent="base-100" iconName="moreVertical" ariaLabel="Menu" />
           </MenuTriggerWrapper>
           <Button
             onClick={p.onClose}
             outline
+            onBackground="primary"
             intent="base-100"
             iconName="chevronRight"
             ariaLabel="Hide AI panel"

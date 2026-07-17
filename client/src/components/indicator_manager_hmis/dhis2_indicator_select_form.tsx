@@ -186,7 +186,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           })}
           back={() => p.close(undefined)}
         >
-          <Button onClick={changeConnection} outline iconName="settings">
+          <Button onClick={changeConnection} outline onBackground="base-200" iconName="settings">
             {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
           </Button>
           <Button

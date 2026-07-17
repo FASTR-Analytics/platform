@@ -249,7 +249,7 @@ function NavRow(p: {
 }) {
   return (
     <div
-      class="cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active rounded px-2 py-1 text-sm"
+      class="ui-hoverable-base-100 rounded px-2 py-1 text-sm"
       classList={{
         "bg-primary text-primary-content": p.active,
         "pl-5": p.indent,

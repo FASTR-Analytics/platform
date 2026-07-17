@@ -11,7 +11,7 @@ import {
   createDeleteAction,
   createQuery,
 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
@@ -388,12 +388,12 @@ function UserTable(p: {
     downloadCsv(csv.stringify(), filename);
   }
 
-  const canConfigureUsers =
+  const canConfigureUsers = () =>
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_users;
 
-  const bulkActions: BulkAction<UserTableData>[] = [
-    ...(canConfigureUsers ? [
+  const bulkActions = createMemo<BulkAction<UserTableData>[]>(() => [
+    ...(canConfigureUsers() ? [
       {
         label: t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur", pt: "Tornar administrador" }),
         intent: "primary" as const,
@@ -435,7 +435,7 @@ function UserTable(p: {
       outline: true,
       onClick: handleBulkDownloadCSV,
     },
-    ...(canConfigureUsers ? [
+    ...(canConfigureUsers() ? [
       {
         label: t3({ en: "Remove", fr: "Supprimer", pt: "Remover" }),
         intent: "danger" as const,
@@ -443,7 +443,7 @@ function UserTable(p: {
         onClick: handleBulkRemoveUsers,
       },
     ] : []),
-  ];
+  ]);
 
   return (
     <Table
@@ -452,7 +452,7 @@ function UserTable(p: {
       defaultSort={{ key: "lastActiveTs", direction: "desc" }}
       keyField="email"
       noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Sem utilizadores" })}
-      bulkActions={bulkActions}
+      bulkActions={bulkActions()}
       selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
       fitTableToAvailableHeight
     />

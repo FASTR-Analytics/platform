@@ -145,7 +145,7 @@ function DataValuesFilter(p: DataValuesFilterProps) {
                         class="cursor-pointer rounded px-2 py-1"
                         classList={{
                           "bg-success text-base-100": keyedValuesFilter.includes(opt),
-                          "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !keyedValuesFilter.includes(opt),
+                          "ui-hoverable-base-200": !keyedValuesFilter.includes(opt),
                         }}
                         onClick={() => toggleVal(opt)}
                       >
@@ -484,7 +484,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                               "bg-success text-base-100": keyedFilter.values.some(
                                 v => String(v).toLowerCase() === String(opt.id).toLowerCase()
                               ),
-                              "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !keyedFilter.values.some(
+                              "ui-hoverable-base-200": !keyedFilter.values.some(
                                 v => String(v).toLowerCase() === String(opt.id).toLowerCase()
                               ),
                             }}

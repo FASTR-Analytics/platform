@@ -233,6 +233,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
               <Button
                 onClick={openManageConnection}
                 outline
+                onBackground="base-200"
                 iconName="settings"
                 disabled={!schedulingReady()}
               >

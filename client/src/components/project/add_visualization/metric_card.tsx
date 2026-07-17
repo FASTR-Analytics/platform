@@ -42,8 +42,8 @@ export function MetricCard(p: Props) {
       class="ui-pad border-border rounded border transition-colors"
       classList={{
         "bg-primary-subtle border-primary": isGroupSelected(),
-        "bg-base-100": !isGroupSelected(),
-        "cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active": canSelectGroup() && !isGroupSelected(),
+        "bg-base-100": !isGroupSelected() && !canSelectGroup(),
+        "ui-hoverable-base-100": canSelectGroup() && !isGroupSelected(),
         "cursor-pointer": canSelectGroup(),
         "opacity-40": !hasVariants() && firstMetric().status !== "ready",
       }}
@@ -116,7 +116,7 @@ function VariantRow(p: VariantRowProps) {
       class="rounded px-2 py-1 text-sm transition-colors cursor-pointer"
       classList={{
         "bg-primary-subtle font-700": p.isSelected,
-        "bg-base-200 cursor-pointer select-none hover:bg-base-200-hover active:bg-base-200-active": !p.isSelected,
+        "ui-hoverable-base-200": !p.isSelected,
       }}
       onClick={(e) => {
         e.stopPropagation();

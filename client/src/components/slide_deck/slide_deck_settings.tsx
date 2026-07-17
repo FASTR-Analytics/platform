@@ -78,15 +78,22 @@ export function SlideDeckSettings(p: Props) {
 
   const save = createButtonAction(
     async () => {
-      const newConfig = unwrap(tempConfig);
-      if (newConfig.colorTheme.type === "custom") {
-        const v = validateBrandColor(newConfig.colorTheme.primary);
+      const raw = unwrap(tempConfig);
+      if (raw.colorTheme.type === "custom") {
+        const v = validateBrandColor(raw.colorTheme.primary);
         if (!v.valid) {
           return { success: false, err: v.reason };
         }
       }
-      newConfig.logos.availableCustom =
-        newConfig.logos.availableCustom.filter(Boolean);
+      // Drop empty custom-logo rows before saving — on a fresh copy, never by
+      // mutating the unwrapped store data.
+      const newConfig: typeof raw = {
+        ...raw,
+        logos: {
+          ...raw.logos,
+          availableCustom: raw.logos.availableCustom.filter(Boolean),
+        },
+      };
       const res = await p.saveConfig(newConfig);
       if (res.success === false) {
         return res;

@@ -374,6 +374,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
             <Button
               outline
+              onBackground="primary"
               intent="base-100"
               iconName="moreVertical"
               ariaLabel="Menu"
@@ -382,6 +383,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <Button
             onClick={() => setShowAi(false)}
             outline
+            onBackground="primary"
             intent="base-100"
             iconName="chevronRight"
             ariaLabel="Hide AI panel"

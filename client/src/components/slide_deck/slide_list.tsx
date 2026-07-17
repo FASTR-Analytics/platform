@@ -328,12 +328,17 @@ export function SlideList(p: Props) {
 
     if (movedIds.length === 0 || !targetPosition) return;
 
-    await serverActions.moveSlides({
+    const res = await serverActions.moveSlides({
       projectId: p.projectState.id,
       deck_id: p.deckId,
       slideIds: movedIds,
       position: targetPosition,
     });
+    if (!res.success) {
+      // The drag was applied optimistically in setItems; the server rejected
+      // the move and notifies nothing on failure, so roll the order back.
+      setSortableSlideItems(oldSlideIds.map((id) => ({ id })));
+    }
   }
 
   function getInsertPosition(): { after: string } | { toEnd: true } {

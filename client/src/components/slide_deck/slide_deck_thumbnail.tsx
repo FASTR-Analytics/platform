@@ -21,14 +21,17 @@ export function SlideDeckThumbnail(p: Props) {
     msg: t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." }),
   });
 
+  let fetchRunId = 0;
   createEffect(async () => {
     projectState.lastUpdated.slide_decks[p.deckId];
     projectState.lastUpdated.slides[p.slideId];
     const deck = projectState.slideDecks.find((d) => d.id === p.deckId);
     const config = deck?.config ?? _defaultConfig;
     trackDeep(config);
+    const runId = ++fetchRunId;
 
     const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    if (runId !== fetchRunId) return;
 
     if (!res.success) {
       setPageInputs({ status: "error", err: res.err });
@@ -36,6 +39,7 @@ export function SlideDeckThumbnail(p: Props) {
     }
 
     const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, undefined, config);
+    if (runId !== fetchRunId) return;
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 

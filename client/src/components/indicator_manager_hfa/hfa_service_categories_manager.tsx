@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function HfaServiceCategoriesManager(p: Props) {
-  const isAdmin = instanceState.currentUserIsGlobalAdmin;
+  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   const [items, setItems] = createStore<HfaIndicatorServiceCategory[]>([
     ...p.serviceCategories,
   ]);
@@ -84,7 +84,7 @@ export function HfaServiceCategoriesManager(p: Props) {
           {t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })} (
           {items.length})
         </div>
-        <Show when={isAdmin}>
+        <Show when={isAdmin()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
             {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
           </Button>
@@ -104,7 +104,7 @@ export function HfaServiceCategoriesManager(p: Props) {
           }
         >
           <Show
-            when={isAdmin}
+            when={isAdmin()}
             fallback={
               <div class="ui-spy-sm">
                 {items.map((sc) => (

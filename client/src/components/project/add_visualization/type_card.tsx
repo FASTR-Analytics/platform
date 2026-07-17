@@ -22,7 +22,7 @@ export function TypeCard(p: Props) {
       class="ui-pad border-border flex w-full items-center justify-center rounded border transition-colors"
       classList={{
         "bg-primary-subtle border-primary font-700": p.isSelected,
-        "bg-base-100 cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active": !p.isSelected && !p.isDisabled,
+        "ui-hoverable-base-100": !p.isSelected && !p.isDisabled,
         "bg-base-200 opacity-40 cursor-not-allowed": p.isDisabled,
       }}
       disabled={p.isDisabled}

@@ -922,6 +922,7 @@ export function ProjectReport(p: Props) {
           <Button
             size="sm"
             outline
+            onBackground="base-200"
             onClick={() => setShowConflictBanner(false)}
           >
             {t3({ en: "Dismiss", fr: "Ignorer", pt: "Dispensar" })}

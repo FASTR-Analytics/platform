@@ -18,7 +18,7 @@ import {
   cleanupUppy,
 } from "~/components/_uppy_file_upload";
 import type Uppy from "@uppy/core";
-import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -60,12 +60,6 @@ export function InstanceAssets() {
       triggerId: "#select-file-button",
       maxNumberOfFiles: 0,
     });
-
-    uppy.on("complete", () => {
-      serverActions.getAssets({}).then((res) => {
-        if (res.success) updateInstanceAssets(res.data);
-      });
-    });
   });
 
   onCleanup(() => {
@@ -85,8 +79,6 @@ export function InstanceAssets() {
       () => serverActions.deleteAssets({ assetFileNames: [assetFileName] }),
     );
     await deleteAction.click();
-    const res = await serverActions.getAssets({});
-    if (res.success) updateInstanceAssets(res.data);
   }
 
   return (
@@ -285,8 +277,6 @@ function AssetTable(p: {
       () => serverActions.deleteAssets({ assetFileNames }),
     );
     await deleteAction.click();
-    const res = await serverActions.getAssets({});
-    if (res.success) updateInstanceAssets(res.data);
   }
 
   const bulkActions = createMemo((): BulkAction<AssetInfo>[] => {

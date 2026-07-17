@@ -24,12 +24,15 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   });
 
+  let fetchRunId = 0;
   async function attemptGetDatatable(cacheHash: string) {
+    const runId = ++fetchRunId;
     setItemsHolder({
       status: "loading",
       msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
     });
     const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(cacheHash);
+    if (runId !== fetchRunId) return;
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });
       return;

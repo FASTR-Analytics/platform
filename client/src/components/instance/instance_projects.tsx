@@ -128,7 +128,7 @@ export function InstanceProjects(p: Props) {
                 outlineAndBase100
               />
               <Show when={instanceState.currentUserIsGlobalAdmin}>
-                <Button onClick={compareProjects} outline intent="base-100">
+                <Button onClick={compareProjects} outline onBackground="base-content" intent="base-100">
                   {t3({
                     en: "Compare projects",
                     fr: "Comparer les projets",
@@ -145,6 +145,7 @@ export function InstanceProjects(p: Props) {
                 <Button
                   onClick={openPendingDeletions}
                   outline
+                  onBackground="base-content"
                   intent="base-100"
                 >
                   {t3({
@@ -184,9 +185,10 @@ export function InstanceProjects(p: Props) {
               </div>
             }
           >
-            {(project) => {
-              if (project.status !== "ready") {
-                return (
+            {(project) => (
+              <Show
+                when={project.status === "ready"}
+                fallback={
                   <div class="ui-pad border-border min-h-[150px] rounded border opacity-50">
                     <div class="ui-spy-sm col-span-1">
                       <div class="font-700">{project.label}</div>
@@ -199,12 +201,11 @@ export function InstanceProjects(p: Props) {
                       </div>
                     </div>
                   </div>
-                );
-              }
-              return (
+                }
+              >
                 <a
                   href={`/?p=${project.id}`}
-                  class="ui-pad cursor-pointer select-none hover:bg-base-100-hover active:bg-base-100-active border-border flex min-h-[150px] flex-col justify-between rounded border"
+                  class="ui-pad ui-hoverable-base-100 border-border flex min-h-[150px] flex-col justify-between rounded border"
                 >
                   <div class="ui-spy-sm">
                     <div class="font-700">{project.label}</div>
@@ -229,8 +230,8 @@ export function InstanceProjects(p: Props) {
                     )}
                   </Show>
                 </a>
-              );
-            }}
+              </Show>
+            )}
           </For>
         </div>
       </FrameTop>

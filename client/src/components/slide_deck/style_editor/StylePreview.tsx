@@ -111,7 +111,10 @@ export function StylePreview(p: StylePreviewProps) {
   const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
   const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
 
-  const availableCustom = () => p.config.logos.availableCustom;
+  // Spread so every element read is tracked: per-index writes
+  // (setTempConfig("logos", "availableCustom", i, v)) keep the array
+  // reference, so tracking only the reference would miss them.
+  const availableCustom = () => [...p.config.logos.availableCustom];
 
   createEffect(() => {
     const config = p.config;
