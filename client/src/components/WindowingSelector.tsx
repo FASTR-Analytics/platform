@@ -31,6 +31,7 @@ import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
 import { PeriodSelector } from "./PeriodSelector";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
@@ -280,7 +281,13 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               </div>
               <Show when={figureInputs()} keyed>
                 {(figInputs) => {
-                  return <ChartHolder chartInputs={figInputs} height={300} sizing="zoom" />;
+                  return (
+                    <ChartHolder
+                      chartInputs={adaptFigureStyleForDarkMode(figInputs)}
+                      height={300}
+                      sizing="zoom"
+                    />
+                  );
                 }}
               </Show>
               <PeriodSelector

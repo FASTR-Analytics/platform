@@ -30,6 +30,7 @@ import {
 import { createStore } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   versionId: number;
@@ -249,7 +250,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             {(keyedInputs) => {
               return (
                 <ChartHolder
-                  chartInputs={keyedInputs}
+                  chartInputs={adaptFigureStyleForDarkMode(keyedInputs)}
                   height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );

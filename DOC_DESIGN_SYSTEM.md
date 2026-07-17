@@ -111,9 +111,15 @@ beats Tailwind's layered `@theme` defaults.
 
 The dark values are panther's `KEY_COLOR_THEMES["neutral-dark"]` bases with
 `primary` swapped to `#14b8a6` (the GFF teal lightened to keep ≥4.5:1 contrast
-on dark backgrounds; `primary-content` `#052e2b`). Canvas-rendered figures are
-unaffected: `setKeyColors` in `client/src/index.tsx` is static, so charts,
-slides, and exports keep their light document styling.
+on dark backgrounds; `primary-content` `#052e2b`). Panther's key colors stay
+static (`setKeyColors` in `client/src/index.tsx` is one-shot), so slides and
+exports keep their light document styling. On-screen standalone figures ARE
+dark-adapted, via `adaptFigureStyleForDarkMode`
+(`components/_shared/dark_mode_figures.ts`): a display-time overlay merged
+into `FigureInputs.style` (light base text, dimmed grid/table lines) at every
+`ChartHolder` call site — and only there, so exports and stored FigureInputs
+snapshots are untouched. Any new on-screen `ChartHolder` must wrap its inputs
+in it. Data-series palette colors are not adjusted.
 
 When adding a new `--color-*` token to the `@theme` block, add its dark
 counterpart to the `:root[data-theme="dark"]` block too.

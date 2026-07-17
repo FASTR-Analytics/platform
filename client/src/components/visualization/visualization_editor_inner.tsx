@@ -98,6 +98,7 @@ import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
@@ -1421,7 +1422,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   {(keyedFigureInputs) => {
                                     return (
                                       <ChartHolder
-                                        chartInputs={keyedFigureInputs}
+                                        chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                                         height={editorHeight()}
                                         canvasElementId="VIZ_PREVIEW_CANVAS"
                                       />

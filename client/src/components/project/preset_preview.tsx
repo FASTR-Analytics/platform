@@ -26,6 +26,7 @@ import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE, resolveDefaultReplicant } from "~/state/project/t2_presentation_objects";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
 import { poItemsQueue } from "~/state/_infra/request_queue";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   projectId: string;
@@ -99,7 +100,7 @@ export function PresetPreview(p: Props) {
             >
               {(figureInputs) => (
                 <ChartHolder
-                  chartInputs={figureInputs}
+                  chartInputs={adaptFigureStyleForDarkMode(figureInputs)}
                   height="ideal"
                   sizing="zoom"
                   />
