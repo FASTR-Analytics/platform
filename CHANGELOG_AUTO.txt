@@ -1,3 +1,19 @@
+[TBD] [user] [fixed] - Dashboard and chart thumbnails now refresh automatically after data updates
+[TBD] [user] [fixed] - Admin-only actions now appear and disappear correctly when permissions change
+[TBD] [user] [changed] - Improved visual consistency of borders, text colors, and status badges throughout the platform
+[TBD] [user] [changed] - Permission category headings now appear bolder for easier reading
+[TBD] [user] [changed] - Scheduled DHIS2 import alerts no longer appear as clickable when they shouldn't be
+[TBD] [user] [fixed] - Category manager admin buttons now react properly to permission changes without page reload
+[TBD] [user] [changed] - Selected categories and time points are now highlighted with a clearer background color
+[TBD] [user] [changed] - Hoverable cards on data and project pages have more consistent hover effects
+[TBD] [user] [changed] - Remove button for feedback images now shows a subtle style instead of red by default
+[TBD] [admin] [fixed] - Dashboard and visualization thumbnails now refresh automatically after data changes
+[TBD] [admin] [fixed] - HFA category manager admin permissions now update correctly without page reload
+[TBD] [admin] [fixed] - Stale data no longer appears when rapidly switching between data fetches
+[TBD] [admin] [changed] - DHIS2 import queue and scheduled import notices no longer act as clickable links
+[TBD] [admin] [changed] - Asset uploads and deletions now refresh automatically without extra server calls
+[TBD] [admin] [improved] - Improved visual consistency of status badges, borders, and muted text across the platform
+[TBD] [admin] [fixed] - Table action buttons and bulk actions now correctly appear or hide when admin role changes
 [TBD] [user] [changed] - Refined border rounding for a more consistent visual style
 [TBD] [user] [changed] - Improved shadow styling on floating elements like popovers and notifications
 [TBD] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
