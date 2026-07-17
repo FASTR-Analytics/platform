@@ -192,7 +192,7 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="ui-text-caption mb-1">
               {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
             </div>
-            <div class="border border-border rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={coverInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -204,7 +204,7 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="ui-text-caption mb-1">
               {t3({ en: "Section", fr: "Section", pt: "Secção" })}
             </div>
-            <div class="border border-border rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={sectionInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -216,7 +216,7 @@ export function StylePreview(p: StylePreviewProps) {
             <div class="ui-text-caption mb-1">
               {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
             </div>
-            <div class="border border-border rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={contentInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}

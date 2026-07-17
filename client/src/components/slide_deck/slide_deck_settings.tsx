@@ -138,7 +138,7 @@ export function SlideDeckSettings(p: Props) {
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="border-border rounded border px-2 py-1 text-base font-normal"
+                  class="rounded border px-2 py-1 text-base font-normal"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}

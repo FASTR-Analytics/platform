@@ -41,7 +41,7 @@ export function HfaCategoriesManager(p: Props) {
 
   return (
     <div class="flex h-full">
-      <div class="border-border flex w-1/2 flex-none flex-col border-r pr-4">
+      <div class="flex w-1/2 flex-none flex-col border-r pr-4">
         <CategoriesPane
           categories={p.categories}
           selectedCategoryId={p.selectedCategoryId}

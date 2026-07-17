@@ -70,7 +70,7 @@ export function HfaUnusedVariablesModal(
             <div class="ui-spy-sm">
               <For each={activeUnused()}>
                 {(v) => (
-                  <div class="border-border ui-gap-sm flex items-baseline border-b pb-2">
+                  <div class="ui-gap-sm flex items-baseline border-b pb-2">
                     <span class="font-mono">{v.varName}</span>
                     <Show when={v.varLabel}>
                       <span class="text-base-content-muted flex-1 truncate">{v.varLabel}</span>

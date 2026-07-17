@@ -170,7 +170,6 @@ export function ProjectVisualizations(p: Props) {
           heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-border"
           centerChildren={
             <SortControl value={vizSortMode()} onChange={setVizSortMode} />
           }

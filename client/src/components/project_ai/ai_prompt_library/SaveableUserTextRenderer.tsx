@@ -27,7 +27,7 @@ export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (prop
         type="button"
         title={t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque", pt: "Guardar na biblioteca de prompts" })}
         onClick={handleSave}
-        class="bg-base-100 border-border text-base-content-muted hover:text-base-content mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded border opacity-0 transition-opacity group-hover:opacity-100"
+        class="bg-base-100 text-base-content-muted hover:text-base-content mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded border opacity-0 transition-opacity group-hover:opacity-100"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

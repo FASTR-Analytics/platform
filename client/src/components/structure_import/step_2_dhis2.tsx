@@ -69,7 +69,7 @@ export function Step2_Dhis2(p: Props) {
           {(metadata) => {
             return (
               <div class="ui-spy">
-                {/* <div class="bg-base-200 border-border ui-pad rounded border"> */}
+                {/* <div class="bg-base-200 ui-pad rounded border"> */}
                 {/* <div class="mb-4"> */}
                 {/* <div class="font-700 mb-2 text-sm">
                       {t("Organization Unit Levels")}
@@ -106,7 +106,7 @@ export function Step2_Dhis2(p: Props) {
                 {/* </div> */}
                 {/* </div> */}
 
-                <div class="border-border rounded border p-3 text-sm">
+                <div class="rounded border p-3 text-sm">
                   <div class="ui-spy-sm">
                     <div class="text-base-content">
                       <strong>{t3({ en: "Selection Summary", fr: "Résumé de la sélection", pt: "Resumo da seleção" })}:</strong>

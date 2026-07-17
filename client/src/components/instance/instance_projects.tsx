@@ -189,7 +189,7 @@ export function InstanceProjects(p: Props) {
               <Show
                 when={project.status === "ready"}
                 fallback={
-                  <div class="ui-pad border-border min-h-[150px] rounded border opacity-50">
+                  <div class="ui-pad min-h-[150px] rounded border opacity-50">
                     <div class="ui-spy-sm col-span-1">
                       <div class="font-700">{project.label}</div>
                       <div class="text-base-content-muted text-sm">
@@ -205,7 +205,7 @@ export function InstanceProjects(p: Props) {
               >
                 <a
                   href={`/?p=${project.id}`}
-                  class="ui-pad ui-hoverable-base-100 border-border flex min-h-[150px] flex-col justify-between rounded border"
+                  class="ui-pad ui-hoverable-base-100 flex min-h-[150px] flex-col justify-between rounded border"
                 >
                   <div class="ui-spy-sm">
                     <div class="font-700">{project.label}</div>

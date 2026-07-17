@@ -93,7 +93,6 @@ export function SlideCard(p: Props) {
       <div
         class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
         classList={{
-          "border-border": !p.isSelected,
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}
@@ -106,7 +105,7 @@ export function SlideCard(p: Props) {
         <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
           classList={{
             "bg-primary text-primary-content opacity-100": p.isSelected,
-            "border border-border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
+            "border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
           }}
           onClick={(e) => p.onCardClick(e, true)}
         >

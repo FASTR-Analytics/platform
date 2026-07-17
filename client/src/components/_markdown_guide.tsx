@@ -35,7 +35,7 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   {
     syntax: "> quote",
     label: () => t3({ en: "Quote", fr: "Citation", pt: "Citação" }),
-    labelClass: "border-border border-l-2 pl-2 italic text-base-content-muted",
+    labelClass: "border-l-2 pl-2 italic text-base-content-muted",
   },
   {
     syntax: "[text](https://…)",

@@ -129,7 +129,7 @@ export function Dhis2RunDetail(
       }
     >
       <div class="ui-pad ui-spy h-full w-full overflow-auto">
-        <div class="border-border ui-pad ui-spy-sm rounded border text-sm">
+        <div class="ui-pad ui-spy-sm rounded border text-sm">
           <div class="font-700 text-base">
             {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
           </div>

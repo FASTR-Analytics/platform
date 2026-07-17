@@ -40,7 +40,7 @@ export function Dhis2StepConfig(p: Props) {
           </div>
         </Match>
         <Match when={p.timeChoice === "recurring"}>
-          <div class="ui-gap-sm ui-pad border-border rounded border">
+          <div class="ui-gap-sm ui-pad rounded border">
             <Slider
               label={t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" })}
               showValueInLabel

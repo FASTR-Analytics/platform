@@ -32,7 +32,7 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
   const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
   const resetTime = () => props.item.errorDetails.match(RESET_RE)?.[1] ?? null;
   return (
-    <div class="border-border bg-base-100 my-1 max-w-sm rounded border p-3">
+    <div class="bg-base-100 my-1 max-w-sm rounded border p-3">
       <div class="text-warning text-sm">
         {isWeekly()
           ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte", pt: "Limite de utilização da IA do país atingido" })
@@ -288,6 +288,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_metrics":
       case "viewing_modules":
       case "viewing_settings":
+      case "viewing_dashboards":
+      case "viewing_cache":
         return t3({
           en: "Explore your data...",
           fr: "Explorez vos données...",
@@ -325,6 +327,10 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         return t3({ en: "Modules", fr: "Modules", pt: "Módulos" });
       case "viewing_settings":
         return t3(TC.settings);
+      case "viewing_dashboards":
+        return t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" });
+      case "viewing_cache":
+        return t3({ en: "Cache", fr: "Cache", pt: "Cache" });
       default: {
         const _exhaustive: never = ctx;
         return _exhaustive;

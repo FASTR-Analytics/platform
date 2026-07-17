@@ -73,7 +73,7 @@ export function PresetPreview(p: Props) {
   return (
     <div
       class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
-        p.selected ? "border-primary" : "border-border hover:border-primary"
+        p.selected ? "border-primary" : "hover:border-primary"
       }`}
       onClick={p.onClick}
     >
@@ -154,7 +154,7 @@ export function PresetSelector(p: PresetSelectorProps) {
         class={`bg-base-100 row-span-2 grid cursor-pointer grid-rows-subgrid rounded border transition-colors ${
           p.selectedId === CUSTOM_OPTION
             ? "border-primary"
-            : "border-border hover:border-primary"
+            : "hover:border-primary"
         }`}
         onClick={() => p.onSelect(CUSTOM_OPTION)}
       >

@@ -150,7 +150,6 @@ export function ProjectDashboards(p: Props) {
           heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-border"
           centerChildren={
             <SortControl
               value={dashboardSortMode()}
@@ -194,7 +193,7 @@ export function ProjectDashboards(p: Props) {
               <div
                 class="group relative cursor-pointer rounded border p-3"
                 classList={{
-                  "border-border hover:border-primary": !isSelected(),
+                  "hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),
                 }}
                 onClick={(e) => {

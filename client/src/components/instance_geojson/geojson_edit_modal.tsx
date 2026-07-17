@@ -189,8 +189,8 @@ export function GeoJsonEditModal(p: Props) {
           </Show>
         </div>
 
-        <div class="border-border max-h-96 overflow-auto rounded border">
-          <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
+        <div class="max-h-96 overflow-auto rounded border">
+          <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
             <div class="w-1/2">
               {hasSourceNames()
                 ? t3({ en: "Source Name", fr: "Nom source", pt: "Nome de origem" })

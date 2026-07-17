@@ -147,7 +147,7 @@ export function InstanceDatasetHmis(p: Props) {
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-border flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto border-l">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
@@ -174,7 +174,7 @@ export function InstanceDatasetHmis(p: Props) {
                   </Button>
                 </div>
                 <Show when={instanceState.hmisImportRunsQueued > 0}>
-                  <div class="ui-pad border-border bg-base-200 rounded border text-sm">
+                  <div class="ui-pad bg-base-200 rounded border text-sm">
                     {instanceState.hmisImportRunsQueued}{" "}
                     {t3({
                       en: "DHIS2 import(s) queued.",
@@ -204,7 +204,7 @@ export function InstanceDatasetHmis(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-pad border-border ui-hoverable-base-200 rounded border"
+                          class="ui-pad ui-hoverable-base-200 rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>

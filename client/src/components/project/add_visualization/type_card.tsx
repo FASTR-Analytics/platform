@@ -19,7 +19,7 @@ export function TypeCard(p: Props) {
   return (
     <button
       type="button"
-      class="ui-pad border-border flex w-full items-center justify-center rounded border transition-colors"
+      class="ui-pad flex w-full items-center justify-center rounded border transition-colors"
       classList={{
         "bg-primary-subtle border-primary font-700": p.isSelected,
         "ui-hoverable-base-100": !p.isSelected && !p.isDisabled,

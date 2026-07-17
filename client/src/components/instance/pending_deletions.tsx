@@ -103,7 +103,7 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
           }
         >
           {(project) => (
-            <div class="border-border flex items-center justify-between rounded border p-4">
+            <div class="flex items-center justify-between rounded border p-4">
               <div class="ui-spy-sm">
                 <div class="font-700">{project.label}</div>
                 <div class="text-base-content-muted text-sm">

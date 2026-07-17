@@ -19,7 +19,7 @@ type Props = {
 export function Dhis2StepReview(p: Props) {
   return (
     <div class="ui-spy">
-      <div class="border-border ui-pad ui-spy-sm rounded border text-sm">
+      <div class="ui-pad ui-spy-sm rounded border text-sm">
         <div>
           <span class="font-700">
             {t3({ en: "Connection:", fr: "Connexion :", pt: "Ligação:" })}
@@ -57,7 +57,7 @@ export function Dhis2StepReview(p: Props) {
       </div>
 
       <Show when={p.queueNotice}>
-        <div class="border-border bg-base-200 ui-pad text-sm rounded border">
+        <div class="bg-base-200 ui-pad text-sm rounded border">
           {p.queueNotice}
         </div>
       </Show>
@@ -65,7 +65,7 @@ export function Dhis2StepReview(p: Props) {
       <Show when={p.queueBlockedReason}>
         <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
           {p.queueBlockedReason}
-          <Button onClick={p.onBackToCredentials} outline size="sm">
+          <Button onClick={p.onBackToCredentials} intent="danger" size="sm">
             {t3({ en: "Back to step 1", fr: "Retour à l'étape 1", pt: "Voltar ao passo 1" })}
           </Button>
         </div>

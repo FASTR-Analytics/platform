@@ -32,7 +32,7 @@ export function ProjectData(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop panelChildren={<HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-        class="border-border" ensureHeightAsIfButton></HeadingBar>}>
+        ensureHeightAsIfButton></HeadingBar>}>
         <div class="ui-pad ui-spy">
           {/* HMIS Dataset */}
           <Switch>
@@ -127,8 +127,8 @@ export function ProjectData(p: Props) {
                 );
 
                 return (
-                  <div class="border-border rounded border">
-                    <div class="border-border ui-pad flex items-center border-b">
+                  <div class="rounded border">
+                    <div class="ui-pad flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "HMIS Data", fr: "Données SNIS", pt: "Dados SNIS" })}
                         <Show when={isStale()}>
@@ -364,7 +364,7 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="ui-pad border-border ui-spy rounded border">
+                  <div class="ui-pad ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "HMIS Data", fr: "Données SNIS", pt: "Dados SNIS" })}
@@ -498,8 +498,8 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="border-border rounded border">
-                    <div class="ui-pad border-border flex items-center border-b">
+                  <div class="rounded border">
+                    <div class="ui-pad flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "HFA Data", fr: "Données d'enquêtes FOSA", pt: "Dados de inquéritos FOSA" })}
                         <Show when={isStale()}>
@@ -584,7 +584,7 @@ export function ProjectData(p: Props) {
                 }
 
                 return (
-                  <div class="ui-pad border-border ui-spy rounded border">
+                  <div class="ui-pad ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "HFA Data", fr: "Données d'enquêtes FOSA", pt: "Dados de inquéritos FOSA" })}
@@ -655,8 +655,8 @@ export function ProjectData(p: Props) {
                 );
 
                 return (
-                  <div class="border-border rounded border">
-                    <div class="ui-pad border-border flex items-center border-b">
+                  <div class="rounded border">
+                    <div class="ui-pad flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
                         <Show when={isStale()}>
@@ -740,7 +740,7 @@ export function ProjectData(p: Props) {
                 });
 
                 return (
-                  <div class="ui-pad border-border ui-spy rounded border">
+                  <div class="ui-pad ui-spy rounded border">
                     <div class="font-700 flex items-center">
                       <div class="flex-1 text-lg">
                         {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}

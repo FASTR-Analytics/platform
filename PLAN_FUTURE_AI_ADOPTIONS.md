@@ -16,8 +16,9 @@ scoping tools to views (gating), reporting user edits between turns
 (interactions), and confirm-before-apply (approval). wb-fastr has two AI
 surfaces that would adopt independently:
 
-- **Project copilot** (`client/src/components/project_ai/`) — 11-mode
-  `AIContext`, 42 tools, ~23 hand-rolled mode guards.
+- **Project copilot** (`client/src/components/project_ai/`) — 13-mode
+  `AIContext` (11 original + `viewing_dashboards`/`viewing_cache` added
+  2026-07-17), 42 tools, ~23 hand-rolled mode guards.
 - **HFA assistant** (`client/src/components/indicator_manager_hfa/ai/`) — one
   context, 12 tools, hand-rolled `confirmChain` approval.
 
@@ -56,11 +57,9 @@ delivery of `[Current view: <id> — "<label>"]` as typed ephemeral sections.
 
 **Copilot adoption:**
 
-- `AIContext` union (`project_ai/types.ts:119-130`, 11 arms) → a `view()`
-  registry of 11 views, **plus the two missing ones**: `dashboards` and `cache`
-  tabs have no `AIContextSync` case today
-  (`project/index.tsx:57-88` handles only 7 tabs), so the AI silently sees a
-  stale mode there. Fix by construction during migration.
+- `AIContext` union (`project_ai/types.ts`, 13 arms — `viewing_dashboards` /
+  `viewing_cache` were added app-side 2026-07-17, fixing the stale-mode gap
+  ahead of adoption) → a `view()` registry of 13 views.
 - `AIContextSync` switch → a typed `Record<TabOption, ViewId>` so a new tab
   fails typecheck instead of silently going stale.
 - `getEphemeralContext` string builder (`project_ai/index.tsx:111-144`) →
@@ -172,11 +171,9 @@ a normal (non-error) tool result; and `approvalPolicy` (below).
 - `confirmChain` (`tools.ts:54-63`) → deleted. It serializes dialogs against an
   engine that ran tools concurrently; the engine's sequential-execution
   contract makes it dead code.
-- **Decide at migration:** `validate_hfa_indicators` mutates server state
-  (`bulkUpdateHfaIndicatorValidation`, `tools.ts:452`) with **no confirm
-  today**. Under the policy below it must gain `approval` or an explicit
-  `exempt` entry, or HFA throws at boot. (It should probably just get
-  `approval` — see "worth fixing regardless" below.)
+- `validate_hfa_indicators` gained a `confirmGate` on its persist app-side
+  (2026-07-17), so it is now the SIXTH confirm-gated write tool → migrate it
+  to `approval.prepare` alongside the other five.
 
 **Copilot adoption:**
 
@@ -199,8 +196,8 @@ Panther provides: construction throws for any `kind: "write"` tool without
 every tool to declare `kind`, so a colleague's new write tool can never
 silently skip approval — it over-asks or fails boot.
 
-- **HFA:** set `{ requireForKind: "write", requireKind: true }` (12 tools, easy
-  to tag; this is what forces the `validate_hfa_indicators` decision).
+- **HFA:** set `{ requireForKind: "write", requireKind: true }` (12 tools,
+  easy to tag).
 - **Copilot:** optional/later. If adopted, tools that deliberately mutate
   without approval (`update_report_figure`, `update_figure`'s live-preview and
   immediate-persist branches) go in `exempt`.
@@ -238,14 +235,19 @@ decide not to adopt, fix them directly:
 
 1. `proposeEdit` orphan: navigate-away leaves the staged modal live and a later
    accept fires `persistBody` (`report/index.tsx:522`) against a torn-down
-   editor. Live correctness hole.
-2. `validate_hfa_indicators` mutates server state with no confirm
-   (`tools.ts:426-460`).
-3. `dashboards` / `cache` tabs missing from `AIContextSync` — AI sees a stale
-   mode there (`project/index.tsx:57-88`).
-4. `getAllToolsList()` prompt drift (18 listed vs 42 registered).
+   editor. Live correctness hole. A proper fix duplicates Feature 4's
+   lifecycle machinery — wait for adoption (rung 2).
+2. ~~`validate_hfa_indicators` mutates server state with no confirm~~ —
+   **FIXED app-side 2026-07-17** (`confirmGate` before the persist).
+3. ~~`dashboards` / `cache` tabs missing from `AIContextSync`~~ — **FIXED
+   app-side 2026-07-17** (two new `AIContext` arms + sync cases + prompt/label
+   switches; `switch_tab`'s nav enum deliberately NOT extended — whether the AI
+   may navigate to those tabs is a product decision for the views migration).
+4. `getAllToolsList()` prompt drift (18 listed vs 42 registered). Hand-updating
+   re-drifts immediately — wait for `buildToolCatalog` (rung 5).
 5. SSE self-echo on persist-path AI writes (`project_ai/index.tsx:69-96`, no
-   origin filter) — the model is told its own edits were user actions.
+   origin filter) — the model is told its own edits were user actions. A
+   hand-rolled fix duplicates `markAIEdit` — wait for adoption (rung 4).
 
 ## Recommended adoption order
 

@@ -39,7 +39,7 @@ export function MetricCard(p: Props) {
 
   return (
     <div
-      class="ui-pad border-border rounded border transition-colors"
+      class="ui-pad rounded border transition-colors"
       classList={{
         "bg-primary-subtle border-primary": isGroupSelected(),
         "bg-base-100": !isGroupSelected() && !canSelectGroup(),
@@ -82,7 +82,7 @@ export function MetricCard(p: Props) {
         </Show>
 
         <Show when={hasVariants()}>
-          <div class="border-border border-t pt-2">
+          <div class="border-t pt-2">
             <div class="ui-text-caption mb-1">
               {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :", pt: "Selecione o nível geográfico:" })}
             </div>

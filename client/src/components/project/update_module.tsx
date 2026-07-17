@@ -195,10 +195,10 @@ export function UpdateModule(
                     pt: "Commits desde a instalação",
                   })}
                 </div>
-                <div class="border-border max-h-32 overflow-y-auto rounded border">
+                <div class="max-h-32 overflow-y-auto rounded border">
                   <For each={data.commitsSince}>
                     {(commit) => (
-                      <div class="border-border flex items-start gap-2 border-b px-3 py-2 text-xs last:border-b-0">
+                      <div class="flex items-start gap-2 border-b px-3 py-2 text-xs last:border-b-0">
                         <span class="text-base-content-muted font-mono">
                           {commit.sha.slice(0, 7)}
                         </span>
@@ -211,7 +211,7 @@ export function UpdateModule(
             </Show>
 
             {/* Actions */}
-            <div class="border-border space-y-3 rounded border p-3">
+            <div class="space-y-3 rounded border p-3">
               <Checkbox
                 label={
                   <div>
@@ -236,7 +236,7 @@ export function UpdateModule(
               />
 
               <Show when={reinstall()}>
-                <div class="border-border border-l-2 pl-6">
+                <div class="border-l-2 pl-6">
                   <Checkbox
                     label={
                       <div>

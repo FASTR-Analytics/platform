@@ -211,7 +211,6 @@ export function ProjectSettings(p: Props) {
       panelChildren={
         <HeadingBar
           heading={t3(TC.settings)}
-          class="border-border"
           ensureHeightAsIfButton
         ></HeadingBar>
       }
@@ -893,7 +892,7 @@ function ProjectBackups(props: { projectId: string }) {
                         <div class="flex flex-col">
                           <button
                             onClick={() => toggleGroup(groupKey)}
-                            class="flex ui-hoverable-base-100 items-center justify-between rounded border border-border p-3 text-left"
+                            class="flex ui-hoverable-base-100 items-center justify-between rounded border p-3 text-left"
                           >
                             <div class="flex items-center gap-2">
                               <Show
@@ -923,7 +922,7 @@ function ProjectBackups(props: { projectId: string }) {
                             <div class="mt-2 ml-6 flex flex-col gap-2">
                               <For each={group.backups}>
                                 {(backup: ProjectBackupInfo) => (
-                                  <div class="flex items-center justify-between rounded border border-border bg-white p-3">
+                                  <div class="flex items-center justify-between rounded border bg-white p-3">
                                     <div class="flex flex-col gap-1">
                                       <span>
                                         {group.isCustom

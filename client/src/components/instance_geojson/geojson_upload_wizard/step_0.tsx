@@ -21,7 +21,7 @@ export function Step0(p: Props) {
       <div class="font-700">{t3({ en: "Select import source", fr: "Sélectionner la source d'importation", pt: "Selecionar a fonte de importação" })}</div>
 
       <div class="ui-spy-sm">
-        <label class="flex ui-hoverable-base-100 items-center gap-3 rounded border border-border p-4">
+        <label class="flex ui-hoverable-base-100 items-center gap-3 rounded border p-4">
           <input
             type="radio"
             name="source"
@@ -37,7 +37,7 @@ export function Step0(p: Props) {
           </div>
         </label>
 
-        <label class="flex ui-hoverable-base-100 items-center gap-3 rounded border border-border p-4">
+        <label class="flex ui-hoverable-base-100 items-center gap-3 rounded border p-4">
           <input
             type="radio"
             name="source"

@@ -348,7 +348,7 @@ function EditorInner(p: {
 
   return (
     <div class="flex h-full flex-col">
-      <div class="border-border flex-none border-b">
+      <div class="flex-none border-b">
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
             <div>
@@ -450,7 +450,7 @@ function EditorInner(p: {
       </div>
 
       <div class="flex min-h-0 flex-1">
-        <div class="border-border flex h-full w-48 flex-none flex-col overflow-auto border-r">
+        <div class="flex h-full w-48 flex-none flex-col overflow-auto border-r">
           <div class="ui-pad-sm font-700 text-sm">
             {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
           </div>
@@ -461,7 +461,7 @@ function EditorInner(p: {
               const hasCode = () => !!codeEntry()?.rCode.trim();
               return (
                 <button
-                  class={`ui-pad-sm border-border w-full cursor-pointer border-b text-left text-sm ${
+                  class={`ui-pad-sm w-full cursor-pointer border-b text-left text-sm ${
                     selectedTimePoint() === tp.timePoint
                       ? "bg-primary-subtle font-700"
                       : "ui-hoverable-base-100"
@@ -714,7 +714,7 @@ function EditorInner(p: {
                             (vv) => vv.varName === v.varName,
                           );
                           return (
-                            <div class="border-border border-b py-1 last:border-b-0">
+                            <div class="border-b py-1 last:border-b-0">
                               <div class="flex items-baseline gap-2 text-xs">
                                 <span
                                   class="ui-hoverable-base-200 font-700 font-mono"

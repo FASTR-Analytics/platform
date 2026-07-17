@@ -94,8 +94,8 @@ export function Step3(p: Props) {
         </Show>
       </div>
 
-      <div class="border-border max-h-96 overflow-auto rounded border">
-        <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
+      <div class="max-h-96 overflow-auto rounded border">
+        <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
           <div class="w-1/2">{t3({ en: "GeoJSON value", fr: "Valeur GeoJSON", pt: "Valor GeoJSON" })}</div>
           <div class="w-1/2">{t3({ en: "Admin area", fr: "Unité administrative", pt: "Zona administrativa" })}</div>
         </div>

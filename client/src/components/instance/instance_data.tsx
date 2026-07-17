@@ -1,5 +1,11 @@
 import { t3 } from "lib";
-import { Button, FrameTop, HeadingBarMainRibbon, openComponent, toNum0 } from "panther";
+import {
+  Button,
+  FrameTop,
+  HeadingBarMainRibbon,
+  openComponent,
+  toNum0,
+} from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";
@@ -97,9 +103,17 @@ export function InstanceData(p: Props) {
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBarMainRibbon heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}>
+            <HeadingBarMainRibbon
+              heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
+            >
               <Show when={canConfigureData()}>
-                <Button onClick={openDhis2Credentials} outline onBackground="base-content" iconName="settings">
+                <Button
+                  onClick={openDhis2Credentials}
+                  outline
+                  intent="base-100"
+                  onBackground="base-content"
+                  iconName="settings"
+                >
                   {t3({
                     en: "DHIS2 credentials",
                     fr: "Identifiants DHIS2",
@@ -116,12 +130,16 @@ export function InstanceData(p: Props) {
               <div class="flex gap-6">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
-                    {t3({ en: "Structure & maps", fr: "Structure et cartes", pt: "Estrutura e mapas" })}
+                    {t3({
+                      en: "Structure & maps",
+                      fr: "Structure et cartes",
+                      pt: "Estrutura e mapas",
+                    })}
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">
@@ -173,11 +191,15 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("geojson")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
+                      {t3({
+                        en: "GeoJSON maps",
+                        fr: "Cartes GeoJSON",
+                        pt: "Mapas GeoJSON",
+                      })}
                     </div>
                     <Show
                       when={instanceState.geojsonMaps.length > 0}
@@ -216,11 +238,15 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("facilities_hmis")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
+                      {t3({
+                        en: "Facilities",
+                        fr: "Établissements",
+                        pt: "Estabelecimentos de saúde",
+                      })}
                     </div>
                     <Show
                       when={
@@ -241,7 +267,12 @@ export function InstanceData(p: Props) {
                       {(keyedCount) => (
                         <div class="text-success ui-gap flex justify-between text-xs">
                           <span>
-                            {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}:
+                            {t3({
+                              en: "Facilities",
+                              fr: "Établissements",
+                              pt: "Estabelecimentos de saúde",
+                            })}
+                            :
                           </span>
                           <span class="font-mono">{toNum0(keyedCount)}</span>
                         </div>
@@ -249,7 +280,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hmis")}
                   >
                     <div class="font-700 pb-2">
@@ -268,16 +299,24 @@ export function InstanceData(p: Props) {
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
+                        {t3({
+                          en: "Has data",
+                          fr: "Contient des données",
+                          pt: "Contém dados",
+                        })}
                       </div>
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("indicators")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+                      {t3({
+                        en: "Indicators",
+                        fr: "Indicateurs",
+                        pt: "Indicadores",
+                      })}
                     </div>
                     <Show
                       when={
@@ -379,11 +418,15 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("facilities_hfa")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}
+                      {t3({
+                        en: "Facilities",
+                        fr: "Établissements",
+                        pt: "Estabelecimentos de saúde",
+                      })}
                     </div>
                     <Show
                       when={
@@ -404,7 +447,12 @@ export function InstanceData(p: Props) {
                       {(keyedCount) => (
                         <div class="text-success ui-gap flex justify-between text-xs">
                           <span>
-                            {t3({ en: "Facilities", fr: "Établissements", pt: "Estabelecimentos de saúde" })}:
+                            {t3({
+                              en: "Facilities",
+                              fr: "Établissements",
+                              pt: "Estabelecimentos de saúde",
+                            })}
+                            :
                           </span>
                           <span class="font-mono">{toNum0(keyedCount)}</span>
                         </div>
@@ -412,11 +460,15 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_time_points")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
+                      {t3({
+                        en: "Time points",
+                        fr: "Points temporels",
+                        pt: "Pontos temporais",
+                      })}
                     </div>
                     <Show
                       when={instanceState.hfaTimePoints.length > 0}
@@ -448,7 +500,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_weights")}
                   >
                     <div class="font-700 pb-2">
@@ -495,7 +547,7 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa")}
                   >
                     <div class="font-700 pb-2">
@@ -514,16 +566,24 @@ export function InstanceData(p: Props) {
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
+                        {t3({
+                          en: "Has data",
+                          fr: "Contient des données",
+                          pt: "Contém dados",
+                        })}
                       </div>
                     </Show>
                   </div>
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("hfa_indicators")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+                      {t3({
+                        en: "Indicators",
+                        fr: "Indicateurs",
+                        pt: "Indicadores",
+                      })}
                     </div>
                     <Show
                       when={
@@ -570,11 +630,15 @@ export function InstanceData(p: Props) {
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
-                    class="ui-pad ui-hoverable-base-100 border-border ui-spy-sm w-[300px] rounded border"
+                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
                     onClick={() => setSelectedDatasource("iceh")}
                   >
                     <div class="font-700 pb-2">
-                      {t3({ en: "Equity data", fr: "Données d'équité", pt: "Dados de equidade" })}
+                      {t3({
+                        en: "Equity data",
+                        fr: "Données d'équité",
+                        pt: "Dados de equidade",
+                      })}
                     </div>
                     <Show
                       when={instanceState.datasetsWithData.includes("iceh")}
@@ -589,7 +653,11 @@ export function InstanceData(p: Props) {
                       }
                     >
                       <div class="text-success text-xs">
-                        {t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })}
+                        {t3({
+                          en: "Has data",
+                          fr: "Contient des données",
+                          pt: "Contém dados",
+                        })}
                       </div>
                     </Show>
                   </div>

@@ -183,7 +183,6 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
                 class="w-24 rounded border px-2 py-1 font-mono text-sm"
                 classList={{
                   "border-danger": !validation().valid,
-                  "border-border": validation().valid,
                 }}
                 placeholder="#000000"
                 value={customHex()}

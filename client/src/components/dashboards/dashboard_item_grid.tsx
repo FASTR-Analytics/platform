@@ -134,13 +134,12 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
       <div class="relative">
         {/* Card-set: stacked layers behind a group card to signal "many". */}
         <Show when={isGroup()}>
-          <div class="border-border bg-base-100 absolute -top-1 right-1 left-1 h-full rounded border" />
-          <div class="border-border bg-base-100 absolute -top-0.5 right-0.5 left-0.5 h-full rounded border" />
+          <div class="bg-base-100 absolute -top-1 right-1 left-1 h-full rounded border" />
+          <div class="bg-base-100 absolute -top-0.5 right-0.5 left-0.5 h-full rounded border" />
         </Show>
         <div
           class="bg-base-100 relative cursor-pointer rounded border p-2"
           classList={{
-            "border-border": !isSelected(),
             "border-primary": isSelected(),
             "hover:border-primary": !isSelected(),
           }}

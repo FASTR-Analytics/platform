@@ -384,7 +384,6 @@ export function ProjectReports(p: ExtendedProps) {
           heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-border"
           centerChildren={
             <SortControl value={reportSortMode()} onChange={setReportSortMode} />
           }
@@ -403,8 +402,8 @@ export function ProjectReports(p: ExtendedProps) {
         maxWidth={300}
         hoverOffset="offset-for-border-1-on-left"
         panelChildren={
-          <div class="border-border flex h-full w-full flex-col border-r">
-            <div class="border-border border-b p-3">
+          <div class="flex h-full w-full flex-col border-r">
+            <div class="border-b p-3">
               <Select
                 options={getGroupingOptions()}
                 value={reportGroupingMode()}
@@ -468,7 +467,6 @@ export function ProjectReports(p: ExtendedProps) {
                   <div
                     class="relative border rounded overflow-clip bg-white cursor-pointer"
                     classList={{
-                      "border-border": !isSelected(),
                       "border-primary": isSelected(),
                       "hover:border-primary": !isSelected(),
                     }}

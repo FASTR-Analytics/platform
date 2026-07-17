@@ -367,7 +367,6 @@ export function ProjectDecks(p: ExtendedProps) {
           heading={t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-border"
           centerChildren={
             <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
           }
@@ -399,8 +398,8 @@ export function ProjectDecks(p: ExtendedProps) {
           maxWidth={300}
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
-            <div class="border-border flex h-full w-full flex-col border-r">
-              <div class="border-border border-b p-3">
+            <div class="flex h-full w-full flex-col border-r">
+              <div class="border-b p-3">
                 <Select
                   options={getGroupingOptions()}
                   value={deckGroupingMode()}
@@ -466,7 +465,6 @@ export function ProjectDecks(p: ExtendedProps) {
                     <div
                       class="relative border rounded overflow-clip bg-white cursor-pointer"
                       classList={{
-                        "border-border": !isSelected(),
                         "border-primary": isSelected(),
                         "hover:border-primary": !isSelected(),
                       }}

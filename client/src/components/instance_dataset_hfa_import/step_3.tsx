@@ -22,7 +22,7 @@ export function Step3(p: Props) {
         <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données", pt: "Preparação dos dados" })}</div>
         <Switch>
           <Match when={!p.step3Result}>
-            <div class="border-border rounded border p-4">
+            <div class="rounded border p-4">
               <div class="">
                 {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation.", pt: "Pronto para preparar os dados CSV. Isto irá validar e preparar os dados para importação." })}
               </div>

@@ -402,8 +402,8 @@ export function PresentationObjectPanelDisplay(p: Props) {
       maxWidth={300}
       hoverOffset="offset-for-border-1-on-left"
       panelChildren={
-        <div class="border-border flex h-full w-full flex-col border-r">
-          <div class="border-border flex flex-col gap-2 border-b p-3">
+        <div class="flex h-full w-full flex-col border-r">
+          <div class="flex flex-col gap-2 border-b p-3">
             <Select
               options={getGroupingOptions()}
               value={vizGroupingMode()}
@@ -784,7 +784,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
                     class="mb-6"
                     classList={{ "pt-4": i() === 0, "pt-2": i() > 0 }}
                   >
-                    <div class="border-border mx-4 mb-3 flex items-center gap-3 border-b pb-2">
+                    <div class="mx-4 mb-3 flex items-center gap-3 border-b pb-2">
                       <span class="text-base-content font-700 text-sm">
                         {group.label}
                       </span>
@@ -933,7 +933,6 @@ function VisualizationCard(p: VisualizationCardProps) {
       <div
         class="relative cursor-pointer rounded border p-2"
         classList={{
-          "border-border": !p.isSelected,
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}

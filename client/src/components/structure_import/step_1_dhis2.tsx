@@ -57,7 +57,7 @@ export function Step1_Dhis2(p: Props) {
         <div class="font-700 text-lg">
           {t3({ en: "DHIS2 Connection", fr: "Connexion DHIS2", pt: "Ligação DHIS2" })}
         </div>
-        <div class="border-border ui-spy rounded border p-4">
+        <div class="ui-spy rounded border p-4">
           <StateHolderWrapper state={infoQuery.state()} noPad>
             {(info) => (
               <div class="ui-spy-sm">

@@ -202,7 +202,7 @@ export function EditCommonPropertiesModal(
                       periodOption === "quarter_id"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 4}</label>
                       <Slider
                         value={tempPeriodFilter.nQuarters ?? 4}
@@ -221,7 +221,7 @@ export function EditCommonPropertiesModal(
                       periodOption === "period_id"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <label class="text-sm">{t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}: {tempPeriodFilter.nMonths ?? 12}</label>
                       <Slider
                         value={tempPeriodFilter.nMonths ?? 12}
@@ -240,7 +240,7 @@ export function EditCommonPropertiesModal(
                       tempPeriodFilter.filterType === "last_calendar_year"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <label class="text-sm">{t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}: {tempPeriodFilter.nYears ?? 1}</label>
                       <Slider
                         value={tempPeriodFilter.nYears ?? 1}
@@ -260,7 +260,7 @@ export function EditCommonPropertiesModal(
                       tempPeriodFilter.filterType === "last_calendar_quarter"
                     }
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <label class="text-sm">{t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}: {tempPeriodFilter.nQuarters ?? 1}</label>
                       <Slider
                         value={tempPeriodFilter.nQuarters ?? 1}
@@ -277,7 +277,7 @@ export function EditCommonPropertiesModal(
                   <Show
                     when={tempPeriodFilter?.filterType === "from_month"}
                   >
-                    <div class="ui-gap-sm ui-pad border-border rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <label class="text-sm">{t3({ en: "Starting period", fr: "Période de début", pt: "Período inicial" })}: {tempPeriodFilter.min}</label>
                       <Slider
                         value={tempPeriodFilter.min}
@@ -297,7 +297,7 @@ export function EditCommonPropertiesModal(
                         periodOption === "period_id"
                       }
                     >
-                      <div class="ui-gap-sm ui-pad border-border rounded border">
+                      <div class="ui-gap-sm ui-pad rounded border">
                         <label class="text-sm">{t3({ en: "Start period", fr: "Période de début", pt: "Período de início" })}: {tempPeriodFilter.min}</label>
                         <Slider
                           value={tempPeriodFilter.min}
@@ -326,7 +326,7 @@ export function EditCommonPropertiesModal(
                         periodOption === "year"
                       }
                     >
-                      <div class="ui-gap-sm ui-pad border-border rounded border">
+                      <div class="ui-gap-sm ui-pad rounded border">
                         <label class="text-sm">{t3({ en: "Start year", fr: "Année de début", pt: "Ano de início" })}: {tempPeriodFilter.min}</label>
                         <Slider
                           value={tempPeriodFilter.min}

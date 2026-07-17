@@ -127,7 +127,6 @@ export function DashboardSettings(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          class="border-border"
           heading={t3({
             en: "Dashboard settings",
             fr: "Paramètres du tableau de bord",

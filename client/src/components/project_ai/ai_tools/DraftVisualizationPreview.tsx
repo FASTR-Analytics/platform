@@ -238,7 +238,7 @@ export function DraftVisualizationPreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-border bg-base-100 max-w-[400px] rounded border">
+      <div class="bg-base-100 max-w-[400px] rounded border">
         <div class="p-1.5">
           <Show
             when={
@@ -278,7 +278,7 @@ export function DraftVisualizationPreview(p: Props) {
             </div>
           </Show>
         </div>
-        <div class="border-border flex gap-1.5 border-t p-1.5">
+        <div class="flex gap-1.5 border-t p-1.5">
           <Button
             size="sm"
             outline

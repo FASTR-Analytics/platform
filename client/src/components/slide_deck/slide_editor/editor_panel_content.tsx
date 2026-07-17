@@ -195,7 +195,7 @@ export function SlideEditorPanelContent(p: Props) {
                   }
                 />
               </div>
-              <hr class="border-border mt-3 mb-1" />
+              <hr class="mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Show
                   when={!p.hasGlobalFooterText}
@@ -239,7 +239,7 @@ export function SlideEditorPanelContent(p: Props) {
                   }
                 />
               </div>
-              <hr class="border-border mt-3 mb-1" />
+              <hr class="mt-3 mb-1" />
               <div class="ui-pad ui-spy-sm">
                 <Checkbox
                   label={t3({

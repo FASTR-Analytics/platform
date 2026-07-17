@@ -201,7 +201,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       maxWidth={800}
       hoverOffset="offset-for-border-1-on-left"
       panelChildren={
-        <div class="ui-pad ui-spy border-border h-full w-full border-r">
+        <div class="ui-pad ui-spy h-full w-full border-r">
           <RadioGroup
             label={t3({ en: "Common or DHIS2 indicators", fr: "Indicateurs communs ou DHIS2", pt: "Indicadores comuns ou DHIS2" })}
             options={[

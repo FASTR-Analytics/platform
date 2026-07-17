@@ -138,7 +138,7 @@ export function HfaTimePointsEditor() {
   return (
     <div class="ui-spy max-w-3xl">
       <Show when={editing() !== null}>
-        <div class="border-border ui-spy rounded border p-4">
+        <div class="ui-spy rounded border p-4">
           <div class="font-700">
             {editing() === ""
               ? t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })
@@ -196,7 +196,7 @@ export function HfaTimePointsEditor() {
           pt: "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
         })}
         renderItem={(item) => (
-          <div class="border-border min-w-0 flex-1 rounded border px-3 py-2">
+          <div class="min-w-0 flex-1 rounded border px-3 py-2">
             <div class="font-700 truncate text-sm">{item.label}</div>
             <Show when={item.sublabel}>
               <div class="ui-text-caption truncate">{item.sublabel}</div>

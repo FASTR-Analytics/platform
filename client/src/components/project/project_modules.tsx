@@ -99,7 +99,6 @@ export function ProjectModules(p: Props) {
         panelChildren={
           <HeadingBar
             heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
-            class="border-border"
             ensureHeightAsIfButton
           >
             <div class="ui-gap-sm flex items-center">
@@ -368,8 +367,8 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   return (
-    <div class="border-border rounded border">
-      <div class="ui-pad border-border ui-gap-sm flex flex-wrap items-center justify-end border-b">
+    <div class="rounded border">
+      <div class="ui-pad ui-gap-sm flex flex-wrap items-center justify-end border-b">
         <div class="font-700 flex-none text-lg">
           <span class="mr-4">{p.thisInstalledModule.label}</span>
           <DirtyStatus
@@ -539,7 +538,7 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
   });
 
   return (
-    <div class="ui-pad border-border col-span-1 flex items-center rounded border">
+    <div class="ui-pad col-span-1 flex items-center rounded border">
       <div class="font-700 flex-1 text-lg">{p.thisUninstalledModuleLabel}</div>
       <Show
         when={

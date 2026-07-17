@@ -129,9 +129,9 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
 
   return (
     <div class="ui-pad">
-      <table class="border-border w-full border-collapse border text-sm">
+      <table class="w-full border-collapse border text-sm">
         <thead>
-          <tr class="border-border border-b">
+          <tr class="border-b">
             <th class="text-base-content-muted ui-pad-sm bg-base-100 sticky left-0 text-left"></th>
             <For each={projects()}>
               {(project) => (
@@ -151,7 +151,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
               );
               return (
                 <>
-                  <tr class="border-border bg-base-200 border-b">
+                  <tr class="bg-base-200 border-b">
                     <td class="ui-pad-sm font-700 bg-base-200 sticky left-0">
                       {t3(registryMod.label)}
                     </td>
@@ -172,7 +172,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </For>
                   </tr>
                   <Show when={anyInstalled}>
-                    <tr class="border-border border-b">
+                    <tr class="border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -200,7 +200,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         }}
                       </For>
                     </tr>
-                    <tr class="border-border border-b">
+                    <tr class="border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -228,7 +228,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         }}
                       </For>
                     </tr>
-                    <tr class="border-border border-b">
+                    <tr class="border-b">
                       <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
                         {t3({
                           en: "Presentation updated",
@@ -253,7 +253,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         }}
                       </For>
                     </tr>
-                    <tr class="border-border border-b">
+                    <tr class="border-b">
                       <td
                         class={rowHeaderClass(
                           registryMod.id,
@@ -285,7 +285,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         }}
                       </For>
                     </tr>
-                    <tr class="border-border border-b">
+                    <tr class="border-b">
                       <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
                         {t3({ en: "Last run at", fr: "Dernière exécution le", pt: "Última execução em" })}
                       </td>
@@ -306,7 +306,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </tr>
                     <For each={params}>
                       {(param) => (
-                        <tr class="border-border border-b">
+                        <tr class="border-b">
                           <td
                             class={rowHeaderClass(
                               registryMod.id,

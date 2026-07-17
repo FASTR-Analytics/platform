@@ -134,7 +134,7 @@ function VisualizationsTable(p: { rows: VizRow[] }) {
         <tbody>
           <For each={p.rows}>
             {(row) => (
-              <tr class="border-b border-border">
+              <tr class="border-b">
                 <td class="py-1 pr-4">{row.label}</td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.poDetailCached} /></td>
                 <td class="py-1 pr-4"><CacheIndicator cached={row.metricInfoCached} /></td>

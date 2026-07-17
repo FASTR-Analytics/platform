@@ -120,7 +120,7 @@ export function VisualizationSettings(
           />
         </Show>
 
-        <div class="border-border rounded border ui-pad ui-spy-sm">
+        <div class="rounded border ui-pad ui-spy-sm">
           <div class="text-xs text-base-content-muted">
             {t3({ en: "Clear cached data for this visualization. Use this if the visualization is showing stale data.", fr: "Effacer les données mises en cache pour cette visualisation. Utilisez cette option si la visualisation affiche des données obsolètes.", pt: "Limpar os dados em cache desta visualização. Utilize esta opção se a visualização estiver a mostrar dados desatualizados." })}
           </div>

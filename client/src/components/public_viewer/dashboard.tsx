@@ -105,7 +105,6 @@ function DashboardViewer(p: DashboardViewerProps) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          class="border-border"
           heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
           leftChildren={
             hasLogos() && logoPlacement() === "left" ? (
@@ -149,7 +148,7 @@ function DashboardViewer(p: DashboardViewerProps) {
     >
       <div class="flex h-full w-full flex-col">
         <Show when={p.bundle.about.summary.trim()}>
-          <div class="border-border ui-pad border-b text-sm">
+          <div class="ui-pad border-b text-sm">
             <MarkdownPresentationJsx markdown={p.bundle.about.summary} />
           </div>
         </Show>
@@ -182,7 +181,7 @@ function SidebarLayout(p: SidebarLayoutProps) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="ui-pad border-border ui-spy-sm h-full w-56 overflow-auto border-r lg:w-64 xl:w-72">
+        <div class="ui-pad ui-spy-sm h-full w-56 overflow-auto border-r lg:w-64 xl:w-72">
           <For each={p.entries}>
             {(entry) => (
               <Switch>
@@ -272,7 +271,7 @@ function GridLayout(p: GridLayoutProps) {
     <div class="ui-gap ui-pad grid content-start overflow-auto lg:grid-cols-2">
       <For each={p.entries}>
         {(entry) => (
-          <div class="border-border ui-pad flex aspect-video flex-col rounded border">
+          <div class="ui-pad flex aspect-video flex-col rounded border">
             <Switch>
               <Match when={entry.kind === "item" ? entry : undefined}>
                 {(it) => (

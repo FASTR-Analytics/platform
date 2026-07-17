@@ -136,7 +136,7 @@ export function MetricDetailsModal(
           <div class="ui-gap-sm grid grid-cols-2">
             <For each={p.metric.disaggregationOptions}>
               {(disOpt) => (
-                <div class="border-border flex items-start gap-2 rounded border p-2">
+                <div class="flex items-start gap-2 rounded border p-2">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
                       {t3(getDisplayDisaggregationLabel(disOpt.value))}
@@ -170,7 +170,7 @@ export function MetricDetailsModal(
             <div class="ui-spy-sm">
               <For each={Object.entries(p.metric.valueLabelReplacements!)}>
                 {([key, value]) => (
-                  <div class="border-border flex items-center gap-2 rounded border p-2">
+                  <div class="flex items-center gap-2 rounded border p-2">
                     <span class="font-mono flex-1 text-sm">{key}</span>
                     <span class="text-base-content-muted">→</span>
                     <span class="font-mono flex-1 text-sm">{value}</span>

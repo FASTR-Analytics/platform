@@ -93,7 +93,7 @@ export function Step1Dhis2(p: Props) {
             <Switch>
               <Match when={!useInline() && info.storedCredentials} keyed>
                 {(stored) => (
-                  <div class="border-border ui-pad ui-spy-sm rounded border">
+                  <div class="ui-pad ui-spy-sm rounded border">
                     <div class="text-sm">
                       {t3({
                         en: "Use stored connection:",
@@ -154,8 +154,8 @@ export function Step1Dhis2(p: Props) {
           </div>
         </div>
 
-        <div class="border-border rounded border">
-          <div class="bg-base-100 border-border flex border-b px-3 py-2 text-sm font-700">
+        <div class="rounded border">
+          <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
             <div class="w-1/4">{t3({ en: "Level", fr: "Niveau", pt: "Nível" })}</div>
             <div class="w-1/2">{t3({ en: "Name", fr: "Nom", pt: "Nome" })}</div>
             <div class="w-1/4">{t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}</div>

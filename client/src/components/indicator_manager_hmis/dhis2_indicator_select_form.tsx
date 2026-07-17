@@ -276,7 +276,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <Show
               when={totalResultCount() > 0}
               fallback={
-                <div class="border-border bg-base-200 ui-pad rounded border text-center">
+                <div class="bg-base-200 ui-pad rounded border text-center">
                   <div class="text-base-content">
                     {t3({
                       en: "No results found. Try a different search term.",
@@ -292,7 +292,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   {/* Indicators */}
                   <For each={searchResults().indicators}>
                     {(indicator) => (
-                      <div class="border-border ui-pad-sm flex items-center gap-2 rounded border">
+                      <div class="ui-pad-sm flex items-center gap-2 rounded border">
                         <span class="bg-primary-subtle text-primary-subtle-content font-400 inline-block flex-none rounded px-2 py-1 text-xs">
                           {t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })}
                         </span>
@@ -325,7 +325,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   {/* Data Elements */}
                   <For each={searchResults().dataElements}>
                     {(de) => (
-                      <div class="border-border rounded border">
+                      <div class="rounded border">
                         {/* Data Element row */}
                         <div class="ui-pad-sm flex items-center gap-2">
                           <Show when={hasDisaggregation(de)}>
@@ -383,7 +383,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
 
                         {/* Expanded COCs */}
                         <Show when={hasDisaggregation(de) && isExpanded(de.id)}>
-                          <div class="border-border bg-base-200 border-t">
+                          <div class="bg-base-200 border-t">
                             <For each={getCOCs(de)}>
                               {(coc) => {
                                 const operandId = `${de.id}.${coc.id}`;
@@ -431,7 +431,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         </div>
 
         {/* Selected Items Panel */}
-        <div class="ui-pad border-border h-full w-0 flex-1 overflow-auto border-l">
+        <div class="ui-pad h-full w-0 flex-1 overflow-auto border-l">
           <div class="mb-4">
             <div class="font-700 text-lg">
               {t3({ en: "Selected Items", fr: "Éléments sélectionnés", pt: "Elementos selecionados" })}
@@ -458,7 +458,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <div class="ui-spy">
               <For each={tempSelectedElements()}>
                 {(item) => (
-                  <div class="border-border ui-pad-sm ui-gap flex items-center justify-between rounded border">
+                  <div class="ui-pad-sm ui-gap flex items-center justify-between rounded border">
                     <div class="flex-1">
                       <div class="font-700">{item.name}</div>
                       <div class="ui-gap-sm flex items-center text-sm">

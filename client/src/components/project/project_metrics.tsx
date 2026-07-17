@@ -65,7 +65,6 @@ export function ProjectMetrics(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })}
-          class="border-border"
           ensureHeightAsIfButton></HeadingBar>
       }
     >
@@ -73,7 +72,7 @@ export function ProjectMetrics(p: Props) {
         <For each={organized()}>
           {(moduleGroup) => (
             <div class="ui-spy">
-              <div class="border-border flex items-baseline gap-3 border-b pb-2">
+              <div class="flex items-baseline gap-3 border-b pb-2">
                 <div class="font-700 text-base">{moduleGroup.moduleLabel}</div>
                 <div class="font-mono ui-text-caption">{moduleGroup.moduleId}</div>
               </div>
@@ -151,8 +150,8 @@ function MetricGroupCard(p: MetricGroupCardProps) {
   }
 
   return (
-    <div class="border-border bg-base-100 rounded border">
-      <div class="ui-pad-sm border-border border-b">
+    <div class="bg-base-100 rounded border">
+      <div class="ui-pad-sm border-b">
         <div class="font-700">{p.metricGroup.label}</div>
         <Show when={firstMetric.aiDescription}>
           <div class="ui-text-caption mt-1">
@@ -181,7 +180,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
           <div class="ui-spy-sm">
             <For each={p.metricGroup.variants}>
               {(variant) => (
-                <div class="border-border ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
+                <div class="ui-pad-sm ui-gap-sm flex items-start justify-between rounded border">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
                       {variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}

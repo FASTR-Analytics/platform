@@ -43,7 +43,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
       </Show>
       <button
         type="button"
-        class="ui-hoverable-base-100 border-border flex items-center gap-2 rounded border px-3 py-1.5"
+        class="ui-hoverable-base-100 flex items-center gap-2 rounded border px-3 py-1.5"
         style={{ "anchor-name": anchorName } as JSX.CSSProperties}
         // @ts-ignore - popovertarget is valid HTML
         popovertarget={popoverId}
@@ -102,7 +102,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               class="flex-1 cursor-pointer rounded border py-1.5 text-sm font-700"
               classList={{
                 "bg-primary text-primary-content border-primary": p.bold,
-                "text-base-content border-border ui-hoverable-base-100":
+                "text-base-content ui-hoverable-base-100":
                   !p.bold,
               }}
               onClick={() => p.onBoldChange(!p.bold)}
@@ -114,7 +114,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
               class="flex-1 cursor-pointer rounded border py-1.5 text-sm italic"
               classList={{
                 "bg-primary text-primary-content border-primary": p.italic,
-                "text-base-content border-border ui-hoverable-base-100":
+                "text-base-content ui-hoverable-base-100":
                   !p.italic,
               }}
               onClick={() => p.onItalicChange(!p.italic)}
@@ -125,7 +125,7 @@ export function TextStylePopover(p: TextStylePopoverProps) {
           <Show when={p.defaults && p.onReset}>
             <button
               type="button"
-              class="text-base-content border-border ui-hoverable-base-100 mt-3 w-full rounded border py-1.5 text-sm"
+              class="text-base-content ui-hoverable-base-100 mt-3 w-full rounded border py-1.5 text-sm"
               onClick={() => p.onReset?.()}
             >
               {t3({ en: "Reset to default", fr: "Réinitialiser", pt: "Repor predefinição" })}

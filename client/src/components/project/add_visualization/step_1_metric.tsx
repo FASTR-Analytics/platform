@@ -46,7 +46,7 @@ export function Step1Metric(p: Props) {
     <div class="h-full">
       <FrameLeft
         panelChildren={
-          <div class="border-border ui-pad h-full w-56 border-r">
+          <div class="ui-pad h-full w-56 border-r">
             <ModuleSidebar
               metricsByModule={metricsByModule()}
               selectedModule={selectedModule()}

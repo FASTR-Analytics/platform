@@ -313,7 +313,7 @@
   }
 
   #SLIDE_EDITOR_CANVAS {
-    @apply border-border border;
+    @apply border;
   }
 }
 

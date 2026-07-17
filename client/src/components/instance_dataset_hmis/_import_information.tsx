@@ -42,7 +42,7 @@ export function ImportInformation(
       <div class="ui-spy ui-pad">
         <div class="ui-gap grid grid-cols-12 items-start">
           <Show when={p.version.stagingResult}>
-            <div class="ui-spy-sm border-border ui-pad col-span-6 rounded border text-sm">
+            <div class="ui-spy-sm ui-pad col-span-6 rounded border text-sm">
               <div class="font-700 text-base">{t3({ en: "Import summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}</div>
               <div class="flex items-center">
                 <div class="w-56 flex-none">{t3({ en: "Import source", fr: "Source de l'importation", pt: "Fonte da importação" })}</div>
@@ -87,7 +87,7 @@ export function ImportInformation(
 
           {/* CSV-specific statistics */}
           <Show when={csvResult()}>
-            <div class="border-border ui-pad ui-spy-sm col-span-6 rounded border text-sm">
+            <div class="ui-pad ui-spy-sm col-span-6 rounded border text-sm">
               <div class="font-700 text-base">{t3({ en: "CSV import details", fr: "Détails de l'importation CSV", pt: "Detalhes da importação CSV" })}</div>
               <div class="flex justify-between">
                 <span>{t3({ en: "Raw rows processed:", fr: "Lignes brutes traitées :", pt: "Linhas brutas processadas:" })}</span>
@@ -110,7 +110,7 @@ export function ImportInformation(
 
           {/* DHIS2-specific statistics */}
           <Show when={dhis2Result()}>
-            <div class="border-border ui-pad ui-spy-sm col-span-6 rounded border text-sm">
+            <div class="ui-pad ui-spy-sm col-span-6 rounded border text-sm">
               <div class="font-700 text-base">{t3({ en: "DHIS2 import details", fr: "Détails de l'importation DHIS2", pt: "Detalhes da importação DHIS2" })}</div>
               <div class="flex justify-between">
                 <span>{t3({ en: "Total indicator-period combinations:", fr: "Total de combinaisons indicateur-période :", pt: "Total de combinações indicador-período:" })}</span>
@@ -149,7 +149,7 @@ export function ImportInformation(
               <For each={p.version.stagingResult?.periodIndicatorStats}>
                 {(stat, index) => (
                   <div
-                    class="border-border grid grid-cols-4 items-center py-1 text-sm data-[topborder=true]:border-t"
+                    class="grid grid-cols-4 items-center py-1 text-sm data-[topborder=true]:border-t"
                     data-topborder={index() > 0}
                   >
                     <div class="truncate">

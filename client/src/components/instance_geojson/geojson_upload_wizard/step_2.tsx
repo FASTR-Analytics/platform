@@ -222,7 +222,7 @@ export function Step2(p: Props) {
         <Show when={state.selectedProp()}>
           <div class="ui-spy-sm">
             <label class="text-sm">{t3({ en: "Values in selected property", fr: "Valeurs de la propriété sélectionnée", pt: "Valores da propriedade selecionada" })}</label>
-            <div class="border-border max-h-40 overflow-auto rounded border">
+            <div class="max-h-40 overflow-auto rounded border">
               {geoJsonValues().slice(0, 30).map((val) => (
                 <div class="border-base-200 px-3 py-1 text-sm border-b last:border-b-0">{val}</div>
               ))}

@@ -102,7 +102,7 @@ export function ProfileForm(
           return (
             <>
               {/* Hero */}
-              <div class="border-border flex flex-col items-center gap-3 border-b pt-2 pb-6">
+              <div class="flex flex-col items-center gap-3 border-b pt-2 pb-6">
                 {clerk.user?.imageUrl && (
                   <button
                     type="button"

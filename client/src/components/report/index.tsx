@@ -180,7 +180,7 @@ export function ProjectReport(p: Props) {
       const fb = figures()[fig[1]];
       return fb ? (
         <div
-          class="border-border ui-pad my-4 rounded border"
+          class="ui-pad my-4 rounded border"
           data-line={line}
         >
           <ReportFigureEmbed figure={fb} onMeasured={() => armFigureSettle()} />
@@ -884,7 +884,7 @@ export function ProjectReport(p: Props) {
     return (
       <div
         class="min-h-0 flex-1 overflow-auto px-8 py-10"
-        classList={{ "border-border border-l": mode() === "split" }}
+        classList={{ "border-l": mode() === "split" }}
         ref={(el) => (previewEl = el)}
       >
         <div
@@ -982,7 +982,6 @@ export function ProjectReport(p: Props) {
         panelChildren={
           <HeadingBar
             heading={label()}
-            class="border-border"
             leftChildren={
               <Button
                 iconName="chevronLeft"
@@ -1037,7 +1036,7 @@ export function ProjectReport(p: Props) {
           panelChildren={
             mode() !== "view" ? (
               <div
-                class="border-border flex h-full flex-col border-r"
+                class="flex h-full flex-col border-r"
                 style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
               >
                 <ReportEmbedEditor

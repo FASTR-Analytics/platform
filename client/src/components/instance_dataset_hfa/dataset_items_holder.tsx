@@ -134,7 +134,7 @@ function DatasetDisplayPresentation(p: {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="border-border flex-none border-b p-2">
+      <div class="flex-none border-b p-2">
         <div class="w-96">
           <Input
             placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables...", pt: "Pesquisar variáveis..." })}
