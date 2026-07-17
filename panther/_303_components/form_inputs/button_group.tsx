@@ -5,15 +5,17 @@
 
 import { For, type JSX, Show } from "solid-js";
 import type { ListItem } from "../list_selection/list_item_types.ts";
+import type { Intent } from "../types.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button group item classes composed from utility classes and component classes
 function getButtonGroupItemClasses(size?: "sm") {
   return [
-    // Component classes (defined in CSS)
+    // Component classes (defined in CSS). Both arms take their surface +
+    // states from the hoverable family (added per-arm in classList):
+    // selected = the item's intent (+ ui-fill skin), unselected = the
+    // declared onBackground token (quiet interactive of that surface).
     "ui-focusable",
-    "ui-intent-fill",
-    "ui-intent-states",
 
     // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
@@ -22,6 +24,7 @@ function getButtonGroupItemClasses(size?: "sm") {
 
     // Layout and appearance
     "inline-flex",
+    "cursor-pointer",
     "select-none",
     "appearance-none",
     "items-center",
@@ -38,18 +41,8 @@ function getButtonGroupItemClasses(size?: "sm") {
     "data-[selected=true]:border",
     "data-[selected=false]:text-base-content-muted",
     "data-[selected=false]:border-border",
-    "data-[selected=false]:bg-base-100",
     "data-[selected=false]:focus-visible:border",
     "data-[LeftOfSelected=true]:border-r-0",
-
-    // Unselected hover — the outline-style intent-subtle tint. Written as
-    // utilities (not via ui-intent-states) because the rest bg above is a
-    // utility, and component-layer hovers lose to it.
-    "data-[selected=false]:hover:bg-primary-subtle",
-    "data-[selected=false]:data-[intent=neutral]:hover:bg-neutral-subtle",
-    "data-[selected=false]:data-[intent=success]:hover:bg-success-subtle",
-    "data-[selected=false]:data-[intent=warning]:hover:bg-warning-subtle",
-    "data-[selected=false]:data-[intent=danger]:hover:bg-danger-subtle",
   ].join(" ");
 }
 
@@ -65,6 +58,7 @@ export type ButtonGroupProps<T extends string, M = never> = {
   itemWidth?: string;
   size?: "sm";
   allowDeselect?: boolean;
+  onBackground?: Intent;
 };
 
 export function ButtonGroup<T extends string, M = never>(
@@ -91,13 +85,17 @@ export function ButtonGroup<T extends string, M = never>(
             return (
               <button
                 class={getButtonGroupItemClasses(p.size)}
+                classList={{
+                  [`ui-fill-${item.intent ?? "primary"}`]: isSelected(),
+                  [`ui-hoverable-${item.intent ?? "primary"}`]: isSelected(),
+                  [`ui-hoverable-${p.onBackground ?? "base-100"}`]:
+                    !isSelected(),
+                }}
                 style={{ width: p.itemWidth }}
                 data-selected={isSelected()}
                 data-first={isFirst()}
                 data-last={isLast()}
                 data-LeftOfSelected={isLeftOfSelected()}
-                data-intent={item.intent}
-                data-outline={!isSelected()}
                 aria-label={item.labelText}
                 disabled={item.disabled}
                 onClick={() =>

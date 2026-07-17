@@ -264,7 +264,7 @@ export function PopoverMenuProvider() {
                 {(item, index) => (
                   <Show
                     when={item.type !== "divider"}
-                    fallback={<div class="bg-base-300 my-1 h-px" />}
+                    fallback={<div class="bg-border my-1 h-px" />}
                   >
                     {(() => {
                       let buttonRef: HTMLButtonElement | undefined;
@@ -343,7 +343,7 @@ export function PopoverMenuProvider() {
                 {(item) => (
                   <Show
                     when={item.type !== "divider"}
-                    fallback={<div class="bg-base-300 my-1 h-px" />}
+                    fallback={<div class="bg-border my-1 h-px" />}
                   >
                     <button
                       type="button"

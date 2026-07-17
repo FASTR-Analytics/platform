@@ -10,7 +10,11 @@ import type { SelectOption } from "./types.ts";
 import { useAutoFocus } from "./utils.ts";
 
 // Select classes composed from utility classes and component classes
-function getSelectClasses(size: "sm" | undefined, outline: boolean) {
+function getSelectClasses(
+  size: "sm" | undefined,
+  outline: boolean,
+  intent?: Intent,
+) {
   return [
     // Component classes (defined in CSS)
     "ui-focusable",
@@ -21,9 +25,10 @@ function getSelectClasses(size: "sm" | undefined, outline: boolean) {
     size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     "font-400",
 
-    // Appearance: Button-identical intent outline, or neutral box
+    // Appearance: Button-identical intent outline skin (stateless — the
+    // deliberate skin-without-behavior composition), or neutral box
     ...(outline
-      ? ["ui-intent-fill", "ui-intent-outline"]
+      ? [`ui-outline-${intent ?? "primary"}`]
       : ["text-base-content", "border-border", "bg-base-100"]),
     "rounded",
     "border",
@@ -77,9 +82,7 @@ export function Select<T extends string>(p: Props<T>) {
           value={p.value ?? ""}
           onChange={(e) =>
             p.onChange(e.currentTarget.value as T)}
-          class={getSelectClasses(p.size, !!p.outline)}
-          data-intent={p.intent}
-          data-outline={!!p.outline}
+          class={getSelectClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
@@ -100,10 +103,8 @@ export function Select<T extends string>(p: Props<T>) {
           class="pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center"
           classList={{
             "text-base-content": !p.outline,
-            "ui-intent-outline": !!p.outline,
+            [`ui-outline-${p.intent ?? "primary"}`]: !!p.outline,
           }}
-          data-intent={p.intent}
-          data-outline={!!p.outline}
         >
           <Icon iconName="selector" />
         </div>

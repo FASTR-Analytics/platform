@@ -4,10 +4,12 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export type Intent =
-  | "danger"
   | "primary"
+  | "neutral"
   | "success"
   | "warning"
-  | "neutral"
+  | "danger"
   | "base-content"
-  | "base-100";
+  | "base-100"
+  | "base-200"
+  | "base-300";

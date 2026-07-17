@@ -14,13 +14,29 @@ import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button classes composed from utility classes and component classes
-function getButtonClasses(size?: "sm") {
+function getButtonClasses(
+  size?: "sm",
+  intent?: Intent,
+  outline?: boolean,
+  onBackground?: Intent,
+) {
   return [
-    // Component classes (defined in CSS)
+    // Component classes (defined in CSS): the per-intent skin, then the
+    // behavior. Filled buttons are hoverable surfaces of their own intent.
+    // Outline buttons are quiet interactives OF THE SURFACE THEY SIT ON:
+    // onBackground declares that token, and the button takes its exact
+    // rest/hover/active pattern (the opaque rest is also what makes the
+    // button safe over busy content).
     "ui-focusable",
-    "ui-intent-fill",
-    "ui-intent-outline",
-    "ui-intent-states",
+    ...(outline
+      ? [
+        `ui-outline-${intent ?? "primary"}`,
+        `ui-hoverable-${onBackground ?? "base-100"}`,
+      ]
+      : [
+        `ui-fill-${intent ?? "primary"}`,
+        `ui-hoverable-${intent ?? "primary"}`,
+      ]),
 
     // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
@@ -34,6 +50,7 @@ function getButtonClasses(size?: "sm") {
     // Layout and appearance
     "inline-flex",
     "flex-none",
+    "cursor-pointer",
     "select-none",
     "appearance-none",
     "items-center",
@@ -62,7 +79,7 @@ type ButtonPropsBase = {
   loading?: boolean;
   state?: StateHolderButtonAction | StateHolderFormAction;
   outline?: boolean;
-  fillBase100?: boolean;
+  onBackground?: Intent;
   iconName?: IconName;
   iconPosition?: "left" | "right";
   ariaLabel?: string;
@@ -164,18 +181,15 @@ export function Button(p: ButtonProps) {
     <Switch>
       <Match when={!p.href}>
         <button
-          class={getButtonClasses(p.size)}
+          class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
           id={p.id}
           type={p.type}
           disabled={p.disabled}
-          data-intent={p.intent}
           autofocus={p.autofocus}
           form={p.form}
           data-width={p.fullWidth}
-          data-outline={!!p.outline}
-          data-fill-base-100={!!p.fillBase100}
           aria-label={p.ariaLabel}
         >
           {content()}
@@ -183,13 +197,10 @@ export function Button(p: ButtonProps) {
       </Match>
       <Match when={p.href}>
         <a
-          class={getButtonClasses(p.size)}
+          class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           href={p.href}
           id={p.id}
-          data-intent={p.intent}
           data-width={p.fullWidth}
-          data-outline={!!p.outline}
-          data-fill-base-100={!!p.fillBase100}
           target={p.download || p.newTab ? "_blank" : undefined}
           rel={p.download || p.newTab ? "noopener noreferrer" : undefined}
           download={p.download === true ? "" : p.download || undefined}

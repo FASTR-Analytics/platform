@@ -78,13 +78,12 @@ export function SelectList<T extends string = string, M = never>(
                 class="cursor-pointer rounded px-2 py-1 text-sm"
                 classList={{
                   "select-none hover:bg-base-100-hover active:bg-base-100-active":
-                    !p.intent && item.id !== p.value,
-                  "ui-intent-fill": !!p.intent,
-                  "ui-intent-states": !!p.intent,
+                    item.id !== p.value,
+                  [`ui-fill-${p.intent}`]: !!p.intent && item.id === p.value,
+                  [`ui-hoverable-${p.intent}`]: !!p.intent &&
+                    item.id === p.value,
                   "bg-base-200": !p.intent && item.id === p.value,
                 }}
-                data-intent={p.intent}
-                data-outline={item.id !== p.value}
                 onClick={() => p.onChange(item.id)}
               >
                 <Show when={p.renderItem} fallback={item.label}>

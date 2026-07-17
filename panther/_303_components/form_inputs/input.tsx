@@ -60,9 +60,7 @@ export function Input(p: Props) {
         <input
           ref={(el) =>
             useAutoFocus(el, p.autoFocus)}
-          class={getInputClasses(p.size, !!p.outline)}
-          data-intent={p.intent}
-          data-outline={!!p.outline}
+          class={getInputClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
           autofocus={p.autoFocus}
           type={p.type}

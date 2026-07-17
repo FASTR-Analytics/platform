@@ -65,6 +65,8 @@ function dotClass(intent: Intent): string {
     neutral: "bg-neutral",
     "base-content": "bg-base-content",
     "base-100": "bg-base-100",
+    "base-200": "bg-base-200",
+    "base-300": "bg-base-300",
   };
   return `${base} ${map[intent]}`;
 }

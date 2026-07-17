@@ -3,9 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { Intent } from "../../types.ts";
+
 // Input classes composed from utility classes and component classes. Shared
 // by Input and the native date/time picker inputs so they render identically.
-export function getInputClasses(size: "sm" | undefined, outline: boolean) {
+export function getInputClasses(
+  size: "sm" | undefined,
+  outline: boolean,
+  intent?: Intent,
+) {
   return [
     // Component classes (defined in CSS)
     "ui-focusable",
@@ -15,10 +21,11 @@ export function getInputClasses(size: "sm" | undefined, outline: boolean) {
     size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     "font-400",
 
-    // Appearance: Button-identical intent outline, or neutral box
+    // Appearance: Button-identical intent outline skin (stateless), or
+    // neutral box
     ...(outline
-      ? ["ui-intent-fill", "ui-intent-outline"]
-      : ["text-base-content", "border-base-300", "bg-base-100"]),
+      ? [`ui-outline-${intent ?? "primary"}`]
+      : ["text-base-content", "border-border", "bg-base-100"]),
     "rounded",
     "border",
 
@@ -32,6 +39,6 @@ export function getInputClasses(size: "sm" | undefined, outline: boolean) {
     "data-[mono=true]:font-mono",
 
     // Disabled state
-    "disabled:opacity-50",
+    "disabled:opacity-40",
   ].join(" ");
 }
