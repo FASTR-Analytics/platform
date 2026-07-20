@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   createMemo,
   createSignal,
   createUniqueId,
@@ -122,11 +123,13 @@ export function MultiSelectSearch<T extends string>(
   function handleToggle(e: Event) {
     const opening =
       (e as Event & { newState: "open" | "closed" }).newState === "open";
-    setOpen(opening);
-    if (opening) {
-      setQuery("");
-      setPinned(new Set<string>(p.values));
-    }
+    batch(() => {
+      if (opening) {
+        setQuery("");
+        setPinned(new Set<string>(p.values));
+      }
+      setOpen(opening);
+    });
   }
 
   return (
