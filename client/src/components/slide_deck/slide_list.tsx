@@ -459,7 +459,7 @@ export function SlideList(p: Props) {
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
               <Button iconName="presentation" onClick={() => p.present()}>
-                {t3({ en: "Present", fr: "Présenter" })}
+                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
               </Button>
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>

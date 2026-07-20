@@ -22,7 +22,7 @@ type Props = EditorComponentProps<
   undefined
 >;
 
-const LOADING_MSG = t3({ en: "Loading...", fr: "Chargement..." });
+const LOADING_MSG = t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." });
 
 // Fullscreen presentation of a slide deck: one slide at a time, click/keyboard
 // navigation, neighbour preloading. Reuses the exact render pipeline that the
@@ -195,7 +195,7 @@ export function SlidePresenter(p: Props) {
         when={total > 0}
         fallback={
           <div class="text-base-100 text-sm">
-            {t3({ en: "No slides to present", fr: "Aucune diapositive à présenter" })}
+            {t3({ en: "No slides to present", fr: "Aucune diapositive à présenter", pt: "Sem diapositivos para apresentar" })}
           </div>
         }
       >
