@@ -16,6 +16,34 @@ import {
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
 
+// Clerk's account window renders in its own portal with Clerk's own styling,
+// so the app's CSS tokens don't reach it. Pass dark appearance variables
+// (mirroring the app.css dark values) at open time — evaluated per open, so
+// it follows the theme active when the window is launched.
+function openClerkUserProfile() {
+  clerk.openUserProfile(
+    darkMode()
+      ? {
+        appearance: {
+          variables: {
+            colorBackground: "#18181b",
+            colorText: "#fafafa",
+            colorTextSecondary: "#a1a1aa",
+            colorNeutral: "#fafafa",
+            colorInputBackground: "#27272a",
+            colorInputText: "#fafafa",
+            colorPrimary: "#14b8a6",
+            colorTextOnPrimaryBackground: "#052e2b",
+            colorDanger: "#f87171",
+            colorSuccess: "#4ade80",
+            colorWarning: "#facc15",
+          },
+        },
+      }
+      : undefined,
+  );
+}
+
 export function ProfileForm(
   p: AlertComponentProps<
     {
@@ -108,7 +136,7 @@ export function ProfileForm(
                   <button
                     type="button"
                     class="hover:ring-primary cursor-pointer rounded-full ring-2 ring-transparent transition"
-                    onClick={() => clerk.openUserProfile()}
+                    onClick={() => openClerkUserProfile()}
                     title={t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   >
                     <img
@@ -128,7 +156,7 @@ export function ProfileForm(
                   <button
                     type="button"
                     class="text-primary mt-1 cursor-pointer text-xs hover:underline"
-                    onClick={() => clerk.openUserProfile()}
+                    onClick={() => openClerkUserProfile()}
                   >
                     {t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   </button>
