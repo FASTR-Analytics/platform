@@ -14,7 +14,6 @@ import {
 } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Icon } from "../icons/mod.ts";
-import type { PopoverPosition } from "../special_state/popover_menu.tsx";
 import type { SelectOption } from "./types.ts";
 import { getSelectClasses } from "./_internal/input_classes.ts";
 
@@ -24,7 +23,6 @@ type MultiSelectSearchProps<T extends string> = {
   onChange: (v: T[]) => void;
   label?: string | JSX.Element;
   placeholder?: string;
-  position?: PopoverPosition;
   fullWidth?: boolean;
   size?: "sm";
   mono?: boolean;
@@ -78,6 +76,10 @@ function CheckMark(p: { checked: boolean; indeterminate?: boolean }) {
 // the select-all row and the option list. The panel is a manual popover:
 // open/close is driven by focus/blur/Escape on the input, and mousedown inside
 // the panel is prevented so row clicks never steal focus from the input.
+// The panel matches the trigger width and its side (below/above) and max
+// height are measured once at open and pinned (data-pinned disables the CSS
+// position-try fallbacks), so the meeting corners can be squared off into one
+// seamless unit and nothing flips or jumps while the user types.
 export function MultiSelectSearch<T extends string>(
   p: MultiSelectSearchProps<T>,
 ) {
@@ -89,6 +91,8 @@ export function MultiSelectSearch<T extends string>(
   let wrapperRef: HTMLDivElement | undefined;
 
   const [open, setOpen] = createSignal<boolean>(false);
+  const [side, setSide] = createSignal<"bottom" | "top">("bottom");
+  const [panelMaxHeight, setPanelMaxHeight] = createSignal<number>(400);
   const [query, setQuery] = createSignal<string>("");
   // Snapshot of the selection at open time, used only for ordering (selected
   // pinned first) so rows don't jump around while the user toggles.
@@ -161,10 +165,24 @@ export function MultiSelectSearch<T extends string>(
   }
 
   function openPanel() {
-    if (open()) {
+    if (open() || !wrapperRef) {
       return;
     }
+    const MARGIN = 8;
+    const HEIGHT_CAP = 400;
+    const rect = wrapperRef.getBoundingClientRect();
+    const spaceBelow = globalThis.innerHeight - rect.bottom - MARGIN;
+    const spaceAbove = rect.top - MARGIN;
+    const chosenSide = spaceBelow >= Math.min(HEIGHT_CAP, spaceAbove)
+      ? "bottom"
+      : "top";
+    const maxHeight = Math.max(
+      Math.min(HEIGHT_CAP, chosenSide === "bottom" ? spaceBelow : spaceAbove),
+      120,
+    );
     batch(() => {
+      setSide(chosenSide);
+      setPanelMaxHeight(maxHeight);
       setQuery("");
       setPinned(new Set<string>(p.values));
       setOpen(true);
@@ -220,11 +238,15 @@ export function MultiSelectSearch<T extends string>(
           type="text"
           class={`${
             getSelectClasses(p.size, false, undefined)
-          } text-left data-[open=true]:cursor-text`}
+          } text-left data-[open=true]:cursor-text data-[panel-side=bottom]:rounded-b-none data-[panel-side=top]:rounded-t-none`}
           data-mono={p.mono}
           data-open={open()}
+          data-panel-side={open() ? side() : undefined}
           readonly={!open()}
           disabled={p.disabled}
+          title={!open() && selectedOptions().length > 0
+            ? selectedOptions().map(getSearchText).join(", ")
+            : undefined}
           value={open() ? query() : summary() ?? ""}
           placeholder={open()
             ? summary() ??
@@ -256,16 +278,21 @@ export function MultiSelectSearch<T extends string>(
         id={popoverId}
         popover="manual"
         class="ui-popover"
-        data-position={p.position ?? "bottom-start"}
+        data-position={side() === "bottom" ? "bottom-start" : "top-start"}
+        data-pinned="true"
         style={{
           "position-anchor": anchorName,
-          "min-width": "anchor-size(width)",
+          "width": "anchor-size(width)",
         } as JSX.CSSProperties}
         onMouseDown={(e) =>
           e.preventDefault()}
       >
         <Show when={open()}>
-          <div class="bg-base-100 flex max-h-[min(400px,70vh)] min-w-full max-w-[min(90vw,400px)] flex-col overflow-hidden rounded border shadow-floating">
+          <div
+            class="bg-base-100 flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
+            data-side={side()}
+            style={{ "max-height": `${panelMaxHeight()}px` }}
+          >
             <div
               class="ui-hoverable-base-100 flex flex-none cursor-pointer items-center gap-2 border-b px-2 py-1.5 text-sm"
               onClick={toggleSelectAllFiltered}
@@ -304,6 +331,14 @@ export function MultiSelectSearch<T extends string>(
                       <span
                         class="flex-1 select-none truncate data-[mono=true]:font-mono data-[mono=true]:text-xs"
                         data-mono={p.mono}
+                        onMouseEnter={(e) => {
+                          if (
+                            e.currentTarget.scrollWidth >
+                              e.currentTarget.clientWidth
+                          ) {
+                            e.currentTarget.title = getSearchText(opt);
+                          }
+                        }}
                       >
                         {opt.label}
                       </span>

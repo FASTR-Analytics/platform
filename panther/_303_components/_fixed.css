@@ -1148,6 +1148,12 @@
     position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;
   }
 
+  /* Pinned popovers choose their side once at open (JS sets data-position) —
+     fallbacks disabled so the panel never flips while open */
+  .ui-popover[data-pinned="true"] {
+    position-try-fallbacks: none;
+  }
+
   /* Sub-menu popover */
   .ui-popover-submenu {
     position: absolute;
