@@ -10,8 +10,9 @@ const UNKNOWN_COLOR = "#64748b";
 
 // The editors' translucent-selection convention is color + ~20% alpha — a
 // soft pastel on light surfaces that all but vanishes over dark bases, so
-// dark mode tints at ~35% instead.
-const tintAlpha = () => (darkMode() ? "59" : "33");
+// dark mode tints at ~50% instead (the light text stays readable over the
+// vibrant presence palette at that strength).
+const tintAlpha = () => (darkMode() ? "80" : "33");
 
 // Shared pieces of the diff views (compare-with-current modal + the
 // session-edits view inside the version preview).
