@@ -200,8 +200,11 @@ export type AIChatConfig = {
   // the consumer hook's context) on EVERY turn-creating path — direct sends,
   // batches, and queue drains. Without it, getEphemeralContext keeps its
   // historical direct-send-only delivery.
+  // Both generics any: the second (interactions) must be explicit — its
+  // default is Record<never, never>, and the invariant TIDefs phantom would
+  // otherwise reject any interaction-adopting controller here.
   // deno-lint-ignore no-explicit-any
-  viewController?: AIViewController<any>;
+  viewController?: AIViewController<any, any>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

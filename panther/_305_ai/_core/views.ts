@@ -159,6 +159,13 @@ export type AIViewController<
   TDefs extends Record<string, AnyAIView>,
   TIDefs extends Record<string, AnyAIInteraction> = Record<never, never>,
 > = {
+  // Type-only phantom (never assigned) pinning TIDefs INVARIANTLY. Without
+  // it, a controller built with one interaction registry assigns to a
+  // controller type carrying a structurally different one — notify's
+  // generic signature compares leniently because its args are an unresolved
+  // conditional type (proven in the Phase 3 review, M4). Same pattern as
+  // AIView's __aiViewTypes phantom.
+  readonly __aiInteractionDefs?: (defs: TIDefs) => TIDefs;
   setView<K extends keyof TDefs>(id: K, ...args: SetViewArgs<TDefs, K>): void;
   clearView(): void;
   // Reactive accessor (Solid signal read): engine reads are live — a nav

@@ -13,12 +13,9 @@ import {
   Show,
 } from "solid-js";
 import { t3 } from "../deps.ts";
-import type { Intent } from "../types.ts";
 import { Icon } from "../icons/mod.ts";
 import type { PopoverPosition } from "../special_state/popover_menu.tsx";
 import type { SelectOption } from "./types.ts";
-import { Checkbox } from "./checkbox.tsx";
-import { Input } from "./input.tsx";
 import { getSelectClasses } from "./_internal/input_classes.ts";
 
 type MultiSelectSearchProps<T extends string> = {
@@ -28,7 +25,6 @@ type MultiSelectSearchProps<T extends string> = {
   label?: string | JSX.Element;
   placeholder?: string;
   position?: PopoverPosition;
-  intentWhenChecked?: Intent;
   fullWidth?: boolean;
   size?: "sm";
   mono?: boolean;
@@ -41,12 +37,56 @@ function getSearchText<T extends string>(opt: SelectOption<T>): string {
   return typeof opt.label === "string" ? opt.label : opt.value;
 }
 
+function CheckMark(p: { checked: boolean; indeterminate?: boolean }) {
+  return (
+    <span class="bg-base-100 relative h-4 w-4 flex-none rounded border">
+      <Show when={p.indeterminate}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="text-base-content absolute inset-0 m-auto h-3 w-3"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5 12h14" />
+        </svg>
+      </Show>
+      <Show when={p.checked && !p.indeterminate}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="text-base-content absolute inset-0 m-auto h-3 w-3"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5 12l5 5l10 -10" />
+        </svg>
+      </Show>
+    </span>
+  );
+}
+
+// Combo-box multi-select: the closed control is a select-styled input showing
+// a summary of the selection; focusing it turns it into the search input in
+// place (so the cursor never moves) and opens an anchored popover holding only
+// the select-all row and the option list. The panel is a manual popover:
+// open/close is driven by focus/blur/Escape on the input, and mousedown inside
+// the panel is prevented so row clicks never steal focus from the input.
 export function MultiSelectSearch<T extends string>(
   p: MultiSelectSearchProps<T>,
 ) {
   const id = createUniqueId();
   const popoverId = `multi-select-search-${id}`;
   const anchorName = `--multi-select-search-anchor-${id}`;
+  let inputRef: HTMLInputElement | undefined;
+  let panelRef: HTMLDivElement | undefined;
+  let wrapperRef: HTMLDivElement | undefined;
 
   const [open, setOpen] = createSignal<boolean>(false);
   const [query, setQuery] = createSignal<string>("");
@@ -120,16 +160,49 @@ export function MultiSelectSearch<T extends string>(
     }
   }
 
-  function handleToggle(e: Event) {
-    const opening =
-      (e as Event & { newState: "open" | "closed" }).newState === "open";
+  function openPanel() {
+    if (open()) {
+      return;
+    }
     batch(() => {
-      if (opening) {
-        setQuery("");
-        setPinned(new Set<string>(p.values));
-      }
-      setOpen(opening);
+      setQuery("");
+      setPinned(new Set<string>(p.values));
+      setOpen(true);
     });
+    panelRef?.showPopover();
+  }
+
+  function closePanel() {
+    if (!open()) {
+      return;
+    }
+    panelRef?.hidePopover();
+    setOpen(false);
+  }
+
+  function handleBlur(e: FocusEvent) {
+    const rt = e.relatedTarget;
+    if (
+      rt instanceof Node &&
+      (wrapperRef?.contains(rt) || panelRef?.contains(rt))
+    ) {
+      return;
+    }
+    closePanel();
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "Escape" && open()) {
+      e.stopPropagation();
+      closePanel();
+    }
+  }
+
+  function handleInput(value: string) {
+    if (!open()) {
+      openPanel();
+    }
+    setQuery(value);
   }
 
   return (
@@ -137,26 +210,40 @@ export function MultiSelectSearch<T extends string>(
       <Show when={p.label}>
         <label class="ui-label">{p.label}</label>
       </Show>
-      <div class="ui-form-text relative w-full">
-        <button
-          type="button"
-          popovertarget={popoverId}
-          class={`${getSelectClasses(p.size, false, undefined)} text-left`}
+      <div
+        ref={wrapperRef}
+        class="ui-form-text relative w-full"
+        style={{ "anchor-name": anchorName } as JSX.CSSProperties}
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          class={`${
+            getSelectClasses(p.size, false, undefined)
+          } text-left data-[open=true]:cursor-text`}
           data-mono={p.mono}
-          data-placeholder={!summary()}
+          data-open={open()}
+          readonly={!open()}
           disabled={p.disabled}
-          style={{ "anchor-name": anchorName } as JSX.CSSProperties}
-        >
-          {summary() ??
-            p.placeholder ??
-            t3({
-              en: "Select...",
-              fr: "Sélectionner...",
-              pt: "Selecionar...",
-            })}
-        </button>
+          value={open() ? query() : summary() ?? ""}
+          placeholder={open()
+            ? summary() ??
+              t3({ en: "Search...", fr: "Rechercher...", pt: "Pesquisar..." })
+            : p.placeholder ??
+              t3({
+                en: "Select...",
+                fr: "Sélectionner...",
+                pt: "Selecionar...",
+              })}
+          onFocus={openPanel}
+          onPointerDown={openPanel}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          onInput={(e) =>
+            handleInput(e.currentTarget.value)}
+        />
         <div class="text-base-content pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center">
-          <Icon iconName="selector" />
+          <Icon iconName={open() ? "search" : "selector"} />
         </div>
       </div>
       <Show when={p.invalidMsg}>
@@ -165,36 +252,31 @@ export function MultiSelectSearch<T extends string>(
         </div>
       </Show>
       <div
+        ref={panelRef}
         id={popoverId}
-        popover
+        popover="manual"
         class="ui-popover"
         data-position={p.position ?? "bottom-start"}
         style={{
           "position-anchor": anchorName,
           "min-width": "anchor-size(width)",
         } as JSX.CSSProperties}
-        on:toggle={handleToggle}
+        onMouseDown={(e) =>
+          e.preventDefault()}
       >
         <Show when={open()}>
           <div class="bg-base-100 flex max-h-[min(400px,70vh)] min-w-full max-w-[min(90vw,400px)] flex-col overflow-hidden rounded border shadow-floating">
-            <div class="flex-none border-b p-2">
-              <Input
-                value={query()}
-                onChange={setQuery}
-                placeholder={t3({
-                  en: "Search...",
-                  fr: "Rechercher...",
-                  pt: "Pesquisar...",
-                })}
-                size="sm"
-                fullWidth
-                autoFocus
-                mono={p.mono}
+            <div
+              class="ui-hoverable-base-100 flex flex-none cursor-pointer items-center gap-2 border-b px-2 py-1.5 text-sm"
+              onClick={toggleSelectAllFiltered}
+            >
+              <CheckMark
+                checked={allFilteredSelected()}
+                indeterminate={!allFilteredSelected() &&
+                  someFilteredSelected()}
               />
-            </div>
-            <div class="flex flex-none items-center justify-between gap-2 border-b p-2">
-              <Checkbox
-                label={query().trim().length > 0
+              <span class="flex-1 select-none truncate">
+                {query().trim().length > 0
                   ? t3({
                     en: "Select all matching",
                     fr: "Sélectionner toutes les correspondances",
@@ -205,32 +287,32 @@ export function MultiSelectSearch<T extends string>(
                     fr: "Tout sélectionner",
                     pt: "Selecionar tudo",
                   })}
-                checked={allFilteredSelected()}
-                indeterminate={!allFilteredSelected() && someFilteredSelected()}
-                onChange={toggleSelectAllFiltered}
-                intentWhenChecked={p.intentWhenChecked}
-              />
-              <div class="text-base-content-muted flex-none text-xs">
+              </span>
+              <span class="text-base-content-muted flex-none select-none text-xs">
                 {selectedOptions().length}/{p.options.length}
-              </div>
+              </span>
             </div>
-            <div class="flex-1 space-y-1 overflow-y-auto p-2">
+            <div class="flex-1 overflow-y-auto p-1">
               <For each={filteredOptions()}>
                 {(opt) => {
                   return (
-                    <Checkbox
-                      label={p.mono && typeof opt.label === "string"
-                        ? <span class="font-mono text-xs">{opt.label}</span>
-                        : opt.label}
-                      checked={selectedSet().has(opt.value)}
-                      onChange={() => toggleValue(opt.value)}
-                      intentWhenChecked={p.intentWhenChecked}
-                    />
+                    <div
+                      class="ui-hoverable-base-100 flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
+                      onClick={() => toggleValue(opt.value)}
+                    >
+                      <CheckMark checked={selectedSet().has(opt.value)} />
+                      <span
+                        class="flex-1 select-none truncate data-[mono=true]:font-mono data-[mono=true]:text-xs"
+                        data-mono={p.mono}
+                      >
+                        {opt.label}
+                      </span>
+                    </div>
                   );
                 }}
               </For>
               <Show when={filteredOptions().length === 0}>
-                <div class="text-base-content-muted text-sm">
+                <div class="text-base-content-muted px-2 py-1 text-sm">
                   {t3({
                     en: "No matching options",
                     fr: "Aucune option correspondante",
