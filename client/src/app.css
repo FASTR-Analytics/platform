@@ -117,6 +117,18 @@
 :root[data-theme="dark"] .cm-editor .cm-activeLineGutter {
   background-color: transparent;
 }
+/* Remote collaborators' selection highlights arrive as the PEER's colorLight
+   (their presence color at ~20% alpha, state/project/collab.ts) — chosen for
+   light surfaces and nearly invisible over dark ones. The inline
+   background-color can't be re-alphaed from CSS, so layer a translucent
+   light wash on top (background-image stacks above background-color); the
+   identity hue still shows through. */
+:root[data-theme="dark"] .cm-editor .cm-ySelection {
+  background-image: linear-gradient(
+    rgb(250 250 250 / 0.16),
+    rgb(250 250 250 / 0.16)
+  );
+}
 
 /* HTML-rendered markdown (panther's AI chat renderers and
    MarkdownPresentationJsx) colors its text via inline --md-* vars derived

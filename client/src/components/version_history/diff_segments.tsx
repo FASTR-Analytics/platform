@@ -1,11 +1,17 @@
 import { presenceColorForKey, t3, type VersionEditor } from "lib";
 import { For } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
+import { darkMode } from "~/state/t4_ui";
 import type { DiffSegment } from "./version_diff";
 
 // Changes whose author is unknown (session fallback) get a neutral color
 // instead of a presence color.
 const UNKNOWN_COLOR = "#64748b";
+
+// The editors' translucent-selection convention is color + ~20% alpha — a
+// soft pastel on light surfaces that all but vanishes over dark bases, so
+// dark mode tints at ~35% instead.
+const tintAlpha = () => (darkMode() ? "59" : "33");
 
 // Shared pieces of the diff views (compare-with-current modal + the
 // session-edits view inside the version preview).
@@ -54,7 +60,7 @@ export function DiffLegend() {
       <span>
         <span
           class="rounded-sm px-1"
-          style={{ "background-color": `${UNKNOWN_COLOR}33` }}
+          style={{ "background-color": `${UNKNOWN_COLOR}${tintAlpha()}` }}
         >
           {t3({ en: "added", fr: "ajouté", pt: "adicionado" })}
         </span>
@@ -63,7 +69,7 @@ export function DiffLegend() {
         <span
           class="rounded-sm px-1 line-through"
           style={{
-            "background-color": `${UNKNOWN_COLOR}33`,
+            "background-color": `${UNKNOWN_COLOR}${tintAlpha()}`,
             "text-decoration-color": UNKNOWN_COLOR,
           }}
         >
@@ -123,8 +129,7 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
               class="group relative cursor-help rounded-sm"
               classList={{ "line-through": seg.kind === "removed" }}
               style={{
-                // The editors' translucent-selection convention (color + "33").
-                "background-color": `${color}33`,
+                "background-color": `${color}${tintAlpha()}`,
                 ...(seg.kind === "removed"
                   ? { "text-decoration-color": color }
                   : {}),
