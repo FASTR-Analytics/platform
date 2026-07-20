@@ -266,6 +266,24 @@ function applyThemeToDocument(dark: boolean) {
 
 applyThemeToDocument(storedDarkMode);
 
+// TEMP — dark-mode testing only, remove before release: Shift+N toggles the
+// theme. Skipped while typing (inputs/textareas/contenteditable incl.
+// CodeMirror), since Shift+N is just how you type a capital N.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "N" || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+    return;
+  }
+  const t = e.target;
+  if (
+    t instanceof HTMLElement &&
+    (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" ||
+      t.isContentEditable)
+  ) {
+    return;
+  }
+  setDarkMode(!darkMode());
+});
+
 // ============================================================================
 // Chart/Viz Display Settings
 // ============================================================================
