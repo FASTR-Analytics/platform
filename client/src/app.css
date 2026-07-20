@@ -76,6 +76,17 @@
    dark:border-base-300). Matches the same data-theme attribute t4_ui sets. */
 @custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
 
+/* Native <select> popup lists: <option> text inherits the select's OWN text
+   color (e.g. base-100 white on the inverted ribbons' outline selects), but
+   the UA draws the popup over its own scheme-colored background — so the
+   ribbon sort dropdowns rendered white-on-white. Pin options to the popup
+   scheme's system colors; Canvas/CanvasText track color-scheme in both
+   themes. */
+select option {
+  color: CanvasText;
+  background-color: Canvas;
+}
+
 /* Inverted "dark ribbon" surfaces — the project page header and panther's
    HeadingBarMainRibbon / Tooltip pair bg-base-content with text-base-100 to
    make a dark bar with light text. In dark mode base-content flips to
