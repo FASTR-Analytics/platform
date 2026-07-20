@@ -116,10 +116,12 @@ static (`setKeyColors` in `client/src/index.tsx` is one-shot), so slides and
 exports keep their light document styling. On-screen standalone figures ARE
 dark-adapted, via `adaptFigureStyleForDarkMode`
 (`components/_shared/dark_mode_figures.ts`): a display-time overlay merged
-into `FigureInputs.style` (light base text, dimmed grid/table lines) at every
+into `FigureInputs.style` (light base text and axes, dimmed grid/table lines,
+dark table header bands, and near-black data colors — the "Actual"/"Expected"
+line idiom — flipped to light in seriesColorFunc/lines/legend) at every
 `ChartHolder` call site — and only there, so exports and stored FigureInputs
 snapshots are untouched. Any new on-screen `ChartHolder` must wrap its inputs
-in it. Data-series palette colors are not adjusted.
+in it. Chromatic data-series palette colors are not adjusted.
 
 When adding a new `--color-*` token to the `@theme` block, add its dark
 counterpart to the `:root[data-theme="dark"]` block too.
