@@ -130,6 +130,17 @@ export async function callAI(
   config: CallAIConfig,
   messages: MessageParam[],
 ): Promise<CallAIResult> {
+  // View-gated tools cannot run here: the one-shot path has no
+  // viewController, so the gate that availableIn promises would be silently
+  // skipped (and a viewController.createTool handler would read whatever its
+  // controller's state happens to be). Fail loud instead.
+  for (const tool of config.tools ?? []) {
+    if (tool.metadata.availableIn) {
+      throw new Error(
+        `callAI: tool "${tool.sdkTool.name}" declares availableIn — view-gated tools are chat-only (callAI has no viewController to gate against). Use a plain createAITool tool here.`,
+      );
+    }
+  }
   const { model, max_tokens } = config.modelConfig;
   const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools, model);
   const hasTools = config.tools?.length || resolvedBuiltInTools.length;

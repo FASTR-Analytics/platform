@@ -239,6 +239,147 @@
   --ui-form-text-size-sm: var(--text-xs); /* text-xs */
   --ui-form-line-height-sm: 1.25; /* leading-tight */
   --ui-icon-only-correction-sm: -0.125rem; /* -mx-0.5 */
+
+  /* ============================================= */
+  /* App-level markdown (--md-*)                   */
+  /* ============================================= */
+  /* Defaults for HTML-rendered markdown (MARKDOWN_BASE_STYLES). Contract:
+     when no style is passed to MarkdownPresentation / the AI chat
+     renderers, deriveMarkdownCssVars() emits no inline vars and these
+     defaults apply — markdown looks like the app (fonts/colors chain to
+     the app tokens above; text colors are currentColor so wrappers like
+     `text-primary` flow in). Passing any style object (use
+     DOCUMENT_MARKDOWN_DEFAULTS for "model defaults") projects the full
+     document style model as inline vars, overriding all of these —
+     markdown mirrors what the model renders to canvas/PDF. Values mirror
+     the document model's defaults (_004_markdown_style) except font
+     family (app tokens), text colors (currentColor), link color
+     (--color-primary), and code family (--font-mono). Zero margins keep
+     units (0em) — they feed Tailwind arbitrary-value utilities. */
+
+  /* paragraph (size comes from surrounding text, e.g. the bubble's text-sm) */
+  --md-p-family: var(--font-sans);
+  --md-p-weight: var(--font-weight-400);
+  --md-p-style: normal;
+  --md-p-lh: 1.2;
+  --md-p-color: currentColor;
+  --md-p-mt: 1em;
+  --md-p-mb: 0em;
+
+  /* h1–h3: bold, sized; h4–h6: mirror model (weight 400, 1em) */
+  --md-h1-family: var(--font-sans);
+  --md-h1-weight: var(--font-weight-700);
+  --md-h1-style: normal;
+  --md-h1-size: 1.5em;
+  --md-h1-lh: 1.2;
+  --md-h1-color: currentColor;
+  --md-h1-mt: 0.9em;
+  --md-h1-mb: 0em;
+
+  --md-h2-family: var(--font-sans);
+  --md-h2-weight: var(--font-weight-700);
+  --md-h2-style: normal;
+  --md-h2-size: 1.25em;
+  --md-h2-lh: 1.2;
+  --md-h2-color: currentColor;
+  --md-h2-mt: 0.95em;
+  --md-h2-mb: 0em;
+
+  --md-h3-family: var(--font-sans);
+  --md-h3-weight: var(--font-weight-700);
+  --md-h3-style: normal;
+  --md-h3-size: 1.125em;
+  --md-h3-lh: 1.2;
+  --md-h3-color: currentColor;
+  --md-h3-mt: 1em;
+  --md-h3-mb: 0em;
+
+  --md-h4-family: var(--font-sans);
+  --md-h4-weight: var(--font-weight-400);
+  --md-h4-style: normal;
+  --md-h4-size: 1em;
+  --md-h4-lh: 1.2;
+  --md-h4-color: currentColor;
+  --md-h4-mt: 1em;
+  --md-h4-mb: 0em;
+
+  --md-h5-family: var(--font-sans);
+  --md-h5-weight: var(--font-weight-400);
+  --md-h5-style: normal;
+  --md-h5-size: 1em;
+  --md-h5-lh: 1.2;
+  --md-h5-color: currentColor;
+  --md-h5-mt: 1em;
+  --md-h5-mb: 0em;
+
+  --md-h6-family: var(--font-sans);
+  --md-h6-weight: var(--font-weight-400);
+  --md-h6-style: normal;
+  --md-h6-size: 1em;
+  --md-h6-lh: 1.2;
+  --md-h6-color: currentColor;
+  --md-h6-mt: 1em;
+  --md-h6-mb: 0em;
+
+  /* lists */
+  --md-list-family: var(--font-sans);
+  --md-list-weight: var(--font-weight-400);
+  --md-list-style: normal;
+  --md-list-size: 1em;
+  --md-list-lh: 1.2;
+  --md-list-color: currentColor;
+  --md-list-mt: 0.5em;
+  --md-list-mb: 0.5em;
+  --md-bullet-indent: 1.714em;
+  --md-bullet-gap: 0.5em;
+  --md-numbered-indent: 1.714em;
+  --md-numbered-gap: 0.5em;
+
+  /* code — app mono font is a deliberate improvement over the model's
+     "inherit base family" default */
+  --md-code-family: var(--font-mono);
+  --md-code-weight: var(--font-weight-400);
+  --md-code-style: normal;
+  --md-code-size: 1em;
+  --md-code-lh: 1.2;
+  --md-code-color: currentColor;
+  --md-code-bg: var(--color-base-200);
+  --md-code-px: 1em;
+  --md-code-py: 1em;
+  --md-code-my: 1.5em;
+
+  /* blockquote */
+  --md-bq-family: var(--font-sans);
+  --md-bq-weight: var(--font-weight-400);
+  --md-bq-style: normal;
+  --md-bq-size: 1em;
+  --md-bq-lh: 1.2;
+  --md-bq-color: currentColor;
+  --md-bq-border-width: 3px;
+  --md-bq-border-color: var(--color-base-content);
+  --md-bq-pt: 0.25em;
+  --md-bq-pb: 0.25em;
+  --md-bq-pl: 0.75em;
+  --md-bq-pr: 0em;
+  --md-bq-gap: 0.5em;
+  --md-bq-my: 1.5em;
+
+  /* link — token substitution for the model's #0066cc */
+  --md-link-color: var(--color-primary);
+
+  /* image / table / hr / math */
+  --md-img-mt: 1em;
+  --md-img-mb: 1.5em;
+  --md-table-mt: 1em;
+  --md-table-mb: 1.5em;
+  --md-table-border-width: 1px;
+  --md-table-border-color: var(--color-base-300);
+  --md-table-cell-px: 0.5em;
+  --md-table-cell-py: 0.25em;
+  --md-table-header-bg: var(--color-base-200);
+  --md-hr-my: 1.5em;
+  --md-hr-color: var(--color-base-300);
+  --md-math-align: center;
 }
 
 @layer base {

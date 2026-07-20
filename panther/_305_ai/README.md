@@ -75,6 +75,34 @@ const weatherTool = createAITool({
 const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ```
 
+**Signaling failure from a handler:** throw `AIToolFailure` for expected,
+model-correctable failures (bad input, missing referent, precondition not met).
+The model receives `is_error: true` with your message and can self-correct,
+while the UI shows a clean failure row without a stack trace. Do NOT return an
+error-shaped string — that renders as success and tells the model nothing
+failed. Any other throw is treated as a genuine bug and keeps the full
+stack-trace display.
+
+```typescript
+import { AIToolFailure, createAITool } from "@timroberton/panther";
+
+const tool = createAITool({
+  name: "set_temperature",
+  description: "Set the thermostat",
+  inputSchema: z.object({ zone: z.string(), celsius: z.number() }),
+  handler: (input) => {
+    if (!zones.has(input.zone)) {
+      throw new AIToolFailure(`Unknown zone "${input.zone}"`);
+    }
+    // ...
+    return "Done";
+  },
+});
+```
+
+Malformed tool input (failing the zod schema) is converted to `AIToolFailure`
+automatically, with a prettified per-field message.
+
 ## Tool Results Display
 
 Tool executions now show their results to users (collapsible):
@@ -88,7 +116,8 @@ Tool executions now show their results to users (collapsible):
 **Errors:**
 
 - Shows error message
-- Click "stack trace" to see full error details
+- Click "stack trace" to see full error details (unexpected throws only —
+  `AIToolFailure` renders without a stack section)
 - Helps debug tool issues
 
 ## Built-in Tools

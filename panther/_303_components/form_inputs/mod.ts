@@ -16,6 +16,7 @@ export * from "./input.tsx";
 export * from "./label_holder.tsx";
 export * from "./loading_el.tsx";
 export * from "./multi_select.tsx";
+export * from "./multi_select_search.tsx";
 export * from "./nested_multi_select.tsx";
 export * from "./numbers.tsx";
 export * from "./progress_bar.tsx";

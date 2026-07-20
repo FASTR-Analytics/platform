@@ -5,6 +5,7 @@
 
 import { createSignal, Show } from "solid-js";
 import { MarkdownPresentation } from "../content/markdown_presentation.tsx";
+import { DOCUMENT_MARKDOWN_DEFAULTS } from "../utils/markdown_tailwind.ts";
 import {
   type APIResponseWithData,
   createMarkdownIt,
@@ -273,7 +274,7 @@ function PresentationViewerContent(p: ContentProps) {
               <MarkdownPresentation
                 markdown={currentSlide()!}
                 scale={scale()}
-                style={p.style?.markdown}
+                style={p.style?.markdown ?? DOCUMENT_MARKDOWN_DEFAULTS}
               />
             </div>
           </FrameBottom>

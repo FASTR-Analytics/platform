@@ -28,6 +28,11 @@ type Props = {
   isStreaming?: boolean;
   currentStreamingText?: string | undefined;
   serverToolLabel?: string | undefined;
+  // Queued-but-unsent user texts, rendered as a derived tail below the
+  // display items — they come straight from the conversation's queue signal,
+  // so clearing the queue clears the bubbles by construction and nothing
+  // unsent can persist.
+  queuedTexts?: string[];
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
@@ -112,7 +117,8 @@ export function MessageList(p: Props) {
   return (
     <div class="ui-gap flex flex-col">
       <Show
-        when={p.displayItems.length > 0 || p.isStreaming}
+        when={p.displayItems.length > 0 || p.isStreaming ||
+          (p.queuedTexts?.length ?? 0) > 0}
         fallback={p.fallbackContent ? p.fallbackContent({}) : null}
       >
         <For each={regularItems()}>{(item) => renderItem(item)}</For>
@@ -151,6 +157,10 @@ export function MessageList(p: Props) {
         </Switch>
 
         <For each={toolInProgressItems()}>{(item) => renderItem(item)}</For>
+
+        <For each={p.queuedTexts ?? []}>
+          {(text) => renderItem({ type: "user_text", text } as DisplayItem)}
+        </For>
       </Show>
     </div>
   );

@@ -3,8 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type ContentBlock, SERVER_TOOL_LABELS } from "../deps.ts";
+import {
+  buildViewGateMessage,
+  type ContentBlock,
+  SERVER_TOOL_LABELS,
+} from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
+import { toolThrowToResultParts } from "./tool_failure.ts";
 import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
 
 export type ToolResult = {
@@ -16,13 +21,77 @@ export type ToolResult = {
 
 type ToolResultInternal = ToolResult & {
   _fullError?: string;
+  _expected?: boolean;
 };
 
 export class ToolRegistry {
   private tools = new Map<string, AIToolWithMetadata>();
 
-  register(tool: AIToolWithMetadata): void {
-    this.tools.set(tool.sdkTool.name, tool);
+  // View-binding state for availableIn validation:
+  //   undefined — unbound (standalone registry; no validation possible)
+  //   null      — bound with NO view controller (availableIn is an error)
+  //   controller — bound to that controller's view ids AND identity
+  private boundController: { _viewIds(): string[] } | null | undefined =
+    undefined;
+  private boundViewIds: Set<string> | null = null;
+
+  // Called by createAIChat before tools register, so both construction-time
+  // registration and post-construction register() calls run the same
+  // availableIn validation (a bad tool fails the app's boot or its smoke
+  // test, never a live conversation).
+  bindViewController(controller: { _viewIds(): string[] } | null): void {
+    this.boundController = controller;
+    this.boundViewIds = controller === null
+      ? null
+      : new Set(controller._viewIds());
+    for (const tool of this.tools.values()) {
+      this.validateAvailableIn(tool);
+    }
+  }
+
+  private validateAvailableIn<TInput>(tool: AIToolWithMetadata<TInput>): void {
+    if (this.boundController === undefined) return;
+    const name = tool.sdkTool.name;
+    // Identity, not just ids: a viewController.createTool handler reads ITS
+    // controller's live state — gating against a different controller
+    // instance (even one built from the same registry shape) would pass the
+    // gate while the handler sees another view's params/context.
+    const source = tool.metadata._viewController;
+    if (source !== undefined && source !== this.boundController) {
+      throw new Error(
+        `Tool "${name}" was created by viewController.createTool on a DIFFERENT controller instance than this chat's viewController. Pass the same controller instance to both, or create the tool with plain createAITool.`,
+      );
+    }
+    const availableIn = tool.metadata.availableIn;
+    if (!availableIn) return;
+    if (this.boundViewIds === null) {
+      throw new Error(
+        `Tool "${name}" declares availableIn but the chat has no viewController — gating needs a view registry to check against.`,
+      );
+    }
+    for (const id of availableIn) {
+      if (!this.boundViewIds.has(id)) {
+        throw new Error(
+          `Tool "${name}": availableIn references view id "${id}", which is not in the configured view registry.`,
+        );
+      }
+    }
+  }
+
+  // Generic so typed tools assign without a cast (AIToolWithMetadata<T> is
+  // not assignable to AIToolWithMetadata<unknown> — run()'s input is
+  // contravariant).
+  register<TInput>(tool: AIToolWithMetadata<TInput>): void {
+    const name = tool.sdkTool.name;
+    if (this.tools.has(name)) {
+      throw new Error(
+        `Duplicate tool name "${name}" — a second registration would silently shadow the first. Tool names must be unique per chat.`,
+      );
+    }
+    this.validateAvailableIn(tool);
+    // Stored type-erased; execution goes through sdkTool.run, which
+    // re-parses its input through the tool's own schema.
+    this.tools.set(name, tool as AIToolWithMetadata);
   }
 
   unregister(toolName: string): void {
@@ -48,6 +117,40 @@ export class ToolRegistry {
   clear(): void {
     this.tools.clear();
   }
+}
+
+// Soft gating (PLAN_AI_VIEWS_AND_APPROVAL Feature 2): every tool is always
+// sent to the API (tool definitions live in the cached prompt prefix), but an
+// out-of-view EXECUTION is refused before the handler runs. Returns null when
+// the block may execute (tool unknown/ungated or the view matches); the loop
+// calls this per block against the LIVE view id, so a nav tool changing the
+// view mid-turn is seen by the very next check.
+export function checkViewGate(
+  block: { id: string; name: string; input: unknown },
+  toolRegistry: ToolRegistry,
+  currentViewId: string,
+): { result: ToolResult; errorItem: DisplayItem } | null {
+  const availableIn = toolRegistry.getMetadata(block.name)?.availableIn;
+  if (!availableIn || availableIn.includes(currentViewId)) return null;
+  const message = buildViewGateMessage(availableIn, currentViewId);
+  return {
+    result: {
+      type: "tool_result",
+      tool_use_id: block.id,
+      content: message,
+      is_error: true,
+    },
+    // Expected-failure display (the AIToolFailure treatment): the refusal is
+    // model feedback, not an app bug — no stack, quiet styling.
+    errorItem: {
+      type: "tool_error",
+      toolName: block.name,
+      errorMessage: `Tool feedback: ${block.name}`,
+      errorDetails: message,
+      expected: true,
+      toolInput: block.input,
+    },
+  };
 }
 
 export function getInProgressItems(
@@ -122,23 +225,14 @@ export async function processToolUses(
           content: result, // SDK tool already returns string
         };
       } catch (error) {
-        // Clean message for Claude API (no stack, no "Error:" prefix)
-        const errorMessage = error instanceof Error
-          ? error.message
-          : String(error);
-        const cleanMessage = errorMessage.replace(/^Error:\s*/i, "");
-
-        // Full error details for UI (includes stack)
-        const fullError = error instanceof Error && error.stack
-          ? error.stack
-          : cleanMessage;
-
+        const parts = toolThrowToResultParts(error);
         return {
           type: "tool_result" as const,
           tool_use_id: block.id,
-          content: cleanMessage,
+          content: parts.content,
           is_error: true,
-          _fullError: fullError,
+          _fullError: parts.fullError,
+          _expected: parts.expected || undefined,
         };
       }
     },
@@ -146,9 +240,9 @@ export async function processToolUses(
 
   const resultsInternal = await Promise.all(toolPromises);
 
-  // Strip _fullError before returning to API
+  // Strip _fullError/_expected before returning to API
   const results: ToolResult[] = resultsInternal.map(
-    ({ _fullError, ...rest }) => rest,
+    ({ _fullError, _expected, ...rest }) => rest,
   );
 
   const errorItems: DisplayItem[] = resultsInternal
@@ -171,6 +265,7 @@ export async function processToolUses(
         errorStack: result._fullError !== result.content
           ? result._fullError
           : undefined,
+        expected: result._expected,
         toolInput: toolBlock.input,
       };
     });

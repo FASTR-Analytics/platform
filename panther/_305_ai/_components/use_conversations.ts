@@ -21,6 +21,7 @@ import {
 import {
   clearConversationStore,
   deleteConversationStore,
+  hasActiveTurn,
 } from "../_core/conversation_store.ts";
 
 export type UseConversationsOptions = {
@@ -92,6 +93,14 @@ export function createConversationsManager(
   });
 
   async function createConversation(): Promise<string> {
+    // Mid-turn guard: creating also SWITCHES the active conversation (same
+    // rationale as switchTo — the running turn would become unreachable by
+    // Stop, which targets the active conversation). No-op returning the
+    // still-active id; the default selector also disables its New button.
+    const current = activeConversationId();
+    if (current && hasActiveTurn(current)) {
+      return current;
+    }
     const id = generateConversationId();
     const now = new Date().toISOString();
     const metadata: ConversationMetadata = {
@@ -111,6 +120,12 @@ export function createConversationsManager(
   }
 
   function switchTo(id: string) {
+    // Guard: no switching away from a conversation whose turn is in flight.
+    // v1 conservatism (the pinned turn itself would complete safely) — the
+    // default UI's Stop and streaming affordances target the ACTIVE
+    // conversation, so switching mid-turn is not yet exercised.
+    const current = activeConversationId();
+    if (current && hasActiveTurn(current)) return;
     const exists = allConversations().find((c) => c.id === id);
     if (exists) {
       setActiveConversationId(id);
@@ -119,6 +134,9 @@ export function createConversationsManager(
   }
 
   async function deleteConversation(id: string) {
+    // Load-bearing guard (unlike the switch guard): deleting a store
+    // mid-turn strands the turn's finally writes and persistence.
+    if (hasActiveTurn(id)) return;
     const current = activeConversationId();
 
     await removeConversationFromList(id);

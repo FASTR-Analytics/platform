@@ -7,9 +7,10 @@
 // MESSAGE TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-// "system" is a mid-conversation operator message — accepted only by models
-// where supportsMidConversationSystem is true; payload shaping drops such
-// messages for other models.
+// "system" is retained ONLY for the v1 persistence reader (pre-formatVersion-2
+// Opus 4.8 histories stored mid-conversation system entries). The live engine
+// never constructs one, and renderOutgoingMessages drops any stray entry from
+// the wire.
 export type MessageRole = "user" | "assistant" | "system";
 
 export type CacheControl = {
@@ -81,10 +82,23 @@ export type ContentBlock =
   | RedactedThinkingBlock
   | DocumentContentBlock;
 
+// Typed ephemeral context attached to a user turn at creation (view label,
+// per-view prompt, interaction digest, consumer hook). Storage-only data:
+// renderOutgoingMessages derives the wire text from it at request time and
+// strips the field — the wire never parses it back. The kind tags exist so a
+// future per-section retention policy is a renderer flag, not a storage
+// migration.
+export type EphemeralSection = {
+  kind: "view-label" | "view-prompt" | "digest" | "consumer";
+  text: string;
+};
+
 export type MessageParam = {
   role: MessageRole;
   content: string | ContentBlock[];
   cache_control?: CacheControl;
+  // Storage-only; user entries. See EphemeralSection.
+  ephemeralSections?: EphemeralSection[];
 };
 
 export type Usage = {

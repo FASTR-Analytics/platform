@@ -7,49 +7,8 @@ import { For, type JSX, Show } from "solid-js";
 import type { Intent } from "../types.ts";
 import { Icon } from "../icons/mod.ts";
 import type { SelectOption } from "./types.ts";
+import { getSelectClasses } from "./_internal/input_classes.ts";
 import { useAutoFocus } from "./utils.ts";
-
-// Select classes composed from utility classes and component classes
-function getSelectClasses(
-  size: "sm" | undefined,
-  outline: boolean,
-  intent?: Intent,
-) {
-  return [
-    // Component classes (defined in CSS)
-    "ui-focusable",
-    "ui-never-focusable", // Override focusable
-
-    // Form utilities
-    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
-    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
-    "font-400",
-
-    // Appearance: Button-identical intent outline skin (stateless — the
-    // deliberate skin-without-behavior composition), or neutral box
-    ...(outline
-      ? [`ui-outline-${intent ?? "primary"}`]
-      : ["text-base-content", "bg-base-100"]),
-    "rounded",
-    "border",
-
-    // Select specific
-    "w-full",
-    "cursor-pointer",
-    "appearance-none",
-    "truncate",
-    "!pr-[2.5em]",
-
-    // Mono variant
-    "data-[mono=true]:font-mono",
-
-    // Placeholder state (grey text when no value selected)
-    "data-[placeholder=true]:text-base-content-muted",
-
-    // Disabled state
-    "disabled:opacity-40",
-  ].join(" ");
-}
 
 type Props<T extends string> = {
   value: T | undefined;

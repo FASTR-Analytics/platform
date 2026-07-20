@@ -3,91 +3,145 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AnthropicModel, ContentBlock, MessageParam } from "./types.ts";
-import { supportsMidConversationSystem } from "./anthropic_consts.ts";
+import type { ContentBlock, MessageParam } from "./types.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
-// EPHEMERAL CONTEXT MARKERS
+// EPHEMERAL SECTIONS — WRITE-ONLY WIRE RENDERING
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Ephemeral context (e.g. "what the user is currently looking at") is spliced
-// into the user's message inside <<<[...]>>> markers, then stripped from all
-// but the LAST user message at send time so stale context never reaches the
-// model. Wrap and strip live together here so their formats cannot drift
-// apart — a mismatch silently leaks stale markers to the model. Phase 3
-// item 11 replaces this mechanism with mid-conversation system messages.
+// Ephemeral context (e.g. "what the user is currently looking at") is typed
+// DATA on the stored turn: user entries may carry ephemeralSections, attached
+// at turn creation. The wire format is derived here at request time and never
+// parsed back — nothing strips markers out of display or storage, so the
+// marker syntax is a write-only wire convention, not a correctness surface.
+//
+// Render rule (ONE wire format for every model): sections render for the
+// LATEST carrier only — every earlier carrier renders bare (load-bearing: a
+// failed turn's carrier has no assistant after it, so the follows-condition
+// alone would double-render on the retry) — and only while NO ASSISTANT
+// MESSAGE FOLLOWS the carrier in the outgoing history. This covers: first
+// request of a turn (renders), tool-loop recursion (assistant follows →
+// bare), multi-message batches (only user messages follow the batch's first
+// message → still renders), and a failed turn's carrier once a retry sends
+// (no longer latest → bare).
 
 const EPHEMERAL_CONTEXT_OPEN = "<<<[";
 const EPHEMERAL_CONTEXT_CLOSE = "]>>>";
-const EPHEMERAL_CONTEXT_REGEX = /<<<\[[\s\S]*?\]>>>\n?\n?/g;
 
-export function wrapWithEphemeralContext(
-  userMessage: string,
-  ephemeralContext: string | null | undefined,
-): string {
-  if (!ephemeralContext) return userMessage;
-  return `${EPHEMERAL_CONTEXT_OPEN}${ephemeralContext}${EPHEMERAL_CONTEXT_CLOSE}\n\n${userMessage}`;
+// Model-facing hygiene, not a security boundary: nothing parses the markers
+// back out, so a literal marker inside section text can only confuse the
+// model, never corrupt state. Collapse runs to a FIXPOINT: a single pass can
+// reconstitute a marker at the junction of untouched prefix and replacement
+// ("<<<<[[" → "<" + "<<[" + "[" = a live open marker).
+function collapseLiteralMarkers(text: string): string {
+  let out = text;
+  while (
+    out.includes(EPHEMERAL_CONTEXT_OPEN) ||
+    out.includes(EPHEMERAL_CONTEXT_CLOSE)
+  ) {
+    out = out.replaceAll(EPHEMERAL_CONTEXT_OPEN, "<<[").replaceAll(
+      EPHEMERAL_CONTEXT_CLOSE,
+      "]>>",
+    );
+  }
+  return out;
 }
 
-export function stripEphemeralContext(
+export function renderOutgoingMessages(
   messages: MessageParam[],
 ): MessageParam[] {
-  const lastUserIndex = findLastUserMessageIndex(messages);
-  return messages.map((msg, i) => {
-    if (msg.role !== "user" || i === lastUserIndex) return msg;
-    if (typeof msg.content === "string") {
-      const stripped = msg.content.replace(EPHEMERAL_CONTEXT_REGEX, "");
-      return stripped === msg.content ? msg : { ...msg, content: stripped };
-    }
-    const newContent = msg.content.map((block) => {
-      if (block.type !== "text") return block;
-      const stripped = block.text.replace(EPHEMERAL_CONTEXT_REGEX, "");
-      return stripped === block.text ? block : { ...block, text: stripped };
-    });
-    return { ...msg, content: newContent };
-  });
-}
+  // System-role entries are never emitted — the live engine no longer
+  // constructs them, and the v1 persistence migration strips stored ones;
+  // this filter covers any stray entry in between.
+  const wireMessages = messages.some((msg) => msg.role === "system")
+    ? messages.filter((msg) => msg.role !== "system")
+    : messages;
 
-function findLastUserMessageIndex(messages: MessageParam[]): number {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return i;
-  }
-  return -1;
-}
-
-// On Opus 4.8, ephemeral context is stored as a {role: "system"} message
-// right after the user turn instead of being spliced into the user text —
-// the context then survives tool-loop recursion (the marker approach loses
-// it on the second request of the same turn) and never wastes a tail
-// cache-write. This shapes the outgoing payload for whichever model is
-// active NOW: stale ephemeral system messages are pruned (only the most
-// recent is live context), and on models that reject the system role
-// entirely (everything except Opus 4.8) all of them are dropped — a history
-// can contain them after a mid-conversation model switch.
-export function shapeEphemeralSystemMessages(
-  messages: MessageParam[],
-  model: AnthropicModel,
-): MessageParam[] {
-  if (!supportsMidConversationSystem(model)) {
-    return messages.filter((msg) => msg.role !== "system");
-  }
-  let lastSystemIndex = -1;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "system") {
-      lastSystemIndex = i;
+  let carrierIndex = -1;
+  for (let i = wireMessages.length - 1; i >= 0; i--) {
+    const msg = wireMessages[i];
+    if (
+      msg.role === "user" && msg.ephemeralSections &&
+      msg.ephemeralSections.length > 0
+    ) {
+      carrierIndex = i;
       break;
     }
   }
-  // The API requires a system message to be the last entry or be followed
-  // by an assistant turn. An aborted/errored turn can leave one stranded
-  // before a later user message — drop it there (its context belonged to
-  // the failed turn anyway).
-  const keptIsValid = lastSystemIndex === messages.length - 1 ||
-    (lastSystemIndex >= 0 &&
-      messages[lastSystemIndex + 1].role === "assistant");
-  return messages.filter(
-    (msg, i) => msg.role !== "system" || (i === lastSystemIndex && keptIsValid),
-  );
+  const renderCarrier = carrierIndex >= 0 &&
+    !wireMessages.slice(carrierIndex + 1).some(
+      (msg) => msg.role === "assistant",
+    );
+
+  return wireMessages.map((msg, i) => {
+    // Entries without the storage-only field pass through by reference
+    // (byte- and identity-parity for no-adoption histories).
+    if (!msg.ephemeralSections) return msg;
+    const { ephemeralSections, ...rest } = msg;
+    if (i !== carrierIndex || !renderCarrier) return rest;
+
+    const block = `${EPHEMERAL_CONTEXT_OPEN}${
+      ephemeralSections.map((s) => collapseLiteralMarkers(s.text)).join("\n\n")
+    }${EPHEMERAL_CONTEXT_CLOSE}\n\n`;
+
+    if (typeof rest.content === "string") {
+      return { ...rest, content: block + rest.content };
+    }
+    // Block-form content (documents + text): the sections prefix the first
+    // text block — the same position the pre-0B wrap produced.
+    let spliced = false;
+    const content = rest.content.map((b) => {
+      if (!spliced && b.type === "text") {
+        spliced = true;
+        return { ...b, text: block + b.text };
+      }
+      return b;
+    });
+    if (!spliced) {
+      content.push({ type: "text", text: block.trimEnd() });
+    }
+    return { ...rest, content };
+  });
+}
+
+// Storage normalization run by the engine at TURN CREATION, before the new
+// turn's messages are appended: a FAILED prior turn's carrier (user entry
+// with sections and no assistant after it — the error path appends nothing)
+// must never re-render on a later turn's wire. The render rule alone cannot
+// distinguish that history from a multi-message batch (both are a trailing
+// user run with the carrier first), so the stale carrier is demoted here
+// instead. Completed turns' carriers keep their sections (inspectable; the
+// no-assistant-follows rule already renders them bare). Reference-identical
+// when nothing demotes.
+export function demoteStaleCarriers(messages: MessageParam[]): MessageParam[] {
+  let changed = false;
+  let assistantSeen = false;
+  const out: MessageParam[] = new Array(messages.length);
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role === "assistant") {
+      assistantSeen = true;
+    }
+    if (
+      !assistantSeen && msg.role === "user" && msg.ephemeralSections &&
+      msg.ephemeralSections.length > 0
+    ) {
+      const { ephemeralSections: _dropped, ...rest } = msg;
+      out[i] = rest;
+      changed = true;
+    } else {
+      out[i] = msg;
+    }
+  }
+  return changed ? out : messages;
+}
+
+// The pre-formatVersion-2 marker regex survives ONLY for the v1 persistence
+// migration (records whose user text carries spliced markers).
+const LEGACY_EPHEMERAL_MARKER_REGEX = /<<<\[[\s\S]*?\]>>>\n?\n?/g;
+
+export function legacyStripEphemeralMarkers(text: string): string {
+  return text.replace(LEGACY_EPHEMERAL_MARKER_REGEX, "");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

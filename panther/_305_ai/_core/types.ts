@@ -16,6 +16,7 @@ import type {
 } from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TOOL TYPES (UI-SPECIFIC)
@@ -72,6 +73,8 @@ export type DisplayItem =
     errorMessage: string;
     errorDetails: string;
     errorStack?: string;
+    // True when the handler threw AIToolFailure (expected, model-correctable).
+    expected?: boolean;
     toolInput?: unknown;
   }
   | {
@@ -191,6 +194,14 @@ export type AIChatConfig = {
   getDocumentRefs?: DocumentRefsGetter;
 
   getEphemeralContext?: () => string | null;
+
+  // View system (createAIViewController). When present, every turn carries a
+  // [Current view: …] section (plus the view's ephemeral promptSection and
+  // the consumer hook's context) on EVERY turn-creating path — direct sends,
+  // batches, and queue drains. Without it, getEphemeralContext keeps its
+  // historical direct-send-only delivery.
+  // deno-lint-ignore no-explicit-any
+  viewController?: AIViewController<any>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

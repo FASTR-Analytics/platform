@@ -59,6 +59,7 @@ export function AIChat(p: Props) {
     toolRegistry,
     enqueueMessage,
     clearQueue,
+    queuedMessages,
     clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
@@ -72,7 +73,12 @@ export function AIChat(p: Props) {
 
   const { checkScrollPosition, scrollToBottom } = createScrollManager(
     () => scrollContainer,
-    () => [displayItems(), isLoading(), currentStreamingText()],
+    () => [
+      displayItems(),
+      isLoading(),
+      currentStreamingText(),
+      queuedMessages(),
+    ],
     { enabled: p.autoScroll ?? true },
   );
 
@@ -129,6 +135,7 @@ export function AIChat(p: Props) {
           isStreaming={isStreaming()}
           currentStreamingText={currentStreamingText()}
           serverToolLabel={serverToolLabel()}
+          queuedTexts={queuedMessages()}
           customRenderers={p.customRenderers}
           fallbackContent={p.fallbackContent}
           toolRegistry={toolRegistry}

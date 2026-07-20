@@ -16,6 +16,7 @@ import {
   type TableColumn,
 } from "../deps.ts";
 import type { ConversationMetadata } from "../_core/conversations_persistence.ts";
+import { hasActiveTurn } from "../_core/conversation_store.ts";
 import type { ConversationsContextValue } from "./use_conversations.ts";
 
 type Props = {
@@ -31,12 +32,23 @@ export function AIChatConversationSelector(
   const [deleting, setDeleting] = createSignal<string | null>(null);
   const [selectedKeys, setSelectedKeys] = createSignal<Set<string>>(new Set());
 
+  // In-flight guard: no switching away from (or deleting, or replacing via
+  // "New Conversation") a conversation whose turn is running. Non-creating
+  // peek — never getConversationState, which would create and hydrate every
+  // listed conversation.
+  const activeBusy = () => {
+    const id = conversations.activeConversationId();
+    return id ? hasActiveTurn(id) : false;
+  };
+
   const handleSelect = (conv: ConversationMetadata) => {
+    if (activeBusy()) return;
     conversations.switchTo(conv.id);
     p.close(undefined);
   };
 
   const handleNew = async () => {
+    if (activeBusy()) return;
     await conversations.createConversation();
     p.close(undefined);
   };
@@ -45,6 +57,7 @@ export function AIChatConversationSelector(
     e.stopPropagation();
     const current = conversations.activeConversationId();
     if (convId === current) return;
+    if (hasActiveTurn(convId)) return;
     setDeleting(convId);
     await conversations.deleteConversation(convId);
     setDeleting(null);
@@ -78,7 +91,7 @@ export function AIChatConversationSelector(
   };
 
   const handleBulkSwitch = (items: ConversationMetadata[]) => {
-    if (items.length !== 1) {
+    if (items.length !== 1 || activeBusy()) {
       return false;
     }
     conversations.switchTo(items[0].id);
@@ -87,7 +100,9 @@ export function AIChatConversationSelector(
 
   const handleBulkDelete = async (items: ConversationMetadata[]) => {
     const activeId = conversations.activeConversationId();
-    const toDelete = items.filter((conv) => conv.id !== activeId);
+    const toDelete = items.filter(
+      (conv) => conv.id !== activeId && !hasActiveTurn(conv.id),
+    );
 
     if (toDelete.length === 0) {
       return false;
@@ -182,7 +197,7 @@ export function AIChatConversationSelector(
                 outline
                 iconName="trash"
                 onClick={(e) => handleDelete(conv.id, e)}
-                disabled={deleting() === conv.id}
+                disabled={deleting() === conv.id || hasActiveTurn(conv.id)}
               />
             </div>
           ),
@@ -194,7 +209,12 @@ export function AIChatConversationSelector(
       title={t3({ en: "Conversations", fr: "Conversations", pt: "Conversas" })}
       width="lg"
       leftButtons={[
-        <Button intent="primary" onClick={handleNew} iconName="plus">
+        <Button
+          intent="primary"
+          onClick={handleNew}
+          iconName="plus"
+          disabled={activeBusy()}
+        >
           {t3({
             en: "New Conversation",
             fr: "Nouvelle conversation",
