@@ -15,6 +15,7 @@ import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
+import { SlidePresenter } from "./slide_presenter";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
@@ -180,6 +181,18 @@ function ProjectAiSlideDeckInner(p: {
     });
   }
 
+  async function present() {
+    await openComponent({
+      element: SlidePresenter,
+      props: {
+        projectId: p.projectState.id,
+        deckId: p.deckId,
+        slideIds: p.slideIds,
+        deckConfig: p.deckConfig,
+      },
+    });
+  }
+
   async function handleEditSlide(slideId: string) {
     const cached = await _SLIDE_CACHE.get({ projectId: p.projectState.id, slideId });
     let slide: Slide;
@@ -233,6 +246,7 @@ function ProjectAiSlideDeckInner(p: {
             handleOpenSettings={handleOpenSettings}
             download={download}
             share={share}
+            present={present}
             openVersionHistory={openVersionHistory}
             deckConfig={p.deckConfig}
           />
