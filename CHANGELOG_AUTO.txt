@@ -1,31 +1,31 @@
-[TBD] [user] [added] - Dark mode toggle in profile settings
-[TBD] [user] [added] - Live cursors show collaborators' mouse pointers in real time
-[TBD] [user] [added] - Cursor chat lets you press "/" to send quick messages to collaborators
-[TBD] [user] [added] - Click ripples show where collaborators click on shared surfaces
-[TBD] [user] [added] - "Connection lost — reconnecting" banner when collaboration drops
-[TBD] [user] [added] - "Live again" notification when collaboration connection recovers
-[TBD] [user] [added] - Toast notifications when collaborators join or leave your document
-[TBD] [user] [added] - Live presence avatars shown on visualization cards
-[TBD] [user] [added] - Collaborative text editing with visible collaborator cursors and selections
-[TBD] [user] [added] - Hover over a collaborator's text selection to see their name
-[TBD] [user] [changed] - Charts and tables now adapt colors for dark mode readability
-[TBD] [user] [changed] - Login page text stays readable in dark mode
-[TBD] [user] [changed] - Connection status banner colors adapt properly to dark mode
-[TBD] [user] [changed] - AI chat pane adapts to dark mode
-[TBD] [user] [changed] - Account management window matches dark mode when enabled
-[TBD] [user] [fixed] - Near-black chart lines no longer invisible in dark mode
-[TBD] [admin] [added] - Dark mode toggle in user profile settings
-[TBD] [admin] [added] - Live cursors show collaborators' pointers in real time
-[TBD] [admin] [added] - Cursor chat lets collaborators send quick messages via live cursors
-[TBD] [admin] [added] - Presence toasts announce when collaborators join or leave a document
-[TBD] [admin] [added] - Connection lost banner with reconnection status and reload option
-[TBD] [admin] [added] - Presence avatars shown on visualization cards for active editors
-[TBD] [admin] [fixed] - Login page text now readable in dark mode
-[TBD] [admin] [fixed] - Charts and tables now adapt colors properly for dark mode
-[TBD] [admin] [fixed] - Connection status indicator colors adapt to dark mode
-[TBD] [admin] [fixed] - Clerk account management window now styled correctly in dark mode
-[TBD] [admin] [changed] - File upload now supports restricting allowed file types
-[TBD] [admin] [internal] - Collaborative markdown editor added for real-time co-editing
+[1.61.0] [user] [added] - Dark mode toggle in profile settings
+[1.61.0] [user] [added] - Live cursors show collaborators' mouse pointers in real time
+[1.61.0] [user] [added] - Cursor chat lets you press "/" to send quick messages to collaborators
+[1.61.0] [user] [added] - Click ripples show where collaborators click on shared surfaces
+[1.61.0] [user] [added] - "Connection lost — reconnecting" banner when collaboration drops
+[1.61.0] [user] [added] - "Live again" notification when collaboration connection recovers
+[1.61.0] [user] [added] - Toast notifications when collaborators join or leave your document
+[1.61.0] [user] [added] - Live presence avatars shown on visualization cards
+[1.61.0] [user] [added] - Collaborative text editing with visible collaborator cursors and selections
+[1.61.0] [user] [added] - Hover over a collaborator's text selection to see their name
+[1.61.0] [user] [changed] - Charts and tables now adapt colors for dark mode readability
+[1.61.0] [user] [changed] - Login page text stays readable in dark mode
+[1.61.0] [user] [changed] - Connection status banner colors adapt properly to dark mode
+[1.61.0] [user] [changed] - AI chat pane adapts to dark mode
+[1.61.0] [user] [changed] - Account management window matches dark mode when enabled
+[1.61.0] [user] [fixed] - Near-black chart lines no longer invisible in dark mode
+[1.61.0] [admin] [added] - Dark mode toggle in user profile settings
+[1.61.0] [admin] [added] - Live cursors show collaborators' pointers in real time
+[1.61.0] [admin] [added] - Cursor chat lets collaborators send quick messages via live cursors
+[1.61.0] [admin] [added] - Presence toasts announce when collaborators join or leave a document
+[1.61.0] [admin] [added] - Connection lost banner with reconnection status and reload option
+[1.61.0] [admin] [added] - Presence avatars shown on visualization cards for active editors
+[1.61.0] [admin] [fixed] - Login page text now readable in dark mode
+[1.61.0] [admin] [fixed] - Charts and tables now adapt colors properly for dark mode
+[1.61.0] [admin] [fixed] - Connection status indicator colors adapt to dark mode
+[1.61.0] [admin] [fixed] - Clerk account management window now styled correctly in dark mode
+[1.61.0] [admin] [changed] - File upload now supports restricting allowed file types
+[1.61.0] [admin] [internal] - Collaborative markdown editor added for real-time co-editing
 [1.60.1] [user] [fixed] - Pop-up dialogs no longer appear unexpectedly inside projects
 [1.60.1] [admin] [fixed] - Post-login pop-ups no longer appear when viewing a project
 [1.60.0] [user] [changed] - Filter options now appear as a searchable dropdown for easier selection
