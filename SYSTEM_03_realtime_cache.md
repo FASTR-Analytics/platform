@@ -48,6 +48,11 @@ is not the request-scoped NDJSON `StreamWriter` in **S1**
 endpoint and is exempt from the notify-catalog rule.
 `server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
 headers on static assets — a completely different "cache", owned elsewhere.
+The collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
+([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — strictly additive
+inside the same project boundary: its room checkpoints feed this system's
+triangle through the existing notify wrappers and post nothing new to the
+BroadcastChannels.
 Sub-file custody exceptions are in SYSTEMS.md §4.1
 (`lib/types/project_dirty_states.ts` is owned here, S8 mandatory reader;
 `t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
@@ -146,7 +151,7 @@ wrappers: `notifyProjectConfigUpdated`, `notifyProjectModulesUpdated`,
 
 **The redundant `last_updated` indirection.**
 `server/task_management/notify_last_updated.ts` is a one-line passthrough:
-`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~46 call sites,
+`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~56 call sites,
 re-exported via `task_management/mod.ts`) → `notifyProjectLastUpdatedV2` (no
 other callers) → `notifyProjectV2({ type: "last_updated", … })`. Three layers
 for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now:
@@ -159,6 +164,19 @@ clients invalidate that entity's caches; (2) list-level — refetch the summary
 list and broadcast it whole via `notify<Thing>Updated`, guarded by
 `if (list.success)` (but see the stale-on-failure gotcha). The mutation response
 itself is just `success`/`err` — clients never install state from it.
+
+**One deliberate exception — collab checkpoint rebroadcasts.** S16's collab
+room checkpoints (debounced 1.5 s while users co-edit) fire the row-level
+`notifyLastUpdated` on every checkpoint but debounce the list-level
+rebroadcast to 5 s per project (`scheduleReportsListRebroadcast` /
+`scheduleVizListRebroadcast` in `server/routes/project/project-collab.ts`,
+calling the existing `notifyProjectReportsUpdated` /
+`notifyProjectVisualizationsUpdated`) — the reports list refetch loads every
+report's body, far too heavy per checkpoint while someone is typing. (Slide
+checkpoints skip the list rebroadcast entirely; they row-notify both the
+slide and its deck.) Net effect during active co-editing: an SSE message and
+list refetch roughly every 1.5 s / 5 s — the contract working as designed,
+worth knowing if broadcast volume ever becomes a concern.
 
 **The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same
 timestamp is (a) broadcast via `notifyLastUpdated` → client T1 store → client

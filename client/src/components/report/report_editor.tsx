@@ -14,6 +14,7 @@ import type { FigureBlock, ImageBlock } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
+import { darkMode } from "~/state/t4_ui";
 
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
@@ -396,7 +397,7 @@ export function ReportEditor(p: Props) {
     // Re-evaluate the centering pad threshold whenever the scroller resizes.
     ro = new ResizeObserver(() => applyCenterTheme());
     const collab = p.collab?.();
-    bindKey = `${collab ? "collab" : "plain"}:${p.canEdit()}`;
+    bindKey = `${collab ? "collab" : "plain"}:${p.canEdit()}:${darkMode()}`;
     buildView(collab);
 
     p.ref?.({
@@ -414,10 +415,12 @@ export function ReportEditor(p: Props) {
   });
 
   // Rebuild when the collab binding appears (plain -> live upgrade shortly
-  // after open) or the edit permission flips (permissions can arrive late).
+  // after open), the edit permission flips (permissions can arrive late), or
+  // the theme toggles (darkMarkdownExtensions is baked into the extension
+  // list and must be re-evaluated in this tracked scope).
   createEffect(() => {
     const collab = p.collab?.();
-    const key = `${collab ? "collab" : "plain"}:${p.canEdit()}`;
+    const key = `${collab ? "collab" : "plain"}:${p.canEdit()}:${darkMode()}`;
     if (!view) return; // pre-mount; onMount builds with current values
     if (key === bindKey) return;
     bindKey = key;

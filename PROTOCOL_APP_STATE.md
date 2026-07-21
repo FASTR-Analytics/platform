@@ -141,6 +141,20 @@ keys. No separate file.
 `project_config_updated`; routes that change just `isLocked` /
 `isCentralReporting` omit it (optional in the payload).
 
+### The collab WS store — T1-adjacent
+
+`state/project/collab.ts` (S16) is the one deliberate sibling of the T1
+stores outside the `t1_*` naming: the per-project collaboration WebSocket
+manager, holding a Solid store of presence peers plus the per-document Yjs
+session handles. It follows T1 discipline — server-pushed only (the WS
+`presence_state`/awareness handlers are the sole store writers; components
+never write it), connected/disconnected by `ProjectSSEBoundary` alongside the
+SSE connection, torn down on project switch — but its transport is the collab
+WebSocket rather than SSE, and its Y.Doc sessions are imperative edit-draft
+machinery owned by the editor bridges, not reactive state. Read presence via
+the exported accessors (`otherPeers()` etc.). Machinery and protocol:
+[SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).
+
 ## T2 — reactive cache
 
 Medium-to-heavy data too large for SSE, cached in memory + IndexedDB via
