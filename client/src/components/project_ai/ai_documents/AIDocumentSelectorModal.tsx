@@ -160,7 +160,7 @@ export function AIDocumentSelectorModal(
               pt: "Carregar PDF do dispositivo",
             })}
           </Button>
-          <span class="text-base-content/60">
+          <span class="text-base-content-muted">
             {t3({
               en: "OR",
               fr: "OU",

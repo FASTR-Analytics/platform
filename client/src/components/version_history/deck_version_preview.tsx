@@ -32,6 +32,7 @@ import {
   DiffSegments,
   editorDisplayName,
   editorDisplayNames,
+  UNKNOWN_COLOR,
 } from "./diff_segments";
 import {
   diffSlideElements,
@@ -42,10 +43,6 @@ import { computeAttributedDiff } from "./version_diff";
 // Live canvases are expensive (panther warns around 12-14 mounted at once, and
 // the deck UI underneath this panel keeps its own) — page the grid at 6.
 const SLIDES_PER_PAGE = 6;
-
-// Changes whose author is unknown get a neutral badge color (matches the
-// report diff views).
-const UNKNOWN_COLOR = "#64748b";
 
 type SlideBadge = {
   text: string;
@@ -457,7 +454,7 @@ export function DeckVersionPreview(p: {
 
         return (
           <div class="flex h-full min-h-0 flex-col">
-            <div class="border-base-300 ui-pad text-neutral border-b text-xs">
+            <div class="ui-pad ui-text-caption border-b">
               <Show
                 when={prev !== null}
                 fallback={
@@ -531,7 +528,7 @@ export function DeckVersionPreview(p: {
                 </div>
               </Show>
             </div>
-            <div class="border-base-300 ui-pad ui-gap-sm flex items-center border-t">
+            <div class="ui-pad ui-gap-sm flex items-center border-t">
               <Show when={totalPages > 1}>
                 <Button
                   iconName="chevronLeft"
@@ -539,7 +536,7 @@ export function DeckVersionPreview(p: {
                   disabled={page() === 0}
                   onClick={() => setPage(page() - 1)}
                 />
-                <span class="text-neutral text-xs">
+                <span class="ui-text-caption">
                   {page() + 1} / {totalPages}
                 </span>
                 <Button
@@ -612,7 +609,7 @@ function VersionSlideThumb(p: {
 
   return (
     <div
-      class="border-base-300 bg-base-100 relative cursor-pointer rounded border p-1.5 transition-opacity hover:opacity-80"
+      class="bg-base-100 relative cursor-pointer rounded border p-1.5 transition-opacity hover:opacity-80"
       classList={{ "border-dashed": p.ghost }}
       onClick={openExpandedView}
     >
@@ -669,7 +666,7 @@ function ExpandedVersionSlideModal(
         </Button>
       }
     >
-      <div class="border-base-300 aspect-video overflow-hidden rounded border">
+      <div class="aspect-video overflow-hidden rounded border">
         <PageHolder
           pageInputs={p.pageInputs}
           pageWidthDu={PAGE_WIDTH_DU}
@@ -683,7 +680,7 @@ function ExpandedVersionSlideModal(
           </div>
           <For each={p.rows}>
             {(row) => (
-              <div class="border-base-300 rounded border p-2 text-xs">
+              <div class="rounded border p-2 text-xs">
                 <div class="flex items-center gap-1.5">
                   <span
                     class="inline-block h-2.5 w-2.5 flex-none rounded-full"

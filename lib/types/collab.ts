@@ -273,6 +273,11 @@ const PRESENCE_PALETTE = [
   "#db2777",
 ];
 
+// Used when a peer's awareness state hasn't arrived yet (live_cursors.tsx) —
+// the palette's own blue entry, so the placeholder never clashes visually
+// once the real presence color lands.
+export const PRESENCE_FALLBACK_COLOR = PRESENCE_PALETTE[5];
+
 /**
  * Deterministic presence color for a key (e.g. email) so a user keeps the same
  * color across sessions and across every other client's view of them.

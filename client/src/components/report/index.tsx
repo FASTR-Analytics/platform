@@ -1088,7 +1088,7 @@ export function ProjectReport(p: Props) {
             },
             awareness: s0.awareness,
             isLive: () => session()?.isLive() ?? false,
-            canEdit:
+            canEdit: () =>
               projectState.thisUserPermissions.can_configure_reports &&
               !projectState.isLocked &&
               !collabFatal(),

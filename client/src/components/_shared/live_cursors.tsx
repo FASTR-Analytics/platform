@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { PRESENCE_FALLBACK_COLOR, t3 } from "lib";
 import type { Awareness } from "y-protocols/awareness";
 import {
   createEffect,
@@ -850,7 +850,7 @@ export function CursorChatInput(p: {
     const user = p.awareness()?.getLocalState()?.user as
       | { color?: string }
       | undefined;
-    return user?.color ?? "#2563eb";
+    return user?.color ?? PRESENCE_FALLBACK_COLOR;
   };
 
   return (

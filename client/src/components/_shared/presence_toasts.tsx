@@ -60,7 +60,7 @@ function PresenceToastHost() {
       <For each={toasts()}>
         {(t) => (
           <div
-            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-lg"
+            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating"
             style={REDUCED_MOTION ? {} : { animation: "presence-toast-in 150ms ease-out" }}
           >
             <span

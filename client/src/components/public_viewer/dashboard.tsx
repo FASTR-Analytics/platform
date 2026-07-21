@@ -149,7 +149,7 @@ function DashboardViewer(p: DashboardViewerProps) {
     >
       <div class="flex h-full w-full flex-col">
         <Show when={p.bundle.about.summary.trim()}>
-          <div class="border-base-300 ui-pad md-dark-adapt border-b text-sm">
+          <div class="ui-pad md-dark-adapt border-b text-sm">
             <MarkdownPresentationJsx markdown={p.bundle.about.summary} />
           </div>
         </Show>

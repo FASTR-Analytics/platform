@@ -429,10 +429,10 @@ export function PresentationObjectPanelDisplay(p: Props) {
       hoverOffset="offset-for-border-1-on-left"
       panelChildren={
         <div
-          class="border-base-300 flex h-full w-full flex-col border-r"
+          class="flex h-full w-full flex-col border-r"
           data-cursor-zone="folders"
         >
-          <div class="border-base-300 flex flex-col gap-2 border-b p-3">
+          <div class="flex flex-col gap-2 border-b p-3">
             <Select
               options={getGroupingOptions()}
               value={vizGroupingMode()}

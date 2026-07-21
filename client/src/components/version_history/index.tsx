@@ -128,7 +128,6 @@ export function VersionHistoryEditor(p: Props) {
       panelChildren={
         <HeadingBar
           heading={`${t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" })} — ${p.currentLabel}`}
-          class="border-base-300"
           leftChildren={
             <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
           }
@@ -141,13 +140,13 @@ export function VersionHistoryEditor(p: Props) {
     >
       <FrameLeft
         panelChildren={
-          <div class="border-base-300 flex h-full w-80 flex-col overflow-y-auto border-r">
+          <div class="flex h-full w-80 flex-col overflow-y-auto border-r">
             <button
               type="button"
-              class={`${rowClass(selectedVersionId() === undefined)} border-base-300 border-b`}
+              class={`${rowClass(selectedVersionId() === undefined)} border-b`}
               onClick={() => setSelectedVersionId(undefined)}
             >
-              <div class="font-600 text-sm">
+              <div class="font-700 text-sm">
                 {t3({ en: "Current version", fr: "Version actuelle", pt: "Versão atual" })}
               </div>
             </button>
@@ -156,7 +155,7 @@ export function VersionHistoryEditor(p: Props) {
                 <Show
                   when={rows.length > 0}
                   fallback={
-                    <div class="text-neutral px-3 py-8 text-center text-xs">
+                    <div class="ui-text-caption px-3 py-8 text-center">
                       {t3({
                         en: "No versions yet — versions are saved automatically as people edit.",
                         fr: "Aucune version pour l'instant — les versions sont enregistrées automatiquement au fil des modifications.",
@@ -168,7 +167,7 @@ export function VersionHistoryEditor(p: Props) {
                   <For each={groupByDay(rows)}>
                     {(group) => (
                       <>
-                        <div class="bg-base-200 text-neutral sticky top-0 px-3 py-1 text-xs font-semibold">
+                        <div class="bg-base-200 ui-text-caption sticky top-0 px-3 py-1 font-semibold">
                           {group.day}
                         </div>
                         <For each={group.rows}>
@@ -192,7 +191,7 @@ export function VersionHistoryEditor(p: Props) {
                                 </Show>
                                 <span class="flex-1" />
                                 <Show when={row.slideCount !== undefined}>
-                                  <span class="text-neutral text-xs">
+                                  <span class="ui-text-caption">
                                     {row.slideCount}{" "}
                                     {t3({ en: "slides", fr: "diapositives", pt: "diapositivos" })}
                                   </span>

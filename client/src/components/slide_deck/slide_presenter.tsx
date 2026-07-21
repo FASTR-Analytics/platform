@@ -9,6 +9,8 @@ import {
 } from "panther";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
+import { projectState } from "~/state/project/t1_store";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 
 type Props = EditorComponentProps<
@@ -31,20 +33,30 @@ const LOADING_MSG = t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar.
 export function SlidePresenter(p: Props) {
   let rootEl!: HTMLDivElement;
 
-  const total = p.slideIds.length;
-  const clamp = (i: number) => Math.max(0, Math.min(total - 1, i));
+  // p.slideIds was snapshotted when the presenter opened; peers can add,
+  // delete, or reorder slides while it is up, so the live list is refetched on
+  // the deck's SSE bump below.
+  const [slideIds, setSlideIds] = createSignal(p.slideIds);
+  const total = () => slideIds().length;
+  const clamp = (i: number) => Math.max(0, Math.min(total() - 1, i));
 
   const [currentIndex, setCurrentIndex] = createSignal(clamp(p.startIndex ?? 0));
-  const [pages, setPages] = createSignal<Map<number, StateHolder<PageInputs>>>(new Map());
+  // Render cache, keyed by slide id (stable across reorders) and stamped with
+  // the slide's lastUpdated at render time so peer edits evict the entry.
+  type CachedPage = { state: StateHolder<PageInputs>; renderedAt: string | undefined };
+  const [pages, setPages] = createSignal<Map<string, CachedPage>>(new Map());
   const [isFullscreen, setIsFullscreen] = createSignal(false);
   const [controlsVisible, setControlsVisible] = createSignal(true);
 
-  const currentPage = () => pages().get(currentIndex());
+  const currentPage = () => {
+    const id = slideIds()[currentIndex()];
+    return id === undefined ? undefined : pages().get(id)?.state;
+  };
 
-  function setPage(i: number, state: StateHolder<PageInputs>) {
+  function setPage(id: string, state: StateHolder<PageInputs>, renderedAt: string | undefined) {
     setPages((prev) => {
       const next = new Map(prev);
-      next.set(i, state);
+      next.set(id, { state, renderedAt });
       return next;
     });
   }
@@ -52,25 +64,59 @@ export function SlidePresenter(p: Props) {
   // Render slide i and cache the result. Marks the slot as loading before the
   // first await so concurrent preloads of the same index don't double-fetch.
   async function ensureLoaded(i: number) {
-    if (i < 0 || i >= total) return;
-    if (pages().has(i)) return;
-    setPage(i, { status: "loading", msg: LOADING_MSG });
+    const ids = slideIds();
+    if (i < 0 || i >= ids.length) return;
+    const id = ids[i];
+    if (pages().has(id)) return;
+    const renderedAt = projectState.lastUpdated.slides[id];
+    setPage(id, { status: "loading", msg: LOADING_MSG }, renderedAt);
 
-    const res = await getSlideFromCacheOrFetch(p.projectId, p.slideIds[i]);
+    const res = await getSlideFromCacheOrFetch(p.projectId, id);
     if (!res.success) {
-      setPage(i, { status: "error", err: res.err });
+      setPage(id, { status: "error", err: res.err }, renderedAt);
       return;
     }
     const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, i, p.deckConfig);
-    setPage(i, getQueryStateFromApiResponse(renderRes));
+    setPage(id, getQueryStateFromApiResponse(renderRes), renderedAt);
   }
 
   // Keep the current slide and its neighbours warm so navigation is instant.
+  // Also tracks pages(), so entries evicted below reload while still in view.
   createEffect(() => {
     const i = currentIndex();
+    void pages();
     ensureLoaded(i);
     ensureLoaded(i + 1);
     ensureLoaded(i - 1);
+  });
+
+  // Live co-editing: refetch the slide-id list when a peer changes the deck,
+  // and clamp the index in case the deck shrank.
+  createEffect(() => {
+    const _bump = projectState.lastUpdated.slide_decks[p.deckId];
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    async function load() {
+      const res = await getSlideDeckDetailFromCacheOrFetch(p.projectId, p.deckId);
+      if (controller.signal.aborted || !res.success) return;
+      setSlideIds(res.data.slideIds);
+      setCurrentIndex((i) => clamp(i));
+    }
+    load();
+  });
+
+  // Evict cached renders whose slide has since been edited by a peer; the
+  // preload effect above re-renders whichever evicted slides are still needed.
+  createEffect(() => {
+    const stale = [...pages()].filter(
+      ([id, entry]) => projectState.lastUpdated.slides[id] !== entry.renderedAt,
+    );
+    if (stale.length === 0) return;
+    setPages((prev) => {
+      const next = new Map(prev);
+      for (const [id] of stale) next.delete(id);
+      return next;
+    });
   });
 
   function goNext() {
@@ -158,7 +204,7 @@ export function SlidePresenter(p: Props) {
         break;
       case "End":
         e.preventDefault();
-        setCurrentIndex(total - 1);
+        setCurrentIndex(total() - 1);
         break;
       case "Escape":
         // Back out completely on the first press. If we're in real fullscreen,
@@ -192,7 +238,7 @@ export function SlidePresenter(p: Props) {
       onPointerMove={pokeControls}
     >
       <Show
-        when={total > 0}
+        when={total() > 0}
         fallback={
           <div class="text-base-100 text-sm">
             {t3({ en: "No slides to present", fr: "Aucune diapositive à présenter", pt: "Sem diapositivos para apresentar" })}
@@ -248,7 +294,7 @@ export function SlidePresenter(p: Props) {
           <Button iconName="x" outline onClick={close} />
         </div>
 
-        <Show when={total > 0}>
+        <Show when={total() > 0}>
           <div
             class="ui-gap pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center rounded-full bg-black/60 px-3 py-2"
             onClick={(e) => e.stopPropagation()}
@@ -260,12 +306,12 @@ export function SlidePresenter(p: Props) {
               onClick={goPrev}
             />
             <div class="text-base-100 min-w-16 text-center text-sm tabular-nums">
-              {currentIndex() + 1} / {total}
+              {currentIndex() + 1} / {total()}
             </div>
             <Button
               iconName="chevronRight"
               outline
-              disabled={currentIndex() === total - 1}
+              disabled={currentIndex() === total() - 1}
               onClick={goNext}
             />
           </div>

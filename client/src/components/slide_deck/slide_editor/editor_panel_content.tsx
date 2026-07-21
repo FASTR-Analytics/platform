@@ -525,7 +525,7 @@ export function SlideEditorPanelContent(p: Props) {
                       >
                         {(yText) => (
                           <div class="ui-spy-sm">
-                            <label class="text-base-content/70 text-xs">
+                            <label class="text-base-content-muted text-xs">
                               {t3({ en: "Text", fr: "Texte", pt: "Texto" })}
                             </label>
                             <CollabMarkdownEditor

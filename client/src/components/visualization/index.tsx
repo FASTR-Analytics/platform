@@ -44,7 +44,9 @@ export type VizFigureCollabBinding = {
   /** The host session's Yjs awareness (carries caption carets). */
   awareness: Awareness;
   isLive: () => boolean;
-  canEdit: boolean;
+  /** Accessor (not a baked value) so a lock / permission / fatal-room change
+   *  while the modal is open propagates into the caption editors. */
+  canEdit: () => boolean;
   /** Transaction origin for this client's edits (for the scoped undo manager). */
   localOrigin: object;
   /** Called when a coherent bundle (edited config + refreshed items) is ready,

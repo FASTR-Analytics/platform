@@ -35,7 +35,6 @@ export function ProjectData(p: Props) {
           <div class="h-full w-full" data-cursor-zone="header">
             <HeadingBar
               heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-              class="border-base-300"
               ensureHeightAsIfButton
             ></HeadingBar>
           </div>
