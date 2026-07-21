@@ -22,6 +22,7 @@ set more off
 *   . = exclude facility   (DONT_KNOW_TREATMENT = "missing" — platform default)
 local dk_value .
 
+
 capture log close
 log using "vaccine_availability_results.log", replace text
 
@@ -38,7 +39,8 @@ keep id_fac_txt sup_05aaa_a sup_05aaa_b sup_05aaa_c ///
     sup_05aaa_d sup_05aaa_e sup_05aaa_f
 drop if missing(id_fac_txt)
 
-* One row per facility: first submission in file order wins
+* One row per facility: keep the first submission in file order (what
+* the platform does). To keep the last instead, change 1 to _N.
 gen long row_in_file = _n
 bysort id_fac_txt (row_in_file): keep if _n == 1
 sort row_in_file

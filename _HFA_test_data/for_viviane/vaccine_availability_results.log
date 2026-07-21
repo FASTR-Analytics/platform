@@ -3,7 +3,7 @@
        log:  /Users/timroberton/projects/apps/wb-fastr/_HFA_test_data/for_vivia
 > ne/vaccine_availability_results.log
   log type:  text
- opened on:  21 Jul 2026, 06:16:22
+ opened on:  21 Jul 2026, 09:30:15
 
 . 
 . *--- Weights ----------------------------------------------------------
@@ -18,7 +18,7 @@
 . tempfile weights
 
 . save `weights'
-file /var/folders/83/r22l0yrs5djfwz884fz8vtj40000gn/T//St53349.000001 saved
+file /var/folders/83/r22l0yrs5djfwz884fz8vtj40000gn/T//St63855.000001 saved
     as .dta format
 
 . 
@@ -33,7 +33,8 @@ file /var/folders/83/r22l0yrs5djfwz884fz8vtj40000gn/T//St53349.000001 saved
 (0 observations deleted)
 
 . 
-. * One row per facility: first submission in file order wins
+. * One row per facility: keep the first submission in file order (what
+. * the platform does). To keep the last instead, change 1 to _N.
 . gen long row_in_file = _n
 
 . bysort id_fac_txt (row_in_file): keep if _n == 1
@@ -60,6 +61,8 @@ file /var/folders/83/r22l0yrs5djfwz884fz8vtj40000gn/T//St53349.000001 saved
 
 . 
 . *--- Indicators: vaccine available today at the facility --------------
+. * Each line recodes one survey question to a 0/1 indicator: Yes (1) -> 1,
+. * No (2) -> 0, Don't know (-99) -> `dk_value', blank -> missing.
 . gen vac_measles = cond(missing(sup_05aaa_a), ., cond(sup_05aaa_a == -99, `dk_
 > value', sup_05aaa_a == 1))   // ind160
 (242 missing values generated)
@@ -138,5 +141,5 @@ Weighted (platform USE_SAMPLE_WEIGHTS = TRUE)
        log:  /Users/timroberton/projects/apps/wb-fastr/_HFA_test_data/for_vivia
 > ne/vaccine_availability_results.log
   log type:  text
- closed on:  21 Jul 2026, 06:16:22
+ closed on:  21 Jul 2026, 09:30:15
 -------------------------------------------------------------------------------
