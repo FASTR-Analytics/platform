@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import { createSignal, type JSX, Match, Show, Switch, untrack } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
@@ -178,7 +178,10 @@ function replaceAlertState(
     | PromptStateType
     | AnyComponentStateType,
 ): void {
-  resolveAsCancelled(alertState());
+  // untrack: open* is often called from inside an effect (sync prefix of an
+  // async fn). A tracked read here would subscribe that effect to the slot,
+  // and the setAlertState below would re-run it in an infinite loop.
+  resolveAsCancelled(untrack(alertState));
   setAlertState(next);
 }
 
