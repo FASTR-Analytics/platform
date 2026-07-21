@@ -35,13 +35,17 @@ function getSearchText<T extends string>(opt: SelectOption<T>): string {
   return typeof opt.label === "string" ? opt.label : opt.value;
 }
 
+// Presentational check square for the option rows, matching Checkbox's box
+// and glyph metrics exactly. Not the interactive Checkbox component: the row
+// is the click target here, and nesting a labeled input inside a clickable
+// row would double-fire and fight the panel's focus handling.
 function CheckMark(p: { checked: boolean; indeterminate?: boolean }) {
   return (
-    <span class="bg-base-100 relative h-4 w-4 flex-none rounded border">
+    <span class="bg-base-100 relative h-5 w-5 flex-none rounded border">
       <Show when={p.indeterminate}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          class="text-base-content absolute inset-0 m-auto h-3 w-3"
+          class="text-base-content pointer-events-none absolute inset-0.5 h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -55,7 +59,7 @@ function CheckMark(p: { checked: boolean; indeterminate?: boolean }) {
       <Show when={p.checked && !p.indeterminate}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          class="text-base-content absolute inset-0 m-auto h-3 w-3"
+          class="text-base-content pointer-events-none absolute inset-0.5 h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -84,9 +88,7 @@ export function MultiSelectSearch<T extends string>(
   p: MultiSelectSearchProps<T>,
 ) {
   const id = createUniqueId();
-  const popoverId = `multi-select-search-${id}`;
   const anchorName = `--multi-select-search-anchor-${id}`;
-  let inputRef: HTMLInputElement | undefined;
   let panelRef: HTMLDivElement | undefined;
   let wrapperRef: HTMLDivElement | undefined;
 
@@ -234,11 +236,10 @@ export function MultiSelectSearch<T extends string>(
         style={{ "anchor-name": anchorName } as JSX.CSSProperties}
       >
         <input
-          ref={inputRef}
           type="text"
           class={`${
             getSelectClasses(p.size, false, undefined)
-          } text-left data-[open=true]:cursor-text data-[panel-side=bottom]:rounded-b-none data-[panel-side=top]:rounded-t-none`}
+          } data-[open=true]:cursor-text data-[panel-side=bottom]:rounded-b-none data-[panel-side=top]:rounded-t-none`}
           data-mono={p.mono}
           data-open={open()}
           data-panel-side={open() ? side() : undefined}
@@ -275,7 +276,6 @@ export function MultiSelectSearch<T extends string>(
       </Show>
       <div
         ref={panelRef}
-        id={popoverId}
         popover="manual"
         class="ui-popover"
         data-position={side() === "bottom" ? "bottom-start" : "top-start"}
@@ -294,7 +294,7 @@ export function MultiSelectSearch<T extends string>(
             style={{ "max-height": `${panelMaxHeight()}px` }}
           >
             <div
-              class="ui-hoverable-base-100 flex flex-none cursor-pointer items-center gap-2 border-b px-2 py-1.5 text-sm"
+              class="ui-hoverable-base-100 flex flex-none cursor-pointer items-center gap-2 border-b px-3 py-1.5 text-sm"
               onClick={toggleSelectAllFiltered}
             >
               <CheckMark
