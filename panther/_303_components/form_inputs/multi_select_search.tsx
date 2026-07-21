@@ -123,7 +123,20 @@ export function MultiSelectSearch<T extends string>(
     if (sel.length <= 2) {
       return names.join(", ");
     }
-    return `${names.join(", ")} +${sel.length - 2}`;
+    return `${names.join(", ")}, +${sel.length - 2}`;
+  });
+
+  // Closed-state display is an overlay (not the input's value) so the +N
+  // count can sit in a non-shrinking span that survives truncation.
+  const summaryParts = createMemo(() => {
+    const sel = selectedOptions();
+    if (sel.length === 0) {
+      return undefined;
+    }
+    return {
+      names: sel.slice(0, 2).map(getSearchText).join(", "),
+      more: sel.length > 2 ? sel.length - 2 : undefined,
+    };
   });
 
   function toggleValue(value: T) {
@@ -229,10 +242,12 @@ export function MultiSelectSearch<T extends string>(
           data-panel-side={open() ? side() : undefined}
           readonly={!open()}
           disabled={p.disabled}
-          value={open() ? query() : summary() ?? ""}
+          value={open() ? query() : ""}
           placeholder={open()
             ? summary() ??
               t3({ en: "Search...", fr: "Rechercher...", pt: "Pesquisar..." })
+            : summary()
+            ? ""
             : p.placeholder ??
               t3({
                 en: "Select...",
@@ -257,6 +272,23 @@ export function MultiSelectSearch<T extends string>(
           }}
           onMouseLeave={hideTooltip}
         />
+        <Show when={!open() && summaryParts()} keyed>
+          {(parts) => (
+            <div
+              class={`${
+                p.size === "sm"
+                  ? "ui-form-pad-sm ui-form-text-size-sm"
+                  : "ui-form-pad ui-form-text-size"
+              } text-base-content pointer-events-none absolute inset-0 flex items-center border border-transparent !pr-[2.5em] font-400 data-[mono=true]:font-mono`}
+              data-mono={p.mono}
+            >
+              <span class="min-w-0 truncate">{parts.names}</span>
+              <Show when={parts.more} keyed>
+                {(more) => <span class="flex-none">, +{more}</span>}
+              </Show>
+            </div>
+          )}
+        </Show>
         <div class="text-base-content pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center">
           <Icon iconName={open() ? "search" : "selector"} />
         </div>
