@@ -92,14 +92,17 @@ export class ToolRegistry {
   private validateAvailableIn<TInput>(tool: AIToolWithMetadata<TInput>): void {
     if (this.boundController === undefined) return;
     const name = tool.sdkTool.name;
-    // Identity, not just ids: a viewController.createTool handler reads ITS
-    // controller's live state — gating against a different controller
-    // instance (even one built from the same registry shape) would pass the
-    // gate while the handler sees another view's params/context.
+    // Identity, not just ids: a viewController.createTool /
+    // createNavigationTool handler reads ITS controller's live state —
+    // gating against a different controller instance (even one built from
+    // the same registry shape) would pass the gate while the handler sees
+    // another view's params/context. (Phase 5 review: the message used to
+    // hardcode "viewController.createTool", which is wrong for a tool made
+    // by createNavigationTool — kept generic now.)
     const source = tool.metadata._viewController;
     if (source !== undefined && source !== this.boundController) {
       throw new Error(
-        `Tool "${name}" was created by viewController.createTool on a DIFFERENT controller instance than this chat's viewController. Pass the same controller instance to both, or create the tool with plain createAITool.`,
+        `Tool "${name}" was created by a viewController method (createTool / createNavigationTool) on a DIFFERENT controller instance than this chat's viewController. Pass the same controller instance everywhere you create its tools.`,
       );
     }
     const availableIn = tool.metadata.availableIn;
@@ -194,6 +197,28 @@ export function checkViewGate(
   };
 }
 
+// Consumer label callbacks run in the turn's extent — a throw must degrade
+// to the fallback, never reject the loop (a rejection there escapes with no
+// tool_result appended and the finally-only save persists a dangling
+// tool_use; hardened alongside Phase 4 review H1).
+function safeLabel(
+  source: string | ((input: unknown) => string) | undefined,
+  input: unknown,
+  fallback: string | undefined,
+): string | undefined {
+  if (source === undefined) return fallback;
+  if (typeof source === "string") return source;
+  try {
+    return source(input);
+  } catch (err) {
+    console.error(
+      "AI tool label callback threw; using the default label. A label callback must never fail a turn.",
+      err,
+    );
+    return fallback;
+  }
+}
+
 // One block's in-progress item. Used by getInProgressItems for the upfront
 // batch and by the chat loop for awaitsUserAction tools at block start.
 export function buildInProgressItem(
@@ -201,16 +226,12 @@ export function buildInProgressItem(
   toolRegistry: ToolRegistry,
 ): DisplayItem {
   const metadata = toolRegistry.getMetadata(block.name);
-  let label: string | undefined;
-
-  if (metadata?.inProgressLabel) {
-    label = typeof metadata.inProgressLabel === "function"
-      ? metadata.inProgressLabel(block.input)
-      : metadata.inProgressLabel;
-  } else if (SERVER_TOOL_LABELS[block.name]) {
+  const label = safeLabel(
+    metadata?.inProgressLabel,
+    block.input,
     // Fall back to built-in tool labels
-    label = SERVER_TOOL_LABELS[block.name];
-  }
+    SERVER_TOOL_LABELS[block.name],
+  );
 
   return {
     type: "tool_in_progress" as const,
@@ -307,11 +328,11 @@ export async function processToolUses(
       const toolBlock = toolUseBlocks.find((b) => b.id === result.tool_use_id)!;
       const metadata = toolRegistry.getMetadata(toolBlock.name);
 
-      const errorLabel = metadata?.errorMessage
-        ? typeof metadata.errorMessage === "function"
-          ? metadata.errorMessage(toolBlock.input)
-          : metadata.errorMessage
-        : `Tool feedback: ${toolBlock.name}`;
+      const errorLabel = safeLabel(
+        metadata?.errorMessage,
+        toolBlock.input,
+        `Tool feedback: ${toolBlock.name}`,
+      )!;
 
       return {
         type: "tool_error" as const,
@@ -338,13 +359,11 @@ export async function processToolUses(
       const metadata = toolRegistry.getMetadata(toolBlock.name);
 
       // Use successMessage if provided, fall back to completionMessage (backwards compat), then default
-      const messageSource = metadata?.successMessage ??
-        metadata?.completionMessage;
-      const message = messageSource
-        ? typeof messageSource === "function"
-          ? messageSource(toolBlock.input)
-          : messageSource
-        : `Tool success: ${toolBlock.name}`;
+      const message = safeLabel(
+        metadata?.successMessage ?? metadata?.completionMessage,
+        toolBlock.input,
+        `Tool success: ${toolBlock.name}`,
+      )!;
 
       return {
         type: "tool_success" as const,

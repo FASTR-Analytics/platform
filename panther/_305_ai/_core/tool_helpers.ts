@@ -77,6 +77,10 @@ export type AIToolApprovalConfig<TInput, TOutput> = {
   // inline card; later calls short-circuit to auto_approved (prepare still
   // runs, presentation is skipped, commit runs). Requires presentation
   // "inline" (construction throw — the modal has no checkbox affordance).
+  // NOTE: a prepare that returns a present() override never offers the
+  // checkbox either (a custom presenter has no checkbox affordance), so a
+  // session-mode tool that ALWAYS presents custom can never arm the
+  // auto-approve — the flag only sets through the inline card.
   mode?: "always" | "session";
   presentation?: "inline" | "modal";
 };

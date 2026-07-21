@@ -133,6 +133,11 @@ export type NotifyArgs<
 // oldest actions (documented retention limit).
 const MAX_LOG_RECORDS = 200;
 
+// Default AI-navigation attribution window. Long enough for routing to
+// settle (lazy-loaded editors, mount effects that call setView), short
+// enough that a genuine user move right after an AI one usually escapes it.
+const DEFAULT_NAV_ATTRIBUTION_MS = 5_000;
+
 // Log + echo-mark bookkeeping the view controller composes. ONE shared
 // append-only log of app-level actions, read through PER-CONVERSATION
 // cursors (bucket-3 ratification): each conversation's digest covers the
@@ -147,6 +152,7 @@ export function createInteractionLog(
   defs: Record<string, AIInteractionDefLike>,
   echoTtlMs: number,
   now: () => number = () => Date.now(),
+  navAttributionMs: number = DEFAULT_NAV_ATTRIBUTION_MS,
 ) {
   type LogRecord = { entry: InteractionQueueEntry; seq: number };
   let log: LogRecord[] = [];
@@ -156,6 +162,18 @@ export function createInteractionLog(
   // Mark TIMES per key (a list, not latest-only: a mark near an entry must
   // keep suppressing it even after later marks on the same key).
   const marks = new Map<string, number[]>();
+  // AI-navigation attribution window (Phase 5): the built-in navigation
+  // tool calls markAINavigation() before AND after its consumer callback,
+  // and every navigation event recorded while the window is open is stamped
+  // origin "ai" — the digest drops those (buildNavigationDigestLine), so an
+  // AI-caused move never renders as "User navigated". One scalar suffices:
+  // the mark always precedes the events it covers (the tool marks first),
+  // so no order-independence machinery is needed here, unlike echoes.
+  // Documented trade-off (markAIEdit's, applied to navigation): a GENUINE
+  // user navigation inside an open window is swallowed; the window is short
+  // (routing-settle scale) and the view-label section reports the resulting
+  // view every turn regardless.
+  let aiNavWindowUntil = 0;
 
   function push(entry: InteractionQueueEntry): void {
     log.push({ entry, seq: nextSeq++ });
@@ -191,7 +209,16 @@ export function createInteractionLog(
       push({ id, payload, at: now() });
     },
     recordNavigation(payload: NavigationEventPayload): void {
-      push({ id: NAVIGATION_INTERACTION_ID, payload, at: now() });
+      const at = now();
+      const origin: "user" | "ai" = at < aiNavWindowUntil ? "ai" : "user";
+      push({
+        id: NAVIGATION_INTERACTION_ID,
+        payload: { ...payload, origin },
+        at,
+      });
+    },
+    markAINavigation(): void {
+      aiNavWindowUntil = Math.max(aiNavWindowUntil, now() + navAttributionMs);
     },
     markAIEdit(key: string): void {
       pruneMarks();

@@ -419,6 +419,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       containerId: undefined,
       modelAssistantAppended: false,
       resolveOnFinish: [],
+      cancelPendingInteraction: null,
     };
     s.activeTurn[1](turn);
     return turn;
@@ -683,17 +684,40 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     successItem?: DisplayItem;
   };
 
+  // Consumer-authored label callbacks (errorMessage/successMessage) run
+  // while an outcome is being BUILT — a throw there must degrade to the
+  // fallback label, never reject the lifecycle (review H1d; the same
+  // drop-don't-throw rule as every other consumer callback in the turn's
+  // extent).
+  function resolveConsumerLabel(
+    source: string | ((input: unknown) => string) | undefined,
+    input: unknown,
+    fallback: string,
+  ): string {
+    if (source === undefined) return fallback;
+    if (typeof source === "string") return source;
+    try {
+      return source(input);
+    } catch (err) {
+      console.error(
+        "AI tool label callback threw; using the default label. A label callback must never fail a turn.",
+        err,
+      );
+      return fallback;
+    }
+  }
+
   function approvalErrorOutput(
     block: ToolUseBlock,
     metadata: ToolUIMetadata,
     err: unknown,
   ): ApprovalLifecycleOutput {
     const parts = toolThrowToResultParts(err);
-    const errorLabel = metadata.errorMessage
-      ? typeof metadata.errorMessage === "function"
-        ? metadata.errorMessage(block.input)
-        : metadata.errorMessage
-      : `Tool feedback: ${block.name}`;
+    const errorLabel = resolveConsumerLabel(
+      metadata.errorMessage,
+      block.input,
+      `Tool feedback: ${block.name}`,
+    );
     return {
       result: {
         type: "tool_result",
@@ -724,6 +748,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const metadata = tool.metadata;
     const approval = metadata.approval!;
     const toolName = block.name;
+    const vc = config.viewController;
+    // The view the gate just passed in, captured BEFORE prepare's await — a
+    // mid-prepare navigation must name the view the user actually LEFT in
+    // auto-decline messages, not the view they arrived in.
+    const viewIdAtStart = vc ? String(vc.current().id) : undefined;
 
     const normalResult = (content: string): ToolResult => ({
       type: "tool_result",
@@ -780,23 +809,48 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // A stopped turn must not present a card (Stop during prepare).
       if (turn.abort.signal.aborted) return interruptedOutput();
 
+      // Shape validation (review H1): prepare's RETURN VALUE is consumer
+      // data — a type-erased consumer (or a forgotten `return` on one code
+      // path) can hand back undefined/null/a primitive, and consuming it
+      // unguarded rejected the lifecycle, leaving a PERSISTED dangling
+      // tool_use (a permanently bricked conversation, reproduced live). A
+      // malformed shape is an app bug — fail the BLOCK loudly, never the
+      // turn.
+      if (prep === null || typeof prep !== "object") {
+        return approvalErrorOutput(
+          block,
+          metadata,
+          new Error(
+            `approval.prepare for "${toolName}" returned ${
+              prep === null ? "null" : typeof prep
+            } instead of a PrepareResult ({skip} | {invalid} | {preview, commit}) — a code path probably forgot to return.`,
+          ),
+        );
+      }
+
       if ("skip" in prep) {
-        // No-op detected — a NORMAL result, no decision requested.
-        const messageSource = metadata.successMessage ??
-          metadata.completionMessage;
-        const message = messageSource
-          ? typeof messageSource === "function"
-            ? messageSource(block.input)
-            : messageSource
-          : `Tool success: ${toolName}`;
+        // No-op detected — a NORMAL result, no decision requested. Display
+        // follows the handler path's rule: a tool with a displayComponent
+        // owns its display (no generic tool_success item).
+        const skipText = String(prep.skip);
+        if (metadata.displayComponent) {
+          addDisplayItemsTo(ts, [
+            { type: "tool_display", toolName, input: block.input },
+          ]);
+          return { result: normalResult(skipText) };
+        }
         return {
-          result: normalResult(prep.skip),
+          result: normalResult(skipText),
           successItem: {
             type: "tool_success",
             toolName,
             toolInput: block.input,
-            message,
-            result: prep.skip,
+            message: resolveConsumerLabel(
+              metadata.successMessage ?? metadata.completionMessage,
+              block.input,
+              `Tool success: ${toolName}`,
+            ),
+            result: skipText,
           },
         };
       }
@@ -806,11 +860,32 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         return approvalErrorOutput(
           block,
           metadata,
-          new AIToolFailure(prep.invalid),
+          new AIToolFailure(String(prep.invalid)),
         );
       }
 
       const { preview, commit, stillValid, present } = prep;
+      if (
+        preview === null || typeof preview !== "object" ||
+        typeof commit !== "function" ||
+        (present !== undefined && typeof present !== "function") ||
+        (stillValid !== undefined && typeof stillValid !== "function")
+      ) {
+        return approvalErrorOutput(
+          block,
+          metadata,
+          new Error(
+            `approval.prepare for "${toolName}" returned a malformed preview arm — expected {preview: object, commit: function, stillValid?: function, present?: function}.`,
+          ),
+        );
+      }
+      const previewTitle = String(preview.title);
+
+      // prepare is done — remove the spinner before ANY presentation shape
+      // (review M3: it used to linger through the modal and present()
+      // paths for the whole decision window); the finally's removal stays
+      // as the backstop for the arms above.
+      removeDisplayItemFrom(ts, progressItem);
 
       const runCommit = async (): Promise<ApprovalLifecycleOutput> => {
         try {
@@ -832,13 +907,29 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       };
 
       // Session auto-approve short-circuit: prepare ran (fresh preview and
-      // commit), presentation is skipped entirely.
+      // commit), presentation is skipped entirely. No decision registers on
+      // this path, so the auto-decline watcher cannot see a view exit that
+      // happened during prepare's await — re-check the live view here before
+      // committing (commit closures capture view-local state that navigation
+      // tears down).
       if (
         approval.mode === "session" &&
         ts.approvedTools[0]().includes(toolName)
       ) {
-        removeDisplayItemFrom(ts, progressItem);
-        addDecision("auto_approved", preview.title);
+        if (
+          metadata.availableIn && vc &&
+          !metadata.availableIn.includes(String(vc.current().id))
+        ) {
+          addDecision("auto_declined", previewTitle);
+          return {
+            result: normalResult(
+              buildApprovalViewExitMessage(
+                viewIdAtStart ?? metadata.availableIn[0],
+              ),
+            ),
+          };
+        }
+        addDecision("auto_approved", previewTitle);
         return await runCommit();
       }
 
@@ -865,13 +956,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       };
       const sessionCheckbox = approval.mode === "session" && !present &&
         approval.presentation === "inline";
-      const vc = config.viewController;
       ts.pendingDecision[1]({
         toolName,
         preview,
         sessionCheckbox,
         availableIn: metadata.availableIn,
-        viewIdAtCreation: vc ? String(vc.current().id) : undefined,
+        viewIdAtCreation: viewIdAtStart,
         resolve: decide,
       });
 
@@ -895,21 +985,33 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             presenterAbort.abort();
           }
         });
-        present(presenterAbort.signal).then(
-          (accepted) =>
-            decide(
-              accepted
-                ? { kind: "accepted", alwaysThisSession: false }
-                : { kind: "declined" },
-            ),
-          (err) => {
-            console.error(
-              `Approval presenter for "${toolName}" rejected; treating as declined.`,
-              err,
-            );
-            decide({ kind: "declined" });
-          },
-        );
+        // A presenter that throws SYNCHRONOUSLY gets the same treatment as
+        // an async rejection (review H1b): declined + logged — before this
+        // guard the throw rejected the lifecycle and bricked the
+        // conversation.
+        try {
+          present(presenterAbort.signal).then(
+            (accepted) =>
+              decide(
+                accepted
+                  ? { kind: "accepted", alwaysThisSession: false }
+                  : { kind: "declined" },
+              ),
+            (err) => {
+              console.error(
+                `Approval presenter for "${toolName}" rejected; treating as declined.`,
+                err,
+              );
+              decide({ kind: "declined" });
+            },
+          );
+        } catch (err) {
+          console.error(
+            `Approval presenter for "${toolName}" threw; treating as declined.`,
+            err,
+          );
+          decide({ kind: "declined" });
+        }
       } else if (approval.presentation === "modal") {
         // openConfirm with the SAME structured preview body the inline card
         // renders. Displacement cannot hang the turn: a displaced dialog
@@ -917,7 +1019,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         // externally (Stop) leaves the dialog visible; its eventual button
         // click is a no-op (the resolver is idempotent).
         openConfirm({
-          title: preview.title,
+          title: previewTitle,
           // Lazy thunk: the preview body builds DOM only when the dialog
           // actually renders. Solid's insert() unwraps function children at
           // runtime; the JSX.Element type just doesn't admit them — cast.
@@ -932,9 +1034,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           )
         );
       } else {
-        // Inline card — replaces the spinner; a pure view over the store's
-        // decision plus this display item.
-        removeDisplayItemFrom(ts, progressItem);
+        // Inline card — a pure view over the store's decision plus this
+        // display item (the spinner was already removed after prepare).
         cardItem = {
           type: "approval_pending",
           toolName,
@@ -950,12 +1051,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         case "interrupted":
           return interruptedOutput();
         case "auto_declined":
-          addDecision("auto_declined", preview.title);
+          addDecision("auto_declined", previewTitle);
           return {
             result: normalResult(buildApprovalViewExitMessage(outcome.viewId)),
           };
         case "declined":
-          addDecision("declined", preview.title);
+          addDecision("declined", previewTitle);
           return { result: normalResult(APPROVAL_DECLINED_MESSAGE) };
         case "accepted": {
           // Abort check at decision resolution: a Stop that raced the
@@ -973,7 +1074,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               ok = false;
             }
             if (!ok) {
-              addDecision("auto_declined", preview.title);
+              addDecision("auto_declined", previewTitle);
               return { result: normalResult(APPROVAL_STALE_MESSAGE) };
             }
           }
@@ -983,13 +1084,22 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               setApprovedTools([...approvedTools(), toolName]);
             }
           }
-          addDecision("approved", preview.title);
+          addDecision("approved", previewTitle);
           return await runCommit();
         }
         default:
           // Exhaustive switch — unreachable; satisfies the return type.
           return interruptedOutput();
       }
+    } catch (err) {
+      // FINAL SAFETY NET (review H1): the lifecycle must be structurally
+      // unable to REJECT. A rejection escapes the tool loop with no
+      // tool_result appended, and the finally-only save then persists a
+      // dangling tool_use — a permanently bricked conversation. Anything
+      // the guards above did not map (a hostile getter on a consumer
+      // object, a future edit) resolves the block as an error result
+      // instead.
+      return approvalErrorOutput(block, metadata, err);
     } finally {
       // Every exit path — decide, auto-decline, stale, interrupt,
       // commit-throw, even an unexpected escape — removes the card and
@@ -1331,9 +1441,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           // block start, in the same synchronous section as the handler
           // call below, so a click can never land before the handler wires
           // its resolver (the old premature-interaction race). Cleared by
-          // the batch-end clearInProgressItemsIn like every spinner.
+          // the batch-end clearInProgressItemsIn like every spinner. The
+          // turn-scoped canceller lets stopGeneration cancel THIS turn's
+          // pending card only (review H2: a registry-wide sweep cancelled
+          // another conversation's question when chats shared the tool
+          // instance).
           if (blockTool?.metadata.awaitsUserAction) {
             addDisplayItemsTo(ts, [buildInProgressItem(block, toolRegistry)]);
+            const cancelHook = blockTool.metadata._cancelPending;
+            if (cancelHook) {
+              turn.cancelPendingInteraction = () => {
+                try {
+                  cancelHook();
+                } catch { /* a cancel hook must never break Stop */ }
+              };
+            }
           }
 
           // Use existing tool processing for custom tools — raced against
@@ -1343,6 +1465,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             turn.abort.signal,
             processToolUses([block], toolRegistry),
           );
+          turn.cancelPendingInteraction = null;
           if (outcome.aborted) {
             allResults.push(
               ...buildCancelledToolResults(
@@ -1461,14 +1584,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // conversation can never dangle on an approval.
     const pending = turn.store.pendingDecision[0]();
     if (pending) pending.resolve({ kind: "interrupted" });
-    // Unblock promise-blocking cards (ask_user_questions) so their closure
-    // guards reset — with unmount-cancel removed (decision log #6), Stop is
-    // the explicit path that cancels an abandoned question.
-    for (const tool of toolRegistry.getAll()) {
-      try {
-        tool.metadata._cancelPending?.();
-      } catch { /* a cancel hook must never break Stop */ }
-    }
+    // Unblock THIS turn's promise-blocking card (ask_user_questions) so its
+    // closure guard resets — with unmount-cancel removed (decision log #6),
+    // Stop is the explicit path that cancels an abandoned question.
+    // Turn-scoped, never a registry sweep (review H2: the sweep cancelled
+    // another conversation's pending question when two chats shared the
+    // same tool instance).
+    turn.cancelPendingInteraction?.();
+    turn.cancelPendingInteraction = null;
     clearInProgressItemsIn(turn.store);
   }
 

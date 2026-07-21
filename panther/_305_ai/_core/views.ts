@@ -17,6 +17,11 @@ import type {
   AnyAIInteraction,
   NotifyArgs,
 } from "./interactions.ts";
+import { buildNavigationTool } from "./navigation_tool.ts";
+import type {
+  AINavigationToolInput,
+  CreateAINavigationToolConfig,
+} from "./navigation_tool.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // AI VIEW REGISTRY + CONTROLLER
@@ -213,6 +218,14 @@ export type AIViewController<
   createTool<TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
     config: CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
   ): AIToolWithMetadata<TInput>;
+  // The built-in navigation tool (Phase 5): the model asks to move, the
+  // consumer's onAiNavigation callback performs the app's actual routing,
+  // and the tool attributes the resulting setView events to the AI so the
+  // __navigation digest never reports them as "User navigated". See
+  // navigation_tool.ts for the full contract.
+  createNavigationTool<K extends keyof TDefs = keyof TDefs>(
+    config: CreateAINavigationToolConfig<TDefs, K>,
+  ): AIToolWithMetadata<AINavigationToolInput<TDefs, K>>;
   // Report a user interaction (Feature 3) — typed against the interactions
   // registry; the payload argument is dropped for void-payload interactions.
   // Entries queue until the engine drains them into the next turn's digest
@@ -231,6 +244,19 @@ export type AIViewController<
   // arrival. Call inside mutating tool handlers (e.g. `slide:${id}`). No-op
   // without an interactions registry.
   markAIEdit(key: string): void;
+  // Public escape hatch for the built-in navigation tool's attribution
+  // window (Phase 5 review): `createNavigationTool` already opens this
+  // window around its `onAiNavigation` callback automatically, so most
+  // consumers never call this directly. It exists for a FIRE-AND-FORGET
+  // router — one whose `onAiNavigation` callback returns before its actual
+  // `setView`/`clearView` call lands (e.g. it starts an async route and
+  // returns immediately, settling later via an effect or subscription). In
+  // that shape the tool's own window can close before the real navigation
+  // fires, and the resulting event would be misattributed to the user; call
+  // `markAINavigation()` again from wherever that later `setView` actually
+  // happens to re-open the window at the right moment. No-op without an
+  // interactions registry (there is no digest to attribute in).
+  markAINavigation(): void;
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
   _viewIds(): string[];
@@ -273,6 +299,11 @@ export function createAIViewController<
     // Echo-suppression window for markAIEdit (TTL-only; marks are never
     // cleared at drain). Default 30 000 ms.
     echoTtlMs?: number;
+    // AI-navigation attribution window (Phase 5): navigation events recorded
+    // within this long of the navigation tool's mark are stamped origin
+    // "ai" and dropped from the digest. Raise it if the app's routing takes
+    // longer to settle (lazy-loaded editors). Default 5 000 ms.
+    navAttributionMs?: number;
   },
 ): AIViewController<TDefs, TIDefs> {
   const fallbackId = options.fallback as keyof TDefs;
@@ -292,6 +323,29 @@ export function createAIViewController<
       `createAIViewController: fallback view "${
         String(fallbackId)
       }" declares a params schema — the fallback must be a view with void params and void context (clearView cannot supply arguments)`,
+    );
+  }
+
+  // Both TTL-style options must be strictly positive when explicitly set
+  // (Phase 5 review): the suppression window comparisons are `age < ttl` —
+  // at ttl <= 0 the window is empty by construction, so even a same-tick
+  // mark-then-record pair (a synchronous echo, or the navigation tool's
+  // synchronous-routing case) can lose the Date.now() tie and be
+  // misattributed. Reproduced empirically for navAttributionMs: 0 against a
+  // real controller. echoTtlMs shares the exact same comparison shape
+  // (dropSuppressedEchoes) and gets the same guard here rather than leaving
+  // a matching, unguarded footgun behind (the defaults are always valid, so
+  // only an explicit non-positive override can trip this).
+  if (options.echoTtlMs !== undefined && options.echoTtlMs <= 0) {
+    throw new Error(
+      `createAIViewController: echoTtlMs must be > 0 (got ${options.echoTtlMs}) — a non-positive TTL makes the suppression window empty, so even a same-tick echo can be misattributed.`,
+    );
+  }
+  if (
+    options.navAttributionMs !== undefined && options.navAttributionMs <= 0
+  ) {
+    throw new Error(
+      `createAIViewController: navAttributionMs must be > 0 (got ${options.navAttributionMs}) — a non-positive window makes AI-navigation attribution empty, so even synchronous routing can be misattributed to the user.`,
     );
   }
 
@@ -332,6 +386,8 @@ export function createAIViewController<
     ? createInteractionLog(
       interactionDefs,
       options.echoTtlMs ?? DEFAULT_ECHO_TTL_MS,
+      undefined,
+      options.navAttributionMs,
     )
     : null;
   const reportNavigation = interactionLog !== null &&
@@ -509,6 +565,25 @@ export function createAIViewController<
       tool.metadata._viewController = controller;
       return tool;
     },
+    createNavigationTool<K extends keyof TDefs = keyof TDefs>(
+      config: CreateAINavigationToolConfig<TDefs, K>,
+    ): AIToolWithMetadata<AINavigationToolInput<TDefs, K>> {
+      const tool = buildNavigationTool(config, {
+        defFor: (viewId: string) =>
+          registry._defs[viewId]?._def as
+            | AIViewDefinition<unknown, unknown>
+            | undefined,
+        currentIdAndLabel: () => {
+          const s = state();
+          return { id: String(s.id), label: resolveLabel(s) };
+        },
+        // No-op without an interactions registry — there is no digest to
+        // attribute in.
+        markAINavigation: () => interactionLog?.markAINavigation(),
+      });
+      tool.metadata._viewController = controller;
+      return tool;
+    },
     notify<K extends keyof TIDefs>(
       id: K,
       ...args: NotifyArgs<TIDefs, K>
@@ -524,6 +599,9 @@ export function createAIViewController<
     },
     markAIEdit(key: string): void {
       interactionLog?.markAIEdit(key);
+    },
+    markAINavigation(): void {
+      interactionLog?.markAINavigation();
     },
     _viewIds(): string[] {
       return Object.keys(registry._defs);

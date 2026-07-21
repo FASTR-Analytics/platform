@@ -27,6 +27,7 @@ export { useConversations } from "./_components/use_conversations.ts";
 export { AIToolFailure, createAITool } from "./_core/tool_helpers.ts";
 export { createAIViewController, defineAIViews, view } from "./_core/views.ts";
 export { defineAIInteractions, interaction } from "./_core/interactions.ts";
+export { buildToolCatalog } from "./_core/tool_catalog.ts";
 export { validateAIChatConfig } from "./_core/validate_config.ts";
 export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
@@ -72,6 +73,11 @@ export type {
   AnyAIInteraction,
   NotifyArgs,
 } from "./_core/interactions.ts";
+export type {
+  AINavigationTarget,
+  AINavigationToolInput,
+  CreateAINavigationToolConfig,
+} from "./_core/navigation_tool.ts";
 export type {
   AIChatSettingsField,
   AIChatSettingsPanelProps,

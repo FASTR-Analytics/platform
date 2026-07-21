@@ -42,6 +42,12 @@ export type ActiveTurn = {
   // resolved in the turn's finally — await means "the attempt finished",
   // not "it succeeded" (errors surface via error()).
   resolveOnFinish: Array<() => void>;
+  // Cancels THIS turn's currently-executing promise-blocking card
+  // (ask_user_questions), set by the loop around the block's await and
+  // called by stopGeneration. Turn-scoped ON PURPOSE (Phase 4 review H2): a
+  // registry-wide sweep cancelled another conversation's pending question
+  // when two chats shared the same tool instance.
+  cancelPendingInteraction: (() => void) | null;
 };
 
 export type QueuedMessage = {
