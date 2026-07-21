@@ -1,35 +1,38 @@
-[TBD] [user] [changed] - Refined border styling for a more consistent visual appearance across the interface
-[TBD] [user] [added] - AI assistant now recognizes when you are viewing Dashboards or Cache tabs
-[TBD] [user] [added] - Confirmation prompt before saving bulk indicator validation results
-[TBD] [user] [changed] - "Back to step 1" button in DHIS2 import wizard is now more visually distinct
-[TBD] [user] [changed] - Font picker options now highlight on hover for easier selection
-[TBD] [admin] [added] - AI assistant now recognizes Dashboards and Cache views
-[TBD] [admin] [changed] - Bulk indicator validation now asks for confirmation before saving
-[TBD] [admin] [fixed] - Consistent border styling across the entire interface
-[TBD] [admin] [changed] - Error-state buttons now use clearer danger styling
-[TBD] [user] [fixed] - Dashboard and chart thumbnails now refresh automatically after data updates
-[TBD] [user] [fixed] - Admin-only actions now appear and disappear correctly when permissions change
-[TBD] [user] [changed] - Improved visual consistency of borders, text colors, and status badges throughout the platform
-[TBD] [user] [changed] - Permission category headings now appear bolder for easier reading
-[TBD] [user] [changed] - Scheduled DHIS2 import alerts no longer appear as clickable when they shouldn't be
-[TBD] [user] [fixed] - Category manager admin buttons now react properly to permission changes without page reload
-[TBD] [user] [changed] - Selected categories and time points are now highlighted with a clearer background color
-[TBD] [user] [changed] - Hoverable cards on data and project pages have more consistent hover effects
-[TBD] [user] [changed] - Remove button for feedback images now shows a subtle style instead of red by default
-[TBD] [admin] [fixed] - Dashboard and visualization thumbnails now refresh automatically after data changes
-[TBD] [admin] [fixed] - HFA category manager admin permissions now update correctly without page reload
-[TBD] [admin] [fixed] - Stale data no longer appears when rapidly switching between data fetches
-[TBD] [admin] [changed] - DHIS2 import queue and scheduled import notices no longer act as clickable links
-[TBD] [admin] [changed] - Asset uploads and deletions now refresh automatically without extra server calls
-[TBD] [admin] [improved] - Improved visual consistency of status badges, borders, and muted text across the platform
-[TBD] [admin] [fixed] - Table action buttons and bulk actions now correctly appear or hide when admin role changes
-[TBD] [user] [changed] - Refined border rounding for a more consistent visual style
-[TBD] [user] [changed] - Improved shadow styling on floating elements like popovers and notifications
-[TBD] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
-[TBD] [user] [fixed] - Error messages now display in a consistent red color throughout the app
-[TBD] [user] [changed] - Backup list styling now adapts correctly to light and dark themes
-[TBD] [user] [changed] - Style preset cards have a cleaner, simpler border appearance
-[TBD] [admin] [fixed] - Improved visual consistency of UI colors across the platform
+[1.60.0] [user] [changed] - Filter options now appear as a searchable dropdown for easier selection
+[1.60.0] [admin] [added] - Filters now show a searchable dropdown for long option lists
+[1.60.0] [admin] [changed] - Data and disaggregation filter selectors use search instead of chip clouds
+[1.60.0] [user] [changed] - Refined border styling for a more consistent visual appearance across the interface
+[1.60.0] [user] [added] - AI assistant now recognizes when you are viewing Dashboards or Cache tabs
+[1.60.0] [user] [added] - Confirmation prompt before saving bulk indicator validation results
+[1.60.0] [user] [changed] - "Back to step 1" button in DHIS2 import wizard is now more visually distinct
+[1.60.0] [user] [changed] - Font picker options now highlight on hover for easier selection
+[1.60.0] [admin] [added] - AI assistant now recognizes Dashboards and Cache views
+[1.60.0] [admin] [changed] - Bulk indicator validation now asks for confirmation before saving
+[1.60.0] [admin] [fixed] - Consistent border styling across the entire interface
+[1.60.0] [admin] [changed] - Error-state buttons now use clearer danger styling
+[1.60.0] [user] [fixed] - Dashboard and chart thumbnails now refresh automatically after data updates
+[1.60.0] [user] [fixed] - Admin-only actions now appear and disappear correctly when permissions change
+[1.60.0] [user] [changed] - Improved visual consistency of borders, text colors, and status badges throughout the platform
+[1.60.0] [user] [changed] - Permission category headings now appear bolder for easier reading
+[1.60.0] [user] [changed] - Scheduled DHIS2 import alerts no longer appear as clickable when they shouldn't be
+[1.60.0] [user] [fixed] - Category manager admin buttons now react properly to permission changes without page reload
+[1.60.0] [user] [changed] - Selected categories and time points are now highlighted with a clearer background color
+[1.60.0] [user] [changed] - Hoverable cards on data and project pages have more consistent hover effects
+[1.60.0] [user] [changed] - Remove button for feedback images now shows a subtle style instead of red by default
+[1.60.0] [admin] [fixed] - Dashboard and visualization thumbnails now refresh automatically after data changes
+[1.60.0] [admin] [fixed] - HFA category manager admin permissions now update correctly without page reload
+[1.60.0] [admin] [fixed] - Stale data no longer appears when rapidly switching between data fetches
+[1.60.0] [admin] [changed] - DHIS2 import queue and scheduled import notices no longer act as clickable links
+[1.60.0] [admin] [changed] - Asset uploads and deletions now refresh automatically without extra server calls
+[1.60.0] [admin] [improved] - Improved visual consistency of status badges, borders, and muted text across the platform
+[1.60.0] [admin] [fixed] - Table action buttons and bulk actions now correctly appear or hide when admin role changes
+[1.60.0] [user] [changed] - Refined border rounding for a more consistent visual style
+[1.60.0] [user] [changed] - Improved shadow styling on floating elements like popovers and notifications
+[1.60.0] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
+[1.60.0] [user] [fixed] - Error messages now display in a consistent red color throughout the app
+[1.60.0] [user] [changed] - Backup list styling now adapts correctly to light and dark themes
+[1.60.0] [user] [changed] - Style preset cards have a cleaner, simpler border appearance
+[1.60.0] [admin] [fixed] - Improved visual consistency of UI colors across the platform
 [1.59.1] [user] [changed] - Expand/collapse arrows now use consistent chevron icons
 [1.59.1] [user] [fixed] - Improved error messages when AI assistant encounters issues
 [1.59.1] [admin] [fixed] - AI chat errors now display more accurate error details
