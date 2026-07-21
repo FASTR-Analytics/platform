@@ -148,8 +148,9 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // post-login modals — wait until user is approved
+  // post-login modals — wait until user is approved; skip inside a project
   createEffect(() => {
+    if (getFirstString(searchParams.p)) return;
     if (!instanceState.currentUserApproved) return;
     if (!clerk.user) return;
     (async () => {
