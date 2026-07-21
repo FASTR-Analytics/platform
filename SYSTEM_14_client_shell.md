@@ -189,7 +189,9 @@ sequentially opens `EmailOptInModal` (writes
 `WhatsNewModal` — a multi-page release-notes popup. Posts are authored in the
 Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
 (5-min in-memory cache, fail-silent) and pre-filtered server-side to
-`published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`;
+`published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`
+(the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
+test deploys);
 the client shows only the newest unseen post, keyed on the high-water mark
 `unsafeMetadata.whatsNewSeenVersion` (brand-new users — detected as
 `!emailOptInAsked` before the opt-in modal writes it — are baselined without

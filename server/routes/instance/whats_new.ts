@@ -34,6 +34,11 @@ async function getPublishedPosts(): Promise<WhatsNewPost[]> {
   }
 }
 
+// Ad-hoc/test deploys have a non-dotted SERVER_VERSION (e.g. "test-feature-x"),
+// which the numeric compare can't order — skip the version gate there so
+// testers see every published post.
+const _VERSION_GATE_ACTIVE = /^\d+\.\d+\.\d+$/.test(_SERVER_VERSION);
+
 defineRoute(routesWhatsNew, "getWhatsNewPosts", requireGlobalPermission(), async (c) => {
   if (!c.var.globalUser.approved) {
     return c.json({ success: true, data: [] });
@@ -41,7 +46,7 @@ defineRoute(routesWhatsNew, "getWhatsNewPosts", requireGlobalPermission(), async
   const posts = await getPublishedPosts();
   const eligible = posts.filter((p) =>
     p.published &&
-    compareDottedVersions(p.version, _SERVER_VERSION) <= 0 &&
+    (!_VERSION_GATE_ACTIVE || compareDottedVersions(p.version, _SERVER_VERSION) <= 0) &&
     (!p.adminsOnly || c.var.globalUser.isGlobalAdmin)
   );
   return c.json({ success: true, data: eligible });
