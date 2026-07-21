@@ -2,13 +2,23 @@ import { t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
+  Button,
   LoadingIndicator,
   MultiSelect,
   createFormAction,
 } from "panther";
-import { createMemo, createSignal, onMount, Show } from "solid-js";
-import { _SERVER_HOST } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
+import type Uppy from "@uppy/core";
+import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
 import {
   addDocumentToProject,
   getDocumentsForProject,
@@ -28,6 +38,8 @@ export function AIDocumentSelectorModal(
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
   const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>([]);
+
+  let uppy: Uppy | undefined;
 
   const pdfAssets = () =>
     instanceState.assets.filter((a) =>
@@ -50,6 +62,29 @@ export function AIDocumentSelectorModal(
     setSelectedFiles(alreadySelected);
 
     setIsLoading(false);
+  });
+
+  createEffect(() => {
+    if (isLoading() || uppy) return;
+    uppy = createUppyInstance({
+      triggerId: "#upload-pdf-button",
+      maxNumberOfFiles: 5,
+      allowedFileTypes: [".pdf"],
+      onUploadSuccess: (file) => {
+        const fileName = file?.name;
+        if (!fileName) return;
+        setSelectedFiles((prev) => [...new Set([...prev, fileName])]);
+      },
+      onComplete: () => {
+        serverActions.getAssets({}).then((res) => {
+          if (res.success) updateInstanceAssets(res.data);
+        });
+      },
+    });
+  });
+
+  onCleanup(() => {
+    cleanupUppy(uppy);
   });
 
   const save = createFormAction(
@@ -117,6 +152,23 @@ export function AIDocumentSelectorModal(
       </Show>
 
       <Show when={!isLoading()}>
+        <div class="mb-3 flex items-center gap-3">
+          <Button id="upload-pdf-button" size="sm" outline type="button">
+            {t3({
+              en: "Upload PDF from device",
+              fr: "Importer un PDF depuis l'appareil",
+              pt: "Carregar PDF do dispositivo",
+            })}
+          </Button>
+          <span class="text-base-content/60">
+            {t3({
+              en: "OR",
+              fr: "OU",
+              pt: "OU",
+            })}
+          </span>
+        </div>
+
         <Show
           when={pdfAssets().length > 0}
           fallback={
@@ -128,13 +180,20 @@ export function AIDocumentSelectorModal(
               })}
               <br />
               {t3({
-                en: "Upload PDFs to the assets folder first.",
-                fr: "Téléversez d'abord des PDF dans le dossier des ressources.",
-                pt: "Carregue primeiro PDFs para a pasta de recursos.",
+                en: "Use the button above to upload a PDF.",
+                fr: "Utilisez le bouton ci-dessus pour importer un PDF.",
+                pt: "Utilize o botão acima para carregar um PDF.",
               })}
             </div>
           }
         >
+          <div class="mb-2 font-medium">
+            {t3({
+              en: "Select from uploaded assets",
+              fr: "Sélectionner parmi les ressources importées",
+              pt: "Selecionar a partir dos recursos carregados",
+            })}
+          </div>
           <div class="max-h-[400px] overflow-y-auto">
             <MultiSelect
               values={selectedFiles()}

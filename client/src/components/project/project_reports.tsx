@@ -1,10 +1,4 @@
-import {
-  ReportGroupingMode,
-  ReportPreview,
-  ReportSummary,
-  t3,
-  TC,
-} from "lib";
+import { ReportGroupingMode, ReportPreview, ReportSummary, t3, TC } from "lib";
 import {
   Button,
   createSelectionController,
@@ -28,6 +22,8 @@ import { EditReportFolderModal } from "./edit_report_folder_modal";
 import { MoveReportToFolderModal } from "./move_report_to_folder_modal";
 import { DuplicateReportModal } from "./duplicate_report_modal";
 import { ProjectReport } from "../report";
+import { PresenceAvatars } from "../slide_deck/presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import {
@@ -66,8 +62,14 @@ function previewCounts(preview: ReportPreview): string {
 
 function getGroupingOptions(): { value: ReportGroupingMode; label: string }[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }) },
+    {
+      value: "folders",
+      label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }),
+    },
+    {
+      value: "flat",
+      label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }),
+    },
   ];
 }
 
@@ -130,7 +132,15 @@ export function ProjectReports(p: ExtendedProps) {
       }
       case "flat":
         return [
-          { value: "_all", label: t3({ en: "All reports", fr: "Tous les rapports", pt: "Todos os relatórios" }), count: reports.length },
+          {
+            value: "_all",
+            label: t3({
+              en: "All reports",
+              fr: "Tous les rapports",
+              pt: "Todos os relatórios",
+            }),
+            count: reports.length,
+          },
         ];
       default:
         return [];
@@ -220,8 +230,16 @@ export function ProjectReports(p: ExtendedProps) {
 
     const confirmText =
       idsToDelete.length > 1
-        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} reports?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?`, pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} relatórios?` })
-        : t3({ en: "Are you sure you want to delete this report?", fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?", pt: "Tem a certeza de que pretende eliminar este relatório?" });
+        ? t3({
+            en: `Are you sure you want to delete ${idsToDelete.length} reports?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} rapports ?`,
+            pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} relatórios?`,
+          })
+        : t3({
+            en: "Are you sure you want to delete this report?",
+            fr: "Êtes-vous sûr de vouloir supprimer ce rapport ?",
+            pt: "Tem a certeza de que pretende eliminar este relatório?",
+          });
 
     const deleteAction = createDeleteAction(
       confirmText,
@@ -256,28 +274,47 @@ export function ProjectReports(p: ExtendedProps) {
     const items: MenuItem[] = [
       {
         label: isMultiSelect
-          ? t3({ en: `Move ${count} reports to folder...`, fr: `Déplacer ${count} rapports vers un dossier...`, pt: `Mover ${count} relatórios para uma pasta...` })
-          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." }),
+          ? t3({
+              en: `Move ${count} reports to folder...`,
+              fr: `Déplacer ${count} rapports vers un dossier...`,
+              pt: `Mover ${count} relatórios para uma pasta...`,
+            })
+          : t3({
+              en: "Move to folder...",
+              fr: "Déplacer vers un dossier...",
+              pt: "Mover para uma pasta...",
+            }),
         icon: "folder",
         onClick: () => handleMoveToFolder(report),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Duplicate ${count} reports...`, fr: `Dupliquer ${count} rapports...`, pt: `Duplicar ${count} relatórios...` })
+          ? t3({
+              en: `Duplicate ${count} reports...`,
+              fr: `Dupliquer ${count} rapports...`,
+              pt: `Duplicar ${count} relatórios...`,
+            })
           : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
         icon: "copy",
         onClick: () => handleDuplicate(report),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Delete ${count} reports`, fr: `Supprimer ${count} rapports`, pt: `Eliminar ${count} relatórios` })
+          ? t3({
+              en: `Delete ${count} reports`,
+              fr: `Supprimer ${count} rapports`,
+              pt: `Eliminar ${count} relatórios`,
+            })
           : t3(TC.delete),
         icon: "trash",
         intent: "danger",
         onClick: () => handleDelete(report),
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   function handleFolderContextMenu(e: MouseEvent, folderId: string) {
@@ -288,7 +325,11 @@ export function ProjectReports(p: ExtendedProps) {
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur...", pt: "Mudar o nome / Mudar a cor..." }),
+        label: t3({
+          en: "Rename / Change color...",
+          fr: "Renommer / Changer la couleur...",
+          pt: "Mudar o nome / Mudar a cor...",
+        }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -301,24 +342,35 @@ export function ProjectReports(p: ExtendedProps) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
+        label: t3({
+          en: "Delete folder",
+          fr: "Supprimer le dossier",
+          pt: "Eliminar pasta",
+        }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = createDeleteAction(
-            t3({ en: "Are you sure you want to delete this folder? Reports will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général.", pt: "Tem a certeza de que pretende eliminar esta pasta? Os relatórios serão movidos para Geral." }),
+            t3({
+              en: "Are you sure you want to delete this folder? Reports will be moved to General.",
+              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les rapports seront déplacés dans Général.",
+              pt: "Tem a certeza de que pretende eliminar esta pasta? Os relatórios serão movidos para Geral.",
+            }),
             () =>
               serverActions.deleteReportFolder({
                 projectId: projectState.id,
                 folder_id: folderId,
               }),
-            () => { },
+            () => {},
           );
           await deleteAction.click();
         },
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   const renderGroupOption = (item: ListItem<string>) => {
@@ -374,26 +426,38 @@ export function ProjectReports(p: ExtendedProps) {
       return;
     }
     const report = projectState.reports.find((r) => r.id === res.newReportId);
-    await openReport(res.newReportId, report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }));
+    await openReport(
+      res.newReportId,
+      report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }),
+    );
   }
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
-          searchText={searchText()}
-          setSearchText={setSearchText}
-          centerChildren={
-            <SortControl value={reportSortMode()} onChange={setReportSortMode} />
-          }
-        >
-          <Show when={!projectState.isLocked}>
-            <Button onClick={attemptAddReport} iconName="plus">
-              {t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
-            </Button>
-          </Show>
-        </HeadingBar>
+        <div class="h-full w-full" data-cursor-zone="header">
+          <HeadingBar
+            heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            centerChildren={
+              <SortControl
+                value={reportSortMode()}
+                onChange={setReportSortMode}
+              />
+            }
+          >
+            <Show when={!projectState.isLocked}>
+              <Button onClick={attemptAddReport} iconName="plus">
+                {t3({
+                  en: "Create report",
+                  fr: "Créer un rapport",
+                  pt: "Criar relatório",
+                })}
+              </Button>
+            </Show>
+          </HeadingBar>
+        </div>
       }
     >
       <FrameLeftResizable
@@ -402,8 +466,11 @@ export function ProjectReports(p: ExtendedProps) {
         maxWidth={300}
         hoverOffset="offset-for-border-1-on-left"
         panelChildren={
-          <div class="flex h-full w-full flex-col border-r">
-            <div class="border-b p-3">
+          <div
+            class="border-base-300 flex h-full w-full flex-col border-r"
+            data-cursor-zone="folders"
+          >
+            <div class="border-base-300 border-b p-3">
               <Select
                 options={getGroupingOptions()}
                 value={reportGroupingMode()}
@@ -435,7 +502,11 @@ export function ProjectReports(p: ExtendedProps) {
                       });
                     }}
                   >
-                    {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
+                    {t3({
+                      en: "New folder",
+                      fr: "Nouveau dossier",
+                      pt: "Nova pasta",
+                    })}
                   </Button>
                 </div>
               </Show>
@@ -445,6 +516,7 @@ export function ProjectReports(p: ExtendedProps) {
       >
         <div
           class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          data-page-cursor-surface
           onClick={() => selection.clear()}
         >
           <For
@@ -452,20 +524,28 @@ export function ProjectReports(p: ExtendedProps) {
             fallback={
               <div class="text-base-content-muted text-sm">
                 {searchText().length >= 3
-                  ? t3({ en: "No matching reports", fr: "Aucun rapport correspondant", pt: "Nenhum relatório correspondente" })
-                  : t3({ en: "No reports yet", fr: "Aucun rapport pour le moment", pt: "Ainda não há relatórios" })}
+                  ? t3({
+                      en: "No matching reports",
+                      fr: "Aucun rapport correspondant",
+                      pt: "Nenhum relatório correspondente",
+                    })
+                  : t3({
+                      en: "No reports yet",
+                      fr: "Aucun rapport pour le moment",
+                      pt: "Ainda não há relatórios",
+                    })}
               </div>
             }
           >
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="group grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid row-span-2 gap-y-1">
-                  <div class="font-400 text-base-content text-xs italic select-none pointer-events-none pb-1">
+                <div class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1">
+                  <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>
                   <div
-                    class="relative border rounded overflow-clip bg-white cursor-pointer"
+                    class="bg-base-100 relative cursor-pointer overflow-clip rounded border"
                     classList={{
                       "border-primary": isSelected(),
                       "hover:border-primary": !isSelected(),
@@ -482,15 +562,28 @@ export function ProjectReports(p: ExtendedProps) {
                       isSelected={isSelected()}
                       onClick={(e) => selection.handleClick(report.id, e)}
                     />
+                    <div class="pointer-events-none absolute bottom-1 left-1 z-10">
+                      <PresenceAvatars
+                        peers={otherPeers().filter(
+                          (peer) => peer.reportId === report.id,
+                        )}
+                        size="sm"
+                        showEditingPulse
+                      />
+                    </div>
                     <div
-                      class="bg-white overflow-hidden p-4"
+                      class="bg-base-100 overflow-hidden p-4"
                       style={{ "aspect-ratio": "16/9" }}
                     >
                       <Show
                         when={report.preview.lines.length > 0}
                         fallback={
                           <div class="ui-text-caption italic">
-                            {t3({ en: "Empty report", fr: "Rapport vide", pt: "Relatório vazio" })}
+                            {t3({
+                              en: "Empty report",
+                              fr: "Rapport vide",
+                              pt: "Relatório vazio",
+                            })}
                           </div>
                         }
                       >
@@ -503,7 +596,8 @@ export function ProjectReports(p: ExtendedProps) {
                                   line.headingLevel === 1,
                                 "text-base-content font-400":
                                   line.headingLevel >= 2,
-                                "text-base-content-muted": line.headingLevel === 0,
+                                "text-base-content-muted":
+                                  line.headingLevel === 0,
                               }}
                             >
                               {line.text}

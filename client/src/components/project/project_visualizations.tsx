@@ -166,6 +166,7 @@ export function ProjectVisualizations(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
           searchText={searchText()}
@@ -193,6 +194,7 @@ export function ProjectVisualizations(p: Props) {
             </div>
           </Show>
         </HeadingBar>
+        </div>
       }
     >
       <Show
@@ -211,6 +213,7 @@ export function ProjectVisualizations(p: Props) {
           projectState={projectState}
           searchText={searchText().trim()}
           onClick={openVisualizationEditor}
+          pageCursorSurface
         />
       </Show>
     </FrameTop>

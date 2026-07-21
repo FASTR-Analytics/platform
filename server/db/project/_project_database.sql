@@ -233,7 +233,9 @@ CREATE TABLE presentation_objects (
   last_updated text NOT NULL,
   created_by_ai boolean DEFAULT FALSE,
   folder_id TEXT REFERENCES visualization_folders(id) ON DELETE SET NULL,
-  sort_order INTEGER DEFAULT 0
+  sort_order INTEGER DEFAULT 0,
+  crdt_state text,
+  crdt_state_last_updated text
 );
 
 CREATE INDEX idx_presentation_objects_metric_id ON presentation_objects(metric_id);
@@ -274,6 +276,8 @@ CREATE TABLE slides (
   sort_order integer NOT NULL,
   config text NOT NULL,
   last_updated text NOT NULL,
+  crdt_state text,
+  crdt_state_last_updated text,
   FOREIGN KEY (slide_deck_id) REFERENCES slide_decks(id) ON DELETE CASCADE
 );
 
@@ -303,12 +307,53 @@ CREATE TABLE reports (
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
   config text,
+  crdt_state text,
+  crdt_state_last_updated text,
+  body_authors text,
   last_updated text NOT NULL,
   folder_id text REFERENCES report_folders(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_reports_last_updated ON reports(last_updated);
 CREATE INDEX idx_reports_folder_id ON reports(folder_id);
+
+-- ============================================================================
+-- VERSION HISTORY (reports + slide decks)
+-- ============================================================================
+
+-- One row = one editing-session version: full content snapshot + the editors
+-- who contributed during that window (JSON [{email, name}]). Deduped by
+-- content_hash against the newest version; newest 100 kept per document.
+CREATE TABLE report_versions (
+  id text PRIMARY KEY,
+  report_id text NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  body text NOT NULL,
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  body_authors text
+);
+
+CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);
+
+CREATE TABLE deck_versions (
+  id text PRIMARY KEY,
+  deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  deck_config text NOT NULL,
+  slides text NOT NULL,
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  slide_editors text
+);
+
+CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
 
 -- ============================================================================
 -- DASHBOARDS

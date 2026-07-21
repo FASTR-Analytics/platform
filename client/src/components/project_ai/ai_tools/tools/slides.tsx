@@ -34,6 +34,7 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
+import { assertSlidesNotBusy } from "../validators/presence_guard";
 import type { AIContext } from "~/components/project_ai/types";
 
 function throwSlideUpdateError(err: string): never {
@@ -171,6 +172,7 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+        assertSlidesNotBusy([input.slideId]);
 
         if (input.slide.type === "content") {
           if (input.slide.blocks.length === 0) {
@@ -188,13 +190,15 @@ export function getToolsForSlides(
           validateSlideTotalWordCount(textBlocks);
         }
 
+        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
+
+        // Optimistic concurrency: read the slide's current version so a save
+        // that raced another user's edit fails loudly instead of overwriting.
         const currentRes = await serverActions.getSlide({
           projectId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new Error(currentRes.err);
-
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, ctx.getDeckConfig());
 
         const res = await serverActions.updateSlide({
           projectId,
@@ -225,6 +229,7 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+        assertSlidesNotBusy([input.slideId]);
 
         for (const update of input.updates) {
           if (update.newContent.type === "text") {
@@ -280,6 +285,7 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+        assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
           projectId,
@@ -333,6 +339,7 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+        assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
           projectId,
@@ -482,6 +489,7 @@ export function getToolsForSlides(
       }),
       handler: async (input) => {
         const ctx = requireDeckContext(getAIContext());
+        assertSlidesNotBusy(input.slideIds);
 
         if (input.slideIds.length === 0) {
           throw new Error("No slide IDs provided. Specify at least one slide to delete.");

@@ -23,6 +23,132 @@
   --color-running-stripe: #1e4a66;
 }
 
+/* Dark mode — active when state/t4_ui.ts sets data-theme="dark" on <html>.
+   Bases from panther's "neutral-dark" key color theme; primary is the GFF
+   teal lightened to #14b8a6 so it keeps ≥4.5:1 contrast on dark bases.
+   Must stay unlayered so it wins over Tailwind's layered @theme defaults. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-base-100: #18181b;
+  --color-base-200: #27272a;
+  --color-base-300: #3f3f46;
+  --color-base-content: #fafafa;
+
+  --color-primary: #14b8a6;
+  --color-primary-content: #052e2b;
+
+  --color-neutral: #a1a1aa;
+  --color-neutral-content: #18181b;
+
+  --color-success: #4ade80;
+  --color-success-content: #052e16;
+
+  --color-warning: #facc15;
+  --color-warning-content: #422006;
+
+  --color-danger: #f87171;
+  --color-danger-content: #450a0a;
+}
+
+/* Opt-in dark-mode variant for one-off utility overrides (e.g.
+   dark:border-base-300). Matches the same data-theme attribute t4_ui sets. */
+@custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
+
+/* Native <select> popup lists: <option> text inherits the select's OWN text
+   color (e.g. base-100 white on the inverted ribbons' outline selects), but
+   the UA draws the popup over its own scheme-colored background — so the
+   ribbon sort dropdowns rendered white-on-white. Pin options to the popup
+   scheme's system colors; Canvas/CanvasText track color-scheme in both
+   themes. */
+select option {
+  color: CanvasText;
+  background-color: Canvas;
+}
+
+/* Inverted "dark ribbon" surfaces — the project page header and panther's
+   HeadingBarMainRibbon / Tooltip pair bg-base-content with text-base-100 to
+   make a dark bar with light text. In dark mode base-content flips to
+   near-white, which would turn these bars solid white. Re-invert the two base
+   vars locally so the bar stays dark and descendants (base-100-intent
+   buttons, focus ring offsets) keep their light-mode semantics on top of it.
+   Panther is external, so this contextual override lives here. */
+:root[data-theme="dark"] .bg-base-content.text-base-100 {
+  --color-base-100: #fafafa;
+  --color-base-content: #27272a;
+}
+
+/* CodeMirror editors (slide text fields, report editor, version diffs) ship
+   light-theme defaults: white background, black caret, light-gray selection
+   and gutter. Retheme those from the tokens in dark mode. Selector depth is
+   deliberate — CM injects its own stylesheets at runtime, so these need to
+   out-rank .ͼ*-class rules of the same layer. Syntax-highlight token colors
+   stay CM's light-theme defaults (markdown markers/links dim slightly). */
+:root[data-theme="dark"] .cm-editor {
+  background-color: var(--color-base-100);
+  border-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+:root[data-theme="dark"] .cm-editor .cm-cursor,
+:root[data-theme="dark"] .cm-editor .cm-dropCursor {
+  border-left-color: var(--color-base-content);
+}
+:root[data-theme="dark"] .cm-editor .cm-selectionLayer .cm-selectionBackground {
+  background-color: var(--color-base-300);
+}
+:root[data-theme="dark"] .cm-editor .cm-gutters {
+  background-color: var(--color-base-200);
+  color: var(--color-neutral);
+  border-right-color: var(--color-base-300);
+}
+:root[data-theme="dark"] .cm-editor .cm-activeLine {
+  background-color: color-mix(in srgb, var(--color-base-content) 6%, transparent);
+}
+:root[data-theme="dark"] .cm-editor .cm-activeLineGutter {
+  background-color: transparent;
+}
+/* Remote collaborators' selection highlights arrive as the PEER's colorLight
+   (their presence color at ~20% alpha, state/project/collab.ts) — chosen for
+   light surfaces and nearly invisible over dark ones. The inline
+   background-color can't be re-alphaed from CSS, so layer a translucent
+   light wash on top (background-image stacks above background-color); the
+   identity hue still shows through. */
+:root[data-theme="dark"] .cm-editor .cm-ySelection {
+  background-image: linear-gradient(
+    rgb(250 250 250 / 0.22),
+    rgb(250 250 250 / 0.22)
+  );
+  box-shadow: inset 0 0 0 1px rgb(250 250 250 / 0.45);
+  border-radius: 2px;
+}
+
+/* HTML-rendered markdown (panther's AI chat renderers and
+   MarkdownPresentationJsx) colors its text via inline --md-* vars derived
+   from the static light document style — near-black, invisible on dark
+   surfaces. For markdown that is app UI (chat messages, dashboard summaries)
+   wrap the mount in .md-dark-adapt: this re-points the vars on descendants
+   (an element's own var value beats an ancestor's inline one). Markdown that
+   is a document preview (report View pane) should instead stay on a pinned
+   bg-white paper and keep its document colors. */
+:root[data-theme="dark"] .md-dark-adapt * {
+  --md-p-color: var(--color-base-content);
+  --md-h1-color: var(--color-base-content);
+  --md-h2-color: var(--color-base-content);
+  --md-h3-color: var(--color-base-content);
+  --md-h4-color: var(--color-base-content);
+  --md-h5-color: var(--color-base-content);
+  --md-h6-color: var(--color-base-content);
+  --md-list-color: var(--color-base-content);
+  --md-bq-color: var(--color-base-content);
+  --md-bq-border-color: var(--color-base-300);
+  --md-code-color: var(--color-base-content);
+  --md-code-bg: var(--color-base-300);
+  --md-link-color: var(--color-primary);
+  --md-hr-color: var(--color-base-300);
+  --md-table-border-color: var(--color-base-300);
+  --md-table-header-bg: var(--color-base-200);
+}
+
 @layer base {
   /* Fira Sans */
   @font-face {

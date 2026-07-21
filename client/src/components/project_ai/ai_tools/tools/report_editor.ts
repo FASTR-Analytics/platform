@@ -14,6 +14,7 @@ import {
   validateDisplaySlots,
 } from "~/generate_visualization/mod";
 import type { AIContext } from "~/components/project_ai/types";
+import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
@@ -25,7 +26,22 @@ import {
 
 // Strip chars that would break the single-line ![caption](src) token.
 function sanitizeCaption(s: string): string {
-  return s.replace(/[[\]\n\r]/g, " ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/[[\]\n\r]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Appended to a tool's ACCEPTED message when the accept-time rebase skipped
+// hunks that collided with a collaborator's concurrent edits — the AI must
+// know its edit only partially applied, and where.
+function skippedNote(
+  skipped: { fromLine: number; toLine: number }[] | undefined,
+): string {
+  if (!skipped || skipped.length === 0) return "";
+  return ` NOTE: the proposed change(s) at line(s) ${formatLineRanges(
+    skipped,
+  )} were NOT applied — a collaborator edited that text while the proposal was open. Re-read the report (get_report_editor) before retrying those parts.`;
 }
 
 function escapeRegExp(s: string): string {
@@ -51,8 +67,7 @@ function spliceSection(
   }
   if (matches.length === 0) {
     return {
-      error:
-        `No section with heading "${headingText}" found. Call get_report_editor to see exact headings.`,
+      error: `No section with heading "${headingText}" found. Call get_report_editor to see exact headings.`,
     };
   }
   let chosen: { line: number; level: number };
@@ -61,8 +76,7 @@ function spliceSection(
   } else {
     if (occurrenceIndex === undefined) {
       return {
-        error:
-          `Multiple sections titled "${headingText}" (${matches.length}). Provide occurrenceIndex (1-${matches.length}).`,
+        error: `Multiple sections titled "${headingText}" (${matches.length}). Provide occurrenceIndex (1-${matches.length}).`,
       };
     }
     const c = matches[occurrenceIndex - 1];
@@ -121,8 +135,7 @@ function replaceTextOccurrence(
   } else {
     if (occurrenceIndex === undefined) {
       return {
-        error:
-          `oldText occurs ${positions.length} times. Provide occurrenceIndex (1-${positions.length}), or include more surrounding text to make it unique.`,
+        error: `oldText occurs ${positions.length} times. Provide occurrenceIndex (1-${positions.length}), or include more surrounding text to make it unique.`,
       };
     }
     const p = positions[occurrenceIndex - 1];
@@ -133,7 +146,8 @@ function replaceTextOccurrence(
     }
     pos = p;
   }
-  const newBody = body.slice(0, pos) + newText + body.slice(pos + oldText.length);
+  const newBody =
+    body.slice(0, pos) + newText + body.slice(pos + oldText.length);
   return { newBody };
 }
 
@@ -146,7 +160,10 @@ function insertFigureToken(
     const lines = body.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const m = /^(#{1,6})\s+(.+?)\s*$/.exec(lines[i]);
-      if (m && m[2].trim().toLowerCase() === afterHeading.trim().toLowerCase()) {
+      if (
+        m &&
+        m[2].trim().toLowerCase() === afterHeading.trim().toLowerCase()
+      ) {
         const newLines = [
           ...lines.slice(0, i + 1),
           "",
@@ -158,8 +175,7 @@ function insertFigureToken(
       }
     }
     return {
-      error:
-        `No section with heading "${afterHeading}" found. Call get_report_editor to see exact headings, or omit afterHeading to append at the end.`,
+      error: `No section with heading "${afterHeading}" found. Call get_report_editor to see exact headings, or omit afterHeading to append at the end.`,
     };
   }
   const trimmed = body.replace(/\n+$/, "");
@@ -174,7 +190,9 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   if (cfg.t.caption) parts.push(`"${cfg.t.caption}"`);
   const replicateBy = getReplicateByProp(cfg);
   if (replicateBy) {
-    parts.push(`replicant ${replicateBy}=${cfg.d.selectedReplicantValue ?? "(unset)"}`);
+    parts.push(
+      `replicant ${replicateBy}=${cfg.d.selectedReplicantValue ?? "(unset)"}`,
+    );
   }
   return `- ${parts.join(" · ")}`;
 }
@@ -199,18 +217,21 @@ export function getToolsForReportEditor(
         const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
         const sel = ctx.getSelection();
-        const selectionSection = sel && !sel.empty
-          ? [
-            ``,
-            `## User's current selection (lines ${sel.fromLine}-${sel.toLine})`,
-            sel.text,
-          ]
-          : [`## User's current selection: none (cursor at line ${sel?.fromLine ?? 1})`];
+        const selectionSection =
+          sel && !sel.empty
+            ? [
+                ``,
+                `## User's current selection (lines ${sel.fromLine}-${sel.toLine})`,
+                sel.text,
+              ]
+            : [
+                `## User's current selection: none (cursor at line ${sel?.fromLine ?? 1})`,
+              ];
         const figureSection = figureIds.length
           ? [
-            `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
-            ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
-          ]
+              `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
+              ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
+            ]
           : [`## Figures: none`];
         return [
           `# REPORT EDITOR: ${ctx.reportLabel}`,
@@ -230,14 +251,18 @@ export function getToolsForReportEditor(
     createAITool({
       name: "get_report_figure",
       description:
-        "Get the FULL configuration of one report figure: its metric, type, "
-        + "disaggregations, filters, the active replicant and the AVAILABLE "
-        + "replicant values, display slots, captions, and the metric's available "
-        + "dimensions. Call this before update_report_figure to see what a figure "
-        + "shows and which replicant/filter values are valid. figureId is the id "
-        + "after 'figure:' in get_report_editor.",
+        "Get the FULL configuration of one report figure: its metric, type, " +
+        "disaggregations, filters, the active replicant and the AVAILABLE " +
+        "replicant values, display slots, captions, and the metric's available " +
+        "dimensions. Call this before update_report_figure to see what a figure " +
+        "shows and which replicant/filter values are valid. figureId is the id " +
+        "after 'figure:' in get_report_editor.",
       inputSchema: z.object({
-        figureId: z.string().describe("Figure id from get_report_editor (the part after 'figure:')."),
+        figureId: z
+          .string()
+          .describe(
+            "Figure id from get_report_editor (the part after 'figure:').",
+          ),
       }),
       handler: async (input) => {
         const ctx = getAIContext();
@@ -247,10 +272,14 @@ export function getToolsForReportEditor(
         const fig = ctx.getFigures()[input.figureId];
         if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+          throw new Error(
+            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
+          );
         }
         if (!fig.bundle) {
-          throw new Error(`Figure "${input.figureId}" has no resolved data yet and can't be read.`);
+          throw new Error(
+            `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
+          );
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
@@ -263,19 +292,23 @@ export function getToolsForReportEditor(
     createAITool({
       name: "update_report_figure",
       description:
-        "Edit an existing report FIGURE's CONFIGURATION in place — the tool for "
-        + "changing the replicant, filters, disaggregation, period, or captions of a "
-        + "figure already embedded in the report, regardless of how it was created. "
-        + "Provide the figureId (from get_report_editor) and only the fields to "
-        + "change; everything else is preserved and the data is re-queried "
-        + "automatically. To CHANGE A REPLICANT, use this — it validates the value "
-        + "against the available options and errors clearly. It CANNOT change the "
-        + "figure's metric/indicator or chart TYPE — to show a different indicator "
-        + "or a different chart, use replace_figure instead. The change is applied "
-        + "to the live preview and saved immediately; the figure's body token is "
-        + "unchanged (no accept/reject diff).",
+        "Edit an existing report FIGURE's CONFIGURATION in place — the tool for " +
+        "changing the replicant, filters, disaggregation, period, or captions of a " +
+        "figure already embedded in the report, regardless of how it was created. " +
+        "Provide the figureId (from get_report_editor) and only the fields to " +
+        "change; everything else is preserved and the data is re-queried " +
+        "automatically. To CHANGE A REPLICANT, use this — it validates the value " +
+        "against the available options and errors clearly. It CANNOT change the " +
+        "figure's metric/indicator or chart TYPE — to show a different indicator " +
+        "or a different chart, use replace_figure instead. The change is applied " +
+        "to the live preview and saved immediately; the figure's body token is " +
+        "unchanged (no accept/reject diff).",
       inputSchema: z.object({
-        figureId: z.string().describe("Figure id from get_report_editor (the part after 'figure:')."),
+        figureId: z
+          .string()
+          .describe(
+            "Figure id from get_report_editor (the part after 'figure:').",
+          ),
         patch: AiFigureConfigPatchSchema,
       }),
       handler: async (input) => {
@@ -286,10 +319,14 @@ export function getToolsForReportEditor(
         const fig = ctx.getFigures()[input.figureId];
         if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new Error(`No figure with id "${input.figureId}". Figure ids: ${ids}.`);
+          throw new Error(
+            `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
+          );
         }
         if (!fig.bundle) {
-          throw new Error(`Figure "${input.figureId}" has no resolved data yet and can't be edited.`);
+          throw new Error(
+            `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
+          );
         }
         if (!ctx.getBody().includes(`](figure:${input.figureId})`)) {
           throw new Error(
@@ -301,16 +338,18 @@ export function getToolsForReportEditor(
         // the figure unchanged and falsely reporting success.
         if (Object.keys(input.patch).length === 0) {
           throw new Error(
-            "No editable fields were provided. update_report_figure changes a "
-            + "figure's config (replicant, filters, disaggregation, period, "
-            + "captions); it cannot change the metric/indicator or chart type. To "
-            + "show a different indicator or chart, use replace_figure.",
+            "No editable fields were provided. update_report_figure changes a " +
+              "figure's config (replicant, filters, disaggregation, period, " +
+              "captions); it cannot change the metric/indicator or chart type. To " +
+              "show a different indicator or chart, use replace_figure.",
           );
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new Error(`Metric "${bundle.metricId}" not found in this project.`);
+          throw new Error(
+            `Metric "${bundle.metricId}" not found in this project.`,
+          );
         }
 
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
@@ -321,21 +360,43 @@ export function getToolsForReportEditor(
         );
         validateDisplaySlots(newConfig, metric, input.patch);
 
-        const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
-        const periodFilter = newConfig.d.periodFilter?.filterType === "custom"
-          ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
-          : undefined;
-        await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+        const filters =
+          newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
+        const periodFilter =
+          newConfig.d.periodFilter?.filterType === "custom"
+            ? {
+                min: newConfig.d.periodFilter.min,
+                max: newConfig.d.periodFilter.max,
+              }
+            : undefined;
+        await validateMetricInputs(
+          projectId,
+          bundle.metricId,
+          filters,
+          periodFilter,
+        );
 
-        const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
-        assertNoSlotCollision(newConfig, metric, newBundle.dateRange, newBundle.items);
+        const newBundle = await resolveBundleFromMetricAndConfig(
+          projectId,
+          metric,
+          newConfig,
+        );
+        assertNoSlotCollision(
+          newConfig,
+          metric,
+          newBundle.dateRange,
+          newBundle.items,
+        );
 
-        const saved = await ctx.applyFigureUpdate(input.figureId, { type: "figure", bundle: newBundle });
+        const saved = await ctx.applyFigureUpdate(input.figureId, {
+          type: "figure",
+          bundle: newBundle,
+        });
         if (!saved) {
           throw new Error(
-            `Figure ${input.figureId} was updated in the live preview but SAVING TO `
-            + `THE SERVER FAILED; the change may be lost on reload. Tell the user to `
-            + `check their connection and try again.`,
+            `Figure ${input.figureId} was updated in the live preview but SAVING TO ` +
+              `THE SERVER FAILED; the change may be lost on reload. Tell the user to ` +
+              `check their connection and try again.`,
           );
         }
         return `Updated figure ${input.figureId}. The preview is updated and saved.`;
@@ -360,7 +421,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: input.markdown,
           summary: "Rewrite entire report",
         });
@@ -369,7 +430,10 @@ export function getToolsForReportEditor(
             "The user REJECTED the rewrite; the report is unchanged. Do not retry unless asked.",
           );
         }
-        return "The user ACCEPTED the rewrite; it is now applied to the report.";
+        return (
+          "The user ACCEPTED the rewrite; it is now applied to the report." +
+          skippedNote(skipped)
+        );
       },
       inProgressLabel: "Proposing rewrite...",
       completionMessage: "Proposed rewrite (awaiting accept/reject)",
@@ -404,7 +468,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: result.newBody,
           summary: `Rewrite section "${input.sectionHeading}"`,
         });
@@ -413,7 +477,10 @@ export function getToolsForReportEditor(
             `The user REJECTED the rewrite of section "${input.sectionHeading}"; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.`;
+        return (
+          `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
+          skippedNote(skipped)
+        );
       },
       inProgressLabel: "Proposing section rewrite...",
       completionMessage: "Proposed section rewrite (awaiting accept/reject)",
@@ -448,7 +515,7 @@ export function getToolsForReportEditor(
           ctx.getFigures(),
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: result.newBody,
           summary: "Replace text",
         });
@@ -457,7 +524,10 @@ export function getToolsForReportEditor(
             "The user REJECTED the edit; the report is unchanged. Do not retry unless asked.",
           );
         }
-        return "The user ACCEPTED the edit; it is now applied to the report.";
+        return (
+          "The user ACCEPTED the edit; it is now applied to the report." +
+          skippedNote(skipped)
+        );
       },
       inProgressLabel: "Proposing edit...",
       completionMessage: "Proposed edit (awaiting accept/reject)",
@@ -477,9 +547,10 @@ export function getToolsForReportEditor(
         if (ctx.mode !== "editing_report") {
           throw new Error("This tool is only available when editing a report");
         }
-        const figureBlock = input.figure.type === "from_visualization"
-          ? await resolveFigureFromVisualization(projectId, input.figure)
-          : await resolveFigureFromMetric(projectId, input.figure, metrics);
+        const figureBlock =
+          input.figure.type === "from_visualization"
+            ? await resolveFigureFromVisualization(projectId, input.figure)
+            : await resolveFigureFromMetric(projectId, input.figure, metrics);
         const id = crypto.randomUUID();
         const caption = sanitizeCaption(input.caption ?? "");
         const token = `![${caption}](figure:${id})`;
@@ -491,7 +562,7 @@ export function getToolsForReportEditor(
         if ("error" in result) {
           throw new Error(result.error);
         }
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody: result.newBody,
           addFigures: { [id]: figureBlock },
           summary: caption ? `Insert figure: ${caption}` : "Insert figure",
@@ -501,7 +572,13 @@ export function getToolsForReportEditor(
             `The user REJECTED the figure insert; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the figure insert (id ${id}); it is now in the report.`;
+        return (
+          `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
+          skippedNote(skipped) +
+          (skipped?.length
+            ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
+            : "")
+        );
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure insert (awaiting accept/reject)",
@@ -535,30 +612,34 @@ export function getToolsForReportEditor(
             `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
           );
         }
-        const figureBlock = input.figure.type === "from_visualization"
-          ? await resolveFigureFromVisualization(projectId, input.figure)
-          : await resolveFigureFromMetric(projectId, input.figure, metrics);
+        const figureBlock =
+          input.figure.type === "from_visualization"
+            ? await resolveFigureFromVisualization(projectId, input.figure)
+            : await resolveFigureFromMetric(projectId, input.figure, metrics);
         const newId = crypto.randomUUID();
-        const overrideCaption = input.caption !== undefined
-          ? sanitizeCaption(input.caption)
-          : undefined;
+        const overrideCaption =
+          input.caption !== undefined
+            ? sanitizeCaption(input.caption)
+            : undefined;
         // Swap every token for this figure id (preserving each caption unless
         // overridden) to a fresh id pointing at the new figure block.
-        const newBody = ctx.getBody().replace(
-          new RegExp(
-            `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
-            "g",
-          ),
-          (_m, p1, cap, p3, p4) =>
-            `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`,
-        );
+        const newBody = ctx
+          .getBody()
+          .replace(
+            new RegExp(
+              `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
+              "g",
+            ),
+            (_m, p1, cap, p3, p4) =>
+              `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`,
+          );
         validateReportBodyLength(newBody);
         validateReportTokensResolve(
           newBody,
           { ...ctx.getFigures(), [newId]: figureBlock },
           ctx.getImages(),
         );
-        const { accepted } = await ctx.proposeEdit({
+        const { accepted, skipped } = await ctx.proposeEdit({
           newBody,
           addFigures: { [newId]: figureBlock },
           summary: "Replace figure",
@@ -568,7 +649,13 @@ export function getToolsForReportEditor(
             `The user REJECTED the figure replacement; the report is unchanged. Do not retry unless asked.`,
           );
         }
-        return `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.`;
+        return (
+          `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
+          skippedNote(skipped) +
+          (skipped?.length
+            ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
+            : "")
+        );
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure replacement (awaiting accept/reject)",

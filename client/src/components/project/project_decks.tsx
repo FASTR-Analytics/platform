@@ -1,9 +1,4 @@
-import {
-  SlideDeckGroupingMode,
-  SlideDeckSummary,
-  t3,
-  TC,
-} from "lib";
+import { SlideDeckGroupingMode, SlideDeckSummary, t3, TC } from "lib";
 import {
   Button,
   createSelectionController,
@@ -28,6 +23,8 @@ import { MoveDeckToFolderModal } from "./move_deck_to_folder_modal";
 import { DuplicateDeckModal } from "./duplicate_deck_modal";
 import { ProjectAiSlideDeck } from "../slide_deck";
 import { SlideDeckThumbnail } from "../slide_deck/slide_deck_thumbnail";
+import { PresenceAvatars } from "../slide_deck/presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import {
@@ -41,10 +38,19 @@ import {
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 
-function getGroupingOptions(): { value: SlideDeckGroupingMode; label: string }[] {
+function getGroupingOptions(): {
+  value: SlideDeckGroupingMode;
+  label: string;
+}[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }) },
+    {
+      value: "folders",
+      label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }),
+    },
+    {
+      value: "flat",
+      label: t3({ en: "Flat list", fr: "Liste simple", pt: "Lista simples" }),
+    },
   ];
 }
 
@@ -107,7 +113,15 @@ export function ProjectDecks(p: ExtendedProps) {
       }
       case "flat":
         return [
-          { value: "_all", label: t3({ en: "All slide decks", fr: "Toutes les présentations", pt: "Todas as apresentações" }), count: decks.length },
+          {
+            value: "_all",
+            label: t3({
+              en: "All slide decks",
+              fr: "Toutes les présentations",
+              pt: "Todas as apresentações",
+            }),
+            count: decks.length,
+          },
         ];
       default:
         return [];
@@ -199,8 +213,16 @@ export function ProjectDecks(p: ExtendedProps) {
 
     const confirmText =
       idsToDelete.length > 1
-        ? t3({ en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`, fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?`, pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} apresentações?` })
-        : t3({ en: "Are you sure you want to delete this slide deck?", fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?", pt: "Tem a certeza de que pretende eliminar esta apresentação?" });
+        ? t3({
+            en: `Are you sure you want to delete ${idsToDelete.length} slide decks?`,
+            fr: `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} présentations ?`,
+            pt: `Tem a certeza de que pretende eliminar ${idsToDelete.length} apresentações?`,
+          })
+        : t3({
+            en: "Are you sure you want to delete this slide deck?",
+            fr: "Êtes-vous sûr de vouloir supprimer cette présentation ?",
+            pt: "Tem a certeza de que pretende eliminar esta apresentação?",
+          });
 
     const deleteAction = createDeleteAction(
       confirmText,
@@ -235,28 +257,47 @@ export function ProjectDecks(p: ExtendedProps) {
     const items: MenuItem[] = [
       {
         label: isMultiSelect
-          ? t3({ en: `Move ${count} decks to folder...`, fr: `Déplacer ${count} présentations vers un dossier...`, pt: `Mover ${count} apresentações para uma pasta...` })
-          : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." }),
+          ? t3({
+              en: `Move ${count} decks to folder...`,
+              fr: `Déplacer ${count} présentations vers un dossier...`,
+              pt: `Mover ${count} apresentações para uma pasta...`,
+            })
+          : t3({
+              en: "Move to folder...",
+              fr: "Déplacer vers un dossier...",
+              pt: "Mover para uma pasta...",
+            }),
         icon: "folder",
         onClick: () => handleMoveToFolder(deck),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Duplicate ${count} decks...`, fr: `Dupliquer ${count} présentations...`, pt: `Duplicar ${count} apresentações...` })
+          ? t3({
+              en: `Duplicate ${count} decks...`,
+              fr: `Dupliquer ${count} présentations...`,
+              pt: `Duplicar ${count} apresentações...`,
+            })
           : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
         icon: "copy",
         onClick: () => handleDuplicate(deck),
       },
       {
         label: isMultiSelect
-          ? t3({ en: `Delete ${count} decks`, fr: `Supprimer ${count} présentations`, pt: `Eliminar ${count} apresentações` })
+          ? t3({
+              en: `Delete ${count} decks`,
+              fr: `Supprimer ${count} présentations`,
+              pt: `Eliminar ${count} apresentações`,
+            })
           : t3(TC.delete),
         icon: "trash",
         intent: "danger",
         onClick: () => handleDelete(deck),
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   // Folder context menu
@@ -264,14 +305,16 @@ export function ProjectDecks(p: ExtendedProps) {
   function handleFolderContextMenu(e: MouseEvent, folderId: string) {
     e.preventDefault();
     e.stopPropagation();
-    const folder = projectState.slideDeckFolders.find(
-      (f) => f.id === folderId,
-    );
+    const folder = projectState.slideDeckFolders.find((f) => f.id === folderId);
     if (!folder) return;
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Rename / Change color...", fr: "Renommer / Changer la couleur...", pt: "Mudar o nome / Alterar a cor..." }),
+        label: t3({
+          en: "Rename / Change color...",
+          fr: "Renommer / Changer la couleur...",
+          pt: "Mudar o nome / Alterar a cor...",
+        }),
         icon: "pencil",
         onClick: async () => {
           await openComponent({
@@ -284,24 +327,35 @@ export function ProjectDecks(p: ExtendedProps) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
+        label: t3({
+          en: "Delete folder",
+          fr: "Supprimer le dossier",
+          pt: "Eliminar pasta",
+        }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
           const deleteAction = createDeleteAction(
-            t3({ en: "Are you sure you want to delete this folder? Slide decks will be moved to General.", fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général.", pt: "Tem a certeza de que pretende eliminar esta pasta? As apresentações serão movidas para Geral." }),
+            t3({
+              en: "Are you sure you want to delete this folder? Slide decks will be moved to General.",
+              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Les présentations seront déplacées dans Général.",
+              pt: "Tem a certeza de que pretende eliminar esta pasta? As apresentações serão movidas para Geral.",
+            }),
             () =>
               serverActions.deleteSlideDeckFolder({
                 projectId: projectState.id,
                 folder_id: folderId,
               }),
-            () => { },
+            () => {},
           );
           await deleteAction.click();
         },
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   const renderGroupOption = (item: ListItem<string>) => {
@@ -357,38 +411,56 @@ export function ProjectDecks(p: ExtendedProps) {
       return;
     }
     const deck = projectState.slideDecks.find((d) => d.id === res.newDeckId);
-    await openDeck(res.newDeckId, deck?.label || t3({ en: "Slide deck", fr: "Présentation", pt: "Apresentação" }));
+    await openDeck(
+      res.newDeckId,
+      deck?.label ||
+        t3({ en: "Slide deck", fr: "Présentation", pt: "Apresentação" }),
+    );
   }
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          heading={t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" })}
-          searchText={searchText()}
-          setSearchText={setSearchText}
-          centerChildren={
-            <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
-          }
-        >
-          <Show
-            when={
-              !projectState.isLocked &&
-              projectState.projectModules.length > 0
+        <div class="h-full w-full" data-cursor-zone="header">
+          <HeadingBar
+            heading={t3({
+              en: "Slide decks",
+              fr: "Présentations",
+              pt: "Apresentações",
+            })}
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            class="border-base-300"
+            centerChildren={
+              <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
             }
           >
-            <Button onClick={attemptAddDeck} iconName="plus">
-              {t3({ en: "Create slide deck", fr: "Créer une présentation", pt: "Criar apresentação" })}
-            </Button>
-          </Show>
-        </HeadingBar>
+            <Show
+              when={
+                !projectState.isLocked && projectState.projectModules.length > 0
+              }
+            >
+              <Button onClick={attemptAddDeck} iconName="plus">
+                {t3({
+                  en: "Create slide deck",
+                  fr: "Créer une présentation",
+                  pt: "Criar apresentação",
+                })}
+              </Button>
+            </Show>
+          </HeadingBar>
+        </div>
       }
     >
       <Show
         when={projectState.projectModules.length > 0}
         fallback={
-          <div class="ui-pad text-base-content-muted text-sm">
-            {t3({ en: "You need to enable at least one module to create slide decks", fr: "Vous devez activer au moins un module pour créer des présentations", pt: "Tem de ativar pelo menos um módulo para criar apresentações" })}
+          <div class="ui-pad text-neutral text-sm">
+            {t3({
+              en: "You need to enable at least one module to create slide decks",
+              fr: "Vous devez activer au moins un module pour créer des présentations",
+              pt: "Tem de ativar pelo menos um módulo para criar apresentações",
+            })}
           </div>
         }
       >
@@ -398,8 +470,11 @@ export function ProjectDecks(p: ExtendedProps) {
           maxWidth={300}
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
-            <div class="flex h-full w-full flex-col border-r">
-              <div class="border-b p-3">
+            <div
+              class="border-base-300 flex h-full w-full flex-col border-r"
+              data-cursor-zone="folders"
+            >
+              <div class="border-base-300 border-b p-3">
                 <Select
                   options={getGroupingOptions()}
                   value={deckGroupingMode()}
@@ -433,7 +508,11 @@ export function ProjectDecks(p: ExtendedProps) {
                         });
                       }}
                     >
-                      {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
+                      {t3({
+                        en: "New folder",
+                        fr: "Nouveau dossier",
+                        pt: "Nova pasta",
+                      })}
                     </Button>
                   </div>
                 </Show>
@@ -443,6 +522,7 @@ export function ProjectDecks(p: ExtendedProps) {
         >
           <div
             class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+            data-page-cursor-surface
             onClick={() => selection.clear()}
           >
             <For
@@ -450,20 +530,28 @@ export function ProjectDecks(p: ExtendedProps) {
               fallback={
                 <div class="text-base-content-muted text-sm">
                   {searchText().length >= 3
-                    ? t3({ en: "No matching decks", fr: "Aucune présentation correspondante", pt: "Nenhuma apresentação correspondente" })
-                    : t3({ en: "No slide decks yet", fr: "Aucune présentation pour le moment", pt: "Ainda não há apresentações" })}
+                    ? t3({
+                        en: "No matching decks",
+                        fr: "Aucune présentation correspondante",
+                        pt: "Nenhuma apresentação correspondente",
+                      })
+                    : t3({
+                        en: "No slide decks yet",
+                        fr: "Aucune présentation pour le moment",
+                        pt: "Ainda não há apresentações",
+                      })}
                 </div>
               }
             >
               {(deck) => {
                 const isSelected = () => selection.isSelected(deck.id);
                 return (
-                  <div class="group grid grid-rows-subgrid row-span-2 gap-y-1">
-                    <div class="font-400 text-base-content text-xs italic select-none pointer-events-none pb-1">
+                  <div class="group row-span-2 grid grid-rows-subgrid gap-y-1">
+                    <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                       {deck.label}
                     </div>
                     <div
-                      class="relative border rounded overflow-clip bg-white cursor-pointer"
+                      class="relative cursor-pointer overflow-clip rounded border bg-white"
                       classList={{
                         "border-primary": isSelected(),
                         "hover:border-primary": !isSelected(),
@@ -480,6 +568,15 @@ export function ProjectDecks(p: ExtendedProps) {
                         isSelected={isSelected()}
                         onClick={(e) => selection.handleClick(deck.id, e)}
                       />
+                      <div class="pointer-events-none absolute bottom-1 left-1 z-10">
+                        <PresenceAvatars
+                          peers={otherPeers().filter(
+                            (peer) => peer.deckId === deck.id,
+                          )}
+                          size="sm"
+                          showEditingPulse
+                        />
+                      </div>
                       <Show
                         when={deck.firstSlideId}
                         fallback={
@@ -487,7 +584,13 @@ export function ProjectDecks(p: ExtendedProps) {
                             class="bg-base-200 flex items-center justify-center"
                             style={{ "aspect-ratio": "16/9" }}
                           >
-                            <span class="ui-text-caption">{t3({ en: "No slides", fr: "Aucune diapositive", pt: "Sem diapositivos" })}</span>
+                            <span class="text-neutral text-xs">
+                              {t3({
+                                en: "No slides",
+                                fr: "Aucune diapositive",
+                                pt: "Sem diapositivos",
+                              })}
+                            </span>
                           </div>
                         }
                       >

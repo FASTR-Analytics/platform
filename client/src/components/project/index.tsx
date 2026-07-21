@@ -19,6 +19,7 @@ import {
   Switch,
 } from "solid-js";
 import { ProjectRunStatus } from "~/components/DirtyStatus";
+import { ProjectPageCursors } from "~/components/_shared/cursors/page_cursors";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
@@ -203,6 +204,9 @@ function ProjectInner() {
   return (
     <AIProjectWrapper>
       <AIContextSync />
+      {/* Page-level live cursors (renders into body portals; document-level
+          listeners — placement here is inert). */}
+      <ProjectPageCursors />
       <ProjectEditorWrapper>
         <Show
           when={tabItems().length > 0}
@@ -218,7 +222,10 @@ function ProjectInner() {
         >
           <FrameTop
             panelChildren={
-              <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
+              <div
+                class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b"
+                data-cursor-zone="topbar"
+              >
                 <Button iconName="chevronLeft" onClick={() => navigate("/")} />
                 <div class="font-700 flex-1 truncate text-xl">
                   <span class="font-400">{projectState.label}</span>
@@ -261,7 +268,7 @@ function ProjectInner() {
           >
             <FrameLeft
               panelChildren={
-                <div class="h-full border-r">
+                <div class="h-full border-r" data-cursor-zone="nav">
                   <TabsNavigation
                     items={tabItems()}
                     value={projectTab()}

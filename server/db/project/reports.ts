@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
+  type AuthorRun,
   buildReportPreview,
   type FigureBlock,
   getStartingConfigForReport,
@@ -10,13 +11,21 @@ import {
   type ReportConfig,
   reportConfigSchema,
   type ReportDetail,
+  type ReportDocContent,
   reportFiguresSchema,
   reportImagesSchema,
   type ReportSummary,
+  stripTombstoneRuns,
 } from "lib";
 import { DBReport } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueReportId } from "../../utils/id_generation.ts";
+
+/** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
+ *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
+ *  → drop the editing session" from "transient error → retry". Reword only
+ *  in lockstep with that set. */
+export const REPORT_NOT_FOUND = "Report not found";
 
 function parseReportConfig(report: Pick<DBReport, "config">): ReportConfig {
   if (report.config) {
@@ -68,7 +77,7 @@ export async function getReportDetail(
     ).at(0);
 
     if (!report) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     return {
@@ -145,7 +154,7 @@ export async function updateReportBody(
     ).at(0);
 
     if (!existing) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     const conflicted = !!expectedLastUpdated &&
@@ -194,6 +203,157 @@ export async function updateReportImages(
   });
 }
 
+// Read the persisted Yjs CRDT state for a report (collab rooms). Returns the
+// base64 state only if it is CURRENT — i.e. crdt_state_last_updated matches the
+// report's last_updated; otherwise the report was edited outside collab since
+// the state was saved, so the room must re-seed from body/figures/images.
+export async function getReportCrdtState(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ state: string | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          crdt_state: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT crdt_state, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+
+    if (!row) {
+      throw new Error("No report with this id");
+    }
+
+    const isCurrent = row.crdt_state !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+
+    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+  });
+}
+
+// Collab checkpoint: persist the materialized report content AND the Yjs CRDT
+// state atomically (collab is authoritative, so this always overwrites — no
+// conflict check). crdt_state_last_updated is stamped equal to last_updated so
+// the state reads back as current until a non-collab edit bumps last_updated.
+// body_authors (per-character authorship ledger) rides the same stamp.
+export async function saveReportCheckpoint(
+  projectDb: Sql,
+  reportId: string,
+  content: ReportDocContent,
+  crdtState: string,
+  bodyAuthors: AuthorRun[] | null,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rows = await projectDb`
+      UPDATE reports
+      SET body = ${content.body},
+          figures = ${JSON.stringify(reportFiguresSchema.parse(content.figures))},
+          images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
+          crdt_state = ${crdtState},
+          crdt_state_last_updated = ${lastUpdated},
+          body_authors = ${bodyAuthors ? JSON.stringify(bodyAuthors) : null},
+          last_updated = ${lastUpdated}
+      WHERE id = ${reportId}
+      RETURNING id
+    `;
+    if (rows.length === 0) {
+      throw new Error(REPORT_NOT_FOUND);
+    }
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+// The persisted authorship ledger — like crdt_state, trusted only while
+// crdt_state_last_updated matches last_updated (a non-collab write invalidates
+// the pair, and authorship of text written outside a room is unknown anyway).
+export async function getReportBodyAuthors(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ authors: AuthorRun[] | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          body_authors: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT body_authors, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+    if (!row) {
+      throw new Error(REPORT_NOT_FOUND);
+    }
+    const isCurrent = row.body_authors !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+    return {
+      success: true,
+      data: {
+        authors: isCurrent
+          ? parseJsonOrThrow<AuthorRun[]>(row.body_authors!)
+          : null,
+      },
+    };
+  });
+}
+
+// After a version snapshot has captured the ledger's tombstones, the
+// PERSISTED copy must start the next window too — otherwise a later room
+// re-adopts the old tombstones (a version insert doesn't bump last_updated,
+// so the stamp stays valid) and every later version re-freezes deletions from
+// long-closed sessions, misattributing removals. Strips tombstone runs from
+// body_authors IFF the row still carries the exact stamps we read — a
+// concurrent checkpoint (which persists the in-memory ledger, already
+// compacted by the caller) simply wins and the guard makes this a no-op.
+export async function stripPersistedBodyAuthorTombstones(
+  projectDb: Sql,
+  reportId: string,
+): Promise<APIResponseWithData<{ stripped: boolean }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          body_authors: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+        SELECT body_authors, crdt_state_last_updated, last_updated
+        FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+    if (!row) {
+      throw new Error(REPORT_NOT_FOUND);
+    }
+    const isCurrent = row.body_authors !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+    if (!isCurrent) {
+      return { success: true, data: { stripped: false } };
+    }
+    const runs = parseJsonOrThrow<AuthorRun[]>(row.body_authors!);
+    if (!runs.some((r) => r.deletedBy !== undefined)) {
+      return { success: true, data: { stripped: false } };
+    }
+    const rows = await projectDb`
+      UPDATE reports
+      SET body_authors = ${JSON.stringify(stripTombstoneRuns(runs))}
+      WHERE id = ${reportId}
+        AND crdt_state_last_updated = ${row.crdt_state_last_updated!}
+        AND last_updated = ${row.last_updated}
+      RETURNING id
+    `;
+    return { success: true, data: { stripped: rows.length > 0 } };
+  });
+}
+
 export async function updateReportConfig(
   projectDb: Sql,
   reportId: string,
@@ -239,7 +399,7 @@ export async function duplicateReport(
       `
     ).at(0);
     if (!report) {
-      throw new Error("Report not found");
+      throw new Error(REPORT_NOT_FOUND);
     }
 
     const newReportId = await generateUniqueReportId(projectDb);

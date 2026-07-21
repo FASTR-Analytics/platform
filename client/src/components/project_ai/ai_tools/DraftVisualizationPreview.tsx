@@ -40,6 +40,7 @@ import { projectState } from "~/state/project/t1_store";
 import { useAIProjectContext } from "~/components/project_ai/context";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type FigureInput = AiFigureFromVisualization | AiFigureFromMetric;
 
@@ -346,7 +347,7 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
           return (
             <div class="aspect-video overflow-hidden">
               <ChartHolder
-                chartInputs={keyedFigureInputs}
+                chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                 height={h1}
                 sizing="zoom"
               />

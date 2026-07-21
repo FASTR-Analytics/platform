@@ -7,8 +7,10 @@ export function ConnectionStatus() {
   return (
     <Show when={!isOnline() || connectionIssues()}>
       <div
-        class={`ui-pad fixed bottom-5 right-5 z-50 rounded text-sm font-400 text-white shadow-floating ${
-          connectionIssues() ? "bg-danger" : "bg-neutral"
+        class={`ui-pad font-400 fixed right-5 bottom-5 z-50 rounded text-sm shadow-lg ${
+          connectionIssues()
+            ? "bg-danger text-danger-content"
+            : "bg-neutral text-neutral-content"
         }`}
       >
         {!isOnline()

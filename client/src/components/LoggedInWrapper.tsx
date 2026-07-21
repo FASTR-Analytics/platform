@@ -68,14 +68,8 @@ export function LoggedInWrapper(p: Props) {
   });
 
   return (
-    <Show
-      when={clerkLoaded()}
-      fallback={<div />}
-    >
-      <Show
-        when={bypassAuth || clerkUser()}
-        fallback={<ClerkNewLogin />}
-      >
+    <Show when={clerkLoaded()} fallback={<div />}>
+      <Show when={bypassAuth || clerkUser()} fallback={<ClerkNewLogin />}>
         {(_) => {
           ///////////////////////////////////////////////////////////////////////////////////
           ///////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +85,10 @@ export function LoggedInWrapper(p: Props) {
                   ),
                 }),
               }
-            : createQuery(() => serverActions.getCurrentUser({}), t3(TC.loading));
+            : createQuery(
+                () => serverActions.getCurrentUser({}),
+                t3(TC.loading),
+              );
 
           onMount(async () => {
             if (bypassAuth) return;
@@ -160,8 +157,12 @@ export function LoggedInWrapper(p: Props) {
 function ClerkNewLogin() {
   let authEl!: HTMLDivElement;
 
-  const isSignUp = new URLSearchParams(window.location.search).get("mode") === "sign-up";
-  const [meta, setMeta] = createSignal<{ instanceName: string; instanceLanguage: Language } | null>(null);
+  const isSignUp =
+    new URLSearchParams(window.location.search).get("mode") === "sign-up";
+  const [meta, setMeta] = createSignal<{
+    instanceName: string;
+    instanceLanguage: Language;
+  } | null>(null);
 
   onMount(async () => {
     const res = await serverActions.getInstanceMeta({});
@@ -193,16 +194,14 @@ function ClerkNewLogin() {
         <div class="absolute -top-1/4 -right-1/4 h-[60%] w-[60%] rounded-full bg-[#ddecea]" />
         <div class="relative z-10 flex w-full flex-col justify-between p-10">
           <div>
-            <img
-              src="/images/logo.png"
-              alt="Logo"
-              class="h-8"
-            />
+            <img src="/images/logo.png" alt="Logo" class="h-8" />
           </div>
           <Show when={meta()}>
             {(m) => (
               <div>
-                <div class="text-base-content font-800 text-5xl leading-tight">
+                {/* Fixed light brand panel — pin static dark text so dark
+                    mode's light base-content doesn't wash it out. */}
+                <div class="font-800 text-5xl leading-tight text-black">
                   {m().instanceName}
                 </div>
                 <div class="text-base-content-muted mt-3 text-lg">
@@ -229,10 +228,12 @@ function ClerkNewLogin() {
           <Show when={meta()}>
             {(m) => (
               <div class="mb-8 text-center lg:hidden">
-                <img src="/images/logo.png" alt="Logo" class="mx-auto mb-2 h-8" />
-                <div class="font-700 text-xl">
-                  {m().instanceName}
-                </div>
+                <img
+                  src="/images/logo.png"
+                  alt="Logo"
+                  class="mx-auto mb-2 h-8"
+                />
+                <div class="font-700 text-xl">{m().instanceName}</div>
                 <div class="text-base-content-muted text-sm">
                   {t3({
                     en: "Analytics platform",

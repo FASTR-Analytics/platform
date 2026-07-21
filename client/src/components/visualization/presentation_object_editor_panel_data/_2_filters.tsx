@@ -25,7 +25,15 @@ import {
   getTimeFromPeriodId,
   type Query,
 } from "panther";
-import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
@@ -593,6 +601,26 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external changes (a collaborator's update reconciled into the
+  // config) into the local draft — but never clobber this user's own
+  // in-progress drag (needsSave). Without this the slider kept the value it
+  // was CREATED with: reconcile updates the periodFilter object in place, so
+  // the keyed <Show> above never recreates this component.
+  createEffect(() => {
+    const min = getTimeFromPeriodId(
+      Math.max(p.periodFilter.min, p.periodBounds.min),
+      p.periodType,
+    );
+    const max = getTimeFromPeriodId(
+      Math.min(p.periodFilter.max, p.periodBounds.max),
+      p.periodType,
+    );
+    if (!needsSave()) {
+      setTempMinTime(min);
+      setTempMaxTime(max);
+    }
+  });
+
   function save() {
     p.onUpdate({
       minPeriodId: getPeriodIdFromTime(tempMinTime(), p.periodType),
@@ -660,6 +688,16 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft; see
+  // PeriodFilterPeriodId for why the keyed <Show> can't do this.
+  createEffect(() => {
+    const min = getTimeFromPeriodId(
+      Math.max(p.periodFilter.min, p.periodBounds.min),
+      p.periodType,
+    );
+    if (!needsSave()) setTempTime(min);
+  });
+
   function save() {
     p.onUpdate({
       minPeriodId: getPeriodIdFromTime(tempTime(), p.periodType),
@@ -716,6 +754,12 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nMonths ?? 12;
+    if (!needsSave()) setTempNMonths(v);
+  });
+
   function save() {
     p.onUpdate(tempNMonths());
     setNeedsSave(false);
@@ -760,6 +804,12 @@ export function NYearsSelector(p: NYearsSelectorProps) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nYears ?? 1;
+    if (!needsSave()) setTempNYears(v);
+  });
+
   function save() {
     p.onUpdate(tempNYears());
     setNeedsSave(false);
@@ -803,6 +853,12 @@ export function NQuartersSelector(p: NQuartersSelectorProps) {
     p.nQuarters ?? 1,
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nQuarters ?? 1;
+    if (!needsSave()) setTempNQuarters(v);
+  });
 
   function save() {
     p.onUpdate(tempNQuarters());
@@ -851,6 +907,16 @@ export function PeriodFilterYear(p: PeriodFilterPropsYear) {
     p.periodFilter.max,
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const min = p.periodFilter.min;
+    const max = p.periodFilter.max;
+    if (!needsSave()) {
+      setTempMinTime(min);
+      setTempMaxTime(max);
+    }
+  });
 
   function save() {
     p.onUpdate({

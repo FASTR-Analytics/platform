@@ -1,6 +1,6 @@
 # Systems map — wb-fastr
 
-> Canonical topology: 15 systems (+ a read-but-don't-own kernel). This is the
+> Canonical topology: 16 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the custody table, the kernel rule, the
 > cross-cutting audits, the execution model, and the documentation model.
 > Each system's description — scope, contract, prose — lives in its own
@@ -12,7 +12,7 @@
 ## The map
 
 Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
-artifacts (12), assist (13), frame (14–15).
+artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 
 | #                                        | System                                   | One line                                                                                   |
 |------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -20,7 +20,7 @@ artifacts (12), assist (13), frame (14–15).
 | [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | multi-DB Postgres, migrations + data transforms, fail-stop boot, backup/restore            |
 | [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
 | [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
-| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config        |
+| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
 | [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
 | [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
 | [S8](SYSTEM_08_module_system.md)         | Module System                            | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_*          |

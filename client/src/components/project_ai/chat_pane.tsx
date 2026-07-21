@@ -371,7 +371,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   return (
     <div class="flex h-full w-full flex-col border-l">
-      <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
+      <div class="ui-pad ui-gap border-base-content dark:border-base-300 bg-primary text-primary-content flex items-center justify-between border-b">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
@@ -402,7 +402,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onRemove={p.aiDocs.removeDocument}
       />
 
-      <div class="flex-1 overflow-hidden">
+      <div class="md-dark-adapt flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}

@@ -29,6 +29,7 @@ import { _SERVER_HOST } from "~/server_actions";
 import { DownloadDashboardModal } from "./download_dashboard_modal.tsx";
 import { DashboardLogos } from "./dashboard_logos.tsx";
 import { AboutDashboardModal } from "./about_dashboard_modal.tsx";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 function openAbout(bundle: PublicDashboardBundle): void {
   void openComponent({
@@ -148,7 +149,7 @@ function DashboardViewer(p: DashboardViewerProps) {
     >
       <div class="flex h-full w-full flex-col">
         <Show when={p.bundle.about.summary.trim()}>
-          <div class="ui-pad border-b text-sm">
+          <div class="border-base-300 ui-pad md-dark-adapt border-b text-sm">
             <MarkdownPresentationJsx markdown={p.bundle.about.summary} />
           </div>
         </Show>
@@ -370,5 +371,10 @@ function TileHeader(p: {
 }
 
 function DashboardItemChart(p: { item: PublicItem }) {
-  return <ChartHolder chartInputs={itemFigureInputs(p.item)} height="flex" />;
+  return (
+    <ChartHolder
+      chartInputs={adaptFigureStyleForDarkMode(itemFigureInputs(p.item))}
+      height="flex"
+    />
+  );
 }

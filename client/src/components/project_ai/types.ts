@@ -115,7 +115,16 @@ export type AIContextEditingReport = {
   // Stage an edit as a diff and resolve once the user accepts or rejects it, so
   // the calling AI tool learns the outcome (mirrors panther's ask_user_questions
   // await-resolve pattern). Resolves { accepted: false } if superseded/closed.
-  proposeEdit: (proposal: ReportEditProposal) => Promise<{ accepted: boolean }>;
+  // On accept, the proposal is REBASED over concurrent collaborator edits;
+  // `skipped` lists the hunks NOT applied because a collaborator edited that
+  // text while the proposal was open (1-based line ranges in the current
+  // document) — tools must relay it so the AI's picture stays honest.
+  proposeEdit: (
+    proposal: ReportEditProposal,
+  ) => Promise<{
+    accepted: boolean;
+    skipped?: { fromLine: number; toLine: number }[];
+  }>;
   // Apply a stable-id figure edit straight to the live registry + persist (no
   // body diff — the figure's body token is unchanged). Mirrors the interactive
   // figure-widget editor; used by the update_report_figure AI tool. Resolves

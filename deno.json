@@ -33,7 +33,9 @@
     "postgres": "npm:postgres@^3.4.5",
     "xlsx": "npm:xlsx@0.18.5",
     "redis": "npm:redis@^4.7.0",
-    "zod": "npm:zod@^4.0.0"
+    "zod": "npm:zod@^4.0.0",
+    "yjs": "npm:yjs@13.6.31",
+    "fractional-indexing": "npm:fractional-indexing@3.4.0"
   },
   "compilerOptions": {
     "jsx": "precompile",

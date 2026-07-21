@@ -24,6 +24,8 @@ import SortableVendor, {
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
+import { PresenceAvatars } from "./presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { useAIProjectContext } from "~/components/project_ai";
 
@@ -39,6 +41,8 @@ type Props = {
   handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
+  present: () => Promise<void>;
+  openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
 };
 
@@ -415,6 +419,11 @@ export function SlideList(p: Props) {
       icon: "arrowRight",
       onClick: () => p.share(),
     },
+    {
+      label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
+      icon: "rotate",
+      onClick: () => p.openVersionHistory(),
+    },
     // { type: "divider" },
     // {
     //   label: "Batch edit visualizations",
@@ -426,6 +435,7 @@ export function SlideList(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={p.deckLabel}
           leftChildren={
@@ -433,6 +443,9 @@ export function SlideList(p: Props) {
           }
         >
           <div class="ui-gap-sm flex items-center">
+            <PresenceAvatars
+              peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
+            />
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
                 <Slider
@@ -450,6 +463,9 @@ export function SlideList(p: Props) {
                 outline
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
+              <Button iconName="presentation" onClick={() => p.present()}>
+                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+              </Button>
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
               <Button iconName="plus">
@@ -477,10 +493,12 @@ export function SlideList(p: Props) {
             </Show>
           </div>
         </HeadingBar>
+        </div>
       }
     >
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
+        data-page-cursor-surface={`deck:${p.deckId}`}
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -554,6 +572,7 @@ export function SlideList(p: Props) {
                   onDelete={() => handleDelete(item.id)}
                   onDuplicate={() => handleDuplicate(item.id)}
                   deckConfig={p.deckConfig}
+                  viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
                 />
               );
             }}

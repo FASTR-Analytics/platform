@@ -64,11 +64,13 @@ export function ProjectMetrics(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })}
           ensureHeightAsIfButton></HeadingBar>
+        </div>
       }
     >
-      <div class="ui-pad ui-spy">
+      <div class="ui-pad ui-spy" data-page-cursor-surface>
         <For each={organized()}>
           {(moduleGroup) => (
             <div class="ui-spy">

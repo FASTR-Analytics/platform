@@ -14,6 +14,7 @@ export type UppyFileUploadConfig = {
   onComplete?: (result: any) => void;
   onUploadError?: (file: any, error: any) => void;
   headers?: Record<string, string>;
+  allowedFileTypes?: string[];
 };
 
 export function createUppyInstance(config: UppyFileUploadConfig): Uppy {
@@ -28,6 +29,7 @@ export function createUppyInstance(config: UppyFileUploadConfig): Uppy {
     onComplete,
     onUploadError,
     headers = {},
+    allowedFileTypes,
   } = config;
 
   const uppyConfig: any = {
@@ -35,10 +37,11 @@ export function createUppyInstance(config: UppyFileUploadConfig): Uppy {
     autoProceed,
   };
 
-  if (maxNumberOfFiles > 0) {
-    uppyConfig.restrictions = {
-      maxNumberOfFiles,
-    };
+  const restrictions: Record<string, any> = {};
+  if (maxNumberOfFiles > 0) restrictions.maxNumberOfFiles = maxNumberOfFiles;
+  if (allowedFileTypes) restrictions.allowedFileTypes = allowedFileTypes;
+  if (Object.keys(restrictions).length > 0) {
+    uppyConfig.restrictions = restrictions;
   }
 
   const uppy = new Uppy(uppyConfig);

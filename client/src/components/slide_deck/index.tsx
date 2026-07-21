@@ -14,10 +14,14 @@ import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
+import { SlidePresenter } from "./slide_presenter";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
 import { useAIProjectContext } from "../project_ai/context";
 import type { AIContext } from "../project_ai/types";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
+import { setCollabAvatar, setCollabView } from "~/state/project/collab";
+import { clerk } from "~/components/LoggedInWrapper";
+import { VersionHistoryEditor } from "../version_history";
 
 type SlideDeckModalReturn = undefined;
 
@@ -46,8 +50,17 @@ export function ProjectAiSlideDeck(p: Props) {
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForSlideDeck(p.reportLabel));
 
+  // The collab socket is owned by ProjectSSEBoundary (project-scoped). Here we
+  // only advertise that this user is currently viewing this deck.
+  onMount(() => {
+    setCollabAvatar(clerk.user?.imageUrl);
+    setCollabView({ deckId: p.deckId });
+  });
+
   onCleanup(() => {
     setAIContext(p.returnToContext ?? { mode: "viewing_slide_decks" });
+    // Returning to the deck list: no longer "in" a deck.
+    setCollabView({});
   });
 
   // Single fetch path: first run loads the deck (and then sets the AI
@@ -107,6 +120,7 @@ function ProjectAiSlideDeckInner(p: {
 }) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
+  const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } = getEditorWrapper();
   const { aiContext } = useAIProjectContext();
 
   // Editor state
@@ -142,6 +156,18 @@ function ProjectAiSlideDeckInner(p: {
     });
   }
 
+  async function openVersionHistory() {
+    await openHistoryEditor({
+      element: VersionHistoryEditor,
+      props: {
+        projectId: p.projectState.id,
+        kind: "deck" as const,
+        docId: p.deckId,
+        currentLabel: p.deckLabel,
+      },
+    });
+  }
+
   async function share() {
     await openComponent({
       element: ShareSlideDeck,
@@ -150,6 +176,18 @@ function ProjectAiSlideDeckInner(p: {
         deckId: p.deckId,
         deckLabel: p.deckLabel,
         userEmails: instanceState.users.map((u) => u.email),
+      },
+    });
+  }
+
+  async function present() {
+    await openComponent({
+      element: SlidePresenter,
+      props: {
+        projectId: p.projectState.id,
+        deckId: p.deckId,
+        slideIds: p.slideIds,
+        deckConfig: p.deckConfig,
       },
     });
   }
@@ -192,23 +230,27 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   return (
-    <SettingsEditorWrapper>
-      <EditorWrapper>
-        <SlideList
-          projectState={p.projectState}
-          deckId={p.deckId}
-          slideIds={p.slideIds}
-          isLoading={p.isLoading}
-          setSelectedSlideIds={p.setSelectedSlideIds}
-          onEditSlide={handleEditSlide}
-          deckLabel={p.deckLabel}
-          handleClose={p.handleClose}
-          handleOpenSettings={handleOpenSettings}
-          download={download}
-          share={share}
-          deckConfig={p.deckConfig}
-        />
-      </EditorWrapper>
-    </SettingsEditorWrapper>
+    <HistoryEditorWrapper>
+      <SettingsEditorWrapper>
+        <EditorWrapper>
+          <SlideList
+            projectState={p.projectState}
+            deckId={p.deckId}
+            slideIds={p.slideIds}
+            isLoading={p.isLoading}
+            setSelectedSlideIds={p.setSelectedSlideIds}
+            onEditSlide={handleEditSlide}
+            deckLabel={p.deckLabel}
+            handleClose={p.handleClose}
+            handleOpenSettings={handleOpenSettings}
+            download={download}
+            share={share}
+            present={present}
+            openVersionHistory={openVersionHistory}
+            deckConfig={p.deckConfig}
+          />
+        </EditorWrapper>
+      </SettingsEditorWrapper>
+    </HistoryEditorWrapper>
   );
 }

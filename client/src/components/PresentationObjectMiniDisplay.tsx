@@ -8,6 +8,7 @@ import {
 } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
+import { adaptFigureStyleForDarkMode } from "./_shared/dark_mode_figures";
 
 type Props = {
   projectId: string;
@@ -182,7 +183,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                   <Match when={p.shapeType === "force-aspect-video"}>
                     <div class="aspect-video overflow-hidden">
                       <ChartHolder
-                        chartInputs={keyedFigureInputs}
+                        chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                         height={h1}
                         sizing="zoom"
                         renderError={renderError}
@@ -191,7 +192,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                   </Match>
                   <Match when={true}>
                     <ChartHolder
-                      chartInputs={keyedFigureInputs}
+                      chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                       height={h1}
                       sizing="zoom"
                       renderError={renderError}

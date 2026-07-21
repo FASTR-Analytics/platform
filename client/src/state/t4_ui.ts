@@ -241,6 +241,50 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
 }
 
 // ============================================================================
+// Appearance
+// ============================================================================
+
+// Applied at module scope so the stored theme is on <html> before first paint
+const storedDarkMode = localStorage.getItem("darkMode") === "true";
+
+export const [darkMode, setDarkModeInternal] =
+  createSignal<boolean>(storedDarkMode);
+
+export function setDarkMode(value: boolean) {
+  localStorage.setItem("darkMode", String(value));
+  setDarkModeInternal(value);
+  applyThemeToDocument(value);
+}
+
+function applyThemeToDocument(dark: boolean) {
+  if (dark) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
+applyThemeToDocument(storedDarkMode);
+
+// TEMP — dark-mode testing only, remove before release: Shift+N toggles the
+// theme. Skipped while typing (inputs/textareas/contenteditable incl.
+// CodeMirror), since Shift+N is just how you type a capital N.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "N" || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+    return;
+  }
+  const t = e.target;
+  if (
+    t instanceof HTMLElement &&
+    (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" ||
+      t.isContentEditable)
+  ) {
+    return;
+  }
+  setDarkMode(!darkMode());
+});
+
+// ============================================================================
 // Chart/Viz Display Settings
 // ============================================================================
 

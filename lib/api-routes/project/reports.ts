@@ -5,12 +5,21 @@ import type {
   ReportDetail,
   ReportSummary,
 } from "../../types/reports.ts";
+import type {
+  ReportVersionDetail,
+  ReportVersionLineageStep,
+  ReportVersionSummary,
+} from "../../types/versions.ts";
 import type { FigureBlock } from "../../types/_figure_bundle.ts";
 import type { ImageBlock } from "../../types/slides.ts";
 import { route } from "../route-utils.ts";
 
 // report_id is a 3-char nanoid (generateUniqueReportId), not a UUID
 const reportIdParamsSchema = z.object({ report_id: z.string() });
+const reportVersionParamsSchema = z.object({
+  report_id: z.string(),
+  version_id: z.uuid(),
+});
 const folderBodyFields = {
   label: z.string(),
   folderId: z.uuid().nullable().optional(),
@@ -112,6 +121,47 @@ export const reportRouteRegistry = {
     method: "DELETE",
     params: reportIdParamsSchema,
     response: {} as never,
+    requiresProject: true,
+  }),
+
+  listReportVersions: route({
+    path: "/reports/:report_id/versions",
+    method: "GET",
+    params: reportIdParamsSchema,
+    response: {} as ReportVersionSummary[],
+    requiresProject: true,
+  }),
+
+  getReportVersion: route({
+    path: "/reports/:report_id/versions/:version_id",
+    method: "GET",
+    params: reportVersionParamsSchema,
+    response: {} as ReportVersionDetail,
+    requiresProject: true,
+  }),
+
+  getReportVersionLineage: route({
+    path: "/reports/:report_id/versions/:version_id/lineage",
+    method: "GET",
+    params: reportVersionParamsSchema,
+    response: {} as ReportVersionLineageStep[],
+    requiresProject: true,
+  }),
+
+  restoreReportVersion: route({
+    path: "/reports/:report_id/versions/:version_id/restore",
+    method: "POST",
+    params: reportVersionParamsSchema,
+    response: {} as { lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  copyReportVersion: route({
+    path: "/reports/:report_id/versions/:version_id/copy",
+    method: "POST",
+    params: reportVersionParamsSchema,
+    body: z.object(folderBodyFields),
+    response: {} as { newReportId: string; lastUpdated: string },
     requiresProject: true,
   }),
 } as const;

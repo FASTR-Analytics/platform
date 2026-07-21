@@ -9,7 +9,7 @@ import type {
   ImageBlock,
   LogoVisibility,
 } from "lib";
-import { DEFAULT_TEXT_SIZE_KEY, t3, TEXT_SIZE_KEYS } from "lib";
+import { DEFAULT_TEXT_SIZE_KEY, findNodeMap, t3, TEXT_SIZE_KEYS } from "lib";
 import type { PatternType } from "panther";
 import {
   TextArea,
@@ -28,6 +28,10 @@ import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { MarkdownGuide } from "~/components/_markdown_guide";
+import { CollabMarkdownEditor } from "./collab_markdown_editor";
+import { CollabTextField } from "./collab_text_field";
+import type { SlideSession } from "~/state/project/collab";
+import type * as Y from "yjs";
 
 type Props = {
   projectId: string;
@@ -35,6 +39,9 @@ type Props = {
   setTempSlide: SetStoreFunction<any>;
   selectedBlockId: string | undefined;
   setSelectedBlockId: Setter<string | undefined>;
+  session: SlideSession | null;
+  collabReady: boolean;
+  onSelectTextTarget: (targetId: string | undefined) => void;
   openEditor: <TProps, TReturn>(
     v: OpenEditorProps<TProps, TReturn>,
   ) => Promise<TReturn | undefined>;
@@ -77,6 +84,16 @@ export function SlideEditorPanelContent(p: Props) {
     const result = findById(p.tempSlide.layout, p.selectedBlockId);
     if (!result || result.node.type !== "item") return undefined;
     return result.node.data;
+  }
+
+  // The selected text block's Y.Text, but only once live collab is ready and the
+  // block exists in the shared doc — otherwise we fall back to the panther
+  // TextArea. Present => the CodeMirror collaborative editor (remote carets).
+  function getBlockYText(): Y.Text | undefined {
+    if (!p.collabReady || !p.session || !p.selectedBlockId) return undefined;
+    const m = findNodeMap(p.session.doc, p.selectedBlockId);
+    if (!m || m.get("blockType") !== "text") return undefined;
+    return m.get("markdown") as Y.Text | undefined;
   }
 
   function updateSelectedBlock(updater: (block: ContentBlock) => ContentBlock) {
@@ -148,16 +165,25 @@ export function SlideEditorPanelContent(p: Props) {
           <Match when={p.contentTab === "slide"}>
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy-sm">
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="header"
+                  targetId="headerText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" })}
                   value={p.tempSlide.header ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("header", v || undefined)
                   }
-                  fullWidth
                   height="60px"
                 />
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="subHeader"
+                  targetId="subHeaderText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({
                     en: "Sub Header",
                     fr: "Sous-en-tête",
@@ -167,16 +193,19 @@ export function SlideEditorPanelContent(p: Props) {
                   onChange={(v: string) =>
                     p.setTempSlide("subHeader", v || undefined)
                   }
-                  fullWidth
                   height="40px"
                 />
-                <TextArea
+                <CollabTextField
+                  session={p.session}
+                  collabReady={p.collabReady}
+                  fieldKey="date"
+                  targetId="dateText"
+                  onSelectTarget={p.onSelectTextTarget}
                   label={t3({ en: "Date", fr: "Date", pt: "Data" })}
                   value={p.tempSlide.date ?? ""}
                   onChange={(v: string) =>
                     p.setTempSlide("date", v || undefined)
                   }
-                  fullWidth
                   height="40px"
                 />
                 <Select
@@ -209,7 +238,12 @@ export function SlideEditorPanelContent(p: Props) {
                     </div>
                   }
                 >
-                  <TextArea
+                  <CollabTextField
+                    session={p.session}
+                    collabReady={p.collabReady}
+                    fieldKey="footer"
+                    targetId="footerText"
+                    onSelectTarget={p.onSelectTextTarget}
                     label={t3({
                       en: "Footer text",
                       fr: "Texte de pied de page",
@@ -219,7 +253,6 @@ export function SlideEditorPanelContent(p: Props) {
                     onChange={(v: string) =>
                       p.setTempSlide("footer", v || undefined)
                     }
-                    fullWidth
                     height="40px"
                   />
                 </Show>
@@ -472,18 +505,43 @@ export function SlideEditorPanelContent(p: Props) {
                   </div>
                   <Switch>
                     <Match when={getCurrentBlock()?.type === "text"}>
-                      <TextArea
-                        label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
-                        value={(getCurrentBlock() as TextBlock).markdown}
-                        onChange={(v: string) =>
-                          updateSelectedBlock((b: any) => ({
-                            ...b,
-                            markdown: v,
-                          }))
+                      <Show
+                        when={getBlockYText()}
+                        keyed
+                        fallback={
+                          <TextArea
+                            label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
+                            value={(getCurrentBlock() as TextBlock).markdown}
+                            onChange={(v: string) =>
+                              updateSelectedBlock((b: any) => ({
+                                ...b,
+                                markdown: v,
+                              }))
+                            }
+                            fullWidth
+                            height="300px"
+                          />
                         }
-                        fullWidth
-                        height="300px"
-                      />
+                      >
+                        {(yText) => (
+                          <div class="ui-spy-sm">
+                            <label class="text-base-content/70 text-xs">
+                              {t3({ en: "Text", fr: "Texte", pt: "Texto" })}
+                            </label>
+                            <CollabMarkdownEditor
+                              yText={yText}
+                              awareness={p.session!.awareness}
+                              onTextChange={(md) =>
+                                updateSelectedBlock((b: any) => ({
+                                  ...b,
+                                  markdown: md,
+                                }))
+                              }
+                              height="300px"
+                            />
+                          </div>
+                        )}
+                      </Show>
                       <Select
                         label={t3({
                           en: "Text background",

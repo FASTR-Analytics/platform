@@ -1,5 +1,6 @@
-import { t3, type SlideDeckConfig } from "lib";
+import { t3, type PresenceEntry, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
+import { PresenceAvatars } from "./presence_avatars";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
@@ -20,6 +21,7 @@ type Props = {
   onDelete: () => void;
   onDuplicate: () => void;
   deckConfig: SlideDeckConfig;
+  viewers?: PresenceEntry[];
 };
 
 export function SlideCard(p: Props) {
@@ -117,6 +119,11 @@ export function SlideCard(p: Props) {
             />
           </svg>
         </div>
+        <Show when={(p.viewers?.length ?? 0) > 0}>
+          <div class="absolute bottom-2 left-2 z-10">
+            <PresenceAvatars peers={p.viewers!} size="sm" />
+          </div>
+        </Show>
         <Show when={pageInputs().status === "loading"}>
           <div
             class="bg-base-200 flex items-center justify-center"

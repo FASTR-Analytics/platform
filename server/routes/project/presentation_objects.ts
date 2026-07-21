@@ -3,10 +3,13 @@ import { Sql } from "postgres";
 import {
   getPeriodFilterExactBounds,
   isValidDisaggregationOption,
+  syncFigureConfigField,
+  syncFigureConfigToMap,
   validateFetchConfig,
   type PeriodBounds,
   type PeriodOption,
 } from "lib";
+import { applyPoToLiveRoom, closePoRoom } from "../../collab/po_rooms.ts";
 import {
   detectColumnExists,
   detectHasPeriodId,
@@ -67,7 +70,9 @@ const resultsValueInfoQueue = new RequestQueue(15);
 // dataset integration, which bumps datasets.last_updated independently of
 // moduleLastRun. Both caches version on this so re-integration invalidates them.
 async function getDatasetsVersion(projectDb: Sql): Promise<string> {
-  const rows = await projectDb<{ dataset_type: string; last_updated: string }[]>`
+  const rows = await projectDb<
+    { dataset_type: string; last_updated: string }[]
+  >`
 SELECT dataset_type, last_updated FROM datasets ORDER BY dataset_type
 `;
   return rows
@@ -105,7 +110,9 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsForProject(
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -137,7 +144,9 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsForProject(
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -198,7 +207,9 @@ defineRoute(
               ...existing,
               data: {
                 ...existing.data,
-                config: presentationObjectConfigSchema.parse(existing.data.config),
+                config: presentationObjectConfigSchema.parse(
+                  existing.data.config,
+                ),
               },
             }
           : existing,
@@ -256,7 +267,9 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsForProject(
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -273,10 +286,25 @@ defineRoute(
   ),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
+    const config = body.config as PresentationObjectConfig;
+    // Chokepoint: if a live collab room holds this visualization, merge the
+    // write into it (collab is authoritative → the field-level merge IS the
+    // conflict resolution, so the optimistic-lock check is skipped). The room's
+    // checkpoint already persisted, fired notifyLastUpdated and scheduled the
+    // viz-list rebroadcast.
+    const roomLastUpdated = await applyPoToLiveRoom(
+      c.var.ppk.projectId,
+      params.po_id,
+      (m) => syncFigureConfigToMap(m, config),
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({ success: true, data: { lastUpdated: roomLastUpdated } });
+    }
+
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
       params.po_id,
-      body.config as PresentationObjectConfig,
+      config,
       body.expectedLastUpdated,
       body.overwrite,
     );
@@ -289,7 +317,9 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const vizRes = await getAllPresentationObjectsForProject(
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -305,27 +335,57 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { body }) => {
-    const res = await batchUpdatePresentationObjectsPeriodFilter(
-      c.var.ppk.projectDb,
-      body.presentationObjectIds,
-      body.periodFilter,
-    );
+    const projectId = c.var.ppk.projectId;
+    const ids: string[] = body.presentationObjectIds;
+    const periodFilter = body.periodFilter;
 
-    if (res.success) {
-      notifyLastUpdated(
-        c.var.ppk.projectId,
-        "presentation_objects",
-        body.presentationObjectIds,
-        res.data.lastUpdated,
+    // Chokepoint: any of these visualizations with a live collab room gets the
+    // period-filter change merged into the room (avoids clobbering a peer's
+    // in-progress edits); the rest go through the batch DB write.
+    const roomHandled = new Set<string>();
+    let lastUpdated: string | null = null;
+    for (const id of ids) {
+      const ts = await applyPoToLiveRoom(projectId, id, (m) =>
+        syncFigureConfigField(m, "d", "periodFilter", periodFilter),
       );
-
-      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
-      if (vizRes.success) {
-        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      if (ts !== null) {
+        roomHandled.add(id);
+        lastUpdated = ts;
       }
     }
 
-    return c.json(res);
+    const remaining = ids.filter((id) => !roomHandled.has(id));
+    if (remaining.length > 0) {
+      const res = await batchUpdatePresentationObjectsPeriodFilter(
+        c.var.ppk.projectDb,
+        remaining,
+        periodFilter,
+      );
+      if (res.success === false) {
+        return c.json(res);
+      }
+      lastUpdated = res.data.lastUpdated;
+      notifyLastUpdated(
+        projectId,
+        "presentation_objects",
+        remaining,
+        res.data.lastUpdated,
+      );
+      const vizRes = await getAllPresentationObjectsForProject(
+        c.var.ppk.projectDb,
+      );
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(projectId, vizRes.data);
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        lastUpdated: lastUpdated ?? new Date().toISOString(),
+        updatedCount: ids.length,
+      },
+    });
   },
 );
 
@@ -345,7 +405,12 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
-    const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    // Discard any live room for the now-deleted PO (its checkpoints would fail
+    // against the gone row); connected editors get a po_error and fall back.
+    closePoRoom(c.var.ppk.projectId, params.po_id, "Visualization deleted");
+    const vizRes = await getAllPresentationObjectsForProject(
+      c.var.ppk.projectDb,
+    );
     if (vizRes.success) {
       notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
     }
@@ -365,11 +430,16 @@ defineRoute(
     validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
 
     // Derive moduleId from resultsObjectId via DB lookup
-    const roRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const roRow = (
+      await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
-`).at(0);
+`
+    ).at(0);
     if (!roRow) {
-      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+      return c.json({
+        success: false,
+        err: `Unknown results object: ${body.resultsObjectId}`,
+      });
     }
     const moduleId = roRow.module_id;
 
@@ -470,11 +540,16 @@ defineRoute(
     const t0 = performance.now();
 
     // Derive moduleId from metricId via DB lookup
-    const metricRow = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const metricRow = (
+      await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM metrics WHERE id = ${body.metricId}
-`).at(0);
+`
+    ).at(0);
     if (!metricRow) {
-      return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
+      return c.json({
+        success: false,
+        err: `Unknown metric: ${body.metricId}`,
+      });
     }
     const moduleId = metricRow.module_id;
 
@@ -586,7 +661,10 @@ defineRoute(
     const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
     validateFetchConfig(fetchConfig);
     if (!isValidDisaggregationOption(body.replicateBy)) {
-      return c.json({ success: false, err: `Invalid replicateBy: ${body.replicateBy}` });
+      return c.json({
+        success: false,
+        err: `Invalid replicateBy: ${body.replicateBy}`,
+      });
     }
 
     const t0 = performance.now();
@@ -596,11 +674,16 @@ defineRoute(
         : "no filters";
 
     // Derive moduleId from resultsObjectId via DB lookup
-    const roRow2 = (await c.var.ppk.projectDb<{ module_id: string }[]>`
+    const roRow2 = (
+      await c.var.ppk.projectDb<{ module_id: string }[]>`
 SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
-`).at(0);
+`
+    ).at(0);
     if (!roRow2) {
-      return c.json({ success: false, err: `Unknown results object: ${body.resultsObjectId}` });
+      return c.json({
+        success: false,
+        err: `Unknown results object: ${body.resultsObjectId}`,
+      });
     }
     const moduleId = roRow2.module_id;
 
@@ -670,7 +753,11 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
 
       const newPromise = (async () => {
         // Fetch indicator metadata for label lookup
-        const indicatorMetadata = await getIndicatorMetadata(c.var.mainDb, c.var.ppk.projectDb, moduleId);
+        const indicatorMetadata = await getIndicatorMetadata(
+          c.var.mainDb,
+          c.var.ppk.projectDb,
+          moduleId,
+        );
         const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
         const datasetFamily = await getDatasetFamilyForModule(
@@ -694,11 +781,19 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             );
             const hasQuarterId =
               !hasPeriodId &&
-              (await detectColumnExists(c.var.ppk.projectDb, tableName, "quarter_id"));
+              (await detectColumnExists(
+                c.var.ppk.projectDb,
+                tableName,
+                "quarter_id",
+              ));
             const hasYear =
               !hasPeriodId &&
               !hasQuarterId &&
-              (await detectColumnExists(c.var.ppk.projectDb, tableName, "year"));
+              (await detectColumnExists(
+                c.var.ppk.projectDb,
+                tableName,
+                "year",
+              ));
             const firstPeriodOption: PeriodOption | undefined = hasPeriodId
               ? "period_id"
               : hasQuarterId
@@ -838,4 +933,3 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
     return c.json(result);
   },
 );
-

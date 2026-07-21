@@ -8,7 +8,21 @@ import {
   moveSlides,
   updateSlide,
 } from "../../db/mod.ts";
-import type { Slide } from "lib";
+import { type Slide, slideConfigSchema } from "lib";
+import {
+  applySlideToLiveRoom,
+  closeSlideRoom,
+} from "../../collab/slide_rooms.ts";
+import {
+  editorFromGlobalUser,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
+import {
+  recordDeckReordered,
+  recordSlideAdded,
+  recordSlideEdited,
+  recordSlideRemoved,
+} from "../../collab/deck_session_ledger.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -56,6 +70,15 @@ defineRoute(
       return c.json(res);
     }
 
+    const editor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
+    recordSlideAdded(
+      c.var.ppk.projectId,
+      params.deck_id,
+      res.data.slideId,
+      editor.email,
+    );
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
@@ -83,16 +106,59 @@ defineRoute(
     "can_configure_slide_decks",
   ),
   async (c, { params, body }) => {
+    // While a collab room is live for this slide, the room's doc is
+    // authoritative: a direct DB write would be silently overwritten by the
+    // room's next checkpoint. Route the save through the room instead — the
+    // change merges into the shared doc (relayed live to connected editors)
+    // and the room checkpoints it immediately. The expectedLastUpdated
+    // conflict check doesn't apply on this path: merging into the live doc IS
+    // the conflict resolution. (The room's checkpoint fires its own SSE
+    // notifications.)
+    // Validate at the route boundary BEFORE touching the live room — Yjs
+    // transactions don't roll back, so malformed content would partially
+    // mutate the shared doc (vandalizing co-editors' view) and poison every
+    // subsequent checkpoint's schema parse.
+    let slide: Slide;
+    try {
+      slide = slideConfigSchema.parse(body.slide) as Slide;
+    } catch {
+      return c.json({
+        success: false as const,
+        err: "Invalid slide content",
+      });
+    }
+    const editor = editorFromGlobalUser(c.var.globalUser);
+    const roomLastUpdated = await applySlideToLiveRoom(
+      c.var.ppk.projectId,
+      params.slide_id,
+      slide,
+      editor,
+    );
+    if (roomLastUpdated !== null) {
+      return c.json({
+        success: true as const,
+        data: { lastUpdated: roomLastUpdated },
+      });
+    }
+
     const res = await updateSlide(
       c.var.ppk.projectDb,
       params.slide_id,
-      body.slide as Slide,
+      slide,
       body.expectedLastUpdated,
       body.overwrite,
     );
     if (!res.success) {
       return c.json(res);
     }
+
+    recordVersionEdit(c.var.ppk.projectId, "deck", res.data.deckId, editor);
+    recordSlideEdited(
+      c.var.ppk.projectId,
+      res.data.deckId,
+      params.slide_id,
+      editor.email,
+    );
 
     notifyLastUpdated(
       c.var.ppk.projectId,
@@ -125,10 +191,40 @@ defineRoute(
       return c.json(res);
     }
 
+    // ACTUALLY-deleted ids only (the delete is deck-scoped; a requested id
+    // that now belongs to another deck was a no-op): closing by requested id
+    // would discard another deck's live room and its authorship ledgers, and
+    // record a "removed by" against a slide that still exists.
+    const deletedIds = res.data.deletedIds;
+
+    // A live room left on a deleted slide would fail its checkpoints forever
+    // (and clobber any future row re-created with the same id) — discard.
+    for (const slideId of deletedIds) {
+      closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
+    }
+
+    const deleteEditor = editorFromGlobalUser(c.var.globalUser);
+    if (deletedIds.length > 0) {
+      recordVersionEdit(
+        c.var.ppk.projectId,
+        "deck",
+        params.deck_id,
+        deleteEditor,
+      );
+    }
+    for (const slideId of deletedIds) {
+      recordSlideRemoved(
+        c.var.ppk.projectId,
+        params.deck_id,
+        slideId,
+        deleteEditor.email,
+      );
+    }
+
     notifyLastUpdated(
       c.var.ppk.projectId,
       "slides",
-      body.slideIds,
+      deletedIds,
       lastUpdated,
     );
 
@@ -162,6 +258,22 @@ defineRoute(
     );
     if (!res.success) {
       return c.json(res);
+    }
+
+    const duplicateEditor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(
+      c.var.ppk.projectId,
+      "deck",
+      params.deck_id,
+      duplicateEditor,
+    );
+    for (const slideId of res.data.newSlideIds) {
+      recordSlideAdded(
+        c.var.ppk.projectId,
+        params.deck_id,
+        slideId,
+        duplicateEditor.email,
+      );
     }
 
     for (const slideId of res.data.newSlideIds) {
@@ -202,6 +314,10 @@ defineRoute(
     if (!res.success) {
       return c.json(res);
     }
+
+    const moveEditor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, moveEditor);
+    recordDeckReordered(c.var.ppk.projectId, params.deck_id, moveEditor.email);
 
     notifyLastUpdated(
       c.var.ppk.projectId,
