@@ -1,12 +1,17 @@
 # PLAN — Future AI adoptions (panther view/approval/interaction system)
 
-Status: PARKED / adoption menu. Written 2026-07-17. Blocked on panther's
-`PLAN_AI_VIEWS_AND_APPROVAL.md` (fifth revision, in the panther repo) being
-implemented and synced. Nothing here is required — every feature is opt-in
-behind config, adoption is per-surface and per-feature, and "never adopt" is a
-fully supported end state. This doc exists so the adoption options aren't
-forgotten once the panther work lands. All file/line references and counts were
-verified 2026-07-17; they age — **re-grep every reference at migration time.**
+Status: PARKED / adoption menu. Written 2026-07-17; updated 2026-07-20 after
+panther Phases 1+2 (views + gating/validation) were implemented AND passed
+their combined adversarial review — features 1, 2, and the feature-6
+`promptSection()` half are now real; interactions (3) and approval (4/5) are
+still pending panther Phases 3/4. The first post-Phase-2 sync of wb-fastr is
+unblocked. Nothing here is required — every feature is opt-in behind config,
+adoption is per-surface and per-feature, and "never adopt" is a fully
+supported end state. This doc exists so the adoption options aren't forgotten
+once the panther work lands. All file/line references and counts were
+verified 2026-07-17; they age — **re-grep every reference at migration
+time.** See "Review findings that shape adoption (2026-07-20)" below before
+starting rung 3.
 
 ## Background
 
@@ -42,7 +47,15 @@ changes; listed so they aren't a surprise:
   on first load (rollback-safe).
 - **Tripwires (construction-time throws):** duplicate tool names and
   strict/unknown-key-rejecting tool schemas throw at chat construction. Audited
-  clean 2026-07-17 (both surfaces); can only bite a future change, in dev.
+  clean 2026-07-17 (both surfaces); re-audited clean 2026-07-20 by panther's
+  combined Phase 1+2 review; can only bite a future change, in dev. The
+  strict-schema guard is wider than the original `z.strictObject` ban: it also
+  catches `.catchall(z.never())` AND **enum/pattern-keyed `z.record`** inputs
+  (keyed records reject unknown keys at parse — the same runtime failure). A
+  tool named `str_replace_based_edit_tool` alongside `textEditorHandler` also
+  throws (the built-in branch would silently shadow it). And `callAI` (one-shot)
+  now throws on any tool declaring `availableIn` — never reuse view-gated chat
+  tools in one-shot calls.
 - Before the first post-Phase-2 sync, run panther's `validateAIChatConfig`
   against both surfaces' tool arrays (one-off script) and fix any hits.
 
@@ -248,6 +261,53 @@ decide not to adopt, fix them directly:
 5. SSE self-echo on persist-path AI writes (`project_ai/index.tsx:69-96`, no
    origin filter) — the model is told its own edits were user actions. A
    hand-rolled fix duplicates `markAIEdit` — wait for adoption (rung 4).
+
+## Review findings that shape adoption (2026-07-20)
+
+Panther's combined Phase 1+2 adversarial review audited THIS repo's guard
+sites guard-by-guard. What it settled for the migration:
+
+1. **The ~23 guard deletions lose nothing** — verified: every guard being
+   deleted (all 8 report_editor throws, both slide_editor and both
+   visualization_editor guards, `requireDeckContext`) tests ONLY the mode
+   string. The nullable-within-correct-mode checks (`vizId: string | null`,
+   `getSelection()` returning undefined) live inside handler bodies that
+   migrate verbatim. Rung 3 is de-risked.
+2. **Two situational redirects must move into tool DESCRIPTIONS** — the
+   uniform gate message drops them: `requireDeckContext`'s "Close the slide
+   editor first to make deck-level changes" (`slides.tsx:50-52`) and
+   `update_figure`'s "use update_report_figure instead"
+   (`slide_editor.tsx:374-376`). Panther deliberately offers no per-tool
+   gate-message hints; the description is the cache-stable channel the model
+   reads BEFORE its first refusal. Fold each redirect into the tool's
+   description text during the migration sweep.
+3. **One controller instance, period** — controller-created tools carry an
+   identity stamp, and chat construction THROWS if a tool was made by a
+   different `createAIViewController` instance than the chat's (id-set
+   equality is not enough — the handler's narrowed view state reads the
+   creating controller's signal). wb-fastr builds tools in separate modules
+   (`build_tools.ts`): construct the controller once at module level and
+   import it everywhere; never build a second controller from the same
+   registry.
+4. **Editor mount/unmount are setView sync sites** — today `getAIContext()`
+   is DERIVED (it structurally cannot report `editing_slide` after the editor
+   unmounts); the controller is IMPERATIVE. The tab map covers tab changes,
+   but what flips modes to `editing_*` today is editor lifecycle — every
+   editor mount/unmount/teardown must call `setView`/`clearView`, or the gate
+   keeps ADMITTING execution against a torn-down context (panther's safety
+   net covers labels/promptSections, deliberately not handlers). Enumerate
+   the editor lifecycle hooks as sync sites in the rung-3 migration list.
+5. **`switch_tab` keeps its soft return** — the family guard
+   (`startsWith("editing_")`) migrates verbatim onto the full view-state
+   union (`keyof` unions are string literals, so `.startsWith` typechecks).
+   Keep it a RETURN, not a throw — a throw would become `is_error: true` on
+   the wire and change today's behavior.
+6. **Handler view narrowing requires `availableIn`** — panther blocks
+   inferring the narrowed view type from a handler annotation alone
+   (`NoInfer`), so "narrowed type but no gate" is unwritable. Declare
+   `availableIn` on every tool that wants typed params/context; a tool that
+   omits it gets the full state union and narrows manually (the `switch_tab` /
+   `get_slide` pattern).
 
 ## Recommended adoption order
 

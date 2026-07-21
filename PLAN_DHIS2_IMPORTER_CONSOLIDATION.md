@@ -722,9 +722,9 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
   next begins; one commit per phase. Severable at every boundary: if priorities
   shift after any phase, the completed families are coherent and the remaining
   ones keep working untouched on the old machinery indefinitely.
-- Deploy reality: none of this is deployed until Tim runs the deploy (note the
-  DHIS2-importer Phases 1–4 themselves are also still awaiting their first
-  deploy); leftover mid-wizard attempts at deploy time are discarded by the drop
+- Deploy reality: none of this is deployed until Tim runs the deploy (the
+  DHIS2-importer Phases 1–4 are deployed as of 2026-07-20 and working OK);
+  leftover mid-wizard attempts at deploy time are discarded by the drop
   migrations — users relaunch through the new wizards once.
 
 ## Out of scope (all phases)

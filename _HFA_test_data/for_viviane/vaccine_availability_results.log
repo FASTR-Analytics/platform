@@ -1,0 +1,142 @@
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/timroberton/projects/apps/wb-fastr/_HFA_test_data/for_vivia
+> ne/vaccine_availability_results.log
+  log type:  text
+ opened on:  21 Jul 2026, 06:16:22
+
+. 
+. *--- Weights ----------------------------------------------------------
+. import delimited "weights.csv", varnames(1) clear
+(4 vars, 363 obs)
+
+. keep id_fac_txt wgt
+
+. drop if missing(id_fac_txt)
+(1 observation deleted)
+
+. tempfile weights
+
+. save `weights'
+file /var/folders/83/r22l0yrs5djfwz884fz8vtj40000gn/T//St53349.000001 saved
+    as .dta format
+
+. 
+. *--- Survey data ------------------------------------------------------
+. import delimited "data_raw.csv", varnames(1) clear
+(195 vars, 849 obs)
+
+. keep id_fac_txt sup_05aaa_a sup_05aaa_b sup_05aaa_c ///
+>     sup_05aaa_d sup_05aaa_e sup_05aaa_f
+
+. drop if missing(id_fac_txt)
+(0 observations deleted)
+
+. 
+. * One row per facility: first submission in file order wins
+. gen long row_in_file = _n
+
+. bysort id_fac_txt (row_in_file): keep if _n == 1
+(395 observations deleted)
+
+. sort row_in_file
+
+. drop row_in_file
+
+. 
+. * Attach weights; facilities without a weight row get weight 1
+. merge m:1 id_fac_txt using `weights', keep(master match) nogenerate
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            92
+        from master                        92  
+        from using                          0  
+
+    Matched                               362  
+    -----------------------------------------
+
+. gen double weight = cond(missing(wgt), 1, wgt)
+
+. 
+. *--- Indicators: vaccine available today at the facility --------------
+. gen vac_measles = cond(missing(sup_05aaa_a), ., cond(sup_05aaa_a == -99, `dk_
+> value', sup_05aaa_a == 1))   // ind160
+(242 missing values generated)
+
+. gen vac_penta   = cond(missing(sup_05aaa_b), ., cond(sup_05aaa_b == -99, `dk_
+> value', sup_05aaa_b == 1))   // ind166
+(241 missing values generated)
+
+. gen vac_bcg     = cond(missing(sup_05aaa_c), ., cond(sup_05aaa_c == -99, `dk_
+> value', sup_05aaa_c == 1))   // ind172
+(241 missing values generated)
+
+. gen vac_polio   = cond(missing(sup_05aaa_d), ., cond(sup_05aaa_d == -99, `dk_
+> value', sup_05aaa_d == 1))   // ind178
+(241 missing values generated)
+
+. gen vac_pcv     = cond(missing(sup_05aaa_e), ., cond(sup_05aaa_e == -99, `dk_
+> value', sup_05aaa_e == 1))   // ind184
+(241 missing values generated)
+
+. gen vac_hpv     = cond(missing(sup_05aaa_f), ., cond(sup_05aaa_f == -99, `dk_
+> value', sup_05aaa_f == 1))   // ind190
+(241 missing values generated)
+
+. 
+. * Index: share of the six tracer vaccines available;
+. * missing if any component is missing                                        
+>                              // ind274
+. gen vac_index = (vac_measles + vac_penta + vac_bcg + vac_polio + vac_pcv + va
+> c_hpv) / 6
+(242 missing values generated)
+
+. 
+. *--- Results: national, all facility types ----------------------------
+. display _newline as text "Unweighted (platform USE_SAMPLE_WEIGHTS = FALSE)"
+
+Unweighted (platform USE_SAMPLE_WEIGHTS = FALSE)
+
+. tabstat vac_measles vac_penta vac_bcg vac_polio vac_pcv vac_hpv vac_index, //
+> /
+>     statistics(count mean) columns(statistics) format(%9.5f)
+
+    Variable |         N      Mean
+-------------+--------------------
+ vac_measles | 212.00000   0.96226
+   vac_penta | 213.00000   0.93427
+     vac_bcg | 213.00000   0.95305
+   vac_polio | 213.00000   0.95305
+     vac_pcv | 213.00000   0.96714
+     vac_hpv | 213.00000   0.91549
+   vac_index | 212.00000   0.94733
+----------------------------------
+
+. 
+. display _newline as text "Weighted (platform USE_SAMPLE_WEIGHTS = TRUE)"
+
+Weighted (platform USE_SAMPLE_WEIGHTS = TRUE)
+
+. tabstat vac_measles vac_penta vac_bcg vac_polio vac_pcv vac_hpv vac_index ///
+>     [aweight = weight], statistics(mean) columns(statistics) format(%9.5f)
+
+    Variable |      Mean
+-------------+----------
+ vac_measles |   0.96817
+   vac_penta |   0.92720
+     vac_bcg |   0.95496
+   vac_polio |   0.94963
+     vac_pcv |   0.96639
+     vac_hpv |   0.91382
+   vac_index |   0.94660
+------------------------
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/timroberton/projects/apps/wb-fastr/_HFA_test_data/for_vivia
+> ne/vaccine_availability_results.log
+  log type:  text
+ closed on:  21 Jul 2026, 06:16:22
+-------------------------------------------------------------------------------

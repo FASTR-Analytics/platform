@@ -16,6 +16,7 @@ import {
   Button,
   Checkbox,
   DoubleSlider,
+  MultiSelectSearch,
   RadioGroup,
   Slider,
   StateHolderWrapper,
@@ -27,6 +28,10 @@ import {
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
+
+// Above this option count, filter boxes render as a searchable combo-box
+// instead of the flat chip cloud.
+const FILTER_SEARCH_THRESHOLD = 0;
 
 // Extract the calendar year from any period value (year YYYY / quarter_id YYYYQ /
 // period_id YYYYMM), keyed by digit length now that the three formats are disjoint.
@@ -112,6 +117,14 @@ type DataValuesFilterProps = {
 };
 
 function DataValuesFilter(p: DataValuesFilterProps) {
+  function toggleVal(val: string) {
+    p.setTempConfig("d", "valuesFilter", (prev) => {
+      if (prev?.includes(val)) {
+        return prev.filter((v) => v !== val);
+      }
+      return [...(prev ?? []), val];
+    });
+  }
   return (
     <div class="ui-spy-sm">
       <Checkbox
@@ -125,27 +138,39 @@ function DataValuesFilter(p: DataValuesFilterProps) {
           }
         }}
       />
-      <Show when={p.tempConfig.d.valuesFilter} keyed>
-        {(keyedValuesFilter) => {
-          function toggleVal(val: string) {
-            p.setTempConfig("d", "valuesFilter", (prev) => {
-              if (prev?.includes(val)) {
-                return prev.filter((v) => v !== val);
-              }
-              return [...(prev ?? []), val];
-            });
-          }
-          return (
-            <div class="pb-4">
+      <Show when={!!p.tempConfig.d.valuesFilter}>
+        <div class="pb-4">
+          <Switch>
+            <Match
+              when={p.poDetail.resultsValue.valueProps.length >
+                FILTER_SEARCH_THRESHOLD}
+            >
+              <MultiSelectSearch
+                values={p.tempConfig.d.valuesFilter ?? []}
+                options={p.poDetail.resultsValue.valueProps.map((v) => ({
+                  value: v,
+                  label: v,
+                }))}
+                onChange={(v) => p.setTempConfig("d", "valuesFilter", v)}
+                mono
+                fullWidth
+              />
+            </Match>
+            <Match
+              when={p.poDetail.resultsValue.valueProps.length <=
+                FILTER_SEARCH_THRESHOLD}
+            >
               <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                 <For each={p.poDetail.resultsValue.valueProps}>
                   {(opt) => {
+                    const isSelected = () =>
+                      (p.tempConfig.d.valuesFilter ?? []).includes(opt);
                     return (
                       <div
                         class="cursor-pointer rounded px-2 py-1"
                         classList={{
-                          "bg-success text-base-100": keyedValuesFilter.includes(opt),
-                          "ui-hoverable-base-200": !keyedValuesFilter.includes(opt),
+                          "bg-success text-base-100": isSelected(),
+                          "ui-hoverable-base-200": !isSelected(),
                         }}
                         onClick={() => toggleVal(opt)}
                       >
@@ -155,9 +180,9 @@ function DataValuesFilter(p: DataValuesFilterProps) {
                   }}
                 </For>
               </div>
-            </div>
-          );
-        }}
+            </Match>
+          </Switch>
+        </div>
       </Show>
     </div>
   );
@@ -412,6 +437,17 @@ type DisaggregationFilterProps = {
 };
 
 function DisaggregationFilter(p: DisaggregationFilterProps) {
+  const okValues = () =>
+    p.keyedStatus.status === "ok" ? p.keyedStatus.values : [];
+  function setValues(values: string[]) {
+    p.setTempConfig(
+      "d",
+      "filterBy",
+      (fil) => fil.disOpt === p.disOpt.value,
+      "values",
+      values,
+    );
+  }
   return (
     <div class="ui-spy-sm">
       <Checkbox
@@ -473,7 +509,36 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                     {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
                   </div>
                 </Match>
-                <Match when={p.keyedStatus.status === "ok"}>
+                <Match
+                  when={p.keyedStatus.status === "ok" &&
+                    okValues().length > FILTER_SEARCH_THRESHOLD}
+                >
+                  {(() => {
+                    const canonicalValues = createMemo(() => {
+                      const byLower = new Map(
+                        okValues().map((v) => [v.id.toLowerCase(), v.id]),
+                      );
+                      return keyedFilter.values.map((v) =>
+                        byLower.get(String(v).toLowerCase()) ?? String(v)
+                      );
+                    });
+                    return (
+                      <MultiSelectSearch
+                        values={canonicalValues()}
+                        options={okValues().map((v) => ({
+                          value: v.id,
+                          label: v.label,
+                        }))}
+                        onChange={setValues}
+                        fullWidth
+                      />
+                    );
+                  })()}
+                </Match>
+                <Match
+                  when={p.keyedStatus.status === "ok" &&
+                    okValues().length <= FILTER_SEARCH_THRESHOLD}
+                >
                   <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {

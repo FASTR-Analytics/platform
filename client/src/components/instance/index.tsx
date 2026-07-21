@@ -8,6 +8,7 @@ import {
   Icon,
   MenuTriggerWrapper,
   PopoverMenuProvider,
+  TooltipProvider,
   getFirstString,
   openComponent,
   type ListItem,
@@ -352,6 +353,7 @@ export default function Instance(p: Props) {
       </Switch>
       <AlertProvider />
       <PopoverMenuProvider />
+      <TooltipProvider />
     </>
   );
 }
