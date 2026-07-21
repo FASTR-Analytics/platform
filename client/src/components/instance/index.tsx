@@ -1,5 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, getLanguage, t3, LANGUAGE_STORAGE_KEY } from "lib";
+import { TC, compareDottedVersions, getLanguage, t3, LANGUAGE_STORAGE_KEY } from "lib";
 import {
   AlertProvider,
   Button,
@@ -18,6 +18,8 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
+import { WhatsNewModal } from "~/components/whats_new_modal";
+import { serverActions } from "~/server_actions";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -154,12 +156,14 @@ export default function Instance(p: Props) {
     if (!instanceState.currentUserApproved) return;
     if (!clerk.user) return;
     (async () => {
-      if (!clerk.user!.unsafeMetadata?.emailOptInAsked) {
+      const isBrandNewUser = !clerk.user!.unsafeMetadata?.emailOptInAsked;
+      if (isBrandNewUser) {
         await openComponent({ element: EmailOptInModal, props: undefined });
       }
       if (!clerk.user!.unsafeMetadata?.organisation) {
         await openComponent({ element: OrganisationModal, props: undefined });
       }
+      await maybeShowWhatsNew(isBrandNewUser);
     })();
   });
 
@@ -357,4 +361,37 @@ export default function Instance(p: Props) {
       <TooltipProvider />
     </>
   );
+}
+
+// Show the What's New popup once per user per release. The server returns only
+// published posts eligible for this instance (version <= server version,
+// adminsOnly pre-filtered). Seen-state is a high-water-mark version string in
+// Clerk unsafeMetadata; brand-new users are baselined without seeing a popup.
+async function maybeShowWhatsNew(isBrandNewUser: boolean) {
+  const res = await serverActions.getWhatsNewPosts({});
+  if (!res.success || res.data.length === 0) {
+    return;
+  }
+  const newest = res.data.reduce((a, b) =>
+    compareDottedVersions(a.version, b.version) >= 0 ? a : b,
+  );
+  const seen = clerk.user?.unsafeMetadata?.whatsNewSeenVersion as
+    | string
+    | undefined;
+  if (seen && compareDottedVersions(newest.version, seen) <= 0) {
+    return;
+  }
+  if (!isBrandNewUser && newest.pages.length > 0) {
+    await openComponent({ element: WhatsNewModal, props: { post: newest } });
+  }
+  try {
+    await clerk.user?.update({
+      unsafeMetadata: {
+        ...clerk.user.unsafeMetadata,
+        whatsNewSeenVersion: newest.version,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to record whatsNewSeenVersion", err);
+  }
 }

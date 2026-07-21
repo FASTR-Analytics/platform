@@ -6,6 +6,7 @@ globs:
   - client/src/components/ConnectionStatus.tsx
   - client/src/components/HelpButton.tsx
   - client/src/components/email_opt_in_modal.tsx
+  - client/src/components/whats_new_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
   - client/src/components/project/index.tsx
@@ -15,7 +16,9 @@ globs:
   - client/src/state/t4_ui.ts
   - lib/help/**
   - lib/types/sort.ts
+  - lib/types/whats_new.ts
   - lib/translate/**
+  - server/routes/instance/whats_new.ts
 docs_absorbed:
 ---
 
@@ -182,8 +185,17 @@ dead UI** (Open items); the monitor itself is live.
 An effect in `components/instance/index.tsx` (after approval + Clerk user)
 sequentially opens `EmailOptInModal` (writes
 `clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
-`OrganisationModal` (writes `unsafeMetadata.organisation`; skippable). Both
-persist to Clerk `unsafeMetadata` only — no server or localStorage writes.
+`OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
+`WhatsNewModal` — a multi-page release-notes popup. Posts are authored in the
+Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
+(5-min in-memory cache, fail-silent) and pre-filtered server-side to
+`published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`;
+the client shows only the newest unseen post, keyed on the high-water mark
+`unsafeMetadata.whatsNewSeenVersion` (brand-new users — detected as
+`!emailOptInAsked` before the opt-in modal writes it — are baselined without
+seeing a popup). Types + `compareDottedVersions` live in
+`lib/types/whats_new.ts`. All three persist to Clerk `unsafeMetadata` only — no
+server or localStorage writes.
 
 ## Help buttons (`lib/help/**`, `HelpButton.tsx`)
 
