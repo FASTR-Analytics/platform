@@ -1,21 +1,23 @@
-[TBD] [user] [fixed] - Report editor now updates correctly when switching dark/light mode
-[TBD] [admin] [fixed] - Report editor now updates correctly when switching themes
-[TBD] [admin] [changed] - Instance information dialog layout slightly improved
-[TBD] [user] [fixed] - Slide presenter now updates live when collaborators edit slides
-[TBD] [user] [fixed] - Slide presenter refreshes slide list when collaborators add or remove slides
-[TBD] [user] [fixed] - Permission and lock changes now apply immediately in open editors
-[TBD] [user] [fixed] - Connection status banner no longer hidden behind other elements
-[TBD] [user] [changed] - Cleaner border styling throughout the interface
-[TBD] [user] [fixed] - Live collaboration indicator more reliably detects disconnections
-[TBD] [user] [fixed] - Undo no longer crashes after a visualization is deleted by a collaborator
-[TBD] [admin] [fixed] - Slide presenter now reflects live edits from collaborators
-[TBD] [admin] [fixed] - Slide presenter updates when peers add, delete, or reorder slides
-[TBD] [admin] [fixed] - Permission and lock changes now propagate into open caption editors
-[TBD] [admin] [fixed] - Collab connection status indicator more reliably detects socket drops
-[TBD] [admin] [fixed] - Prevented potential crash when a collaboration room is discarded during editing
-[TBD] [admin] [fixed] - Server now handles dead peer sockets without disrupting other collaborators
-[TBD] [admin] [changed] - Dark mode profile dialog colors now sourced from the shared theme definition
-[TBD] [admin] [internal] - Improved error logging for collaboration session failures
+[1.61.1] [user] [fixed] - Fixed crash when generating charts from AI-suggested configurations
+[1.61.1] [admin] [fixed] - Resolved crash when AI tools generate visualizations
+[1.61.1] [user] [fixed] - Report editor now updates correctly when switching dark/light mode
+[1.61.1] [admin] [fixed] - Report editor now updates correctly when switching themes
+[1.61.1] [admin] [changed] - Instance information dialog layout slightly improved
+[1.61.1] [user] [fixed] - Slide presenter now updates live when collaborators edit slides
+[1.61.1] [user] [fixed] - Slide presenter refreshes slide list when collaborators add or remove slides
+[1.61.1] [user] [fixed] - Permission and lock changes now apply immediately in open editors
+[1.61.1] [user] [fixed] - Connection status banner no longer hidden behind other elements
+[1.61.1] [user] [changed] - Cleaner border styling throughout the interface
+[1.61.1] [user] [fixed] - Live collaboration indicator more reliably detects disconnections
+[1.61.1] [user] [fixed] - Undo no longer crashes after a visualization is deleted by a collaborator
+[1.61.1] [admin] [fixed] - Slide presenter now reflects live edits from collaborators
+[1.61.1] [admin] [fixed] - Slide presenter updates when peers add, delete, or reorder slides
+[1.61.1] [admin] [fixed] - Permission and lock changes now propagate into open caption editors
+[1.61.1] [admin] [fixed] - Collab connection status indicator more reliably detects socket drops
+[1.61.1] [admin] [fixed] - Prevented potential crash when a collaboration room is discarded during editing
+[1.61.1] [admin] [fixed] - Server now handles dead peer sockets without disrupting other collaborators
+[1.61.1] [admin] [changed] - Dark mode profile dialog colors now sourced from the shared theme definition
+[1.61.1] [admin] [internal] - Improved error logging for collaboration session failures
 [1.61.0] [user] [added] - Dark mode toggle in profile settings
 [1.61.0] [user] [added] - Live cursors show collaborators' mouse pointers in real time
 [1.61.0] [user] [added] - Cursor chat lets you press "/" to send quick messages to collaborators
