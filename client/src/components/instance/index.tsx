@@ -18,8 +18,13 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
-import { WhatsNewModal } from "~/components/whats_new_modal";
+import {
+  WhatsNewBellIcon,
+  WhatsNewFeedModal,
+  WhatsNewModal,
+} from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
+import type { WhatsNewPost } from "lib";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -267,6 +272,21 @@ export default function Instance(p: Props) {
                       {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
                     </Button>
                   </MenuTriggerWrapper>
+                  <Show
+                    when={
+                      instanceState.currentUserApproved &&
+                      whatsNewPosts().length > 0
+                    }
+                  >
+                    <div class="relative">
+                      <Button onClick={openWhatsNewFeed} intent="base-100">
+                        <WhatsNewBellIcon />
+                      </Button>
+                      <Show when={whatsNewUnread()}>
+                        <div class="bg-primary pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+                      </Show>
+                    </div>
+                  </Show>
                   <Show when={instanceState.currentUserApproved}>
                     <Button
                       onClick={openFeedback}
@@ -363,18 +383,41 @@ export default function Instance(p: Props) {
   );
 }
 
-// Show the What's New popup once per user per release. The server returns only
-// published posts eligible for this instance (version <= server version,
-// adminsOnly pre-filtered). Seen-state is a high-water-mark version string in
-// Clerk unsafeMetadata; brand-new users are baselined without seeing a popup.
+// What's New: the server returns only published posts eligible for this
+// instance (version <= server version, adminsOnly pre-filtered). Seen-state is
+// a high-water-mark version string in Clerk unsafeMetadata; brand-new users
+// are baselined without seeing a popup. Fetched posts also power the header
+// bell (unread dot + browsable feed).
+const [whatsNewPosts, setWhatsNewPosts] = createSignal<WhatsNewPost[]>([]);
+const [whatsNewUnread, setWhatsNewUnread] = createSignal(false);
+
+function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
+  return posts.reduce((a, b) =>
+    compareDottedVersions(a.version, b.version) >= 0 ? a : b,
+  );
+}
+
+async function markWhatsNewSeen(version: string) {
+  setWhatsNewUnread(false);
+  try {
+    await clerk.user?.update({
+      unsafeMetadata: {
+        ...clerk.user.unsafeMetadata,
+        whatsNewSeenVersion: version,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to record whatsNewSeenVersion", err);
+  }
+}
+
 async function maybeShowWhatsNew(isBrandNewUser: boolean) {
   const res = await serverActions.getWhatsNewPosts({});
   if (!res.success || res.data.length === 0) {
     return;
   }
-  const newest = res.data.reduce((a, b) =>
-    compareDottedVersions(a.version, b.version) >= 0 ? a : b,
-  );
+  setWhatsNewPosts(res.data);
+  const newest = newestWhatsNewPost(res.data);
   const seen = clerk.user?.unsafeMetadata?.whatsNewSeenVersion as
     | string
     | undefined;
@@ -382,16 +425,34 @@ async function maybeShowWhatsNew(isBrandNewUser: boolean) {
     return;
   }
   if (!isBrandNewUser && newest.pages.length > 0) {
+    setWhatsNewUnread(true);
     await openComponent({ element: WhatsNewModal, props: { post: newest } });
   }
-  try {
-    await clerk.user?.update({
-      unsafeMetadata: {
-        ...clerk.user.unsafeMetadata,
-        whatsNewSeenVersion: newest.version,
-      },
+  await markWhatsNewSeen(newest.version);
+}
+
+// Header-bell feed: opening it acknowledges everything (clears the unread
+// dot), then lets the user browse and re-read any post.
+async function openWhatsNewFeed() {
+  const posts = whatsNewPosts();
+  if (posts.length === 0) {
+    return;
+  }
+  const newest = newestWhatsNewPost(posts);
+  const seen = clerk.user?.unsafeMetadata?.whatsNewSeenVersion as
+    | string
+    | undefined;
+  if (!seen || compareDottedVersions(newest.version, seen) > 0) {
+    await markWhatsNewSeen(newest.version);
+  }
+  while (true) {
+    const chosen = await openComponent({
+      element: WhatsNewFeedModal,
+      props: { posts },
     });
-  } catch (err) {
-    console.error("Failed to record whatsNewSeenVersion", err);
+    if (!chosen) {
+      return;
+    }
+    await openComponent({ element: WhatsNewModal, props: { post: chosen } });
   }
 }

@@ -195,9 +195,12 @@ test deploys);
 the client shows only the newest unseen post, keyed on the high-water mark
 `unsafeMetadata.whatsNewSeenVersion` (brand-new users — detected as
 `!emailOptInAsked` before the opt-in modal writes it — are baselined without
-seeing a popup). Types + `compareDottedVersions` live in
-`lib/types/whats_new.ts`. All three persist to Clerk `unsafeMetadata` only — no
-server or localStorage writes.
+seeing a popup). The fetched posts also power a header bell (between the
+language switcher and the feedback button; hidden when there are no posts)
+with an unread dot and a `WhatsNewFeedModal` history feed — opening the feed
+acknowledges everything, and any post can be re-read from it. Types +
+`compareDottedVersions` live in `lib/types/whats_new.ts`. All three modals
+persist to Clerk `unsafeMetadata` only — no server or localStorage writes.
 
 ## Help buttons (`lib/help/**`, `HelpButton.tsx`)
 

@@ -1,11 +1,11 @@
-import { t3, type WhatsNewPage, type WhatsNewPost } from "lib";
+import { compareDottedVersions, getLanguage, t3, type WhatsNewPage, type WhatsNewPost } from "lib";
 import {
   Button,
   MarkdownPresentationJsx,
   ModalContainer,
   type AlertComponentProps,
 } from "panther";
-import { Index, Show, createSignal } from "solid-js";
+import { For, Index, Show, createSignal } from "solid-js";
 
 export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, undefined>) {
   const [pageIndex, setPageIndex] = createSignal(0);
@@ -99,5 +99,67 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
         <Show when={p.page.imageUrl && (pos() === "bottom" || pos() === "right")}>{img()}</Show>
       </div>
     </div>
+  );
+}
+
+// Browsable history of announcements, newest first. Closes with the chosen
+// post (caller opens WhatsNewModal for it) or undefined on Close.
+export function WhatsNewFeedModal(
+  p: AlertComponentProps<{ posts: WhatsNewPost[] }, WhatsNewPost | undefined>,
+) {
+  const sorted = () =>
+    [...p.posts].sort((a, b) => compareDottedVersions(b.version, a.version));
+
+  return (
+    <ModalContainer
+      width="md"
+      scroll="content"
+      topPanel={
+        <div class="font-700 text-base-content text-xl">
+          {t3({ en: "What's New", fr: "Nouveautés", pt: "Novidades" })}
+        </div>
+      }
+      rightButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button intent="neutral" onClick={() => p.close(undefined)}>
+            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+          </Button>,
+        ]
+      }
+    >
+      <div class="ui-spy-sm">
+        <For each={sorted()}>
+          {(post) => (
+            <button
+              type="button"
+              class="ui-hoverable-base-100 block w-full cursor-pointer rounded border px-4 py-3 text-left"
+              onClick={() => p.close(post)}
+            >
+              <div class="font-700 text-base-content">{post.title}</div>
+              <div class="text-base-content-muted mt-1 text-sm">
+                v{post.version} ·{" "}
+                {new Date(post.updatedAt).toLocaleDateString(getLanguage())}
+                {" · "}
+                {post.pages.length}{" "}
+                {post.pages.length === 1
+                  ? t3({ en: "page", fr: "page", pt: "página" })
+                  : t3({ en: "pages", fr: "pages", pt: "páginas" })}
+              </div>
+            </button>
+          )}
+        </For>
+      </div>
+    </ModalContainer>
+  );
+}
+
+// Phosphor "bell" (regular, MIT — see panther/PHOSPHOR_LICENSE.txt); panther's
+// icon set has no bell, and panther itself must not be modified from this repo.
+export function WhatsNewBellIcon() {
+  return (
+    <svg viewBox="0 0 256 256" fill="currentColor" class="h-[1.25em] w-[1.25em]">
+      <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" />
+    </svg>
   );
 }
