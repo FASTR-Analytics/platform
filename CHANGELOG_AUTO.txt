@@ -1,3 +1,6 @@
+[TBD] [user] [fixed] - Report editor now updates correctly when switching dark/light mode
+[TBD] [admin] [fixed] - Report editor now updates correctly when switching themes
+[TBD] [admin] [changed] - Instance information dialog layout slightly improved
 [TBD] [user] [fixed] - Slide presenter now updates live when collaborators edit slides
 [TBD] [user] [fixed] - Slide presenter refreshes slide list when collaborators add or remove slides
 [TBD] [user] [fixed] - Permission and lock changes now apply immediately in open editors
