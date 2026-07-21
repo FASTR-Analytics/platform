@@ -15,7 +15,11 @@ import type {
   Usage,
 } from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import type {
+  AIToolWithMetadata,
+  ApprovalPolicy,
+  ApprovalPreview,
+} from "./tool_helpers.ts";
 import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +100,27 @@ export type DisplayItem =
   | {
     type: "thinking_summary";
     text: string;
+  }
+  // The pending-approval card (Feature 4): engine-managed, created when its
+  // block starts executing, removed in the lifecycle's finally on every
+  // exit. NEVER persisted (saveConversation strips it as a backstop). The
+  // card is a pure view — the resolver lives on the conversation store's
+  // pendingDecision signal, so unmount/remount is inert and deciding works
+  // from any instance.
+  | {
+    type: "approval_pending";
+    toolName: string;
+    preview: ApprovalPreview;
+    sessionCheckbox: boolean;
+  }
+  // The decision record (persisted): auto_declined covers view-exit and
+  // stale — the tool result string carries the distinction; the timeline
+  // records that the user did not decide.
+  | {
+    type: "approval_decision";
+    toolName: string;
+    title: string;
+    decision: "approved" | "declined" | "auto_approved" | "auto_declined";
   };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -126,6 +151,16 @@ export type DisplayRegistry = {
   >;
   thinkingSummary?: DisplayItemRenderer<
     Extract<DisplayItem, { type: "thinking_summary" }>
+  >;
+  // The pending card gets the decide callback alongside the item — it
+  // resolves the store-owned decision (accepted/declined [+ session
+  // checkbox]); a no-op once the decision is already resolved.
+  approvalPending?: Component<{
+    item: Extract<DisplayItem, { type: "approval_pending" }>;
+    onDecide: (accepted: boolean, alwaysThisSession?: boolean) => void;
+  }>;
+  approvalDecision?: DisplayItemRenderer<
+    Extract<DisplayItem, { type: "approval_decision" }>
   >;
   default?: DisplayItemRenderer<DisplayItem>;
 };
@@ -205,6 +240,12 @@ export type AIChatConfig = {
   // otherwise reject any interaction-adopting controller here.
   // deno-lint-ignore no-explicit-any
   viewController?: AIViewController<any, any>;
+
+  // App-level approval policy (Feature 4): construction throws for any tool
+  // tagged kind "write" that has neither approval nor an exempt entry;
+  // requireKind additionally makes an undeclared kind a boot-time throw.
+  // Enforced on dynamic register() too. Strictly opt-in.
+  approvalPolicy?: ApprovalPolicy;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

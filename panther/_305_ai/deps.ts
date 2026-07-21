@@ -7,8 +7,11 @@ export { t3 } from "../_000_utils/mod.ts";
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export { createMarkdownIt } from "../_105_markdown/mod.ts";
 export {
+  APPROVAL_DECLINED_MESSAGE,
+  APPROVAL_STALE_MESSAGE,
   assembleTurnSections,
   BETA_HEADERS,
+  buildApprovalViewExitMessage,
   buildAvailabilityHint,
   buildCancelledToolResults,
   buildInteractionDigest,
@@ -60,6 +63,7 @@ export {
   Icon,
   MARKDOWN_BASE_STYLES,
   ModalContainer,
+  openConfirm,
   Select,
   Slider,
   Table,

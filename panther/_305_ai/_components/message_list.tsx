@@ -11,6 +11,10 @@ import type {
   DisplayRegistry,
   MessageStyle,
 } from "../_core/types.ts";
+import {
+  ApprovalDecisionRenderer,
+  ApprovalPendingRenderer,
+} from "./_renderers/approval_renderer.tsx";
 import { AssistantCompletedTextRenderer } from "./_renderers/assistant_completed_text_renderer.tsx";
 import { AssistantStreamingTextRenderer } from "./_renderers/assistant_streaming_text_renderer.tsx";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
@@ -36,6 +40,10 @@ type Props = {
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
+  // Resolves the ACTIVE conversation's pending approval decision (Feature
+  // 4). The card is a pure view — this callback is a no-op once the
+  // decision is already resolved.
+  onApprovalDecide?: (accepted: boolean, alwaysThisSession?: boolean) => void;
   userMessageStyle?: MessageStyle;
   assistantMessageStyle?: MessageStyle;
   markdownStyle?: CustomMarkdownStyleOptions;
@@ -92,6 +100,19 @@ export function MessageList(p: Props) {
       }
       case "thinking_summary": {
         const Renderer = registry.thinkingSummary ?? ThinkingSummaryRenderer;
+        return <Renderer item={item} />;
+      }
+      case "approval_pending": {
+        const Renderer = registry.approvalPending ?? ApprovalPendingRenderer;
+        return (
+          <Renderer
+            item={item}
+            onDecide={p.onApprovalDecide ?? (() => {})}
+          />
+        );
+      }
+      case "approval_decision": {
+        const Renderer = registry.approvalDecision ?? ApprovalDecisionRenderer;
         return <Renderer item={item} />;
       }
       case "tool_display": {

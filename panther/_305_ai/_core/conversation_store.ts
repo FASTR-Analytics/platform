@@ -6,6 +6,7 @@
 import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
+import type { ApprovalPreview } from "./tool_helpers.ts";
 import {
   clearConversationPersistence,
   loadConversation,
@@ -48,11 +49,33 @@ export type QueuedMessage = {
   resolve: () => void;
 };
 
-// Phase 4 (tool approval) gives this real content; the slot exists from
-// Phase 0A so the turn lifecycle and pendingUserAction() are wired once.
+// The pending approval decision (Feature 4), owned by the CONVERSATION —
+// never by UI mount (decision log #6): the card is a pure view over this
+// signal plus a display item; unmount and instance disposal are inert, and
+// only explicit paths resolve it (user decision, Stop, view-exit
+// auto-decline, staleness at accept, modal displacement). Decision lifetime
+// ⊆ turn lifetime.
+export type PendingDecisionOutcome =
+  | { kind: "accepted"; alwaysThisSession: boolean }
+  | { kind: "declined" }
+  // View-exit auto-decline and stale-at-accept both record as auto_declined;
+  // viewId is the view the user left (for the standardized result string).
+  | { kind: "auto_declined"; viewId: string }
+  // Stop/halt — the block resolves through the cancelled-result machinery.
+  | { kind: "interrupted" };
+
 export type PendingDecision = {
   toolName: string;
-  resolve: (accepted: boolean) => void;
+  preview: ApprovalPreview;
+  // Whether the inline card offers "don't ask again in this conversation".
+  sessionCheckbox: boolean;
+  // The tool's availableIn, for the auto-decline watcher (absent = the tool
+  // declared view-independence and opted out).
+  availableIn?: string[];
+  // The live view id when the decision was registered.
+  viewIdAtCreation?: string;
+  // Idempotent — the first resolution wins, later calls are no-ops.
+  resolve: (outcome: PendingDecisionOutcome) => void;
 };
 
 export type ConversationStore = {
@@ -69,6 +92,10 @@ export type ConversationStore = {
   activeTurn: ReturnType<typeof createSignal<ActiveTurn | null>>;
   pendingDecision: ReturnType<typeof createSignal<PendingDecision | null>>;
   queuedMessages: ReturnType<typeof createSignal<QueuedMessage[]>>;
+  // Tool names session-approved via the "don't ask again in this
+  // conversation" checkbox (approval mode "session"). Persisted with the
+  // conversation record; hydrated with it.
+  approvedTools: ReturnType<typeof createSignal<string[]>>;
 };
 
 const stores = new Map<string, ConversationStore>();
@@ -93,6 +120,7 @@ export function getOrCreateConversationStore(
       activeTurn: createSignal<ActiveTurn | null>(null),
       pendingDecision: createSignal<PendingDecision | null>(null),
       queuedMessages: createSignal<QueuedMessage[]>([]),
+      approvedTools: createSignal<string[]>([]),
     };
 
     stores.set(conversationId, store);
@@ -109,6 +137,7 @@ export function getOrCreateConversationStore(
           const [, setDisplayItems] = store.displayItems;
           setMessages(persisted.messages);
           setDisplayItems(persisted.displayItems);
+          store.approvedTools[1](persisted.approvedTools ?? []);
         }
       });
     }
@@ -150,6 +179,8 @@ export function clearConversationStore(conversationId: string): void {
     setCurrentStreamingText(undefined);
     setUsageHistory([]);
     setServerToolLabel(undefined);
+
+    store.approvedTools[1]([]);
 
     // Queued messages are dropped; their senders' promises resolve at drop
     // (await means "the attempt finished"). activeTurn is NOT touched — a

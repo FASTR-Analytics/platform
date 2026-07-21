@@ -6,7 +6,11 @@
 import { buildInteractionDigest, createSignal } from "../deps.ts";
 import type { AIInteractionDefLike, zType } from "../deps.ts";
 import { createAITool } from "./tool_helpers.ts";
-import type { AIToolWithMetadata, CreateAIToolConfig } from "./tool_helpers.ts";
+import type {
+  AIToolWithMetadata,
+  CreateAIToolConfigCommon,
+  PrepareResult,
+} from "./tool_helpers.ts";
 import { createInteractionLog } from "./interactions.ts";
 import type {
   AIInteractionRegistry,
@@ -134,26 +138,49 @@ export type AIViewStateFor<
 
 // viewController.createTool config: createAITool's surface, with availableIn
 // constrained to the registry's view ids (a wrong id is a COMPILE-time
-// error) and the handler receiving the live view state, narrowed to the
-// declared views. availableIn omitted → handler sees the full state union.
+// error) and the handler/prepare receiving the live view state, narrowed to
+// the declared views. availableIn omitted → the full state union. The
+// handler/approval XOR mirrors CreateAIToolConfig.
+export type ViewAIToolApprovalConfig<
+  TDefs extends Record<string, AnyAIView>,
+  K extends keyof TDefs,
+  TInput,
+  TOutput,
+> = {
+  prepare: (
+    input: TInput,
+    view: NoInfer<AIViewStateFor<TDefs, K>>,
+    ctx: { signal: AbortSignal },
+  ) => Promise<PrepareResult<TOutput>> | PrepareResult<TOutput>;
+  mode?: "always" | "session";
+  presentation?: "inline" | "modal";
+};
+
 export type CreateViewAIToolConfig<
   TDefs extends Record<string, AnyAIView>,
   K extends keyof TDefs,
   TInput,
   TOutput,
 > =
-  & Omit<CreateAIToolConfig<TInput, TOutput>, "handler" | "availableIn">
-  & {
-    availableIn?: readonly K[];
-    // NoInfer: K must narrow ONLY via availableIn. Without it, an annotated
-    // handler param (view: AIViewStateFor<Defs, "editor">) infers K narrow
-    // while availableIn stays absent — a narrowed type with NO runtime gate
-    // behind it (proven in the Phase 1+2 review).
-    handler: (
-      input: TInput,
-      view: NoInfer<AIViewStateFor<TDefs, K>>,
-    ) => Promise<TOutput> | TOutput;
-  };
+  & Omit<CreateAIToolConfigCommon<TInput>, "availableIn">
+  & { availableIn?: readonly K[] }
+  & (
+    | {
+      // NoInfer: K must narrow ONLY via availableIn. Without it, an
+      // annotated handler param (view: AIViewStateFor<Defs, "editor">)
+      // infers K narrow while availableIn stays absent — a narrowed type
+      // with NO runtime gate behind it (proven in the Phase 1+2 review).
+      handler: (
+        input: TInput,
+        view: NoInfer<AIViewStateFor<TDefs, K>>,
+      ) => Promise<TOutput> | TOutput;
+      approval?: never;
+    }
+    | {
+      handler?: never;
+      approval: ViewAIToolApprovalConfig<TDefs, K, TInput, TOutput>;
+    }
+  );
 
 export type AIViewController<
   TDefs extends Record<string, AnyAIView>,
@@ -436,20 +463,49 @@ export function createAIViewController<
           );
         }
       }
-      const tool = createAITool<TInput, TOutput>({
-        ...config,
+      const common = {
+        name: config.name,
+        description: config.description,
+        inputSchema: config.inputSchema,
+        displayComponent: config.displayComponent,
+        inProgressComponent: config.inProgressComponent,
+        inProgressLabel: config.inProgressLabel,
+        completionMessage: config.completionMessage,
+        successMessage: config.successMessage,
+        errorMessage: config.errorMessage,
+        kind: config.kind,
         // String coercion: numeric-looking registry keys would otherwise be
         // stored as numbers and mismatch the registry's Object.keys strings
         // at bind/gate time.
         availableIn: config.availableIn?.map((id) => String(id)),
-        // The gate check guarantees the current view is one of availableIn
-        // when the handler runs, and both happen in one microtask — the
-        // cast to the narrowed union is sound. Sound only for the SAME
-        // controller instance, which the registration identity check
-        // enforces (metadata._viewController below).
-        handler: (input: TInput) =>
-          config.handler(input, state() as AIViewStateFor<TDefs, K>),
-      });
+      };
+      // The gate check guarantees the current view is one of availableIn
+      // when the handler (or approval prepare) runs, and both happen in one
+      // microtask — the cast to the narrowed union is sound. Sound only for
+      // the SAME controller instance, which the registration identity check
+      // enforces (metadata._viewController below). An approval COMMIT runs
+      // later, after the user decides — view-exit auto-decline and
+      // stillValid cover that window; the commit closure captures the view
+      // state prepare saw, it does not re-read it here.
+      const tool = config.approval
+        ? createAITool<TInput, TOutput>({
+          ...common,
+          approval: {
+            mode: config.approval.mode,
+            presentation: config.approval.presentation,
+            prepare: (input: TInput, ctx: { signal: AbortSignal }) =>
+              config.approval!.prepare(
+                input,
+                state() as AIViewStateFor<TDefs, K>,
+                ctx,
+              ),
+          },
+        })
+        : createAITool<TInput, TOutput>({
+          ...common,
+          handler: (input: TInput) =>
+            config.handler!(input, state() as AIViewStateFor<TDefs, K>),
+        });
       tool.metadata._viewController = controller;
       return tool;
     },

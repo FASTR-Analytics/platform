@@ -10,7 +10,11 @@ import {
 } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
 import { toolThrowToResultParts } from "./tool_failure.ts";
-import type { AIToolWithMetadata, ToolUIMetadata } from "./tool_helpers.ts";
+import type {
+  AIToolWithMetadata,
+  ApprovalPolicy,
+  ToolUIMetadata,
+} from "./tool_helpers.ts";
 
 export type ToolResult = {
   type: "tool_result";
@@ -35,6 +39,10 @@ export class ToolRegistry {
     undefined;
   private boundViewIds: Set<string> | null = null;
 
+  // Approval-policy binding (Feature 4): null = bound with no policy;
+  // undefined = unbound (standalone registry).
+  private boundPolicy: ApprovalPolicy | null | undefined = undefined;
+
   // Called by createAIChat before tools register, so both construction-time
   // registration and post-construction register() calls run the same
   // availableIn validation (a bad tool fails the app's boot or its smoke
@@ -46,6 +54,38 @@ export class ToolRegistry {
       : new Set(controller._viewIds());
     for (const tool of this.tools.values()) {
       this.validateAvailableIn(tool);
+    }
+  }
+
+  // Same contract as bindViewController: bound before registration by
+  // createAIChat/validateAIChatConfig, and re-validated on every dynamic
+  // register() — a write tool without approval can never slip in after boot.
+  bindApprovalPolicy(policy: ApprovalPolicy | null): void {
+    this.boundPolicy = policy;
+    for (const tool of this.tools.values()) {
+      this.validateApprovalPolicy(tool);
+    }
+  }
+
+  private validateApprovalPolicy<TInput>(
+    tool: AIToolWithMetadata<TInput>,
+  ): void {
+    if (!this.boundPolicy) return;
+    const name = tool.sdkTool.name;
+    const meta = tool.metadata;
+    if (this.boundPolicy.requireKind && meta.kind === undefined) {
+      throw new Error(
+        `Tool "${name}": approvalPolicy.requireKind is set but the tool declares no kind. Every registered tool must declare kind ("read" | "write" | "nav") so write tools cannot bypass the approval policy by omission.`,
+      );
+    }
+    if (
+      meta.kind === this.boundPolicy.requireForKind &&
+      meta.approval === undefined &&
+      !(this.boundPolicy.exempt ?? []).includes(name)
+    ) {
+      throw new Error(
+        `Tool "${name}" is kind "${meta.kind}" but declares no approval and is not in approvalPolicy.exempt — the approval policy requires confirm-before-apply for every write tool.`,
+      );
     }
   }
 
@@ -89,6 +129,7 @@ export class ToolRegistry {
       );
     }
     this.validateAvailableIn(tool);
+    this.validateApprovalPolicy(tool);
     // Stored type-erased; execution goes through sdkTool.run, which
     // re-parses its input through the tool's own schema.
     this.tools.set(name, tool as AIToolWithMetadata);
@@ -153,6 +194,32 @@ export function checkViewGate(
   };
 }
 
+// One block's in-progress item. Used by getInProgressItems for the upfront
+// batch and by the chat loop for awaitsUserAction tools at block start.
+export function buildInProgressItem(
+  block: { name: string; input: unknown },
+  toolRegistry: ToolRegistry,
+): DisplayItem {
+  const metadata = toolRegistry.getMetadata(block.name);
+  let label: string | undefined;
+
+  if (metadata?.inProgressLabel) {
+    label = typeof metadata.inProgressLabel === "function"
+      ? metadata.inProgressLabel(block.input)
+      : metadata.inProgressLabel;
+  } else if (SERVER_TOOL_LABELS[block.name]) {
+    // Fall back to built-in tool labels
+    label = SERVER_TOOL_LABELS[block.name];
+  }
+
+  return {
+    type: "tool_in_progress" as const,
+    toolName: block.name,
+    toolInput: block.input,
+    label,
+  };
+}
+
 export function getInProgressItems(
   content: ContentBlock[],
   toolRegistry: ToolRegistry,
@@ -162,26 +229,15 @@ export function getInProgressItems(
       block.type === "tool_use",
   );
 
-  return toolUseBlocks.map((block) => {
-    const metadata = toolRegistry.getMetadata(block.name);
-    let label: string | undefined;
-
-    if (metadata?.inProgressLabel) {
-      label = typeof metadata.inProgressLabel === "function"
-        ? metadata.inProgressLabel(block.input)
-        : metadata.inProgressLabel;
-    } else if (SERVER_TOOL_LABELS[block.name]) {
-      // Fall back to built-in tool labels
-      label = SERVER_TOOL_LABELS[block.name];
-    }
-
-    return {
-      type: "tool_in_progress" as const,
-      toolName: block.name,
-      toolInput: block.input,
-      label,
-    };
-  });
+  return toolUseBlocks
+    // awaitsUserAction tools (approval, ask_user_questions) are excluded
+    // from the upfront batch: their card is created when their block STARTS
+    // executing, so an interactive card never renders before its resolver
+    // is wired and never shows alongside a generic spinner.
+    .filter((block) =>
+      toolRegistry.getMetadata(block.name)?.awaitsUserAction !== true
+    )
+    .map((block) => buildInProgressItem(block, toolRegistry));
 }
 
 export async function processToolUses(

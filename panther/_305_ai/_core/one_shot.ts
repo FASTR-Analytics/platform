@@ -140,6 +140,14 @@ export async function callAI(
         `callAI: tool "${tool.sdkTool.name}" declares availableIn — view-gated tools are chat-only (callAI has no viewController to gate against). Use a plain createAITool tool here.`,
       );
     }
+    // Same class of bypass: the one-shot path has no UI to present an
+    // approval card, so the confirm-before-apply lifecycle cannot run (the
+    // tool's run() would throw mid-call — fail loud at entry instead).
+    if (tool.metadata.approval) {
+      throw new Error(
+        `callAI: tool "${tool.sdkTool.name}" declares approval — confirm-before-apply tools are chat-only (callAI has no user to ask). Use a plain handler tool here.`,
+      );
+    }
   }
   const { model, max_tokens } = config.modelConfig;
   const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools, model);

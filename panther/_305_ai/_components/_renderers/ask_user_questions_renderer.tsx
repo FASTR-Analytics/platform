@@ -3,15 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  Button,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-  t3,
-} from "../../deps.ts";
+import { Button, createSignal, For, onMount, Show, t3 } from "../../deps.ts";
 import type {
   AskUserQuestionsAnswer,
   AskUserQuestionsInput,
@@ -27,11 +19,10 @@ export function AskUserQuestionsRenderer(p: Props) {
   const [selected, setSelected] = createSignal<string[]>([]);
   const [submitted, setSubmitted] = createSignal(false);
 
-  onCleanup(() => {
-    if (!submitted()) {
-      p.onCancel();
-    }
-  });
+  // Deliberately NO onCleanup cancel (decision log #6): unmount is inert —
+  // a pane hidden in a tab/<Show> leaves the question pending and
+  // recoverable on remount. Only explicit paths cancel: the Cancel button
+  // here, and Stop (via the tool's _cancelPending hook).
 
   const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 

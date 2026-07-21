@@ -15,6 +15,7 @@ import {
   type AnthropicModel,
   type CustomMarkdownStyleOptions,
   lastMessageHasUnresolvedToolUse,
+  t3,
 } from "../deps.ts";
 import { createScrollManager } from "./_scroll_manager.ts";
 import { AIChatConfigContext, createAIChat } from "./_create_ai_chat.ts";
@@ -60,6 +61,8 @@ export function AIChat(p: Props) {
     enqueueMessage,
     clearQueue,
     queuedMessages,
+    pendingUserAction,
+    decideApproval,
     clearInProgressItems,
   } = createAIChat();
   const [inputValue, setInputValue] = createSignal("");
@@ -139,6 +142,7 @@ export function AIChat(p: Props) {
           customRenderers={p.customRenderers}
           fallbackContent={p.fallbackContent}
           toolRegistry={toolRegistry}
+          onApprovalDecide={decideApproval}
           userMessageStyle={config?.messageStyles?.user}
           assistantMessageStyle={config?.messageStyles?.assistant}
           markdownStyle={p.markdownStyle}
@@ -155,6 +159,27 @@ export function AIChat(p: Props) {
         </div>
       </Show>
       {p.footerContent}
+      <Show when={pendingUserAction()}>
+        {
+          /* Queue-behind's one failure mode is the user TYPING consent
+            instead of clicking Accept — their message then waits behind a
+            decision that waits for them. The hint carries the mitigation;
+            correctness never depends on it. */
+        }
+        <div
+          class="text-base-content-muted px-4 pb-1 text-xs italic"
+          data-ai-pending-decision-hint
+        >
+          {t3({
+            en:
+              "Waiting for your decision above — new messages will be answered after you decide.",
+            fr:
+              "En attente de votre décision ci-dessus — les nouveaux messages seront traités après votre décision.",
+            pt:
+              "A aguardar a sua decisão acima — as novas mensagens serão respondidas depois de decidir.",
+          })}
+        </div>
+      </Show>
       <MessageInput
         value={inputValue()}
         onChange={setInputValue}

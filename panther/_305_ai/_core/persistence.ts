@@ -22,6 +22,11 @@ type PersistedConversation = {
   displayItems: DisplayItem[];
   lastUpdated: string;
   formatVersion?: number;
+  // Session-approved tool names (approval mode "session", Phase 4).
+  // Additive within v2: absent on older records → empty set, and an older
+  // library reading a record that carries it just ignores the field — no
+  // version bump needed (each migration targets its own legacy signature).
+  approvedTools?: string[];
 };
 
 function stripMarkersFromContent(
@@ -85,14 +90,20 @@ export async function saveConversation(
   conversationId: string,
   messages: MessageParam[],
   displayItems: DisplayItem[],
+  approvedTools: string[],
 ): Promise<void> {
   try {
     await set(`ai-conv/${conversationId}`, {
       conversationId,
       messages,
-      displayItems,
+      // A pending approval card is turn-scoped UI state, never a record —
+      // structural backstop on top of the lifecycle's finally removal.
+      displayItems: displayItems.filter(
+        (item) => item.type !== "approval_pending",
+      ),
       lastUpdated: new Date().toISOString(),
       formatVersion: CURRENT_FORMAT_VERSION,
+      approvedTools,
     });
   } catch (err) {
     console.error("Failed to save conversation:", err);

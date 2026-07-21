@@ -17,20 +17,20 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
   AskUserQuestionsInput
 > {
   // Closure variables shared between handler and inProgressComponent.
-  // IMPORTANT: This pattern relies on _create_ai_chat.ts passing one tool
-  // block at a time to processToolUses(). If that ever changes to batch
-  // multiple blocks, multiple ask_user_questions calls would race for
-  // these variables. Keep this single-block assumption.
+  // Relies on the tool loop's sequential-execution CONTRACT (one block at a
+  // time, stated at the loop in _create_ai_chat.ts) — batched blocks would
+  // race multiple ask_user_questions calls for these variables.
   let resolveAnswer:
     | ((answer: AskUserQuestionsAnswer) => void)
     | null = null;
   let rejectAnswer: ((reason: Error) => void) | null = null;
 
-  return createAITool({
+  const tool = createAITool({
     name: "ask_user_questions",
     description:
       "Present a multiple-choice question to the user inline in the chat. Use this when you need the user to make a decision, clarify preferences, or choose between approaches. Input: { question: string, options: [{ label: string, description?: string }] (2-6 options), allowMultiple?: boolean }. Single-select by default; set allowMultiple to true for multi-select. Only add description to an option if the label alone is ambiguous — omit it when the label is self-explanatory. Only call this tool once per response — do not combine it with other tool calls in the same response. Ask one question at a time. The user's selection will be returned as the tool result.",
     inputSchema: askUserQuestionsInputSchema,
+    kind: "read",
     handler: async (input: AskUserQuestionsInput): Promise<string> => {
       if (resolveAnswer !== null) {
         throw new Error(
@@ -72,6 +72,17 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
       pt: "O utilizador respondeu à pergunta",
     }),
   });
+  // Engine-managed card mechanism (decision log #6): the card is excluded
+  // from the upfront in-progress batch and created when its block starts
+  // executing; pane unmount no longer cancels the question (the renderer's
+  // onCleanup cancel is gone — a hidden pane leaves the question pending
+  // and recoverable). Stop cancels explicitly through _cancelPending so the
+  // once-per-response closure guard resets.
+  tool.metadata.awaitsUserAction = true;
+  tool.metadata._cancelPending = () => {
+    rejectAnswer?.(new Error("Question cancelled: generation was stopped"));
+  };
+  return tool;
 }
 
 function formatAnswerForAI(

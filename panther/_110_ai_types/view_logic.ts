@@ -74,6 +74,27 @@ export function buildViewGateMessage(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// APPROVAL OUTCOME STRINGS (Phase 4)
+////////////////////////////////////////////////////////////////////////////////
+//
+// Standardized tool_result contents for the approval lifecycle
+// (PLAN_AI_VIEWS_AND_APPROVAL Feature 4). All three are NORMAL results, not
+// is_error — declining (or losing validity) is a legitimate outcome, and
+// is_error would make the model treat it as a bug and retry.
+
+export const APPROVAL_DECLINED_MESSAGE =
+  "User declined the proposed change — nothing was applied. Do not retry unless the user asks for it.";
+
+// View-exit auto-decline: viewId is the view the user LEFT (the view the
+// decision was created in — a gated tool's card can only appear in-view).
+export function buildApprovalViewExitMessage(viewId: string): string {
+  return `User navigated away from "${viewId}" before deciding — nothing was applied. Do not retry unless the user asks for it.`;
+}
+
+export const APPROVAL_STALE_MESSAGE =
+  "The proposed change is no longer valid — the underlying content changed while the user was deciding. Nothing was applied. Re-read the current state before proposing again.";
+
+////////////////////////////////////////////////////////////////////////////////
 // INTERACTION REDUCTION PIPELINE (Phase 3)
 ////////////////////////////////////////////////////////////////////////////////
 //

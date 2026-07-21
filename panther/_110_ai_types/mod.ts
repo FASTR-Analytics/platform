@@ -72,7 +72,10 @@ export type {
 } from "./turn_logic.ts";
 
 export {
+  APPROVAL_DECLINED_MESSAGE,
+  APPROVAL_STALE_MESSAGE,
   assembleTurnSections,
+  buildApprovalViewExitMessage,
   buildAvailabilityHint,
   buildInteractionDigest,
   buildNavigationDigestLine,

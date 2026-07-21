@@ -9,10 +9,99 @@ import { AIToolFailure } from "./tool_failure.ts";
 
 export { AIToolFailure } from "./tool_failure.ts";
 
-// "write" drives approval policy (PLAN_AI_VIEWS_AND_APPROVAL Feature 4);
+// "write" drives approval policy (approvalPolicy.requireForKind, Feature 4);
 // "read"/"nav" are forward metadata (actions-registry stamping, catalog
 // grouping) with no engine behavior today.
 export type AIToolKind = "read" | "write" | "nav";
+
+////////////////////////////////////////////////////////////////////////////////
+// TOOL APPROVAL (confirm-before-apply — Feature 4)
+////////////////////////////////////////////////////////////////////////////////
+//
+// The lifecycle is panther-owned: prepare a preview → present it → await the
+// user's decision → commit or report declined. The tool declares the phases;
+// the engine owns everything between them (card, decision ownership,
+// view-exit auto-decline, outcome strings). The structural guarantee is the
+// point: commit only exists inside a PrepareResult and panther only invokes
+// it after an accepted decision — the mutation CANNOT run before consent as
+// a matter of API shape. prepare must be read-only by contract (same trust
+// level as "handlers must throw, not catch").
+
+export type ApprovalPreview = {
+  title: string;
+  // Markdown, rendered through the chat's markdown pipeline.
+  description?: string;
+  // Structured field-level changes, rendered as a before → after list.
+  changes?: { label: string; before?: string; after?: string }[];
+  // Full-text diff, rendered as a two-pane block.
+  diff?: { before: string; after: string };
+  // "danger" styles the accept action (deletes).
+  intent?: "default" | "danger";
+  // Accept-button label ("Apply", "Delete", …); default is a t3 "Accept".
+  confirmLabel?: string;
+};
+
+export type PrepareResult<TOutput> =
+  // No-op detected — returned to the model as a NORMAL tool result; no
+  // decision is requested and commit never exists.
+  | { skip: string }
+  // Validation failed in prepare — is_error result with the expected-failure
+  // display (same mapping as a thrown AIToolFailure); commit never exists.
+  | { invalid: string }
+  | {
+    preview: ApprovalPreview;
+    // Runs ONLY after an accepted decision.
+    commit: () => Promise<TOutput> | TOutput;
+    // Optional data-staleness check, evaluated when an ACCEPT decision
+    // arrives (view-exit staleness is engine-handled via availableIn).
+    // false → resolved as declined-stale, commit never runs.
+    stillValid?: () => boolean;
+    // Per-invocation presenter override for domain UIs (staging a diff
+    // inside an editor). Resolves the decision (true = accept); panther
+    // still owns serialization, timeline recording, and outcome shaping.
+    // The signal aborts when the engine resolves the decision externally
+    // (view-exit auto-decline, Stop) — the presenter MUST clean up its
+    // staged UI on abort; unmount luck is not a cleanup mechanism.
+    present?: (signal: AbortSignal) => Promise<boolean>;
+  };
+
+export type AIToolApprovalConfig<TInput, TOutput> = {
+  // ctx carries the turn's AbortSignal so a long server-side prepare can
+  // cancel on Stop (the post-prepare abort check remains the correctness
+  // backstop).
+  prepare: (
+    input: TInput,
+    ctx: { signal: AbortSignal },
+  ) => Promise<PrepareResult<TOutput>> | PrepareResult<TOutput>;
+  // "session" adds a "don't ask again in this conversation" checkbox to the
+  // inline card; later calls short-circuit to auto_approved (prepare still
+  // runs, presentation is skipped, commit runs). Requires presentation
+  // "inline" (construction throw — the modal has no checkbox affordance).
+  mode?: "always" | "session";
+  presentation?: "inline" | "modal";
+};
+
+// Engine-facing erased shape stored on ToolUIMetadata (defaults resolved at
+// construction).
+export type ErasedApprovalConfig = {
+  prepare: (
+    input: unknown,
+    ctx: { signal: AbortSignal },
+  ) => Promise<PrepareResult<unknown>> | PrepareResult<unknown>;
+  mode: "always" | "session";
+  presentation: "inline" | "modal";
+};
+
+// App-level approval policy (AIChatConfig.approvalPolicy). When set,
+// construction throws for any tool tagged kind "write" that has neither
+// approval nor an exempt entry. requireKind closes the silent-bypass hole (a
+// new write tool that simply omits kind): with both set, forgetting a flag
+// means over-asking or a boot-time throw — never a silent mutation.
+export type ApprovalPolicy = {
+  requireForKind: "write";
+  exempt?: string[];
+  requireKind?: boolean;
+};
 
 export interface ToolUIMetadata<TInput = unknown> {
   displayComponent?: Component<{ input: TInput }>;
@@ -35,6 +124,19 @@ export interface ToolUIMetadata<TInput = unknown> {
 
   kind?: AIToolKind;
 
+  // Approval lifecycle (Feature 4), erased. Set by createAITool when the
+  // tool config declares approval; the chat loop branches on it BEFORE
+  // sdkTool.run (an approval tool's run() throws — it can only execute
+  // inside the engine lifecycle).
+  approval?: ErasedApprovalConfig;
+
+  // True for tools whose in-progress state is an interactive card awaiting
+  // the user (approval tools, ask_user_questions). Excluded from the upfront
+  // in-progress batch — the card is created when its block STARTS executing,
+  // so a click can never land before the handler wires its resolver — and
+  // protected from the queue path's clearInProgressItems.
+  awaitsUserAction?: boolean;
+
   // Engine-internal: the controller instance that created this tool via
   // viewController.createTool. Registration verifies it is the SAME instance
   // as the chat's configured controller — the handler's narrowed view state
@@ -42,6 +144,13 @@ export interface ToolUIMetadata<TInput = unknown> {
   // controller would pass the gate while the handler sees another view
   // (proven in the Phase 1+2 review). Never set by consumers.
   _viewController?: unknown;
+
+  // Engine-internal: cancels a promise-blocking card's pending interaction
+  // (ask_user_questions). Called by stopGeneration so the tool's closure
+  // guard resets — with unmount-cancel removed (decision log #6), Stop is
+  // the explicit path that unblocks an abandoned question. Never set by
+  // consumers.
+  _cancelPending?: () => void;
 }
 
 export interface SDKTool<TInput = unknown> {
@@ -66,14 +175,12 @@ export interface AIToolWithMetadata<TInput = unknown> {
   metadata: ToolUIMetadata<TInput>;
 }
 
-export interface CreateAIToolConfig<TInput, TOutput = string> {
+export interface CreateAIToolConfigCommon<TInput> {
   name: string;
 
   description: string;
 
   inputSchema: zType.ZodType<TInput>;
-
-  handler: (input: TInput) => Promise<TOutput> | TOutput;
 
   displayComponent?: Component<{ input: TInput }>;
 
@@ -94,6 +201,24 @@ export interface CreateAIToolConfig<TInput, TOutput = string> {
 
   kind?: AIToolKind;
 }
+
+// Exactly one of handler / approval — enforced at the type level (the XOR
+// union) and again at construction for erased callers. A tool either
+// executes directly or goes through the confirm-before-apply lifecycle;
+// there is no "handler with a confirm inside" (that convention is exactly
+// what approval replaces).
+export type CreateAIToolConfig<TInput, TOutput = string> =
+  & CreateAIToolConfigCommon<TInput>
+  & (
+    | {
+      handler: (input: TInput) => Promise<TOutput> | TOutput;
+      approval?: never;
+    }
+    | {
+      handler?: never;
+      approval: AIToolApprovalConfig<TInput, TOutput>;
+    }
+  );
 
 // Construction-time guard: a tool input schema must ACCEPT unknown keys
 // everywhere in its tree (Claude sometimes emits underscore-prefixed
@@ -216,6 +341,31 @@ export function createAITool<TInput, TOutput = string>(
       `createAITool("${config.name}"): availableIn is empty — the tool would be executable nowhere. Omit the field for an everywhere-available tool.`,
     );
   }
+  // Runtime XOR backstop for erased/JS callers (the union type is the
+  // compile-time guard).
+  const hasHandler = typeof config.handler === "function";
+  const hasApproval = config.approval !== undefined;
+  if (hasHandler === hasApproval) {
+    throw new Error(
+      `createAITool("${config.name}"): exactly one of handler or approval must be set — a tool either executes directly or goes through the confirm-before-apply lifecycle.`,
+    );
+  }
+  const approvalMeta: ErasedApprovalConfig | undefined = config.approval
+    ? {
+      prepare: (input: unknown, ctx: { signal: AbortSignal }) =>
+        config.approval!.prepare(input as TInput, ctx),
+      mode: config.approval.mode ?? "always",
+      presentation: config.approval.presentation ?? "inline",
+    }
+    : undefined;
+  if (
+    approvalMeta && approvalMeta.mode === "session" &&
+    approvalMeta.presentation === "modal"
+  ) {
+    throw new Error(
+      `createAITool("${config.name}"): approval mode "session" requires presentation "inline" — the modal dialog has no "don't ask again" affordance.`,
+    );
+  }
 
   // Static availability hint: the cheapest cache-stable channel to the model
   // (per-tool, byte-stable across navigation) — it learns the view map from
@@ -232,10 +382,19 @@ export function createAITool<TInput, TOutput = string>(
     input_schema: zodToJsonSchema(config.inputSchema),
     parse: (content: unknown) => parseToolInput(config.inputSchema, content),
     run: async (input: TInput) => {
+      // An approval tool never executes through run(): the chat loop
+      // branches on metadata.approval BEFORE the tool engine, and every
+      // other execution path (processToolUses fallback, direct calls) has
+      // no user to ask — fail loud instead of silently mutating.
+      if (approvalMeta) {
+        throw new Error(
+          `Tool "${config.name}" requires user approval and can only execute inside the chat approval lifecycle (createAIChat).`,
+        );
+      }
       // Validate here too — the manual chat loop calls run() directly
       // without going through parse().
       const validated = parseToolInput(config.inputSchema, input);
-      const result = await Promise.resolve(config.handler(validated));
+      const result = await Promise.resolve(config.handler!(validated));
       return typeof result === "string" ? result : JSON.stringify(result);
     },
   };
@@ -249,6 +408,8 @@ export function createAITool<TInput, TOutput = string>(
     errorMessage: config.errorMessage,
     availableIn: config.availableIn,
     kind: config.kind,
+    approval: approvalMeta,
+    awaitsUserAction: approvalMeta ? true : undefined,
   };
 
   return {

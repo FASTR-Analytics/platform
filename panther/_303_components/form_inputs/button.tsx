@@ -48,6 +48,7 @@ function getButtonClasses(
     "disabled:opacity-40",
 
     // Layout and appearance
+    "relative",
     "inline-flex",
     "flex-none",
     "cursor-pointer",

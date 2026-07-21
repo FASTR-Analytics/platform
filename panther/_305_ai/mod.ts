@@ -39,9 +39,14 @@ export { getBetaHeaders } from "./_core/beta_headers.ts";
 
 export type { AIChatConfig } from "./_core/types.ts";
 export type {
+  AIToolApprovalConfig,
   AIToolKind,
   AIToolWithMetadata,
+  ApprovalPolicy,
+  ApprovalPreview,
   CreateAIToolConfig,
+  CreateAIToolConfigCommon,
+  PrepareResult,
   ToolUIMetadata,
 } from "./_core/tool_helpers.ts";
 export type {
@@ -57,6 +62,7 @@ export type {
   AnyAIView,
   CreateViewAIToolConfig,
   SetViewArgs,
+  ViewAIToolApprovalConfig,
 } from "./_core/views.ts";
 export type {
   AIInteraction,
