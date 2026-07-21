@@ -5,6 +5,7 @@
 
 import { type JSX, Match, Show, Switch } from "solid-js";
 import type { Intent } from "../types.ts";
+import { CheckSvg, IndeterminateSvg } from "./_internal/check_glyphs.tsx";
 
 type CheckboxProps = {
   checked: boolean;
@@ -40,34 +41,10 @@ export function Checkbox(p: CheckboxProps) {
           data-intent={p.intentWhenChecked}
         />
         <Show when={p.indeterminate}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="text-base-content pointer-events-none absolute inset-0.5 h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M5 12h14" />
-          </svg>
+          <IndeterminateSvg class="text-base-content pointer-events-none absolute inset-0.5 h-4 w-4" />
         </Show>
         <Show when={!p.indeterminate}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="text-base-content pointer-events-none absolute inset-0.5 hidden h-4 w-4 peer-checked:block"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-            <path d="M5 12l5 5l10 -10" />
-          </svg>
+          <CheckSvg class="text-base-content pointer-events-none absolute inset-0.5 hidden h-4 w-4 peer-checked:block" />
         </Show>
       </div>
       <Switch>
