@@ -207,12 +207,17 @@ export type AIViewController<
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
   _viewIds(): string[];
-  // Engine-internal: transactional interaction drain at turn creation. The
+  // Engine-internal: transactional interaction drain at turn creation, for
+  // the sending CONVERSATION (per-conversation cursors over the shared
+  // app-level log — "since the last message" is true per transcript). The
   // engine calls restore() iff the turn ends with no assistant message from
-  // the model (failed/stopped send) — entries are never lost on a failed
-  // send and never double-delivered. Null when no interactions registry is
-  // configured. Consumers never call this.
-  _drainForSend(): { digest: string | null; restore: () => void } | null;
+  // the model (failed/stopped send) — the cursor rolls back, so the same
+  // window rides the retry's fresh digest; never lost, never
+  // double-delivered. Null when no interactions registry is configured.
+  // Consumers never call this.
+  _drainForSend(
+    conversationId: string,
+  ): { digest: string | null; restore: () => void } | null;
   // Engine-internal: the raw pieces of the turn's view sections, resolved
   // safely (a throwing label/promptSection is logged and degraded, never a
   // turn failure). Consumers never call this.
@@ -467,9 +472,9 @@ export function createAIViewController<
     _viewIds(): string[] {
       return Object.keys(registry._defs);
     },
-    _drainForSend() {
+    _drainForSend(conversationId: string) {
       if (!interactionLog) return null;
-      const { entries, restore } = interactionLog.drain();
+      const { entries, restore } = interactionLog.drainFor(conversationId);
       const s = state();
       // Reduction runs at drain time against the view the user is in when
       // the message is sent; every consumer callback inside is caught

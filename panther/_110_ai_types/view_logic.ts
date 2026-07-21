@@ -22,13 +22,30 @@ import type { EphemeralSection } from "./types.ts";
 // the consumer's label function threw (a torn-down view context must never
 // fail a turn) — render the bare-id form.
 
+// Neutralize consumer-authored strings before they join library-authored
+// section lines (Phase 3 review, bucket 3). Presentation-only — recorded
+// payloads and stored labels keep the consumer's raw text. Two grades:
+// newline collapse for any interpolation (one label/format return can never
+// fabricate an extra line or digest bullet), plus typographic-quote
+// conversion ONLY where the text renders inside a library-quoted span (a
+// label can never close its quotes and forge the rest of the line). Digest
+// bullets are NOT quoted, so format returns keep their double quotes — the
+// live rig caught the over-eager version mangling legitimate `"A2"` text.
+function collapseToSingleLine(text: string): string {
+  return text.replace(/\s*\n\s*/g, " ");
+}
+
+function sanitizeQuoted(text: string): string {
+  return collapseToSingleLine(text).replace(/"/g, "”");
+}
+
 export function buildViewLabelSectionText(
   id: string,
   label: string | null,
 ): string {
   return label === null
     ? `[Current view: ${id}]`
-    : `[Current view: ${id} — "${label}"]`;
+    : `[Current view: ${id} — "${sanitizeQuoted(label)}"]`;
 }
 
 // Standardized tool-gating strings (PLAN_AI_VIEWS_AND_APPROVAL Feature 2).
@@ -126,7 +143,9 @@ export function buildNavigationDigestLine(
   if (first.fromId === last.toId && first.fromLabel === last.toLabel) {
     return null;
   }
-  return `User navigated from "${first.fromLabel}" to "${last.toLabel}" since the last message.`;
+  return `User navigated from "${sanitizeQuoted(first.fromLabel)}" to "${
+    sanitizeQuoted(last.toLabel)
+  }" since the last message.`;
 }
 
 export const INTERACTION_DIGEST_PREFIX = "User actions since last message:";
@@ -292,9 +311,10 @@ export function buildInteractionDigest(
         return out == null ? null : String(out);
       });
       // Trim-check so a whitespace-only return never renders a blank
-      // bullet; the pushed line keeps the consumer's exact text.
+      // bullet; newline collapse so one format return is always exactly
+      // one bullet (quotes stay — bullets are not a quoted span).
       if (line.ok && line.value && line.value.trim()) {
-        lines.push(line.value);
+        lines.push(collapseToSingleLine(line.value));
       }
     }
   }

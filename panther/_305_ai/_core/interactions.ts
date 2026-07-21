@@ -126,27 +126,51 @@ export type NotifyArgs<
   : [AIInteractionPayload<TDefs[K]>] extends [void] ? []
   : [payload: AIInteractionPayload<TDefs[K]>];
 
-// Queue + echo-mark bookkeeping the view controller composes. Plain arrays/
-// maps in closure — nothing reactive reads the queue (the digest is built
-// imperatively at drain), and queued entries are never rendered or
-// persisted. `now` is injectable for tests.
+// Hard cap on retained log records — the ONLY pruning (cursor-based eager
+// pruning would race an in-flight turn's rollback window: a restore after
+// the prune would find its records gone). 200 user actions bound memory
+// trivially; a conversation lagging that far behind silently misses the
+// oldest actions (documented retention limit).
+const MAX_LOG_RECORDS = 200;
+
+// Log + echo-mark bookkeeping the view controller composes. ONE shared
+// append-only log of app-level actions, read through PER-CONVERSATION
+// cursors (bucket-3 ratification): each conversation's digest covers the
+// entries recorded since ITS OWN last drained message — "since the last
+// message" is true per transcript, concurrent conversations cannot steal or
+// reorder each other's windows, and a new conversation (cursor 0) hears
+// every retained action it has not heard yet, including on its first
+// message. Plain arrays/maps in closure — nothing reactive reads the log,
+// and records are never rendered or persisted (reload drops them; stated
+// acceptance). `now` is injectable for tests.
 export function createInteractionLog(
   defs: Record<string, AIInteractionDefLike>,
   echoTtlMs: number,
   now: () => number = () => Date.now(),
 ) {
-  let queue: InteractionQueueEntry[] = [];
+  type LogRecord = { entry: InteractionQueueEntry; seq: number };
+  let log: LogRecord[] = [];
+  let nextSeq = 1;
+  // conversationId → highest seq already delivered to that conversation.
+  const cursors = new Map<string, number>();
   // Mark TIMES per key (a list, not latest-only: a mark near an entry must
   // keep suppressing it even after later marks on the same key).
   const marks = new Map<string, number[]>();
 
-  // Lazy prune on markAIEdit. The cutoff respects the oldest queued entry:
-  // a mark can suppress entries within ±echoTtlMs of itself, and entries
-  // may sit queued (or be restored) long past the wall-clock TTL — pruning
-  // relative to `now` alone could delete a mark a queued echo still needs.
+  function push(entry: InteractionQueueEntry): void {
+    log.push({ entry, seq: nextSeq++ });
+    if (log.length > MAX_LOG_RECORDS) {
+      log = log.slice(log.length - MAX_LOG_RECORDS);
+    }
+  }
+
+  // Lazy prune on markAIEdit. The cutoff respects the oldest retained
+  // entry: a mark can suppress entries within ±echoTtlMs of itself, and
+  // entries may sit in the log long past the wall-clock TTL — pruning
+  // relative to `now` alone could delete a mark a pending echo still needs.
   function pruneMarks(): void {
-    const oldestQueued = queue.length > 0 ? queue[0].at : now();
-    const cutoff = Math.min(now(), oldestQueued) - echoTtlMs;
+    const oldestRetained = log.length > 0 ? log[0].entry.at : now();
+    const cutoff = Math.min(now(), oldestRetained) - echoTtlMs;
     for (const [key, times] of marks) {
       const kept = times.filter((t) => t >= cutoff);
       if (kept.length === 0) {
@@ -164,10 +188,10 @@ export function createInteractionLog(
           `notify: unknown interaction id "${id}" — not in the configured interactions registry`,
         );
       }
-      queue.push({ id, payload, at: now() });
+      push({ id, payload, at: now() });
     },
     recordNavigation(payload: NavigationEventPayload): void {
-      queue.push({ id: NAVIGATION_INTERACTION_ID, payload, at: now() });
+      push({ id: NAVIGATION_INTERACTION_ID, payload, at: now() });
     },
     markAIEdit(key: string): void {
       pruneMarks();
@@ -178,29 +202,39 @@ export function createInteractionLog(
         marks.set(key, [now()]);
       }
     },
-    // Transactional drain: echo-suppressed entries are dropped HERE, for
-    // good (they are the AI's own edits — restoring them would resurrect
-    // the echo). The engine calls restore() iff the turn ends with no
-    // assistant message from the model — surviving entries are PREPENDED to
-    // whatever accumulated meanwhile (order preserved for the retry's fresh
-    // digest). restore() is idempotent: a second call is a no-op, so a
-    // future extra call site cannot double-deliver.
-    drain(): { entries: InteractionQueueEntry[]; restore: () => void } {
-      const all = queue;
-      queue = [];
-      const entries = dropSuppressedEchoes(
-        all,
+    // Transactional drain for ONE conversation: deliver the entries past
+    // its cursor, advance the cursor, and hand back a rollback. restore()
+    // (called by the engine iff the turn ends with no assistant message
+    // from the model) rolls the cursor back so the SAME window rides the
+    // retry's fresh digest — naturally idempotent, and other conversations'
+    // cursors are untouched. Echo-suppressed entries are removed from the
+    // log GLOBALLY (an echo is the AI's own edit — no conversation should
+    // hear it) and are not part of the rollback window.
+    drainFor(
+      conversationId: string,
+    ): { entries: InteractionQueueEntry[]; restore: () => void } {
+      const cursor = cursors.get(conversationId) ?? 0;
+      const windowRecords = log.filter((r) => r.seq > cursor);
+      const surviving = dropSuppressedEchoes(
+        windowRecords.map((r) => r.entry),
         defs,
         Object.fromEntries(marks),
         echoTtlMs,
       );
-      let restored = false;
+      if (surviving.length !== windowRecords.length) {
+        const kept = new Set(surviving);
+        const suppressed = new Set(
+          windowRecords.filter((r) => !kept.has(r.entry)).map((r) => r.seq),
+        );
+        log = log.filter((r) => !suppressed.has(r.seq));
+      }
+      // High-water mark: everything recorded so far is either delivered in
+      // this window or suppressed-and-deleted.
+      cursors.set(conversationId, nextSeq - 1);
       return {
-        entries,
+        entries: surviving,
         restore: () => {
-          if (restored) return;
-          restored = true;
-          queue = [...entries, ...queue];
+          cursors.set(conversationId, cursor);
         },
       };
     },

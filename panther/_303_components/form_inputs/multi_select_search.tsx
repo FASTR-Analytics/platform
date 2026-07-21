@@ -251,6 +251,7 @@ export function MultiSelectSearch<T extends string>(
                 anchor: e.currentTarget.getBoundingClientRect(),
                 content: selectedOptions().map(getSearchText).join(", "),
                 position: "right",
+                size: "sm",
               });
             }
           }}
@@ -313,20 +314,29 @@ export function MultiSelectSearch<T extends string>(
             <div class="flex-1 overflow-y-auto p-1">
               <For each={filteredOptions()}>
                 {(opt) => {
+                  let labelRef: HTMLSpanElement | undefined;
                   return (
                     <div
                       class="ui-hoverable-base-100 flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
                       onClick={() => toggleValue(opt.value)}
-                      onMouseEnter={(e) =>
-                        showTooltip({
-                          anchor: e.currentTarget.getBoundingClientRect(),
-                          content: getSearchText(opt),
-                          position: "right",
-                        })}
+                      onMouseEnter={(e) => {
+                        if (
+                          labelRef &&
+                          labelRef.scrollWidth > labelRef.clientWidth
+                        ) {
+                          showTooltip({
+                            anchor: e.currentTarget.getBoundingClientRect(),
+                            content: getSearchText(opt),
+                            position: "right",
+                            size: "sm",
+                          });
+                        }
+                      }}
                       onMouseLeave={hideTooltip}
                     >
                       <CheckMark checked={selectedSet().has(opt.value)} />
                       <span
+                        ref={labelRef}
                         class="flex-1 select-none truncate data-[mono=true]:font-mono data-[mono=true]:text-xs"
                         data-mono={p.mono}
                       >

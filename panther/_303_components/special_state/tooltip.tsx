@@ -22,6 +22,7 @@ const ANCHOR_GAP_PX = 4;
 type TooltipState = {
   content: string;
   position: TooltipPosition;
+  size: "sm" | undefined;
 };
 
 const [tooltipState, setTooltipState] = createSignal<
@@ -36,6 +37,7 @@ export type ShowTooltipOptions = {
   anchor: AnchorRect;
   content: string;
   position?: TooltipPosition;
+  size?: "sm";
 };
 
 export function showTooltip(opts: ShowTooltipOptions): void {
@@ -58,6 +60,7 @@ export function showTooltip(opts: ShowTooltipOptions): void {
     setTooltipState({
       content: opts.content,
       position: opts.position ?? "right",
+      size: opts.size,
     });
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -99,7 +102,10 @@ export function TooltipProvider() {
       >
         <Show when={tooltipState()} keyed>
           {(state) => (
-            <div class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating">
+            <div
+              class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating data-[size=sm]:px-1.5 data-[size=sm]:py-0.5 data-[size=sm]:text-xs"
+              data-size={state.size}
+            >
               {state.content}
             </div>
           )}
@@ -112,6 +118,7 @@ export function TooltipProvider() {
 export type TooltipProps = {
   content: string;
   position?: TooltipPosition;
+  size?: "sm";
   children: JSX.Element;
   disabled?: boolean;
 };
@@ -129,6 +136,7 @@ export function Tooltip(p: TooltipProps): JSX.Element {
       anchor: wrapperRef.getBoundingClientRect(),
       content: p.content,
       position: p.position,
+      size: p.size,
     });
   }
 

@@ -373,7 +373,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // the next turn's creation; restored entries ride the retry's fresh
   // digest). The consumer hook runs BEFORE the drain so a hook throw cannot
   // strand already-drained entries.
-  function buildTurnSections(directSend: boolean): {
+  function buildTurnSections(directSend: boolean, conversationId: string): {
     sections: EphemeralSection[];
     restoreInteractions: (() => void) | null;
   } {
@@ -381,7 +381,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     if (vc) {
       const consumer = config.getEphemeralContext?.() ?? null;
       const parts = vc._turnSectionParts();
-      const drained = vc._drainForSend();
+      const drained = vc._drainForSend(conversationId);
       return {
         sections: assembleTurnSections({
           view: parts.view,
@@ -478,7 +478,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         // creation, storage-only; the wire renders them per request
         // (renderOutgoingMessages tolerates trailing batch messages).
         const firstMsg = createUserMessage(texts[0], tMessages());
-        const turnSections = buildTurnSections(directSend);
+        const turnSections = buildTurnSections(
+          directSend,
+          turn.conversationId,
+        );
         restoreInteractions = turnSections.restoreInteractions;
         if (turnSections.sections.length > 0) {
           firstMsg.ephemeralSections = turnSections.sections;
