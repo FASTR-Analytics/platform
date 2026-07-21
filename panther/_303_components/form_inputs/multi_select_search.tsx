@@ -14,6 +14,7 @@ import {
 } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Icon } from "../icons/mod.ts";
+import { hideTooltip, showTooltip } from "../special_state/tooltip.tsx";
 import type { SelectOption } from "./types.ts";
 import { CheckSvg, IndeterminateSvg } from "./_internal/check_glyphs.tsx";
 import { getSelectClasses } from "./_internal/input_classes.ts";
@@ -163,6 +164,7 @@ export function MultiSelectSearch<T extends string>(
       Math.min(HEIGHT_CAP, chosenSide === "bottom" ? spaceBelow : spaceAbove),
       120,
     );
+    hideTooltip();
     batch(() => {
       setSide(chosenSide);
       setPanelMaxHeight(maxHeight);
@@ -177,6 +179,7 @@ export function MultiSelectSearch<T extends string>(
     if (!open()) {
       return;
     }
+    hideTooltip();
     panelRef?.hidePopover();
     setOpen(false);
   }
@@ -226,9 +229,6 @@ export function MultiSelectSearch<T extends string>(
           data-panel-side={open() ? side() : undefined}
           readonly={!open()}
           disabled={p.disabled}
-          title={!open() && selectedOptions().length > 0
-            ? selectedOptions().map(getSearchText).join(", ")
-            : undefined}
           value={open() ? query() : summary() ?? ""}
           placeholder={open()
             ? summary() ??
@@ -245,6 +245,16 @@ export function MultiSelectSearch<T extends string>(
           onKeyDown={handleKeyDown}
           onInput={(e) =>
             handleInput(e.currentTarget.value)}
+          onMouseEnter={(e) => {
+            if (!open() && selectedOptions().length > 0) {
+              showTooltip({
+                anchor: e.currentTarget.getBoundingClientRect(),
+                content: selectedOptions().map(getSearchText).join(", "),
+                position: "right",
+              });
+            }
+          }}
+          onMouseLeave={hideTooltip}
         />
         <div class="text-base-content pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center">
           <Icon iconName={open() ? "search" : "selector"} />
@@ -307,19 +317,18 @@ export function MultiSelectSearch<T extends string>(
                     <div
                       class="ui-hoverable-base-100 flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
                       onClick={() => toggleValue(opt.value)}
+                      onMouseEnter={(e) =>
+                        showTooltip({
+                          anchor: e.currentTarget.getBoundingClientRect(),
+                          content: getSearchText(opt),
+                          position: "right",
+                        })}
+                      onMouseLeave={hideTooltip}
                     >
                       <CheckMark checked={selectedSet().has(opt.value)} />
                       <span
                         class="flex-1 select-none truncate data-[mono=true]:font-mono data-[mono=true]:text-xs"
                         data-mono={p.mono}
-                        onMouseEnter={(e) => {
-                          if (
-                            e.currentTarget.scrollWidth >
-                              e.currentTarget.clientWidth
-                          ) {
-                            e.currentTarget.title = getSearchText(opt);
-                          }
-                        }}
                       >
                         {opt.label}
                       </span>

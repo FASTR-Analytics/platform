@@ -4,8 +4,110 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createSignal, type JSX, onCleanup, Show } from "solid-js";
+import type { AnchorRect } from "./popover_menu.tsx";
 
 export type TooltipPosition = "top" | "bottom" | "left" | "right";
+
+// Singleton tooltip on the popover/anchor machinery: one TooltipProvider is
+// mounted per app (next to PopoverMenuProvider) and everything shows through
+// showTooltip/hideTooltip, so styling and timing are defined once, the bubble
+// renders in the top layer (never buried or clipped), and the CSS
+// position-try fallbacks flip it at viewport edges. Show is delayed; moving
+// between tooltipped elements within the warm window shows instantly.
+
+const SHOW_DELAY_MS = 500;
+const WARM_WINDOW_MS = 300;
+const ANCHOR_GAP_PX = 4;
+
+type TooltipState = {
+  content: string;
+  position: TooltipPosition;
+};
+
+const [tooltipState, setTooltipState] = createSignal<
+  TooltipState | undefined
+>();
+let popoverRef: HTMLDivElement | undefined;
+let virtualAnchorRef: HTMLDivElement | undefined;
+let showTimer: ReturnType<typeof setTimeout> | undefined;
+let warmUntil = 0;
+
+export type ShowTooltipOptions = {
+  anchor: AnchorRect;
+  content: string;
+  position?: TooltipPosition;
+};
+
+export function showTooltip(opts: ShowTooltipOptions): void {
+  if (showTimer !== undefined) {
+    clearTimeout(showTimer);
+  }
+  const delay = Date.now() < warmUntil ? 0 : SHOW_DELAY_MS;
+  showTimer = setTimeout(() => {
+    showTimer = undefined;
+    if (virtualAnchorRef) {
+      virtualAnchorRef.style.left = `${opts.anchor.x - ANCHOR_GAP_PX}px`;
+      virtualAnchorRef.style.top = `${opts.anchor.y - ANCHOR_GAP_PX}px`;
+      virtualAnchorRef.style.width = `${
+        opts.anchor.width + ANCHOR_GAP_PX * 2
+      }px`;
+      virtualAnchorRef.style.height = `${
+        opts.anchor.height + ANCHOR_GAP_PX * 2
+      }px`;
+    }
+    setTooltipState({
+      content: opts.content,
+      position: opts.position ?? "right",
+    });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        popoverRef?.showPopover();
+      });
+    });
+  }, delay);
+}
+
+export function hideTooltip(): void {
+  if (showTimer !== undefined) {
+    clearTimeout(showTimer);
+    showTimer = undefined;
+  }
+  if (tooltipState()) {
+    warmUntil = Date.now() + WARM_WINDOW_MS;
+  }
+  popoverRef?.hidePopover();
+  setTooltipState(undefined);
+}
+
+export function TooltipProvider() {
+  return (
+    <>
+      <div
+        ref={virtualAnchorRef}
+        style={{
+          "position": "fixed",
+          "pointer-events": "none",
+          "anchor-name": "--tooltip-anchor",
+        } as JSX.CSSProperties}
+      />
+      <div
+        ref={popoverRef}
+        popover="manual"
+        class="ui-popover"
+        data-position={tooltipState()?.position ?? "right"}
+        style={{ "position-anchor": "--tooltip-anchor" } as JSX.CSSProperties}
+      >
+        <Show when={tooltipState()} keyed>
+          {(state) => (
+            <div class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating">
+              {state.content}
+            </div>
+          )}
+        </Show>
+      </div>
+    </>
+  );
+}
 
 export type TooltipProps = {
   content: string;
@@ -15,83 +117,31 @@ export type TooltipProps = {
 };
 
 export function Tooltip(p: TooltipProps): JSX.Element {
-  const [isVisible, setIsVisible] = createSignal(false);
-  const [position, setPosition] = createSignal({ x: 0, y: 0 });
   let wrapperRef: HTMLDivElement | undefined;
-  const tooltipPosition = p.position ?? "right";
-
-  function updatePosition() {
-    if (!wrapperRef) return;
-    const rect = wrapperRef.getBoundingClientRect();
-
-    let x = 0;
-    let y = 0;
-
-    switch (tooltipPosition) {
-      case "right":
-        x = rect.right + 8;
-        y = rect.top + rect.height / 2;
-        break;
-      case "left":
-        x = rect.left - 8;
-        y = rect.top + rect.height / 2;
-        break;
-      case "top":
-        x = rect.left + rect.width / 2;
-        y = rect.top - 8;
-        break;
-      case "bottom":
-        x = rect.left + rect.width / 2;
-        y = rect.bottom + 8;
-        break;
-    }
-
-    setPosition({ x, y });
-  }
+  let showing = false;
 
   function handleMouseEnter() {
-    if (p.disabled) return;
-    updatePosition();
-    setIsVisible(true);
+    if (p.disabled || !wrapperRef) {
+      return;
+    }
+    showing = true;
+    showTooltip({
+      anchor: wrapperRef.getBoundingClientRect(),
+      content: p.content,
+      position: p.position,
+    });
   }
 
   function handleMouseLeave() {
-    setIsVisible(false);
+    showing = false;
+    hideTooltip();
   }
 
   onCleanup(() => {
-    setIsVisible(false);
+    if (showing) {
+      hideTooltip();
+    }
   });
-
-  const getTransformOrigin = () => {
-    switch (tooltipPosition) {
-      case "right":
-        return "left center";
-      case "left":
-        return "right center";
-      case "top":
-        return "center bottom";
-      case "bottom":
-        return "center top";
-      default:
-        return "left center";
-    }
-  };
-
-  const getTransform = () => {
-    switch (tooltipPosition) {
-      case "right":
-        return "translateY(-50%)";
-      case "left":
-        return "translate(-100%, -50%)";
-      case "top":
-        return "translate(-50%, -100%)";
-      case "bottom":
-        return "translateX(-50%)";
-      default:
-        return "translateY(-50%)";
-    }
-  };
 
   return (
     <div
@@ -100,20 +150,6 @@ export function Tooltip(p: TooltipProps): JSX.Element {
       onMouseLeave={handleMouseLeave}
     >
       {p.children}
-      <Show when={isVisible()}>
-        <div
-          class="bg-base-content text-base-100 fixed z-50 whitespace-nowrap rounded px-2 py-1 text-sm shadow-floating"
-          style={{
-            left: `${position().x}px`,
-            top: `${position().y}px`,
-            transform: getTransform(),
-            "transform-origin": getTransformOrigin(),
-            "pointer-events": "none",
-          } as JSX.CSSProperties}
-        >
-          {p.content}
-        </div>
-      </Show>
     </div>
   );
 }
