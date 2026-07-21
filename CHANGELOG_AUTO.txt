@@ -1,3 +1,5 @@
+[1.60.1] [user] [fixed] - Pop-up dialogs no longer appear unexpectedly inside projects
+[1.60.1] [admin] [fixed] - Post-login pop-ups no longer appear when viewing a project
 [1.60.0] [user] [changed] - Filter options now appear as a searchable dropdown for easier selection
 [1.60.0] [admin] [added] - Filters now show a searchable dropdown for long option lists
 [1.60.0] [admin] [changed] - Data and disaggregation filter selectors use search instead of chip clouds
