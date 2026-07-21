@@ -9,6 +9,7 @@ export type WhatsNewPage = {
   body: string; // markdown
   imageUrl?: string; // absolute URL on status-api
   imagePosition?: WhatsNewImagePosition; // default "top"
+  imageWidth?: number; // % of content width, 10-100; default 100 top/bottom, 40 left/right
 };
 
 export type WhatsNewPost = {

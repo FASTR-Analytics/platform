@@ -69,6 +69,7 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
 function WhatsNewPageContent(p: { page: WhatsNewPage }) {
   const pos = () => p.page.imagePosition ?? "top";
   const sideBySide = () => !!p.page.imageUrl && (pos() === "left" || pos() === "right");
+  const imageWidth = () => p.page.imageWidth ?? (sideBySide() ? 40 : 100);
 
   function img() {
     return (
@@ -77,9 +78,10 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
         alt=""
         class="rounded object-contain"
         classList={{
-          "w-full": !sideBySide(),
-          "w-2/5 shrink-0": sideBySide(),
+          "mx-auto": !sideBySide(),
+          "shrink-0": sideBySide(),
         }}
+        style={{ width: `${imageWidth()}%` }}
       />
     );
   }
