@@ -121,7 +121,9 @@ type SlideNode = LayoutNode<ContentBlock>;
 
 function newYText(value: unknown): Y.Text {
   const t = new Y.Text();
-  if (typeof value === "string" && value.length > 0) t.insert(0, value);
+  if (typeof value === "string" && value.length > 0) {
+    t.insert(0, value);
+  }
   return t;
 }
 
@@ -131,22 +133,36 @@ function buildNode(node: SlideNode, fracIndex: string | null): Y.Map<unknown> {
   const m = new Y.Map<unknown>();
   m.set("id", node.id);
   m.set("type", node.type);
-  if (fracIndex !== null) m.set("fracIndex", fracIndex);
-  if (node.minH !== undefined) m.set("minH", node.minH);
-  if (node.maxH !== undefined) m.set("maxH", node.maxH);
-  if (node.span !== undefined) m.set("span", node.span);
+  if (fracIndex !== null) {
+    m.set("fracIndex", fracIndex);
+  }
+  if (node.minH !== undefined) {
+    m.set("minH", node.minH);
+  }
+  if (node.maxH !== undefined) {
+    m.set("maxH", node.maxH);
+  }
+  if (node.span !== undefined) {
+    m.set("span", node.span);
+  }
 
   if (node.type === "item") {
     const block = node.data;
     m.set("blockType", block.type);
     if (block.type === "text") {
       const t = new Y.Text();
-      if (block.markdown) t.insert(0, block.markdown);
+      if (block.markdown) {
+        t.insert(0, block.markdown);
+      }
       m.set("markdown", t);
-      if (block.style !== undefined) m.set("blockStyle", block.style);
+      if (block.style !== undefined) {
+        m.set("blockStyle", block.style);
+      }
     } else if (block.type === "image") {
       m.set("imgFile", block.imgFile);
-      if (block.style !== undefined) m.set("blockStyle", block.style);
+      if (block.style !== undefined) {
+        m.set("blockStyle", block.style);
+      }
     } else if (block.type === "figure") {
       if (block.bundle !== undefined) {
         const { config, figData } = splitBundle(block.bundle);
@@ -156,8 +172,12 @@ function buildNode(node: SlideNode, fracIndex: string | null): Y.Map<unknown> {
         m.set(FIG_DATA_KEY, figData);
       }
     }
-    if (node.style !== undefined) m.set("itemStyle", node.style);
-    if (node.alignV !== undefined) m.set("alignV", node.alignV);
+    if (node.style !== undefined) {
+      m.set("itemStyle", node.style);
+    }
+    if (node.alignV !== undefined) {
+      m.set("alignV", node.alignV);
+    }
   } else {
     const childrenMap = new Y.Map<unknown>();
     const keys = generateNKeysBetween(null, null, node.children.length);
@@ -184,15 +204,23 @@ export function seedSlideDoc(doc: Y.Doc, slide: Slide): void {
 
   if (slide.type === "content") {
     for (const f of CONTENT_SCALAR_FIELDS) {
-      if (rec[f] !== undefined) root.set(f, rec[f]);
+      if (rec[f] !== undefined) {
+        root.set(f, rec[f]);
+      }
     }
-    if (slide.split !== undefined) root.set("split", slide.split);
+    if (slide.split !== undefined) {
+      root.set("split", slide.split);
+    }
     root.set("layout", buildNode(slide.layout, null));
   } else {
     const textSet = new Set(textFields);
     for (const [k, v] of Object.entries(rec)) {
-      if (k === "type" || textSet.has(k)) continue;
-      if (v !== undefined) root.set(k, v);
+      if (k === "type" || textSet.has(k)) {
+        continue;
+      }
+      if (v !== undefined) {
+        root.set(k, v);
+      }
     }
   }
 }
@@ -208,8 +236,12 @@ export function slideToYDoc(slide: Slide): Y.Doc {
 function compareChildren(a: Y.Map<unknown>, b: Y.Map<unknown>): number {
   const fa = (a.get("fracIndex") as string | undefined) ?? "";
   const fb = (b.get("fracIndex") as string | undefined) ?? "";
-  if (fa < fb) return -1;
-  if (fa > fb) return 1;
+  if (fa < fb) {
+    return -1;
+  }
+  if (fa > fb) {
+    return 1;
+  }
   // Deterministic tie-break so concurrently-inserted siblings with an equal
   // fracIndex order identically on every client.
   const ia = a.get("id") as string;
@@ -220,28 +252,46 @@ function compareChildren(a: Y.Map<unknown>, b: Y.Map<unknown>): number {
 function materializeNode(m: Y.Map<unknown>, seenIds: Set<string>): SlideNode {
   const type = m.get("type") as "item" | "rows" | "cols";
   const id = m.get("id");
-  if (typeof id === "string") seenIds.add(id);
+  if (typeof id === "string") {
+    seenIds.add(id);
+  }
   const out: Record<string, unknown> = { id, type };
-  if (m.get("minH") !== undefined) out.minH = m.get("minH");
-  if (m.get("maxH") !== undefined) out.maxH = m.get("maxH");
-  if (m.get("span") !== undefined) out.span = m.get("span");
+  if (m.get("minH") !== undefined) {
+    out.minH = m.get("minH");
+  }
+  if (m.get("maxH") !== undefined) {
+    out.maxH = m.get("maxH");
+  }
+  if (m.get("span") !== undefined) {
+    out.span = m.get("span");
+  }
 
   if (type === "item") {
     const blockType = m.get("blockType") as "text" | "figure" | "image";
     const data: Record<string, unknown> = { type: blockType };
     if (blockType === "text") {
       data.markdown = (m.get("markdown") as Y.Text).toString();
-      if (m.get("blockStyle") !== undefined) data.style = m.get("blockStyle");
+      if (m.get("blockStyle") !== undefined) {
+        data.style = m.get("blockStyle");
+      }
     } else if (blockType === "image") {
       data.imgFile = m.get("imgFile");
-      if (m.get("blockStyle") !== undefined) data.style = m.get("blockStyle");
+      if (m.get("blockStyle") !== undefined) {
+        data.style = m.get("blockStyle");
+      }
     } else {
       const bundle = readFigureBundle(m);
-      if (bundle !== undefined) data.bundle = bundle;
+      if (bundle !== undefined) {
+        data.bundle = bundle;
+      }
     }
     out.data = data;
-    if (m.get("itemStyle") !== undefined) out.style = m.get("itemStyle");
-    if (m.get("alignV") !== undefined) out.alignV = m.get("alignV");
+    if (m.get("itemStyle") !== undefined) {
+      out.style = m.get("itemStyle");
+    }
+    if (m.get("alignV") !== undefined) {
+      out.alignV = m.get("alignV");
+    }
   } else {
     const childrenMap = m.get("children") as Y.Map<unknown>;
     const sorted = ([...childrenMap.values()] as Y.Map<unknown>[])
@@ -257,7 +307,9 @@ function materializeNode(m: Y.Map<unknown>, seenIds: Set<string>): SlideNode {
       // copy from the doc itself (its id is absent from the materialized
       // target), so the doc self-heals.
       const cid = cm.get("id");
-      if (typeof cid === "string" && seenIds.has(cid)) continue;
+      if (typeof cid === "string" && seenIds.has(cid)) {
+        continue;
+      }
       children.push(materializeNode(cm, seenIds));
     }
     out.children = children;
@@ -277,14 +329,20 @@ export function materializeSlide(doc: Y.Doc): Slide {
   for (const f of textFields) {
     const v = root.get(f);
     const s = v instanceof Y.Text ? v.toString() : typeof v === "string" ? v : "";
-    if (REQUIRED_TEXT_FIELDS.has(f) || s.length > 0) out[f] = s;
+    if (REQUIRED_TEXT_FIELDS.has(f) || s.length > 0) {
+      out[f] = s;
+    }
   }
 
   if (type === "content") {
     for (const f of CONTENT_SCALAR_FIELDS) {
-      if (root.get(f) !== undefined) out[f] = root.get(f);
+      if (root.get(f) !== undefined) {
+        out[f] = root.get(f);
+      }
     }
-    if (root.get("split") !== undefined) out.split = root.get("split");
+    if (root.get("split") !== undefined) {
+      out.split = root.get("split");
+    }
     out.layout = materializeNode(
       root.get("layout") as Y.Map<unknown>,
       new Set<string>(),
@@ -292,7 +350,9 @@ export function materializeSlide(doc: Y.Doc): Slide {
   } else {
     const textSet = new Set(textFields);
     for (const k of root.keys()) {
-      if (k === "type" || textSet.has(k)) continue;
+      if (k === "type" || textSet.has(k)) {
+        continue;
+      }
       out[k] = root.get(k);
     }
   }
@@ -369,15 +429,21 @@ export function observeSlideDocElements(
   const collectItemIds = (): Set<string> => {
     const ids = new Set<string>();
     const walk = (m: unknown): void => {
-      if (!(m instanceof Y.Map)) return;
+      if (!(m instanceof Y.Map)) {
+        return;
+      }
       if (m.get("type") === "item") {
         const id = m.get("id");
-        if (typeof id === "string") ids.add(id);
+        if (typeof id === "string") {
+          ids.add(id);
+        }
         return;
       }
       const children = m.get("children");
       if (children instanceof Y.Map) {
-        for (const child of children.values()) walk(child);
+        for (const child of children.values()) {
+          walk(child);
+        }
       }
     };
     walk(root.get("layout"));
@@ -402,13 +468,20 @@ export function observeSlideDocElements(
       event: Y.YEvent<Y.AbstractType<unknown>>,
       elementKey: string,
     ): void => {
-      if (event.changes.delta.length === 0) return;
+      if (event.changes.delta.length === 0) {
+        return;
+      }
       const ops: SlideTextDelta["delta"] = [];
       for (const d of event.changes.delta as Array<Record<string, unknown>>) {
-        if (typeof d.retain === "number") ops.push({ retain: d.retain });
-        else if (typeof d.insert === "string") ops.push({ insert: d.insert });
-        else if (d.insert !== undefined) ops.push({ insert: " " });
-        else if (typeof d.delete === "number") ops.push({ delete: d.delete });
+        if (typeof d.retain === "number") {
+          ops.push({ retain: d.retain });
+        } else if (typeof d.insert === "string") {
+          ops.push({ insert: d.insert });
+        } else if (d.insert !== undefined) {
+          ops.push({ insert: " " });
+        } else if (typeof d.delete === "number") {
+          ops.push({ delete: d.delete });
+        }
       }
       textDeltas.push({
         elementKey,
@@ -430,16 +503,24 @@ export function observeSlideDocElements(
           } else if (ALL_TEXT_FIELDS.has(k)) {
             touched.add(`field:${k}`);
             // Removing the field's key discards its text content.
-            if (change.action === "delete") textDeleted.add(`field:${k}`);
-          } else touched.add("props");
+            if (change.action === "delete") {
+              textDeleted.add(`field:${k}`);
+            }
+          } else {
+            touched.add("props");
+          }
         }
       } else if (path[0] !== "layout") {
         // A Y.Text event on a root text field.
         touched.add(`field:${path[0]}`);
-        if (hasTextDelete(event)) textDeleted.add(`field:${path[0]}`);
+        if (hasTextDelete(event)) {
+          textDeleted.add(`field:${path[0]}`);
+        }
         collectTextDelta(event, `field:${path[0]}`);
       } else {
-        if (event.changes.keys.size > 0) structural = true;
+        if (event.changes.keys.size > 0) {
+          structural = true;
+        }
         // Layout subtree: the innermost node id is the element after the last
         // "children" key in the path.
         let nodeId: string | undefined;
@@ -450,7 +531,9 @@ export function observeSlideDocElements(
         }
         if (path[path.length - 1] === "children") {
           // The children map itself changed: blocks added/removed/rebuilt.
-          for (const k of event.changes.keys.keys()) touched.add(`block:${k}`);
+          for (const k of event.changes.keys.keys()) {
+            touched.add(`block:${k}`);
+          }
           touched.add("layout");
         } else if (nodeId) {
           const changed = [...event.changes.keys.keys()];
@@ -465,7 +548,9 @@ export function observeSlideDocElements(
             // deltas would corrupt the single block:<id> mirror and mark
             // caption trims as block text deletions.
             if (path[path.length - 1] === "markdown") {
-              if (hasTextDelete(event)) textDeleted.add(`block:${nodeId}`);
+              if (hasTextDelete(event)) {
+                textDeleted.add(`block:${nodeId}`);
+              }
               collectTextDelta(event, `block:${nodeId}`);
             }
           }
@@ -516,10 +601,14 @@ export function listSlideDocTextElements(
   const out: Array<{ elementKey: string; text: string }> = [];
   for (const f of ALL_TEXT_FIELDS) {
     const v = root.get(f);
-    if (v instanceof Y.Text) out.push({ elementKey: `field:${f}`, text: v.toString() });
+    if (v instanceof Y.Text) {
+      out.push({ elementKey: `field:${f}`, text: v.toString() });
+    }
   }
   const walk = (m: unknown): void => {
-    if (!(m instanceof Y.Map)) return;
+    if (!(m instanceof Y.Map)) {
+      return;
+    }
     if (m.get("type") === "item") {
       const t = m.get("markdown");
       const id = m.get("id");
@@ -530,7 +619,9 @@ export function listSlideDocTextElements(
     }
     const children = m.get("children");
     if (children instanceof Y.Map) {
-      for (const child of children.values()) walk(child);
+      for (const child of children.values()) {
+        walk(child);
+      }
     }
   };
   walk(root.get("layout"));
@@ -554,7 +645,9 @@ export function listSlideConfigTextElements(
   }
   if (slide.type === "content") {
     const walk = (node: unknown): void => {
-      if (!node || typeof node !== "object") return;
+      if (!node || typeof node !== "object") {
+        return;
+      }
       const n = node as Record<string, unknown>;
       if (n.type === "item") {
         const data = n.data as Record<string, unknown> | undefined;
@@ -565,7 +658,11 @@ export function listSlideConfigTextElements(
         }
         return;
       }
-      if (Array.isArray(n.children)) for (const c of n.children) walk(c);
+      if (Array.isArray(n.children)) {
+        for (const c of n.children) {
+          walk(c);
+        }
+      }
     };
     walk(rec.layout);
   }
@@ -580,18 +677,26 @@ export function findNodeMap(
   nodeId: string,
 ): Y.Map<unknown> | undefined {
   const root = doc.getMap<unknown>(ROOT_KEY);
-  if (root.get("type") !== "content") return undefined;
+  if (root.get("type") !== "content") {
+    return undefined;
+  }
   const layout = root.get("layout") as Y.Map<unknown> | undefined;
-  if (!layout) return undefined;
+  if (!layout) {
+    return undefined;
+  }
 
   function walk(m: Y.Map<unknown>): Y.Map<unknown> | undefined {
-    if (m.get("id") === nodeId) return m;
+    if (m.get("id") === nodeId) {
+      return m;
+    }
     if (m.get("type") !== "item") {
       const childrenMap = m.get("children") as Y.Map<unknown> | undefined;
       if (childrenMap) {
         for (const child of childrenMap.values()) {
           const hit = walk(child as Y.Map<unknown>);
-          if (hit) return hit;
+          if (hit) {
+            return hit;
+          }
         }
       }
     }
@@ -608,7 +713,9 @@ export function findSlideFigureConfigMap(
   blockId: string,
 ): Y.Map<unknown> | undefined {
   const node = findNodeMap(doc, blockId);
-  if (!node) return undefined;
+  if (!node) {
+    return undefined;
+  }
   const cfg = node.get(FIG_CONFIG_KEY);
   return cfg instanceof Y.Map ? cfg : undefined;
 }
@@ -642,13 +749,17 @@ function syncFigureNode(
 ): void {
   if (bundle === undefined) {
     for (const k of [FIG_CONFIG_KEY, FIG_DATA_KEY, FIG_BUNDLE_LEGACY_KEY]) {
-      if (m.has(k)) m.delete(k);
+      if (m.has(k)) {
+        m.delete(k);
+      }
     }
     lastFigureBundleRef.delete(m);
     return;
   }
   // Same whole-bundle object as the last push → nothing changed on this figure.
-  if (lastFigureBundleRef.get(m) === bundle) return;
+  if (lastFigureBundleRef.get(m) === bundle) {
+    return;
+  }
   const skipConfig = opts?.skipFigureConfigForBlockIds?.has(blockId) ?? false;
   const { config, figData } = splitBundle(bundle);
   if (!skipConfig) {
@@ -660,7 +771,9 @@ function syncFigureNode(
     syncFigureConfigToMap(cfgMap as Y.Map<unknown>, config);
   }
   setOpaque(m, FIG_DATA_KEY, figData);
-  if (m.has(FIG_BUNDLE_LEGACY_KEY)) m.delete(FIG_BUNDLE_LEGACY_KEY); // convert legacy
+  if (m.has(FIG_BUNDLE_LEGACY_KEY)) {
+    m.delete(FIG_BUNDLE_LEGACY_KEY); // convert legacy
+  }
   lastFigureBundleRef.set(m, bundle);
 }
 
@@ -674,7 +787,9 @@ function syncItemContent(
     for (
       const k of ["markdown", "imgFile", "bundle", "figConfig", "figData", "blockStyle"]
     ) {
-      if (m.has(k)) m.delete(k);
+      if (m.has(k)) {
+        m.delete(k);
+      }
     }
     lastFigureBundleRef.delete(m);
     m.set("blockType", block.type);
@@ -703,7 +818,9 @@ function rebuildNodeInPlace(
   opts?: SyncSlideOpts,
 ): void {
   for (const k of [...m.keys()]) {
-    if (k !== "id" && k !== "fracIndex") m.delete(k);
+    if (k !== "id" && k !== "fracIndex") {
+      m.delete(k);
+    }
   }
   m.set("type", node.type);
   setScalar(m, "minH", node.minH);
@@ -749,7 +866,9 @@ function syncChildren(
   }
   const targetIds = new Set(target.map((c) => c.id));
   for (const id of [...childrenMap.keys()]) {
-    if (!targetIds.has(id)) childrenMap.delete(id);
+    if (!targetIds.has(id)) {
+      childrenMap.delete(id);
+    }
   }
   for (const child of target) {
     const existing = childrenMap.get(child.id) as Y.Map<unknown> | undefined;
@@ -797,7 +916,9 @@ export function syncSlideToDoc(
   const root = doc.getMap<unknown>(ROOT_KEY);
 
   if (root.get("type") !== target.type) {
-    for (const k of [...root.keys()]) root.delete(k);
+    for (const k of [...root.keys()]) {
+      root.delete(k);
+    }
     seedSlideDoc(doc, target);
     return;
   }
@@ -818,7 +939,9 @@ export function syncSlideToDoc(
   }
 
   if (target.type === "content") {
-    for (const f of CONTENT_SCALAR_FIELDS) setScalar(root, f, rec[f]);
+    for (const f of CONTENT_SCALAR_FIELDS) {
+      setScalar(root, f, rec[f]);
+    }
     setOpaque(root, "split", target.split);
     const layout = root.get("layout") as Y.Map<unknown> | undefined;
     if (!layout) {
@@ -829,11 +952,17 @@ export function syncSlideToDoc(
   } else {
     const targetKeys = new Set(Object.keys(rec));
     for (const k of [...root.keys()]) {
-      if (k === "type" || textSet.has(k)) continue;
-      if (!targetKeys.has(k)) root.delete(k);
+      if (k === "type" || textSet.has(k)) {
+        continue;
+      }
+      if (!targetKeys.has(k)) {
+        root.delete(k);
+      }
     }
     for (const [k, v] of Object.entries(rec)) {
-      if (k === "type" || textSet.has(k)) continue;
+      if (k === "type" || textSet.has(k)) {
+        continue;
+      }
       setScalar(root, k, v);
     }
   }

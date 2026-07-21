@@ -98,12 +98,10 @@ type Room = {
   key: string;
   projectId: string;
   docId: string;
-  // deno-lint-ignore no-explicit-any
-  adapter: DocRoomAdapter<any>;
+  adapter: DocRoomAdapter<unknown>;
   doc: Y.Doc;
   conns: Map<string, RoomConn>;
-  // deno-lint-ignore no-explicit-any
-  deps: DocRoomDeps<any>;
+  deps: DocRoomDeps<unknown>;
   dirty: boolean;
   checkpointTimer: ReturnType<typeof setTimeout> | null;
   /** Serializes checkpoint saves: every checkpoint chains behind the previous
@@ -170,8 +168,17 @@ function attachDoc(room: Room): void {
     const payload = bytesToBase64(update);
     for (const conn of room.conns.values()) {
       // Skip the client that produced this update — it already has it locally.
-      if (originConn && conn.connectionId === originConn.connectionId) continue;
-      conn.send(room.adapter.msgUpdate(room.docId, payload));
+      if (originConn && conn.connectionId === originConn.connectionId) {
+        continue;
+      }
+      try {
+        conn.send(room.adapter.msgUpdate(room.docId, payload));
+      } catch {
+        // A dead socket is cleaned up by its own close/error handler — must
+        // not abort this loop, or a later peer's send failure would make the
+        // originating client's valid update look "malformed" (see the outer
+        // catch in applyDocUpdate) and could skip marking the room dirty.
+      }
     }
     room.dirty = true;
     scheduleCheckpoint(room);
@@ -182,7 +189,9 @@ function scheduleCheckpoint(
   room: Room,
   delayMs = CHECKPOINT_DEBOUNCE_MS,
 ): void {
-  if (room.checkpointTimer) return;
+  if (room.checkpointTimer) {
+    return;
+  }
   room.checkpointTimer = setTimeout(() => {
     room.checkpointTimer = null;
     void checkpoint(room);
@@ -204,11 +213,15 @@ function noteSaveFailure(room: Room): void {
   }
   // Retry on a timer, not just on the next edit — an idle-but-dirty room would
   // otherwise never converge. finalizeRoom runs its own retry loop.
-  if (!room.finalizing) scheduleCheckpoint(room, CHECKPOINT_RETRY_MS);
+  if (!room.finalizing) {
+    scheduleCheckpoint(room, CHECKPOINT_RETRY_MS);
+  }
 }
 
 function noteSaveRecovered(room: Room): void {
-  if (!room.saveFailing) return;
+  if (!room.saveFailing) {
+    return;
+  }
   room.saveFailing = false;
   broadcastSaveState(room, false);
 }
@@ -219,7 +232,9 @@ function noteSaveRecovered(room: Room): void {
 async function doCheckpoint(room: Room): Promise<string | null> {
   // Clean ⇒ the chain's previous run already persisted the current doc state
   // (possibly coalescing this caller's change) — report that save's stamp.
-  if (!room.dirty) return room.lastSavedStamp;
+  if (!room.dirty) {
+    return room.lastSavedStamp;
+  }
   room.dirty = false;
   let lastUpdated: string | null = null;
   try {
@@ -305,10 +320,15 @@ export async function subscribeDoc<T>(
         key,
         projectId,
         docId,
-        adapter,
+        // Room deliberately erases T: one heterogeneous map holds slide/report/
+        // po rooms together. adapter.seed/deps.save are never invoked with a
+        // mismatched T at any call site in this file (each call reads its own
+        // adapter/deps back from the same room, never mixes rooms), so this
+        // narrowing cast is safe.
+        adapter: adapter as DocRoomAdapter<unknown>,
         doc,
         conns: new Map(),
-        deps,
+        deps: deps as DocRoomDeps<unknown>,
         dirty: false,
         checkpointTimer: null,
         saveChain: Promise.resolve(),
@@ -332,7 +352,9 @@ export async function subscribeDoc<T>(
     subscribeCancelKey(conn.connectionId, key),
   );
   if (cancelled || (conn.isLive && !conn.isLive())) {
-    if (room.conns.size === 0) void finalizeRoom(room);
+    if (room.conns.size === 0) {
+      void finalizeRoom(room);
+    }
     return;
   }
 
@@ -362,16 +384,24 @@ export async function subscribeDoc<T>(
     sync = Y.encodeStateAsUpdate(room.doc);
   }
   const stateVector = Y.encodeStateVector(room.doc);
-  conn.send(
-    adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector)),
-  );
+  try {
+    conn.send(
+      adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector)),
+    );
+  } catch {
+    // A dead socket is cleaned up by its own close/error handler.
+  }
   // Clients reset their save-state on every sync, so a joiner of a room whose
   // saves are currently failing must be told immediately.
   if (room.saveFailing) {
-    conn.send({
-      type: "doc_save_state",
-      data: { docType: room.adapter.docType, docId: room.docId, failing: true },
-    });
+    try {
+      conn.send({
+        type: "doc_save_state",
+        data: { docType: room.adapter.docType, docId: room.docId, failing: true },
+      });
+    } catch {
+      // A dead socket is cleaned up by its own close/error handler.
+    }
   }
 }
 
@@ -388,11 +418,15 @@ export function applyDocUpdate<T>(
     return;
   }
   const room = rooms.get(roomKey(projectId, adapter.docType, docId));
-  if (!room) return;
+  if (!room) {
+    return;
+  }
   let bytes: Uint8Array;
   try {
     bytes = base64ToBytes(updateB64);
-  } catch {
+  } catch (err) {
+    console.error(`[collab] rejected malformed base64 update for ${room.key}`, err);
+    conn.send(adapter.msgError(docId, "Malformed document update"));
     return;
   }
   // origin = conn so the doc's update handler skips echoing back to the sender.
@@ -407,7 +441,9 @@ export function applyDocUpdate<T>(
     conn.send(adapter.msgError(docId, "Malformed document update"));
     return;
   }
-  if (conn.identity) room.deps.onEdit?.(conn.identity);
+  if (conn.identity) {
+    room.deps.onEdit?.(conn.identity);
+  }
 }
 
 /** Relay a Yjs awareness (cursor/selection) update to the other room members.
@@ -420,10 +456,18 @@ export function relayDocAwareness<T>(
   adapter: DocRoomAdapter<T>,
 ): void {
   const room = rooms.get(roomKey(projectId, adapter.docType, docId));
-  if (!room) return;
+  if (!room) {
+    return;
+  }
   for (const conn of room.conns.values()) {
-    if (conn.connectionId === sender.connectionId) continue;
-    conn.send(adapter.msgAwareness(docId, updateB64));
+    if (conn.connectionId === sender.connectionId) {
+      continue;
+    }
+    try {
+      conn.send(adapter.msgAwareness(docId, updateB64));
+    } catch {
+      // A dead socket is cleaned up by its own close/error handler.
+    }
   }
 }
 
@@ -444,7 +488,9 @@ export function unsubscribeDoc(
     return;
   }
   room.conns.delete(conn.connectionId);
-  if (room.conns.size === 0) void finalizeRoom(room);
+  if (room.conns.size === 0) {
+    void finalizeRoom(room);
+  }
 }
 
 /** A connection (WebSocket) closed — drop it from every room it was in
@@ -454,15 +500,23 @@ export function handleConnGone(connectionId: string): void {
   // subscribes are additionally covered by conn.isLive).
   const prefix = `${connectionId}::`;
   for (const k of cancelledSubscribes) {
-    if (k.startsWith(prefix)) cancelledSubscribes.delete(k);
+    if (k.startsWith(prefix)) {
+      cancelledSubscribes.delete(k);
+    }
   }
   const keys = connRooms.get(connectionId);
-  if (!keys) return;
+  if (!keys) {
+    return;
+  }
   for (const key of keys) {
     const room = rooms.get(key);
-    if (!room) continue;
+    if (!room) {
+      continue;
+    }
     room.conns.delete(connectionId);
-    if (room.conns.size === 0) void finalizeRoom(room);
+    if (room.conns.size === 0) {
+      void finalizeRoom(room);
+    }
   }
   connRooms.delete(connectionId);
 }
@@ -471,7 +525,9 @@ async function finalizeRoom(room: Room): Promise<void> {
   // Unsubscribe, conn-gone and the retry cycle can all trigger finalize; only
   // one run at a time, and later triggers are subsumed by the running one's
   // own re-checks.
-  if (room.finalizing) return;
+  if (room.finalizing) {
+    return;
+  }
   room.finalizing = true;
   if (room.finalizeRetryTimer) {
     clearTimeout(room.finalizeRetryTimer);
@@ -487,10 +543,16 @@ async function finalizeRoom(room: Room): Promise<void> {
     // session tail — destroying the room here (the old behavior) silently
     // discarded it. Retry with backoff while the room stays empty.
     for (const delayMs of FINALIZE_RETRY_DELAYS_MS) {
-      if (!room.dirty) break;
-      if (room.conns.size > 0) return;
+      if (!room.dirty) {
+        break;
+      }
+      if (room.conns.size > 0) {
+        return;
+      }
       await new Promise((resolve) => setTimeout(resolve, delayMs));
-      if (room.conns.size > 0) return;
+      if (room.conns.size > 0) {
+        return;
+      }
       await checkpoint(room);
     }
     if (room.dirty) {
@@ -501,15 +563,21 @@ async function finalizeRoom(room: Room): Promise<void> {
       );
       room.finalizeRetryTimer = setTimeout(() => {
         room.finalizeRetryTimer = null;
-        if (room.conns.size === 0) void finalizeRoom(room);
+        if (room.conns.size === 0) {
+          void finalizeRoom(room);
+        }
       }, FINALIZE_RETRY_CYCLE_MS);
       return;
     }
     // A client may have subscribed while the final checkpoint was in flight —
     // the room is still registered during the await, so it must stay alive for
     // them (destroying it would silently drop all their future updates).
-    if (room.conns.size > 0) return;
-    if (rooms.get(room.key) === room) rooms.delete(room.key);
+    if (room.conns.size > 0) {
+      return;
+    }
+    if (rooms.get(room.key) === room) {
+      rooms.delete(room.key);
+    }
     room.doc.destroy();
     room.adapter.onDocClosed?.(room.projectId, room.docId);
     room.deps.onEmpty?.();
@@ -533,7 +601,9 @@ export async function flushRoomForDoc(
   docId: string,
 ): Promise<void> {
   const room = rooms.get(roomKey(projectId, docType, docId));
-  if (!room) return;
+  if (!room) {
+    return;
+  }
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
@@ -576,7 +646,9 @@ export function closeRoomsForDoc(
 ): void {
   const key = roomKey(projectId, docType, docId);
   const room = rooms.get(key);
-  if (!room) return;
+  if (!room) {
+    return;
+  }
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
@@ -618,7 +690,9 @@ export async function applyToLiveRoom(
   editor?: VersionEditor,
 ): Promise<string | null> {
   const room = rooms.get(roomKey(projectId, docType, docId));
-  if (!room) return null;
+  if (!room) {
+    return null;
+  }
   // The origin is not a RoomConn, so the update handler relays this to every
   // connected client; it carries the editor so the authorship observer can
   // attribute the change (restores pass no editor -> unattributed).
@@ -626,7 +700,9 @@ export async function applyToLiveRoom(
     () => apply(room.doc),
     editor ? { versionEditor: editor } : undefined,
   );
-  if (editor) room.deps.onEdit?.(editor);
+  if (editor) {
+    room.deps.onEdit?.(editor);
+  }
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;

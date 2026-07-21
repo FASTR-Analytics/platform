@@ -116,7 +116,9 @@ export function ReportVersionPreview(p: {
       }),
       confirmButtonLabel: t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" }),
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     const res = await serverActions.restoreReportVersion({
       projectId: p.projectId,
       report_id: p.reportId,

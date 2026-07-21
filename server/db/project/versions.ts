@@ -610,7 +610,9 @@ export async function copyDeckFromVersion(
     const taken = new Set<string>();
     while (newSlideIds.length < slides.length) {
       const id = await generateUniqueSlideId(projectDb);
-      if (taken.has(id)) continue;
+      if (taken.has(id)) {
+        continue;
+      }
       taken.add(id);
       newSlideIds.push(id);
     }

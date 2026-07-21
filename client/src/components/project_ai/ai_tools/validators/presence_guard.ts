@@ -19,7 +19,9 @@ export function assertSlidesNotBusy(slideIds: string[]): void {
       names.add(peer.name);
     }
   }
-  if (busy.size === 0) return;
+  if (busy.size === 0) {
+    return;
+  }
 
   const who = [...new Set([...busy.values()].flatMap((s) => [...s]))];
   const plural = busy.size > 1;

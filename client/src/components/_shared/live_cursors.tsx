@@ -194,7 +194,9 @@ export function pointerFromPane(
   clientY: number,
 ): { x: number; y: number } | null {
   const rect = paneEl.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
   if (
     clientX < rect.left || clientX > rect.right ||
     clientY < rect.top || clientY > rect.bottom
@@ -202,7 +204,9 @@ export function pointerFromPane(
     return null;
   }
   const top = document.elementFromPoint(clientX, clientY);
-  if (!top || !paneEl.contains(top)) return null;
+  if (!top || !paneEl.contains(top)) {
+    return null;
+  }
   return panelContentFromClient(
     contentEl.getBoundingClientRect(),
     contentEl.scrollTop,
@@ -221,7 +225,9 @@ export function viewportFromPane(
   content: { x: number; y: number },
 ): { x: number; y: number } | null {
   const rect = paneEl.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
   const pos = panelClientFromContent(
     contentEl.getBoundingClientRect(),
     contentEl.scrollTop,
@@ -241,7 +247,9 @@ export function viewportFromPane(
     return null;
   }
   const top = document.elementFromPoint(pos.x, pos.y);
-  if (!top || !paneEl.contains(top)) return null;
+  if (!top || !paneEl.contains(top)) {
+    return null;
+  }
   return pos;
 }
 
@@ -281,12 +289,20 @@ export function acceptZonePointer(
   pointer: PointerAwarenessState,
   scope: string | undefined,
 ): { x: number; y: number } | null {
-  if (pointer.surface !== "zone") return null;
-  if (scope === undefined || pointer.scope !== scope) return null;
+  if (pointer.surface !== "zone") {
+    return null;
+  }
+  if (scope === undefined || pointer.scope !== scope) {
+    return null;
+  }
   for (const el of document.querySelectorAll(`[${ZONE_ATTR}]`)) {
-    if (el.getAttribute(ZONE_ATTR) !== pointer.zone) continue;
+    if (el.getAttribute(ZONE_ATTR) !== pointer.zone) {
+      continue;
+    }
     const pos = viewportFromPane(el, el, { x: pointer.x, y: pointer.y });
-    if (pos) return pos;
+    if (pos) {
+      return pos;
+    }
   }
   return null;
 }
@@ -333,9 +349,13 @@ export function createPointerBroadcast(opts: {
 
   function send(value: PointerAwarenessState | null) {
     const aw = opts.awareness();
-    if (!aw) return;
+    if (!aw) {
+      return;
+    }
     const json = JSON.stringify(value);
-    if (json === lastSentJson) return;
+    if (json === lastSentJson) {
+      return;
+    }
     // Safe after awareness destroy: getLocalState() is null → no-op field set.
     aw.setLocalStateField("pointer", value);
     lastSentJson = json;
@@ -360,14 +380,18 @@ export function createPointerBroadcast(opts: {
   }
 
   function schedule() {
-    if (rafId !== undefined) cancelAnimationFrame(rafId);
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+    }
     rafId = requestAnimationFrame(() => {
       rafId = undefined;
       const wait = minInterval - (performance.now() - lastSendTime);
       if (wait > 0) {
         // Trailing send: coalesce into one shot at the interval boundary so
         // the final resting position is never dropped.
-        if (trailingTimer) clearTimeout(trailingTimer);
+        if (trailingTimer) {
+          clearTimeout(trailingTimer);
+        }
         trailingTimer = setTimeout(() => {
           trailingTimer = undefined;
           fire();
@@ -389,11 +413,15 @@ export function createPointerBroadcast(opts: {
   // middle-drags shouldn't ping peers.
   function onPointerDown(e: PointerEvent) {
     typingHidden = false;
-    if (e.button !== 0 || !opts.enabled()) return;
+    if (e.button !== 0 || !opts.enabled()) {
+      return;
+    }
     lastClientX = e.clientX;
     lastClientY = e.clientY;
     const pointer = opts.toPointer(e.clientX, e.clientY);
-    if (!pointer) return;
+    if (!pointer) {
+      return;
+    }
     clickCount++;
     send(withClick(pointer));
   }
@@ -404,9 +432,13 @@ export function createPointerBroadcast(opts: {
   // (mirrors CursorChatInput.onDocKeyDown's hijack condition; hiding the
   // pointer there would hide the very bubble the user is opening).
   function onKeyDown(e: KeyboardEvent) {
-    if (typingHidden || MODIFIER_KEYS.has(e.key)) return;
+    if (typingHidden || MODIFIER_KEYS.has(e.key)) {
+      return;
+    }
     const target = e.target as HTMLElement | null;
-    if (target?.closest?.("[data-cursor-chat-input]")) return;
+    if (target?.closest?.("[data-cursor-chat-input]")) {
+      return;
+    }
     if (
       e.key === "/" &&
       !target?.closest?.(
@@ -421,14 +453,19 @@ export function createPointerBroadcast(opts: {
   // Sender scrolling under a stationary pointer changes what it points AT —
   // recompute from the stored client coords.
   function onScroll() {
-    if (lastClientX !== undefined) schedule();
+    if (lastClientX !== undefined) {
+      schedule();
+    }
   }
   function onLeaveDocument() {
     send(null);
   }
   function onVisibility() {
-    if (document.visibilityState === "hidden") send(null);
-    else if (lastClientX !== undefined) schedule();
+    if (document.visibilityState === "hidden") {
+      send(null);
+    } else if (lastClientX !== undefined) {
+      schedule();
+    }
   }
 
   onMount(() => {
@@ -444,7 +481,9 @@ export function createPointerBroadcast(opts: {
     // cursor within ~500ms when an overlay covers the surface, and restores
     // it when the overlay closes — no mouse movement required.
     const revalidate = setInterval(() => {
-      if (lastClientX !== undefined) fire();
+      if (lastClientX !== undefined) {
+        fire();
+      }
     }, REVALIDATE_MS);
     onCleanup(() => clearInterval(revalidate));
   });
@@ -452,8 +491,11 @@ export function createPointerBroadcast(opts: {
   // Disabled (modal over the surface, collab dropped) → clear immediately;
   // re-enabled → re-broadcast the current position without waiting for a move.
   createEffect(on(opts.enabled, (en) => {
-    if (!en) send(null);
-    else if (lastClientX !== undefined) schedule();
+    if (!en) {
+      send(null);
+    } else if (lastClientX !== undefined) {
+      schedule();
+    }
   }, { defer: true }));
 
   onCleanup(() => {
@@ -465,14 +507,20 @@ export function createPointerBroadcast(opts: {
     if (opts.hideWhileTyping) {
       document.removeEventListener("keydown", onKeyDown, true);
     }
-    if (rafId !== undefined) cancelAnimationFrame(rafId);
-    if (trailingTimer) clearTimeout(trailingTimer);
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+    }
+    if (trailingTimer) {
+      clearTimeout(trailingTimer);
+    }
     send(null);
   });
 
   return {
     resend: () => {
-      if (lastClientX !== undefined) schedule();
+      if (lastClientX !== undefined) {
+        schedule();
+      }
     },
   };
 }
@@ -506,9 +554,9 @@ export function LiveCursorsOverlay(p: {
   const bump = () => setTick((t) => t + 1);
   // Local mouse position (rAF-throttled) — drives the hover-reveal of faded
   // name chips. One signal write per frame at most; nothing while still.
-  const [mouse, setMouse] = createSignal<{ x: number; y: number } | null>(
-    null,
-  );
+  const [mouse, setMouse] = createSignal<
+    { x: number; y: number } | undefined
+  >(undefined);
   // Bumped on awareness "change" (content changes + joins/leaves; keepalives
   // with deep-equal state deliberately don't fire it).
   const [version, setVersion] = createSignal(0);
@@ -543,7 +591,9 @@ export function LiveCursorsOverlay(p: {
     const onMouseMove = (e: PointerEvent) => {
       const x = e.clientX;
       const y = e.clientY;
-      if (mouseRaf !== undefined) return;
+      if (mouseRaf !== undefined) {
+        return;
+      }
       mouseRaf = requestAnimationFrame(() => {
         mouseRaf = undefined;
         setMouse({ x, y });
@@ -554,7 +604,9 @@ export function LiveCursorsOverlay(p: {
       window.removeEventListener("resize", bump);
       window.removeEventListener("scroll", bump, true);
       document.removeEventListener("pointermove", onMouseMove);
-      if (mouseRaf !== undefined) cancelAnimationFrame(mouseRaf);
+      if (mouseRaf !== undefined) {
+        cancelAnimationFrame(mouseRaf);
+      }
       clearInterval(sweep);
       for (const t of rippleTimers) clearTimeout(t);
     });
@@ -562,13 +614,17 @@ export function LiveCursorsOverlay(p: {
 
   createEffect(() => {
     const aw = p.awareness;
-    if (!aw) return;
+    if (!aw) {
+      return;
+    }
     // Baseline peers' click counters at attach — only INCREASES observed from
     // here on ripple (a counter first seen mid-session is history, not a ping).
     for (const [id, state] of aw.getStates()) {
       const c = (state.pointer as PointerAwarenessState | null | undefined)
         ?.click;
-      if (typeof c === "number") clickSeen.set(id, c);
+      if (typeof c === "number") {
+        clickSeen.set(id, c);
+      }
     }
     const onChange = (changes: {
       added: number[];
@@ -621,14 +677,20 @@ export function LiveCursorsOverlay(p: {
     tick();
     version();
     const aw = p.awareness;
-    if (!aw || p.suppressed) return [];
+    if (!aw || p.suppressed) {
+      return [];
+    }
     const now = performance.now();
     const out: CursorSprite[] = [];
     for (const [clientID, state] of aw.getStates()) {
-      if (clientID === aw.clientID) continue;
+      if (clientID === aw.clientID) {
+        continue;
+      }
       const user = state.user as { name?: string; color?: string } | undefined;
       const pointer = state.pointer as PointerAwarenessState | null | undefined;
-      if (!user?.name || !user.color || pointer == null) continue;
+      if (!user?.name || !user.color || pointer == null) {
+        continue;
+      }
       const chatState = state.pointerChat as { text?: string } | null | undefined;
       const chat = typeof chatState?.text === "string"
         ? chatState.text.slice(0, CHAT_MAX_LEN)
@@ -637,12 +699,16 @@ export function LiveCursorsOverlay(p: {
       const idle = info ? now - info.lastMoveAt : 0;
       // An active chat message keeps the cursor (and its name) fully visible
       // even when the mouse itself has been still.
-      if (idle > IDLE_HIDE_MS && !chat) continue;
+      if (idle > IDLE_HIDE_MS && !chat) {
+        continue;
+      }
       const pos = p.accepts(pointer);
-      if (!pos) continue;
+      if (!pos) {
+        continue;
+      }
       // Hover-reveal: your own mouse near the cursor brings a faded chip back.
       const m = mouse();
-      const hovered = m !== null &&
+      const hovered = m !== undefined &&
         Math.hypot(m.x - pos.x, m.y - pos.y) < HOVER_REVEAL_PX;
       out.push({
         clientID,
@@ -777,7 +843,9 @@ export function CursorChatInput(p: {
     );
   }
   function clearNow() {
-    if (lingerTimer) clearTimeout(lingerTimer);
+    if (lingerTimer) {
+      clearTimeout(lingerTimer);
+    }
     lingerTimer = undefined;
     sendChat(null);
   }
@@ -785,13 +853,17 @@ export function CursorChatInput(p: {
     // Re-entry guard: closing unmounts the focused input, which fires its own
     // blur → close(true) again — by then the text is cleared and the second
     // pass would take the discard branch and kill the linger immediately.
-    if (!open()) return;
+    if (!open()) {
+      return;
+    }
     setOpen(false);
     const t = text().trim();
     setText("");
     if (commit && t) {
       // Leave the message on the cursor briefly, then clear it for everyone.
-      if (lingerTimer) clearTimeout(lingerTimer);
+      if (lingerTimer) {
+        clearTimeout(lingerTimer);
+      }
       lingerTimer = setTimeout(() => {
         lingerTimer = undefined;
         sendChat(null);
@@ -802,7 +874,9 @@ export function CursorChatInput(p: {
   }
 
   function onDocKeyDown(e: KeyboardEvent) {
-    if (open() || e.key !== "/" || !p.enabled()) return;
+    if (open() || e.key !== "/" || !p.enabled()) {
+      return;
+    }
     const target = e.target as HTMLElement | null;
     // Never hijack "/" from real text inputs (CodeMirror, forms).
     if (
@@ -811,7 +885,9 @@ export function CursorChatInput(p: {
     ) {
       return;
     }
-    if (!p.isOverSurface(lastX, lastY)) return;
+    if (!p.isOverSurface(lastX, lastY)) {
+      return;
+    }
     e.preventDefault();
     if (lingerTimer) {
       clearTimeout(lingerTimer);
@@ -825,7 +901,9 @@ export function CursorChatInput(p: {
   function onMove(e: PointerEvent) {
     lastX = e.clientX;
     lastY = e.clientY;
-    if (open()) setPos({ x: lastX, y: lastY }); // the bubble follows the cursor
+    if (open()) {
+      setPos({ x: lastX, y: lastY }); // the bubble follows the cursor
+    }
   }
 
   onMount(() => {
@@ -882,8 +960,11 @@ export function CursorChatInput(p: {
             }}
             onKeyDown={(e) => {
               e.stopPropagation(); // keep editor shortcuts (undo, Esc) out
-              if (e.key === "Enter") close(true);
-              else if (e.key === "Escape") close(false);
+              if (e.key === "Enter") {
+                close(true);
+              } else if (e.key === "Escape") {
+                close(false);
+              }
             }}
             onBlur={() => close(true)}
           />

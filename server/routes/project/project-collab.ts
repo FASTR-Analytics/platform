@@ -13,14 +13,6 @@ import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
 import { allowedOrigins } from "../../middleware/cors.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
-  addConnection,
-  broadcastPresence,
-  markConnectionEditing,
-  relayProjectAwareness,
-  removeConnection,
-  updateConnectionPresence,
-} from "../../task_management/presence_registry.ts";
-import {
   getSlide,
   getSlideCrdtState,
   saveSlideCheckpoint,
@@ -36,6 +28,14 @@ import {
   getAuthorRuns,
   stashPersistedAuthors,
 } from "../../collab/authorship.ts";
+import {
+  addConnection,
+  broadcastPresence,
+  markConnectionEditing,
+  relayProjectAwareness,
+  removeConnection,
+  updateConnectionPresence,
+} from "../../collab/presence_registry.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
 import {
@@ -102,14 +102,18 @@ const reportsRebroadcastTimers = new Map<
 >();
 
 function scheduleReportsListRebroadcast(projectId: string): void {
-  if (reportsRebroadcastTimers.has(projectId)) return;
+  if (reportsRebroadcastTimers.has(projectId)) {
+    return;
+  }
   reportsRebroadcastTimers.set(
     projectId,
     setTimeout(async () => {
       reportsRebroadcastTimers.delete(projectId);
       const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
       const res = await getAllReports(projectDb);
-      if (res.success) notifyProjectReportsUpdated(projectId, res.data);
+      if (res.success) {
+        notifyProjectReportsUpdated(projectId, res.data);
+      }
     }, REPORTS_REBROADCAST_DEBOUNCE_MS),
   );
 }
@@ -121,14 +125,18 @@ const VIZ_REBROADCAST_DEBOUNCE_MS = 5000;
 const vizRebroadcastTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleVizListRebroadcast(projectId: string): void {
-  if (vizRebroadcastTimers.has(projectId)) return;
+  if (vizRebroadcastTimers.has(projectId)) {
+    return;
+  }
   vizRebroadcastTimers.set(
     projectId,
     setTimeout(async () => {
       vizRebroadcastTimers.delete(projectId);
       const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
       const res = await getAllPresentationObjectsForProject(projectDb);
-      if (res.success) notifyProjectVisualizationsUpdated(projectId, res.data);
+      if (res.success) {
+        notifyProjectVisualizationsUpdated(projectId, res.data);
+      }
     }, VIZ_REBROADCAST_DEBOUNCE_MS),
   );
 }
@@ -149,7 +157,9 @@ function isAllowedWsOrigin(
   origin: string,
   host: string | undefined,
 ): boolean {
-  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
   try {
     return host !== undefined && new URL(origin).host === host;
   } catch {
@@ -282,7 +292,9 @@ routesProjectCollab.get(
       return {
         loadSlide: async () => {
           const res = await getSlide(projectDb, slideId);
-          if (!res.success) return null;
+          if (!res.success) {
+            return null;
+          }
           deckId = res.data.deckId;
           const crdtRes = await getSlideCrdtState(projectDb, slideId);
           const crdtState = crdtRes.success ? crdtRes.data.state : null;
@@ -291,7 +303,9 @@ routesProjectCollab.get(
         saveSlide: async (slide, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
           const res = await saveSlideCheckpoint(projectDb, slideId, slide, crdtState);
-          if (!res.success) return null;
+          if (!res.success) {
+            return null;
+          }
           notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
           if (deckId) {
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
@@ -305,7 +319,9 @@ routesProjectCollab.get(
           }
         },
         onEmpty: () => {
-          if (deckId) noteVersionRoomEmpty(projectId, "deck", deckId);
+          if (deckId) {
+            noteVersionRoomEmpty(projectId, "deck", deckId);
+          }
         },
       };
     }
@@ -316,7 +332,9 @@ routesProjectCollab.get(
       return {
         load: async () => {
           const res = await getReportDetail(projectDb, reportId);
-          if (!res.success) return null;
+          if (!res.success) {
+            return null;
+          }
           const crdtRes = await getReportCrdtState(projectDb, reportId);
           const crdtState = crdtRes.success ? crdtRes.data.state : null;
           // Authorship ledger: hand the persisted runs to the room's observer
@@ -348,7 +366,9 @@ routesProjectCollab.get(
             crdtState,
             getAuthorRuns(projectId, reportId, content.body),
           );
-          if (!res.success) return null;
+          if (!res.success) {
+            return null;
+          }
           notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);
           scheduleReportsListRebroadcast(projectId);
           return res.data.lastUpdated;
@@ -366,7 +386,9 @@ routesProjectCollab.get(
         load: async () => {
           const res = await getPresentationObjectConfigRow(projectDb, poId);
           // Absent row OR a read-only default visualization → no room.
-          if (!res.success || res.data === null || res.data.isDefault) return null;
+          if (!res.success || res.data === null || res.data.isDefault) {
+            return null;
+          }
           const crdtRes = await getPresentationObjectCrdtState(projectDb, poId);
           const crdtState = crdtRes.success ? crdtRes.data.state : null;
           return { content: res.data.config, crdtState };
@@ -379,7 +401,9 @@ routesProjectCollab.get(
             config,
             crdtState,
           );
-          if (!res.success) return null;
+          if (!res.success) {
+            return null;
+          }
           notifyLastUpdated(
             projectId,
             "presentation_objects",
@@ -424,7 +448,9 @@ routesProjectCollab.get(
         broadcastPresence(projectId);
       },
       onMessage: (evt, ws) => {
-        if (typeof evt.data !== "string") return;
+        if (typeof evt.data !== "string") {
+          return;
+        }
         // Frame-size cap, checked before parsing: bounds per-frame memory
         // against abuse (MAX_FRAME_CHARS doc above). The client logs the
         // error message; nothing legitimate comes close to the limit.
@@ -453,7 +479,13 @@ routesProjectCollab.get(
             return;
           }
           msg = parsed.data;
-        } catch {
+        } catch (err) {
+          console.error(`[collab] malformed WS frame from ${connectionId}`, err);
+          const parseErr: CollabServerMessage = {
+            type: "error",
+            data: { message: "Invalid message" },
+          };
+          ws.send(JSON.stringify(parseErr));
           return;
         }
         switch (msg.type) {
@@ -489,7 +521,9 @@ routesProjectCollab.get(
               applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
               // "Editing now" presence pulse. canEdit-gated so a read-only
               // client's (room-rejected) update never counts as editing.
-              if (auth.canEditSlides) markConnectionEditing(projectId, connectionId);
+              if (auth.canEditSlides) {
+                markConnectionEditing(projectId, connectionId);
+              }
             }
             break;
           case "slide_unsubscribe":
@@ -521,7 +555,9 @@ routesProjectCollab.get(
           case "report_update":
             if (reportRoomConn && auth.canViewReports) {
               applyReportUpdate(projectId, msg.data.reportId, reportRoomConn, msg.data.update);
-              if (auth.canEditReports) markConnectionEditing(projectId, connectionId);
+              if (auth.canEditReports) {
+                markConnectionEditing(projectId, connectionId);
+              }
             }
             break;
           case "report_unsubscribe":
@@ -553,7 +589,9 @@ routesProjectCollab.get(
           case "po_update":
             if (poRoomConn && auth.canViewViz) {
               applyPoUpdate(projectId, msg.data.poId, poRoomConn, msg.data.update);
-              if (auth.canEditViz) markConnectionEditing(projectId, connectionId);
+              if (auth.canEditViz) {
+                markConnectionEditing(projectId, connectionId);
+              }
             }
             break;
           case "po_unsubscribe":

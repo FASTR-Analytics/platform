@@ -49,7 +49,9 @@ export function updateConnectionPresence(
   view: PresenceView,
 ): void {
   const conn = projects.get(projectId)?.get(connectionId);
-  if (!conn) return;
+  if (!conn) {
+    return;
+  }
   conn.entry = {
     connectionId: conn.entry.connectionId,
     email: conn.entry.email,
@@ -83,11 +85,17 @@ export function markConnectionEditing(
   connectionId: string,
 ): void {
   const conn = projects.get(projectId)?.get(connectionId);
-  if (!conn) return;
-  if (conn.editingTimer !== undefined) clearTimeout(conn.editingTimer);
+  if (!conn) {
+    return;
+  }
+  if (conn.editingTimer !== undefined) {
+    clearTimeout(conn.editingTimer);
+  }
   conn.editingTimer = setTimeout(() => {
     conn.editingTimer = undefined;
-    if (!conn.entry.isEditing) return;
+    if (!conn.entry.isEditing) {
+      return;
+    }
     conn.entry = { ...conn.entry, isEditing: undefined };
     broadcastPresence(projectId);
   }, EDITING_CLEAR_MS);
@@ -99,11 +107,17 @@ export function markConnectionEditing(
 
 export function removeConnection(projectId: string, connectionId: string): void {
   const conns = projects.get(projectId);
-  if (!conns) return;
+  if (!conns) {
+    return;
+  }
   const conn = conns.get(connectionId);
-  if (conn?.editingTimer !== undefined) clearTimeout(conn.editingTimer);
+  if (conn?.editingTimer !== undefined) {
+    clearTimeout(conn.editingTimer);
+  }
   conns.delete(connectionId);
-  if (conns.size === 0) projects.delete(projectId);
+  if (conns.size === 0) {
+    projects.delete(projectId);
+  }
 }
 
 /** Relay a project-scoped Yjs awareness update (page-level live cursors) to
@@ -115,14 +129,18 @@ export function relayProjectAwareness(
   update: string,
 ): void {
   const conns = projects.get(projectId);
-  if (!conns) return;
+  if (!conns) {
+    return;
+  }
   const message: CollabServerMessage = {
     type: "project_awareness",
     data: { update },
   };
   const payload = JSON.stringify(message);
   for (const [connectionId, conn] of conns) {
-    if (connectionId === senderConnectionId) continue;
+    if (connectionId === senderConnectionId) {
+      continue;
+    }
     try {
       conn.ws.send(payload);
     } catch {
@@ -133,7 +151,9 @@ export function relayProjectAwareness(
 
 export function broadcastPresence(projectId: string): void {
   const conns = projects.get(projectId);
-  if (!conns) return;
+  if (!conns) {
+    return;
+  }
   const peers: PresenceEntry[] = [...conns.values()].map((c) => c.entry);
   const message: CollabServerMessage = {
     type: "presence_state",

@@ -1,10 +1,11 @@
 # PLAN: Collab-merge mop-up sweeps
 
-> **Status (2026-07-21):** In progress — sweeps 1, 2, 4, 8 DONE (results
-> recorded under each sweep's section; sweep 1 + 2 code changes sit
-> UNCOMMITTED in the working tree awaiting Tim's review, so expect modified
-> files there that are in-scope, not stray). Remaining: sweeps 3, 5, 6, 7.
-> This file is the ONE
+> **Status (2026-07-21):** In progress — sweeps 1, 2, 3, 4, 5, 8 DONE (results
+> recorded under each sweep's section; sweep 1 + 2 code changes are committed
+> — `71b05fbc`). Sweeps 3 and 5 are REPORT-FIRST: findings are written up
+> but nothing has been fixed yet — Tim rules on which findings to act on.
+> Remaining: sweeps 6, 7 (investigate next), then act on Sweep 3/5 findings
+> per Tim's ruling. This file is the ONE
 > tracking home for post-merge cleanup of merge commit `dda6d6e1`, which
 > landed the real-time collaboration branch (`feat/slide-deck-collab`,
 > 125 commits, +18k lines: Yjs CRDT co-editing for slide decks / reports /
@@ -33,7 +34,7 @@
   client + `lint:systems`). Client hot-reloads; server changes need a
   manual restart (no --watch).
 - Sweeps are independent. Suggested order by risk: 2 → 3 → 4 → 5 → 8 → 1 →
-  6 → 7 (of the remaining sweeps: 3 → 5 → 6 → 7).
+  6 → 7 (of the remaining sweeps: 6 → 7).
 
 ## Key refs
 
@@ -53,9 +54,9 @@
 
 - [x] Sweep 1 — Style tokens (MECHANICAL, S5/S6 sub-items are audits)
 - [x] Sweep 2 — Solid reactivity pass over new collab code (verified: findings 1–5 confirmed and FIXED, finding 6 refuted; see verdicts)
-- [ ] Sweep 3 — Dropped-fix audit, main's fixes vs branch rewrites (REPORT-FIRST)
+- [x] Sweep 3 — Dropped-fix audit, main's fixes vs branch rewrites (REPORT-FIRST: no drops found, nothing to fix; see findings)
 - [x] Sweep 4 — `last_updated → SSE → cache` triangle on new write paths (VERIFY)
-- [ ] Sweep 5 — Auth + lifecycle on the new WS/version surface (REPORT-FIRST)
+- [x] Sweep 5 — Auth + lifecycle on the new WS/version surface (REPORT-FIRST: report written, findings await Tim's ruling)
 - [ ] Sweep 6 — Protocol conformance of new files (REPORT-FIRST)
 - [ ] Sweep 7 — Doc estate: fold 6 root `DOC_*.md` into SYSTEM files (MECHANICAL after Tim approves the folded prose)
 - [x] Sweep 8 — Boot-path verification (VERIFY)
@@ -411,6 +412,62 @@ Deliverable: table under this section — main commit, what the fix does,
 where it should live now, PRESENT / DROPPED / PARTIAL. STOP before
 re-applying anything.
 
+### Sweep 3 — findings (2026-07-21), report only — no drops found
+
+**Method correction:** the plan's `git diff --stat 6693a9ee..dda6d6e1 -- <file>`
+formula conflates main's own post-fork changes with the branch's own (it
+diffs fork-point tree against the merge-commit tree, which includes BOTH
+sides). Used `git diff --stat 69e2e18e..dda6d6e1 -- <file>` instead (upstream
+main at merge time vs. merged result — the Key-refs-defined "everything the
+branch introduced") to isolate real branch churn, then cross-referenced
+against `git log --oneline 6693a9ee..69e2e18e -- <file>` per file to find
+genuine overlaps. This surfaced several false leads: the worker-runtime
+teardown files and the HFA-sentinel-ordering files looked "branch-rewritten"
+under the plan's formula but the branch's actual merged diff shows it never
+touched them at all.
+
+**Highest-suspicion clusters — all checked, all clean:**
+
+| Cluster | Branch overlap? | Outcome |
+| --- | --- | --- |
+| Report-editing fix batch (`d56a394c`, ~2026-07-02) | Yes — `report/index.tsx`, `ReportMarkdownDiff.tsx`, `report_editor.ts` heavily rewritten | PRESENT (evolved) |
+| Worker-runtime teardown contract (`14cfb493`, `ecf31092`, `cdbe5085`, `caedb99c`, `49ca1fb3`, `11735c4a`, `c8e6f714`) | **None** — branch-only diff (`69e2e18e..dda6d6e1`) shows zero changes to any of `server/task_management/*`, `server/worker_routines/{run_module,integrate_*,stage_*}/*`, `server/db/instance/dataset_{hfa,hmis}.ts` | PRESENT (no risk — file never touched by branch) |
+| HFA sentinel-ordering fix (`466fa506`) | **None** — `get_script_with_parameters_hfa.ts` / `hfa_dependency_analyzer.ts` never touched by branch | PRESENT (no risk) |
+| Mid-July "urgent findings" S10–S15 batch (`f67e938c` "fixes" + `1b4ec928`/`bea44cbc`/`2d996510` "work") | Yes — several real fixes inside files the branch also touched | All individually PRESENT (see table below) |
+
+**Individual overlap checks (fix commit → concern → current location → verdict):**
+
+| Main commit | What the fix does | Where it lives now | Verdict |
+| --- | --- | --- | --- |
+| `d56a394c` Report editor AI accept/reject fixes | `collapseUnchanged` on diff view; reject no-op proposals; figures-before-body persist-and-revert-on-fail; keep-registry-entry-on-delete; scroll to first changed line | `report/index.tsx` `proposeEdit`/`applyProposal`, `ReportMarkdownDiff.tsx`, `handleDelete` — all present, `applyProposal` evolved into a rebase-aware version (`applyRebasedBody`, `firstAppliedLine`) that preserves the same guarantees for live-collab editing | PRESENT |
+| `d56a394c` (same commit) `insert_figure` errors on unmatched `afterHeading` | `report_editor.ts` | `insertFigureToken` still returns `{error}` on no match; tool throws | PRESENT |
+| `f67e938c` `PresentationObjectMiniDisplay.tsx` tracked version-key refetch (`moduleDataVersionKey`/`datasetsVersionKey`) | Thumbnail refetch on module/dataset change | Lines 5-6, 57-59 of current file | PRESENT |
+| `23676208` S9 F6 `fetchRunId` stale-generator guard, same file | Guards against older async-generator loop committing last | Lines 35-50 of current file | PRESENT |
+| `f67e938c` `slide_card.tsx` `fetchRunId` race guard | Prevents stale slide render overwriting newer one | Lines 34-50 of current file | PRESENT |
+| `f67e938c` `slide_editor/index.tsx` `renderRunId` race guard | Same race-guard pattern for the slide editor's own preview render | Lines 221-234 of current file | PRESENT |
+| `f67e938c` `slide_list.tsx` optimistic-reorder rollback on server rejection | Drag reorder rolls back `sortableSlideItems` if `moveSlides` fails | Lines 335-344 of current file | PRESENT |
+| `7162af1e` S9: replicant options honor relative period filters, surface resolver errors, PO_CACHE_VERSION bump | `getPeriodFilterExactBounds` resolution + `status: "error"` arm | `server/routes/project/presentation_objects.ts` lines 774-855 — survives the branch's added `applyPoToLiveRoom` chokepoint (different code region) | PRESENT |
+| `a4b9722a` (Deploy 1.57.5) `assertNoSlotCollision` gains 4th `items` param | Slot-collision check needs real degeneracy data | `report_editor.ts` (AI tool) + `slide_editor.tsx` (AI tool) both call with 4 args | PRESENT |
+| `a4b9722a` (Deploy 1.57.5) `singleValueDims` filtering (hide/mark single-value dimensions in filter & disaggregation UI) | `presentation_object_editor_panel.tsx`, `presentation_object_editor_panel_data.tsx`, `visualization_editor_inner.tsx` | All three wiring points present and correctly threaded despite viz editor being one of the branch's heaviest rewrites | PRESENT |
+| `13da8b98` / `3dab0542` (Deploy 1.57.4 / 1.60.0) disaggregation filter-only exclusion + searchable multi-select threshold | `presentation_object_editor_panel_data.tsx`, `_2_filters.tsx` | `FILTER_ONLY_DISAGGREGATION_OPTIONS` filter and `MultiSelectSearch`/`FILTER_SEARCH_THRESHOLD` both present | PRESENT |
+| `6abce1e0` (Deploy 1.57.6) drop `X-Upload-Final-Path` CORS header | `server/middleware/cors.ts` — branch added the collab-WS Origin-allowlist comment above this exact block | Header list has `X-Upload-Filename` only, no `X-Upload-Final-Path` | PRESENT |
+| `f974d081` HFA sentinel Layer 3a: `hfa_variable_values_snapshot` table | `server/db/project/_project_database.sql` (+47 lines from branch, same file) | Table present at lines 72-78, matches Sweep 8's independent schema-parity check | PRESENT |
+| `0135c8dc` / `ec07cb0d` / `67870f28` `lib/mod.ts` export changes (add sentinel classifier, add R-code-analysis module, delete dead `cache_class_B`) | `lib/mod.ts` — branch appended 4 collab exports to the same file | All three main-side edits present; no `cache_class_B` re-added | PRESENT |
+| `136870c6` `WindowingSelector.tsx` — track `instanceState.hmisImportRunActive` to bypass stale IndexedDB display cache during an active DHIS2 run | Same file, branch added a dark-mode figure adapter nearby | Dependency present at line 77 | PRESENT |
+
+**Also checked and confirmed no branch overlap (main's fix files were never
+touched by the branch, so no collision was possible):** all S9 query/cache
+fixes not listed above (`f824269b`, `c0c83969`, `1ba10b6f`, `e4e81c71`,
+`6a75f12d` — none of their files intersect the branch's 134-file diff);
+`main.ts` route registrations (`4791f190`, `329ac36f`) — additive, both
+present; `lib/types/mod.ts` dhis2 export — additive, present.
+
+**Conclusion:** no DROPPED or PARTIAL findings. The one silent collision this
+sweep was designed to catch (the `slides.tsx` duplicate-helper case) remains
+the only instance found across the whole 227-commit range — everything else
+either never collided with the branch's rewrites, or survived/was subsumed
+by them.
+
 ## Sweep 4 — Cache triangle on new write paths (VERIFY)
 
 Contract (SYSTEM_03_realtime_cache.md): every write to a row that feeds a
@@ -523,6 +580,136 @@ list-broadcast volume ever becomes a concern.
   for silent catches relying on the global logger.
 
 Deliverable: findings under this section; STOP before fixing.
+
+### Sweep 5 — findings (2026-07-21), report only — nothing fixed yet
+
+**1. WS route auth.** Premise correction: the plan's named "security for the
+websocket" commit (`acd4f2a3`) is not an auth commit — it touches only
+`main.ts` (global rejection handlers) and `doc_rooms.ts` (try/catch around
+Yjs decode calls, crash-hardening against malformed CRDT payloads) and never
+touches `project-collab.ts`. The actual pre-upgrade auth gate has existed
+inline in `project-collab.ts` since the branch's first commit
+(`d3aa2ccd`/`29f6cb15`). That gate (lines 175-259) is **confirmed correct**:
+origin check → Clerk auth (401) → `globalUser.approved` (403) →
+`resolveProjectUserAccess` (the same shared core REST/SSE use; 503/403) →
+per-family view-permission admission check (403 if none) →
+`c.set("collabAuth", …)` → `next()`. Because `upgradeWebSocket(...)` is a
+later middleware in the same route chain, the WS upgrade cannot complete
+until this resolves — no race window, no message can precede the check.
+Per-family view permission is re-checked on every `*_subscribe`/`*_update`/
+`*_unsubscribe`/`*_awareness_update` message; per-family edit permission is
+enforced independently in `doc_rooms.ts:386`; a locked project forces all
+`canEdit*` flags off for the connection's lifetime. Project-Id scoping is
+structurally sound: the WS route takes `project_id` from the URL path once
+at connect time (not per-message), and every DB closure captures that
+validated id — plus this app's one-database-per-project model means even a
+guessed cross-project doc id would hit the wrong physical database and
+404, not leak data. New restore/copy version HTTP routes carry the same
+guard pattern (below). The origin allowlist (`isAllowedWsOrigin`, added
+`6aedead7`) mirrors `server/middleware/cors.ts`'s allowlist since WS
+bypasses CORS — consistent with existing SSE/CORS handling, not a new gap.
+
+**2. Sweep 2 handoff — CONFIRMED CLEAN.** All four routes
+(`restoreDeckVersion`/`copyDeckVersion` in `slide_decks.ts:322-326,580-584`;
+`restoreReportVersion`/`copyReportVersion` in `reports.ts:438-442,622-626`)
+carry `requireProjectPermission({ preventAccessToLockedProjects: true },
+"can_configure_slide_decks"|"can_configure_reports")`, evaluated
+server-side before the handler body runs — independent of the client
+Restore button's reactivity (Sweep 2 finding 6, refuted). Spot-checked
+every other route in both files: all guarded, no gaps.
+
+**3. Room/registry lifecycle — one real gap, rest confirmed clean.**
+
+- **MEDIUM-HIGH: no heartbeat/ping-pong or idle-connection reaper anywhere
+  in the collab stack** (grepped `project-collab.ts`, all of
+  `server/collab/`, `task_management/presence_registry.ts`, and the client
+  collab state — zero hits for ping/pong/heartbeat/idleTimeout). Cleanup of
+  both the presence map and `doc_rooms.ts`'s room `conns` map runs
+  exclusively off WS `onClose`/`onError`, which depend on the transport
+  detecting a dead connection (close frame or TCP FIN/RST). A killed tab,
+  forced OS kill, sleep-without-resume, or silent network drop — realistic
+  for this platform's field-data-collection conditions — may never fire
+  either callback until an unconfigured OS TCP keepalive timeout (hours) or
+  a fleet reverse-proxy idle timeout (infra config, not verifiable from this
+  repo) expires. Failure: the disconnected user's presence entry lingers,
+  showing as "online" to every other project viewer indefinitely; their
+  room stays alive (never hits `conns.size === 0`) as long as any other real
+  user remains in that doc, accumulating ghost connections/rooms on a
+  long-lived multi-tenant server process between deploys. Fix shape: a
+  periodic server→client ping with pong-timeout that invokes the existing
+  `removeConnection`/`handleConnGone` cleanup on N missed pongs — both
+  already exported and reusable.
+- **Placement resolved**: `server/task_management/presence_registry.ts`
+  (150 lines, entirely new) IS the sole collab presence implementation,
+  imported directly by `project-collab.ts` — not a different unrelated
+  system, and there is no `server/collab/presence_registry.ts`. Its
+  location under `task_management/` rather than `collab/` is a Sweep 6
+  placement question, not raised further here.
+- **Confirmed clean**: `presence_registry.ts` cleanup has no Map-of-empty-
+  Maps leak; `doc_rooms.ts`'s teardown chain (`handleConnGone` →
+  `finalizeRoom` → serialized checkpoint-with-retry → `rooms.delete` +
+  `doc.destroy()`) is thorough with explicitly-reasoned race guards;
+  `deck_session_ledger.ts` is bounded per-entry (`SLIDE_CAP=500`,
+  `ELEMENTS_PER_SLIDE_CAP=100`) and independently backstopped by
+  `version_tracker.ts`'s 30s sweep regardless of connection state — the
+  heartbeat gap above does NOT extend to the ledger.
+
+**4. Un-awaited promises / silent catches — two real gaps, rest deliberate.**
+- **MEDIUM: `doc_rooms.ts`'s broadcast fan-out loops lack the per-send
+  try/catch `presence_registry.ts`'s equivalent loops already have.**
+  `attachDoc`'s `doc.on("update", …)` handler (lines 168-178) and
+  `relayDocAwareness` (lines 415-428) call `conn.send(...)` per room member
+  with no guard, unlike `presence_registry.ts:126-130,143-148` which wrap
+  each send individually (comment: dead socket cleaned up by its own
+  close/error handler — explicit prior acknowledgment `ws.send()` can throw
+  before `onClose`/`onError` fires, exactly the lingering-connection class
+  Finding 3 shows is reachable). Failure: `attachDoc`'s handler runs
+  synchronously inside `Y.applyUpdate` inside `applyDocUpdate`'s try/catch
+  (documented as only for malformed-update decode errors). If any OTHER
+  connection's `conn.send()` throws during fan-out, the exception unwinds
+  into that catch, which then tells the valid editor their update was
+  "Malformed document update" (it wasn't), skips
+  `room.deps.onEdit?.(conn.identity)` (silently drops version-history
+  attribution), and — because the exception aborts the handler before
+  `room.dirty = true` runs — may leave the room not marked dirty. If that's
+  the last edit before the room empties, `finalizeRoom`'s
+  `if (!room.dirty) return` short-circuit skips persisting it: applied to
+  the in-memory doc, relayed to some peers, never saved, room destroyed.
+  Narrow (needs one stale peer's send to throw at the wrong moment) but
+  reachable data loss, not hypothetical. Fix shape: wrap each `conn.send`
+  in both loops in the same try/catch `presence_registry.ts` already uses.
+- **LOW: the two sends at the end of `subscribeDoc`** (`doc_rooms.ts:365,371`
+  — sync message and save-state message) have the same unguarded-send gap.
+  The three `void subscribeSlide/Report/Po(...)` call sites
+  (`project-collab.ts:473,507,539`) are otherwise correctly hardened for
+  being un-awaited: `deps.load()` bottoms out in `tryCatchDatabaseAsync`-
+  wrapped DB functions that never reject (always `{success:false, err}`),
+  and CRDT-restore/decode is locally try/caught. Fix shape: same try/catch
+  fix as above, applied to these two sends.
+- **Confirmed clean, not silent suppression**:
+  `version_capture.ts:365`'s `tracker.sweep().catch(...)` is genuine
+  defense-in-depth over an already-self-hardened `flush()` (merges failed
+  state back via `mergeBack` before any error escapes).
+  `doc_rooms.ts:254`'s `room.saveChain = run.catch(() => null)` is
+  deliberate and commented (a rejected chain would deadlock every future
+  checkpoint) — appropriate because `doCheckpoint` already converts internal
+  throws into the same dirty+retry state as an explicit failure; this line
+  only keeps the promise chain alive, doesn't swallow an unhandled error.
+
+**Headline for Tim**: auth gate is solid, has been since the branch's first
+commit, no race window, project-scoping structurally sound. Restore/copy
+routes independently re-validate lock+permission server-side — the Sweep 2
+client-only concern was never a real gap. Most actionable: no heartbeat
+anywhere in the collab stack, so a connection that dies without a clean
+close (killed tab, dropped network) can leave a ghost presence entry and
+keep a doc room alive indefinitely while any other real user stays
+connected — fixable by wiring a ping/pong reaper into the existing cleanup
+functions. Secondary: `doc_rooms.ts`'s broadcast loops need the same
+per-send try/catch `presence_registry.ts` already has, to stop one bad
+peer's socket from misreporting another peer's valid edit as malformed and,
+in a worse-case interleaving, silently dropping it from the checkpoint.
+
+STOP — no fixes applied. Tim rules on which findings to fix.
 
 ## Sweep 6 — Protocol conformance of new files (REPORT-FIRST)
 

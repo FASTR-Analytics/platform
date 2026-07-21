@@ -117,7 +117,9 @@ export function DeckVersionPreview(p: {
         deck_id: p.deckId,
         version_id: p.versionId,
       });
-      if (!res.success) return res;
+      if (!res.success) {
+        return res;
+      }
       // A failed previous-version load is NOT the same as "oldest version" —
       // conflating them would positively badge every slide "New — Added by …".
       let prev: DeckVersionDetail | null = null;
@@ -128,8 +130,11 @@ export function DeckVersionPreview(p: {
           deck_id: p.deckId,
           version_id: p.previousVersionId,
         });
-        if (prevRes.success) prev = prevRes.data;
-        else prevFailed = true;
+        if (prevRes.success) {
+          prev = prevRes.data;
+        } else {
+          prevFailed = true;
+        }
       }
       return { success: true, data: { v: res.data, prev, prevFailed } };
     },
@@ -148,7 +153,9 @@ export function DeckVersionPreview(p: {
       }),
       confirmButtonLabel: t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" }),
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     const res = await serverActions.restoreDeckVersion({
       projectId: p.projectId,
       deck_id: p.deckId,
@@ -216,8 +223,12 @@ export function DeckVersionPreview(p: {
           }
           for (const runs of Object.values(touch.elementAuthors ?? {})) {
             for (const r of runs) {
-              if (r.email) addName(r.email);
-              if (r.deletedBy) addName(r.deletedBy);
+              if (r.email) {
+                addName(r.email);
+              }
+              if (r.deletedBy) {
+                addName(r.deletedBy);
+              }
             }
           }
         }
@@ -274,7 +285,9 @@ export function DeckVersionPreview(p: {
         };
 
         function elementLabel(ch: SlideElementChange): string {
-          if (ch.field) return FIELD_LABELS[ch.field] ?? ch.field;
+          if (ch.field) {
+            return FIELD_LABELS[ch.field] ?? ch.field;
+          }
           if (ch.key === "props") {
             return t3({ en: "Slide settings", fr: "Paramètres de la diapositive", pt: "Definições do diapositivo" });
           }
@@ -398,7 +411,9 @@ export function DeckVersionPreview(p: {
         });
         if (prev !== null) {
           prevOrdered.forEach((s, prevIdx) => {
-            if (currentIds.has(s.id)) return;
+            if (currentIds.has(s.id)) {
+              return;
+            }
             entries.splice(Math.min(prevIdx, entries.length), 0, {
               slideId: s.id,
               config: s.config,
@@ -600,7 +615,9 @@ function VersionSlideThumb(p: {
 
   function openExpandedView() {
     const s = state();
-    if (s.status !== "ready") return;
+    if (s.status !== "ready") {
+      return;
+    }
     openComponent<{ pageInputs: PageInputs; rows?: ElementRow[] }, void>({
       element: ExpandedVersionSlideModal,
       props: { pageInputs: s.data, rows: p.rows },

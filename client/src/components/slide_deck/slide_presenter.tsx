@@ -65,9 +65,13 @@ export function SlidePresenter(p: Props) {
   // first await so concurrent preloads of the same index don't double-fetch.
   async function ensureLoaded(i: number) {
     const ids = slideIds();
-    if (i < 0 || i >= ids.length) return;
+    if (i < 0 || i >= ids.length) {
+      return;
+    }
     const id = ids[i];
-    if (pages().has(id)) return;
+    if (pages().has(id)) {
+      return;
+    }
     const renderedAt = projectState.lastUpdated.slides[id];
     setPage(id, { status: "loading", msg: LOADING_MSG }, renderedAt);
 
@@ -98,7 +102,9 @@ export function SlidePresenter(p: Props) {
     onCleanup(() => controller.abort());
     async function load() {
       const res = await getSlideDeckDetailFromCacheOrFetch(p.projectId, p.deckId);
-      if (controller.signal.aborted || !res.success) return;
+      if (controller.signal.aborted || !res.success) {
+        return;
+      }
       setSlideIds(res.data.slideIds);
       setCurrentIndex((i) => clamp(i));
     }
@@ -111,10 +117,14 @@ export function SlidePresenter(p: Props) {
     const stale = [...pages()].filter(
       ([id, entry]) => projectState.lastUpdated.slides[id] !== entry.renderedAt,
     );
-    if (stale.length === 0) return;
+    if (stale.length === 0) {
+      return;
+    }
     setPages((prev) => {
       const next = new Map(prev);
-      for (const [id] of stale) next.delete(id);
+      for (const [id] of stale) {
+        next.delete(id);
+      }
       return next;
     });
   });
@@ -128,7 +138,9 @@ export function SlidePresenter(p: Props) {
 
   let closed = false;
   function close() {
-    if (closed) return;
+    if (closed) {
+      return;
+    }
     closed = true;
     p.close(undefined);
   }
@@ -137,13 +149,17 @@ export function SlidePresenter(p: Props) {
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
   function pokeControls() {
     setControlsVisible(true);
-    if (hideTimer) clearTimeout(hideTimer);
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+    }
     hideTimer = setTimeout(() => setControlsVisible(false), 2500);
   }
 
   async function enterFullscreen() {
     try {
-      if (rootEl && !document.fullscreenElement) await rootEl.requestFullscreen();
+      if (rootEl && !document.fullscreenElement) {
+        await rootEl.requestFullscreen();
+      }
     } catch {
       // Fullscreen can be refused (no gesture / disallowed); the fixed overlay
       // already covers the window, so just carry on.
@@ -151,7 +167,9 @@ export function SlidePresenter(p: Props) {
   }
   async function exitFullscreenIfNeeded() {
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
     } catch {
       // ignore
     }
@@ -225,7 +243,9 @@ export function SlidePresenter(p: Props) {
     onCleanup(() => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      if (hideTimer) clearTimeout(hideTimer);
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+      }
       exitFullscreenIfNeeded();
     });
   });

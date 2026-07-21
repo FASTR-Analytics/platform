@@ -118,7 +118,9 @@ export function VersionHistoryEditor(p: Props) {
   // previews diff against it to show what that session changed.
   function previousVersionId(versionId: string): string | undefined {
     const st = versions.state();
-    if (st.status !== "ready") return undefined;
+    if (st.status !== "ready") {
+      return undefined;
+    }
     const i = st.data.findIndex((r) => r.id === versionId);
     return i >= 0 ? st.data[i + 1]?.id : undefined;
   }

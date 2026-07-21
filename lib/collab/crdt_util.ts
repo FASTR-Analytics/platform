@@ -26,11 +26,18 @@ export function liveAuthorRunLen(runs: AuthorRun[]): number {
 export function stripTombstoneRuns(runs: AuthorRun[]): AuthorRun[] {
   const out: AuthorRun[] = [];
   for (const r of runs) {
-    if (r.deletedBy !== undefined) continue;
-    if (r.len <= 0) continue;
+    if (r.deletedBy !== undefined) {
+      continue;
+    }
+    if (r.len <= 0) {
+      continue;
+    }
     const prev = out[out.length - 1];
-    if (prev && prev.email === r.email) prev.len += r.len;
-    else out.push({ len: r.len, email: r.email });
+    if (prev && prev.email === r.email) {
+      prev.len += r.len;
+    } else {
+      out.push({ len: r.len, email: r.email });
+    }
   }
   return out;
 }
@@ -51,7 +58,9 @@ export function bytesToBase64(bytes: Uint8Array): string {
 export function base64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
+  }
   return out;
 }
 
@@ -75,7 +84,9 @@ export function canonicalJson(v: unknown): string {
 /** LWW set of a primitive value; deletes on undefined; no-op when unchanged. */
 export function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void {
   if (value === undefined) {
-    if (m.has(key)) m.delete(key);
+    if (m.has(key)) {
+      m.delete(key);
+    }
   } else if (m.get(key) !== value) {
     m.set(key, value);
   }
@@ -103,7 +114,9 @@ export function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void 
     lastOpaqueRef.set(m, cache);
   }
   if (value === undefined) {
-    if (m.has(key)) m.delete(key);
+    if (m.has(key)) {
+      m.delete(key);
+    }
     cache.delete(key);
     return;
   }
@@ -136,7 +149,9 @@ export function setOpaqueByValue(
   value: unknown,
 ): void {
   if (value === undefined) {
-    if (m.has(key)) m.delete(key);
+    if (m.has(key)) {
+      m.delete(key);
+    }
     return;
   }
   if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
@@ -159,10 +174,14 @@ export function setOpaqueByValue(
  *  behavior), so the result is always exactly `next`. */
 export function syncText(yText: Y.Text, next: string): void {
   const cur = yText.toString();
-  if (cur === next) return;
+  if (cur === next) {
+    return;
+  }
   const maxPre = Math.min(cur.length, next.length);
   let p = 0;
-  while (p < maxPre && cur[p] === next[p]) p++;
+  while (p < maxPre && cur[p] === next[p]) {
+    p++;
+  }
   let s = 0;
   while (s < maxPre - p && cur[cur.length - 1 - s] === next[next.length - 1 - s]) {
     s++;
@@ -173,8 +192,12 @@ export function syncText(yText: Y.Text, next: string): void {
   const hunks = diffTextHunks(midCur, midNext);
   for (let i = hunks.length - 1; i >= 0; i--) {
     const h = hunks[i];
-    if (h.toA > h.fromA) yText.delete(p + h.fromA, h.toA - h.fromA);
-    if (h.toB > h.fromB) yText.insert(p + h.fromA, midNext.slice(h.fromB, h.toB));
+    if (h.toA > h.fromA) {
+      yText.delete(p + h.fromA, h.toA - h.fromA);
+    }
+    if (h.toB > h.fromB) {
+      yText.insert(p + h.fromA, midNext.slice(h.fromB, h.toB));
+    }
   }
 }
 
@@ -195,7 +218,9 @@ function splitLines(s: string): string[] {
       start = i + 1;
     }
   }
-  if (start < s.length) out.push(s.slice(start));
+  if (start < s.length) {
+    out.push(s.slice(start));
+  }
   return out;
 }
 
@@ -208,10 +233,15 @@ function lisIndices(values: number[]): number[] {
     let hi = tailIdx.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (values[tailIdx[mid]] < values[i]) lo = mid + 1;
-      else hi = mid;
+      if (values[tailIdx[mid]] < values[i]) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
     }
-    if (lo > 0) prev[i] = tailIdx[lo - 1];
+    if (lo > 0) {
+      prev[i] = tailIdx[lo - 1];
+    }
     tailIdx[lo] = i;
   }
   const out: number[] = [];
@@ -240,7 +270,9 @@ function patienceLineHunks(
     aHi--;
     bHi--;
   }
-  if (aLo === aHi && bLo === bHi) return;
+  if (aLo === aHi && bLo === bHi) {
+    return;
+  }
   if (aLo === aHi || bLo === bHi) {
     out.push({ fromA: aLo, toA: aHi, fromB: bLo, toB: bHi });
     return;
@@ -281,7 +313,9 @@ function patienceLineHunks(
 /** Char-offset hunks that turn `aStr` into `bStr`, line-anchored then
  *  char-trimmed. Exported for the harness. */
 export function diffTextHunks(aStr: string, bStr: string): TextHunk[] {
-  if (aStr === bStr) return [];
+  if (aStr === bStr) {
+    return [];
+  }
   const a = splitLines(aStr);
   const b = splitLines(bStr);
   const lineHunks: TextHunk[] = [];
@@ -289,10 +323,14 @@ export function diffTextHunks(aStr: string, bStr: string): TextHunk[] {
   // Line index -> char offset.
   const offA = new Array<number>(a.length + 1);
   offA[0] = 0;
-  for (let i = 0; i < a.length; i++) offA[i + 1] = offA[i] + a[i].length;
+  for (let i = 0; i < a.length; i++) {
+    offA[i + 1] = offA[i] + a[i].length;
+  }
   const offB = new Array<number>(b.length + 1);
   offB[0] = 0;
-  for (let i = 0; i < b.length; i++) offB[i + 1] = offB[i] + b[i].length;
+  for (let i = 0; i < b.length; i++) {
+    offB[i + 1] = offB[i] + b[i].length;
+  }
   const out: TextHunk[] = [];
   for (const h of lineHunks) {
     let fromA = offA[h.fromA];
@@ -308,7 +346,9 @@ export function diffTextHunks(aStr: string, bStr: string): TextHunk[] {
       toA--;
       toB--;
     }
-    if (fromA === toA && fromB === toB) continue;
+    if (fromA === toA && fromB === toB) {
+      continue;
+    }
     out.push({ fromA, toA, fromB, toB });
   }
   return out;

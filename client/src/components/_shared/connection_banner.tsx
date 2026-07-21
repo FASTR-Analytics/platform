@@ -36,7 +36,9 @@ let recoveredTimer: ReturnType<typeof setTimeout> | undefined;
 let hostMounted = false;
 
 function ensureHost(): void {
-  if (hostMounted) return;
+  if (hostMounted) {
+    return;
+  }
   hostMounted = true;
   const el = document.createElement("div");
   document.body.appendChild(el);
@@ -46,13 +48,17 @@ function ensureHost(): void {
 /** Feed every connection-state transition here (collab.ts). */
 export function notifyCollabConnection(next: CollabConnectionState): void {
   const prev = connState();
-  if (next === prev) return;
+  if (next === prev) {
+    return;
+  }
   setConnState(next);
 
   if (next === "reconnecting") {
     // First time we ever need UI — mount the host lazily.
     ensureHost();
-    if (recoveredTimer) clearTimeout(recoveredTimer);
+    if (recoveredTimer) {
+      clearTimeout(recoveredTimer);
+    }
     recoveredTimer = undefined;
     setJustRecovered(false);
     return;
@@ -60,7 +66,9 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
   if (next === "connected" && prev === "reconnecting") {
     // Recovered from a real outage (never flashes on a normal initial connect).
     setJustRecovered(true);
-    if (recoveredTimer) clearTimeout(recoveredTimer);
+    if (recoveredTimer) {
+      clearTimeout(recoveredTimer);
+    }
     recoveredTimer = setTimeout(() => {
       recoveredTimer = undefined;
       setJustRecovered(false);
@@ -68,7 +76,9 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
     return;
   }
   // idle / connecting / connected-from-connecting: nothing to show.
-  if (recoveredTimer) clearTimeout(recoveredTimer);
+  if (recoveredTimer) {
+    clearTimeout(recoveredTimer);
+  }
   recoveredTimer = undefined;
   setJustRecovered(false);
 }

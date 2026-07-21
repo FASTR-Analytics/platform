@@ -79,7 +79,9 @@ function ledgerFor(projectId: string, deckId: string): DeckLedger {
 function touchFor(ledger: DeckLedger, slideId: string): SlideTouch | null {
   let touch = ledger.slides.get(slideId);
   if (!touch) {
-    if (ledger.slides.size >= SLIDE_CAP) return null;
+    if (ledger.slides.size >= SLIDE_CAP) {
+      return null;
+    }
     touch = {};
     ledger.slides.set(slideId, touch);
   }
@@ -94,7 +96,9 @@ function record(
   email: string,
 ): void {
   const touch = touchFor(ledgerFor(projectId, deckId), slideId);
-  if (!touch) return;
+  if (!touch) {
+    return;
+  }
   (touch[kind] ??= new Set()).add(email);
 }
 
@@ -134,7 +138,7 @@ export function recordSlideElementTouch(
   slideId: string,
   elementKey: string,
   email: string,
-  kind: keyof ElementTouch = "touched",
+  kind: keyof ElementTouch,
 ): void {
   const k = slideKey(projectId, slideId);
   let elements = elementTouches.get(k);
@@ -144,13 +148,17 @@ export function recordSlideElementTouch(
   }
   let touch = elements.get(elementKey);
   if (!touch) {
-    if (elements.size >= ELEMENTS_PER_SLIDE_CAP) return;
+    if (elements.size >= ELEMENTS_PER_SLIDE_CAP) {
+      return;
+    }
     touch = { touched: new Set() };
     elements.set(elementKey, touch);
   }
   // Every classified op is also a touch, so `elements` stays the superset.
   touch.touched.add(email);
-  if (kind !== "touched") (touch[kind] ??= new Set()).add(email);
+  if (kind !== "touched") {
+    (touch[kind] ??= new Set()).add(email);
+  }
 }
 
 /** Discard a slide's accumulated element touches — call when the slide row
@@ -189,7 +197,9 @@ export function drainDeckLedger(
 ): DeckSlideEditors | null {
   const k = key(projectId, deckId);
   const ledger = ledgers.get(k);
-  if (!ledger) return null;
+  if (!ledger) {
+    return null;
+  }
   ledgers.delete(k);
   const slides: DeckSlideEditors["slides"] = {};
   for (const [slideId, touch] of ledger.slides) {
@@ -203,8 +213,12 @@ export function drainDeckLedger(
     const elementsTextDeleted: Record<string, string[]> = {};
     for (const [elementKey, et] of elementMap ?? []) {
       elements[elementKey] = [...et.touched];
-      if (et.added) elementsAdded[elementKey] = [...et.added];
-      if (et.removed) elementsRemoved[elementKey] = [...et.removed];
+      if (et.added) {
+        elementsAdded[elementKey] = [...et.added];
+      }
+      if (et.removed) {
+        elementsRemoved[elementKey] = [...et.removed];
+      }
       if (et.textDeleted) {
         elementsTextDeleted[elementKey] = [...et.textDeleted];
       }
@@ -241,7 +255,9 @@ export function restoreDeckLedger(
   deckId: string,
   drained: DeckSlideEditors | null,
 ): void {
-  if (!drained) return;
+  if (!drained) {
+    return;
+  }
   const ledger = ledgerFor(projectId, deckId);
   for (const [slideId, touch] of Object.entries(drained.slides)) {
     for (const kind of ["edited", "added", "removed"] as const) {

@@ -73,10 +73,15 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
         null;
       const ops: BodyDeltaOp[] = [];
       for (const d of event.delta) {
-        if (d.retain !== undefined) ops.push({ retain: d.retain });
-        else if (typeof d.insert === "string") ops.push({ insert: d.insert });
-        else if (d.insert !== undefined) ops.push({ insert: " " }); // embed = length 1
-        else if (d.delete !== undefined) ops.push({ delete: d.delete });
+        if (d.retain !== undefined) {
+          ops.push({ retain: d.retain });
+        } else if (typeof d.insert === "string") {
+          ops.push({ insert: d.insert });
+        } else if (d.insert !== undefined) {
+          ops.push({ insert: " " }); // embed = length 1
+        } else if (d.delete !== undefined) {
+          ops.push({ delete: d.delete });
+        }
       }
       applyBodyDelta(projectId, reportId, ops, email);
     });

@@ -105,15 +105,23 @@ function splitByAuthors(
   const parts: ({ from: number; to: number } & Attribution)[] = [];
   let pos = 0;
   for (const run of step.authors) {
-    if (run.deletedBy !== undefined) continue; // tombstone: not body text
+    if (run.deletedBy !== undefined) {
+      continue; // tombstone: not body text
+    }
     const runFrom = pos;
     const runTo = pos + run.len;
     pos = runTo;
-    if (runTo <= from) continue;
-    if (runFrom >= to) break;
+    if (runTo <= from) {
+      continue;
+    }
+    if (runFrom >= to) {
+      break;
+    }
     const f = Math.max(from, runFrom);
     const t = Math.min(to, runTo);
-    if (f >= t) continue;
+    if (f >= t) {
+      continue;
+    }
     if (run.email === null) {
       parts.push({ from: f, to: t, ...fallback });
     } else {
@@ -126,7 +134,9 @@ function splitByAuthors(
       });
     }
   }
-  if (parts.length === 0) return [{ from, to, ...fallback }];
+  if (parts.length === 0) {
+    return [{ from, to, ...fallback }];
+  }
   // A misaligned ledger may not cover the range — pad the edges.
   if (parts[0].from > from) {
     parts.unshift({ from, to: parts[0].from, ...fallback });
@@ -148,7 +158,9 @@ function splitByAuthors(
 }
 
 export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
-  if (steps.length === 0) return [];
+  if (steps.length === 0) {
+    return [];
+  }
   if (steps.length === 1) {
     return steps[0].body.length > 0
       ? [{ text: steps[0].body, kind: "same" }]
@@ -179,7 +191,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   const inserted: InsertInterval[] = [];
   for (let k = 0; k < stepDiffs.length; k++) {
     for (const h of stepDiffs[k].hunks) {
-      if (h.fromB === h.toB) continue;
+      if (h.fromB === h.toB) {
+        continue;
+      }
       for (const part of splitByAuthors(steps[k + 1], h.fromB, h.toB)) {
         let from = part.from;
         let to = part.to;
@@ -219,7 +233,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   type GhostInfo = { ghost: string; runs: GhostRun[] };
 
   function buildGhost(step: VersionStep): GhostInfo | null {
-    if (!step.authors || step.authors.length === 0) return null;
+    if (!step.authors || step.authors.length === 0) {
+      return null;
+    }
     const parts: string[] = [];
     const runs: GhostRun[] = [];
     let ghostLen = 0;
@@ -244,8 +260,12 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
       ghostLen += run.len;
     }
-    if (live !== step.body.length) return null;
-    if (!hasTombstone) return null;
+    if (live !== step.body.length) {
+      return null;
+    }
+    if (!hasTombstone) {
+      return null;
+    }
     return { ghost: parts.join(""), runs };
   }
 
@@ -259,9 +279,11 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     () => undefined,
   );
   function ghostMappingFor(k: number): GhostMapping | null {
-    if (ghostMappings[k] !== undefined) return ghostMappings[k] as
-      | GhostMapping
-      | null;
+    if (ghostMappings[k] !== undefined) {
+      return ghostMappings[k] as
+        | GhostMapping
+        | null;
+    }
     const info = buildGhost(steps[k + 1]);
     const m = info
       ? { info, hunks: presentableDiff(bodies[k], info.ghost) }
@@ -287,11 +309,17 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     pieces: GhostPiece[],
   ): void {
     for (const r of info.runs) {
-      if (r.to <= gFrom) continue;
-      if (r.from >= gTo) break;
+      if (r.to <= gFrom) {
+        continue;
+      }
+      if (r.from >= gTo) {
+        break;
+      }
       const f = Math.max(gFrom, r.from);
       const t = Math.min(gTo, r.to);
-      if (f >= t) continue;
+      if (f >= t) {
+        continue;
+      }
       pieces.push(
         r.deletedBy === undefined
           ? { off: offBase + (f - gFrom), len: t - f, kind: "survived" }
@@ -315,7 +343,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     b: number,
   ): GhostPiece[] | null {
     const m = ghostMappingFor(k);
-    if (!m) return null;
+    if (!m) {
+      return null;
+    }
     const pieces: GhostPiece[] = [];
     let pos = a;
     let pa = 0;
@@ -326,7 +356,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
         emitGhostRuns(m.info, pos + (pb - pa), end + (pb - pa), pos - a, pieces);
         pos = end;
       }
-      if (pos >= b) break;
+      if (pos >= b) {
+        break;
+      }
       if (pos < h.toA && pos < b) {
         const end = Math.min(h.toA, b);
         pieces.push({ off: pos - a, len: end - pos, kind: "gap" });
@@ -334,7 +366,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
       pa = h.toA;
       pb = h.toB;
-      if (pos >= b) break;
+      if (pos >= b) {
+        break;
+      }
     }
     if (pos < b) {
       emitGhostRuns(m.info, pos + (pb - pa), b + (pb - pa), pos - a, pieces);
@@ -366,7 +400,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       if (touched) {
         touchedSteps.push(k);
         const label = steps[k + 1].removedLabel ?? steps[k + 1].label;
-        if (!labels.includes(label)) labels.push(label);
+        if (!labels.includes(label)) {
+          labels.push(label);
+        }
         if (touchedSteps.length === 1 && b - a === width) {
           ghostPieces = mapRangeThroughGhost(k, a, b);
           ghostStepIdx = k + 1;
@@ -374,7 +410,9 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
       const na = stepDiffs[k].changes.mapPos(a, 1);
       const nb = stepDiffs[k].changes.mapPos(b, -1);
-      if (na >= nb) break;
+      if (na >= nb) {
+        break;
+      }
       a = na;
       b = nb;
     }
@@ -463,8 +501,12 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       );
       const bounds = new Set<number>([h.fromB, h.toB]);
       for (const iv of covering) {
-        if (iv.from > h.fromB && iv.from < h.toB) bounds.add(iv.from);
-        if (iv.to > h.fromB && iv.to < h.toB) bounds.add(iv.to);
+        if (iv.from > h.fromB && iv.from < h.toB) {
+          bounds.add(iv.from);
+        }
+        if (iv.to > h.fromB && iv.to < h.toB) {
+          bounds.add(iv.to);
+        }
       }
       const sorted = [...bounds].sort((x, y) => x - y);
       for (let i = 0; i < sorted.length - 1; i++) {

@@ -39,11 +39,15 @@ type AnyNode = {
 function collectItems(slide: Slide): Map<string, ItemNode> {
   const map = new Map<string, ItemNode>();
   const walk = (node: AnyNode | undefined): void => {
-    if (!node) return;
+    if (!node) {
+      return;
+    }
     if (node.type === "item" && node.data) {
       map.set(node.id, node as ItemNode);
     } else {
-      for (const child of node.children ?? []) walk(child);
+      for (const child of node.children ?? []) {
+        walk(child);
+      }
     }
   };
   if (slide.type === "content") {
@@ -136,7 +140,9 @@ export function diffSlideElements(
     const textSet = new Set<string>(TEXT_FIELDS_BY_TYPE[newSlide.type]);
     const keys = new Set([...Object.keys(o), ...Object.keys(n)]);
     for (const k of keys) {
-      if (k === "type" || textSet.has(k)) continue;
+      if (k === "type" || textSet.has(k)) {
+        continue;
+      }
       if (canonicalJson(o[k] ?? null) !== canonicalJson(n[k] ?? null)) {
         changes.push({ key: "props", kind: "edited" });
         break;

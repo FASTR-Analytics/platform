@@ -27,22 +27,30 @@ type LinesOptions = NonNullable<ContentOptions["lines"]>;
 // series) — invisible on dark bases. Flip near-black plain-string colors to
 // the dark-theme text color; {key} colors and chromatic colors pass through.
 function isNearBlack(c: unknown): c is string {
-  if (typeof c !== "string" || c[0] !== "#") return false;
+  if (typeof c !== "string" || c[0] !== "#") {
+    return false;
+  }
   const hex = c.length === 4
     ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`
     : c;
-  if (hex.length !== 7) return false;
+  if (hex.length !== 7) {
+    return false;
+  }
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return false;
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return false;
+  }
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.1;
 }
 
 function adaptSeriesColorFunc(
   func: SeriesColorFunc | undefined,
 ): SeriesColorFunc | undefined {
-  if (!func) return undefined;
+  if (!func) {
+    return undefined;
+  }
   return (info) => {
     const c = func(info);
     return isNearBlack(c) ? DARK_TEXT : c;
@@ -51,7 +59,9 @@ function adaptSeriesColorFunc(
 
 function adaptLines(lines: LinesOptions | undefined): LinesOptions | undefined {
   const func = lines?.func;
-  if (!func) return lines;
+  if (!func) {
+    return lines;
+  }
   const remap = <T,>(s: T): T =>
     typeof s === "object" && s !== null &&
       isNearBlack((s as { color?: unknown }).color)
@@ -69,7 +79,9 @@ function adaptLines(lines: LinesOptions | undefined): LinesOptions | undefined {
 function adaptLegend(
   legend: FigureInputs["legend"],
 ): FigureInputs["legend"] {
-  if (!Array.isArray(legend)) return legend;
+  if (!Array.isArray(legend)) {
+    return legend;
+  }
   return legend.map((item) =>
     typeof item === "object" && item !== null && isNearBlack(item.color)
       ? { ...item, color: DARK_TEXT }
@@ -80,7 +92,9 @@ function adaptLegend(
 export function adaptFigureStyleForDarkMode(
   inputs: FigureInputs,
 ): FigureInputs {
-  if (!darkMode()) return inputs;
+  if (!darkMode()) {
+    return inputs;
+  }
   const style: CustomFigureStyleOptions = inputs.style ?? {};
   const isMap = "mapData" in inputs;
   return {

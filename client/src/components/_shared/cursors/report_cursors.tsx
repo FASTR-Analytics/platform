@@ -90,15 +90,21 @@ export function ReportEditorCursors(p: {
     if (pointer.surface === "zone") {
       return acceptZonePointer(pointer, p.reportId);
     }
-    if (pointer.scope !== p.reportId) return null;
+    if (pointer.scope !== p.reportId) {
+      return null;
+    }
     if (pointer.surface === "report-code") {
       const code = codePane();
-      if (!code) return null;
+      if (!code) {
+        return null;
+      }
       return viewportFromPane(code.pane, code.content, pointer);
     }
     if (pointer.surface === "report-preview") {
       const preview = previewPane();
-      if (!preview) return null;
+      if (!preview) {
+        return null;
+      }
       return viewportFromPane(preview.pane, preview.content, pointer);
     }
     return null; // foreign surfaces on the shared awareness (fig:* zones)
