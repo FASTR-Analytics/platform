@@ -8,19 +8,16 @@ promptSection→instructions).
 
 ## Remaining work (finish-the-plan checklist, as of 2026-07-22)
 
-1. **Independent review of rungs 3.5 and 4** — rungs 0-3 are reviewed
-   (rung 3's F2 finding fixed same day); 3.5 and 4 are implemented but NOT
-   yet reviewed. Per the workflow below, the rung-4 review must land before
-   rung 5 starts. Each rung's "Review focus" notes are the checklist; rung
-   4 additionally has two flagged deviations (its status block) for the
-   reviewer to accept or reverse.
+1. ~~**Independent review of rungs 3.5 and 4**~~ — DONE 2026-07-22: rung
+   3.5 reviewed clean; rung 4 reviewed sound with both deviations accepted
+   and its one should-fix (interaction-log cross-project carryover) fixed
+   same day (see the rung status blocks).
 2. **Rung 5** — the last rung. Its scope was rewritten 2026-07-22: half the
    original content (per-view instructions) already shipped early; only the
    `buildToolCatalog` half remains. Read the rung-5 section, not the
    feature-6 section, for current scope.
-3. **Commit state**: everything through rung 3.5 is committed (`11aae7d2`).
-   The rung-4 diff, the promptSection→instructions rename, and this plan's
-   status updates are uncommitted in the working tree.
+3. **Commit state**: everything through rung 4 is committed (`b8f74f33`);
+   the review-fix batch follows it.
 
 After rung 5 ships and is reviewed, this plan is COMPLETE — delete it
 (history lives in git; durable contracts live in panther's `DOC_AI_CHAT.md`
@@ -692,7 +689,9 @@ the failure-channel ruling (~91 sites).
 
 ### Rung 3.5 — adopt panther's standalone-tool API — [x]
 
-Status: shipped 2026-07-22; review PENDING. All four steps executed as
+Status: shipped 2026-07-22; reviewed 2026-07-22 (clean — no findings; one
+optional polish noted: panther's newer `aiToolFactory(projectAIViews)` could
+drop the 22 `viewRegistry` lines, not a defect). All four steps executed as
 specced: 22 sites swapped (`slides.tsx` ×9, `report_editor.ts` ×8, `slide_editor.tsx` ×3,
 `visualization_editor.tsx` ×2), `projectAIViews` exported, the "ONE
 controller instance" comment and the stale `build_tools.ts` comment updated,
@@ -740,7 +739,17 @@ alternating inside one tools array) and the deleted hazard class, not brevity.
 
 ### Rung 4 — copilot interactions + echo + `switch_tab` attribution (features 3+8) — [x]
 
-Status: shipped 2026-07-22; review PENDING. `interactions.ts` rewritten as the
+Status: shipped 2026-07-22 (committed `b8f74f33`); reviewed 2026-07-22 —
+sound, both deviations ACCEPTED, no blocking findings. One should-fix fixed
+same day: the module-singleton controller made the interaction log outlive
+project scope (client-side project switch delivered project A's retained
+actions to project B's first digest) — fixed via a new panther
+`clearInteractionLog()` API (panther `f3d6096`, synced `a1f8c130`) called at
+`Project` mount, which the keyed route `<Match>` re-runs per switch. Also
+fixed from the review notes: `delete_slides` now marks the server's
+`deletedIds`, not the requested ids. Residual collab-checkpoint echo (a
+pre-existing design question, not a rung-4 regression) recorded in
+SYSTEM_13 Open items. `interactions.ts` rewritten as the
 `defineAIInteractions` registry (9 interactions; wired into
 `createAIViewController` in ai_views.ts); `pendingInteractions`/`notifyAI`/
 `reduceInteractions`/`formatInteraction` and the copilot's

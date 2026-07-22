@@ -498,8 +498,14 @@ last-write-wins model (see the satellite section). Remaining:
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced (removal
   now cleans up server-side; replace is the remaining stale/orphan path).
-- **[LOW]** AI's own SSE-visible edits echo back as "User actions"
-  (index.tsx:68-99 has no self-edit filtering).
+- **[LOW]** Residual SSE self-echo under live collab only (the general case
+  was fixed 2026-07-22 by `markAIEdit` echo keys on every persist-path write
+  tool): collab checkpoints persist AI `setTempSlide`/`setTempConfig` edits
+  and notify `slides`/`presentation_objects`, echoing back unmarked as
+  "Edited slide X" / "Visualization X updated". Marking those keys would
+  also suppress genuine co-editor actions on the same slide/viz — a design
+  question (per-origin echo keys? checkpoint-carried origin?), not a
+  missing mark; predates the interactions migration.
 
 **HFA satellite (fixes are S5's to land; contract is S13's)**
 

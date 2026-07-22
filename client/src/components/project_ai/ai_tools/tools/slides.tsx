@@ -539,7 +539,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
-        for (const slideId of input.slideIds) {
+        for (const slideId of res.data.deletedIds) {
           projectAIViewController.markAIEdit(`slide:${slideId}`);
         }
         projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);

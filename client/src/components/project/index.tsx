@@ -68,6 +68,11 @@ function AIContextSync() {
 }
 
 export default function Project(p: Props) {
+  // The view controller is a module singleton but its interaction log is
+  // project-scoped data: without this, a client-side project switch (the
+  // keyed <Match> remounts us) delivers the previous project's retained
+  // actions to this project's first digest as fake user activity.
+  projectAIViewController.clearInteractionLog();
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
       <ProjectInner />
