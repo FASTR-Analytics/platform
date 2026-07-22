@@ -156,6 +156,8 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
+        projectAIViewController.markAIEdit(`slide:${res.data.slideId}`);
+        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
 
         return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -220,6 +222,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
@@ -282,6 +285,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
@@ -329,6 +333,7 @@ export function getToolsForSlides(
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
@@ -485,6 +490,8 @@ export function getToolsForSlides(
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {
           parts.push(
@@ -532,6 +539,11 @@ export function getToolsForSlides(
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
+        for (const slideId of input.slideIds) {
+          projectAIViewController.markAIEdit(`slide:${slideId}`);
+        }
+        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
+
         return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
@@ -570,6 +582,11 @@ export function getToolsForSlides(
           slideIds: input.slideIds,
         });
         if (!res.success) throw new AIToolFailure(res.err);
+
+        for (const slideId of res.data.newSlideIds) {
+          projectAIViewController.markAIEdit(`slide:${slideId}`);
+        }
+        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
 
         return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -620,6 +637,11 @@ export function getToolsForSlides(
           position: input.position,
         });
         if (!res.success) throw new AIToolFailure(res.err);
+
+        for (const slideId of input.slideIds) {
+          projectAIViewController.markAIEdit(`slide:${slideId}`);
+        }
+        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
 
         return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },

@@ -2,8 +2,29 @@
 
 Status: ACTIVE / adoption in rungs. Written 2026-07-17; updated 2026-07-20
 (panther Phases 1+2), 2026-07-21 (panther plan complete), 2026-07-22 (full
-re-verification + rung restructure for staged implementation; then panther's
-standalone-tool refactor → rung 3.5 added).
+re-verification + rung restructure; rungs 0-4 shipped, absorbing two
+mid-stream panther renames — standalone tools → rung 3.5,
+promptSection→instructions).
+
+## Remaining work (finish-the-plan checklist, as of 2026-07-22)
+
+1. **Independent review of rungs 3.5 and 4** — rungs 0-3 are reviewed
+   (rung 3's F2 finding fixed same day); 3.5 and 4 are implemented but NOT
+   yet reviewed. Per the workflow below, the rung-4 review must land before
+   rung 5 starts. Each rung's "Review focus" notes are the checklist; rung
+   4 additionally has two flagged deviations (its status block) for the
+   reviewer to accept or reverse.
+2. **Rung 5** — the last rung. Its scope was rewritten 2026-07-22: half the
+   original content (per-view instructions) already shipped early; only the
+   `buildToolCatalog` half remains. Read the rung-5 section, not the
+   feature-6 section, for current scope.
+3. **Commit state**: everything through rung 3.5 is committed (`11aae7d2`).
+   The rung-4 diff, the promptSection→instructions rename, and this plan's
+   status updates are uncommitted in the working tree.
+
+After rung 5 ships and is reviewed, this plan is COMPLETE — delete it
+(history lives in git; durable contracts live in panther's `DOC_AI_CHAT.md`
+and the SYSTEM_13 doc).
 
 State verified 2026-07-22:
 
@@ -17,10 +38,10 @@ State verified 2026-07-22:
   (`~/projects/panther/timroberton-panther/DOC_AI_CHAT.md`) — it is NOT
   vendored (the sync copies modules + protocols only). Read it from the
   panther repo when implementing or reviewing any rung.
-- **Adoption progress: rungs 0, 1, 2, 3 and 3.5 are shipped** (see the rung
-  checkboxes below); rungs 4 and 5 remain. The original "adopted NONE yet"
-  baseline (zero view/approval/interaction uses, HFA on `confirmChain`) is
-  history.
+- **Adoption progress: rungs 0 through 4 are shipped** (see the rung
+  checkboxes below); rung 5 remains, plus the reviews listed in "Remaining
+  work" above. The original "adopted NONE yet" baseline (zero
+  view/approval/interaction uses, HFA on `confirmChain`) is history.
 - **The sync tripwires are already live** — the app deployed (1.61.1) after
   the Phase 5 sync with no construction throws, so both surfaces' tool arrays
   are de-facto clean. The old "run `validateAIChatConfig` before the first
@@ -296,13 +317,15 @@ Panther provides: `buildToolCatalog(tools)` renders the registry's real
 names/descriptions as markdown — it cannot drift because it IS the registry.
 
 **Copilot adoption:** replace the hand-typed `getAllToolsList()`
-(`build_system_prompt.ts:633-652` — 18 entries interpolated 11 times, already
-heavily drifted from the 42 registered tools: omits `create_report`, all 8
-report_editor tools, all 10 slides tools, all 3 slide_editor tools, both viz
-editor tools). **Cache rule:** the call composed into the `system` accessor must
-omit `currentView` (view-grouped ordering would bust the system cache breakpoint
-on every navigation; the per-tool view annotations are static and included
-regardless).
+(definition at `build_system_prompt.ts:632` as of 2026-07-22, now
+interpolated 13 times — once inside each per-view instructions function,
+since rung 3 moved the per-view prompt text onto the view registry; ~18
+hand-listed entries, heavily drifted from the 42 registered tools: omits
+`create_report`, all 8 report_editor tools, all 10 slides tools, all 3
+slide_editor tools, both viz editor tools). **Cache rule:** any call
+composed into the `system` accessor must omit `currentView` (view-grouped
+ordering would bust the system cache breakpoint on every navigation; the
+per-tool view annotations are static and included regardless).
 
 **HFA adoption:** optional; its prompt's tool list is small.
 
@@ -399,15 +422,11 @@ matching panther-test's own demonstration of the same choice.
 These are wb-fastr bugs the panther features would fix at migration; if we
 decide not to adopt, fix them directly:
 
-1. `proposeEdit` orphan: navigate-away leaves the staged modal live and a
-   later accept fires the persist path against a torn-down editor
-   (re-verified 2026-07-22: `onCleanup` at `report/index.tsx:723-761` resets
-   the AI context but never declines the open modal; on accept
-   `editorApi?.applyRebasedBody` silently no-ops and `persistBody` still
-   writes). Live correctness hole. A proper fix duplicates Feature 4's
-   lifecycle machinery — wait for adoption (rung 2 closes the stale-accept
-   half via `stillValid`; rung 3 closes the lingering-modal half via
-   `availableIn`).
+1. ~~`proposeEdit` orphan: navigate-away leaves the staged modal live and a
+   later accept fires the persist path against a torn-down editor~~ —
+   **FIXED by rungs 2+3** (2026-07-22): rung 2 closed the stale-accept half
+   via `stillValid`, rung 3 closed the lingering-modal half via
+   `availableIn: ["editing_report"]` + view-exit auto-decline.
 2. ~~`validate_hfa_indicators` mutates server state with no confirm~~ — **FIXED
    app-side 2026-07-17** (`confirmGate` before the persist).
 3. ~~`dashboards` / `cache` tabs missing from `AIContextSync`~~ — **FIXED
@@ -416,9 +435,10 @@ decide not to adopt, fix them directly:
    may navigate to those tabs is a product decision for the views migration).
 4. `getAllToolsList()` prompt drift (18 listed vs 42 registered). Hand-updating
    re-drifts immediately — wait for `buildToolCatalog` (rung 5).
-5. SSE self-echo on persist-path AI writes (`project_ai/index.tsx:69-96`, no
-   origin filter) — the model is told its own edits were user actions. A
-   hand-rolled fix duplicates `markAIEdit` — wait for adoption (rung 4).
+5. ~~SSE self-echo on persist-path AI writes — the model is told its own
+   edits were user actions~~ — **FIXED by rung 4** (2026-07-22): `markAIEdit`
+   echo keys on every persist-path write tool + matching `echoKey` on the
+   SSE-fed interactions.
 
 ## Review findings that shape adoption (2026-07-20)
 
@@ -561,10 +581,13 @@ projectAIViewController.createTool({    createAITool({
   message, approval lifecycle, interactions, `buildToolCatalog`,
   `validateAIChatConfig`.
 
-**Still owed upstream (not blocking):** panther's `promptSection` /
-`promptDelivery` are due to be renamed to `instructions` /
-`instructionsDelivery`. Rung 5 is the natural place to absorb that; re-check
-the panther API before starting it.
+**`promptSection`/`promptDelivery` → `instructions`/`instructionsDelivery`
+— DONE 2026-07-22.** Landed upstream and synced (same pattern as rung 3.5:
+the rename arrived via sync before its planned rung, breaking `ai_views.ts`
+build — same-day mechanical fix): all 13 `view()` declarations in
+`ai_views.ts` renamed, plus explanatory comments there,
+`build_system_prompt.ts`, and `index.tsx`. No handler/instructions-text
+content changed. Typecheck green.
 
 ## Adoption rungs (implementation order)
 
@@ -637,7 +660,9 @@ hacks.
 
 ### Rung 3 — copilot views + gating (features 1+2) — [x]
 
-Status: shipped 2026-07-22. `switch_tab` decision: feature-8 OPTION 2 — stays
+Status: shipped 2026-07-22; reviewed 2026-07-22 (sound; the ids-dropped
+finding was fixed same day — editing_* view instructions now carry
+deckId/slideId/vizId/reportId). `switch_tab` decision: feature-8 OPTION 2 — stays
 a plain tool with the soft-return family guard; rung 4 adds manual
 `markAINavigation()` attribution. Guard inventory matched the feature-2
 prediction (all ~23 deleted; no discrepancies). Throw sweep: 92
@@ -667,8 +692,8 @@ the failure-channel ruling (~91 sites).
 
 ### Rung 3.5 — adopt panther's standalone-tool API — [x]
 
-Status: shipped 2026-07-22. All four steps executed as specced: 22 sites
-swapped (`slides.tsx` ×9, `report_editor.ts` ×8, `slide_editor.tsx` ×3,
+Status: shipped 2026-07-22; review PENDING. All four steps executed as
+specced: 22 sites swapped (`slides.tsx` ×9, `report_editor.ts` ×8, `slide_editor.tsx` ×3,
 `visualization_editor.tsx` ×2), `projectAIViews` exported, the "ONE
 controller instance" comment and the stale `build_tools.ts` comment updated,
 handler/propose bodies untouched. `report_editor.ts`, `slide_editor.tsx` and
@@ -713,7 +738,34 @@ Cost note: this is net **+22 lines** and one extra import specifier per file.
 The win is uniformity (no more `createAITool` / `projectAIViewController.createTool`
 alternating inside one tools array) and the deleted hazard class, not brevity.
 
-### Rung 4 — copilot interactions + echo + `switch_tab` attribution (features 3+8) — [ ]
+### Rung 4 — copilot interactions + echo + `switch_tab` attribution (features 3+8) — [x]
+
+Status: shipped 2026-07-22; review PENDING. `interactions.ts` rewritten as the
+`defineAIInteractions` registry (9 interactions; wired into
+`createAIViewController` in ai_views.ts); `pendingInteractions`/`notifyAI`/
+`reduceInteractions`/`formatInteraction` and the copilot's
+`getEphemeralContext` clear-inside-getter deleted (AIProjectContext now
+carries only draftContent); all 5 component notify sites +3 SSE listener
+paths swapped to `projectAIViewController.notify`; `markAIEdit` on all 8
+slides.tsx write tools + update_figure's deck-level persist branch +
+both add-to-deck paths (echo keys `slide:{id}` / `deck:{id}` matching the
+SSE-fed interactions; created ids marked from the response — the ±30s
+window covers SSE-first arrival); `markAINavigation()` before
+`updateProjectView` in switch_tab. Typecheck green.
+
+Deviations for review, both deliberate:
+
+1. The old `custom` free-text interaction (sole use: SSE
+   presentation_objects changes) became typed `visualization_updated`
+   `{vizId, label}` so it could carry echoKey `viz:{vizId}` — no AI tool
+   persists POs today, so the key is currently unmarked but correct.
+2. NEW `draft_added_to_deck` interaction: the add-to-deck paths
+   (`addSlideDirectlyToDeck` + AddToDeckModal) mark their SSE echoes as AI
+   edits per the feature-3 list, but the accept is a genuine USER decision —
+   suppressing alone would silently drop the "your draft was accepted"
+   signal (the rung-3 F2 lesson), so the paths notify this explicit line
+   instead. Report tools get no marks: the reports table has no SSE-fed
+   interaction (report-body suppression stays `applyingProgrammaticEdit`).
 
 Scope: `defineAIInteractions` registry replacing
 `pendingInteractions`/`notifyAI`/`reduceInteractions`; `markAIEdit` on the
@@ -729,14 +781,32 @@ lists; AI edits must NOT route through the `manuallyUpdate*` notify wrappers;
 `switch_tab` attribution present and (if async routing ever appears) the
 fire-and-forget contract from the 2026-07-21 findings respected.
 
-### Rung 5 — copilot prompt catalog + promptSection (feature 6) — [ ]
+### Rung 5 — copilot prompt catalog (feature 6) — [ ]
 
-Scope: `buildToolCatalog` replaces the drifted `getAllToolsList()`; per-view
-`promptSection` with ephemeral delivery making the system prompt byte-stable
-across navigation.
+Scope REWRITTEN 2026-07-22 — half the original rung already shipped: per-view
+instructions with ephemeral delivery landed early (in rung 3, as a reviewed
+and blessed scope deviation) and were renamed `promptSection`→`instructions`
+when the upstream rename synced in. The system prompt is already byte-stable
+across navigation. What remains is ONLY the tool-catalog half:
 
-Review focus: the cache rule — the system-accessor call must omit
-`currentView`; measure and report the prompt-cache-hit improvement.
+- Replace `getAllToolsList()` with panther's `buildToolCatalog(tools)` (see
+  feature 6 for the drift facts). The hand-typed list is interpolated 13
+  times, once per per-view instructions function in
+  `build_system_prompt.ts` — only the current view's copy rides each turn,
+  but all 13 must go.
+- Placement decision to make deliberately: `buildToolCatalog` needs the real
+  tools array, which is built in `build_tools.ts` and assembled in
+  `project_ai/index.tsx` — `build_system_prompt.ts` never sees it. Either
+  compose the catalog ONCE into the byte-stable system prompt (its natural
+  home now; then delete all 13 per-view interpolations), or thread it into
+  the per-view instructions. If it goes into the system accessor, the
+  feature-6 cache rule applies: omit `currentView`.
+- HFA is out of scope (its prompt's tool list is small and not drifted).
+
+Review focus: zero hand-maintained tool lists left in any prompt text; the
+catalog renders from the REAL registered tools array (no parallel list built
+just for prompting); the system prompt stays byte-stable across navigation;
+measure and report the prompt-cache-hit improvement.
 
 ## Relationship to other plans
 

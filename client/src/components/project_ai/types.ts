@@ -2,16 +2,6 @@ import type { AiContentSlideInput, FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
 import type { SkippedRange } from "~/components/report/rebase_edits";
 
-export type AIUserInteraction =
-  | { type: "edited_slide"; slideId: string }
-  | { type: "deck_structure_changed" }
-  | { type: "selected_slides"; slideIds: string[] }
-  | { type: "selected_visualizations"; vizIds: string[] }
-  | { type: "edited_viz_locally" }
-  | { type: "edited_slide_locally" }
-  | { type: "edited_report_locally" }
-  | { type: "custom"; message: string };
-
 // A staged AI edit the user accepts/rejects via a diff (never silent mutation).
 export type ReportEditProposal = {
   newBody: string;
@@ -60,13 +50,10 @@ export type DraftContent =
     }
   | null;
 
-// View state now lives on projectAIViewController (ai_views.ts), a module-
-// level singleton — not on this Solid context. Import projectAIViewController
-// directly for current()/setView()/clearView() instead of reading it here.
+// View state lives on projectAIViewController (ai_views.ts), a module-level
+// singleton — not on this Solid context. Import projectAIViewController
+// directly for current()/setView()/clearView()/notify()/markAIEdit().
 export type AIProjectContextValue = {
   draftContent: () => DraftContent;
   setDraftContent: (content: DraftContent) => void;
-  notifyAI: (interaction: AIUserInteraction) => void;
-  getPendingInteractionsMessage: () => string | null;
-  clearPendingInteractions: () => void;
 };

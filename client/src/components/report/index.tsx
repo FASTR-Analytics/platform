@@ -54,7 +54,6 @@ import { projectState } from "~/state/project/t1_store";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { useAIProjectContext } from "../project_ai/context";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
@@ -134,7 +133,6 @@ function referencedEmbedIds(body: string): {
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
-  const { notifyAI } = useAIProjectContext();
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -877,7 +875,9 @@ export function ProjectReport(p: Props) {
     setBody(nextBody);
     // Let the AI know the body changed (skip AI-applied edits; while live,
     // remote peer edits land here too — they equally invalidate the AI's read).
-    if (!applyingProgrammaticEdit) notifyAI({ type: "edited_report_locally" });
+    if (!applyingProgrammaticEdit) {
+      projectAIViewController.notify("edited_report_locally");
+    }
     // Live collab: edits stream into the shared doc via yCollab and the room
     // checkpoints them — the REST autosave stays off (see collabReady note).
     if (collabReady()) return;

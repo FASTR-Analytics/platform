@@ -99,7 +99,6 @@ import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
-import { useAIProjectContext } from "../project_ai/context";
 import {
   projectAIViewController,
   restoreProjectAIView,
@@ -129,7 +128,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(
     defaultHeight,
   );
-  const { notifyAI } = useAIProjectContext();
 
   const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
     p.poDetail.lastUpdated,
@@ -155,7 +153,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     ...args: any[]
   ) => {
     (setTempConfig as any)(...args);
-    notifyAI({ type: "edited_viz_locally" });
+    projectAIViewController.notify("edited_viz_locally");
   };
 
   const [itemsHolder, setItemsHolder] = createSignal<

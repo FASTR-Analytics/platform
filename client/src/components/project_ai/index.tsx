@@ -32,11 +32,6 @@ export function AIProjectWrapper(props: ParentProps) {
 }
 
 function AIProjectWrapperInner(props: ParentProps) {
-  const {
-    notifyAI,
-    getPendingInteractionsMessage,
-    clearPendingInteractions,
-  } = useAIProjectContext();
   const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
@@ -61,32 +56,32 @@ function AIProjectWrapperInner(props: ParentProps) {
   });
 
   // Byte-stable across navigation (Rung 3): no longer takes a mode/view
-  // argument — per-view instructions now ride each view's promptSection
+  // argument — per-view instructions now ride each view's instructions
   // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
   // this string.
   const systemPrompt = createMemo(() =>
     buildSystemPromptForContext(instanceState, projectState),
   );
 
-  // Subscribe to SSE changes - track ALL changes, filter later in reducer
+  // Subscribe to SSE changes - notify on ALL changes; the interaction
+  // registry (interactions.ts) filters per view at drain, and echo keys drop
+  // the AI's own persisted writes (markAIEdit in the write tools).
   onMount(() => {
     const cleanup = addLastUpdatedListener((tableName, ids, timestamp) => {
-      // Slides - always notify (reducer filters by deck)
       if (tableName === "slides") {
         ids.forEach((id) => {
-          notifyAI({ type: "edited_slide", slideId: id });
+          projectAIViewController.notify("edited_slide", { slideId: id });
         });
         return;
       }
 
-      // Presentation objects (visualizations) - always notify
       if (tableName === "presentation_objects") {
         ids.forEach((id) => {
           const viz = projectState.visualizations.find((v) => v.id === id);
           if (viz) {
-            notifyAI({
-              type: "custom",
-              message: `Visualization "${viz.label}" updated`,
+            projectAIViewController.notify("visualization_updated", {
+              vizId: id,
+              label: viz.label,
             });
           }
         });
@@ -94,7 +89,11 @@ function AIProjectWrapperInner(props: ParentProps) {
       }
 
       if (tableName === "slide_decks") {
-        notifyAI({ type: "deck_structure_changed" });
+        ids.forEach((id) => {
+          projectAIViewController.notify("deck_structure_changed", {
+            deckId: id,
+          });
+        });
         return;
       }
     });
@@ -110,17 +109,6 @@ function AIProjectWrapperInner(props: ParentProps) {
     scope: projectId,
     system: systemPrompt,
     getDocumentRefs: aiDocs.getDocumentRefs,
-    // The view controller now delivers "[Current view: id — label]" plus each
-    // view's promptSection every turn (ai_views.ts) — this hook's remaining
-    // job is ONLY the pending-interactions digest (rung-4 territory, feature
-    // 3; the clear-inside-getter side effect below is unchanged from before
-    // rung 3 and still depends on the engine reading it exactly once).
-    getEphemeralContext: () => {
-      const msg = getPendingInteractionsMessage();
-      if (!msg) return null;
-      clearPendingInteractions();
-      return msg;
-    },
     viewController: projectAIViewController,
   };
 

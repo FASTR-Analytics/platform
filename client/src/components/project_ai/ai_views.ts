@@ -18,6 +18,10 @@ import type {
   ReportEditProposalResult,
 } from "./types";
 import {
+  projectAIInteractions,
+  type ProjectAIInteractionDefs,
+} from "./interactions";
+import {
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
@@ -42,14 +46,15 @@ import {
 // TContext is the live payload (editor store getters/setters) delivered to
 // tool handlers opaquely — mirrors the old AIContext* shapes 1:1, just split.
 //
-// promptSection carries what used to be build_system_prompt.ts's per-mode
+// instructions carries what used to be build_system_prompt.ts's per-mode
 // `getModeInstructions` switch (still exported from there, verbatim content)
 // PLUS the two live bits that used to ride getEphemeralContext's mode string
 // (deck's selected slide ids; report editor's selection preview) — both
 // review-finding-1-safe: nothing here changes tool-handler behavior, only
-// where the text is assembled. promptDelivery stays the default "ephemeral"
-// everywhere: the `system` accessor (build_system_prompt.ts) no longer takes
-// a mode/view argument at all, so it is byte-stable across navigation.
+// where the text is assembled. instructionsDelivery stays the default
+// "ephemeral" everywhere: the `system` accessor (build_system_prompt.ts) no
+// longer takes a mode/view argument at all, so it is byte-stable across
+// navigation.
 
 export type EditingSlideDeckParams = {
   deckId: string;
@@ -100,48 +105,48 @@ export type EditingReportContext = {
 export const projectAIViews = defineAIViews({
   viewing_visualizations: view({
     label: () => getViewingVisualizationsInstructionsLabel(),
-    promptSection: () => getViewingVisualizationsInstructions(),
+    instructions: () => getViewingVisualizationsInstructions(),
   }),
   viewing_slide_decks: view({
     label: () => getViewingSlideDecksInstructionsLabel(),
-    promptSection: () => getViewingSlideDecksInstructions(),
+    instructions: () => getViewingSlideDecksInstructions(),
   }),
   viewing_reports: view({
     label: () => getViewingReportsInstructionsLabel(),
-    promptSection: () => getViewingReportsInstructions(),
+    instructions: () => getViewingReportsInstructions(),
   }),
   viewing_data: view({
     label: () => getViewingDataInstructionsLabel(),
-    promptSection: () => getViewingDataInstructions(),
+    instructions: () => getViewingDataInstructions(),
   }),
   viewing_metrics: view({
     label: () => getViewingMetricsInstructionsLabel(),
-    promptSection: () => getViewingMetricsInstructions(),
+    instructions: () => getViewingMetricsInstructions(),
   }),
   viewing_modules: view({
     label: () => getViewingModulesInstructionsLabel(),
-    promptSection: () => getViewingModulesInstructions(),
+    instructions: () => getViewingModulesInstructions(),
   }),
   viewing_settings: view({
     label: () => getViewingSettingsInstructionsLabel(),
-    promptSection: () => getViewingSettingsInstructions(),
+    instructions: () => getViewingSettingsInstructions(),
   }),
   viewing_dashboards: view({
     label: () => getViewingDashboardsInstructionsLabel(),
-    promptSection: () => getViewingDashboardsInstructions(),
+    instructions: () => getViewingDashboardsInstructions(),
   }),
   viewing_cache: view({
     label: () => getViewingCacheInstructionsLabel(),
-    promptSection: () => getViewingCacheInstructions(),
+    instructions: () => getViewingCacheInstructions(),
   }),
-  // The editing_* promptSections each carry the entity IDS the old
+  // The editing_* instructions each carry the entity IDS the old
   // getEphemeralContext mode string exposed (deckId / slideId / vizId /
   // reportId) — ids are the model's cross-turn correlation handle (tools
   // RETURN ids; labels are not unique), and the viz editor's "unsaved"
   // signal tells the model the draft has no persistent id yet.
   editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
     label: (params) => params.deckLabel,
-    promptSection: (params, context) => {
+    instructions: (params, context) => {
       const base = `${getEditingSlideDeckInstructions(params.deckLabel)}\n\ndeckId: ${params.deckId}`;
       const selected = context.getSelectedSlideIds();
       if (selected.length === 0) return base;
@@ -150,7 +155,7 @@ export const projectAIViews = defineAIViews({
   }),
   editing_slide: view<EditingSlideParams, EditingSlideContext>({
     label: (params) => params.slideLabel,
-    promptSection: (params) =>
+    instructions: (params) =>
       `${getEditingSlideInstructions(params.slideLabel, params.deckLabel)}\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`,
   }),
   editing_visualization: view<
@@ -158,12 +163,12 @@ export const projectAIViews = defineAIViews({
     EditingVisualizationContext
   >({
     label: (params) => params.vizLabel,
-    promptSection: (params) =>
+    instructions: (params) =>
       `${getEditingVisualizationInstructions(params.vizLabel)}\n\nvizId: ${params.vizId ?? "unsaved"}`,
   }),
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
-    promptSection: (params, context) => {
+    instructions: (params, context) => {
       const base = `${getEditingReportInstructions(params.reportLabel)}\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();
       if (!sel) return base;
@@ -211,8 +216,13 @@ export type ProjectAIViewDefs = (typeof projectAIViews)["_defs"];
 export type ProjectAIViewId = keyof ProjectAIViewDefs;
 export type ProjectAIViewState = AIViewState<ProjectAIViewDefs>;
 
-export const projectAIViewController: AIViewController<ProjectAIViewDefs> =
-  createAIViewController(projectAIViews, { fallback: "viewing_visualizations" });
+export const projectAIViewController: AIViewController<
+  ProjectAIViewDefs,
+  ProjectAIInteractionDefs
+> = createAIViewController(projectAIViews, {
+  fallback: "viewing_visualizations",
+  interactions: projectAIInteractions,
+});
 
 // Typed tab → view map (feature 1): a new TabOption that forgets an entry
 // here fails typecheck instead of silently leaving the AI context stale (the

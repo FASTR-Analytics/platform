@@ -9,8 +9,10 @@ import { projectAIViewController } from "~/components/project_ai/ai_views";
 // refusal channel is a hard AIToolFailure throw, so rewriting onto it would
 // change today's behavior. The `startsWith("editing_")` check must stay a
 // family test (not an enumerated availableIn whitelist), which would silently
-// drift when a view is added. Rung 4 adds markAINavigation() attribution
-// around updateProjectView when the __navigation digest goes live.
+// drift when a view is added. markAINavigation() before updateProjectView
+// stamps the resulting setView (the tab effect in project/index.tsx) origin
+// "ai" so it drops from the __navigation digest — the tab switch is
+// synchronous (state/t4_ui.ts), so one mark before the call suffices.
 export function getToolsForNavigation() {
   return [
     createAITool({
@@ -27,6 +29,7 @@ export function getToolsForNavigation() {
         if (projectAIViewController.current().id.startsWith("editing_")) {
           return "Cannot switch tabs - user is currently editing. Ask them to save/close first.";
         }
+        projectAIViewController.markAINavigation();
         updateProjectView({ tab: input.tab });
         return `Switched to ${input.tab} tab`;
       },

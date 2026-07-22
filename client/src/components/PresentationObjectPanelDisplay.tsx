@@ -50,7 +50,7 @@ import { MoveToFolderModal } from "./project/move_to_folder_modal";
 import { DuplicateVisualization } from "./visualization/duplicate_visualization";
 import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_from_visualization_modal";
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
-import { useAIProjectContext } from "~/components/project_ai";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 
 function getGroupingOptions(): {
   value: VisualizationGroupingMode;
@@ -520,7 +520,6 @@ type VisualizationGridProps = {
 
 function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
-  const { notifyAI } = useAIProjectContext();
 
   const getOrderedVisualizationIds = (): string[] => {
     if (!p.subGroupConfig) {
@@ -559,7 +558,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
     ids: () => getOrderedVisualizationIds(),
     mode: "multi",
     onSelectionChange: (ids) =>
-      notifyAI({ type: "selected_visualizations", vizIds: ids }),
+      projectAIViewController.notify("selected_visualizations", {
+        vizIds: ids,
+      }),
   });
 
   const visualIndexMap = (): Map<string, number> => {

@@ -27,7 +27,7 @@ import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "./presence_avatars";
 import { otherPeers } from "~/state/project/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { useAIProjectContext } from "~/components/project_ai";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 
 type Props = {
   projectState: ProjectState;
@@ -47,8 +47,6 @@ type Props = {
 };
 
 export function SlideList(p: Props) {
-  const { notifyAI } = useAIProjectContext();
-
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
     null,
@@ -59,14 +57,16 @@ export function SlideList(p: Props) {
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
     p.setSelectedSlideIds(Array.from(newSelected));
-    notifyAI({ type: "selected_slides", slideIds: Array.from(newSelected) });
+    projectAIViewController.notify("selected_slides", {
+      slideIds: Array.from(newSelected),
+    });
   }
 
   function clearSelection() {
     setSelectedIds(new Set<string>());
     setLastSelectedIndex(null);
     p.setSelectedSlideIds([]);
-    notifyAI({ type: "selected_slides", slideIds: [] });
+    projectAIViewController.notify("selected_slides", { slideIds: [] });
     document.querySelectorAll(".sortable-selected").forEach((el) => {
       SortableJs.utils.deselect(el);
     });

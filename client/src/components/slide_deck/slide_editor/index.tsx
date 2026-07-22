@@ -66,7 +66,6 @@ import {
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
 import { AddVisualization } from "~/components/project/add_visualization";
-import { useAIProjectContext } from "~/components/project_ai/context";
 import {
   projectAIViewController,
   restoreProjectAIView,
@@ -136,7 +135,6 @@ type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const { notifyAI } = useAIProjectContext();
 
   // No normalization needed - panther operations produce valid output
   const normalizedSlide = p.slide;
@@ -151,7 +149,7 @@ export function SlideEditor(p: Props) {
 
   const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
     (setTempSlide as any)(...args);
-    notifyAI({ type: "edited_slide_locally" });
+    projectAIViewController.notify("edited_slide_locally");
   };
 
   // Cache each type's state for restoration when switching back

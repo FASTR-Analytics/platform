@@ -12,7 +12,7 @@ import { INFO_TOPICS } from "./info_catalog";
 //
 // Per-mode instructions no longer live here (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md
 // feature 1): each getXInstructions() function below is now a view's
-// promptSection in ai_views.ts, delivered as a per-turn ephemeral section by
+// instructions in ai_views.ts, delivered as a per-turn ephemeral section by
 // panther's view controller. This accessor takes no view/mode argument, so it
 // is BYTE-STABLE across navigation — the point of the migration (prompt-cache
 // breakpoint keeps hitting when the user just switches tabs/editors).
@@ -280,7 +280,7 @@ When analyzing indicators, first determine the directionality:
 }
 
 // ── Viewing mode instructions ──
-// Each function below is used as a view's promptSection in ai_views.ts.
+// Each function below is used as a view's instructions in ai_views.ts.
 
 export function getViewingVisualizationsInstructions(): string {
   return `# Current View: Visualizations Library

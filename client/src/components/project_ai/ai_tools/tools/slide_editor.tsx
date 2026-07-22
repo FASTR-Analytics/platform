@@ -20,7 +20,10 @@ import {
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
-import { projectAIViews } from "~/components/project_ai/ai_views";
+import {
+  projectAIViewController,
+  projectAIViews,
+} from "~/components/project_ai/ai_views";
 import {
   validateMaxContentBlocks,
   validateMetricInputs,
@@ -446,6 +449,7 @@ export function getToolsForSlideEditor(
               : saveRes.err,
           );
         }
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
         return `Updated figure ${input.blockId} in slide ${input.slideId}.`;
       },
       inProgressLabel: "Updating figure...",
