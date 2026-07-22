@@ -206,14 +206,13 @@ export type TableMeasuredInfo = {
   colInnerWidths: number[];
   colHeadersInnerY: number;
   firstCellY: number;
-  firstCellYUnadjusted: number;
   measuredRows: MeasuredRowInfo[];
   hasRowHeaders: boolean;
   hasRowGroupHeaders: boolean;
   rowHeadersInnerX: number;
   colGroupHeaderAxisY: number;
-  extraTopPaddingForRowsAndAllHeaders: number;
-  extraBottomPaddingForRowsAndAllHeaders: number;
+  extraTopPaddingForRows: number;
+  extraBottomPaddingForRows: number;
 };
 
 export type MeasuredTable = Measured<TableInputs> & {
