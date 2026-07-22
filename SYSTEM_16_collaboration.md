@@ -128,15 +128,32 @@ avatar URL is self-reported).
 - Message protocol ([lib/types/collab.ts](lib/types/collab.ts)):
   - client → server: `presence_update`, `{slide,report,po}_subscribe` /
     `_update` / `_unsubscribe`, `awareness_update`, `report_awareness_update`,
-    `po_awareness_update`, and the project-scoped `project_awareness_update`
-    (page cursors — below).
+    `po_awareness_update`, the project-scoped `project_awareness_update`
+    (page cursors — below), and `ping` (liveness probe — below).
   - server → client: `hello` (connectionId), `presence_state` (full peer
     list), `{slide,report,po}_sync` / `_update` / `_error`, `awareness` /
     `report_awareness` / `po_awareness`, `project_awareness`, `doc_save_state`
-    (room checkpoint health), and a connection-level `error` (oversized or
-    invalid frame). The `*_error` messages carry an optional `fatal` flag:
-    fatal ⇔ the document/room is gone (deleted, replaced, not found) and the
-    session must stop editing; non-fatal = per-operation rejection.
+    (room checkpoint health), `pong`, and a connection-level `error`
+    (oversized or invalid frame). The `*_error` messages carry an optional
+    `fatal` flag: fatal ⇔ the document/room is gone (deleted, replaced, not
+    found) and the session must stop editing; non-fatal = per-operation
+    rejection.
+- Dead-peer detection is asymmetric by platform necessity:
+  - **Server side is the runtime's.** Deno pings every client at the protocol
+    level and closes unresponsive connections (`idleTimeout: 30`, pinned
+    explicitly at the upgrade call in project-collab.ts), firing the same
+    onClose/onError handlers as a graceful close — so an ungracefully dropped
+    client leaves presence and its rooms within ~30 s. (Verified empirically:
+    a handshaked-but-silent TCP peer is reaped at exactly 30 s.) These
+    protocol pings also keep idle tunnels alive through nginx's default 60 s
+    proxy timeouts.
+  - **Client side is the app-level `ping`/`pong` watchdog** (collab.ts):
+    browsers can neither observe protocol pings nor send their own, so the
+    client pings every 25 s and force-closes the socket when no traffic at
+    all returns within 10 s — dropping into the normal reconnect + catch-up
+    path. Without it, a silently dead path (NAT drop, server hard-kill) keeps
+    the socket OPEN-looking for minutes: editors claim "Live" and
+    `session.isLive()` misleads the close-flush logic.
 - Client manager:
   [client/src/state/project/collab.ts](client/src/state/project/collab.ts)
   (~1,150 lines). `ProjectSSEBoundary`
