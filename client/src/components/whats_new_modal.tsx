@@ -87,7 +87,11 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
         ]
       }
     >
-      <WhatsNewPageContent page={page()} />
+      {/* Fixed height so the modal doesn't resize as pages change; long
+          pages scroll inside this region */}
+      <div class="h-[min(600px,60vh)] overflow-y-auto">
+        <WhatsNewPageContent page={page()} />
+      </div>
     </ModalContainer>
   );
 }
