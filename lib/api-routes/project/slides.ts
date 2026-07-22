@@ -70,6 +70,9 @@ export const slideRouteRegistry = {
     params: deckIdParamsSchema,
     body: z.object({ slideIds: z.array(z.string()) }),
     response: {} as {
+      // ACTUALLY-deleted ids (the delete is deck-scoped; requested ids in
+      // another deck are no-ops)
+      deletedIds: string[];
       deletedCount: number;
       lastUpdated: string;
     },
