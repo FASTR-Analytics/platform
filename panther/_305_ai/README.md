@@ -167,7 +167,7 @@ const deleteSlide = vc.createTool({
   availableIn: ["editing_slide"],
   kind: "write",
   approval: {
-    prepare: (input, view) => ({
+    propose: (input, view) => ({
       preview: { title: `Delete slide ${input.slideId}?`, intent: "danger" },
       commit: () => view.context.deleteSlide(input.slideId),
     }),

@@ -6,7 +6,7 @@
 import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
-import type { ApprovalPreview } from "./tool_helpers.ts";
+import type { ProposalPreview } from "./tool_helpers.ts";
 import {
   clearConversationPersistence,
   loadConversation,
@@ -72,7 +72,7 @@ export type PendingDecisionOutcome =
 
 export type PendingDecision = {
   toolName: string;
-  preview: ApprovalPreview;
+  preview: ProposalPreview;
   // Whether the inline card offers "don't ask again in this conversation".
   sessionCheckbox: boolean;
   // The tool's availableIn, for the auto-decline watcher (absent = the tool
@@ -102,6 +102,12 @@ export type ConversationStore = {
   // conversation" checkbox (approval mode "session"). Persisted with the
   // conversation record; hydrated with it.
   approvedTools: ReturnType<typeof createSignal<string[]>>;
+  // Resolves once the initial IndexedDB hydration attempt has settled
+  // (hydrated, skipped, or persistence disabled). Sends await this before
+  // claiming a turn — a send that appended before hydration resolved would
+  // permanently skip it, and the turn's whole-record save would then
+  // overwrite persisted history with just the new exchange.
+  ready: Promise<void>;
 };
 
 const stores = new Map<string, ConversationStore>();
@@ -111,10 +117,31 @@ export function getOrCreateConversationStore(
   enablePersistence: boolean = true,
 ): ConversationStore {
   if (!stores.has(conversationId)) {
-    // Create store with empty state (synchronous)
+    // Create store with empty state (synchronous); hydration from IndexedDB
+    // lands asynchronously and `ready` marks when the attempt has settled.
+    const messages = createSignal<MessageParam[]>([]);
+    const displayItems = createSignal<DisplayItem[]>([]);
+    const approvedTools = createSignal<string[]>([]);
+
+    const ready = enablePersistence
+      ? loadConversation(conversationId).then((persisted) => {
+        const [currentMessages] = messages;
+        if (
+          persisted && persisted.messages.length > 0 &&
+          currentMessages().length === 0
+        ) {
+          const [, setMessages] = messages;
+          const [, setDisplayItems] = displayItems;
+          setMessages(persisted.messages);
+          setDisplayItems(persisted.displayItems);
+          approvedTools[1](persisted.approvedTools ?? []);
+        }
+      })
+      : Promise.resolve();
+
     const store: ConversationStore = {
-      messages: createSignal<MessageParam[]>([]),
-      displayItems: createSignal<DisplayItem[]>([]),
+      messages,
+      displayItems,
       isLoading: createSignal(false),
       isStreaming: createSignal(false),
       isProcessingTools: createSignal(false),
@@ -126,27 +153,11 @@ export function getOrCreateConversationStore(
       activeTurn: createSignal<ActiveTurn | null>(null),
       pendingDecision: createSignal<PendingDecision | null>(null),
       queuedMessages: createSignal<QueuedMessage[]>([]),
-      approvedTools: createSignal<string[]>([]),
+      approvedTools,
+      ready,
     };
 
     stores.set(conversationId, store);
-
-    // Hydrate from IndexedDB asynchronously (non-blocking)
-    if (enablePersistence) {
-      loadConversation(conversationId).then((persisted) => {
-        const [currentMessages] = store.messages;
-        if (
-          persisted && persisted.messages.length > 0 &&
-          currentMessages().length === 0
-        ) {
-          const [, setMessages] = store.messages;
-          const [, setDisplayItems] = store.displayItems;
-          setMessages(persisted.messages);
-          setDisplayItems(persisted.displayItems);
-          store.approvedTools[1](persisted.approvedTools ?? []);
-        }
-      });
-    }
   }
   return stores.get(conversationId)!;
 }

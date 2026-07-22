@@ -9,7 +9,7 @@ import { createAITool } from "./tool_helpers.ts";
 import type {
   AIToolWithMetadata,
   CreateAIToolConfigCommon,
-  PrepareResult,
+  ProposalResult,
 } from "./tool_helpers.ts";
 import { createInteractionLog } from "./interactions.ts";
 import type {
@@ -143,7 +143,7 @@ export type AIViewStateFor<
 
 // viewController.createTool config: createAITool's surface, with availableIn
 // constrained to the registry's view ids (a wrong id is a COMPILE-time
-// error) and the handler/prepare receiving the live view state, narrowed to
+// error) and the handler/propose receiving the live view state, narrowed to
 // the declared views. availableIn omitted → the full state union. The
 // handler/approval XOR mirrors CreateAIToolConfig.
 export type ViewAIToolApprovalConfig<
@@ -152,11 +152,11 @@ export type ViewAIToolApprovalConfig<
   TInput,
   TOutput,
 > = {
-  prepare: (
+  propose: (
     input: TInput,
     view: NoInfer<AIViewStateFor<TDefs, K>>,
     ctx: { signal: AbortSignal },
-  ) => Promise<PrepareResult<TOutput>> | PrepareResult<TOutput>;
+  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
   mode?: "always" | "session";
   presentation?: "inline" | "modal";
 };
@@ -536,21 +536,21 @@ export function createAIViewController<
         availableIn: config.availableIn?.map((id) => String(id)),
       };
       // The gate check guarantees the current view is one of availableIn
-      // when the handler (or approval prepare) runs, and both happen in one
+      // when the handler (or approval propose) runs, and both happen in one
       // microtask — the cast to the narrowed union is sound. Sound only for
       // the SAME controller instance, which the registration identity check
       // enforces (metadata._viewController below). An approval COMMIT runs
       // later, after the user decides — view-exit auto-decline and
       // stillValid cover that window; the commit closure captures the view
-      // state prepare saw, it does not re-read it here.
+      // state propose saw, it does not re-read it here.
       const tool = config.approval
         ? createAITool<TInput, TOutput>({
           ...common,
           approval: {
             mode: config.approval.mode,
             presentation: config.approval.presentation,
-            prepare: (input: TInput, ctx: { signal: AbortSignal }) =>
-              config.approval!.prepare(
+            propose: (input: TInput, ctx: { signal: AbortSignal }) =>
+              config.approval!.propose(
                 input,
                 state() as AIViewStateFor<TDefs, K>,
                 ctx,

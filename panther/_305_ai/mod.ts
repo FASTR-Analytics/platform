@@ -44,10 +44,10 @@ export type {
   AIToolKind,
   AIToolWithMetadata,
   ApprovalPolicy,
-  ApprovalPreview,
   CreateAIToolConfig,
   CreateAIToolConfigCommon,
-  PrepareResult,
+  ProposalPreview,
+  ProposalResult,
   ToolUIMetadata,
 } from "./_core/tool_helpers.ts";
 export type {

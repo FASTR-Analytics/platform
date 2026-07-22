@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Button, createSignal, For, Show, t3 } from "../../deps.ts";
-import type { ApprovalPreview } from "../../_core/tool_helpers.ts";
+import type { ProposalPreview } from "../../_core/tool_helpers.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { md } from "./_markdown_utils.ts";
 
@@ -12,7 +12,7 @@ import { md } from "./_markdown_utils.ts";
 // structured preview (changes as a before → after list, diff as a two-pane
 // block, description through markdown) — a plain-text projection would
 // faithfully port the consumers' collapsed-paragraph defect this replaces.
-export function ApprovalPreviewBody(p: { preview: ApprovalPreview }) {
+export function ProposalPreviewBody(p: { preview: ProposalPreview }) {
   return (
     <div class="ui-spy-sm">
       <Show when={p.preview.description}>
@@ -101,7 +101,7 @@ export function ApprovalPendingRenderer(p: {
       >
         {p.item.preview.title}
       </div>
-      <ApprovalPreviewBody preview={p.item.preview} />
+      <ProposalPreviewBody preview={p.item.preview} />
       <Show when={p.item.sessionCheckbox}>
         <label class="mt-3 flex cursor-pointer items-center gap-2 text-xs">
           <input

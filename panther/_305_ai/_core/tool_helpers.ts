@@ -18,16 +18,16 @@ export type AIToolKind = "read" | "write" | "nav";
 // TOOL APPROVAL (confirm-before-apply — Feature 4)
 ////////////////////////////////////////////////////////////////////////////////
 //
-// The lifecycle is panther-owned: prepare a preview → present it → await the
+// The lifecycle is panther-owned: propose a preview → show it → await the
 // user's decision → commit or report declined. The tool declares the phases;
 // the engine owns everything between them (card, decision ownership,
 // view-exit auto-decline, outcome strings). The structural guarantee is the
-// point: commit only exists inside a PrepareResult and panther only invokes
+// point: commit only exists inside a ProposalResult and panther only invokes
 // it after an accepted decision — the mutation CANNOT run before consent as
-// a matter of API shape. prepare must be read-only by contract (same trust
+// a matter of API shape. propose must be read-only by contract (same trust
 // level as "handlers must throw, not catch").
 
-export type ApprovalPreview = {
+export type ProposalPreview = {
   title: string;
   // Markdown, rendered through the chat's markdown pipeline.
   description?: string;
@@ -41,43 +41,46 @@ export type ApprovalPreview = {
   confirmLabel?: string;
 };
 
-export type PrepareResult<TOutput> =
+export type ProposalResult<TOutput> =
   // No-op detected — returned to the model as a NORMAL tool result; no
   // decision is requested and commit never exists.
   | { skip: string }
-  // Validation failed in prepare — is_error result with the expected-failure
+  // Validation failed in propose — is_error result with the expected-failure
   // display (same mapping as a thrown AIToolFailure); commit never exists.
   | { invalid: string }
   | {
-    preview: ApprovalPreview;
+    preview: ProposalPreview;
     // Runs ONLY after an accepted decision.
     commit: () => Promise<TOutput> | TOutput;
     // Optional data-staleness check, evaluated when an ACCEPT decision
     // arrives (view-exit staleness is engine-handled via availableIn).
     // false → resolved as declined-stale, commit never runs.
     stillValid?: () => boolean;
-    // Per-invocation presenter override for domain UIs (staging a diff
-    // inside an editor). Resolves the decision (true = accept); panther
-    // still owns serialization, timeline recording, and outcome shaping.
+    // Replaces panther's built-in card/modal with the app's own UI for
+    // reviewing the proposal (e.g. a diff staged inside an editor). The
+    // engine renders nothing; it calls this and awaits the user's decision
+    // (true = accept). Panther still owns serialization, timeline
+    // recording, and outcome shaping — `preview` is still REQUIRED: it is
+    // the timeline's decision record; this function is only the live UI.
     // The signal aborts when the engine resolves the decision externally
-    // (view-exit auto-decline, Stop) — the presenter MUST clean up its
-    // staged UI on abort; unmount luck is not a cleanup mechanism.
-    present?: (signal: AbortSignal) => Promise<boolean>;
+    // (view-exit auto-decline, Stop) — this UI MUST clean itself up on
+    // abort; unmount luck is not a cleanup mechanism.
+    customProposalUI?: (signal: AbortSignal) => Promise<boolean>;
   };
 
 export type AIToolApprovalConfig<TInput, TOutput> = {
-  // ctx carries the turn's AbortSignal so a long server-side prepare can
-  // cancel on Stop (the post-prepare abort check remains the correctness
+  // ctx carries the turn's AbortSignal so a long server-side propose can
+  // cancel on Stop (the post-propose abort check remains the correctness
   // backstop).
-  prepare: (
+  propose: (
     input: TInput,
     ctx: { signal: AbortSignal },
-  ) => Promise<PrepareResult<TOutput>> | PrepareResult<TOutput>;
+  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
   // "session" adds a "don't ask again in this conversation" checkbox to the
-  // inline card; later calls short-circuit to auto_approved (prepare still
+  // inline card; later calls short-circuit to auto_approved (propose still
   // runs, presentation is skipped, commit runs). Requires presentation
   // "inline" (construction throw — the modal has no checkbox affordance).
-  // NOTE: a prepare that returns a present() override never offers the
+  // NOTE: a propose that returns a customProposalUI override never offers the
   // checkbox either (a custom presenter has no checkbox affordance), so a
   // session-mode tool that ALWAYS presents custom can never arm the
   // auto-approve — the flag only sets through the inline card.
@@ -88,10 +91,10 @@ export type AIToolApprovalConfig<TInput, TOutput> = {
 // Engine-facing erased shape stored on ToolUIMetadata (defaults resolved at
 // construction).
 export type ErasedApprovalConfig = {
-  prepare: (
+  propose: (
     input: unknown,
     ctx: { signal: AbortSignal },
-  ) => Promise<PrepareResult<unknown>> | PrepareResult<unknown>;
+  ) => Promise<ProposalResult<unknown>> | ProposalResult<unknown>;
   mode: "always" | "session";
   presentation: "inline" | "modal";
 };
@@ -356,8 +359,8 @@ export function createAITool<TInput, TOutput = string>(
   }
   const approvalMeta: ErasedApprovalConfig | undefined = config.approval
     ? {
-      prepare: (input: unknown, ctx: { signal: AbortSignal }) =>
-        config.approval!.prepare(input as TInput, ctx),
+      propose: (input: unknown, ctx: { signal: AbortSignal }) =>
+        config.approval!.propose(input as TInput, ctx),
       mode: config.approval.mode ?? "always",
       presentation: config.approval.presentation ?? "inline",
     }

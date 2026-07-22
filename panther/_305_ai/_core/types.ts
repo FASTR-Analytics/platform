@@ -18,7 +18,7 @@ import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type {
   AIToolWithMetadata,
   ApprovalPolicy,
-  ApprovalPreview,
+  ProposalPreview,
 } from "./tool_helpers.ts";
 import type { AIViewController } from "./views.ts";
 
@@ -110,7 +110,7 @@ export type DisplayItem =
   | {
     type: "approval_pending";
     toolName: string;
-    preview: ApprovalPreview;
+    preview: ProposalPreview;
     sessionCheckbox: boolean;
   }
   // The decision record (persisted): auto_declined covers view-exit and
