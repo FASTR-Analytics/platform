@@ -1,26 +1,55 @@
 # PLAN — Future AI adoptions (panther view/approval/interaction system)
 
-Status: PARKED / adoption menu. Written 2026-07-17; updated 2026-07-20 after
-panther Phases 1+2 (views + gating/validation); updated again 2026-07-21 —
-**panther's own plan (`PLAN_AI_VIEWS_AND_APPROVAL.md` in the panther repo) is
-now COMPLETE: all phases (0A/0B, 1–5) are implemented, verified, AND
-adversarially reviewed** — interactions (feature 3), approval + policy (features
-4/5), and a NEW feature this doc didn't previously cover — a built-in navigation
-tool with AI-origin attribution (feature 8 below) — are all real, not just
-Phases 1+2. **wb-fastr's vendored `panther/` copy is STALE** — verified
-2026-07-21 it has Phases 0A–4 (interactions and approval types are present) but
-**not Phase 5** (`createNavigationTool` / `buildToolCatalog` are absent from the
-vendored `_305_ai/mod.ts`). **wb-fastr app code has adopted NONE of this yet** —
-zero uses of `createAIViewController`/`defineAIViews` anywhere in `client/src`,
-and HFA still runs the old `confirmChain` pattern this doc's feature 4 describes
-replacing. Re-sync before starting any rung that touches feature 8. Nothing here
-is required — every feature is opt-in behind config, adoption is per-surface and
-per-feature, and "never adopt" is a fully supported end state. This doc exists
-so the adoption options aren't forgotten once the panther work lands. All
-file/line references and counts were verified 2026-07-17; they age — **re-grep
-every reference at migration time.** See "Review findings that shape adoption
-(2026-07-20)" AND "(2026-07-21, Phase 5)" below before starting rung 3 or
-adopting feature 8.
+Status: ACTIVE / adoption in rungs. Written 2026-07-17; updated 2026-07-20
+(panther Phases 1+2), 2026-07-21 (panther plan complete), 2026-07-22 (full
+re-verification + rung restructure for staged implementation).
+
+State verified 2026-07-22:
+
+- **The vendored `panther/` copy is CURRENT** — the 2026-07-21 morning syncs
+  (`4aeb7d2f`, `22c5f62c`) brought Phase 5; `createNavigationTool` and
+  `buildToolCatalog` are present in `panther/_305_ai/`. No re-sync
+  precondition remains.
+- **Panther's own plan (`PLAN_AI_VIEWS_AND_APPROVAL.md`) is COMPLETE and has
+  been DELETED** in the panther repo. The authoritative contract doc is
+  **`DOC_AI_CHAT.md` at the panther repo root**
+  (`~/projects/panther/timroberton-panther/DOC_AI_CHAT.md`) — it is NOT
+  vendored (the sync copies modules + protocols only). Read it from the
+  panther repo when implementing or reviewing any rung.
+- **wb-fastr app code has adopted NONE of this yet** — zero uses of
+  `createAIViewController` / `defineAIViews` / `availableIn` /
+  `defineAIInteractions` anywhere in `client/src`; HFA still runs the old
+  `confirmChain` pattern (`indicator_manager_hfa/ai/tools.ts:54`, six
+  `confirmGate` sites).
+- **The sync tripwires are already live** — the app deployed (1.61.1) after
+  the Phase 5 sync with no construction throws, so both surfaces' tool arrays
+  are de-facto clean. The old "run `validateAIChatConfig` before the first
+  post-Phase-2 sync" gate is moot; it becomes rung 0 (committed smoke test).
+
+Nothing here is required — every feature is opt-in behind config, adoption is
+per-surface and per-feature, and "never adopt" is a fully supported end state.
+File/line references were re-verified 2026-07-22 where noted; they age —
+**re-grep every reference at migration time.** See "Review findings that shape
+adoption (2026-07-20)" AND "(2026-07-21, Phase 5)" below before starting the
+views rung or adopting feature 8.
+
+## Workflow for this plan
+
+Each rung below is implemented by a separate agent as one self-contained pass,
+then independently reviewed before the next rung starts. Rules:
+
+- One rung per pass; do not start the next rung in the same pass. Mixed states
+  are supported indefinitely (old hand-rolled mechanisms keep working on the
+  new engine until deleted), so every rung must land typecheck-green and
+  shippable on its own.
+- The implementing agent re-greps every file/line reference in its rung before
+  editing (they drift), and reads `DOC_AI_CHAT.md` from the panther repo root
+  for the feature contracts it is adopting.
+- The reviewing agent verifies against the panther contracts and this doc's
+  per-rung "review focus" notes, and checks nothing outside the rung's scope
+  was touched.
+- After a rung ships, update ONLY its checkbox/status line here — no session
+  notes in this doc.
 
 ## Background
 
@@ -65,8 +94,10 @@ changes; listed so they aren't a surprise:
   throws (the built-in branch would silently shadow it). And `callAI` (one-shot)
   now throws on any tool declaring `availableIn` — never reuse view-gated chat
   tools in one-shot calls.
-- Before the first post-Phase-2 sync, run panther's `validateAIChatConfig`
-  against both surfaces' tool arrays (one-off script) and fix any hits.
+- ~~Before the first post-Phase-2 sync, run panther's `validateAIChatConfig`
+  against both surfaces' tool arrays~~ — MOOT 2026-07-22: the sync landed and
+  1.61.1 deployed after it with no construction throws, so both surfaces are
+  de-facto clean. The durable version of this protection is rung 0 below.
 
 ## The features and how we'd adopt them
 
@@ -111,10 +142,12 @@ ids (including on dynamic `register()`).
 
 **Copilot adoption — deletes all ~23 hand-rolled guards:**
 
-- 8 copy-pasted throws in `project_ai/tools/report_editor.ts` (lines 195, 244,
-  283, 354, 389, 433, 477, 521) → `availableIn: ["editing_report"]`.
-- `requireDeckContext()` helper in `project_ai/tools/slides.tsx` (`:48`) and its
-  9 call sites (70, 121, 173, 227, 282, 335, 484, 521, 566) →
+- 8 copy-pasted throws in `project_ai/ai_tools/tools/report_editor.ts` (lines
+  195, 244, 283, 354, 389, 433, 477, 521 — path corrected 2026-07-22, the tool
+  files live under `ai_tools/tools/`, line numbers not re-verified) →
+  `availableIn: ["editing_report"]`.
+- `requireDeckContext()` helper in `project_ai/ai_tools/tools/slides.tsx` (1
+  definition + 9 call sites, counts re-verified 2026-07-22) →
   `availableIn: ["editing_slide_deck", …]`.
 - `slide_editor.tsx` guards (76, 147, and the `update_figure` mode branch at
   366-376) and `visualization_editor.tsx` guards (87, 109) → `availableIn`.
@@ -167,25 +200,32 @@ drain/restore (digest restored if the send fails).
 
 **HFA adoption:** none today (no interaction reporting exists); optional later.
 
-### 4. Tool approval (`approval: { prepare, mode, presentation }`)
+### 4. Tool approval (`approval: { propose, mode, presentation }`)
 
-Panther provides: a `prepare → preview → await decision → commit` lifecycle
+Panther provides: a `propose → preview → await decision → commit` lifecycle
 where the mutation structurally cannot run before consent; inline card or
 `openConfirm` modal presentation with structured previews (`changes`, `diff`,
-markdown `description`, `intent: "danger"`, `confirmLabel`); a `present(signal)`
+markdown `description`, `intent: "danger"`, `confirmLabel`); a `customProposalUI(signal)`
 override for domain UIs (staged editor diffs); `stillValid` staleness checks;
 auto-decline on view exit; `{skip}` for detected no-ops; "don't ask again this
 conversation" (`mode: "session"`, persisted); decline as a normal (non-error)
 tool result; and `approvalPolicy` (below).
 
+**Naming (renamed 2026-07-22, panther + both apps swept in lockstep):** the
+propose phase was `prepare` (`PrepareResult`) and the custom-UI override was
+`present` — now `propose` / `ProposalResult` / `ProposalPreview` /
+`customProposalUI`. Vocabulary rule: "proposal" for what the tool produces,
+"approval" for what the user grants and policy enforces. Rungs 3-5 use the
+new names; old names exist nowhere.
+
 **HFA adoption (the smallest, highest-value rung — do this first):**
 
 - The five `confirmGate` write tools in `indicator_manager_hfa/ai/tools.ts`
   (update_labels, assign_categories, create, set_code, delete) →
-  `approval.prepare` + `presentation: "modal"`. Each fits:
+  `approval.propose` + `presentation: "modal"`. Each fits:
   `set_hfa_indicator_code`'s sequential per-indicator saves and
   partial-failure-on-throw semantics live unchanged inside its `commit` closure;
-  `delete_hfa_indicators` keeps danger styling via `ApprovalPreview.intent` +
+  `delete_hfa_indicators` keeps danger styling via `ProposalPreview.intent` +
   `confirmLabel: "Delete"`.
 - The structured previews the tools already compute stop degrading to
   `\n`-joined strings (today: lines 235, 321, 538, 595 flatten
@@ -195,19 +235,45 @@ tool result; and `approvalPolicy` (below).
   makes it dead code.
 - `validate_hfa_indicators` gained a `confirmGate` on its persist app-side
   (2026-07-17), so it is now the SIXTH confirm-gated write tool → migrate it to
-  `approval.prepare` alongside the other five.
+  `approval.propose` alongside the other five.
+- **Constraint (verified 2026-07-22):** `approval.mode: "session"` requires
+  `presentation: "inline"` — the modal dialog has no "don't ask again"
+  affordance and panther THROWS at construction on the combination
+  (`tool_helpers.ts:367-371`). The modal presentation prescribed here is fine
+  because no HFA tool wants session mode; don't add session mode later without
+  switching that tool to inline.
 
 **Copilot adoption:**
 
-- Report `proposeEdit` (`project_ai/types.ts:108-110` contract;
-  `report/index.tsx:453-472` implementation) → `approval.prepare` with the
-  `present(signal)` override staging the CodeMirror diff. This FIXES two live
-  bugs: the orphaned proposal on navigate-away (type contract promises
-  supersede-on-close; implementation orphans the modal, and a later accept still
-  fires the `persistBody` server write at `report/index.tsx:522` against a
-  torn-down editor) — auto-decline aborts the presenter's signal on view exit;
-  and the identical-body no-op, which today throws and should map to `{skip}`.
-- `update_*` validate-before-commit tools → `prepare` (validation) + `commit`
+- Report `proposeEdit` (`project_ai/types.ts` contract; implementation now at
+  `report/index.tsx:604` — re-verified 2026-07-22) → `approval.propose` with
+  the `customProposalUI(signal)` override staging the CodeMirror diff.
+- **The implementation has been substantially rewritten since this plan's
+  original snapshot** (re-verified 2026-07-22): it now captures `baseBody` at
+  proposal time, REBASES an accepted proposal over concurrent collaborator
+  edits via `applyProposal` (`report/index.tsx:648`, skipped-hunk surfacing),
+  and branches persistence on `collabReady()`. The migration's `commit`
+  closure must absorb these semantics unchanged — budget for this; it is no
+  longer a simple modal-swap.
+- **Auto-decline scoping caveat (verified 2026-07-22, changes what this rung
+  delivers):** panther's view-exit auto-decline is keyed to the tool's
+  `availableIn` plus a bound view controller
+  (`conversation_store.ts:78-82`) — a tool without `availableIn` has "declared
+  view-independence and opted out", and the engine REJECTS `availableIn` on
+  any tool when the chat has no `viewController`. Before the views rung, the
+  copilot has neither, so migrating `proposeEdit` to approval does NOT make
+  navigate-away dismiss the modal. What it CAN fix pre-views:
+  1. The dangerous half of the orphan — a stale accept firing `persistBody`
+     against a torn-down editor (`onCleanup` at `report/index.tsx:723-761`
+     resets the AI context but never declines an open proposal) — via
+     `stillValid` (`tool_helpers.ts:58`): return false once the report editor
+     is unmounted or the mode has left `editing_report`; accept then resolves
+     `auto_declined`.
+  2. The identical-body no-op, which today throws
+     (`report/index.tsx:610-613`) and should map to `{skip}`.
+  The lingering-modal half fixes itself when the views rung adds
+  `availableIn: ["editing_report"]` to the report tools.
+- `update_*` validate-before-commit tools → `propose` (validation) + `commit`
   (write) — the same discipline they already follow, formalized.
 
 ### 5. Approval policy (`approvalPolicy: { requireForKind, requireKind, exempt }`)
@@ -332,10 +398,15 @@ matching panther-test's own demonstration of the same choice.
 These are wb-fastr bugs the panther features would fix at migration; if we
 decide not to adopt, fix them directly:
 
-1. `proposeEdit` orphan: navigate-away leaves the staged modal live and a later
-   accept fires `persistBody` (`report/index.tsx:522`) against a torn-down
-   editor. Live correctness hole. A proper fix duplicates Feature 4's lifecycle
-   machinery — wait for adoption (rung 2).
+1. `proposeEdit` orphan: navigate-away leaves the staged modal live and a
+   later accept fires the persist path against a torn-down editor
+   (re-verified 2026-07-22: `onCleanup` at `report/index.tsx:723-761` resets
+   the AI context but never declines the open modal; on accept
+   `editorApi?.applyRebasedBody` silently no-ops and `persistBody` still
+   writes). Live correctness hole. A proper fix duplicates Feature 4's
+   lifecycle machinery — wait for adoption (rung 2 closes the stale-accept
+   half via `stillValid`; rung 3 closes the lingering-modal half via
+   `availableIn`).
 2. ~~`validate_hfa_indicators` mutates server state with no confirm~~ — **FIXED
    app-side 2026-07-17** (`confirmGate` before the persist).
 3. ~~`dashboards` / `cache` tabs missing from `AIContextSync`~~ — **FIXED
@@ -419,31 +490,137 @@ adoption:
    write; noted here only so a `0`-as-"disable" instinct doesn't get tried and
    doesn't silently misbehave instead of failing loud.
 
-## Recommended adoption order
+## Failure-channel ruling (2026-07-22)
 
-1. **HFA approval + policy** (features 4+5) — smallest diff, biggest safety win,
-   exercises the new engine surface end-to-end on 5 tools.
-2. **Copilot `proposeEdit` → approval** (feature 4) — kills the orphan bug.
-3. **Copilot views + gating** (features 1+2) — the big rung: deletes the
-   AIContext union interpretation sprawl and all ~23 guards; adds the two
-   missing tab views. Do views and gating together (gating needs the registry).
-   Decide `switch_tab`'s fate here too (feature 8, option 1 vs 2) even if
-   feature 8/3 aren't adopted yet — it's cheaper to settle while already
-   touching `navigation.ts` than to revisit it later.
-4. **Copilot interactions + echo** (feature 3) — after views (the `filter` hook
-   wants view context). **Before shipping this rung, resolve `switch_tab`
-   attribution** (feature 8) — this is the point where an unattributed AI tab
-   switch would start actually appearing as a false "User navigated" digest
-   line; it's silent and easy to miss in review since nothing throws or looks
-   broken.
-5. **Copilot prompt catalog + promptSection** (feature 6) — after views; measure
-   the cache-hit improvement.
-6. **Copilot navigation tool** (feature 8) — bundle with rung 4 (see above)
-   rather than as a separate rung; it exists specifically to serve interactions
-   correctly.
+Decided by Tim after the rung 1 review: `AIToolFailure` means any
+**anticipated** failure — model-correctable input problems AND anticipated
+operational failures (a failed server call, an unavailable resource). The
+message is the complete record; the wire content to the model is identical
+either way, so the classification controls only the timeline rendering
+(clean row vs stack section). Plain `Error` is reserved for bugs — including
+deliberate assertion/invariant throws ("should never happen"), which are bug
+detectors, not anticipated failures. Authority: panther `DOC_AI_CHAT.md`
+"Failure channel" (updated with this ruling; `tool_failure.ts` comment and
+module README aligned).
 
-Each rung ships independently; mixed states are supported indefinitely (the old
-hand-rolled mechanisms keep working on the new engine until deleted).
+Applied to the HFA surface (rung 1 file) 2026-07-22 — `tools.ts` now has
+zero plain `Error` throws. The copilot's ~91 plain-`Error` throw sites
+(counted 2026-07-22, zero `AIToolFailure` uses) migrate to this rule during
+the rung 3 tool-file sweep; reviewers verify classification per this rule.
+
+## Adoption rungs (implementation order)
+
+One rung per implementation pass, independently reviewed before the next (see
+"Workflow for this plan" above). Each rung ships independently; mixed states
+are supported indefinitely (the old hand-rolled mechanisms keep working on the
+new engine until deleted).
+
+### Rung 0 — DEV-guarded eager `validateAIChatConfig` (feature 7) — [x]
+
+Scope: revised from the original "one committed test per surface" — this repo
+has no client test runner, and the real tool arrays are client-only,
+SolidJS-entangled code that plain `deno test` cannot load, so a Vitest harness
+would have been new infra built solely to satisfy the word "test," not the
+actual goal. Instead, each surface now calls `validateAIChatConfig(config)`
+guarded by `import.meta.env.DEV`, right where its real, fully-assembled
+`AIChatConfig` object is constructed: copilot
+(`client/src/components/project_ai/index.tsx`, the config object previously
+inlined into the `AIChatProvider` JSX prop was factored into a `config` local
+so it could be validated before render, then passed to `AIChatProvider`
+unchanged) and HFA
+(`client/src/components/indicator_manager_hfa/ai/index.tsx`, right after its
+existing `config` local is assembled). Vite sets `import.meta.env.DEV` true in
+dev and false in prod builds, so this runs against the real 42-tool and
+12-tool arrays on every dev mount at zero production cost and zero new
+tooling/dependencies — tool-declaration mistakes now fail loud on any dev page
+load instead of only when someone opens the AI pane in a live conversation.
+
+Review focus: both call sites validate the REAL registered `config` object
+(no parallel/stub construction), the `import.meta.env.DEV` guard compiles out
+in production builds, and nothing else changed.
+
+### Rung 1 — HFA approval + policy (features 4+5) — [x]
+
+Scope: the six `confirmGate` write tools → `approval.propose` +
+`presentation: "modal"`; delete `confirmChain`; set
+`approvalPolicy: { requireForKind: "write", requireKind: true }` and tag all
+12 tools with `kind`. Smallest diff, biggest safety win, exercises the new
+engine surface end-to-end.
+
+Review focus: each `commit` closure preserves the old post-confirm semantics
+verbatim (especially `set_hfa_indicator_code`'s sequential saves +
+partial-failure-on-throw); structured previews replace the flattened
+`\n`-joined strings; delete keeps danger styling; no session mode on modal
+tools (construction throw).
+
+Post-ship fixes (2026-07-22): two passes. First, the propose-closure
+(then still named `prepare`)
+validation throws (unknown varName, bad taxonomy ids, invalid time point,
+duplicate-in-batch, already-exists) were converted from plain `Error` to
+`AIToolFailure`. Then the failure-channel ruling (section above) landed and
+the `commit`-phase and loader throws — anticipated operational failures —
+were converted too. End state: `tools.ts` contains zero plain `Error`
+throws; every deliberate throw is `AIToolFailure` per the ruling.
+
+### Rung 2 — copilot `proposeEdit` → approval (feature 4) — [x]
+
+Scope: `proposeEdit` → `approval.propose` with the `customProposalUI(signal)` override
+staging the CodeMirror diff, `stillValid` guarding stale accepts, identical
+body → `{skip}`. See the feature 4 copilot section for the 2026-07-22
+caveats: the rebase/collab semantics must move into `commit` unchanged, and
+this rung fixes only the stale-accept half of the orphan (view-exit
+auto-decline needs rung 3's `availableIn`).
+
+Review focus: `baseBody` capture and `applyProposal` rebase behavior are
+byte-identical to today; `collabReady()` persistence branching preserved;
+`stillValid` actually detects editor unmount; the plan's claim boundary
+(lingering modal NOT fixed yet) is not silently papered over with app-side
+hacks.
+
+### Rung 3 — copilot views + gating (features 1+2) — [ ]
+
+Scope: the big rung. 13-view registry replacing the `AIContext` union
+interpretation sprawl; typed tab→view map; delete `getEphemeralContext`;
+delete all ~23 hand-rolled guards via `availableIn` (per the guard-by-guard
+inventory in feature 2 and the 2026-07-20 review findings — controller built
+ONCE at module level, editor mount/unmount as `setView` sync sites, the two
+situational redirects folded into tool descriptions, `switch_tab` keeps its
+soft return); tag tools with `kind` in passing; add
+`availableIn: ["editing_report"]` to the report tools, completing the rung-2
+orphan fix. Decide `switch_tab`'s fate here (feature 8, option 1 vs 2) even
+though attribution only starts mattering at rung 4. While sweeping each tool
+file, apply the failure-channel ruling (section above) to its throw sites —
+anticipated failures → `AIToolFailure`, assertion/bug throws stay plain
+`Error`.
+
+Review focus: the six 2026-07-20 review findings, one by one — they are the
+known failure modes of this migration — plus throw-site classification per
+the failure-channel ruling (~91 sites).
+
+### Rung 4 — copilot interactions + echo + `switch_tab` attribution (features 3+8) — [ ]
+
+Scope: `defineAIInteractions` registry replacing
+`pendingInteractions`/`notifyAI`/`reduceInteractions`; `markAIEdit` on the
+persist-path write tools to kill the SSE self-echo; keep the raw
+non-notifying setters for temp-store edit tools; `__navigation` digest.
+Bundled here: `switch_tab` attribution per the rung-3 decision — an
+unattributed AI tab switch starts appearing as a false "User navigated"
+digest line at exactly this rung, and it's silent (nothing throws), so it
+cannot ship without this resolved.
+
+Review focus: echo suppression on EVERY persist-path write tool feature 3
+lists; AI edits must NOT route through the `manuallyUpdate*` notify wrappers;
+`switch_tab` attribution present and (if async routing ever appears) the
+fire-and-forget contract from the 2026-07-21 findings respected.
+
+### Rung 5 — copilot prompt catalog + promptSection (feature 6) — [ ]
+
+Scope: `buildToolCatalog` replaces the drifted `getAllToolsList()`; per-view
+`promptSection` with ephemeral delivery making the system prompt byte-stable
+across navigation.
+
+Review focus: the cache rule — the system-accessor call must omit
+`currentView`; measure and report the prompt-cache-hit improvement.
 
 ## Relationship to other plans
 

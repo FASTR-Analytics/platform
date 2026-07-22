@@ -2,6 +2,7 @@ import {
   AIChatProvider,
   type AIChatConfig,
   FrameRightResizable,
+  validateAIChatConfig,
 } from "panther";
 import type { Accessor, ParentProps } from "solid-js";
 import { createHfaIndicatorAiSDKClient, HFA_AI_MODEL_CONFIG } from "./sdk_client";
@@ -30,7 +31,12 @@ export function HfaIndicatorAiWrapper(props: Props) {
     tools: buildHfaIndicatorTools() as AIChatConfig["tools"],
     scope: "hfa-indicators",
     system,
+    approvalPolicy: { requireForKind: "write", requireKind: true },
   };
+
+  if (import.meta.env.DEV) {
+    validateAIChatConfig(config);
+  }
 
   return (
     <AIChatProvider config={config}>

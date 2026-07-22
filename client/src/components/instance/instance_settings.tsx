@@ -8,13 +8,13 @@ import {
   Button,
   Checkbox,
   FrameTop,
-  HeadingBarMainRibbon,
   Input,
   RadioGroup,
   SettingsSection,
   getSelectOptions,
   createButtonAction,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";

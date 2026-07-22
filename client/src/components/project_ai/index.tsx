@@ -2,6 +2,7 @@ import {
   AIChatProvider,
   type AIChatConfig,
   FrameRightResizable,
+  validateAIChatConfig,
 } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import {
@@ -98,52 +99,56 @@ function AIProjectWrapperInner(props: ParentProps) {
     onCleanup(cleanup);
   });
 
+  const config: AIChatConfig = {
+    sdkClient,
+    modelConfig: DEFAULT_MODEL_CONFIG,
+    tools: tools as AIChatConfig["tools"],
+    builtInTools: DEFAULT_BUILTIN_TOOLS,
+    scope: projectId,
+    system: systemPrompt,
+    getDocumentRefs: aiDocs.getDocumentRefs,
+    getEphemeralContext: () => {
+      const ctx = aiContext();
+      let modeStr = `[Current mode: ${ctx.mode}`;
+      if (ctx.mode === "editing_visualization") {
+        modeStr += ` | vizId: ${ctx.vizId ?? "unsaved"}`;
+      } else if (ctx.mode === "editing_slide_deck") {
+        modeStr += ` | deckId: ${ctx.deckId}`;
+        const selected = ctx.getSelectedSlideIds();
+        if (selected.length > 0) {
+          modeStr += ` | selectedSlideIds: ${selected.join(", ")}`;
+        }
+      } else if (ctx.mode === "editing_slide") {
+        modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
+      } else if (ctx.mode === "editing_report") {
+        modeStr += ` | reportId: ${ctx.reportId}`;
+        const sel = ctx.getSelection();
+        if (sel && !sel.empty) {
+          const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
+          modeStr +=
+            ` | user has SELECTED text (lines ${sel.fromLine}-${sel.toLine}, ` +
+            `${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
+        } else if (sel) {
+          modeStr += ` | cursor at line ${sel.fromLine}`;
+        }
+      }
+      modeStr += "]";
+      const parts: string[] = [modeStr];
+      const msg = getPendingInteractionsMessage();
+      if (msg) {
+        clearPendingInteractions();
+        parts.push(msg);
+      }
+      return parts.join("\n\n");
+    },
+  };
+
+  if (import.meta.env.DEV) {
+    validateAIChatConfig(config);
+  }
+
   return (
-    <AIChatProvider
-      config={{
-        sdkClient,
-        modelConfig: DEFAULT_MODEL_CONFIG,
-        tools: tools as AIChatConfig["tools"],
-        builtInTools: DEFAULT_BUILTIN_TOOLS,
-        scope: projectId,
-        system: systemPrompt,
-        getDocumentRefs: aiDocs.getDocumentRefs,
-        getEphemeralContext: () => {
-          const ctx = aiContext();
-          let modeStr = `[Current mode: ${ctx.mode}`;
-          if (ctx.mode === "editing_visualization") {
-            modeStr += ` | vizId: ${ctx.vizId ?? "unsaved"}`;
-          } else if (ctx.mode === "editing_slide_deck") {
-            modeStr += ` | deckId: ${ctx.deckId}`;
-            const selected = ctx.getSelectedSlideIds();
-            if (selected.length > 0) {
-              modeStr += ` | selectedSlideIds: ${selected.join(", ")}`;
-            }
-          } else if (ctx.mode === "editing_slide") {
-            modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
-          } else if (ctx.mode === "editing_report") {
-            modeStr += ` | reportId: ${ctx.reportId}`;
-            const sel = ctx.getSelection();
-            if (sel && !sel.empty) {
-              const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
-              modeStr +=
-                ` | user has SELECTED text (lines ${sel.fromLine}-${sel.toLine}, ` +
-                `${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
-            } else if (sel) {
-              modeStr += ` | cursor at line ${sel.fromLine}`;
-            }
-          }
-          modeStr += "]";
-          const parts: string[] = [modeStr];
-          const msg = getPendingInteractionsMessage();
-          if (msg) {
-            clearPendingInteractions();
-            parts.push(msg);
-          }
-          return parts.join("\n\n");
-        },
-      }}
-    >
+    <AIChatProvider config={config}>
       <FrameRightResizable
         minWidth={300}
         startingWidth={600}

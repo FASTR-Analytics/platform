@@ -8,7 +8,9 @@ import type {
   SlideDeckConfig,
   SlideType,
 } from "lib";
+import type { ProposalPreview } from "panther";
 import type { SetStoreFunction } from "solid-js/store";
+import type { SkippedRange } from "~/components/report/rebase_edits";
 
 export type AIUserInteraction =
   | { type: "edited_slide"; slideId: string }
@@ -94,6 +96,27 @@ export type ReportEditProposal = {
   summary: string;
 };
 
+// Result of AIContextEditingReport.proposeEdit — the report-editing tools'
+// approval.propose wraps this: an identical-body proposal short-circuits to
+// panther's {skip} (a normal, no-decision tool result); otherwise
+// `customProposalUI` stages the CodeMirror diff and resolves the user's
+// accept/reject decision,
+// `stillValid` guards a stale accept (editor unmounted, or the AI context
+// mode has left "editing_report") from committing against a torn-down
+// editor, and `commit` — called ONLY after an accepted, still-valid decision
+// — rebases the proposal over concurrent collaborator edits and persists it
+// (mirrors the pre-approval applyProposal unchanged; `skipped` lists hunks
+// NOT applied because a collaborator edited that text while the proposal was
+// open, same 1-based line-range contract as before).
+export type ReportEditProposalResult =
+  | { skip: string }
+  | {
+      preview: ProposalPreview;
+      customProposalUI: (signal: AbortSignal) => Promise<boolean>;
+      stillValid: () => boolean;
+      commit: () => Promise<{ skipped: SkippedRange[] }>;
+    };
+
 // Live CodeMirror selection, surfaced to the AI so it can act on what the user
 // has highlighted (mirrors how slide decks expose getSelectedSlideIds).
 export type ReportEditorSelection = {
@@ -112,19 +135,11 @@ export type AIContextEditingReport = {
   getImages: () => Record<string, ImageBlock>;
   // Live CodeMirror selection (undefined if the editor isn't mounted yet).
   getSelection: () => ReportEditorSelection | undefined;
-  // Stage an edit as a diff and resolve once the user accepts or rejects it, so
-  // the calling AI tool learns the outcome (mirrors panther's ask_user_questions
-  // await-resolve pattern). Resolves { accepted: false } if superseded/closed.
-  // On accept, the proposal is REBASED over concurrent collaborator edits;
-  // `skipped` lists the hunks NOT applied because a collaborator edited that
-  // text while the proposal was open (1-based line ranges in the current
-  // document) — tools must relay it so the AI's picture stays honest.
-  proposeEdit: (
-    proposal: ReportEditProposal,
-  ) => Promise<{
-    accepted: boolean;
-    skipped?: { fromLine: number; toLine: number }[];
-  }>;
+  // Prepare a staged edit for panther's approval lifecycle (each report-
+  // editing tool's approval.propose calls this after its own validation).
+  // See ReportEditProposalResult for the shape and the accept/decline/stale
+  // semantics.
+  proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
   // Apply a stable-id figure edit straight to the live registry + persist (no
   // body diff — the figure's body token is unchanged). Mirrors the interactive
   // figure-widget editor; used by the update_report_figure AI tool. Resolves

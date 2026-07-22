@@ -13,6 +13,7 @@ import {
   t3,
 } from "lib";
 import {
+  AIToolFailure,
   Button,
   ButtonGroup,
   type EditorComponentProps,
@@ -54,7 +55,11 @@ import { setShowAi, showAi } from "~/state/t4_ui";
 import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { useAIProjectContext } from "../project_ai/context";
-import type { AIContext, ReportEditProposal } from "../project_ai/types";
+import type {
+  AIContext,
+  ReportEditProposalResult,
+  ReportEditProposal,
+} from "../project_ai/types";
 import { formatLineRanges, type SkippedRange } from "./rebase_edits";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
 import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
@@ -125,7 +130,7 @@ function referencedEmbedIds(body: string): {
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
-  const { setAIContext, notifyAI } = useAIProjectContext();
+  const { setAIContext, notifyAI, aiContext } = useAIProjectContext();
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -279,6 +284,11 @@ export function ProjectReport(p: Props) {
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
+  // stillValid()'s unmount half (see proposeEdit below) — flips false in
+  // onCleanup, before setAIContext resets the mode away. Checked ONLY at
+  // accept time by panther's approval engine, so a stale accept auto-declines
+  // instead of committing against a torn-down editor.
+  let mounted = true;
 
   // ── scroll sync (PLAN_REPORT_SCROLL_SYNC.md) ────────────────────────────────
   // The source line is the canonical coordinate; pixel positions are derived live
@@ -601,30 +611,52 @@ export function ProjectReport(p: Props) {
       getFigures: () => figures(),
       getImages: () => images(),
       getSelection: () => editorApi?.getSelection(),
-      proposeEdit: async (proposal) => {
+      proposeEdit: (proposal): ReportEditProposalResult => {
         // The base the proposal was computed from. Every proposing tool builds
         // newBody from getBody() with only synchronous work before calling
-        // proposeEdit, so body() here IS that base — captured for the rebase
-        // on accept (collaborators may edit while the modal is open).
+        // proposeEdit (from inside its own approval.propose), so body() here
+        // IS that base — captured for the rebase on accept (collaborators may
+        // edit while the diff is under review).
         const baseBody = body();
         if (proposal.newBody === baseBody) {
-          throw new Error(
-            "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
-          );
+          return {
+            skip:
+              "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+          };
         }
-        // Shown as a locking modal (openComponent backdrop) so the user can't do
-        // other work without first acting on the proposal. Resolves true/false.
-        const accepted = await openComponent({
-          element: ReportMarkdownDiff,
-          props: {
-            oldText: baseBody,
-            newText: proposal.newBody,
-            summary: proposal.summary,
+        return {
+          preview: {
+            title: proposal.summary,
+            diff: { before: baseBody, after: proposal.newBody },
           },
-        });
-        if (!accepted) return { accepted: false };
-        const skipped = await applyProposal(proposal, baseBody);
-        return { accepted: true, skipped };
+          // Stages the SAME locking modal (openComponent backdrop) as before
+          // migration; the signal aborts on an external resolution (Stop) and
+          // the modal closes itself (see ReportMarkdownDiff's signal prop) —
+          // panther has no dismissal API for an already-open dialog otherwise.
+          customProposalUI: (signal) =>
+            openComponent({
+              element: ReportMarkdownDiff,
+              props: {
+                oldText: baseBody,
+                newText: proposal.newBody,
+                summary: proposal.summary,
+                signal,
+              },
+            }).then((accepted) => accepted === true),
+          // Guards the dangerous half of the proposeEdit orphan: a decision
+          // that resolves "accepted" after this editor unmounted (or the AI
+          // context moved on to something else while it was still mounted)
+          // must NOT run commit against torn-down editor state. Checked only
+          // at accept — panther maps a false return to the standardized
+          // stale/auto_declined outcome instead of calling commit.
+          stillValid: () => mounted && aiContext().mode === "editing_report",
+          // Runs ONLY after an accepted, still-valid decision — same rebase-
+          // over-collaborator-edits + persist logic as before migration.
+          commit: async () => {
+            const skipped = await applyProposal(proposal, baseBody);
+            return { skipped };
+          },
+        };
       },
       applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
     });
@@ -660,7 +692,7 @@ export function ProjectReport(p: Props) {
         // Don't apply a body whose tokens reference figures the server never
         // got — that would surface as "Missing visualization" after reload.
         setFigures(prev);
-        throw new Error(
+        throw new AIToolFailure(
           "The user ACCEPTED the edit, but saving its figure(s) to the server FAILED, so the edit was NOT applied. Tell the user to check their connection and try again.",
         );
       }
@@ -721,6 +753,7 @@ export function ProjectReport(p: Props) {
   }
 
   onCleanup(() => {
+    mounted = false;
     const s = session();
     if (collabFatal()) {
       // The report/room is gone — nothing to flush to.

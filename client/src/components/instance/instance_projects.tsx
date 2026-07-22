@@ -3,12 +3,12 @@ import { t3 } from "lib";
 import {
   Button,
   FrameTop,
-  HeadingBarMainRibbon,
   Icon,
   getEditorWrapper,
   openAlert,
   openComponent,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { AddProjectForm } from "./add_project";
