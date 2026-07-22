@@ -461,6 +461,8 @@ repeatedly since. As of 2026-07-22 both assistants also depend on the
 engine's views/gating/interactions/approval surface (`defineAIViews`,
 `createAIViewController`, `defineAIInteractions`, `availableIn` gating,
 `approval.propose`, `buildToolCatalog`, `validateAIChatConfig`) — the
+consumer rulebook is the vendored
+[PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md); the full
 contract doc is DOC_AI_CHAT.md at the panther repo root (not vendored). The
 parts S13 relies on, verified this cycle:
 

@@ -334,9 +334,10 @@ edit here):
 
 - `PROTOCOL_ALL_*` — universal: TypeScript/code-quality, structure, sizing,
   translation
-- `PROTOCOL_UI_*` — frontend: SolidJS, state, styling, components, and
+- `PROTOCOL_UI_*` — frontend: SolidJS, state, styling, components,
   **`PROTOCOL_UI_STRUCTURE`** (client file organisation — components mirror the
-  UI, `_shared/` home, co-location)
+  UI, `_shared/` home, co-location), and **`PROTOCOL_UI_AI_CHAT`** (AI chat
+  surfaces: views, tools, gating, interactions, approval, prompts)
 - `PROTOCOL_DENO_API` — backend route/validation patterns
 
 When a base convention is wrong or missing, fix it in the panther source and
