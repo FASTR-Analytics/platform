@@ -301,7 +301,8 @@ that area.
   ([PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) is the
   write-a-worker recipe)
 - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic
-  proxies + token-limit governance, browser tools via the AIContext contract,
+  proxies + token-limit governance, browser tools via panther's view
+  registry/controller contract,
   tool schemas ([PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) is the
   schema-authoring recipe)
 - [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query &
