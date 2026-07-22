@@ -55,27 +55,6 @@ export function buildDecksEditorTour(): TourDefinition {
           projectState.projectModules.length > 0 &&
           projectState.thisUserPermissions.can_configure_slide_decks,
       },
-      {
-        id: "deck-actions",
-        target: tourTarget("decks-deck-card"),
-        title: t3({
-          en: "Manage decks",
-          fr: "Gérer les présentations",
-          pt: "Gerir apresentações",
-        }),
-        body: t3({
-          en: "Right-click a deck to move it to a folder, duplicate it, or delete it. Use the selection circles to act on several at once.",
-          fr: "Faites un clic droit sur une présentation pour la déplacer dans un dossier, la dupliquer ou la supprimer. Utilisez les cercles de sélection pour agir sur plusieurs à la fois.",
-          pt: "Clique com o botão direito numa apresentação para a mover para uma pasta, duplicá-la ou eliminá-la. Utilize os círculos de seleção para agir sobre várias ao mesmo tempo.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-        when: () =>
-          !projectState.isLocked &&
-          projectState.projectModules.length > 0 &&
-          projectState.slideDecks.length > 0,
-      },
     ],
   };
 }
@@ -154,6 +133,19 @@ export function buildDecksViewerTour(): TourDefinition {
         placement: "top",
         when: () => projectState.projectModules.length > 0,
       },
+    ],
+  };
+}
+
+// Deferred until the project actually has decks (entry-level `when` in
+// index.ts) — held back without being marked seen, so it runs on the first
+// decks visit where a deck exists, or merges into the intro run when decks
+// are already there.
+export function buildDecksOpenDeckTour(): TourDefinition {
+  return {
+    id: "decks-open-deck",
+    labels: tourLabels(),
+    steps: [
       {
         id: "open-deck",
         target: tourTarget("decks-deck-card"),
@@ -169,10 +161,32 @@ export function buildDecksViewerTour(): TourDefinition {
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-        when: () =>
-          projectState.projectModules.length > 0 &&
-          projectState.slideDecks.length > 0,
+      },
+    ],
+  };
+}
+
+// Deferred like the open-deck tour, additionally editor-gated.
+export function buildDecksManageTour(): TourDefinition {
+  return {
+    id: "decks-manage-decks",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "deck-actions",
+        target: tourTarget("decks-deck-card"),
+        title: t3({
+          en: "Manage decks",
+          fr: "Gérer les présentations",
+          pt: "Gerir apresentações",
+        }),
+        body: t3({
+          en: "Right-click a deck to move it to a folder, duplicate it, or delete it. Use the selection circles to act on several at once.",
+          fr: "Faites un clic droit sur une présentation pour la déplacer dans un dossier, la dupliquer ou la supprimer. Utilisez les cercles de sélection pour agir sur plusieurs à la fois.",
+          pt: "Clique com o botão direito numa apresentação para a mover para uma pasta, duplicá-la ou eliminá-la. Utilize os círculos de seleção para agir sobre várias ao mesmo tempo.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
       },
     ],
   };
