@@ -21,6 +21,22 @@ export function buildDecksEditorTour(): TourDefinition {
     labels: tourLabels(),
     steps: [
       {
+        id: "folders",
+        target: tourTarget("decks-folders"),
+        title: t3({
+          en: "Organise with folders",
+          fr: "Organisez avec des dossiers",
+          pt: "Organize com pastas",
+        }),
+        body: t3({
+          en: "Right-click a folder to rename it, change its colour, or delete it — and use New folder to add more.",
+          fr: "Faites un clic droit sur un dossier pour le renommer, changer sa couleur ou le supprimer — et utilisez Nouveau dossier pour en ajouter.",
+          pt: "Clique com o botão direito numa pasta para mudar o nome, alterar a cor ou eliminá-la — e utilize Nova pasta para adicionar mais.",
+        }),
+        placement: "right",
+        when: () => projectState.projectModules.length > 0,
+      },
+      {
         id: "create",
         target: tourTarget("decks-create"),
         title: t3({
@@ -38,22 +54,6 @@ export function buildDecksEditorTour(): TourDefinition {
           !projectState.isLocked &&
           projectState.projectModules.length > 0 &&
           projectState.thisUserPermissions.can_configure_slide_decks,
-      },
-      {
-        id: "folders",
-        target: tourTarget("decks-folders"),
-        title: t3({
-          en: "Organise with folders",
-          fr: "Organisez avec des dossiers",
-          pt: "Organize com pastas",
-        }),
-        body: t3({
-          en: "Right-click a folder to rename it, change its colour, or delete it — and use New folder to add more.",
-          fr: "Faites un clic droit sur un dossier pour le renommer, changer sa couleur ou le supprimer — et utilisez Nouveau dossier pour en ajouter.",
-          pt: "Clique com o botão direito numa pasta para mudar o nome, alterar a cor ou eliminá-la — e utilize Nova pasta para adicionar mais.",
-        }),
-        placement: "right",
-        when: () => projectState.projectModules.length > 0,
       },
     ],
   };
