@@ -124,6 +124,9 @@ export function getTableLayoutStyle(config: PresentationObjectConfig) {
     rowHeaderPadding: cfOn
       ? ([5, 10, 5, 0] as [number, number, number, number])
       : undefined,
+    colHeaderPadding: cfOn
+      ? ([0, 5, 8, 5] as [number, number, number, number])
+      : undefined,
     borderWidth: cfOn ? 0 : undefined,
     verticalColHeaders: config.s.allowVerticalColHeaders
       ? ("auto" as const)
@@ -153,7 +156,11 @@ export function getTableCellsContent(
         }
       : undefined,
     textFormatter: (info: TableCellInfo) => {
-      if (!obeyMetricFormat && metadataById && info.valueAsNumber !== undefined) {
+      if (
+        !obeyMetricFormat &&
+        metadataById &&
+        info.valueAsNumber !== undefined
+      ) {
         const meta =
           metadataById.get(info.colHeader?.id ?? "") ??
           metadataById.get(info.rowHeader?.id ?? "");
