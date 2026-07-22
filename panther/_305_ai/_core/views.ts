@@ -92,6 +92,14 @@ export type AIViewController<
   // actually happens to extend the window at the right moment. No-op without
   // an interactions registry (there is no digest to attribute in).
   markAINavigation(): void;
+  // Drop everything the interaction log retains — entries, echo marks,
+  // per-conversation cursors, any open AI-navigation window. For a consumer
+  // SCOPE change (the app moved to a different project/workspace in the same
+  // SPA session): the log is controller-lifetime, so without this, actions
+  // retained from the previous scope ride the next conversation's first
+  // digest as if they happened in the current one. Call it where the new
+  // scope mounts. No-op without an interactions registry.
+  clearInteractionLog(): void;
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
   _viewIds(): string[];
@@ -355,6 +363,9 @@ export function createAIViewController<
     },
     markAINavigation(): void {
       interactionLog?.markAINavigation();
+    },
+    clearInteractionLog(): void {
+      interactionLog?.clear();
     },
     _viewIds(): string[] {
       return Object.keys(registry._defs);

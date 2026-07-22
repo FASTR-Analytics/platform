@@ -278,6 +278,8 @@ builtInTools: {
 - `createSDKClient()` - Configure SDK
 - `createAITool()` - Define custom tools; add `viewRegistry` for view-typed
   tools (compile-checked `availableIn`, narrowed handler view state)
+- `aiToolFactory(registry)` - Binds one registry once; the recommended form for
+  an app with a single view registry
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log
