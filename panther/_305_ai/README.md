@@ -79,13 +79,15 @@ const weatherTool = createAITool({
 const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ```
 
-**Signaling failure from a handler:** throw `AIToolFailure` for expected,
-model-correctable failures (bad input, missing referent, precondition not met).
-The model receives `is_error: true` with your message and can self-correct,
-while the UI shows a clean failure row without a stack trace. Do NOT return an
-error-shaped string — that renders as success and tells the model nothing
-failed. Any other throw is treated as a genuine bug and keeps the full
-stack-trace display.
+**Signaling failure from a handler:** throw `AIToolFailure` for any anticipated
+failure — model-correctable input problems (bad input, missing referent,
+precondition not met) AND anticipated operational failures (a failed server
+call). The model receives `is_error: true` with your message, while the UI shows
+a clean failure row without a stack trace. Do NOT return an error-shaped string
+— that renders as success and tells the model nothing failed. Any other throw —
+including assertion-style "should never happen" checks — is treated as a genuine
+bug and keeps the full stack-trace display. Full contract: DOC_AI_CHAT.md
+"Failure channel".
 
 ```typescript
 import { AIToolFailure, createAITool } from "@timroberton/panther";

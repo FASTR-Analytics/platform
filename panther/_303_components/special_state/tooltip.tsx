@@ -100,10 +100,16 @@ export function TooltipProvider() {
         data-position={tooltipState()?.position ?? "right"}
         style={{ "position-anchor": "--tooltip-anchor" } as JSX.CSSProperties}
       >
+        {
+          /* Inverted surface authored against light-theme tokens
+            (base-content as bg). color-scheme is pinned so the bubble keeps
+            resolving light token values under any future scheme-flipping
+            (light-dark() pairs); inert until then. */
+        }
         <Show when={tooltipState()} keyed>
           {(state) => (
             <div
-              class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating data-[size=sm]:px-1.5 data-[size=sm]:py-0.5 data-[size=sm]:text-xs"
+              class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating [color-scheme:light] data-[size=sm]:px-1.5 data-[size=sm]:py-0.5 data-[size=sm]:text-xs"
               data-size={state.size}
             >
               {state.content}

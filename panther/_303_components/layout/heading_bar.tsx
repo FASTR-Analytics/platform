@@ -76,24 +76,6 @@ export function HeadingBar(p: Props) {
   );
 }
 
-export function HeadingBarMainRibbon(p: Props) {
-  return (
-    <div class="ui-pad ui-gap bg-base-content text-base-100 flex w-full flex-none items-center overflow-hidden">
-      <Show when={p.leftChildren} keyed>
-        {(keyedLeftChildren) => {
-          return <div class="flex-none">{keyedLeftChildren}</div>;
-        }}
-      </Show>
-      <div class="ui-text-heading text-base-100 flex-1 py-1.5">{p.heading}</div>
-      <Show when={p.children} keyed>
-        {(keyedRightChildren) => {
-          return <div class="flex-none">{keyedRightChildren}</div>;
-        }}
-      </Show>
-    </div>
-  );
-}
-
 type HeaderBarCanGoBackProps = {
   heading: string | JSX.Element;
   children?: JSX.Element;
