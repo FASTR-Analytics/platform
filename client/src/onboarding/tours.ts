@@ -55,6 +55,27 @@ export function buildDecksEditorTour(): TourDefinition {
           projectState.projectModules.length > 0 &&
           projectState.thisUserPermissions.can_configure_slide_decks,
       },
+      {
+        id: "deck-actions",
+        target: tourTarget("decks-deck-card"),
+        title: t3({
+          en: "Manage decks",
+          fr: "Gérer les présentations",
+          pt: "Gerir apresentações",
+        }),
+        body: t3({
+          en: "Right-click a deck to move it to a folder, duplicate it, or delete it. Use the selection circles to act on several at once.",
+          fr: "Faites un clic droit sur une présentation pour la déplacer dans un dossier, la dupliquer ou la supprimer. Utilisez les cercles de sélection pour agir sur plusieurs à la fois.",
+          pt: "Clique com o botão direito numa apresentação para a mover para uma pasta, duplicá-la ou eliminá-la. Utilize os círculos de seleção para agir sobre várias ao mesmo tempo.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+        when: () =>
+          !projectState.isLocked &&
+          projectState.projectModules.length > 0 &&
+          projectState.slideDecks.length > 0,
+      },
     ],
   };
 }
@@ -80,6 +101,28 @@ export function buildDecksViewerTour(): TourDefinition {
         placement: "bottom",
       },
       {
+        id: "search",
+        target: () => document.querySelector('[data-tour="decks-header"] input'),
+        title: t3({ en: "Search", fr: "Recherche", pt: "Pesquisa" }),
+        body: t3({
+          en: "Type at least three letters to filter decks by name.",
+          fr: "Saisissez au moins trois lettres pour filtrer les présentations par nom.",
+          pt: "Escreva pelo menos três letras para filtrar as apresentações por nome.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "sort",
+        target: tourTarget("decks-sort"),
+        title: t3({ en: "Sorting", fr: "Tri", pt: "Ordenação" }),
+        body: t3({
+          en: "Order decks by name or by when they were last updated.",
+          fr: "Classez les présentations par nom ou par date de dernière mise à jour.",
+          pt: "Ordene as apresentações por nome ou pela data da última atualização.",
+        }),
+        placement: "bottom",
+      },
+      {
         id: "folders",
         target: tourTarget("decks-folders"),
         title: t3({
@@ -88,12 +131,48 @@ export function buildDecksViewerTour(): TourDefinition {
           pt: "Navegar por pasta",
         }),
         body: t3({
-          en: "Decks are organised into folders — pick one here, or switch to a flat list of everything.",
-          fr: "Les présentations sont organisées en dossiers — choisissez-en un ici ou passez à une liste simple.",
-          pt: "As apresentações estão organizadas em pastas — escolha uma aqui ou mude para uma lista simples.",
+          en: "Decks are organised into folders — pick one here, or switch to a flat list of everything. The counts show how many decks each folder contains.",
+          fr: "Les présentations sont organisées en dossiers — choisissez-en un ici ou passez à une liste simple. Les nombres indiquent combien de présentations chaque dossier contient.",
+          pt: "As apresentações estão organizadas em pastas — escolha uma aqui ou mude para uma lista simples. Os números indicam quantas apresentações cada pasta contém.",
         }),
         placement: "right",
         when: () => projectState.projectModules.length > 0,
+      },
+      {
+        id: "grid",
+        target: tourTarget("decks-grid"),
+        title: t3({
+          en: "Your decks",
+          fr: "Vos présentations",
+          pt: "As suas apresentações",
+        }),
+        body: t3({
+          en: "Every deck in the selected folder appears here with a preview of its first slide.",
+          fr: "Toutes les présentations du dossier sélectionné apparaissent ici avec un aperçu de leur première diapositive.",
+          pt: "Todas as apresentações da pasta selecionada aparecem aqui com uma pré-visualização do primeiro diapositivo.",
+        }),
+        placement: "top",
+        when: () => projectState.projectModules.length > 0,
+      },
+      {
+        id: "open-deck",
+        target: tourTarget("decks-deck-card"),
+        title: t3({
+          en: "Open a deck",
+          fr: "Ouvrir une présentation",
+          pt: "Abrir uma apresentação",
+        }),
+        body: t3({
+          en: "Click a deck to open it in the editor. Avatars in the corner show teammates working in it right now.",
+          fr: "Cliquez sur une présentation pour l'ouvrir dans l'éditeur. Les avatars dans le coin indiquent les collègues qui y travaillent en ce moment.",
+          pt: "Clique numa apresentação para a abrir no editor. Os avatares no canto mostram os colegas que estão a trabalhar nela neste momento.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+        when: () =>
+          projectState.projectModules.length > 0 &&
+          projectState.slideDecks.length > 0,
       },
     ],
   };

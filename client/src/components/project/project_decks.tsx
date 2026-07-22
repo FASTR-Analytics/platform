@@ -431,7 +431,9 @@ export function ProjectDecks(p: ExtendedProps) {
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
+              <div data-tour="decks-sort">
+                <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
+              </div>
             }
           >
             <Show
@@ -527,6 +529,7 @@ export function ProjectDecks(p: ExtendedProps) {
           <div
             class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
             data-page-cursor-surface
+            data-tour="decks-grid"
             onClick={() => selection.clear()}
           >
             <For
@@ -550,7 +553,10 @@ export function ProjectDecks(p: ExtendedProps) {
               {(deck) => {
                 const isSelected = () => selection.isSelected(deck.id);
                 return (
-                  <div class="group row-span-2 grid grid-rows-subgrid gap-y-1">
+                  <div
+                    class="group row-span-2 grid grid-rows-subgrid gap-y-1"
+                    data-tour="decks-deck-card"
+                  >
                     <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                       {deck.label}
                     </div>
