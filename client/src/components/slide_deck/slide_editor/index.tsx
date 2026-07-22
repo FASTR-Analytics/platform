@@ -87,6 +87,7 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
+import { projectState } from "~/state/project/t1_store";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
@@ -693,10 +694,9 @@ export function SlideEditor(p: Props) {
               },
               awareness: s.awareness,
               isLive: () => session()?.isLive() ?? false,
-              canEdit:
-                p.projectStateSnapshot.thisUserPermissions
-                  .can_configure_slide_decks &&
-                !p.projectStateSnapshot.isLocked,
+              canEdit: () =>
+                projectState.thisUserPermissions.can_configure_slide_decks &&
+                !projectState.isLocked,
               localOrigin: figureOrigin,
               onCoherentBundle: applyFigureBundle,
             }

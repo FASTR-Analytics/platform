@@ -115,7 +115,9 @@ const NOT_FOUND_ERRORS = new Set([
 ]);
 
 function throwUnlessNotFound(err: string): null {
-  if (NOT_FOUND_ERRORS.has(err)) return null;
+  if (NOT_FOUND_ERRORS.has(err)) {
+    return null;
+  }
   throw new Error(err);
 }
 
@@ -129,7 +131,9 @@ export async function loadReportVersionData(
   await flushReportRoom(projectId, reportId);
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const res = await getReportDetail(projectDb, reportId);
-  if (!res.success) return throwUnlessNotFound(res.err);
+  if (!res.success) {
+    return throwUnlessNotFound(res.err);
+  }
   // Authorship is best-effort — a failure here must not block the version.
   const authorsRes = await getReportBodyAuthors(projectDb, reportId);
   const authors = authorsRes.success ? authorsRes.data.authors : null;
@@ -153,11 +157,15 @@ export async function loadDeckVersionData(
 ): Promise<DeckVersionData | null> {
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const deckRes = await getSlideDeckDetail(projectDb, deckId);
-  if (!deckRes.success) return throwUnlessNotFound(deckRes.err);
+  if (!deckRes.success) {
+    return throwUnlessNotFound(deckRes.err);
+  }
   let slidesRes = await getSlides(projectDb, deckId);
   // getSlides returns [] for a missing deck (never a not-found error), so any
   // failure here is transient/corrupt-row — always retry.
-  if (!slidesRes.success) throw new Error(slidesRes.err);
+  if (!slidesRes.success) {
+    throw new Error(slidesRes.err);
+  }
   // Live slide rooms can be up to 1.5s ahead of the DB (guaranteed during a
   // max-session split, which by definition fires mid-editing). Snapshotting
   // stale texts wouldn't just date the version — writeVersion validates each
@@ -171,7 +179,9 @@ export async function loadDeckVersionData(
       await flushSlideRoom(projectId, id);
     }
     slidesRes = await getSlides(projectDb, deckId);
-    if (!slidesRes.success) throw new Error(slidesRes.err);
+    if (!slidesRes.success) {
+      throw new Error(slidesRes.err);
+    }
   }
   return {
     label: deckRes.data.label,
@@ -191,11 +201,15 @@ async function loadPayload(
 ): Promise<VersionPayload | null> {
   if (kind === "report") {
     const data = await loadReportVersionData(projectId, docId);
-    if (data === null) return null;
+    if (data === null) {
+      return null;
+    }
     return { contentHash: reportContentHash(data), data };
   }
   const data = await loadDeckVersionData(projectId, docId);
-  if (data === null) return null;
+  if (data === null) {
+    return null;
+  }
   return { contentHash: hashVersionData(data), data };
 }
 
@@ -263,13 +277,17 @@ async function writeVersion(
   if (slideEditors) {
     for (const s of data.slides) {
       const sl = slideEditors.slides[s.id];
-      if (!sl) continue;
+      if (!sl) {
+        continue;
+      }
       const authors = snapshotSlideElementAuthors(
         projectId,
         s.id,
         listSlideConfigTextElements(s.config),
       );
-      if (Object.keys(authors).length > 0) sl.elementAuthors = authors;
+      if (Object.keys(authors).length > 0) {
+        sl.elementAuthors = authors;
+      }
     }
   }
   const res = await insertDeckVersion(projectDb, {
@@ -359,7 +377,9 @@ export function flushAllVersions(): Promise<void> {
 let sweeperStarted = false;
 
 export function startVersionSweeper(): void {
-  if (sweeperStarted) return;
+  if (sweeperStarted) {
+    return;
+  }
   sweeperStarted = true;
   setInterval(() => {
     tracker.sweep().catch((e) => console.error("Version sweep failed:", e));

@@ -34,6 +34,59 @@ Two CSS files control the visual system:
 
 Don't mirror token values into docs — read them from the two files above.
 
+## Dark mode
+
+A per-device preference: `localStorage["darkMode"]`, owned by
+`client/src/state/t4_ui.ts` (`darkMode` signal + `setDarkMode`), toggled in the
+profile modal's Appearance section
+(`client/src/components/instance/profile.tsx`). `applyThemeToDocument` runs at
+module scope in `t4_ui.ts`, so `data-theme="dark"` lands on `<html>` before
+first paint. (A TEMP `Shift+N` dev toggle also lives there, marked
+remove-before-release; the mechanism as a whole is slated to be replaced by the
+panther repo's PLAN_DARK_MODE.)
+
+- **Token override.** An **unlayered** `:root[data-theme="dark"]` block in
+  `client/src/app.css` re-declares the `--color-*` variables (bases from
+  panther's `KEY_COLOR_THEMES["neutral-dark"]`, `primary` swapped to the app's
+  teal accent, plus `--color-border` and `color-scheme`) — unlayered so it
+  beats Tailwind's layered `@theme` defaults. **When adding a `--color-*`
+  token, add its dark counterpart to this block too.**
+- **Documents stay light.** Panther's key colors are static
+  (`setKeyColors` in `client/src/index.tsx` is one-shot), so slides,
+  thumbnails, and every export keep light document styling.
+- **On-screen figures are dark-adapted at display time** via
+  `adaptFigureStyleForDarkMode` (`components/_shared/dark_mode_figures.ts`):
+  a no-op in light mode, else an overlay merged into `FigureInputs.style`
+  (light text/axes, dimmed grid/table lines, dark table header bands,
+  near-black data colors flipped to light in seriesColorFunc/lines/legend;
+  chromatic palette colors pass through). It wraps the inputs at **every
+  on-screen `ChartHolder` call site — and only there**, so exports and stored
+  FigureInputs snapshots are untouched. **Any new on-screen `ChartHolder` must
+  wrap its inputs in it.**
+- **Supporting `app.css` rules** (all `data-theme="dark"`-scoped): a
+  `@custom-variant dark` for one-off `dark:` overrides (classes that read as
+  "strong dark" in light mode but glare in dark); the inverted-ribbon rule —
+  surfaces pairing `bg-base-content` with `text-base-100` (project header,
+  panther's `HeadingBarMainRibbon`/`Tooltip`) get the two base vars
+  re-inverted so they stay dark, **prefer that class pair for any new inverted
+  surface**; a `.cm-editor` block retheming CodeMirror's light internals from
+  tokens — markdown _syntax token_ colors can't be themed from CSS, so editors
+  with markdown highlighting must also spread `darkMarkdownExtensions()` (from
+  `_shared/collab_markdown_editor.tsx`) into their extension list inside a
+  tracked scope so a theme toggle rebuilds the view; and a
+  `select option { color: CanvasText; background-color: Canvas }` rule.
+- **HTML-rendered markdown** (AI chat renderers, `MarkdownPresentationJsx`)
+  colors text from inline `--md-*` vars derived from the light document style —
+  near-black on dark surfaces. Wrap the mount in `.md-dark-adapt`, which
+  re-points those vars to tokens (used by the AI chat panes, public-viewer
+  summary/about, and the report View-pane / version-history previews).
+- **Theme-blind styling rules:** never use the static Tailwind palette
+  (`gray-*`, `bg-white`) for app UI — use tokens. `text-white`/`bg-white` are
+  acceptable only on fixed-color surfaces (identity-color badges, document
+  thumbnails, the login brand panel). Pair intent backgrounds with their
+  `-content` color (`bg-danger text-danger-content`), never `text-white`, so
+  contrast survives the lighter dark-mode intent colors.
+
 Type conventions on top of the tokens:
 
 - **Font weights: only `font-400`, `font-700`, `font-800` exist.**

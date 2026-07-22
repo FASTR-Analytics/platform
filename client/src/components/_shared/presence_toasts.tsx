@@ -36,7 +36,9 @@ let nextToastId = 1;
 let hostMounted = false;
 
 function ensureHost(): void {
-  if (hostMounted) return;
+  if (hostMounted) {
+    return;
+  }
   hostMounted = true;
   const el = document.createElement("div");
   document.body.appendChild(el);
@@ -60,7 +62,7 @@ function PresenceToastHost() {
       <For each={toasts()}>
         {(t) => (
           <div
-            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-lg"
+            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating"
             style={REDUCED_MOTION ? {} : { animation: "presence-toast-in 150ms ease-out" }}
           >
             <span
@@ -90,15 +92,25 @@ function scopeFromView(view: {
   reportId?: string;
   poId?: string;
 }): Scope {
-  if (view.deckId) return { key: `deck:${view.deckId}`, kind: "deck" };
-  if (view.reportId) return { key: `report:${view.reportId}`, kind: "report" };
-  if (view.poId) return { key: `po:${view.poId}`, kind: "po" };
+  if (view.deckId) {
+    return { key: `deck:${view.deckId}`, kind: "deck" };
+  }
+  if (view.reportId) {
+    return { key: `report:${view.reportId}`, kind: "report" };
+  }
+  if (view.poId) {
+    return { key: `po:${view.poId}`, kind: "po" };
+  }
   return null;
 }
 
 function inScope(peer: PresenceEntry, scope: NonNullable<Scope>): boolean {
-  if (scope.kind === "deck") return `deck:${peer.deckId}` === scope.key;
-  if (scope.kind === "report") return `report:${peer.reportId}` === scope.key;
+  if (scope.kind === "deck") {
+    return `deck:${peer.deckId}` === scope.key;
+  }
+  if (scope.kind === "report") {
+    return `report:${peer.reportId}` === scope.key;
+  }
   return `po:${peer.poId}` === scope.key;
 }
 
@@ -183,8 +195,12 @@ export function notifyPresenceToasts(
   )?.email;
   const occupants = new Map<string, { name: string; color: string }>();
   for (const pe of peers) {
-    if (pe.email === selfEmail) continue;
-    if (!inScope(pe, scope)) continue;
+    if (pe.email === selfEmail) {
+      continue;
+    }
+    if (!inScope(pe, scope)) {
+      continue;
+    }
     occupants.set(pe.email, { name: pe.name, color: pe.color });
   }
 
@@ -211,7 +227,9 @@ export function notifyPresenceToasts(
 
   // Leaves, on a grace timer (refresh/reconnect churn stays silent).
   for (const [email, who] of present) {
-    if (occupants.has(email) || pendingLeave.has(email)) continue;
+    if (occupants.has(email) || pendingLeave.has(email)) {
+      continue;
+    }
     const scopeKeyAtSchedule = scope.key;
     pendingLeave.set(
       email,
@@ -232,7 +250,9 @@ export function notifyPresenceToasts(
   const next = new Map(occupants);
   for (const email of pendingLeave.keys()) {
     const prev = present.get(email);
-    if (prev && !next.has(email)) next.set(email, prev);
+    if (prev && !next.has(email)) {
+      next.set(email, prev);
+    }
   }
   present = next;
 }

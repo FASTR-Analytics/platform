@@ -15,6 +15,8 @@ export {
   buildAvailabilityHint,
   buildCancelledToolResults,
   buildInteractionDigest,
+  buildNavigationDoneMessage,
+  buildNavigationPendingMessage,
   buildToolResultUserMessage,
   buildViewGateMessage,
   BUILTIN_TOOL_TYPES,

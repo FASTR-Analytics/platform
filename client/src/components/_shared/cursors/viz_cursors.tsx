@@ -41,7 +41,9 @@ export function VizEditorCursors(p: {
 }) {
   function toPointer(cx: number, cy: number): PointerAwarenessState | null {
     const scope = p.scope();
-    if (!scope) return null;
+    if (!scope) {
+      return null;
+    }
     const canvas = document.getElementById(PREVIEW_ID);
     if (canvas) {
       const r = canvas.getBoundingClientRect();
@@ -92,29 +94,43 @@ export function VizEditorCursors(p: {
     if (pointer.surface === "zone") {
       return acceptZonePointer(pointer, p.scope());
     }
-    if (pointer.scope !== p.scope()) return null;
+    if (pointer.scope !== p.scope()) {
+      return null;
+    }
     if (pointer.surface === "viz-preview") {
       const canvas = document.getElementById(PREVIEW_ID);
-      if (!canvas) return null;
+      if (!canvas) {
+        return null;
+      }
       const r = canvas.getBoundingClientRect();
-      if (r.width === 0 || r.height === 0) return null;
+      if (r.width === 0 || r.height === 0) {
+        return null;
+      }
       // Backstop: hide while another modal covers the preview.
       const topEl = document.elementFromPoint(
         r.left + r.width / 2,
         r.top + r.height / 2,
       );
-      if (topEl && topEl !== canvas && !topEl.contains(canvas)) return null;
+      if (topEl && topEl !== canvas && !topEl.contains(canvas)) {
+        return null;
+      }
       return {
         x: r.left + pointer.x * r.width,
         y: r.top + pointer.y * r.height,
       };
     }
     if (pointer.surface === "viz-panel") {
-      if (pointer.tab !== p.panelTab()) return null;
+      if (pointer.tab !== p.panelTab()) {
+        return null;
+      }
       const scrollEl = panelScrollEl();
-      if (!scrollEl) return null;
+      if (!scrollEl) {
+        return null;
+      }
       const sr = scrollEl.getBoundingClientRect();
-      if (sr.width === 0 || sr.height === 0) return null;
+      if (sr.width === 0 || sr.height === 0) {
+        return null;
+      }
       const pos = panelClientFromContent(sr, scrollEl.scrollTop, pointer);
       // Clip: a cursor scrolled out of THIS viewer's panel view must not float
       // over the tab bar or the chart.
@@ -128,7 +144,9 @@ export function VizEditorCursors(p: {
         sr.left + sr.width / 2,
         sr.top + sr.height / 2,
       );
-      if (topEl && topEl !== scrollEl && !scrollEl.contains(topEl)) return null;
+      if (topEl && topEl !== scrollEl && !scrollEl.contains(topEl)) {
+        return null;
+      }
       return pos;
     }
     return null; // foreign surfaces on a shared host awareness (e.g. "slide")

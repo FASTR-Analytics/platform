@@ -35,7 +35,9 @@ export function SlideEditorCursors(p: {
 }) {
   function toPointer(cx: number, cy: number): PointerAwarenessState | null {
     const canvas = document.getElementById(CANVAS_ID);
-    if (!canvas) return null;
+    if (!canvas) {
+      return null;
+    }
     const r = canvas.getBoundingClientRect();
     if (
       r.width === 0 || cx < r.left || cx > r.right || cy < r.top ||
@@ -68,9 +70,13 @@ export function SlideEditorCursors(p: {
       return null;
     }
     const canvas = document.getElementById(CANVAS_ID);
-    if (!canvas) return null;
+    if (!canvas) {
+      return null;
+    }
     const r = canvas.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) return null;
+    if (r.width === 0 || r.height === 0) {
+      return null;
+    }
     // Backstop for any covering modal (see PeerSelectionOverlay).
     const topEl = document.elementFromPoint(
       r.left + r.width / 2,

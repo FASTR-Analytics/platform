@@ -90,7 +90,17 @@ S10. **Three concurrency philosophies, one per family**: slides = per-row
 the human editor and the AI tools send it); reports body = **always-write
 last-write-wins** returning an advisory `conflicted` flag → non-blocking
 banner; dashboards = **no conflict detection at all** (zero
-`expectedLastUpdated` in the family). Reads are guarded by `can_view_*`,
+`expectedLastUpdated` in the family). **S16 overlays the first two**: when a
+live collab room exists for a slide or report, the mutating routes offer the
+save to the room first (`applySlideToLiveRoom` / `applyReportToLiveRoom`) and
+the CRDT merge is the conflict resolution — the philosophies below engage only
+when no room is live. The collab checkpoint functions and additive columns
+(`saveSlideCheckpoint` / `saveReportCheckpoint`, `crdt_state` /
+`crdt_state_last_updated` / `body_authors`) ride this system's
+`server/db/project/{reports,slides,slide_decks}.ts`, and the version-history
+routes ride its route files — S12 owns the files, S16 the feature (SYSTEMS.md
+§4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Reads are
+guarded by `can_view_*`,
 mutations by `can_configure_*` + `preventAccessToLockedProjects` — dashboards
 have no flags of their own and ride the slide-deck pair (Open item). The
 public viewer is the app's only unauthenticated product surface (cross-cutting
@@ -127,7 +137,7 @@ without re-validation.
 
 **The slide editor**
 ([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx),
-970 LOC) opens via `openEditor` with `snapshotForSlideEditor`
+~1,370 LOC) opens via `openEditor` with `snapshotForSlideEditor`
 (structuredClone-severed projectState + instanceState + deckConfig). Left
 panel switches per slide type (cover/section/content; content = header/footer
 tab + a per-block Content tab with text/figure/image editors); right side is
@@ -144,7 +154,9 @@ ephemeral S11 editor + rebuild; create → `AddVisualization` + build). Local
 edits notify the AI (`edited_slide_locally`) and register AIContext
 `editing_slide` mutators.
 
-**The per-slide save loop**: editor seeds `lastKnownServerTimestamp` from
+**The per-slide save loop** (the no-room/offline path — while a collab
+session is live the editor never explicit-saves; the room checkpoints
+continuously, S16): editor seeds `lastKnownServerTimestamp` from
 props → `updateSlide({slide, expectedLastUpdated, overwrite})` → DB compares
 `last_updated` and returns `CONFLICT` unless `overwrite`
 ([db/project/slides.ts:175-184](server/db/project/slides.ts#L175-L184)) →
@@ -181,7 +193,7 @@ registries; the list card's `preview` (`buildReportPreview`) derives from the
 body alone — up to 8 lines/300 chars, heading levels, figure/image counts by
 token regex.
 
-**Editor** ([report/index.tsx](client/src/components/report/index.tsx), 1063
+**Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,620
 LOC): CodeMirror 6 with an embed-widget extension (a line that is exactly one
 token renders as an atomic block widget), three modes edit/split/view, and
 line-anchored bidirectional scroll sync (`data-line` anchors, echo-loop
@@ -189,7 +201,9 @@ guard, figure-settle ResizeObserver window). The left panel inserts/edits
 embeds (figures resolve through the same S10 funnel as dashboards). View
 mode and both exports share `REPORT_MARKDOWN_STYLE`.
 
-**Autosave protocol**: 800ms debounce → `updateReportBody({body,
+**Autosave protocol** (no-room path — once a collab session becomes ready the
+800ms REST autosave is turned off for good and edits flow over the WS, S16):
+800ms debounce → `updateReportBody({body,
 expectedLastUpdated, overwrite: true})`; the server **always writes** and
 returns `{lastUpdated, conflicted}` — `conflicted` is advisory
 ([db/project/reports.ts:127-163](server/db/project/reports.ts#L127-L163));
@@ -360,7 +374,9 @@ deliveries returns `success: false` (the form shows the error instead of
 
 - **Reports registry lost-update race (MED, known)**: figures/images/config
   PUTs are whole-registry replaces with no concurrency guard — two editors
-  (or human + AI `applyFigureUpdate`) clobber each other.
+  (or human + AI `applyFigureUpdate`) clobber each other. Narrowed by S16:
+  while a collab room is live these route through the room and merge; the
+  race remains for the no-room path.
 - **Non-transactional duplicates**: `duplicateSlides` (shift + INSERT loop
   outside `begin`) and `duplicateSlideDeck` (no transaction) leave partial
   state on mid-loop failure.

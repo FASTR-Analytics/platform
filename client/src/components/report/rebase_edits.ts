@@ -42,7 +42,9 @@ export function rebaseProposedEdits(
   function shiftFor(pos: number): number {
     let shift = 0;
     for (const c of concurrent) {
-      if (c.toA <= pos) shift += (c.toB - c.fromB) - (c.toA - c.fromA);
+      if (c.toA <= pos) {
+        shift += (c.toB - c.fromB) - (c.toA - c.fromA);
+      }
     }
     return shift;
   }
@@ -50,7 +52,9 @@ export function rebaseProposedEdits(
     const clamped = Math.max(0, Math.min(offset, currentBody.length));
     let line = 1;
     for (let i = 0; i < clamped; i++) {
-      if (currentBody.charCodeAt(i) === 10) line++;
+      if (currentBody.charCodeAt(i) === 10) {
+        line++;
+      }
     }
     return line;
   }

@@ -41,12 +41,16 @@ function hoverFlag(): HTMLDivElement {
   return hoverFlagEl;
 }
 function hideHoverFlag(): void {
-  if (hoverFlagEl) hoverFlagEl.style.display = "none";
+  if (hoverFlagEl) {
+    hoverFlagEl.style.display = "none";
+  }
 }
 
 function rgbOfHex(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-f]{6})/i.exec(hex.trim());
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
   const n = parseInt(m[1], 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
@@ -93,13 +97,19 @@ export function attachSelectionNameHover(
           break;
         }
       }
-      if (hitSpan) break;
+      if (hitSpan) {
+        break;
+      }
     }
-    if (!hitSpan || !hitRect) return hideHoverFlag();
+    if (!hitSpan || !hitRect) {
+      return hideHoverFlag();
+    }
 
     const bg = getComputedStyle(hitSpan).backgroundColor;
     const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(bg);
-    if (!m) return hideHoverFlag();
+    if (!m) {
+      return hideHoverFlag();
+    }
     const r = Number(m[1]);
     const g = Number(m[2]);
     const b = Number(m[3]);
@@ -111,7 +121,9 @@ export function attachSelectionNameHover(
     for (
       const caret of dom.querySelectorAll<HTMLElement>(".cm-ySelectionCaret")
     ) {
-      if (!caret.matches(":hover")) continue;
+      if (!caret.matches(":hover")) {
+        continue;
+      }
       const cm = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(
         getComputedStyle(caret).backgroundColor,
       );
@@ -124,19 +136,27 @@ export function attachSelectionNameHover(
     const names: string[] = [];
     let flagColor = "";
     for (const [clientID, state] of awareness.getStates()) {
-      if (clientID === awareness.clientID) continue;
+      if (clientID === awareness.clientID) {
+        continue;
+      }
       const user = state.user as { name?: string; color?: string } | undefined;
-      if (!user?.name || !user.color) continue;
+      if (!user?.name || !user.color) {
+        continue;
+      }
       const rgb = rgbOfHex(user.color);
       if (
         rgb && rgb[0] === r && rgb[1] === g && rgb[2] === b &&
         !names.includes(user.name)
       ) {
         names.push(user.name);
-        if (!flagColor) flagColor = user.color;
+        if (!flagColor) {
+          flagColor = user.color;
+        }
       }
     }
-    if (names.length === 0) return hideHoverFlag();
+    if (names.length === 0) {
+      return hideHoverFlag();
+    }
     const el = hoverFlag();
     el.textContent = names.join(", ");
     el.style.backgroundColor = flagColor;
@@ -153,7 +173,9 @@ export function attachSelectionNameHover(
   let lastY = 0;
   let hasPos = false;
   function schedule() {
-    if (raf !== undefined) return;
+    if (raf !== undefined) {
+      return;
+    }
     raf = requestAnimationFrame(() => {
       raf = undefined;
       resolve(lastX, lastY);
@@ -175,8 +197,11 @@ export function attachSelectionNameHover(
   // RE-EVALUATE at the last known position: still over a highlight → flag
   // stays rock steady; the selection actually vanished → it hides.
   const onAwarenessChange = () => {
-    if (hasPos) schedule();
-    else hideHoverFlag();
+    if (hasPos) {
+      schedule();
+    } else {
+      hideHoverFlag();
+    }
   };
   dom.addEventListener("mousemove", onMove, { passive: true });
   dom.addEventListener("mouseleave", onLeave);
@@ -185,7 +210,9 @@ export function attachSelectionNameHover(
     dom.removeEventListener("mousemove", onMove);
     dom.removeEventListener("mouseleave", onLeave);
     awareness.off("change", onAwarenessChange);
-    if (raf !== undefined) cancelAnimationFrame(raf);
+    if (raf !== undefined) {
+      cancelAnimationFrame(raf);
+    }
     hideHoverFlag();
   };
 }

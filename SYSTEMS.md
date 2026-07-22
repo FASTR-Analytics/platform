@@ -31,6 +31,7 @@ artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
+| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one project WS; rooms checkpoint into S12 tables + S3 notifies    |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
 
 App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6),
@@ -48,7 +49,7 @@ list.)
 |-------------------------------------------------------------------------|-------|-------------------|-------------------------------------------------------|
 | `server/db/project/projects.ts`                                         | S15   | S2, S1, S8        | four systems in 1,108 lines                           |
 | `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
-| `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3           | queries / CRUD / cache interleaved                    |
+| `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3, S16      | queries / CRUD / cache / live-room chokepoint         |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
@@ -67,6 +68,8 @@ list.)
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
 | `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |
+| `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
+| `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
 
 ## §4.2 Kernel — read but don't own
 

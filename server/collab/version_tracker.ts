@@ -150,7 +150,9 @@ export function createVersionTracker(
     docId: string,
   ): void {
     const acc = accumulators.get(accKey(projectId, kind, docId));
-    if (acc) acc.roomEmptyAt = deps.now();
+    if (acc) {
+      acc.roomEmptyAt = deps.now();
+    }
   }
 
   function drainEditors(
@@ -160,14 +162,20 @@ export function createVersionTracker(
   ): VersionEditor[] {
     const key = accKey(projectId, kind, docId);
     const acc = accumulators.get(key);
-    if (!acc) return [];
+    if (!acc) {
+      return [];
+    }
     accumulators.delete(key);
     return [...acc.editors.entries()].map(([email, name]) => ({ email, name }));
   }
 
   function shouldFlush(acc: Accumulator, now: number): boolean {
-    if (now - acc.lastEditAt >= idleGapMs) return true;
-    if (now - acc.dirtySince >= maxSessionMs) return true;
+    if (now - acc.lastEditAt >= idleGapMs) {
+      return true;
+    }
+    if (now - acc.dirtySince >= maxSessionMs) {
+      return true;
+    }
     if (
       acc.roomEmptyAt !== null &&
       now - Math.max(acc.roomEmptyAt, acc.lastEditAt) >= emptyGraceMs
@@ -187,7 +195,9 @@ export function createVersionTracker(
     // A new session started while we were flushing — fold the failed flush's
     // window into it so no contributor is lost.
     for (const [email, name] of acc.editors) {
-      if (!fresh.editors.has(email)) fresh.editors.set(email, name);
+      if (!fresh.editors.has(email)) {
+        fresh.editors.set(email, name);
+      }
     }
     fresh.dirtySince = Math.min(fresh.dirtySince, acc.dirtySince);
     fresh.lastEditAt = Math.max(fresh.lastEditAt, acc.lastEditAt);
@@ -197,9 +207,13 @@ export function createVersionTracker(
     const { projectId, kind, docId } = acc;
     try {
       const payload = await deps.loadPayload(projectId, kind, docId);
-      if (payload === null) return; // document deleted — drop the session
+      if (payload === null) {
+        return; // document deleted — drop the session
+      }
       const latest = await deps.latestHash(projectId, kind, docId);
-      if (latest !== null && latest === payload.contentHash) return; // no net change
+      if (latest !== null && latest === payload.contentHash) {
+        return; // no net change
+      }
       const editors: VersionEditor[] = [...acc.editors.entries()].map(
         ([email, name]) => ({ email, name }),
       );
@@ -212,7 +226,9 @@ export function createVersionTracker(
         editors,
         createdAt,
       );
-      if (!ok) mergeBack(acc);
+      if (!ok) {
+        mergeBack(acc);
+      }
     } catch (error) {
       console.error(
         `Version flush failed (${kind} ${docId}):`,

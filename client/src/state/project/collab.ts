@@ -81,10 +81,15 @@ function setDocSaveFailing(
 ): void {
   setSaveFailingKeys((prev) => {
     const key = `${docType}::${docId}`;
-    if (prev.has(key) === failing) return prev;
+    if (prev.has(key) === failing) {
+      return prev;
+    }
     const next = new Set(prev);
-    if (failing) next.add(key);
-    else next.delete(key);
+    if (failing) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
     return next;
   });
 }
@@ -107,9 +112,9 @@ const RETRY_EXPONENT_CAP = 5;
 const BASE_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
 
-let ws: WebSocket | null = null;
-let currentProjectId: string | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let ws: WebSocket | undefined;
+let currentProjectId: string | undefined;
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
 // Close-intent is tracked PER SOCKET, not as a module flag: a project switch
 // closes the old socket and immediately opens a new one, and the old socket's
@@ -195,7 +200,9 @@ function applySessionUser(awareness: Awareness): void {
 }
 
 function sendCollab(msg: CollabClientMessage): boolean {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    return false;
+  }
   ws.send(JSON.stringify(msg));
   return true;
 }
@@ -213,13 +220,13 @@ function destroySlideSession(s: InternalSlideSession): void {
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: slide awareness destroy failed", err);
   }
   try {
     s.doc.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: slide doc destroy failed", err);
   }
 }
 
@@ -229,7 +236,9 @@ export function openSlideSession(
   onError?: (message: string, fatal?: boolean) => void,
 ): SlideSession {
   const prior = slideSessions.get(slideId);
-  if (prior) destroySlideSession(prior);
+  if (prior) {
+    destroySlideSession(prior);
+  }
 
   const doc = new Y.Doc();
   const awareness = new Awareness(doc);
@@ -246,7 +255,9 @@ export function openSlideSession(
 
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
-    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    if (origin === SLIDE_REMOTE_ORIGIN) {
+      return;
+    }
     sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
   });
 
@@ -257,7 +268,9 @@ export function openSlideSession(
       origin: unknown,
     ) => {
       // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      if (origin === AWARENESS_REMOTE_ORIGIN) {
+        return;
+      }
       const changed = [
         ...changes.added,
         ...changes.updated,
@@ -280,7 +293,9 @@ export function openSlideSession(
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (slide: Slide, opts?: SyncSlideOpts) => {
-      if (!s.ready) return;
+      if (!s.ready) {
+        return;
+      }
       doc.transact(() => syncSlideToDoc(doc, slide, opts));
     },
     close: () => closeSlideSession(slideId),
@@ -289,7 +304,9 @@ export function openSlideSession(
 
 export function closeSlideSession(slideId: string): void {
   const s = slideSessions.get(slideId);
-  if (!s) return;
+  if (!s) {
+    return;
+  }
   sendCollab({ type: "slide_unsubscribe", data: { slideId } });
   destroySlideSession(s);
 }
@@ -349,13 +366,13 @@ function destroyReportSession(s: InternalReportSession): void {
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: report awareness destroy failed", err);
   }
   try {
     s.doc.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: report doc destroy failed", err);
   }
 }
 
@@ -365,7 +382,9 @@ export function openReportSession(
   onError?: (message: string, fatal?: boolean) => void,
 ): ReportSession {
   const prior = reportSessions.get(reportId);
-  if (prior) destroyReportSession(prior);
+  if (prior) {
+    destroyReportSession(prior);
+  }
 
   const doc = new Y.Doc();
   const awareness = new Awareness(doc);
@@ -382,7 +401,9 @@ export function openReportSession(
 
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
-    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    if (origin === SLIDE_REMOTE_ORIGIN) {
+      return;
+    }
     sendCollab({
       type: "report_update",
       data: { reportId, update: bytesToBase64(update) },
@@ -395,7 +416,9 @@ export function openReportSession(
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      if (origin === AWARENESS_REMOTE_ORIGIN) {
+        return;
+      }
       const changed = [
         ...changes.added,
         ...changes.updated,
@@ -418,11 +441,15 @@ export function openReportSession(
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (content: ReportDocContent) => {
-      if (!s.ready) return;
+      if (!s.ready) {
+        return;
+      }
       doc.transact(() => syncReportToDoc(doc, content));
     },
     pushRegistries: (figures, images, opts) => {
-      if (!s.ready) return;
+      if (!s.ready) {
+        return;
+      }
       doc.transact(() => syncReportRegistries(doc, figures, images, opts));
     },
     close: () => closeReportSession(reportId),
@@ -431,7 +458,9 @@ export function openReportSession(
 
 export function closeReportSession(reportId: string): void {
   const s = reportSessions.get(reportId);
-  if (!s) return;
+  if (!s) {
+    return;
+  }
   sendCollab({ type: "report_unsubscribe", data: { reportId } });
   destroyReportSession(s);
 }
@@ -486,13 +515,13 @@ function destroyPoSession(s: InternalPoSession): void {
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: po awareness destroy failed", err);
   }
   try {
     s.doc.destroy();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.error("Collab: po doc destroy failed", err);
   }
 }
 
@@ -502,7 +531,9 @@ export function openPoSession(
   onError?: (message: string, fatal?: boolean) => void,
 ): PoSession {
   const prior = poSessions.get(poId);
-  if (prior) destroyPoSession(prior);
+  if (prior) {
+    destroyPoSession(prior);
+  }
 
   const doc = new Y.Doc();
   const awareness = new Awareness(doc);
@@ -520,7 +551,9 @@ export function openPoSession(
 
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
-    if (origin === SLIDE_REMOTE_ORIGIN) return;
+    if (origin === SLIDE_REMOTE_ORIGIN) {
+      return;
+    }
     sendCollab({
       type: "po_update",
       data: { poId, update: bytesToBase64(update) },
@@ -533,7 +566,9 @@ export function openPoSession(
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      if (origin === AWARENESS_REMOTE_ORIGIN) {
+        return;
+      }
       const changed = [
         ...changes.added,
         ...changes.updated,
@@ -557,7 +592,9 @@ export function openPoSession(
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (config: PresentationObjectConfig) => {
-      if (!s.ready) return;
+      if (!s.ready) {
+        return;
+      }
       doc.transact(
         () => syncFigureConfigToMap(doc.getMap<unknown>(PO_CONFIG_MAP_KEY), config),
         s.localOrigin,
@@ -569,7 +606,9 @@ export function openPoSession(
 
 export function closePoSession(poId: string): void {
   const s = poSessions.get(poId);
-  if (!s) return;
+  if (!s) {
+    return;
+  }
   sendCollab({ type: "po_unsubscribe", data: { poId } });
   destroyPoSession(s);
 }
@@ -761,7 +800,9 @@ function collabWsUrl(projectId: string): string {
 }
 
 function sendPresence(): void {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    return;
+  }
   const message: CollabClientMessage = {
     type: "presence_update",
     // idle omitted (= active) rather than false: view fields are replaced
@@ -786,9 +827,15 @@ function openSocket(projectId: string): void {
     sendPresence();
     // Re-subscribe any open sessions (covers first connect + reconnect:
     // the server sends only what each doc's state vector is missing).
-    for (const s of slideSessions.values()) subscribeSlideOnSocket(s);
-    for (const s of reportSessions.values()) subscribeReportOnSocket(s);
-    for (const s of poSessions.values()) subscribePoOnSocket(s);
+    for (const s of slideSessions.values()) {
+      subscribeSlideOnSocket(s);
+    }
+    for (const s of reportSessions.values()) {
+      subscribeReportOnSocket(s);
+    }
+    for (const s of poSessions.values()) {
+      subscribePoOnSocket(s);
+    }
     // Re-announce the project-scoped awareness: unlike doc sessions there is
     // no subscribe to trigger it, and peers who swept us during an outage
     // would otherwise wait ~15s for the internal renewal.
@@ -810,7 +857,8 @@ function openSocket(projectId: string): void {
     let msg: CollabServerMessage;
     try {
       msg = parseJsonOrThrow<CollabServerMessage>(event.data);
-    } catch {
+    } catch (err) {
+      console.error("Collab: malformed server message", err);
       return;
     }
     if (msg.type === "hello") {
@@ -824,10 +872,18 @@ function openSocket(projectId: string): void {
       setCollabStore("peers", msg.data.peers);
       // Our identity (name/color) may have just arrived — stamp it on any open
       // session's awareness so remote peers see a labelled cursor.
-      for (const s of slideSessions.values()) applySessionUser(s.awareness);
-      for (const s of reportSessions.values()) applySessionUser(s.awareness);
-      for (const s of poSessions.values()) applySessionUser(s.awareness);
-      if (projectAw) applySessionUser(projectAw.awareness);
+      for (const s of slideSessions.values()) {
+        applySessionUser(s.awareness);
+      }
+      for (const s of reportSessions.values()) {
+        applySessionUser(s.awareness);
+      }
+      for (const s of poSessions.values()) {
+        applySessionUser(s.awareness);
+      }
+      if (projectAw) {
+        applySessionUser(projectAw.awareness);
+      }
       // "Alice joined this deck" toasts — scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
     } else if (msg.type === "project_awareness") {
@@ -852,7 +908,7 @@ function openSocket(projectId: string): void {
   socket.onclose = () => {
     const intentional = intentionallyClosed.has(socket);
     if (ws === socket) {
-      ws = null;
+      ws = undefined;
       setSocketOpen(false);
     }
     if (!intentional) {
@@ -867,16 +923,22 @@ function openSocket(projectId: string): void {
 }
 
 function scheduleReconnect(): void {
-  if (!currentProjectId) return;
+  if (!currentProjectId) {
+    return;
+  }
   attempts += 1;
   const delay = Math.min(
     BASE_RETRY_DELAY * 2 ** Math.min(attempts, RETRY_EXPONENT_CAP),
     MAX_RETRY_DELAY,
   );
-  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+  }
   const projectId = currentProjectId;
   reconnectTimer = setTimeout(() => {
-    if (currentProjectId === projectId) openSocket(projectId);
+    if (currentProjectId === projectId) {
+      openSocket(projectId);
+    }
   }, delay);
 }
 
@@ -884,18 +946,24 @@ function scheduleReconnect(): void {
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
 // when no project wants a connection or the socket is already up/connecting.
 function retryNow(): void {
-  if (!currentProjectId) return;
-  if (ws && ws.readyState <= WebSocket.OPEN) return; // CONNECTING or OPEN
+  if (!currentProjectId) {
+    return;
+  }
+  if (ws && ws.readyState <= WebSocket.OPEN) {
+    return; // CONNECTING or OPEN
+  }
   attempts = 0;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+    reconnectTimer = undefined;
   }
   openSocket(currentProjectId);
 }
 window.addEventListener("online", retryNow);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") retryNow();
+  if (document.visibilityState === "visible") {
+    retryNow();
+  }
 });
 
 // ── Idle detection ───────────────────────────────────────────────────────────
@@ -926,7 +994,9 @@ for (const evt of ["pointermove", "pointerdown", "keydown", "wheel"]) {
 // Returning to the tab is an intentional act even before the first
 // mousemove/keydown lands in it (e.g. an alt-tab reader).
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") noteInput();
+  if (document.visibilityState === "visible") {
+    noteInput();
+  }
 });
 setInterval(() => {
   if (!isIdle && Date.now() - lastInputAt >= IDLE_AFTER_MS) {
@@ -943,8 +1013,10 @@ setInterval(() => {
 // registry is the same as the session awarenesses (pointer/pointerChat/user).
 // One instance per connectCollab, destroyed on disconnectCollab.
 
-let projectAw: { doc: Y.Doc; awareness: Awareness } | null = null;
-const [projectAwSig, setProjectAwSig] = createSignal<Awareness | null>(null);
+let projectAw: { doc: Y.Doc; awareness: Awareness } | undefined;
+const [projectAwSig, setProjectAwSig] = createSignal<Awareness | undefined>(
+  undefined,
+);
 /** Reactive accessor for the project-scoped awareness (null when no project
  *  connection is wanted). Consumers: ProjectPageCursors. */
 export const projectAwareness = projectAwSig;
@@ -961,7 +1033,9 @@ function createProjectAwareness(): void {
       origin: unknown,
     ) => {
       // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) return;
+      if (origin === AWARENESS_REMOTE_ORIGIN) {
+        return;
+      }
       const changed = [
         ...changes.added,
         ...changes.updated,
@@ -979,7 +1053,9 @@ function createProjectAwareness(): void {
 }
 
 function destroyProjectAwareness(): void {
-  if (!projectAw) return;
+  if (!projectAw) {
+    return;
+  }
   // Best-effort removal broadcast for peers (no-op when the socket is gone).
   removeAwarenessStates(
     projectAw.awareness,
@@ -988,19 +1064,19 @@ function destroyProjectAwareness(): void {
   );
   projectAw.awareness.destroy();
   projectAw.doc.destroy();
-  projectAw = null;
-  setProjectAwSig(null);
+  projectAw = undefined;
+  setProjectAwSig(undefined);
 }
 
 function hardClose(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+    reconnectTimer = undefined;
   }
   if (ws) {
     intentionallyClosed.add(ws);
     ws.close();
-    ws = null;
+    ws = undefined;
     setSocketOpen(false);
   }
 }
@@ -1030,14 +1106,20 @@ export function disconnectCollab(): void {
   // peers clear our cursors instantly instead of waiting for the ~30s
   // liveness sweep. (A hard tab close still leaves that sweep as the
   // fallback — nothing can be sent then.)
-  for (const s of [...slideSessions.values()]) destroySlideSession(s);
-  for (const s of [...reportSessions.values()]) destroyReportSession(s);
-  for (const s of [...poSessions.values()]) destroyPoSession(s);
+  for (const s of [...slideSessions.values()]) {
+    destroySlideSession(s);
+  }
+  for (const s of [...reportSessions.values()]) {
+    destroyReportSession(s);
+  }
+  for (const s of [...poSessions.values()]) {
+    destroyPoSession(s);
+  }
   destroyProjectAwareness();
   hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");
-  currentProjectId = null;
+  currentProjectId = undefined;
   attempts = 0;
   avatarUrl = undefined;
   view = {};

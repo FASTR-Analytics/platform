@@ -68,7 +68,9 @@ function pageScope(): string | null {
  *  their scope); an empty value means the tab-derived scope. */
 function currentSurface(): { el: Element; scope: string } | null {
   for (const el of document.querySelectorAll("[data-page-cursor-surface]")) {
-    if (el.getBoundingClientRect().width <= 0) continue;
+    if (el.getBoundingClientRect().width <= 0) {
+      continue;
+    }
     const scope = el.getAttribute("data-page-cursor-surface") || pageScope();
     return scope ? { el, scope } : null;
   }
@@ -80,7 +82,9 @@ function toPagePointer(
   clientY: number,
 ): PointerAwarenessState | null {
   const surface = currentSurface();
-  if (!surface) return null;
+  if (!surface) {
+    return null;
+  }
   const pos = pointerFromPane(surface.el, surface.el, clientX, clientY);
   if (pos) {
     return { surface: "page", scope: surface.scope, x: pos.x, y: pos.y };
@@ -108,12 +112,18 @@ export function ProjectPageCursors() {
     pointer: PointerAwarenessState,
   ): { x: number; y: number } | null {
     const surface = currentSurface();
-    if (!surface) return null;
+    if (!surface) {
+      return null;
+    }
     if (pointer.surface === "zone") {
       return acceptZonePointer(pointer, surface.scope);
     }
-    if (pointer.surface !== "page") return null;
-    if (pointer.scope !== surface.scope) return null;
+    if (pointer.surface !== "page") {
+      return null;
+    }
+    if (pointer.scope !== surface.scope) {
+      return null;
+    }
     return viewportFromPane(surface.el, surface.el, {
       x: pointer.x,
       y: pointer.y,

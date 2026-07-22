@@ -60,7 +60,7 @@ export function ReportVersionPreview(p: {
       if (fig) {
         const fb = v.figures[fig[1]];
         return fb ? (
-          <div class="border-base-300 ui-pad my-4 rounded border" data-line={line}>
+          <div class="ui-pad my-4 rounded border" data-line={line}>
             <ReportFigureEmbed figure={fb} />
           </div>
         ) : (
@@ -116,7 +116,9 @@ export function ReportVersionPreview(p: {
       }),
       confirmButtonLabel: t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" }),
     });
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
     const res = await serverActions.restoreReportVersion({
       projectId: p.projectId,
       report_id: p.reportId,
@@ -150,7 +152,7 @@ export function ReportVersionPreview(p: {
     <StateHolderWrapper state={version.state()}>
       {(v) => (
         <div class="flex h-full min-h-0 flex-col">
-          <div class="border-base-300 ui-pad flex items-center gap-4 border-b">
+          <div class="ui-pad flex items-center gap-4 border-b">
             <ButtonGroup<PreviewMode>
               items={[
                 {
@@ -173,7 +175,7 @@ export function ReportVersionPreview(p: {
             when={mode() === "edits"}
             fallback={
               <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
-                <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-2xl">
+                <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating">
                   <MarkdownPresentationJsx
                     markdown={v.body}
                     renderImage={renderEmbedFor(v)}
@@ -190,7 +192,7 @@ export function ReportVersionPreview(p: {
               previousVersionId={p.previousVersionId}
             />
           </Show>
-          <div class="border-base-300 ui-pad ui-gap-sm flex items-center border-t">
+          <div class="ui-pad ui-gap-sm flex items-center border-t">
             <Show when={p.getCurrentBody}>
               <Button outline onClick={() => compareWithCurrent(v)}>
                 {t3({ en: "Compare with current", fr: "Comparer avec l'actuel", pt: "Comparar com o atual" })}
@@ -267,7 +269,7 @@ function SessionEdits(p: {
                 </div>
               }
             >
-              <div class="bg-base-100 border-base-300 mx-auto w-full max-w-4xl rounded border p-4">
+              <div class="bg-base-100 mx-auto w-full max-w-4xl rounded border p-4">
                 <DiffSegments segments={segments} />
               </div>
             </Show>

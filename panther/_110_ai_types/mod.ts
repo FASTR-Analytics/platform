@@ -79,6 +79,8 @@ export {
   buildAvailabilityHint,
   buildInteractionDigest,
   buildNavigationDigestLine,
+  buildNavigationDoneMessage,
+  buildNavigationPendingMessage,
   buildViewGateMessage,
   buildViewLabelSectionText,
   dropSuppressedEchoes,

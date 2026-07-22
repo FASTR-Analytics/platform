@@ -83,7 +83,9 @@ const lastFigureBundleRef = new WeakMap<Y.Map<unknown>, unknown>();
 /** Seed an (assumed empty) Y.Doc from report content. */
 export function seedReportDoc(doc: Y.Doc, content: ReportDocContent): void {
   const body = doc.getText(BODY_KEY);
-  if (content.body.length > 0) body.insert(0, content.body);
+  if (content.body.length > 0) {
+    body.insert(0, content.body);
+  }
   const figures = doc.getMap<unknown>(FIGURES_KEY);
   for (const [id, block] of Object.entries(content.figures)) {
     figures.set(id, buildFigureEntry(block));
@@ -125,7 +127,9 @@ export function findReportFigureConfigMap(
   figureId: string,
 ): Y.Map<unknown> | undefined {
   const entry = doc.getMap<unknown>(FIGURES_KEY).get(figureId);
-  if (!(entry instanceof Y.Map)) return undefined;
+  if (!(entry instanceof Y.Map)) {
+    return undefined;
+  }
   const cfg = entry.get(FIG_CONFIG_KEY);
   return cfg instanceof Y.Map ? cfg : undefined;
 }
@@ -160,7 +164,9 @@ function syncRegistry(
   target: Record<string, unknown>,
 ): void {
   for (const id of [...m.keys()]) {
-    if (!(id in target)) m.delete(id);
+    if (!(id in target)) {
+      m.delete(id);
+    }
   }
   for (const [id, block] of Object.entries(target)) {
     setOpaque(m, id, block);
@@ -173,7 +179,9 @@ function syncFigureRegistry(
   opts?: SyncReportOpts,
 ): void {
   for (const id of [...m.keys()]) {
-    if (!(id in target)) m.delete(id);
+    if (!(id in target)) {
+      m.delete(id);
+    }
   }
   for (const [id, block] of Object.entries(target)) {
     let entry = m.get(id);
@@ -198,12 +206,16 @@ function syncFigureEntry(
   const bundle = block.bundle;
   if (bundle === undefined) {
     for (const k of [FIG_CONFIG_KEY, FIG_DATA_KEY]) {
-      if (entry.has(k)) entry.delete(k);
+      if (entry.has(k)) {
+        entry.delete(k);
+      }
     }
     lastFigureBundleRef.delete(entry);
     return;
   }
-  if (lastFigureBundleRef.get(entry) === bundle) return;
+  if (lastFigureBundleRef.get(entry) === bundle) {
+    return;
+  }
   const { config, ...figData } = bundle;
   if (!skipConfig) {
     let cfgMap = entry.get(FIG_CONFIG_KEY);

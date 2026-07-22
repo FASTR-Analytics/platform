@@ -98,8 +98,10 @@ export async function resolveFigureBundleFromMetric(
   const validation = figureBundleSchema.safeParse(bundle);
   if (!validation.success) {
     const issue = validation.error.issues[0];
+    // map(String): a zod issue path can contain symbol keys, which .join()
+    // cannot coerce implicitly.
     throw new Error(
-      `Invalid figure bundle at "${issue.path.join(".")}": ${issue.message}`,
+      `Invalid figure bundle at "${issue.path.map(String).join(".")}": ${issue.message}`,
     );
   }
   return bundle;

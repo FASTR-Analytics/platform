@@ -68,7 +68,9 @@ function liveLen(runs: AuthorRun[]): number {
 function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
   const out: AuthorRun[] = [];
   for (const r of runs) {
-    if (r.len <= 0) continue;
+    if (r.len <= 0) {
+      continue;
+    }
     const prev = out[out.length - 1];
     if (
       prev && prev.email === r.email && prev.deletedBy === r.deletedBy &&
@@ -77,7 +79,9 @@ function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
       (prev.text === undefined) === (r.text === undefined)
     ) {
       prev.len += r.len;
-      if (r.text !== undefined) prev.text = (prev.text ?? "") + r.text;
+      if (r.text !== undefined) {
+        prev.text = (prev.text ?? "") + r.text;
+      }
     } else {
       out.push({ ...r });
     }
@@ -87,7 +91,9 @@ function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
 
 function capTombstones(runs: AuthorRun[]): AuthorRun[] {
   let excess = runs.filter(isTombstone).length - TOMBSTONE_CAP;
-  if (excess <= 0) return runs;
+  if (excess <= 0) {
+    return runs;
+  }
   const out: AuthorRun[] = [];
   for (const r of runs) {
     if (isTombstone(r) && excess > 0) {
@@ -151,7 +157,9 @@ function applyDeltaToLedger(
   email: string | null,
 ): void {
   const ledger = ledgers.get(k);
-  if (!ledger) return;
+  if (!ledger) {
+    return;
+  }
   const { runs, body } = ledger;
 
   const out: AuthorRun[] = [];
@@ -249,10 +257,18 @@ export function getAuthorRuns(
 
 function runsForKey(k: string, body: string): AuthorRun[] | null {
   const ledger = ledgers.get(k);
-  if (!ledger) return null;
-  if (ledger.body !== body) return null;
-  if (liveLen(ledger.runs) !== body.length) return null;
-  if (ledger.runs.some((r) => r.email === "__MISALIGNED__")) return null;
+  if (!ledger) {
+    return null;
+  }
+  if (ledger.body !== body) {
+    return null;
+  }
+  if (liveLen(ledger.runs) !== body.length) {
+    return null;
+  }
+  if (ledger.runs.some((r) => r.email === "__MISALIGNED__")) {
+    return null;
+  }
   return ledger.runs;
 }
 
@@ -265,7 +281,9 @@ export function compactTombstones(projectId: string, reportId: string): void {
 
 function compactKey(k: string): void {
   const ledger = ledgers.get(k);
-  if (!ledger) return;
+  if (!ledger) {
+    return;
+  }
   ledgers.set(k, {
     runs: mergeAdjacent(ledger.runs.filter((r) => !isTombstone(r))),
     body: ledger.body,
@@ -309,7 +327,9 @@ export function ensureSlideElementLedger(
 ): void {
   const k = slideElementLedgerKey(projectId, slideId, elementKey);
   const existing = ledgers.get(k);
-  if (existing && existing.body === body) return;
+  if (existing && existing.body === body) {
+    return;
+  }
   ledgers.set(k, {
     runs: body.length > 0 ? [{ len: body.length, email: null }] : [],
     body,
@@ -381,9 +401,13 @@ export function snapshotSlideElementAuthors(
       slideElementLedgerKey(projectId, slideId, elementKey),
       body,
     );
-    if (!runs || runs.length === 0) continue;
+    if (!runs || runs.length === 0) {
+      continue;
+    }
     const informative = runs.some((r) => isTombstone(r) || r.email !== null);
-    if (informative) out[elementKey] = runs;
+    if (informative) {
+      out[elementKey] = runs;
+    }
   }
   return out;
 }
@@ -406,7 +430,9 @@ export function compactSlideElementTombstones(
   }
   const prefix = slideElementPrefix(projectId, slideId);
   for (const k of ledgers.keys()) {
-    if (k.startsWith(prefix)) compactKey(k);
+    if (k.startsWith(prefix)) {
+      compactKey(k);
+    }
   }
 }
 
@@ -418,7 +444,9 @@ export function dropSlideElementLedgers(
 ): void {
   const prefix = slideElementPrefix(projectId, slideId);
   for (const k of [...ledgers.keys()]) {
-    if (k.startsWith(prefix)) ledgers.delete(k);
+    if (k.startsWith(prefix)) {
+      ledgers.delete(k);
+    }
   }
 }
 
@@ -433,10 +461,14 @@ export function pruneUninformativeSlideElementLedgers(
 ): void {
   const prefix = slideElementPrefix(projectId, slideId);
   for (const [k, ledger] of [...ledgers.entries()]) {
-    if (!k.startsWith(prefix)) continue;
+    if (!k.startsWith(prefix)) {
+      continue;
+    }
     const informative = ledger.runs.some(
       (r) => isTombstone(r) || r.email !== null,
     );
-    if (!informative) ledgers.delete(k);
+    if (!informative) {
+      ledgers.delete(k);
+    }
   }
 }

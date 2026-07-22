@@ -16,7 +16,7 @@ import { CollabMarkdownEditor } from "~/components/_shared/collab_markdown_edito
 export type VizCaptionCollab = {
   configMap: Y.Map<unknown>;
   awareness: Awareness;
-  canEdit: boolean;
+  canEdit: () => boolean;
 };
 
 type Props = {
@@ -61,7 +61,7 @@ export function PresentationObjectEditorPanelText(p: Props) {
           <CollabMarkdownEditor
             yText={yText}
             awareness={p.captionCollab!.awareness}
-            canEdit={p.captionCollab!.canEdit}
+            canEdit={p.captionCollab!.canEdit()}
             onTextChange={(v) => p.setTempConfig("t", fp.key, v)}
             height={fp.height}
             plain

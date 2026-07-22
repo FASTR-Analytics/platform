@@ -430,7 +430,6 @@ export function ProjectDecks(p: ExtendedProps) {
             })}
             searchText={searchText()}
             setSearchText={setSearchText}
-            class="border-base-300"
             centerChildren={
               <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
             }
@@ -471,10 +470,10 @@ export function ProjectDecks(p: ExtendedProps) {
           hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <div
-              class="border-base-300 flex h-full w-full flex-col border-r"
+              class="flex h-full w-full flex-col border-r"
               data-cursor-zone="folders"
             >
-              <div class="border-base-300 border-b p-3">
+              <div class="border-b p-3">
                 <Select
                   options={getGroupingOptions()}
                   value={deckGroupingMode()}
@@ -584,7 +583,7 @@ export function ProjectDecks(p: ExtendedProps) {
                             class="bg-base-200 flex items-center justify-center"
                             style={{ "aspect-ratio": "16/9" }}
                           >
-                            <span class="text-neutral text-xs">
+                            <span class="ui-text-caption">
                               {t3({
                                 en: "No slides",
                                 fr: "Aucune diapositive",

@@ -11,32 +11,41 @@ import {
   StateHolderWrapper,
   createButtonAction,
   createQuery,
+  KEY_COLOR_THEMES,
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
 
+const DARK_THEME_COLORS = KEY_COLOR_THEMES["neutral-dark"].colors;
+
+// app.css's dark block overrides primary to the GFF teal instead of
+// neutral-dark's monochrome default — mirror that override here too.
+const DARK_PRIMARY = "#14b8a6";
+const DARK_PRIMARY_CONTENT = "#052e2b";
+
 // Clerk's account window renders in its own portal with Clerk's own styling,
 // so the app's CSS tokens don't reach it. Pass dark appearance variables
-// (mirroring the app.css dark values) at open time — evaluated per open, so
-// it follows the theme active when the window is launched.
+// (sourced from the same neutral-dark theme as app.css) at open time —
+// evaluated per open, so it follows the theme active when the window is
+// launched.
 function openClerkUserProfile() {
   clerk.openUserProfile(
     darkMode()
       ? {
         appearance: {
           variables: {
-            colorBackground: "#18181b",
-            colorText: "#fafafa",
-            colorTextSecondary: "#a1a1aa",
-            colorNeutral: "#fafafa",
-            colorInputBackground: "#27272a",
-            colorInputText: "#fafafa",
-            colorPrimary: "#14b8a6",
-            colorTextOnPrimaryBackground: "#052e2b",
-            colorDanger: "#f87171",
-            colorSuccess: "#4ade80",
-            colorWarning: "#facc15",
+            colorBackground: DARK_THEME_COLORS.base100,
+            colorText: DARK_THEME_COLORS.baseContent,
+            colorTextSecondary: DARK_THEME_COLORS.neutral,
+            colorNeutral: DARK_THEME_COLORS.baseContent,
+            colorInputBackground: DARK_THEME_COLORS.base200,
+            colorInputText: DARK_THEME_COLORS.baseContent,
+            colorPrimary: DARK_PRIMARY,
+            colorTextOnPrimaryBackground: DARK_PRIMARY_CONTENT,
+            colorDanger: DARK_THEME_COLORS.danger,
+            colorSuccess: DARK_THEME_COLORS.success,
+            colorWarning: DARK_THEME_COLORS.warning,
           },
         },
       }

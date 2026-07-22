@@ -107,7 +107,9 @@ const slideAdapter: DocRoomAdapter<Slide> = {
         );
         for (const elementKey of touches.added) {
           const text = docTexts.get(elementKey);
-          if (text === undefined) continue; // not a text element
+          if (text === undefined) {
+            continue; // not a text element
+          }
           initSeededSlideElementLedger(
             projectId,
             slideId,
@@ -117,9 +119,11 @@ const slideAdapter: DocRoomAdapter<Slide> = {
           );
         }
       }
-      if (email === null) return;
+      if (email === null) {
+        return;
+      }
       for (const elementKey of touches.touched) {
-        recordSlideElementTouch(projectId, slideId, elementKey, email);
+        recordSlideElementTouch(projectId, slideId, elementKey, email, "touched");
       }
       for (const elementKey of touches.added) {
         recordSlideElementTouch(projectId, slideId, elementKey, email, "added");

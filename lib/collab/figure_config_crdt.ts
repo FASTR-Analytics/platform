@@ -52,7 +52,9 @@ function isOpaqueValue(v: unknown): boolean {
 
 function newCaptionText(value: unknown): Y.Text {
   const t = new Y.Text();
-  if (typeof value === "string" && value.length > 0) t.insert(0, value);
+  if (typeof value === "string" && value.length > 0) {
+    t.insert(0, value);
+  }
   return t;
 }
 
@@ -68,16 +70,23 @@ export function seedFigureConfigMap(
     configMap.set(section, sub);
     const obj = (config[section] ?? {}) as Record<string, unknown>;
     for (const [k, v] of Object.entries(obj)) {
-      if (v === undefined) continue;
-      if (section === "t" && CAPTION_TEXT_SET.has(k)) sub.set(k, newCaptionText(v));
-      else sub.set(k, v); // scalar OR opaque — Yjs stores the JSON value as-is
+      if (v === undefined) {
+        continue;
+      }
+      if (section === "t" && CAPTION_TEXT_SET.has(k)) {
+        sub.set(k, newCaptionText(v));
+      } else {
+        sub.set(k, v); // scalar OR opaque — Yjs stores the JSON value as-is
+      }
     }
     // Caption Y.Texts always exist (even when empty) so the editor can bind a
     // CodeMirror to them and a peer can type into an empty caption. Check the
     // source object (not sub.get) so we never read a still-detached Y.Map.
     if (section === "t") {
       for (const key of CAPTION_TEXT_KEYS) {
-        if (obj[key] === undefined) sub.set(key, newCaptionText(""));
+        if (obj[key] === undefined) {
+          sub.set(key, newCaptionText(""));
+        }
       }
     }
   }
@@ -98,12 +107,16 @@ export function materializeFigureConfig(
     const obj: Record<string, unknown> = {};
     if (sub instanceof Y.Map) {
       for (const [k, v] of sub.entries()) {
-        if (v instanceof Y.Text) obj[k] = v.toString();
-        // Deep-clone opaque objects/arrays: Yjs returns them by reference, so
-        // an unclone would let the consumer (a Solid store via reconcile) alias
-        // the live doc and mutate it out-of-band. Primitives need no clone.
-        else if (typeof v === "object" && v !== null) obj[k] = structuredClone(v);
-        else obj[k] = v;
+        if (v instanceof Y.Text) {
+          obj[k] = v.toString();
+        } else if (typeof v === "object" && v !== null) {
+          // Deep-clone opaque objects/arrays: Yjs returns them by reference, so
+          // an unclone would let the consumer (a Solid store via reconcile) alias
+          // the live doc and mutate it out-of-band. Primitives need no clone.
+          obj[k] = structuredClone(v);
+        } else {
+          obj[k] = v;
+        }
       }
     }
     out[section] = obj;
@@ -125,16 +138,22 @@ function syncSection(
   // Caption Y.Texts are kept and cleared to "" instead of deleted, so a bound
   // editor never loses its Y.Text.
   for (const k of [...sub.keys()]) {
-    if (present.has(k)) continue;
+    if (present.has(k)) {
+      continue;
+    }
     if (section === "t" && CAPTION_TEXT_SET.has(k)) {
       const t = sub.get(k);
-      if (t instanceof Y.Text) syncText(t, "");
+      if (t instanceof Y.Text) {
+        syncText(t, "");
+      }
       continue;
     }
     sub.delete(k);
   }
   for (const [k, v] of Object.entries(obj)) {
-    if (v === undefined) continue;
+    if (v === undefined) {
+      continue;
+    }
     if (section === "t" && CAPTION_TEXT_SET.has(k)) {
       let t = sub.get(k);
       if (!(t instanceof Y.Text)) {
@@ -206,7 +225,9 @@ export function findFigureCaptionText(
   key: CaptionTextKey,
 ): Y.Text | undefined {
   const sub = configMap.get("t");
-  if (!(sub instanceof Y.Map)) return undefined;
+  if (!(sub instanceof Y.Map)) {
+    return undefined;
+  }
   const t = sub.get(key);
   return t instanceof Y.Text ? t : undefined;
 }

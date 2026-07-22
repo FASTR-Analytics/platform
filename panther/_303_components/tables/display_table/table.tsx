@@ -244,7 +244,7 @@ export function Table<
                           column.alignH,
                         )
                       } font-700 text-base-content text-xs uppercase tracking-wider ${
-                        column.sortable ? "ui-hoverable-base-100" : ""
+                        column.sortable ? "ui-hoverable-base-200" : ""
                       }`}
                       style={{ width: column.width }}
                       onClick={() => handleSort(column)}

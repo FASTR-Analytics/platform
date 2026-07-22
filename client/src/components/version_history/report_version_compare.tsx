@@ -101,7 +101,7 @@ export function ReportVersionCompare(
                   </div>
                 }
               >
-                <div class="border-base-300 max-h-[65vh] overflow-auto rounded border p-4">
+                <div class="max-h-[65vh] overflow-auto rounded border p-4">
                   <DiffSegments segments={segments} />
                 </div>
               </Show>

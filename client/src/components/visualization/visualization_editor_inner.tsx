@@ -56,6 +56,7 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 import {
   createStore,
@@ -64,6 +65,7 @@ import {
   type SetStoreFunction,
 } from "solid-js/store";
 import {
+  collabSocketOpen,
   collabState,
   openPoSession,
   otherPeers,
@@ -290,7 +292,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     awareness: Awareness;
     localOrigin: object;
     isLive: () => boolean;
-    canEdit: boolean;
+    canEdit: () => boolean;
   };
   /** The active co-editing target, or undefined when not collaborating. */
   const collabTarget = (): CollabTarget | undefined => {
@@ -301,7 +303,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         awareness: s.awareness,
         localOrigin: s.localOrigin,
         isLive: s.isLive,
-        canEdit: true,
+        canEdit: () => true,
       };
     }
     const m = ephemeralMap();
@@ -318,10 +320,13 @@ export function VisualizationEditorInner(p: InnerProps) {
     return undefined;
   };
 
-  /** Ready AND live — collab is actually persisting / relaying right now. */
+  /** Ready AND live — collab is actually persisting / relaying right now.
+   *  collabSocketOpen() mirrors ws.readyState (same value) but is reactive, so
+   *  the Live badge / save gating below track a socket drop; isLive() alone
+   *  reads the raw socket, which no effect would re-run on. */
   const isCollabLive = () => {
     const t = collabTarget();
-    return !!t && collabReady() && t.isLive();
+    return !!t && collabReady() && collabSocketOpen() && t.isLive();
   };
   /** A "must save first" guard only applies when NOT live-autosaving. */
   const blockedByUnsaved = () => needsSave() && !isCollabLive();
@@ -470,8 +475,15 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   function handlePoError(message: string) {
-    // Room discarded (e.g. the visualization was deleted elsewhere). Drop the
-    // session so isCollabLive() is false and the classic save UI returns.
+    // Room discarded (e.g. the visualization was deleted elsewhere). Tear down
+    // the undo machinery BEFORE destroying the doc it points at — the document
+    // keydown handler stays attached until unmount, and Ctrl+Z would otherwise
+    // drive undoMgr against a destroyed Y.Doc. Then drop the session so
+    // isCollabLive() is false and the classic save UI returns.
+    detachConfigObserver?.();
+    detachConfigObserver = undefined;
+    undoMgr?.destroy();
+    undoMgr = undefined;
     poSession()?.close();
     setPoSession(null);
     setCollabReady(false);
@@ -579,7 +591,11 @@ export function VisualizationEditorInner(p: InnerProps) {
       pushEffectPrimed = true;
       return;
     }
-    if (isCollabLive()) pushConfig(unwrap(tempConfig));
+    // untrack: liveness is a per-edit condition here, not a trigger — tracking
+    // it would push the whole (possibly diverged) local config on socket
+    // reconnect, clobbering peers' offline-window edits (2-way diff, not a
+    // merge). Offline edits stay unshipped, same tradeoff as close().
+    if (untrack(isCollabLive)) pushConfig(unwrap(tempConfig));
   });
 
   onCleanup(() => {
@@ -1192,7 +1208,7 @@ export function VisualizationEditorInner(p: InnerProps) {
               <Show when={isCollabLive()}>
                 <PresenceAvatars peers={poPeers()} size="sm" />
                 <span
-                  class="text-base-content/60 mr-1 text-xs"
+                  class="text-base-content-muted mr-1 text-xs"
                   title={t3({
                     en: "Changes are saved automatically and shared live",
                     fr: "Les modifications sont enregistrées automatiquement et partagées en direct",

@@ -226,7 +226,14 @@ connection-level `undefined → null` transform means a missing field becomes SQ
   reports `conflicted: true` (e.g. `updateReportBody`,
   `updatePresentationObjectConfig`, `updateSlide`) rather than clobbering. The
   bumped `last_updated` is also the SSE/cache version key — see
-  [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
+  [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md). When a live
+  collab room exists for the row, the mutating route offers the save to the
+  room first (S16's `apply*ToLiveRoom` chokepoint) and the CRDT merge is the
+  conflict resolution — the optimistic round-trip engages only on the no-room
+  path. The room checkpoint stamps `last_updated` and the additive
+  `crdt_state_last_updated` column equal in one write; any non-collab write
+  bumps `last_updated` alone, which is exactly what invalidates the stored
+  CRDT state ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)).
 
 ## SQL safety — the normative rule
 

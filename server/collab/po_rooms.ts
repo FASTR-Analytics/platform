@@ -8,7 +8,7 @@
 // plus po_* wire messages).
 //
 // Unlike slides/reports, a PO room has NO authorship ledger and NO version
-// tracking — visualizations are not versioned (see DOC_VERSION_HISTORY.md) — so
+// tracking — visualizations are not versioned (SYSTEM_16_collaboration.md) — so
 // the adapter omits onDocCreated/onDocClosed and the deps omit onEdit/onEmpty.
 
 import * as Y from "yjs";

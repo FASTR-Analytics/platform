@@ -1,5 +1,6 @@
 import type { FigureBundle, MetricWithStatus, PresentationObjectConfig } from "lib";
 import { getFetchConfigFromPresentationObjectConfig } from "lib";
+import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 
@@ -13,6 +14,15 @@ export async function resolveBundleFromMetricAndConfig(
   metric: MetricWithStatus,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
+  // AI tool handlers pass live Solid store objects (the metrics store, preset
+  // configs). Deep-copy to plain data first: Solid stamps symbol keys onto the
+  // raw targets, which zod's record parsing surfaces via Reflect.ownKeys and
+  // then crashes formatting ("Cannot convert a Symbol value to a string") —
+  // unwrap() alone is not enough, the raw objects keep the symbol keys. A
+  // bundle destined for storage must also not alias live store objects.
+  metric = structuredClone(unwrap(metric));
+  config = structuredClone(unwrap(config));
+
   if (metric.status !== "ready") {
     throw new Error(`Metric "${metric.id}" is not ready (status: ${metric.status})`);
   }

@@ -966,7 +966,7 @@ function ProjectBackups(props: { projectId: string }) {
                         <div class="flex flex-col">
                           <button
                             onClick={() => toggleGroup(groupKey)}
-                            class="border-base-300 bg-base-200 hover:bg-base-300/60 flex items-center justify-between rounded border p-3 text-left transition-colors"
+                            class="bg-base-200 hover:bg-base-300/60 flex items-center justify-between rounded border p-3 text-left transition-colors"
                           >
                             <div class="flex items-center gap-2">
                               <Show
@@ -1000,7 +1000,7 @@ function ProjectBackups(props: { projectId: string }) {
                             <div class="mt-2 ml-6 flex flex-col gap-2">
                               <For each={group.backups}>
                                 {(backup: ProjectBackupInfo) => (
-                                  <div class="border-base-300 bg-base-100 flex items-center justify-between rounded border p-3">
+                                  <div class="bg-base-100 flex items-center justify-between rounded border p-3">
                                     <div class="flex flex-col gap-1">
                                       <span>
                                         {group.isCustom

@@ -95,6 +95,41 @@ export const APPROVAL_STALE_MESSAGE =
   "The proposed change is no longer valid — the underlying content changed while the user was deciding. Nothing was applied. Re-read the current state before proposing again.";
 
 ////////////////////////////////////////////////////////////////////////////////
+// NAVIGATION TOOL RESULT STRINGS (Phase 5)
+////////////////////////////////////////////////////////////////////////////////
+//
+// Standardized tool_result contents for the built-in navigation tool
+// (PLAN_AI_VIEWS_AND_APPROVAL Phase 5). Both are NORMAL results. The DONE
+// form confirms arrival; the PENDING form covers every case where the
+// current view doesn't match the target once the consumer callback
+// resolves — which may mean routing is still settling, OR the app
+// deliberately redirected elsewhere (Phase 5 review: the tool cannot tell
+// these apart, since onAiNavigation has no channel to say "this is final,
+// not in-progress" other than throwing AIToolFailure as an outright
+// refusal). The wording is deliberately neutral about WHY — it never
+// asserts routing is still "in progress", only reports where the user
+// actually is right now, which is always true regardless of cause. The
+// view-label section reports the real current view next turn either way.
+
+export function buildNavigationDoneMessage(
+  viewId: string,
+  label: string | null,
+): string {
+  return label === null
+    ? `Navigated. The user is now in view "${viewId}".`
+    : `Navigated. The user is now in view "${viewId}" — "${
+      sanitizeQuoted(label)
+    }".`;
+}
+
+export function buildNavigationPendingMessage(
+  targetViewId: string,
+  currentViewId: string,
+): string {
+  return `Navigation to view "${targetViewId}" was requested; the user has not yet arrived there (currently in view "${currentViewId}"). This may mean routing is still settling, or the app went elsewhere instead. The next message will report the current view as usual.`;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // INTERACTION REDUCTION PIPELINE (Phase 3)
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -143,21 +178,34 @@ export const NAVIGATION_INTERACTION_ID = "__navigation";
 
 // Labels are resolved eagerly AT setView time (the event records strings,
 // never label functions — the live context a label reads may be torn down by
-// drain time).
+// drain time). `origin` is stamped by the interaction log at record time:
+// "ai" when the event falls inside an AI-navigation attribution window (the
+// built-in navigation tool opens one around its consumer callback — Phase
+// 5), "user" otherwise; absent means "user" (payloads predating the field).
 export type NavigationEventPayload = {
   fromId: string;
   fromLabel: string;
   toId: string;
   toLabel: string;
+  origin?: "user" | "ai";
 };
 
 // All navigation events in a drain window coalesce to ONE line: first
 // event's origin → last event's destination. A net-zero round trip (same id
 // AND same label — a changed label means the place meaningfully changed,
 // e.g. a different slide in the same editor view) reports nothing.
+// AI-originated events are dropped BEFORE coalescing (the markAIEdit
+// suppression semantics applied to navigation): the model already knows
+// about moves it caused — its navigation tool result said so, and the
+// view-label section reports the current view every turn — so only genuine
+// user moves may render as "User navigated". The line stays TRUE under
+// mixed windows by construction (user A→B, AI B→C, user C→D reports "from A
+// to D": the user did make those moves, and the view label carries where
+// they actually are now).
 export function buildNavigationDigestLine(
-  events: NavigationEventPayload[],
+  allEvents: NavigationEventPayload[],
 ): string | null {
+  const events = allEvents.filter((e) => e.origin !== "ai");
   if (events.length === 0) return null;
   const first = events[0];
   const last = events[events.length - 1];

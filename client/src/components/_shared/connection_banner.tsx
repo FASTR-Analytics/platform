@@ -36,7 +36,9 @@ let recoveredTimer: ReturnType<typeof setTimeout> | undefined;
 let hostMounted = false;
 
 function ensureHost(): void {
-  if (hostMounted) return;
+  if (hostMounted) {
+    return;
+  }
   hostMounted = true;
   const el = document.createElement("div");
   document.body.appendChild(el);
@@ -46,13 +48,17 @@ function ensureHost(): void {
 /** Feed every connection-state transition here (collab.ts). */
 export function notifyCollabConnection(next: CollabConnectionState): void {
   const prev = connState();
-  if (next === prev) return;
+  if (next === prev) {
+    return;
+  }
   setConnState(next);
 
   if (next === "reconnecting") {
     // First time we ever need UI — mount the host lazily.
     ensureHost();
-    if (recoveredTimer) clearTimeout(recoveredTimer);
+    if (recoveredTimer) {
+      clearTimeout(recoveredTimer);
+    }
     recoveredTimer = undefined;
     setJustRecovered(false);
     return;
@@ -60,7 +66,9 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
   if (next === "connected" && prev === "reconnecting") {
     // Recovered from a real outage (never flashes on a normal initial connect).
     setJustRecovered(true);
-    if (recoveredTimer) clearTimeout(recoveredTimer);
+    if (recoveredTimer) {
+      clearTimeout(recoveredTimer);
+    }
     recoveredTimer = setTimeout(() => {
       recoveredTimer = undefined;
       setJustRecovered(false);
@@ -68,7 +76,9 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
     return;
   }
   // idle / connecting / connected-from-connecting: nothing to show.
-  if (recoveredTimer) clearTimeout(recoveredTimer);
+  if (recoveredTimer) {
+    clearTimeout(recoveredTimer);
+  }
   recoveredTimer = undefined;
   setJustRecovered(false);
 }
@@ -79,7 +89,7 @@ function ConnectionBannerHost() {
     // which sit top-right); above them in the stack.
     <div class="pointer-events-none fixed left-1/2 top-20 z-[96] -translate-x-1/2">
       <Show when={connState() === "reconnecting"}>
-        <div class="bg-warning text-warning-content pointer-events-auto flex items-center gap-2 rounded px-3 py-2 text-sm shadow-lg">
+        <div class="bg-warning text-warning-content pointer-events-auto flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating">
           <span
             class="h-2.5 w-2.5 flex-none rounded-full bg-white/90"
             classList={{ "animate-pulse": !REDUCED_MOTION }}
@@ -100,7 +110,7 @@ function ConnectionBannerHost() {
         </div>
       </Show>
       <Show when={connState() === "connected" && justRecovered()}>
-        <div class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-lg">
+        <div class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating">
           <span class="h-2.5 w-2.5 flex-none rounded-full bg-white/90" />
           <span>
             {t3({

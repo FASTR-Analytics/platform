@@ -5,8 +5,9 @@ import { darkMode } from "~/state/t4_ui";
 import type { DiffSegment } from "./version_diff";
 
 // Changes whose author is unknown (session fallback) get a neutral color
-// instead of a presence color.
-const UNKNOWN_COLOR = "#64748b";
+// instead of a presence color. Shared with deck_version_preview.tsx — must
+// never drift between the two.
+export const UNKNOWN_COLOR = "#64748b";
 
 // The editors' translucent-selection convention is color + ~20% alpha — a
 // soft pastel on light surfaces that all but vanishes over dark bases, so
@@ -57,7 +58,7 @@ export function buildAuthorNames(
 
 export function DiffLegend() {
   return (
-    <div class="text-neutral flex items-center gap-4 text-xs">
+    <div class="ui-text-caption flex items-center gap-4">
       <span>
         <span
           class="rounded-sm px-1"

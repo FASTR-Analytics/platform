@@ -42,7 +42,11 @@ rules, not the examples). Server-side **push** (SSE/ BroadcastChannel) is **S3**
 — the streaming here is request-scoped NDJSON, a different thing. The DB
 functions handlers call, and the error funnel that produces their envelopes, are
 **S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). The Anthropic proxy internals are **S13**; TUS
-upload is **S4**; the public dashboard route is **S12**; health + export_central
+upload is **S4**; the collaboration WebSocket
+(`GET /project_collab/:project_id`) is **S16**
+([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — S1 owns only its
+seat in the off-registry inventory below; the public dashboard route is
+**S12**; health + export_central
 are **S15**, which also _writes_ the `users` / `project_user_roles` rows the
 guards here evaluate — S1 owns the gate, S15 owns the admin surface behind it.
 Client-side consumption rules (tiers, caches) are
@@ -53,7 +57,7 @@ in SYSTEMS.md §4.1 (`main.ts` owned here — S2/S15/S12 readers;
 
 ## Contract
 
-258 registry routes (29 feature registries), zero direct client↔server imports;
+266 registry routes (29 feature registries), zero direct client↔server imports;
 expected failures travel as HTTP 200 + `{ success: false, err }` — only guards
 and validation emit real 4xx/5xx; the `Project-Id` header (not the body) selects
 the per-project DB handle. This system also owns the _inventory_ of the ~30
@@ -253,6 +257,7 @@ here uses the registry.
 | File                                                                  | Owner | Why raw                                                                                                                                                                     |
 | --------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | S3    | SSE long-lived streams, not request/response                                                                                                                                |
+| `routes/project/project-collab.ts`                                    | S16   | WebSocket upgrade (`GET /project_collab/:project_id`) — long-lived bidirectional collab transport, mounted raw in `main.ts` behind the global `authMiddleware`; project access + per-family permissions resolved pre-upgrade via the same `resolveProjectUserAccess` core as SSE |
 | `routes/project/ai_proxy.ts`, `routes/instance/ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` and `/ai-instance`, both thin wrappers over `routes/anthropic_messages_proxy.ts`) — returns Anthropic-shaped bodies, not `APIResponse` |
 | `routes/project/ai_files.ts`                                          | S13   | Anthropic Files API passthrough                                                                                                                                             |
 | `routes/instance/upload.ts`                                           | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                        |
