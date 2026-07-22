@@ -122,3 +122,4 @@ export * from "./_307_vizgraph_view/mod.ts";
 // @protocol PROTOCOL_UI_STYLING.md
 // @protocol PROTOCOL_UI_COMPONENTS.md
 // @protocol PROTOCOL_UI_STRUCTURE.md
+// @protocol PROTOCOL_UI_AI_CHAT.md
