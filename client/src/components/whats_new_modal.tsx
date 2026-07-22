@@ -1,4 +1,11 @@
-import { compareDottedVersions, getLanguage, t3, type WhatsNewPage, type WhatsNewPost } from "lib";
+import {
+  compareDottedVersions,
+  getLanguage,
+  t3,
+  type WhatsNewPage,
+  type WhatsNewPost,
+  type WhatsNewText,
+} from "lib";
 import {
   Button,
   MarkdownPresentationJsx,
@@ -6,6 +13,15 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { For, Index, Show, createSignal } from "solid-js";
+
+// Authored content in the viewer's current app language, English fallback
+function rt(t: WhatsNewText | undefined): string {
+  if (!t) {
+    return "";
+  }
+  const v = t[getLanguage()];
+  return v && v.trim() ? v : t.en;
+}
 
 export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, undefined>) {
   const [pageIndex, setPageIndex] = createSignal(0);
@@ -17,17 +33,13 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
     <ModalContainer
       width="lg"
       scroll="content"
-      topPanel={<div class="font-700 text-base-content text-xl">{p.post.title}</div>}
+      topPanel={<div class="font-700 text-base-content text-xl">{rt(p.post.title)}</div>}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
-          <Show when={multiPage()}>
-            <Button
-              intent="neutral"
-              disabled={pageIndex() === 0}
-              onClick={() => setPageIndex((i) => i - 1)}
-            >
-              {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
+          <Show when={multiPage() && !isLast()}>
+            <Button intent="neutral" onClick={() => p.close(undefined)}>
+              {t3({ en: "Skip", fr: "Passer", pt: "Ignorar" })}
             </Button>
           </Show>,
         ]
@@ -50,14 +62,28 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
               </Index>
             </div>
           </Show>,
-          <Button
-            intent="primary"
-            onClick={() => (isLast() ? p.close(undefined) : setPageIndex((i) => i + 1))}
+          <Show when={multiPage()}>
+            <Button
+              intent="neutral"
+              iconName="chevronLeft"
+              disabled={pageIndex() === 0}
+              onClick={() => setPageIndex((i) => i - 1)}
+            />
+          </Show>,
+          <Show
+            when={multiPage() && !isLast()}
+            fallback={
+              <Button intent="primary" onClick={() => p.close(undefined)}>
+                {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+              </Button>
+            }
           >
-            {isLast()
-              ? t3({ en: "Done", fr: "Terminé", pt: "Concluído" })
-              : t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-          </Button>,
+            <Button
+              intent="primary"
+              iconName="chevronRight"
+              onClick={() => setPageIndex((i) => i + 1)}
+            />
+          </Show>,
         ]
       }
     >
@@ -89,12 +115,12 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
   return (
     <div class="ui-spy">
       <Show when={p.page.title}>
-        <h3 class="font-700 text-base-content text-lg">{p.page.title}</h3>
+        <h3 class="font-700 text-base-content text-lg">{rt(p.page.title)}</h3>
       </Show>
       <div classList={{ "ui-spy": !sideBySide(), "flex items-start gap-6": sideBySide() }}>
         <Show when={p.page.imageUrl && (pos() === "top" || pos() === "left")}>{img()}</Show>
         <div class="min-w-0 grow">
-          <MarkdownPresentationJsx markdown={p.page.body} />
+          <MarkdownPresentationJsx markdown={rt(p.page.body)} />
         </div>
         <Show when={p.page.imageUrl && (pos() === "bottom" || pos() === "right")}>{img()}</Show>
       </div>
@@ -136,7 +162,7 @@ export function WhatsNewFeedModal(
               class="ui-hoverable-base-100 block w-full cursor-pointer rounded border px-4 py-3 text-left"
               onClick={() => p.close(post)}
             >
-              <div class="font-700 text-base-content">{post.title}</div>
+              <div class="font-700 text-base-content">{rt(post.title)}</div>
               <div class="text-base-content-muted mt-1 text-sm">
                 v{post.version} ·{" "}
                 {new Date(post.updatedAt).toLocaleDateString(getLanguage())}

@@ -4,9 +4,17 @@
 
 export type WhatsNewImagePosition = "top" | "bottom" | "left" | "right";
 
+// Authored text, per language. English is required; fr/pt fall back to
+// English when absent — same semantics as the app's t3() translations.
+export type WhatsNewText = {
+  en: string;
+  fr?: string;
+  pt?: string;
+};
+
 export type WhatsNewPage = {
-  title?: string;
-  body: string; // markdown
+  title?: WhatsNewText;
+  body: WhatsNewText; // markdown
   imageUrl?: string; // absolute URL on status-api
   imagePosition?: WhatsNewImagePosition; // default "top"
   imageWidth?: number; // % of content width, 10-100; default 100 top/bottom, 40 left/right
@@ -15,7 +23,7 @@ export type WhatsNewPage = {
 export type WhatsNewPost = {
   id: string;
   version: string; // platform version this post is tied to, e.g. "1.62.0"
-  title: string;
+  title: WhatsNewText;
   pages: WhatsNewPage[];
   adminsOnly: boolean;
   published: boolean;
