@@ -436,7 +436,9 @@ export function ProjectDecks(p: ExtendedProps) {
           >
             <Show
               when={
-                !projectState.isLocked && projectState.projectModules.length > 0
+                !projectState.isLocked &&
+                projectState.projectModules.length > 0 &&
+                projectState.thisUserPermissions.can_configure_slide_decks
               }
             >
               <div data-tour="decks-create">
