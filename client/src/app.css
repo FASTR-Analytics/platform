@@ -56,6 +56,19 @@
    dark:border-base-300). Matches the same data-theme attribute t4_ui sets. */
 @custom-variant dark (&:where(:root[data-theme="dark"], :root[data-theme="dark"] *));
 
+/* Roadtrip onboarding tours — z below panther's AlertProvider modals (z-50)
+   so alerts always stack above an active tour. */
+:root {
+  --roadtrip-z: 40;
+  --roadtrip-accent: var(--color-primary);
+}
+
+:root[data-theme="dark"] {
+  --roadtrip-bg: #27272a;
+  --roadtrip-fg: #fafafa;
+  --roadtrip-scrim-color: rgb(0 0 0 / 0.65);
+}
+
 /* Native <select> popup lists: <option> text inherits the select's OWN text
    color (e.g. base-100 white on the inverted ribbons' outline selects), but
    the UA draws the popup over its own scheme-colored background — so the

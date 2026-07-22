@@ -50,6 +50,7 @@ import {
   checkDataNeedsUpdate,
   checkModulesNeedUpdate,
 } from "./staleness_checks";
+import { setupProjectTours } from "~/onboarding";
 
 type Props = {
   projectId: string;
@@ -115,6 +116,14 @@ function ProjectInner() {
         setModuleLatestCommits(res.data);
       }
     }
+  });
+
+  setupProjectTours(() => {
+    const tab = projectTab();
+    return tab === "decks" &&
+      projectState.thisUserPermissions.can_view_slide_decks
+      ? tab
+      : "none";
   });
 
   const dataNeedsUpdate = createMemo(() =>

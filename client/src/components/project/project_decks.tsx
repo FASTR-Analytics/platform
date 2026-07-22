@@ -421,7 +421,7 @@ export function ProjectDecks(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div class="h-full w-full" data-cursor-zone="header" data-tour="decks-header">
           <HeadingBar
             heading={t3({
               en: "Slide decks",
@@ -439,13 +439,15 @@ export function ProjectDecks(p: ExtendedProps) {
                 !projectState.isLocked && projectState.projectModules.length > 0
               }
             >
-              <Button onClick={attemptAddDeck} iconName="plus">
-                {t3({
-                  en: "Create slide deck",
-                  fr: "Créer une présentation",
-                  pt: "Criar apresentação",
-                })}
-              </Button>
+              <div data-tour="decks-create">
+                <Button onClick={attemptAddDeck} iconName="plus">
+                  {t3({
+                    en: "Create slide deck",
+                    fr: "Créer une présentation",
+                    pt: "Criar apresentação",
+                  })}
+                </Button>
+              </div>
             </Show>
           </HeadingBar>
         </div>
@@ -472,6 +474,7 @@ export function ProjectDecks(p: ExtendedProps) {
             <div
               class="flex h-full w-full flex-col border-r"
               data-cursor-zone="folders"
+              data-tour="decks-folders"
             >
               <div class="border-b p-3">
                 <Select

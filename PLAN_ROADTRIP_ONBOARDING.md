@@ -1,4 +1,4 @@
-# Reusable Onboarding/Tutorial Library (@nw/tourkit) + Platform Integration
+# Reusable Onboarding/Tutorial Library (@njwse/roadtrip) + Platform Integration
 
 ## Context
 
@@ -7,7 +7,7 @@ Nick wants a **separate repo** containing an onboarding/tutorial system usable a
 **Decisions made with user:**
 - v1 features: **spotlight tours** (dimmed backdrop + cutout + anchored popover with Next/Back/Skip), **onboarding checklist** (headless task list), **hints/beacons** (pulsing dots opening one-off tips). No modal carousels.
 - **Framework-agnostic vanilla-TS core + thin JSX-free SolidJS adapter** (platform client is SolidJS + TS strict + Tailwind v4 + Vite 6).
-- Distribution: **public npm package**, named **`@nw/tourkit`** (user's choice).
+- Distribution: **public npm package**, named **`@njwse/roadtrip`** (user's choice).
 - Tour **content lives in platform**, not the library.
 - GitHub repo under personal account (**NicholasWillmott**), created via `gh` CLI.
 
@@ -24,11 +24,11 @@ Nick wants a **separate repo** containing an onboarding/tutorial system usable a
 
 ---
 
-## Phase 1 — Scaffold new repo `~/Work/tourkit`
+## Phase 1 — Scaffold new repo `~/Work/roadtrip`
 
 ```
-tourkit/
-├── package.json         # @nw/tourkit, type: module, 0.1.0, files: ["dist"], sideEffects: false
+roadtrip/
+├── package.json         # @njwse/roadtrip, type: module, 0.1.0, files: ["dist"], sideEffects: false
 ├── tsconfig.json        # strict, ES2022, moduleResolution bundler
 ├── tsup.config.ts       # entries: src/core/index.ts + src/solid/index.ts → ESM + d.ts
 ├── vitest.config.ts     # environment: happy-dom
@@ -42,7 +42,7 @@ tourkit/
 
 - `exports`: `"."` → core, `"./solid"` → solid adapter (with `types` conditions). No CSS export — styles injected at runtime.
 - `dependencies`: `@floating-ui/dom` only. `peerDependencies`: `solid-js` (optional via `peerDependenciesMeta`). Dev: tsup, vitest, happy-dom, typescript, solid-js, vite.
-- `git init`, then `gh repo create NicholasWillmott/tourkit --public --source . --push` (public since npm is public; `--private` if preferred at implementation time).
+- `git init`, then `gh repo create NicholasWillmott/roadtrip --public --source . --push` (public since npm is public; `--private` if preferred at implementation time).
 
 ## Phase 2 — Core engine (`src/core/`)
 
@@ -72,13 +72,13 @@ interface StorageAdapter { get(key): unknown | Promise<unknown>; set(key, value)
 
 **Locked design decisions:**
 - **Spotlight (overlay.ts):** one fixed full-viewport `<svg>` with a single `<path fill-rule="evenodd">` (outer rect + rounded cutout). Even-odd hit-testing lets cutout clicks pass through free; `allowInteraction: false` adds a transparent blocker div over the cutout. Reposition via `ResizeObserver` on target + capture-phase scroll + resize, rAF-throttled. Target unmounting mid-step → transition to `waiting-for-target`, not a stale rect.
-- **Popover (popover.ts):** `@floating-ui/dom` (only runtime dep, ~10 kB) for flip/shift/arrow/`autoUpdate`. Core renders the card DOM: title, body, progress ("2 / 5"), Back/Next/Skip buttons, classes `tourkit-popover` etc.
+- **Popover (popover.ts):** `@floating-ui/dom` (only runtime dep, ~10 kB) for flip/shift/arrow/`autoUpdate`. Core renders the card DOM: title, body, progress ("2 / 5"), Back/Next/Skip buttons, classes `roadtrip-popover` etc.
 - **Target waiting (target.ts):** immediate check → `MutationObserver` on body (debounced re-check) + 250 ms polling fallback, until timeout.
 - **Target registration:** `data-tour="id"` attributes as the primary convention; export `tourTarget(id)` → `[data-tour="${id}"]`. Element getters as escape hatch.
 - **State machine (tour.ts):** `idle → start → (waiting-for-target|active) → next/back` with ordered `afterLeave(current) → beforeEnter(next) → wait → show`; re-entrant guard (ignore calls while a transition is in flight); `destroy()` removes all DOM + observers.
 - **Checklist (checklist.ts):** fully headless — items + completed Set + dismissed flag; hydrates from `StorageAdapter` (`checklist:<id>`), persists on mutation, `subscribe()`. No panel DOM in the lib.
 - **Hints (hints.ts):** registry + core-rendered pulsing dot (CSS keyframes) anchored via floating-ui; click opens small popover with Dismiss; persisted as `hint:<id>`; missing targets simply don't render; `refresh()` for post-navigation re-check.
-- **Styling (styles.ts):** idempotent injected `<style data-tourkit>` sheet; all themeable via CSS custom properties with fallbacks: `--tourkit-z`, `--tourkit-scrim-color`, `--tourkit-accent`, `--tourkit-bg`, `--tourkit-fg`, `--tourkit-radius`, `--tourkit-font`. No Tailwind; explicit box-sizing/margins (no preflight assumptions).
+- **Styling (styles.ts):** idempotent injected `<style data-roadtrip>` sheet; all themeable via CSS custom properties with fallbacks: `--roadtrip-z`, `--roadtrip-scrim-color`, `--roadtrip-accent`, `--roadtrip-bg`, `--roadtrip-fg`, `--roadtrip-radius`, `--roadtrip-font`. No Tailwind; explicit box-sizing/margins (no preflight assumptions).
 
 ## Phase 3 — Solid adapter (`src/solid/index.ts`)
 
@@ -98,13 +98,13 @@ Each bridges core `subscribe()` into a signal; `onCleanup(destroy)` guarded with
 
 ## Phase 5 — Platform integration (`/home/nicho/Work/platform`)
 
-**Dependency:** during development `"@nw/tourkit": "file:../../tourkit"` in `client/package.json` (works with Vite; must be swapped to the published version before `./deploy` since Docker only sees the platform repo).
+**Dependency:** during development `"@njwse/roadtrip": "file:../../roadtrip"` in `client/package.json` (works with Vite; must be swapped to the published version before `./deploy` since Docker only sees the platform repo).
 
 **New files:**
 - `client/src/onboarding/storage.ts` — `ClerkStorageAdapter`: all keys under one `clerk.user.unsafeMetadata.onboarding` object; re-read `unsafeMetadata` immediately before each spread-merge `update` to reduce clobber risk (pattern from email_opt_in_modal.tsx).
-- `client/src/onboarding/tours.ts` — welcome tour definition; text via `t3({en, fr, pt})` resolved at definition time; instance-tab `setTab` passed in from the wiring site (it's component-local).
+- `client/src/onboarding/tours.ts` — per-page tour definitions (welcome on instance shell + one per project tab: visualizations, decks, reports, …, added incrementally); text via `t3({en, fr, pt})` resolved at definition time; instance-tab `setTab` passed in from the wiring site (it's component-local).
+- `client/src/onboarding/index.ts` — builds the `createTourManager` (from `@njwse/roadtrip/solid`) with the page→tour map; wired via `trackPage(manager, pageSignal)` to BOTH the instance `_tab` signal (instance/index.tsx) and `projectTab()` (t4_ui.ts) so each tab's tour auto-runs on first visit, once per user (seen-flags `tour:<id>` in Clerk metadata; skip counts as seen).
 - `client/src/onboarding/checklist.ts` — "Getting started" `ChecklistDefinition` on the same adapter.
-- `client/src/onboarding/index.ts` — `maybeAutoStartOnboarding()` + `startWelcomeTour()`.
 - `client/src/components/instance/checklist_panel.tsx` — panel rendered with the app's Tailwind classes from headless `createChecklist` state.
 
 **Edits (all in `client/src/components/instance/index.tsx` + projects-list component):**
@@ -113,13 +113,13 @@ Each bridges core `subscribe()` into a signal; `onCleanup(destroy)` guarded with
 - Add "Take the tour" restart item to the existing profile/menu.
 - Mount the checklist panel in the projects view; `data-tour="projects-list"` / `data-tour="create-project"` on the projects list & create button.
 
-**Z-index:** panther AlertProvider uses z-50 → set `--tourkit-z: 40` (tour) in platform CSS so alert modals always stack above; safe because the first-run effect awaits the modals before starting the tour.
+**Z-index:** panther AlertProvider uses z-50 → set `--roadtrip-z: 40` (tour) in platform CSS so alert modals always stack above; safe because the first-run effect awaits the modals before starting the tour.
 
 **Initial tour (structure; exact wording TBD with user):** 5 same-page steps on the instance shell — welcome/nav tabs → projects list → create-project button → feedback/help → profile menu (finish sets `welcomeTourDone`). Cross-page tours (via `beforeEnter` + `setProjectTab`) deliberately deferred.
 
 ## Phase 6 — Verification
 
-1. **tourkit repo:** `npm test`, `npm run build` (dist + d.ts emitted), demo walk-through: all three features, scroll/resize with spotlight open, tab-switch waiting step, timeout path.
+1. **roadtrip repo:** `npm test`, `npm run build` (dist + d.ts emitted), demo walk-through: all three features, scroll/resize with spotlight open, tab-switch waiting step, timeout path.
 2. **Platform:** `./run`; clear `unsafeMetadata.onboarding` on a test user; confirm modal→tour sequence, restart from menu, checklist ticking + cross-device persistence, dark mode (`data-theme="dark"` — check custom-prop colors), French UI, `cd client && npm run typecheck`.
 3. **Before any platform deploy:** publish to npm, swap `file:` for published version, `deno task typecheck`.
 
@@ -127,5 +127,5 @@ Each bridges core `subscribe()` into a signal; `onCleanup(destroy)` guarded with
 
 - **Clerk write races:** spread-merge can clobber concurrent metadata writes → serialize all onboarding writes through the single adapter.
 - **Platform working tree has uncommitted parallel work** (version-attribution fixes from 2026-07-17) — check `git status` before staging platform changes; keep integration commits scoped.
-- **Scope registration risk:** `@nw/tourkit` requires registering the `nw` npm org after account creation — no existing `@nw/*` packages or `nw` user found, but npm may reject a 2-char org name; fall back to an alternative scope (user's call) if so.
+- **Scope registration risk:** `@njwse/roadtrip` requires registering the `nw` npm org after account creation — no existing `@nw/*` packages or `nw` user found, but npm may reject a 2-char org name; fall back to an alternative scope (user's call) if so.
 - happy-dom can't verify layout — positioning correctness is demo/manual only.

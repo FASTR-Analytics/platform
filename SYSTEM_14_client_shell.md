@@ -11,6 +11,7 @@ globs:
   - client/src/components/organisation_modal.tsx
   - client/src/components/project/index.tsx
   - client/src/index.tsx
+  - client/src/onboarding/**
   - client/src/routes/**
   - client/src/state/t4_connection_monitor.ts
   - client/src/state/t4_ui.ts
@@ -26,8 +27,10 @@ docs_absorbed:
 
 SPA boot, the signal-based page maps (almost no URL routing), the
 language/calendar singletons and the app's translation conventions, UI
-preferences, connection monitoring, onboarding modals, and the help-button
-system. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+preferences, connection monitoring, onboarding modals, the help-button
+system, and the first-visit page tours (`client/src/onboarding/` — the
+`@njwse/roadtrip` tour manager, Clerk-backed seen-flags under
+`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
