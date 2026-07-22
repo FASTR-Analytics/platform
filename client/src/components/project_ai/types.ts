@@ -1,15 +1,5 @@
-import type {
-  AiContentSlideInput,
-  FigureBlock,
-  ImageBlock,
-  PresentationObjectConfig,
-  ResultsValue,
-  Slide,
-  SlideDeckConfig,
-  SlideType,
-} from "lib";
+import type { AiContentSlideInput, FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
-import type { SetStoreFunction } from "solid-js/store";
 import type { SkippedRange } from "~/components/report/rebase_edits";
 
 export type AIUserInteraction =
@@ -22,73 +12,6 @@ export type AIUserInteraction =
   | { type: "edited_report_locally" }
   | { type: "custom"; message: string };
 
-// Viewing contexts (browsing main project sections)
-export type AIContextViewingVisualizations = {
-  mode: "viewing_visualizations";
-};
-
-export type AIContextViewingSlideDecks = {
-  mode: "viewing_slide_decks";
-};
-
-export type AIContextViewingReports = {
-  mode: "viewing_reports";
-};
-
-export type AIContextViewingData = {
-  mode: "viewing_data";
-};
-
-export type AIContextViewingMetrics = {
-  mode: "viewing_metrics";
-};
-
-export type AIContextViewingModules = {
-  mode: "viewing_modules";
-};
-
-export type AIContextViewingSettings = {
-  mode: "viewing_settings";
-};
-
-export type AIContextViewingDashboards = {
-  mode: "viewing_dashboards";
-};
-
-export type AIContextViewingCache = {
-  mode: "viewing_cache";
-};
-
-// Editing contexts (working on specific items)
-export type AIContextEditingSlideDeck = {
-  mode: "editing_slide_deck";
-  deckId: string;
-  deckLabel: string;
-  getDeckConfig: () => SlideDeckConfig;
-  getSlideIds: () => string[];
-  getSelectedSlideIds: () => string[];
-};
-
-export type AIContextEditingVisualization = {
-  mode: "editing_visualization";
-  vizId: string | null; // null for create/ephemeral modes without persistent ID
-  vizLabel: string;
-  resultsValue: ResultsValue;
-  getTempConfig: () => PresentationObjectConfig;
-  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-};
-
-export type AIContextEditingSlide = {
-  mode: "editing_slide";
-  slideId: string;
-  slideLabel: string;
-  slideType: SlideType;
-  deckId: string;
-  deckLabel: string;
-  getTempSlide: () => Slide;
-  setTempSlide: SetStoreFunction<Slide>;
-};
-
 // A staged AI edit the user accepts/rejects via a diff (never silent mutation).
 export type ReportEditProposal = {
   newBody: string;
@@ -96,7 +19,7 @@ export type ReportEditProposal = {
   summary: string;
 };
 
-// Result of AIContextEditingReport.proposeEdit — the report-editing tools'
+// Result of EditingReportContext.proposeEdit (ai_views.ts) — the report-editing tools'
 // approval.propose wraps this: an identical-body proposal short-circuits to
 // panther's {skip} (a normal, no-decision tool result); otherwise
 // `customProposalUI` stages the CodeMirror diff and resolves the user's
@@ -126,43 +49,6 @@ export type ReportEditorSelection = {
   text: string; // selected text ("" when empty)
 };
 
-export type AIContextEditingReport = {
-  mode: "editing_report";
-  reportId: string;
-  reportLabel: string;
-  getBody: () => string;
-  getFigures: () => Record<string, FigureBlock>;
-  getImages: () => Record<string, ImageBlock>;
-  // Live CodeMirror selection (undefined if the editor isn't mounted yet).
-  getSelection: () => ReportEditorSelection | undefined;
-  // Prepare a staged edit for panther's approval lifecycle (each report-
-  // editing tool's approval.propose calls this after its own validation).
-  // See ReportEditProposalResult for the shape and the accept/decline/stale
-  // semantics.
-  proposeEdit: (proposal: ReportEditProposal) => ReportEditProposalResult;
-  // Apply a stable-id figure edit straight to the live registry + persist (no
-  // body diff — the figure's body token is unchanged). Mirrors the interactive
-  // figure-widget editor; used by the update_report_figure AI tool. Resolves
-  // true on a successful server save, false if the persist failed (so the tool
-  // can report honestly instead of a false "saved").
-  applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
-};
-
-export type AIContext =
-  | AIContextViewingVisualizations
-  | AIContextViewingSlideDecks
-  | AIContextViewingReports
-  | AIContextEditingReport
-  | AIContextViewingData
-  | AIContextViewingMetrics
-  | AIContextViewingModules
-  | AIContextViewingSettings
-  | AIContextViewingDashboards
-  | AIContextViewingCache
-  | AIContextEditingSlideDeck
-  | AIContextEditingSlide
-  | AIContextEditingVisualization;
-
 export type DraftContent =
   | {
       type: "slide";
@@ -174,9 +60,10 @@ export type DraftContent =
     }
   | null;
 
+// View state now lives on projectAIViewController (ai_views.ts), a module-
+// level singleton — not on this Solid context. Import projectAIViewController
+// directly for current()/setView()/clearView() instead of reading it here.
 export type AIProjectContextValue = {
-  aiContext: () => AIContext;
-  setAIContext: (ctx: AIContext) => void;
   draftContent: () => DraftContent;
   setDraftContent: (content: DraftContent) => void;
   notifyAI: (interaction: AIUserInteraction) => void;

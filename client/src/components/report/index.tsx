@@ -56,10 +56,14 @@ import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { useAIProjectContext } from "../project_ai/context";
 import type {
-  AIContext,
   ReportEditProposalResult,
   ReportEditProposal,
 } from "../project_ai/types";
+import {
+  projectAIViewController,
+  restoreProjectAIView,
+  type ProjectAIViewState,
+} from "../project_ai/ai_views";
 import { formatLineRanges, type SkippedRange } from "./rebase_edits";
 import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
 import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
@@ -93,7 +97,7 @@ type Props = EditorComponentProps<
     projectState: ProjectState;
     reportId: string;
     reportLabel: string;
-    returnToContext?: AIContext;
+    returnToContext?: ProjectAIViewState;
   },
   undefined
 >;
@@ -130,7 +134,7 @@ function referencedEmbedIds(body: string): {
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
-  const { setAIContext, notifyAI, aiContext } = useAIProjectContext();
+  const { notifyAI } = useAIProjectContext();
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -285,7 +289,7 @@ export function ProjectReport(p: Props) {
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
   // stillValid()'s unmount half (see proposeEdit below) — flips false in
-  // onCleanup, before setAIContext resets the mode away. Checked ONLY at
+  // onCleanup, before the view controller leaves editing_report. Checked ONLY at
   // accept time by panther's approval engine, so a stale accept auto-declines
   // instead of committing against a torn-down editor.
   let mounted = true;
@@ -603,10 +607,10 @@ export function ProjectReport(p: Props) {
     }
     setIsLoading(false);
 
-    setAIContext({
-      mode: "editing_report",
-      reportId: p.reportId,
-      reportLabel: label(),
+    projectAIViewController.setView(
+      "editing_report",
+      { reportId: p.reportId, reportLabel: label() },
+      {
       getBody: () => body(),
       getFigures: () => figures(),
       getImages: () => images(),
@@ -649,7 +653,8 @@ export function ProjectReport(p: Props) {
           // must NOT run commit against torn-down editor state. Checked only
           // at accept — panther maps a false return to the standardized
           // stale/auto_declined outcome instead of calling commit.
-          stillValid: () => mounted && aiContext().mode === "editing_report",
+          stillValid: () =>
+            mounted && projectAIViewController.current().id === "editing_report",
           // Runs ONLY after an accepted, still-valid decision — same rebase-
           // over-collaborator-edits + persist logic as before migration.
           commit: async () => {
@@ -659,7 +664,8 @@ export function ProjectReport(p: Props) {
         };
       },
       applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
-    });
+      },
+    );
   });
 
   // Flush a pending debounced body save immediately (before unmount/accept) so a
@@ -791,7 +797,8 @@ export function ProjectReport(p: Props) {
     removeLastUpdatedListener = undefined;
     // Clear the "in this report" presence when the editor closes.
     setCollabView({});
-    setAIContext(p.returnToContext ?? { mode: "viewing_reports" });
+    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
+    else projectAIViewController.setView("viewing_reports");
   });
 
   // ── live collab ──────────────────────────────────────────────────────────

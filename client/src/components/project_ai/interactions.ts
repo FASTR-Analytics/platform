@@ -1,8 +1,14 @@
-import type { AIContext, AIUserInteraction } from "./types";
+import type { ProjectAIViewState } from "./ai_views";
+import type { AIUserInteraction } from "./types";
 
+// currentView replaces the pre-views AIContext parameter (deleted in Rung 3,
+// PLAN_FUTURE_AI_ADOPTIONS.md) — same per-view reduction rules, read through
+// the view controller's state shape instead. This function itself (and the
+// pendingInteractions queue feeding it) is unchanged Rung-4 territory
+// (feature 3, defineAIInteractions); only its input type moved.
 export function reduceInteractions(
   interactions: AIUserInteraction[],
-  currentContext: AIContext,
+  currentView: ProjectAIViewState,
 ): AIUserInteraction[] {
   const reduced: AIUserInteraction[] = [];
 
@@ -48,8 +54,8 @@ export function reduceInteractions(
     }
   }
 
-  if (currentContext.mode === "editing_slide_deck") {
-    const deckSlideIds = new Set(currentContext.getSlideIds());
+  if (currentView.id === "editing_slide_deck") {
+    const deckSlideIds = new Set(currentView.context.getSlideIds());
 
     if (hasDeckStructureChanged) {
       reduced.push({ type: "deck_structure_changed" });
@@ -62,34 +68,34 @@ export function reduceInteractions(
     }
   }
 
-  if (currentContext.mode === "editing_slide") {
+  if (currentView.id === "editing_slide") {
     if (hasEditedSlideLocally) {
       reduced.push({ type: "edited_slide_locally" });
     }
-    if (editedSlides.has(currentContext.slideId)) {
-      reduced.push({ type: "edited_slide", slideId: currentContext.slideId });
+    if (editedSlides.has(currentView.params.slideId)) {
+      reduced.push({ type: "edited_slide", slideId: currentView.params.slideId });
     }
   }
 
-  if (currentContext.mode === "editing_visualization") {
+  if (currentView.id === "editing_visualization") {
     if (hasEditedVizLocally) {
       reduced.push({ type: "edited_viz_locally" });
     }
   }
 
-  if (currentContext.mode === "editing_report") {
+  if (currentView.id === "editing_report") {
     if (hasEditedReportLocally) {
       reduced.push({ type: "edited_report_locally" });
     }
   }
 
-  if (currentContext.mode === "viewing_slide_decks") {
+  if (currentView.id === "viewing_slide_decks") {
     if (latestSelection) {
       reduced.push(latestSelection);
     }
   }
 
-  if (currentContext.mode === "viewing_visualizations") {
+  if (currentView.id === "viewing_visualizations") {
     if (latestSelectedViz) {
       reduced.push(latestSelectedViz);
     }

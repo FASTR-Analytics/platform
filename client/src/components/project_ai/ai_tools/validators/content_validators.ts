@@ -8,6 +8,7 @@ import {
   type DisaggregationOption,
   type MetricWithStatus,
 } from "lib";
+import { AIToolFailure } from "panther";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 
 const MARKDOWN_TABLE_PATTERNS = [
@@ -24,7 +25,7 @@ function containsMarkdownTable(text: string): boolean {
 
 export function validateNoMarkdownTables(markdown: string): void {
   if (containsMarkdownTable(markdown)) {
-    throw new Error(
+    throw new AIToolFailure(
       "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block."
     );
   }
@@ -32,7 +33,7 @@ export function validateNoMarkdownTables(markdown: string): void {
 
 export function validateMaxContentBlocks(blocksCount: number): void {
   if (blocksCount > MAX_CONTENT_BLOCKS) {
-    throw new Error(
+    throw new AIToolFailure(
       `Too many blocks (${blocksCount}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`
     );
   }
@@ -45,7 +46,7 @@ export function validateSlideTotalWordCount(textBlocks: string[]): void {
   }, 0);
 
   if (totalWordCount > SLIDE_TEXT_TOTAL_WORD_COUNT_MAX) {
-    throw new Error(
+    throw new AIToolFailure(
       `Slide exceeds maximum word count (${totalWordCount} words across all text blocks). Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide, absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words. Please reduce the text length.`
     );
   }
@@ -79,7 +80,7 @@ function validateFilters(
     f => !availableDims.includes(f.disOpt)
   );
   if (unavailable.length > 0) {
-    throw new Error(
+    throw new AIToolFailure(
       `Filter dimension(s) not available for metric "${metricId}": ${unavailable.map(f => f.disOpt).join(", ")}. Available dimensions: ${availableDims.join(", ")}`
     );
   }
@@ -92,7 +93,7 @@ export function validateAiMetricQuery(query: AiMetricQuery, metric?: MetricWithS
       d => !availableDims.includes(d)
     );
     if (unavailable.length > 0) {
-      throw new Error(
+      throw new AIToolFailure(
         `Disaggregation(s) not available for metric "${query.metricId}": ${unavailable.join(", ")}. Available dimensions: ${availableDims.join(", ")}`
       );
     }
@@ -112,43 +113,43 @@ function validateDateRange(
 ): void {
   if (startDate != null && endDate != null) {
     if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
-      throw new Error(
+      throw new AIToolFailure(
         `startDate and endDate must be valid numbers. Got startDate: ${startDate}, endDate: ${endDate}`
       );
     }
     if (startDate > endDate) {
-      throw new Error(
+      throw new AIToolFailure(
         `startDate (${startDate}) cannot be greater than endDate (${endDate})`
       );
     }
     const startDigits = String(startDate).length;
     const endDigits = String(endDate).length;
     if (startDigits !== endDigits) {
-      throw new Error(
+      throw new AIToolFailure(
         `startDate and endDate must use the same format. Got startDate: ${startDate} (${startDigits} digits), endDate: ${endDate} (${endDigits} digits)`
       );
     }
     if (startDigits === 6) {
       if (!isPeriodIdValid(startDate) || !isPeriodIdValid(endDate)) {
-        throw new Error(
+        throw new AIToolFailure(
           `Invalid YYYYMM format. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     } else if (startDigits === 5) {
       if (!isQuarterIdValid(startDate) || !isQuarterIdValid(endDate)) {
-        throw new Error(
+        throw new AIToolFailure(
           `Invalid YYYYQ format. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     } else if (startDigits <= 4) {
       if (startDate < 1900 || endDate > 2100) {
-        throw new Error(
+        throw new AIToolFailure(
           `Year must be between 1900 and 2100. Got startDate: ${startDate}, endDate: ${endDate}`
         );
       }
     }
   } else if (startDate != null || endDate != null) {
-    throw new Error(
+    throw new AIToolFailure(
       "Both startDate and endDate must be provided together, or neither."
     );
   }
@@ -184,7 +185,7 @@ export async function validateMetricInputs(
     if (dimValues?.status === "ok") {
       const invalid = filter.values.filter(v => !dimValues.values.some(dv => dv.id === String(v)));
       if (invalid.length > 0) {
-        throw new Error(
+        throw new AIToolFailure(
           `Invalid filter value(s) for "${filter.disOpt}": ${invalid.join(", ")}. ` +
           `Valid: ${dimValues.values.map(v => v.label && v.label !== v.id ? `${v.id} (${v.label})` : v.id).join(", ")}`
         );
@@ -199,7 +200,7 @@ export async function validateMetricInputs(
       const filterMin = convertPeriodValue(periodFilter.min, boundsFmt, false);
       const filterMax = convertPeriodValue(periodFilter.max, boundsFmt, true);
       if (filterMax < bounds.min || filterMin > bounds.max) {
-        throw new Error(
+        throw new AIToolFailure(
           `Date range ${periodFilter.min}-${periodFilter.max} is outside available data ` +
           `${bounds.min}-${bounds.max} (${boundsFmt} format).`
         );

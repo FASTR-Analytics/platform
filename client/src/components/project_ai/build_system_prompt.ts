@@ -6,13 +6,18 @@ import {
   type InstanceState,
   type ProjectState,
 } from "lib";
-import type { AIContext } from "./types";
 import { INFO_TOPICS } from "./info_catalog";
 
 // ── Entry point ──
+//
+// Per-mode instructions no longer live here (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md
+// feature 1): each getXInstructions() function below is now a view's
+// promptSection in ai_views.ts, delivered as a per-turn ephemeral section by
+// panther's view controller. This accessor takes no view/mode argument, so it
+// is BYTE-STABLE across navigation — the point of the migration (prompt-cache
+// breakpoint keeps hitting when the user just switches tabs/editors).
 
 export function buildSystemPromptForContext(
-  aiContext: AIContext,
   instance: InstanceState,
   projectState: ProjectState,
 ): string {
@@ -22,9 +27,8 @@ export function buildSystemPromptForContext(
   const contextSection = buildAISystemContext(instance, projectState);
   const referenceDocsSection = buildReferenceDocsSection();
   const baseInstructions = getBaseInstructions();
-  const modeInstructions = getModeInstructions(aiContext);
 
-  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}\n\n${modeInstructions}`;
+  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}\n`;
 }
 
 // ── Reference documentation catalog ──
@@ -275,49 +279,10 @@ When analyzing indicators, first determine the directionality:
 `;
 }
 
-// ── Mode dispatcher ──
-
-function getModeInstructions(aiContext: AIContext): string {
-  switch (aiContext.mode) {
-    case "viewing_visualizations":
-      return getViewingVisualizationsInstructions();
-    case "viewing_slide_decks":
-      return getViewingSlideDecksInstructions();
-    case "viewing_reports":
-      return getViewingReportsInstructions();
-    case "editing_report":
-      return getEditingReportInstructions(aiContext.reportLabel);
-    case "viewing_data":
-      return getViewingDataInstructions();
-    case "viewing_metrics":
-      return getViewingMetricsInstructions();
-    case "viewing_modules":
-      return getViewingModulesInstructions();
-    case "viewing_settings":
-      return getViewingSettingsInstructions();
-    case "viewing_dashboards":
-      return getViewingDashboardsInstructions();
-    case "viewing_cache":
-      return getViewingCacheInstructions();
-    case "editing_slide_deck":
-      return getEditingSlideDeckInstructions(aiContext.deckLabel);
-    case "editing_slide":
-      return getEditingSlideInstructions(
-        aiContext.slideLabel,
-        aiContext.deckLabel,
-      );
-    case "editing_visualization":
-      return getEditingVisualizationInstructions(aiContext.vizLabel);
-    default: {
-      const _exhaustive: never = aiContext;
-      return _exhaustive;
-    }
-  }
-}
-
 // ── Viewing mode instructions ──
+// Each function below is used as a view's promptSection in ai_views.ts.
 
-function getViewingVisualizationsInstructions(): string {
+export function getViewingVisualizationsInstructions(): string {
   return `# Current View: Visualizations Library
 
 The user is browsing their saved visualizations.
@@ -338,7 +303,7 @@ ${getAllToolsList()}
 - Suggest new visualizations to create`;
 }
 
-function getViewingSlideDecksInstructions(): string {
+export function getViewingSlideDecksInstructions(): string {
   return `# Current View: Slide Decks Library
 
 The user is browsing their slide decks.
@@ -354,7 +319,7 @@ ${getAllToolsList()}
 - Suggest new decks to create`;
 }
 
-function getViewingReportsInstructions(): string {
+export function getViewingReportsInstructions(): string {
   return `# Current View: Reports Library
 
 The user is browsing their long-form reports (markdown documents with embedded live data figures).
@@ -376,7 +341,7 @@ ${getAllToolsList()}
 - Do NOT put raw HTML in report bodies; for live data tables/charts, the user inserts figures via the editor`;
 }
 
-function getEditingReportInstructions(reportLabel: string): string {
+export function getEditingReportInstructions(reportLabel: string): string {
   return `# Current View: Editing Report "${reportLabel}"
 
 The user is editing a long-form report (markdown body + embedded live figures).
@@ -404,7 +369,7 @@ ${getAllToolsList()}
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
 }
 
-function getViewingDataInstructions(): string {
+export function getViewingDataInstructions(): string {
   return `# Current View: Data Section
 
 The user is viewing their datasets.
@@ -425,7 +390,7 @@ ${getAllToolsList()}
 - Suggest relevant metrics to analyze`;
 }
 
-function getViewingMetricsInstructions(): string {
+export function getViewingMetricsInstructions(): string {
   return `# Current View: Metrics Section
 
 The user is viewing available metrics/indicators.
@@ -446,7 +411,7 @@ ${getAllToolsList()}
 - Explain methodologies`;
 }
 
-function getViewingModulesInstructions(): string {
+export function getViewingModulesInstructions(): string {
   return `# Current View: Modules Section
 
 The user is viewing analysis modules.
@@ -470,7 +435,7 @@ ${getAllToolsList()}
 - Answer questions about module status and results`;
 }
 
-function getViewingSettingsInstructions(): string {
+export function getViewingSettingsInstructions(): string {
   return `# Current View: Project Settings
 
 The user is viewing project settings (users, roles, configuration).
@@ -485,7 +450,7 @@ ${getAllToolsList()}
 - Help with data exploration or analysis`;
 }
 
-function getViewingDashboardsInstructions(): string {
+export function getViewingDashboardsInstructions(): string {
   return `# Current View: Dashboards
 
 The user is viewing the project's dashboards.
@@ -500,7 +465,7 @@ ${getAllToolsList()}
 - Help with data exploration or analysis`;
 }
 
-function getViewingCacheInstructions(): string {
+export function getViewingCacheInstructions(): string {
   return `# Current View: Cache (developer tab)
 
 The user is viewing the developer cache tab.
@@ -517,7 +482,7 @@ ${getAllToolsList()}
 
 // ── Editing mode instructions ──
 
-function getEditingSlideDeckInstructions(deckLabel: string): string {
+export function getEditingSlideDeckInstructions(deckLabel: string): string {
   return `# Current Mode: Editing Slide Deck
 
 You're editing: "${deckLabel}"
@@ -578,7 +543,7 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
-function getEditingSlideInstructions(
+export function getEditingSlideInstructions(
   slideLabel: string,
   deckLabel: string,
 ): string {
@@ -625,7 +590,7 @@ Keep text concise and focused. Slides with charts/visualizations should have les
 - IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.`;
 }
 
-function getEditingVisualizationInstructions(vizLabel: string): string {
+export function getEditingVisualizationInstructions(vizLabel: string): string {
   return `# Current Mode: Editing Visualization
 
 You're editing: "${vizLabel}"

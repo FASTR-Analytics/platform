@@ -1,15 +1,14 @@
 import type { Slide } from "lib";
-import type { AIContextEditingSlideDeck } from "~/components/project_ai/types";
 import { serverActions } from "~/server_actions";
 
 export async function addSlideDirectlyToDeck(
   projectId: string,
   slide: Slide,
-  ctx: AIContextEditingSlideDeck,
+  deckId: string,
 ): Promise<void> {
   const res = await serverActions.createSlide({
     projectId,
-    deck_id: ctx.deckId,
+    deck_id: deckId,
     position: { toEnd: true },
     slide,
   });

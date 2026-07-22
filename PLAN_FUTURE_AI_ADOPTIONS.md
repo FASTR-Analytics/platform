@@ -2,25 +2,25 @@
 
 Status: ACTIVE / adoption in rungs. Written 2026-07-17; updated 2026-07-20
 (panther Phases 1+2), 2026-07-21 (panther plan complete), 2026-07-22 (full
-re-verification + rung restructure for staged implementation).
+re-verification + rung restructure for staged implementation; then panther's
+standalone-tool refactor → rung 3.5 added).
 
 State verified 2026-07-22:
 
-- **The vendored `panther/` copy is CURRENT** — the 2026-07-21 morning syncs
-  (`4aeb7d2f`, `22c5f62c`) brought Phase 5; `createNavigationTool` and
-  `buildToolCatalog` are present in `panther/_305_ai/`. No re-sync
-  precondition remains.
+- **The vendored `panther/` copy is IN SYNC as of 2026-07-22** — the
+  standalone-tool refactor landed via sync `65ef6943`, and rung 3.5 (below)
+  adopted it: all 22 `projectAIViewController.createTool` sites swapped to
+  `createAITool`, typecheck green.
 - **Panther's own plan (`PLAN_AI_VIEWS_AND_APPROVAL.md`) is COMPLETE and has
   been DELETED** in the panther repo. The authoritative contract doc is
   **`DOC_AI_CHAT.md` at the panther repo root**
   (`~/projects/panther/timroberton-panther/DOC_AI_CHAT.md`) — it is NOT
   vendored (the sync copies modules + protocols only). Read it from the
   panther repo when implementing or reviewing any rung.
-- **wb-fastr app code has adopted NONE of this yet** — zero uses of
-  `createAIViewController` / `defineAIViews` / `availableIn` /
-  `defineAIInteractions` anywhere in `client/src`; HFA still runs the old
-  `confirmChain` pattern (`indicator_manager_hfa/ai/tools.ts:54`, six
-  `confirmGate` sites).
+- **Adoption progress: rungs 0, 1, 2, 3 and 3.5 are shipped** (see the rung
+  checkboxes below); rungs 4 and 5 remain. The original "adopted NONE yet"
+  baseline (zero view/approval/interaction uses, HFA on `confirmChain`) is
+  history.
 - **The sync tripwires are already live** — the app deployed (1.61.1) after
   the Phase 5 sync with no construction throws, so both surfaces' tool arrays
   are de-facto clean. The old "run `validateAIChatConfig` before the first
@@ -136,8 +136,9 @@ buy HFA almost nothing.
 Panther provides: `availableIn: [viewIds]` on tools; the engine refuses
 out-of-view executions with a standardized self-correcting error before the
 handler runs; a static "Only available in view(s): …" line auto-appended to tool
-descriptions; `viewController.createTool` gives handlers the narrowed
-`(input, view)` with typed params/context; construction-time validation of view
+descriptions; a tool declaring `viewRegistry` gets handlers with the narrowed
+`(input, view)` and typed params/context (was `viewController.createTool`
+before 2026-07-22 — see "Library change: standalone tools" below); construction-time validation of view
 ids (including on dynamic `register()`).
 
 **Copilot adoption — deletes all ~23 hand-rolled guards:**
@@ -437,13 +438,15 @@ guard-by-guard. What it settled for the migration:
    deliberately offers no per-tool gate-message hints; the description is the
    cache-stable channel the model reads BEFORE its first refusal. Fold each
    redirect into the tool's description text during the migration sweep.
-3. **One controller instance, period** — controller-created tools carry an
-   identity stamp, and chat construction THROWS if a tool was made by a
-   different `createAIViewController` instance than the chat's (id-set equality
-   is not enough — the handler's narrowed view state reads the creating
-   controller's signal). wb-fastr builds tools in separate modules
-   (`build_tools.ts`): construct the controller once at module level and import
-   it everywhere; never build a second controller from the same registry.
+3. ~~**One controller instance, period**~~ — **SUPERSEDED 2026-07-22 by the
+   standalone-tool refactor (see "Library change: standalone tools" below).**
+   Tools no longer close over a controller, so a second
+   `createAIViewController` over the same registry is harmless and no longer
+   throws. The module-level single controller remains the sensible convention
+   (`ai_views.ts`), just not a correctness rule. What DOES still throw is a
+   tool typed against a different view REGISTRY than the chat's controller
+   tracks. The defensive comment at `ai_views.ts:214-218` is now false and
+   should be deleted in rung 3.5.
 4. **Editor mount/unmount are setView sync sites** — today `getAIContext()` is
    DERIVED (it structurally cannot report `editing_slide` after the editor
    unmounts); the controller is IMPERATIVE. The tab map covers tab changes, but
@@ -507,6 +510,61 @@ Applied to the HFA surface (rung 1 file) 2026-07-22 — `tools.ts` now has
 zero plain `Error` throws. The copilot's ~91 plain-`Error` throw sites
 (counted 2026-07-22, zero `AIToolFailure` uses) migrate to this rule during
 the rung 3 tool-file sweep; reviewers verify classification per this rule.
+
+## Library change: standalone tools (panther, 2026-07-22)
+
+Landed in panther AFTER rung 3 shipped, so the copilot's 22 view-typed tool
+sites are written against the OLD surface and keep compiling only until the
+next sync. Adopting it is rung 3.5 below.
+
+**What changed and why.** `viewController.createTool` was a tool FACTORY hung
+on a stateful controller: the handlers it produced closed over their creating
+controller's signal, which is why panther had to police cross-controller
+misuse with an identity stamp plus a construction throw. Tools are now
+standalone declarations typed against the INERT view registry, and the ENGINE
+injects the live view state at execution — so handlers close over nothing and
+the whole hazard class is deleted rather than detected.
+
+```ts
+// before (rung 3)                      // after (rung 3.5)
+projectAIViewController.createTool({    createAITool({
+  name: "get_deck",                       viewRegistry: projectAIViews,
+  availableIn: ["editing_slide_deck"],    name: "get_deck",
+  handler: (input, view) => …,            availableIn: ["editing_slide_deck"],
+})                                        handler: (input, view) => …,
+                                        })
+```
+
+- **`viewRegistry`** (the `defineAIViews` result) replaces the controller as
+  the thing a tool is typed against. `availableIn` is still compile-checked
+  against it, and the handler / `approval.propose` still receive the view
+  state narrowed to the declared views. **Handler and propose bodies do not
+  change at all** — `(input, view)` and `(input, view, ctx)` are preserved.
+- **`createNavigationTool`** is standalone too and its config changed shape:
+  `{ viewRegistry, destinations, onAiNavigation }`, where `destinations` is
+  the id allowlist that used to be called `views`. Not used by the copilot —
+  rung 3 chose feature-8 option 2 (`switch_tab` stays a plain tool) — so this
+  only matters if that decision is revisited.
+- **AI-navigation attribution moved into the engine.** A nav tool declares it
+  in metadata and the chat loop opens/extends the window around execution.
+  Irrelevant to option 2, which marks manually in rung 4.
+- **Deleted:** `viewController.createTool`, `viewController.createNavigationTool`,
+  the `_viewController` identity stamp and its cross-controller throw. The
+  controller is now purely state + interactions + prompt sections.
+- **New construction throws:** a tool typed against a DIFFERENT registry than
+  the chat's controller tracks; and a `viewRegistry` tool on a chat with no
+  `viewController`. Both are caught by rung 0's DEV `validateAIChatConfig`.
+- **`callAI` now also rejects any tool declaring `viewRegistry`** (it has no
+  controller to inject from). No exposure here — wb-fastr has zero `callAI`
+  call sites (verified 2026-07-22).
+- **Unchanged:** gating semantics, the static availability hint, the gate
+  message, approval lifecycle, interactions, `buildToolCatalog`,
+  `validateAIChatConfig`.
+
+**Still owed upstream (not blocking):** panther's `promptSection` /
+`promptDelivery` are due to be renamed to `instructions` /
+`instructionsDelivery`. Rung 5 is the natural place to absorb that; re-check
+the panther API before starting it.
 
 ## Adoption rungs (implementation order)
 
@@ -577,7 +635,17 @@ byte-identical to today; `collabReady()` persistence branching preserved;
 (lingering modal NOT fixed yet) is not silently papered over with app-side
 hacks.
 
-### Rung 3 — copilot views + gating (features 1+2) — [ ]
+### Rung 3 — copilot views + gating (features 1+2) — [x]
+
+Status: shipped 2026-07-22. `switch_tab` decision: feature-8 OPTION 2 — stays
+a plain tool with the soft-return family guard; rung 4 adds manual
+`markAINavigation()` attribution. Guard inventory matched the feature-2
+prediction (all ~23 deleted; no discrepancies). Throw sweep: 92
+`AIToolFailure` sites in the copilot surface (vs the ~91 estimate); deliberate
+plain-`Error` holdouts are invariants only (two unsupported-block-type
+exhaustiveness asserts, one stored-config assert in
+format_metric_data_for_ai.ts) plus non-tool UI paths, per the
+failure-channel ruling.
 
 Scope: the big rung. 13-view registry replacing the `AIContext` union
 interpretation sprawl; typed tab→view map; delete `getEphemeralContext`;
@@ -596,6 +664,54 @@ anticipated failures → `AIToolFailure`, assertion/bug throws stay plain
 Review focus: the six 2026-07-20 review findings, one by one — they are the
 known failure modes of this migration — plus throw-site classification per
 the failure-channel ruling (~91 sites).
+
+### Rung 3.5 — adopt panther's standalone-tool API — [x]
+
+Status: shipped 2026-07-22. All four steps executed as specced: 22 sites
+swapped (`slides.tsx` ×9, `report_editor.ts` ×8, `slide_editor.tsx` ×3,
+`visualization_editor.tsx` ×2), `projectAIViews` exported, the "ONE
+controller instance" comment and the stale `build_tools.ts` comment updated,
+handler/propose bodies untouched. `report_editor.ts`, `slide_editor.tsx` and
+`visualization_editor.tsx` are controller-free; `slides.tsx` keeps the
+controller import for its `.current()` calls. Typecheck green.
+
+Scope: mechanical resweep of the 22 `projectAIViewController.createTool` sites
+to `createAITool({ viewRegistry: projectAIViews, … })`. Counts verified
+2026-07-22: `ai_tools/tools/slides.tsx` ×9, `report_editor.ts` ×8,
+`slide_editor.tsx` ×3, `visualization_editor.tsx` ×2. Handler and
+`approval.propose` bodies are UNCHANGED — this is a receiver swap plus one
+config line per tool.
+
+Steps:
+
+1. Export the registry: `ai_views.ts` currently has
+   `const projectAIViews = defineAIViews({…})` — it must become
+   `export const projectAIViews`.
+2. In each of the 4 files: `projectAIViewController.createTool({` →
+   `createAITool({` + `viewRegistry: projectAIViews,`; add `createAITool` to
+   the panther import; add `projectAIViews` to the `~/components/project_ai/ai_views`
+   import.
+3. Keep the controller import where the file still uses it OUTSIDE tool
+   creation — `slides.tsx`, `drafts.tsx:107` and `navigation.ts:27` call
+   `projectAIViewController.current()`, and several `completionMessage`
+   callbacks do too. Only `report_editor.ts`, `slide_editor.tsx` and
+   `visualization_editor.tsx` become controller-free.
+4. Delete the now-false "ONE controller instance" comment at
+   `ai_views.ts:214-218` (see superseded review finding 3 above).
+5. Update the stale comment at `build_tools.ts:49`
+   (`// View-gated tools (availableIn on projectAIViewController.createTool)`).
+
+Review focus: no handler body changed; `availableIn` lists identical
+tool-for-tool; the DEV `validateAIChatConfig` from rung 0 still passes on both
+surfaces (it now also catches registry-pairing mistakes); HFA is untouched (it
+has no views, so none of its tools take `viewRegistry`).
+
+Sequencing: before rung 4 — rung 4 edits the same write-tool files to add
+`markAIEdit`, so doing 3.5 first avoids touching them twice.
+
+Cost note: this is net **+22 lines** and one extra import specifier per file.
+The win is uniformity (no more `createAITool` / `projectAIViewController.createTool`
+alternating inside one tools array) and the deleted hazard class, not brevity.
 
 ### Rung 4 — copilot interactions + echo + `switch_tab` attribution (features 3+8) — [ ]
 

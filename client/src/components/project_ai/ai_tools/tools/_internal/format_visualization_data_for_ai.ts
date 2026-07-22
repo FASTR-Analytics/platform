@@ -1,4 +1,5 @@
 import type { MetricWithStatus } from "lib";
+import { AIToolFailure } from "panther";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import { getDataFromConfig } from "./format_metric_data_for_ai";
 
@@ -11,7 +12,7 @@ export async function getVisualizationDataAsCSV(
     projectId,
     presentationObjectId,
   );
-  if (!resPoDetail.success) throw new Error(resPoDetail.err);
+  if (!resPoDetail.success) throw new AIToolFailure(resPoDetail.err);
 
   const poDetail = resPoDetail.data;
   const config = poDetail.config;

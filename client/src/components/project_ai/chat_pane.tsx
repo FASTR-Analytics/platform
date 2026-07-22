@@ -17,7 +17,7 @@ import {
 } from "panther";
 import { t3, TC } from "lib";
 import { createEffect, createSignal, on, onMount, Show, type Accessor } from "solid-js";
-import { useAIProjectContext } from "./context";
+import { projectAIViewController } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
@@ -111,7 +111,6 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext } = useAIProjectContext();
   const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
     createAIChat();
   const conversations = useConversations();
@@ -259,8 +258,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   ];
 
   const placeholder = () => {
-    const ctx = aiContext();
-    switch (ctx.mode) {
+    const view = projectAIViewController.current();
+    switch (view.id) {
       case "editing_slide_deck":
         return t3({
           en: "Ask about this slide deck...",
@@ -296,47 +295,15 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           pt: "Explore os seus dados...",
         });
       default: {
-        const _exhaustive: never = ctx;
+        const _exhaustive: never = view;
         return _exhaustive;
       }
     }
   };
 
-  const titleSubtext = () => {
-    const ctx = aiContext();
-    switch (ctx.mode) {
-      case "editing_slide_deck":
-        return ctx.deckLabel;
-      case "editing_slide":
-        return ctx.slideLabel;
-      case "editing_visualization":
-        return ctx.vizLabel;
-      case "editing_report":
-        return ctx.reportLabel;
-      case "viewing_visualizations":
-        return t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" });
-      case "viewing_slide_decks":
-        return t3({ en: "Slide Decks", fr: "Présentations", pt: "Apresentações" });
-      case "viewing_reports":
-        return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
-      case "viewing_data":
-        return t3({ en: "Data", fr: "Données", pt: "Dados" });
-      case "viewing_metrics":
-        return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
-      case "viewing_modules":
-        return t3({ en: "Modules", fr: "Modules", pt: "Módulos" });
-      case "viewing_settings":
-        return t3(TC.settings);
-      case "viewing_dashboards":
-        return t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" });
-      case "viewing_cache":
-        return t3({ en: "Cache", fr: "Cache", pt: "Cache" });
-      default: {
-        const _exhaustive: never = ctx;
-        return _exhaustive;
-      }
-    }
-  };
+  // The per-mode label switch moved onto the view registry (ai_views.ts) —
+  // the controller resolves the current view's label.
+  const titleSubtext = () => projectAIViewController.currentLabel();
 
   type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null };
   const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);

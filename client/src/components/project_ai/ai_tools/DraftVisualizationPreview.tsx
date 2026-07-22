@@ -37,7 +37,7 @@ import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
@@ -52,8 +52,6 @@ type Props = {
 };
 
 export function DraftVisualizationPreview(p: Props) {
-  const { aiContext } = useAIProjectContext();
-
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
       status: "loading",
@@ -103,7 +101,7 @@ export function DraftVisualizationPreview(p: Props) {
         onEditSave: handleSave,
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
-          aiContext().mode === "editing_slide_deck"
+          projectAIViewController.current().id === "editing_slide_deck"
             ? t3({
                 en: "Add to this deck",
                 fr: "Ajouter au deck",
@@ -186,8 +184,8 @@ export function DraftVisualizationPreview(p: Props) {
   }
 
   async function handleAddToDeck() {
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide") {
+    const view = projectAIViewController.current();
+    if (view.id === "editing_slide") {
       await openAlert({
         text: t3({
           en: "Switch back to the full slide deck viewer to add this as a slide.",
@@ -205,8 +203,8 @@ export function DraftVisualizationPreview(p: Props) {
         blocks: [p.figure],
       };
       const deckConfig: SlideDeckConfig =
-        ctx.mode === "editing_slide_deck"
-          ? ctx.getDeckConfig()
+        view.id === "editing_slide_deck"
+          ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck("Draft");
       const slide: Slide = await convertAiInputToSlide(
         p.projectId,
@@ -214,8 +212,8 @@ export function DraftVisualizationPreview(p: Props) {
         p.metrics,
         deckConfig,
       );
-      if (ctx.mode === "editing_slide_deck") {
-        await addSlideDirectlyToDeck(p.projectId, slide, ctx);
+      if (view.id === "editing_slide_deck") {
+        await addSlideDirectlyToDeck(p.projectId, slide, view.params.deckId);
       } else {
         await openComponent({
           element: AddToDeckModal,
@@ -298,7 +296,7 @@ export function DraftVisualizationPreview(p: Props) {
             })}
           </Button>
           <Button size="sm" outline onClick={handleAddToDeck}>
-            {aiContext().mode === "editing_slide_deck"
+            {projectAIViewController.current().id === "editing_slide_deck"
               ? t3({
                   en: "Add to this deck",
                   fr: "Ajouter au deck",

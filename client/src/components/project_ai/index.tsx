@@ -11,6 +11,7 @@ import {
   createProjectSDKClient,
 } from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
+import { projectAIViewController } from "./ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildToolsForContext } from "./build_tools";
@@ -32,7 +33,6 @@ export function AIProjectWrapper(props: ParentProps) {
 
 function AIProjectWrapperInner(props: ParentProps) {
   const {
-    aiContext,
     notifyAI,
     getPendingInteractionsMessage,
     clearPendingInteractions,
@@ -58,11 +58,14 @@ function AIProjectWrapperInner(props: ParentProps) {
     visualizations: projectState.visualizations,
     slideDecks: projectState.slideDecks,
     reports: projectState.reports,
-    aiContext: aiContext,
   });
 
+  // Byte-stable across navigation (Rung 3): no longer takes a mode/view
+  // argument — per-view instructions now ride each view's promptSection
+  // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
+  // this string.
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(aiContext(), instanceState, projectState),
+    buildSystemPromptForContext(instanceState, projectState),
   );
 
   // Subscribe to SSE changes - track ALL changes, filter later in reducer
@@ -107,40 +110,18 @@ function AIProjectWrapperInner(props: ParentProps) {
     scope: projectId,
     system: systemPrompt,
     getDocumentRefs: aiDocs.getDocumentRefs,
+    // The view controller now delivers "[Current view: id — label]" plus each
+    // view's promptSection every turn (ai_views.ts) — this hook's remaining
+    // job is ONLY the pending-interactions digest (rung-4 territory, feature
+    // 3; the clear-inside-getter side effect below is unchanged from before
+    // rung 3 and still depends on the engine reading it exactly once).
     getEphemeralContext: () => {
-      const ctx = aiContext();
-      let modeStr = `[Current mode: ${ctx.mode}`;
-      if (ctx.mode === "editing_visualization") {
-        modeStr += ` | vizId: ${ctx.vizId ?? "unsaved"}`;
-      } else if (ctx.mode === "editing_slide_deck") {
-        modeStr += ` | deckId: ${ctx.deckId}`;
-        const selected = ctx.getSelectedSlideIds();
-        if (selected.length > 0) {
-          modeStr += ` | selectedSlideIds: ${selected.join(", ")}`;
-        }
-      } else if (ctx.mode === "editing_slide") {
-        modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
-      } else if (ctx.mode === "editing_report") {
-        modeStr += ` | reportId: ${ctx.reportId}`;
-        const sel = ctx.getSelection();
-        if (sel && !sel.empty) {
-          const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
-          modeStr +=
-            ` | user has SELECTED text (lines ${sel.fromLine}-${sel.toLine}, ` +
-            `${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
-        } else if (sel) {
-          modeStr += ` | cursor at line ${sel.fromLine}`;
-        }
-      }
-      modeStr += "]";
-      const parts: string[] = [modeStr];
       const msg = getPendingInteractionsMessage();
-      if (msg) {
-        clearPendingInteractions();
-        parts.push(msg);
-      }
-      return parts.join("\n\n");
+      if (!msg) return null;
+      clearPendingInteractions();
+      return msg;
     },
+    viewController: projectAIViewController,
   };
 
   if (import.meta.env.DEV) {

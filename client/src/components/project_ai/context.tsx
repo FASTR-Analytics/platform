@@ -1,11 +1,11 @@
 import { createContext, useContext, createSignal, type ParentProps } from "solid-js";
-import type { AIContext, AIProjectContextValue, AIUserInteraction, DraftContent } from "./types";
+import type { AIProjectContextValue, AIUserInteraction, DraftContent } from "./types";
 import { reduceInteractions, formatInteraction } from "./interactions";
+import { projectAIViewController } from "./ai_views";
 
 const AIProjectContext = createContext<AIProjectContextValue>();
 
 export function AIProjectContextProvider(props: ParentProps) {
-  const [aiContext, setAIContextInternal] = createSignal<AIContext>({ mode: "viewing_visualizations" });
   const [draftContent, setDraftContent] = createSignal<DraftContent>(null);
   const [pendingInteractions, setPendingInteractions] = createSignal<AIUserInteraction[]>([]);
 
@@ -13,15 +13,17 @@ export function AIProjectContextProvider(props: ParentProps) {
     setPendingInteractions((prev) => [...prev, interaction]);
   };
 
-  const setAIContext = (ctx: AIContext) => {
-    setAIContextInternal(ctx);
-  };
-
   const getPendingInteractionsMessage = (): string | null => {
     const interactions = pendingInteractions();
     if (interactions.length === 0) return null;
 
-    const reduced = reduceInteractions(interactions, aiContext());
+    // reduceInteractions still keys off the CURRENT view state (unchanged
+    // rung-4 territory, PLAN_FUTURE_AI_ADOPTIONS.md feature 3) — read from the
+    // view controller instead of the deleted aiContext signal.
+    const reduced = reduceInteractions(
+      interactions,
+      projectAIViewController.current(),
+    );
     if (reduced.length === 0) return null;
 
     const lines = reduced.map(formatInteraction);
@@ -33,8 +35,6 @@ export function AIProjectContextProvider(props: ParentProps) {
   };
 
   const value: AIProjectContextValue = {
-    aiContext,
-    setAIContext,
     draftContent,
     setDraftContent,
     notifyAI,
