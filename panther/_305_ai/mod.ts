@@ -25,7 +25,9 @@ export { useConversations } from "./_components/use_conversations.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export { AIToolFailure, createAITool } from "./_core/tool_helpers.ts";
-export { createAIViewController, defineAIViews, view } from "./_core/views.ts";
+export { createAIViewController } from "./_core/views.ts";
+export { defineAIViews, view } from "./_core/view_types.ts";
+export { createNavigationTool } from "./_core/navigation_tool.ts";
 export { defineAIInteractions, interaction } from "./_core/interactions.ts";
 export { buildToolCatalog } from "./_core/tool_catalog.ts";
 export { validateAIChatConfig } from "./_core/validate_config.ts";
@@ -46,14 +48,16 @@ export type {
   ApprovalPolicy,
   CreateAIToolConfig,
   CreateAIToolConfigCommon,
+  CreateViewAIToolConfig,
   ProposalPreview,
   ProposalResult,
   ToolUIMetadata,
+  ViewAIToolApprovalConfig,
 } from "./_core/tool_helpers.ts";
+export type { AIViewController } from "./_core/views.ts";
 export type {
   AIView,
   AIViewContext,
-  AIViewController,
   AIViewDefinition,
   AIViewParams,
   AIViewRegistry,
@@ -61,10 +65,8 @@ export type {
   AIViewStateFor,
   AIViewVoidKeys,
   AnyAIView,
-  CreateViewAIToolConfig,
   SetViewArgs,
-  ViewAIToolApprovalConfig,
-} from "./_core/views.ts";
+} from "./_core/view_types.ts";
 export type {
   AIInteraction,
   AIInteractionDef,

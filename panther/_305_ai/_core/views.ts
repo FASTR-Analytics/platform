@@ -4,188 +4,38 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { buildInteractionDigest, createSignal } from "../deps.ts";
-import type { AIInteractionDefLike, zType } from "../deps.ts";
-import { createAITool } from "./tool_helpers.ts";
-import type {
-  AIToolWithMetadata,
-  CreateAIToolConfigCommon,
-  ProposalResult,
-} from "./tool_helpers.ts";
+import type { AIInteractionDefLike } from "../deps.ts";
 import { createInteractionLog } from "./interactions.ts";
 import type {
   AIInteractionRegistry,
   AnyAIInteraction,
   NotifyArgs,
 } from "./interactions.ts";
-import { buildNavigationTool } from "./navigation_tool.ts";
+import { resolveViewLabel } from "./view_types.ts";
 import type {
-  AINavigationToolInput,
-  CreateAINavigationToolConfig,
-} from "./navigation_tool.ts";
+  AIViewDefinition,
+  AIViewRegistry,
+  AIViewState,
+  AIViewVoidKeys,
+  AnyAIView,
+  SetViewArgs,
+} from "./view_types.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
-// AI VIEW REGISTRY + CONTROLLER
+// AI VIEW CONTROLLER
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Views give the chat engine an organizing concept for "where the user is":
-// the app declares its views once (label, optional params schema, optional
-// per-view prompt section), keeps a controller in sync with its navigation,
-// and the engine injects a [Current view: …] section into each turn
-// (PLAN_AI_VIEWS_AND_APPROVAL Feature 1). Later phases bind tools to views
-// (gating), report interactions, and scope approval validity through the
-// same controller.
+// The live half of the view system: the inert declarations live in
+// view_types.ts, and this controller holds the app's CURRENT position in
+// them. The app keeps it in sync with its navigation (tab effects, editor
+// mount/unmount); the engine reads it every turn to inject the
+// [Current view: …] section, to gate tool execution, and to hand each tool
+// handler the live view state at execution time.
 //
-// TParams is the serializable, model-visible part (validated on setView when
-// a schema is given); TContext is the non-serializable payload (live editor
-// closures) delivered to tool handlers — panther passes it through without
-// introspecting it. TContext appears in no field TS can infer from, so the
-// AIView marker carries a structural phantom property; without it structural
-// typing collapses the context types and defineAIViews loses them.
-
-export type AIViewDefinition<TParams, TContext> = {
-  // The one-line current-view statement injected each turn, resolved at send
-  // time against the live params/context. The rendered section always pairs
-  // the stable view id with this label (view_logic.ts owns the format).
-  label: string | ((params: TParams, context: TContext) => string);
-  // Optional zod schema for params; setView parses through it when present.
-  params?: zType.ZodType<TParams>;
-  // Optional per-view instructions for the model. Keep it SMALL (a few
-  // hundred tokens): with "ephemeral" delivery it is per-turn payload.
-  promptSection?: string | ((params: TParams, context: TContext) => string);
-  // "ephemeral" (default): the engine attaches promptSection as a
-  // view-prompt section on the turn — the system prompt stays byte-stable
-  // across navigation, so its cache breakpoint keeps hitting. "manual": the
-  // engine does not deliver it; the consumer composes promptSection() into
-  // their own system accessor (accepting the cache miss on view changes).
-  promptDelivery?: "ephemeral" | "manual";
-};
-
-// The marker view() returns. _def is engine-internal; __aiViewTypes is a
-// type-only phantom (never assigned) carrying TParams/TContext through
-// inference.
-export type AIView<TParams = void, TContext = void> = {
-  readonly _def: AIViewDefinition<TParams, TContext>;
-  readonly __aiViewTypes?: (params: TParams, context: TContext) => void;
-};
-
-// NoInfer on the return type is load-bearing: inside defineAIViews({...})
-// the contextual type of each property is the constraint's AIView<any, any>,
-// and without the block those `any`s beat the void defaults — a label-only
-// view({ label: "Home" }) would silently become AIView<any, any> and poison
-// every handler union (any absorbs). Proven in the Phase 1+2 review.
-export function view<TParams = void, TContext = void>(
-  def: AIViewDefinition<TParams, TContext>,
-): AIView<NoInfer<TParams>, NoInfer<TContext>> {
-  return { _def: def };
-}
-
-// deno-lint-ignore no-explicit-any
-export type AnyAIView = AIView<any, any>;
-
-export type AIViewRegistry<TDefs extends Record<string, AnyAIView>> = {
-  readonly _defs: TDefs;
-};
-
-export function defineAIViews<TDefs extends Record<string, AnyAIView>>(
-  defs: TDefs,
-): AIViewRegistry<TDefs> {
-  return { _defs: defs };
-}
-
-// deno-lint-ignore no-explicit-any
-export type AIViewParams<V> = V extends AIView<infer P, any> ? P : never;
-// deno-lint-ignore no-explicit-any
-export type AIViewContext<V> = V extends AIView<any, infer C> ? C : never;
-
-// {id, params, context} read together, atomically — a discriminated union
-// over the registry's keys.
-export type AIViewState<TDefs extends Record<string, AnyAIView>> = {
-  [K in keyof TDefs]: {
-    id: K;
-    params: AIViewParams<TDefs[K]>;
-    context: AIViewContext<TDefs[K]>;
-  };
-}[keyof TDefs];
-
-// setView drops trailing void arguments. Params stay positional (a view with
-// context but no params is called setView(id, undefined, context)) — the
-// slots are type-erased at runtime, so the engine could not tell a lone
-// context argument from a params one.
-export type SetViewArgs<
-  TDefs extends Record<string, AnyAIView>,
-  K extends keyof TDefs,
-> = [AIViewParams<TDefs[K]>] extends [void]
-  ? [AIViewContext<TDefs[K]>] extends [void] ? []
-  : [params: undefined, context: AIViewContext<TDefs[K]>]
-  : [AIViewContext<TDefs[K]>] extends [void] ? [params: AIViewParams<TDefs[K]>]
-  : [params: AIViewParams<TDefs[K]>, context: AIViewContext<TDefs[K]>];
-
-// Keys of views declared with void params AND void context — the only valid
-// fallback targets (clearView cannot supply arguments).
-export type AIViewVoidKeys<TDefs extends Record<string, AnyAIView>> = {
-  [K in keyof TDefs]: [AIViewParams<TDefs[K]>] extends [void]
-    ? [AIViewContext<TDefs[K]>] extends [void] ? K : never
-    : never;
-}[keyof TDefs];
-
-// The view state narrowed to a subset of the registry's keys — what a typed
-// tool handler receives when the tool declares availableIn.
-export type AIViewStateFor<
-  TDefs extends Record<string, AnyAIView>,
-  K extends keyof TDefs,
-> = {
-  [P in K]: {
-    id: P;
-    params: AIViewParams<TDefs[P]>;
-    context: AIViewContext<TDefs[P]>;
-  };
-}[K];
-
-// viewController.createTool config: createAITool's surface, with availableIn
-// constrained to the registry's view ids (a wrong id is a COMPILE-time
-// error) and the handler/propose receiving the live view state, narrowed to
-// the declared views. availableIn omitted → the full state union. The
-// handler/approval XOR mirrors CreateAIToolConfig.
-export type ViewAIToolApprovalConfig<
-  TDefs extends Record<string, AnyAIView>,
-  K extends keyof TDefs,
-  TInput,
-  TOutput,
-> = {
-  propose: (
-    input: TInput,
-    view: NoInfer<AIViewStateFor<TDefs, K>>,
-    ctx: { signal: AbortSignal },
-  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
-  mode?: "always" | "session";
-  presentation?: "inline" | "modal";
-};
-
-export type CreateViewAIToolConfig<
-  TDefs extends Record<string, AnyAIView>,
-  K extends keyof TDefs,
-  TInput,
-  TOutput,
-> =
-  & Omit<CreateAIToolConfigCommon<TInput>, "availableIn">
-  & { availableIn?: readonly K[] }
-  & (
-    | {
-      // NoInfer: K must narrow ONLY via availableIn. Without it, an
-      // annotated handler param (view: AIViewStateFor<Defs, "editor">)
-      // infers K narrow while availableIn stays absent — a narrowed type
-      // with NO runtime gate behind it (proven in the Phase 1+2 review).
-      handler: (
-        input: TInput,
-        view: NoInfer<AIViewStateFor<TDefs, K>>,
-      ) => Promise<TOutput> | TOutput;
-      approval?: never;
-    }
-    | {
-      handler?: never;
-      approval: ViewAIToolApprovalConfig<TDefs, K, TInput, TOutput>;
-    }
-  );
+// The controller creates nothing. Tools are standalone declarations typed
+// against the inert REGISTRY (createAITool's `views` field) — so a handler
+// closes over no controller state, and the same tool array is correct for
+// any chat this registry's controller is bound to.
 
 export type AIViewController<
   TDefs extends Record<string, AnyAIView>,
@@ -210,22 +60,6 @@ export type AIViewController<
   // consumer's own system composition; null for "ephemeral" views (the
   // engine delivers those — composing them too would double-deliver).
   promptSection(): string | null;
-  // Typed tool creation: availableIn is checked against the registry at
-  // compile time AND the handler receives the live view state, narrowed to
-  // the declared views — mode-guard boilerplate becomes unwritable. The
-  // handler's view read happens in the same microtask as the engine's gate
-  // check, so the narrowing cannot be raced by a view change.
-  createTool<TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
-    config: CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
-  ): AIToolWithMetadata<TInput>;
-  // The built-in navigation tool (Phase 5): the model asks to move, the
-  // consumer's onAiNavigation callback performs the app's actual routing,
-  // and the tool attributes the resulting setView events to the AI so the
-  // __navigation digest never reports them as "User navigated". See
-  // navigation_tool.ts for the full contract.
-  createNavigationTool<K extends keyof TDefs = keyof TDefs>(
-    config: CreateAINavigationToolConfig<TDefs, K>,
-  ): AIToolWithMetadata<AINavigationToolInput<TDefs, K>>;
   // Report a user interaction (Feature 3) — typed against the interactions
   // registry; the payload argument is dropped for void-payload interactions.
   // Entries queue until the engine drains them into the next turn's digest
@@ -260,6 +94,14 @@ export type AIViewController<
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
   _viewIds(): string[];
+  // Engine-internal: the registry this controller tracks, for the pairing
+  // check on registration — a tool typed against registry A must not be
+  // registered on a chat whose controller tracks registry B (the ids could
+  // coincide while params/context differ). Comparing INERT registries, not
+  // controller instances: a second controller over the same registry is
+  // harmless now that handlers close over nothing. Consumers never call
+  // this.
+  _registry(): unknown;
   // Engine-internal: transactional interaction drain at turn creation, for
   // the sending CONVERSATION (per-conversation cursors over the shared
   // app-level log — "since the last message" is true per transcript). The
@@ -409,19 +251,7 @@ export function createAIViewController<
   }
 
   function resolveLabel(s: AIViewState<TDefs>): string | null {
-    const def = defFor(s);
-    if (typeof def.label === "string") return def.label;
-    try {
-      return def.label(s.params, s.context);
-    } catch (err) {
-      console.error(
-        `AI view label for "${
-          String(s.id)
-        }" threw; using the bare view id. A stale label must never fail a turn.`,
-        err,
-      );
-      return null;
-    }
+    return resolveViewLabel(defFor(s), String(s.id), s.params, s.context);
   }
 
   function resolvePromptSection(s: AIViewState<TDefs>): string | null {
@@ -504,86 +334,6 @@ export function createAIViewController<
       if (promptDeliveryFor(s) !== "manual") return null;
       return resolvePromptSection(s);
     },
-    createTool<TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
-      config: CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
-    ): AIToolWithMetadata<TInput> {
-      // Compile-time typing is the primary guard; this runtime check covers
-      // erased/any-typed callers (the plain-createAITool check lives in
-      // ToolRegistry.register).
-      for (const id of config.availableIn ?? []) {
-        if (!registry._defs[id]) {
-          throw new Error(
-            `createTool("${config.name}"): availableIn references view id "${
-              String(id)
-            }", which is not in this controller's registry`,
-          );
-        }
-      }
-      const common = {
-        name: config.name,
-        description: config.description,
-        inputSchema: config.inputSchema,
-        displayComponent: config.displayComponent,
-        inProgressComponent: config.inProgressComponent,
-        inProgressLabel: config.inProgressLabel,
-        completionMessage: config.completionMessage,
-        successMessage: config.successMessage,
-        errorMessage: config.errorMessage,
-        kind: config.kind,
-        // String coercion: numeric-looking registry keys would otherwise be
-        // stored as numbers and mismatch the registry's Object.keys strings
-        // at bind/gate time.
-        availableIn: config.availableIn?.map((id) => String(id)),
-      };
-      // The gate check guarantees the current view is one of availableIn
-      // when the handler (or approval propose) runs, and both happen in one
-      // microtask — the cast to the narrowed union is sound. Sound only for
-      // the SAME controller instance, which the registration identity check
-      // enforces (metadata._viewController below). An approval COMMIT runs
-      // later, after the user decides — view-exit auto-decline and
-      // stillValid cover that window; the commit closure captures the view
-      // state propose saw, it does not re-read it here.
-      const tool = config.approval
-        ? createAITool<TInput, TOutput>({
-          ...common,
-          approval: {
-            mode: config.approval.mode,
-            presentation: config.approval.presentation,
-            propose: (input: TInput, ctx: { signal: AbortSignal }) =>
-              config.approval!.propose(
-                input,
-                state() as AIViewStateFor<TDefs, K>,
-                ctx,
-              ),
-          },
-        })
-        : createAITool<TInput, TOutput>({
-          ...common,
-          handler: (input: TInput) =>
-            config.handler!(input, state() as AIViewStateFor<TDefs, K>),
-        });
-      tool.metadata._viewController = controller;
-      return tool;
-    },
-    createNavigationTool<K extends keyof TDefs = keyof TDefs>(
-      config: CreateAINavigationToolConfig<TDefs, K>,
-    ): AIToolWithMetadata<AINavigationToolInput<TDefs, K>> {
-      const tool = buildNavigationTool(config, {
-        defFor: (viewId: string) =>
-          registry._defs[viewId]?._def as
-            | AIViewDefinition<unknown, unknown>
-            | undefined,
-        currentIdAndLabel: () => {
-          const s = state();
-          return { id: String(s.id), label: resolveLabel(s) };
-        },
-        // No-op without an interactions registry — there is no digest to
-        // attribute in.
-        markAINavigation: () => interactionLog?.markAINavigation(),
-      });
-      tool.metadata._viewController = controller;
-      return tool;
-    },
     notify<K extends keyof TIDefs>(
       id: K,
       ...args: NotifyArgs<TIDefs, K>
@@ -605,6 +355,9 @@ export function createAIViewController<
     },
     _viewIds(): string[] {
       return Object.keys(registry._defs);
+    },
+    _registry(): unknown {
+      return registry;
     },
     _drainForSend(conversationId: string) {
       if (!interactionLog) return null;

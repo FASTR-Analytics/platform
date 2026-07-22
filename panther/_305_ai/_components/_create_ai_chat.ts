@@ -132,6 +132,24 @@ type ToolUseBlock = {
   input: unknown;
 };
 
+// Would this block's input survive the tool's own schema? Used to decide
+// whether a navigation tool's attribution window should open at all — a
+// call the handler will never see must not stamp the user's next move as
+// AI-origin. The real validation still happens inside execution; this is a
+// cheap, side-effect-free preview of it (parse is pure).
+function parsesCleanly(
+  tool: AIToolWithMetadata,
+  input: unknown,
+): boolean {
+  if (!tool.sdkTool.parse) return true;
+  try {
+    tool.sdkTool.parse(input);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Race a handler await against the turn's abort signal. On abort the engine
 // stops waiting and synthesizes cancelled results — the abandoned handler's
 // late resolution is discarded (its side effects may still land, the same
@@ -812,7 +830,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // long server-side propose can cancel on Stop.
       let prep: ProposalResult<unknown>;
       try {
-        prep = await approval.propose(input, { signal: turn.abort.signal });
+        prep = await approval.propose(input, vc?.current(), {
+          signal: turn.abort.signal,
+        });
       } catch (err) {
         return approvalErrorOutput(block, metadata, err);
       }
@@ -1486,9 +1506,35 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           // Use existing tool processing for custom tools — raced against
           // the turn's abort signal so Stop finalizes the turn even when a
           // handler never resolves.
+          // AI-navigation attribution (createNavigationTool): open the
+          // controller's window around the WHOLE execution, so any
+          // setView/clearView the app's routing fires — synchronously inside
+          // onAiNavigation, or from a mount effect it triggers — is stamped
+          // origin "ai" and dropped from the __navigation digest instead of
+          // reading as "User navigated". The window is a TIME window
+          // (navAttributionMs): the mark after execution EXTENDS it rather
+          // than closing it, which is what covers a route still settling. (A
+          // fire-and-forget router that settles beyond that needs the public
+          // markAINavigation() escape hatch — see the tool's contract.)
+          //
+          // Gated on the input PARSING, not just on the tool: attribution
+          // used to live inside the nav handler, i.e. after validation, and
+          // a schema-rejected call opened no window. Opening one here for a
+          // call that never executes would stamp the user's own next
+          // navigation as AI-origin and swallow it from the digest.
+          const attributesNav = blockTool?.metadata.attributesNavigation ===
+              true &&
+            vc !== undefined && parsesCleanly(blockTool!, block.input);
+          if (attributesNav) vc!.markAINavigation();
           const outcome = await raceAbort(
             turn.abort.signal,
-            processToolUses([block], toolRegistry),
+            processToolUses(
+              [block],
+              toolRegistry,
+              vc ? () => vc.current() : undefined,
+            ).finally(() => {
+              if (attributesNav) vc!.markAINavigation();
+            }),
           );
           turn.cancelPendingInteraction = null;
           if (outcome.aborted) {

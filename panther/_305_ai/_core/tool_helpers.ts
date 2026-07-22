@@ -6,6 +6,11 @@
 import { buildAvailabilityHint, z } from "../deps.ts";
 import type { Component, zType } from "../deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
+import type {
+  AIViewRegistry,
+  AIViewStateFor,
+  AnyAIView,
+} from "./view_types.ts";
 
 export { AIToolFailure } from "./tool_failure.ts";
 
@@ -68,14 +73,9 @@ export type ProposalResult<TOutput> =
     customProposalUI?: (signal: AbortSignal) => Promise<boolean>;
   };
 
-export type AIToolApprovalConfig<TInput, TOutput> = {
-  // ctx carries the turn's AbortSignal so a long server-side propose can
-  // cancel on Stop (the post-propose abort check remains the correctness
-  // backstop).
-  propose: (
-    input: TInput,
-    ctx: { signal: AbortSignal },
-  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
+// Shared by both createAITool shapes; the view-typed variant only differs in
+// propose's signature (see ViewAIToolApprovalConfig).
+type ApprovalConfigCommon = {
   // "session" adds a "don't ask again in this conversation" checkbox to the
   // inline card; later calls short-circuit to auto_approved (propose still
   // runs, presentation is skipped, commit runs). Requires presentation
@@ -88,11 +88,39 @@ export type AIToolApprovalConfig<TInput, TOutput> = {
   presentation?: "inline" | "modal";
 };
 
+export type AIToolApprovalConfig<TInput, TOutput> = ApprovalConfigCommon & {
+  // ctx carries the turn's AbortSignal so a long server-side propose can
+  // cancel on Stop (the post-propose abort check remains the correctness
+  // backstop).
+  propose: (
+    input: TInput,
+    ctx: { signal: AbortSignal },
+  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
+};
+
+// The view-typed propose: same contract, plus the live view state the engine
+// injects — narrowed to availableIn exactly like the handler's.
+export type ViewAIToolApprovalConfig<
+  TDefs extends Record<string, AnyAIView>,
+  K extends keyof TDefs,
+  TInput,
+  TOutput,
+> = ApprovalConfigCommon & {
+  propose: (
+    input: TInput,
+    view: NoInfer<AIViewStateFor<TDefs, K>>,
+    ctx: { signal: AbortSignal },
+  ) => Promise<ProposalResult<TOutput>> | ProposalResult<TOutput>;
+};
+
 // Engine-facing erased shape stored on ToolUIMetadata (defaults resolved at
 // construction).
 export type ErasedApprovalConfig = {
+  // The engine passes the live view state (undefined when the chat has no
+  // view controller); the plain, view-less config shape drops it.
   propose: (
     input: unknown,
+    view: unknown,
     ctx: { signal: AbortSignal },
   ) => Promise<ProposalResult<unknown>> | ProposalResult<unknown>;
   mode: "always" | "session";
@@ -144,13 +172,23 @@ export interface ToolUIMetadata<TInput = unknown> {
   // protected from the queue path's clearInProgressItems.
   awaitsUserAction?: boolean;
 
-  // Engine-internal: the controller instance that created this tool via
-  // viewController.createTool. Registration verifies it is the SAME instance
-  // as the chat's configured controller — the handler's narrowed view state
-  // reads THIS controller's signal, so a chat gating on a different
-  // controller would pass the gate while the handler sees another view
-  // (proven in the Phase 1+2 review). Never set by consumers.
-  _viewController?: unknown;
+  // Engine-internal: the view REGISTRY this tool was typed against
+  // (createAITool's `viewRegistry` field). Registration verifies the chat's
+  // controller tracks the same registry — a tool typed against registry A
+  // registered on a chat gating against registry B would pass the gate on a
+  // coincidentally-matching id while its handler reads params/context of a
+  // different shape. Inert data, so a second CONTROLLER over the same
+  // registry is fine: handlers close over nothing, the engine injects the
+  // bound controller's state. Never set by consumers.
+  _viewRegistry?: unknown;
+
+  // Engine-internal: this tool performs AI-driven navigation, so the chat
+  // loop opens the controller's AI-navigation attribution window around its
+  // execution (markAINavigation before and after) — the resulting
+  // setView/clearView events are stamped origin "ai" and dropped from the
+  // __navigation digest instead of reading as "User navigated". Set by
+  // createNavigationTool. Never set by consumers.
+  attributesNavigation?: boolean;
 
   // Engine-internal: cancels a promise-blocking card's pending interaction
   // (ask_user_questions). Called by stopGeneration so the tool's closure
@@ -169,7 +207,21 @@ export interface SDKTool<TInput = unknown> {
     required?: string[];
     additionalProperties: false;
   };
+  // SDK-shaped, and it stays that way: run()'s SECOND parameter belongs to
+  // the SDK's tool runner, which passes a context object there
+  // (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock, signal })`).
+  // Panther must never read that slot — an earlier revision put the view
+  // accessor in it, and every callAI tool call died on `getView is not a
+  // function` because the SDK's object is truthy. View state gets its own
+  // method below instead of competing for this one.
   run: (input: TInput) => Promise<string>;
+  // Engine-only execution path: same work as run(), plus the live view
+  // accessor the chat loop injects. Handlers receive a SNAPSHOT (getView()
+  // is called once, at handler entry), which is what the gate guarantees:
+  // the check and the call are the same microtask. Optional because
+  // hand-constructed consumer tools only have run(); processToolUses falls
+  // back to run() when it is absent. Never given to the SDK.
+  runWithView?: (input: TInput, getView?: () => unknown) => Promise<string>;
   // Matches the SDK's BetaRunnableTool contract — the tool runner calls
   // parse() (when present) before run(). Optional so hand-constructed tools
   // in consumer apps keep compiling; createAITool always provides it.
@@ -201,11 +253,6 @@ export interface CreateAIToolConfigCommon<TInput> {
 
   errorMessage?: string | ((input: TInput) => string);
 
-  // See ToolUIMetadata.availableIn. On the plain createAITool this is
-  // string[]; the typed variant (viewController.createTool) constrains it to
-  // the registry's view ids at compile time.
-  availableIn?: string[];
-
   kind?: AIToolKind;
 }
 
@@ -214,8 +261,27 @@ export interface CreateAIToolConfigCommon<TInput> {
 // executes directly or goes through the confirm-before-apply lifecycle;
 // there is no "handler with a confirm inside" (that convention is exactly
 // what approval replaces).
+//
+// The plain shape: no view registry, so availableIn is unchecked strings
+// (validated against the chat's registry at registration) and the handler
+// takes input only.
 export type CreateAIToolConfig<TInput, TOutput = string> =
   & CreateAIToolConfigCommon<TInput>
+  & {
+    // See ToolUIMetadata.availableIn. Declare `viewRegistry` to have these
+    // ids checked against the real registry at COMPILE time and to receive
+    // the live view state in the handler.
+    availableIn?: readonly string[];
+    // Declared (as never) rather than absent, deliberately: excess-property
+    // checking only fires on FRESH object literals, so a config assembled
+    // via a spread or an intermediate const could otherwise carry
+    // `viewRegistry` into this shape — and it is what buildAITool reads to decide
+    // whether propose takes (input, view, ctx) or (input, ctx). That
+    // mismatch put the view state in propose's ctx slot at runtime. As a
+    // declared property this is a plain assignability failure, which
+    // freshness does not gate.
+    viewRegistry?: never;
+  }
   & (
     | {
       handler: (input: TInput) => Promise<TOutput> | TOutput;
@@ -224,6 +290,46 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
     | {
       handler?: never;
       approval: AIToolApprovalConfig<TInput, TOutput>;
+    }
+  );
+
+// The view-typed shape: `viewRegistry` is the app's INERT view registry (the
+// defineAIViews result — no state, nothing to close over), and it buys two
+// things at compile time that no other arrangement does without an import
+// per tool file or a global augmentation:
+//
+//   1. availableIn is constrained to the registry's real view ids — a typo
+//      is a compile error, not a boot-time throw.
+//   2. the handler (and approval.propose) receives the live view state
+//      NARROWED to those ids, so view.params / view.context are typed per
+//      view and mode-guard boilerplate becomes unwritable.
+//
+// NoInfer on the view parameter is load-bearing: K must narrow ONLY via
+// availableIn. Without it, an annotated handler param infers K narrow while
+// availableIn stays absent — a narrowed type with NO runtime gate behind it
+// (proven in the Phase 1+2 review).
+export type CreateViewAIToolConfig<
+  TDefs extends Record<string, AnyAIView>,
+  K extends keyof TDefs,
+  TInput,
+  TOutput,
+> =
+  & CreateAIToolConfigCommon<TInput>
+  & {
+    viewRegistry: AIViewRegistry<TDefs>;
+    availableIn?: readonly K[];
+  }
+  & (
+    | {
+      handler: (
+        input: TInput,
+        view: NoInfer<AIViewStateFor<TDefs, K>>,
+      ) => Promise<TOutput> | TOutput;
+      approval?: never;
+    }
+    | {
+      handler?: never;
+      approval: ViewAIToolApprovalConfig<TDefs, K, TInput, TOutput>;
     }
   );
 
@@ -339,14 +445,82 @@ function parseToolInput<TInput>(
   }
 }
 
+// The erased config buildAITool works in: both public shapes reduced to
+// "optional registry, optional availableIn, handler/propose that may take
+// the injected view". Engine-internal — consumers reach it only through the
+// two createAITool overloads, which is why the internal-only
+// _liveViewAccessor escape hatch can live here and nowhere in the public
+// surface.
+// deno-lint-ignore no-explicit-any
+type Any = any;
+type ErasedCreateAIToolConfig =
+  & CreateAIToolConfigCommon<Any>
+  & {
+    viewRegistry?: AIViewRegistry<Record<string, AnyAIView>>;
+    availableIn?: readonly PropertyKey[];
+    handler?: (input: Any, view?: Any) => Any;
+    // createNavigationTool only: pass the live view ACCESSOR to the handler
+    // instead of an entry-time snapshot. The navigation tool must read the
+    // view AFTER its routing callback settles; every other handler wants the
+    // snapshot the gate check guarantees.
+    _liveViewAccessor?: boolean;
+    approval?: {
+      // The plain shape's propose reads the second slot as ctx;
+      // `viewRegistry` is
+      // the discriminator that decides which it is (see the wrapper below).
+      propose: (input: Any, viewOrCtx: Any, ctx?: Any) => Any;
+      mode?: "always" | "session";
+      presentation?: "inline" | "modal";
+    };
+  };
+
+// View-typed: `viewRegistry` is the discriminator between the two shapes. It is
+// required here, so a config without it falls through to the plain overload.
+export function createAITool<
+  TDefs extends Record<string, AnyAIView>,
+  TInput,
+  TOutput = string,
+  K extends keyof TDefs = keyof TDefs,
+>(
+  config: CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
+): AIToolWithMetadata<TInput>;
 export function createAITool<TInput, TOutput = string>(
   config: CreateAIToolConfig<TInput, TOutput>,
+): AIToolWithMetadata<TInput>;
+export function createAITool<TInput>(
+  config: ErasedCreateAIToolConfig,
+): AIToolWithMetadata<TInput> {
+  return buildAITool(config);
+}
+
+// The single construction path. createNavigationTool calls this directly:
+// its handler takes the live view ACCESSOR, a shape no public overload
+// describes (and none should).
+export function buildAITool<TInput>(
+  config: ErasedCreateAIToolConfig,
 ): AIToolWithMetadata<TInput> {
   assertSchemaAcceptsUnknownKeys(config.name, config.inputSchema);
   if (config.availableIn !== undefined && config.availableIn.length === 0) {
     throw new Error(
       `createAITool("${config.name}"): availableIn is empty — the tool would be executable nowhere. Omit the field for an everywhere-available tool.`,
     );
+  }
+  // String coercion: numeric-looking registry keys would otherwise be stored
+  // as numbers and mismatch the registry's Object.keys strings at bind/gate
+  // time.
+  const availableIn = config.availableIn?.map((id) => String(id));
+  // Compile-time typing is the primary guard when `viewRegistry` is declared;
+  // this runtime check covers erased/any-typed callers. (A tool without it
+  // is checked against the chat's registry at registration instead — the
+  // only place its ids can be known.)
+  if (config.viewRegistry && availableIn) {
+    for (const id of availableIn) {
+      if (!config.viewRegistry._defs[id]) {
+        throw new Error(
+          `createAITool("${config.name}"): availableIn references view id "${id}", which is not in the viewRegistry passed to this tool.`,
+        );
+      }
+    }
   }
   // Runtime XOR backstop for erased/JS callers (the union type is the
   // compile-time guard).
@@ -357,10 +531,20 @@ export function createAITool<TInput, TOutput = string>(
       `createAITool("${config.name}"): exactly one of handler or approval must be set — a tool either executes directly or goes through the confirm-before-apply lifecycle.`,
     );
   }
+  // `viewRegistry` decides propose's shape: view-typed tools receive
+  // (input, view, ctx), plain ones keep (input, ctx). The engine always has
+  // both to hand, so the split is a declaration read, never arity sniffing.
+  const proposeTakesView = config.viewRegistry !== undefined;
   const approvalMeta: ErasedApprovalConfig | undefined = config.approval
     ? {
-      propose: (input: unknown, ctx: { signal: AbortSignal }) =>
-        config.approval!.propose(input as TInput, ctx),
+      propose: (
+        input: unknown,
+        view: unknown,
+        ctx: { signal: AbortSignal },
+      ) =>
+        proposeTakesView
+          ? config.approval!.propose(input as TInput, view, ctx)
+          : config.approval!.propose(input as TInput, ctx),
       mode: config.approval.mode ?? "always",
       presentation: config.approval.presentation ?? "inline",
     }
@@ -379,31 +563,48 @@ export function createAITool<TInput, TOutput = string>(
   // the tool definitions it reads when choosing tools, before its first
   // refusal. Derived from declared metadata, no opt-out (like the gate
   // message).
-  const description = config.availableIn
-    ? `${config.description}\n\n${buildAvailabilityHint(config.availableIn)}`
+  const description = availableIn
+    ? `${config.description}\n\n${buildAvailabilityHint(availableIn)}`
     : config.description;
+
+  // One implementation, two entry points: run() for the SDK (input only) and
+  // runWithView() for the chat loop (input + the live view accessor).
+  const execute = async (
+    input: TInput,
+    getView?: () => unknown,
+  ): Promise<string> => {
+    // An approval tool never executes here: the chat loop branches on
+    // metadata.approval BEFORE the tool engine, and every other execution
+    // path (processToolUses fallback, direct calls) has no user to ask —
+    // fail loud instead of silently mutating.
+    if (approvalMeta) {
+      throw new Error(
+        `Tool "${config.name}" requires user approval and can only execute inside the chat approval lifecycle (createAIChat).`,
+      );
+    }
+    // Validate here too — the manual chat loop calls run() directly without
+    // going through parse().
+    const validated = parseToolInput(config.inputSchema, input);
+    // The engine injects the live view state; a handler that ignores it
+    // (every plain tool) simply declares one parameter.
+    const result = await Promise.resolve(
+      config.handler!(
+        validated,
+        config._liveViewAccessor ? getView : getView?.(),
+      ),
+    );
+    return typeof result === "string" ? result : JSON.stringify(result);
+  };
 
   const sdkTool: SDKTool<TInput> = {
     name: config.name,
     description,
     input_schema: zodToJsonSchema(config.inputSchema),
     parse: (content: unknown) => parseToolInput(config.inputSchema, content),
-    run: async (input: TInput) => {
-      // An approval tool never executes through run(): the chat loop
-      // branches on metadata.approval BEFORE the tool engine, and every
-      // other execution path (processToolUses fallback, direct calls) has
-      // no user to ask — fail loud instead of silently mutating.
-      if (approvalMeta) {
-        throw new Error(
-          `Tool "${config.name}" requires user approval and can only execute inside the chat approval lifecycle (createAIChat).`,
-        );
-      }
-      // Validate here too — the manual chat loop calls run() directly
-      // without going through parse().
-      const validated = parseToolInput(config.inputSchema, input);
-      const result = await Promise.resolve(config.handler!(validated));
-      return typeof result === "string" ? result : JSON.stringify(result);
-    },
+    // Exactly one parameter: the SDK owns the rest of the signature.
+    run: (input: TInput) => execute(input),
+    runWithView: (input: TInput, getView?: () => unknown) =>
+      execute(input, getView),
   };
 
   const metadata: ToolUIMetadata<TInput> = {
@@ -413,10 +614,11 @@ export function createAITool<TInput, TOutput = string>(
     completionMessage: config.completionMessage,
     successMessage: config.successMessage,
     errorMessage: config.errorMessage,
-    availableIn: config.availableIn,
+    availableIn,
     kind: config.kind,
     approval: approvalMeta,
     awaitsUserAction: approvalMeta ? true : undefined,
+    _viewRegistry: config.viewRegistry,
   };
 
   return {
