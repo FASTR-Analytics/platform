@@ -155,7 +155,7 @@ const updateSlide = createAITool({
   name: "update_slide",
   description: "…",
   inputSchema: zUpdateSlide,
-  views,
+  viewRegistry: views,
   availableIn: ["editing_slide"],
   kind: "write",
   handler: (input, view) => view.context.setTempSlide(input), // typed
@@ -167,7 +167,7 @@ const deleteSlide = createAITool({
   name: "delete_slide",
   description: "…",
   inputSchema: zDeleteSlide,
-  views,
+  viewRegistry: views,
   availableIn: ["editing_slide"],
   kind: "write",
   approval: {
@@ -182,7 +182,7 @@ const deleteSlide = createAITool({
 //    the resulting setView events are attributed to the AI (never reported
 //    as "User navigated" in the digest).
 const navTool = createNavigationTool({
-  views,
+  viewRegistry: views,
   destinations: ["home", "editing_slide"],
   onAiNavigation: (target) => router.go(target),
 });
@@ -277,7 +277,7 @@ builtInTools: {
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log
-- `createAITool({ views, … })` - View-typed tools (compile-checked
+- `createAITool({ viewRegistry, … })` - View-typed tools (compile-checked
   `availableIn`, narrowed handler view state)
 - `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
