@@ -822,6 +822,7 @@ function openSocket(projectId: string): void {
 
   socket.onopen = () => {
     attempts = 0;
+    lastReceivedAt = Date.now(); // liveness watchdog baseline
     setSocketOpen(true);
     notifyCollabConnection("connected");
     sendPresence();
@@ -854,6 +855,8 @@ function openSocket(projectId: string): void {
   };
 
   socket.onmessage = (event) => {
+    // Any received frame proves the link is alive (liveness watchdog below).
+    lastReceivedAt = Date.now();
     let msg: CollabServerMessage;
     try {
       msg = parseJsonOrThrow<CollabServerMessage>(event.data);
@@ -898,6 +901,8 @@ function openSocket(projectId: string): void {
       // Room checkpoint health — editors surface "not saving" instead of
       // claiming "Live" while the server can't persist.
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
+    } else if (msg.type === "pong") {
+      // Liveness only — receipt was already recorded above.
     } else if (
       !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
     ) {
@@ -1004,6 +1009,45 @@ setInterval(() => {
     sendPresence();
   }
 }, IDLE_CHECK_MS);
+
+// ── Connection liveness watchdog (client-side heartbeat) ────────────────────
+// The SERVER side of dead-peer detection is Deno's protocol-level ping
+// (idleTimeout: 30 in project-collab.ts). Browsers can neither observe
+// protocol pings nor send their own, so when the path dies silently under
+// this tab (NAT drop, server hard-kill, network switch) the socket keeps
+// LOOKING open for however long TCP takes to notice — editors claim "Live",
+// session.isLive() misleads the close-flush logic, and edits stream into a
+// dead pipe. So: send an app-level ping on a timer, and if NO traffic at all
+// (the pong, or anything else) arrives back within the deadline, force-close
+// the socket — onclose (not marked intentional) then runs the normal
+// reconnect + Yjs catch-up. Worst-case detection ≈ interval + deadline.
+// Registered once for the module's lifetime, like the idle detector.
+
+const PING_INTERVAL_MS = 25_000;
+const PONG_DEADLINE_MS = 10_000;
+
+// Stamped on open and on EVERY received frame (any traffic proves the link).
+let lastReceivedAt = 0;
+
+setInterval(() => {
+  const socket = ws;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  const sentAt = Date.now();
+  sendCollab({ type: "ping" });
+  setTimeout(() => {
+    // Only kill the SAME socket, still nominally open, that received nothing
+    // since the ping left. (A frozen-then-resumed tab re-enters here cleanly:
+    // the next tick pings again before any deadline can fire.)
+    if (ws !== socket || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (lastReceivedAt < sentAt) {
+      socket.close();
+    }
+  }, PONG_DEADLINE_MS);
+}, PING_INTERVAL_MS);
 
 // ── Project-level awareness (page cursors) ──────────────────────────────────
 // The project tab pages have no doc room, so their live cursors ride a

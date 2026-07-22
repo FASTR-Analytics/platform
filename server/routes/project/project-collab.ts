@@ -489,6 +489,14 @@ routesProjectCollab.get(
           return;
         }
         switch (msg.type) {
+          case "ping": {
+            // Client-side liveness probe (see lib/types/collab.ts). The reply
+            // is the point: the client's watchdog force-closes a socket that
+            // gets no traffic back.
+            const pong: CollabServerMessage = { type: "pong" };
+            ws.send(JSON.stringify(pong));
+            break;
+          }
           case "presence_update":
             updateConnectionPresence(projectId, connectionId, msg.data);
             broadcastPresence(projectId);
@@ -619,5 +627,14 @@ routesProjectCollab.get(
         handleConnGone(connectionId);
       },
     };
+  }, {
+    // Server-side dead-peer detection: Deno pings every client at the
+    // protocol level and closes the connection (firing onClose/onError above,
+    // which run all presence/room cleanup) when no pong arrives within this
+    // many SECONDS. 30 is Deno's own default — pinned here so the contract is
+    // explicit rather than inherited, and survives a runtime default change.
+    // The client-side mirror (browsers can't see protocol pings) is the
+    // ping/pong watchdog in client/src/state/project/collab.ts.
+    idleTimeout: 30,
   }),
 );
