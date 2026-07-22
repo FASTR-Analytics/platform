@@ -2,6 +2,7 @@ import {
   AIChatProvider,
   type AIChatConfig,
   FrameRightResizable,
+  buildToolCatalog,
   validateAIChatConfig,
 } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
@@ -55,12 +56,17 @@ function AIProjectWrapperInner(props: ParentProps) {
     reports: projectState.reports,
   });
 
+  // CACHE RULE: no currentView here — the no-view catalog is byte-stable;
+  // view-grouped ordering would bust the system-prompt cache breakpoint on
+  // every navigation.
+  const toolCatalog = buildToolCatalog(tools);
+
   // Byte-stable across navigation (Rung 3): no longer takes a mode/view
   // argument — per-view instructions now ride each view's instructions
   // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
   // this string.
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(instanceState, projectState),
+    buildSystemPromptForContext(instanceState, projectState, toolCatalog),
   );
 
   // Subscribe to SSE changes - notify on ALL changes; the interaction
