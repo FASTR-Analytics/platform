@@ -626,3 +626,46 @@ export function buildAITool<TInput>(
     metadata,
   };
 }
+
+// Partial application of createAITool over one app's view registry: the app
+// names its registry ONCE and every tool file calls the bound function with
+// no `viewRegistry` line and no registry import.
+//
+//   // app, once, next to the registry:
+//   export const createProjectAITool = aiToolFactory(projectAIViews);
+//
+//   // every tool file:
+//   createProjectAITool({ name, availableIn: ["editing_report"], handler });
+//
+// This is sugar, not a second way to build a tool: it forwards to
+// createAITool and every compile-time property survives the wrapper —
+// availableIn is still checked against the registry, the handler/propose
+// view is still narrowed to availableIn, and a narrowed view with no gate is
+// still unwritable (all pinned in ai_2_gating's _typeChecks). Because the
+// returned function is NOT overloaded, its diagnostics are better than the
+// primitive's: a bad property reports on the property rather than failing
+// overload resolution and reporting on the call.
+//
+// The cast is a contained wart, not a hole: Omit<> over the handler/approval
+// XOR flattens the union into one object with both members optional, so the
+// forwarded value no longer matches either arm. The CALL SITE is still
+// checked against the un-flattened config type — only this internal forward
+// needs the assertion.
+export function aiToolFactory<TDefs extends Record<string, AnyAIView>>(
+  viewRegistry: AIViewRegistry<TDefs>,
+) {
+  return <TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
+    config: Omit<
+      CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
+      "viewRegistry"
+    >,
+  ): AIToolWithMetadata<TInput> =>
+    createAITool(
+      { ...config, viewRegistry } as CreateViewAIToolConfig<
+        TDefs,
+        K,
+        TInput,
+        TOutput
+      >,
+    );
+}

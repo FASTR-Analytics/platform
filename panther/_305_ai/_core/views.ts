@@ -33,9 +33,9 @@ import type {
 // handler the live view state at execution time.
 //
 // The controller creates nothing. Tools are standalone declarations typed
-// against the inert REGISTRY (createAITool's `views` field) — so a handler
-// closes over no controller state, and the same tool array is correct for
-// any chat this registry's controller is bound to.
+// against the inert REGISTRY (createAITool's `viewRegistry` field) — so a
+// handler closes over no controller state, and the same tool array is
+// correct for any chat this registry's controller is bound to.
 
 export type AIViewController<
   TDefs extends Record<string, AnyAIView>,
@@ -56,10 +56,10 @@ export type AIViewController<
   // Resolved label for UI (chat-pane headers); bare view id if the label
   // function throws.
   currentLabel(): string;
-  // Resolved promptSection for views with promptDelivery "manual", for the
+  // Resolved instructions for views with instructionsDelivery "manual", for the
   // consumer's own system composition; null for "ephemeral" views (the
   // engine delivers those — composing them too would double-deliver).
-  promptSection(): string | null;
+  instructions(): string | null;
   // Report a user interaction (Feature 3) — typed against the interactions
   // registry; the payload argument is dropped for void-payload interactions.
   // Entries queue until the engine drains them into the next turn's digest
@@ -78,18 +78,19 @@ export type AIViewController<
   // arrival. Call inside mutating tool handlers (e.g. `slide:${id}`). No-op
   // without an interactions registry.
   markAIEdit(key: string): void;
-  // Public escape hatch for the built-in navigation tool's attribution
-  // window (Phase 5 review): `createNavigationTool` already opens this
-  // window around its `onAiNavigation` callback automatically, so most
-  // consumers never call this directly. It exists for a FIRE-AND-FORGET
+  // Public escape hatch for the AI-navigation attribution window. The CHAT
+  // LOOP opens it automatically around any tool whose metadata declares
+  // attributesNavigation (what `createNavigationTool` sets), so most
+  // consumers never call this directly — the tool itself holds no
+  // controller and cannot mark for itself. It exists for a FIRE-AND-FORGET
   // router — one whose `onAiNavigation` callback returns before its actual
   // `setView`/`clearView` call lands (e.g. it starts an async route and
-  // returns immediately, settling later via an effect or subscription). In
-  // that shape the tool's own window can close before the real navigation
-  // fires, and the resulting event would be misattributed to the user; call
-  // `markAINavigation()` again from wherever that later `setView` actually
-  // happens to re-open the window at the right moment. No-op without an
-  // interactions registry (there is no digest to attribute in).
+  // returns immediately, settling later via an effect or subscription). The
+  // window is a TIME window (navAttributionMs), so it can lapse before that
+  // late navigation fires and the event would be misattributed to the user;
+  // call `markAINavigation()` again from wherever that later `setView`
+  // actually happens to extend the window at the right moment. No-op without
+  // an interactions registry (there is no digest to attribute in).
   markAINavigation(): void;
   // Engine-internal: the registry's view ids, for availableIn validation on
   // the chat's ToolRegistry. Consumers never call this.
@@ -114,11 +115,11 @@ export type AIViewController<
     conversationId: string,
   ): { digest: string | null; restore: () => void } | null;
   // Engine-internal: the raw pieces of the turn's view sections, resolved
-  // safely (a throwing label/promptSection is logged and degraded, never a
+  // safely (a throwing label/instructions is logged and degraded, never a
   // turn failure). Consumers never call this.
   _turnSectionParts(): {
     view: { id: string; label: string | null };
-    viewPrompt: string | null;
+    viewInstructions: string | null;
   };
 };
 
@@ -244,7 +245,7 @@ export function createAIViewController<
   const [state, setState] = createSignal<AIViewState<TDefs>>(fallbackState);
 
   // Internal erased handle on the current view's definition — label and
-  // promptSection are invoked with the state's own params/context, which the
+  // instructions are invoked with the state's own params/context, which the
   // typed surface guarantees match.
   function defFor(s: AIViewState<TDefs>): AIViewDefinition<unknown, unknown> {
     return registry._defs[s.id]._def as AIViewDefinition<unknown, unknown>;
@@ -254,15 +255,15 @@ export function createAIViewController<
     return resolveViewLabel(defFor(s), String(s.id), s.params, s.context);
   }
 
-  function resolvePromptSection(s: AIViewState<TDefs>): string | null {
+  function resolveInstructions(s: AIViewState<TDefs>): string | null {
     const def = defFor(s);
-    if (def.promptSection === undefined) return null;
-    if (typeof def.promptSection === "string") return def.promptSection;
+    if (def.instructions === undefined) return null;
+    if (typeof def.instructions === "string") return def.instructions;
     try {
-      return def.promptSection(s.params, s.context);
+      return def.instructions(s.params, s.context);
     } catch (err) {
       console.error(
-        `AI view promptSection for "${
+        `AI view instructions for "${
           String(s.id)
         }" threw; dropping the section for this turn.`,
         err,
@@ -271,8 +272,10 @@ export function createAIViewController<
     }
   }
 
-  function promptDeliveryFor(s: AIViewState<TDefs>): "ephemeral" | "manual" {
-    return defFor(s).promptDelivery ?? "ephemeral";
+  function instructionsDeliveryFor(
+    s: AIViewState<TDefs>,
+  ): "ephemeral" | "manual" {
+    return defFor(s).instructionsDelivery ?? "ephemeral";
   }
 
   // Built-in __navigation event around every state change: labels resolved
@@ -329,10 +332,10 @@ export function createAIViewController<
       const s = state();
       return resolveLabel(s) ?? String(s.id);
     },
-    promptSection(): string | null {
+    instructions(): string | null {
       const s = state();
-      if (promptDeliveryFor(s) !== "manual") return null;
-      return resolvePromptSection(s);
+      if (instructionsDeliveryFor(s) !== "manual") return null;
+      return resolveInstructions(s);
     },
     notify<K extends keyof TIDefs>(
       id: K,
@@ -391,8 +394,8 @@ export function createAIViewController<
       const s = state();
       return {
         view: { id: String(s.id), label: resolveLabel(s) },
-        viewPrompt: promptDeliveryFor(s) === "ephemeral"
-          ? resolvePromptSection(s)
+        viewInstructions: instructionsDeliveryFor(s) === "ephemeral"
+          ? resolveInstructions(s)
           : null,
       };
     },

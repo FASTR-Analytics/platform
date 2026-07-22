@@ -24,7 +24,11 @@ export { useConversations } from "./_components/use_conversations.ts";
 // CORE FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-export { AIToolFailure, createAITool } from "./_core/tool_helpers.ts";
+export {
+  aiToolFactory,
+  AIToolFailure,
+  createAITool,
+} from "./_core/tool_helpers.ts";
 export { createAIViewController } from "./_core/views.ts";
 export { defineAIViews, view } from "./_core/view_types.ts";
 export { createNavigationTool } from "./_core/navigation_tool.ts";

@@ -37,15 +37,18 @@ export type AIViewDefinition<TParams, TContext> = {
   label: string | ((params: TParams, context: TContext) => string);
   // Optional zod schema for params; setView parses through it when present.
   params?: zType.ZodType<TParams>;
-  // Optional per-view instructions for the model. Keep it SMALL (a few
-  // hundred tokens): with "ephemeral" delivery it is per-turn payload.
-  promptSection?: string | ((params: TParams, context: TContext) => string);
-  // "ephemeral" (default): the engine attaches promptSection as a
-  // view-prompt section on the turn — the system prompt stays byte-stable
-  // across navigation, so its cache breakpoint keeps hitting. "manual": the
-  // engine does not deliver it; the consumer composes promptSection() into
-  // their own system accessor (accepting the cache miss on view changes).
-  promptDelivery?: "ephemeral" | "manual";
+  // Optional per-view instructions for the model. NOT part of the system
+  // prompt — with "ephemeral" delivery this rides each turn as its own
+  // section (that separation is the cache design). Keep it SMALL (a few
+  // hundred tokens): it is per-turn payload.
+  instructions?: string | ((params: TParams, context: TContext) => string);
+  // "ephemeral" (default): the engine attaches instructions as a
+  // view-instructions section on the turn — the system prompt stays
+  // byte-stable across navigation, so its cache breakpoint keeps hitting.
+  // "manual": the engine does not deliver it; the consumer composes
+  // instructions() into their own system accessor (accepting the cache miss
+  // on view changes).
+  instructionsDelivery?: "ephemeral" | "manual";
 };
 
 // The marker view() returns. _def is engine-internal; __aiViewTypes is a

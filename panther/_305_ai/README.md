@@ -116,8 +116,11 @@ it. Full contracts in DOC_AI_CHAT.md; the shapes:
 
 ```typescript
 import {
+  AIChatProvider,
   buildToolCatalog,
+  createAITool,
   createAIViewController,
+  createNavigationTool,
   defineAIInteractions,
   defineAIViews,
   interaction,
@@ -273,12 +276,11 @@ builtInTools: {
 **Functions:**
 
 - `createSDKClient()` - Configure SDK
-- `createAITool()` - Define custom tools
+- `createAITool()` - Define custom tools; add `viewRegistry` for view-typed
+  tools (compile-checked `availableIn`, narrowed handler view state)
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log
-- `createAITool({ viewRegistry, … })` - View-typed tools (compile-checked
-  `availableIn`, narrowed handler view state)
 - `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
 - `validateAIChatConfig()` - Construction-time validation without mounting

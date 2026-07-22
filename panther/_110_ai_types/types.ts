@@ -87,9 +87,13 @@ export type ContentBlock =
 // renderOutgoingMessages derives the wire text from it at request time and
 // strips the field — the wire never parses it back. The kind tags exist so a
 // future per-section retention policy is a renderer flag, not a storage
-// migration.
+// migration. NOTE: nothing reads this field today (it is write-only), which
+// is why "view-prompt" could be renamed to "view-instructions" in place —
+// conversations persisted before that rename still carry the legacy tag, so
+// the first code to branch on kind must treat "view-prompt" as
+// "view-instructions".
 export type EphemeralSection = {
-  kind: "view-label" | "view-prompt" | "digest" | "consumer";
+  kind: "view-label" | "view-instructions" | "digest" | "consumer";
   text: string;
 };
 

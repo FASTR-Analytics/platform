@@ -231,7 +231,7 @@ export type AIChatConfig = {
   getEphemeralContext?: () => string | null;
 
   // View system (createAIViewController). When present, every turn carries a
-  // [Current view: …] section (plus the view's ephemeral promptSection and
+  // [Current view: …] section (plus the view's ephemeral instructions and
   // the consumer hook's context) on EVERY turn-creating path — direct sends,
   // batches, and queue drains. Without it, getEphemeralContext keeps its
   // historical direct-send-only delivery.

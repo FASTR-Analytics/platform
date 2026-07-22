@@ -470,7 +470,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       return {
         sections: assembleTurnSections({
           view: parts.view,
-          viewPrompt: parts.viewPrompt,
+          viewInstructions: parts.viewInstructions,
           digest: drained?.digest ?? null,
           consumer,
         }),
