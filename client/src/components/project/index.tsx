@@ -41,8 +41,6 @@ import {
   setNavCollapsed,
   moduleLatestCommits,
   setModuleLatestCommits,
-  deckSelectedGroup,
-  deckGroupingMode,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
@@ -52,7 +50,7 @@ import {
   checkDataNeedsUpdate,
   checkModulesNeedUpdate,
 } from "./staleness_checks";
-import { setupProjectTours } from "~/onboarding";
+import { setupDeckTours, setupReportTours } from "~/onboarding";
 
 type Props = {
   projectId: string;
@@ -120,18 +118,8 @@ function ProjectInner() {
     }
   });
 
-  setupProjectTours(() => {
-    const tab = projectTab();
-    // reads so deck creation/deletion and folder selection re-fire the
-    // eligibility checks for the deferred deck-card tours
-    void projectState.slideDecks.length;
-    void deckSelectedGroup();
-    void deckGroupingMode();
-    return tab === "decks" &&
-      projectState.thisUserPermissions.can_view_slide_decks
-      ? tab
-      : "none";
-  });
+  setupDeckTours();
+  setupReportTours();
 
   const dataNeedsUpdate = createMemo(() =>
     checkDataNeedsUpdate(projectState, instanceState),

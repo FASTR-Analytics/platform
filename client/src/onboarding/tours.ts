@@ -191,3 +191,28 @@ export function buildDecksManageTour(): TourDefinition {
     ],
   };
 }
+
+export function buildReportsOpenReportTour(): TourDefinition {
+  return {
+    id: "reports-open-reports",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "open-report",
+        target: tourTarget("reports-report-card"),
+        title: t3({
+          en: "Open a report",
+          fr: "Ouvrir un rapport",
+          pt: "Abrir um relatório",
+        }),
+        body: t3({
+          en: "Click a report to open it in the editor. Avatars in the corner show teammates working in it right now.",
+          fr: "Cliquez sur un rapport pour l'ouvrir dans l'éditeur. Les avatars dans le coin indiquent les collègues qui y travaillent en ce moment.",
+          pt: "Clique num relatório para o abrir no editor. Os avatares no canto mostram os colegas que estão a trabalhar nele neste momento.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}

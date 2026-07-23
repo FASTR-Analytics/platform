@@ -540,7 +540,7 @@ export function ProjectReports(p: ExtendedProps) {
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1">
+                <div class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1" data-tour="reports-report-card">
                   <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>
