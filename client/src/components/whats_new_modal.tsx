@@ -2,6 +2,7 @@ import {
   compareDottedVersions,
   getLanguage,
   t3,
+  WHATS_NEW_LAYOUTS,
   type WhatsNewPage,
   type WhatsNewPost,
   type WhatsNewText,
@@ -97,9 +98,8 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
 }
 
 function WhatsNewPageContent(p: { page: WhatsNewPage }) {
-  const pos = () => p.page.imagePosition ?? "top";
-  const sideBySide = () => !!p.page.imageUrl && (pos() === "left" || pos() === "right");
-  const imageWidth = () => p.page.imageWidth ?? (sideBySide() ? 40 : 100);
+  const layout = () => WHATS_NEW_LAYOUTS[p.page.layoutPreset] ?? WHATS_NEW_LAYOUTS.textOnly;
+  const showImage = () => layout().hasImage && !!p.page.imageUrl;
 
   function img() {
     return (
@@ -108,10 +108,10 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
         alt=""
         class="rounded object-contain"
         classList={{
-          "mx-auto": !sideBySide(),
-          "shrink-0": sideBySide(),
+          "mx-auto": !layout().row,
+          "shrink-0": layout().row,
         }}
-        style={{ width: `${imageWidth()}%` }}
+        style={{ width: `${layout().widthPct}%` }}
       />
     );
   }
@@ -121,12 +121,12 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
       <Show when={p.page.title}>
         <h3 class="font-700 text-base-content text-lg">{rt(p.page.title)}</h3>
       </Show>
-      <div classList={{ "ui-spy": !sideBySide(), "flex items-start gap-6": sideBySide() }}>
-        <Show when={p.page.imageUrl && (pos() === "top" || pos() === "left")}>{img()}</Show>
+      <div classList={{ "ui-spy": !layout().row, "flex items-start gap-6": layout().row }}>
+        <Show when={showImage() && layout().imageFirst}>{img()}</Show>
         <div class="min-w-0 grow">
           <MarkdownPresentationJsx markdown={rt(p.page.body)} />
         </div>
-        <Show when={p.page.imageUrl && (pos() === "bottom" || pos() === "right")}>{img()}</Show>
+        <Show when={showImage() && !layout().imageFirst}>{img()}</Show>
       </div>
     </div>
   );

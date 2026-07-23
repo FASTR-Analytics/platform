@@ -2,7 +2,27 @@
 // by the platform server from status-api. The JSON shape is duplicated in
 // Admin-Website/src/frontend/types.ts — keep the two in sync.
 
-export type WhatsNewImagePosition = "top" | "bottom" | "left" | "right";
+// Locked page layouts — the only way a page can be laid out, so every post
+// renders with the same visual vocabulary.
+export type WhatsNewLayoutPreset =
+  | "textOnly"
+  | "heroTop"
+  | "imageLeft"
+  | "imageRight"
+  | "imageBottom";
+
+// Drives both the platform renderer and the Admin-Website preview mock
+// (duplicated there — repos share no code; keep in sync).
+export const WHATS_NEW_LAYOUTS: Record<
+  WhatsNewLayoutPreset,
+  { hasImage: boolean; row: boolean; imageFirst: boolean; widthPct: number }
+> = {
+  textOnly: { hasImage: false, row: false, imageFirst: false, widthPct: 0 },
+  heroTop: { hasImage: true, row: false, imageFirst: true, widthPct: 100 },
+  imageBottom: { hasImage: true, row: false, imageFirst: false, widthPct: 100 },
+  imageLeft: { hasImage: true, row: true, imageFirst: true, widthPct: 40 },
+  imageRight: { hasImage: true, row: true, imageFirst: false, widthPct: 40 },
+};
 
 // Authored text, per language. English is required; fr/pt fall back to
 // English when absent — same semantics as the app's t3() translations.
@@ -15,9 +35,8 @@ export type WhatsNewText = {
 export type WhatsNewPage = {
   title?: WhatsNewText;
   body: WhatsNewText; // markdown
-  imageUrl?: string; // absolute URL on status-api
-  imagePosition?: WhatsNewImagePosition; // default "top"
-  imageWidth?: number; // % of content width, 10-100; default 100 top/bottom, 40 left/right
+  imageUrl?: string; // absolute URL on status-api; required for image presets
+  layoutPreset: WhatsNewLayoutPreset;
 };
 
 export type WhatsNewPost = {
