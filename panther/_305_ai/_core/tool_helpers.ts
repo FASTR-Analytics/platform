@@ -8,6 +8,7 @@ import type { Component, zType } from "../deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
   AIViewRegistry,
+  AIViewState,
   AIViewStateFor,
   AnyAIView,
 } from "./view_types.ts";
@@ -293,8 +294,8 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
     }
   );
 
-// The view-typed shape: `viewRegistry` is the app's INERT view registry (the
-// defineAIViews result — no state, nothing to close over), and it buys two
+// The GATED view-typed shape: `viewRegistry` is the app's INERT view registry
+// (the defineAIViews result — no state, nothing to close over), and it buys two
 // things at compile time that no other arrangement does without an import
 // per tool file or a global augmentation:
 //
@@ -304,10 +305,17 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
 //      NARROWED to those ids, so view.params / view.context are typed per
 //      view and mode-guard boilerplate becomes unwritable.
 //
-// NoInfer on the view parameter is load-bearing: K must narrow ONLY via
-// availableIn. Without it, an annotated handler param infers K narrow while
-// availableIn stays absent — a narrowed type with NO runtime gate behind it
-// (proven in the Phase 1+2 review).
+// The soundness invariant — a narrowed view is unwritable without a runtime
+// gate — is enforced STRUCTURALLY, two ways that together cover every spelling:
+//   - K lives ONLY here, and this shape REQUIRES availableIn. So pinning K
+//     narrow (an explicit type argument, or a CreateViewAIToolConfig
+//     annotation) forces availableIn along with it; omit it and the config
+//     falls to the ungated shape (CreateUngatedViewAIToolConfig), which has no
+//     K and hands the handler the full union.
+//   - NoInfer on the view parameter blocks the remaining path: an annotated
+//     handler param can no longer INFER K narrow while availableIn stays
+//     absent. (Proven in the Phase 1+2 review; the explicit-K half was
+//     PLAN_AI_TOOL_GATE_SOUNDNESS.)
 export type CreateViewAIToolConfig<
   TDefs extends Record<string, AnyAIView>,
   K extends keyof TDefs,
@@ -317,7 +325,12 @@ export type CreateViewAIToolConfig<
   & CreateAIToolConfigCommon<TInput>
   & {
     viewRegistry: AIViewRegistry<TDefs>;
-    availableIn?: readonly K[];
+    // REQUIRED on the gated shape (was optional). A narrowed handler view only
+    // exists WITH a gate: the ungated shape below carries no K, so a subset
+    // view cannot be expressed there. This closes the hole where an explicit
+    // type argument (or a CreateViewAIToolConfig annotation) pinned K narrow
+    // while availableIn stayed absent — a narrowed type with no runtime gate.
+    availableIn: readonly K[];
   }
   & (
     | {
@@ -330,6 +343,37 @@ export type CreateViewAIToolConfig<
     | {
       handler?: never;
       approval: ViewAIToolApprovalConfig<TDefs, K, TInput, TOutput>;
+    }
+  );
+
+// The ungated view-typed shape: `viewRegistry` present, NO availableIn, and no
+// K type parameter. handler / approval.propose receive the FULL narrowable
+// union (the "family guard" pattern — narrow by view.id at runtime). Split out
+// from CreateViewAIToolConfig so the ungated path has no K to pin: with no K in
+// scope, a handler typed for a subset of views is unwritable here, and the
+// gated shape requires availableIn — so neither spelling can express a narrow
+// view without a gate.
+export type CreateUngatedViewAIToolConfig<
+  TDefs extends Record<string, AnyAIView>,
+  TInput,
+  TOutput,
+> =
+  & CreateAIToolConfigCommon<TInput>
+  & {
+    viewRegistry: AIViewRegistry<TDefs>;
+    availableIn?: never;
+  }
+  & (
+    | {
+      handler: (
+        input: TInput,
+        view: NoInfer<AIViewState<TDefs>>,
+      ) => Promise<TOutput> | TOutput;
+      approval?: never;
+    }
+    | {
+      handler?: never;
+      approval: ViewAIToolApprovalConfig<TDefs, keyof TDefs, TInput, TOutput>;
     }
   );
 
@@ -474,8 +518,16 @@ type ErasedCreateAIToolConfig =
     };
   };
 
-// View-typed: `viewRegistry` is the discriminator between the two shapes. It is
-// required here, so a config without it falls through to the plain overload.
+// View-typed, in two overloads by gate. `viewRegistry` is the discriminator
+// against the plain overload; `availableIn`'s presence discriminates gated
+// (K narrows) from ungated (full union). The split is the gate-soundness fix:
+//   - GATED carries K and REQUIRES availableIn, so a narrowed handler view
+//     always has a gate behind it.
+//   - UNGATED carries NO K, so a subset view is unexpressible — the only
+//     handler type available is the full union.
+// An explicit type argument that pins K narrow (createAITool<D, In, Out, "v">)
+// therefore only matches the gated overload, which then demands availableIn;
+// omit it and no overload matches (the ungated one has fewer type params).
 export function createAITool<
   TDefs extends Record<string, AnyAIView>,
   TInput,
@@ -483,6 +535,13 @@ export function createAITool<
   K extends keyof TDefs = keyof TDefs,
 >(
   config: CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
+): AIToolWithMetadata<TInput>;
+export function createAITool<
+  TDefs extends Record<string, AnyAIView>,
+  TInput,
+  TOutput = string,
+>(
+  config: CreateUngatedViewAIToolConfig<TDefs, TInput, TOutput>,
 ): AIToolWithMetadata<TInput>;
 export function createAITool<TInput, TOutput = string>(
   config: CreateAIToolConfig<TInput, TOutput>,
@@ -641,31 +700,40 @@ export function buildAITool<TInput>(
 // createAITool and every compile-time property survives the wrapper —
 // availableIn is still checked against the registry, the handler/propose
 // view is still narrowed to availableIn, and a narrowed view with no gate is
-// still unwritable (all pinned in ai_2_gating's _typeChecks). Because the
-// returned function is NOT overloaded, its diagnostics are better than the
-// primitive's: a bad property reports on the property rather than failing
-// overload resolution and reporting on the call.
+// still unwritable (all pinned in ai_2_gating's _typeChecks). The returned
+// function carries the SAME gated/ungated overload pair as createAITool, so
+// the gate-soundness split holds through partial application: an explicit K
+// (mk<In, Out, "v">) matches only the gated overload, which requires
+// availableIn. The trade for that soundness is diagnostics — an unassignable
+// property now fails overload resolution and reports on the call rather than
+// the property.
 //
 // The cast is a contained wart, not a hole: Omit<> over the handler/approval
 // XOR flattens the union into one object with both members optional, so the
 // forwarded value no longer matches either arm. The CALL SITE is still
 // checked against the un-flattened config type — only this internal forward
 // needs the assertion.
-export function aiToolFactory<TDefs extends Record<string, AnyAIView>>(
-  viewRegistry: AIViewRegistry<TDefs>,
-) {
-  return <TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
+type ViewAIToolFactory<TDefs extends Record<string, AnyAIView>> = {
+  <TInput, TOutput = string, K extends keyof TDefs = keyof TDefs>(
     config: Omit<
       CreateViewAIToolConfig<TDefs, K, TInput, TOutput>,
       "viewRegistry"
     >,
+  ): AIToolWithMetadata<TInput>;
+  <TInput, TOutput = string>(
+    config: Omit<
+      CreateUngatedViewAIToolConfig<TDefs, TInput, TOutput>,
+      "viewRegistry"
+    >,
+  ): AIToolWithMetadata<TInput>;
+};
+
+export function aiToolFactory<TDefs extends Record<string, AnyAIView>>(
+  viewRegistry: AIViewRegistry<TDefs>,
+): ViewAIToolFactory<TDefs> {
+  const make = <TInput>(
+    config: Omit<ErasedCreateAIToolConfig, "viewRegistry">,
   ): AIToolWithMetadata<TInput> =>
-    createAITool(
-      { ...config, viewRegistry } as CreateViewAIToolConfig<
-        TDefs,
-        K,
-        TInput,
-        TOutput
-      >,
-    );
+    buildAITool({ ...config, viewRegistry } as ErasedCreateAIToolConfig);
+  return make as ViewAIToolFactory<TDefs>;
 }
