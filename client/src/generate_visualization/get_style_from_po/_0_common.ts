@@ -134,11 +134,31 @@ export function getTableLayoutStyle(config: PresentationObjectConfig) {
   };
 }
 
+// Resolves which indicator a table cell belongs to. With a single effective
+// value prop the cell's indicator is unambiguous regardless of which axis (if
+// any) panther renders as a header, so match directly rather than relying on
+// colHeader/rowHeader carrying the indicator id (they may carry neither once
+// a lone value prop no longer forces a header onto either axis).
+export function getIndicatorMetaForCell(
+  metadataById: Map<string, IndicatorMetadata>,
+  effectiveValueProps: string[],
+  info: Pick<TableCellInfo, "colHeader" | "rowHeader">,
+): IndicatorMetadata | undefined {
+  if (effectiveValueProps.length === 1) {
+    return metadataById.get(effectiveValueProps[0]!);
+  }
+  return (
+    metadataById.get(info.colHeader?.id ?? "") ??
+    metadataById.get(info.rowHeader?.id ?? "")
+  );
+}
+
 export function getTableCellsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
   indicatorMetadata: IndicatorMetadata[] | undefined,
   obeyMetricFormat: boolean,
+  effectiveValueProps: string[],
 ) {
   const cfOn = selectCf(config.s).type !== "none";
   const metadataById = indicatorMetadata
@@ -161,9 +181,7 @@ export function getTableCellsContent(
         metadataById &&
         info.valueAsNumber !== undefined
       ) {
-        const meta =
-          metadataById.get(info.colHeader?.id ?? "") ??
-          metadataById.get(info.rowHeader?.id ?? "");
+        const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
         if (meta?.format_as) {
           return formatIndicatorValue(
             info.valueAsNumber,

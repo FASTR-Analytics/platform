@@ -29,6 +29,7 @@ export function buildStandardStyle(
   indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
   obeyMetricFormat: boolean,
+  effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
   // rather than flooring at 0, which clips negative bars.
@@ -131,6 +132,7 @@ export function buildStandardStyle(
         formatAs,
         indicatorMetadata,
         obeyMetricFormat,
+        effectiveValueProps,
       ),
       mapRegions: getMapRegionsContent(config, formatAs),
     },

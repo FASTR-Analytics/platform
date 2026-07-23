@@ -14,6 +14,7 @@ import {
   deleteDatasetHmisUploadAttempt,
   enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
+  getDatasetHfaDuplicatePreview,
   getDatasetHfaItemsForDisplay,
   getDatasetHfaUploadAttemptDetail,
   getDatasetHfaUploadStatus,
@@ -668,7 +669,19 @@ defineRoute(
     const res = await updateDatasetHfaUploadAttempt_Step2Mappings(
       c.var.mainDb,
       body.mappings,
+      body.reviewConfirmed,
     );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHfaDuplicatePreview",
+  requireGlobalPermission("can_configure_data"),
+  log("getDatasetHfaDuplicatePreview"),
+  async (c) => {
+    const res = await getDatasetHfaDuplicatePreview(c.var.mainDb);
     return c.json(res);
   },
 );

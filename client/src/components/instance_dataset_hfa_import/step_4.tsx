@@ -8,7 +8,7 @@ type Props = {
   silentFetch: () => Promise<void>;
 };
 
-export function Step3(p: Props) {
+export function Step4(p: Props) {
   const save = createButtonAction(
     () => serverActions.updateDatasetHfaStaging({}),
     p.silentFetch,

@@ -8,7 +8,7 @@ import {
   PresentationObjectConfig,
   ROLLUP_SENTINEL,
 } from "lib";
-import { getTextStyle, getTableLayoutStyle } from "./_0_common";
+import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
 
 function scaleValueForFormat(rawValue: number, formatAs: string): number {
   if (formatAs === "percent") return rawValue * 100;
@@ -47,6 +47,7 @@ function formatScorecardValue(
 export function buildScorecardStyle(
   config: PresentationObjectConfig,
   indicatorMetadata: IndicatorMetadata[],
+  effectiveValueProps: string[],
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const metadataById = new Map(indicatorMetadata.map((m) => [m.id, m]));
@@ -66,9 +67,7 @@ export function buildScorecardStyle(
       // },
       tableCells: {
         func: (info: TableCellInfo) => {
-          const meta =
-            metadataById.get(info.colHeader?.id ?? "") ??
-            metadataById.get(info.rowHeader?.id ?? "");
+          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
           if (meta?.threshold_direction && info.valueAsNumber !== undefined) {
             const scaled = scaleValueForFormat(
               info.valueAsNumber,
@@ -90,9 +89,7 @@ export function buildScorecardStyle(
           return { backgroundColor: "none" };
         },
         textFormatter: (info: TableCellInfo) => {
-          const meta =
-            metadataById.get(info.colHeader?.id ?? "") ??
-            metadataById.get(info.rowHeader?.id ?? "");
+          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
           if (meta?.format_as && info.valueAsNumber !== undefined) {
             return formatScorecardValue(
               info.valueAsNumber,

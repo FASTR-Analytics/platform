@@ -183,8 +183,12 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     throw new Error("Bad config type");
   }
 
+  // Only force the value-prop axis onto columns when there's more than one value
+  // prop to differentiate — otherwise this created a column header even when the
+  // user configured no col/row disaggregator at all.
   const colProp =
-    getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ?? "--v";
+    getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ??
+    (effectiveValueProps.length > 1 ? "--v" : undefined);
   const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
   const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["colGroup"], effectiveValueProps);
   const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["rowGroup"], effectiveValueProps);

@@ -1,6 +1,6 @@
 import { t3, type DatasetHfaCsvStagingResult } from "lib";
 import { Button, createButtonAction, toNum0 } from "panther";
-import { Match, Switch } from "solid-js";
+import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
@@ -8,7 +8,7 @@ type Props = {
   silentFetch: () => Promise<void>;
 };
 
-export function Step4(p: Props) {
+export function Step5(p: Props) {
   const save = createButtonAction(
     () => serverActions.finalizeDatasetHfaIntegration({}),
     p.silentFetch,
@@ -79,7 +79,26 @@ export function Step4(p: Props) {
             <span class="font-700 text-danger font-mono text-xl">
               {toNum0(p.step3Result.nRowsDuplicated)}
             </span>
+            <Show when={p.step3Result.dedupStrategy}>
+              <span class="text-base-content-muted text-sm">
+                {p.step3Result.dedupStrategy === "first"
+                  ? t3({ en: "kept first row per facility", fr: "première ligne conservée par établissement", pt: "primeira linha mantida por estabelecimento" })
+                  : t3({ en: "kept last row per facility", fr: "dernière ligne conservée par établissement", pt: "última linha mantida por estabelecimento" })}
+                {p.step3Result.nDedupOverridesApplied > 0 &&
+                  `; ${toNum0(p.step3Result.nDedupOverridesApplied)} ${t3({ en: "manual override(s)", fr: "remplacement(s) manuel(s)", pt: "substituição(ões) manual(is)" })}`}
+              </span>
+            </Show>
           </div>
+          <Show when={p.step3Result.nRowsFilteredOut > 0}>
+            <div class="flex flex-col">
+              <span class="text-base-content text-sm">
+                {t3({ en: "Rows Removed by Filter", fr: "Lignes supprimées par le filtre", pt: "Linhas removidas pelo filtro" })}
+              </span>
+              <span class="font-700 font-mono text-xl">
+                {toNum0(p.step3Result.nRowsFilteredOut)}
+              </span>
+            </div>
+          </Show>
         </div>
 
         {(p.step3Result.nRowsInvalidMissingFacilityId > 0 ||

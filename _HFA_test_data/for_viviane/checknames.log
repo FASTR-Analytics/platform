@@ -1,0 +1,72 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      18.0
+___/   /   /___/   /   /___/       SE—Standard Edition
+
+ Statistics and Data Science       Copyright 1985-2023 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-STATA-PC        https://www.stata.com
+                                   979-696-4600        stata@stata.com
+
+Stata license: Single-user , expiring 16 Dec 2026
+Serial number: 401909352305
+  Licensed to: Tim Roberton
+               UWA
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do /tmp/checknames.do 
+
+. import delimited "data_raw.csv", varnames(1) clear
+(encoding automatically selected: UTF-8)
+(195 vars, 849 obs)
+
+. describe, simple
+start         chal_01_e     serv_05a_b    sup_05e       sup_05d_x
+end           chal_01_f     serv_05a_c    sup_05e1      sup_05d_x_~r
+t_s           chal_01_g     serv_08a_a    sup_05e2      sup_06a_e
+uid           chal_01_h     serv_08a_b    sup_05e3      sup_07c
+id_round      chal_02_b     serv_08_a     sup_05e4      sup_07c_ot~r
+id_enum       chal_02_c     serv_08_b     sup_05e5      sup_08
+t_s_enum      chal_02_d     serv_08b      sup_05e96     sup_09
+t_s_enum_a~o  chal_02_e     t_inf         sup_05e99     sup_09_other
+id_admin0     chal_02_f     enum_messa~d  sup_05e_ot~r  sup_12
+id_admin0_~2  chal_02_g     inf_01b       sup_03a_a     sup_12a
+id_admin1     chal_02_h     inf_02        sup_03a_b     sup_13
+id_admin2     serv_03_txt   inf_04a       sup_03a_c     sup_13a
+id_fac        t_serv        inf_05        sup_05aa_a    sup_ch_01a
+id_fac_txt    enum_messa~c  inf_06        sup_05aa_b    sup_ch_01_aa
+facilityph~t  serv_05_a     inf_06a       sup_05aa_c    sup_ch_01_ab
+id_resp_fi~t  serv_05_c     t_sup         sup_05aa_d    sup_ch_01_ac
+ba_note_1     serv_05_d     enum_messa~g  sup_05aa_e    sup_ch_01_d
+introduction  serv_05_e     sup_01a_a     sup_05aa_eb   sup_ch_01_e
+id_resp_co~t  serv_05_f     sup_01a_b     sup_05aa_ec   sup_ch_01_f
+id_resp_name  serv_05_g     sup_01a_c     sup_05aa_fa   sup_ch_01_x
+id_resp_sex   serv_05_h     sup_01a_d     sup_05aa_fb   sup_ch_01_~r
+id_resp_se~r  serv_05_ha    sup_01a_e     sup_05aa_g    sup_ch_01ab
+id_resp_oic   serv_05_i     sup_01a_f     sup_05aa_h    sup_ch_02
+id_resp_oi~l  serv_05_j     sup_01a_g     sup_05aa_i    sup_ch_04_~t
+id_resp_ca~l  serv_05_k     sup_01a_h     sup_05aa_j    result
+id_resp_ca~r  serv_05_ka    sup_01a_i     sup_05aa_ka   result_other
+id_loc_conf   serv_05_l     sup_01aa_sl   sup_05aa_kb   result_com~t
+id_fac_cor~d  serv_05_m     sup_02a_a     sup_05ba_a    t_s_block_~n
+id_admin1_~d  serv_05_n     sup_02a_b     sup_05ba_b    _id
+id_admin2_~d  serv_05_o     sup_02a_c     sup_05ca_a    _uuid
+id_fac_type   serv_05_q     sup_02a_d     sup_05ca_b    _submissio~e
+id_fac_typ~r  serv_05_r     sup_02a_e     sup_05ca_c    _validatio~s
+id_fac_area   serv_05_s     sup_02a_f     sup_05ca_d    _notes
+id_fac_cat~e  serv_05_t     sup_05aaa_a   sup_05ca_e    _status
+t_chal        serv_05_u     sup_05aaa_b   sup_05ca_f    _submitted~y
+enum_messa~2  serv_05_v     sup_05aaa_c   sup_05d_a     __version__
+chal_01_b     serv_05_w     sup_05aaa_d   sup_05d_b     _tags
+chal_01_c     serv_05_x     sup_05aaa_e   sup_05d_c     metarootuuid
+chal_01_d     serv_05a_a    sup_05aaa_f   sup_05d_d     _index
+
+. 
+end of do-file

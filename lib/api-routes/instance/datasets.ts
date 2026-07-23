@@ -6,6 +6,7 @@ import type {
 import type {
   DatasetHfaUploadAttemptDetail,
   DatasetHfaUploadStatusResponse,
+  HfaDuplicatePreview,
 } from "../../types/dataset_hfa_import.ts";
 import {
   instanceConfigFacilityColumnsSchema,
@@ -86,6 +87,20 @@ const dhis2ScheduleFieldsSchema = z.object({
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
   timePoint: z.string(),
+  rowFilters: z.array(
+    z.object({
+      column: z.string(),
+      op: z.enum(["equals", "not_equals"]),
+      value: z.string(),
+    }),
+  ),
+  dedupStrategy: z.enum(["first", "last"]),
+  dedupOverrides: z.array(
+    z.object({
+      facilityId: z.string(),
+      keepRow: z.number().int().min(1),
+    }),
+  ),
 });
 
 const datasetHmisWindowingBaseSchema = z.object({
@@ -291,10 +306,21 @@ export const datasetRouteRegistry = {
       xlsFormAssetFileName: z.string(),
     }),
   }),
+  // reviewConfirmed: false = step-2 (mappings/filters) save → wizard lands on
+  // the review step; true = step-3 (duplicates review) save → wizard advances
+  // to staging
   updateDatasetHfaMappings: route({
     path: "/dataset-uploads/hfa/mappings",
     method: "POST",
-    body: z.object({ mappings: hfaCsvMappingParamsSchema }),
+    body: z.object({
+      mappings: hfaCsvMappingParamsSchema,
+      reviewConfirmed: z.boolean(),
+    }),
+  }),
+  getDatasetHfaDuplicatePreview: route({
+    path: "/dataset-uploads/hfa/duplicate-preview",
+    method: "GET",
+    response: {} as HfaDuplicatePreview,
   }),
   updateDatasetHfaStaging: route({
     path: "/dataset-uploads/hfa/staging",
