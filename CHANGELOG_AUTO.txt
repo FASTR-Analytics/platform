@@ -1,3 +1,17 @@
+[1.61.2] [user] [added] - Row filter option during HFA data import to exclude unwanted rows
+[1.61.2] [user] [added] - Duplicate facility review step during HFA data import with manual row selection
+[1.61.2] [user] [changed] - HFA data import now has a dedicated duplicates review step before staging
+[1.61.2] [user] [changed] - AI assistant now shows a preview of proposed changes before applying them
+[1.61.2] [user] [changed] - AI-proposed edits to indicators require explicit approval via a confirmation dialog
+[1.61.2] [user] [added] - Staging results now show how many rows were removed by filters
+[1.61.2] [user] [added] - Staging results now show which dedup strategy was used and how many manual overrides applied
+[1.61.2] [admin] [added] - HFA data import now supports row filtering before staging
+[1.61.2] [admin] [added] - HFA data import now lets you review and resolve duplicate facility rows
+[1.61.2] [admin] [added] - AI assistant now requires your approval before making changes to data
+[1.61.2] [admin] [changed] - HFA data import wizard has a new step for duplicate review
+[1.61.2] [admin] [changed] - AI-proposed changes now show a detailed before/after preview for your review
+[1.61.2] [admin] [fixed] - AI assistant no longer silently applies edits; all writes require explicit confirmation
+[1.61.2] [admin] [internal] - Heading bar component moved from shared library to application code
 [1.61.1] [user] [fixed] - Fixed crash when generating charts from AI-suggested configurations
 [1.61.1] [admin] [fixed] - Resolved crash when AI tools generate visualizations
 [1.61.1] [user] [fixed] - Report editor now updates correctly when switching dark/light mode
