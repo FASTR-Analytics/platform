@@ -155,11 +155,16 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // post-login modals — wait until user is approved; skip inside a project
+  // post-login modals — wait until user is approved; skip inside a project.
+  // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
+  // approval store) re-fire it on every return from a project, which would
+  // otherwise re-open the modals and displace whatever the alert slot holds.
   createEffect(() => {
     if (getFirstString(searchParams.p)) return;
     if (!instanceState.currentUserApproved) return;
     if (!clerk.user) return;
+    if (postLoginRanForUserId === clerk.user.id) return;
+    postLoginRanForUserId = clerk.user.id;
     (async () => {
       const isBrandNewUser = !clerk.user!.unsafeMetadata?.emailOptInAsked;
       if (isBrandNewUser) {
@@ -275,14 +280,14 @@ export default function Instance(p: Props) {
                   <Show
                     when={
                       instanceState.currentUserApproved &&
-                      whatsNewPosts().length > 0
+                      whatsNewPostsForCurrentUser().length > 0
                     }
                   >
                     <div class="relative">
                       <Button onClick={openWhatsNewFeed} intent="base-100">
                         <WhatsNewBellIcon />
                       </Button>
-                      <Show when={whatsNewUnread()}>
+                      <Show when={whatsNewHasUnread()}>
                         <div class="bg-primary pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
                       </Show>
                     </div>
@@ -387,9 +392,21 @@ export default function Instance(p: Props) {
 // instance (version <= server version, adminsOnly pre-filtered). Seen-state is
 // a high-water-mark version string in Clerk unsafeMetadata; brand-new users
 // are baselined without seeing a popup. Fetched posts also power the header
-// bell (unread dot + browsable feed).
-const [whatsNewPosts, setWhatsNewPosts] = createSignal<WhatsNewPost[]>([]);
-const [whatsNewUnread, setWhatsNewUnread] = createSignal(false);
+// bell (unread dot + browsable feed). All module-level state is scoped to the
+// signed-in user's id — these signals outlive a same-tab user switch that
+// happens without a full page reload.
+const [whatsNewState, setWhatsNewState] = createSignal<
+  { userId: string; posts: WhatsNewPost[] } | null
+>(null);
+const [whatsNewSeenVersion, setWhatsNewSeenVersion] = createSignal<
+  string | undefined
+>(undefined);
+let postLoginRanForUserId: string | null = null;
+
+function whatsNewPostsForCurrentUser(): WhatsNewPost[] {
+  const state = whatsNewState();
+  return state && state.userId === clerk.user?.id ? state.posts : [];
+}
 
 function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
   return posts.reduce((a, b) =>
@@ -397,8 +414,28 @@ function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
   );
 }
 
+// unsafeMetadata is client-writable by design — tolerate tampered values
+function seenVersionFromMetadata(): string | undefined {
+  const raw = clerk.user?.unsafeMetadata?.whatsNewSeenVersion;
+  return typeof raw === "string" ? raw : undefined;
+}
+
+function whatsNewHasUnread(): boolean {
+  const posts = whatsNewPostsForCurrentUser();
+  if (posts.length === 0) return false;
+  const seen = whatsNewSeenVersion();
+  return !seen ||
+    compareDottedVersions(newestWhatsNewPost(posts).version, seen) > 0;
+}
+
+function recordWhatsNewEvent(
+  postId: string,
+  event: "seen" | "skipped" | "completed",
+) {
+  serverActions.recordWhatsNewEvent({ postId, event }).catch(() => {});
+}
+
 async function markWhatsNewSeen(version: string) {
-  setWhatsNewUnread(false);
   try {
     await clerk.user?.update({
       unsafeMetadata: {
@@ -406,27 +443,36 @@ async function markWhatsNewSeen(version: string) {
         whatsNewSeenVersion: version,
       },
     });
+    // Only on success — a failed write leaves the unread dot lit
+    setWhatsNewSeenVersion(version);
   } catch (err) {
     console.error("Failed to record whatsNewSeenVersion", err);
   }
 }
 
 async function maybeShowWhatsNew(isBrandNewUser: boolean) {
+  const userId = clerk.user?.id;
+  if (!userId) {
+    return;
+  }
+  setWhatsNewSeenVersion(seenVersionFromMetadata());
   const res = await serverActions.getWhatsNewPosts({});
   if (!res.success || res.data.length === 0) {
     return;
   }
-  setWhatsNewPosts(res.data);
+  setWhatsNewState({ userId, posts: res.data });
   const newest = newestWhatsNewPost(res.data);
-  const seen = clerk.user?.unsafeMetadata?.whatsNewSeenVersion as
-    | string
-    | undefined;
+  const seen = seenVersionFromMetadata();
   if (seen && compareDottedVersions(newest.version, seen) <= 0) {
     return;
   }
-  if (!isBrandNewUser && newest.pages.length > 0) {
-    setWhatsNewUnread(true);
-    await openComponent({ element: WhatsNewModal, props: { post: newest } });
+  if (!isBrandNewUser && (newest.pages?.length ?? 0) > 0) {
+    recordWhatsNewEvent(newest.id, "seen");
+    const outcome = await openComponent({
+      element: WhatsNewModal,
+      props: { post: newest },
+    });
+    recordWhatsNewEvent(newest.id, outcome ?? "skipped");
   }
   await markWhatsNewSeen(newest.version);
 }
@@ -434,14 +480,12 @@ async function maybeShowWhatsNew(isBrandNewUser: boolean) {
 // Header-bell feed: opening it acknowledges everything (clears the unread
 // dot), then lets the user browse and re-read any post.
 async function openWhatsNewFeed() {
-  const posts = whatsNewPosts();
+  const posts = whatsNewPostsForCurrentUser();
   if (posts.length === 0) {
     return;
   }
   const newest = newestWhatsNewPost(posts);
-  const seen = clerk.user?.unsafeMetadata?.whatsNewSeenVersion as
-    | string
-    | undefined;
+  const seen = whatsNewSeenVersion() ?? seenVersionFromMetadata();
   if (!seen || compareDottedVersions(newest.version, seen) > 0) {
     await markWhatsNewSeen(newest.version);
   }
@@ -453,6 +497,11 @@ async function openWhatsNewFeed() {
     if (!chosen) {
       return;
     }
-    await openComponent({ element: WhatsNewModal, props: { post: chosen } });
+    recordWhatsNewEvent(chosen.id, "seen");
+    const outcome = await openComponent({
+      element: WhatsNewModal,
+      props: { post: chosen },
+    });
+    recordWhatsNewEvent(chosen.id, outcome ?? "skipped");
   }
 }

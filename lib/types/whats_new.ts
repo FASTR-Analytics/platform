@@ -9,19 +9,21 @@ export type WhatsNewLayoutPreset =
   | "heroTop"
   | "imageLeft"
   | "imageRight"
-  | "imageBottom";
+  | "imageBottom"
+  | "cover";
 
 // Drives both the platform renderer and the Admin-Website preview mock
 // (duplicated there — repos share no code; keep in sync).
 export const WHATS_NEW_LAYOUTS: Record<
   WhatsNewLayoutPreset,
-  { hasImage: boolean; row: boolean; imageFirst: boolean; widthPct: number }
+  { hasImage: boolean; row: boolean; imageFirst: boolean; widthPct: number; cover: boolean }
 > = {
-  textOnly: { hasImage: false, row: false, imageFirst: false, widthPct: 0 },
-  heroTop: { hasImage: true, row: false, imageFirst: true, widthPct: 100 },
-  imageBottom: { hasImage: true, row: false, imageFirst: false, widthPct: 100 },
-  imageLeft: { hasImage: true, row: true, imageFirst: true, widthPct: 40 },
-  imageRight: { hasImage: true, row: true, imageFirst: false, widthPct: 40 },
+  textOnly: { hasImage: false, row: false, imageFirst: false, widthPct: 0, cover: false },
+  heroTop: { hasImage: true, row: false, imageFirst: true, widthPct: 100, cover: false },
+  imageBottom: { hasImage: true, row: false, imageFirst: false, widthPct: 100, cover: false },
+  imageLeft: { hasImage: true, row: true, imageFirst: true, widthPct: 40, cover: false },
+  imageRight: { hasImage: true, row: true, imageFirst: false, widthPct: 40, cover: false },
+  cover: { hasImage: true, row: false, imageFirst: true, widthPct: 100, cover: true },
 };
 
 // Authored text, per language. English is required; fr/pt fall back to
@@ -36,6 +38,7 @@ export type WhatsNewPage = {
   title?: WhatsNewText;
   body: WhatsNewText; // markdown
   imageUrl?: string; // absolute URL on status-api; required for image presets
+  imageAlt?: WhatsNewText; // screen-reader description of the image
   layoutPreset: WhatsNewLayoutPreset;
 };
 
@@ -46,15 +49,24 @@ export type WhatsNewPost = {
   pages: WhatsNewPage[];
   adminsOnly: boolean;
   published: boolean;
+  publishAt?: string; // ISO; the admin feed withholds the post until this time
   createdAt: string;
   updatedAt: string;
 };
 
-// Numeric dotted-version compare ("1.9.0" < "1.10.0"); missing parts count as 0.
+export type WhatsNewEvent = "seen" | "skipped" | "completed";
+
+// Numeric dotted-version compare ("1.9.0" < "1.10.0"); missing or non-numeric
+// parts count as 0 (so "1.61.0-beta" orders as "1.61.0", not NaN).
 // Returns <0 if a<b, 0 if equal, >0 if a>b.
 export function compareDottedVersions(a: string, b: string): number {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
+  const parse = (v: string) =>
+    v.split(".").map((part) => {
+      const n = parseInt(part, 10);
+      return Number.isNaN(n) ? 0 : n;
+    });
+  const pa = parse(a);
+  const pb = parse(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
     if (diff !== 0) return diff;

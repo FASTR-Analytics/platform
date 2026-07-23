@@ -13,7 +13,12 @@ import {
   ModalContainer,
   type AlertComponentProps,
 } from "panther";
-import { For, Index, Show, createSignal } from "solid-js";
+import { For, Index, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
+  globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export type WhatsNewModalOutcome = "skipped" | "completed";
 
 // Authored content in the viewer's current app language, English fallback
 function rt(t: WhatsNewText | undefined): string {
@@ -21,14 +26,41 @@ function rt(t: WhatsNewText | undefined): string {
     return "";
   }
   const v = t[getLanguage()];
-  return v && v.trim() ? v : t.en;
+  return v && v.trim() ? v : (t.en ?? "");
 }
 
-export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, undefined>) {
+export function WhatsNewModal(
+  p: AlertComponentProps<{ post: WhatsNewPost }, WhatsNewModalOutcome>,
+) {
+  const pages = () => p.post.pages ?? [];
   const [pageIndex, setPageIndex] = createSignal(0);
-  const page = () => p.post.pages[pageIndex()];
-  const isLast = () => pageIndex() === p.post.pages.length - 1;
-  const multiPage = () => p.post.pages.length > 1;
+  const page = () => pages()[pageIndex()];
+  const isLast = () => pageIndex() >= pages().length - 1;
+  const multiPage = () => pages().length > 1;
+
+  function next() {
+    if (!isLast()) setPageIndex((i) => i + 1);
+  }
+  function prev() {
+    if (pageIndex() > 0) setPageIndex((i) => i - 1);
+  }
+
+  // Panther's modal system has no keyboard handling; the listener lives here
+  // (same pattern as slide_presenter.tsx)
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      next();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      prev();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      p.close(isLast() ? "completed" : "skipped");
+    }
+  }
+  onMount(() => document.addEventListener("keydown", handleKeyDown));
+  onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
   return (
     <ModalContainer
@@ -39,7 +71,7 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
         // eslint-disable-next-line jsx-key
         [
           <Show when={multiPage() && !isLast()}>
-            <Button intent="neutral" onClick={() => p.close(undefined)}>
+            <Button intent="neutral" onClick={() => p.close("skipped")}>
               {t3({ en: "Skip", fr: "Passer", pt: "Ignorar" })}
             </Button>
           </Show>,
@@ -50,7 +82,7 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
         [
           <Show when={multiPage()}>
             <div class="flex items-center gap-1.5 pr-2">
-              <Index each={p.post.pages}>
+              <Index each={pages()}>
                 {(_, i) => (
                   <div
                     class="h-1.5 w-1.5 rounded-full"
@@ -68,22 +100,18 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
               intent="neutral"
               iconName="chevronLeft"
               disabled={pageIndex() === 0}
-              onClick={() => setPageIndex((i) => i - 1)}
+              onClick={prev}
             />
           </Show>,
           <Show
             when={multiPage() && !isLast()}
             fallback={
-              <Button intent="primary" onClick={() => p.close(undefined)}>
+              <Button intent="primary" onClick={() => p.close("completed")}>
                 {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
               </Button>
             }
           >
-            <Button
-              intent="primary"
-              iconName="chevronRight"
-              onClick={() => setPageIndex((i) => i + 1)}
-            />
+            <Button intent="primary" iconName="chevronRight" onClick={next} />
           </Show>,
         ]
       }
@@ -91,44 +119,141 @@ export function WhatsNewModal(p: AlertComponentProps<{ post: WhatsNewPost }, und
       {/* Fixed height so the modal doesn't resize as pages change; long
           pages scroll inside this region */}
       <div class="h-[min(600px,60vh)] overflow-y-auto">
-        <WhatsNewPageContent page={page()} />
+        <Show when={page()}>
+          {(pg) => <WhatsNewPageContent page={pg()} />}
+        </Show>
       </div>
     </ModalContainer>
   );
 }
 
+// Forward-compat: an unknown preset id from a newer admin site keeps the
+// image (hero) rather than silently dropping it
+function layoutOf(page: WhatsNewPage) {
+  const l = WHATS_NEW_LAYOUTS[page.layoutPreset];
+  if (l) return l;
+  return page.imageUrl ? WHATS_NEW_LAYOUTS.heroTop : WHATS_NEW_LAYOUTS.textOnly;
+}
+
 function WhatsNewPageContent(p: { page: WhatsNewPage }) {
-  const layout = () => WHATS_NEW_LAYOUTS[p.page.layoutPreset] ?? WHATS_NEW_LAYOUTS.textOnly;
+  const layout = () => layoutOf(p.page);
   const showImage = () => layout().hasImage && !!p.page.imageUrl;
 
-  function img() {
-    return (
-      <img
-        src={p.page.imageUrl}
-        alt=""
-        class="rounded object-contain"
-        classList={{
-          "mx-auto": !layout().row,
-          "shrink-0": layout().row,
-        }}
-        style={{ width: `${layout().widthPct}%` }}
-      />
-    );
-  }
-
   return (
-    <div class="ui-spy">
-      <Show when={p.page.title}>
-        <h3 class="font-700 text-base-content text-lg">{rt(p.page.title)}</h3>
-      </Show>
-      <div classList={{ "ui-spy": !layout().row, "flex items-start gap-6": layout().row }}>
-        <Show when={showImage() && layout().imageFirst}>{img()}</Show>
-        <div class="min-w-0 grow">
+    <Show
+      when={layout().cover && showImage()}
+      fallback={
+        <div class="ui-spy">
+          <Show when={rt(p.page.title)}>
+            <h3 class="font-700 text-base-content text-lg">{rt(p.page.title)}</h3>
+          </Show>
+          <div classList={{ "ui-spy": !layout().row, "flex items-start gap-6": layout().row }}>
+            <Show when={showImage() && layout().imageFirst}>
+              <WhatsNewImage
+                src={p.page.imageUrl!}
+                alt={rt(p.page.imageAlt)}
+                wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
+                imgClass="w-full rounded object-contain"
+                width={`${layout().widthPct}%`}
+              />
+            </Show>
+            <div class="min-w-0 grow">
+              <MarkdownPresentationJsx markdown={rt(p.page.body)} />
+            </div>
+            <Show when={showImage() && !layout().imageFirst}>
+              <WhatsNewImage
+                src={p.page.imageUrl!}
+                alt={rt(p.page.imageAlt)}
+                wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
+                imgClass="w-full rounded object-contain"
+                width={`${layout().widthPct}%`}
+              />
+            </Show>
+          </div>
+        </div>
+      }
+    >
+      <div class="relative h-full overflow-hidden rounded">
+        <WhatsNewImage
+          src={p.page.imageUrl!}
+          alt={rt(p.page.imageAlt)}
+          wrapClass="absolute inset-0 h-full w-full"
+          imgClass="h-full w-full object-cover"
+        />
+        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-6 pt-16 text-white">
+          <Show when={rt(p.page.title)}>
+            <h3 class="font-700 mb-2 text-xl">{rt(p.page.title)}</h3>
+          </Show>
           <MarkdownPresentationJsx markdown={rt(p.page.body)} />
         </div>
-        <Show when={showImage() && !layout().imageFirst}>{img()}</Show>
       </div>
-    </div>
+    </Show>
+  );
+}
+
+// Accessible image: alt text, hides itself on load failure, and under
+// prefers-reduced-motion renders a GIF's first frame on a canvas (an <img>
+// draws only frame 1; pixels are never read back, so cross-origin taint is
+// irrelevant) with a play button to opt back into the animation.
+function WhatsNewImage(p: {
+  src: string;
+  alt: string;
+  wrapClass: string;
+  imgClass: string;
+  width?: string;
+}) {
+  const [failed, setFailed] = createSignal(false);
+  const [play, setPlay] = createSignal(false);
+  const staticFrame = () => REDUCED_MOTION && /\.gif(\?|$)/i.test(p.src) && !play();
+  let canvasRef: HTMLCanvasElement | undefined;
+
+  createEffect(() => {
+    if (!staticFrame()) {
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      if (!canvasRef) {
+        return;
+      }
+      canvasRef.width = img.naturalWidth || 1;
+      canvasRef.height = img.naturalHeight || 1;
+      canvasRef.getContext("2d")?.drawImage(img, 0, 0);
+    };
+    img.onerror = () => setFailed(true);
+    img.src = p.src;
+  });
+
+  return (
+    <Show when={!failed()}>
+      <Show
+        when={staticFrame()}
+        fallback={
+          <img
+            src={p.src}
+            alt={p.alt}
+            class={`${p.wrapClass} ${p.imgClass}`}
+            style={p.width ? { width: p.width } : undefined}
+            onError={() => setFailed(true)}
+          />
+        }
+      >
+        <div
+          class={`relative ${p.wrapClass}`}
+          style={p.width ? { width: p.width } : undefined}
+        >
+          <canvas ref={canvasRef} class={p.imgClass} role="img" aria-label={p.alt} />
+          <button
+            type="button"
+            class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"
+            title={t3({ en: "Play animation", fr: "Lire l'animation", pt: "Reproduzir animação" })}
+            onClick={() => setPlay(true)}
+          >
+            ▶
+          </button>
+        </div>
+      </Show>
+    </Show>
   );
 }
 
@@ -139,6 +264,23 @@ export function WhatsNewFeedModal(
 ) {
   const sorted = () =>
     [...p.posts].sort((a, b) => compareDottedVersions(b.version, a.version));
+
+  const metaLabel = (post: WhatsNewPost): string => {
+    const parts: string[] = [`v${post.version}`];
+    const d = new Date(post.updatedAt);
+    if (!isNaN(d.getTime())) {
+      parts.push(d.toLocaleDateString(getLanguage()));
+    }
+    const pageCount = post.pages?.length ?? 0;
+    parts.push(
+      `${pageCount} ${
+        pageCount === 1
+          ? t3({ en: "page", fr: "page", pt: "página" })
+          : t3({ en: "pages", fr: "pages", pt: "páginas" })
+      }`,
+    );
+    return parts.join(" · ");
+  };
 
   return (
     <ModalContainer
@@ -167,15 +309,7 @@ export function WhatsNewFeedModal(
               onClick={() => p.close(post)}
             >
               <div class="font-700 text-base-content">{rt(post.title)}</div>
-              <div class="text-base-content-muted mt-1 text-sm">
-                v{post.version} ·{" "}
-                {new Date(post.updatedAt).toLocaleDateString(getLanguage())}
-                {" · "}
-                {post.pages.length}{" "}
-                {post.pages.length === 1
-                  ? t3({ en: "page", fr: "page", pt: "página" })
-                  : t3({ en: "pages", fr: "pages", pt: "páginas" })}
-              </div>
+              <div class="text-base-content-muted mt-1 text-sm">{metaLabel(post)}</div>
             </button>
           )}
         </For>

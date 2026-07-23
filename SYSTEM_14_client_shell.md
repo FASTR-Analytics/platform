@@ -189,7 +189,9 @@ An effect in `components/instance/index.tsx` (after approval + Clerk user)
 sequentially opens `EmailOptInModal` (writes
 `clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
 `OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
-`WhatsNewModal` — a multi-page release-notes popup. Posts are authored in the
+`WhatsNewModal` — a multi-page release-notes popup. The sequence is guarded to
+run ONCE per signed-in user id (the effect's reactive deps re-fire it on every
+return from a project, which would otherwise re-open the modals). Posts are authored in the
 Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
 (5-min in-memory cache, fail-silent) and pre-filtered server-side to
 `published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`
@@ -201,9 +203,17 @@ the client shows only the newest unseen post, keyed on the high-water mark
 seeing a popup). The fetched posts also power a header bell (between the
 language switcher and the feedback button; hidden when there are no posts)
 with an unread dot and a `WhatsNewFeedModal` history feed — opening the feed
-acknowledges everything, and any post can be re-read from it. Types +
-`compareDottedVersions` live in `lib/types/whats_new.ts`. All three modals
-persist to Clerk `unsafeMetadata` only — no server or localStorage writes.
+acknowledges everything, and any post can be re-read from it. Bell/feed state
+is keyed to the signed-in user id (module signals survive a same-tab user
+switch). The modal supports arrow-key paging and Escape, shows a GIF's first
+frame under `prefers-reduced-motion` (play button opts back in), and closes
+with a `"skipped" | "completed"` outcome; open/outcome are recorded via
+`recordWhatsNewEvent` → the user-log pipeline as
+`whats_new_<event>:<postId>` rows (post id in the endpoint name so counts
+survive the 7-day rollup; surfaced per-post in the Admin-Website). Layouts are
+locked presets (`WHATS_NEW_LAYOUTS`, incl. a full-bleed `cover`). Types +
+`compareDottedVersions` live in `lib/types/whats_new.ts`. The three onboarding
+modals persist to Clerk `unsafeMetadata` only — no localStorage writes.
 
 ## Help buttons (`lib/help/**`, `HelpButton.tsx`)
 
