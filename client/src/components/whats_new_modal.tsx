@@ -151,7 +151,6 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
             <Show when={showImage() && layout().imageFirst}>
               <WhatsNewImage
                 src={p.page.imageUrl!}
-                alt={rt(p.page.imageAlt)}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${layout().widthPct}%`}
@@ -163,7 +162,6 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
             <Show when={showImage() && !layout().imageFirst}>
               <WhatsNewImage
                 src={p.page.imageUrl!}
-                alt={rt(p.page.imageAlt)}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${layout().widthPct}%`}
@@ -176,7 +174,6 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
       <div class="relative h-full overflow-hidden rounded">
         <WhatsNewImage
           src={p.page.imageUrl!}
-          alt={rt(p.page.imageAlt)}
           wrapClass="absolute inset-0 h-full w-full"
           imgClass="h-full w-full object-cover"
         />
@@ -191,13 +188,12 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
   );
 }
 
-// Accessible image: alt text, hides itself on load failure, and under
-// prefers-reduced-motion renders a GIF's first frame on a canvas (an <img>
-// draws only frame 1; pixels are never read back, so cross-origin taint is
-// irrelevant) with a play button to opt back into the animation.
+// Post image: hides itself on load failure, and under prefers-reduced-motion
+// renders a GIF's first frame on a canvas (an <img> draws only frame 1; pixels
+// are never read back, so cross-origin taint is irrelevant) with a play button
+// to opt back into the animation.
 function WhatsNewImage(p: {
   src: string;
-  alt: string;
   wrapClass: string;
   imgClass: string;
   width?: string;
@@ -231,7 +227,7 @@ function WhatsNewImage(p: {
         fallback={
           <img
             src={p.src}
-            alt={p.alt}
+            alt=""
             class={`${p.wrapClass} ${p.imgClass}`}
             style={p.width ? { width: p.width } : undefined}
             onError={() => setFailed(true)}
@@ -242,7 +238,7 @@ function WhatsNewImage(p: {
           class={`relative ${p.wrapClass}`}
           style={p.width ? { width: p.width } : undefined}
         >
-          <canvas ref={canvasRef} class={p.imgClass} role="img" aria-label={p.alt} />
+          <canvas ref={canvasRef} class={p.imgClass} />
           <button
             type="button"
             class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"

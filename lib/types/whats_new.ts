@@ -38,7 +38,6 @@ export type WhatsNewPage = {
   title?: WhatsNewText;
   body: WhatsNewText; // markdown
   imageUrl?: string; // absolute URL on status-api; required for image presets
-  imageAlt?: WhatsNewText; // screen-reader description of the image
   layoutPreset: WhatsNewLayoutPreset;
 };
 
