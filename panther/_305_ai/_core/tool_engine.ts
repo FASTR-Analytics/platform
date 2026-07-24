@@ -34,10 +34,13 @@ export class ToolRegistry {
   // View-binding state for availableIn validation:
   //   undefined — unbound (standalone registry; no validation possible)
   //   null      — bound with NO view controller (availableIn is an error)
-  //   controller — bound to that controller's view ids AND identity
-  private boundController: { _viewIds(): string[] } | null | undefined =
-    undefined;
+  //   controller — bound to that controller's view ids AND its registry
+  private boundController:
+    | { _viewIds(): string[]; _registry(): unknown }
+    | null
+    | undefined = undefined;
   private boundViewIds: Set<string> | null = null;
+  private boundRegistry: unknown = undefined;
 
   // Approval-policy binding (Feature 4): null = bound with no policy;
   // undefined = unbound (standalone registry).
@@ -47,11 +50,16 @@ export class ToolRegistry {
   // registration and post-construction register() calls run the same
   // availableIn validation (a bad tool fails the app's boot or its smoke
   // test, never a live conversation).
-  bindViewController(controller: { _viewIds(): string[] } | null): void {
+  bindViewController(
+    controller: { _viewIds(): string[]; _registry(): unknown } | null,
+  ): void {
     this.boundController = controller;
     this.boundViewIds = controller === null
       ? null
       : new Set(controller._viewIds());
+    this.boundRegistry = controller === null
+      ? undefined
+      : controller._registry();
     for (const tool of this.tools.values()) {
       this.validateAvailableIn(tool);
     }
@@ -92,17 +100,29 @@ export class ToolRegistry {
   private validateAvailableIn<TInput>(tool: AIToolWithMetadata<TInput>): void {
     if (this.boundController === undefined) return;
     const name = tool.sdkTool.name;
-    // Identity, not just ids: a viewController.createTool /
-    // createNavigationTool handler reads ITS controller's live state —
-    // gating against a different controller instance (even one built from
-    // the same registry shape) would pass the gate while the handler sees
-    // another view's params/context. (Phase 5 review: the message used to
-    // hardcode "viewController.createTool", which is wrong for a tool made
-    // by createNavigationTool — kept generic now.)
-    const source = tool.metadata._viewController;
-    if (source !== undefined && source !== this.boundController) {
+    const source = tool.metadata._viewRegistry;
+    // Order matters: with NO controller, boundRegistry is undefined, so the
+    // pairing check below would also fire — and tell the consumer to fix a
+    // registry mismatch when the real problem is a missing controller.
+    // A views-typed tool's handler is called with the live view state the
+    // engine injects from the bound controller. Without a controller there
+    // is nothing to inject, and the handler would read undefined — same
+    // class of silent breakage as an ungated availableIn, so it fails the
+    // same way, at construction.
+    if (source !== undefined && this.boundController === null) {
       throw new Error(
-        `Tool "${name}" was created by a viewController method (createTool / createNavigationTool) on a DIFFERENT controller instance than this chat's viewController. Pass the same controller instance everywhere you create its tools.`,
+        `Tool "${name}" declares a views registry but the chat has no viewController — there would be no live view state to inject into its handler.`,
+      );
+    }
+    // Registry pairing, not just ids: a tool typed against registry A
+    // declares handler types for A's params/context. Registered on a chat
+    // gating against registry B, a coincidentally-matching view id would
+    // pass the gate and hand the handler a differently-shaped view. Note
+    // this compares the INERT registries — two CONTROLLERS over the same
+    // registry are fine, because handlers close over neither.
+    if (source !== undefined && source !== this.boundRegistry) {
+      throw new Error(
+        `Tool "${name}" was typed against a DIFFERENT view registry than this chat's viewController tracks. Pass the same defineAIViews registry to createAITool's \`views\` and to createAIViewController.`,
       );
     }
     const availableIn = tool.metadata.availableIn;
@@ -264,6 +284,10 @@ export function getInProgressItems(
 export async function processToolUses(
   content: ContentBlock[],
   toolRegistry: ToolRegistry,
+  // Live view accessor from the chat's controller, injected into every
+  // handler at execution (undefined for a chat with no view controller).
+  // Handlers see a snapshot: createAITool calls it once, at handler entry.
+  getView?: () => unknown,
 ): Promise<{
   results: ToolResult[];
   inProgressItems: DisplayItem[];
@@ -295,7 +319,12 @@ export async function processToolUses(
 
       try {
         // SDK tools have a run() method that executes the handler
-        const result = await toolWithMetadata.sdkTool.run(block.input);
+        // Prefer the engine entry point (carries the live view); a
+        // hand-constructed consumer tool that only has run() still works.
+        const sdk = toolWithMetadata.sdkTool;
+        const result = sdk.runWithView
+          ? await sdk.runWithView(block.input, getView)
+          : await sdk.run(block.input);
         return {
           type: "tool_result" as const,
           tool_use_id: block.id,

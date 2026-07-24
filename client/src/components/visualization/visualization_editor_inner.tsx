@@ -99,8 +99,11 @@ import { DuplicateVisualization } from "./duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
 import { VisualizationSettings } from "./visualization_settings";
-import { useAIProjectContext } from "../project_ai/context";
-import type { AIContext } from "../project_ai/types";
+import {
+  projectAIViewController,
+  restoreProjectAIView,
+  type ProjectAIViewState,
+} from "../project_ai/ai_views";
 import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type InnerProps = {
@@ -108,7 +111,7 @@ type InnerProps = {
   projectStateSnapshot: ProjectState;
   poDetail: PresentationObjectDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   /** Ephemeral mode only: live co-editing of the figure inside the host doc. */
   collabBinding?: VizFigureCollabBinding;
   onClose:
@@ -125,7 +128,6 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(
     defaultHeight,
   );
-  const { setAIContext, notifyAI } = useAIProjectContext();
 
   const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
     p.poDetail.lastUpdated,
@@ -151,7 +153,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     ...args: any[]
   ) => {
     (setTempConfig as any)(...args);
-    notifyAI({ type: "edited_viz_locally" });
+    projectAIViewController.notify("edited_viz_locally");
   };
 
   const [itemsHolder, setItemsHolder] = createSignal<
@@ -524,14 +526,18 @@ export function VisualizationEditorInner(p: InnerProps) {
 
     document.addEventListener("keydown", handleEditorKeyDown);
 
-    setAIContext({
-      mode: "editing_visualization",
-      vizId: p.mode === "edit" ? p.poDetail.id : null,
-      vizLabel: p.poDetail.label,
-      resultsValue: p.poDetail.resultsValue,
-      getTempConfig: () => tempConfig,
-      setTempConfig,
-    });
+    projectAIViewController.setView(
+      "editing_visualization",
+      {
+        vizId: p.mode === "edit" ? p.poDetail.id : null,
+        vizLabel: p.poDetail.label,
+      },
+      {
+        resultsValue: p.poDetail.resultsValue,
+        getTempConfig: () => tempConfig,
+        setTempConfig,
+      },
+    );
 
     if (collabEnabled) {
       const session = openPoSession(
@@ -600,7 +606,8 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   onCleanup(() => {
     document.removeEventListener("keydown", handleEditorKeyDown);
-    setAIContext(p.returnToContext ?? { mode: "viewing_visualizations" });
+    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
+    else projectAIViewController.setView("viewing_visualizations");
     const s = poSession();
     if (s) {
       // The server finalizes (checkpoints) the room when the last editor leaves;

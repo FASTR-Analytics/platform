@@ -65,10 +65,10 @@ import {
 } from "../_core/tool_failure.ts";
 import type {
   AIToolWithMetadata,
-  PrepareResult,
+  ProposalResult,
   ToolUIMetadata,
 } from "../_core/tool_helpers.ts";
-import { ApprovalPreviewBody } from "./_renderers/approval_renderer.tsx";
+import { ProposalPreviewBody } from "./_renderers/approval_renderer.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
 import { ConversationsContext } from "./use_conversations.ts";
@@ -131,6 +131,24 @@ type ToolUseBlock = {
   name: string;
   input: unknown;
 };
+
+// Would this block's input survive the tool's own schema? Used to decide
+// whether a navigation tool's attribution window should open at all — a
+// call the handler will never see must not stamp the user's next move as
+// AI-origin. The real validation still happens inside execution; this is a
+// cheap, side-effect-free preview of it (parse is pure).
+function parsesCleanly(
+  tool: AIToolWithMetadata,
+  input: unknown,
+): boolean {
+  if (!tool.sdkTool.parse) return true;
+  try {
+    tool.sdkTool.parse(input);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Race a handler await against the turn's abort signal. On abort the engine
 // stops waiting and synthesizes cancelled results — the abandoned handler's
@@ -331,7 +349,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   // view is outside the tool's set, the engine declines it: commit closures
   // capture view-local state that navigation tears down. Fires on the
   // pendingDecision transition too, so a view change DURING the async
-  // prepare is caught the moment the decision registers, and a decision
+  // propose is caught the moment the decision registers, and a decision
   // left pending while no pane was mounted is re-checked on the next mount.
   // Multiple mounted instances mean multiple watchers; resolution is
   // idempotent. Tools without availableIn opted out (view-independent).
@@ -452,7 +470,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       return {
         sections: assembleTurnSections({
           view: parts.view,
-          viewPrompt: parts.viewPrompt,
+          viewInstructions: parts.viewInstructions,
           digest: drained?.digest ?? null,
           consumer,
         }),
@@ -524,8 +542,19 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // normal error path (error() + tool_error item); the send promise still
     // resolves (await means "the attempt finished"). Later phases run more
     // consumer callbacks in the turn's extent (view labels, approval
-    // prepare) — they must stay inside this region.
+    // propose) — they must stay inside this region.
     try {
+      // Wait for the store's initial hydration attempt to settle before the
+      // first append — a turn that appended first would permanently skip
+      // hydration, and the finally's whole-record save would then destroy
+      // persisted history. Placed here (not in the callers) so EVERY
+      // turn-creating path is covered — direct sends AND the queue-drain
+      // effect — and the callers' synchronous check-then-claim stays intact
+      // (the turn is already claimed while we wait, so nothing can
+      // double-claim). `ready` never rejects (loadConversation catches
+      // internally; disabled persistence resolves immediately).
+      await ts.ready;
+
       // Storage normalization at turn creation: demote a FAILED prior
       // turn's carrier so its stale sections can never re-render on this
       // turn's wire (the render rule alone cannot distinguish that history
@@ -665,9 +694,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   }
 
   // ——— Tool approval lifecycle (Feature 4) ———————————————————————————————
-  // prepare a preview → present it → await the store-owned decision →
+  // propose a preview → show it → await the store-owned decision →
   // commit or report declined. The mutation cannot run before consent as a
-  // matter of API shape: commit only exists inside prepare's return and only
+  // matter of API shape: commit only exists inside propose's return and only
   // an accepted decision reaches it. Blocks the tool loop on a promise
   // (decision log #3 — end-and-resume rejected; a reload mid-approval loses
   // the turn, documented trade-off). Runs inside the turn's protected
@@ -749,8 +778,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     const approval = metadata.approval!;
     const toolName = block.name;
     const vc = config.viewController;
-    // The view the gate just passed in, captured BEFORE prepare's await — a
-    // mid-prepare navigation must name the view the user actually LEFT in
+    // The view the gate just passed in, captured BEFORE propose's await — a
+    // mid-propose navigation must name the view the user actually LEFT in
     // auto-decline messages, not the view they arrived in.
     const viewIdAtStart = vc ? String(vc.current().id) : undefined;
 
@@ -776,7 +805,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       ]);
     };
 
-    // A spinner while prepare runs (this block was excluded from the
+    // A spinner while propose runs (this block was excluded from the
     // upfront batch); removed before the card appears and in the finally —
     // an awaiting tool never shows a spinner alongside its real card.
     const progressItem = buildInProgressItem(block, toolRegistry);
@@ -797,19 +826,21 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         return approvalErrorOutput(block, metadata, err);
       }
 
-      // 2. prepare — read-only by contract; receives the turn's signal so a
-      // long server-side prepare can cancel on Stop.
-      let prep: PrepareResult<unknown>;
+      // 2. propose — read-only by contract; receives the turn's signal so a
+      // long server-side propose can cancel on Stop.
+      let prep: ProposalResult<unknown>;
       try {
-        prep = await approval.prepare(input, { signal: turn.abort.signal });
+        prep = await approval.propose(input, vc?.current(), {
+          signal: turn.abort.signal,
+        });
       } catch (err) {
         return approvalErrorOutput(block, metadata, err);
       }
 
-      // A stopped turn must not present a card (Stop during prepare).
+      // A stopped turn must not present a card (Stop during propose).
       if (turn.abort.signal.aborted) return interruptedOutput();
 
-      // Shape validation (review H1): prepare's RETURN VALUE is consumer
+      // Shape validation (review H1): propose's RETURN VALUE is consumer
       // data — a type-erased consumer (or a forgotten `return` on one code
       // path) can hand back undefined/null/a primitive, and consuming it
       // unguarded rejected the lifecycle, leaving a PERSISTED dangling
@@ -821,9 +852,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           block,
           metadata,
           new Error(
-            `approval.prepare for "${toolName}" returned ${
+            `approval.propose for "${toolName}" returned ${
               prep === null ? "null" : typeof prep
-            } instead of a PrepareResult ({skip} | {invalid} | {preview, commit}) — a code path probably forgot to return.`,
+            } instead of a ProposalResult ({skip} | {invalid} | {preview, commit}) — a code path probably forgot to return.`,
           ),
         );
       }
@@ -855,7 +886,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         };
       }
       if ("invalid" in prep) {
-        // Validation failed in prepare — expected-failure display, commit
+        // Validation failed in propose — expected-failure display, commit
         // never existed.
         return approvalErrorOutput(
           block,
@@ -864,25 +895,26 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         );
       }
 
-      const { preview, commit, stillValid, present } = prep;
+      const { preview, commit, stillValid, customProposalUI } = prep;
       if (
         preview === null || typeof preview !== "object" ||
         typeof commit !== "function" ||
-        (present !== undefined && typeof present !== "function") ||
+        (customProposalUI !== undefined &&
+          typeof customProposalUI !== "function") ||
         (stillValid !== undefined && typeof stillValid !== "function")
       ) {
         return approvalErrorOutput(
           block,
           metadata,
           new Error(
-            `approval.prepare for "${toolName}" returned a malformed preview arm — expected {preview: object, commit: function, stillValid?: function, present?: function}.`,
+            `approval.propose for "${toolName}" returned a malformed preview arm — expected {preview: object, commit: function, stillValid?: function, customProposalUI?: function}.`,
           ),
         );
       }
       const previewTitle = String(preview.title);
 
-      // prepare is done — remove the spinner before ANY presentation shape
-      // (review M3: it used to linger through the modal and present()
+      // propose is done — remove the spinner before ANY presentation shape
+      // (review M3: it used to linger through the modal and customProposalUI
       // paths for the whole decision window); the finally's removal stays
       // as the backstop for the arms above.
       removeDisplayItemFrom(ts, progressItem);
@@ -906,10 +938,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       };
 
-      // Session auto-approve short-circuit: prepare ran (fresh preview and
+      // Session auto-approve short-circuit: propose ran (fresh preview and
       // commit), presentation is skipped entirely. No decision registers on
       // this path, so the auto-decline watcher cannot see a view exit that
-      // happened during prepare's await — re-check the live view here before
+      // happened during propose's await — re-check the live view here before
       // committing (commit closures capture view-local state that navigation
       // tears down).
       if (
@@ -954,7 +986,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           ts.pendingDecision[1](null);
         }
       };
-      const sessionCheckbox = approval.mode === "session" && !present &&
+      const sessionCheckbox = approval.mode === "session" &&
+        !customProposalUI &&
         approval.presentation === "inline";
       ts.pendingDecision[1]({
         toolName,
@@ -967,15 +1000,15 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
       // 4. Present. Three shapes, one decision. If the decision resolved
       // the moment it registered (the auto-decline watcher fires on the
-      // pendingDecision transition — a view change during prepare), skip
+      // pendingDecision transition — a view change during propose), skip
       // presentation entirely.
       if (settled) {
         // fall through to await the already-resolved promise
-      } else if (present) {
-        // Custom presenter (staged diff inside an editor). The signal
-        // aborts when the engine resolves the decision EXTERNALLY
+      } else if (customProposalUI) {
+        // The app's own proposal-review UI (staged diff inside an editor).
+        // The signal aborts when the engine resolves the decision EXTERNALLY
         // (view-exit auto-decline, Stop) so the staged UI cleans up
-        // deterministically. A custom-presenter acceptance never sets the
+        // deterministically. A customProposalUI acceptance never sets the
         // session flag (no checkbox affordance).
         const presenterAbort = new AbortController();
         decisionPromise.then((outcome) => {
@@ -985,21 +1018,33 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             presenterAbort.abort();
           }
         });
-        // A presenter that throws SYNCHRONOUSLY gets the same treatment as
-        // an async rejection (review H1b): declined + logged — before this
-        // guard the throw rejected the lifecycle and bricked the
-        // conversation.
+        // A customProposalUI that throws SYNCHRONOUSLY gets the same
+        // treatment as an async rejection (review H1b): declined + logged —
+        // before this guard the throw rejected the lifecycle and bricked
+        // the conversation.
         try {
-          present(presenterAbort.signal).then(
-            (accepted) =>
+          customProposalUI(presenterAbort.signal).then(
+            (accepted) => {
+              // Post-abort resolutions are no-ops (decide is idempotent).
+              // Resolving FALSE after abort is the normal cleanup path (the
+              // UI closes itself and its dialog resolves declined). But an
+              // ACCEPT after abort means the staged UI was still
+              // interactable when it should have been gone — the abort
+              // cleanup contract was breached. Surface that in dev.
+              if (accepted && presenterAbort.signal.aborted) {
+                console.warn(
+                  `customProposalUI for "${toolName}" resolved ACCEPTED after its abort signal fired — the staged UI was still interactable post-abort. Wire signal.addEventListener("abort", …) to close it.`,
+                );
+              }
               decide(
                 accepted
                   ? { kind: "accepted", alwaysThisSession: false }
                   : { kind: "declined" },
-              ),
+              );
+            },
             (err) => {
               console.error(
-                `Approval presenter for "${toolName}" rejected; treating as declined.`,
+                `customProposalUI for "${toolName}" rejected; treating as declined.`,
                 err,
               );
               decide({ kind: "declined" });
@@ -1007,7 +1052,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           );
         } catch (err) {
           console.error(
-            `Approval presenter for "${toolName}" threw; treating as declined.`,
+            `customProposalUI for "${toolName}" threw; treating as declined.`,
             err,
           );
           decide({ kind: "declined" });
@@ -1023,7 +1068,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           // Lazy thunk: the preview body builds DOM only when the dialog
           // actually renders. Solid's insert() unwraps function children at
           // runtime; the JSX.Element type just doesn't admit them — cast.
-          text: (() => ApprovalPreviewBody({ preview })) as unknown as Element,
+          text: (() => ProposalPreviewBody({ preview })) as unknown as Element,
           intent: preview.intent === "danger" ? "danger" : "primary",
           confirmButtonLabel: preview.confirmLabel,
         }).then((accepted) =>
@@ -1035,7 +1080,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         );
       } else {
         // Inline card — a pure view over the store's decision plus this
-        // display item (the spinner was already removed after prepare).
+        // display item (the spinner was already removed after propose).
         cardItem = {
           type: "approval_pending",
           toolName,
@@ -1409,7 +1454,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           const blockTool = toolRegistry.get(block.name);
 
           // Approval lifecycle (Feature 4) — raced like any handler await
-          // so Stop finalizes the turn even mid-decision or mid-prepare
+          // so Stop finalizes the turn even mid-decision or mid-propose
           // (stopGeneration also resolves the pending decision, so the
           // detached lifecycle cleans up its card).
           if (blockTool?.metadata.approval) {
@@ -1461,9 +1506,35 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           // Use existing tool processing for custom tools — raced against
           // the turn's abort signal so Stop finalizes the turn even when a
           // handler never resolves.
+          // AI-navigation attribution (createNavigationTool): open the
+          // controller's window around the WHOLE execution, so any
+          // setView/clearView the app's routing fires — synchronously inside
+          // onAiNavigation, or from a mount effect it triggers — is stamped
+          // origin "ai" and dropped from the __navigation digest instead of
+          // reading as "User navigated". The window is a TIME window
+          // (navAttributionMs): the mark after execution EXTENDS it rather
+          // than closing it, which is what covers a route still settling. (A
+          // fire-and-forget router that settles beyond that needs the public
+          // markAINavigation() escape hatch — see the tool's contract.)
+          //
+          // Gated on the input PARSING, not just on the tool: attribution
+          // used to live inside the nav handler, i.e. after validation, and
+          // a schema-rejected call opened no window. Opening one here for a
+          // call that never executes would stamp the user's own next
+          // navigation as AI-origin and swallow it from the digest.
+          const attributesNav = blockTool?.metadata.attributesNavigation ===
+              true &&
+            vc !== undefined && parsesCleanly(blockTool!, block.input);
+          if (attributesNav) vc!.markAINavigation();
           const outcome = await raceAbort(
             turn.abort.signal,
-            processToolUses([block], toolRegistry),
+            processToolUses(
+              [block],
+              toolRegistry,
+              vc ? () => vc.current() : undefined,
+            ).finally(() => {
+              if (attributesNav) vc!.markAINavigation();
+            }),
           );
           turn.cancelPendingInteraction = null;
           if (outcome.aborted) {

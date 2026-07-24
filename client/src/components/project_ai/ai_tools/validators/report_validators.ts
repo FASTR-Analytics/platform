@@ -1,4 +1,5 @@
 import type { FigureBlock, ImageBlock } from "lib";
+import { AIToolFailure } from "panther";
 
 const EMBED_TOKEN_RE = /!\[[^\]]*\]\((figure|image):([^)\s]+)\)/g;
 
@@ -20,7 +21,7 @@ export function validateReportTokensResolve(
     if (kind === "image" && !images[id]) unresolved.push(`image:${id}`);
   }
   if (unresolved.length > 0) {
-    throw new Error(
+    throw new AIToolFailure(
       `Unresolved embed token(s): ${unresolved.join(", ")}. Only reference figure/image ids that already exist (call get_report_editor to list them); do not invent ids.`,
     );
   }
@@ -30,7 +31,7 @@ const MAX_BODY_LENGTH = 200_000;
 
 export function validateReportBodyLength(markdown: string): void {
   if (markdown.length > MAX_BODY_LENGTH) {
-    throw new Error(
+    throw new AIToolFailure(
       `Report body is too long (${markdown.length} chars; max ${MAX_BODY_LENGTH}).`,
     );
   }

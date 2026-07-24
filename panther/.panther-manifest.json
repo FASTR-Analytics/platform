@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-07-21T08:11:11.779Z",
-  "pantherGitCommit": "5bf13c5",
+  "timestamp": "2026-07-23T12:57:02.053Z",
+  "pantherGitCommit": "1a7b67c",
   "pantherGitDirty": true,
   "mode": "both",
   "configName": "wb-fastr",
@@ -15,6 +15,7 @@
     "PROTOCOL_UI_STATE.md",
     "PROTOCOL_UI_STYLING.md",
     "PROTOCOL_UI_COMPONENTS.md",
-    "PROTOCOL_UI_STRUCTURE.md"
+    "PROTOCOL_UI_STRUCTURE.md",
+    "PROTOCOL_UI_AI_CHAT.md"
   ]
 }

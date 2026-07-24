@@ -1,45 +1,14 @@
 import { createContext, useContext, createSignal, type ParentProps } from "solid-js";
-import type { AIContext, AIProjectContextValue, AIUserInteraction, DraftContent } from "./types";
-import { reduceInteractions, formatInteraction } from "./interactions";
+import type { AIProjectContextValue, DraftContent } from "./types";
 
 const AIProjectContext = createContext<AIProjectContextValue>();
 
 export function AIProjectContextProvider(props: ParentProps) {
-  const [aiContext, setAIContextInternal] = createSignal<AIContext>({ mode: "viewing_visualizations" });
   const [draftContent, setDraftContent] = createSignal<DraftContent>(null);
-  const [pendingInteractions, setPendingInteractions] = createSignal<AIUserInteraction[]>([]);
-
-  const notifyAI = (interaction: AIUserInteraction) => {
-    setPendingInteractions((prev) => [...prev, interaction]);
-  };
-
-  const setAIContext = (ctx: AIContext) => {
-    setAIContextInternal(ctx);
-  };
-
-  const getPendingInteractionsMessage = (): string | null => {
-    const interactions = pendingInteractions();
-    if (interactions.length === 0) return null;
-
-    const reduced = reduceInteractions(interactions, aiContext());
-    if (reduced.length === 0) return null;
-
-    const lines = reduced.map(formatInteraction);
-    return `User actions since last message:\n${lines.join("\n")}`;
-  };
-
-  const clearPendingInteractions = () => {
-    setPendingInteractions([]);
-  };
 
   const value: AIProjectContextValue = {
-    aiContext,
-    setAIContext,
     draftContent,
     setDraftContent,
-    notifyAI,
-    getPendingInteractionsMessage,
-    clearPendingInteractions,
   };
 
   return (

@@ -230,15 +230,14 @@ export function measureTable(
 
   const finalContentH = maxY - contentRcd.y();
   const extraSpaceForFlexPositiveOrNegative = contentRcd.h() - finalContentH;
-  const totalRowsAndAllHeaders = (hasColGroupHeaders ? 1 : 0) +
-    (hasColHeaders ? 1 : 0) +
-    measuredRows.length;
-  const extraPaddingForRowsAndAllHeaders = extraSpaceForFlexPositiveOrNegative /
-    totalRowsAndAllHeaders;
-  const extraTopPaddingForRowsAndAllHeaders = extraPaddingForRowsAndAllHeaders /
-    2;
-  const extraBottomPaddingForRowsAndAllHeaders =
-    extraPaddingForRowsAndAllHeaders / 2;
+  // Only body rows stretch to fill available height; col-group/col headers
+  // always render at their natural (ideal) height, mirroring how row headers
+  // stay a constant width horizontally while cell columns absorb the slack.
+  const extraPaddingPerRow = measuredRows.length > 0
+    ? extraSpaceForFlexPositiveOrNegative / measuredRows.length
+    : 0;
+  const extraTopPaddingForRows = extraPaddingPerRow / 2;
+  const extraBottomPaddingForRows = extraPaddingPerRow / 2;
 
   const measuredInfo: TableMeasuredInfo = {
     contentRcd,
@@ -254,22 +253,16 @@ export function measureTable(
     colHeaderInfos,
     colHeaderMaxHeight,
     colInnerWidths,
-    colHeadersInnerY: colHeadersInnerY +
-      (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0),
-    //
-    firstCellY: firstCellY +
-      (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0) +
-      (hasColHeaders ? extraPaddingForRowsAndAllHeaders : 0),
-    firstCellYUnadjusted: firstCellY,
+    colHeadersInnerY,
+    firstCellY,
     hasRowHeaders,
     measuredRows,
     hasRowGroupHeaders,
     rowHeadersInnerX,
-    colGroupHeaderAxisY: colGroupHeaderAxisY +
-      (hasColGroupHeaders ? extraPaddingForRowsAndAllHeaders : 0),
+    colGroupHeaderAxisY,
     finalContentH,
-    extraTopPaddingForRowsAndAllHeaders,
-    extraBottomPaddingForRowsAndAllHeaders,
+    extraTopPaddingForRows,
+    extraBottomPaddingForRows,
   };
 
   const surroundsPrimitives = generateSurroundsPrimitives(measuredSurrounds);

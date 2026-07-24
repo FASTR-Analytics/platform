@@ -396,12 +396,13 @@ export function buildInteractionDigest(
 
 export type TurnSectionParts = {
   view?: { id: string; label: string | null } | null;
-  viewPrompt?: string | null;
+  viewInstructions?: string | null;
   digest?: string | null;
   consumer?: string | null;
 };
 
-// Section order is a stated contract: view label, then per-view prompt, then
+// Section order is a stated contract: view label, then per-view
+// instructions, then
 // interaction digest, then the consumer hook's free-form context. Empty
 // strings are dropped like nulls — a section never renders blank.
 export function assembleTurnSections(
@@ -414,8 +415,8 @@ export function assembleTurnSections(
       text: buildViewLabelSectionText(parts.view.id, parts.view.label),
     });
   }
-  if (parts.viewPrompt) {
-    sections.push({ kind: "view-prompt", text: parts.viewPrompt });
+  if (parts.viewInstructions) {
+    sections.push({ kind: "view-instructions", text: parts.viewInstructions });
   }
   if (parts.digest) {
     sections.push({ kind: "digest", text: parts.digest });

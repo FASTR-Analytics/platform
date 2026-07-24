@@ -17,7 +17,7 @@ import {
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
-import type { AIContext } from "~/components/project_ai/types";
+import type { ProjectAIViewState } from "~/components/project_ai/ai_views";
 
 export type EditModeReturn = undefined | { deleted: true } | { saved: true };
 export type CreateModeReturn =
@@ -61,7 +61,7 @@ type EditModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   close: (result: EditModeReturn) => void;
 };
 
@@ -73,7 +73,7 @@ type CreateModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   close: (result: CreateModeReturn) => void;
 };
 
@@ -85,7 +85,7 @@ type EphemeralModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   /** When present + live, the figure is co-edited in the host doc (see type). */
   collabBinding?: VizFigureCollabBinding;
   close: (result: EphemeralModeReturn) => void;

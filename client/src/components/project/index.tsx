@@ -43,7 +43,11 @@ import {
   setModuleLatestCommits,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
-import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
+import { AIProjectWrapper } from "../project_ai";
+import {
+  PROJECT_TAB_TO_VIEW,
+  projectAIViewController,
+} from "../project_ai/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 import {
@@ -57,45 +61,19 @@ type Props = {
 };
 
 function AIContextSync() {
-  const { setAIContext } = useAIProjectContext();
-
   createEffect(() => {
-    const tab = projectTab();
-    switch (tab) {
-      case "visualizations":
-        setAIContext({ mode: "viewing_visualizations" });
-        break;
-      case "reports":
-        setAIContext({ mode: "viewing_reports" });
-        break;
-      case "decks":
-        setAIContext({ mode: "viewing_slide_decks" });
-        break;
-      case "data":
-        setAIContext({ mode: "viewing_data" });
-        break;
-      case "metrics":
-        setAIContext({ mode: "viewing_metrics" });
-        break;
-      case "modules":
-        setAIContext({ mode: "viewing_modules" });
-        break;
-      case "settings":
-        setAIContext({ mode: "viewing_settings" });
-        break;
-      case "dashboards":
-        setAIContext({ mode: "viewing_dashboards" });
-        break;
-      case "cache":
-        setAIContext({ mode: "viewing_cache" });
-        break;
-    }
+    projectAIViewController.setView(PROJECT_TAB_TO_VIEW[projectTab()]);
   });
 
   return null;
 }
 
 export default function Project(p: Props) {
+  // The view controller is a module singleton but its interaction log is
+  // project-scoped data: without this, a client-side project switch (the
+  // keyed <Match> remounts us) delivers the previous project's retained
+  // actions to this project's first digest as fake user activity.
+  projectAIViewController.clearInteractionLog();
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
       <ProjectInner />

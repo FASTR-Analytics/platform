@@ -5,9 +5,9 @@ import {
   presentationObjectConfigTStrict,
   type MetricWithStatus,
 } from "lib";
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { AIContext } from "~/components/project_ai/types";
+import { projectAIViews } from "~/components/project_ai/ai_views";
 import { convertPeriodValue } from "lib";
 import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
@@ -74,23 +74,20 @@ const vizConfigUpdateSchema = z.object({
 
 export function getToolsForVizEditor(
   projectId: string,
-  getAIContext: () => AIContext,
   metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
+      viewRegistry: projectAIViews,
       name: "get_viz_editor",
       description: "Get current configuration, available options, and underlying CSV data for the visualization being edited. Shows live state from the editor (including unsaved changes). Call this to understand current settings and see the data.",
       inputSchema: z.object({}),
-      handler: async () => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_visualization") {
-          throw new Error("This tool is only available when editing a visualization");
-        }
-
-        const config = ctx.getTempConfig();
-        const resultsValue = ctx.resultsValue;
-        const presentationObjectId = ctx.vizId;
+      availableIn: ["editing_visualization"],
+      kind: "read",
+      handler: async (_input, view) => {
+        const config = view.context.getTempConfig();
+        const resultsValue = view.context.resultsValue;
+        const presentationObjectId = view.params.vizId;
 
         const metric = metrics.find(m => m.id === resultsValue.id);
         const dataOutput = await getDataFromConfig(projectId, resultsValue.id, metrics, config, metric?.aiDescription);
@@ -101,15 +98,14 @@ export function getToolsForVizEditor(
       completionMessage: "Retrieved visualization",
     }),
     createAITool({
+      viewRegistry: projectAIViews,
       name: "update_viz_config",
       description: "Update the visualization configuration. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save button. Use get_viz_editor to see current state and valid options.",
       inputSchema: vizConfigUpdateSchema,
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_visualization") {
-          throw new Error("This tool is only available when editing a visualization");
-        }
-
+      availableIn: ["editing_visualization"],
+      kind: "write",
+      handler: async (input, view) => {
+        const ctx = view.context;
         const resultsValue = ctx.resultsValue;
         const setTempConfig = ctx.setTempConfig;
         const changes: string[] = [];
@@ -119,13 +115,13 @@ export function getToolsForVizEditor(
 
         // Runtime validation for data-dependent constraints
         if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
-          throw new Error(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
+          throw new AIToolFailure(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         }
 
         if (input.valuesDisDisplayOpt) {
           const valid = VALID_VALUES_DISPLAY[effectiveType];
           if (valid && !valid.includes(input.valuesDisDisplayOpt)) {
-            throw new Error(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
+            throw new AIToolFailure(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
           }
         }
 
@@ -134,10 +130,10 @@ export function getToolsForVizEditor(
           const availableDims = resultsValue.disaggregationOptions.map(o => o.value);
           for (const d of input.disaggregateBy) {
             if (!availableDims.includes(d.disOpt)) {
-              throw new Error(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
+              throw new AIToolFailure(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
             }
             if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
-              throw new Error(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
+              throw new AIToolFailure(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
             }
           }
         }
@@ -156,7 +152,7 @@ export function getToolsForVizEditor(
             },
           };
           if (getEffectiveRollupLevel(resultsValue, candidate) === undefined) {
-            throw new Error(
+            throw new AIToolFailure(
               "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a re-aggregatable metric (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). No changes were applied.",
             );
           }
@@ -227,7 +223,7 @@ export function getToolsForVizEditor(
           } else {
             const filterPeriodOpt = resultsValue.mostGranularTimePeriodColumnInResultsFile;
             if (!filterPeriodOpt) {
-              throw new Error("Cannot set periodFilter: metric has no time period column");
+              throw new AIToolFailure("Cannot set periodFilter: metric has no time period column");
             }
             const rawMin = input.periodFilter.min;
             const rawMax = input.periodFilter.max;
@@ -247,7 +243,7 @@ export function getToolsForVizEditor(
                 );
                 dataBounds = infoRes.success ? infoRes.data.periodBounds : undefined;
                 if (!dataBounds) {
-                  throw new Error(
+                  throw new AIToolFailure(
                     "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
                   );
                 }

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { getLanguage } from "../deps.ts";
 import type { Language, ZonedDateTime } from "../deps.ts";
 import type { Intent } from "../types.ts";
@@ -134,63 +134,6 @@ export function YearSelect(p: YearSelectProps) {
         intent={p.intent}
         fullWidth
         invalidMsg={p.invalidMsg}
-        size={p.size}
-      />
-    </div>
-  );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// PeriodSelect
-////////////////////////////////////////////////////////////////////////////////
-
-type PeriodSelectProps = {
-  value: string;
-  onChange: (periodId: string) => void;
-  minYear?: number;
-  maxYear?: number;
-  yearLabel?: string;
-  monthLabel?: string;
-  intent?: Intent;
-  size?: "sm";
-};
-
-export function PeriodSelect(p: PeriodSelectProps) {
-  const [year, setYear] = createSignal(p.value.slice(0, 4));
-  const [month, setMonth] = createSignal(p.value.slice(4, 6));
-
-  const handleYearChange = (newYear: string) => {
-    setYear(newYear);
-    const m = month();
-    if (newYear && m) {
-      p.onChange(`${newYear}${m}`);
-    }
-  };
-
-  const handleMonthChange = (newMonth: string) => {
-    setMonth(newMonth);
-    const y = year();
-    if (y && newMonth) {
-      p.onChange(`${y}${newMonth}`);
-    }
-  };
-
-  return (
-    <div class="flex gap-4">
-      <YearSelect
-        value={year()}
-        onChange={handleYearChange}
-        minYear={p.minYear}
-        maxYear={p.maxYear}
-        label={p.yearLabel}
-        intent={p.intent}
-        size={p.size}
-      />
-      <MonthSelect
-        value={month()}
-        onChange={handleMonthChange}
-        label={p.monthLabel}
-        intent={p.intent}
         size={p.size}
       />
     </div>

@@ -265,5 +265,20 @@ export function createInteractionLog(
         },
       };
     },
+    // Full reset for a consumer scope change (the app moved to a different
+    // project/workspace in the same SPA session, so retained entries no
+    // longer describe the current scope). Drops entries, echo marks,
+    // per-conversation cursors, and any open AI-navigation window. `nextSeq`
+    // stays monotonic so cursor arithmetic never sees seqs reused. A
+    // restore() held by an in-flight turn that fires AFTER a clear
+    // re-instates that conversation's old (high) cursor — it may then miss
+    // post-clear entries below it; acceptable, since that conversation
+    // belongs to the pre-clear scope.
+    clear(): void {
+      log = [];
+      cursors.clear();
+      marks.clear();
+      aiNavWindowUntil = 0;
+    },
   };
 }

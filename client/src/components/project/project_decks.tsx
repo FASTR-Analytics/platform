@@ -26,7 +26,7 @@ import { SlideDeckThumbnail } from "../slide_deck/slide_deck_thumbnail";
 import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import {
   deckGroupingMode,
   setDeckGroupingMode,
@@ -68,7 +68,6 @@ type ExtendedProps = {
 };
 
 export function ProjectDecks(p: ExtendedProps) {
-  const { aiContext } = useAIProjectContext();
 
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
@@ -77,7 +76,7 @@ export function ProjectDecks(p: ExtendedProps) {
         deckId,
         reportLabel: deckLabel,
         projectState: projectState,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
       },
     });
   }

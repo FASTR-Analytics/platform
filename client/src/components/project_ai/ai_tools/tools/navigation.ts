@@ -1,9 +1,19 @@
 import { createAITool } from "panther";
 import { z } from "zod";
 import { updateProjectView } from "~/state/t4_ui";
-import type { AIContext } from "../../types";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 
-export function getToolsForNavigation(aiContext: () => AIContext) {
+// Kept as a PLAIN tool (PLAN_FUTURE_AI_ADOPTIONS.md feature 8, option 2): the
+// family guard below is deliberately a SOFT return, not a throw — a throw
+// would flip the refusal to is_error on the wire — and createNavigationTool's
+// refusal channel is a hard AIToolFailure throw, so rewriting onto it would
+// change today's behavior. The `startsWith("editing_")` check must stay a
+// family test (not an enumerated availableIn whitelist), which would silently
+// drift when a view is added. markAINavigation() before updateProjectView
+// stamps the resulting setView (the tab effect in project/index.tsx) origin
+// "ai" so it drops from the __navigation digest — the tab switch is
+// synchronous (state/t4_ui.ts), so one mark before the call suffices.
+export function getToolsForNavigation() {
   return [
     createAITool({
       name: "switch_tab",
@@ -14,11 +24,12 @@ export function getToolsForNavigation(aiContext: () => AIContext) {
           .enum(["reports", "decks", "visualizations", "metrics", "modules", "data", "settings"])
           .describe("The tab to switch to"),
       }),
+      kind: "nav",
       handler: async (input) => {
-        const ctx = aiContext();
-        if (ctx.mode.startsWith("editing_")) {
+        if (projectAIViewController.current().id.startsWith("editing_")) {
           return "Cannot switch tabs - user is currently editing. Ask them to save/close first.";
         }
+        projectAIViewController.markAINavigation();
         updateProjectView({ tab: input.tab });
         return `Switched to ${input.tab} tab`;
       },

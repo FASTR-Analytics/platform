@@ -17,6 +17,7 @@ import {
   assertNotUndefined,
   createArray,
   type HeaderItem,
+  type HeaderSortConfig,
   type HeaderSortFunc,
   type JsonArray,
   type JsonArrayItem,
@@ -51,32 +52,45 @@ function getTableDataJsonTransformed(
     throw new Error("Need at least one valueProp");
   }
 
+  const col = promoteGroupPropIfNoItemProp(
+    colGroupProp,
+    colProp,
+    sort?.colGroup,
+    sort?.col,
+  );
+  const row = promoteGroupPropIfNoItemProp(
+    rowGroupProp,
+    rowProp,
+    sort?.rowGroup,
+    sort?.row,
+  );
+
   // Build structured axes from raw JSON
   const colAxis = buildStructuredAxis(
     jsonArray,
     valueProps,
-    colGroupProp,
-    colProp,
+    col.groupProp,
+    col.itemProp,
     labelReplacements,
   );
   const rowAxis = buildStructuredAxis(
     jsonArray,
     valueProps,
-    rowGroupProp,
-    rowProp,
+    row.groupProp,
+    row.itemProp,
     labelReplacements,
   );
 
   // Sort each axis independently
   const sortedColAxis = sortStructuredAxis(
     colAxis,
-    resolveSortFunc(sort?.colGroup),
-    resolveSortFunc(sort?.col),
+    resolveSortFunc(col.groupSort),
+    resolveSortFunc(col.itemSort),
   );
   const sortedRowAxis = sortStructuredAxis(
     rowAxis,
-    resolveSortFunc(sort?.rowGroup),
-    resolveSortFunc(sort?.row),
+    resolveSortFunc(row.groupSort),
+    resolveSortFunc(row.itemSort),
   );
 
   // Flatten to ColGroup[]/RowGroup[] and build index mappings
@@ -97,10 +111,10 @@ function getTableDataJsonTransformed(
     aoa,
     jsonArray,
     valueProps,
-    colGroupProp,
-    colProp,
-    rowGroupProp,
-    rowProp,
+    col.groupProp,
+    col.itemProp,
+    row.groupProp,
+    row.itemProp,
     colComboToIndex,
     rowComboToIndex,
   );
@@ -130,11 +144,40 @@ type StructuredAxisGroup = {
 
 type StructuredAxis = StructuredAxisGroup[];
 
+type PromotedAxisProps = {
+  groupProp: string | "--v" | undefined;
+  itemProp: string | "--v" | undefined;
+  groupSort: HeaderSortConfig | undefined;
+  itemSort: HeaderSortConfig | undefined;
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
 ///////////////////////////////////////////////////////////////////////////////
 
 const UNDEFINED_PLACEHOLDER = "___";
+
+// A group prop with no item prop produces exactly one blank item per group
+// (see buildStructuredAxis) — a group-header tier over an empty item tier.
+// Promoting the group values into the item slot collapses that to an
+// ordinary flat item axis, carrying over whatever sort was configured for
+// the group.
+function promoteGroupPropIfNoItemProp(
+  groupProp: string | "--v" | undefined,
+  itemProp: string | "--v" | undefined,
+  groupSort: HeaderSortConfig | undefined,
+  itemSort: HeaderSortConfig | undefined,
+): PromotedAxisProps {
+  if (itemProp !== undefined || groupProp === undefined) {
+    return { groupProp, itemProp, groupSort, itemSort };
+  }
+  return {
+    groupProp: undefined,
+    itemProp: groupProp,
+    groupSort: undefined,
+    itemSort: itemSort ?? groupSort,
+  };
+}
 
 function buildStructuredAxis(
   jsonArray: JsonArray,

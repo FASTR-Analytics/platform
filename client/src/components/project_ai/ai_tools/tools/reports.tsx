@@ -1,5 +1,5 @@
 import type { ReportSummary } from "lib";
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import { serverActions } from "~/server_actions";
 
@@ -20,6 +20,7 @@ export function getToolsForReports(
       handler: async () => formatReportsListForAI(reports),
       inProgressLabel: "Getting available reports...",
       completionMessage: "Retrieved reports list",
+      kind: "read",
     }),
 
     createAITool({
@@ -32,7 +33,7 @@ export function getToolsForReports(
           projectId,
           report_id: input.reportId,
         });
-        if (!res.success) return `Error: ${res.err}`;
+        if (!res.success) throw new AIToolFailure(res.err);
         const figureIds = Object.keys(res.data.figures);
         const imageIds = Object.keys(res.data.images);
         return [
@@ -47,6 +48,7 @@ export function getToolsForReports(
       },
       inProgressLabel: "Reading report...",
       completionMessage: "Read report",
+      kind: "read",
     }),
 
     createAITool({
@@ -63,7 +65,7 @@ export function getToolsForReports(
           label: input.label,
           folderId: null,
         });
-        if (!createRes.success) return `Error: ${createRes.err}`;
+        if (!createRes.success) throw new AIToolFailure(createRes.err);
         const bodyRes = await serverActions.updateReportBody({
           projectId,
           report_id: createRes.data.reportId,
@@ -72,12 +74,15 @@ export function getToolsForReports(
           overwrite: true,
         });
         if (!bodyRes.success) {
-          return `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`;
+          throw new AIToolFailure(
+            `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`,
+          );
         }
         return `Created report "${input.label}" (id: ${createRes.data.reportId}).`;
       },
       inProgressLabel: "Creating report...",
       completionMessage: "Created report",
+      kind: "write",
     }),
   ];
 }

@@ -2,6 +2,8 @@ import {
   AIChatProvider,
   type AIChatConfig,
   FrameRightResizable,
+  buildToolCatalog,
+  validateAIChatConfig,
 } from "panther";
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import {
@@ -10,6 +12,7 @@ import {
   createProjectSDKClient,
 } from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
+import { projectAIViewController } from "./ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildToolsForContext } from "./build_tools";
@@ -30,12 +33,6 @@ export function AIProjectWrapper(props: ParentProps) {
 }
 
 function AIProjectWrapperInner(props: ParentProps) {
-  const {
-    aiContext,
-    notifyAI,
-    getPendingInteractionsMessage,
-    clearPendingInteractions,
-  } = useAIProjectContext();
   const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
@@ -57,32 +54,40 @@ function AIProjectWrapperInner(props: ParentProps) {
     visualizations: projectState.visualizations,
     slideDecks: projectState.slideDecks,
     reports: projectState.reports,
-    aiContext: aiContext,
   });
 
+  // CACHE RULE: no currentView here — the no-view catalog is byte-stable;
+  // view-grouped ordering would bust the system-prompt cache breakpoint on
+  // every navigation.
+  const toolCatalog = buildToolCatalog(tools);
+
+  // Byte-stable across navigation (Rung 3): no longer takes a mode/view
+  // argument — per-view instructions now ride each view's instructions
+  // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
+  // this string.
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(aiContext(), instanceState, projectState),
+    buildSystemPromptForContext(instanceState, projectState, toolCatalog),
   );
 
-  // Subscribe to SSE changes - track ALL changes, filter later in reducer
+  // Subscribe to SSE changes - notify on ALL changes; the interaction
+  // registry (interactions.ts) filters per view at drain, and echo keys drop
+  // the AI's own persisted writes (markAIEdit in the write tools).
   onMount(() => {
     const cleanup = addLastUpdatedListener((tableName, ids, timestamp) => {
-      // Slides - always notify (reducer filters by deck)
       if (tableName === "slides") {
         ids.forEach((id) => {
-          notifyAI({ type: "edited_slide", slideId: id });
+          projectAIViewController.notify("edited_slide", { slideId: id });
         });
         return;
       }
 
-      // Presentation objects (visualizations) - always notify
       if (tableName === "presentation_objects") {
         ids.forEach((id) => {
           const viz = projectState.visualizations.find((v) => v.id === id);
           if (viz) {
-            notifyAI({
-              type: "custom",
-              message: `Visualization "${viz.label}" updated`,
+            projectAIViewController.notify("visualization_updated", {
+              vizId: id,
+              label: viz.label,
             });
           }
         });
@@ -90,7 +95,11 @@ function AIProjectWrapperInner(props: ParentProps) {
       }
 
       if (tableName === "slide_decks") {
-        notifyAI({ type: "deck_structure_changed" });
+        ids.forEach((id) => {
+          projectAIViewController.notify("deck_structure_changed", {
+            deckId: id,
+          });
+        });
         return;
       }
     });
@@ -98,52 +107,23 @@ function AIProjectWrapperInner(props: ParentProps) {
     onCleanup(cleanup);
   });
 
+  const config: AIChatConfig = {
+    sdkClient,
+    modelConfig: DEFAULT_MODEL_CONFIG,
+    tools: tools as AIChatConfig["tools"],
+    builtInTools: DEFAULT_BUILTIN_TOOLS,
+    scope: projectId,
+    system: systemPrompt,
+    getDocumentRefs: aiDocs.getDocumentRefs,
+    viewController: projectAIViewController,
+  };
+
+  if (import.meta.env.DEV) {
+    validateAIChatConfig(config);
+  }
+
   return (
-    <AIChatProvider
-      config={{
-        sdkClient,
-        modelConfig: DEFAULT_MODEL_CONFIG,
-        tools: tools as AIChatConfig["tools"],
-        builtInTools: DEFAULT_BUILTIN_TOOLS,
-        scope: projectId,
-        system: systemPrompt,
-        getDocumentRefs: aiDocs.getDocumentRefs,
-        getEphemeralContext: () => {
-          const ctx = aiContext();
-          let modeStr = `[Current mode: ${ctx.mode}`;
-          if (ctx.mode === "editing_visualization") {
-            modeStr += ` | vizId: ${ctx.vizId ?? "unsaved"}`;
-          } else if (ctx.mode === "editing_slide_deck") {
-            modeStr += ` | deckId: ${ctx.deckId}`;
-            const selected = ctx.getSelectedSlideIds();
-            if (selected.length > 0) {
-              modeStr += ` | selectedSlideIds: ${selected.join(", ")}`;
-            }
-          } else if (ctx.mode === "editing_slide") {
-            modeStr += ` | slideId: ${ctx.slideId} | deckId: ${ctx.deckId}`;
-          } else if (ctx.mode === "editing_report") {
-            modeStr += ` | reportId: ${ctx.reportId}`;
-            const sel = ctx.getSelection();
-            if (sel && !sel.empty) {
-              const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
-              modeStr +=
-                ` | user has SELECTED text (lines ${sel.fromLine}-${sel.toLine}, ` +
-                `${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
-            } else if (sel) {
-              modeStr += ` | cursor at line ${sel.fromLine}`;
-            }
-          }
-          modeStr += "]";
-          const parts: string[] = [modeStr];
-          const msg = getPendingInteractionsMessage();
-          if (msg) {
-            clearPendingInteractions();
-            parts.push(msg);
-          }
-          return parts.join("\n\n");
-        },
-      }}
-    >
+    <AIChatProvider config={config}>
       <FrameRightResizable
         minWidth={300}
         startingWidth={600}

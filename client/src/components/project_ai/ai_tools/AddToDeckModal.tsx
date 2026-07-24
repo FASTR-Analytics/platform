@@ -2,6 +2,7 @@ import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib
 import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { reportDraftSlideAdded } from "./add_slide_to_deck";
 import { DeckSelector } from "./DeckSelector";
 
 type Props = {
@@ -53,6 +54,8 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
       if (!addRes.success) {
         return addRes;
       }
+
+      reportDraftSlideAdded(addRes.data.slideId, deckId);
 
       return { success: true as const, data: { deckId } };
     },

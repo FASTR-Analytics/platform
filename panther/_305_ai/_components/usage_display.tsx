@@ -23,10 +23,64 @@ export function UsageDisplay(p: Props) {
   return (
     <Show when={p.usage}>
       {(usage) => {
-        const cost = p.showCost ? calculateCost(usage(), p.model) : null;
+        const cost =
+          () => (p.showCost ? calculateCost(usage(), p.model) : null);
 
-        if (p.compact) {
-          return (
+        return (
+          <Show
+            when={p.compact}
+            fallback={
+              <div class="ui-pad bg-base-200 rounded text-xs font-mono">
+                <div class="mb-1 font-700">
+                  {t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" })}
+                </div>
+                <div class="ui-gap-sm flex flex-wrap">
+                  <div>
+                    <span class="text-base-content-muted">
+                      {t3({ en: "Input:", fr: "Entrée :", pt: "Entrada:" })}
+                    </span>{" "}
+                    {formatTokenCount(usage().input_tokens)}
+                  </div>
+                  <div>
+                    <span class="text-base-content-muted">
+                      {t3({ en: "Output:", fr: "Sortie :", pt: "Saída:" })}
+                    </span>{" "}
+                    {formatTokenCount(usage().output_tokens)}
+                  </div>
+                  <Show when={usage().cache_creation_input_tokens}>
+                    <div>
+                      <span class="text-base-content-muted">
+                        {t3({
+                          en: "Cache write:",
+                          fr: "Écriture cache :",
+                          pt: "Escrita de cache:",
+                        })}
+                      </span>{" "}
+                      {formatTokenCount(usage().cache_creation_input_tokens!)}
+                    </div>
+                  </Show>
+                  <Show when={usage().cache_read_input_tokens}>
+                    <div>
+                      <span class="text-base-content-muted">
+                        {t3({
+                          en: "Cache read:",
+                          fr: "Lecture cache :",
+                          pt: "Leitura de cache:",
+                        })}
+                      </span>{" "}
+                      {formatTokenCount(usage().cache_read_input_tokens!)}
+                    </div>
+                  </Show>
+                </div>
+                <Show when={cost()}>
+                  <div class="text-primary mt-2 font-700">
+                    {t3({ en: "Cost:", fr: "Coût :", pt: "Custo:" })}{" "}
+                    {formatCost(cost()!.totalCost)}
+                  </div>
+                </Show>
+              </div>
+            }
+          >
             <div class="text-base-content-muted flex items-center gap-2 text-xs font-mono">
               <span>
                 {formatTokenCount(usage().input_tokens)}{" "}
@@ -34,63 +88,11 @@ export function UsageDisplay(p: Props) {
                 {formatTokenCount(usage().output_tokens)}{" "}
                 {t3({ en: "out", fr: "sortie", pt: "saída" })}
               </span>
-              <Show when={cost}>
-                <span>• {formatCost(cost!.totalCost)}</span>
+              <Show when={cost()}>
+                <span>• {formatCost(cost()!.totalCost)}</span>
               </Show>
             </div>
-          );
-        }
-
-        return (
-          <div class="ui-pad bg-base-200 rounded text-xs font-mono">
-            <div class="mb-1 font-700">
-              {t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" })}
-            </div>
-            <div class="ui-gap-sm flex flex-wrap">
-              <div>
-                <span class="text-base-content-muted">
-                  {t3({ en: "Input:", fr: "Entrée :", pt: "Entrada:" })}
-                </span>{" "}
-                {formatTokenCount(usage().input_tokens)}
-              </div>
-              <div>
-                <span class="text-base-content-muted">
-                  {t3({ en: "Output:", fr: "Sortie :", pt: "Saída:" })}
-                </span>{" "}
-                {formatTokenCount(usage().output_tokens)}
-              </div>
-              <Show when={usage().cache_creation_input_tokens}>
-                <div>
-                  <span class="text-base-content-muted">
-                    {t3({
-                      en: "Cache write:",
-                      fr: "Écriture cache :",
-                      pt: "Escrita de cache:",
-                    })}
-                  </span>{" "}
-                  {formatTokenCount(usage().cache_creation_input_tokens!)}
-                </div>
-              </Show>
-              <Show when={usage().cache_read_input_tokens}>
-                <div>
-                  <span class="text-base-content-muted">
-                    {t3({
-                      en: "Cache read:",
-                      fr: "Lecture cache :",
-                      pt: "Leitura de cache:",
-                    })}
-                  </span>{" "}
-                  {formatTokenCount(usage().cache_read_input_tokens!)}
-                </div>
-              </Show>
-            </div>
-            <Show when={cost}>
-              <div class="text-primary mt-2 font-700">
-                {t3({ en: "Cost:", fr: "Coût :", pt: "Custo:" })}{" "}
-                {formatCost(cost!.totalCost)}
-              </div>
-            </Show>
-          </div>
+          </Show>
         );
       }}
     </Show>

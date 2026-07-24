@@ -39,6 +39,7 @@ export function MarkdownPresentation(p: Props) {
   });
 
   createEffect(() => {
+    htmlContent();
     if (!p.images || !containerRef) return;
 
     containerRef.querySelectorAll("img").forEach((img) => {

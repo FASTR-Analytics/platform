@@ -1,7 +1,6 @@
 import {
   Button,
   FrameTop,
-  HeadingBarMainRibbon,
   Table,
   TabsNavigation,
   createDeleteAction,
@@ -9,6 +8,7 @@ import {
   type ListItem,
   type TableColumn,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";

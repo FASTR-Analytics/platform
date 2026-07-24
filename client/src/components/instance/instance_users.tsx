@@ -3,7 +3,6 @@ import {
   Button,
   Csv,
   FrameTop,
-  HeadingBarMainRibbon,
   downloadCsv,
   openAlert,
   openComponent,
@@ -11,6 +10,7 @@ import {
   createDeleteAction,
   createQuery,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";

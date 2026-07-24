@@ -1,55 +1,193 @@
-import { t3, type DatasetHfaCsvStagingResult } from "lib";
-import { Button, createButtonAction, toNum0 } from "panther";
-import { Match, Switch } from "solid-js";
+import {
+  t3,
+  TC,
+  type HfaCsvMappingParams,
+  type HfaDedupOverride,
+  type HfaDuplicateGroup,
+} from "lib";
+import {
+  Button,
+  RadioGroup,
+  StateHolderFormError,
+  StateHolderWrapper,
+  createFormAction,
+  createQuery,
+} from "panther";
+import { For, Show } from "solid-js";
+import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 
 type Props = {
-  step3Result: DatasetHfaCsvStagingResult | undefined;
+  step2Result: HfaCsvMappingParams;
   silentFetch: () => Promise<void>;
 };
 
 export function Step3(p: Props) {
-  const save = createButtonAction(
-    () => serverActions.updateDatasetHfaStaging({}),
-    p.silentFetch,
+  // An old saved step2Result (from before the filter/dedup deploy) gets the
+  // same defaults the staging worker falls back to
+  const [tempDedup, setTempDedup] = createStore<{
+    dedupStrategy: "first" | "last";
+    dedupOverrides: HfaDedupOverride[];
+  }>({
+    dedupStrategy: p.step2Result.dedupStrategy ?? "first",
+    dedupOverrides: structuredClone(p.step2Result.dedupOverrides ?? []),
+  });
+
+  const preview = createQuery(
+    () => serverActions.getDatasetHfaDuplicatePreview({}),
+    t3({
+      en: "Scanning for duplicate facilities...",
+      fr: "Recherche d'établissements en double...",
+      pt: "A procurar estabelecimentos duplicados...",
+    }),
   );
 
-  const needsSaving = () => !p.step3Result;
+  function rulePick(group: HfaDuplicateGroup): number {
+    return tempDedup.dedupStrategy === "first"
+      ? group.rows[0]
+      : group.rows[group.rows.length - 1];
+  }
+
+  function setPick(group: HfaDuplicateGroup, keepRow: number) {
+    const withoutGroup = tempDedup.dedupOverrides.filter(
+      (o) => o.facilityId !== group.facilityId,
+    );
+    setTempDedup(
+      "dedupOverrides",
+      keepRow === rulePick(group)
+        ? withoutGroup
+        : [...withoutGroup, { facilityId: group.facilityId, keepRow }],
+    );
+  }
+
+  const save = createFormAction(async () => {
+    return serverActions.updateDatasetHfaMappings({
+      mappings: {
+        facilityIdColumn: p.step2Result.facilityIdColumn,
+        timePoint: p.step2Result.timePoint,
+        rowFilters: p.step2Result.rowFilters ?? [],
+        dedupStrategy: tempDedup.dedupStrategy,
+        dedupOverrides: unwrap(tempDedup).dedupOverrides,
+      },
+      reviewConfirmed: true,
+    });
+  }, p.silentFetch);
 
   return (
-    <div class="ui-spy ui-pad">
-      <div class="ui-spy-sm">
-        <div class="font-700 text-lg">{t3({ en: "Data Staging", fr: "Préparation des données", pt: "Preparação dos dados" })}</div>
-        <Switch>
-          <Match when={!p.step3Result}>
-            <div class="rounded border p-4">
-              <div class="">
-                {t3({ en: "Ready to stage CSV data. This will validate and prepare the data for import.", fr: "Prêt à préparer les données CSV. Cela validera et préparera les données pour l'importation.", pt: "Pronto para preparar os dados CSV. Isto irá validar e preparar os dados para importação." })}
+    <div class="ui-pad ui-spy">
+      <div class="max-w-2xl space-y-6">
+        <div>
+          <h3 class="font-700 mb-2 text-lg">
+            {t3({
+              en: "Duplicates Review",
+              fr: "Examen des doublons",
+              pt: "Revisão dos duplicados",
+            })}
+          </h3>
+          <div class="text-base-content-muted mb-3 text-sm">
+            {t3({
+              en: "Facilities with several rows after filtering: pick which row to keep for each. Row numbers count data rows from 1 in file order (the header row is excluded — add 1 to find the row in a spreadsheet).",
+              fr: "Établissements ayant plusieurs lignes après filtrage : choisissez la ligne à conserver pour chacun. Les numéros de ligne comptent les lignes de données à partir de 1 dans l'ordre du fichier (ligne d'en-tête exclue — ajoutez 1 pour retrouver la ligne dans un tableur).",
+              pt: "Estabelecimentos com várias linhas após a filtragem: escolha a linha a manter para cada um. Os números de linha contam as linhas de dados a partir de 1 na ordem do ficheiro (linha de cabeçalho excluída — adicione 1 para encontrar a linha numa folha de cálculo).",
+            })}
+          </div>
+          <div class="ui-gap-sm mb-3 flex items-center">
+            <span class="text-base-content-muted text-sm">
+              {t3({
+                en: "Quick-set all picks:",
+                fr: "Réglage rapide de tous les choix :",
+                pt: "Definição rápida de todas as escolhas:",
+              })}
+            </span>
+            <Button
+              size="sm"
+              outline
+              onClick={() =>
+                setTempDedup({ dedupStrategy: "first", dedupOverrides: [] })
+              }
+            >
+              {t3({
+                en: "First row",
+                fr: "Première ligne",
+                pt: "Primeira linha",
+              })}
+            </Button>
+            <Button
+              size="sm"
+              outline
+              onClick={() =>
+                setTempDedup({ dedupStrategy: "last", dedupOverrides: [] })
+              }
+            >
+              {t3({ en: "Last row", fr: "Dernière ligne", pt: "Última linha" })}
+            </Button>
+          </div>
+          <StateHolderWrapper state={preview.state()}>
+            {(data) => (
+              <div class="ui-spy-sm">
+                <Show when={data.nRowsFilteredOut > 0}>
+                  <div class="text-base-content-muted text-sm">
+                    {t3({
+                      en: "Rows removed by filter",
+                      fr: "Lignes supprimées par le filtre",
+                      pt: "Linhas removidas pelo filtro",
+                    })}
+                    : {data.nRowsFilteredOut}
+                  </div>
+                </Show>
+                <Show
+                  when={data.groups.length > 0}
+                  fallback={
+                    <div class="text-success text-sm">
+                      {t3({
+                        en: "No duplicate facilities after filtering.",
+                        fr: "Aucun établissement en double après filtrage.",
+                        pt: "Nenhum estabelecimento duplicado após a filtragem.",
+                      })}
+                    </div>
+                  }
+                >
+                  <For each={data.groups}>
+                    {(group) => {
+                      const selected = () => {
+                        const override = tempDedup.dedupOverrides.find(
+                          (o) => o.facilityId === group.facilityId,
+                        );
+                        return String(override?.keepRow ?? rulePick(group));
+                      };
+                      return (
+                        <div class="ui-gap flex items-center">
+                          <div class="w-40 flex-none font-mono">
+                            {group.facilityId}
+                          </div>
+                          <RadioGroup
+                            value={selected()}
+                            options={group.rows.map((r) => ({
+                              value: String(r),
+                              label: `${t3({ en: "Row", fr: "Ligne", pt: "Linha" })} ${r}`,
+                            }))}
+                            onChange={(val) => setPick(group, Number(val))}
+                            horizontal
+                          />
+                        </div>
+                      );
+                    }}
+                  </For>
+                </Show>
               </div>
-            </div>
-          </Match>
-          <Match when={p.step3Result}>
-            <div class="bg-success-50 border-success-300 rounded border p-4">
-              <div class="text-success-700 flex items-center gap-2">
-                <span>✓</span>
-                <span>{t3({ en: "CSV data staged successfully", fr: "Données CSV préparées avec succès", pt: "Dados CSV preparados com sucesso" })}</span>
-              </div>
-              <div class="text-success mt-2 text-sm">
-                {t3({ en: "Total rows staged", fr: "Total de lignes préparées", pt: "Total de linhas preparadas" })}: {toNum0(p.step3Result!.nRowsTotal)}
-              </div>
-            </div>
-          </Match>
-        </Switch>
+            )}
+          </StateHolderWrapper>
+        </div>
       </div>
+      <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Button
           onClick={save.click}
           intent="success"
           state={save.state()}
-          disabled={!needsSaving()}
-          iconName="database"
+          iconName="save"
         >
-          {t3({ en: "Start staging", fr: "Lancer la préparation", pt: "Iniciar a preparação" })}
+          {t3(TC.save)}
         </Button>
       </div>
     </div>

@@ -20,7 +20,6 @@ import { getToolsForSlides } from "./ai_tools/tools/slides";
 import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getToolsForNavigation } from "./ai_tools/tools/navigation";
 import { getToolsForVisualizations } from "./ai_tools/tools/visualizations";
-import type { AIContext } from "./types";
 
 type BuildToolsParams = {
   projectId: string;
@@ -31,11 +30,10 @@ type BuildToolsParams = {
   visualizations: PresentationObjectSummary[];
   slideDecks: SlideDeckSummary[];
   reports: ReportSummary[];
-  aiContext: () => AIContext;
 };
 
 export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports, aiContext } =
+  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =
     params;
 
   return [
@@ -48,17 +46,17 @@ export function buildToolsForContext(params: BuildToolsParams) {
     ...getToolsForMethodologyDocs(),
     ...getToolsForInfo(),
 
-    // Mode-specific tools - check mode in handler
-    ...getToolsForSlides(projectId, aiContext, metrics),
-    ...getToolsForSlideEditor(projectId, aiContext, metrics),
-    ...getToolsForReportEditor(projectId, aiContext, metrics),
-    ...getToolsForVizEditor(projectId, aiContext, metrics),
+    // View-gated tools (createAITool with viewRegistry + availableIn)
+    ...getToolsForSlides(projectId, metrics),
+    ...getToolsForSlideEditor(projectId, metrics),
+    ...getToolsForReportEditor(projectId, metrics),
+    ...getToolsForVizEditor(projectId, metrics),
 
     // Navigation tools - always available
-    ...getToolsForNavigation(aiContext),
+    ...getToolsForNavigation(),
 
     // Draft preview tools - always available
-    ...getToolsForDrafts(projectId, metrics, aiContext),
+    ...getToolsForDrafts(projectId, metrics),
 
     // Interactive tools
     createAskUserQuestionsTool(),

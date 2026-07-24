@@ -12,7 +12,6 @@ import {
 } from "../../db/mod.ts";
 import {
   parseJsonOrThrow,
-  throwIfErrWithData,
   type DatasetHfaStep1Result,
 } from "lib";
 import {
@@ -23,10 +22,7 @@ import {
   classifyNumericSentinel,
   parseNumericSentinels,
 } from "lib";
-import {
-  getCsvColumnIndex,
-  getCsvStreamComponents,
-} from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
+import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
   parseXlsForm,
   type XlsFormChoiceInfo,
@@ -60,6 +56,7 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
   const tempTableName = "uploaded_data_staging_raw_hfa";
   const stagingTableName = UPLOADED_HFA_DATA_STAGING_TABLE_NAME;
   const tempValidFacilitiesTable = "temp_valid_facilities_hfa";
+  const tempKeepRowsTable = "temp_keep_rows_hfa";
 
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
@@ -79,25 +76,23 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
     );
 
     const timePoint = mappings.timePoint;
+    // Backward-compat fallbacks: a staged attempt from before the deploy can
+    // hold an old step_2_result without the filter/dedup fields.
+    const rowFilters = mappings.rowFilters ?? [];
+    const dedupStrategy = mappings.dedupStrategy ?? "first";
+    const dedupOverrides = mappings.dedupOverrides ?? [];
 
     // Parse XLSForm
     const xlsForm = parseXlsForm(step1Result.xlsForm.filePath);
 
-    // Get streaming components
-    const resComponents = await getCsvStreamComponents(
-      assetFilePath,
-      "allow-fewer-columns",
-    );
-    throwIfErrWithData(resComponents);
-    const { headers, encodedHeaderToIndexMap, processRows } =
-      resComponents.data;
-
-    // Get facility_id column index from mappings
-    const facilityIdIndex = getCsvColumnIndex(
-      encodedHeaderToIndexMap,
-      { facility_id: mappings.facilityIdColumn },
-      "facility_id",
-    );
+    // Get streaming components (filter + row-number scan shared with the
+    // step-2 duplicates preview route)
+    const { headers, facilityIdIndex, processFilteredRows } =
+      await getHfaRowScanComponents(
+        assetFilePath,
+        mappings.facilityIdColumn,
+        rowFilters,
+      );
 
     // Match CSV columns to XLSForm vars (with group prefix stripping)
     type CsvVarMapping = {
@@ -195,30 +190,28 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
     // Clean up any existing temp/staging tables
     await importDb.unsafe(`DROP TABLE IF EXISTS ${tempTableName}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${tempValidFacilitiesTable}`);
+    await importDb.unsafe(`DROP TABLE IF EXISTS ${tempKeepRowsTable}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${DICT_VARS_STAGING_TABLE}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${DICT_VALUES_STAGING_TABLE}`);
 
     await updateImportProgress(mainDb, 1);
 
-    // Create temp table for HFA data
+    // Create temp table for HFA data; row_seq = 1-based position of the
+    // source data row in the file, stamped by the scanner
     await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${tempTableName} (
   facility_id TEXT NOT NULL,
   time_point TEXT NOT NULL,
   var_name TEXT NOT NULL,
-  value TEXT NOT NULL
+  value TEXT NOT NULL,
+  row_seq BIGINT NOT NULL
 )`);
 
     // Prepare for bulk insert
     let rowBuffer: string[] = [];
     const BUFFER_SIZE = 100000;
-    let totalRows = 0;
-    let rowsProcessed = 0;
-    let invalidRows = 0;
-    let missingFacilityIdCount = 0;
-    let duplicateRowsCount = 0;
-    const seenFacilities = new Set<string>();
+    const facilityRowNumbers = new Map<string, number[]>();
     const cleanedTimePoint = timePoint.trim();
 
     // Values are kept verbatim (only trimmed); escaping happens exactly once,
@@ -226,41 +219,27 @@ CREATE UNLOGGED TABLE ${tempTableName} (
     const tup = (...vals: string[]) =>
       `(${vals.map((v) => `'${escapeSqlString(v)}'`).join(",")})`;
 
+    const dataTup = (facilityId: string, varName: string, value: string, rowSeq: number) =>
+      `('${escapeSqlString(facilityId)}','${escapeSqlString(cleanedTimePoint)}','${escapeSqlString(varName)}','${escapeSqlString(value)}',${rowSeq})`;
+
     const flushBuffer = async () => {
       if (rowBuffer.length === 0) return;
-      const insertQuery = `INSERT INTO ${tempTableName} (facility_id, time_point, var_name, value) VALUES ${rowBuffer.join(",")}`;
+      const insertQuery = `INSERT INTO ${tempTableName} (facility_id, time_point, var_name, value, row_seq) VALUES ${rowBuffer.join(",")}`;
       await importDb.unsafe(insertQuery);
       rowBuffer = [];
     };
 
-    // Process CSV rows — wide to long, with select_multiple expansion
-    await processRows(
-      async (row: string[], _rowIndex: number, bytesRead: number) => {
-        totalRows++;
-
-        const facilityIdRaw = row[facilityIdIndex];
-
-        if (!facilityIdRaw) {
-          missingFacilityIdCount++;
-          invalidRows++;
-          return;
+    // Process CSV rows — wide to long, with select_multiple expansion. All
+    // surviving (post-filter) rows are inserted, duplicates included; the
+    // keep-set join below picks one row per facility.
+    const scanTotals = await processFilteredRows(
+      async (row: string[], rowNumber: number, facilityId: string, bytesRead: number) => {
+        const existingRows = facilityRowNumbers.get(facilityId);
+        if (existingRows) {
+          existingRows.push(rowNumber);
+        } else {
+          facilityRowNumbers.set(facilityId, [rowNumber]);
         }
-
-        const facilityId = facilityIdRaw.trim();
-        if (!facilityId) {
-          missingFacilityIdCount++;
-          invalidRows++;
-          return;
-        }
-
-        if (seenFacilities.has(facilityId)) {
-          duplicateRowsCount++;
-          invalidRows++;
-          return;
-        }
-        seenFacilities.add(facilityId);
-
-        rowsProcessed++;
 
         for (const mapping of csvVarMappings) {
           const valueRaw = row[mapping.csvIndex] || "";
@@ -288,23 +267,13 @@ CREATE UNLOGGED TABLE ${tempTableName} (
                 ? "1"
                 : unselectedValue;
               rowBuffer.push(
-                tup(
-                  facilityId,
-                  cleanedTimePoint,
-                  expandedVarName,
-                  expandedValue,
-                ),
+                dataTup(facilityId, expandedVarName, expandedValue, rowNumber),
               );
             }
           } else {
             // Regular variable
             rowBuffer.push(
-              tup(
-                facilityId,
-                cleanedTimePoint,
-                mapping.xlsFormVar.name.trim(),
-                value,
-              ),
+              dataTup(facilityId, mapping.xlsFormVar.name.trim(), value, rowNumber),
             );
           }
         }
@@ -322,6 +291,50 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
     await flushBuffer();
 
+    const totalRows = scanTotals.nRowsInFile;
+    const missingFacilityIdCount = scanTotals.nRowsMissingFacilityId;
+    const nRowsFilteredOut = scanTotals.nRowsFilteredOut;
+
+    // Validate overrides against the post-filter duplicate structure — a
+    // stale override (from an edited file or changed filters) fails staging
+    // loudly rather than silently falling back to the rule.
+    const overrideByFacility = new Map<string, number>();
+    for (const override of dedupOverrides) {
+      const rows = facilityRowNumbers.get(override.facilityId);
+      if (!rows || rows.length < 2 || !rows.includes(override.keepRow)) {
+        throw new Error(
+          `Duplicate-resolution override for facility "${override.facilityId}" (keep row ${override.keepRow}) no longer matches the file and filters. Go back to step 2, review the duplicates, and save the mappings again.`,
+        );
+      }
+      overrideByFacility.set(override.facilityId, override.keepRow);
+    }
+
+    // Resolve kept row per facility: override if present, else first/last in
+    // file order (row numbers are ascending per facility by construction)
+    let survivingRows = 0;
+    const keepTuples: string[] = [];
+    for (const [facilityId, rows] of facilityRowNumbers) {
+      survivingRows += rows.length;
+      const keepRow =
+        overrideByFacility.get(facilityId) ??
+        (dedupStrategy === "first" ? rows[0] : rows[rows.length - 1]);
+      keepTuples.push(`('${escapeSqlString(facilityId)}',${keepRow})`);
+    }
+    const duplicateRowsCount = survivingRows - facilityRowNumbers.size;
+    const rowsProcessed = facilityRowNumbers.size;
+
+    await importDb.unsafe(`
+CREATE UNLOGGED TABLE ${tempKeepRowsTable} (
+  facility_id TEXT NOT NULL,
+  keep_seq BIGINT NOT NULL
+)`);
+    for (let i = 0; i < keepTuples.length; i += 1000) {
+      const batch = keepTuples.slice(i, i + 1000);
+      await importDb.unsafe(
+        `INSERT INTO ${tempKeepRowsTable} (facility_id, keep_seq) VALUES ${batch.join(",")}`,
+      );
+    }
+
     await updateImportProgress(mainDb, 88);
 
     // Validate facilities
@@ -335,7 +348,8 @@ WHERE EXISTS (
 
     await updateImportProgress(mainDb, 90);
 
-    // Create final staging table with validated facilities
+    // Create final staging table with validated facilities, keeping only the
+    // resolved row per facility
     await importDb.unsafe(`
 CREATE TABLE ${stagingTableName} AS
 SELECT
@@ -344,6 +358,8 @@ SELECT
   t.var_name,
   t.value
 FROM ${tempTableName} t
+JOIN ${tempKeepRowsTable} k
+  ON k.facility_id = t.facility_id AND t.row_seq = k.keep_seq
 WHERE EXISTS (
   SELECT 1 FROM ${tempValidFacilitiesTable} vf
   WHERE vf.facility_id = t.facility_id
@@ -484,6 +500,7 @@ WHERE NOT EXISTS (
     // Clean up temp tables (keep staging tables for integration worker)
     await importDb.unsafe(`DROP TABLE IF EXISTS ${tempTableName}`);
     await importDb.unsafe(`DROP TABLE IF EXISTS ${tempValidFacilitiesTable}`);
+    await importDb.unsafe(`DROP TABLE IF EXISTS ${tempKeepRowsTable}`);
 
     const result: DatasetHfaCsvStagingResult = {
       stagingTableName,
@@ -496,6 +513,9 @@ WHERE NOT EXISTS (
       nRowsInvalidMissingFacilityId: missingFacilityIdCount,
       nRowsInvalidFacilityNotFound: invalidFacilityNotFoundCount,
       nRowsDuplicated: duplicateRowsCount,
+      nRowsFilteredOut,
+      dedupStrategy,
+      nDedupOverridesApplied: dedupOverrides.length,
       nRowsTotal: validRowCount,
       timePoint,
       nDictionaryVars: dictVarRows.length,
@@ -510,7 +530,7 @@ WHERE NOT EXISTS (
     await mainDb`
 UPDATE hfa_upload_attempts
 SET
-  step = 4,
+  step = 5,
   step_3_result = ${JSON.stringify(result)},
   status = ${JSON.stringify({ status: "staged", result })},
   status_type = 'staged'
@@ -537,6 +557,7 @@ SET
     try {
       await importDb.unsafe(`DROP TABLE IF EXISTS ${tempTableName}`);
       await importDb.unsafe(`DROP TABLE IF EXISTS ${tempValidFacilitiesTable}`);
+      await importDb.unsafe(`DROP TABLE IF EXISTS ${tempKeepRowsTable}`);
       await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
       await importDb.unsafe(`DROP TABLE IF EXISTS ${DICT_VARS_STAGING_TABLE}`);
       await importDb.unsafe(

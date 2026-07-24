@@ -35,7 +35,6 @@ type Props = {
   fallbackContent?: Component;
   headerContent?: JSX.Element;
   footerContent?: JSX.Element;
-  autoScroll?: boolean;
   showUsage?: boolean;
   showCost?: boolean;
   model?: AnthropicModel;
@@ -82,7 +81,6 @@ export function AIChat(p: Props) {
       currentStreamingText(),
       queuedMessages(),
     ],
-    { enabled: p.autoScroll ?? true },
   );
 
   onMount(() => {

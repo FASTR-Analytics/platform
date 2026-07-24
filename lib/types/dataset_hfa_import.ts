@@ -77,7 +77,8 @@ export type DatasetHfaUploadAttemptSummary = {
 export type DatasetHfaUploadAttemptDetail = {
   id: string;
   dateStarted: string;
-  step: 1 | 2 | 3 | 4;
+  // 1 upload, 2 mappings+filters, 3 duplicates review, 4 stage, 5 integrate
+  step: 1 | 2 | 3 | 4 | 5;
   status: DatasetHfaUploadAttemptStatus;
   sourceType: "csv";
   step1Result: DatasetHfaStep1Result | undefined;
@@ -85,9 +86,33 @@ export type DatasetHfaUploadAttemptDetail = {
   step3Result: DatasetHfaCsvStagingResult | undefined;
 };
 
+export type HfaRowFilter = {
+  column: string;
+  op: "equals" | "not_equals";
+  value: string;
+};
+
+export type HfaDedupOverride = {
+  facilityId: string;
+  keepRow: number; // 1-based position of the data row in the file (computed, not a column)
+};
+
 export type HfaCsvMappingParams = {
   facilityIdColumn: string;
   timePoint: string;
+  rowFilters: HfaRowFilter[];
+  dedupStrategy: "first" | "last";
+  dedupOverrides: HfaDedupOverride[];
+};
+
+export type HfaDuplicateGroup = {
+  facilityId: string;
+  rows: number[]; // surviving row numbers, ascending
+};
+
+export type HfaDuplicatePreview = {
+  groups: HfaDuplicateGroup[];
+  nRowsFilteredOut: number;
 };
 
 // ============================================================================
@@ -105,6 +130,9 @@ export type DatasetHfaCsvStagingResult = {
   nRowsInvalidMissingFacilityId: number;
   nRowsInvalidFacilityNotFound: number;
   nRowsDuplicated: number;
+  nRowsFilteredOut: number;
+  dedupStrategy: "first" | "last";
+  nDedupOverridesApplied: number;
   nRowsTotal: number;
   timePoint: string;
   nDictionaryVars: number;

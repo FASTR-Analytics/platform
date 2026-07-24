@@ -9,7 +9,7 @@ import {
   type MetricWithStatus,
   type Slide,
 } from "lib";
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import type { LayoutNode } from "panther";
 import {
   applyFigureConfigPatch,
@@ -20,7 +20,10 @@ import {
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
-import type { AIContext } from "~/components/project_ai/types";
+import {
+  projectAIViewController,
+  projectAIViews,
+} from "~/components/project_ai/ai_views";
 import {
   validateMaxContentBlocks,
   validateMetricInputs,
@@ -63,31 +66,28 @@ function replaceFigureBundleInLayout(
 
 export function getToolsForSlideEditor(
   projectId: string,
-  getAIContext: () => AIContext,
   metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
+      viewRegistry: projectAIViews,
       name: "get_slide_editor",
       description:
         "Get the current content and structure of the slide being edited. Shows live state from the editor (including unsaved changes). ALWAYS call this first when starting to help with a slide.",
       inputSchema: z.object({}),
-      handler: async () => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide") {
-          throw new Error("This tool is only available when editing a slide");
-        }
-
-        const slide = ctx.getTempSlide();
+      availableIn: ["editing_slide"],
+      kind: "read",
+      handler: async (_input, view) => {
+        const slide = view.context.getTempSlide();
         const simplified = await simplifySlideForAI(projectId, slide, metrics);
 
         const lines: string[] = [];
         lines.push("# SLIDE EDITOR");
         lines.push("=".repeat(80));
         lines.push("");
-        lines.push(`**Slide ID:** ${ctx.slideId}`);
-        lines.push(`**Slide type:** ${ctx.slideType}`);
-        lines.push(`**Deck:** ${ctx.deckLabel}`);
+        lines.push(`**Slide ID:** ${view.params.slideId}`);
+        lines.push(`**Slide type:** ${view.params.slideType}`);
+        lines.push(`**Deck:** ${view.params.deckLabel}`);
         lines.push("");
         lines.push("## CURRENT CONTENT");
         lines.push("=".repeat(50));
@@ -100,6 +100,7 @@ export function getToolsForSlideEditor(
       completionMessage: "Retrieved slide",
     }),
     createAITool({
+      viewRegistry: projectAIViews,
       name: "update_slide_editor",
       description:
         "Update the slide content. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
@@ -143,15 +144,14 @@ export function getToolsForSlideEditor(
             "Content slide: restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
           ),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_slide") {
-          throw new Error("This tool is only available when editing a slide");
-        }
-        assertSlidesNotBusy([ctx.slideId]);
+      availableIn: ["editing_slide"],
+      kind: "write",
+      handler: async (input, view) => {
+        const ctx = view.context;
+        assertSlidesNotBusy([view.params.slideId]);
 
         if (input.blockUpdates && input.layoutChange) {
-          throw new Error(
+          throw new AIToolFailure(
             "Cannot use both blockUpdates and layoutChange. Use blockUpdates to change block content, or layoutChange to change layout structure.",
           );
         }
@@ -241,7 +241,7 @@ export function getToolsForSlideEditor(
                 totalBlocks++;
                 if (typeof cell.block === "string") {
                   if (seenBlockIds.has(cell.block)) {
-                    throw new Error(
+                    throw new AIToolFailure(
                       `Duplicate block ID "${cell.block}". Each block can only appear once in the layout.`,
                     );
                   }
@@ -273,7 +273,7 @@ export function getToolsForSlideEditor(
                   const existing = blockMap.get(cell.block);
                   if (!existing) {
                     const available = [...blockMap.keys()].join(", ");
-                    throw new Error(
+                    throw new AIToolFailure(
                       `Block ID "${cell.block}" not found in slide. Available block IDs: ${available}. Use get_slide_editor to see current block IDs.`,
                     );
                   }
@@ -350,9 +350,10 @@ export function getToolsForSlideEditor(
       },
     }),
     createAITool({
+      viewRegistry: projectAIViews,
       name: "update_figure",
       description:
-        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric/from_visualization block to change type). In the slide editor, changes are LOCAL (preview only) until the user clicks Save; at the deck level the slide is saved immediately.",
+        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric/from_visualization block to change type). In the slide editor, changes are LOCAL (preview only) until the user clicks Save; at the deck level the slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
       inputSchema: z.object({
         slideId: z.string().optional().describe(
           "Required at the DECK level (from get_deck/get_slide). Omit inside the slide editor — the open slide is used.",
@@ -360,32 +361,30 @@ export function getToolsForSlideEditor(
         blockId: z.string().describe("Figure block ID (from get_slide_editor or get_slide)."),
         patch: AiFigureConfigPatchSchema,
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-
+      availableIn: ["editing_slide", "editing_slide_deck"],
+      kind: "write",
+      handler: async (input, view) => {
         // Load the target slide: the live editor slide, or a saved deck slide by id.
         let slide: Slide;
         let expectedLastUpdated: string | undefined;
-        if (ctx.mode === "editing_slide") {
-          slide = unwrap(ctx.getTempSlide());
-        } else if (ctx.mode === "editing_slide_deck") {
+        if (view.id === "editing_slide") {
+          slide = unwrap(view.context.getTempSlide());
+        } else {
           if (!input.slideId) {
-            throw new Error("slideId is required to update a figure at the deck level.");
+            throw new AIToolFailure("slideId is required to update a figure at the deck level.");
           }
           const slideRes = await serverActions.getSlide({ projectId, slide_id: input.slideId });
-          if (!slideRes.success) throw new Error(slideRes.err);
+          if (!slideRes.success) throw new AIToolFailure(slideRes.err);
           slide = slideRes.data.slide;
           expectedLastUpdated = slideRes.data.lastUpdated;
-        } else {
-          throw new Error("update_figure is only available when editing a slide or a slide deck. If you are editing a report, use update_report_figure instead.");
         }
 
         assertSlidesNotBusy([
-          ctx.mode === "editing_slide" ? ctx.slideId : input.slideId!,
+          view.id === "editing_slide" ? view.params.slideId : input.slideId!,
         ]);
 
         if (slide.type !== "content") {
-          throw new Error("Figures only exist on content slides");
+          throw new AIToolFailure("Figures only exist on content slides");
         }
 
         const found = extractBlocksFromLayout(slide.layout).find(
@@ -393,18 +392,18 @@ export function getToolsForSlideEditor(
         );
         if (!found) {
           const ids = extractBlocksFromLayout(slide.layout).map((b) => b.id).join(", ");
-          throw new Error(
+          throw new AIToolFailure(
             `Figure block "${input.blockId}" not found. Block IDs: ${ids}. Use get_slide_editor / get_slide to see current block IDs.`,
           );
         }
         if (found.block.type !== "figure" || !found.block.bundle) {
-          throw new Error(`Block "${input.blockId}" is not a figure.`);
+          throw new AIToolFailure(`Block "${input.blockId}" is not a figure.`);
         }
         const bundle = found.block.bundle;
 
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new Error(`Metric "${bundle.metricId}" not found in this project.`);
+          throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this project.`);
         }
 
         // Build + validate the patched config UP FRONT (a throw must mean
@@ -433,8 +432,8 @@ export function getToolsForSlideEditor(
         const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);
 
         // Save: live preview (Save to persist) in the editor, or directly to the deck.
-        if (ctx.mode === "editing_slide") {
-          ctx.setTempSlide(reconcile(updatedSlide));
+        if (view.id === "editing_slide") {
+          view.context.setTempSlide(reconcile(updatedSlide));
           return `Updated figure ${input.blockId}. The preview will update automatically. User must click "Save" to persist changes.`;
         }
         const saveRes = await serverActions.updateSlide({
@@ -444,12 +443,13 @@ export function getToolsForSlideEditor(
           expectedLastUpdated,
         });
         if (!saveRes.success) {
-          throw new Error(
+          throw new AIToolFailure(
             saveRes.err === "CONFLICT"
               ? "The slide changed while this edit was being prepared (another user or a live editing session saved it). Re-read the slide with get_slide and retry."
               : saveRes.err,
           );
         }
+        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
         return `Updated figure ${input.blockId} in slide ${input.slideId}.`;
       },
       inProgressLabel: "Updating figure...",

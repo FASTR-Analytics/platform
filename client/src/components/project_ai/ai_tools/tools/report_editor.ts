@@ -1,4 +1,4 @@
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
   AiFigureBlockInputSchema,
@@ -13,7 +13,7 @@ import {
   resolveBundleFromMetricAndConfig,
   validateDisplaySlots,
 } from "~/generate_visualization/mod";
-import type { AIContext } from "~/components/project_ai/types";
+import { projectAIViews } from "~/components/project_ai/ai_views";
 import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
@@ -199,20 +199,19 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
 
 export function getToolsForReportEditor(
   projectId: string,
-  getAIContext: () => AIContext,
   metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
+      viewRegistry: projectAIViews,
       name: "get_report_editor",
       description:
         "Get the report's current markdown body, a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
-      handler: async () => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
+      availableIn: ["editing_report"],
+      kind: "read",
+      handler: async (_input, view) => {
+        const ctx = view.context;
         const figs = ctx.getFigures();
         const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
@@ -234,7 +233,7 @@ export function getToolsForReportEditor(
             ]
           : [`## Figures: none`];
         return [
-          `# REPORT EDITOR: ${ctx.reportLabel}`,
+          `# REPORT EDITOR: ${view.params.reportLabel}`,
           ``,
           `## Current body (markdown)`,
           ctx.getBody(),
@@ -249,6 +248,7 @@ export function getToolsForReportEditor(
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "get_report_figure",
       description:
         "Get the FULL configuration of one report figure: its metric, type, " +
@@ -264,20 +264,19 @@ export function getToolsForReportEditor(
             "Figure id from get_report_editor (the part after 'figure:').",
           ),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
+      availableIn: ["editing_report"],
+      kind: "read",
+      handler: async (input, view) => {
+        const ctx = view.context;
         const fig = ctx.getFigures()[input.figureId];
         if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new Error(
+          throw new AIToolFailure(
             `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
           );
         }
         if (!fig.bundle) {
-          throw new Error(
+          throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be read.`,
           );
         }
@@ -290,6 +289,7 @@ export function getToolsForReportEditor(
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "update_report_figure",
       description:
         "Edit an existing report FIGURE's CONFIGURATION in place — the tool for " +
@@ -311,25 +311,24 @@ export function getToolsForReportEditor(
           ),
         patch: AiFigureConfigPatchSchema,
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
+      availableIn: ["editing_report"],
+      kind: "write",
+      handler: async (input, view) => {
+        const ctx = view.context;
         const fig = ctx.getFigures()[input.figureId];
         if (!fig) {
           const ids = Object.keys(ctx.getFigures()).join(", ") || "(none)";
-          throw new Error(
+          throw new AIToolFailure(
             `No figure with id "${input.figureId}". Figure ids: ${ids}.`,
           );
         }
         if (!fig.bundle) {
-          throw new Error(
+          throw new AIToolFailure(
             `Figure "${input.figureId}" has no resolved data yet and can't be edited.`,
           );
         }
         if (!ctx.getBody().includes(`](figure:${input.figureId})`)) {
-          throw new Error(
+          throw new AIToolFailure(
             `Figure "${input.figureId}" is registered but its token isn't in the report body. Call get_report_editor.`,
           );
         }
@@ -337,7 +336,7 @@ export function getToolsForReportEditor(
         // all-unsupported patch arrives empty — reject it instead of re-resolving
         // the figure unchanged and falsely reporting success.
         if (Object.keys(input.patch).length === 0) {
-          throw new Error(
+          throw new AIToolFailure(
             "No editable fields were provided. update_report_figure changes a " +
               "figure's config (replicant, filters, disaggregation, period, " +
               "captions); it cannot change the metric/indicator or chart type. To " +
@@ -347,7 +346,7 @@ export function getToolsForReportEditor(
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new Error(
+          throw new AIToolFailure(
             `Metric "${bundle.metricId}" not found in this project.`,
           );
         }
@@ -393,7 +392,7 @@ export function getToolsForReportEditor(
           bundle: newBundle,
         });
         if (!saved) {
-          throw new Error(
+          throw new AIToolFailure(
             `Figure ${input.figureId} was updated in the live preview but SAVING TO ` +
               `THE SERVER FAILED; the change may be lost on reload. Tell the user to ` +
               `check their connection and try again.`,
@@ -406,40 +405,47 @@ export function getToolsForReportEditor(
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "rewrite_report",
       description:
         "Propose a full rewrite of the report body. The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. No raw HTML.",
       inputSchema: z.object({ markdown: z.string() }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
-        validateReportBodyLength(input.markdown);
-        validateReportTokensResolve(
-          input.markdown,
-          ctx.getFigures(),
-          ctx.getImages(),
-        );
-        const { accepted, skipped } = await ctx.proposeEdit({
-          newBody: input.markdown,
-          summary: "Rewrite entire report",
-        });
-        if (!accepted) {
-          throw new Error(
-            "The user REJECTED the rewrite; the report is unchanged. Do not retry unless asked.",
+      availableIn: ["editing_report"],
+      kind: "write",
+      approval: {
+        propose: async (input, view) => {
+          const ctx = view.context;
+          validateReportBodyLength(input.markdown);
+          validateReportTokensResolve(
+            input.markdown,
+            ctx.getFigures(),
+            ctx.getImages(),
           );
-        }
-        return (
-          "The user ACCEPTED the rewrite; it is now applied to the report." +
-          skippedNote(skipped)
-        );
+          const prep = ctx.proposeEdit({
+            newBody: input.markdown,
+            summary: "Rewrite entire report",
+          });
+          if ("skip" in prep) return prep;
+          return {
+            preview: prep.preview,
+            customProposalUI: prep.customProposalUI,
+            stillValid: prep.stillValid,
+            commit: async () => {
+              const { skipped } = await prep.commit();
+              return (
+                "The user ACCEPTED the rewrite; it is now applied to the report." +
+                skippedNote(skipped)
+              );
+            },
+          };
+        },
       },
       inProgressLabel: "Proposing rewrite...",
       completionMessage: "Proposed rewrite (awaiting accept/reject)",
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "rewrite_section",
       description:
         "Propose rewriting one heading-bounded section (from its heading to the next heading of the same or higher level). Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). newMarkdown must include the section heading. The user reviews a diff.",
@@ -448,45 +454,51 @@ export function getToolsForReportEditor(
         newMarkdown: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
-        const result = spliceSection(
-          ctx.getBody(),
-          input.sectionHeading,
-          input.newMarkdown,
-          input.occurrenceIndex,
-        );
-        if ("error" in result) {
-          throw new Error(result.error);
-        }
-        validateReportBodyLength(result.newBody);
-        validateReportTokensResolve(
-          result.newBody,
-          ctx.getFigures(),
-          ctx.getImages(),
-        );
-        const { accepted, skipped } = await ctx.proposeEdit({
-          newBody: result.newBody,
-          summary: `Rewrite section "${input.sectionHeading}"`,
-        });
-        if (!accepted) {
-          throw new Error(
-            `The user REJECTED the rewrite of section "${input.sectionHeading}"; the report is unchanged. Do not retry unless asked.`,
+      availableIn: ["editing_report"],
+      kind: "write",
+      approval: {
+        propose: async (input, view) => {
+          const ctx = view.context;
+          const result = spliceSection(
+            ctx.getBody(),
+            input.sectionHeading,
+            input.newMarkdown,
+            input.occurrenceIndex,
           );
-        }
-        return (
-          `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
-          skippedNote(skipped)
-        );
+          if ("error" in result) {
+            throw new AIToolFailure(result.error);
+          }
+          validateReportBodyLength(result.newBody);
+          validateReportTokensResolve(
+            result.newBody,
+            ctx.getFigures(),
+            ctx.getImages(),
+          );
+          const prep = ctx.proposeEdit({
+            newBody: result.newBody,
+            summary: `Rewrite section "${input.sectionHeading}"`,
+          });
+          if ("skip" in prep) return prep;
+          return {
+            preview: prep.preview,
+            customProposalUI: prep.customProposalUI,
+            stillValid: prep.stillValid,
+            commit: async () => {
+              const { skipped } = await prep.commit();
+              return (
+                `The user ACCEPTED the rewrite of section "${input.sectionHeading}"; it is now applied.` +
+                skippedNote(skipped)
+              );
+            },
+          };
+        },
       },
       inProgressLabel: "Proposing section rewrite...",
       completionMessage: "Proposed section rewrite (awaiting accept/reject)",
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "replace_text",
       description:
         "Propose a targeted edit: replace an exact run of text (oldText) with newText. oldText must match the current body VERBATIM (whitespace and markdown included) and occur exactly once — if it appears multiple times, pass occurrenceIndex (1-based) or include more surrounding text to make it unique. Use this for small/sentence-level edits, or to act on the user's current selection. Keep any figure/image tokens you intend to retain. The user reviews a diff and accepts or rejects — nothing is applied silently.",
@@ -495,45 +507,51 @@ export function getToolsForReportEditor(
         newText: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
-        const result = replaceTextOccurrence(
-          ctx.getBody(),
-          input.oldText,
-          input.newText,
-          input.occurrenceIndex,
-        );
-        if ("error" in result) {
-          throw new Error(result.error);
-        }
-        validateReportBodyLength(result.newBody);
-        validateReportTokensResolve(
-          result.newBody,
-          ctx.getFigures(),
-          ctx.getImages(),
-        );
-        const { accepted, skipped } = await ctx.proposeEdit({
-          newBody: result.newBody,
-          summary: "Replace text",
-        });
-        if (!accepted) {
-          throw new Error(
-            "The user REJECTED the edit; the report is unchanged. Do not retry unless asked.",
+      availableIn: ["editing_report"],
+      kind: "write",
+      approval: {
+        propose: async (input, view) => {
+          const ctx = view.context;
+          const result = replaceTextOccurrence(
+            ctx.getBody(),
+            input.oldText,
+            input.newText,
+            input.occurrenceIndex,
           );
-        }
-        return (
-          "The user ACCEPTED the edit; it is now applied to the report." +
-          skippedNote(skipped)
-        );
+          if ("error" in result) {
+            throw new AIToolFailure(result.error);
+          }
+          validateReportBodyLength(result.newBody);
+          validateReportTokensResolve(
+            result.newBody,
+            ctx.getFigures(),
+            ctx.getImages(),
+          );
+          const prep = ctx.proposeEdit({
+            newBody: result.newBody,
+            summary: "Replace text",
+          });
+          if ("skip" in prep) return prep;
+          return {
+            preview: prep.preview,
+            customProposalUI: prep.customProposalUI,
+            stillValid: prep.stillValid,
+            commit: async () => {
+              const { skipped } = await prep.commit();
+              return (
+                "The user ACCEPTED the edit; it is now applied to the report." +
+                skippedNote(skipped)
+              );
+            },
+          };
+        },
       },
       inProgressLabel: "Proposing edit...",
       completionMessage: "Proposed edit (awaiting accept/reject)",
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "insert_figure",
       description:
         "Propose inserting a live data figure. The `figure` is either a `from_visualization` block (clone a saved visualization by id — get ids from get_available_visualizations) or a `from_metric` block (build a NEW chart from a metric + preset — get metricIds/presets from get_available_metrics), exactly like slide figures. Optionally place it after a heading (afterHeading — must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
@@ -542,49 +560,55 @@ export function getToolsForReportEditor(
         caption: z.string().optional(),
         afterHeading: z.string().optional(),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
-        const figureBlock =
-          input.figure.type === "from_visualization"
-            ? await resolveFigureFromVisualization(projectId, input.figure)
-            : await resolveFigureFromMetric(projectId, input.figure, metrics);
-        const id = crypto.randomUUID();
-        const caption = sanitizeCaption(input.caption ?? "");
-        const token = `![${caption}](figure:${id})`;
-        const result = insertFigureToken(
-          ctx.getBody(),
-          token,
-          input.afterHeading,
-        );
-        if ("error" in result) {
-          throw new Error(result.error);
-        }
-        const { accepted, skipped } = await ctx.proposeEdit({
-          newBody: result.newBody,
-          addFigures: { [id]: figureBlock },
-          summary: caption ? `Insert figure: ${caption}` : "Insert figure",
-        });
-        if (!accepted) {
-          throw new Error(
-            `The user REJECTED the figure insert; the report is unchanged. Do not retry unless asked.`,
+      availableIn: ["editing_report"],
+      kind: "write",
+      approval: {
+        propose: async (input, view) => {
+          const ctx = view.context;
+          const figureBlock =
+            input.figure.type === "from_visualization"
+              ? await resolveFigureFromVisualization(projectId, input.figure)
+              : await resolveFigureFromMetric(projectId, input.figure, metrics);
+          const id = crypto.randomUUID();
+          const caption = sanitizeCaption(input.caption ?? "");
+          const token = `![${caption}](figure:${id})`;
+          const result = insertFigureToken(
+            ctx.getBody(),
+            token,
+            input.afterHeading,
           );
-        }
-        return (
-          `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
-          skippedNote(skipped) +
-          (skipped?.length
-            ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
-            : "")
-        );
+          if ("error" in result) {
+            throw new AIToolFailure(result.error);
+          }
+          const prep = ctx.proposeEdit({
+            newBody: result.newBody,
+            addFigures: { [id]: figureBlock },
+            summary: caption ? `Insert figure: ${caption}` : "Insert figure",
+          });
+          if ("skip" in prep) return prep;
+          return {
+            preview: prep.preview,
+            customProposalUI: prep.customProposalUI,
+            stillValid: prep.stillValid,
+            commit: async () => {
+              const { skipped } = await prep.commit();
+              return (
+                `The user ACCEPTED the figure insert (id ${id}); it is now in the report.` +
+                skippedNote(skipped) +
+                (skipped.length
+                  ? " If the figure token was in a skipped change, the figure is unreferenced and will be pruned."
+                  : "")
+              );
+            },
+          };
+        },
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure insert (awaiting accept/reject)",
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
       name: "replace_figure",
       description:
         "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption`. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
@@ -593,69 +617,74 @@ export function getToolsForReportEditor(
         figure: AiFigureBlockInputSchema,
         caption: z.string().optional(),
       }),
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_report") {
-          throw new Error("This tool is only available when editing a report");
-        }
-        if (!ctx.getFigures()[input.figureId]) {
-          throw new Error(
-            `No figure with id "${input.figureId}" in this report. Call get_report_editor to see figure ids.`,
+      availableIn: ["editing_report"],
+      kind: "write",
+      approval: {
+        propose: async (input, view) => {
+          const ctx = view.context;
+          if (!ctx.getFigures()[input.figureId]) {
+            throw new AIToolFailure(
+              `No figure with id "${input.figureId}" in this report. Call get_report_editor to see figure ids.`,
+            );
+          }
+          const tokenRe = new RegExp(
+            `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
+            "g",
           );
-        }
-        const tokenRe = new RegExp(
-          `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
-          "g",
-        );
-        if (!tokenRe.test(ctx.getBody())) {
-          throw new Error(
-            `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
+          if (!tokenRe.test(ctx.getBody())) {
+            throw new AIToolFailure(
+              `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
+            );
+          }
+          const figureBlock =
+            input.figure.type === "from_visualization"
+              ? await resolveFigureFromVisualization(projectId, input.figure)
+              : await resolveFigureFromMetric(projectId, input.figure, metrics);
+          const newId = crypto.randomUUID();
+          const overrideCaption =
+            input.caption !== undefined
+              ? sanitizeCaption(input.caption)
+              : undefined;
+          // Swap every token for this figure id (preserving each caption unless
+          // overridden) to a fresh id pointing at the new figure block.
+          const newBody = ctx
+            .getBody()
+            .replace(
+              new RegExp(
+                `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
+                "g",
+              ),
+              (_m, p1, cap, p3, p4) =>
+                `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`,
+            );
+          validateReportBodyLength(newBody);
+          validateReportTokensResolve(
+            newBody,
+            { ...ctx.getFigures(), [newId]: figureBlock },
+            ctx.getImages(),
           );
-        }
-        const figureBlock =
-          input.figure.type === "from_visualization"
-            ? await resolveFigureFromVisualization(projectId, input.figure)
-            : await resolveFigureFromMetric(projectId, input.figure, metrics);
-        const newId = crypto.randomUUID();
-        const overrideCaption =
-          input.caption !== undefined
-            ? sanitizeCaption(input.caption)
-            : undefined;
-        // Swap every token for this figure id (preserving each caption unless
-        // overridden) to a fresh id pointing at the new figure block.
-        const newBody = ctx
-          .getBody()
-          .replace(
-            new RegExp(
-              `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
-              "g",
-            ),
-            (_m, p1, cap, p3, p4) =>
-              `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`,
-          );
-        validateReportBodyLength(newBody);
-        validateReportTokensResolve(
-          newBody,
-          { ...ctx.getFigures(), [newId]: figureBlock },
-          ctx.getImages(),
-        );
-        const { accepted, skipped } = await ctx.proposeEdit({
-          newBody,
-          addFigures: { [newId]: figureBlock },
-          summary: "Replace figure",
-        });
-        if (!accepted) {
-          throw new Error(
-            `The user REJECTED the figure replacement; the report is unchanged. Do not retry unless asked.`,
-          );
-        }
-        return (
-          `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
-          skippedNote(skipped) +
-          (skipped?.length
-            ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
-            : "")
-        );
+          const prep = ctx.proposeEdit({
+            newBody,
+            addFigures: { [newId]: figureBlock },
+            summary: "Replace figure",
+          });
+          if ("skip" in prep) return prep;
+          return {
+            preview: prep.preview,
+            customProposalUI: prep.customProposalUI,
+            stillValid: prep.stillValid,
+            commit: async () => {
+              const { skipped } = await prep.commit();
+              return (
+                `The user ACCEPTED the figure replacement (new id ${newId}); it is now in the report.` +
+                skippedNote(skipped) +
+                (skipped.length
+                  ? " If the token swap was in a skipped change, the old figure may still be referenced and the new one unreferenced (it will be pruned)."
+                  : "")
+              );
+            },
+          };
+        },
       },
       inProgressLabel: "Preparing figure...",
       completionMessage: "Proposed figure replacement (awaiting accept/reject)",

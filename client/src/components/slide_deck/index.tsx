@@ -16,8 +16,11 @@ import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
 import { SlidePresenter } from "./slide_presenter";
 import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
-import { useAIProjectContext } from "../project_ai/context";
-import type { AIContext } from "../project_ai/types";
+import {
+  projectAIViewController,
+  restoreProjectAIView,
+  type ProjectAIViewState,
+} from "../project_ai/ai_views";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { setCollabAvatar, setCollabView } from "~/state/project/collab";
 import { clerk } from "~/components/LoggedInWrapper";
@@ -30,14 +33,13 @@ type Props = EditorComponentProps<
     projectState: ProjectState;
     deckId: string;
     reportLabel: string;
-    returnToContext?: AIContext;
+    returnToContext?: ProjectAIViewState;
   },
   SlideDeckModalReturn
 >;
 
 export function ProjectAiSlideDeck(p: Props) {
   const projectId = p.projectState.id;
-  const { aiContext, setAIContext } = useAIProjectContext();
 
   async function handleClose() {
     p.close(undefined);
@@ -58,7 +60,8 @@ export function ProjectAiSlideDeck(p: Props) {
   });
 
   onCleanup(() => {
-    setAIContext(p.returnToContext ?? { mode: "viewing_slide_decks" });
+    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
+    else projectAIViewController.setView("viewing_slide_decks");
     // Returning to the deck list: no longer "in" a deck.
     setCollabView({});
   });
@@ -81,14 +84,15 @@ export function ProjectAiSlideDeck(p: Props) {
       setIsLoading(false);
       if (!aiContextSet) {
         aiContextSet = true;
-        setAIContext({
-          mode: "editing_slide_deck",
-          deckId: p.deckId,
-          deckLabel: deckLabel(),
-          getDeckConfig: () => deckConfig(),
-          getSlideIds: () => slideIds(),
-          getSelectedSlideIds: () => selectedSlideIds(),
-        });
+        projectAIViewController.setView(
+          "editing_slide_deck",
+          { deckId: p.deckId, deckLabel: deckLabel() },
+          {
+            getDeckConfig: () => deckConfig(),
+            getSlideIds: () => slideIds(),
+            getSelectedSlideIds: () => selectedSlideIds(),
+          },
+        );
       }
     }
     load();
@@ -121,7 +125,6 @@ function ProjectAiSlideDeckInner(p: {
   const { openEditor, EditorWrapper } = getEditorWrapper();
   const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
   const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } = getEditorWrapper();
-  const { aiContext } = useAIProjectContext();
 
   // Editor state
   const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
@@ -218,7 +221,7 @@ function ProjectAiSlideDeckInner(p: {
         slideId: slideId,
         lastUpdated: lastUpdated,
         slide,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
         ...snapshotForSlideEditor({
           projectState: p.projectState,
           deckConfig: p.deckConfig,

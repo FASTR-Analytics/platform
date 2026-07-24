@@ -14,6 +14,7 @@ import {
   inferPeriodFormatFromValue,
   periodFilterHasBounds,
 } from "lib";
+import { AIToolFailure } from "panther";
 import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
@@ -51,7 +52,7 @@ export async function getMetricDataForAI(
   const periodFilter = periodFilterOverride ?? inferPeriodFilter(startDate, endDate);
 
   const metric = metrics.find((m) => m.id === metricId);
-  if (!metric) throw new Error(`Metric "${metricId}" not found`);
+  if (!metric) throw new AIToolFailure(`Metric "${metricId}" not found`);
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const requiredDisaggregationOptions = metric.disaggregationOptions
@@ -130,7 +131,7 @@ export async function getMetricDataForAI(
 
     const res = await newPromise;
     if (!res.success) {
-      throw new Error(res.err);
+      throw new AIToolFailure(res.err);
     }
     itemsHolder = res.data;
   }

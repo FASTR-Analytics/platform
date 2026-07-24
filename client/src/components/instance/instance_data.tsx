@@ -2,10 +2,10 @@ import { t3 } from "lib";
 import {
   Button,
   FrameTop,
-  HeadingBarMainRibbon,
   openComponent,
   toNum0,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";

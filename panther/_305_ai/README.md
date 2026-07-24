@@ -79,13 +79,15 @@ const weatherTool = createAITool({
 const result = await callAI({ ..., tools: [weatherTool] }, messages);
 ```
 
-**Signaling failure from a handler:** throw `AIToolFailure` for expected,
-model-correctable failures (bad input, missing referent, precondition not met).
-The model receives `is_error: true` with your message and can self-correct,
-while the UI shows a clean failure row without a stack trace. Do NOT return an
-error-shaped string — that renders as success and tells the model nothing
-failed. Any other throw is treated as a genuine bug and keeps the full
-stack-trace display.
+**Signaling failure from a handler:** throw `AIToolFailure` for any anticipated
+failure — model-correctable input problems (bad input, missing referent,
+precondition not met) AND anticipated operational failures (a failed server
+call). The model receives `is_error: true` with your message, while the UI shows
+a clean failure row without a stack trace. Do NOT return an error-shaped string
+— that renders as success and tells the model nothing failed. Any other throw —
+including assertion-style "should never happen" checks — is treated as a genuine
+bug and keeps the full stack-trace display. Full contract: DOC_AI_CHAT.md
+"Failure channel".
 
 ```typescript
 import { AIToolFailure, createAITool } from "@timroberton/panther";
@@ -114,8 +116,11 @@ it. Full contracts in DOC_AI_CHAT.md; the shapes:
 
 ```typescript
 import {
+  AIChatProvider,
   buildToolCatalog,
+  createAITool,
   createAIViewController,
+  createNavigationTool,
   defineAIInteractions,
   defineAIViews,
   interaction,
@@ -146,11 +151,14 @@ const vc = createAIViewController(views, { fallback: "home", interactions });
 vc.setView("editing_slide", { slideId: "s3" }, editorContext); // from your nav sync sites
 vc.notify("edited_slide", { slideId: "s3" });                  // from your UI events
 
-// 3. Gated + view-typed tools: handler receives the narrowed view state.
-const updateSlide = vc.createTool({
+// 3. Gated + view-typed tools: pass the (inert) registry and the handler
+//    receives the live view state, narrowed to availableIn. The engine
+//    injects it at execution — the tool closes over no controller.
+const updateSlide = createAITool({
   name: "update_slide",
   description: "…",
   inputSchema: zUpdateSlide,
+  viewRegistry: views,
   availableIn: ["editing_slide"],
   kind: "write",
   handler: (input, view) => view.context.setTempSlide(input), // typed
@@ -158,14 +166,15 @@ const updateSlide = vc.createTool({
 
 // 4. Approval (confirm-before-apply): declare `approval` instead of
 //    `handler` — commit only runs after the user accepts.
-const deleteSlide = vc.createTool({
+const deleteSlide = createAITool({
   name: "delete_slide",
   description: "…",
   inputSchema: zDeleteSlide,
+  viewRegistry: views,
   availableIn: ["editing_slide"],
   kind: "write",
   approval: {
-    prepare: (input, view) => ({
+    propose: (input, view) => ({
       preview: { title: `Delete slide ${input.slideId}?`, intent: "danger" },
       commit: () => view.context.deleteSlide(input.slideId),
     }),
@@ -175,8 +184,9 @@ const deleteSlide = vc.createTool({
 // 5. Built-in navigation tool: the model asks to move, YOUR callback routes;
 //    the resulting setView events are attributed to the AI (never reported
 //    as "User navigated" in the digest).
-const navTool = vc.createNavigationTool({
-  views: ["home", "editing_slide"],
+const navTool = createNavigationTool({
+  viewRegistry: views,
+  destinations: ["home", "editing_slide"],
   onAiNavigation: (target) => router.go(target),
 });
 
@@ -266,11 +276,14 @@ builtInTools: {
 **Functions:**
 
 - `createSDKClient()` - Configure SDK
-- `createAITool()` - Define custom tools
+- `createAITool()` - Define custom tools; add `viewRegistry` for view-typed
+  tools (compile-checked `availableIn`, narrowed handler view state)
+- `aiToolFactory(registry)` - Binds one registry once; the recommended form for
+  an app with a single view registry
 - `callAI()` - One-shot requests
 - `view()` / `defineAIViews()` / `createAIViewController()` - View system
 - `interaction()` / `defineAIInteractions()` - Interaction log
-- `viewController.createTool()` / `.createNavigationTool()` - View-typed tools
+- `createNavigationTool()` - Built-in "the model asks to move" tool
 - `buildToolCatalog()` - Derived tool list for prompt composition
 - `validateAIChatConfig()` - Construction-time validation without mounting
 

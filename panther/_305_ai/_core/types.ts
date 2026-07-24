@@ -18,7 +18,7 @@ import type { BuiltInToolsConfig } from "./builtin_tools.ts";
 import type {
   AIToolWithMetadata,
   ApprovalPolicy,
-  ApprovalPreview,
+  ProposalPreview,
 } from "./tool_helpers.ts";
 import type { AIViewController } from "./views.ts";
 
@@ -110,7 +110,7 @@ export type DisplayItem =
   | {
     type: "approval_pending";
     toolName: string;
-    preview: ApprovalPreview;
+    preview: ProposalPreview;
     sessionCheckbox: boolean;
   }
   // The decision record (persisted): auto_declined covers view-exit and
@@ -231,7 +231,7 @@ export type AIChatConfig = {
   getEphemeralContext?: () => string | null;
 
   // View system (createAIViewController). When present, every turn carries a
-  // [Current view: …] section (plus the view's ephemeral promptSection and
+  // [Current view: …] section (plus the view's ephemeral instructions and
   // the consumer hook's context) on EVERY turn-creating path — direct sends,
   // batches, and queue drains. Without it, getEphemeralContext keeps its
   // historical direct-send-only delivery.

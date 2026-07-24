@@ -1,4 +1,4 @@
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
   AiFigureFromVisualizationSchema,
@@ -18,14 +18,13 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import type { AIContext } from "~/components/project_ai/types";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { DraftVisualizationPreview } from "../DraftVisualizationPreview";
 import { DraftSlidePreview } from "../DraftSlidePreview";
 
 export function getToolsForDrafts(
   projectId: string,
   metrics: MetricWithStatus[],
-  getAIContext: () => AIContext,
 ) {
   return [
     createAITool({
@@ -43,6 +42,7 @@ export function getToolsForDrafts(
             "The figure source: either from_visualization (existing viz by ID) or from_metric (new chart from metric data).",
           ),
       }),
+      kind: "read",
       handler: async (input) => {
         const fig = input.figure;
         if (fig.type === "from_metric") {
@@ -50,12 +50,12 @@ export function getToolsForDrafts(
             await resolveFigureFromMetric(projectId, fig, metrics);
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
-            throw new Error(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
+            throw new AIToolFailure(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
           }
         } else {
           const res = await getPODetailFromCacheorFetch(projectId, fig.visualizationId);
           if (!res.success) {
-            throw new Error(`Failed to load visualization "${fig.visualizationId}": ${res.err}`);
+            throw new AIToolFailure(`Failed to load visualization "${fig.visualizationId}": ${res.err}`);
           }
         }
         return "Visualization preview displayed to user.";
@@ -87,6 +87,7 @@ export function getToolsForDrafts(
             "The slide content. Must be one of: 'cover', 'section', or 'content'.",
           ),
       }),
+      kind: "read",
       handler: async (input) => {
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
@@ -98,14 +99,14 @@ export function getToolsForDrafts(
                 await resolveFigureFromMetric(projectId, block, metrics);
               } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
-                throw new Error(`Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`);
+                throw new AIToolFailure(`Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`);
               }
             }
           }
         }
-        const ctx = getAIContext();
-        const deckConfig = ctx.mode === "editing_slide_deck"
-          ? ctx.getDeckConfig()
+        const view = projectAIViewController.current();
+        const deckConfig = view.id === "editing_slide_deck"
+          ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck("Draft");
         const convertedSlide = await convertAiInputToSlide(
           projectId,
@@ -120,7 +121,7 @@ export function getToolsForDrafts(
           deckConfig,
         );
         if (!renderRes.success) {
-          throw new Error(`Failed to render slide: ${renderRes.err}`);
+          throw new AIToolFailure(`Failed to render slide: ${renderRes.err}`);
         }
         return "Slide preview displayed to user.";
       },

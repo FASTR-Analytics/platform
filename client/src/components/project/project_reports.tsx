@@ -25,7 +25,7 @@ import { ProjectReport } from "../report";
 import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { otherPeers } from "~/state/project/collab";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import {
   reportGroupingMode,
   setReportGroupingMode,
@@ -87,7 +87,6 @@ type ExtendedProps = {
 };
 
 export function ProjectReports(p: ExtendedProps) {
-  const { aiContext } = useAIProjectContext();
 
   async function openReport(reportId: string, reportLabel: string) {
     await p.openProjectEditor({
@@ -96,7 +95,7 @@ export function ProjectReports(p: ExtendedProps) {
         reportId,
         reportLabel,
         projectState: projectState,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
       },
     });
   }

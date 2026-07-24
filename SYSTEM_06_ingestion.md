@@ -144,7 +144,7 @@ live in git history). Shape:
 
 One single-row attempt table per family (`dataset_hmis_upload_attempts` — CSV
 only, `hfa_upload_attempts`, `iceh_upload_attempts`; `CHECK (id='single_row')`),
-holding `step` (HMIS 0–4, HFA 1–4, ICEH 1–3), `step_N_result` JSON blobs,
+holding `step` (HMIS 0–4, HFA 1–5, ICEH 1–3), `step_N_result` JSON blobs,
 `status` JSON, and a denormalized `status_type` — every write site updates
 `status` and `status_type` together. HMIS DHIS2 imports do not use this machine
 (runs, above); the HMIS client sets `source_type = 'csv'` immediately at attempt
@@ -217,6 +217,28 @@ cancel; staging also pre-drops stale tables at start.
   choices `-99` so downstream sentinel handling sees it (PLAN_HFA_FEATURES.md);
   the name `weight` (any case, incl. expanded names) is reserved and aborts
   staging; duplicate var names are a hard error.
+- HFA row filtering + dedup (order is fixed: **filter → review →
+  resolve**; all fields live in the step-2 mappings JSON): optional
+  keep-conditions (`rowFilters`, ANDed; trimmed-string
+  `equals`/`not_equals` on the raw cell, edited on wizard step 2) drop
+  rows before any duplicate handling, then facilities with >1 surviving
+  row are resolved to one row each — `dedupStrategy` ("first"/"last" in
+  file order; the review UI treats it as a bulk quick-set) plus
+  per-facility `dedupOverrides`, edited on the dedicated review step
+  (wizard step 3; staging/integrate are steps 4/5). Row numbers
+  everywhere are the **1-based position of the data row in the file**
+  (header excluded), computed by the scanner
+  (`server_only_funcs_csvs/scan_hfa_rows.ts`, shared by the staging
+  worker and the `getDatasetHfaDuplicatePreview` route that feeds the
+  review step) — never read from any column. The worker stamps every
+  surviving row's `row_seq` into the raw temp table, materializes the
+  resolved keep-set into `temp_keep_rows_hfa`, and joins it when building
+  the staging table; every override is validated against the post-filter
+  duplicate structure (facility still duplicated, `keepRow` among its
+  surviving rows) and a stale override fails staging loudly — never a
+  silent fallback. Pre-deploy `step_2_result` blobs lack the fields; the
+  worker defaults them (`[]`/`"first"`/`[]`), which reproduces the old
+  keep-first behavior.
 - ICEH stages nothing: the zip is parsed in memory and written row-by-row inside
   one transaction at integration.
 

@@ -20,7 +20,7 @@ import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
@@ -113,7 +113,6 @@ type MetricGroupCardProps = {
 function MetricGroupCard(p: MetricGroupCardProps) {
   const firstMetric = p.metricGroup.variants[0];
   const hasVariants = p.metricGroup.variants.length > 1;
-  const { aiContext } = useAIProjectContext();
 
   async function showDetails(metric: MetricWithStatus) {
     await openComponent({
@@ -141,7 +140,7 @@ function MetricGroupCard(p: MetricGroupCardProps) {
         mode: "create" as const,
         projectId: p.projectId,
         label: res.label,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState: p.projectState,
           resultsValue: res.resultsValue,

@@ -66,8 +66,11 @@ import {
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
 import { AddVisualization } from "~/components/project/add_visualization";
-import { useAIProjectContext } from "~/components/project_ai/context";
-import type { AIContext } from "~/components/project_ai/types";
+import {
+  projectAIViewController,
+  restoreProjectAIView,
+  type ProjectAIViewState,
+} from "~/components/project_ai/ai_views";
 import { VisualizationEditor } from "~/components/visualization";
 import type { VizFigureCollabBinding } from "~/components/visualization";
 import {
@@ -125,14 +128,13 @@ type SlideEditorInnerProps = {
   lastUpdated: string;
   projectStateSnapshot: ProjectState;
   deckConfigSnapshot: SlideDeckConfig;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const { aiContext, setAIContext, notifyAI } = useAIProjectContext();
 
   // No normalization needed - panther operations produce valid output
   const normalizedSlide = p.slide;
@@ -147,7 +149,7 @@ export function SlideEditor(p: Props) {
 
   const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
     (setTempSlide as any)(...args);
-    notifyAI({ type: "edited_slide_locally" });
+    projectAIViewController.notify("edited_slide_locally");
   };
 
   // Cache each type's state for restoration when switching back
@@ -283,16 +285,20 @@ export function SlideEditor(p: Props) {
 
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
-    setAIContext({
-      mode: "editing_slide",
-      slideId: p.slideId,
-      slideLabel: getSlideTitle(normalizedSlide),
-      slideType: normalizedSlide.type as SlideType,
-      deckId: p.deckId,
-      deckLabel: p.deckLabel,
-      getTempSlide: () => tempSlide,
-      setTempSlide,
-    });
+    projectAIViewController.setView(
+      "editing_slide",
+      {
+        slideId: p.slideId,
+        slideLabel: getSlideTitle(normalizedSlide),
+        slideType: normalizedSlide.type as SlideType,
+        deckId: p.deckId,
+        deckLabel: p.deckLabel,
+      },
+      {
+        getTempSlide: () => tempSlide,
+        setTempSlide,
+      },
+    );
 
     // Bind this slide to a shared CRDT document for live co-editing.
     const s = openSlideSession(
@@ -367,7 +373,7 @@ export function SlideEditor(p: Props) {
       clearTimeout(renderTimeout);
     }
     if (p.returnToContext) {
-      setAIContext(p.returnToContext);
+      restoreProjectAIView(p.returnToContext);
     }
     // Last-chance flush for exits that bypass the back button (route change,
     // deck switch): if collab isn't persisting and edits are pending, save
@@ -711,7 +717,7 @@ export function SlideEditor(p: Props) {
               mode: "ephemeral" as const,
               label: resultsValue.label,
               projectId: p.projectId,
-              returnToContext: aiContext(),
+              returnToContext: projectAIViewController.current(),
               collabBinding,
               ...snapshotForVizEditor({
                 projectState: p.projectStateSnapshot,

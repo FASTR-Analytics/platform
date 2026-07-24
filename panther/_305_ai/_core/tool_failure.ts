@@ -7,11 +7,21 @@
 // tests/ai_tool_failure_test.ts can load it without the module's UI deps
 // graph (same pattern as display_items.ts).
 
-// Expected, model-correctable failure. Throw from a handler to reach the
-// model as is_error (it should self-correct) while the timeline renders a
-// clean failure row — no stack, not styled as a crash. Anything else thrown
-// keeps the full tool_error treatment: an unexpected throw IS a bug and the
-// stack is the honest record.
+// Anticipated failure — the message is the complete, user-presentable
+// record. Covers BOTH model-correctable input failures (bad id, missing
+// referent, precondition not met — the model should self-correct) AND
+// anticipated operational failures (a failed server call, an unavailable
+// resource — the model should report, not retry blindly; a client-side
+// stack would point at the `throw` site, not the cause, and is noise).
+// Reaches the model as is_error with the message; the timeline renders a
+// clean failure row — no stack, not styled as a crash. Rule of thumb: if
+// you anticipated the failure and wrote a user-complete message for it, it
+// is AIToolFailure — whatever the cause. Assertion/invariant throws
+// ("should never happen") are NOT anticipated failures: they are bug
+// detectors and stay plain Error so the stack surfaces. Everything else
+// thrown keeps the full tool_error treatment: an unexpected throw IS a bug
+// and the stack is the honest record — the noisy default is deliberate so
+// unclassified failures surface instead of being masked.
 export class AIToolFailure extends Error {
   override readonly name = "AIToolFailure";
 }

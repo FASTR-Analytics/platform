@@ -16,7 +16,7 @@ import SortableVendor from "../../form_inputs/solid_sortablejs_vendored.tsx";
 export type ReorderableProps<T extends { id: string }> = {
   items: T[];
   onReorder: (orderedIds: string[]) => void;
-  children: (item: T, index: number) => JSX.Element;
+  children: (item: T) => JSX.Element;
   handle?: string;
   class?: string;
 };
@@ -75,8 +75,7 @@ export function Reorderable<T extends { id: string }>(p: ReorderableProps<T>) {
         }
       }}
     >
-      {(item: T) =>
-        p.children(item, untrack(order).findIndex((i) => i.id === item.id))}
+      {(item: T) => p.children(item)}
     </SortableVendor>
   );
 }

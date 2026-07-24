@@ -6,15 +6,21 @@ import {
   type InstanceState,
   type ProjectState,
 } from "lib";
-import type { AIContext } from "./types";
 import { INFO_TOPICS } from "./info_catalog";
 
 // ── Entry point ──
+//
+// Per-mode instructions no longer live here (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md
+// feature 1): each getXInstructions() function below is now a view's
+// instructions in ai_views.ts, delivered as a per-turn ephemeral section by
+// panther's view controller. This accessor takes no view/mode argument, so it
+// is BYTE-STABLE across navigation — the point of the migration (prompt-cache
+// breakpoint keeps hitting when the user just switches tabs/editors).
 
 export function buildSystemPromptForContext(
-  aiContext: AIContext,
   instance: InstanceState,
   projectState: ProjectState,
+  toolCatalog: string,
 ): string {
   const currentDate = new Date().toISOString().split("T")[0];
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
@@ -22,9 +28,9 @@ export function buildSystemPromptForContext(
   const contextSection = buildAISystemContext(instance, projectState);
   const referenceDocsSection = buildReferenceDocsSection();
   const baseInstructions = getBaseInstructions();
-  const modeInstructions = getModeInstructions(aiContext);
+  const toolsSection = `\n# Available Tools\n\n${toolCatalog}\n`;
 
-  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}\n\n${modeInstructions}`;
+  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
 }
 
 // ── Reference documentation catalog ──
@@ -275,49 +281,10 @@ When analyzing indicators, first determine the directionality:
 `;
 }
 
-// ── Mode dispatcher ──
-
-function getModeInstructions(aiContext: AIContext): string {
-  switch (aiContext.mode) {
-    case "viewing_visualizations":
-      return getViewingVisualizationsInstructions();
-    case "viewing_slide_decks":
-      return getViewingSlideDecksInstructions();
-    case "viewing_reports":
-      return getViewingReportsInstructions();
-    case "editing_report":
-      return getEditingReportInstructions(aiContext.reportLabel);
-    case "viewing_data":
-      return getViewingDataInstructions();
-    case "viewing_metrics":
-      return getViewingMetricsInstructions();
-    case "viewing_modules":
-      return getViewingModulesInstructions();
-    case "viewing_settings":
-      return getViewingSettingsInstructions();
-    case "viewing_dashboards":
-      return getViewingDashboardsInstructions();
-    case "viewing_cache":
-      return getViewingCacheInstructions();
-    case "editing_slide_deck":
-      return getEditingSlideDeckInstructions(aiContext.deckLabel);
-    case "editing_slide":
-      return getEditingSlideInstructions(
-        aiContext.slideLabel,
-        aiContext.deckLabel,
-      );
-    case "editing_visualization":
-      return getEditingVisualizationInstructions(aiContext.vizLabel);
-    default: {
-      const _exhaustive: never = aiContext;
-      return _exhaustive;
-    }
-  }
-}
-
 // ── Viewing mode instructions ──
+// Each function below is used as a view's instructions in ai_views.ts.
 
-function getViewingVisualizationsInstructions(): string {
+export function getViewingVisualizationsInstructions(): string {
   return `# Current View: Visualizations Library
 
 The user is browsing their saved visualizations.
@@ -327,10 +294,6 @@ The user is browsing their saved visualizations.
 **get_available_visualizations** - List all saved visualizations
 **get_visualization_data** - Get data for a specific visualization by ID
 
-## Other Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Help explore existing visualizations
@@ -338,14 +301,10 @@ ${getAllToolsList()}
 - Suggest new visualizations to create`;
 }
 
-function getViewingSlideDecksInstructions(): string {
+export function getViewingSlideDecksInstructions(): string {
   return `# Current View: Slide Decks Library
 
 The user is browsing their slide decks.
-
-## Available Tools
-
-${getAllToolsList()}
 
 ## Actions
 
@@ -354,7 +313,7 @@ ${getAllToolsList()}
 - Suggest new decks to create`;
 }
 
-function getViewingReportsInstructions(): string {
+export function getViewingReportsInstructions(): string {
   return `# Current View: Reports Library
 
 The user is browsing their long-form reports (markdown documents with embedded live data figures).
@@ -365,10 +324,6 @@ The user is browsing their long-form reports (markdown documents with embedded l
 **get_report** - Get a report's full markdown body + embedded figure/image ids
 **create_report** - Create a new report from a markdown body
 
-## Other Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Help explore existing reports
@@ -376,24 +331,10 @@ ${getAllToolsList()}
 - Do NOT put raw HTML in report bodies; for live data tables/charts, the user inserts figures via the editor`;
 }
 
-function getEditingReportInstructions(reportLabel: string): string {
+export function getEditingReportInstructions(reportLabel: string): string {
   return `# Current View: Editing Report "${reportLabel}"
 
 The user is editing a long-form report (markdown body + embedded live figures).
-
-## Primary Tools (most relevant here)
-
-**get_report_editor** - Read the live editor body + a one-line index of every figure/image. ALWAYS call this first.
-**get_report_figure** - Read one figure's full config (replicant, available values, slots) before editing it.
-**update_report_figure** - Edit a figure in place (replicant, filters, disaggregation, period, captions). Applied live + saved.
-**rewrite_report** - Propose a full-body rewrite (user reviews a diff, accepts/rejects).
-**rewrite_section** - Propose rewriting one heading-bounded section.
-**insert_figure** - Propose inserting a live figure from a saved visualization.
-**replace_figure** - Swap the chart behind an existing figure for a different metric/visualization or chart type (staged as a diff). Use this — not update_report_figure — to change which indicator a figure shows.
-
-## Other Available Tools
-
-${getAllToolsList()}
 
 ## How editing works
 
@@ -404,7 +345,7 @@ ${getAllToolsList()}
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
 }
 
-function getViewingDataInstructions(): string {
+export function getViewingDataInstructions(): string {
   return `# Current View: Data Section
 
 The user is viewing their datasets.
@@ -414,10 +355,6 @@ The user is viewing their datasets.
 **get_available_metrics** - List metrics derived from datasets
 **get_metric_data** - Query metric data
 
-## Other Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Help explore available data
@@ -425,7 +362,7 @@ ${getAllToolsList()}
 - Suggest relevant metrics to analyze`;
 }
 
-function getViewingMetricsInstructions(): string {
+export function getViewingMetricsInstructions(): string {
   return `# Current View: Metrics Section
 
 The user is viewing available metrics/indicators.
@@ -435,10 +372,6 @@ The user is viewing available metrics/indicators.
 **get_available_metrics** - List all metrics with disaggregation options
 **get_metric_data** - Query raw data for a metric (returns CSV)
 
-## Other Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Help explore available metrics
@@ -446,7 +379,7 @@ ${getAllToolsList()}
 - Explain methodologies`;
 }
 
-function getViewingModulesInstructions(): string {
+export function getViewingModulesInstructions(): string {
   return `# Current View: Modules Section
 
 The user is viewing analysis modules.
@@ -459,10 +392,6 @@ The user is viewing analysis modules.
 **get_methodology_docs_list** - List methodology documents
 **get_methodology_doc_content** - Read a methodology document
 
-## Other Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Help explore modules
@@ -470,44 +399,32 @@ ${getAllToolsList()}
 - Answer questions about module status and results`;
 }
 
-function getViewingSettingsInstructions(): string {
+export function getViewingSettingsInstructions(): string {
   return `# Current View: Project Settings
 
 The user is viewing project settings (users, roles, configuration).
 
-## Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Answer questions about the project
 - Help with data exploration or analysis`;
 }
 
-function getViewingDashboardsInstructions(): string {
+export function getViewingDashboardsInstructions(): string {
   return `# Current View: Dashboards
 
 The user is viewing the project's dashboards.
 
-## Available Tools
-
-${getAllToolsList()}
-
 ## Actions
 
 - Answer questions about the project
 - Help with data exploration or analysis`;
 }
 
-function getViewingCacheInstructions(): string {
+export function getViewingCacheInstructions(): string {
   return `# Current View: Cache (developer tab)
 
 The user is viewing the developer cache tab.
-
-## Available Tools
-
-${getAllToolsList()}
 
 ## Actions
 
@@ -517,28 +434,10 @@ ${getAllToolsList()}
 
 // ── Editing mode instructions ──
 
-function getEditingSlideDeckInstructions(deckLabel: string): string {
+export function getEditingSlideDeckInstructions(deckLabel: string): string {
   return `# Current Mode: Editing Slide Deck
 
 You're editing: "${deckLabel}"
-
-## Primary Tools (for this deck)
-
-**get_deck** - Get deck summary with all slides. ALWAYS call this first.
-**get_slide** - Get detailed content of a specific slide (includes layout structure with block positions and spans)
-**create_slide** - Create a new slide (cover/section/content)
-**replace_slide** - Replace an entire slide from scratch (destroys layout — use sparingly)
-**update_slide_content** - Replace whole blocks (swap a chart for a different metric, replace text) while preserving layout
-**update_figure** - Tweak an EXISTING figure's config in place (replicant, filters, disaggregation, period, captions) without rebuilding it — pass the slideId (from get_deck/get_slide) plus the figure's blockId. Prefer this over update_slide_content for figure edits; the slide saves immediately.
-**modify_slide_layout** - Add/remove blocks, rearrange layout, change column widths
-**update_slide_header** - Update just the header of a content slide
-**delete_slides** - Remove slides from the deck
-**duplicate_slides** - Copy existing slides
-**move_slides** - Reorder slides in the deck
-
-## Other Available Tools
-
-${getAllToolsList()}
 
 ## Slide Types
 
@@ -578,7 +477,7 @@ When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a
 4. Call get_metric_data before creating from_metric blocks to check available data`;
 }
 
-function getEditingSlideInstructions(
+export function getEditingSlideInstructions(
   slideLabel: string,
   deckLabel: string,
 ): string {
@@ -590,11 +489,6 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 
 **get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
 **update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
-**update_figure** - Edit an EXISTING figure block's configuration in place. **RULE: to change anything about a figure already on the slide — including its replicant — use update_figure.** (e.g. change the replicant, add a filter, change the disaggregation or date range, edit the caption) — works no matter how the figure was created; the chart type cannot be changed. Pass the figure's blockId + only the fields to change; everything else is preserved and the data is re-queried automatically. Use a from_metric/from_visualization block (via update_slide_editor) ONLY to ADD a new figure, or to REPLACE one with a different metric/viz or a different chart type — replacement rebuilds the block and discards prior edits (and silently resets a from_visualization figure's replicant to the saved viz's default), so never use it just to tweak a replicant or filter.
-
-## Other Available Tools
-
-${getAllToolsList()}
 
 ## What You Can Modify
 
@@ -625,7 +519,7 @@ Keep text concise and focused. Slides with charts/visualizations should have les
 - IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.`;
 }
 
-function getEditingVisualizationInstructions(vizLabel: string): string {
+export function getEditingVisualizationInstructions(vizLabel: string): string {
   return `# Current Mode: Editing Visualization
 
 You're editing: "${vizLabel}"
@@ -634,10 +528,6 @@ You're editing: "${vizLabel}"
 
 **get_viz_editor** - Get current config + data for this visualization
 **update_viz_config** - Modify this visualization's configuration
-
-## Other Available Tools
-
-${getAllToolsList()}
 
 ## What You Can Modify
 
@@ -660,27 +550,4 @@ ${getAllToolsList()}
 - Changes are previewed immediately but NOT saved automatically
 - Always explain what changes you're making and why
 - The user must click Save to persist changes`;
-}
-
-// ── Shared helper ──
-
-function getAllToolsList(): string {
-  return `**get_available_metrics** - List all metrics with disaggregation options
-**get_metric_data** - Query raw data for a metric (returns CSV)
-**get_available_visualizations** - List all saved visualizations
-**get_visualization_data** - Get data for a specific visualization by ID
-**get_available_slide_decks** - List all slide decks
-**get_available_reports** - List all reports
-**get_report** - Read a report's contents by ID
-**get_available_modules** - List analysis modules and their status
-**get_module_r_script** - View R script for a module
-**get_module_log** - View execution log for a module
-**get_module_settings** - View a module's configuration and parameters
-**get_info** - Read reference documentation on an allowed topic
-**get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document
-**show_draft_visualization_to_user** - Show an ad-hoc chart preview inline in the chat. Use this purely for display — to illustrate a point, explore data visually, or show the user what something would look like. Does not save or modify anything — the user can then choose to save it if they wish.
-**show_draft_slide_to_user** - Show an ad-hoc slide preview inline in the chat. Use this purely for display — to propose slide ideas, show mockups, or illustrate content options. Does not save or modify anything — the user can then choose to add it to a deck if they wish.
-**switch_tab** - Switch the main project tab (reports, decks, visualizations, metrics, modules, data, settings). Cannot be used while the user is editing.
-**ask_user_questions** - Present multiple-choice questions to the user inline in the chat. Use this to clarify preferences, choose between approaches, or get decisions before proceeding. Each question can have 2-6 options with optional descriptions. Ask one set of questions at a time — wait for the user's answers before asking follow-up questions.`;
 }

@@ -15,7 +15,7 @@ import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_obj
 import { updateProjectView, vizSortMode, setVizSortMode } from "~/state/t4_ui";
 import { SortControl } from "~/components/_shared/sort_control";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
 type Props = {
@@ -26,7 +26,6 @@ type Props = {
 
 export function ProjectVisualizations(p: Props) {
   const [searchText, setSearchText] = createSignal<string>("");
-  const { aiContext } = useAIProjectContext();
 
   async function openVisualizationEditor(po: PresentationObjectSummary) {
     if (po.isDefault) {
@@ -52,7 +51,7 @@ export function ProjectVisualizations(p: Props) {
           mode: "create" as const,
           projectId: projectState.id,
           label: `${t3({ en: "Copy of", fr: "Copie de", pt: "Cópia de" })} ${poDetailRes.data.label}`,
-          returnToContext: aiContext(),
+          returnToContext: projectAIViewController.current(),
           ...snapshotForVizEditor({
             projectState,
 
@@ -81,7 +80,7 @@ export function ProjectVisualizations(p: Props) {
         mode: "edit" as const,
         projectId: projectState.id,
         presentationObjectId: po.id,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState,
         }),
@@ -109,7 +108,7 @@ export function ProjectVisualizations(p: Props) {
         mode: "create" as const,
         projectId: projectState.id,
         label: res.label,
-        returnToContext: aiContext(),
+        returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState,
 

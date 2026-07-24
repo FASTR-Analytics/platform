@@ -22,7 +22,7 @@ import type { AIToolWithMetadata } from "./tool_helpers.ts";
 // hitting; with a view the catalog regroups per navigation, and since
 // system() is re-read every request, that busts the system cache on every
 // view change. The view-grouped variant is for per-send content only
-// (ephemeral sections or a "manual" promptSection composition).
+// (ephemeral sections or a "manual" instructions composition).
 //
 // Each tool renders as exactly ONE bullet: description newlines collapse to
 // spaces (the digest-bullet discipline) — the API's tools array keeps the

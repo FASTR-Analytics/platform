@@ -1,3 +1,4 @@
+import { AIToolFailure } from "panther";
 import { otherPeers } from "~/state/project/collab";
 
 // Refuse an AI edit to a slide another collaborator currently has OPEN in the
@@ -25,7 +26,7 @@ export function assertSlidesNotBusy(slideIds: string[]): void {
 
   const who = [...new Set([...busy.values()].flatMap((s) => [...s]))];
   const plural = busy.size > 1;
-  throw new Error(
+  throw new AIToolFailure(
     `I can't edit ${plural ? "those slides" : "that slide"} right now — ` +
       `${who.join(", ")} ${who.length > 1 ? "are" : "is"} currently editing ` +
       `${plural ? "them" : "it"}. To avoid overwriting someone else's live ` +

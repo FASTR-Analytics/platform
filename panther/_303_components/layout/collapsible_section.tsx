@@ -70,8 +70,9 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
 
     if (!local.noClickToCollapse) {
       if (local.isOpen === undefined) {
-        setInternalOpen(!internalOpen());
-        local.onToggle?.(!internalOpen());
+        const next = !internalOpen();
+        setInternalOpen(next);
+        local.onToggle?.(next);
       } else {
         local.onToggle?.(!local.isOpen);
       }

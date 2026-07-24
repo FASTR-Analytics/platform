@@ -15,6 +15,7 @@ export function getToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
       },
       inProgressLabel: "Getting available slide decks...",
       completionMessage: "Retrieved slide decks list",
+      kind: "read",
     }),
   ];
 }

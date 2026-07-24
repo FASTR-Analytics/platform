@@ -151,8 +151,8 @@ ops via `buildLayoutContextMenu`
 canvas right-click. Figure blocks resolve through the S10 shared resolvers
 (select existing viz → `resolveFigureBundleFromVisualization`; edit →
 ephemeral S11 editor + rebuild; create → `AddVisualization` + build). Local
-edits notify the AI (`edited_slide_locally`) and register AIContext
-`editing_slide` mutators.
+edits notify the AI (`edited_slide_locally`) and the editor registers the
+`editing_slide` view's mutator context on the AI view controller (S13).
 
 **The per-slide save loop** (the no-room/offline path — while a collab
 session is live the editor never explicit-saves; the room checkpoints
@@ -214,8 +214,10 @@ hard-reject mode (Open item). Figures/images/config/label are separate
 whole-registry PUTs with **no concurrency guard** — the known MED
 lost-update race on the registries (Open item).
 
-**AI-diff view**: AIContext `editing_report` registers `proposeEdit` (opens a
-`@codemirror/merge` MergeView modal, accept/reject) and `applyFigureUpdate`;
+**AI-diff view**: the `editing_report` view context registers `proposeEdit`
+— now the propose phase of the report tools' approval lifecycle (S13), whose
+`customProposalUI` opens a `@codemirror/merge` MergeView modal
+(accept/reject) — and `applyFigureUpdate`;
 on accept, figures persist FIRST and roll back client-side if the save fails
 (the AI is told the edit was not applied), then the body applies through the
 editor API with the local-edit echo suppressed.
