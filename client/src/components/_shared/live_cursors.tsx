@@ -563,6 +563,13 @@ export function LiveCursorsOverlay(p: {
 
   // Receiver-side move tracking: lastMoveAt bumps only when the pointer
   // CONTENT changes, so caret/user-field churn never resets idle timers.
+  // Entries are seeded for states already present at attach and are NEVER
+  // deleted while the overlay lives (removal keeps a tombstone): a missing
+  // entry read as idle=0 made mount-time ghosts render forever, and deleting
+  // on removal let a swept-then-re-announced background tab re-enter with a
+  // fresh clock. With tombstones, the "reset only when content changed" rule
+  // below is the single arbiter — an arrow renders only if its pointer
+  // actually moved within IDLE_HIDE_MS, whatever the sender is doing.
   const moveInfo = new Map<number, { json: string; lastMoveAt: number }>();
 
   // Click ripples: expanding rings at peers' click points, spawned when a
@@ -619,11 +626,20 @@ export function LiveCursorsOverlay(p: {
     }
     // Baseline peers' click counters at attach — only INCREASES observed from
     // here on ripple (a counter first seen mid-session is history, not a ping).
+    // Baseline the idle clocks the same way: a state that already exists when
+    // the overlay attaches gets the standard IDLE_HIDE_MS window from NOW —
+    // without this it had no moveInfo entry, read as idle=0, and a stale
+    // cursor (owner walked away, tab still open+visible somewhere) rendered
+    // indefinitely for anyone who mounted after its last movement.
+    const attachedAt = performance.now();
     for (const [id, state] of aw.getStates()) {
-      const c = (state.pointer as PointerAwarenessState | null | undefined)
-        ?.click;
-      if (typeof c === "number") {
-        clickSeen.set(id, c);
+      const pointer = state.pointer as PointerAwarenessState | null | undefined;
+      moveInfo.set(id, {
+        json: JSON.stringify(pointer ?? null),
+        lastMoveAt: attachedAt,
+      });
+      if (typeof pointer?.click === "number") {
+        clickSeen.set(id, pointer.click);
       }
     }
     const onChange = (changes: {
@@ -660,7 +676,10 @@ export function LiveCursorsOverlay(p: {
         }
       }
       for (const id of changes.removed) {
-        moveInfo.delete(id);
+        // moveInfo is deliberately KEPT (tombstone — see its doc comment):
+        // if this client is re-announced with an unchanged pointer (throttled
+        // background tab surviving a liveness sweep), the content-equality
+        // check above must see the old clock, not a fresh one.
         clickSeen.delete(id);
       }
       setVersion((v) => v + 1);

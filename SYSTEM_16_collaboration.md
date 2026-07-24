@@ -444,6 +444,13 @@ Accepted trade-off: the live push is deliberately unnormalized, so the
 render-only `d.includeAdminAreaRollup`/`adminAreaRollupPosition` fields can
 persist through a live-session checkpoint (they are valid optional schema
 fields); the next standard save strips them via `normalizePOConfigForStorage`.
+Schema-INVALID transients (a filter chip with all values un-ticked, an
+emptied `valuesFilter` — both min(1) in storage) are instead dropped from the
+stored config at checkpoint via `dropStorageInvalidTransients`, without
+touching the doc: the strict parse used to throw on them, permanently wedging
+the room's checkpoint (observed in production 2026-07-23). Such checkpoints
+stamp the CRDT state untrusted — see the staleness rule under Persistence &
+migrations.
 
 ### Canvas overlays
 
@@ -553,7 +560,12 @@ peer border appears only once text exists.
   equal; any non-collab write bumps `last_updated` alone, invalidating the
   state so the next room open re-seeds from content. (With the
   `apply*ToLiveRoom` chokepoints, non-collab writes during a live room go
-  through the room anyway.)
+  through the room anyway.) The PO checkpoint additionally stamps the state
+  untrusted (NULL) whenever the doc does NOT materialize to exactly the
+  stored config (dropped schema-invalid transients, parse-stripped keys) —
+  restoring such a doc would make every editor open adopt a state that
+  disagrees with the row, visibly "flipping" the viz ~1s after open. Trusted
+  state therefore always materializes to the row config, by construction.
 - **Model changes**: changing the doc schema breaks restore of old states —
   ship a migration that nulls `crdt_state`; rooms re-seed from content, which
   is always safe. Precedents: `031` (slide titles became Y.Text), `037`
