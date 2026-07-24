@@ -156,16 +156,24 @@ defineRoute(
     // notifications). Merging into the live doc IS the conflict resolution,
     // so the room path reports conflicted: false.
     const editor = editorFromGlobalUser(c.var.globalUser);
-    const roomLastUpdated = await applyReportToLiveRoom(
+    const roomRes = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { body: body.body },
       editor,
     );
-    if (roomLastUpdated !== null) {
+    if (roomRes.status === "saved") {
       return c.json({
         success: true as const,
-        data: { lastUpdated: roomLastUpdated, conflicted: false },
+        data: { lastUpdated: roomRes.lastUpdated, conflicted: false },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // The room applied the change (peers already see it) but could not
+      // persist it. No direct-write fallback — the room owns persistence.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
       });
     }
 
@@ -210,16 +218,23 @@ defineRoute(
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
-    const roomLastUpdated = await applyReportToLiveRoom(
+    const roomRes = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { figures: body.figures as any },
       editor,
     );
-    if (roomLastUpdated !== null) {
+    if (roomRes.status === "saved") {
       return c.json({
         success: true as const,
-        data: { lastUpdated: roomLastUpdated },
+        data: { lastUpdated: roomRes.lastUpdated },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // See updateReportBody — no direct-write fallback on a failed room save.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
       });
     }
 
@@ -255,16 +270,23 @@ defineRoute(
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
-    const roomLastUpdated = await applyReportToLiveRoom(
+    const roomRes = await applyReportToLiveRoom(
       c.var.ppk.projectId,
       params.report_id,
       { images: body.images },
       editor,
     );
-    if (roomLastUpdated !== null) {
+    if (roomRes.status === "saved") {
       return c.json({
         success: true as const,
-        data: { lastUpdated: roomLastUpdated },
+        data: { lastUpdated: roomRes.lastUpdated },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // See updateReportBody — no direct-write fallback on a failed room save.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
       });
     }
 
@@ -528,12 +550,27 @@ defineRoute(
     // Apply the snapshot through a live room when one exists, so co-editors
     // follow the restore live. No editor param: the restore versions itself
     // below instead of going through the session tracker.
-    let lastUpdated = await applyReportToLiveRoom(projectId, params.report_id, {
+    const roomRes = await applyReportToLiveRoom(projectId, params.report_id, {
       body: version.body,
       figures,
       images,
     });
-    if (lastUpdated !== null) {
+    if (roomRes.status === "save_failed") {
+      // The room absorbed the snapshot but couldn't persist it — the restore
+      // is PARTIAL (co-editors see it; the DB doesn't). No direct-write
+      // fallback (the room owns persistence), and no restored-state version
+      // below that would misrepresent the DB. The safety version exists;
+      // retrying is safe.
+      reinjectDrained();
+      return c.json({
+        success: false as const,
+        err:
+          "The restore was applied to the live editing session but could not be saved yet. Saving will retry automatically; please retry the restore if it does not appear.",
+      });
+    }
+    let lastUpdated: string;
+    if (roomRes.status === "saved") {
+      lastUpdated = roomRes.lastUpdated;
       // The label is not part of the room doc — restore it directly. A failed
       // label write means the restore is PARTIAL: report it as a failure (the
       // safety version exists; retrying is safe) and record no restored-state

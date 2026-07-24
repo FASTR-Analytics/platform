@@ -128,16 +128,24 @@ defineRoute(
       });
     }
     const editor = editorFromGlobalUser(c.var.globalUser);
-    const roomLastUpdated = await applySlideToLiveRoom(
+    const roomRes = await applySlideToLiveRoom(
       c.var.ppk.projectId,
       params.slide_id,
       slide,
       editor,
     );
-    if (roomLastUpdated !== null) {
+    if (roomRes.status === "saved") {
       return c.json({
         success: true as const,
-        data: { lastUpdated: roomLastUpdated },
+        data: { lastUpdated: roomRes.lastUpdated },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // The room applied the change (peers already see it) but could not
+      // persist it. No direct-write fallback — the room owns persistence.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
       });
     }
 

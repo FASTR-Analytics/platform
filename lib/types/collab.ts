@@ -220,7 +220,10 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
  *  dropped). Non-fatal errors are per-operation rejections (no edit
  *  permission, malformed update) and the session stays usable. */
 export type CollabServerMessage =
-  | { type: "hello"; data: { connectionId: string } }
+  // `serverVersion` lets a tab that stayed open across a server update detect
+  // the deploy boundary on reconnect and force-reload (see collab.ts) instead
+  // of pushing its pre-deploy Yjs docs into freshly re-seeded rooms.
+  | { type: "hello"; data: { connectionId: string; serverVersion: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
   // Connection-level rejection (e.g. over-sized or invalid frame) — the client
   // logs it; per-document failures use the families' own *_error messages.

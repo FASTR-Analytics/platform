@@ -1,7 +1,5 @@
 import { Sql } from "postgres";
 import {
-  canonicalJson,
-  dropStorageInvalidTransients,
   parsePresentationObjectConfig,
   PeriodFilter,
   ProjectUser,
@@ -388,38 +386,33 @@ SELECT crdt_state, crdt_state_last_updated, last_updated FROM presentation_objec
   });
 }
 
-// Collab checkpoint: persist the materialized config AND the Yjs CRDT state
-// atomically (collab is authoritative → always overwrites, no conflict check).
-// The stored config is the doc's config with schema-invalid transients dropped
-// (a filter chip with all values un-ticked is legal mid-edit; the strict parse
-// used to throw on it, wedging the room's checkpoint permanently).
-// crdt_state_last_updated is stamped equal to last_updated ONLY when the doc
-// materializes to exactly what was stored, so the state reads back as current;
-// a diverged doc (transient state at checkpoint time, keys the parse strips —
-// including forward-written keys from a newer client) is stamped untrusted and
-// the next room open re-seeds from config instead of restoring a doc that
-// disagrees with the row (which every editor open would adopt, visibly
-// "flipping" the viz ~1s after open). Refuses default visualizations
-// (read-only) — a room should never have been opened for one.
+// Collab checkpoint: persist the config AND the Yjs CRDT state atomically
+// (collab is authoritative → always overwrites, no conflict check). Plain
+// write — POLICY LIVES IN THE CALLER (the PO room's save closure in
+// routes/project/project-collab.ts): `storedConfig` must already be
+// schema-parsed with schema-invalid transients dropped, and `crdtTrusted`
+// says whether the doc materializes to exactly `storedConfig`. When trusted,
+// crdt_state_last_updated is stamped equal to last_updated so the state
+// reads back as current; when not, it is stamped NULL so the next room open
+// re-seeds from config instead of restoring a doc that disagrees with the
+// row (which every editor open would adopt, visibly "flipping" the viz ~1s
+// after open). Refuses default visualizations (read-only) — a room should
+// never have been opened for one.
 export async function savePresentationObjectCheckpoint(
   projectDb: Sql,
   presentationObjectId: string,
-  config: PresentationObjectConfig,
+  storedConfig: PresentationObjectConfig,
   crdtState: string,
+  crdtTrusted: boolean,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const storedConfig = presentationObjectConfigSchema.parse(
-      dropStorageInvalidTransients(config),
-    );
-    const docMatchesStored =
-      canonicalJson(storedConfig) === canonicalJson(config);
     const lastUpdated = new Date().toISOString();
     const rows = await projectDb`
 UPDATE presentation_objects
 SET
   config = ${JSON.stringify(storedConfig)},
   crdt_state = ${crdtState},
-  crdt_state_last_updated = ${docMatchesStored ? lastUpdated : null},
+  crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
   last_updated = ${lastUpdated}
 WHERE id = ${presentationObjectId} AND is_default_visualization = FALSE
 RETURNING id

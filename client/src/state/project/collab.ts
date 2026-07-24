@@ -816,6 +816,39 @@ function sendPresence(): void {
   ws.send(JSON.stringify(message));
 }
 
+// Deploy-boundary guard. A tab that stays open across a server update never
+// re-runs the mount-time version check (LoggedInWrapper), so it keeps running
+// OLD client code with OLD caches — and worse, its reconnect catch-up would
+// push its pre-deploy Yjs docs back into the server's freshly re-seeded rooms
+// (the two-way sync ships "what the server is missing", which after a deploy
+// is exactly the stale state a crdt_state-nulling migration just discarded).
+// On the first hello carrying a NEW server version, force a reload instead:
+// the reloaded page runs the mount check against the SAME localStorage key,
+// which busts the IndexedDB caches — realtime teardown and cache bust ride
+// one trigger. Edits made during the disconnection window are discarded
+// (the accepted close()-while-offline tradeoff — and exactly the merge a
+// version boundary must not allow). The sessionStorage flag caps this at one
+// reload per seen version, so nothing can loop; localStorage itself is only
+// ever written by the mount check, keeping ownership in one place.
+function maybeReloadOnServerVersionChange(serverVersion: string): void {
+  if (!serverVersion) {
+    return;
+  }
+  const stored = localStorage.getItem("serverVersion");
+  if (!stored || stored === serverVersion) {
+    return;
+  }
+  const guardKey = `collabReloadedForVersion::${serverVersion}`;
+  if (sessionStorage.getItem(guardKey)) {
+    return;
+  }
+  sessionStorage.setItem(guardKey, "1");
+  console.log(
+    `Collab: server updated (${stored} → ${serverVersion}) — reloading to resync`,
+  );
+  window.location.reload();
+}
+
 function openSocket(projectId: string): void {
   const socket = new WebSocket(collabWsUrl(projectId));
   ws = socket;
@@ -866,6 +899,7 @@ function openSocket(projectId: string): void {
     }
     if (msg.type === "hello") {
       setCollabStore("connectionId", msg.data.connectionId);
+      maybeReloadOnServerVersionChange(msg.data.serverVersion);
     } else if (msg.type === "error") {
       // Connection-level rejection (e.g. an over-sized frame). The doc
       // families carry their own *_error messages; this one is just logged —

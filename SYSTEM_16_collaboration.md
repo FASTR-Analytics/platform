@@ -169,7 +169,12 @@ avatar URL is self-reported).
   **per socket** (WeakSet) so a project switch can't mistake its own teardown
   for a failure and open a duplicate connection. `socket.onopen` re-sends
   presence, re-subscribes every open doc session, and re-announces project
-  awareness.
+  awareness. The server's `hello` carries `serverVersion`; a mismatch against
+  the mount-check's localStorage key forces a page reload (once per version,
+  sessionStorage-guarded) — a tab surviving a deploy must NOT ship its
+  pre-deploy Yjs docs into freshly re-seeded rooms via the catch-up, and the
+  reload re-runs the mount check, busting the IndexedDB caches off the same
+  trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
   `/project_collab` (the server-cli site generator emits this; older sites
   were patched in place).
@@ -319,17 +324,25 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   (each chains behind the previous save) so two saves can never commit out of
   order — and `flushRoomForDoc` awaits the chain even when the room looks
   clean, because "clean" may mean a save is in flight (the restore routes
-  snapshot the DB right after flushing). A failed save keeps the room dirty,
-  retries on a 10 s timer, and broadcasts `doc_save_state failing` to the room
-  (recovery broadcasts the clear; late joiners get the failing state re-sent
-  right after their sync) so editors show "Not saving — retrying" instead of a
-  false "Live".
+  snapshot the DB right after flushing). A failed save keeps the room dirty
+  and broadcasts `doc_save_state failing` to the room (recovery broadcasts the
+  clear; late joiners get the failing state re-sent right after their sync) so
+  editors show "Not saving — retrying" instead of a false "Live". Failures are
+  CLASSIFIED by the save closure (`DocSaveResult`): TRANSIENT (DB trouble)
+  retries on a 10 s timer; PERMANENT (schema validation — the same doc state
+  fails identically forever) retries only on the next edit, never on a timer
+  (a wedged PO room once burned ~6k log lines/day hot-retrying an input that
+  could never save — 2026-07-23). Failure logs are throttled to the first
+  attempt and every 30th.
 - **Close**: when the last connection unsubscribes (or its socket dies),
   `finalizeRoom` flushes a final checkpoint and destroys the room — unless a
   new subscriber arrived during the async flush, in which case the room stays
   alive for them. A FAILED final checkpoint never discards the room (its doc
-  is the sole copy of the session tail): finalize retries with backoff, then
-  keeps the room registered and re-runs on a 30 s cycle until the save lands.
+  is the sole copy of the session tail): a transient failure retries with
+  backoff, then keeps the room registered and re-runs on a 30 s cycle until
+  the save lands; a PERMANENT (validation) failure keeps the room registered
+  with NO cycle — only a returning editor's repair edit (or a restart, which
+  drops the tail) resolves it.
   A subscribe whose async load outlives its connection (socket died, or an
   unsubscribe raced it) is NOT registered — the room finalizes instead of
   leaking with a phantom member. On shutdown, `main.ts` starts an 8 s
@@ -342,9 +355,15 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   the payload is synced _into_ the authoritative doc (relayed live to all
   editors) and checkpointed immediately — the chokepoint forces the room
   dirty even when the doc already matched, so the HTTP caller always gets a
-  fresh `last_updated`; only when no room is live does the route write the DB
-  directly. This is what prevents the room's next checkpoint from silently
-  reverting AI/manual saves — and why those saves appear live in open editors.
+  fresh `last_updated`; only when no room is live (`LiveRoomApplyResult`
+  `no_room`) does the route write the DB directly. On `save_failed` (room
+  applied it, checkpoint failed) routes return an error WITHOUT a direct-write
+  fallback — the room retains the change and owns persistence; a direct write
+  would be clobbered by the room's next successful checkpoint. (Previously
+  both outcomes were a single `null`, so routes double-wrote the DB while a
+  wedged room kept serving its divergent doc.) This is what prevents the
+  room's next checkpoint from silently reverting AI/manual saves — and why
+  those saves appear live in open editors.
   `closeRoomsForDoc` is the opposite primitive: discard a live room WITHOUT
   checkpointing and error its clients fatally (used when the row is deleted or
   wholesale-replaced — see Version history).
@@ -560,12 +579,15 @@ peer border appears only once text exists.
   equal; any non-collab write bumps `last_updated` alone, invalidating the
   state so the next room open re-seeds from content. (With the
   `apply*ToLiveRoom` chokepoints, non-collab writes during a live room go
-  through the room anyway.) The PO checkpoint additionally stamps the state
-  untrusted (NULL) whenever the doc does NOT materialize to exactly the
-  stored config (dropped schema-invalid transients, parse-stripped keys) —
+  through the room anyway.) All three checkpoints additionally stamp the
+  state untrusted (NULL) whenever the doc does NOT materialize to exactly the
+  stored content (dropped schema-invalid transients, parse-stripped keys) —
   restoring such a doc would make every editor open adopt a state that
-  disagrees with the row, visibly "flipping" the viz ~1s after open. Trusted
-  state therefore always materializes to the row config, by construction.
+  disagrees with the row, visibly "flipping" the document ~1s after open
+  (observed on a viz 2026-07-24). Trusted state therefore always materializes
+  to the row content, by construction. The validate/normalize/trust policy
+  lives in the per-type save closures in `project-collab.ts`; the db
+  checkpoint functions are plain writes.
 - **Model changes**: changing the doc schema breaks restore of old states —
   ship a migration that nulls `crdt_state`; rooms re-seed from content, which
   is always safe. Precedents: `031` (slide titles became Y.Text), `037`
