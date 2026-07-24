@@ -10,6 +10,27 @@ import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
 import type { JsonArrayItem } from "./types/_figure_bundle.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
+/** Drop editor states the storage schema rejects: a filter entry with all
+ *  values un-ticked and an emptied valuesFilter are legal mid-edit but fail
+ *  the strict parse (both are min(1) in configDStrict). Shared by the client
+ *  save path (normalizePOConfigForStorage) and the server collab checkpoint,
+ *  which persists the otherwise-unnormalized live doc and must never be
+ *  wedged by a transient editor state. */
+export function dropStorageInvalidTransients(
+  config: PresentationObjectConfig,
+): PresentationObjectConfig {
+  return {
+    ...config,
+    d: {
+      ...config.d,
+      filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
+      valuesFilter: config.d.valuesFilter?.length
+        ? config.d.valuesFilter
+        : undefined,
+    },
+  };
+}
+
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
   resultsValue: RollupEligibilityInputs
@@ -20,14 +41,11 @@ export function normalizePOConfigForStorage(
   const rollupOn =
     !!config.d.includeAdminAreaRollup &&
     getEffectiveRollupLevel(resultsValue, config) !== undefined;
+  const dropped = dropStorageInvalidTransients(config);
   return {
-    ...config,
+    ...dropped,
     d: {
-      ...config.d,
-      filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
-      valuesFilter: config.d.valuesFilter?.length
-        ? config.d.valuesFilter
-        : undefined,
+      ...dropped.d,
       includeAdminAreaRollup: rollupOn ? true : undefined,
       adminAreaRollupPosition: rollupOn
         ? (config.d.adminAreaRollupPosition ?? "bottom")
