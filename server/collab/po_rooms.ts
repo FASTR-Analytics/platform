@@ -24,6 +24,7 @@ import {
   closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
+  type LiveRoomApplyResult,
   relayDocAwareness,
   type RoomConn,
   subscribeDoc,
@@ -109,13 +110,14 @@ export function closePoRoom(
 
 /** Route a non-collab visualization config write through a live room, if one
  *  exists. `apply` receives the config map (the shared figure-config bridge
- *  target). Returns the new last_updated, or null when no room is live (caller
- *  writes the DB directly). No editor/attribution — POs are not versioned. */
+ *  target). See LiveRoomApplyResult — on `save_failed` the caller must NOT
+ *  fall back to a direct DB write. No editor/attribution — POs are not
+ *  versioned. */
 export function applyPoToLiveRoom(
   projectId: string,
   poId: string,
   apply: (configMap: Y.Map<unknown>) => void,
-): Promise<string | null> {
+): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
     projectId,
     DOC_TYPE,

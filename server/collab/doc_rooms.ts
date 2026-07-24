@@ -20,12 +20,15 @@
 // testable. Thin wrappers (slide_rooms.ts, report_rooms.ts, po_rooms.ts)
 // bind the adapters. The hardened behaviors here are load-bearing — preserve them when
 // editing: finalize re-checks for late subscribers and retries a failed final
-// checkpoint (the doc is the sole copy of the session tail), a failed
-// checkpoint keeps the room dirty and schedules a retry, checkpoints are
-// SERIALIZED per room (a straggler save must never commit over a newer one —
-// flushRoomForDoc's callers snapshot the DB right after it resolves), and
-// first-subscribes re-check the registry, the connection's liveness and the
-// cancellation tombstones after the async load.
+// checkpoint (the doc is the sole copy of the session tail), a TRANSIENT-failed
+// checkpoint keeps the room dirty and schedules a timer retry while a
+// PERMANENT (validation) failure retries only on the next edit — the same doc
+// state fails identically forever, and a timer would spin for the life of the
+// process (observed 2026-07-23: a wedged PO room burned ~6k log lines/day) —
+// checkpoints are SERIALIZED per room (a straggler save must never commit over
+// a newer one — flushRoomForDoc's callers snapshot the DB right after it
+// resolves), and first-subscribes re-check the registry, the connection's
+// liveness and the cancellation tombstones after the async load.
 
 import * as Y from "yjs";
 import {
@@ -44,6 +47,9 @@ const CHECKPOINT_RETRY_MS = 10_000;
 // intentionally kept registered rather than destroying unsaved edits.
 const FINALIZE_RETRY_DELAYS_MS = [1_000, 5_000];
 const FINALIZE_RETRY_CYCLE_MS = 30_000;
+// Failure logging is throttled to the first attempt and then every Nth — a
+// room retrying on the 10s cadence would otherwise log ~8.6k lines/day.
+const SAVE_FAILURE_LOG_EVERY = 30;
 
 export type RoomConn = {
   connectionId: string;
@@ -78,14 +84,23 @@ export type DocRoomAdapter<T> = {
   onDocClosed?: (projectId: string, docId: string) => void;
 };
 
+/** Outcome of a DocRoomDeps.save. `permanent: true` marks a failure the same
+ *  doc state will reproduce forever (schema validation) — the room then
+ *  retries only when the doc next changes, never on a timer. Omitted/false
+ *  means transient (DB trouble): timer retries until the DB recovers. */
+export type DocSaveResult =
+  | { ok: true; lastUpdated: string }
+  | { ok: false; permanent?: boolean };
+
 export type DocRoomDeps<T> = {
   /** Load the document. `crdtState` is the base64 Yjs state to restore the doc
    *  from (present only when current); when null the room seeds from `content`. */
   load: () => Promise<{ content: T; crdtState: string | null } | null>;
   /** Persist the materialized content + Yjs state (collab is authoritative, so
-   *  this overwrites) and fire SSE notifications. Returns the new
-   *  last_updated, or null when the save failed. */
-  save: (content: T, crdtState: string) => Promise<string | null>;
+   *  this overwrites) and fire SSE notifications. Validation belongs HERE (not
+   *  in the DB write): classify a schema rejection as `permanent` so the room
+   *  doesn't hot-retry an input that can never save. */
+  save: (content: T, crdtState: string) => Promise<DocSaveResult>;
   /** Version-history capture: fired for every attributed edit applied to the
    *  room's doc (collab updates + external writes routed through the room). */
   onEdit?: (editor: VersionEditor) => void;
@@ -113,6 +128,11 @@ type Room = {
   /** True while deps.save is erroring — drives the doc_save_state messages so
    *  clients can stop showing "Live" while nothing persists. */
   saveFailing: boolean;
+  /** Consecutive failed save attempts (log throttling); reset on success. */
+  saveFailCount: number;
+  /** Last failure was permanent (validation): no timer retry — the next edit
+   *  re-attempts, since only a changed doc can produce a different outcome. */
+  savePermanent: boolean;
   /** last_updated of the most recent successful save. A chained checkpoint
    *  that finds the room clean returns this: an earlier run in the chain
    *  already persisted the caller's change (coalescing), and returning null
@@ -206,24 +226,44 @@ function broadcastSaveState(room: Room, failing: boolean): void {
   for (const conn of room.conns.values()) conn.send(msg);
 }
 
-function noteSaveFailure(room: Room): void {
+function noteSaveFailure(room: Room, permanent: boolean): void {
+  room.saveFailCount++;
+  room.savePermanent = permanent;
   if (!room.saveFailing) {
     room.saveFailing = true;
     broadcastSaveState(room, true);
   }
-  // Retry on a timer, not just on the next edit — an idle-but-dirty room would
-  // otherwise never converge. finalizeRoom runs its own retry loop.
-  if (!room.finalizing) {
+  if (
+    room.saveFailCount === 1 ||
+    room.saveFailCount % SAVE_FAILURE_LOG_EVERY === 0
+  ) {
+    console.error(
+      `[collab] checkpoint ${
+        permanent ? "rejected (permanent for this doc state)" : "save failed"
+      } for ${room.key} (attempt ${room.saveFailCount}) — ${
+        permanent ? "will retry on next edit" : "retrying"
+      }`,
+    );
+  }
+  // TRANSIENT (DB trouble): retry on a timer, not just on the next edit — an
+  // idle-but-dirty room would otherwise never converge once the DB recovers.
+  // PERMANENT (validation): no timer — the same doc state fails identically
+  // forever; the doc's update handler marks dirty and re-attempts on the next
+  // edit, which is the only event that can change the outcome.
+  if (!permanent && !room.finalizing) {
     scheduleCheckpoint(room, CHECKPOINT_RETRY_MS);
   }
 }
 
 function noteSaveRecovered(room: Room): void {
+  room.saveFailCount = 0;
+  room.savePermanent = false;
   if (!room.saveFailing) {
     return;
   }
   room.saveFailing = false;
   broadcastSaveState(room, false);
+  console.error(`[collab] checkpoint recovered for ${room.key}`);
 }
 
 /** Persist the room's content. Never call directly — checkpoint() serializes
@@ -236,27 +276,27 @@ async function doCheckpoint(room: Room): Promise<string | null> {
     return room.lastSavedStamp;
   }
   room.dirty = false;
-  let lastUpdated: string | null = null;
+  let result: DocSaveResult;
   try {
     const content = room.adapter.materialize(room.doc);
     const crdtState = bytesToBase64(Y.encodeStateAsUpdate(room.doc));
-    lastUpdated = await room.deps.save(content, crdtState);
+    result = await room.deps.save(content, crdtState);
   } catch (err) {
     // materialize() can throw on a doc corrupted into an un-materializable
-    // shape; treat it exactly like a failed save (dirty + retry) rather than
-    // letting the rejection escape into `void checkpoint(...)` call sites.
-    console.error(`[collab] checkpoint threw for ${room.key}`, err);
-    lastUpdated = null;
+    // shape — permanent for this doc state (identical input fails
+    // identically); an edit may repair the doc, and edits re-trigger
+    // checkpoints. Must not escape into `void checkpoint(...)` call sites.
+    console.error(`[collab] checkpoint materialize threw for ${room.key}`, err);
+    result = { ok: false, permanent: true };
   }
-  if (lastUpdated === null) {
-    console.error(`[collab] checkpoint save failed for ${room.key} — retrying`);
+  if (!result.ok) {
     room.dirty = true;
-    noteSaveFailure(room);
-  } else {
-    room.lastSavedStamp = lastUpdated;
-    noteSaveRecovered(room);
+    noteSaveFailure(room, result.permanent === true);
+    return null;
   }
-  return lastUpdated;
+  room.lastSavedStamp = result.lastUpdated;
+  noteSaveRecovered(room);
+  return result.lastUpdated;
 }
 
 /** Checkpoint the room, serialized behind any in-flight save. Awaiting this
@@ -333,6 +373,8 @@ export async function subscribeDoc<T>(
         checkpointTimer: null,
         saveChain: Promise.resolve(),
         saveFailing: false,
+        saveFailCount: 0,
+        savePermanent: false,
         lastSavedStamp: null,
         finalizing: false,
         finalizeRetryTimer: null,
@@ -541,9 +583,11 @@ async function finalizeRoom(room: Room): Promise<void> {
     await checkpoint(room);
     // A failed FINAL checkpoint means the room doc is the only copy of the
     // session tail — destroying the room here (the old behavior) silently
-    // discarded it. Retry with backoff while the room stays empty.
+    // discarded it. Retry with backoff while the room stays empty. A
+    // PERMANENT (validation) failure skips the retries: the same doc state
+    // fails identically forever.
     for (const delayMs of FINALIZE_RETRY_DELAYS_MS) {
-      if (!room.dirty) {
+      if (!room.dirty || room.savePermanent) {
         break;
       }
       if (room.conns.size > 0) {
@@ -555,9 +599,22 @@ async function finalizeRoom(room: Room): Promise<void> {
       }
       await checkpoint(room);
     }
+    if (room.dirty && room.savePermanent) {
+      // Validation-rejected doc: keep the room registered (preserving the
+      // edits) but schedule NOTHING — the retry cycle would spin for the life
+      // of the process on an input that can never save. A returning editor
+      // restores the state, repairs it, and the repair edit checkpoints and
+      // finalizes normally. Cleared only by that, or by a restart (which
+      // drops the tail — same loss the retry cycle merely deferred).
+      console.error(
+        `[collab] final checkpoint rejected for ${room.key} — keeping room; will retry on next edit`,
+      );
+      return;
+    }
     if (room.dirty) {
-      // Still failing — keep the room registered (preserving the edits) and
-      // re-run the whole finalize later rather than dropping the data.
+      // Still failing (transiently) — keep the room registered (preserving
+      // the edits) and re-run the whole finalize later rather than dropping
+      // the data.
       console.error(
         `[collab] final checkpoint still failing for ${room.key} — keeping room, retrying in ${FINALIZE_RETRY_CYCLE_MS}ms`,
       );
@@ -668,6 +725,19 @@ export function closeRoomsForDoc(
   room.adapter.onDocClosed?.(room.projectId, room.docId);
 }
 
+/** Outcome of routing an external write through a live room.
+ *  - `saved`: the room applied AND persisted it — done.
+ *  - `save_failed`: the room applied it (peers already saw it) but the
+ *    checkpoint failed. The caller must NOT fall back to a direct DB write:
+ *    the room retains the change and owns persistence, and a direct write
+ *    would be clobbered by the room's next successful checkpoint. Report the
+ *    failure to the HTTP caller instead.
+ *  - `no_room`: nothing live — the caller writes the DB directly. */
+export type LiveRoomApplyResult =
+  | { status: "saved"; lastUpdated: string }
+  | { status: "save_failed" }
+  | { status: "no_room" };
+
 /**
  * Route a non-collab document save (plain HTTP updates: AI edits, fallback
  * saves) through a live room, if one exists. The external change is applied
@@ -677,10 +747,12 @@ export function closeRoomsForDoc(
  * next checkpoint.
  *
  * `apply` performs the type-specific (possibly partial) sync onto the doc.
- * Returns the new last_updated when a room handled the save, or null when no
- * room is live (caller should write to the DB directly). `editor` attributes
- * the write to version history (the HTTP caller — AI edits, fallback saves);
- * omit it for writes that must NOT be tracked (restores version explicitly).
+ * `editor` attributes the write to version history (the HTTP caller — AI
+ * edits, fallback saves); omit it for writes that must NOT be tracked
+ * (restores version explicitly). See LiveRoomApplyResult for the outcomes —
+ * `save_failed` was previously conflated with `no_room` (both null), which
+ * made routes double-write the DB while a wedged room kept serving and
+ * eventually re-clobbering its own divergent doc.
  */
 export async function applyToLiveRoom(
   projectId: string,
@@ -688,10 +760,10 @@ export async function applyToLiveRoom(
   docId: string,
   apply: (doc: Y.Doc) => void,
   editor?: VersionEditor,
-): Promise<string | null> {
+): Promise<LiveRoomApplyResult> {
   const room = rooms.get(roomKey(projectId, docType, docId));
   if (!room) {
-    return null;
+    return { status: "no_room" };
   }
   // The origin is not a RoomConn, so the update handler relays this to every
   // connected client; it carries the editor so the authorship observer can
@@ -710,5 +782,16 @@ export async function applyToLiveRoom(
   // Force the write even when the doc already matched the payload, so the
   // caller always gets a fresh last_updated for its response.
   room.dirty = true;
-  return await checkpoint(room);
+  const lastUpdated = await checkpoint(room);
+  // An empty room kept alive by a permanently-failed finalize has no timers
+  // and no members — if this external write just made it saveable, nothing
+  // else would ever finalize it, and it would leak for the life of the
+  // process. Re-run finalize: a clean room tears down, a still-failing one
+  // keeps its documented keep-the-room behavior.
+  if (room.conns.size === 0 && !room.finalizing) {
+    void finalizeRoom(room);
+  }
+  return lastUpdated !== null
+    ? { status: "saved", lastUpdated }
+    : { status: "save_failed" };
 }

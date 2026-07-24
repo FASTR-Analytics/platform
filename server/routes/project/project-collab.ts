@@ -1,15 +1,23 @@
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/deno";
 import {
+  canonicalJson,
   type CollabClientMessage,
   collabClientMessageSchema,
   type CollabServerMessage,
   createDevProjectUser,
+  dropStorageInvalidTransients,
   presenceColorForKey,
+  presentationObjectConfigSchema,
+  type PresentationObjectConfig,
   type ProjectUser,
+  reportFiguresSchema,
+  reportImagesSchema,
+  type Slide,
+  slideConfigSchema,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
-import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
+import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { allowedOrigins } from "../../middleware/cors.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
@@ -302,15 +310,39 @@ routesProjectCollab.get(
         },
         saveSlide: async (slide, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
-          const res = await saveSlideCheckpoint(projectDb, slideId, slide, crdtState);
+          // Validation lives HERE, not in the DB write: a schema rejection is
+          // PERMANENT for this doc state (same input parses the same way
+          // forever), so the room must not timer-retry it — see DocSaveResult.
+          let stored: Slide;
+          try {
+            stored = slideConfigSchema.parse(slide) as Slide;
+          } catch (err) {
+            console.error(
+              `[collab] slide checkpoint validation failed for ${slideId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store — parse-stripped keys would otherwise diverge doc
+          // from row while stamped current, and every editor open would adopt
+          // the divergent doc (the "viz flip" bug class, 2026-07-24).
+          const trusted = canonicalJson(stored) === canonicalJson(slide);
+          const res = await saveSlideCheckpoint(
+            projectDb,
+            slideId,
+            stored,
+            crdtState,
+            trusted,
+          );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
           if (deckId) {
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
           }
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
         onEdit: (editor) => {
           if (deckId) {
@@ -359,19 +391,41 @@ routesProjectCollab.get(
         },
         save: async (content, crdtState) => {
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
+          // Validation lives HERE (see the slide closure): schema rejection is
+          // permanent for this doc state — no timer retry. The body is a plain
+          // string (no parse); figures/images are the parsed surfaces.
+          let storedFigures: typeof content.figures;
+          let storedImages: typeof content.images;
+          try {
+            storedFigures = reportFiguresSchema.parse(content.figures);
+            storedImages = reportImagesSchema.parse(content.images);
+          } catch (err) {
+            console.error(
+              `[collab] report checkpoint validation failed for ${reportId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store (parse-stripped keys → untrusted → re-seed next
+          // open). Body is stored verbatim, so only figures/images can differ.
+          const trusted =
+            canonicalJson(storedFigures) === canonicalJson(content.figures) &&
+            canonicalJson(storedImages) === canonicalJson(content.images);
           const res = await saveReportCheckpoint(
             projectDb,
             reportId,
-            content,
+            { body: content.body, figures: storedFigures, images: storedImages },
             crdtState,
             getAuthorRuns(projectId, reportId, content.body),
+            trusted,
           );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);
           scheduleReportsListRebroadcast(projectId);
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
         onEdit: (editor) => recordVersionEdit(projectId, "report", reportId, editor),
         onEmpty: () => noteVersionRoomEmpty(projectId, "report", reportId),
@@ -395,14 +449,39 @@ routesProjectCollab.get(
         },
         save: async (config, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
+          // The stored copy drops schema-invalid transients (a filter chip
+          // with all values un-ticked is legal mid-edit; the strict parse used
+          // to throw on it, wedging the room's checkpoint permanently —
+          // observed 2026-07-23 on sierraleone/testing2). The live doc keeps
+          // the transient state; only the row is normalized. A residual parse
+          // failure is PERMANENT for this doc state — no timer retry.
+          let storedConfig: PresentationObjectConfig;
+          try {
+            storedConfig = presentationObjectConfigSchema.parse(
+              dropStorageInvalidTransients(config),
+            );
+          } catch (err) {
+            console.error(
+              `[collab] po checkpoint validation failed for ${poId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store — a diverged doc (dropped transients, parse-stripped
+          // keys) must re-seed on next open instead of reasserting itself
+          // (every editor open adopts it, visibly "flipping" the viz).
+          const trusted =
+            canonicalJson(storedConfig) === canonicalJson(config);
           const res = await savePresentationObjectCheckpoint(
             projectDb,
             poId,
-            config,
+            storedConfig,
             crdtState,
+            trusted,
           );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(
             projectId,
@@ -411,7 +490,7 @@ routesProjectCollab.get(
             res.data.lastUpdated,
           );
           scheduleVizListRebroadcast(projectId);
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
       };
     }
@@ -442,7 +521,7 @@ routesProjectCollab.get(
         addConnection(projectId, connectionId, auth, ws);
         const hello: CollabServerMessage = {
           type: "hello",
-          data: { connectionId },
+          data: { connectionId, serverVersion: _SERVER_VERSION },
         };
         ws.send(JSON.stringify(hello));
         broadcastPresence(projectId);

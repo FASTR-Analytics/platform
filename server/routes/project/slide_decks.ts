@@ -494,13 +494,17 @@ defineRoute(
     // restored-state version claiming the full snapshot, nor report success.
     const failedSlideIds: string[] = [];
     for (const s of plan.toUpdate) {
-      const roomLastUpdated = await applySlideToLiveRoom(
+      const roomRes = await applySlideToLiveRoom(
         projectId,
         s.id,
         s.config,
       );
-      if (roomLastUpdated !== null) {
-        lastUpdated = roomLastUpdated;
+      if (roomRes.status === "saved") {
+        lastUpdated = roomRes.lastUpdated;
+      } else if (roomRes.status === "save_failed") {
+        // Room absorbed the restore but couldn't persist it — partial apply;
+        // no direct-write fallback (the room owns persistence).
+        failedSlideIds.push(s.id);
       } else {
         const res = await updateSlide(projectDb, s.id, s.config, undefined, undefined);
         if (res.success) {
