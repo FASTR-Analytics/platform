@@ -212,6 +212,12 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
     z.object({ type: z.literal("ping") }),
   ]);
 
+/** The non-fatal `*_error` message a doc room sends when it drops an update
+ *  from a connection whose snapshot auth lacks the family's edit permission.
+ *  Shared so clients can recognize it: when it contradicts the client's live
+ *  permission state, the socket's auth is stale and a reconnect re-derives it. */
+export const COLLAB_NO_EDIT_PERMISSION = "No edit permission";
+
 /** Server → client messages.
  *
  *  The `*_error` families carry an optional `fatal` flag: fatal ⇔ the document

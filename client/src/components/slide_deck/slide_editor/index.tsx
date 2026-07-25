@@ -11,6 +11,7 @@ import type {
 } from "lib";
 import {
   canonicalJson,
+  COLLAB_NO_EDIT_PERMISSION,
   findSlideFigureConfigMap,
   getSlideTitle,
   materializeSlide,
@@ -84,6 +85,7 @@ import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   openSlideSession,
   otherPeers,
+  reconnectForStaleEditAuth,
   setCollabView,
   type SlideSession,
 } from "~/state/project/collab";
@@ -334,10 +336,34 @@ export function SlideEditor(p: Props) {
         // (delete, version restore) — further edits here would silently go
         // nowhere, so tell the user instead of letting them type into a void.
         // Only FATAL errors (room gone) warrant the alert; per-operation
-        // rejections ("No edit permission", a malformed update) don't.
+        // rejections (a malformed update) don't.
         if (fatal && !collabErrorShown) {
           collabErrorShown = true;
           void openAlert({ text: errMsg, intent: "danger" });
+          return;
+        }
+        // Edit rejected on the socket's snapshot auth. If the live store says
+        // this user CAN edit, the socket is stale (permission granted after
+        // connect) — reconnect to re-derive auth; the resync then pushes the
+        // rejected local ops. Otherwise the user really is read-only: say so
+        // once instead of letting them type into a void.
+        if (!fatal && errMsg === COLLAB_NO_EDIT_PERMISSION) {
+          if (
+            projectState.thisUserPermissions.can_configure_slide_decks &&
+            !projectState.isLocked
+          ) {
+            reconnectForStaleEditAuth();
+          } else if (!collabErrorShown) {
+            collabErrorShown = true;
+            void openAlert({
+              text: t3({
+                en: "You don't have permission to edit slides — your changes are not being saved.",
+                fr: "Vous n'avez pas la permission de modifier les diapositives — vos modifications ne sont pas enregistrées.",
+                pt: "Não tem permissão para editar diapositivos — as suas alterações não estão a ser guardadas.",
+              }),
+              intent: "danger",
+            });
+          }
         }
       },
     );
