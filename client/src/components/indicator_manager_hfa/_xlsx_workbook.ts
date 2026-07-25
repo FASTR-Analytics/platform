@@ -1,6 +1,7 @@
 import { read, utils, write } from "xlsx";
 import {
-  HFA_VAR_NAME_REGEX,
+  HFA_INDICATOR_NAME_REGEX,
+  isReservedHfaVarName,
   parseMultiMembershipValues,
   serialiseMultiMembershipValues,
   type HfaIndicator,
@@ -270,8 +271,11 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       varName = `ind${String(autoVarCounter).padStart(3, "0")}`;
       autoVarCounter++;
     }
-    if (!HFA_VAR_NAME_REGEX.test(varName)) {
+    if (!HFA_INDICATOR_NAME_REGEX.test(varName)) {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };
+    }
+    if (isReservedHfaVarName(varName)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" is a reserved word (an R function or operator used in indicator code) — choose a different name.` };
     }
     if (usedVarNames.has(varName)) return { ok: false, err: `Indicators sheet, row ${i + 2}: duplicate varName "${varName}".` };
     usedVarNames.add(varName);

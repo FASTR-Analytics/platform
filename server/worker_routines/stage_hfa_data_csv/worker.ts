@@ -20,6 +20,7 @@ import {
   HfaCsvMappingParams,
   classifyChoice,
   classifyNumericSentinel,
+  isReservedHfaVarName,
   parseNumericSentinels,
 } from "lib";
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
@@ -163,6 +164,18 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
     if (weightCollisions.length > 0) {
       throw new Error(
         `The variable name "weight" is reserved for facility sampling weights. Rename the survey variable in the XLSForm/CSV and re-upload.`,
+      );
+    }
+
+    // Reject names that collide with how indicator R code is interpreted —
+    // `and`/`or` operator aliases, R keywords, and the common functions the
+    // identifier extractor filters. A survey variable named `and`/`sum`/`if`
+    // would otherwise be silently rewritten or dropped and break any indicator
+    // that references it (single source: isReservedHfaVarName).
+    const reservedCollisions = storedVarNames.filter(isReservedHfaVarName);
+    if (reservedCollisions.length > 0) {
+      throw new Error(
+        `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code). Rename the survey variable in the XLSForm/CSV and re-upload.`,
       );
     }
 

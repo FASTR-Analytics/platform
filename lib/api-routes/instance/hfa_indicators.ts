@@ -8,7 +8,10 @@ import type {
   HfaIndicatorSubCategory,
   HfaWorkbookImportResult,
 } from "../../types/mod.ts";
-import { HFA_VAR_NAME_REGEX } from "../../hfa_r_code_analysis.ts";
+import {
+  HFA_INDICATOR_NAME_REGEX,
+  isReservedHfaVarName,
+} from "../../hfa_r_code_analysis.ts";
 import { route } from "../route-utils.ts";
 
 const hfaIndicatorCategorySchema = z.object({
@@ -30,10 +33,16 @@ const hfaIndicatorServiceCategorySchema = z.object({
   sortOrder: z.number(),
 });
 
-const hfaVarNameSchema = z.string().regex(
-  HFA_VAR_NAME_REGEX,
-  "varName must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
-);
+const hfaVarNameSchema = z
+  .string()
+  .regex(
+    HFA_INDICATOR_NAME_REGEX,
+    "varName must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
+  )
+  .refine(
+    (n) => !isReservedHfaVarName(n),
+    "varName is a reserved word (an R function or operator used in indicator code) — choose a different name",
+  );
 
 const hfaIndicatorSchema = z.object({
   varName: hfaVarNameSchema,

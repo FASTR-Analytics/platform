@@ -4,7 +4,10 @@ import type {
   ModuleConfigSelections,
   ModuleDefinitionInstalled,
 } from "lib";
-import { serialiseMultiMembershipValues } from "lib";
+import {
+  normalizeRLogicalOperators,
+  serialiseMultiMembershipValues,
+} from "lib";
 import {
   extractDependenciesFromCode,
   buildUnionDependencyGraph,
@@ -144,12 +147,14 @@ function buildPerTimePointMutateExpression(
   const includeDontKnow = indicator.type === "numeric" || !dontKnowAsNo;
 
   for (const snippet of codeSnippets) {
-    const rCode = snippet.rCode.trim();
+    const rCode = normalizeRLogicalOperators(snippet.rCode.trim());
     if (!rCode) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
 
-    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const rFilterCode = normalizeRLogicalOperators(
+      snippet.rFilterCode?.trim() ?? "",
+    );
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,
@@ -231,7 +236,9 @@ function buildPerTimePointStatusExpression(
     if (!rCode) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const rFilterCode = normalizeRLogicalOperators(
+      snippet.rFilterCode?.trim() ?? "",
+    );
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,

@@ -1,4 +1,4 @@
-import { HFA_VAR_NAME_REGEX, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { HFA_INDICATOR_NAME_REGEX, isReservedHfaVarName, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -54,13 +54,23 @@ export function EditHfaIndicator(
         return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis", pt: "O nome da variável é obrigatório" }) };
       }
       if (mode === "create") {
-        if (!HFA_VAR_NAME_REGEX.test(trimmedVarName)) {
+        if (!HFA_INDICATOR_NAME_REGEX.test(trimmedVarName)) {
           return {
             success: false,
             err: t3({
               en: "Variable name must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
               fr: "Le nom de la variable doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
               pt: "O nome da variável deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
+            }),
+          };
+        }
+        if (isReservedHfaVarName(trimmedVarName)) {
+          return {
+            success: false,
+            err: t3({
+              en: `"${trimmedVarName}" is a reserved word (an R function or operator used in indicator code). Choose a different name.`,
+              fr: `« ${trimmedVarName} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs). Choisissez un autre nom.`,
+              pt: `"${trimmedVarName}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores). Escolha um nome diferente.`,
             }),
           };
         }
