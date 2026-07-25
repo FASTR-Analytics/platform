@@ -44,7 +44,7 @@ import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import type { LayoutNode } from "@timroberton/panther";
 import type { ContentBlock, Slide } from "../types/slides.ts";
 import type { FigureBundle } from "../types/_figure_bundle.ts";
-import { setOpaque, setScalar, syncText } from "./crdt_util.ts";
+import { setOpaque, setOpaqueByValue, setScalar, syncText } from "./crdt_util.ts";
 import {
   materializeFigureConfig,
   seedFigureConfigMap,
@@ -949,7 +949,13 @@ export function syncSlideToDoc(
     for (const f of CONTENT_SCALAR_FIELDS) {
       setScalar(root, f, rec[f]);
     }
-    setOpaque(root, "split", target.split);
+    // By VALUE, not setOpaque: the split panel is edited via nested store
+    // path-sets (placement/sizeAsPct/fill), which mutate the object in place —
+    // setOpaque's reference cache would skip the write (and the doc's stored
+    // value would alias the mutated object), silently dropping the edit for
+    // peers and the checkpoint. setOpaqueByValue clones on write and compares
+    // canonically, so in-place edits still sync. The object is tiny.
+    setOpaqueByValue(root, "split", target.split);
     const layout = root.get("layout") as Y.Map<unknown> | undefined;
     if (!layout) {
       root.set("layout", buildNode(target.layout, null));
