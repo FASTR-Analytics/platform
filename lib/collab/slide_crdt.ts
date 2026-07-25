@@ -822,6 +822,7 @@ function rebuildNodeInPlace(
       m.delete(k);
     }
   }
+  setScalar(m, "id", node.id);
   m.set("type", node.type);
   setScalar(m, "minH", node.minH);
   setScalar(m, "maxH", node.maxH);
@@ -844,6 +845,12 @@ function syncNode(
     rebuildNodeInPlace(m, node, opts);
     return;
   }
+  // The root layout node is NOT keyed by id (children are), so an operation
+  // that swaps the root for a new node — first split of a single-block slide,
+  // delete-with-cleanup promoting a child — must write the new id here. A
+  // stale root id can shadow a descendant's id, and materializeNode's
+  // duplicate-id guard would then drop that descendant (a real content block).
+  setScalar(m, "id", node.id);
   setScalar(m, "minH", node.minH);
   setScalar(m, "maxH", node.maxH);
   setScalar(m, "span", node.span);
