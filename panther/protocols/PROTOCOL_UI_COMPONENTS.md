@@ -118,7 +118,7 @@ duplicate that and miss edge cases.
   `RadioGroup`, `Slider`, `ButtonGroup`.
 - **Layout:** `FrameTop` / `FrameSide`, `HeadingBar`, `Tabs`, `Stepper`,
   collapsible sections.
-- **Data:** `DisplayTable` (sortable/selectable), `ChartHolder`, `PageHolder`.
+- **Data:** `DisplayTable` (sortable/selectable), `FigureHolder`, `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
   helpers, loading/progress indicators.
 

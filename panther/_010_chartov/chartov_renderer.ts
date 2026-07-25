@@ -66,7 +66,8 @@ function measureOV(
 
 export const ChartOVRenderer: Renderer<ChartOVInputs, MeasuredChartOV> = {
   isType(item: unknown): item is ChartOVInputs {
-    return typeof item === "object" && item !== null && "chartData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "chart-ov";
   },
 
   measure(

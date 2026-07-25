@@ -53,7 +53,8 @@ function probeIdealH(
 
 export const VizGraphRenderer: Renderer<VizGraphInputs, MeasuredVizGraph> = {
   isType(item: unknown): item is VizGraphInputs {
-    return typeof item === "object" && item !== null && "vizGraphData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "vizgraph";
   },
 
   measure(
@@ -96,7 +97,7 @@ export const VizGraphRenderer: Renderer<VizGraphInputs, MeasuredVizGraph> = {
     const cs = new CustomFigureStyle(item.style);
     const minComfortableWidth = vizGraphMinWidth(
       rc,
-      item.vizGraphData,
+      item.data,
       cs.getMergedVizGraphStyle(),
       cache,
       item.customNode,

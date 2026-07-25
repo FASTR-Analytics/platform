@@ -68,7 +68,7 @@ export const TimeseriesRenderer: Renderer<
 > = {
   isType(item: unknown): item is TimeseriesInputs {
     return typeof item === "object" && item !== null &&
-      "timeseriesData" in item;
+      "figureType" in item && item.figureType === "timeseries";
   },
 
   measure(

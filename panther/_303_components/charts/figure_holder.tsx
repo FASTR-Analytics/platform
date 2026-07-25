@@ -27,7 +27,7 @@ import {
 } from "../deps.ts";
 
 type Props = {
-  chartInputs: FigureInputs;
+  figureInputs: FigureInputs;
   height: "flex" | "ideal" | number;
   // "reflow" (default): lay out at the container width (1 DU = 1 CSS px).
   // "zoom": lay out at the reference frame and scale to fit.
@@ -41,7 +41,7 @@ type Props = {
   renderError?: (err: string) => JSX.Element;
 };
 
-export function ChartHolder(p: Props) {
+export function FigureHolder(p: Props) {
   let div!: HTMLDivElement;
   let canvas!: HTMLCanvasElement;
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -52,7 +52,7 @@ export function ChartHolder(p: Props) {
   const [fontsLoaded, setFontsLoaded] = createSignal(false);
 
   const fontKey = () => {
-    const style = new CustomFigureStyle(p.chartInputs?.style);
+    const style = new CustomFigureStyle(p.figureInputs?.style);
     return style
       .getFontsToRegister()
       .map((f) => `${f.fontFamily}-${f.weight}-${f.italic}`)
@@ -63,7 +63,7 @@ export function ChartHolder(p: Props) {
 
   createEffect(() => {
     const _key = fontKey();
-    const style = new CustomFigureStyle(p.chartInputs?.style);
+    const style = new CustomFigureStyle(p.figureInputs?.style);
     const fonts = style.getFontsToRegister();
 
     const thisVersion = ++fontLoadVersion;
@@ -83,11 +83,11 @@ export function ChartHolder(p: Props) {
     }
     animationFrameId = requestAnimationFrame(() => {
       animationFrameId = undefined;
-      renderChart(parentDomW, parentDomH);
+      renderFigure(parentDomW, parentDomH);
     });
   }
 
-  function renderChart(parentDomW: number, parentDomH: number) {
+  function renderFigure(parentDomW: number, parentDomH: number) {
     // R1 guard: a 0-width container (hidden tab, collapsed flex, pre-layout)
     // would make devicePxPerDu = 0/0 = NaN → setTransform(NaN,…) → blank canvas.
     // Bail and wait for the next resize tick.
@@ -120,7 +120,7 @@ export function ChartHolder(p: Props) {
         frameH = FigureRenderer.getIdealHeight(
           new CanvasRenderContext(ctx),
           frameW,
-          p.chartInputs,
+          p.figureInputs,
         ).idealH;
         backingH = Math.round(frameH * devicePxPerDu);
       } else {
@@ -144,13 +144,13 @@ export function ChartHolder(p: Props) {
 
       const rc = new CanvasRenderContext(ctx);
       const rcd = new RectCoordsDims([0, 0, frameW, frameH]);
-      const measured = FigureRenderer.measure(rc, rcd, p.chartInputs);
+      const measured = FigureRenderer.measure(rc, rcd, p.figureInputs);
       p.onCramped?.(measured.cramped ?? false);
       FigureRenderer.render(rc, measured);
     } catch (e) {
-      console.error("ChartHolder render error:", e);
+      console.error("FigureHolder render error:", e);
       const errorMessage = e instanceof Error ? e.message : String(e);
-      setErr("Bad chart config: " + errorMessage);
+      setErr("Bad figure config: " + errorMessage);
     }
   }
 
@@ -158,7 +158,7 @@ export function ChartHolder(p: Props) {
     // Track the inputs and the sizing props so a change to any of them
     // re-renders even without a resize.
     const loaded = fontsLoaded();
-    const inputs = p.chartInputs;
+    const inputs = p.figureInputs;
     const _height = p.height;
     const _sizing = p.sizing;
     const _resolution = p.resolution;
@@ -170,7 +170,7 @@ export function ChartHolder(p: Props) {
 
   onMount(() => {
     if (canvas) {
-      canvasTrackingId = trackCanvas(canvas, "ChartHolder");
+      canvasTrackingId = trackCanvas(canvas, "FigureHolder");
     }
 
     const observer = new ResizeObserver((entries) => {
@@ -180,7 +180,7 @@ export function ChartHolder(p: Props) {
       // Debounce resize updates
       resizeTimer = setTimeout(() => {
         for (const entry of entries) {
-          if (entry.contentBoxSize && p.chartInputs && fontsLoaded()) {
+          if (entry.contentBoxSize && p.figureInputs && fontsLoaded()) {
             const parentDomW = entry.contentBoxSize[0].inlineSize;
             const parentDomH = entry.contentBoxSize[0].blockSize;
             scheduleRender(parentDomW, parentDomH);

@@ -21,7 +21,8 @@ import type {
 } from "./deps.ts";
 
 export type TimeseriesInputs = FigureInputsBase & {
-  timeseriesData: TimeseriesData;
+  figureType: "timeseries";
+  data: TimeseriesData;
 };
 
 export type TimeseriesData =

@@ -4,4 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { FigureRenderer } from "./figure_renderer.ts";
-export type { FigureInputs, MeasuredFigure } from "./figure_renderer.ts";
+export type {
+  FigureInputs,
+  FigureType,
+  MeasuredFigure,
+} from "./figure_renderer.ts";

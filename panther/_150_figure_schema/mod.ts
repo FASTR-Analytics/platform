@@ -39,8 +39,6 @@ export {
   zTableDataTransformed,
   zTableJsonDataConfig,
 } from "./table.ts";
-export { isValidFigureData, zFigureData } from "./figure_data.ts";
-export type { FigureData } from "./figure_data.ts";
 export {
   isValidFigureInputs,
   zChartOHInputs,

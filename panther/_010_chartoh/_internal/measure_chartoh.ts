@@ -35,7 +35,7 @@ export function measureChartOH(
   // stacking is scale-independent, so pre-transformed data from the renderer
   // entry point is identical to transforming here.
   const transformedData = data ?? getChartOHDataTransformed(
-    inputs.chartOHData,
+    inputs.data,
     mergedStyle.content.bars.stacking === "stacked",
   );
 

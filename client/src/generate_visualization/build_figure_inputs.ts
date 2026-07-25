@@ -90,7 +90,8 @@ export function buildFigureInputs(
       effectiveConfig.s.content === "bars" && effectiveConfig.s.barsStacked,
     );
     return {
-      timeseriesData: d,
+      figureType: "timeseries",
+      data: d,
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
@@ -104,7 +105,8 @@ export function buildFigureInputs(
       ? buildIndicatorSortOrder(indicatorMetadata)
       : undefined;
     return {
-      tableData: {
+      figureType: "table",
+      data: {
         jsonArray: items,
         jsonDataConfig: getTableJsonDataConfigFromPresentationObjectConfig(
           resultsValue,
@@ -134,7 +136,8 @@ export function buildFigureInputs(
     };
     if (effectiveConfig.s.horizontal) {
       return {
-        chartOHData: {
+        figureType: "chart-oh",
+        data: {
           jsonArray: items,
           jsonDataConfig: getChartOHJsonDataConfigFromPresentationObjectConfig(
             resultsValue,
@@ -149,7 +152,8 @@ export function buildFigureInputs(
       };
     }
     return {
-      chartData: {
+      figureType: "chart-ov",
+      data: {
         jsonArray: items,
         jsonDataConfig: getChartOVJsonDataConfigFromPresentationObjectConfig(
           resultsValue,
@@ -188,7 +192,8 @@ export function buildFigureInputs(
       return row;
     });
     return {
-      mapData: {
+      figureType: "map",
+      data: {
         geoData: geoJson,
         jsonArray: mapItems,
         jsonDataConfig: mapDataConfig,

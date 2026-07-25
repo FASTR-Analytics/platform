@@ -2,10 +2,10 @@ import type { CustomFigureStyleOptions, FigureInputs } from "panther";
 import { darkMode } from "~/state/t4_ui";
 
 // Display-time dark-mode overlay for canvas-rendered figures. Panther's key
-// colors are set once at boot (light document values) and exports + stored
-// FigureInputs snapshots must stay light, so dark mode is applied here
+// colors are set once at boot (light document values) and exports + persisted
+// figure data (bundles) must stay light, so dark mode is applied here
 // instead — merged into a figure's style only where it is handed to an
-// on-screen ChartHolder. Slide surfaces (deck canvas, thumbnails, PPTX/PDF
+// on-screen FigureHolder. Slide surfaces (deck canvas, thumbnails, PPTX/PDF
 // exports) deliberately do not use this.
 //
 // Reads the darkMode signal, so call sites inside JSX re-run on theme toggle.
@@ -96,7 +96,7 @@ export function adaptFigureStyleForDarkMode(
     return inputs;
   }
   const style: CustomFigureStyleOptions = inputs.style ?? {};
-  const isMap = "mapData" in inputs;
+  const isMap = inputs.figureType === "map";
   return {
     ...inputs,
     legend: adaptLegend(inputs.legend),

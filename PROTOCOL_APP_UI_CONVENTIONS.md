@@ -60,8 +60,8 @@ panther repo's PLAN_DARK_MODE.)
   (light text/axes, dimmed grid/table lines, dark table header bands,
   near-black data colors flipped to light in seriesColorFunc/lines/legend;
   chromatic palette colors pass through). It wraps the inputs at **every
-  on-screen `ChartHolder` call site — and only there**, so exports and stored
-  FigureInputs snapshots are untouched. **Any new on-screen `ChartHolder` must
+  on-screen `FigureHolder` call site — and only there**, so exports and
+  persisted figure data (bundles) are untouched. **Any new on-screen `FigureHolder` must
   wrap its inputs in it.**
 - **Supporting `app.css` rules** (all `data-theme="dark"`-scoped): a
   `@custom-variant dark` for one-off `dark:` overrides (classes that read as
@@ -127,7 +127,7 @@ Pattern specifics, from the live pages:
   (PROTOCOL_APP_STATE).
 - **D (editors):** opened full-screen via `getEditorWrapper()` → `openEditor`
   (never routed); panel widths in use: viz editor `384/300/600`, slide editor
-  `startingWidth={400}`; canvas area is `ChartHolder`/`PageHolder`.
+  `startingWidth={400}`; canvas area is `FigureHolder`/`PageHolder`.
 - **Instance page:** Pattern A frame with a centered `ButtonGroup` tab selector,
   responsive at the app's one breakpoint `xl`: `flex xl:hidden` icon-only
   (`itemWidth="50px"`) vs `hidden xl:flex` labeled (`115px` en, `140px` fr/pt).

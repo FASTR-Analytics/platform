@@ -40,7 +40,7 @@ export function measureMap(
     fitScale,
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
-  const transformedData = getMapDataTransformed(inputs.mapData);
+  const transformedData = getMapDataTransformed(inputs.data);
 
   const config: SimplifiedChartConfig<
     MapInputs,

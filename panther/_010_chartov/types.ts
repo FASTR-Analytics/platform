@@ -22,7 +22,8 @@ import type {
 } from "./deps.ts";
 
 export type ChartOVInputs = FigureInputsBase & {
-  chartData: ChartOVData;
+  figureType: "chart-ov";
+  data: ChartOVData;
 };
 
 export type ChartOVData = ChartOVDataJson | ChartOVDataTransformed;

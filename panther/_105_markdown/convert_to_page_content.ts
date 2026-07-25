@@ -66,7 +66,11 @@ export function contentGroupToPageContentItem(
     }
     const tableData = convertMarkdownTableToTableData(element);
     const nCols = tableData.colGroups[0].cols.length;
-    return { tableData, columnWidths: Array(nCols).fill("auto") };
+    return {
+      figureType: "table",
+      data: tableData,
+      columnWidths: Array(nCols).fill("auto"),
+    };
   }
 
   if (group.type === "image") {
@@ -114,7 +118,11 @@ export function docElementToPageContentItem(
   if (element.type === "table") {
     const tableData = convertMarkdownTableToTableData(element);
     const nCols = tableData.colGroups[0].cols.length;
-    return { tableData, columnWidths: Array(nCols).fill("auto") };
+    return {
+      figureType: "table",
+      data: tableData,
+      columnWidths: Array(nCols).fill("auto"),
+    };
   }
 
   if (element.type === "image" && element.src) {

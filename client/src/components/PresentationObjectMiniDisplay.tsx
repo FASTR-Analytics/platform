@@ -1,5 +1,5 @@
 import { ReplicantValueOverride, t3 } from "lib";
-import { FigureInputs, ChartHolder, LoadingIndicator, StateHolder } from "panther";
+import { FigureInputs, FigureHolder, LoadingIndicator, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import {
   datasetsVersionKey,
@@ -172,7 +172,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
           >
             {(keyedFigureInputs) => {
               const h1 =
-                "tableData" in keyedFigureInputs
+                keyedFigureInputs.figureType === "table"
                   ? ("ideal" as const)
                   : ("flex" as const);
               const renderError = (err: string) => (
@@ -182,8 +182,8 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                 <Switch>
                   <Match when={p.shapeType === "force-aspect-video"}>
                     <div class="aspect-video overflow-hidden">
-                      <ChartHolder
-                        chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                      <FigureHolder
+                        figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                         height={h1}
                         sizing="zoom"
                         renderError={renderError}
@@ -191,8 +191,8 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                     </div>
                   </Match>
                   <Match when={true}>
-                    <ChartHolder
-                      chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                    <FigureHolder
+                      figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                       height={h1}
                       sizing="zoom"
                       renderError={renderError}

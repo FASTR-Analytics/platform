@@ -35,7 +35,7 @@ export function measureTimeseries(
   // stacking is scale-independent, so pre-transformed data from the renderer
   // entry point is identical to transforming here.
   const transformedData = data ?? getTimeseriesDataTransformed(
-    inputs.timeseriesData,
+    inputs.data,
     mergedStyle.content.bars.stacking === "stacked",
   );
 

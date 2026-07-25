@@ -110,7 +110,8 @@ export type VizGraphCustomNode = {
 };
 
 export type VizGraphInputs = FigureInputsBase & {
-  vizGraphData: VizGraphData;
+  figureType: "vizgraph";
+  data: VizGraphData;
   customNode?: VizGraphCustomNode;
 };
 

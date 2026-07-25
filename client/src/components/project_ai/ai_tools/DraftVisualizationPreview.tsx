@@ -12,7 +12,7 @@ import {
 import type { AlertComponentProps, FigureInputs, StateHolder } from "panther";
 import {
   Button,
-  ChartHolder,
+  FigureHolder,
   LoadingIndicator,
   ModalContainer,
   openAlert,
@@ -339,13 +339,13 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
       >
         {(keyedFigureInputs) => {
           const h1 =
-            "tableData" in keyedFigureInputs
+            keyedFigureInputs.figureType === "table"
               ? ("ideal" as const)
               : ("flex" as const);
           return (
             <div class="aspect-video overflow-hidden">
-              <ChartHolder
-                chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+              <FigureHolder
+                figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                 height={h1}
                 sizing="zoom"
               />

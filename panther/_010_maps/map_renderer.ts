@@ -25,7 +25,8 @@ import { forEachCoordinate } from "./_internal/geo_helpers.ts";
 
 export const MapRenderer: Renderer<MapInputs, MeasuredMap> = {
   isType(item: unknown): item is MapInputs {
-    return typeof item === "object" && item !== null && "mapData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "map";
   },
 
   measure(
@@ -75,7 +76,7 @@ function getMapComponentSizes(
     item.autofitSurrounds,
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
-  const transformedData = getMapDataTransformed(item.mapData);
+  const transformedData = getMapDataTransformed(item.data);
   const resolvedLegendLabels: LegendInput | undefined =
     isAutoScaleLegendConfig(item.legend)
       ? resolveAutoScaleLegend(
@@ -110,7 +111,7 @@ function getMapIdealHeight(
   width: number,
   item: MapInputs,
 ): HeightConstraints {
-  const transformedData = getMapDataTransformed(item.mapData);
+  const transformedData = getMapDataTransformed(item.data);
   const customFigureStyle = new CustomFigureStyle(item.style);
   const mergedStyle = customFigureStyle.getMergedMapStyle();
   const projectionFn = getProjectionFn(mergedStyle.map.projection);

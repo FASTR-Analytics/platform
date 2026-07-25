@@ -20,7 +20,7 @@ export type AdminLevel = (typeof ADMIN_LEVELS)[number];
 // (getRollupAwareSort) — it never changes the SQL or the sentinel.
 export const ROLLUP_SENTINEL = "__NATIONAL";
 // Emitted by a previous release for position "bottom"; kept for one release so
-// stored FigureInputs grids containing it still render. Nothing new emits it.
+// stored bundle item grids containing it still render. Nothing new emits it.
 export const LEGACY_ROLLUP_SENTINEL = "zzNATIONAL";
 // The ids display code matches/pins on (current + render-compat legacy).
 export const ROLLUP_PIN_IDS = [ROLLUP_SENTINEL, LEGACY_ROLLUP_SENTINEL];

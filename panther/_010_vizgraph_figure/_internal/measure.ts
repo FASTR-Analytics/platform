@@ -53,7 +53,7 @@ export function measureVizGraph(
   const graphPrimitives = generateVizGraphPrimitives(
     rc,
     contentRcd,
-    item.vizGraphData,
+    item.data,
     customFigureStyle.getMergedVizGraphStyle(),
     cache,
     item.customNode,
@@ -77,7 +77,7 @@ export function measureVizGraph(
     measuredSurrounds,
     extraHeightDueToSurrounds,
     customFigureStyle,
-    transformedData: item.vizGraphData,
+    transformedData: item.data,
     primitives: [...graphPrimitives, ...surroundsPrimitives],
     graphExtent,
     caption,
@@ -120,7 +120,7 @@ export function measureVizGraphWithAutofit(
     );
     const { minWidth, graphH } = vizGraphSizeAtWidth(
       rc,
-      item.vizGraphData,
+      item.data,
       cs.getMergedVizGraphStyle(),
       measuredSurrounds.contentRcd.w(),
       cache,

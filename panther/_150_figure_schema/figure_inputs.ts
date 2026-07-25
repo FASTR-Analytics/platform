@@ -153,7 +153,8 @@ const figureInputsBaseFields = {
 
 export const zTableInputs = z.object({
   ...figureInputsBaseFields,
-  tableData: zTableData,
+  figureType: z.literal("table"),
+  data: zTableData,
   columnWidths: z
     .union([
       z.literal("equal"),
@@ -168,7 +169,8 @@ const _zTableInputsConforms: Conforms<
 
 export const zChartOVInputs = z.object({
   ...figureInputsBaseFields,
-  chartData: zChartOVData,
+  figureType: z.literal("chart-ov"),
+  data: zChartOVData,
 });
 const _zChartOVInputsConforms: Conforms<
   z.infer<typeof zChartOVInputs>,
@@ -177,7 +179,8 @@ const _zChartOVInputsConforms: Conforms<
 
 export const zChartOHInputs = z.object({
   ...figureInputsBaseFields,
-  chartOHData: zChartOHData,
+  figureType: z.literal("chart-oh"),
+  data: zChartOHData,
 });
 const _zChartOHInputsConforms: Conforms<
   z.infer<typeof zChartOHInputs>,
@@ -186,7 +189,8 @@ const _zChartOHInputsConforms: Conforms<
 
 export const zTimeseriesInputs = z.object({
   ...figureInputsBaseFields,
-  timeseriesData: zTimeseriesData,
+  figureType: z.literal("timeseries"),
+  data: zTimeseriesData,
 });
 const _zTimeseriesInputsConforms: Conforms<
   z.infer<typeof zTimeseriesInputs>,
@@ -195,7 +199,8 @@ const _zTimeseriesInputsConforms: Conforms<
 
 export const zSimpleVizInputs = z.object({
   ...figureInputsBaseFields,
-  simpleVizData: zAnyPresentObject<SimpleVizData>(),
+  figureType: z.literal("simpleviz"),
+  data: zAnyPresentObject<SimpleVizData>(),
 });
 const _zSimpleVizInputsConforms: Conforms<
   z.infer<typeof zSimpleVizInputs>,
@@ -214,7 +219,8 @@ const zVizGraphCustomNode = z.custom<VizGraphCustomNode>(
 
 export const zVizGraphInputs = z.object({
   ...figureInputsBaseFields,
-  vizGraphData: zAnyPresentObject<VizGraphData>(),
+  figureType: z.literal("vizgraph"),
+  data: zAnyPresentObject<VizGraphData>(),
   customNode: zVizGraphCustomNode.optional(),
 });
 const _zVizGraphInputsConforms: Conforms<
@@ -224,23 +230,30 @@ const _zVizGraphInputsConforms: Conforms<
 
 export const zMapInputs = z.object({
   ...figureInputsBaseFields,
-  mapData: zAnyPresentObject<MapData>(),
+  figureType: z.literal("map"),
+  data: zAnyPresentObject<MapData>(),
 });
 const _zMapInputsConforms: Conforms<z.infer<typeof zMapInputs>, MapInputs> =
   true;
 
-// The full FigureInputs union: surrounds and data validated, style opaque.
-// simpleVizData/mapData/vizGraphData remain deliberately unvalidated data
-// members (see figure_data.ts for the vizgraph decision record).
-export const zFigureInputs: z.ZodType<FigureInputs> = z.union([
-  zTableInputs,
-  zChartOVInputs,
-  zChartOHInputs,
-  zTimeseriesInputs,
-  zSimpleVizInputs,
-  zVizGraphInputs,
-  zMapInputs,
-]);
+// The full FigureInputs union, discriminated on figureType: surrounds and data
+// validated, style opaque. The simpleviz/vizgraph/map `data` members are
+// deliberately unvalidated — simpleviz/map have no production drift history
+// (and map geoData is stripped before storage); vizgraph has no consumer
+// storing blobs at all (checked wb-fastr/marker/panrunner, 2026-07-13). Deep
+// zVizGraphData is warranted only when a consumer persists vizgraph figures.
+export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
+  "figureType",
+  [
+    zTableInputs,
+    zChartOVInputs,
+    zChartOHInputs,
+    zTimeseriesInputs,
+    zSimpleVizInputs,
+    zVizGraphInputs,
+    zMapInputs,
+  ],
+);
 
 export function isValidFigureInputs(x: unknown): boolean {
   return zFigureInputs.safeParse(x).success;

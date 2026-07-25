@@ -45,7 +45,7 @@ function getMinComfortableWidth(
     item.autofitSurrounds,
   );
   const s = customFigureStyle.getMergedTableStyle();
-  const d = getTableDataTransformed(item.tableData);
+  const d = getTableDataTransformed(item.data);
 
   const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
   const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
@@ -259,7 +259,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 
   isType(item: unknown): item is TableInputs {
-    return typeof item === "object" && item !== null && "tableData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "table";
   },
 
   ///////////////////////////////////////////////////////////////////////////////

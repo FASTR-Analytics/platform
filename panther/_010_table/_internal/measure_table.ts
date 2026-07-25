@@ -53,7 +53,7 @@ export function measureTable(
   const mergedTableStyle = customFigureStyle.getMergedTableStyle();
 
   // Add data manually
-  const transformedData = getTableDataTransformed(inputs.tableData);
+  const transformedData = getTableDataTransformed(inputs.data);
 
   // Add legend items manually
   const legend = inputs.legend;

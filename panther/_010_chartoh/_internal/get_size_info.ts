@@ -24,7 +24,7 @@ export function getChartOHSizingData(
   const stacked =
     new CustomFigureStyle(inputs.style).getMergedChartOHStyle().content.bars
       .stacking === "stacked";
-  return getChartOHDataTransformed(inputs.chartOHData, stacked);
+  return getChartOHDataTransformed(inputs.data, stacked);
 }
 
 export function getChartOHComponentSizes(

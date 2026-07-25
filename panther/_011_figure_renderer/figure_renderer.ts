@@ -54,23 +54,37 @@ export type MeasuredFigure =
   | MeasuredVizGraph
   | MeasuredMap;
 
+export type FigureType = FigureInputs["figureType"];
+
 // ================================================================================
 // RENDERER
 // ================================================================================
 
 export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
   isType(item: unknown): item is FigureInputs {
-    return (
-      typeof item === "object" &&
-      item !== null &&
-      ("tableData" in item ||
-        "chartData" in item ||
-        "chartOHData" in item ||
-        "timeseriesData" in item ||
-        "simpleVizData" in item ||
-        "vizGraphData" in item ||
-        "mapData" in item)
-    );
+    if (
+      typeof item !== "object" || item === null || !("figureType" in item)
+    ) {
+      return false;
+    }
+    // The cast makes the switch exhaustiveness-checked: a new FigureInputs
+    // member fails typecheck here (and in getRendererForFigureItem) until its
+    // tag is handled. Unknown runtime strings fall to default and return false.
+    const figureType = item.figureType as FigureType;
+    switch (figureType) {
+      case "table":
+      case "chart-ov":
+      case "chart-oh":
+      case "timeseries":
+      case "simpleviz":
+      case "vizgraph":
+      case "map":
+        return true;
+      default: {
+        const _exhaustive: never = figureType;
+        return false;
+      }
+    }
   },
 
   measure(
@@ -140,29 +154,35 @@ function renderFigure(rc: RenderContext, measured: MeasuredFigure): void {
 function getRendererForFigureItem(
   item: FigureInputs,
 ): Renderer<FigureInputs, MeasuredFigure> {
-  const renderer = TableRenderer.isType(item)
-    ? TableRenderer
-    : ChartOHRenderer.isType(item)
-    ? ChartOHRenderer
-    : ChartOVRenderer.isType(item)
-    ? ChartOVRenderer
-    : TimeseriesRenderer.isType(item)
-    ? TimeseriesRenderer
-    : SimpleVizRenderer.isType(item)
-    ? SimpleVizRenderer
-    : VizGraphRenderer.isType(item)
-    ? VizGraphRenderer
-    : MapRenderer.isType(item)
-    ? MapRenderer
-    : undefined;
-  if (!renderer) {
-    throw new Error("Unknown figure type");
-  }
-  // The single variance point of the dispatch: isType pairs the item with its
+  const renderer = pickRenderer(item);
+  // The single variance point of the dispatch: the tag pairs the item with its
   // renderer, but TS cannot carry that pairing through a union of
   // Renderer<T, M> objects (method-parameter contravariance). Widen the
   // matched renderer to the union-typed Renderer once, here — callers then
   // need no casts, and only ever pass the item/measured the renderer was
   // selected for.
   return renderer as unknown as Renderer<FigureInputs, MeasuredFigure>;
+}
+
+function pickRenderer(item: FigureInputs) {
+  switch (item.figureType) {
+    case "table":
+      return TableRenderer;
+    case "chart-ov":
+      return ChartOVRenderer;
+    case "chart-oh":
+      return ChartOHRenderer;
+    case "timeseries":
+      return TimeseriesRenderer;
+    case "simpleviz":
+      return SimpleVizRenderer;
+    case "vizgraph":
+      return VizGraphRenderer;
+    case "map":
+      return MapRenderer;
+    default: {
+      const _exhaustive: never = item;
+      throw new Error("Unknown figure type");
+    }
+  }
 }

@@ -18,7 +18,8 @@ import type {
 } from "./_internal/geojson_types.ts";
 
 export type MapInputs = FigureInputsBase & {
-  mapData: MapData;
+  figureType: "map";
+  data: MapData;
 };
 
 export type MapData = MapDataJson | MapDataTransformed;

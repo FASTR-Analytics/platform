@@ -29,7 +29,7 @@ import type { Awareness } from "y-protocols/awareness";
 import {
   APIResponseWithData,
   Button,
-  ChartHolder,
+  FigureHolder,
   Csv,
   FigureInputs,
   FrameLeftResizable,
@@ -952,7 +952,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       element: DownloadPresentationObject,
       props: {
         isReplicateBy: !!replicateBy,
-        isTable: "tableData" in figureInputs,
+        isTable: figureInputs.figureType === "table",
         poDetail: p.poDetail,
       },
     });
@@ -961,7 +961,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
     if (res.format === "data-table-formatted") {
       const fi = figureInputs;
-      if (!("tableData" in fi)) {
+      if (fi.figureType !== "table") {
         return;
       }
       downloadCsv(
@@ -1448,8 +1448,8 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {
                                     return (
-                                      <ChartHolder
-                                        chartInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                                      <FigureHolder
+                                        figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                                         height={editorHeight()}
                                         canvasElementId="VIZ_PREVIEW_CANVAS"
                                       />

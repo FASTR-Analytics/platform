@@ -21,8 +21,8 @@ import type {
 } from "./deps.ts";
 
 export type TableInputs = FigureInputsBase & {
-  // tableType: "table"; // Keep for backward compatibility
-  tableData: TableData;
+  figureType: "table";
+  data: TableData;
   // "equal" (or omitted) divides available width evenly across columns,
   // exactly as before this field existed. A number is an absolute width in
   // DU, scaled by fitScale like any other authored size. "auto" measures

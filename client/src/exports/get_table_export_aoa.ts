@@ -21,7 +21,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
     .getMergedTableStyle()
     .tableCells.textFormatter;
 
-  const { colGroups, rowGroups, aoa } = getTableDataTransformed(inputs.tableData);
+  const { colGroups, rowGroups, aoa } = getTableDataTransformed(inputs.data);
 
   // Columns flattened in render order (by col.index).
   const cols = colGroups.flatMap((g) => g.cols);

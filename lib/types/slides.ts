@@ -1,7 +1,6 @@
 import type {
   ColorPresetId,
   CoverTreatmentId,
-  FigureInputs,
   FreeformTreatmentId,
   LayoutNode,
   LayoutPresetId,
