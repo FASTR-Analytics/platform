@@ -923,10 +923,18 @@ export function ProjectReport(p: Props) {
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
-    // Live collab: see persistFigures.
+    // Live collab: see persistFigures — including the skip set, or this push
+    // re-diffs an open figure modal's config from the host's stale copy.
     const s = session();
     if (collabReady() && s) {
-      s.pushRegistries(figures(), next);
+      const editing = editingFigureId();
+      s.pushRegistries(
+        figures(),
+        next,
+        editing
+          ? { skipFigureConfigForFigureIds: new Set([editing]) }
+          : undefined,
+      );
       return;
     }
     setSaveStatus("saving");
