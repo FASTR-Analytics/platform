@@ -7,6 +7,7 @@ import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
+import { MULTI_MEMBERSHIP_FILTER_COLUMNS } from "./validate_fetch_config.ts";
 import type { JsonArrayItem } from "./types/_figure_bundle.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
@@ -151,6 +152,14 @@ export function getSingleValueDimsFromItems(
 
 // Editor-side derivation (pre-fetch): whole-table distinct counts from the
 // possible-values statuses in ResultsValueInfoForPresentationObject.
+//
+// Multi-membership columns are exempt. The one-option inference holds only for
+// scalar columns, where a single distinct value means every row carries it. A
+// set-valued column's options are the unnested members, so one option means
+// "one member of the vocabulary is in use" — rows still split into has-member
+// and has-none, and a blank cell contributes no option row at all
+// (string_to_array('', '|') = {}). Treating such a dimension as constant hid
+// the service-category filter entirely once a single indicator was tagged.
 export function getSingleValueDimsFromPossibleValues(
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -158,6 +167,9 @@ export function getSingleValueDimsFromPossibleValues(
 ): Set<DisaggregationOption> {
   const out = new Set<DisaggregationOption>();
   for (const [disOpt, status] of Object.entries(disaggregationPossibleValues)) {
+    if (MULTI_MEMBERSHIP_FILTER_COLUMNS.has(disOpt)) {
+      continue;
+    }
     if (status.status === "ok" && status.values.length === 1) {
       out.add(disOpt as DisaggregationOption);
     }

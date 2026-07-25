@@ -1,4 +1,4 @@
-# PLAN: Missing Values as a First-Class Filter/Disaggregation Option
+# PLAN: Blank Values as a First-Class Filter/Disaggregation Option
 
 The possible-values query strips NULL and blank before returning options, while
 the data query keeps them as a real group. A dimension whose rows are partly
@@ -25,26 +25,34 @@ fetched items.
 
 Verified on `ro_m10_hfa_results_csv.hfa_category` (project `39b790d8…`):
 
-| | result |
-|---|---|
+| query | result |
+| --- | --- |
 | `SELECT DISTINCT hfa_category` | 4 rows: `''`, infrastructure, medical_supplies, services |
 | options served to the client | 3 — blank stripped |
 | `GROUP BY hfa_category` | `''`=844, infrastructure=1214, medical_supplies=11968, services=7182 |
 
 ### Three severities
 
-1. **≥2 named values + missing.** The filter renders, but the missing group is
+1. **≥2 named values + blank.** The filter renders, but the blank group is
    unselectable. Worse, ticking every visible option is not the no-op it looks
    like — it drops those rows and moves the totals.
-2. **1 named value + missing.** Options length 1 →
+2. **1 named value + blank.** Options length 1 →
    [getSingleValueDimsFromPossibleValues](lib/normalize_po_config.ts#L154-L166)
    marks the dimension single-valued →
    [presentation_object_editor_panel_data.tsx:68](client/src/components/visualization/presentation_object_editor_panel_data.tsx#L68)
    strips it from `allowedFilterOptions`. No filter at all, and it also
    disappears from the disaggregation picker.
-3. **All missing.** Zero options → `no_values_available` → the dimension is
+3. **All blank.** Zero options → `no_values_available` → the dimension is
    dropped outright at
    [presentation_object_editor_panel_data.tsx:43-46](client/src/components/visualization/presentation_object_editor_panel_data.tsx#L43-L46).
+
+**Severity 2 is the reported bug that started this.** A user assigned one
+service category to one indicator, and the service-category filter vanished
+from the viz editor. `hfa_service_category` is multi-membership, so `unnest`
+yields exactly one distinct value, the dimension is judged constant, and the
+filter is stripped — even though the rows plainly split into tagged and
+untagged. Step 0 below is the fix for that; the sentinel steps address the
+scalar columns.
 
 The client gates are all correct given their input. The input is wrong.
 
@@ -67,21 +75,60 @@ treat the two identically.
 
 ## Fix
 
-Fold NULL and blank into one sentinel, on the same pattern as `ROLLUP_SENTINEL`
+Two independent parts. Step 0 stands alone and fixes the reported bug; steps 1-5
+fold NULL and blank into one sentinel for the scalar columns, on the same
+pattern as `ROLLUP_SENTINEL`
 ([lib/admin_area_rollup.ts:21](lib/admin_area_rollup.ts#L21)).
+
+### 0. Multi-membership columns are never "single-valued"
+
+`getSingleValueDimsFromPossibleValues` skips any column in
+`MULTI_MEMBERSHIP_FILTER_COLUMNS`.
+
+The inference it makes is valid only for scalar columns: there, one distinct
+option really does mean every row carries the same value. For a set-valued
+column it means "one member of the vocabulary is in use", which says nothing
+about whether rows are homogeneous — they still partition into has-tag and
+has-no-tag. Applying scalar reasoning to a set-valued column is the defect.
+
+Blast radius is one behaviour. The other consumer of `singleValueDims` is
+`getEffectivePOConfig`, which uses it only to filter `config.d.disaggregateBy`
+([normalize_po_config.ts:93-99](lib/normalize_po_config.ts#L93-L99)), and
+multi-membership columns can never appear there — `FILTER_ONLY` is enforced
+with a throw at
+[validate_fetch_config.ts:170-172](lib/validate_fetch_config.ts#L170-L172).
+So this moves filter visibility and nothing else.
+
+This deliberately does **not** make "untagged" selectable, and that is the right
+call: for a set-membership filter, an indicator with no tag genuinely is not
+RMNCH. With one visible option there is also no false impression of
+completeness — unlike the scalar case in severity 1, where ticking every option
+looks like a no-op but silently drops the blank cohort. Steps 1-5 therefore
+leave multi-membership alone entirely.
 
 ### 1. The sentinel
 
-`MISSING_SENTINEL = "__MISSING"` in lib, beside `ROLLUP_SENTINEL`. Uppercase,
+`BLANK_SENTINEL = "__BLANK"` in lib, beside `ROLLUP_SENTINEL`. Uppercase,
 so it survives the `UPPER()` comparison path unchanged. It carries the same
-theoretical collision exposure as `ROLLUP_SENTINEL` — a literal `__MISSING` in
+theoretical collision exposure as `ROLLUP_SENTINEL` — a literal `__BLANK` in
 source data — which we accept on the same grounds.
+
+"Blank", not "missing", deliberately: **"Missing" is already a taken term in
+this app**, meaning the count of facilities that did not answer an HFA question
+([dataset_items_holder.tsx:112](client/src/components/instance_dataset_hfa/dataset_items_holder.tsx#L112),
+rendered red when > 0), and it is the subject of
+[PLAN_1_HFA_COMPOSITE_MISSINGNESS.md](PLAN_1_HFA_COMPOSITE_MISSINGNESS.md).
+That is a data-quality claim about non-response; this is the display state of a
+cell. Reusing the word across the two would be actively misleading on the HFA
+surfaces (`hfa_category`, `hfa_service_category`) where this sentinel is most
+common. "Blank" also describes what is observable rather than inferring a
+cause, which is what a catch-all over three different origins needs.
 
 A shared helper emits the SQL expression, so the three sites that need it cannot
 drift:
 
 ```sql
-COALESCE(NULLIF(btrim(<col>), ''), '__MISSING')
+COALESCE(NULLIF(btrim(<col>), ''), '__BLANK')
 ```
 
 Applies to text disaggregation columns only. Excluded: `INTEGER_FILTER_COLUMNS`
@@ -140,7 +187,8 @@ The sentinel needs a label at two sites:
   which already special-cases both `ROLLUP_SENTINEL` and
   `LEGACY_ROLLUP_SENTINEL`.
 
-Label: `{ en: "(Missing)", fr: "(Manquant)", pt: "(Em falta)" }`.
+Label: `{ en: "(Blank)", fr: "(Vide)", pt: "(Em branco)" }` — one label for every
+origin, per the reasoning in step 1.
 
 Map the legacy raw forms — `""` and `"null"` — to the same label alongside the
 sentinel, exactly as `LEGACY_ROLLUP_SENTINEL` is handled. That is what lets
@@ -161,23 +209,29 @@ them:
   `last_updated`, not code — without the bump, unmodified rows keep serving
   old-shape payloads.
 - **Stored FigureInputs** — no forced sweep, *provided* step 5's legacy mapping
-  lands. Old grids keep their `""`/`null` keys and still label as "(Missing)".
+  lands. Old grids keep their `""`/`null` keys and still label as "(Blank)".
   If that mapping is dropped, this becomes a slide_config force block.
 
-## Out of scope — decide separately
+## Why the sentinel does not reach multi-membership
 
 `hfa_service_category` is multi-membership and filter-only
 ([lib/validate_fetch_config.ts:116-123](lib/validate_fetch_config.ts#L116-L123)).
 Its options come from `unnest(string_to_array(col, '|'))`, and Postgres gives
 `string_to_array('', '|') = {}` — verified, along with `unnest(NULL)` returning
-zero rows. So blanks vanish from its options regardless of the JS strip, and the
-20573-of-21208 blank rows in `ro_m10_hfa_results_carried_csv` are silently
-excluded by any service-category filter.
+zero rows. A blank cell therefore produces **no row at all**, so wrapping the
+column in `COALESCE(NULLIF(btrim(…)))` coalesces nothing: the sentinel of step 1
+can never appear for it. The filter side has the same shape mismatch — the
+predicate is an array overlap, not an `IN` list:
 
-Whether "belongs to no service category" should be selectable is a modelling
-question, not a bug fix: it needs a synthetic member in a set-membership
-vocabulary, which is a different change from folding a missing scalar. Left
-alone here.
+| cell | `string_to_array(cell,'\|') && ARRAY['RMNCH']` |
+| --- | --- |
+| `'RMNCH'` | true |
+| `''` | false |
+| `NULL` | NULL |
+
+Making the sentinel work here would need a `cardinality(...) = 0` union in the
+options query plus an OR-ed blank predicate on the overlap — a second mechanism
+for a case step 0 already resolves. Not built.
 
 Also unchanged: the R generators, the sentinel-classification work in
 [PLAN_1_HFA_COMPOSITE_MISSINGNESS.md](PLAN_1_HFA_COMPOSITE_MISSINGNESS.md) (HFA
@@ -195,9 +249,13 @@ becomes valid there for free.
 - A facility disaggregator over a results table with an unmatched `facility_id`
   — the LEFT JOIN NULL path — folds to the same sentinel as a blank string, and
   a mixed NULL+blank column yields exactly one sentinel option, not two.
-- Severity 2 regression: a dimension with one named value plus missing now
-  renders a filter (and appears in the disaggregation picker) instead of being
-  treated as constant.
+- The reported bug: with exactly one service category assigned to one indicator,
+  the service-category filter renders in the viz editor and that category is
+  selectable. Covered by step 0 alone — verify before the sentinel steps land,
+  so the two fixes are known to be independent.
+- Severity 2 regression on a scalar column: a dimension with one named value
+  plus blanks now renders a filter (and appears in the disaggregation picker)
+  instead of being treated as constant.
 - `getSingleValueDimsFromPossibleValues` and `getSingleValueDimsFromItems` agree
   on such a dimension — neither reports it single-valued.
 - Roll-up interaction: `includeAdminAreaRollup` with a blank-bearing
@@ -205,5 +263,5 @@ becomes valid there for free.
   no duplicate rows.
 - An integer disaggregator (`year`) and a period column are untouched — no
   `btrim` on an integer column.
-- A figure stored before the change still renders its missing group as
-  "(Missing)" after it.
+- A figure stored before the change still renders its blank group as
+  "(Blank)" after it.
