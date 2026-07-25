@@ -1,3 +1,10 @@
+[TBD] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
+[TBD] [user] [changed] - Removed "Verification mismatches" section from import run details
+[TBD] [user] [changed] - Simplified scheduling guidance message when credentials are missing
+[TBD] [admin] [changed] - Scheduling DHIS2 imports no longer requires a prior verification run
+[TBD] [admin] [changed] - Shadow verification step removed from DHIS2 import process
+[TBD] [admin] [changed] - Verification mismatches section removed from import run details
+[TBD] [admin] [changed] - Stored credentials are now the only requirement for scheduled imports
 [1.61.2] [user] [added] - Row filter option during HFA data import to exclude unwanted rows
 [1.61.2] [user] [added] - Duplicate facility review step during HFA data import with manual row selection
 [1.61.2] [user] [changed] - HFA data import now has a dedicated duplicates review step before staging
