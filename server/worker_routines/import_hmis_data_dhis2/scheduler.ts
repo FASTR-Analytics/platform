@@ -31,6 +31,7 @@ import {
 } from "../../db/mod.ts";
 import type {
   Dhis2RunSelection,
+  Dhis2ScheduleRecurrence,
   Dhis2ScheduleSelection,
   InstanceCalendar,
 } from "lib";
@@ -48,12 +49,7 @@ export const SCHEDULE_GRACE_MS = 4 * 60 * 60 * 1000;
 // same second (thundering herd). Per-row, stable across ticks.
 const JITTER_MAX_MS = 5 * 60 * 1000;
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-// A recurring row is "this cycle's turn" when the occurrence is at least
-// intervalWeeks minus this tolerance after the last handled one — DST can
-// make wall-clock weeks up to an hour short, so compare with slack.
-const INTERVAL_TOLERANCE_MS = 12 * 60 * 60 * 1000;
 
 // ============================================================================
 // PURE TIME MATH (exported for the verification harness)
@@ -113,8 +109,10 @@ function zoneOffsetMs(utcMs: number, timeZone: string): number {
 
 // The UTC instant at which the given wall time occurs in the given zone.
 // Iterative offset correction handles DST transitions; for a wall time that
-// does not exist (spring-forward gap) this lands within an hour of it, which
-// is far inside the 4 h grace.
+// does not exist (spring-forward gap) this lands within an hour of it — on
+// the EARLY side in some zones (e.g. 02:30 Pacific/Auckland → 01:30).
+// Accepted: it stays far inside the 4 h grace, and the fleet's zones do not
+// observe DST.
 export function wallTimeInZoneToUtcMs(
   year: number,
   month: number,
@@ -136,43 +134,143 @@ export function wallTimeInZoneToUtcMs(
   return guess;
 }
 
-// The most recent instant ≤ now that is `dayOfWeek` (0 = Sunday) at
-// `startTime` ("HH:MM") wall time in `timeZone`.
-export function mostRecentOccurrenceMs(
-  nowMs: number,
-  dayOfWeek: number,
+function parseStartTime(startTime: string): { hour: number; minute: number } {
+  const [hourStr, minuteStr] = startTime.split(":");
+  return { hour: Number(hourStr), minute: Number(minuteStr) };
+}
+
+// Wall dates are handled as UTC-noon instants ("YYYY-MM-DD" ↔ Date.UTC at
+// 12:00): day arithmetic in that space is DST-immune, and only the final
+// wall-date → instant conversion consults the zone.
+function wallDateToUtcNoonMs(wallDate: string): number {
+  const [y, m, d] = wallDate.split("-").map(Number);
+  return Date.UTC(y, m - 1, d, 12);
+}
+
+function occurrenceAtUtcNoonMs(
+  utcNoonMs: number,
   startTime: string,
   timeZone: string,
 ): number {
-  const [hourStr, minuteStr] = startTime.split(":");
-  const hour = Number(hourStr);
-  const minute = Number(minuteStr);
-  const nowWall = getWallClockInZone(nowMs, timeZone);
-  // Walk back day by day over the zone's calendar (arithmetic on the wall
-  // date in UTC space is safe — only the final conversion needs the zone).
+  const { hour, minute } = parseStartTime(startTime);
+  const date = new Date(utcNoonMs);
+  return wallTimeInZoneToUtcMs(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    hour,
+    minute,
+    timeZone,
+  );
+}
+
+// The nth (1–4 or "last") `weekday` of the month containing `anyUtcNoonMs`,
+// as a UTC-noon instant. 1st–4th always exist (day ≤ 28); "last" walks back
+// from the month's final day.
+function nthWeekdayOfMonthUtcNoonMs(
+  anyUtcNoonMs: number,
+  nth: 1 | 2 | 3 | 4 | "last",
+  weekday: number,
+): number {
+  const date = new Date(anyUtcNoonMs);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  if (nth === "last") {
+    const lastDay = Date.UTC(year, month + 1, 0, 12);
+    const back = (new Date(lastDay).getUTCDay() - weekday + 7) % 7;
+    return lastDay - back * DAY_MS;
+  }
+  const firstDay = Date.UTC(year, month, 1, 12);
+  const forward = (weekday - new Date(firstDay).getUTCDay() + 7) % 7;
+  return firstDay + (forward + (nth - 1) * 7) * DAY_MS;
+}
+
+// The most recent occurrence ≤ now for the recurrence, or null when none
+// exists yet (anchor still in the future). Exact arithmetic from the
+// anchor — cadence phase never depends on when the schedule last fired.
+export function mostRecentOccurrenceMs(
+  nowMs: number,
+  recurrence: Dhis2ScheduleRecurrence,
+): number | null {
+  const nowWall = getWallClockInZone(nowMs, recurrence.timezone);
   const todayUtcNoon = Date.UTC(nowWall.year, nowWall.month - 1, nowWall.day, 12);
-  for (let back = 0; back <= 7; back++) {
-    const candidate = new Date(todayUtcNoon - back * DAY_MS);
-    if (candidate.getUTCDay() !== dayOfWeek) {
-      continue;
+
+  if (recurrence.kind === "daily") {
+    const today = occurrenceAtUtcNoonMs(
+      todayUtcNoon,
+      recurrence.startTime,
+      recurrence.timezone,
+    );
+    if (today <= nowMs) {
+      return today;
     }
-    const occ = wallTimeInZoneToUtcMs(
-      candidate.getUTCFullYear(),
-      candidate.getUTCMonth() + 1,
-      candidate.getUTCDate(),
-      hour,
-      minute,
-      timeZone,
+    return occurrenceAtUtcNoonMs(
+      todayUtcNoon - DAY_MS,
+      recurrence.startTime,
+      recurrence.timezone,
+    );
+  }
+
+  if (recurrence.kind === "weekly") {
+    const anchorUtcNoon = wallDateToUtcNoonMs(recurrence.firstRunDate);
+    const cycleDays = 7 * recurrence.everyNWeeks;
+    const daysSinceAnchor = Math.round((todayUtcNoon - anchorUtcNoon) / DAY_MS);
+    if (daysSinceAnchor < 0) {
+      return null;
+    }
+    let candidateUtcNoon =
+      anchorUtcNoon + Math.floor(daysSinceAnchor / cycleDays) * cycleDays * DAY_MS;
+    let occ = occurrenceAtUtcNoonMs(
+      candidateUtcNoon,
+      recurrence.startTime,
+      recurrence.timezone,
+    );
+    if (occ > nowMs) {
+      candidateUtcNoon -= cycleDays * DAY_MS;
+      if (candidateUtcNoon < anchorUtcNoon) {
+        return null;
+      }
+      occ = occurrenceAtUtcNoonMs(
+        candidateUtcNoon,
+        recurrence.startTime,
+        recurrence.timezone,
+      );
+    }
+    return occ;
+  }
+
+  // monthly: candidate = the most recent month on the everyNMonths cycle
+  // from anchorMonth; its occurrence is the nth weekday at startTime.
+  const [anchorYear, anchorMonth] = recurrence.anchorMonth.split("-").map(Number);
+  const monthsSinceAnchor =
+    (nowWall.year - anchorYear) * 12 + (nowWall.month - anchorMonth);
+  if (monthsSinceAnchor < 0) {
+    return null;
+  }
+  let cycleMonths =
+    monthsSinceAnchor - (monthsSinceAnchor % recurrence.everyNMonths);
+  for (let i = 0; i < 2; i++) {
+    if (cycleMonths < 0) {
+      return null;
+    }
+    const monthIndex = anchorMonth - 1 + cycleMonths;
+    const monthUtcNoon = Date.UTC(anchorYear, monthIndex, 1, 12);
+    const occUtcNoon = nthWeekdayOfMonthUtcNoonMs(
+      monthUtcNoon,
+      recurrence.nth,
+      recurrence.weekday,
+    );
+    const occ = occurrenceAtUtcNoonMs(
+      occUtcNoon,
+      recurrence.startTime,
+      recurrence.timezone,
     );
     if (occ <= nowMs) {
       return occ;
     }
-    // Today matches the day but the start time is still ahead — keep walking
-    // back to last week's occurrence.
+    cycleMonths -= recurrence.everyNMonths;
   }
-  throw new Error(
-    `Could not compute an occurrence for day ${dayOfWeek} ${startTime} in ${timeZone}`,
-  );
+  return null;
 }
 
 export type ScheduleFireDecision =
@@ -183,15 +281,7 @@ export type ScheduleFireDecision =
 export function decideScheduleFire(
   row: Pick<
     EnabledScheduledImportRow,
-    | "id"
-    | "kind"
-    | "runAtMs"
-    | "dayOfWeek"
-    | "startTime"
-    | "timezone"
-    | "intervalWeeks"
-    | "armedAtMs"
-    | "lastFiredAtMs"
+    "id" | "kind" | "runAtMs" | "recurrence" | "armedAtMs" | "lastFiredAtMs"
   >,
   nowMs: number,
 ): ScheduleFireDecision {
@@ -199,8 +289,9 @@ export function decideScheduleFire(
     if (row.runAtMs === null || row.lastFiredAtMs !== null) {
       return { action: "none" };
     }
-    // Armed after its own fire instant (a stale row enabled somehow —
-    // setEnabled refuses this, so belt-and-braces): never due, never missed.
+    // Armed after its own fire instant (a stale row re-enabled somehow —
+    // edits re-arm and re-validate run-at, so belt-and-braces): never due,
+    // never missed.
     if (row.runAtMs < row.armedAtMs) {
       return { action: "none" };
     }
@@ -212,24 +303,18 @@ export function decideScheduleFire(
     }
     return { action: "missed", occurrenceMs: row.runAtMs };
   }
-  if (
-    row.dayOfWeek === null ||
-    row.startTime === null ||
-    row.timezone === null ||
-    row.intervalWeeks === null
-  ) {
+  if (row.recurrence === null) {
     return { action: "none" };
   }
-  let occurrenceMs: number;
+  let occurrenceMs: number | null;
   try {
-    occurrenceMs = mostRecentOccurrenceMs(
-      nowMs,
-      row.dayOfWeek,
-      row.startTime,
-      row.timezone,
-    );
+    occurrenceMs = mostRecentOccurrenceMs(nowMs, row.recurrence);
   } catch (e) {
     console.error(`Schedule ${row.id}: occurrence computation failed:`, e);
+    return { action: "none" };
+  }
+  // null = the anchor is still in the future — nothing has ever been due.
+  if (occurrenceMs === null) {
     return { action: "none" };
   }
   // Occurrences from before the row existed / was last armed (create,
@@ -241,15 +326,6 @@ export function decideScheduleFire(
     return { action: "none" };
   }
   if (row.lastFiredAtMs !== null && row.lastFiredAtMs >= occurrenceMs) {
-    return { action: "none" };
-  }
-  // Not this cycle's turn (fortnightly/monthly rows skip intermediate weeks
-  // silently — no 'missed', they were never due).
-  if (
-    row.lastFiredAtMs !== null &&
-    occurrenceMs - row.lastFiredAtMs <
-      row.intervalWeeks * WEEK_MS - INTERVAL_TOLERANCE_MS
-  ) {
     return { action: "none" };
   }
   const jitterMs = jitterMsForScheduleId(row.id);

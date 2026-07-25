@@ -173,10 +173,7 @@ export type DBDatasetHmisScheduledImport = {
   enabled: boolean;
   selection: string;
   run_at: string | Date | null;
-  day_of_week: number | null;
-  start_time: string | null;
-  timezone: string | null;
-  interval_weeks: number | null;
+  recurrence: string | null;
   created_by: string;
   created_at: string | Date;
   armed_at: string | Date;

@@ -102,6 +102,15 @@ live in git history). Shape:
   ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`) — queued runs
   drain FIFO first, then due schedules (occurrence math per IANA timezone, 4 h
   grace, deterministic per-row jitter, `last_fired_at` CAS idempotency).
+  Recurring rows carry a `recurrence` JSON union (migration 064): daily /
+  weekly / monthly-nth-weekday, each with an explicit anchor (weekly:
+  `firstRunDate`, the first occurrence, weekday derived from it; monthly:
+  `anchorMonth` phases everyNMonths > 1) — occurrences are exact arithmetic
+  from the anchor, never counted from the last fire. Ruled 2026-07-25:
+  monthly is nth-weekday only (no day-of-month and its short-month fallback
+  rules), grace is a uniform 4 h at every cadence, and the weekly UI offers
+  1/2/4 weeks (server accepts 1–13). Schedules have no URL of their own —
+  runs pin (the queued-run URL guard), policies follow the stored connection.
   Refusals/misses are loud (`last_outcome` + datasets-summary attention flag).
   Two accepted limitations (reviewed
   2026-07-15, deliberately not fixed): a crash between the CAS claim and the

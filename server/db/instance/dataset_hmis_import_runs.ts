@@ -369,7 +369,7 @@ export async function countQueuedDatasetHmisImportRuns(
 }
 
 // Flips a queued row to an error with a loud reason (fire-time refusals:
-// stored credentials gone, connection re-pointed, unattended gate unpassed).
+// stored credentials gone, connection re-pointed).
 export async function refuseQueuedDatasetHmisImportRun(
   mainDb: Sql,
   runId: number,

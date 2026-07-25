@@ -97,7 +97,7 @@ SYSTEM_06 ingestion doc is SHORTER than today's, or we've failed the brief.
 ## 2. Ruled decisions (2026-07-15/16, not open)
 
 - **Separate runs tables per family. No mega-table, no rename.** The diagnostics
-  ARE the schema: HMIS runs carry pairs/progress/shadow/ dhis2_url; an HFA file
+  ARE the schema: HMIS runs carry pairs/progress/dhis2_url; an HFA file
   import shares none of that. One table would be nullable-column soup.
   `dataset_hmis_import_runs` is genuinely HMIS-only and keeps its name.
 - **Reuse is contracts and components, not storage and not a framework.**

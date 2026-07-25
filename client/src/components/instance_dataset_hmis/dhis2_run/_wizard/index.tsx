@@ -8,7 +8,9 @@ import {
   type Dhis2ImportSchedulingInfo,
   type Dhis2RunPair,
   type Dhis2RunSelection,
+  type Dhis2ScheduleRecurrence,
 } from "lib";
+import { recurrenceLabel } from "../_recurrence_label";
 import {
   AlertComponentProps,
   Button,
@@ -103,6 +105,11 @@ function getMinMaxPeriods(calendar: CalendarType): {
   return { min, max: current, defaultStart, defaultEnd: current };
 }
 
+function currentYearMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 // The one wizard for every way a DHIS2 import gets configured — ad hoc run,
 // queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
 // §3). A modal (Add-visualization pattern), not a full-screen editor: short,
@@ -158,18 +165,42 @@ export function Dhis2Wizard(
         )
       : { dateTime: "", timezone: getLocalTimezone() },
   );
-  const [dayOfWeek, setDayOfWeek] = createSignal<string>(
-    String(scheduleDefaults?.dayOfWeek ?? 1),
+  const recurrenceDefaults = scheduleDefaults?.recurrence;
+  const [recurKind, setRecurKind] = createSignal<Dhis2ScheduleRecurrence["kind"]>(
+    recurrenceDefaults?.kind ?? "weekly",
+  );
+  const [firstRunDate, setFirstRunDate] = createSignal<string>(
+    recurrenceDefaults?.kind === "weekly" ? recurrenceDefaults.firstRunDate : "",
+  );
+  const [everyNWeeks, setEveryNWeeks] = createSignal<string>(
+    recurrenceDefaults?.kind === "weekly"
+      ? String(recurrenceDefaults.everyNWeeks)
+      : "1",
+  );
+  const [nth, setNth] = createSignal<string>(
+    recurrenceDefaults?.kind === "monthly" ? String(recurrenceDefaults.nth) : "1",
+  );
+  const [monthlyWeekday, setMonthlyWeekday] = createSignal<string>(
+    recurrenceDefaults?.kind === "monthly"
+      ? String(recurrenceDefaults.weekday)
+      : "1",
+  );
+  const [everyNMonths, setEveryNMonths] = createSignal<string>(
+    recurrenceDefaults?.kind === "monthly"
+      ? String(recurrenceDefaults.everyNMonths)
+      : "1",
+  );
+  const [anchorMonth, setAnchorMonth] = createSignal<string>(
+    recurrenceDefaults?.kind === "monthly"
+      ? recurrenceDefaults.anchorMonth
+      : currentYearMonth(),
   );
   const [startTime, setStartTime] = createSignal<string>(
-    scheduleDefaults?.startTime ?? "01:15",
+    recurrenceDefaults?.startTime ?? "01:15",
   );
   const [timezone, setTimezone] = createSignal<string>(
-    scheduleDefaults?.timezone ??
+    recurrenceDefaults?.timezone ??
       Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
-  const [intervalWeeks, setIntervalWeeks] = createSignal<string>(
-    String(scheduleDefaults?.intervalWeeks ?? 1),
   );
 
   // Step 4 — config.
@@ -199,10 +230,38 @@ export function Dhis2Wizard(
   // gesture and isn't gated server-side (datasets.ts updateDatasetHmisDhis2Schedule).
   const gateApplies = () => !isEditSchedule || timeChoice() === "later";
 
+  function buildRecurrence(): Dhis2ScheduleRecurrence {
+    const base = { startTime: startTime(), timezone: timezone() };
+    if (recurKind() === "daily") {
+      return { kind: "daily", ...base };
+    }
+    if (recurKind() === "weekly") {
+      return {
+        kind: "weekly",
+        firstRunDate: firstRunDate(),
+        everyNWeeks: parseInt(everyNWeeks()) || 1,
+        ...base,
+      };
+    }
+    const nMonths = parseInt(everyNMonths()) || 1;
+    return {
+      kind: "monthly",
+      nth: nth() === "last" ? "last" : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
+      weekday: parseInt(monthlyWeekday()) || 0,
+      everyNMonths: nMonths,
+      // Phase is irrelevant at monthly cadence — any anchor gives the same
+      // occurrences, so pin the current month rather than asking.
+      anchorMonth: nMonths === 1 ? currentYearMonth() : anchorMonth(),
+      ...base,
+    };
+  }
+
   function computeTimeValid(): boolean {
     if (timeChoice() === "now") return true;
     if (gateApplies() && !hasStoredCredentials()) return false;
     if (timeChoice() === "later") return runAtZoned().dateTime !== "";
+    if (startTime() === "") return false;
+    if (recurKind() === "weekly") return firstRunDate() !== "";
     return true;
   }
 
@@ -297,20 +356,10 @@ export function Dhis2Wizard(
         ? new Date(zonedDateTimeToUtcMs(runAtZoned())).toLocaleString()
         : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
     }
-    const every =
-      (parseInt(intervalWeeks()) || 1) === 1
-        ? t3({ en: "weekly", fr: "chaque semaine", pt: "semanalmente" })
-        : `${t3({ en: "every", fr: "toutes les", pt: "a cada" })} ${intervalWeeks()} ${t3({ en: "weeks", fr: "semaines", pt: "semanas" })}`;
-    const days = [
-      t3({ en: "Sunday", fr: "Dimanche", pt: "Domingo" }),
-      t3({ en: "Monday", fr: "Lundi", pt: "Segunda-feira" }),
-      t3({ en: "Tuesday", fr: "Mardi", pt: "Terça-feira" }),
-      t3({ en: "Wednesday", fr: "Mercredi", pt: "Quarta-feira" }),
-      t3({ en: "Thursday", fr: "Jeudi", pt: "Quinta-feira" }),
-      t3({ en: "Friday", fr: "Vendredi", pt: "Sexta-feira" }),
-      t3({ en: "Saturday", fr: "Samedi", pt: "Sábado" }),
-    ];
-    return `${days[parseInt(dayOfWeek())] ?? ""} ${startTime()} (${timezone()}), ${every}`;
+    if (recurKind() === "weekly" && firstRunDate() === "") {
+      return t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
+    }
+    return recurrenceLabel(buildRecurrence());
   };
 
   const windowSummary = () => {
@@ -436,10 +485,7 @@ export function Dhis2Wizard(
       if (timeChoice() === "later") {
         fields.runAt = zonedDateTimeToUtcIso(runAtZoned());
       } else {
-        fields.dayOfWeek = parseInt(dayOfWeek());
-        fields.startTime = startTime();
-        fields.timezone = timezone();
-        fields.intervalWeeks = parseInt(intervalWeeks());
+        fields.recurrence = buildRecurrence();
       }
 
       return isEditSchedule && scheduleDefaults
@@ -540,14 +586,24 @@ export function Dhis2Wizard(
             setTimeChoice={setTimeChoice}
             runAtZoned={runAtZoned}
             setRunAtZoned={setRunAtZoned}
-            dayOfWeek={dayOfWeek}
-            setDayOfWeek={setDayOfWeek}
+            recurKind={recurKind}
+            setRecurKind={setRecurKind}
+            firstRunDate={firstRunDate}
+            setFirstRunDate={setFirstRunDate}
+            everyNWeeks={everyNWeeks}
+            setEveryNWeeks={setEveryNWeeks}
+            nth={nth}
+            setNth={setNth}
+            monthlyWeekday={monthlyWeekday}
+            setMonthlyWeekday={setMonthlyWeekday}
+            everyNMonths={everyNMonths}
+            setEveryNMonths={setEveryNMonths}
+            anchorMonth={anchorMonth}
+            setAnchorMonth={setAnchorMonth}
             startTime={startTime}
             setStartTime={setStartTime}
             timezone={timezone}
             setTimezone={setTimezone}
-            intervalWeeks={intervalWeeks}
-            setIntervalWeeks={setIntervalWeeks}
             gateApplies={gateApplies()}
             hasStoredCredentials={hasStoredCredentials()}
             onBackToCredentials={() =>

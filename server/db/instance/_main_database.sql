@@ -391,10 +391,8 @@ CREATE TABLE dataset_hmis_scheduled_imports (
   enabled boolean NOT NULL,
   selection text NOT NULL,
   run_at timestamptz,
-  day_of_week integer CHECK (day_of_week BETWEEN 0 AND 6),
-  start_time text,
-  timezone text,
-  interval_weeks integer CHECK (interval_weeks >= 1),
+  -- Recurring only: Dhis2ScheduleRecurrence JSON (daily / weekly / monthly).
+  recurrence text,
   created_by text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   -- Stamped on create/enable/edit; occurrences before it are never due

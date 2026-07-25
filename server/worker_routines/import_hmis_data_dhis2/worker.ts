@@ -472,7 +472,7 @@ async function run(std: RunWorkerMessage) {
     statsInputs = { routes, unknownIds };
 
     // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ PHASE 4: BUILD FETCH TASKS                                          │
+    // │ PHASE 3: BUILD FETCH TASKS                                          │
     // └─────────────────────────────────────────────────────────────────────┘
 
     const tasks: FetchTask[] = [];
@@ -520,7 +520,7 @@ async function run(std: RunWorkerMessage) {
     }
 
     // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ PHASE 5: FETCH + INTEGRATE (per pair, pooled)                       │
+    // │ PHASE 4: FETCH + INTEGRATE (per pair, pooled)                       │
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "fetching";
@@ -913,7 +913,7 @@ async function run(std: RunWorkerMessage) {
     }
 
     // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ PHASE 6: FINALIZE RUN                                               │
+    // │ PHASE 5: FINALIZE RUN                                               │
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "finalizing";
