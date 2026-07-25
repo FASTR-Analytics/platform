@@ -1159,6 +1159,41 @@ function hardClose(): void {
   }
 }
 
+/** Tear down and immediately re-open the collab socket. Needed when this
+ *  user's project permissions (or the project lock) change while connected:
+ *  the server snapshots authorization once per connection, so a live grant
+ *  or revoke never reaches an open socket — a viewer-connected editor keeps
+ *  getting non-fatal "No edit permission" rejections while its local doc
+ *  diverges. Reconnecting re-derives auth server-side; onopen re-subscribes
+ *  every open session and the two-way sync pushes any local ops the server
+ *  is missing (edits typed during the stale window get saved, not lost).
+ *  No-op when no project connection is wanted. */
+export function forceCollabReconnect(reason: string): void {
+  if (!currentProjectId) {
+    return;
+  }
+  console.log(`Collab: reconnecting (${reason})`);
+  hardClose();
+  retryNow();
+}
+
+// Self-heal for a "No edit permission" rejection that CONTRADICTS the client's
+// live permission state: the socket's snapshot auth is stale (the grant's SSE
+// event raced or was missed), so reconnect to re-derive it. Cooldown-guarded —
+// if the server still rejects after a fresh connect, the disagreement is real
+// (client store wrong, not the socket) and looping reconnects would just churn.
+let lastStaleAuthReconnectAt = 0;
+const STALE_AUTH_RECONNECT_COOLDOWN_MS = 30_000;
+
+export function reconnectForStaleEditAuth(): void {
+  const now = Date.now();
+  if (now - lastStaleAuthReconnectAt < STALE_AUTH_RECONNECT_COOLDOWN_MS) {
+    return;
+  }
+  lastStaleAuthReconnectAt = now;
+  forceCollabReconnect("edit rejected but permissions say editable");
+}
+
 export function connectCollab(projectId: string): void {
   if (
     currentProjectId === projectId && ws && ws.readyState <= WebSocket.OPEN

@@ -34,6 +34,7 @@ import * as Y from "yjs";
 import {
   base64ToBytes,
   bytesToBase64,
+  COLLAB_NO_EDIT_PERMISSION,
   type CollabServerMessage,
   type VersionEditor,
 } from "lib";
@@ -456,7 +457,7 @@ export function applyDocUpdate<T>(
   adapter: DocRoomAdapter<T>,
 ): void {
   if (!conn.canEdit) {
-    conn.send(adapter.msgError(docId, "No edit permission"));
+    conn.send(adapter.msgError(docId, COLLAB_NO_EDIT_PERMISSION));
     return;
   }
   const room = rooms.get(roomKey(projectId, adapter.docType, docId));
