@@ -57,7 +57,6 @@ function toRunSummary(row: DBDatasetHmisImportRun): DatasetHmisImportRunSummary 
     startedAt: new Date(row.started_at).toISOString(),
     endedAt: row.ended_at ? new Date(row.ended_at).toISOString() : undefined,
     versionId: row.version_id ?? undefined,
-    shadowPassed: row.shadow_passed ?? undefined,
     progress: row.progress
       ? parseJsonOrUndefined<DatasetHmisImportRunProgress>(row.progress)
       : undefined,
@@ -71,7 +70,7 @@ export async function getDatasetHmisImportRunSummaries(
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
       SELECT id, trigger, triggered_by, dhis2_url, selection, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
-        version_id, shadow_passed, progress
+        version_id, progress
       FROM dataset_hmis_import_runs
       ORDER BY id DESC
       LIMIT 50
@@ -88,7 +87,7 @@ export async function getDatasetHmisImportRunDetail(
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
       SELECT id, trigger, triggered_by, dhis2_url, selection, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
-        version_id, shadow_passed, progress, run_stats
+        version_id, progress, run_stats
       FROM dataset_hmis_import_runs
       WHERE id = ${runId}
     `;
@@ -255,8 +254,8 @@ export async function launchDatasetHmisDhis2ImportRun(
   mainDb: Sql,
   args: {
     credentialsSource: Dhis2RunCredentialsSource;
-    // The URL recorded on the run row (shadow_passed is keyed to it). For
-    // inline credentials this is credentials.url; for stored, the stored url.
+    // The URL recorded on the run row. For inline credentials this is
+    // credentials.url; for stored, the stored url.
     dhis2Url: string;
     selection: Dhis2RunSelection;
     trigger: "manual" | "schedule";
@@ -438,24 +437,6 @@ export async function launchQueuedDatasetHmisImportRun(
     onComplete: args.onComplete,
   });
   return true;
-}
-
-// The §7 C4 unattended gate: nothing fires unattended (one-shot, recurring,
-// or queued) until a run against this DHIS2 URL has shadow-verified clean.
-// Trailing-slash-tolerant: a manual first run entered as "https://x.org/"
-// must unlock stored credentials saved as "https://x.org".
-export async function hasShadowPassedForDhis2Url(
-  mainDb: Sql,
-  url: string,
-): Promise<boolean> {
-  const rows = await mainDb<{ exists: boolean }[]>`
-    SELECT EXISTS(
-      SELECT 1 FROM dataset_hmis_import_runs
-      WHERE shadow_passed = true
-        AND rtrim(dhis2_url, '/') = rtrim(${url}, '/')
-    ) as exists
-  `;
-  return rows[0].exists;
 }
 
 export async function cancelDatasetHmisImportRun(

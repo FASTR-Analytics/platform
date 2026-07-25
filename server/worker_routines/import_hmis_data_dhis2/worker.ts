@@ -89,20 +89,6 @@ const PROGRESS_WRITE_INTERVAL_MS = 2000;
 // size without having tried the split (§4.4).
 const DVS_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 const DVS_TIMEOUT_MS = 300_000;
-// Shadow verification (first dispatcher run per instance): cross-check a
-// sample of DVS-routed pairs against the analytics value before integrating.
-const SHADOW_SAMPLE_RATE = 0.05;
-const SHADOW_MAX_PAIRS = 40;
-const SHADOW_MAX_FACILITIES_WITH_DATA = 300;
-const SHADOW_MAX_FACILITIES_WITHOUT_DATA = 100;
-// Circuit breaker: one hard mismatch can be a data-entry race; this many
-// distinct pairs mismatching means the DVS route is systematically wrong for
-// this server, and the ~95% of unsampled pairs must not integrate (and
-// scope-delete) on top of it.
-const SHADOW_HARD_MISMATCH_ABORT_PAIRS = 3;
-// Soft (zero-vs-absent) records are diagnostics only and can reach ~400 per
-// sampled pair — cap what run_stats stores; hard records are never capped.
-const SHADOW_SOFT_MISMATCH_RECORD_CAP = 200;
 
 type RunWorkerMessage = {
   runId: number;
@@ -177,16 +163,10 @@ async function run(std: RunWorkerMessage) {
   let mintedVersionId: number | null = null;
   let versionPromise: Promise<number> | null = null;
 
-  // run_stats must survive EVERY exit (the shadow-abort error message points
-  // operators at run_stats.shadow) — inputs live at run scope so the catch
-  // path can persist whatever was known when the run died.
-  const shadowStats: NonNullable<DatasetHmisImportRunStats["shadow"]> = {
-    pairsChecked: 0,
-    facilitiesCompared: 0,
-    mismatches: [],
-  };
+  // run_stats must survive EVERY exit — inputs live at run scope so the
+  // catch path can persist whatever was known when the run died.
   let statsInputs:
-    | { routes: Map<string, RawRoute>; unknownIds: string[]; shadowMode: boolean }
+    | { routes: Map<string, RawRoute>; unknownIds: string[] }
     | null = null;
   const buildRunStatsJson = (): string | null => {
     if (!statsInputs) {
@@ -209,7 +189,6 @@ async function run(std: RunWorkerMessage) {
         unknownIds: statsInputs.unknownIds,
       },
       pairFetchStats,
-      shadow: statsInputs.shadowMode ? shadowStats : undefined,
     };
     return JSON.stringify(runStats);
   };
@@ -383,11 +362,10 @@ async function run(std: RunWorkerMessage) {
     );
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
-    // The run row's dhis2_url keys shadow_passed (the unattended gate). For
-    // stored credentials it was read by the launcher moments ago, but an
-    // admin can replace the stored connection in that window — re-stamp the
-    // row with the URL this run will ACTUALLY fetch so the gate can never be
-    // unlocked under a URL that was not verified.
+    // For stored credentials the URL was read by the launcher moments ago,
+    // but an admin can replace the stored connection in that window —
+    // re-stamp the row with the URL this run will ACTUALLY fetch so run
+    // history records the real source.
     if (credentialsSource.kind === "stored") {
       await mainDb`
         UPDATE dataset_hmis_import_runs
@@ -491,45 +469,7 @@ async function run(std: RunWorkerMessage) {
       return level2OrgUnitIdsPromise;
     };
 
-    // ┌─────────────────────────────────────────────────────────────────────┐
-    // │ PHASE 3: SHADOW-VERIFICATION DECISION (first dispatcher run only)   │
-    // └─────────────────────────────────────────────────────────────────────┘
-
-    // Keyed to the DHIS2 URL: a pass against one server says nothing about
-    // DVS-vs-analytics parity on a different one (test→prod migration).
-    const priorShadowPass = await mainDb<{ exists: boolean }[]>`
-      SELECT EXISTS(
-        SELECT 1 FROM dataset_hmis_import_runs
-        WHERE shadow_passed = true AND dhis2_url = ${credentials.url}
-      ) as exists
-    `;
-    const shadowMode = !priorShadowPass[0].exists;
-    const shadowSample = new Set<string>();
-    if (shadowMode && dvsPairs.length > 0) {
-      const target = Math.min(
-        SHADOW_MAX_PAIRS,
-        Math.max(1, Math.ceil(dvsPairs.length * SHADOW_SAMPLE_RATE)),
-      );
-      const shuffled = [...dvsPairs];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      for (const p of shuffled.slice(0, target)) {
-        shadowSample.add(pairKey(p));
-      }
-      console.log(
-        `Run ${runId}: shadow verification ON — ${shadowSample.size} of ${dvsPairs.length} dvs pairs sampled`,
-      );
-    }
-    // Soft zero-ambiguity comparisons (one side absent, other side 0) are
-    // recorded but do not fail the pair; analytics-unavailable comparisons
-    // block shadow_passed without failing pairs.
-    let shadowUnavailableCount = 0;
-    let shadowHardMismatchPairs = 0;
-    let shadowSoftRecordsTotal = 0;
-    let shadowAborted = false;
-    statsInputs = { routes, unknownIds, shadowMode };
+    statsInputs = { routes, unknownIds };
 
     // ┌─────────────────────────────────────────────────────────────────────┐
     // │ PHASE 4: BUILD FETCH TASKS                                          │
@@ -680,9 +620,6 @@ async function run(std: RunWorkerMessage) {
     };
 
     const runAnalyticsPair = async (pair: Dhis2RunPair): Promise<void> => {
-      if (shadowAborted) {
-        return;
-      }
       const key = pairKey(pair);
       activePairs.set(key, { ...pair, route: "analytics" });
       await updateProgress(false);
@@ -794,9 +731,6 @@ async function run(std: RunWorkerMessage) {
     };
 
     const runDvsTask = async (task: DvsTask): Promise<void> => {
-      if (shadowAborted) {
-        return;
-      }
       for (const covered of task.coveredPairs) {
         activePairs.set(pairKey(covered), {
           indicatorRawId: covered.indicatorRawId,
@@ -897,10 +831,6 @@ async function run(std: RunWorkerMessage) {
       }
 
       for (const covered of task.coveredPairs) {
-        if (shadowAborted) {
-          activePairs.delete(pairKey(covered));
-          continue;
-        }
         const pair = {
           indicatorRawId: covered.indicatorRawId,
           periodId: covered.periodId,
@@ -919,50 +849,6 @@ async function run(std: RunWorkerMessage) {
         }
 
         try {
-          if (shadowSample.has(pairKey(pair))) {
-            const verdict = await shadowVerifyPair(pair, stagedMap);
-            if (verdict === "analytics-unavailable") {
-              shadowUnavailableCount++;
-            } else {
-              shadowStats.pairsChecked++;
-              shadowStats.facilitiesCompared += verdict.comparisons;
-              shadowStats.mismatches.push(...verdict.hardMismatches);
-              const softRoom =
-                SHADOW_SOFT_MISMATCH_RECORD_CAP - shadowSoftRecordsTotal;
-              if (softRoom > 0) {
-                shadowStats.mismatches.push(
-                  ...verdict.softMismatches.slice(0, softRoom),
-                );
-              }
-              shadowSoftRecordsTotal += verdict.softMismatches.length;
-              if (verdict.hardMismatches.length > 0) {
-                shadowHardMismatchPairs++;
-                if (shadowHardMismatchPairs >= SHADOW_HARD_MISMATCH_ABORT_PAIRS) {
-                  shadowAborted = true;
-                }
-                const first = verdict.hardMismatches[0];
-                await failPair(
-                  pair,
-                  `Shadow verification mismatch (dataValueSets vs analytics): facility ` +
-                    `${first.facilityId} dvs=${first.dvsValue} analytics=${first.analyticsValue}` +
-                    (verdict.hardMismatches.length > 1
-                      ? ` (+${verdict.hardMismatches.length - 1} more facilities)`
-                      : ""),
-                  "permanent",
-                );
-                pairFetchStats.push({
-                  ...pair,
-                  success: false,
-                  route: "dvs",
-                  ...accToStat(acc),
-                  rowsFetched: stagedMap.size,
-                  errorKind: "permanent",
-                  error: "Shadow verification mismatch",
-                });
-                continue;
-              }
-            }
-          }
           const rows = Array.from(stagedMap, ([facilityId, count]) => ({
             facilityId,
             count,
@@ -992,125 +878,6 @@ async function run(std: RunWorkerMessage) {
         }
       }
       await updateProgress(true);
-    };
-
-    // Shadow verification: one analytics call over ≤400 sampled facilities
-    // (up to 300 with DVS data + up to 100 without), per-facility comparison.
-    const shadowVerifyPair = async (
-      pair: Dhis2RunPair,
-      stagedMap: Map<string, number>,
-    ): Promise<
-      | "analytics-unavailable"
-      | {
-          comparisons: number;
-          hardMismatches: NonNullable<
-            DatasetHmisImportRunStats["shadow"]
-          >["mismatches"];
-          softMismatches: NonNullable<
-            DatasetHmisImportRunStats["shadow"]
-          >["mismatches"];
-        }
-    > => {
-      const withData = Array.from(stagedMap.keys());
-      for (let i = withData.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [withData[i], withData[j]] = [withData[j], withData[i]];
-      }
-      const sample = withData.slice(0, SHADOW_MAX_FACILITIES_WITH_DATA);
-      const withoutData: string[] = [];
-      let attempts = 0;
-      while (
-        withoutData.length < SHADOW_MAX_FACILITIES_WITHOUT_DATA &&
-        attempts < SHADOW_MAX_FACILITIES_WITHOUT_DATA * 20
-      ) {
-        attempts++;
-        const candidate =
-          facilityIds[Math.floor(Math.random() * facilityIds.length)];
-        if (!stagedMap.has(candidate) && !withoutData.includes(candidate)) {
-          withoutData.push(candidate);
-        }
-      }
-      const allSampled = sample.concat(withoutData).slice(0, 400);
-      if (allSampled.length === 0) {
-        return { comparisons: 0, hardMismatches: [], softMismatches: [] };
-      }
-      let response: DHIS2AnalyticsResponse<string[]>;
-      try {
-        response = await getAnalyticsFromDHIS2<string[]>(
-          {
-            dataElements: [pair.indicatorRawId],
-            orgUnits: allSampled,
-            periods: [String(pair.periodId)],
-            skipMeta: true,
-          },
-          {
-            ...baseFetchOptions,
-            retryOptions: { maxAttempts: 3, initialDelayMs: 1000, maxDelayMs: 30000 },
-          },
-        );
-        if (!response.rows) {
-          return "analytics-unavailable";
-        }
-      } catch (error) {
-        console.warn(
-          `Shadow verification analytics call failed for ${pair.indicatorRawId}/${pair.periodId}:`,
-          error instanceof Error ? error.message : error,
-        );
-        return "analytics-unavailable";
-      }
-      const analyticsMap = new Map<string, number>();
-      const orgUnitIndex = response.headers.findIndex(
-        (h) => h.name === "ou" || h.name === "Organisation unit",
-      );
-      const valueIndex = response.headers.findIndex(
-        (h) => h.name === "value" || h.name === "Value",
-      );
-      if (response.rows.length > 0 && (orgUnitIndex < 0 || valueIndex < 0)) {
-        // An empty analyticsMap here would read as a wall of hard mismatches;
-        // this is a comparison we could not make, not a parity failure.
-        return "analytics-unavailable";
-      }
-      for (const row of response.rows) {
-        const facilityId = row[orgUnitIndex];
-        const value = parseInt(row[valueIndex]);
-        if (facilityId && !isNaN(value) && value >= 0) {
-          analyticsMap.set(facilityId, value);
-        }
-      }
-      const hardMismatches: NonNullable<
-        DatasetHmisImportRunStats["shadow"]
-      >["mismatches"] = [];
-      const softMismatches: NonNullable<
-        DatasetHmisImportRunStats["shadow"]
-      >["mismatches"] = [];
-      for (const facilityId of allSampled) {
-        const dvsValue = stagedMap.get(facilityId);
-        const analyticsValue = analyticsMap.get(facilityId);
-        if (dvsValue === analyticsValue) continue;
-        // Zero-vs-absent is ambiguous between the two endpoints (a stored 0
-        // may or may not produce an analytics row) — recorded, not fatal.
-        if (
-          (dvsValue === undefined && analyticsValue === 0) ||
-          (analyticsValue === undefined && dvsValue === 0)
-        ) {
-          softMismatches.push({
-            kind: "soft",
-            ...pair,
-            facilityId,
-            dvsValue,
-            analyticsValue,
-          });
-        } else {
-          hardMismatches.push({
-            kind: "hard",
-            ...pair,
-            facilityId,
-            dvsValue,
-            analyticsValue,
-          });
-        }
-      }
-      return { comparisons: allSampled.length, hardMismatches, softMismatches };
     };
 
     const results = pooledMap(CONCURRENT_REQUESTS, tasks, async (task) => {
@@ -1143,14 +910,6 @@ async function run(std: RunWorkerMessage) {
     });
     for await (const _ of results) {
       // Drain — all handling happens inside the tasks.
-    }
-
-    if (shadowAborted) {
-      throw new Error(
-        `Shadow verification found hard DVS-vs-analytics mismatches on ${shadowHardMismatchPairs} sampled pairs — ` +
-          `run aborted before integrating the unsampled remainder. Mismatch detail is in run_stats.shadow; ` +
-          `pairs integrated before the abort are preserved in the ledger.`,
-      );
     }
 
     // ┌─────────────────────────────────────────────────────────────────────┐
@@ -1214,14 +973,6 @@ async function run(std: RunWorkerMessage) {
       `;
     }
 
-    // null (not false) when there was nothing to shadow — an all-analytics
-    // run (e.g. non-Gregorian calendar) must not record a shadow verdict.
-    const shadowPassed = shadowMode && dvsPairs.length > 0
-      ? shadowStats.pairsChecked > 0 &&
-        shadowHardMismatchPairs === 0 &&
-        shadowUnavailableCount === 0
-      : null;
-
     // Drop the scope table BEFORE the status flip: the flip releases the
     // single-running claim, and a successor run may create its own
     // fixed-name scope table the moment the claim is free.
@@ -1235,7 +986,6 @@ async function run(std: RunWorkerMessage) {
         status = 'complete',
         ended_at = now(),
         progress = NULL,
-        shadow_passed = ${shadowPassed},
         run_stats = ${buildRunStatsJson()}
       WHERE id = ${runId} AND status = 'running'
     `;

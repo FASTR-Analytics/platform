@@ -172,7 +172,7 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as DatasetHmisImportRunSummary[],
   }),
-  // Summary + the run_stats blob (per-pair failures, unknown ids, shadow) —
+  // Summary + the run_stats blob (per-pair failures, unknown ids) —
   // fetched on demand from the History row click, never in the polled list.
   getDatasetHmisImportRunDetail: route({
     path: "/datasets/hmis/dhis2-runs/:run_id",

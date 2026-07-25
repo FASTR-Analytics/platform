@@ -154,7 +154,6 @@ export type DBDatasetHmisImportRun = {
   started_at: string | Date;
   ended_at: string | Date | null;
   version_id: number | null;
-  shadow_passed: boolean | null;
   progress: string | null;
   run_stats: string | null;
 };

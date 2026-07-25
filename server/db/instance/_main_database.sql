@@ -355,7 +355,6 @@ CREATE TABLE dataset_hmis_import_runs (
   started_at timestamptz NOT NULL DEFAULT now(),
   ended_at timestamptz,
   version_id integer REFERENCES dataset_hmis_versions(id),
-  shadow_passed boolean,
   progress text,
   run_stats text
 );

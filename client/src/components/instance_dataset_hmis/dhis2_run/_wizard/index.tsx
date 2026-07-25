@@ -189,12 +189,11 @@ export function Dhis2Wizard(
       : 12,
   );
 
-  const unattendedReady = () => schedulingData()?.unattendedReady ?? false;
   const hasStoredCredentials = () =>
     schedulingData()?.storedCredentials !== undefined;
 
-  // The unattended gate applies whenever the server will actually check it:
-  // createDatasetHmisDhis2Schedule always checks it (any kind), but
+  // The stored-credentials gate applies whenever the server will actually
+  // check it: createDatasetHmisDhis2Schedule always checks it (any kind), but
   // updateDatasetHmisDhis2Schedule only re-checks for kind "one_shot" —
   // editing an existing recurring schedule's time/day is not a re-arm
   // gesture and isn't gated server-side (datasets.ts updateDatasetHmisDhis2Schedule).
@@ -202,7 +201,7 @@ export function Dhis2Wizard(
 
   function computeTimeValid(): boolean {
     if (timeChoice() === "now") return true;
-    if (gateApplies() && !unattendedReady()) return false;
+    if (gateApplies() && !hasStoredCredentials()) return false;
     if (timeChoice() === "later") return runAtZoned().dateTime !== "";
     return true;
   }
@@ -551,7 +550,6 @@ export function Dhis2Wizard(
             setIntervalWeeks={setIntervalWeeks}
             gateApplies={gateApplies()}
             hasStoredCredentials={hasStoredCredentials()}
-            unattendedReady={unattendedReady()}
             onBackToCredentials={() =>
               stepper.setCurrentStep(credentialsStepIndex)
             }

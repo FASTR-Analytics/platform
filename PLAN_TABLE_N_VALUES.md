@@ -22,18 +22,28 @@ independent; phase 3 needs both.
   maps): the transformer is the one place that authoritatively maps
   `(item, valueProp) → (row, col)`, so per-cell and per-header n are exact —
   no header-id ambiguity under grouped axes.
-- **Header n shape**: `sampleN: { val, min, max, nMatrix }` (see Phase 2).
-  `val` = first cell of the header's slice in final sorted order. Digested
-  fields are roll-up-excluded; `nMatrix` is the raw matrix for apps that want
-  their own policy.
+- **Header n shape**: `sampleN?: { first, min, max, varies, slice }` (see
+  Phase 2). Scalar digests are computed over defined, roll-up-excluded cells;
+  `slice` is the header's own raw slice for apps that want their own policy
+  (the full matrix lives at table level, not on headers). `sampleN` is omitted
+  entirely when the slice has zero defined n cells, so every inner field is
+  required — presence itself means "n data exists for this header".
 - **Roll-up rule**: a roll-up header on the axis being decorated is a normal
   header with its own n (whole-sample count — falls out of the rollup query's
   own COUNT). Roll-up cells on the *perpendicular* axis are excluded from
-  other headers' val/min/max (else a column that is constant across districts
+  other headers' first/min/max/varies (else a column that is constant across districts
   reads as "varying" because the national row's summed n sits in it). Reuses
   the `liveDomainExcludeIds` id list, generalized to match on both axes.
-- **v1 display scope**: header decoration (col and/or row headers) via a new
-  panther header textFormatter. No secondary columns, no per-cell display, no
+- **panther capability is fully symmetric** — `sampleN` on row, col, and
+  group headers, textFormatter hooks on both axes, no axis preference in the
+  library. All display policy lives in wb-fastr's formatters. `first` has no
+  v1 consumer (see display policy) but stays in the API for library
+  completeness (ruled 2026-07-24).
+- **v1 display policy (resolved 2026-07-24)**: wb-fastr installs a col-header
+  formatter only; rows/groups are a later app-side change with zero panther
+  work. The label always shows `(n=max)` — max over the header's slice,
+  requested by the wb-client product manager; a constant slice shows its
+  exact n since max equals it. No secondary columns, no per-cell display, no
   scorecard-mode support in v1 (per-cell `sampleN` lands on `TableCellInfo`
   anyway, so a cell-annotation policy is a later app-side choice).
 
@@ -90,22 +100,33 @@ Work in the panther repo (`timroberton-panther`), typecheck there, then
 
    ```ts
    sampleN?: {
-     val: number;    // first cell of this header's slice, post-sort, roll-up-excluded
-     min: number;    // over this header's slice, roll-up-excluded
-     max: number;    // varies ⇔ min !== max
-     nMatrix: (number | undefined)[][]; // full matrix, [rowIndex][colIndex], raw
-   }
+     first: number;   // first defined cell of this header's slice, post-sort, roll-up-excluded
+     min: number;     // over defined, roll-up-excluded cells
+     max: number;
+     varies: boolean; // min !== max
+     slice: (number | undefined)[]; // this header's raw slice, final sorted order (group headers: span, flattened)
+   };
    ```
 
    - A col header's slice is its column (`nMatrix.map(r => r[index])`), a row
-     header's is its row (`nMatrix[index]`), a group header's is its span.
-   - val/min/max exclude cells whose *perpendicular* header id is in
+     header's is its row (`nMatrix[index]`), a group header's is its span
+     flattened. `slice` is raw — includes roll-up and undefined cells; the
+     full matrix stays at table level (`TableDataTransformed.nMatrix`), never
+     on headers.
+   - Presence contract: omit `sampleN` entirely when the slice has zero
+     defined n cells — every inner field is required, no inner optionals.
+     `varies` means "defined cells differ", decided here once, not re-derived
+     by callers.
+   - first/min/max/varies exclude cells whose *perpendicular* header id is in
      `liveDomainExcludeIds` (generalize the existing row-only semantics to
      both axes for this computation; the color-domain use keeps its current
-     behavior). `nMatrix` is raw — includes roll-up cells; document the
-     contrast in the type comment.
-   - NB: `TableHeaderInfo` already has `n` (= count of items on the axis) —
-     do not touch it; the new field is `sampleN`.
+     behavior). Document the digests-excluded vs slice-raw contrast in the
+     one authoritative type comment.
+   - Rename `TableHeaderInfo.n` → `itemCount` (count of items on the axis)
+     while touching this type — it would otherwise sit permanently next to
+     `sampleN` as a confusion generator. Usage is near-zero (panther style
+     plumbing only; wb-fastr's sole header-func reference is commented out) —
+     verify other panther-consuming projects before the rename.
 5. **Header textFormatter hook** — the missing piece that lets the app
    control header text (labels are currently fixed at transform time):
    - `content.tableColHeaders.textFormatter?: TableHeaderInfoFunc<string> | "none"`
@@ -116,6 +137,11 @@ Work in the panther repo (`timroberton-panther`), typecheck there, then
      formatter receives the full `TableHeaderInfo` (incl. `sampleN`), returns
      the final label string; absent/`"none"` → existing label unchanged.
      Multi-line output works today (`\n` splits in the text measurer).
+   - Invocation rule: when configured, the formatter is ALWAYS invoked — even
+     when `sampleN` is absent (the formatter decides, e.g. returns the label
+     unchanged). It is a general label hook, not n-specific; do not copy the
+     cell formatter's undefined-value short-circuit
+     (`resolveFormattedCellString`).
 
 ## Phase 3 — wb-fastr wiring
 
@@ -123,8 +149,8 @@ Work in the panther repo (`timroberton-panther`), typecheck there, then
    Touch points (the four-place reality from research §5.2):
    - `lib/types/_presentation_object_config.ts` (`presentationObjectConfigSStrict`)
    - `lib/types/_metric_installed.ts` (`configSStrict`, optional)
-   - `wb-fastr-modules` `_module_definition_github.ts` (`configSGithubStrict`)
-     + re-run `vendor_schema`
+   - `wb-fastr-modules` `_module_definition_github.ts` (`configSGithubStrict`),
+     then re-run `vendor_schema`
    - Backfill block in
      `server/db/migrations/data_transforms/po_config.ts`
      (`if (!("showNValues" in s)) s.showNValues = false;` — follow the
@@ -136,11 +162,11 @@ Work in the panther repo (`timroberton-panther`), typecheck there, then
    `getTableJsonDataConfigFromPresentationObjectConfig`): when
    `config.s.showNValues && resultsValue.hasFacilityLevelRows`, pass
    `nProps = { [prop]: "__n_" + prop }` for each effectiveValueProp.
-3. **Style** (`get_style_from_po/`): header textFormatters implementing the
-   display policy (see Open decisions), standard table mode only
-   (`!isSpecialScorecardTableActive`). Formatting `(n=42)` — thousands
-   separator via existing formatter funcs; "n" is language-neutral, no
-   translation needed.
+3. **Style** (`get_style_from_po/`): col-header textFormatter only (no row
+   formatter in v1), standard table mode only
+   (`!isSpecialScorecardTableActive`): `sampleN` absent → label unchanged,
+   else append `(n=${max})` (space-prefixed). Thousands separator via existing formatter
+   funcs; "n" is language-neutral, no translation needed.
 4. **Editor UI**
    (`presentation_object_editor_panel_style/_table.tsx`): plain `<Checkbox>`
    in the existing Display StyleSection, mirroring "Allow vertical column
@@ -164,13 +190,5 @@ Work in the panther repo (`timroberton-panther`), typecheck there, then
   (constant n per facility-type column), an HMIS admin-area table with
   roll-up row (perpendicular exclusion), and a CSV/XLSX export.
 
-## Open decisions (small, display policy only)
-
-1. **v1 placement policy**: decorate col headers only, or col + row, or a
-   simple auto rule (decorate the axis where n is constant; when both vary,
-   show `val` per Tim's first-row default)? Leaning: col headers by default
-   is the common case (facility types / indicators as columns); confirm
-   before Phase 3 step 3.
-2. **Varying display**: when a header's slice varies (min !== max), show
-   `(n=42)` from `val` anyway, show nothing, or show a range? (All three are
-   one-line changes in the app formatter; panther surface supports any.)
+No open decisions — display policy resolved 2026-07-24 (see settled design
+decisions).

@@ -8,11 +8,6 @@
 // Serialization needs nothing new: every fire goes through the runs table's
 // partial-unique 'running' claim, so a lost race just leaves the item due
 // for the next tick.
-//
-// The unattended gate (§7 C4): NOTHING fires unattended — one-shot,
-// recurring, or queued — until a run against the stored DHIS2 URL has
-// shadow-verified clean (shadow_passed = true). Refusals are loud
-// (last_outcome = 'refused' on schedules, status = 'error' on queued rows).
 // ============================================================================
 
 import { _INSTANCE_CALENDAR } from "../../exposed_env_vars.ts";
@@ -26,7 +21,6 @@ import {
   getPgConnectionFromCacheOrNew,
   getStoredDhis2CredentialsInfo,
   hasRunningDatasetHmisImportRun,
-  hasShadowPassedForDhis2Url,
   launchDatasetHmisDhis2ImportRun,
   launchQueuedDatasetHmisImportRun,
   recordScheduledImportOutcome,
@@ -437,15 +431,6 @@ async function fireQueuedRun(
     await notifyDatasets(mainDb);
     return;
   }
-  if (!(await hasShadowPassedForDhis2Url(mainDb, stored.url))) {
-    await refuseQueuedDatasetHmisImportRun(
-      mainDb,
-      queued.id,
-      `Refused: unattended imports are blocked until an import against ${stored.url} has shadow-verified cleanly. Run an import directly first.`,
-    );
-    await notifyDatasets(mainDb);
-    return;
-  }
   const launched = await launchQueuedDatasetHmisImportRun(mainDb, {
     runId: queued.id,
     selection: queued.selection,
@@ -480,16 +465,6 @@ async function fireSchedule(
       outcome: "refused",
       error:
         "No stored DHIS2 credentials. Save credentials in the DHIS2 imports view.",
-      disable,
-    });
-    await notifyDatasets(mainDb);
-    return;
-  }
-  if (!(await hasShadowPassedForDhis2Url(mainDb, stored.url))) {
-    await recordScheduledImportOutcome(mainDb, schedule.id, {
-      outcome: "refused",
-      error:
-        `Unattended imports are blocked until an import against ${stored.url} has shadow-verified cleanly. Run an import directly first.`,
       disable,
     });
     await notifyDatasets(mainDb);

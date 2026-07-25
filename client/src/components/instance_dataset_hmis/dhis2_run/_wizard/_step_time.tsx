@@ -30,15 +30,13 @@ type Props = {
   setTimezone: (v: string) => void;
   intervalWeeks: () => string;
   setIntervalWeeks: (v: string) => void;
-  // The unattended gate (server's assertUnattendedReady) has two halves:
-  // stored credentials AND a shadow-verified import against the stored URL.
+  // Scheduling needs stored credentials (server's assertUnattendedReady).
   // gateApplies mirrors the server's actual check scope: always for a new
   // schedule, but for an EDIT only when the (possibly just-changed) kind is
   // "later" — updateDatasetHmisDhis2Schedule doesn't re-check an existing
   // recurring schedule's edit (see _wizard/index.tsx computeTimeValid).
   gateApplies: boolean;
   hasStoredCredentials: boolean;
-  unattendedReady: boolean;
   onBackToCredentials: () => void;
 };
 
@@ -148,24 +146,13 @@ export function Dhis2StepTime(p: Props) {
           </Match>
         </Switch>
 
-        <Show when={needsUnattendedGate() && !p.unattendedReady}>
+        <Show when={needsUnattendedGate() && !p.hasStoredCredentials}>
           <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
-            <Switch>
-              <Match when={!p.hasStoredCredentials}>
-                {t3({
-                  en: "A future or recurring import needs stored DHIS2 credentials — save them in step 1 first.",
-                  fr: "Une importation future ou récurrente nécessite des identifiants DHIS2 enregistrés — enregistrez-les d'abord à l'étape 1.",
-                  pt: "Uma importação futura ou recorrente requer credenciais DHIS2 guardadas — guarde-as primeiro no passo 1.",
-                })}
-              </Match>
-              <Match when={true}>
-                {t3({
-                  en: "Scheduling unlocks after one import against the stored DHIS2 URL has verified cleanly (its first run cross-checks a sample against the analytics engine). Run an import directly first, then come back to schedule the rest.",
-                  fr: "La planification se débloque après qu'une importation vers l'URL DHIS2 enregistrée a été vérifiée avec succès (la première importation compare un échantillon avec le moteur analytics). Lancez d'abord une importation directement, puis revenez planifier le reste.",
-                  pt: "O agendamento é desbloqueado depois de uma importação para o URL DHIS2 guardado ter sido verificada com sucesso (a primeira importação compara uma amostra com o motor analytics). Execute primeiro uma importação diretamente e depois volte para agendar o resto.",
-                })}
-              </Match>
-            </Switch>
+            {t3({
+              en: "A future or recurring import needs stored DHIS2 credentials — save them in step 1 first.",
+              fr: "Une importation future ou récurrente nécessite des identifiants DHIS2 enregistrés — enregistrez-les d'abord à l'étape 1.",
+              pt: "Uma importação futura ou recorrente requer credenciais DHIS2 guardadas — guarde-as primeiro no passo 1.",
+            })}
             <Button onClick={p.onBackToCredentials} intent="danger" size="sm">
               {t3({ en: "Back to step 1", fr: "Retour à l'étape 1", pt: "Voltar ao passo 1" })}
             </Button>

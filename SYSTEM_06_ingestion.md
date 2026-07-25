@@ -89,8 +89,8 @@ live in git history). Shape:
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
   selection JSON (window or explicit pairs), status
   (`queued|running|complete|error|cancelled`), pair counters, throttled
-  `progress` JSON, `run_stats` (classification summary, per-pair fetch stats,
-  shadow results), `version_id`, `shadow_passed`. A partial unique index allows
+  `progress` JSON, `run_stats` (classification summary, per-pair fetch
+  stats), `version_id`. A partial unique index allows
   at most one `running` row — the INSERT (or the queued→running UPDATE) is the
   launch claim. Inline credentials travel only in the worker message; stored
   credentials (`instance_dhis2_credentials` — instance-wide, shared by every
@@ -101,10 +101,9 @@ live in git history). Shape:
   recurring rows, rolling-window selection resolved at fire time) is fired by a
   ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`) — queued runs
   drain FIFO first, then due schedules (occurrence math per IANA timezone, 4 h
-  grace, deterministic per-row jitter, `last_fired_at` CAS idempotency). Nothing
-  fires unattended until a run against the stored DHIS2 URL has
-  `shadow_passed = true`; refusals/misses are loud (`last_outcome` +
-  datasets-summary attention flag). Two accepted limitations (reviewed
+  grace, deterministic per-row jitter, `last_fired_at` CAS idempotency).
+  Refusals/misses are loud (`last_outcome` + datasets-summary attention flag).
+  Two accepted limitations (reviewed
   2026-07-15, deliberately not fixed): a crash between the CAS claim and the
   outcome write silently consumes that occurrence (single-server crash-timing
   window), and rolling-window "current month" resolves from the server clock,
@@ -133,9 +132,12 @@ live in git history). Shape:
   version row is minted lazily at the first successful pair
   (dataset_hmis.version_id is a NOT NULL FK; no empty versions) and its
   counts/staging_result are finalized at run end.
-- First run per instance shadow-verifies a ~5% sample of dataValueSets pairs
-  against analytics before integrating (mismatch fails the pair loudly); once a
-  run records `shadow_passed`, later runs skip it.
+- Shadow verification (first-run DVS-vs-analytics parity sampling with a
+  `shadow_passed` unattended gate) was removed 2026-07-24: retroactive edits
+  and lagging/partial analytics rebuilds make DVS-analytics divergence normal
+  on real servers, so the gate aborted healthy first runs with no override
+  path. dataValueSets is the source of truth; migration 063 dropped the
+  column, and older `run_stats` blobs may still carry a `shadow` key.
 - Cross-guards: CSV staging/integration and windowed deletes refuse while a run
   is `running` and vice versa; db_startup sweeps stale `running` rows to `error`
   after a restart. Run cancel terminates the worker; completed pairs stay.

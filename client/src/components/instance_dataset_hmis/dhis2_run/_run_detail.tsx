@@ -34,7 +34,7 @@ function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
 
 // The per-run error surface (PLAN_DHIS2_IMPORTER_SURFACE_ERRORS): everything
 // the system recorded about one run — the fatal error, unknown indicator ids,
-// per-pair fetch failures, shadow mismatches — opened from a History row.
+// per-pair fetch failures — opened from a History row.
 // Closes with a pair list when the user asks to retry the failed pairs; the
 // shell feeds it to the wizard's presetPairs entry.
 export function Dhis2RunDetail(
@@ -189,12 +189,6 @@ export function Dhis2RunDetail(
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
               .map((s) => ({ ...s, key: `${s.indicatorRawId}|${s.periodId}` }));
-            const shadowMismatches = (keyedDetail.runStats?.shadow?.mismatches ?? []).map(
-              (m) => ({
-                ...m,
-                key: `${m.indicatorRawId}|${m.periodId}|${m.facilityId}`,
-              }),
-            );
             const retryPairs: Dhis2RunPair[] = failedPairStats.map((s) => ({
               indicatorRawId: s.indicatorRawId,
               periodId: s.periodId,
@@ -262,67 +256,6 @@ export function Dhis2RunDetail(
                   </div>
                 </Show>
 
-                <Show when={shadowMismatches.length > 0}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 text-lg">
-                      {t3({
-                        en: "Verification mismatches",
-                        fr: "Divergences de vérification",
-                        pt: "Divergências de verificação",
-                      })}
-                    </div>
-                    <div class="text-sm">
-                      {t3({
-                        en: "First-run verification compared DHIS2's raw data values against its analytics engine. Hard mismatches fail the pair; soft mismatches (zero vs absent) are recorded only.",
-                        fr: "La vérification de première importation a comparé les valeurs brutes de DHIS2 à son moteur analytique. Les divergences majeures font échouer la paire ; les divergences mineures (zéro ou absent) sont seulement enregistrées.",
-                        pt: "A verificação da primeira importação comparou os valores brutos do DHIS2 com o seu motor analítico. As divergências graves fazem falhar o par; as divergências ligeiras (zero ou ausente) são apenas registadas.",
-                      })}
-                    </div>
-                    <Table
-                      data={shadowMismatches}
-                      columns={[
-                        {
-                          key: "kind",
-                          header: t3({ en: "Kind", fr: "Type", pt: "Tipo" }),
-                          render: (m) => (
-                            <span class={m.kind === "hard" ? "text-danger font-700" : ""}>
-                              {m.kind === "hard"
-                                ? t3({ en: "Hard", fr: "Majeure", pt: "Grave" })
-                                : t3({ en: "Soft", fr: "Mineure", pt: "Ligeira" })}
-                            </span>
-                          ),
-                        },
-                        {
-                          key: "indicatorRawId",
-                          header: t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" }),
-                        },
-                        {
-                          key: "periodId",
-                          header: t3({ en: "Month", fr: "Mois", pt: "Mês" }),
-                          render: (m) => formatPeriod(m.periodId, "year-month", getCalendar()),
-                        },
-                        {
-                          key: "facilityId",
-                          header: t3({ en: "Facility", fr: "Établissement", pt: "Estabelecimento" }),
-                        },
-                        {
-                          key: "dvsValue",
-                          header: t3({ en: "Data value", fr: "Valeur brute", pt: "Valor bruto" }),
-                          alignH: "right",
-                          render: (m) => (m.dvsValue !== undefined ? toNum0(m.dvsValue) : "—"),
-                        },
-                        {
-                          key: "analyticsValue",
-                          header: t3({ en: "Analytics value", fr: "Valeur analytique", pt: "Valor analítico" }),
-                          alignH: "right",
-                          render: (m) =>
-                            m.analyticsValue !== undefined ? toNum0(m.analyticsValue) : "—",
-                        },
-                      ]}
-                      keyField="key"
-                    />
-                  </div>
-                </Show>
               </div>
             );
           }}
