@@ -41,7 +41,7 @@ const hfaVarNameSchema = z
   )
   .refine(
     (n) => !isReservedHfaVarName(n),
-    "varName is a reserved word (an R function or operator used in indicator code) — choose a different name",
+    "varName is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates) — choose a different name",
   );
 
 const hfaIndicatorSchema = z.object({

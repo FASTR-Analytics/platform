@@ -5,9 +5,10 @@ the client passes it to panther's table and appends `(n=…)` to column headers.
 
 Depends on [PLAN_2_TABLE_N_VALUES_PANTHER.md](PLAN_2_TABLE_N_VALUES_PANTHER.md) for
 display; Phase 1 (server) is independent and can land first. Correctness of n
-on composite HFA indicators depends on
-[PLAN_1_HFA_COMPOSITE_MISSINGNESS.md](PLAN_1_HFA_COMPOSITE_MISSINGNESS.md) — until
-that lands, n reports the shrunken denominator that bug produces. Background:
+on composite HFA indicators depended on the M10 composite-missingness fix
+(result-gating + scoped sentinel bindings, see
+[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md)) —
+implemented, so n reports the true denominator once that deploys. Background:
 `RESEARCH_ON_N_ISSUE.md` (reference; this plan supersedes its open questions).
 
 ## Settled design

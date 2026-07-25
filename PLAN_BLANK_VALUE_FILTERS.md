@@ -116,8 +116,8 @@ source data — which we accept on the same grounds.
 "Blank", not "missing", deliberately: **"Missing" is already a taken term in
 this app**, meaning the count of facilities that did not answer an HFA question
 ([dataset_items_holder.tsx:112](client/src/components/instance_dataset_hfa/dataset_items_holder.tsx#L112),
-rendered red when > 0), and it is the subject of
-[PLAN_1_HFA_COMPOSITE_MISSINGNESS.md](PLAN_1_HFA_COMPOSITE_MISSINGNESS.md).
+rendered red when > 0), and the subject of M10's missingness semantics
+([SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md)).
 That is a data-quality claim about non-response; this is the display state of a
 cell. Reusing the word across the two would be actively misleading on the HFA
 surfaces (`hfa_category`, `hfa_service_category`) where this sentinel is most
@@ -233,9 +233,10 @@ Making the sentinel work here would need a `cardinality(...) = 0` union in the
 options query plus an OR-ed blank predicate on the overlap — a second mechanism
 for a case step 0 already resolves. Not built.
 
-Also unchanged: the R generators, the sentinel-classification work in
-[PLAN_1_HFA_COMPOSITE_MISSINGNESS.md](PLAN_1_HFA_COMPOSITE_MISSINGNESS.md) (HFA
-don't-know/refusal codes, a separate notion of missing), and the AI filter-value
+Also unchanged: the R generators, the HFA sentinel classification (HFA
+don't-know/refusal codes, a separate notion of missing — see
+[SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md)),
+and the AI filter-value
 validator at
 [content_validators.ts:184](client/src/components/project_ai/ai_tools/validators/content_validators.ts#L184)
 — it validates against `disaggregationPossibleValues` ids, so the sentinel

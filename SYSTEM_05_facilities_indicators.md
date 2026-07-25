@@ -232,9 +232,24 @@ stale). Warnings (lone `=`) are a distinct severity and never persist as
 errors. The R-code lifecycle: instance edits → project HFA-data refresh
 snapshots indicators+taxonomy+code → S8's module run builds a
 cross-indicator dependency graph (topological sort, cycles rejected) and
-splices each round's code into `case_when` branches with auto-generated
-missingness guards; `STOP_IF_INDICATOR_FAILS` (default TRUE) makes one
-invalid indicator kill the run.
+splices each round's code into `case_when` branches;
+`STOP_IF_INDICATOR_FAILS` (default TRUE) makes one invalid indicator kill
+the run.
+
+An indicator is NA when its **own expression** evaluates to NA, not when an
+input is missing — R's `&`/`|` are three-valued, so a skip-logic "." on a
+follow-up question still leaves a determinate 0. Two things make that sound.
+Sentinel codes (`-99` / `-999999` / refusals) are ordinary numbers, so the
+generator binds NA-ified copies of the referenced variables **scoped to the
+expression** (`with(list(v = replace(v, v %in% codes, NA_real_)), case_when(...))`)
+rather than mutating the columns — the response-status expression downstream
+classifies `dont_know` off the raw values, and the sentinel set varies per
+indicator (`DONT_KNOW_TREATMENT` applies to binary indicators only). `%in%`
+returns FALSE rather than NA for a missing input, so it is rebound inside the
+same `with()`. Filter-variable missingness stays an explicit branch, because
+`!(NA)` matches nothing in `case_when`. Consequence: the value object and
+`M10_hfa_response_status.csv` no longer share a denominator — a facility can
+hold a determinate 0 while its per-variable status reads `missing`.
 
 **Calculated indicators** reference common ids (FK RESTRICT both
 directions) and carry the strictest id grammar
@@ -397,6 +412,14 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
+- **Decision needed:** the M10 value object and
+  `M10_hfa_response_status.csv` no longer share a denominator — a facility
+  can hold a determinate 0 for an indicator while its per-variable status
+  reads `missing` or `dont_know`, so a dashboard can show "22% have X
+  (n=9)" beside "55% missing" for the same indicator. Either the status
+  object gains an indicator-level "contributed to the denominator"
+  classification, or the per-variable reading is documented as answering a
+  different question.
 - **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while
   the server gates on `can_configure_data` in four slices (HMIS manager,
   HFA manager, geojson manager, weights import) — decide which contract

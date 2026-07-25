@@ -146,9 +146,6 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       csvVarMappings.push(mapping);
     }
 
-    // "weight" is reserved: the project hfa.csv export adds a sampling-weight
-    // column with that name, and a survey variable named weight would collide
-    // with it at the module script's pivot_wider.
     const storedVarNames = csvVarMappings.flatMap((m) => {
       const varName = m.xlsFormVar.name.trim();
       if (m.xlsFormVar.type === "select_multiple") {
@@ -158,24 +155,17 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       }
       return [varName];
     });
-    const weightCollisions = storedVarNames.filter(
-      (name) => name.toLowerCase() === "weight",
-    );
-    if (weightCollisions.length > 0) {
-      throw new Error(
-        `The variable name "weight" is reserved for facility sampling weights. Rename the survey variable in the XLSForm/CSV and re-upload.`,
-      );
-    }
-
     // Reject names that collide with how indicator R code is interpreted —
-    // `and`/`or` operator aliases, R keywords, and the common functions the
-    // identifier extractor filters. A survey variable named `and`/`sum`/`if`
-    // would otherwise be silently rewritten or dropped and break any indicator
-    // that references it (single source: isReservedHfaVarName).
+    // `and`/`or` operator aliases, R keywords, the common functions the
+    // identifier extractor filters — or with a column the module script owns
+    // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
+    // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
+    // named `weight`/`time_point` would collide with or shadow the script's own
+    // column (single source: isReservedHfaVarName).
     const reservedCollisions = storedVarNames.filter(isReservedHfaVarName);
     if (reservedCollisions.length > 0) {
       throw new Error(
-        `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code). Rename the survey variable in the XLSForm/CSV and re-upload.`,
+        `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the survey variable in the XLSForm/CSV and re-upload.`,
       );
     }
 

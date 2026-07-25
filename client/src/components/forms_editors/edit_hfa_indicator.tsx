@@ -68,9 +68,9 @@ export function EditHfaIndicator(
           return {
             success: false,
             err: t3({
-              en: `"${trimmedVarName}" is a reserved word (an R function or operator used in indicator code). Choose a different name.`,
-              fr: `« ${trimmedVarName} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs). Choisissez un autre nom.`,
-              pt: `"${trimmedVarName}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores). Escolha um nome diferente.`,
+              en: `"${trimmedVarName}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different name.`,
+              fr: `« ${trimmedVarName} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre nom.`,
+              pt: `"${trimmedVarName}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha um nome diferente.`,
             }),
           };
         }

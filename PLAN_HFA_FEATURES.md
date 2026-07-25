@@ -103,8 +103,13 @@ Layer 3a (per-variable generator) is shipped; 3b is the additive escape hatch +
 validation:
 
 - **Per-indicator sentinel-treatment override column** in the indicator
-  dictionary — makes DK-rate indicators authorable (today the blanket missingness
-  branch fires before any `x == -99` rCode could match).
+  dictionary — makes DK-rate indicators authorable (the scoped sentinel bindings
+  NA-ify `-99` before any `x == -99` rCode could match). Cheap now: the binding
+  list is already built per indicator.
+- **Authoring gate for NA-swallowing constructs.** Indicators are gated on the
+  result of their own expression, so an authored `ifelse` / `is.na` / `grepl`
+  returns a determinate value where a missing input should give NA. All three
+  are on the allowlist and none is used today; the validator should warn.
 - **Authoring-rule validation gate.** Indicator R code must test positively for
   Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`) misclassify DK
   under DK-as-No. Not enforced anywhere today — a mis-authored `!=` indicator

@@ -101,19 +101,52 @@ const R_LOGICAL_OPERATOR_REGEX = new RegExp(
   "gi",
 );
 
+// Column names the M10 script owns. `time_point` / `facility_*` / `admin_area_*`
+// are its facility columns, `var_name` / `value` are what it pivots on, and
+// `weight` / `weight_final` carry the sampling weight. A survey variable or
+// indicator with one of these names collides at `pivot_wider`, overwrites the
+// column via `mutate`, or — worst — silently shadows it inside the scoped
+// bindings the indicator expression is evaluated in, turning every row NA with
+// no error. `__status` is the suffix of the generated response-status columns,
+// which the script collects by pattern.
+//
+// Matched case-insensitively even though R column names are case-sensitive:
+// `Weight` would not actually collide, but a name that differs only in case
+// from a structural column is a mistake worth rejecting at the boundary.
+const M10_STRUCTURAL_NAMES = new Set([
+  "var_name",
+  "value",
+  "weight",
+  "weight_final",
+]);
+const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
+
 // A name that cannot be used as an HFA variable — neither an authored indicator
 // name nor a referenceable survey variable — because it collides with how
-// indicator R code is interpreted, and would silently break at run time:
+// indicator R code is interpreted or with the module script's own columns, and
+// would silently break at run time:
 //   - `and`/`or` (any case) are rewritten to `&`/`|` by
 //     `normalizeRLogicalOperators`, so a variable with that name becomes an
 //     operator.
 //   - R keywords and the common functions `extractRIdentifiers` filters (exact
 //     case) are dropped from identifier extraction, so a variable with that
 //     exact name is silently ignored as a dependency and mis-spliced into R.
+//   - The M10 structural column names above.
 // Applied at BOTH ends: indicator-name validation and survey-data import.
 export function isReservedHfaVarName(name: string): boolean {
   const trimmed = name.trim();
-  if (R_LOGICAL_OPERATOR_ALIASES.has(trimmed.toLowerCase())) return true;
+  if (R_LOGICAL_OPERATOR_ALIASES.has(trimmed.toLowerCase())) {
+    return true;
+  }
+  if (M10_STRUCTURAL_NAMES.has(trimmed.toLowerCase())) {
+    return true;
+  }
+  if (M10_STRUCTURAL_PREFIX_REGEX.test(trimmed)) {
+    return true;
+  }
+  if (trimmed.toLowerCase().endsWith("__status")) {
+    return true;
+  }
   return R_KEYWORDS.has(trimmed) || R_COMMON_FUNCTIONS.has(trimmed);
 }
 

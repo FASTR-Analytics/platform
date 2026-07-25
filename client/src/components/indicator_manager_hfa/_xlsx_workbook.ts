@@ -275,7 +275,7 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };
     }
     if (isReservedHfaVarName(varName)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" is a reserved word (an R function or operator used in indicator code) — choose a different name.` };
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates) — choose a different name.` };
     }
     if (usedVarNames.has(varName)) return { ok: false, err: `Indicators sheet, row ${i + 2}: duplicate varName "${varName}".` };
     usedVarNames.add(varName);
