@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  calculateMinLabelPlotExtent,
   type ChartComponentSizes,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
@@ -77,6 +78,13 @@ function getMapComponentSizes(
   );
   const mergedStyle = customFigureStyle.getMergedMapStyle();
   const transformedData = getMapDataTransformed(item.data);
+  // Measured from the (scaled) data-label style, so the floor shrinks with the
+  // style scale — a hardcoded literal here could never be lowered by
+  // shrink-to-fit.
+  const minLabelPlotExtent = calculateMinLabelPlotExtent(
+    rc,
+    mergedStyle.text.dataLabels,
+  );
   const resolvedLegendLabels: LegendInput | undefined =
     isAutoScaleLegendConfig(item.legend)
       ? resolveAutoScaleLegend(
@@ -92,8 +100,8 @@ function getMapComponentSizes(
     nLanes: transformedData.laneHeaders.length,
     nTiers: transformedData.tierHeaders.length,
     paneHeaders: transformedData.paneHeaders,
-    minSubChartWidth: 50,
-    minSubChartHeight: 50,
+    minSubChartWidth: minLabelPlotExtent,
+    minSubChartHeight: minLabelPlotExtent,
     xAxisHeight: 0,
     paneHeaderHeight: 0,
     minYAxisWidth: 0,

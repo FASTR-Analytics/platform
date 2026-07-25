@@ -32,6 +32,7 @@ export type {
   MergedMapStyle,
 } from "../_003_figure_style/mod.ts";
 export {
+  calculateMinLabelPlotExtent,
   estimateMinSurroundsWidth,
   isAutoScaleLegendConfig,
   measureChart,
