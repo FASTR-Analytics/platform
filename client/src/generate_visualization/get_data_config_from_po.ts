@@ -7,6 +7,8 @@ import {
   TimeseriesJsonDataConfig,
 } from "panther";
 import {
+  BLANK_SENTINEL,
+  BLANK_SENTINEL_LABEL,
   CountryCodes,
   FigureLocalization,
   LEGACY_ROLLUP_SENTINEL,
@@ -38,6 +40,22 @@ function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?
   return {};
 }
 
+// Display text for a group whose column had no value. `""` is mapped alongside
+// the sentinel because figures stored before the blank fold kept the raw empty
+// string as their group key, and panther keys label replacements by raw id —
+// same reason LEGACY_ROLLUP_SENTINEL is still carried below. Placed first in
+// the merge so a metric's own valueLabelReplacements can still override it.
+//
+// The string "null" is deliberately NOT mapped: unlike "" it is a value a real
+// group can legitimately carry (an indicator id, a facility_custom_* cell), so
+// claiming it would mislabel real data to rescue a stored-figure case that the
+// table renderer cannot reach anyway (panther's resolveId drops null ids before
+// any replacement is consulted).
+function getBlankLabelReplacements(language: Language): Record<string, string> {
+  const label = pickLang(language, BLANK_SENTINEL_LABEL);
+  return { [BLANK_SENTINEL]: label, "": label };
+}
+
 // Merges the previously-split `labelReplacementsBeforeSorting` +
 // `labelReplacementsAfterSorting` into panther's single `labelReplacements` map.
 // Order matters: later entries override earlier ones on key collision (matches
@@ -55,6 +73,7 @@ function buildLabelReplacements(
   jsonArray?: any[],
 ): Record<string, string> {
   const base = {
+    ...getBlankLabelReplacements(localization.language),
     ...(resultsValue.valueLabelReplacements ?? {}),
     ...indicatorLabelReplacements,
     ...dateLabelReplacements,

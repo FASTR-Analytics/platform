@@ -1,11 +1,16 @@
 import { Sql } from "postgres";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
-import { detectColumnExists, detectHasPeriodId } from "../db/mod.ts";
+import {
+  detectColumnExists,
+  detectHasPeriodId,
+  getTextColumnNames,
+} from "../db/mod.ts";
 import {
   GenericLongFormFetchConfig,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
   type DatasetType,
+  type DisaggregationOption,
   type OptionalFacilityColumn,
 } from "lib";
 import { detectNeededPeriodColumns, needsPeriodCTEFor } from "./period_helpers.ts";
@@ -39,9 +44,15 @@ export async function buildQueryContext(
     getEnabledOptionalFacilityColumns(facilityConfig);
 
   // NOW filter requested columns against enabled columns.
-  // Sources (groupBys, filters[].col) are DisaggregationOption which excludes
-  // "facility_name" — so the intersection can only yield disagg-eligible facility columns.
-  type DisaggFacilityColumn = Exclude<OptionalFacilityColumn, "facility_name">;
+  // Sources (groupBys, filters[].disOpt) are DisaggregationOption, which does
+  // not include "facility_name" — that column is import/display metadata
+  // (toggled by includeNames, supplied by DHIS2), never a grouping dimension.
+  // Deriving the intersection rather than naming the excluded member keeps this
+  // honest if either union changes.
+  type DisaggFacilityColumn = Extract<
+    OptionalFacilityColumn,
+    DisaggregationOption
+  >;
   const requestedOptionalFacilityColumns: DisaggFacilityColumn[] = [
     ...new Set([
       ...fetchConfig.groupBys.filter((col): col is DisaggFacilityColumn =>
@@ -76,7 +87,21 @@ export async function buildQueryContext(
       !enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
 
+  // Both sides of the join: a facility column reaches the query as `f.<col>`,
+  // and its type lives in the facilities table, not the results table.
+  const textColumns = await getTextColumnNames(projectDb, tableName);
+  if (needsFacilityJoin) {
+    const facilityTextColumns = await getTextColumnNames(
+      projectDb,
+      facilitiesTableForFamily(datasetFamily),
+    );
+    for (const col of facilityTextColumns) {
+      textColumns.add(col);
+    }
+  }
+
   return {
+    textColumns,
     datasetFamily,
     hasPeriodId,
     hasQuarterId,

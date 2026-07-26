@@ -1035,3 +1035,45 @@ overflow menu.
   "Malformed document update", skip attribution, and in a worst-case
   interleaving leave the last edit un-dirty so `finalizeRoom` skips
   persisting it.
+
+- **[URGENT] Report registry edits are outside undo entirely, and collab is why.**
+  Absorbed from PLAN_REPORT_UNDO_REDO.md, deleted 2026-07-26 — its design was
+  written 2026-07-02, before the collab merge landed on 2026-07-21, and that
+  design no longer works. Recorded here rather than re-planned because the fix
+  belongs to this system.
+
+  **The state.** A report's body text is undoable; its figure and image
+  registries are not. `setFigures`/`setImages` + `persistFigures`/`persistImages`
+  in [report/index.tsx](client/src/components/report/index.tsx) bypass history
+  completely, so registry-only edits — the AI's `update_report_figure`, sidebar
+  Edit/Switch, an image-file change — cannot be reversed by the user at all.
+  (`handleDelete` is already token-only, so undoing a _delete_ does restore a
+  working embed; it is the other writes that are stranded.)
+
+  **Why the obvious fix is dead.** The retired plan routed registry writes into
+  CodeMirror transactions as `StateEffect`s and let `invertedEffects` +
+  CM's own history undo "doc change + registry change" atomically. That only
+  works where CM history is the authority, and it isn't:
+  [report_editor.tsx:180](client/src/components/report/report_editor.tsx#L180)
+  installs `yUndoManagerKeymap` ahead of `basicSetup` precisely because
+  "yCollab's per-user undo takes precedence", and `yCollab` is installed at
+  `:219`. `collabReady` latches at the first `report_sync`, so the editor
+  upgrades from plain to collab shortly after mount and **Y.UndoManager, not CM
+  history, owns undo in the steady state.** Building the `invertedEffects`
+  version would produce a registry undo that is live only in the brief pre-sync
+  window or when the socket is down — and would split behaviour confusingly:
+  Ctrl+Z undoing body text via Yjs while toolbar buttons drove an inert CM
+  stack.
+
+  **The shape of a real fix.** Put the figure/image registries into the room's
+  Y.Doc (Y.Maps) and construct the undo manager over all three shared types —
+  `new Y.UndoManager([yText, yFigures, yImages])` — so one per-user undo stack
+  covers body and registry atomically, which is what the original plan actually
+  wanted. That means moving the registries off Solid-signals-plus-REST-autosave
+  onto the shared doc, extending the room checkpoint to carry them, and
+  migrating existing checkpoints. It is a real piece of S16 design work, not a
+  drop-in, which is why it is an open item and not a plan.
+
+  Whatever lands must also cover the AI `undo`/`redo` tools the retired plan
+  specced (mode-guarded, calling into the editor API) — a reversal path for the
+  no-modal `update_report_figure` was the plan's original motivation.

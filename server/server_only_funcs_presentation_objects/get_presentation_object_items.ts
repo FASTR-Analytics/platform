@@ -75,7 +75,6 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     ///////////////////////////
 
     const indicatorMetadata = await getIndicatorMetadata(
-      mainDb,
       projectDb,
       moduleId,
     );
@@ -88,6 +87,8 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     const nonFacilityWhereStatements = buildWhereClause(
       nonFacilityFetchConfig,
       queryContext.hasPeriodId,
+      undefined,
+      queryContext,
     );
 
     const rawDateRange = await getPeriodBounds(

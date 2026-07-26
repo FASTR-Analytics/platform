@@ -35,7 +35,10 @@ import {
   createSignal,
 } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
+import {
+  getDisplayDisaggregationLabel,
+  getDisplayDisaggregationValueLabel,
+} from "~/state/instance/_util_disaggregation_label";
 
 // Above this option count, filter boxes render as a searchable combo-box
 // instead of the flat chip cloud.
@@ -535,7 +538,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                         values={canonicalValues()}
                         options={okValues().map((v) => ({
                           value: v.id,
-                          label: v.label,
+                          label: getDisplayDisaggregationValueLabel(v.id, v.label),
                         }))}
                         onChange={setValues}
                         fullWidth
@@ -563,7 +566,9 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                             }}
                             onClick={() => toggleVal(opt.id)}
                           >
-                            <span class="relative">{opt.label}</span>
+                            <span class="relative">
+                              {getDisplayDisaggregationValueLabel(opt.id, opt.label)}
+                            </span>
                           </div>
                         );
                       }}

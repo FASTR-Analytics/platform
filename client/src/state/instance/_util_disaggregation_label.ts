@@ -1,6 +1,21 @@
 import type { DisaggregationOption, TranslatableString } from "lib";
-import { getDisaggregationLabel } from "lib";
+import {
+  BLANK_SENTINEL,
+  BLANK_SENTINEL_LABEL,
+  getDisaggregationLabel,
+  t3,
+} from "lib";
 import { instanceState } from "./t1_store";
+
+// Display text for one VALUE of a disaggregation (a filter chip, a replicant
+// option) — as opposed to the dimension's own label below. Only the blank
+// sentinel needs resolving; every other id is served with its own label.
+export function getDisplayDisaggregationValueLabel(
+  id: string,
+  label: string,
+): string {
+  return id === BLANK_SENTINEL ? t3(BLANK_SENTINEL_LABEL) : label;
+}
 
 export function getDisplayDisaggregationLabel(
   disOpt: DisaggregationOption,

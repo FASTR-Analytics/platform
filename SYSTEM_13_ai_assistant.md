@@ -607,6 +607,106 @@ last-write-wins model (see the satellite section). Remaining:
 - **[MED-LOW] `set_hfa_indicator_code` partial application** — sequential
   per-indicator saves; a mid-loop failure leaves earlier saves applied while
   the error implies none were.
+- **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
+  pass is shipped — self-contained assistant in
+  [client/src/components/indicator_manager_hfa/ai/](client/src/components/indicator_manager_hfa/ai/),
+  instance proxy [server/routes/instance/ai_proxy.ts](server/routes/instance/ai_proxy.ts),
+  all three tool tiers with a per-write confirm gate. Remaining, in priority
+  order: (1) **the visual-diff review UX** — `system_prompt.ts:46` promises
+  writes are shown "with a diff", but they render as plain-text summary lines in
+  a confirm dialog; build the diff/accept preview or fix the prompt to match
+  (top gap). (2) **Taxonomy editing** — the assistant can assign categories but
+  cannot create or rename them; decide whether that stays manual. (3) No
+  per-conversation cost cap (only the shared instance/user token limits) and
+  `max_tokens` is hardcoded. (4) `inspect_hfa_variable` loads the whole dataset
+  display then filters client-side — fine now, unbounded at scale. (5) No tests
+  and no telemetry on tool accept/reject rate. (6) Graduation from the
+  `hfa-ai-testing` label/deploy to production.
+
+**Surface gaps — read-projection ≠ write-schema ≠ stored-shape**
+
+From the 2026-06-24 read-only audit that hunted the bug *class* behind the
+slide-figure replicant bug. Every item below is one shape:
+
+> The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the
+> `_internal/format_*_for_ai.ts` formatters) and its **write-schemas**
+> (`lib/types/ai_input.ts` `Ai*Schema`) were each designed around a minimal
+> title/text/figure-data mental model, while the stored shapes (`Slide` /
+> `ContentBlock` / `FigureBundle` / `PresentationObjectConfig`) are far richer.
+> Anywhere **stored shape > (read projection ∪ write schema)**, the AI can set
+> things it can't read, read things it can't edit, or must blind-guess.
+
+The fix principle everywhere is **drive the read-projection and the write-schema
+from the stored schema**. Closed since the audit: the text-block `style` drop
+(now merged in `getSlideWithUpdatedBlocks`), the `chartType='table'` hallucinated
+field in three tool descriptions, and the `replace_figure` caption clobber (a
+caption override rewrites every embed of the id — the tool input has no
+occurrence selector, so it is now stated in the tool description and the embed
+count is surfaced in the proposal summary). Remaining:
+
+- **[HIGH] Filter/disaggregation VALUES are undiscoverable for common
+  dimensions.** The highest-impact item; it touches the core query path, not
+  just figures. The metric list surfaces dimension *names* but *values* only for
+  ICEH/HFA (`format_metrics_list_for_ai.ts`). For `admin_area_2/3/4`,
+  `facility_type`, `facility_ownership`, `indicator_common_id` (non-HFA),
+  `denominator`, `target_population` etc., no tool returns the valid values. The
+  data exists server-side (`disaggregationPossibleValues`) and
+  `validateMetricInputs` already fetches it — but only to *reject* a bad guess
+  after the fact. So to set a `filters` array the AI must guess and learn valid
+  values from validation-error strings: the replicant "binary-reduction" pattern
+  generalized. Fix direction: a discovery surface — either a
+  `get_dimension_values(metricId, disOpt)` tool (lazy, scales) or a bounded
+  value list folded into the metric-list formatter. Note `get_metric_data`
+  already lists values for dimensions you *disaggregate* by (capped at 20); the
+  gap is *filter-only* dimensions.
+- **[HIGH as a cluster] Slide/report STYLE surface is invisible and
+  uneditable.** Same root cause, different fields. **Images:** no image input
+  schema at all — the AI cannot create, edit or read image blocks and resolvers
+  reject the type; `ImageBlock` carries `imgFile` + `style` but read-back shows
+  only `Image: <imgFile>`, and reports have no image tool either.
+  **Slide-level style:** cover/section/content carry `footer`, `subHeader`,
+  `showLogos`/`showHeaderLogos`/`showFooterLogos`, `split` (left/right panel
+  with placement/size/fill) and bold/italic/relFontSize fields; none are
+  readable or settable, create schemas expose only
+  title/subtitle/presenter/date/header, and `replace_slide` silently wipes the
+  rest. Fix direction: extend `simplifySlideForAI` + the create/update schemas
+  to cover block `style` and slide-level style, plus an image input schema and
+  insert/update image verbs.
+- **[MED]** Saved-viz list drops `valuesFilter` / period / replicant value
+  (`PresentationObjectSummary` omits them), degrading the AI's clone-vs-build
+  decision.
+- **[MED]** `get_metric_data` hard-codes `includeAdminAreaRollup: false`, so
+  explored data differs from a roll-up-enabled figure — and the disclosure lives
+  in a different tool's formatter.
+- **[LOW]** `update_slide_editor` silently ignores fields that don't match the
+  slide type (e.g. `title` on a content slide) — no error. **[LOW]** Complex
+  (non-3×3) layouts read back as `structure: null`, so only `replace_slide`
+  (destructive rebuild) can edit them. **[LOW]** `get_available_modules` reduces
+  `dirty:"error"` to the bare word "Error" with no message while still showing
+  `metricCount`, and remediation needs a `get_module_log` call the list doesn't
+  hint at. **[LOW]** `get_module_settings` formats only `parameterSelections`,
+  omitting other `ModuleConfigSelections` fields its description implies.
+  **[LOW]** `sanitizeCaption` silently strips brackets/newlines from report
+  captions with no feedback (mangles e.g. "95% CI [0.4, 0.6]").
+- **[MED, reuse/quality — not a bug] Unify the figure-RESOLUTION cores.** AI
+  figure create/edit already share replicant validation (`assertReplicantValid`,
+  applied uniformly, no flags). Still split: two functions do "config → fetch
+  items → capture geo → assemble FigureBundle" with different item-fetch
+  mechanics — `resolveFigureBundleFromMetric` (caller precomputes the
+  fetchConfig) and `resolveFigureBundleFromVizConfig` (items fetch auto-defaults
+  the replicant) — plus a third assembler, `makeFigureBundleFromFetchedData`.
+  Goal: one `resolveFigureBundle(source, config)` used by every
+  create/edit/render path, with the metric-vs-PO difference reduced to how the
+  source is produced. The friction to design around is the two item-fetch
+  routes (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
+  `getPresentationObjectItemsFromCacheOrFetch`, which runs
+  `resolveDefaultReplicant`). Higher blast radius — dashboards, public and
+  reports all render through the PO core — so it wants its own scoped refactor
+  and review pass, not improvisation.
+
+This inventory is also the **spine of a SYSTEM_13 restructuring**: organize this
+doc around the "read-projection = write-schema = stored-shape" principle and
+inventory every tool against it.
 
 **Hygiene**
 

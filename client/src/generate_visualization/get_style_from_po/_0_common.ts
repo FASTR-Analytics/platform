@@ -117,10 +117,30 @@ export function getTextStyle(
   };
 }
 
-export function getTableLayoutStyle(config: PresentationObjectConfig) {
+// Structural figure colors — grid lines, borders, label backgrounds, strokes.
+// Inside a deck they resolve against that deck's color preset so a figure obeys
+// the deck's theme; outside one they stay `{ key }` and resolve against
+// panther's global palette exactly as before. The no-deck branch is
+// byte-identical to the pre-theming output, which is the property that keeps
+// standalone visualizations, editor previews and exports visually unchanged.
+// Semantic colors (good/bad/neutral, survey/projected) are deliberately NOT
+// routed through here — they carry meaning, not theme.
+type StructuralColorSlot = "base100" | "base300" | "baseContent";
+
+function structuralColor(
+  slot: StructuralColorSlot,
+  deckStyle: DeckStyleContext | undefined,
+): ColorKeyOrString {
+  return deckStyle ? deckStyle.colorPreset[slot] : { key: slot };
+}
+
+export function getTableLayoutStyle(
+  config: PresentationObjectConfig,
+  deckStyle: DeckStyleContext | undefined,
+) {
   const cfOn = selectCf(config.s).type !== "none";
   return {
-    gridLineColor: cfOn ? { key: "base100" as const } : undefined,
+    gridLineColor: cfOn ? structuralColor("base100", deckStyle) : undefined,
     rowHeaderPadding: cfOn
       ? ([5, 10, 5, 0] as [number, number, number, number])
       : undefined,
@@ -159,6 +179,7 @@ export function getTableCellsContent(
   indicatorMetadata: IndicatorMetadata[] | undefined,
   obeyMetricFormat: boolean,
   effectiveValueProps: string[],
+  deckStyle: DeckStyleContext | undefined,
 ) {
   const cfOn = selectCf(config.s).type !== "none";
   const metadataById = indicatorMetadata
@@ -170,8 +191,8 @@ export function getTableCellsContent(
       ? {
           backgroundColor: 777 as const,
           textColorStrategy: {
-            ifLight: { key: "baseContent" as const },
-            ifDark: { key: "base100" as const },
+            ifLight: structuralColor("baseContent", deckStyle),
+            ifDark: structuralColor("base100", deckStyle),
           },
         }
       : undefined,
@@ -212,6 +233,7 @@ function formatIndicatorValue(
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle: DeckStyleContext | undefined,
 ) {
   if (config.d.type !== "map") return undefined;
   const showRegion = config.s.mapShowRegionLabels ?? false;
@@ -220,14 +242,14 @@ export function getMapRegionsContent(
     func: {
       show: true,
       fillColor: 777 as const,
-      strokeColor: { key: "baseContent" as const },
+      strokeColor: structuralColor("baseContent", deckStyle),
       strokeWidth: 0.5,
       dataLabel: {
         show: showRegion || showData,
-        backgroundColor: { key: "base100" as const },
+        backgroundColor: structuralColor("base100", deckStyle),
         rectRadius: 5,
         padding: [4, 6],
-        borderColor: { key: "base300" as const },
+        borderColor: structuralColor("base300", deckStyle),
         borderWidth: 1,
       },
     },

@@ -5,23 +5,17 @@ import {
   type ColorPreset,
 } from "@timroberton/panther";
 import { BRAND_PRESETS, t3, type BrandPresetId } from "lib";
-import type { ColorTheme, AllPresetId } from "lib";
+import type { ColorTheme, AllPresetId, SlideDeckConfig } from "lib";
+import { ColorThemePickerModal } from "./ColorThemePickerModal.tsx";
+import { normalizeHex } from "./color_theme_utils.ts";
 
 type ColorThemePickerProps = {
   value: ColorTheme;
+  // Needed only to render the modal's live previews; the swatch row itself
+  // doesn't depend on the rest of the deck config.
+  config: SlideDeckConfig;
   onChange: (theme: ColorTheme) => void;
 };
-
-function normalizeHex(input: string): string {
-  const stripped = input.trim().replace(/^#/, "");
-  if (/^[0-9A-Fa-f]{6}$/.test(stripped)) {
-    return `#${stripped}`;
-  }
-  if (/^[0-9A-Fa-f]{3}$/.test(stripped)) {
-    return `#${stripped}`;
-  }
-  return input;
-}
 
 export function ColorThemePicker(p: ColorThemePickerProps) {
   // "custom" is the synthetic brand-color preset, never a picker swatch
@@ -34,6 +28,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
     p.value.type === "custom" ? p.value.primary : "",
   );
   const [showCustomInput, setShowCustomInput] = createSignal(false);
+  const [showModal, setShowModal] = createSignal(false);
 
   const isCustomActive = () => p.value.type === "custom";
   const customColor = () =>
@@ -117,9 +112,39 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
 
   return (
     <div>
-      <div class="ui-label">
-        {t3({ en: "Color theme", fr: "Thème de couleurs", pt: "Tema de cores" })}
+      <div class="flex items-center justify-between">
+        <div class="ui-label">
+          {t3({
+            en: "Color theme",
+            fr: "Thème de couleurs",
+            pt: "Tema de cores",
+          })}
+        </div>
+        <button
+          type="button"
+          class="cursor-pointer text-sm underline"
+          onClick={() => setShowModal(true)}
+        >
+          {t3({
+            en: "More themes…",
+            fr: "Plus de thèmes…",
+            pt: "Mais temas…",
+          })}
+        </button>
       </div>
+      <Show when={showModal()}>
+        <ColorThemePickerModal
+          value={p.value}
+          config={p.config}
+          onChange={(theme) => {
+            if (theme.type === "custom") {
+              setCustomHex(theme.primary);
+            }
+            p.onChange(theme);
+          }}
+          onClose={() => setShowModal(false)}
+        />
+      </Show>
       <div class="ui-spy-sm">
         <div>
           <div class="ui-text-caption mb-1">

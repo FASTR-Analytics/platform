@@ -61,7 +61,6 @@ export async function getDatasetFamilyForModule(
 }
 
 export async function getIndicatorMetadata(
-  mainDb: Sql,
   projectDb: Sql,
   moduleId: string,
 ): Promise<IndicatorMetadata[]> {

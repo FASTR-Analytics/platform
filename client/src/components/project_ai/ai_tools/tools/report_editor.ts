@@ -611,7 +611,7 @@ export function getToolsForReportEditor(
       viewRegistry: projectAIViews,
       name: "replace_figure",
       description:
-        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption`. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
+        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption` — note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
       inputSchema: z.object({
         figureId: z.string(),
         figure: AiFigureBlockInputSchema,
@@ -646,7 +646,13 @@ export function getToolsForReportEditor(
               ? sanitizeCaption(input.caption)
               : undefined;
           // Swap every token for this figure id (preserving each caption unless
-          // overridden) to a fresh id pointing at the new figure block.
+          // overridden) to a fresh id pointing at the new figure block. A
+          // caption override therefore rewrites EVERY embed of this id, which
+          // is destructive when the same figure is embedded twice with
+          // different captions — the tool input has no occurrence selector, so
+          // the count is surfaced in the summary and the user sees the full
+          // rewrite in the accept/reject diff.
+          let embedCount = 0;
           const newBody = ctx
             .getBody()
             .replace(
@@ -654,8 +660,10 @@ export function getToolsForReportEditor(
                 `(!\\[)([^\\]]*)(\\]\\(figure:)${escapeRegExp(input.figureId)}(\\))`,
                 "g",
               ),
-              (_m, p1, cap, p3, p4) =>
-                `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`,
+              (_m, p1, cap, p3, p4) => {
+                embedCount++;
+                return `${p1}${overrideCaption ?? cap}${p3}${newId}${p4}`;
+              },
             );
           validateReportBodyLength(newBody);
           validateReportTokensResolve(
@@ -666,7 +674,10 @@ export function getToolsForReportEditor(
           const prep = ctx.proposeEdit({
             newBody,
             addFigures: { [newId]: figureBlock },
-            summary: "Replace figure",
+            summary:
+              overrideCaption !== undefined && embedCount > 1
+                ? `Replace figure (new caption applied to all ${embedCount} embeds)`
+                : "Replace figure",
           });
           if ("skip" in prep) return prep;
           return {

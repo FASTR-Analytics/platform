@@ -24,7 +24,11 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "5": hfa_service_category filtering changed from exact-match to set-membership
 // (string_to_array overlap) — previously-cached payloads for configs filtering
 // on this column used the old (wrong) semantics under an unchanged config hash.
-const PO_CACHE_VERSION = "5";
+// "6": NULL/blank now fold onto BLANK_SENTINEL. Both cached shapes change —
+// possible-values gains the sentinel option, and items key their group on it
+// instead of ''/null — and version hashes track row last_updated, not code, so
+// unmodified rows would otherwise keep serving pre-fold payloads.
+const PO_CACHE_VERSION = "6";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {

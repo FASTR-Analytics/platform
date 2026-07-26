@@ -99,6 +99,24 @@ function getContentPageInputs(
   };
 }
 
+// A single content slide at thumbnail scale, for side-by-side theme comparison.
+// Content (not cover) because it exercises the most color surfaces at once —
+// background, body text, header/footer rules — so themes are distinguishable at
+// card size. Logos are deliberately not loaded: they are theme-invariant, and
+// loading them once per card would be N redundant fetches for zero signal.
+// PageHolder always lays out in zoom mode, so a narrow container just scales the
+// page down; no separate thumbnail styling is needed.
+export function ContentSlideMiniPreview(p: StylePreviewProps) {
+  return (
+    <PageHolder
+      pageInputs={getContentPageInputs(p.config, [], [])}
+      pageWidthDu={PAGE_WIDTH_DU}
+      pageHeightDu={PAGE_HEIGHT_DU}
+      simpleError
+    />
+  );
+}
+
 export function StylePreview(p: StylePreviewProps) {
   const colorError = () => {
     if (p.config.colorTheme.type !== "custom") return null;

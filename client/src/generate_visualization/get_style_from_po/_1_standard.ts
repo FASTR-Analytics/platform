@@ -133,10 +133,11 @@ export function buildStandardStyle(
         indicatorMetadata,
         obeyMetricFormat,
         effectiveValueProps,
+        deckStyle,
       ),
-      mapRegions: getMapRegionsContent(config, formatAs),
+      mapRegions: getMapRegionsContent(config, formatAs, deckStyle),
     },
-    table: getTableLayoutStyle(config),
+    table: getTableLayoutStyle(config, deckStyle),
     valuesColorFunc: compileCfToValuesColorFunc(cf),
     map:
       config.d.type === "map"

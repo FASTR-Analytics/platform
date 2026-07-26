@@ -440,3 +440,34 @@ Every config mutation re-reads all configs and pushes one consolidated
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.
+
+### HFA indicator authoring follow-on (from the retired HFA plans)
+
+- **Sentinel Layer 3b — per-indicator override + authoring gate** (L, app +
+  wb-fastr-modules in lockstep). Layer 3a (the per-variable generator with
+  scoped sentinel bindings) is shipped; 3b is the additive escape hatch plus
+  validation. Three parts: (1) a **per-indicator sentinel-treatment override
+  column** in the indicator dictionary, which is what makes DK-rate indicators
+  authorable at all — the scoped bindings NA-ify `-99` before any `x == -99`
+  rCode could match; cheap now that the binding list is built per indicator.
+  (2) An **authoring gate for NA-swallowing constructs**: indicators are gated
+  on the result of their own expression, so an authored `ifelse` / `is.na` /
+  `grepl` returns a determinate value where a missing input should give NA — all
+  three are allowlisted and none is used today, so the validator should warn.
+  (3) An **authoring-rule validation gate**: indicator R code must test
+  positively for Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`)
+  misclassify DK under DK-as-No, and nothing enforces this today, so a
+  mis-authored `!=` indicator silently inverts DK handling. The override column
+  is the natural home for the gate. Touches `HfaIndicator`/`HfaIndicatorCode`
+  ([lib/types/hfa_types.ts](lib/types/hfa_types.ts)), the
+  `hfa_indicators`/`hfa_indicator_code` schema,
+  [server/db/instance/hfa_indicators.ts](server/db/instance/hfa_indicators.ts),
+  the editor UI, generator consumption in
+  [get_script_with_parameters_hfa.ts](server/server_only_funcs/get_script_with_parameters_hfa.ts),
+  and a per-class module parameter in `wb-fastr-modules` m010 if the override
+  needs a policy knob.
+- **Standalone-label surface** (on demand): compose a full "Percentage of
+  facilities with {label}" for a single-indicator KPI title — the
+  `getHfaIndicatorMeasure` lookup is ready, no UI consumer wired. Related: wire
+  the `full` label context to tooltips / chart titles / table headers / exports,
+  which get the compact label today.

@@ -128,6 +128,52 @@ export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
 // is the single point of consistency across both worlds.
 export const MULTI_MEMBERSHIP_DELIMITER = "|";
 
+// The id standing for "this row has no value in this column", covering both
+// SQL NULL and a whitespace-only cell. NULL and blank are one thing to a
+// reader, and they are reachable by different routes for the same column (an
+// unmatched LEFT JOIN yields NULL where the stored column only ever holds
+// blanks), so they fold together rather than becoming two options.
+//
+// Uppercase so it passes through buildWhereClause's UPPER() comparison
+// unchanged. Same theoretical collision exposure as ROLLUP_SENTINEL — a
+// literal "__BLANK" in source data — accepted on the same grounds.
+//
+// Interpolated into SQL by blankFoldedRef (query_helpers.ts) and matched
+// client-side for display; never stored.
+export const BLANK_SENTINEL = "__BLANK";
+
+// Display text for BLANK_SENTINEL, in ONE place because it is resolved by two
+// different mechanisms: figures pick it from their own FigureLocalization
+// (pickLang), UI chips from the ambient language (t3).
+//
+// "Blank", not "missing": "Missing" already means the count of facilities that
+// did not answer an HFA question — a data-quality claim about non-response.
+// This is the display state of a cell, and it covers three different origins
+// (no value stored, nothing assigned, no matching facility row), so it names
+// what is observable rather than inferring a cause.
+export const BLANK_SENTINEL_LABEL = {
+  en: "(Blank)",
+  fr: "(Vide)",
+  pt: "(Em branco)",
+};
+
+// Period-derived TEXT columns, excluded from the blank fold alongside the
+// integer ones: `month` is LPAD'd out of period_id by the period CTE, so it is
+// present whenever its source column is.
+const PERIOD_DERIVED_TEXT_COLUMNS: ReadonlySet<string> = new Set(["month"]);
+
+// Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL.
+// Excluded: integer columns (no blank state), period-derived text, and
+// multi-membership columns — a blank cell there yields NO row from
+// string_to_array('', '|') = {}, so there is nothing for the fold to catch.
+export function usesBlankSentinel(disOpt: string): boolean {
+  return (
+    !INTEGER_FILTER_COLUMNS.has(disOpt) &&
+    !PERIOD_DERIVED_TEXT_COLUMNS.has(disOpt) &&
+    !MULTI_MEMBERSHIP_FILTER_COLUMNS.has(disOpt)
+  );
+}
+
 // Encode/decode a multi-membership set for storage cells (RO column via the
 // R generator, xlsx workbook cells). parse mirrors Postgres
 // string_to_array('', '|') = {}: empty/blank cell → [], never [""].

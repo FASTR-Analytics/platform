@@ -101,6 +101,6 @@ export function buildScorecardStyle(
         },
       },
     },
-    table: getTableLayoutStyle(config),
+    table: getTableLayoutStyle(config, deckStyle),
   };
 }

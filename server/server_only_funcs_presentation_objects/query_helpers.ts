@@ -4,14 +4,76 @@ import type {
   PeriodOption,
 } from "lib";
 import {
+  BLANK_SENTINEL,
   INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
   isAdminLevel,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
   ROLLUP_SENTINEL,
+  usesBlankSentinel,
 } from "lib";
 import type { QueryContext } from "./types.ts";
+
+// ============================================================================
+// Blank Folding
+// ============================================================================
+
+// btrim's default charset is ASCII space only, so the whitespace classes have
+// to be spelled out — a tab-only cell would otherwise stay unfolded here while
+// JS `.trim()` still stripped it from the options list, which is precisely the
+// chart-group-with-no-filter-option defect this whole mechanism exists to kill.
+const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
+
+/**
+ * Wraps a column reference so NULL and whitespace-only cells both surface as
+ * BLANK_SENTINEL. THE single emitter — the options query, the SELECT list, the
+ * GROUP BY and the filter predicate must agree exactly, or the option id and
+ * the item group key stop being the same id space.
+ *
+ * Detects blankness with a trim but returns the value UNTRIMMED. Folding to
+ * `btrim(col)` would rewrite non-blank values too: ' services' and 'services'
+ * would collapse into one group keyed 'services', which buildWhereClause's
+ * `UPPER(col) IN (…)` — comparing against the raw column — could then only
+ * half-match. That reintroduces the same defect in a new form.
+ */
+export function blankFoldedRef(columnRef: string): string {
+  return `CASE WHEN ${blankPredicate(columnRef)} THEN '${BLANK_SENTINEL}' ELSE ${columnRef} END`;
+}
+
+/**
+ * Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL. THE
+ * single gate — the options query, the SELECT, the GROUP BY and the WHERE
+ * clause must all agree, or an option is offered that no filter can match.
+ *
+ * Two conditions. `usesBlankSentinel` is the semantic one: integer and
+ * period-derived columns have no blank state, and a multi-membership column's
+ * blank cell yields no row to fold. The type check is the mechanical one — the
+ * fold emits btrim() and returns a text sentinel from the CASE, neither of
+ * which Postgres will accept on an integer or numeric column, and disaggregation
+ * columns are only text by convention (module authors declare the type).
+ */
+export function shouldFoldBlank(
+  disOpt: string,
+  queryContext: Pick<QueryContext, "textColumns">,
+): boolean {
+  return usesBlankSentinel(disOpt) && queryContext.textColumns.has(disOpt);
+}
+
+/**
+ * "This cell has no value" as a WHERE-clause predicate. Shares one definition
+ * of blankness with blankFoldedRef: a row the fold keys as BLANK_SENTINEL must
+ * be exactly a row this predicate selects, or picking the blank option would
+ * return a different set than the group it was offered for.
+ *
+ * Self-parenthesising, because it contains an OR and callers AND it together
+ * with other statements. `a = 1 AND col IS NULL OR btrim(col) = ''` parses as
+ * `(a = 1 AND col IS NULL) OR btrim(col) = ''` — the blank test escapes its own
+ * filter and swallows every other predicate in the WHERE clause.
+ */
+export function blankPredicate(columnRef: string): string {
+  return `(${columnRef} IS NULL OR btrim(${columnRef}, ${BLANK_WHITESPACE_CHARS}) = '')`;
+}
 
 // ============================================================================
 // Main and Roll-up Query Builders
@@ -36,9 +98,10 @@ export function buildMainQuery(
     sourceTable,
     fetchConfig,
     {
-      selectColumns: fetchConfig.groupBys,
+      groupBys: fetchConfig.groupBys,
+      extraGroupByColumns: identityValueProps,
+      collapsedLevel: undefined,
       aggregateColumns,
-      groupByColumns: [...fetchConfig.groupBys, ...identityValueProps],
     },
     queryContext,
     facilityCTEName,
@@ -69,23 +132,19 @@ export function buildAdminAreaRollupQuery(
     return null;
   }
 
-  // Replace the collapsed level with the sentinel constant.
-  const selectColumns: string[] = fetchConfig.groupBys.map((gb) =>
-    gb === level ? `'${ROLLUP_SENTINEL}' AS ${level}` : gb,
-  );
-
   const aggregateColumns = buildAggregateColumns(fetchConfig.values, "rollup");
 
-  // GROUP BY excludes the collapsed level (it's replaced with a constant)
-  const groupByColumns = fetchConfig.groupBys.filter((gb) => gb !== level);
-
+  // The collapsed level becomes the ROLLUP_SENTINEL constant in SELECT and
+  // drops out of GROUP BY; every other grouped column is treated exactly as in
+  // the main query, blank fold included.
   return buildSelectQuery(
     sourceTable,
     fetchConfig,
     {
-      selectColumns,
+      groupBys: fetchConfig.groupBys,
+      extraGroupByColumns: [],
+      collapsedLevel: level,
       aggregateColumns,
-      groupByColumns,
     },
     queryContext,
     facilityCTEName,
@@ -103,14 +162,16 @@ function buildSelectQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   options: {
-    selectColumns: string[];
+    groupBys: string[];
+    extraGroupByColumns: string[];
+    collapsedLevel: string | undefined;
     aggregateColumns: string;
-    groupByColumns: string[];
   },
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string {
-  const { selectColumns, aggregateColumns, groupByColumns } = options;
+  const { groupBys, extraGroupByColumns, collapsedLevel, aggregateColumns } =
+    options;
 
   const columnPrefixes = new Map<string, string>();
   if (queryContext.needsFacilityJoin) {
@@ -121,6 +182,27 @@ function buildSelectQuery(
 
   const applyColumnPrefixes = (columns: string[]) =>
     columns.map((col) => columnPrefixes.get(col) || col);
+
+  // A blank-folded column must carry its bare name into the result set, or the
+  // item key would come back as "coalesce". SELECT aliases it; GROUP BY repeats
+  // the expression, which must match the SELECT exactly — grouping on the raw
+  // column while selecting the folded one would emit NULL and '' as two rows
+  // carrying the same key.
+  const groupByRef = (col: string): string => {
+    const prefixed = columnPrefixes.get(col) || col;
+    return shouldFoldBlank(col, queryContext)
+      ? blankFoldedRef(prefixed)
+      : prefixed;
+  };
+  const selectRef = (col: string): string => {
+    if (col === collapsedLevel) {
+      return `'${ROLLUP_SENTINEL}' AS ${col}`;
+    }
+    const prefixed = columnPrefixes.get(col) || col;
+    return shouldFoldBlank(col, queryContext)
+      ? `${blankFoldedRef(prefixed)} AS ${col}`
+      : prefixed;
+  };
 
   ///////////////////////
   //                   //
@@ -138,7 +220,7 @@ function buildSelectQuery(
   //    SELECT clause    //
   //                     //
   /////////////////////////
-  const adjustedSelectColumns = applyColumnPrefixes(selectColumns);
+  const adjustedSelectColumns = groupBys.map(selectRef);
 
   const selectStr =
     adjustedSelectColumns.length === 0
@@ -154,6 +236,7 @@ function buildSelectQuery(
     fetchConfig,
     queryContext.hasPeriodId,
     columnPrefixes,
+    queryContext,
   );
 
   const whereClause =
@@ -167,7 +250,12 @@ function buildSelectQuery(
   //                       //
   ///////////////////////////
 
-  const adjustedGroupByColumns = applyColumnPrefixes(groupByColumns);
+  // Identity value props are result-table columns, not disaggregators — they
+  // group by their bare name and are never folded.
+  const adjustedGroupByColumns = [
+    ...groupBys.filter((gb) => gb !== collapsedLevel).map(groupByRef),
+    ...applyColumnPrefixes(extraGroupByColumns),
+  ];
 
   const groupByClause =
     adjustedGroupByColumns.length === 0
@@ -196,7 +284,8 @@ ${groupByClause}`;
 export function buildWhereClause(
   fetchConfig: GenericLongFormFetchConfig,
   hasPeriodId: boolean,
-  columnPrefixes?: Map<string, string>,
+  columnPrefixes: Map<string, string> | undefined,
+  queryContext: Pick<QueryContext, "textColumns">,
 ): string[] {
   const whereStatements: string[] = [];
 
@@ -224,11 +313,32 @@ export function buildWhereClause(
       const values = filter.values.map((v) => Number(v)).join(", ");
       whereStatements.push(`${columnName} IN (${values})`);
     } else {
-      // Case-insensitive comparison for text columns
-      const quotedValues = filter.values
-        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
-        .join(", ");
-      whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);
+      // Case-insensitive comparison for text columns. BLANK_SENTINEL cannot ride
+      // the IN list — `NULL IN ('__BLANK')` is NULL, never true — so it splits
+      // out into its own OR-ed predicate matching both blank routes.
+      const wantsBlank =
+        shouldFoldBlank(filter.disOpt, queryContext) &&
+        filter.values.some((v) => String(v) === BLANK_SENTINEL);
+      const namedValues = wantsBlank
+        ? filter.values.filter((v) => String(v) !== BLANK_SENTINEL)
+        : filter.values;
+
+      const predicates: string[] = [];
+      if (namedValues.length > 0) {
+        const quotedValues = namedValues
+          .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+          .join(", ");
+        predicates.push(`UPPER(${columnName}) IN (${quotedValues})`);
+      }
+      if (wantsBlank) {
+        predicates.push(blankPredicate(columnName));
+      }
+      // A sentinel-only selection whose named list is empty still yields
+      // predicates; the `values.length === 0` guard above covers the truly
+      // empty filter.
+      whereStatements.push(
+        predicates.length === 1 ? predicates[0] : `(${predicates.join(" OR ")})`,
+      );
     }
   }
 

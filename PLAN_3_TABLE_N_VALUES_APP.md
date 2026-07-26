@@ -8,8 +8,59 @@ display; Phase 1 (server) is independent and can land first. Correctness of n
 on composite HFA indicators depended on the M10 composite-missingness fix
 (result-gating + scoped sentinel bindings, see
 [SYSTEM_05_facilities_indicators.md](SYSTEM_05_facilities_indicators.md)) —
-implemented, so n reports the true denominator once that deploys. Background:
-`RESEARCH_ON_N_ISSUE.md` (reference; this plan supersedes its open questions).
+committed 2026-07-25 (`07c8001f`) but **not yet deployed**, so n reports the
+true denominator only once that ships. Background: `RESEARCH_ON_N_ISSUE.md`
+(reference; this plan supersedes its open questions — delete it when this plan
+closes).
+
+## 0. For the implementing agent
+
+**Status (verified 2026-07-26): nothing implemented.** Confirmed by grep — no
+`showNValues` anywhere in `lib/` or `client/`, no `__n_` emission in
+`query_helpers.ts`. Implement this plan as written.
+
+- **Scope:** this repo plus the panther repo (via the companion plan). No
+  `wb-fastr-modules` changes except running `vendor_schema` after the Phase 2
+  github-schema edit, as Phase 2 already states.
+- **Phase order is forced by the panther sync**, which only Tim can run:
+  1. **Phase 1 (server)** and **Phase 2 (config)** — no panther dependency.
+     Build and commit these first.
+  2. **[PLAN_2_TABLE_N_VALUES_PANTHER.md](PLAN_2_TABLE_N_VALUES_PANTHER.md)** in
+     the panther source repo.
+  3. **Tim runs `./sync`.** Stage the wb-fastr changes from steps 1–2 first so
+     the sync diff stays isolated.
+  4. **Phase 3 (client wiring)** — references `nProps` and
+     `tableColHeaders.textFormatter`, so it cannot typecheck before the sync.
+     Do not start it earlier and do not stub the panther API to get green.
+- **Verify by executing** (CLAUDE.md): Phase 1's SQL claims are settled with a
+  `deno run --allow-all -c deno.json` harness against a real project DB using
+  read-only SELECTs, not by reading the builder.
+- Line anchors in this plan were checked 2026-07-26 but the repo is under
+  active parallel work — re-grep each symbol before editing.
+- **Take nothing in this plan on trust.** Every path, line number and status
+  claim here is a measurement from a specific date, including the "nothing
+  implemented" status above and the M10 deploy state below — re-confirm before
+  acting. Where the plan and the repo disagree, **the repo is right and the plan
+  is stale**; fix the plan in the same commit rather than coding to it. Check
+  `git status` first: parallel work in this tree is normal, and errors you find
+  may not be yours to fix.
+
+### Known downstream rework (do not try to avoid it)
+
+Phase 3 adds `datasetFamily` to
+[metric_enricher.ts](server/db/project/metric_enricher.ts) purely so the editor
+can hide the toggle where it would do nothing. The results-runs branch deletes
+that probe-based enricher outright (`enrichMetric` becomes a manifest lookup),
+so this field has to move to the run manifest's per-metric stamp when that
+merges. This is accepted, recorded in SYSTEM_09 Open items, and is **not** a
+reason to redesign the gate — the renderer self-gates on whether `__n_*` keys
+are present in the items, so `datasetFamily` is only ever a UI affordance.
+
+The Phase 1 server half needs no such rework: it rides the shared SQL builders
+through the runs engine seam. One caveat for whoever runs the runs rollout —
+Phase 1 introduces `COUNT(DISTINCT …) FILTER (WHERE …)`, and the results-runs
+§2.4 dialect inventory explicitly recorded `FILTER` as *absent* from the S9 SQL
+surface, so that construct needs a case in the golden-diff parity rig.
 
 ## Settled design
 
@@ -177,3 +228,13 @@ Notes:
 - Phase 3: `deno task typecheck`; browser check on an HFA table with a
   constant-n column and one with a varying-n column, an HFA table with a roll-up
   row (perpendicular exclusion), and a CSV/XLSX export matching the render.
+
+## Closeout
+
+When all three phases are in, **delete this plan file and
+`RESEARCH_ON_N_ISSUE.md`**, and record the settled semantics in
+SYSTEM_09 (the `__n_*` aggregate contract and the HFA-only scope) and
+SYSTEM_10 (the v1 display policy: col-header formatter, `(n=max)` over the
+header's slice, roll-up excluded on the perpendicular axis). The deferred v1
+exclusions — row/group headers, per-cell display, scorecard mode, AI-tool
+exposure — become SYSTEM_10 Open items, not a surviving plan.

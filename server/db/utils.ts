@@ -79,6 +79,32 @@ export async function detectColumnExists(
 }
 
 /**
+ * Names of the TEXT-typed columns in a table.
+ *
+ * Results-object column types are authored per module (each definition's
+ * createTableStatementPossibleColumns), so the same disaggregation option can
+ * be text in one module and integer in another — `time_point` is both, in this
+ * fleet. Callers that emit text-only SQL against a disaggregation column have
+ * to ask the database rather than infer from the option name.
+ *
+ * Parameterised, and returns a Set rather than probing per column so the whole
+ * answer costs one round-trip. A missing table yields an empty set.
+ */
+export async function getTextColumnNames(
+  db: Sql,
+  tableName: string,
+): Promise<Set<string>> {
+  const rows = await db<{ column_name: string }[]>`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = ${tableName}
+      AND data_type IN ('text', 'character varying', 'character')
+  `;
+  return new Set(rows.map((r) => r.column_name));
+}
+
+/**
  * Check if a table has any rows
  * @param db - The project database connection
  * @param tableName - The name of the table to check

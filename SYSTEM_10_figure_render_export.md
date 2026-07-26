@@ -48,8 +48,8 @@ This is the authoritative record of the FigureBundle refactor. The two planning
 docs that drove it (`PLAN_FIGURE_BUNDLE.md` = vision, `PLAN_FIGURE_BUNDLE_IMPL.md`
 = executable plan) were deleted on completion; this section replaces them.
 Sibling slices live in S9 (the upstream capture side), S12 (the three storage
-surfaces), and S2 (the boot-time backfill). Deferred follow-ons:
-[PLAN_FIGURE_BUNDLE_FOLLOWUPS.md](PLAN_FIGURE_BUNDLE_FOLLOWUPS.md).
+surfaces), and S2 (the boot-time backfill). The deferred phases (provenance /
+stale badge, the Visualization rename) are in Open items below.
 
 ### The idea
 
@@ -477,3 +477,56 @@ label to `pdf.save`/`saveAs` (Open item).
   white); the dashboard PNG bakes `backgroundColor:"none"` — unify (blocked on
   a panther transparent flag).
 - `buildReportFigureMap` is `async` with zero awaits.
+
+- **Deck-themed SERIES colors** (deferred half of the deck-colors work).
+  Structural figure colors — grid lines, borders, data-label backgrounds,
+  strokes — now resolve against the deck's `colorPreset` when a figure renders
+  inside a deck (`structuralColor()` in
+  [get_style_from_po/_0_common.ts](client/src/generate_visualization/get_style_from_po/_0_common.ts));
+  outside a deck they stay `{ key }` against the global palette, so standalone
+  visualizations, editor previews and exports are unchanged. Series colors were
+  deliberately left out: the next step is a `"deck-primary"` color scale that
+  returns `deckStyle.colorPreset.primary`. Note the semantic colors in
+  `_2_coverage`/`_3_percent_change`/`_4_disruptions` (good/bad/neutral,
+  survey/projected) are intentionally NOT theme-routed — they carry meaning.
+
+### FigureBundle deferred phases (from the retired follow-ons plan)
+
+The P1+P2 refactor shipped 2026-06-13; the architecture is documented above and
+in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
+[S2](SYSTEM_02_persistence.md). Two slices were explicitly deferred:
+
+- **Provenance wiring + the stale-badge / "Update data" UI.** The bundle already
+  reserves room: `provenance` carries `moduleLastRun` and `datasetsVersion`
+  (both free from the ItemsHolder). The rest: wire the two import timestamps
+  (`instanceDataImportedAt`, `projectDataAddedAt`) as optional provenance
+  fields — the metric → source-datasets → import-time path is a multi-hop join
+  not yet traced and may need a column rather than just a read (verify
+  `datasets_in_project_*` is even timestamped; owners S5/S6 for the timestamps,
+  S9 to capture them). Then a **stale badge with no re-query**: compare the
+  bundle's captured `(moduleLastRun, datasetsVersion)` against values the client
+  already holds cheaply (module summaries carry `lastRunAt`; `datasetsVersion`
+  is instance metadata) — a diff is a badge, zero per-figure queries. Semantics:
+  it flags "the data *version* moved", not "values definitely changed", which is
+  exactly right for an update nudge; backfilled figures have an approximate
+  `moduleLastRun` (= `snapshotAt`) so their badge is best-effort until first
+  re-capture. Then an **"Update data" action** (S12 UI + S9 re-query): re-run
+  the same live query the editor runs (`config` + `metricId`) → fresh items →
+  reassemble the bundle (re-derive `dateRange`, re-capture `provenance`, bump
+  `snapshotAt`); per-figure, "Update all" is the same call in a loop; it stays
+  an explicit user action to preserve the publish-time freeze. Edge: a figure
+  whose metric is uninstalled in-project can't re-query, so the action disables
+  ("source unavailable") — being un-updatable ≠ un-migratable.
+  **Re-spec this against [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) before
+  building it:** under runs, "needs update?" collapses to "the project's
+  attached run ≠ the latest run", a manifest comparison rather than a
+  per-figure provenance diff, and the two import timestamps come off the run
+  manifest's inputs record for free. Building the provenance-diff version first
+  would be wasted work.
+- **The Visualization rename** (Phase 5, optional). Rename presentation object →
+  Visualization end-to-end: the `presentation_objects` table,
+  `/presentation_objects` routes, `PresentationObjectConfig`,
+  `ItemsHolderPresentationObject`, and the dozens of files using those names. No
+  behavior change — a large mechanical sweep, so its own focused PR (like the
+  snapshot-naming pass), never bundled with feature work. The FigureBundle
+  refactor deliberately kept the PO names to keep this separable.

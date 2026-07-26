@@ -308,6 +308,8 @@ that area.
 - [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query &
   cache: config → SQL (CTEManager, roll-up row, post-aggregation),
   period/disaggregation semantics, PO caches
+  ([PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md) is the add-a-case
+  recipe for `./validate_queries`)
 - [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations +
   JSON data transforms + validation boundaries
 

@@ -129,8 +129,17 @@ export function getPeriodFilterExactBounds(
     return { min: max, max };
   }
 
-  // TODO: Calendar-based filters are hidden in UI for quarter_id data (see _2_filters.tsx:236-250).
-  // This code path is unreachable. Either implement the feature or remove this block.
+  // Calendar-based filter types are hidden in the UI for quarter_id data
+  // (_2_filters.tsx), but this block is NOT dead and must not be deleted. A
+  // config saved while the metric held period_id data still carries one after a
+  // module re-run switches the table to quarter_id, and AI/hand-crafted configs
+  // are not bound by the UI at all. Returning the raw bounds degrades to "no
+  // period filter" — all data, which is the safe reading.
+  //
+  // Deleting it drops through to getLastFullYearBounds / getLastFullQuarterBounds,
+  // whose YYYYMM math on a YYYYQ value turns max 20244 into {20101, 20112} — a
+  // range no quarter_id row can match, so "show everything" silently becomes
+  // no_data_available. Verified by execution 2026-07-26.
   if (
     fmt === "quarter_id" &&
     (periodFilter.filterType === "last_calendar_year" ||

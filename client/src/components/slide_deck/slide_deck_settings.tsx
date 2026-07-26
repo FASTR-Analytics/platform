@@ -177,6 +177,7 @@ export function SlideDeckSettings(p: Props) {
             <StylePreview config={tempConfig} />
             <ColorThemePicker
               value={tempConfig.colorTheme}
+              config={tempConfig}
               onChange={(v) => setTempConfig("colorTheme", v)}
             />
             <FontPicker

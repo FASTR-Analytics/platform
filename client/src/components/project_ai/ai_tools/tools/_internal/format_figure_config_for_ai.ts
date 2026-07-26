@@ -1,4 +1,5 @@
 import {
+  formatReplicantLabelForDisplay,
   getDisaggregationLabel,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
@@ -59,7 +60,7 @@ export async function formatFigureConfigForAI(
         );
         if (optRes.success && optRes.data.status === "ok") {
           lines.push(
-            `Available replicant values: ${optRes.data.possibleValues.map((v) => `${v.id} (${v.label})`).join(", ")}`,
+            `Available replicant values: ${optRes.data.possibleValues.map((v) => `${v.id} (${formatReplicantLabelForDisplay(v.label, replicateBy, undefined)})`).join(", ")}`,
           );
         } else if (optRes.success) {
           lines.push(`Available replicant values: (${optRes.data.status})`);

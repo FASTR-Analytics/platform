@@ -225,7 +225,7 @@ cancel; staging also pre-drops stale tables at start.
   `select_multiple` expands to one binary var per choice (`{var}_{choice}`):
   selected → `1`, unselected → `0`, unanswered parent → `""` (missing) on every
   expanded var, and a parent answered `-99` (don't know) marks unselected
-  choices `-99` so downstream sentinel handling sees it (PLAN_HFA_FEATURES.md);
+  choices `-99` so downstream sentinel handling sees it;
   the name `weight` (any case, incl. expanded names) is reserved and aborts
   staging; duplicate var names are a hard error.
 - HFA row filtering + dedup (order is fixed: **filter → review →
@@ -395,3 +395,42 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 - **Decoupling — dual CSV parsers.** papaparse vs panther `parseCSV`; evaluate
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today — adoption would mean adding streaming there first).
+
+### HFA follow-on work (from the retired HFA plans)
+
+- **Sierra Leone R1 re-import (operational, not code).** The row-filter +
+  duplicate-resolution feature shipped in v1.61.2; the SL data still needs the
+  cleaning applied: re-upload the corrected 365-row weights file
+  (`HFA_SL_R1_weigths_NEW.csv` — the original dropped facilities 374/98/427,
+  which share *names* with other facilities; `id_fac_txt` is the safe key), fix
+  the instance's `ind274` (vaccine index) from `binary`/`sum` to `numeric`/`avg`,
+  then re-import R1 with filter `id_resp_consent equals 1`, dedup `first`, and
+  overrides 433 → row 60 and 442 → row 430 (the survey firm's hand picks), and
+  rerun M10. Oracle for the result: the six vaccine indicators must match
+  `vaccine_availability_viviane.do` (measles 0.94505 N=364, penta 0.92603 N=365,
+  bcg 0.93699, polio 0.93681, pcv 0.95068, hpv 0.89779).
+- **Remove dataset rows in-platform** (M, app-only). Delete rows after ingest so
+  ODK→platform direct upload stays usable, keeping a manual re-run/weights-check
+  path. Settled: hard-delete (keeps the dataset clean for ODK-direct). Open: the
+  UI entry point (stage-review step vs a row browser on an integrated version),
+  the selection model (facility / round / predicate / row multi-select), whether
+  a delete mints a new dataset version (it almost certainly must — cache-key
+  advance + history, mirroring integrate), and the re-validation/weights
+  recompute trigger. Touches `worker_routines/integrate_hfa_data/`,
+  `server/db/instance/dataset_hfa.ts`, dataset-version handling + Valkey
+  invalidation.
+- **Sentinel Layer 1 — import review/correction UI** (M, app-only).
+  Auto-classification of `(question, code)` pairs into `sentinel_class` is
+  shipped; the deferred human-correction step is a review screen between staging
+  and finalize: read the staged classification from the `DICT_VALUES_STAGING_TABLE`
+  (created in `main` via `createBulkImportConnection("main")`, so an ordinary
+  `mainDb` route can read/correct it), let the user reclassify sentinel rows via
+  a class dropdown, and persist corrections back to staging so finalize promotes
+  them. Work: `getDatasetHfaStagedSentinels` / `updateDatasetHfaStagedSentinels`
+  routes (+ Zod + registry), DB read/update on the staging table, and a new
+  wizard `Step` with the stepper renumbered (`index.tsx` `getValidation` +
+  `<Match>` arms).
+- **Parked, on-demand:** upload bugs (admin areas / facilities / weights) —
+  revisit with concrete repros against the latent issues listed above; `"Other"`
+  (`-96`) coding with AI — exploratory, revisit after the AI authoring loop
+  proves out on real data.

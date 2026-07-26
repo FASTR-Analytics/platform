@@ -12,6 +12,60 @@ should own it.
 
 Independent of the app plan; the app's server half can land first.
 
+## 0. For the implementing agent
+
+**Status (verified 2026-07-26): nothing implemented.** Confirmed by grep —
+no `nProps`, no `nMatrix`, no `sampleN` anywhere in `modules/_010_table/`, and
+no header `textFormatter` in `_003_figure_style`. Implement this plan as
+written, top to bottom.
+
+- **Repo:** all work is in the panther source repo at
+  `/Users/timroberton/projects/panther/timroberton-panther` — NEVER edit
+  `wb-fastr/panther/`, which is a synced copy. Typecheck in the panther repo.
+- **Panther's working tree was clean at hand-off**, so your diff is the whole
+  sync diff. Keep it that way: stage any wb-fastr changes BEFORE Tim runs
+  `./sync`, so the sync diff stays isolated.
+- **Tim runs `./sync`, not you.** The app half of this feature
+  ([PLAN_3_TABLE_N_VALUES_APP.md](PLAN_3_TABLE_N_VALUES_APP.md)) cannot
+  typecheck its Phase 3 until that sync lands, because Phase 3 references
+  `nProps` and `tableColHeaders.textFormatter`. Sequence: app Phase 1+2 (no
+  panther dependency) → this plan → sync → app Phase 3.
+- **Verify by executing, not by reading** (CLAUDE.md). A transform-level
+  harness settles the `nMatrix`/`aoa` alignment questions decisively.
+- **Take nothing in this plan on trust.** Every path, line number and status
+  claim here is a measurement from a specific date, including the "nothing
+  implemented" status above — re-confirm it before you start. Where the plan and
+  the repo disagree, **the repo is right and the plan is stale**; fix the plan in
+  the same commit rather than coding to it.
+
+### Verified symbol locations (2026-07-26)
+
+The plan body cites some of these loosely; these are the checked positions.
+
+| Thing | Where |
+| --- | --- |
+| `TableCellInfo`, `TableHeaderInfo` | `modules/_001_render_system/chart_info_types.ts:109` and `:124` — **not** in `_003_figure_style`, which owns only the style *options* (§3) |
+| `TableHeaderInfo` construction | `modules/_010_table/_internal/get_infos.ts` — **four sites**: lines 35, 76, 139, 183 (row, col, and group headers) |
+| `TableJsonDataConfig` | `modules/_010_table/types.ts:60` |
+| `TableDataTransformed` | `modules/_010_table/types.ts:86` |
+| `fillDataArray` | `modules/_010_table/get_table_data.ts:333` |
+
+Two consequences worth stating up front:
+
+- §2's presence contract (omit `sampleN` entirely when a slice has zero defined
+  n cells) has to hold at **all four** `get_infos.ts` construction sites, not
+  just the col-header one v1 displays.
+- §1 depends on a property of `fillDataArray` that is real: the pass already
+  `continue`s when `obj[vp]` is null/undefined, so a cell with no value
+  correctly gets no n. Add the `nMatrix` write at the same `(row, col)`
+  assignment, inside that same guard.
+
+**Line numbers in §4 are UNVERIFIED** (`measure_table.ts:119`/`:138`). §4 is the
+load-bearing section of this plan — re-grep `resolveColumnWidths`,
+`getColHeaderInfos`, `computePerColumnMinWordWidths` and
+`measureNaturalColumnWidths` before editing, and treat every `file:line` in this
+plan as a hint rather than an address.
+
 ## Why the transform, not an app-side lookup
 
 The transformer is the one place that authoritatively maps
@@ -143,3 +197,10 @@ it is a required step.
 - Perpendicular exclusion in both directions: a roll-up row (col-header
   digests) and a roll-up column (row-header digests).
 - Pre-transformed `TableDataTransformed` with no `nMatrix` still renders.
+
+## Closeout
+
+When this lands and the sync carries it into wb-fastr, **delete this plan
+file**. The durable record of the capability belongs in panther's own docs
+(`DOC_FIGURE_ARCHITECTURE.md` / the table module README), not in a plan — and
+wb-fastr's SYSTEM_10 already owns the app-side display policy.

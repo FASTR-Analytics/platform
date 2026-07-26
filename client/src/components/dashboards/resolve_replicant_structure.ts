@@ -2,9 +2,11 @@ import {
   DisaggregationOption,
   PresentationObjectConfig,
   ResultsValue,
+  formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
 } from "lib";
+import { instanceState } from "~/state/instance/t1_store";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 
@@ -58,9 +60,15 @@ export async function resolveReplicantStructure(
 
   return {
     replicateBy,
+    // Display labels, not raw ids: these become dashboard group headings and
+    // xlsx sheet names downstream (_dashboard_export_model.replicantLabel).
     replicants: optRes.data.possibleValues.map((pv) => ({
       value: pv.id,
-      label: pv.label,
+      label: formatReplicantLabelForDisplay(
+        pv.label,
+        replicateBy,
+        instanceState.countryIso3,
+      ),
     })),
   };
 }
