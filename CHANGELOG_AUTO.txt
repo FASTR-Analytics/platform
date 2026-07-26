@@ -1,3 +1,16 @@
+[TBD] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
+[TBD] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
+[TBD] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
+[TBD] [user] [fixed] - Charts with negative values no longer clip bars below the axis
+[TBD] [user] [fixed] - Table exports now match the column headers shown on screen
+[TBD] [admin] [added] - Tables for survey metrics can now show sample sizes in column headers
+[TBD] [admin] [added] - New "Show sample sizes in column headers" toggle in table style settings for survey (HFA) metrics
+[TBD] [admin] [added] - AI assistant now includes sample size context when analyzing survey data
+[TBD] [admin] [added] - Underlying data CSV exports now include sample size columns with readable headers
+[TBD] [admin] [fixed] - Charts for metrics with negative values no longer clip bars below the axis
+[TBD] [admin] [fixed] - Table exports now match the column headers shown on screen
+[TBD] [admin] [changed] - More metrics now correctly allow negative values on chart axes
+[TBD] [admin] [internal] - Visualization cache updated; cached figures will regenerate automatically
 [TBD] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
 [TBD] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
 [TBD] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
