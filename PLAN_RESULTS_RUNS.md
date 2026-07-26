@@ -43,9 +43,11 @@ Concretely, before relying on any of it:
 - **Re-grep every `file:line` in this plan** — including in §1–§11, whose
   citations were harness-verified on 2026-07-07 and have had months of drift
   since. Symbol names are the durable part; line numbers are not.
-- **Re-confirm the "no conflict in the SQL builders" claim** before leaning on
-  it. It is the basis for the parity argument, and one commit touching
-  `server_only_funcs_presentation_objects/` on the branch would invalidate it.
+- The "no conflict in the SQL builders" claim is now **FALSE** (n-values
+  landed 2026-07-26, `eac81c66`): all six
+  `server_only_funcs_presentation_objects/` files conflict, and
+  `query_helpers.ts` (+296 lines on `main`) still merges silently — see the
+  parity-rig section.
 - **Do not trust "the exit gate passed."** It passed on 2026-07-14 against a
   tree that no longer exists. The only gate that counts is the rig, green, on
   the merged tree.
@@ -56,22 +58,29 @@ Concretely, before relying on any of it:
 - **Check `git status` before you start.** Parallel work in this tree is normal;
   errors you find may not be yours, and are not automatically yours to fix.
 
-### Merge pre-flight (measured 2026-07-26)
+### Merge pre-flight (re-measured 2026-07-26 post n-values; sizing merge EXECUTED)
 
 - **Divergence:** merge-base `d0ee2e3e` (2026-07-09). Branch = 30 commits /
-  173 files; `main` = 264 commits / 665 files; **49 files overlap**.
+  173 files; `main` = 272 commits / 754 files; **61 files overlap**.
+- **Real conflict set** (measured by executing the throwaway
+  `git merge --no-commit --no-ff main` on a scratch branch, then aborting):
+  **31 files — 23 content conflicts (~50 hunks), 7 branch-deleted/
+  main-modified, 1 main-deleted/branch-modified.** Hotspot:
+  `server/routes/project/presentation_objects.ts` (15 hunks). Breakdown:
+  7 docs, 12 `client/`, 1 `lib/` (`lib/types/modules.ts`), 11 `server/`.
+  `deno.json`/`deno.lock`/`.env.example`/`_main_database.sql`/
+  `metric_enricher.ts`/`t1_sse.tsx`/`get_script_with_parameters_hfa.ts`
+  auto-merge — verify, don't trust (rulings below).
 - **Merge `main` into `results-runs`. Do not rebase.** A rebase replays 30
-  commits across 264, so the same 49-file conflict surface is resolved up to 30
-  times; a merge is one pass and preserves the commit narrative this plan cites
-  by hash. Enable `git rerere` either way. Size the real conflict set with a
-  throwaway `git merge --no-commit --no-ff` on a scratch branch first.
-- **Merge cost does not grow with time or commit count** — only with churn in
-  those 49 files. That is what makes deferring safe, and also what makes the
-  freeze list below matter.
+  commits across 272, so the same conflict surface is resolved up to 30
+  times; a merge is one pass and preserves the commit narrative this plan
+  cites by hash. Enable `git rerere` either way.
 - **Doc conflicts resolve toward `main`:** the branch still carries
   `DOC_MODULE_EXECUTION.md` and five plan files that no longer exist on `main`.
-  Take `main`'s deletions in every case — but note two are supersessions, not
-  drops, so if the branch edited them the content belongs in the successor:
+  Measured: only `DOC_MODULE_EXECUTION.md` actually conflicts — the branch's
+  edit since merge-base is one line; carry it into
+  `SYSTEM_08_module_system.md`. The five plan files auto-resolve to `main`'s
+  deletions:
 
   | On the branch | On `main` |
   | --- | --- |
@@ -81,6 +90,41 @@ Concretely, before relying on any of it:
   | `PLAN_DOC_CONSOLIDATION.md` | completed and deleted |
   | `PLAN_SWEEP_CLIENT_FOR_SOLID_REACTIVITY_ISSUES.md` | completed and deleted |
   | `PLAN_WORKER_RUNTIME_FIXES.md` | completed and deleted |
+
+### Rulings (2026-07-26)
+
+- **Renumber the branch migrations onto `main`'s tail** (Tim's ruling):
+  instance `056_add_runs.sql` → `065_add_runs.sql`, `057_run_generation.sql`
+  → `066_run_generation.sql`; project `030_delete_default_visualization_rows
+  .sql` → `038_…` (same policy — `main`'s project tail is 037). The runner
+  keys by filename, so renaming makes dev re-run them under the new ids —
+  accepted; reconcile dev by hand (insert the new ids into
+  `schema_migrations`, or drop the objects and let them re-apply). Verify
+  the auto-merged `_main_database.sql` actually unions both sides' tables
+  (runs + run_generation_attempts AND import ledger/credentials/recurrence),
+  then run `validate_migrations` and a dev boot.
+- **Bump both cache knobs past BOTH sides**: `PO_CACHE_VERSION` is "7" on
+  `main` and "6" on the branch (independent bumps for different payload
+  changes) → merged tree takes **"8"**; `po_detail_v2` (`main`) vs `v3`
+  (branch) → **`v4`**. Either side's number alone serves mixed-shape
+  payloads. Clear dev IndexedDB when testing (dev has no deploy flush).
+- **Regenerate `deno.lock`** after the merge; don't trust its textual
+  auto-merge.
+- **Moved-file re-apply class** — the easiest thing to drop silently: 6 of
+  the 7 branch-deleted client files are files the branch MOVED (windowing/
+  params editors extracted for wizard reuse, e.g. `settings_generic.tsx`'s
+  param grid → `_shared/module_parameter_inputs.tsx`). `main`'s 1–16-line
+  edits to the old paths must be re-applied to the new homes by hand — git
+  resolves the delete and drops them. `project_data.tsx` is a true delete:
+  its ~460 changed lines on `main` are the staleness/attach surface the
+  wizard replaces; nothing there needs a wizard home.
+- **wb-fastr-modules is ready**: HEAD `004fdc2` contains both workstreams
+  (the branch's pinned-asset `6ba142e` is an ancestor; `showNValues` +
+  drop-facility_name landed on top), 4 unpushed commits ride the deploy.
+  The github-definition schema conflict (1 hunk in
+  `lib/types/_module_definition_github.ts`) resolves as a **union**
+  (`RepoAssetPin` + the new optional fields). The branch touches zero
+  panther files — `main`'s panther syncs merge clean.
 
 ### How to run it — in-place in the primary checkout, NOT a worktree
 
@@ -92,21 +136,22 @@ credentials to run at all — which is the one thing that must work. The usual
 worktree argument (keep `main` usable) doesn't apply either, because the WIP has
 to be committed before switching branches regardless.
 
-**Conflict surface by area** (49 files): 9 docs, 20 `client/`, 11 `server/`,
-5 `lib/`, 4 root/config.
+**Measured conflict surface** (31 files): 7 docs, 12 `client/`, 1 `lib/`,
+11 `server/`; root/config auto-merges.
 
 1. **Land the tree first.** Commit outstanding work on `main` — commit, do not
    stash: this is a multi-hour branch-switch and a forgotten stash is a
    footgun.
 2. **Turn on conflict memory:** `git config rerere.enabled true`. Resolutions
    are then replayed if a step is redone.
-3. **Size it before committing to it**, on a scratch branch:
+3. **Sizing — EXECUTED 2026-07-26**; results are the "Real conflict set"
+   above. Re-run only if `main` moves again before the merge:
 
    ```sh
    git checkout -b merge-sizing results-runs
    git merge --no-commit --no-ff main     # inspect, do not commit
    git diff --name-only --diff-filter=U   # the real conflict set
-   git merge --abort && git checkout results-runs && git branch -D merge-sizing
+   git merge --abort && git checkout main && git branch -D merge-sizing
    ```
 
 4. **Do the real merge on a throwaway branch**, so `results-runs` stays pristine
@@ -119,80 +164,100 @@ to be committed before switching branches regardless.
 
 5. **Resolve in this order** — cheapest and least risky first, so the remaining
    diff shrinks to genuine code decisions:
-   1. **Deletions** — the six files in the table above. Mechanical.
-   2. **Docs** (9 `.md`) — take `main`'s structure, re-apply the branch's runs
-      deltas on top. Noisy, near-zero risk, and clears a fifth of the surface.
-   3. **`lib/`** (5) — the contract layer; settle it before its consumers.
-   4. **`server/`** (11) — boot and persistence: `main.ts`, `db_startup.ts`,
-      `exposed_env_vars.ts`, `_main_database.sql`.
-   5. **`client/`** (20) — the biggest group but the most mechanical; the
-      branch deletes whole surfaces here (per-module rerun, dirty-state
-      cascade, Data-tab attach), so many conflicts resolve to "the branch
-      deleted this".
-   6. **root/config** (4) — `deno.json`, `deno.lock`, `.env.example`.
-6. **`deno task typecheck`** (includes `lint:systems`, which will flag any
-   SYSTEM glob left pointing at a file the merge deleted or moved).
-7. **Run the parity rig** — see the next section. This is the gate.
-8. **Only then** fast-forward: `git checkout results-runs && git merge --ff-only
+   1. **Deletions** — only `DOC_MODULE_EXECUTION.md` needs a decision
+      (one-line branch edit → carry into SYSTEM_08); the five plan files
+      auto-resolve to `main`'s deletions.
+   2. **Docs** (7 `.md`) — take `main`'s structure, re-apply the branch's runs
+      deltas on top. `PLAN_RESULTS_RUNS.md`: take the branch copy wholesale,
+      carry this merge-guidance section forward, and fix its stale claims in
+      the same commit.
+   3. **`lib/`** (1) — `lib/types/modules.ts`; the definition-schema union is
+      in the rulings above.
+   4. **`server/`** (11) — hotspot `routes/project/presentation_objects.ts`
+      (15 hunks); the six `server_only_funcs_presentation_objects/` files get
+      real review — both sides rewrote them (branch: engine seam; `main`:
+      blank filters, multi-membership, n-values).
+   5. **`client/`** (12) — the 7 delete/modify files resolve to "deleted",
+      THEN re-apply `main`'s small edits to the moved copies (rulings above).
+6. **Post-resolution semantic work** (not optional — the merge is not done
+   without it): `datasetFamily` → manifest stamps (next section); migration
+   renumber 065/066 + project 038; `PO_CACHE_VERSION` → "8", `po_detail` →
+   `v4`; regenerate `deno.lock`; `_main_database.sql` union check.
+7. **Gates**: `deno task typecheck` (includes `lint:systems`, which will flag
+   any SYSTEM glob left pointing at a file the merge deleted or moved);
+   `validate_migrations`; a dev boot (migrations apply cleanly); re-backfill
+   dev runs (`backfill_runs.ts`) so manifests carry the new fields; verify
+   the auto-merged `t1_sse.tsx` and `get_script_with_parameters_hfa.ts` by
+   executing (generate a script), not by reading.
+8. **Run the parity rig, extended** — see the next section. This is the gate.
+9. **Only then** fast-forward: `git checkout results-runs && git merge --ff-only
    results-runs-merge && git branch -d results-runs-merge`.
 
 **Do not reach for `-X ours`/`-X theirs`.** The risk here is semantic, not
 textual — a strategy flag would resolve files silently and defeat the point of
 step 5.
 
-### The parity rig is the real exit gate — re-run it on the MERGED tree
+### The parity rig is the real exit gate — re-run it on the MERGED tree, EXTENDED
 
 The 2026-07-14 exit gate is no longer sufficient. Since the branch was cut,
-`main` has been actively changing the exact SQL builders this plan re-executes
-on DuckDB:
+`main` rewrote the exact SQL surface this plan re-executes on DuckDB
+(+360/−90 across `server_only_funcs_presentation_objects/`):
 
 - `fb483a1f` — multi-membership dimensions no longer treated as single-valued;
 - the blank-value-filter work in `query_helpers.ts`, `get_possible_values.ts`
-  and `get_query_context.ts`.
+  and `get_query_context.ts` (plus `INTEGER_FILTER_COLUMNS` /
+  `MULTI_MEMBERSHIP_FILTER_COLUMNS` in `lib/validate_fetch_config.ts`);
+- `eac81c66` — table sample sizes: **`COUNT(DISTINCT …) FILTER (WHERE …)` is
+  now IN the generated SQL** (`query_helpers.ts:500`, emitting `__n_*`).
+  §2.4's dialect inventory recorded FILTER as absent; that inventory is
+  stale. DuckDB supports the syntax (and the `::int` cast sidesteps BigInt),
+  but nothing has verified it through the adapter.
 
-**`server_only_funcs_presentation_objects/` does not appear in the 49-file
-overlap at all** — the branch re-points execution through the engine seam
-rather than editing the builders. So these changes arrive in the DuckDB path
-with zero merge conflicts and zero prompts to review them. That is the hazard,
-not a reassurance: **blank-value filtering is NULL semantics, and NULL handling
-is precisely where DuckDB and Postgres diverge**
-(§2.4 already flags `nullstr`, binary-vs-collated ORDER BY, and integer
-division). So run `validate_results_runs_parity.ts` against the merged tree,
-with cases that exercise blank filters and multi-membership dimensions, and
-treat THAT as the gate. The dual-write keeps the Postgres baseline live for
-exactly this purpose.
+All six builder files now **conflict** — the earlier "zero prompts" hazard
+inverted; review is forced. But the largest change, **+296 lines in
+`query_helpers.ts`, still merges silently** (the branch never touched it) and
+flows straight into DuckDB execution. **Blank-value filtering is NULL
+semantics (`''` vs NULL), precisely where DuckDB/Parquet and Postgres
+diverge** (§2.4 already flags `nullstr`, binary-vs-collated ORDER BY, and
+integer division).
 
-### Freeze list — do not land these before the merge
+So run `validate_results_runs_parity.ts` against the merged tree and treat
+THAT as the gate — after **extending the corpus** with: blank-value filters,
+multi-membership dimensions, and an HFA table config with `showNValues`
+exercising `__n_*`/FILTER (n-values is HFA-only and new, so the stored-PO
+corpus won't contain one). The dual-write keeps the Postgres baseline live
+for exactly this purpose.
 
-Each collides with the branch in load-bearing files, and landing it first
-inflates the conflict surface:
+### Freeze list — OUTCOME (retired 2026-07-26)
 
-| Work | Colliding files |
-| --- | --- |
-| DHIS2 importer consolidation | `lib/api-routes/instance/datasets.ts`, `server/db/instance/_main_database.sql`, `server/db_startup.ts`, `server/exposed_env_vars.ts` |
-| Snapshot naming rename | `client/src/state/project/t1_store.ts`, `t1_sse.tsx`, `t4_ui.ts` — and this plan adds `attachedRunId` to the same T1 stores |
-| Enforcement items 4/5/10/12 | `main.ts`, `get_possible_values.ts` (item 10 would be redone — runs re-points those reads) |
-| Geojson snapshot | storage home becomes the run's `inputs/geojson/` (§8 SNAP-2); re-cut that plan after this merge, not before |
+The DHIS2 importer consolidation (Phases 2–4, deployed through v1.61.2),
+credential consolidation and schedule recurrence all landed anyway; their
+conflict cost is already inside the measured 31-file set above. Snapshot
+naming and the geojson snapshot did NOT land (verified: `t1_store.ts`
+untouched since merge-base). **Nothing further lands on `main` before the
+merge.**
 
-Safe to work on in the gap: the axis-overflow plan and the panther-submodule
-transition (both need Tim's ruling; neither touches the overlap).
+### Known incoming rework — NOW DUE (n-values landed as `eac81c66`)
 
-### Known incoming rework
-
-The table n-values feature adds `datasetFamily` to
+Part of the merge itself, beyond conflict resolution:
+**`datasetFamily` → manifest stamps.** `main` added the field to
 [metric_enricher.ts](server/db/project/metric_enricher.ts) for an editor
-affordance; §2.4 deletes that probe-based enricher in favour of manifest
-lookups, so the field moves to the manifest's per-metric stamp as part of this
-merge. Accepted and recorded in SYSTEM_09 Open items. That feature also
-introduces `COUNT(DISTINCT …) FILTER (WHERE …)`, and §2.4's dialect inventory
-recorded `FILTER` as **absent** from the S9 SQL surface — add a rig case for it.
+affordance; the branch demotes that probe-based enricher to the parity rig's
+pg baseline and serves reads from manifest lookups. Move the field into the
+manifest's per-metric availability stamp and thread it through
+`getMetricsWithStatusFromManifest` / the metric-info payload — otherwise the
+affordance silently breaks on the run read path. Then re-backfill dev runs
+so existing manifests carry it. (Accepted and recorded in SYSTEM_09 Open
+items.) The FILTER/`__n_*` rig case is in the parity-rig section above.
 
 ### Merge ≠ rollout
 
-Resolving conflicts and getting the rig green is roughly a focused day and is
-agent-assistable. The rollout that follows (trial prod instance → backfill →
-rig there → fleet, Ethiopia early as the Ethiopian-quarter gate) is Tim's, over
-weeks. Budget them separately.
+Resolving conflicts and getting the rig green is roughly **1.5–2 focused
+days** (revised up from "a focused day": the six SQL-surface conflicts, the
+`datasetFamily` manifest work, and the rig extension are real work on top of
+the ~50 mechanical hunks) and is agent-assistable. The rollout that follows
+(trial prod instance → backfill → rig there → fleet, Ethiopia early as the
+Ethiopian-quarter gate) is Tim's, over weeks. Budget them separately.
 
 ---
 
