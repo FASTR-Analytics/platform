@@ -1,3 +1,25 @@
+[TBD] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
+[TBD] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
+[TBD] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
+[TBD] [user] [added] - Blank or missing values in filters now appear as a selectable "(Blank)" option
+[TBD] [user] [changed] - Dashboard group headings and export sheet names now show friendly labels instead of raw codes
+[TBD] [user] [changed] - Filter chips now display a readable label for blank or missing values
+[TBD] [user] [fixed] - Using '&&' or '||' in indicator code now shows a clear error instead of failing silently at run time
+[TBD] [user] [fixed] - Figures with missing group values no longer disappear from filters and charts
+[TBD] [user] [fixed] - Slide deck colors now correctly follow the chosen color theme in tables and maps
+[TBD] [admin] [added] - DHIS2 scheduled imports now support daily and monthly recurrence
+[TBD] [admin] [added] - "More themes…" modal for browsing and comparing slide deck color themes with live previews
+[TBD] [admin] [added] - Reserved word validation when creating HFA indicator variable names
+[TBD] [admin] [added] - Blank or missing disaggregation values now appear as a selectable "(Blank)" option in filters and replicants
+[TBD] [admin] [changed] - DHIS2 recurring schedule configuration replaced weekly-only interval with daily, weekly, and monthly options
+[TBD] [admin] [changed] - Replicant labels in dashboards and exports now display formatted names instead of raw identifiers
+[TBD] [admin] [changed] - HFA indicator code editor now flags use of && and || operators as errors before running
+[TBD] [admin] [changed] - HFA indicator code now correctly treats missing survey answers as unknown rather than as determinate "no"
+[TBD] [admin] [fixed] - Disaggregation filters no longer disappear when a dimension contains blank or missing values
+[TBD] [admin] [fixed] - Figures in slide decks now correctly inherit the deck's color theme for structural elements like grid lines and borders
+[TBD] [admin] [fixed] - HFA indicator expressions using %in% now correctly propagate missing values instead of treating them as false
+[TBD] [admin] [internal] - Slide content validation now enforced at the route boundary instead of inside the handler
+[TBD] [admin] [internal] - Visualization cache version updated; cached figures will regenerate on next access
 [TBD] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
 [TBD] [user] [changed] - Removed "Verification mismatches" section from import run details
 [TBD] [user] [changed] - Simplified scheduling guidance message when credentials are missing
