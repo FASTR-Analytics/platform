@@ -12,54 +12,31 @@ import type {
 } from "../deps.ts";
 import { Z_INDEX } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
-import { getProjectionFn } from "./projections.ts";
-import {
-  fitProjection,
-  type FitProjectionPadding,
-  type FittedProjection,
-} from "./fit_projection.ts";
+import type { FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
+import { getFeatureMatchKey } from "./label_shared.ts";
 
-export type MapRegionResult = {
-  regionPrimitives: Primitive[];
-  fitted: FittedProjection;
-  shownFeatures: GeoJSONFeature[];
-  shownFeatureStyles: Map<string, MapRegionStyle>;
+// A feature the cell will actually draw, with its style resolved ONCE (with
+// the real value range) — the same resolution the label pass reads, so the
+// two can never disagree.
+export type ShownMapRegion = {
+  feature: GeoJSONFeature;
+  featureId: string;
+  value: number | undefined;
+  style: MapRegionStyle;
 };
 
-export function generateMapRegionPrimitives(
-  cellRcd: RectCoordsDims,
+export function resolveShownRegions(
   geoFeatures: GeoJSONFeature[],
   valueMap: Record<string, number | undefined>,
   valueRange: { min: number; max: number },
   areaMatchProp: string,
-  projection: "equirectangular" | "mercator" | "naturalEarth1",
-  fit: "all-regions" | "only-regions-in-data",
   getStyle: MapRegionInfoFunc<MapRegionStyle>,
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
-  padding: FitProjectionPadding,
-): MapRegionResult {
-  const projectionFn = getProjectionFn(projection);
-
-  const featuresForFitting = fit === "only-regions-in-data"
-    ? geoFeatures.filter(
-      (f) => getFeatureMatchKey(f, areaMatchProp) in valueMap,
-    )
-    : geoFeatures;
-
-  const fitted = fitProjection(
-    featuresForFitting,
-    projectionFn,
-    cellRcd,
-    padding,
-  );
-
-  const regionPrimitives: Primitive[] = [];
-  const shownFeatures: GeoJSONFeature[] = [];
-  const shownFeatureStyles = new Map<string, MapRegionStyle>();
-
+): ShownMapRegion[] {
+  const shown: ShownMapRegion[] = [];
   for (const feature of geoFeatures) {
     const featureId = getFeatureMatchKey(feature, areaMatchProp);
     const value = valueMap[featureId];
@@ -76,10 +53,22 @@ export function generateMapRegionPrimitives(
     });
 
     if (!style.show) continue;
+    shown.push({ feature, featureId, value, style });
+  }
+  return shown;
+}
 
-    shownFeatures.push(feature);
-    shownFeatureStyles.set(featureId, style);
+export function generateMapRegionPrimitives(
+  cellRcd: RectCoordsDims,
+  shown: ShownMapRegion[],
+  fitted: FittedProjection,
+  paneIndex: number,
+  tierIndex: number,
+  laneIndex: number,
+): Primitive[] {
+  const regionPrimitives: Primitive[] = [];
 
+  for (const { feature, featureId, value, style } of shown) {
     const pathSegments = geoToPathSegments(feature.geometry, fitted);
     if (pathSegments.length === 0) continue;
 
@@ -106,15 +95,5 @@ export function generateMapRegionPrimitives(
     regionPrimitives.push(prim);
   }
 
-  return { regionPrimitives, fitted, shownFeatures, shownFeatureStyles };
-}
-
-function getFeatureMatchKey(
-  feature: GeoJSONFeature,
-  areaMatchProp: string,
-): string {
-  const val = feature.properties[areaMatchProp];
-  if (val !== undefined && val !== null) return String(val);
-  if (feature.id !== undefined) return String(feature.id);
-  return "";
+  return regionPrimitives;
 }

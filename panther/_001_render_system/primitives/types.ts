@@ -64,7 +64,10 @@ export const Z_INDEX = {
   CASCADE_ARROW: 550,
   // Map defaults
   MAP_REGION: 300,
-  MAP_LABEL: 750,
+  // Pie defaults
+  PIE_SLICE: 300,
+  // Figure labels (map regions, pie slices) — above all figure content
+  FIGURE_LABEL: 750,
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
@@ -537,14 +540,50 @@ export type MapRegionPrimitive = BasePrimitive & {
   pathStyle: PathStyle;
 };
 
-export type MapLabelPrimitive = BasePrimitive & {
-  type: "map-label";
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Pie Primitives                                                          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// The geometric params are kept alongside the path so later consumers (gauges,
+// hit-testing, pies-on-maps) can reuse the primitive without re-deriving the
+// wedge from its bezier approximation.
+export type PieSlicePrimitive = BasePrimitive & {
+  type: "pie-slice";
   meta: {
-    featureId: string;
+    seriesHeader: HeaderItem;
     paneIndex: number;
     tierIndex: number;
     laneIndex: number;
-    placement: "centroid" | "callout";
+    value: number;
+    share: number;
+    isRemainder: boolean;
+  };
+  cx: number;
+  cy: number;
+  innerR: number;
+  outerR: number;
+  startAngle: number;
+  endAngle: number;
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Figure Label Primitives (shared by map regions and pie slices)          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type FigureLabelPrimitive = BasePrimitive & {
+  type: "figure-label";
+  meta: {
+    id: string;
+    paneIndex: number;
+    tierIndex: number;
+    laneIndex: number;
+    placement: "inside" | "outside";
   };
   mText: MeasuredText;
   position: Coordinates;
@@ -561,6 +600,9 @@ export type MapLabelPrimitive = BasePrimitive & {
   };
   leaderLine?: {
     from: Coordinates;
+    // Optional elbow: the line runs from → via → to, giving the standard
+    // radially-out-then-horizontal callout leader.
+    via?: Coordinates;
     to: Coordinates;
     strokeColor: string;
     strokeWidth: number;
@@ -743,7 +785,10 @@ export type Primitive =
   | CascadeArrowPrimitive
   // Map primitives
   | MapRegionPrimitive
-  | MapLabelPrimitive
+  // Pie primitives
+  | PieSlicePrimitive
+  // Figure labels (shared)
+  | FigureLabelPrimitive
   // Scale legend primitives
   | ScaleLegendGradientPrimitive
   | ScaleLegendSteppedPrimitive

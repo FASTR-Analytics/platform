@@ -3,30 +3,31 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
+export { buildAutoFormatter, createArray } from "../_000_utils/mod.ts";
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export {
+  computeBoundsForPath,
   createHeaderItems,
   sortHeaderItems,
   Z_INDEX,
 } from "../_001_render_system/mod.ts";
 export type {
+  FigureLabelPrimitive,
   HeaderItem,
   HeaderSortConfig,
   HeightConstraints,
-  MapRegionInfo,
-  MapRegionInfoFunc,
-  MapRegionPrimitive,
   PathSegment,
+  PieSliceInfo,
+  PieSlicePrimitive,
   Primitive,
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
-  MapDataLabelMode,
-  MapRegionStyle,
-  MergedMapStyle,
+  MergedPieStyle,
+  PieLabelMode,
+  PieSliceStyle,
 } from "../_003_figure_style/mod.ts";
 export {
   buildDataLabelTextStyle,
@@ -34,17 +35,20 @@ export {
   calculateChartMinWidth,
   calculateMinLabelPlotExtent,
   calculatePaneGrid,
+  checkValuePropsAssignment,
+  collectHeaders,
   estimateMinSurroundsWidth,
+  fillValuesWithDuplicateCheck,
   generateResolvedFigureLabelPrimitives,
-  isAutoScaleLegendConfig,
   measureChart,
   measureChartWithAutofit,
   placeOutsideBoxes,
   renderFigureBackground,
   renderFigurePrimitives,
-  resolveAutoScaleLegend,
+  resolveDefaultLegend,
   resolveLabelPlacement,
   solveContentScale,
+  validateDataInput,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -57,5 +61,6 @@ export type {
   LegendInput,
   MeasuredChartBase,
   OutsidePlacedBox,
+  ProcessedHeaders,
   SimplifiedChartConfig,
 } from "../_007_figure_core/mod.ts";

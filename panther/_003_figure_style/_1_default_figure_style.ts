@@ -17,7 +17,9 @@ import {
   type MapRegionInfoFunc,
   normalizeTo01,
   type PaddingOptions,
+  type PieSliceInfoFunc,
   type TableCellInfoFunc,
+  type TableHeaderInfoFunc,
   toPct0,
   type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
@@ -30,10 +32,11 @@ import type {
   GenericCascadeArrowStyle,
   GenericConfidenceBandStyle,
   GenericConnectorStyle,
-  GenericDataLabelStyle,
+  GenericDataLabelBaseStyle,
   GenericErrorBarStyle,
   GenericLineStyle,
   GenericMapRegionStyle,
+  GenericPieSliceStyle,
   GenericPointStyle,
   GenericTableCellStyle,
   GenericTableHeaderStyle,
@@ -43,10 +46,22 @@ import {
   SERIES_COLOR_SENTINEL,
   VALUES_COLOR_SENTINEL,
 } from "./style_func_types.ts";
+import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 function typed<T>(value: T): T {
   return value;
+}
+
+// Shared default for every figure's labelCollision block (map, pie). The
+// blocks stay per-figure (collision policy is figure-wide structural style),
+// but the numbers are one calibration.
+function defaultLabelCollision(): LabelCollisionConfig {
+  return {
+    gap: 12,
+    maxCentroidDisplacement: 20,
+    maxIterations: 10,
+  };
 }
 
 const _DS = {
@@ -193,13 +208,21 @@ const _DS = {
   },
   // Content`
   content: {
-    dataLabel: typed<GenericDataLabelStyle>({
+    dataLabel: typed<GenericDataLabelBaseStyle>({
       show: false,
       offset: 3,
       backgroundColor: "none",
       padding: 0,
       borderWidth: 0,
       rectRadius: 0,
+      // The single home for leader-line defaults. A leader line belongs to the
+      // label at its end, so every figure that draws one (map callouts, pie
+      // outside labels) reads it from here — no per-figure duplicate.
+      leaderLine: {
+        strokeColor: { key: "base300" },
+        strokeWidth: 1,
+        gap: 4,
+      },
     }),
     points: {
       func: typed<GenericPointStyle>({
@@ -332,11 +355,25 @@ const _DS = {
           borderWidth: 0,
           rectRadius: 0,
         },
-        leaderLineStrokeColor: { key: "base300" },
-        leaderLineStrokeWidth: 1,
-        leaderLineGap: 4,
       }),
       textFormatter: typed<MapRegionInfoFunc<string> | "none">("none"),
+    },
+    slices: {
+      func: typed<GenericPieSliceStyle>({
+        show: true,
+        fillColor: SERIES_COLOR_SENTINEL,
+        strokeColor: "none",
+        strokeWidth: 0,
+        dataLabel: {
+          show: false,
+          offset: 0,
+          backgroundColor: "none",
+          padding: 3,
+          borderWidth: 0,
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<PieSliceInfoFunc<string> | "none">("none"),
     },
     // alignV for cells and row headers is deliberately absent here — its
     // default is the table-wide `table.alignV` (resolved as a fallback
@@ -355,6 +392,7 @@ const _DS = {
         textColorStrategy: "none",
         alignH: "left",
       }),
+      textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
     tableColHeaders: {
       func: typed<GenericTableHeaderStyleOptions>({
@@ -362,6 +400,7 @@ const _DS = {
         alignH: "center",
         alignV: "bottom",
       }),
+      textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
   },
   // Grid
@@ -470,11 +509,33 @@ const _DS = {
     fit: typed<"all-regions" | "only-regions-in-data">("all-regions"),
     boundingBox: typed<[number, number, number, number] | undefined>(undefined),
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("centroid"),
-    calloutMargin: 30,
-    labelCollision: {
-      gap: 12,
-      maxCentroidDisplacement: 20,
-      maxIterations: 10,
+    // The silhouette-to-label clearance for callout labels. 12 preserves the
+    // look shipped while this key was dead and the clearance was hardwired to
+    // labelCollision.gap.
+    calloutMargin: 12,
+    labelCollision: defaultLabelCollision(),
+  },
+
+  pie: {
+    // 0 = pie; 0..1 = doughnut (the fraction of the outer radius left empty).
+    innerRadiusRatio: 0,
+    // 12 o'clock, matching every mainstream library.
+    startAngle: -90,
+    direction: typed<"clockwise" | "counterclockwise">("clockwise"),
+    // Angular gap between adjacent slices, in degrees.
+    padAngle: 0,
+    cornerRadius: 0,
+    labelMode: typed<"none" | "inside" | "outside" | "auto">("auto"),
+    // The silhouette-to-label clearance for outside labels; see map's note.
+    calloutMargin: 12,
+    centerLabel: typed<"none" | "total">("none"),
+    labelCollision: defaultLabelCollision(),
+    // Partial pies (an explicit `total` the values do not reach) draw the
+    // unfilled part as a slice by default — a bare gap is indistinguishable
+    // from a rendering bug at small sizes.
+    remainder: {
+      mode: typed<"slice" | "gap">("slice"),
+      fillColor: typed<ColorKeyOrString>({ key: "base200" }),
     },
   },
 };

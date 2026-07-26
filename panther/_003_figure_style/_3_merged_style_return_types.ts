@@ -16,6 +16,7 @@ import type {
   LineStyle,
   MapRegionInfoFunc,
   Padding,
+  PieSliceInfoFunc,
   PointStyle,
   RectStyle,
   TableCellInfoFunc,
@@ -34,6 +35,7 @@ import type {
   DataLabelStyle,
   ErrorBarStyle,
   MapRegionStyle,
+  PieSliceStyle,
   TableCellStyle,
   TableHeaderStyle,
 } from "./style_func_types.ts";
@@ -180,7 +182,13 @@ export type MergedChartStyleBase = {
 
 export type MapDataLabelMode = "none" | "centroid" | "callout" | "auto";
 
-export type MapLabelCollisionConfig = {
+// Collision policy for the shared figure-label solver (map regions, pie
+// slices). Figure-wide, not per-element, so it lives on each figure's
+// structural style block (map.labelCollision, pie.labelCollision) rather than
+// on the content layer. `maxCentroidDisplacement` keeps its authored name: the
+// solvers were renamed centroid/callout → inside/outside, but the style key is
+// a consumer-facing surface.
+export type LabelCollisionConfig = {
   gap: number;
   maxCentroidDisplacement: number;
   maxIterations: number;
@@ -193,7 +201,30 @@ export type MergedMapStyle = MergedChartStyleBase & {
     boundingBox?: [number, number, number, number];
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
-    labelCollision: MapLabelCollisionConfig;
+    labelCollision: LabelCollisionConfig;
+  };
+};
+
+// Pie's label placement names a REGION ("inside"/"outside"), where map's names
+// an ANCHOR RULE ("centroid"/"callout"). Deliberately separate style enums;
+// both resolve to the shared LabelPlacement at measure time.
+export type PieLabelMode = "none" | "inside" | "outside" | "auto";
+
+export type MergedPieStyle = MergedChartStyleBase & {
+  pie: {
+    innerRadiusRatio: number;
+    startAngle: number;
+    direction: "clockwise" | "counterclockwise";
+    padAngle: number;
+    cornerRadius: number;
+    labelMode: PieLabelMode;
+    calloutMargin: number;
+    centerLabel: "none" | "total";
+    labelCollision: LabelCollisionConfig;
+    remainder: {
+      mode: "slice" | "gap";
+      fillColor: ColorKeyOrString;
+    };
   };
 };
 
@@ -295,9 +326,11 @@ export type MergedTableStyle = {
   };
   tableRowHeaders: {
     getStyle: TableHeaderInfoFunc<TableHeaderStyle>;
+    textFormatter: TableHeaderInfoFunc<string> | "none";
   };
   tableColHeaders: {
     getStyle: TableHeaderInfoFunc<TableHeaderStyle>;
+    textFormatter: TableHeaderInfoFunc<string> | "none";
   };
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
@@ -413,6 +446,10 @@ export type MergedContentStyle = {
   mapRegions: {
     getStyle: MapRegionInfoFunc<MapRegionStyle>;
     textFormatter: MapRegionInfoFunc<string> | "none";
+  };
+  slices: {
+    getStyle: PieSliceInfoFunc<PieSliceStyle>;
+    textFormatter: PieSliceInfoFunc<string> | "none";
   };
 };
 

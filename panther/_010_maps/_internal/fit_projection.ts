@@ -3,7 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { RectCoordsDims } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import type { ProjectionFn } from "./projections.ts";
 import { forEachCoordinate } from "./geo_helpers.ts";
@@ -12,30 +11,21 @@ export type FittedProjection = {
   project: (lon: number, lat: number) => [number, number];
 };
 
-export type AsymmetricPadding = {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
+// The features' bbox in raw projection units — the scale-free shape the
+// content scale multiplies.
+export type ProjectedBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  w: number;
+  h: number;
 };
 
-export type FitProjectionPadding = number | AsymmetricPadding;
-
-function normalizePadding(padding: FitProjectionPadding): AsymmetricPadding {
-  if (typeof padding === "number") {
-    return { left: padding, right: padding, top: padding, bottom: padding };
-  }
-  return padding;
-}
-
-export function fitProjection(
+export function computeProjectedBounds(
   features: GeoJSONFeature[],
   projectionFn: ProjectionFn,
-  cellRcd: RectCoordsDims,
-  padding: FitProjectionPadding,
-): FittedProjection {
-  const pad = normalizePadding(padding);
-
+): ProjectedBounds | undefined {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -51,27 +41,35 @@ export function fitProjection(
     });
   }
 
-  const projW = maxX - minX;
-  const projH = maxY - minY;
-  if (projW === 0 || projH === 0) {
-    return { project: () => [cellRcd.centerX(), cellRcd.centerY()] };
+  if (minX === Infinity) return undefined;
+  return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+// The projection expressed as (scale, centre) rather than (rect, padding)
+// (plan D7): the content scale s IS the projection scale, so the label-budget
+// solver can fit at an explicit s. Centres the projected bbox on (cx, cy),
+// with the same y-flip the old rect fit applied. A degenerate bbox (or
+// non-positive scale) projects everything to the centre, mirroring the old
+// guard on the 0/0 path.
+export function fitProjectionAtScale(
+  features: GeoJSONFeature[],
+  projectionFn: ProjectionFn,
+  scale: number,
+  cx: number,
+  cy: number,
+): FittedProjection {
+  const b = computeProjectedBounds(features, projectionFn);
+  if (!b || b.w === 0 || b.h === 0 || scale <= 0) {
+    return { project: () => [cx, cy] };
   }
-
-  const availW = cellRcd.w() - pad.left - pad.right;
-  const availH = cellRcd.h() - pad.top - pad.bottom;
-  const scale = Math.min(availW / projW, availH / projH);
-
-  const scaledW = projW * scale;
-  const scaledH = projH * scale;
-  const offsetX = cellRcd.x() + pad.left + (availW - scaledW) / 2;
-  const offsetY = cellRcd.y() + pad.top + (availH - scaledH) / 2;
-
+  const midX = (b.minX + b.maxX) / 2;
+  const halfH = b.h / 2;
   return {
     project(lon: number, lat: number): [number, number] {
       const [px, py] = projectionFn(lon, lat);
       return [
-        offsetX + (px - minX) * scale,
-        offsetY + (maxY - py) * scale,
+        cx + (px - midX) * scale,
+        cy + (b.maxY - py - halfH) * scale,
       ];
     },
   };

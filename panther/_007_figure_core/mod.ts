@@ -10,6 +10,8 @@ export * from "./_axes/y_text/types.ts";
 export { estimateMinXAxisHeightForScale } from "./_axes/x_scale/measure.ts";
 export { estimateMinYAxisWidth } from "./_axes/y_scale/measure.ts";
 export { estimateMinYTextAxisWidth } from "./_axes/y_text/measure.ts";
+export { buildDataLabelTextStyle } from "./_content/content_generation_types.ts";
+export * from "./_labels/mod.ts";
 export { generateScaleLegendPrimitive } from "./_legend/generate_scale_legend_primitive.ts";
 export * from "./_legend/measure_legend.ts";
 export * from "./_legend/measure_scale_legend.ts";

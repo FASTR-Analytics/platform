@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+// Pure box arithmetic over label rectangles — no figure knowledge. Shared by
+// every figure that places labels (map regions, pie slices).
 export type CollisionLabel = {
   naturalX: number;
   naturalY: number;
@@ -12,7 +14,9 @@ export type CollisionLabel = {
   height: number;
 };
 
-export function resolveCalloutCollisions(
+// Outside labels: sort by natural Y, push down greedily, then shift the whole
+// stack back up if it overflows the band.
+export function resolveOutsideCollisions(
   labels: CollisionLabel[],
   bounds: { minY: number; maxY: number },
   gap: number,
@@ -43,7 +47,9 @@ export function resolveCalloutCollisions(
   }
 }
 
-export function resolveCentroidCollisions(
+// Inside labels: iterative 2-D push-apart, clamped to a maximum displacement
+// from each label's natural anchor.
+export function resolveInsideCollisions(
   labels: CollisionLabel[],
   maxIterations: number,
   maxDisplacement: number,

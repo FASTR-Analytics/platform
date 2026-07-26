@@ -73,27 +73,39 @@ export function projectCentroid(
   };
 }
 
-export function computeScreenBBox(
+// Every ring of a geometry projected to screen coordinates. Built once per
+// cell at unit scale and cached: scaling a projection is affine, so anchors,
+// bboxes and raycasts at any content scale s are the unit values × s — the
+// budget solver can call the placer dozens of times without re-projecting.
+export type ScreenRings = [number, number][][];
+
+export function projectRings(
   geometry: GeoJSONGeometry,
   fitted: FittedProjection,
-): { minX: number; minY: number; maxX: number; maxY: number } | undefined {
-  const polygons = getPolygonRings(geometry);
-  if (polygons.length === 0) return undefined;
+): ScreenRings {
+  const out: ScreenRings = [];
+  for (const polygon of getPolygonRings(geometry)) {
+    for (const ring of polygon) {
+      out.push(ring.map((coord) => fitted.project(coord[0], coord[1])));
+    }
+  }
+  return out;
+}
 
+export function bboxOfScreenRings(
+  rings: ScreenRings,
+): { minX: number; minY: number; maxX: number; maxY: number } | undefined {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  for (const polygon of polygons) {
-    for (const ring of polygon) {
-      for (const coord of ring) {
-        const [sx, sy] = fitted.project(coord[0], coord[1]);
-        if (sx < minX) minX = sx;
-        if (sx > maxX) maxX = sx;
-        if (sy < minY) minY = sy;
-        if (sy > maxY) maxY = sy;
-      }
+  for (const ring of rings) {
+    for (const [sx, sy] of ring) {
+      if (sx < minX) minX = sx;
+      if (sx > maxX) maxX = sx;
+      if (sy < minY) minY = sy;
+      if (sy > maxY) maxY = sy;
     }
   }
 
@@ -101,81 +113,38 @@ export function computeScreenBBox(
   return { minX, minY, maxX, maxY };
 }
 
-export function findExtremeBoundaryVertex(
-  geometry: GeoJSONGeometry,
-  fitted: FittedProjection,
-  side: "left" | "right",
-): { x: number; y: number } | undefined {
-  const polygons = getPolygonRings(geometry);
-  if (polygons.length === 0) return undefined;
-
-  let bestX: number | undefined;
-  let bestY: number | undefined;
-
-  for (const polygon of polygons) {
-    for (const ring of polygon) {
-      for (const coord of ring) {
-        const [sx, sy] = fitted.project(coord[0], coord[1]);
-        if (bestX === undefined) {
-          bestX = sx;
-          bestY = sy;
-        } else if (side === "left" && sx < bestX) {
-          bestX = sx;
-          bestY = sy;
-        } else if (side === "right" && sx > bestX) {
-          bestX = sx;
-          bestY = sy;
-        }
-      }
-    }
-  }
-
-  if (bestX === undefined || bestY === undefined) return undefined;
-  return { x: bestX, y: bestY };
-}
-
-export function findBoundaryIntersection(
-  geometry: GeoJSONGeometry,
-  fitted: FittedProjection,
+// The silhouette raycast: the extreme x at which the horizontal scanline atY
+// crosses any ring edge. undefined when the scanline misses every ring.
+export function intersectScreenRingsAtY(
+  rings: ScreenRings,
   side: "left" | "right",
   atY: number,
-): { x: number; y: number } | undefined {
-  const polygons = getPolygonRings(geometry);
-  if (polygons.length === 0) return undefined;
-
+): number | undefined {
   let bestX: number | undefined;
 
-  for (const polygon of polygons) {
-    for (const ring of polygon) {
-      const screenRing = ring.map((coord) =>
-        fitted.project(coord[0], coord[1])
-      );
+  for (const ring of rings) {
+    for (let i = 0; i < ring.length; i++) {
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[(i + 1) % ring.length];
 
-      for (let i = 0; i < screenRing.length; i++) {
-        const [x1, y1] = screenRing[i];
-        const [x2, y2] = screenRing[(i + 1) % screenRing.length];
+      if (y1 === y2) continue;
 
-        if (y1 === y2) continue;
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+      if (atY < minY || atY > maxY) continue;
 
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        if (atY < minY || atY > maxY) continue;
+      const t = (atY - y1) / (y2 - y1);
+      const intersectX = x1 + t * (x2 - x1);
 
-        const t = (atY - y1) / (y2 - y1);
-        const intersectX = x1 + t * (x2 - x1);
-
-        if (bestX === undefined) {
-          bestX = intersectX;
-        } else if (side === "left") {
-          bestX = Math.min(bestX, intersectX);
-        } else {
-          bestX = Math.max(bestX, intersectX);
-        }
+      if (bestX === undefined) {
+        bestX = intersectX;
+      } else if (side === "left") {
+        bestX = Math.min(bestX, intersectX);
+      } else {
+        bestX = Math.max(bestX, intersectX);
       }
     }
   }
 
-  if (bestX === undefined) return undefined;
-
-  return { x: bestX, y: atY };
+  return bestX;
 }

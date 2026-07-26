@@ -16,6 +16,8 @@ export { ChartOVRenderer } from "../_010_chartov/mod.ts";
 export type { ChartOVInputs, MeasuredChartOV } from "../_010_chartov/mod.ts";
 export { MapRenderer } from "../_010_maps/mod.ts";
 export type { MapInputs, MeasuredMap } from "../_010_maps/mod.ts";
+export { PieRenderer } from "../_010_pie/mod.ts";
+export type { MeasuredPie, PieInputs } from "../_010_pie/mod.ts";
 export { SimpleVizRenderer } from "../_010_simpleviz/mod.ts";
 export type {
   MeasuredSimpleViz,

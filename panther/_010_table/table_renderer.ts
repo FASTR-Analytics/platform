@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { buildExcludedRowIndices } from "./_internal/excluded_indices.ts";
 import {
-  buildExcludedRowIndices,
   computeAutoColumnMins,
   computeColumnMinMax,
   createPerScaleMeasureCache,
@@ -13,6 +13,7 @@ import {
   type PerScaleMeasureCache,
   resolveColumnWidthEntries,
 } from "./_internal/measure_table.ts";
+import { resolveTableHeadersTransformed } from "./_internal/resolve_headers.ts";
 import { renderTable } from "./_internal/render_table.ts";
 import {
   buildFitReport,
@@ -45,7 +46,12 @@ function getMinComfortableWidth(
     item.autofitSurrounds,
   );
   const s = customFigureStyle.getMergedTableStyle();
-  const d = getTableDataTransformed(item.data);
+  // Same label-resolution prelude as measureTable: the shared per-scale
+  // caches key on sf alone, so both entry points must see identical labels.
+  const d = resolveTableHeadersTransformed(
+    getTableDataTransformed(item.data),
+    s,
+  ).data;
 
   const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
   const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);

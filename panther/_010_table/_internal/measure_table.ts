@@ -26,12 +26,17 @@ import type {
   TableInputs,
   TableMeasuredInfo,
 } from "../types.ts";
+import { buildExcludedRowIndices } from "./excluded_indices.ts";
 import { generateTablePrimitives } from "./generate_table_primitives.ts";
 import {
   getColGroupHeaderInfos,
   getColHeaderInfos,
   getRowHeaderInfos,
 } from "./get_infos.ts";
+import {
+  normalizeN,
+  resolveTableHeadersTransformed,
+} from "./resolve_headers.ts";
 
 export function measureTable(
   rc: RenderContext,
@@ -52,14 +57,19 @@ export function measureTable(
   // Register the styles that you will need for this class
   const mergedTableStyle = customFigureStyle.getMergedTableStyle();
 
-  // Add data manually
-  const transformedData = getTableDataTransformed(inputs.data);
-
   // Add legend items manually
   const legend = inputs.legend;
 
   const s = mergedTableStyle;
-  const d = transformedData;
+  // Label-resolution prelude — before ANY header-label read (the first is
+  // hasRowGroupHeaders below, which feeds row-header width and hence column
+  // space). Mirrored in getMinComfortableWidth so the shared per-scale caches
+  // see identical labels from both entry points.
+  const resolved = resolveTableHeadersTransformed(
+    getTableDataTransformed(inputs.data),
+    s,
+  );
+  const d = resolved.data;
 
   const measuredSurrounds = measureSurrounds(
     rc,
@@ -78,7 +88,12 @@ export function measureTable(
   const maxPossibleRowHeader = 0.5 * contentRcd.w() -
     (s.rowHeaderPadding.totalPx() +
       (hasRowGroupHeaders ? s.rowHeaderIndentIfRowGroups : 0));
-  const rowHeaderInfos = getRowHeaderInfos(rc, d, s, maxPossibleRowHeader);
+  const rowHeaderInfos = getRowHeaderInfos(
+    rc,
+    resolved,
+    s,
+    maxPossibleRowHeader,
+  );
   const hasRowHeaders = rowHeaderInfos.some((cgh) => cgh.mText);
   const rowHeaderMaxWidth = Math.max(
     ...rowHeaderInfos.map((rhi) => {
@@ -134,13 +149,18 @@ export function measureTable(
     cache,
   );
 
-  const colGroupHeaderInfos = getColGroupHeaderInfos(rc, d, s, colInnerWidths);
+  const colGroupHeaderInfos = getColGroupHeaderInfos(
+    rc,
+    resolved,
+    s,
+    colInnerWidths,
+  );
   const hasColGroupHeaders = colGroupHeaderInfos.some((cgh) => cgh.mText);
   const colGroupHeaderMaxHeight = Math.max(
     ...colGroupHeaderInfos.map((cgh) => cgh.mText?.dims.h() ?? 0),
   );
 
-  const colHeaderInfos = getColHeaderInfos(rc, d, s, colInnerWidths);
+  const colHeaderInfos = getColHeaderInfos(rc, resolved, s, colInnerWidths);
   const hasColHeaders = colHeaderInfos.some((cgh) => cgh.mText);
   const colHeaderMaxHeight = Math.max(
     ...colHeaderInfos.map((rhi) => rhi.mText?.dims.h() ?? 0),
@@ -182,6 +202,7 @@ export function measureTable(
             toHeaderItem(rhi.id, rhi.label),
             toHeaderItem(col.id, col.label),
             columnMinMax,
+            d.nMatrix,
           );
           const cellStr =
             resolveFormattedCellString(cellInfo, s.tableCells.textFormatter) ??
@@ -274,7 +295,7 @@ export function measureTable(
     measuredSurrounds,
     extraHeightDueToSurrounds,
     primitives: [],
-    transformedData,
+    transformedData: d,
     customFigureStyle,
     mergedTableStyle,
     columnMinMax,
@@ -290,32 +311,6 @@ export function measureTable(
   return mTable;
 }
 
-// Pure helper: derive excluded row indices from liveDomainExcludeIds without
-// needing rc or text measurement. Used by both measureTable and
-// getMinComfortableWidth so the two paths stay in sync.
-export function buildExcludedRowIndices(
-  rowGroups: { id?: string; rows: { index: number; id?: string }[] }[],
-  liveDomainExcludeIds: string[] | undefined,
-): Set<number> {
-  const result = new Set<number>();
-  if (!liveDomainExcludeIds?.length) return result;
-  for (const rowGroup of rowGroups) {
-    if (
-      rowGroup.id !== undefined && liveDomainExcludeIds.includes(rowGroup.id)
-    ) {
-      for (const row of rowGroup.rows) {
-        result.add(row.index);
-      }
-    }
-    for (const row of rowGroup.rows) {
-      if (row.id !== undefined && liveDomainExcludeIds.includes(row.id)) {
-        result.add(row.index);
-      }
-    }
-  }
-  return result;
-}
-
 // Shared cell-info builder so measureTable and getMinComfortableWidth derive
 // valueAsNumber / valueMin / valueMax identically. The autofit min-width path
 // must match the real measure exactly, or autofit silently corrupts.
@@ -328,6 +323,7 @@ export function buildTableCellInfo(
   rowHeader: HeaderItem | undefined,
   colHeader: HeaderItem | undefined,
   columnMinMax: Map<number, { min: number; max: number }>,
+  nMatrix: (number | undefined)[][] | undefined,
 ): TableCellInfo {
   const valueAsNumber = Number(value);
   const mm = columnMinMax.get(i_col);
@@ -342,6 +338,7 @@ export function buildTableCellInfo(
     nCols,
     rowHeader,
     colHeader,
+    sampleN: normalizeN(nMatrix?.[i_row]?.[i_col]),
   };
 }
 
@@ -578,6 +575,7 @@ export function computePerColumnMinWordWidths(
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
           columnMinMax,
+          d.nMatrix,
         );
         const valStr =
           resolveFormattedCellString(cellInfo, s.tableCells.textFormatter) ??
@@ -901,6 +899,7 @@ function measureNaturalColumnWidths(
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
           columnMinMax,
+          d.nMatrix,
         );
         const cellStr = resolveFormattedCellString(cellInfo, textFormatter) ??
           String(cellInfo.value);

@@ -17,6 +17,7 @@ import type {
   LegendItem,
   MapData,
   MapInputs,
+  PieInputs,
   PointType,
   ScaleLegendConfig,
   SimpleVizData,
@@ -30,6 +31,7 @@ import type {
 import { type Conforms, zAnyPresentObject } from "./shared.ts";
 import { zChartOHData } from "./chartoh.ts";
 import { zChartOVData } from "./chartov.ts";
+import { zPieData } from "./pie.ts";
 import { zTableData } from "./table.ts";
 import { zTimeseriesData } from "./timeseries.ts";
 
@@ -236,6 +238,14 @@ export const zMapInputs = z.object({
 const _zMapInputsConforms: Conforms<z.infer<typeof zMapInputs>, MapInputs> =
   true;
 
+export const zPieInputs = z.object({
+  ...figureInputsBaseFields,
+  figureType: z.literal("pie"),
+  data: zPieData,
+});
+const _zPieInputsConforms: Conforms<z.infer<typeof zPieInputs>, PieInputs> =
+  true;
+
 // The full FigureInputs union, discriminated on figureType: surrounds and data
 // validated, style opaque. The simpleviz/vizgraph/map `data` members are
 // deliberately unvalidated — simpleviz/map have no production drift history
@@ -252,6 +262,7 @@ export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
     zSimpleVizInputs,
     zVizGraphInputs,
     zMapInputs,
+    zPieInputs,
   ],
 );
 

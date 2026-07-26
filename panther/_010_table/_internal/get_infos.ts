@@ -12,8 +12,8 @@ import type {
 import type {
   ColGroupHeaderInfo,
   ColHeaderInfo,
+  ResolvedTableHeaders,
   RowHeaderInfo,
-  TableDataTransformed,
 } from "../types.ts";
 
 // Style for headers with no label: mText is undefined, so no text is ever
@@ -28,21 +28,25 @@ const DEFAULT_NONE_STYLE = {
 
 export function getRowHeaderInfos(
   rc: RenderContext,
-  d: TableDataTransformed,
+  resolved: ResolvedTableHeaders,
   s: MergedTableStyle,
   maxPossibleWidth: number,
 ): RowHeaderInfo[] {
+  const d = resolved.data;
   const rowHeaderInfos: RowHeaderInfo[] = [];
   const nRows = d.rowGroups.reduce((sum, rg) => sum + rg.rows.length, 0);
 
-  d.rowGroups.forEach((rowGroup) => {
+  d.rowGroups.forEach((rowGroup, groupIndex) => {
     if (rowGroup.label) {
       const info: TableHeaderInfo = {
         id: rowGroup.id,
         label: rowGroup.label,
         index: undefined,
-        n: nRows,
+        itemCount: nRows,
         isGroupHeader: true,
+        ...(resolved.rowGroupSampleN[groupIndex] !== undefined
+          ? { sampleN: resolved.rowGroupSampleN[groupIndex] }
+          : {}),
       };
       const headerStyle = s.tableRowHeaders.getStyle(info);
       let textStyle = s.text.rowGroupHeaders;
@@ -82,8 +86,11 @@ export function getRowHeaderInfos(
         id: row.id,
         label: row.label,
         index: row.index,
-        n: nRows,
+        itemCount: nRows,
         isGroupHeader: false,
+        ...(resolved.rowSampleN[row.index] !== undefined
+          ? { sampleN: resolved.rowSampleN[row.index] }
+          : {}),
       };
       const headerStyle = s.tableRowHeaders.getStyle(info);
       let textStyle = s.text.rowHeaders;
@@ -115,12 +122,13 @@ export function getRowHeaderInfos(
 
 export function getColGroupHeaderInfos(
   rc: RenderContext,
-  d: TableDataTransformed,
+  resolved: ResolvedTableHeaders,
   s: MergedTableStyle,
   colInnerWidths: number[],
 ): ColGroupHeaderInfo[] {
+  const d = resolved.data;
   const nCols = d.colGroups.reduce((total, cg) => total + cg.cols.length, 0);
-  return d.colGroups.map<ColGroupHeaderInfo>((colGroup) => {
+  return d.colGroups.map<ColGroupHeaderInfo>((colGroup, groupIndex) => {
     const nColsInGroup = colGroup.cols.length;
     // colInnerWidths is indexed by col.index (how every cell consumes it),
     // not by display position — a positional slice mis-attributes widths
@@ -145,8 +153,11 @@ export function getColGroupHeaderInfos(
       id: colGroup.id,
       label: colGroup.label,
       index: undefined,
-      n: nCols,
+      itemCount: nCols,
       isGroupHeader: true,
+      ...(resolved.colGroupSampleN[groupIndex] !== undefined
+        ? { sampleN: resolved.colGroupSampleN[groupIndex] }
+        : {}),
     };
     const headerStyle = s.tableColHeaders.getStyle(info);
     let textStyle = s.text.colHeaders;
@@ -169,10 +180,11 @@ export function getColGroupHeaderInfos(
 
 export function getColHeaderInfos(
   rc: RenderContext,
-  d: TableDataTransformed,
+  resolved: ResolvedTableHeaders,
   s: MergedTableStyle,
   colInnerWidths: number[],
 ): ColHeaderInfo[] {
+  const d = resolved.data;
   const nCols = d.colGroups.reduce((sum, cg) => sum + cg.cols.length, 0);
 
   function buildColHeaderInfo(
@@ -189,8 +201,11 @@ export function getColHeaderInfos(
       id,
       label,
       index,
-      n: nCols,
+      itemCount: nCols,
       isGroupHeader: false,
+      ...(resolved.colSampleN[index] !== undefined
+        ? { sampleN: resolved.colSampleN[index] }
+        : {}),
     };
     const headerStyle = s.tableColHeaders.getStyle(info);
     let textStyle = s.text.colHeaders;

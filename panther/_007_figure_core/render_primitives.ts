@@ -16,8 +16,10 @@ import type {
   ChartLabelPrimitive,
   ChartLegendPrimitive,
   DataLabel,
+  FigureLabelPrimitive,
   LineStyle,
-  MapLabelPrimitive,
+  MeasuredText,
+  PieSlicePrimitive,
   Primitive,
   RenderContext,
   SankeyLinkPrimitive,
@@ -66,37 +68,60 @@ export function renderFigurePrimitives(
   }
 }
 
-function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
-  if (dl.style) {
-    const textW = dl.mText.dims.w();
-    const textH = dl.mText.dims.h();
-    const pad = dl.style.padding ?? new Padding(0);
+// One home for the alignment-aware padded rect drawn behind a label. Shared by
+// chart data labels (renderDataLabel) and figure labels (map regions, pie
+// slices) — the same algorithm was written twice in this file before.
+function renderLabelBackground(
+  rc: RenderContext,
+  mText: MeasuredText,
+  position: Coordinates,
+  alignH: "left" | "center" | "right",
+  alignV: "top" | "middle" | "bottom",
+  style: {
+    fillColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    padding?: Padding;
+    rectRadius?: number;
+  },
+): void {
+  const textW = mText.dims.w();
+  const textH = mText.dims.h();
+  const pad = style.padding ?? new Padding(0);
 
-    let bgX = dl.position.x() - pad.pl();
-    let bgY = dl.position.y() - pad.pt();
-    const bgW = textW + pad.pl() + pad.pr();
-    const bgH = textH + pad.pt() + pad.pb();
+  let bgX = position.x() - pad.pl();
+  let bgY = position.y() - pad.pt();
 
-    if (dl.alignH === "center") bgX -= textW / 2;
-    else if (dl.alignH === "right") bgX -= textW;
-    if (dl.alignV === "middle") bgY -= textH / 2;
-    else if (dl.alignV === "bottom") bgY -= textH;
+  if (alignH === "center") bgX -= textW / 2;
+  else if (alignH === "right") bgX -= textW;
+  if (alignV === "middle") bgY -= textH / 2;
+  else if (alignV === "bottom") bgY -= textH;
 
-    const bgRcd = new RectCoordsDims({
+  rc.rRect(
+    new RectCoordsDims({
       x: bgX,
       y: bgY,
-      w: bgW,
-      h: bgH,
-    });
+      w: textW + pad.pl() + pad.pr(),
+      h: textH + pad.pt() + pad.pb(),
+    }),
+    {
+      fillColor: style.fillColor ?? "transparent",
+      strokeColor: style.borderColor,
+      strokeWidth: style.borderWidth,
+      rectRadius: style.rectRadius,
+    },
+  );
+}
 
-    if (dl.style.backgroundColor || dl.style.borderWidth) {
-      rc.rRect(bgRcd, {
-        fillColor: dl.style.backgroundColor ?? "transparent",
-        strokeColor: dl.style.borderColor,
-        strokeWidth: dl.style.borderWidth,
-        rectRadius: dl.style.rectRadius,
-      });
-    }
+function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
+  if (dl.style && (dl.style.backgroundColor || dl.style.borderWidth)) {
+    renderLabelBackground(rc, dl.mText, dl.position, dl.alignH, dl.alignV, {
+      fillColor: dl.style.backgroundColor,
+      borderColor: dl.style.borderColor,
+      borderWidth: dl.style.borderWidth,
+      padding: dl.style.padding,
+      rectRadius: dl.style.rectRadius,
+    });
   }
 
   rc.rText(dl.mText, dl.position, dl.alignH, dl.alignV);
@@ -254,8 +279,12 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       rc.rPath(primitive.pathSegments, primitive.pathStyle);
       break;
 
-    case "map-label":
-      renderMapLabelPrimitive(rc, primitive);
+    case "pie-slice":
+      renderPieSlicePrimitive(rc, primitive);
+      break;
+
+    case "figure-label":
+      renderFigureLabelPrimitive(rc, primitive);
       break;
 
     case "table-cell":
@@ -831,18 +860,40 @@ function renderCascadeArrowPrimitive(
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//    Map Label Rendering                                                     //
+//    Pie Slice Rendering                                                     //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-function renderMapLabelPrimitive(
+function renderPieSlicePrimitive(
   rc: RenderContext,
-  primitive: MapLabelPrimitive,
+  primitive: PieSlicePrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Figure Label Rendering                                                  //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderFigureLabelPrimitive(
+  rc: RenderContext,
+  primitive: FigureLabelPrimitive,
 ): void {
   if (primitive.leaderLine) {
-    const { from, to, strokeColor, strokeWidth, gap } = primitive.leaderLine;
-    const dx = to.x() - from.x();
-    const dy = to.y() - from.y();
+    const { from, via, to, strokeColor, strokeWidth, gap } =
+      primitive.leaderLine;
+    const style = {
+      strokeColor,
+      strokeWidth,
+      lineDash: "solid" as const,
+    };
+    // The gap shortening runs along the FINAL segment (via → to when an
+    // elbow is present), so the stub always backs away from the label.
+    const tail = via ?? from;
+    const dx = to.x() - tail.x();
+    const dy = to.y() - tail.y();
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > gap) {
       const ratio = gap / dist;
@@ -850,11 +901,12 @@ function renderMapLabelPrimitive(
         to.x() - dx * ratio,
         to.y() - dy * ratio,
       ]);
-      rc.rLine([from, shortenedTo], {
-        strokeColor,
-        strokeWidth,
-        lineDash: "solid",
-      });
+      rc.rLine(via ? [from, via, shortenedTo] : [from, shortenedTo], style);
+    } else if (via) {
+      // The elbow's horizontal run is shorter than the stub gap (a tight
+      // calloutMargin): keep the radial part and stop at the elbow rather
+      // than dropping the whole leader.
+      rc.rLine([from, via], style);
     }
   }
 
@@ -864,31 +916,13 @@ function renderMapLabelPrimitive(
     const hasBorder = halo.borderColor !== undefined &&
       halo.borderWidth !== undefined && halo.borderWidth > 0;
     if (hasFill || hasBorder) {
-      const pad = halo.padding;
-      const textW = primitive.mText.dims.w();
-      const textH = primitive.mText.dims.h();
-      const pos = primitive.position;
-
-      let x = pos.x();
-      let y = pos.y();
-      if (primitive.alignment.h === "center") x -= textW / 2;
-      else if (primitive.alignment.h === "right") x -= textW;
-      if (primitive.alignment.v === "middle") y -= textH / 2;
-      else if (primitive.alignment.v === "bottom") y -= textH;
-
-      rc.rRect(
-        new RectCoordsDims({
-          x: x - pad.pl(),
-          y: y - pad.pt(),
-          w: textW + pad.pl() + pad.pr(),
-          h: textH + pad.pt() + pad.pb(),
-        }),
-        {
-          fillColor: halo.fillColor ?? "transparent",
-          strokeColor: halo.borderColor,
-          strokeWidth: halo.borderWidth,
-          rectRadius: halo.rectRadius,
-        },
+      renderLabelBackground(
+        rc,
+        primitive.mText,
+        primitive.position,
+        primitive.alignment.h,
+        primitive.alignment.v,
+        halo,
       );
     }
   }

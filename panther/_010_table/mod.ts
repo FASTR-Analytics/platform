@@ -5,4 +5,5 @@
 
 export { TableRenderer } from "./table_renderer.ts";
 export { getTableDataTransformed } from "./get_table_data.ts";
+export { resolveTableHeaders } from "./resolve_table_headers.ts";
 export * from "./types.ts";

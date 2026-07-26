@@ -131,7 +131,10 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: chi.index,
-          label: chi.mText?.lines.map((l) => l.text).join("") ?? "",
+          // "\n" keeps multi-line (wrapped or formatter-produced) labels
+          // faithful — group (:58) and row (:179) metadata carry the raw
+          // resolved label, so the item header must not diverge.
+          label: chi.mText?.lines.map((l) => l.text).join("\n") ?? "",
           isGroupHeader: false,
         },
         backgroundColor: chi.headerStyle.backgroundColor,

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { MapRenderer } from "./map_renderer.ts";
+export { getMapComponentSizes, MapRenderer } from "./map_renderer.ts";
 export { getMapDataTransformed } from "./get_map_data.ts";
 export type {
   MapData,

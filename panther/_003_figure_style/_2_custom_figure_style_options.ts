@@ -15,6 +15,7 @@ import {
   type ColorKeyOrString,
   type MapRegionInfoFunc,
   type PaddingOptions,
+  type PieSliceInfoFunc,
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
@@ -33,6 +34,7 @@ import type {
   GenericErrorBarStyleOptions,
   GenericLineStyleOptions,
   GenericMapRegionStyleOptions,
+  GenericPieSliceStyleOptions,
   GenericPointStyleOptions,
   GenericTableCellStyleOptions,
   GenericTableHeaderStyleOptions,
@@ -325,6 +327,13 @@ export type CustomFigureStyleOptions = {
         | "none";
       textFormatter?: MapRegionInfoFunc<string> | "none";
     };
+    slices?: {
+      func?:
+        | GenericPieSliceStyleOptions
+        | PieSliceInfoFunc<GenericPieSliceStyleOptions>
+        | "none";
+      textFormatter?: PieSliceInfoFunc<string> | "none";
+    };
     tableCells?: {
       func?:
         | GenericTableCellStyleOptions
@@ -337,12 +346,21 @@ export type CustomFigureStyleOptions = {
         | GenericTableHeaderStyleOptions
         | TableHeaderInfoFunc<GenericTableHeaderStyleOptions>
         | "none";
+      // Rewrites the final header label (receives the RAW label + sampleN).
+      // Applies to item AND group headers on this axis. Invoked for every
+      // header with a defined label; must be pure and deterministic —
+      // label-derived width caches assume it. An "" return demotes a
+      // row-GROUP header entirely (truthiness guard); on every other header
+      // kind it renders an empty label with the band still reserved — same as
+      // an authored "" label.
+      textFormatter?: TableHeaderInfoFunc<string> | "none";
     };
     tableColHeaders?: {
       func?:
         | GenericTableHeaderStyleOptions
         | TableHeaderInfoFunc<GenericTableHeaderStyleOptions>
         | "none";
+      textFormatter?: TableHeaderInfoFunc<string> | "none";
     };
   };
   ////////////////////////////////////////
@@ -499,6 +517,26 @@ export type CustomFigureStyleOptions = {
       gap?: number;
       maxCentroidDisplacement?: number;
       maxIterations?: number;
+    };
+  };
+
+  pie?: {
+    innerRadiusRatio?: number;
+    startAngle?: number;
+    direction?: "clockwise" | "counterclockwise";
+    padAngle?: number;
+    cornerRadius?: number;
+    labelMode?: "none" | "inside" | "outside" | "auto";
+    calloutMargin?: number;
+    centerLabel?: "none" | "total";
+    labelCollision?: {
+      gap?: number;
+      maxCentroidDisplacement?: number;
+      maxIterations?: number;
+    };
+    remainder?: {
+      mode?: "slice" | "gap";
+      fillColor?: ColorKeyOrString;
     };
   };
 

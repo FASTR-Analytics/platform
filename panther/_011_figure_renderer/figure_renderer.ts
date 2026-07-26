@@ -15,10 +15,13 @@ import {
   type MeasuredChartOH,
   type MeasuredChartOV,
   type MeasuredMap,
+  type MeasuredPie,
   type MeasuredSimpleViz,
   type MeasuredTable,
   type MeasuredTimeseries,
   type MeasuredVizGraph,
+  type PieInputs,
+  PieRenderer,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
@@ -43,7 +46,8 @@ export type FigureInputs =
   | TimeseriesInputs
   | SimpleVizInputs
   | VizGraphInputs
-  | MapInputs;
+  | MapInputs
+  | PieInputs;
 
 export type MeasuredFigure =
   | MeasuredTable
@@ -52,7 +56,8 @@ export type MeasuredFigure =
   | MeasuredTimeseries
   | MeasuredSimpleViz
   | MeasuredVizGraph
-  | MeasuredMap;
+  | MeasuredMap
+  | MeasuredPie;
 
 export type FigureType = FigureInputs["figureType"];
 
@@ -79,6 +84,7 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       case "simpleviz":
       case "vizgraph":
       case "map":
+      case "pie":
         return true;
       default: {
         const _exhaustive: never = figureType;
@@ -180,6 +186,8 @@ function pickRenderer(item: FigureInputs) {
       return VizGraphRenderer;
     case "map":
       return MapRenderer;
+    case "pie":
+      return PieRenderer;
     default: {
       const _exhaustive: never = item;
       throw new Error("Unknown figure type");

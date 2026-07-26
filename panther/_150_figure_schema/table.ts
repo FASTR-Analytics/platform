@@ -19,6 +19,7 @@ import {
   zHeaderSortConfig,
   zJsonArray,
   zMaybeString,
+  zValueCell,
 } from "./shared.ts";
 
 export const zTableJsonDataConfig = z.object({
@@ -37,6 +38,7 @@ export const zTableJsonDataConfig = z.object({
     })
     .optional(),
   liveDomainExcludeIds: z.array(z.string()).optional(),
+  nProps: z.record(z.string(), z.string()).optional(),
 });
 const _zTableJsonDataConfigConforms: Conforms<
   z.infer<typeof zTableJsonDataConfig>,
@@ -95,6 +97,9 @@ export const zTableDataTransformed = z.object({
   rowGroups: z.array(zRowGroup),
   aoa: z.array(z.array(z.union([z.string(), z.number()]))),
   liveDomainExcludeIds: z.array(z.string()).optional(),
+  // zValueCell accepts null: JSON round-trips turn in-array undefined into
+  // null (same pattern as zValues5D).
+  nMatrix: z.array(z.array(zValueCell)).optional(),
 });
 const _zTableDataTransformedConforms: Conforms<
   z.infer<typeof zTableDataTransformed>,

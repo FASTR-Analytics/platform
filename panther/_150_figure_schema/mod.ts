@@ -34,6 +34,12 @@ export {
   zChartOHJsonDataConfig,
 } from "./chartoh.ts";
 export {
+  zPieData,
+  zPieDataJson,
+  zPieDataTransformed,
+  zPieJsonDataConfig,
+} from "./pie.ts";
+export {
   zTableData,
   zTableDataJson,
   zTableDataTransformed,
@@ -46,6 +52,7 @@ export {
   zFigureInputs,
   zLegendInput,
   zMapInputs,
+  zPieInputs,
   zSimpleVizInputs,
   zTableInputs,
   zTimeseriesInputs,
