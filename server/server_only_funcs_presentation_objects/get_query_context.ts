@@ -71,6 +71,11 @@ export async function buildQueryContext(
   // Check which time column exists in the table
   const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
   const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
+  const hasFacilityId = await detectColumnExists(
+    projectDb,
+    tableName,
+    "facility_id",
+  );
   const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
   const needsPeriodCTE = needsPeriodCTEFor({
     hasPeriodId,
@@ -105,6 +110,7 @@ export async function buildQueryContext(
     datasetFamily,
     hasPeriodId,
     hasQuarterId,
+    hasFacilityId,
     facilityConfig,
     enabledFacilityColumns,
     requestedOptionalFacilityColumns,

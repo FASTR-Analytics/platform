@@ -12,6 +12,7 @@ import {
   InstalledModuleWithResultsValues,
   ModuleDefinitionDetail,
   parseInstalledModuleDefinition,
+  getDatasetFamily,
   getDisaggregationLabel,
   getStartingModuleConfigSelections,
   getMergedModuleConfigSelections,
@@ -22,6 +23,7 @@ import {
   moduleDefinitionInstalledSchema,
   metricStrict,
   presentationObjectConfigSchema,
+  type DatasetType,
   type DirtyOrRunStatus,
   type Metric,
   type MetricStatus,
@@ -776,10 +778,17 @@ export async function getMetricsListForAI(
         continue;
       }
 
-      // Enrich all metrics first
+      // Enrich all metrics first. The family is a property of the module, so
+      // derive it once here rather than per metric.
+      const datasetFamily = getDatasetFamily(rawModule.module_definition);
       const enrichedMetrics: ResultsValue[] = [];
       for (const dbMetric of moduleMetrics) {
-        const metric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+        const metric = await enrichMetric(
+          dbMetric,
+          projectDb,
+          facilityConfig,
+          datasetFamily,
+        );
         enrichedMetrics.push(metric);
       }
 
@@ -961,6 +970,20 @@ function getAIStr(val: string | { en: string; fr?: string }): string {
   return val.en;
 }
 
+// module id → dataset family, in one query. The family is a property of the
+// module, and enrichMetric wants it per metric — looking it up there would be
+// an N+1 over the modules table for every metric in the project.
+async function getDatasetFamilyByModule(
+  projectDb: Sql,
+): Promise<Map<string, DatasetType | undefined>> {
+  const rows = await projectDb<{ id: string; module_definition: string }[]>`
+    SELECT id, module_definition FROM modules
+  `;
+  return new Map(
+    rows.map((r) => [r.id, getDatasetFamily(r.module_definition)]),
+  );
+}
+
 export async function getAllMetrics(
   mainDb: Sql,
   projectDb: Sql,
@@ -971,13 +994,20 @@ export async function getAllMetrics(
       ? facilityConfigResult.data
       : undefined;
 
+    const familyByModule = await getDatasetFamilyByModule(projectDb);
+
     const rawMetrics = await projectDb<DBMetric[]>`
       SELECT * FROM metrics ORDER BY label
     `;
 
     const metrics: ResultsValue[] = [];
     for (const dbMetric of rawMetrics) {
-      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+      const enrichedMetric = await enrichMetric(
+        dbMetric,
+        projectDb,
+        facilityConfig,
+        familyByModule.get(dbMetric.module_id),
+      );
       metrics.push(enrichedMetric);
     }
 
@@ -995,13 +1025,17 @@ export async function getMetricsWithStatus(
       ? facilityConfigResult.data
       : undefined;
 
-    // Get all modules with their dirty states
-    const rawModules = await projectDb<{ id: string; dirty: string }[]>`
-      SELECT id, dirty FROM modules
+    // Get all modules with their dirty states and dataset families
+    const rawModules = await projectDb<
+      { id: string; dirty: string; module_definition: string }[]
+    >`
+      SELECT id, dirty, module_definition FROM modules
     `;
     const moduleDirtyMap = new Map<string, DirtyOrRunStatus>();
+    const familyByModule = new Map<string, DatasetType | undefined>();
     for (const mod of rawModules) {
       moduleDirtyMap.set(mod.id, mod.dirty as DirtyOrRunStatus);
+      familyByModule.set(mod.id, getDatasetFamily(mod.module_definition));
     }
 
     // Get all metrics from the database
@@ -1013,7 +1047,12 @@ export async function getMetricsWithStatus(
     for (const dbMetric of rawMetrics) {
       if (dbMetric.hide) continue;
 
-      const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+      const enrichedMetric = await enrichMetric(
+        dbMetric,
+        projectDb,
+        facilityConfig,
+        familyByModule.get(dbMetric.module_id),
+      );
 
       const moduleId = dbMetric.module_id as ModuleId;
       const moduleDirty = moduleDirtyMap.get(dbMetric.module_id);

@@ -20,6 +20,10 @@ export interface QueryContext {
   datasetFamily: DatasetType | undefined;
   hasPeriodId: boolean;
   hasQuarterId: boolean;
+  // Whether the results table has facility_id, i.e. its rows are raw facility
+  // observations rather than pre-aggregated area summaries. Gates the sample-n
+  // aggregate (buildAggregateColumns) and the AVG roll-up eligibility check.
+  hasFacilityId: boolean;
   facilityConfig?: InstanceConfigFacilityColumns;
   enabledFacilityColumns: OptionalFacilityColumn[];
   requestedOptionalFacilityColumns: OptionalFacilityColumn[];

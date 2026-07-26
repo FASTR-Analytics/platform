@@ -69,6 +69,12 @@ const presentationObjectConfigSStrict = z
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
+    // Optional, read as `?? false`. Optional is load-bearing: stored slide,
+    // report and dashboard figures embed a copy of this config, and nothing
+    // backfills a post-P2 bundle — a required field would fail the boot sweep's
+    // parse. Historical figures carry no __n_* items either, so they render the
+    // same as a backfilled false.
+    showNValues: z.boolean().optional(),
     forceYMax1: z.boolean(),
     forceYMinAuto: z.boolean(),
     customSeriesStyles: z.array(customSeriesStyleSchema),

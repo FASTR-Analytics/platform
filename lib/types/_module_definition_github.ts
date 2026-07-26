@@ -226,6 +226,7 @@ const configSGithubStrict = z
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
+    showNValues: z.boolean().optional(),
     forceYMax1: z.boolean(),
     forceYMinAuto: z.boolean(),
     customSeriesStyles: z.array(

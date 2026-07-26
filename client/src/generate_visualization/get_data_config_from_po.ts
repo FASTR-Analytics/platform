@@ -24,6 +24,7 @@ import {
   periodOptionToPeriodType,
   ROLLUP_PIN_IDS,
   ROLLUP_SENTINEL,
+  sampleNProp,
   TC,
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
@@ -233,12 +234,22 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   ): HeaderSortConfig =>
     axis === adminAxis ? getRollupAwareSort(config) : tableSort;
 
+  // No eligibility check: the server only emits __n_* for HFA facility-level
+  // fetches, and panther drops the matrix when nothing resolves. Stored figures
+  // from before the feature therefore render exactly as they did.
+  const nProps = config.s.showNValues
+    ? Object.fromEntries(
+        effectiveValueProps.map((prop) => [prop, sampleNProp(prop)]),
+      )
+    : undefined;
+
   return {
     valueProps: effectiveValueProps,
     colProp,
     rowProp,
     colGroupProp,
     rowGroupProp,
+    nProps,
     sort: {
       colGroup: axisSort("colGroup"),
       col: axisSort("col"),

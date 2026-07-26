@@ -19,7 +19,7 @@ entry points already take `Sql` handles as parameters, so the rig just hands
 them connections to its own container.
 
 ```bash
-./validate_queries            # ~6s: container up, 9 fixtures, 36 cases
+./validate_queries            # ~6s: container up, 10 fixtures, 40 cases
 ```
 
 (~6s once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -35,7 +35,7 @@ typechecks itself before running, since `query_rig/` sits outside
 | `validate_queries` | container lifecycle, env, invokes the runner |
 | `query_rig/mod.ts` | runner: prepare fixtures, loop cases, summarise |
 | `query_rig/cases.ts` | **the case table** — where you add coverage |
-| `query_rig/fixtures.ts` | F1–F9 |
+| `query_rig/fixtures.ts` | F1–F10 |
 | `query_rig/seed.ts` | fixture → SQL |
 | `query_rig/harness.ts` | connections, schema loading, multiset compare |
 
@@ -127,6 +127,8 @@ Verified controls so far:
 | `shouldFoldBlank` → name-only gate | F3: `function btrim(integer, unknown) does not exist` |
 | `exceedsMaxReplicantOptions` → count all values | F9 500-case: `ok` → `too_many_values` |
 | drop the multi-membership skip in `getSingleValueDimsFromPossibleValues` | F8: `isSingleValueDim=false` → `true` |
+| `emitsSampleN` → family-only gate (drop `hasFacilityId`) | F10: `column ro_….facility_id does not exist` |
+| `COUNT(DISTINCT facility_id)` → `COUNT(facility_id)` | 4 cases: n reports rows (4/4/8) instead of facilities (2/3/5) |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes — `git checkout` would discard parallel work.
@@ -144,6 +146,7 @@ changes — `git checkout` would discard parallel work.
 | `hmis_yearly` (F7) | physical `year` | derives nothing |
 | `hfa_facility_blanks` (F8) | NULL facility cell + a results row with no facilities row | the fold reaches joined facility columns, from both blank origins; single-member set column |
 | `hmis_option_cap` (F9) | 500 named + blank / 501 named | the option-list cap counts NAMED values only |
+| `hfa_area_only` (F10) | HFA, pre-aggregated area rows, **no** `facility_id` | the table-aware half of the sample-n gate — the family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

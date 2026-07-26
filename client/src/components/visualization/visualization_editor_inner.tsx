@@ -16,9 +16,11 @@ import {
   getReplicateByProp,
   getSingleValueDimsFromPossibleValues,
   hasDuplicateDisaggregatorDisplayOptions,
+  isSampleNProp,
   materializeFigureConfig,
   normalizePOConfigForStorage,
   periodFilterHasBounds,
+  SAMPLE_N_PREFIX,
   type PresenceEntry,
   syncFigureConfigToMap,
   t3,
@@ -998,7 +1000,17 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (res.success === false || res.data.ih.status !== "ok") {
         return;
       }
-      const csv = Csv.fromObjects(res.data.ih.items).stringify();
+      // Sample sizes belong in an underlying-data export, but "__n_value" is
+      // an internal wire name — give the column a header a reader can read.
+      const csv = Csv.fromObjects(
+        res.data.ih.items.map((item) =>
+          Object.fromEntries(
+            Object.entries(item).map(([k, v]) =>
+              isSampleNProp(k) ? [`sample_size_${k.slice(SAMPLE_N_PREFIX.length)}`, v] : [k, v],
+            ),
+          ),
+        ),
+      ).stringify();
       downloadCsv(
         csv,
         `${p.poDetail.label.replaceAll(" ", "_").trim()}_underlying_data.csv`,

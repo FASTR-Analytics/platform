@@ -31,6 +31,8 @@ export function buildPercentChangeChartStyle(
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
+      // No "auto-zero" here: the bars plot raw volumes (the percent change only
+      // drives their color and label), so this axis never carries a negative.
       min: config.s.forceYMinAuto ? "auto" : undefined,
       tickLabelFormatter: (formatAs === "percent"
         ? "auto-percent"

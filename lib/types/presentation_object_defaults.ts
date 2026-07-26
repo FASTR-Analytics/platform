@@ -25,6 +25,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   specialBarChartDataLabels: "threshold-values",
   verticalTickLabels: false,
   allowVerticalColHeaders: true,
+  showNValues: false,
   forceYMax1: false,
   forceYMinAuto: false,
   customSeriesStyles: [],

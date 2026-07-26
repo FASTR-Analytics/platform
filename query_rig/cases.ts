@@ -122,7 +122,11 @@ const EXPLICIT_CASES: Case[] = [
       groupBys: ["admin_area_2"],
       filters: [{ disOpt: "hfa_service_category", values: ["rmnch"] }],
     },
-    expect: { status: "ok", rows: [{ admin_area_2: "A2_north", value: 41 }] },
+    // h1 and h2 contribute, over 4 rows — n is facilities, not rows.
+    expect: {
+      status: "ok",
+      rows: [{ admin_area_2: "A2_north", value: 41, __n_value: 2 }],
+    },
   },
   {
     name: "filter two service categories → OR-of-many",
@@ -137,8 +141,8 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { admin_area_2: "A2_north", value: 41 },
-        { admin_area_2: "A2_south", value: 4 },
+        { admin_area_2: "A2_north", value: 41, __n_value: 2 },
+        { admin_area_2: "A2_south", value: 4, __n_value: 1 },
       ],
     },
   },
@@ -157,9 +161,9 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { time_point: "baseline", value: 26 },
-        { time_point: "midline", value: 26 },
-        { time_point: BLANK_SENTINEL, value: 4 },
+        { time_point: "baseline", value: 26, __n_value: 4 },
+        { time_point: "midline", value: 26, __n_value: 2 },
+        { time_point: BLANK_SENTINEL, value: 4, __n_value: 2 },
       ],
     },
   },
@@ -170,9 +174,9 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { time_point: 1, value: 26 },
-        { time_point: 2, value: 26 },
-        { time_point: null, value: 4 },
+        { time_point: 1, value: 26, __n_value: 4 },
+        { time_point: 2, value: 26, __n_value: 2 },
+        { time_point: null, value: 4, __n_value: 2 },
       ],
     },
   },
@@ -440,8 +444,8 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { facility_type: "hospital", value: 10 },
-        { facility_type: BLANK_SENTINEL, value: 25 },
+        { facility_type: "hospital", value: 10, __n_value: 1 },
+        { facility_type: BLANK_SENTINEL, value: 25, __n_value: 2 },
       ],
     },
   },
@@ -456,8 +460,8 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { admin_area_2: "A2_north", value: 20 },
-        { admin_area_2: "A2_south", value: 5 },
+        { admin_area_2: "A2_north", value: 20, __n_value: 1 },
+        { admin_area_2: "A2_south", value: 5, __n_value: 1 },
       ],
     },
   },
@@ -485,6 +489,76 @@ const EXPLICIT_CASES: Case[] = [
     fetchConfig: { ...base(), groupBys: [] },
     expect: {
       dimStatus: { disOpt: "target_population", status: "too_many_values" },
+    },
+  },
+
+  // ── Sample size (__n_*) ──────────────────────────────────────────────────
+  //
+  // The contract: n = distinct facilities contributing, HFA only, and only
+  // where the results table has facility_id. Every other case in this file
+  // doubles as coverage of the last two clauses — an HMIS expectation that
+  // grew an __n_value column would fail on the exact-shape compare.
+  {
+    name: "n counts distinct FACILITIES, not rows",
+    fixture: "hfa_service_cats",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    // North is h1 + h2 over 4 rows (two time points each), south is h3+h4+h5
+    // over 4 rows. A row count would say 4/4; the sample size is 2/3.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", value: 41, __n_value: 2 },
+        { admin_area_2: "A2_south", value: 15, __n_value: 3 },
+      ],
+    },
+  },
+  {
+    name: "n rides the roll-up UNION: the __NATIONAL row carries the whole sample",
+    fixture: "hfa_service_cats",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["admin_area_2"],
+      includeAdminAreaRollup: true,
+      adminAreaRollupLevel: "admin_area_2",
+    },
+    // Both branches must project the same columns or the UNION would not
+    // typecheck; the national row re-counts over the whole table (5 facilities,
+    // 8 rows) rather than adding 2 + 3.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", value: 41, __n_value: 2 },
+        { admin_area_2: "A2_south", value: 15, __n_value: 3 },
+        { admin_area_2: ROLLUP_SENTINEL, value: 56, __n_value: 5 },
+      ],
+    },
+  },
+  {
+    name: "HFA table without facility_id emits no n (and no SQL error)",
+    fixture: "hfa_area_only",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    // The family gate alone would emit COUNT(DISTINCT facility_id) here and
+    // fail with "column facility_id does not exist".
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", value: 10 },
+        { admin_area_2: "A2_south", value: 30 },
+      ],
+    },
+  },
+  {
+    name: "HMIS emits no n even with facility rows",
+    fixture: "hmis_monthly",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    // Not a capability gap: a count over a monthly facility panel returns
+    // facility-months, which no reader interprets as a sample size.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", value: 35 },
+        { admin_area_2: "A2_south", value: 17 },
+      ],
     },
   },
 

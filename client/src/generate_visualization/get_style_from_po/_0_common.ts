@@ -7,8 +7,10 @@ import {
   type FontInfo,
   MapRegionInfo,
   TableCellInfo,
+  TableHeaderInfo,
   getAdjustedColor,
   getFormatterFunc,
+  toNum0,
   type CustomFigureStyleOptions,
 } from "panther";
 import {
@@ -215,6 +217,41 @@ export function getTableCellsContent(
         formatAs,
         config.s.decimalPlaces ?? 0,
       )(info.value);
+    },
+  };
+}
+
+/**
+ * Appends the sample size to each column header: "Northern (n=55)".
+ *
+ * v1 policy is item headers only. The formatter also fires for col-GROUP
+ * headers, whose digest spans several columns, so the group gate is required —
+ * without it a group label reports the largest n under it as if it were its
+ * own. Rows and cells are deliberately undecorated (panther supports both).
+ *
+ * `max` over the header's slice, per the wb-client product manager: a column
+ * whose n is constant shows exactly that n, since max equals it. A missing
+ * `sampleN` (items carry no __n_*, or roll-up exclusion left no numeric cell)
+ * leaves the label untouched, which is what makes historical figures render
+ * unchanged. Zero is suppressed too: it is a real finite number to panther, but
+ * "(n=0)" tells a reader nothing.
+ *
+ * Must be pure and deterministic — panther caches header widths by label.
+ */
+export function getTableColHeadersContent(config: PresentationObjectConfig) {
+  if (!config.s.showNValues) {
+    return undefined;
+  }
+  return {
+    textFormatter: (info: TableHeaderInfo) => {
+      if (
+        info.isGroupHeader ||
+        info.sampleN === undefined ||
+        info.sampleN.max <= 0
+      ) {
+        return info.label;
+      }
+      return `${info.label} (n=${toNum0(info.sampleN.max)})`;
     },
   };
 }

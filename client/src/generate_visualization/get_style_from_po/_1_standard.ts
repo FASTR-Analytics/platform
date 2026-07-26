@@ -16,6 +16,7 @@ import {
   getMapRegionsContent,
   getStandardSeriesColorFunc,
   getTableCellsContent,
+  getTableColHeadersContent,
   getTableLayoutStyle,
   getTextStyle,
 } from "./_0_common";
@@ -32,9 +33,15 @@ export function buildStandardStyle(
   effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
-  // rather than flooring at 0, which clips negative bars.
-  const scaleMin: "auto" | undefined =
-    config.s.forceYMinAuto || allowNegativeScale ? "auto" : undefined;
+  // rather than flooring at 0, which draws negative values outside the plot box.
+  // "auto-zero" fits them while still anchoring the axis at 0, so an all-positive
+  // chart of the same metric is unchanged; "auto" (forceYMinAuto) is the user's
+  // deliberate tight-fit, which may start above 0.
+  const scaleMin: "auto" | "auto-zero" | undefined = config.s.forceYMinAuto
+    ? "auto"
+    : allowNegativeScale
+    ? "auto-zero"
+    : undefined;
   const dataFormat = formatAs;
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
@@ -135,6 +142,7 @@ export function buildStandardStyle(
         effectiveValueProps,
         deckStyle,
       ),
+      tableColHeaders: getTableColHeadersContent(config),
       mapRegions: getMapRegionsContent(config, formatAs, deckStyle),
     },
     table: getTableLayoutStyle(config, deckStyle),

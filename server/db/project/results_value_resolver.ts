@@ -1,5 +1,6 @@
 import { Sql } from "postgres";
 import {
+  getDatasetFamily,
   ResultsValue,
   type APIResponseWithData,
   type InstanceConfigFacilityColumns,
@@ -27,7 +28,18 @@ export async function resolveMetricById(
       return { success: false, err: `Metric not found: ${metricId}` };
     }
 
-    const enrichedMetric = await enrichMetric(dbMetric, projectDb, facilityConfig);
+    const moduleRow = (
+      await projectDb<{ module_definition: string }[]>`
+        SELECT module_definition FROM modules WHERE id = ${dbMetric.module_id}
+      `
+    ).at(0);
+
+    const enrichedMetric = await enrichMetric(
+      dbMetric,
+      projectDb,
+      facilityConfig,
+      moduleRow ? getDatasetFamily(moduleRow.module_definition) : undefined,
+    );
     return { success: true, data: { resultsValue: enrichedMetric, moduleId: dbMetric.module_id } };
   } catch (error) {
     return { success: false, err: `Error resolving metric: ${error}` };

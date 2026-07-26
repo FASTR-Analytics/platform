@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Sql } from "postgres";
 import {
+  type DatasetType,
   DisaggregationOption,
   type PeriodOption,
   ResultsValue,
@@ -23,7 +24,8 @@ import { DBMetric } from "./_project_database_types.ts";
 export async function enrichMetric(
   dbMetric: DBMetric,
   projectDb: Sql,
-  facilityConfig?: InstanceConfigFacilityColumns,
+  facilityConfig: InstanceConfigFacilityColumns | undefined,
+  datasetFamily: DatasetType | undefined,
 ): Promise<ResultsValue> {
   const resultsObjectId = dbMetric.results_object_id;
 
@@ -52,6 +54,7 @@ export async function enrichMetric(
     valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
     valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
     hasFacilityLevelRows,
+    datasetFamily,
     postAggregationExpression: dbMetric.post_aggregation_expression
       ? postAggregationExpressionStrict.parse(
           JSON.parse(dbMetric.post_aggregation_expression),

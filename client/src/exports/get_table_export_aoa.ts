@@ -1,6 +1,6 @@
 import {
   CustomFigureStyle,
-  getTableDataTransformed,
+  resolveTableHeaders,
   type TableCellInfo,
   type TableInputs,
   toHeaderItem,
@@ -21,7 +21,13 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
     .getMergedTableStyle()
     .tableCells.textFormatter;
 
-  const { colGroups, rowGroups, aoa } = getTableDataTransformed(inputs.data);
+  // resolveTableHeaders, not getTableDataTransformed: header labels go through
+  // the style's header textFormatters (sample sizes, today), and reading the
+  // raw labels here would silently diverge from what the render shows.
+  const { colGroups, rowGroups, aoa } = resolveTableHeaders(
+    inputs.data,
+    inputs.style,
+  ).data;
 
   // Columns flattened in render order (by col.index).
   const cols = colGroups.flatMap((g) => g.cols);

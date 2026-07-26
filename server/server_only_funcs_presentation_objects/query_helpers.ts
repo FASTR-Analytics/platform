@@ -11,6 +11,8 @@ import {
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
   ROLLUP_SENTINEL,
+  SAMPLE_N_PREFIX,
+  sampleNProp,
   usesBlankSentinel,
 } from "lib";
 import type { QueryContext } from "./types.ts";
@@ -88,7 +90,13 @@ export function buildMainQuery(
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string {
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "main");
+  const aggregateColumns = buildAggregateColumns(
+    fetchConfig.values,
+    "main",
+    sourceTable,
+    queryContext,
+    fetchConfig.postAggregationExpression !== undefined,
+  );
 
   const identityValueProps = fetchConfig.values
     .filter((v) => v.func === "identity")
@@ -132,7 +140,13 @@ export function buildAdminAreaRollupQuery(
     return null;
   }
 
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "rollup");
+  const aggregateColumns = buildAggregateColumns(
+    fetchConfig.values,
+    "rollup",
+    sourceTable,
+    queryContext,
+    fetchConfig.postAggregationExpression !== undefined,
+  );
 
   // The collapsed level becomes the ROLLUP_SENTINEL constant in SELECT and
   // drops out of GROUP BY; every other grouped column is treated exactly as in
@@ -379,26 +393,112 @@ export function buildWhereClause(
  * Builds aggregate column expressions based on value configuration. In the
  * roll-up branch SUM/COUNT re-add and AVG re-averages — the latter is only
  * correct over raw facility rows, which eligibility guarantees
- * (isRollupEligibleResultsValue client-side; the facility_id check in
- * getPresentationObjectItems server-side). Identity values cannot reach the
- * roll-up branch from a real config (eligible identity metrics carry a PAE,
- * whose ingredients are SUM/AVG); the SUM fallback there is defense-in-depth
- * for hand-crafted fetch configs.
+ * (isRollupEligibleResultsValue client-side; queryContext.hasFacilityId
+ * server-side). Identity values cannot reach the roll-up branch from a real
+ * config (eligible identity metrics carry a PAE, whose ingredients are
+ * SUM/AVG); the SUM fallback there is defense-in-depth for hand-crafted fetch
+ * configs.
  */
 function buildAggregateColumns(
   values: GenericLongFormFetchConfig["values"],
   mode: "main" | "rollup",
+  sourceTable: string,
+  queryContext: QueryContext,
+  hasPostAggregationExpression: boolean,
 ): string {
+  const valueColumns = values.map((valueObj) => {
+    if (valueObj.func === "identity") {
+      return mode === "rollup"
+        ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
+        : valueObj.prop;
+    }
+    return `${valueObj.func.toUpperCase()}(${valueObj.prop}) AS ${valueObj.prop}`;
+  });
+
+  return [
+    ...valueColumns,
+    ...buildSampleNColumns(
+      values,
+      sourceTable,
+      queryContext,
+      hasPostAggregationExpression,
+    ),
+  ].join(", ");
+}
+
+// ============================================================================
+// Sample Size (n)
+// ============================================================================
+
+// The single n column a post-aggregation fetch emits from the inner query. The
+// wrapper renames it to `__n_<target>` (applyPostAggregationExpression), which
+// is the name the client's nProps map looks for.
+const SAMPLE_N_PAE_COLUMN = `${SAMPLE_N_PREFIX}all`;
+
+/**
+ * Whether this fetch emits sample-size columns at all. THE single gate — the
+ * aggregate builder and the post-aggregation wrapper must agree, or the wrapper
+ * re-projects a column the inner query never selected.
+ *
+ * HFA only: n is a survey concept. An HMIS count over a table that doesn't
+ * group by period returns facility-months (40 facilities × 36 months = 1440),
+ * which no reader interprets as a sample size; ICEH rows arrive pre-aggregated.
+ * And no facility_id means no facilities to count.
+ */
+export function emitsSampleN(queryContext: QueryContext): boolean {
+  return queryContext.datasetFamily === "hfa" && queryContext.hasFacilityId;
+}
+
+/**
+ * n = distinct facilities contributing to the displayed statistic.
+ *
+ * COUNT(DISTINCT facility_id) rather than a row count, because HFA rows are
+ * facility × time_point: a table spanning two survey rounds without grouping by
+ * round would otherwise report double the sample. The facility_id reference is
+ * table-qualified because the facilities CTE joins in a column of the same name
+ * (buildSelectQuery's LEFT JOIN) — unqualified, Postgres rejects it as
+ * ambiguous on every facility-column disaggregation.
+ *
+ * Two rules, and the split is load-bearing:
+ *
+ * - **Post-aggregation fetches: unqualified count, one column.** The M10 script
+ *   drops rows whose indicator result is NA, so a facility having a row in the
+ *   group already means it contributed. Deriving a denominator from the
+ *   expression instead looks tidier and is wrong: the shipped HFA metrics are
+ *   `value = COALESCE(sum_val, avg_num / avg_weight)`, where the divisor is NULL
+ *   for every sum-aggregation indicator (n would read 0 on those columns), and
+ *   `value = dk_num / resp_weight`, where resp_weight is 0 — not NULL — for
+ *   not-applicable rows (n would over-count).
+ * - **Plain values: one column per value, filtered.** A NULL cell contributes
+ *   nothing to AVG/SUM. No shipped HFA module takes this path (all four M10
+ *   metrics carry a PAE), so it is defensive rather than exercised.
+ */
+function buildSampleNColumns(
+  values: GenericLongFormFetchConfig["values"],
+  sourceTable: string,
+  queryContext: QueryContext,
+  hasPostAggregationExpression: boolean,
+): string[] {
+  if (!emitsSampleN(queryContext)) {
+    return [];
+  }
+
+  // Cast to int because COUNT returns bigint, which the driver hands back as a
+  // string — the payload should carry n as a number, not "212". A facility
+  // count cannot approach the int4 ceiling. The cast wraps the whole aggregate:
+  // FILTER binds to the aggregate itself and must precede it.
+  const distinctFacilities = `COUNT(DISTINCT ${sourceTable}.facility_id)`;
+
+  if (hasPostAggregationExpression) {
+    return [`(${distinctFacilities})::int AS ${SAMPLE_N_PAE_COLUMN}`];
+  }
+
   return values
-    .map((valueObj) => {
-      if (valueObj.func === "identity") {
-        return mode === "rollup"
-          ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
-          : valueObj.prop;
-      }
-      return `${valueObj.func.toUpperCase()}(${valueObj.prop}) AS ${valueObj.prop}`;
-    })
-    .join(", ");
+    .filter((valueObj) => valueObj.func !== "identity")
+    .map(
+      (valueObj) =>
+        `(${distinctFacilities} FILTER (WHERE ${valueObj.prop} IS NOT NULL))::int AS ${sampleNProp(valueObj.prop)}`,
+    );
 }
 
 // ============================================================================
@@ -413,6 +513,7 @@ export function applyPostAggregationExpression(
   sqlQuery: string,
   postAggregationExpression: string | undefined,
   groupBys: (DisaggregationOption | PeriodOption)[],
+  hasSampleNColumn: boolean,
 ): string {
   if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
     return sqlQuery;
@@ -434,8 +535,15 @@ export function applyPostAggregationExpression(
 
   const groupByPrefix = groupBys.length === 0 ? "" : `${groupBys.join(", ")}, `;
 
+  // The wrapper drops every inner column it doesn't re-project, so the sample-n
+  // column has to be named here — renamed to the target the client looks for,
+  // since `value` is the prop the items carry.
+  const sampleNSuffix = hasSampleNColumn
+    ? `, ${SAMPLE_N_PAE_COLUMN} AS ${sampleNProp(value)}`
+    : "";
+
   // Build the post-aggregation wrapper
-  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value} FROM (${sqlQuery}) AS subq`;
+  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value}${sampleNSuffix} FROM (${sqlQuery}) AS subq`;
 
   // If there are CTEs, they need to be moved to the outer level
   // This is handled by the caller in buildCombinedQuery

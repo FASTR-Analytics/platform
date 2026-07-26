@@ -6,7 +6,9 @@ globs:
   - client/src/state/project/t2_replicant_options.ts
   - lib/admin_area_rollup.ts
   - lib/convert_period_value.ts
+  - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
+  - lib/sample_n.ts
   - lib/validate_fetch_config.ts
   - server/db/project/metric_enricher.ts
   - server/db/project/results_value_resolver.ts
@@ -142,13 +144,44 @@ through `CTEManager`.
 - **`buildMainQuery`** selects `groupBys` + aggregate columns, grouping by
   `[...groupBys, ...identityValueProps]`, `LEFT JOIN`ing the facility CTE with
   `f.<col>` prefixes on enabled facility columns.
-- **`buildAggregateColumns(values, mode)`**: identity → bare prop in `"main"`
-  mode, `SUM(prop)` in `"rollup"` mode (defense-in-depth only — eligible
-  identity metrics reach the roll-up solely as PAE ingredients); any other func
-  → `FUNC(prop) AS prop`.
+- **`buildAggregateColumns(values, mode, sourceTable, queryContext, hasPAE)`**:
+  identity → bare prop in `"main"` mode, `SUM(prop)` in `"rollup"` mode
+  (defense-in-depth only — eligible identity metrics reach the roll-up solely
+  as PAE ingredients); any other func → `FUNC(prop) AS prop`; plus the
+  sample-size columns below.
+- **Sample size (`__n_*`)** — one extra column per displayed value, carried
+  through `items` to the table renderer (naming in
+  [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`).
+  Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"`
+  **and** `queryContext.hasFacilityId`. n is a survey concept — an HMIS count
+  over a table not grouped by period returns facility-months (40 facilities ×
+  36 months = 1440), and ICEH rows arrive pre-aggregated. Always
+  `COUNT(DISTINCT <sourceTable>.facility_id)`, never a row count: HFA rows are
+  facility × time_point, so a table spanning two rounds would otherwise report
+  double the sample. **The table qualifier is mandatory** — the facilities CTE
+  joins a column of the same name, and unqualified Postgres rejects the query
+  as ambiguous on every facility-column disaggregation. Two rules:
+  - post-aggregation fetches → one **unfiltered** count aliased `__n_all`. The
+    M10 script drops rows whose indicator result is NA, so a facility having a
+    row already means it contributed. Deriving a denominator from the
+    expression instead is wrong on the shipped metrics: `value = COALESCE(
+    sum_val, avg_num / avg_weight)` has a NULL divisor for every
+    sum-aggregation indicator (n would read 0), and `value = dk_num /
+    resp_weight` has `resp_weight = 0` — not NULL — on not-applicable rows.
+  - plain values → `COUNT(DISTINCT …) FILTER (WHERE prop IS NOT NULL) AS
+    __n_<prop>` per non-identity value. No shipped HFA module takes this path.
+
+  The `__n_` prefix is reserved: `validateDefinition` (S8) rejects a module
+  whose value props or PAE ingredients start with it. Adding the columns
+  changed the cached payload shape for unmodified rows, so `PO_CACHE_VERSION`
+  went "6"→"7".
 - **`applyPostAggregationExpression`** splits the PAE on `=` into
   `value = expression`, rewrites `/col` → `/ NULLIF(col, 0)`, and wraps:
-  `SELECT <groupBys>, (<expr>) as <value> FROM (<query>) AS subq`. The
+  `SELECT <groupBys>, (<expr>) as <value>[, __n_all AS __n_<value>] FROM
+  (<query>) AS subq` — the wrapper drops every inner column it doesn't
+  re-project, so the n column must be renamed here to the prop the client looks
+  for, and the `hasSampleNColumn` argument must agree with `emitsSampleN` or it
+  re-projects a column the inner query never selected. The
   validator guarantees exactly one `=` (multi-`=` would silently drop middle
   terms). The NULLIF rewrite handles bare-identifier denominators — every
   authored PAE's shape; a hand-crafted function-call (`a/ABS(b)`) or decimal

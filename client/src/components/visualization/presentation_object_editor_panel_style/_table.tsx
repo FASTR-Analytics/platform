@@ -17,6 +17,7 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   showScorecardMode: boolean;
+  showNValuesToggle: boolean;
 };
 
 type TableMode = "standard" | "scorecard";
@@ -67,6 +68,17 @@ export function TableStyleControls(p: Props) {
             checked={p.tempConfig.s.allowVerticalColHeaders}
             onChange={(v) => p.setTempConfig("s", "allowVerticalColHeaders", v)}
           />
+          <Show when={p.showNValuesToggle && !p.tempConfig.s.specialScorecardTable}>
+            <Checkbox
+              label={t3({
+                en: "Show sample sizes in column headers",
+                fr: "Afficher les tailles d'échantillon dans les en-têtes de colonnes",
+                pt: "Mostrar tamanhos de amostra nos cabeçalhos das colunas",
+              })}
+              checked={p.tempConfig.s.showNValues ?? false}
+              onChange={(v) => p.setTempConfig("s", "showNValues", v)}
+            />
+          </Show>
           <Show when={!p.tempConfig.s.specialScorecardTable}>
             <div class="pt-0.5"></div>
             <RadioGroup

@@ -1,6 +1,5 @@
 import { Sql } from "postgres";
 import {
-  detectColumnExists,
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/mod.ts";
@@ -61,7 +60,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
       fetchConfig.includeAdminAreaRollup === true &&
       fetchConfig.postAggregationExpression === undefined &&
       fetchConfig.values.some((v) => v.func === "AVG") &&
-      !(await detectColumnExists(projectDb, tableName, "facility_id"))
+      !queryContext.hasFacilityId
     ) {
       throw new Error(
         "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",

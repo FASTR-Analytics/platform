@@ -416,6 +416,35 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
   firstPeriodOption: undefined,
 };
 
+// F10 — HFA rows already aggregated to area level, so NO facility_id. Exists to
+// prove the table-aware half of the sample-n gate: n counts distinct facilities,
+// and emitting the aggregate over a table without the column is not a wrong
+// number but a hard SQL error ("column facility_id does not exist"). The
+// family check alone would not catch this — F10 is HFA.
+export const F10_HFA_AREA_ONLY: Fixture = {
+  name: "hfa_area_only",
+  family: "hfa",
+  moduleId: "m_hfa_area_only",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "11111111-2222-3333-4444-555555555555",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "text" },
+    { name: "time_point", type: "text" },
+    { name: "value", type: "double precision" },
+  ],
+  roRows: [
+    { admin_area_2: "A2_north", time_point: "baseline", value: 10 },
+    { admin_area_2: "A2_south", time_point: "baseline", value: 30 },
+  ],
+  indicators: [],
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -426,4 +455,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F7_HMIS_YEARLY,
   F8_HFA_FACILITY_BLANKS,
   F9_HMIS_OPTION_CAP,
+  F10_HFA_AREA_ONLY,
 ];
