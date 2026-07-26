@@ -1,9 +1,11 @@
 import type { Sql } from "postgres";
-import { setCalendar, validateFetchConfig } from "lib";
+import { BLANK_SENTINEL, setCalendar, validateFetchConfig } from "lib";
+import { getSingleValueDimsFromPossibleValues } from "lib";
 import {
   getIndicatorMetadata,
   getPossibleValues,
   getPresentationObjectItems,
+  getResultsValueInfoForPresentationObject,
 } from "../server/server_only_funcs_presentation_objects/mod.ts";
 import { CASES, type Case } from "./cases.ts";
 import { ALL_FIXTURES, type Fixture } from "./fixtures.ts";
@@ -90,11 +92,72 @@ async function runPossibleValues(
       };
 }
 
+async function runMetricInfo(
+  c: Case,
+  p: Prepared
+): Promise<Failure | undefined> {
+  if (!("dimStatus" in c.expect)) {
+    return { case: c.name, detail: "metricInfo case must expect `dimStatus`" };
+  }
+  const metricId = p.fixture.metric?.id;
+  if (!metricId) {
+    return { case: c.name, detail: `fixture "${p.fixture.name}" has no metric` };
+  }
+
+  const res = await getResultsValueInfoForPresentationObject(
+    p.mainDb,
+    p.projectDb,
+    PROJECT_ID,
+    metricId,
+    "2026-01-01T00:00:00.000Z",
+    "ds-v1"
+  );
+  if (!res.success) {
+    return { case: c.name, detail: `expected metric info, got error: ${res.err}` };
+  }
+
+  const want = c.expect.dimStatus;
+  const all = res.data.disaggregationPossibleValues;
+  const got = all[want.disOpt];
+  if (!got) {
+    return {
+      case: c.name,
+      detail: `no status for "${want.disOpt}"; present: ${Object.keys(all).join(", ")}`,
+    };
+  }
+  if (got.status !== want.status) {
+    return { case: c.name, detail: `expected status "${want.status}", got "${got.status}"` };
+  }
+  if (want.namedCount !== undefined) {
+    const named =
+      got.status === "ok"
+        ? got.values.filter((v) => v.id !== BLANK_SENTINEL).length
+        : -1;
+    if (named !== want.namedCount) {
+      return { case: c.name, detail: `expected ${want.namedCount} named values, got ${named}` };
+    }
+  }
+  if (want.isSingleValueDim !== undefined) {
+    const dims = getSingleValueDimsFromPossibleValues(all);
+    const actual = dims.has(want.disOpt);
+    if (actual !== want.isSingleValueDim) {
+      return {
+        case: c.name,
+        detail: `expected isSingleValueDim=${want.isSingleValueDim}, got ${actual}`,
+      };
+    }
+  }
+  return undefined;
+}
+
 async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   setCalendar(c.calendar ?? "gregorian");
 
   if (c.entry === "possibleValues") {
     return await runPossibleValues(c, p);
+  }
+  if (c.entry === "metricInfo") {
+    return await runMetricInfo(c, p);
   }
 
   // Reproduce the route's sequence. validateFetchConfig lives in the handler,
@@ -130,6 +193,9 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
 
   if ("values" in c.expect) {
     return { case: c.name, detail: "`values` expectation requires entry: \"possibleValues\"" };
+  }
+  if ("dimStatus" in c.expect) {
+    return { case: c.name, detail: "`dimStatus` expectation requires entry: \"metricInfo\"" };
   }
 
   if (!res.success) {

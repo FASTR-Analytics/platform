@@ -11,7 +11,7 @@ export type Case = {
   calendar?: InstanceCalendar;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
-  entry?: "items" | "possibleValues";
+  entry?: "items" | "possibleValues" | "metricInfo";
   disOpt?: DisaggregationOption;
   fetchConfig: GenericLongFormFetchConfig;
   expect:
@@ -20,6 +20,17 @@ export type Case = {
     // Ordered — the blank sentinel must land LAST, which SQL cannot do under
     // SELECT DISTINCT, so it is moved in TS.
     | { values: { id: string; label: string }[] }
+    // One dimension's option-list status off the metric-info payload.
+    // namedCount excludes the sentinel; isSingleValueDim runs the real
+    // getSingleValueDimsFromPossibleValues over the whole payload.
+    | {
+        dimStatus: {
+          disOpt: DisaggregationOption;
+          status: "ok" | "too_many_values" | "no_values_available" | "error";
+          namedCount?: number;
+          isSingleValueDim?: boolean;
+        };
+      }
     | { err: string };
 };
 
@@ -416,6 +427,85 @@ const EXPLICIT_CASES: Case[] = [
         { id: "nutrition", label: "Nutrition" },
         { id: "rmnch", label: "RMNCH" },
       ],
+    },
+  },
+
+  // ── The fold reaches JOINED facility columns, from both blank origins ─────
+  {
+    name: "facility column: NULL cell and unmatched LEFT JOIN fold to ONE __BLANK",
+    fixture: "hfa_facility_blanks",
+    fetchConfig: { ...base(), groupBys: ["facility_type"] },
+    // e2 has a facilities row with a NULL type; e_missing has no facilities row
+    // at all, so the join manufactures the NULL. One group, not two.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 10 },
+        { facility_type: BLANK_SENTINEL, value: 25 },
+      ],
+    },
+  },
+  {
+    name: "facility column: __BLANK filter selects both blank origins",
+    fixture: "hfa_facility_blanks",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["admin_area_2"],
+      filters: [{ disOpt: "facility_type", values: [BLANK_SENTINEL] }],
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", value: 20 },
+        { admin_area_2: "A2_south", value: 5 },
+      ],
+    },
+  },
+
+  // ── Option-list cap: the sentinel must not consume a named slot ───────────
+  {
+    name: "option cap: exactly 500 named values PLUS a blank stays ok",
+    fixture: "hmis_option_cap",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // 501 options come back; the cap counts the 500 named ones. Counting the
+    // sentinel would flip this to too_many_values and the filter would vanish.
+    expect: {
+      dimStatus: {
+        disOpt: "source_indicator",
+        status: "ok",
+        namedCount: 500,
+      },
+    },
+  },
+  {
+    name: "option cap: 501 named values is too_many_values",
+    fixture: "hmis_option_cap",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      dimStatus: { disOpt: "target_population", status: "too_many_values" },
+    },
+  },
+
+  // ── A one-member set column is NOT a constant dimension ──────────────────
+  {
+    name: "single-member multi-membership column is not treated as single-valued",
+    fixture: "hfa_facility_blanks",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // Every row is tagged "rmnch", so the option list holds exactly one value.
+    // For a scalar column that would mean "constant, hide the filter"; for a
+    // set column it means one member of the vocabulary is in use, and rows
+    // still split into has-member and has-none. Treating it as constant hid
+    // the service-category filter entirely.
+    expect: {
+      dimStatus: {
+        disOpt: "hfa_service_category",
+        status: "ok",
+        namedCount: 1,
+        isSingleValueDim: false,
+      },
     },
   },
 ];

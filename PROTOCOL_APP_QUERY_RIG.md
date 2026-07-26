@@ -19,20 +19,23 @@ entry points already take `Sql` handles as parameters, so the rig just hands
 them connections to its own container.
 
 ```bash
-./validate_queries            # ~30s: container up, 7 fixtures, 31 cases
+./validate_queries            # ~6s: container up, 9 fixtures, 36 cases
 ```
 
+(~6s once the `postgres:17.4` image is cached locally; the first run pulls it.)
+
 Also offered as an optional prompt in `./deploy`, next to migration validation.
-Deliberately **not** in `deno task typecheck` — container spin-up plus seeding
-is too slow for the fast gate. The rig typechecks itself before running, since
-`query_rig/` sits outside `lint_systems`' tracked globs.
+**Not** in `deno task typecheck` — not because it is slow, but because it needs
+a running Docker daemon, and the typecheck gate must work without one. The rig
+typechecks itself before running, since `query_rig/` sits outside
+`lint_systems`' tracked globs.
 
 | File | Role |
 | --- | --- |
 | `validate_queries` | container lifecycle, env, invokes the runner |
 | `query_rig/mod.ts` | runner: prepare fixtures, loop cases, summarise |
 | `query_rig/cases.ts` | **the case table** — where you add coverage |
-| `query_rig/fixtures.ts` | F1–F7 |
+| `query_rig/fixtures.ts` | F1–F9 |
 | `query_rig/seed.ts` | fixture → SQL |
 | `query_rig/harness.ts` | connections, schema loading, multiset compare |
 
@@ -55,19 +58,26 @@ one literal, one place to look.
 ```
 
 - `expect` is one of `{status:"ok", rows}`, `{status:"no_data_available" |
-  "too_many_items"}`, `{values}` (option lists, **ordered**), or `{err}`
-  (substring match).
+  "too_many_items"}`, `{values}` (option lists, **ordered**), `{dimStatus}` (one
+  dimension's option-list status), or `{err}` (substring match).
 - `calendar: "ethiopian"` flips `setCalendar()` for that case —
   `getQuarterIdExpression` emits different SQL per calendar.
 - `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
   the items query, reusing `fetchConfig.filters` as the filter set.
+- `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and
+  asserts a `dimStatus`: `status`, `namedCount` (sentinel excluded), and
+  `isSingleValueDim` (which runs the real
+  `getSingleValueDimsFromPossibleValues` over the whole payload). Requires the
+  fixture to declare a `metric`.
 
 ## Adding a fixture
 
 Only when no existing fixture can express the shape — a different physical time
 column, a missing `facility_id`, a different **column type**. Fixtures are
-synthetic and small (2–8 rows), hand-designed to sit on semantic edges. Never
-seed from a dump: it can't be committed and it makes assertions drift.
+synthetic and small — 2–8 hand-designed rows sitting on semantic edges. Never
+seed from a dump: it can't be committed and it makes assertions drift. The one
+exception is F9, which generates 501 rows because the behaviour under test _is_
+a 500-row boundary; generate rather than enumerate when the count is the point.
 
 `ro_*` tables are dynamic in production (built by run_module from CSV headers),
 so each fixture declares `roColumns` **with explicit types**. The types are
@@ -77,7 +87,7 @@ load-bearing, not decoration — see the F2/F3 pair below.
 
 **Rows compare as a multiset.** The queries carry no `ORDER BY`, so
 sequence comparison is flaky by construction. `harness.ts` canonicalises before
-comparing. Option lists are the exception — there, order *is* the assertion.
+comparing. Option lists are the exception — there, order _is_ the assertion.
 
 **Assert what our code guarantees, not what the database happens to do.** The
 `possibleValues` cases pin the sentinel in the **last** position because TS puts
@@ -96,7 +106,7 @@ numbers would have proved nothing.
 SQL-safety case silently becomes a no-op.
 
 **Never encode behaviour you have not judged.** When a case fails, the default
-assumption is that the *code* is wrong, not the expectation. Only pin observed
+assumption is that the _code_ is wrong, not the expectation. Only pin observed
 behaviour after confirming it is intended, and say so in a comment with the
 reason. Two live examples:
 
@@ -109,9 +119,17 @@ reason. Two live examples:
   dead and is not. Deleting it turns "show all data" into `no_data_available`.
 
 **Prove a new guard's case can fail.** Passing tests prove nothing on their own.
-Temporarily break the mechanism and confirm the case goes red. `shouldFoldBlank`
-weakened to a name-only gate must make the F3 case fail with
-`function btrim(integer, unknown) does not exist`; restore afterwards.
+Temporarily break the mechanism, confirm the case goes red, then restore.
+Verified controls so far:
+
+| Break | Expected failure |
+| --- | --- |
+| `shouldFoldBlank` → name-only gate | F3: `function btrim(integer, unknown) does not exist` |
+| `exceedsMaxReplicantOptions` → count all values | F9 500-case: `ok` → `too_many_values` |
+| drop the multi-membership skip in `getSingleValueDimsFromPossibleValues` | F8: `isSingleValueDim=false` → `true` |
+
+Check `git status` on the file first and restore by copy if it has uncommitted
+changes — `git checkout` would discard parallel work.
 
 ## The fixtures
 
@@ -124,6 +142,8 @@ weakened to a name-only gate must make the F3 case fail with
 | `hmis_area_only` (F5) | pre-aggregated areas, **no** `facility_id` | AVG eligibility (refused) |
 | `hmis_quarterly` (F6) | physical `quarter_id` | derives `year`, never `month` |
 | `hmis_yearly` (F7) | physical `year` | derives nothing |
+| `hfa_facility_blanks` (F8) | NULL facility cell + a results row with no facilities row | the fold reaches joined facility columns, from both blank origins; single-member set column |
+| `hmis_option_cap` (F9) | 500 named + blank / 501 named | the option-list cap counts NAMED values only |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

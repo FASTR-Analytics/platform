@@ -32,6 +32,21 @@ export async function seedProject(projectDb: Sql, fx: Fixture): Promise<void> {
     )
   `;
 
+  if (fx.metric) {
+    const m = fx.metric;
+    await projectDb`
+      INSERT INTO metrics (
+        id, module_id, label, value_func, format_as, value_props,
+        required_disaggregation_options, results_object_id
+      ) VALUES (
+        ${m.id}, ${fx.moduleId}, ${m.label}, ${m.value_func}, ${m.format_as},
+        ${JSON.stringify(m.value_props)},
+        ${JSON.stringify(m.required_disaggregation_options)},
+        ${fx.resultsObjectId}
+      )
+    `;
+  }
+
   if (fx.indicators.length > 0) {
     await projectDb`INSERT INTO indicators ${projectDb(fx.indicators)}`;
   }

@@ -39,6 +39,16 @@ export type Fixture = {
   roRows: Record<string, string | number | null>[];
   indicators: { indicator_common_id: string; indicator_common_label: string }[];
   hfaSnapshots?: HfaSnapshots;
+  // Only needed by `metricInfo` cases — that entry resolves a metric row and
+  // enriches it into a ResultsValue.
+  metric?: {
+    id: string;
+    label: string;
+    value_func: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX" | "identity";
+    format_as: "percent" | "number";
+    value_props: string[];
+    required_disaggregation_options: string[];
+  };
   firstPeriodOption: PeriodOption | undefined;
 };
 
@@ -317,6 +327,95 @@ export const F7_HMIS_YEARLY: Fixture = {
   firstPeriodOption: "year",
 };
 
+// F8 — the two DIFFERENT origins of a blank facility cell, plus a
+// multi-membership column holding exactly one member.
+//
+// `textColumns` spans the results table AND the joined facilities table, so the
+// fold reaches facility columns. A blank there arrives two ways: a facilities
+// row whose column is NULL (e2), and a results row whose facility_id matches no
+// facilities row at all, where the LEFT JOIN manufactures the NULL (e_missing).
+// Both must land in ONE __BLANK group — that is precisely why NULL and blank
+// fold together rather than becoming two options.
+export const F8_HFA_FACILITY_BLANKS: Fixture = {
+  name: "hfa_facility_blanks",
+  family: "hfa",
+  moduleId: "m_hfa_edge",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "11111111-2222-3333-4444-555555555555",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
+  facilities: [
+    { facility_id: "e1", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_alpha", admin_area_4: "A4_w1", facility_type: "hospital" },
+    { facility_id: "e2", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_beta", admin_area_4: "A4_w2", facility_type: null },
+  ],
+  roColumns: [
+    { name: "facility_id", type: "text" },
+    { name: "hfa_service_category", type: "text" },
+    { name: "admin_area_2", type: "text" },
+    { name: "value", type: "double precision" },
+  ],
+  roRows: [
+    { facility_id: "e1", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 10 },
+    { facility_id: "e2", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 20 },
+    // No facilities row for e_missing — the LEFT JOIN yields NULL.
+    { facility_id: "e_missing", hfa_service_category: "rmnch", admin_area_2: "A2_south", value: 5 },
+  ],
+  indicators: [],
+  hfaSnapshots: HFA_SNAPSHOTS,
+  metric: {
+    id: "metric_edge",
+    label: "Edge metric",
+    value_func: "SUM",
+    format_as: "number",
+    value_props: ["value"],
+    required_disaggregation_options: [],
+  },
+  firstPeriodOption: undefined,
+};
+
+// F9 — the replicant-options cap boundary. The cap counts NAMED values, and
+// the query budget is MAX + 2, so the sentinel can neither displace a named
+// value nor tip a dimension holding exactly MAX into too_many_values (which
+// would make the filter disappear — the very failure the blank fold prevents).
+//
+//   source_indicator  : 500 named + a blank  → ok  (blank does not count)
+//   target_population : 501 named            → too_many_values
+const CAP_ROWS = Array.from({ length: 501 }, (_, i) => ({
+  admin_area_2: "A2_north",
+  source_indicator: i < 500 ? `si_${String(i).padStart(3, "0")}` : null,
+  target_population: `tp_${String(i).padStart(3, "0")}`,
+  value: 1,
+}));
+
+export const F9_HMIS_OPTION_CAP: Fixture = {
+  name: "hmis_option_cap",
+  family: "hmis",
+  moduleId: "m_cap",
+  moduleDefinition: hmisModule(),
+  resultsObjectId: "22222222-3333-4444-5555-666666666666",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "text" },
+    { name: "source_indicator", type: "text" },
+    { name: "target_population", type: "text" },
+    { name: "value", type: "double precision" },
+  ],
+  roRows: CAP_ROWS,
+  indicators: [],
+  metric: {
+    id: "metric_cap",
+    label: "Cap metric",
+    value_func: "SUM",
+    format_as: "number",
+    value_props: ["value"],
+    required_disaggregation_options: [],
+  },
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -325,4 +424,6 @@ export const ALL_FIXTURES: Fixture[] = [
   F5_HMIS_AREA_ONLY,
   F6_HMIS_QUARTERLY,
   F7_HMIS_YEARLY,
+  F8_HFA_FACILITY_BLANKS,
+  F9_HMIS_OPTION_CAP,
 ];
