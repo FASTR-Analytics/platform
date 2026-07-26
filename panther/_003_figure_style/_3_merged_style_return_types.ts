@@ -266,8 +266,8 @@ export type MergedXScaleAxisStyle = {
     xScaleAxisTickLabels: TextInfoUnkeyed;
     xScaleAxisLabel: TextInfoUnkeyed;
   };
-  max: number | "auto" | ((i_pane: number) => number);
-  min: number | "auto" | ((i_pane: number) => number);
+  max: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+  min: number | "auto" | "auto-zero" | ((i_pane: number) => number);
   labelGap: number;
   tickHeight: number;
   tickLabelGap: number;
@@ -485,8 +485,8 @@ export type MergedYScaleAxisStyle = {
     yScaleAxisTickLabels: TextInfoUnkeyed;
     yScaleAxisLabel: TextInfoUnkeyed;
   };
-  max: number | "auto" | ((i_series: number) => number);
-  min: number | "auto" | ((i_series: number) => number);
+  max: number | "auto" | "auto-zero" | ((i_series: number) => number);
+  min: number | "auto" | "auto-zero" | ((i_series: number) => number);
   labelGap: number;
   tickWidth: number;
   tickLabelGap: number;

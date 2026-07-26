@@ -156,8 +156,10 @@ const _DS = {
     maxTickLabelHeightAsPctOfChart: 0.5,
   },
   xScaleAxis: {
-    max: typed<number | "auto" | ((i_pane: number) => number)>("auto"),
-    min: typed<number | "auto" | ((i_pane: number) => number)>(0),
+    max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto",
+    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
     labelGap: 10,
     tickHeight: 10,
     tickLabelGap: 5,
@@ -185,8 +187,12 @@ const _DS = {
     maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
-    max: typed<number | "auto" | ((i_series: number) => number)>("auto"),
-    min: typed<number | "auto" | ((i_series: number) => number)>(0),
+    max: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+      "auto",
+    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+      0,
+    ),
     labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 5,

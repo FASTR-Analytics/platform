@@ -12,6 +12,7 @@ import {
 } from "../../deps.ts";
 import type { ChartScaleAxisLimits } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
+import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
 import type { XScaleAxisHeightInfo, XScaleAxisMeasuredInfo } from "./types.ts";
 
 export function estimateMinXAxisHeightForScale(
@@ -54,28 +55,22 @@ export function measureXScaleAxisHeightInfo(
 
   // Per-LANE tick values — mirror of Y-scale's per-tier tick values in ChartOV.
   const xAxisTickValues = Array.from({ length: laneCount }, (_, i_lane) => {
-    let vMin = typeof sx.min === "function"
-      ? sx.min(i_pane)
-      : sx.min !== "auto"
-      ? sx.min
-      : sx.allowIndividualLaneLimits
+    const dataMin = sx.allowIndividualLaneLimits
       ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMin ?? 0)
       : dx.paneLimits[i_pane].valueMin;
-    let vMax = typeof sx.max === "function"
-      ? sx.max(i_pane)
-      : sx.max !== "auto"
-      ? sx.max
-      : sx.allowIndividualLaneLimits
+    const dataMax = sx.allowIndividualLaneLimits
       ? (dx.paneLimits[i_pane].laneLimits[i_lane]?.valueMax ?? 1)
       : dx.paneLimits[i_pane].valueMax;
-    if (vMax < vMin) {
-      const t = vMin;
-      vMin = vMax;
-      vMax = t;
-    }
+    const { minVal, maxVal } = resolveScaleAxisLimits(
+      sx.min,
+      sx.max,
+      i_pane,
+      dataMin,
+      dataMax,
+    );
     return getGoodAxisTickValues(
-      vMax,
-      vMin,
+      maxVal,
+      minVal,
       guessMaxNTicks,
       formatterForUniquenessCheck,
     );
