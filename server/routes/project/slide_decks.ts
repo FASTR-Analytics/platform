@@ -493,6 +493,12 @@ defineRoute(
       plan,
     );
     if (!structRes.success) {
+      // Nothing was restored — put the drained session back, exactly like the
+      // load/safety-insert/remap failure paths above. Without this the drained
+      // editors and the per-slide element ledger are dropped on the floor, and
+      // when the safety version was skipped by hash-dedup that attribution is
+      // lost outright.
+      reinjectDrained();
       return c.json(structRes);
     }
     let lastUpdated = structRes.data.lastUpdated;

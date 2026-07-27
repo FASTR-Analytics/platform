@@ -224,7 +224,18 @@ function broadcastSaveState(room: Room, failing: boolean): void {
     type: "doc_save_state",
     data: { docType: room.adapter.docType, docId: room.docId, failing },
   };
-  for (const conn of room.conns.values()) conn.send(msg);
+  for (const conn of room.conns.values()) {
+    try {
+      conn.send(msg);
+    } catch {
+      // Per-send guard, like the update fan-out and awareness relay. An
+      // escaping throw here would abort noteSaveFailure BEFORE it arms the
+      // CHECKPOINT_RETRY_MS timer, leaving a dirty room that never retries and
+      // never logs; the rejection is swallowed by saveChain's .catch(), so it
+      // wouldn't even surface. A dead socket is cleaned up by its own
+      // close/error handler.
+    }
+  }
 }
 
 function noteSaveFailure(room: Room, permanent: boolean): void {
@@ -733,7 +744,14 @@ export function closeRoomsForDoc(
   }
   room.dirty = false; // explicit discard — never checkpoint this doc again
   for (const conn of room.conns.values()) {
-    conn.send(room.adapter.msgError(docId, message, true));
+    try {
+      conn.send(room.adapter.msgError(docId, message, true));
+    } catch {
+      // Per-send guard: an escaping throw would skip the rooms.delete /
+      // doc.destroy() / onDocClosed teardown below and leak a zombie room
+      // still registered under a docId whose row is gone. The bookkeeping
+      // below must run for every conn regardless.
+    }
     connRooms.get(conn.connectionId)?.delete(key);
   }
   room.conns.clear();

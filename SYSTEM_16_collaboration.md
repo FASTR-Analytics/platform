@@ -611,6 +611,18 @@ peer border appears only once text exists.
   to the row content, by construction. The validate/normalize/trust policy
   lives in the per-type save closures in `project-collab.ts`; the db
   checkpoint functions are plain writes.
+  All three closures ask that question through **`storedMatchesDoc`**
+  ([crdt_util.ts](lib/collab/crdt_util.ts)), not a bare `canonicalJson`
+  equality: `canonicalJson` is `JSON.stringify`-based, so it describes
+  `JSON.parse(JSON.stringify(x))` rather than `x`. A doc holding a value JSON
+  cannot represent (`NaN`/`±Infinity`, which item layout nodes admit via
+  `style: z.record(z.string(), z.unknown())`) therefore compared EQUAL to the
+  `null` Postgres would store and stamped the state trusted while doc and row
+  disagreed — the same flip class, through a hole the check could not see.
+  `storedMatchesDoc` additionally requires that the DOC survive the round trip,
+  so such a state is stamped untrusted and the room re-seeds from content.
+  The rendering is inert for every JSON-representable value, so version dedup
+  hashes are unchanged (`hashVersionData` shares `canonicalJson`).
 - **Model changes**: changing the doc schema breaks restore of old states —
   ship a migration that nulls `crdt_state`; rooms re-seed from content, which
   is always safe. Precedents: `031` (slide titles became Y.Text), `037`
@@ -1101,19 +1113,41 @@ overflow menu.
 
 ## Open items
 
-- **No heartbeat/ping-pong or idle-connection reaper on the collab WS**
-  (Sweep 5 finding, ON HOLD per Tim 2026-07-21). Cleanup of the presence map
-  and room `conns` runs exclusively off WS `onClose`/`onError`; a connection
-  that dies without a close frame (killed tab, sleep, silent network drop) can
-  leave a ghost presence entry and keep a doc room alive while any other real
-  user stays in it. Fix shape when taken up: periodic server→client ping with
-  pong-timeout invoking the existing `removeConnection`/`handleConnGone`
-  cleanup.
-- **Unguarded per-send broadcasts in `doc_rooms.ts`** (Sweep 5 finding,
-  awaiting ruling): the update fan-out and awareness relay loops (and
-  `subscribeDoc`'s two sync sends) lack the per-send try/catch
-  `presence_registry.ts` uses. One stale peer's throwing `send()` can unwind
-  into `applyDocUpdate`'s catch, misreport a valid editor's update as
-  "Malformed document update", skip attribution, and in a worst-case
-  interleaving leave the last edit un-dirty so `finalizeRoom` skips
-  persisting it.
+- ~~**No heartbeat/ping-pong or idle-connection reaper on the collab WS**~~
+  RESOLVED — both halves of dead-peer detection now exist and are described
+  under Transport: the server side is Deno's protocol ping with `idleTimeout:
+  30` pinned explicitly at the upgrade call (project-collab.ts), which fires
+  the same `onClose` that runs `removeConnection`/`handleConnGone`; the client
+  side is the app-level ping/pong watchdog in collab.ts (25 s ping, 10 s
+  no-traffic deadline, then force-close into the normal reconnect path). The
+  ON-HOLD note contradicted the Transport section of this same file and the
+  code; retired 2026-07-27.
+- ~~**Unguarded per-send broadcasts in `doc_rooms.ts`**~~ Mostly resolved, and
+  the escalation it described is not reachable. The update fan-out, the
+  awareness relay and `subscribeDoc`'s two sync sends all carry the per-send
+  try/catch now, so a throwing peer can no longer unwind into
+  `applyDocUpdate`'s catch — a valid update is still applied, attributed, and
+  marked dirty (verified by executing the described interleaving). Separately,
+  a server-side `WebSocket.send()` in Deno does not throw on a dead peer at
+  all: the only mandated throw is `readyState === CONNECTING`, unreachable
+  after the upgrade (verified empirically).
+  The last two unguarded loops (`broadcastSaveState`, the error loop in
+  `closeRoomsForDoc`) were closed 2026-07-27 for symmetry: a throw in the
+  former aborted `noteSaveFailure` before it armed the `CHECKPOINT_RETRY_MS`
+  timer (dirty room, no retry, no log line until the last client left), and one
+  in the latter would have skipped `rooms.delete` / `doc.destroy()` /
+  `onDocClosed` and leaked a zombie room.
+- **The PO/embedded-figure wedge guard rests on client-side widgets, not on
+  the server.** `dropStorageInvalidTransients` covers the three states the
+  editor is known to produce (all-values-unticked filter chip, emptied
+  `valuesFilter`, unordered/format-mismatched bounded `periodFilter`), but the
+  WS ingress validates nothing, so any *crafted* update can still wedge a
+  checkpoint on a constraint it does not cover — e.g. `nMonths`/`nYears`/
+  `nQuarters` `.min(1)`, or `NaN` in any `z.number()` field. Those are not
+  reachable through the current UI (the N-selectors clamp to ≥ 1). Treat "every
+  constraint reachable from a live doc belongs in that function" as a rule
+  about the editor's *current* widgets — adding a free-text numeric input to
+  the viz editor re-opens the class.
+- **`lib/normalize_po_config.ts` is load-bearing for this system's checkpoints
+  but is not in the `globs:` manifest above** (it is S9-adjacent). Changes to
+  `dropStorageInvalidTransients*` are S16 changes in everything but the lint.

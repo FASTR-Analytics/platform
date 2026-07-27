@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/deno";
 import {
-  canonicalJson,
   type CollabClientMessage,
   collabClientMessageSchema,
   type CollabServerMessage,
@@ -17,6 +16,7 @@ import {
   reportImagesSchema,
   type Slide,
   slideConfigSchema,
+  storedMatchesDoc,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
@@ -334,7 +334,9 @@ routesProjectCollab.get(
           // what we store — parse-stripped keys would otherwise diverge doc
           // from row while stamped current, and every editor open would adopt
           // the divergent doc (the "viz flip" bug class, 2026-07-24).
-          const trusted = canonicalJson(stored) === canonicalJson(slide);
+          // storedMatchesDoc also rejects a doc holding values JSON cannot
+          // represent, which a plain canonicalJson compare cannot see.
+          const trusted = storedMatchesDoc(stored, slide);
           const res = await saveSlideCheckpoint(
             projectDb,
             slideId,
@@ -420,8 +422,8 @@ routesProjectCollab.get(
           // what we store (parse-stripped keys → untrusted → re-seed next
           // open). Body is stored verbatim, so only figures/images can differ.
           const trusted =
-            canonicalJson(storedFigures) === canonicalJson(content.figures) &&
-            canonicalJson(storedImages) === canonicalJson(content.images);
+            storedMatchesDoc(storedFigures, content.figures) &&
+            storedMatchesDoc(storedImages, content.images);
           const res = await saveReportCheckpoint(
             projectDb,
             reportId,
@@ -481,8 +483,7 @@ routesProjectCollab.get(
           // what we store — a diverged doc (dropped transients, parse-stripped
           // keys) must re-seed on next open instead of reasserting itself
           // (every editor open adopts it, visibly "flipping" the viz).
-          const trusted =
-            canonicalJson(storedConfig) === canonicalJson(config);
+          const trusted = storedMatchesDoc(storedConfig, config);
           const res = await savePresentationObjectCheckpoint(
             projectDb,
             poId,
