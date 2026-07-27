@@ -156,20 +156,21 @@ export function getTableLayoutStyle(
   };
 }
 
-// Resolves which indicator a table cell belongs to. With a single effective
-// value prop the cell's indicator is unambiguous regardless of which axis (if
-// any) panther renders as a header, so match directly rather than relying on
-// colHeader/rowHeader carrying the indicator id (they may carry neither once
-// a lone value prop no longer forces a header onto either axis).
+// Resolves which indicator a table cell belongs to. Metadata is keyed by
+// indicator id, which reaches the cell either as the value prop (wide-format
+// metrics) or as the col/row header (long-format metrics, where the indicator
+// sits on a disaggregation axis and the lone value prop is "value").
 export function getIndicatorMetaForCell(
   metadataById: Map<string, IndicatorMetadata>,
   effectiveValueProps: string[],
   info: Pick<TableCellInfo, "colHeader" | "rowHeader">,
 ): IndicatorMetadata | undefined {
-  if (effectiveValueProps.length === 1) {
-    return metadataById.get(effectiveValueProps[0]!);
-  }
+  const soleValueProp =
+    effectiveValueProps.length === 1 ? effectiveValueProps[0]! : undefined;
   return (
+    (soleValueProp === undefined
+      ? undefined
+      : metadataById.get(soleValueProp)) ??
     metadataById.get(info.colHeader?.id ?? "") ??
     metadataById.get(info.rowHeader?.id ?? "")
   );

@@ -25,6 +25,17 @@ BEGIN
             + ((day_of_week
                 - EXTRACT(DOW FROM (armed_at AT TIME ZONE timezone)::date)::int
                 + 7) % 7)
+            -- Anchor on the first occurrence whose DATETIME is >= armed_at, not
+            -- merely the first matching weekday: a row armed on its own weekday
+            -- after start_time would otherwise anchor to an occurrence that
+            -- precedes arming, which the scheduler suppresses (occurrence <
+            -- armedAt => none), pushing the first fire a full everyNWeeks late.
+            + CASE WHEN ((((armed_at AT TIME ZONE timezone)::date
+                  + ((day_of_week
+                      - EXTRACT(DOW FROM (armed_at AT TIME ZONE timezone)::date)::int
+                      + 7) % 7))
+                  + start_time::time) AT TIME ZONE timezone) < armed_at
+                THEN 7 ELSE 0 END
         END, 'YYYY-MM-DD'),
       'everyNWeeks', LEAST(interval_weeks, 13),
       'startTime', start_time,

@@ -12,22 +12,35 @@ import type {
 // ============================================================================
 
 // Active tab selection
-export type TabOption =
-  | "reports"
-  | "decks"
-  | "dashboards"
-  | "visualizations"
-  | "metrics"
-  | "modules"
-  | "data"
-  | "settings"
-  | "cache";
+const ALL_TAB_OPTIONS = [
+  "reports",
+  "decks",
+  "dashboards",
+  "visualizations",
+  "metrics",
+  "modules",
+  "data",
+  "settings",
+  "cache",
+] as const;
 
-const storedTab = localStorage.getItem("projectTab") as TabOption | null;
+export type TabOption = (typeof ALL_TAB_OPTIONS)[number];
 
-export const [projectTab, setProjectTabInternal] = createSignal<TabOption>(
-  storedTab ?? "visualizations",
-);
+// Checked, unlike the sort/grouping modes below: this is the one stored value
+// that feeds a lookup which THROWS on a miss (PROJECT_TAB_TO_VIEW ->
+// panther's setView, from a mount effect with no ErrorBoundary above it, so
+// the throw also skips every effect queued after it). A value written by a
+// build that spelled a tab differently would take the project page down with
+// no error surface; the modes below only feed comparisons and degrade.
+const storedTab = localStorage.getItem("projectTab");
+const initialTab: TabOption =
+  storedTab !== null &&
+  (ALL_TAB_OPTIONS as readonly string[]).includes(storedTab)
+    ? (storedTab as TabOption)
+    : "visualizations";
+
+export const [projectTab, setProjectTabInternal] =
+  createSignal<TabOption>(initialTab);
 
 export function setProjectTab(tab: TabOption) {
   localStorage.setItem("projectTab", tab);

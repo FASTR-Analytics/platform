@@ -33,19 +33,29 @@ const hfaIndicatorServiceCategorySchema = z.object({
   sortOrder: z.number(),
 });
 
-const hfaVarNameSchema = z
+const RESERVED_VAR_NAME_MESSAGE =
+  "varName is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates) — choose a different name";
+
+const hfaVarNameShapeSchema = z
   .string()
   .regex(
     HFA_INDICATOR_NAME_REGEX,
     "varName must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
-  )
-  .refine(
-    (n) => !isReservedHfaVarName(n),
-    "varName is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates) — choose a different name",
   );
 
-const hfaIndicatorSchema = z.object({
-  varName: hfaVarNameSchema,
+const hfaVarNameSchema = hfaVarNameShapeSchema.refine(
+  (n) => !isReservedHfaVarName(n),
+  RESERVED_VAR_NAME_MESSAGE,
+);
+
+// Shape only. The update paths identify the row by oldVarName and varName is
+// immutable there (hfa_indicator_code's FK has no ON UPDATE CASCADE), so the
+// body carries the stored name back unchanged. Applying the reserved-word rule
+// to it would lock every indicator whose name predates the rule out of all
+// edits — and fail a whole bulk batch atomically. A genuine rename is still
+// checked, by withRenameRule below.
+const hfaIndicatorEditSchema = z.object({
+  varName: hfaVarNameShapeSchema,
   categoryId: z.string().nullable(),
   subCategoryId: z.string().nullable(),
   serviceCategoryIds: z.array(z.string()),
@@ -57,6 +67,22 @@ const hfaIndicatorSchema = z.object({
   hasSyntaxError: z.boolean(),
   codeConsistent: z.boolean(),
 });
+
+// Creation paths: a name entering the dictionary must also clear the reserved set.
+const hfaIndicatorSchema = hfaIndicatorEditSchema.extend({
+  varName: hfaVarNameSchema,
+});
+
+function withRenameRule<
+  T extends z.ZodType<{ oldVarName: string; indicator: { varName: string } }>,
+>(schema: T) {
+  return schema.refine(
+    (b) =>
+      b.indicator.varName === b.oldVarName ||
+      !isReservedHfaVarName(b.indicator.varName),
+    { message: RESERVED_VAR_NAME_MESSAGE, path: ["indicator", "varName"] },
+  );
+}
 
 const hfaIndicatorCodeSchema = z.object({
   varName: z.string(),
@@ -179,14 +205,18 @@ export const hfaIndicatorRouteRegistry = {
   updateHfaIndicator: route({
     path: "/hfa-indicators/update",
     method: "POST",
-    body: z.object({ oldVarName: z.string(), indicator: hfaIndicatorSchema }),
+    body: withRenameRule(
+      z.object({ oldVarName: z.string(), indicator: hfaIndicatorEditSchema }),
+    ),
   }),
   updateHfaIndicatorsBulk: route({
     path: "/hfa-indicators/update-bulk",
     method: "POST",
     body: z.object({
       updates: z.array(
-        z.object({ oldVarName: z.string(), indicator: hfaIndicatorSchema }),
+        withRenameRule(
+          z.object({ oldVarName: z.string(), indicator: hfaIndicatorEditSchema }),
+        ),
       ).min(1),
     }),
   }),
@@ -224,17 +254,19 @@ export const hfaIndicatorRouteRegistry = {
   saveHfaIndicatorFull: route({
     path: "/hfa-indicators/save-full",
     method: "POST",
-    body: z.object({
-      oldVarName: z.string(),
-      indicator: hfaIndicatorSchema,
-      code: z.array(z.object({
-        timePoint: z.string(),
-        rCode: z.string(),
-        rFilterCode: z.string().optional(),
-      })),
-      hasSyntaxError: z.boolean(),
-      codeConsistent: z.boolean(),
-    }),
+    body: withRenameRule(
+      z.object({
+        oldVarName: z.string(),
+        indicator: hfaIndicatorEditSchema,
+        code: z.array(z.object({
+          timePoint: z.string(),
+          rCode: z.string(),
+          rFilterCode: z.string().optional(),
+        })),
+        hasSyntaxError: z.boolean(),
+        codeConsistent: z.boolean(),
+      }),
+    ),
   }),
   getHfaDictionaryForValidation: route({
     path: "/hfa-indicators/dictionary",
