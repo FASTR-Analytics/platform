@@ -652,21 +652,30 @@ async function finalizeRoom(room: Room): Promise<void> {
  * restore. Always awaits the room's save chain, even when the room is clean:
  * "clean" may mean a save is IN FLIGHT (dirty clears at save start), and the
  * caller is about to read the DB expecting this room's latest state.
+ *
+ * Returns FALSE when the room is still dirty afterwards — its checkpoint
+ * failed, so the DB row does NOT hold the room's state and a caller about to
+ * read it would silently snapshot stale content. Callers that write history
+ * from that read (restore safety versions, version capture) must treat false
+ * as "do not proceed": a wedged room would otherwise get a safety version
+ * missing the session tail, and hash-dedup would often write no version at
+ * all. True means the row is settled and current.
  */
 export async function flushRoomForDoc(
   projectId: string,
   docType: string,
   docId: string,
-): Promise<void> {
+): Promise<boolean> {
   const room = rooms.get(roomKey(projectId, docType, docId));
   if (!room) {
-    return;
+    return true;
   }
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
   }
   await checkpoint(room);
+  return !room.dirty;
 }
 
 /**

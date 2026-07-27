@@ -496,7 +496,16 @@ defineRoute(
 
     // Persist any un-checkpointed live-room edits FIRST — the safety snapshot
     // below reads the DB, and a live room can be up to 1.5s ahead of it.
-    await flushReportRoom(projectId, params.report_id);
+    // A FAILED flush means the row is stale, so the "safety" version would not
+    // actually contain the current state — abort rather than overwrite the
+    // document with a snapshot while promising a rollback point we don't have.
+    if (!await flushReportRoom(projectId, params.report_id)) {
+      return c.json({
+        success: false as const,
+        err:
+          "This report has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
+      });
+    }
 
     // Absorb the open editing session's attribution into the safety version;
     // left in the tracker it would hash-dedup against the restored state

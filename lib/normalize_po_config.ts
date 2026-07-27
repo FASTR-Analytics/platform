@@ -7,17 +7,25 @@ import {
 import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
+import {
+  inferPeriodFormatFromValue,
+  inferPeriodFormatFromValuesIfTheSame,
+} from "./types/_metric_installed.ts";
 import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
 import type { ContentBlock, Slide } from "./types/slides.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
 /** Drop editor states the storage schema rejects: a filter entry with all
  *  values un-ticked and an emptied valuesFilter are legal mid-edit but fail
- *  the strict parse (both are min(1) in configDStrict). Shared by the client
- *  save path (normalizePOConfigForStorage) and the server collab checkpoint,
- *  which persists the otherwise-unnormalized live doc and must never be
- *  wedged by a transient editor state. */
+ *  the strict parse (both are min(1) in configDStrict); a bounded periodFilter
+ *  whose min/max don't self-identify the same period format or aren't ordered
+ *  fails periodFilterSchema's refine. Shared by the client save path
+ *  (normalizePOConfigForStorage) and the server collab checkpoint, which
+ *  persists the otherwise-unnormalized live doc and must never be wedged by a
+ *  transient editor state. Every constraint reachable from a live doc belongs
+ *  here — the WS ingress applies raw Yjs updates with no content validation, so
+ *  this is the only thing standing between a mid-edit state and a permanently
+ *  wedged room checkpoint. */
 export function dropStorageInvalidTransients(
   config: PresentationObjectConfig,
 ): PresentationObjectConfig {
@@ -29,13 +37,37 @@ export function dropStorageInvalidTransients(
       valuesFilter: config.d.valuesFilter?.length
         ? config.d.valuesFilter
         : undefined,
+      periodFilter: hasValidPeriodFilter(config.d.periodFilter)
+        ? config.d.periodFilter
+        : undefined,
     },
   };
 }
 
+/** The refine in periodFilterSchema, asked without throwing. A relative filter
+ *  is always fine; a bounded one needs both bounds to self-identify the SAME
+ *  period format and to be ordered. */
+function hasValidPeriodFilter(
+  periodFilter: PresentationObjectConfig["d"]["periodFilter"],
+): boolean {
+  if (periodFilter === undefined) {
+    return true;
+  }
+  if (
+    periodFilter.filterType !== "custom" && periodFilter.filterType !== "from_month"
+  ) {
+    return true;
+  }
+  return (
+    inferPeriodFormatFromValuesIfTheSame(periodFilter.min, periodFilter.max) !==
+      undefined && periodFilter.min <= periodFilter.max
+  );
+}
+
 function hasStorageInvalidTransients(config: PresentationObjectConfig): boolean {
   return config.d.filterBy.some((f) => f.values.length === 0) ||
-    config.d.valuesFilter?.length === 0;
+    config.d.valuesFilter?.length === 0 ||
+    !hasValidPeriodFilter(config.d.periodFilter);
 }
 
 /** The same drop for a figure EMBEDDED in a slide or report. Their stored

@@ -18,7 +18,7 @@ _Google-Docs-style real-time co-editing for slide decks, reports, and
 visualizations — WebSocket transport, server-authoritative Yjs rooms, presence,
 live cursors — plus the version-history layer built on top: editing-session
 capture, per-character / per-slide / per-element attribution, and restore._
-Reviewed against code 2026-07-21 (absorbs DOC_SLIDE_COLLAB,
+Reviewed against code 2026-07-27 (absorbs DOC_SLIDE_COLLAB,
 DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 
 ## Scope
@@ -257,9 +257,16 @@ avatar URL is self-reported).
   that stored the whole bundle under `bundle` are read and converted on the
   next sync. `syncSlideToDoc(doc, slide, { skipFigureConfigForBlockIds })`
   lets a host with an open figure-editor modal exclude that figure's config
-  from its push (the modal owns it live). This shape change is why migration
-  037 clears stored slide + report `crdt_state` (rooms re-seed from the
-  unchanged stored content).
+  from its push (the modal owns it live). The skip applies ONLY when a
+  `figConfig` map already exists: `readFigureBundle`/`readFigureEntry` key off
+  `figConfig`, so writing `figData` without one makes the whole bundle
+  unreadable and the checkpoint stores an empty figure — with `trusted` TRUE
+  (materialize and the row agree, on the wrong thing), so the loss survives
+  every re-open. Reachable before the guard: a peer's "Remove visualization"
+  deletes `figConfig` while your modal is open, then the modal's close pushes a
+  fresh bundle with that block id still in the skip set. This shape change is
+  why migration 037 clears stored slide + report `crdt_state` (rooms re-seed
+  from the unchanged stored content).
 - Entry points: `seedSlideDoc(doc, slide)` (build), `materializeSlide(doc)`
   (read back), `syncSlideToDoc(doc, slide)` (idempotent 2-way diff used for
   every local push — a no-op when the doc already matches, which is what makes
@@ -324,7 +331,12 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   (each chains behind the previous save) so two saves can never commit out of
   order — and `flushRoomForDoc` awaits the chain even when the room looks
   clean, because "clean" may mean a save is in flight (the restore routes
-  snapshot the DB right after flushing). A failed save keeps the room dirty
+  snapshot the DB right after flushing). It RETURNS whether the row is now
+  settled: `false` ⇔ the room is still dirty, i.e. its checkpoint failed and
+  the DB does NOT hold the room's state. Every caller that reads the row
+  afterwards must honour it (see Version history) — silently snapshotting a
+  wedged room's stale row would date the version, and hash-dedup would then
+  usually write no version at all. A failed save keeps the room dirty
   and broadcasts `doc_save_state failing` to the room (recovery broadcasts the
   clear; late joiners get the failing state re-sent right after their sync) so
   editors show "Not saving — retrying" instead of a false "Live". Failures are
@@ -463,11 +475,22 @@ Accepted trade-off: the live push is deliberately unnormalized, so the
 render-only `d.includeAdminAreaRollup`/`adminAreaRollupPosition` fields can
 persist through a live-session checkpoint (they are valid optional schema
 fields); the next standard save strips them via `normalizePOConfigForStorage`.
-Schema-INVALID transients (a filter chip with all values un-ticked, an
-emptied `valuesFilter` — both min(1) in storage) are instead dropped from the
-stored config at checkpoint via `dropStorageInvalidTransients`, without
-touching the doc: the strict parse used to throw on them, permanently wedging
-the room's checkpoint (observed in production 2026-07-23). Such checkpoints
+Schema-INVALID transients are instead dropped from the stored config at
+checkpoint via `dropStorageInvalidTransients`, without touching the doc: the
+strict parse used to throw on them, permanently wedging the room's checkpoint
+(observed in production 2026-07-23). Covered: a filter chip with all values
+un-ticked, an emptied `valuesFilter` (both min(1) in storage), and a bounded
+`periodFilter` (`custom`/`from_month`) whose min/max don't self-identify the
+same period format or aren't ordered (`periodFilterSchema`'s refine).
+**Every constraint reachable from a live doc belongs in that function** — the
+WS ingress applies raw Yjs updates with NO content validation (only the REST
+chokepoints validate), so it is the sole guard between a mid-edit state and a
+permanently wedged checkpoint. The mirror hazard is a MISSING key rather than
+an invalid value: `syncSection` deletes doc keys the pushed config lacks, which
+is right for a cleared optional field but would strip a REQUIRED one from the
+SHARED doc (wedging every peer's checkpoint), so it never drops a key the
+storage schema requires — the required sets are derived from
+`presentationObjectConfigSchema` itself so they cannot drift. Such checkpoints
 stamp the CRDT state untrusted — see the staleness rule under Persistence &
 migrations.
 
@@ -800,8 +823,13 @@ load current content → hash-dedup vs newest version → insert + prune. The
 loaders flush any LIVE room first (report room / every open slide room, then
 re-read) — a room can be up to 1.5 s ahead of the DB, and snapshotting the
 stale row would both date the version and fail the ledger-vs-text validation
-below. The load contract is strict: **null means the document ROW IS GONE**
-(session dropped); the loaders map only not-found to null and THROW on
+below. A flush that reports NOT-settled (`flushRoomForDoc` → false: that room's
+checkpoint is failing) THROWS for the same reason a failed read does — the row
+is stale, and versioning it anyway would freeze pre-tail content and then
+usually hash-dedup to nothing, silently ending the document's version history
+for as long as its room stays wedged. The load contract is strict: **null means
+the document ROW IS GONE** (session dropped); the loaders map only
+not-found to null and THROW on
 anything else (connection blip, pool exhaustion), which — like a failed
 insert — merges the accumulator back and retries next sweep. Graceful shutdown
 calls `flushAllVersions()` **before** the DB pools close; a hard crash loses
@@ -935,8 +963,11 @@ summaries compute sizes/counts in SQL and never ship snapshot content.
 
 **Restore sequencing** (both kinds): ⓪ validate the snapshot's content fields
 with current schemas (fail fast, zero side effects), flush the document's live
-room(s) (`flushRoomForDoc`), and drain the document's open tracker session
-(`drainVersionEditors`) → ① write a **safety version** of the current state
+room(s) (`flushRoomForDoc`) — a flush that reports NOT-settled ABORTS the
+restore, because the safety version would be written from a stale row and so
+would not actually be the rollback point the confirm dialog promises — and
+drain the document's open tracker session (`drainVersionEditors`)
+→ ① write a **safety version** of the current state
 (editors = the drained session's editors, or [restorer] when none; skipped
 when it already equals the newest version by hash — on any early failure the
 drained editors are re-injected into the tracker) → ② apply the snapshot →

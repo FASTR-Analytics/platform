@@ -138,11 +138,13 @@ export function unsubscribeReport(
   unsubscribeDoc(projectId, DOC_TYPE, reportId, conn);
 }
 
-/** Persist a report room's un-checkpointed edits now (no-op when none). */
+/** Persist a report room's un-checkpointed edits now (no-op when none).
+ *  False ⇒ the checkpoint failed and the DB row is NOT current (see
+ *  flushRoomForDoc). */
 export function flushReportRoom(
   projectId: string,
   reportId: string,
-): Promise<void> {
+): Promise<boolean> {
   return flushRoomForDoc(projectId, DOC_TYPE, reportId);
 }
 
