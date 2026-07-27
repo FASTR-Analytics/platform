@@ -1,3 +1,21 @@
+[TBD] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
+[TBD] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
+[TBD] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
+[TBD] [user] [fixed] - Loading message now displays in your selected language during presentations
+[TBD] [user] [fixed] - Filters with one option stay visible when already applied, preventing hidden "no data" issues
+[TBD] [user] [fixed] - Data uploads now correctly accept count values like "123.0" from exported files
+[TBD] [user] [fixed] - Editing existing indicators no longer blocked by reserved name rules applied after creation
+[TBD] [admin] [fixed] - Slide deck email validates addresses before generating the PDF
+[TBD] [admin] [fixed] - Slide deck sharing now shows server error details on failure
+[TBD] [admin] [fixed] - Presentation loading message displays in the correct language
+[TBD] [admin] [fixed] - Single-value filters with active selections no longer hidden, preventing invisible "no data" states
+[TBD] [admin] [fixed] - Editing indicators with legacy reserved names no longer blocked
+[TBD] [admin] [fixed] - Data import now accepts count values like "123.0" or "1e3" from exporters
+[TBD] [admin] [fixed] - Invalid count values can no longer abort an entire staging batch
+[TBD] [admin] [changed] - Slide deck recipients limited to 50 with a clear error message
+[TBD] [admin] [changed] - Visualization detail cache refreshed for new data format
+[TBD] [admin] [internal] - Removed temporary dark mode keyboard shortcut (Shift+N)
+[TBD] [admin] [fixed] - Saved project tab no longer crashes the page if value is outdated
 [TBD] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
 [TBD] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
 [TBD] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
