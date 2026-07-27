@@ -1,3 +1,11 @@
+[1.62.3] [user] [added] - Search bar added to the HFA indicators manager
+[1.62.3] [user] [changed] - Indicator count updates to show filtered vs total results when searching
+[1.62.3] [user] [changed] - Clearer "no results" message when indicator search finds no matches
+[1.62.3] [user] [changed] - Improved variable labels in data dictionaries now include group context for clarity
+[1.62.3] [admin] [added] - Search bar added to the HFA indicators management page
+[1.62.3] [admin] [changed] - Indicator count updates to show filtered vs. total when searching
+[1.62.3] [admin] [changed] - Dictionary labels now include parent group names for clarity
+[1.62.3] [admin] [fixed] - Matrix-style survey questions no longer show duplicate or ambiguous labels
 [1.62.0] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
 [1.62.0] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
 [1.62.0] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
