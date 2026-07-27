@@ -250,6 +250,32 @@ affordance silently breaks on the run read path. Then re-backfill dev runs
 so existing manifests carry it. (Accepted and recorded in SYSTEM_09 Open
 items.) The FILTER/`__n_*` rig case is in the parity-rig section above.
 
+### Inherited defect — batch period-filter vs default visualizations
+
+Carried over from the 2026-07-27 regression sweep, deferred here on the
+grounds that this plan reworks the surface (2026-07-27 ruling).
+
+`batchUpdatePresentationObjectsPeriodFilter`
+([presentation_objects.ts](server/db/project/presentation_objects.ts)) returns
+`{success:false, err:"You cannot update a default visualization"}` if **any**
+id in the batch is a default — all-or-nothing, where pre-1b4ec928 the batch
+applied to all. The client offers "Edit common properties…" on every
+multi-selection (the card menu gates on `isMultiSelect` only, unlike "Move to
+folder", which gates on `isDefault`), including the `_defaults` group and the
+mixed selections the `module`/`metric` grouping modes produce.
+
+Worse, the route
+([routes/project/presentation_objects.ts](server/routes/project/presentation_objects.ts))
+applies the change into live collab rooms for **all** ids *before* calling the
+batch, so a mixed batch partially applies — room-backed POs updated and
+checkpointed — and then reports an error saying nothing happened. Defaults
+never hold a room themselves (`collabEnabled` excludes them), so the partial
+write always lands on the non-default members.
+
+Whatever replaces this path must apply live-room updates and the DB write under
+the SAME id set, decided AFTER the default guard. Verified 2026-07-27;
+unfixed by choice.
+
 ### Merge ≠ rollout
 
 Resolving conflicts and getting the rig green is roughly **1.5–2 focused

@@ -91,8 +91,13 @@ export function getEffectivePOConfig(
 
     // Replicant slots are exempt: fetches are pinned to the selected replicant
     // value, so items-derived counts would see every replicant as single-valued.
+    // mapArea is exempt for a different reason — it is not a comparison
+    // dimension but the prop items are matched to geography by, so dropping it
+    // repoints the map at whatever admin level the fallback names and every
+    // feature misses. One coloured district is correct output.
     if (
       d.disDisplayOpt !== "replicant" &&
+      d.disDisplayOpt !== "mapArea" &&
       singleValueDims?.has(d.disOpt)
     ) {
       ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_value" });
