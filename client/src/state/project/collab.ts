@@ -199,7 +199,19 @@ function applySessionUser(awareness: Awareness): void {
   }
 }
 
+// Set once the deploy-boundary guard has decided to reload (see
+// maybeReloadOnServerVersionChange). socket.onopen re-subscribes every open
+// session BEFORE the `hello` frame carrying the version can possibly be seen,
+// so the server's *_sync answers keep arriving while the reload navigation is
+// still pending — and their two-way catch-up would push this tab's PRE-DEPLOY
+// Yjs docs into the freshly re-seeded rooms, which is exactly what the reload
+// exists to prevent. Muting the socket closes that window deterministically.
+let reloadingForServerVersion = false;
+
 function sendCollab(msg: CollabClientMessage): boolean {
+  if (reloadingForServerVersion) {
+    return false;
+  }
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     return false;
   }
@@ -843,6 +855,9 @@ function maybeReloadOnServerVersionChange(serverVersion: string): void {
     return;
   }
   sessionStorage.setItem(guardKey, "1");
+  // Mute the socket BEFORE navigating: reload() does not stop message
+  // dispatch, and onopen already shipped this tab's subscribes.
+  reloadingForServerVersion = true;
   console.log(
     `Collab: server updated (${stored} → ${serverVersion}) — reloading to resync`,
   );

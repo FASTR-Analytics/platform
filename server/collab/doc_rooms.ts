@@ -633,9 +633,16 @@ async function finalizeRoom(room: Room): Promise<void> {
     if (room.conns.size > 0) {
       return;
     }
-    if (rooms.get(room.key) === room) {
-      rooms.delete(room.key);
+    // closeRoomsForDoc may have discarded this room during the await (its row
+    // was deleted or replaced by a restore), and the docId may already be
+    // served by a NEW room. The discard ran the teardown already; running it
+    // again here would fire onDocClosed/onEmpty against the SUCCESSOR's live
+    // state — pruning its freshly-seeded authorship ledgers and arming the
+    // version-capture empty-grace while someone is still editing.
+    if (rooms.get(room.key) !== room) {
+      return;
     }
+    rooms.delete(room.key);
     room.doc.destroy();
     room.adapter.onDocClosed?.(room.projectId, room.docId);
     room.deps.onEmpty?.();
