@@ -3,6 +3,13 @@ import { readXlsxFileAsSheets } from "./read_xlsx_raw.ts";
 export type XlsFormVarInfo = {
   name: string;
   label: string;
+  // Labels of the enclosing begin_group/begin_repeat rows, outermost first.
+  // ODK matrix questions carry the stem on the group row and leave each child's
+  // own label as a bare suffix ("Infrastructure"), so the group label is what
+  // makes the variable identifiable — `chal_01_b` and `chal_02_b` are both
+  // labelled "Infrastructure" and differ only by their group. Composed into the
+  // stored dictionary label by qualifiedVarLabel().
+  groupLabels: string[];
   type: "select_one" | "select_multiple" | "integer" | "decimal" | "other";
   listName?: string;
   // Raw XLSForm `constraint` expression (e.g. "(. >= 100 and . <= 999999) or
@@ -21,11 +28,10 @@ export type ParsedXlsForm = {
   choiceLists: Map<string, XlsFormChoiceInfo[]>;
 };
 
+const GROUP_OPEN_TYPES = new Set(["begin_group", "begin_repeat"]);
+const GROUP_CLOSE_TYPES = new Set(["end_group", "end_repeat"]);
+
 const SKIP_TYPES = new Set([
-  "begin_group",
-  "end_group",
-  "begin_repeat",
-  "end_repeat",
   "note",
   "start",
   "end",
@@ -90,18 +96,32 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
   }
 
   const vars = new Map<string, XlsFormVarInfo>();
+  // Labels of the currently open groups, outermost first. Group rows are handled
+  // before the name guard below because end_group/end_repeat rows carry no name.
+  const groupStack: string[] = [];
   for (let i = 1; i < surveyRows.length; i++) {
     const row = surveyRows[i];
     if (!row) continue;
     const rawType = String(row[surveyTypeIdx] ?? "").trim();
     const name = String(row[surveyNameIdx] ?? "").trim();
-    const label = String(row[surveyLabelIdx] ?? "").trim();
+    const label = cleanSurveyLabel(String(row[surveyLabelIdx] ?? ""));
     const constraint = surveyConstraintIdx >= 0
       ? String(row[surveyConstraintIdx] ?? "").trim()
       : "";
-    if (!rawType || !name) continue;
+    if (!rawType) continue;
 
     const typeLower = rawType.toLowerCase();
+
+    if (GROUP_OPEN_TYPES.has(typeLower)) {
+      groupStack.push(label);
+      continue;
+    }
+    if (GROUP_CLOSE_TYPES.has(typeLower)) {
+      groupStack.pop();
+      continue;
+    }
+
+    if (!name) continue;
     if (SKIP_TYPES.has(typeLower)) continue;
 
     let type: XlsFormVarInfo["type"] = "other";
@@ -131,6 +151,7 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
     vars.set(name, {
       name,
       label: label || name,
+      groupLabels: groupStack.filter((g) => g !== ""),
       type,
       listName,
       constraint: constraint || undefined,
@@ -138,6 +159,28 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
   }
 
   return { vars, choiceLists };
+}
+
+export const XLSFORM_LABEL_SEPARATOR = " — ";
+
+// The dictionary label for a variable: its immediate group's label followed by
+// its own. Without the group, matrix children are unidentifiable ("Infrastructure")
+// and often outright duplicated across matrices. Only the immediate group is used
+// — outer groups are section headings ("BLOCK B.2: CHALLENGES...") that add length
+// without disambiguating.
+export function qualifiedVarLabel(v: XlsFormVarInfo): string {
+  const parent = v.groupLabels.at(-1);
+  return parent ? `${parent}${XLSFORM_LABEL_SEPARATOR}${v.label}` : v.label;
+}
+
+// XLSForm labels are authored for on-screen rendering: they carry markup, hard
+// line breaks and non-breaking spaces that read as noise once the label is a cell
+// in a dictionary table or a fragment of a composed label.
+function cleanSurveyLabel(raw: string): string {
+  return raw
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function findRequiredColumn(

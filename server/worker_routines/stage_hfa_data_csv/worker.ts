@@ -26,6 +26,8 @@ import {
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
   parseXlsForm,
+  qualifiedVarLabel,
+  XLSFORM_LABEL_SEPARATOR,
   type XlsFormChoiceInfo,
   type XlsFormVarInfo,
 } from "../../server_only_funcs_csvs/parse_xlsform.ts";
@@ -398,7 +400,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
 
     for (const mapping of csvVarMappings) {
       const varName = mapping.xlsFormVar.name.trim();
-      const varLabel = mapping.xlsFormVar.label.trim();
+      const varLabel = qualifiedVarLabel(mapping.xlsFormVar);
       const varType = mapping.xlsFormVar.type;
 
       if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
@@ -408,7 +410,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
         for (const choice of mapping.choices) {
           const expandedVarName = `${varName}_${String(choice.name).trim()}`;
           const compositeLabel =
-            `${mapping.xlsFormVar.label} - ${choice.label}`.trim();
+            `${varLabel}${XLSFORM_LABEL_SEPARATOR}${choice.label}`.trim();
           dictVarRows.push(
             tup(
               cleanedTimePoint,

@@ -14,6 +14,7 @@ import {
   FrameLeft,
   FrameTop,
   getQueryStateFromApiResponse,
+  Input,
   StateHolderWrapper,
   Table,
   TableColumn,
@@ -57,6 +58,8 @@ export function HfaIndicatorsManager(p: Props) {
   // refetch (keyed StateHolderWrapper) and on tab switches; not a signal
   // because nothing renders from it — Table reads it once on mount.
   let indicatorsScrollTop = 0;
+
+  const [searchText, setSearchText] = createSignal("");
 
   const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
     {
@@ -631,6 +634,53 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
+  const categoryLabelById = createMemo(() => {
+    const map = new Map<string, string>();
+    const st = categories();
+    if (st.status !== "ready") return map;
+    for (const c of st.data) map.set(c.id, c.label);
+    return map;
+  });
+
+  const subCategoryLabelById = createMemo(() => {
+    const map = new Map<string, string>();
+    const st = subCategories();
+    if (st.status !== "ready") return map;
+    for (const sc of st.data) map.set(sc.id, sc.label);
+    return map;
+  });
+
+  const serviceCategoryLabelById = createMemo(() => {
+    const map = new Map<string, string>();
+    const st = serviceCategories();
+    if (st.status !== "ready") return map;
+    for (const sc of st.data) map.set(sc.id, sc.label);
+    return map;
+  });
+
+  const filteredIndicators = createMemo<HfaIndicator[]>(() => {
+    const st = indicators();
+    if (st.status !== "ready") return [];
+    const q = searchText().trim().toLowerCase();
+    if (!q) return st.data;
+    const catLabels = categoryLabelById();
+    const subCatLabels = subCategoryLabelById();
+    const svcLabels = serviceCategoryLabelById();
+    return st.data.filter((ind) => {
+      const haystack = [
+        ind.varName,
+        ind.shortLabel,
+        ind.definition,
+        ind.categoryId ? (catLabels.get(ind.categoryId) ?? ind.categoryId) : "",
+        ind.subCategoryId
+          ? (subCatLabels.get(ind.subCategoryId) ?? ind.subCategoryId)
+          : "",
+        ...ind.serviceCategoryIds.map((id) => svcLabels.get(id) ?? id),
+      ];
+      return haystack.some((v) => v.toLowerCase().includes(q));
+    });
+  });
+
   const columns: TableColumn<HfaIndicator>[] = [
     {
       key: "categoryId",
@@ -638,10 +688,7 @@ export function HfaIndicatorsManager(p: Props) {
       sortable: true,
       render: (ind) => {
         if (!ind.categoryId) return "—";
-        const catSt = categories();
-        if (catSt.status !== "ready") return ind.categoryId;
-        const cat = catSt.data.find((c) => c.id === ind.categoryId);
-        return cat?.label ?? ind.categoryId;
+        return categoryLabelById().get(ind.categoryId) ?? ind.categoryId;
       },
     },
     {
@@ -650,10 +697,9 @@ export function HfaIndicatorsManager(p: Props) {
       sortable: true,
       render: (ind) => {
         if (!ind.subCategoryId) return "—";
-        const subCatSt = subCategories();
-        if (subCatSt.status !== "ready") return ind.subCategoryId;
-        const subCat = subCatSt.data.find((sc) => sc.id === ind.subCategoryId);
-        return subCat?.label ?? ind.subCategoryId;
+        return (
+          subCategoryLabelById().get(ind.subCategoryId) ?? ind.subCategoryId
+        );
       },
     },
     {
@@ -662,13 +708,9 @@ export function HfaIndicatorsManager(p: Props) {
       sortable: true,
       render: (ind) => {
         if (ind.serviceCategoryIds.length === 0) return "—";
-        const svcCatSt = serviceCategories();
-        if (svcCatSt.status !== "ready") return ind.serviceCategoryIds.join(", ");
+        const svcLabels = serviceCategoryLabelById();
         return ind.serviceCategoryIds
-          .map(
-            (id) =>
-              svcCatSt.data.find((sc) => sc.id === id)?.label ?? id,
-          )
+          .map((id) => svcLabels.get(id) ?? id)
           .join(", ");
       },
     },
@@ -870,10 +912,36 @@ export function HfaIndicatorsManager(p: Props) {
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
                     <div class="ui-gap-sm flex flex-none items-center pb-4">
-                      <div class="font-700 flex-1 text-xl">
+                      <div class="font-700 flex-none text-xl">
                         {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
-                        {keyedIndicators.length})
+                        {searchText().trim()
+                          ? t3({
+                              en: `${filteredIndicators().length} of ${keyedIndicators.length}`,
+                              fr: `${filteredIndicators().length} sur ${keyedIndicators.length}`,
+                              pt: `${filteredIndicators().length} de ${keyedIndicators.length}`,
+                            })
+                          : keyedIndicators.length}
+                        )
                       </div>
+                      <div class="max-w-72 flex-1">
+                        <Input
+                          value={searchText()}
+                          onChange={setSearchText}
+                          label={t3({
+                            en: "Search",
+                            fr: "Recherche",
+                            pt: "Pesquisar",
+                          })}
+                          placeholder={t3({
+                            en: "Search indicators...",
+                            fr: "Rechercher des indicateurs...",
+                            pt: "Pesquisar indicadores...",
+                          })}
+                          searchIcon
+                          fullWidth
+                        />
+                      </div>
+                      <div class="flex-1" />
                       <Show when={instanceState.currentUserIsGlobalAdmin}>
                         <div
                           class="ui-gap-sm flex items-center"
@@ -937,14 +1005,22 @@ export function HfaIndicatorsManager(p: Props) {
                     </Show>
                     <div class="h-0 w-full flex-1">
                       <Table
-                        data={keyedIndicators}
+                        data={filteredIndicators()}
                         columns={allColumns()}
                         keyField="varName"
-                        noRowsMessage={t3({
-                          en: "No HFA indicators configured",
-                          fr: "Aucun indicateur HFA configuré",
-                          pt: "Nenhum indicador HFA configurado",
-                        })}
+                        noRowsMessage={
+                          searchText().trim()
+                            ? t3({
+                                en: "No indicators match your search",
+                                fr: "Aucun indicateur ne correspond à votre recherche",
+                                pt: "Nenhum indicador corresponde à sua pesquisa",
+                              })
+                            : t3({
+                                en: "No HFA indicators configured",
+                                fr: "Aucun indicateur HFA configuré",
+                                pt: "Nenhum indicador HFA configurado",
+                              })
+                        }
                         bulkActions={bulkActions()}
                         selectionLabel={t3({
                           en: "indicator",
