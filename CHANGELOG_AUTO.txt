@@ -1,63 +1,63 @@
-[TBD] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
-[TBD] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
-[TBD] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
-[TBD] [user] [fixed] - Loading message now displays in your selected language during presentations
-[TBD] [user] [fixed] - Filters with one option stay visible when already applied, preventing hidden "no data" issues
-[TBD] [user] [fixed] - Data uploads now correctly accept count values like "123.0" from exported files
-[TBD] [user] [fixed] - Editing existing indicators no longer blocked by reserved name rules applied after creation
-[TBD] [admin] [fixed] - Slide deck email validates addresses before generating the PDF
-[TBD] [admin] [fixed] - Slide deck sharing now shows server error details on failure
-[TBD] [admin] [fixed] - Presentation loading message displays in the correct language
-[TBD] [admin] [fixed] - Single-value filters with active selections no longer hidden, preventing invisible "no data" states
-[TBD] [admin] [fixed] - Editing indicators with legacy reserved names no longer blocked
-[TBD] [admin] [fixed] - Data import now accepts count values like "123.0" or "1e3" from exporters
-[TBD] [admin] [fixed] - Invalid count values can no longer abort an entire staging batch
-[TBD] [admin] [changed] - Slide deck recipients limited to 50 with a clear error message
-[TBD] [admin] [changed] - Visualization detail cache refreshed for new data format
-[TBD] [admin] [internal] - Removed temporary dark mode keyboard shortcut (Shift+N)
-[TBD] [admin] [fixed] - Saved project tab no longer crashes the page if value is outdated
-[TBD] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
-[TBD] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
-[TBD] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
-[TBD] [user] [fixed] - Charts with negative values no longer clip bars below the axis
-[TBD] [user] [fixed] - Table exports now match the column headers shown on screen
-[TBD] [admin] [added] - Tables for survey metrics can now show sample sizes in column headers
-[TBD] [admin] [added] - New "Show sample sizes in column headers" toggle in table style settings for survey (HFA) metrics
-[TBD] [admin] [added] - AI assistant now includes sample size context when analyzing survey data
-[TBD] [admin] [added] - Underlying data CSV exports now include sample size columns with readable headers
-[TBD] [admin] [fixed] - Charts for metrics with negative values no longer clip bars below the axis
-[TBD] [admin] [fixed] - Table exports now match the column headers shown on screen
-[TBD] [admin] [changed] - More metrics now correctly allow negative values on chart axes
-[TBD] [admin] [internal] - Visualization cache updated; cached figures will regenerate automatically
-[TBD] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
-[TBD] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
-[TBD] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
-[TBD] [user] [added] - Blank or missing values in filters now appear as a selectable "(Blank)" option
-[TBD] [user] [changed] - Dashboard group headings and export sheet names now show friendly labels instead of raw codes
-[TBD] [user] [changed] - Filter chips now display a readable label for blank or missing values
-[TBD] [user] [fixed] - Using '&&' or '||' in indicator code now shows a clear error instead of failing silently at run time
-[TBD] [user] [fixed] - Figures with missing group values no longer disappear from filters and charts
-[TBD] [user] [fixed] - Slide deck colors now correctly follow the chosen color theme in tables and maps
-[TBD] [admin] [added] - DHIS2 scheduled imports now support daily and monthly recurrence
-[TBD] [admin] [added] - "More themes…" modal for browsing and comparing slide deck color themes with live previews
-[TBD] [admin] [added] - Reserved word validation when creating HFA indicator variable names
-[TBD] [admin] [added] - Blank or missing disaggregation values now appear as a selectable "(Blank)" option in filters and replicants
-[TBD] [admin] [changed] - DHIS2 recurring schedule configuration replaced weekly-only interval with daily, weekly, and monthly options
-[TBD] [admin] [changed] - Replicant labels in dashboards and exports now display formatted names instead of raw identifiers
-[TBD] [admin] [changed] - HFA indicator code editor now flags use of && and || operators as errors before running
-[TBD] [admin] [changed] - HFA indicator code now correctly treats missing survey answers as unknown rather than as determinate "no"
-[TBD] [admin] [fixed] - Disaggregation filters no longer disappear when a dimension contains blank or missing values
-[TBD] [admin] [fixed] - Figures in slide decks now correctly inherit the deck's color theme for structural elements like grid lines and borders
-[TBD] [admin] [fixed] - HFA indicator expressions using %in% now correctly propagate missing values instead of treating them as false
-[TBD] [admin] [internal] - Slide content validation now enforced at the route boundary instead of inside the handler
-[TBD] [admin] [internal] - Visualization cache version updated; cached figures will regenerate on next access
-[TBD] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
-[TBD] [user] [changed] - Removed "Verification mismatches" section from import run details
-[TBD] [user] [changed] - Simplified scheduling guidance message when credentials are missing
-[TBD] [admin] [changed] - Scheduling DHIS2 imports no longer requires a prior verification run
-[TBD] [admin] [changed] - Shadow verification step removed from DHIS2 import process
-[TBD] [admin] [changed] - Verification mismatches section removed from import run details
-[TBD] [admin] [changed] - Stored credentials are now the only requirement for scheduled imports
+[1.62.0] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
+[1.62.0] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
+[1.62.0] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
+[1.62.0] [user] [fixed] - Loading message now displays in your selected language during presentations
+[1.62.0] [user] [fixed] - Filters with one option stay visible when already applied, preventing hidden "no data" issues
+[1.62.0] [user] [fixed] - Data uploads now correctly accept count values like "123.0" from exported files
+[1.62.0] [user] [fixed] - Editing existing indicators no longer blocked by reserved name rules applied after creation
+[1.62.0] [admin] [fixed] - Slide deck email validates addresses before generating the PDF
+[1.62.0] [admin] [fixed] - Slide deck sharing now shows server error details on failure
+[1.62.0] [admin] [fixed] - Presentation loading message displays in the correct language
+[1.62.0] [admin] [fixed] - Single-value filters with active selections no longer hidden, preventing invisible "no data" states
+[1.62.0] [admin] [fixed] - Editing indicators with legacy reserved names no longer blocked
+[1.62.0] [admin] [fixed] - Data import now accepts count values like "123.0" or "1e3" from exporters
+[1.62.0] [admin] [fixed] - Invalid count values can no longer abort an entire staging batch
+[1.62.0] [admin] [changed] - Slide deck recipients limited to 50 with a clear error message
+[1.62.0] [admin] [changed] - Visualization detail cache refreshed for new data format
+[1.62.0] [admin] [internal] - Removed temporary dark mode keyboard shortcut (Shift+N)
+[1.62.0] [admin] [fixed] - Saved project tab no longer crashes the page if value is outdated
+[1.62.0] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
+[1.62.0] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
+[1.62.0] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
+[1.62.0] [user] [fixed] - Charts with negative values no longer clip bars below the axis
+[1.62.0] [user] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [added] - Tables for survey metrics can now show sample sizes in column headers
+[1.62.0] [admin] [added] - New "Show sample sizes in column headers" toggle in table style settings for survey (HFA) metrics
+[1.62.0] [admin] [added] - AI assistant now includes sample size context when analyzing survey data
+[1.62.0] [admin] [added] - Underlying data CSV exports now include sample size columns with readable headers
+[1.62.0] [admin] [fixed] - Charts for metrics with negative values no longer clip bars below the axis
+[1.62.0] [admin] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [changed] - More metrics now correctly allow negative values on chart axes
+[1.62.0] [admin] [internal] - Visualization cache updated; cached figures will regenerate automatically
+[1.62.0] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
+[1.62.0] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
+[1.62.0] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
+[1.62.0] [user] [added] - Blank or missing values in filters now appear as a selectable "(Blank)" option
+[1.62.0] [user] [changed] - Dashboard group headings and export sheet names now show friendly labels instead of raw codes
+[1.62.0] [user] [changed] - Filter chips now display a readable label for blank or missing values
+[1.62.0] [user] [fixed] - Using '&&' or '||' in indicator code now shows a clear error instead of failing silently at run time
+[1.62.0] [user] [fixed] - Figures with missing group values no longer disappear from filters and charts
+[1.62.0] [user] [fixed] - Slide deck colors now correctly follow the chosen color theme in tables and maps
+[1.62.0] [admin] [added] - DHIS2 scheduled imports now support daily and monthly recurrence
+[1.62.0] [admin] [added] - "More themes…" modal for browsing and comparing slide deck color themes with live previews
+[1.62.0] [admin] [added] - Reserved word validation when creating HFA indicator variable names
+[1.62.0] [admin] [added] - Blank or missing disaggregation values now appear as a selectable "(Blank)" option in filters and replicants
+[1.62.0] [admin] [changed] - DHIS2 recurring schedule configuration replaced weekly-only interval with daily, weekly, and monthly options
+[1.62.0] [admin] [changed] - Replicant labels in dashboards and exports now display formatted names instead of raw identifiers
+[1.62.0] [admin] [changed] - HFA indicator code editor now flags use of && and || operators as errors before running
+[1.62.0] [admin] [changed] - HFA indicator code now correctly treats missing survey answers as unknown rather than as determinate "no"
+[1.62.0] [admin] [fixed] - Disaggregation filters no longer disappear when a dimension contains blank or missing values
+[1.62.0] [admin] [fixed] - Figures in slide decks now correctly inherit the deck's color theme for structural elements like grid lines and borders
+[1.62.0] [admin] [fixed] - HFA indicator expressions using %in% now correctly propagate missing values instead of treating them as false
+[1.62.0] [admin] [internal] - Slide content validation now enforced at the route boundary instead of inside the handler
+[1.62.0] [admin] [internal] - Visualization cache version updated; cached figures will regenerate on next access
+[1.62.0] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
+[1.62.0] [user] [changed] - Removed "Verification mismatches" section from import run details
+[1.62.0] [user] [changed] - Simplified scheduling guidance message when credentials are missing
+[1.62.0] [admin] [changed] - Scheduling DHIS2 imports no longer requires a prior verification run
+[1.62.0] [admin] [changed] - Shadow verification step removed from DHIS2 import process
+[1.62.0] [admin] [changed] - Verification mismatches section removed from import run details
+[1.62.0] [admin] [changed] - Stored credentials are now the only requirement for scheduled imports
 [1.61.2] [user] [added] - Row filter option during HFA data import to exclude unwanted rows
 [1.61.2] [user] [added] - Duplicate facility review step during HFA data import with manual row selection
 [1.61.2] [user] [changed] - HFA data import now has a dedicated duplicates review step before staging
