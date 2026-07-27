@@ -16,6 +16,7 @@ export type {
   HeaderItem,
   HeaderSortConfig,
   HeightConstraints,
+  MeasuredText,
   PathSegment,
   PieSliceInfo,
   PieSlicePrimitive,
@@ -26,6 +27,7 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type {
   MergedPieStyle,
+  OutsideLabelPlacement,
   PieLabelMode,
   PieSliceStyle,
 } from "../_003_figure_style/mod.ts";
@@ -36,12 +38,14 @@ export {
   calculateMinLabelPlotExtent,
   calculatePaneGrid,
   checkValuePropsAssignment,
+  circleTrack,
   collectHeaders,
   estimateMinSurroundsWidth,
   fillValuesWithDuplicateCheck,
   generateResolvedFigureLabelPrimitives,
   measureChart,
   measureChartWithAutofit,
+  placeNearestBoxes,
   placeOutsideBoxes,
   renderFigureBackground,
   renderFigurePrimitives,
@@ -60,7 +64,6 @@ export type {
   LabelMode,
   LegendInput,
   MeasuredChartBase,
-  OutsidePlacedBox,
   ProcessedHeaders,
   SimplifiedChartConfig,
 } from "../_007_figure_core/mod.ts";

@@ -141,6 +141,15 @@ export type BuildFieldOptions = {
   // How far beyond the silhouette the field must remain valid — at least the
   // largest clearance any caller will query, or the track cannot be extracted.
   margin: number;
+  // How far from the boundary a query is answered EXACTLY against the real
+  // segments rather than off the raster. Defaults to the grid margin, which is
+  // right for a caller whose margin is its query range.
+  //
+  // A caller that sizes its margin for a whole RANGE of content scales must set
+  // this separately: the exact query costs ~8us against the raster's ~0.05us,
+  // so tying the two together made a 47-label map cell spend 20 seconds in
+  // 2.5 million exact queries that a 1 DU raster answer would have served.
+  exactBand?: number;
 };
 
 // The raster alone is out by roughly the pitch (measured: 0.93 DU at a 1 DU
@@ -339,7 +348,7 @@ export function buildDistanceField(
     Math.max(1, Math.ceil((cols * pitch) / (pitch * 4))),
     Math.max(1, Math.ceil((rows * pitch) / (pitch * 4))),
   );
-  const exactBand = margin + EXACT_BAND_PAD_CELLS * pitch;
+  const exactBand = (opts.exactBand ?? margin) + EXACT_BAND_PAD_CELLS * pitch;
 
   let cachedMax: { point: Point; distance: number } | undefined;
   let maxComputed = false;

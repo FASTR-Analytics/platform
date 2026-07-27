@@ -518,6 +518,12 @@ export type CustomFigureStyleOptions = {
       maxCentroidDisplacement?: number;
       maxIterations?: number;
     };
+    outsideLabelPlacement?: "nearest" | "flank";
+    labelClearanceFloor?: number;
+    labelAlignmentSwitchAngle?: number;
+    maxLabelLines?: number;
+    insideFitFraction?: number;
+    labelWrapFraction?: number;
   };
 
   pie?: {
@@ -534,6 +540,12 @@ export type CustomFigureStyleOptions = {
       maxCentroidDisplacement?: number;
       maxIterations?: number;
     };
+    outsideLabelPlacement?: "nearest" | "flank";
+    labelClearanceFloor?: number;
+    labelAlignmentSwitchAngle?: number;
+    maxLabelLines?: number;
+    insideFitFraction?: number;
+    labelWrapFraction?: number;
     remainder?: {
       mode?: "slice" | "gap";
       fillColor?: ColorKeyOrString;

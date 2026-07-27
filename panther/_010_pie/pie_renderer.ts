@@ -110,7 +110,12 @@ export function getPieComponentSizes(
     nTiers: transformedData.tierHeaders.length,
     paneHeaders: transformedData.paneHeaders,
     minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
-    minSubChartHeight: Math.max(minLabelPlotExtent, labelBudget.tallestStack),
+    // The vertical demand COMBINES differently by placer (plan N9): under
+    // flank it is a stack the cell must be tall enough for; under nearest the
+    // labels sit above and below the content, so it is additive.
+    minSubChartHeight: mergedStyle.pie.outsideLabelPlacement === "nearest"
+      ? minLabelPlotExtent + labelBudget.vertical
+      : Math.max(minLabelPlotExtent, labelBudget.vertical),
     xAxisHeight: 0,
     paneHeaderHeight: rc
       .mText("Region 001", mergedStyle.text.paneHeaders, 400)
@@ -199,12 +204,14 @@ function getPieIdealHeight(
     mergedStyle.text.dataLabels,
   );
 
-  // The disc gets what is left of the cell after the flank gutters, is never
+  // The disc gets what is left of the cell after the label gutters and is never
   // squeezed below the legibility floor (calculateChartIdealHeight multiplies
-  // minSubChartHeight through WITHOUT clamping), and the cell must also hold
-  // the tallest label stack.
+  // minSubChartHeight through WITHOUT clamping). The height then combines by
+  // placer, exactly as minSubChartHeight does above.
   const contentD = Math.max(cellW - labelBudget.horizontal, contentFloor);
-  const cellH = Math.max(contentD, labelBudget.tallestStack);
+  const cellH = mergedStyle.pie.outsideLabelPlacement === "nearest"
+    ? contentD + labelBudget.vertical
+    : Math.max(contentD, labelBudget.vertical);
 
   const idealH = calculateChartIdealHeight(
     rc,

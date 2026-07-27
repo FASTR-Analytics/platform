@@ -31,7 +31,7 @@ export type DirectionalExtents = {
 
 export type ContentScaleResult =
   | { kind: "ok"; s: number }
-  // Even sFloor does not fit; the caller decides (starvation → cramped).
+  // Nothing in [sFloor, sMax] fits; the caller decides (starvation → cramped).
   | { kind: "infeasible" };
 
 export function solveContentScale(
@@ -44,26 +44,33 @@ export function solveContentScale(
   if (sMax <= sFloor) {
     return fits(sMax) ? { kind: "ok", s: sMax } : { kind: "infeasible" };
   }
-  if (!fits(sFloor)) {
-    return { kind: "infeasible" };
-  }
   if (fits(sMax)) {
     return { kind: "ok", s: sMax };
   }
 
-  // Scan downward for the largest fitting sample. fits(sFloor) held above, so
-  // the loop always breaks (the last sample IS sFloor).
+  // Scan downward for the largest fitting sample, sFloor included as the last
+  // one. The floor is NOT assumed to fit: under nearest-point placement
+  // shrinking `s` shortens the track while the label footprints stay fixed in
+  // DU, so the feasible set can be a band that excludes the floor entirely — a
+  // cell can be placeable at radius 190 and unplaceable at 21. Bailing on
+  // `!fits(sFloor)` (as this did) reported such a cell infeasible without ever
+  // looking at the band, which sent every one of them to the fallback placer.
   const step = (sMax - sFloor) / SOLVE_SCAN_STEPS;
-  let lo = sFloor;
+  let found: number | undefined;
   let hi = sMax;
   for (let i = 1; i <= SOLVE_SCAN_STEPS; i++) {
     const s = i === SOLVE_SCAN_STEPS ? sFloor : sMax - i * step;
     if (fits(s)) {
-      lo = s;
+      found = s;
       hi = sMax - (i - 1) * step;
       break;
     }
   }
+  // Nothing in [sFloor, sMax] fits: the caller decides (starvation → cramped).
+  if (found === undefined) {
+    return { kind: "infeasible" };
+  }
+  let lo = found;
 
   // Bisect the bracket [lo fits, hi does not] onto the boundary. lo keeps the
   // fits invariant, so the returned s always fits.

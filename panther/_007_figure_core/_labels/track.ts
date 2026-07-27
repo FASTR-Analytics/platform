@@ -77,6 +77,56 @@ function trackFromComponents(
   };
 }
 
+// The same track seen at a different content scale and centre.
+//
+// A figure's silhouette scales affinely with its content scale, so one distance
+// field built at a REFERENCE scale answers for every other: distances scale by
+// `scale`, and the clearance-m level set at the new scale is the m/scale level
+// set of the reference field. That is why the caller extracts at `clearance /
+// scale` and hands the result here rather than rebuilding the field, which
+// costs ~50ms against extraction's ~18ms.
+//
+// Normals are unit vectors and a uniform scale does not turn them, so they pass
+// through untouched.
+export function scaledTrack(
+  track: LabelTrack,
+  scale: number,
+  cx: number,
+  cy: number,
+): LabelTrack {
+  const toScreen = (p: Point) => ({ x: cx + p.x * scale, y: cy + p.y * scale });
+  const toField = (p: Point) => ({
+    x: (p.x - cx) / scale,
+    y: (p.y - cy) / scale,
+  });
+  return {
+    components: track.components.map((c) => ({
+      length: c.length * scale,
+      pointAt: (t) => {
+        const p = c.pointAt(t / scale);
+        return { ...toScreen(p), nx: p.nx, ny: p.ny };
+      },
+      nearestTo: (p) => {
+        const hit = c.nearestTo(toField(p));
+        return { t: hit.t * scale, distance: hit.distance * scale };
+      },
+    })),
+    clearanceAt: (x, y) => {
+      const p = toField({ x, y });
+      return track.clearanceAt(p.x, p.y) * scale;
+    },
+    nearestTo: (p) => {
+      const hit = track.nearestTo(toField(p));
+      if (!hit) return undefined;
+      return {
+        component: hit.component,
+        t: hit.t * scale,
+        distance: hit.distance * scale,
+      };
+    },
+  };
+}
+
 // ---------------------------------------------------------------- the circle
 
 export function circleTrack(
@@ -242,6 +292,24 @@ function marchingSquares(
           break;
         // Saddles: the cell centre decides which way the two arcs connect, so
         // a narrow isthmus does not get stitched into the wrong loop.
+        //
+        // READ THIS BEFORE "FIXING" THE POLARITY. Against the textbook bilinear
+        // convention these two branches are inverted: the corner average says
+        // the two same-side corners are joined through the middle, and this
+        // pairing separates them. That is deliberate and measured. The corner
+        // average is a BIASED estimate of a distance field's value at the cell
+        // centre — a saddle in an offset curve sits on the medial axis, where
+        // the field is the min of two smooth branches, so averaging corners
+        // that lie on different branches reads high (measured: 201 of 250
+        // saddle cells). The inversion cancels that bias. Scored on 145 shapes
+        // (stars, combs, disc pairs, rings with holes, archipelagos) against
+        // the true loop count of the dilated region: this rule 136, the
+        // textbook rule with the corner average 124, the textbook rule with the
+        // exact centre value 132, always-join 119. Every disagreement was a
+        // deep-notched star, where the raster itself pinches. Over-joining is
+        // also the safer error here: a spurious extra component splits the
+        // relaxation and costs the whole cell a flank fallback (N10), while a
+        // spurious join still leaves one closed curve at the right level.
         case 5:
         case 10: {
           const centre = (v0 + v1 + v2 + v3) / 4;
@@ -414,6 +482,53 @@ function refineOntoLevel(
   return { x: x + ux * s, y: y + uy * s };
 }
 
+// How far a chord of the polyline may sag off the true level set. This is the
+// knob that decides vertex spacing, and it is set by what the polyline is FOR
+// (see the note on LabelTrack): a parameterisation and an ordering, with the
+// clearance itself enforced elsewhere by bisecting the exact field.
+//
+// Marching squares hands back one vertex per raster cell — about 2500 for a
+// 2000 DU coastline — and refining each one onto the exact level is ~80% of the
+// cost of building a track (measured on Kenya adm1: refine 24ms of 30ms, with
+// marching squares 3.5 and chaining 1.5). Since the offset curve's radius of
+// curvature is at least the clearance wherever it turns, a chord of length L
+// sags by at most L²/(8·clearance), so the spacing below buys the tolerance
+// exactly. On Kenya that is 2500 vertices down to ~630, and the whole track
+// build from 36ms to 18ms — which matters because it is rebuilt at every trial
+// content scale, tens of times per cell.
+//
+// Measured cost of the tolerance itself, as worst |clearance − 12| over the
+// track (Kenya / East Africa): 0.70 / 1.31 DU undecimated, 0.81 / 1.47 at 0.1,
+// 0.82 / 1.78 at 0.25, 1.88 / 2.08 at 0.5. 0.1 is where it stops being free.
+const TRACK_SAGITTA_DU = 0.1;
+// Below this a loop is an islet whose shape is all corner; decimating it would
+// change what it is rather than how finely it is sampled.
+const MIN_LOOP_VERTICES = 12;
+
+function decimateLoop(loop: Point[], spacing: number): Point[] {
+  if (loop.length <= MIN_LOOP_VERTICES) return loop;
+  const out: Point[] = [loop[0]];
+  let last = loop[0];
+  for (let i = 1; i < loop.length; i++) {
+    const p = loop[i];
+    if (Math.hypot(p.x - last.x, p.y - last.y) < spacing) continue;
+    out.push(p);
+    last = p;
+  }
+  // The loop closes on its first vertex, so a final point that has crept back
+  // up against it adds a degenerate segment rather than detail.
+  if (
+    out.length > MIN_LOOP_VERTICES &&
+    Math.hypot(
+        out[out.length - 1].x - out[0].x,
+        out[out.length - 1].y - out[0].y,
+      ) < spacing
+  ) {
+    out.pop();
+  }
+  return out.length >= MIN_LOOP_VERTICES ? out : loop;
+}
+
 export function fieldTrack(
   field: DistanceField,
   clearance: number,
@@ -421,7 +536,12 @@ export function fieldTrack(
   // The field is positive inside, so a point `clearance` outside sits at
   // -clearance.
   const level = -clearance;
+  const spacing = Math.max(
+    field.pitch,
+    Math.sqrt(8 * Math.max(clearance, field.pitch) * TRACK_SAGITTA_DU),
+  );
   const loops = chainLoops(marchingSquares(field, level))
+    .map((loop) => decimateLoop(loop, spacing))
     .map((loop) => loop.map((p) => refineOntoLevel(field, p, level)))
     .filter((loop) => loop.length > 3);
 

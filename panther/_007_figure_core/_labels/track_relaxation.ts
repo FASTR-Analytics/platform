@@ -28,6 +28,10 @@ export type RelaxResult =
   // The items cannot fit the track at all: the caller falls back (plan N10).
   | { kind: "infeasible" };
 
+// Doublings allowed while bracketing the span multiplier. Measured worst case
+// on the fuzz above: 2.
+const BRACKET_GROWTH_STEPS = 60;
+
 // Exact feasibility, not a heuristic: the n cyclic separations sum to exactly
 // this, so it fits if and only if the total is within the circumference.
 export function requiredTrackLength(items: TrackItem[], gap: number): number {
@@ -131,15 +135,35 @@ export function relaxOnTrack(
     // The span constraint binds. Pull the ends together with a Lagrange
     // multiplier — the span is monotone in it, so bisection lands on the exact
     // constrained optimum rather than an arbitrary clamp.
+    const spanAt = (multiplier: number): number => {
+      const shifted = y.slice();
+      shifted[0] += multiplier;
+      shifted[n - 1] -= multiplier;
+      const trial = isotonic(shifted);
+      return trial[n - 1] - trial[0];
+    };
+
+    // The multiplier that closes the span is NOT bounded by the unconstrained
+    // span: only the two ends are shifted, so the interior spread resists, and
+    // a near-saturated track can need several times more. Measured on a fuzz of
+    // 177k feasible near-saturated instances: a fixed bracket of the
+    // unconstrained span left 0.64% of them violating the wrap constraint by up
+    // to 49 DU — i.e. two labels drawn on top of each other. Grow the bracket
+    // until it actually brackets, then bisect inside it.
     let lo = 0;
     let hi = Math.max(1, q[n - 1] - q[0]);
+    let bracketed = spanAt(hi) <= spanBudget;
+    for (let i = 0; i < BRACKET_GROWTH_STEPS && !bracketed; i++) {
+      lo = hi;
+      hi *= 2;
+      bracketed = spanAt(hi) <= spanBudget;
+    }
+    // Unreachable for a feasible instance; never emit an overlap on the way out.
+    if (!bracketed) return { kind: "infeasible" };
+
     for (let iter = 0; iter < 60; iter++) {
       const mid = (lo + hi) / 2;
-      const shifted = y.slice();
-      shifted[0] += mid;
-      shifted[n - 1] -= mid;
-      const trial = isotonic(shifted);
-      if (trial[n - 1] - trial[0] > spanBudget) lo = mid;
+      if (spanAt(mid) > spanBudget) lo = mid;
       else hi = mid;
     }
     const shifted = y.slice();

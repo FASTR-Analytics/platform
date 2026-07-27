@@ -64,6 +64,36 @@ function defaultLabelCollision(): LabelCollisionConfig {
   };
 }
 
+// Shared defaults for every zero-way figure's label-placement policy (map,
+// pie). Same reasoning as defaultLabelCollision: the blocks stay per-figure
+// because placement policy is figure-wide structural style, but the numbers are
+// one calibration.
+function defaultLabelPlacement() {
+  return {
+    // Which placer runs for labels that go outside. "flank" stacks them in a
+    // column per side; "nearest" puts each at its own nearest point on the
+    // figure's silhouette. Each figure flips its own default as it is wired.
+    outsideLabelPlacement: typed<"nearest" | "flank">("flank"),
+    // How close a padded label box may come to the silhouette at directions
+    // where its CORNER leads. At the cardinals an edge leads and the clearance
+    // is calloutMargin exactly; this guards the diagonals, where ray-exit
+    // anchoring alone drives a wide label into the shape.
+    labelClearanceFloor: 4,
+    // Direction, in degrees off a cardinal, at which a nearest-point label's
+    // text alignment flips from centred to edge-aligned. 45 gives even
+    // quarters and puts the switch where the box's own corner starts to lead.
+    labelAlignmentSwitchAngle: 45,
+    // How many lines a label may wrap onto while fighting to stay INSIDE its
+    // own element. 1 is a single unwrapped test.
+    maxLabelLines: 2,
+    // The share of the room at its anchor a label's text must fit within to
+    // stay inside. Below 1 so "fits" means comfortably, not exactly.
+    insideFitFraction: 0.9,
+    // The width an OUTSIDE label's text wraps at, as a fraction of the cell.
+    labelWrapFraction: 0.4,
+  };
+}
+
 const _DS = {
   seriesColorFunc: typed<ChartSeriesInfoFunc<ColorKeyOrString>>(() => ({
     key: "baseContent",
@@ -520,6 +550,25 @@ const _DS = {
     // labelCollision.gap.
     calloutMargin: 12,
     labelCollision: defaultLabelCollision(),
+    ...defaultLabelPlacement(),
+    // STILL "flank" (the shared default), deliberately, and by now the ONLY
+    // thing keeping it here is a ruling. Both halves are built: the outside
+    // placer and its track, and the inside half (the pole anchor, the
+    // field-derived capacity, the fit ladder). Measured nearest against flank
+    // on identical inputs, mean anchor-to-label distance: 78.0 vs 107.0 on a
+    // 16-label Kenya, 78.2 vs 125.5 on East Africa callout, 76.1 vs 117.5 on
+    // East Africa auto, and identical on a 47-label Kenya because that cell is
+    // genuinely saturated and falls back to flank, which is the design.
+    //
+    // The bar is that the map beats flank on leader length AND inside
+    // retention. One case misses it: Kenya adm1 `auto`, 26 outside labels
+    // around one outline, 147.9 against 144.4. That cell is near-saturated —
+    // roughly 1870 DU of label demand against 1900 DU of track — so it is the
+    // regime the flank fallback exists for, without quite tripping it. Whether
+    // that clears the bar is the owner's call, not this file's.
+    //
+    // See PLAN_NEAREST_POINT_LABELS step 9b-d. Do not flip this to close a
+    // percentage.
   },
 
   pie: {
@@ -536,6 +585,10 @@ const _DS = {
     calloutMargin: 12,
     centerLabel: typed<"none" | "total">("none"),
     labelCollision: defaultLabelCollision(),
+    ...defaultLabelPlacement(),
+    // Pie ships on nearest-point placement: a slice at 12 o'clock gets its
+    // label directly above the disc, whatever bearing that turns out to be.
+    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
     // Partial pies (an explicit `total` the values do not reach) draw the
     // unfilled part as a slice by default — a bare gap is indistinguishable
     // from a rendering bug at small sizes.

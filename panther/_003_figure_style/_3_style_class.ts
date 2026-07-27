@@ -564,6 +564,39 @@ export class CustomFigureStyle {
             d.map.labelCollision.maxIterations,
           ),
         },
+        // Placement policy: enums, ratios and angles are scale-invariant; only
+        // the clearance floor is a length.
+        outsideLabelPlacement: m(
+          c.map?.outsideLabelPlacement,
+          g.map?.outsideLabelPlacement,
+          d.map.outsideLabelPlacement,
+        ),
+        labelClearanceFloor: ms(
+          sf,
+          c.map?.labelClearanceFloor,
+          g.map?.labelClearanceFloor,
+          d.map.labelClearanceFloor,
+        ),
+        labelAlignmentSwitchAngle: m(
+          c.map?.labelAlignmentSwitchAngle,
+          g.map?.labelAlignmentSwitchAngle,
+          d.map.labelAlignmentSwitchAngle,
+        ),
+        maxLabelLines: m(
+          c.map?.maxLabelLines,
+          g.map?.maxLabelLines,
+          d.map.maxLabelLines,
+        ),
+        insideFitFraction: m(
+          c.map?.insideFitFraction,
+          g.map?.insideFitFraction,
+          d.map.insideFitFraction,
+        ),
+        labelWrapFraction: m(
+          c.map?.labelWrapFraction,
+          g.map?.labelWrapFraction,
+          d.map.labelWrapFraction,
+        ),
       },
     };
   }
@@ -635,6 +668,39 @@ export class CustomFigureStyle {
             d.pie.labelCollision.maxIterations,
           ),
         },
+        // Placement policy: enums, ratios and angles are scale-invariant; only
+        // the clearance floor is a length.
+        outsideLabelPlacement: m(
+          c.pie?.outsideLabelPlacement,
+          g.pie?.outsideLabelPlacement,
+          d.pie.outsideLabelPlacement,
+        ),
+        labelClearanceFloor: ms(
+          sf,
+          c.pie?.labelClearanceFloor,
+          g.pie?.labelClearanceFloor,
+          d.pie.labelClearanceFloor,
+        ),
+        labelAlignmentSwitchAngle: m(
+          c.pie?.labelAlignmentSwitchAngle,
+          g.pie?.labelAlignmentSwitchAngle,
+          d.pie.labelAlignmentSwitchAngle,
+        ),
+        maxLabelLines: m(
+          c.pie?.maxLabelLines,
+          g.pie?.maxLabelLines,
+          d.pie.maxLabelLines,
+        ),
+        insideFitFraction: m(
+          c.pie?.insideFitFraction,
+          g.pie?.insideFitFraction,
+          d.pie.insideFitFraction,
+        ),
+        labelWrapFraction: m(
+          c.pie?.labelWrapFraction,
+          g.pie?.labelWrapFraction,
+          d.pie.labelWrapFraction,
+        ),
         remainder: {
           mode: m(
             c.pie?.remainder?.mode,

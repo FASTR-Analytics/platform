@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { buildInteractionDigest, createSignal } from "../deps.ts";
+import { buildInteractionDigest, createSignal, untrack } from "../deps.ts";
 import type { AIInteractionDefLike } from "../deps.ts";
 import { createInteractionLog } from "./interactions.ts";
 import type {
@@ -291,21 +291,30 @@ export function createAIViewController<
   // live context a label reads may be torn down by drain time). Consecutive
   // events coalesce to one digest line at drain; a net-zero round trip
   // reports nothing (view_logic.ts owns both rules).
+  //
+  // UNTRACKED, and it must stay that way. Navigation reporting OBSERVES the
+  // view state; it does not depend on it. A caller that runs setView inside a
+  // createEffect (syncing a tab signal into the view, say) would otherwise
+  // subscribe that effect to `state` through these reads — and since setState
+  // writes a fresh object literal every call, Solid's `===` equality guard
+  // never settles it, so the effect re-triggers itself until the stack
+  // overflows. resolveLabel is inside the untrack for the same reason: a
+  // label closure may read live context signals.
   function applyWithNavigation(apply: () => void): void {
     if (!reportNavigation) {
       apply();
       return;
     }
-    const before = state();
+    const before = untrack(state);
     const fromId = String(before.id);
-    const fromLabel = resolveLabel(before) ?? fromId;
+    const fromLabel = untrack(() => resolveLabel(before)) ?? fromId;
     apply();
-    const after = state();
+    const after = untrack(state);
     interactionLog!.recordNavigation({
       fromId,
       fromLabel,
       toId: String(after.id),
-      toLabel: resolveLabel(after) ?? String(after.id),
+      toLabel: untrack(() => resolveLabel(after)) ?? String(after.id),
     });
   }
 

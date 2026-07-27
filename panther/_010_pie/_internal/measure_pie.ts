@@ -6,7 +6,9 @@
 import type {
   FigureLabelPrimitive,
   LabelCandidate,
+  MeasuredText,
   MergedPieStyle,
+  OutsideLabelPlacement,
   Primitive,
   RenderContext,
   SimplifiedChartConfig,
@@ -122,6 +124,12 @@ type SolvedPieCell = {
   // The frozen s0 placement split (plan D2), carried by id.
   outsideIds: Set<string>;
   outside: PieLabelEntry[];
+  // The fit ladder's chosen wrapping, by id: a label rescued onto two lines
+  // must be DRAWN on two lines, and emission rebuilds candidates from scratch.
+  labelText: Map<string, MeasuredText>;
+  // Which placer this cell solved under. The final choice is re-made at the
+  // harmonised scale in emitOneCell (N10); this is the solve's own answer.
+  placement: OutsideLabelPlacement;
   // This cell's own solved content scale; emission uses the grid minimum.
   s: number;
   // The budget was infeasible even at the legibility floor (plan D6).
@@ -137,7 +145,6 @@ function solveOneCell(
   mergedStyle: MergedPieStyle,
 ): SolvedPieCell {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
-  const gap = mergedStyle.pie.labelCollision.gap;
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
 
   // s0: the label-free content scale — the largest radius the cell can hold.
@@ -157,6 +164,8 @@ function solveOneCell(
       cellRcd,
       outsideIds,
       outside: [],
+      labelText: new Map(),
+      placement: mergedStyle.pie.outsideLabelPlacement,
       s: s0,
       starved: false,
       empty: true,
@@ -164,6 +173,7 @@ function solveOneCell(
   }
 
   let outside: PieLabelEntry[] = [];
+  const labelText = new Map<string, MeasuredText>();
   if (mode !== "none") {
     const entries = buildPieLabelCandidates(
       rc,
@@ -172,42 +182,92 @@ function solveOneCell(
       cellRcd,
     );
     for (const e of entries) {
-      const placement = resolveLabelPlacement(
+      const { placement, mText } = resolveLabelPlacement(
         mode,
-        e.candidate.insideBox,
+        e.candidate.fitsInside,
         e.candidate.mText,
+        {
+          // The I3 fit ladder, switched on for pie. Text measurement does not
+          // depend on the content scale — only on the type style and the wrap
+          // width — so a rung's wrapping decided here is still valid at the
+          // emission scale, and is carried by id in `labelText`.
+          measureAt: (wrapWidth) =>
+            rc.mText(e.text, e.candidate.mText.ti, wrapWidth),
+          maxLines: mergedStyle.pie.maxLabelLines,
+          insideFitFraction: mergedStyle.pie.insideFitFraction,
+        },
       );
       if (placement === "outside") {
         outsideIds.add(e.candidate.id);
       }
+      labelText.set(e.candidate.id, mText);
     }
-    outside = entries.filter((e) => outsideIds.has(e.candidate.id));
+    outside = entries
+      .filter((e) => outsideIds.has(e.candidate.id))
+      .map((e) => withText(e, labelText));
   }
 
   // Solve for the content scale the frozen label set affords (plan D3).
   let s = s0;
   let starved = false;
+  let placement = mergedStyle.pie.outsideLabelPlacement;
   if (outside.length > 0) {
     const sFloor =
       calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels) / 2;
-    const fits = (trialS: number) => {
-      const e = pieExtentsAt(
-        outside,
-        trialS,
-        ratio,
-        gap,
-        mergedStyle.pie.calloutMargin,
-      );
-      return e.left + e.right <= cellRcd.w() && e.top + e.bottom <= cellRcd.h();
+    const fitsUnder = (p: OutsideLabelPlacement) => (trialS: number) => {
+      const e = pieExtentsAt(outside, trialS, ratio, mergedStyle, p);
+      // Undefined = the track cannot hold these labels at this scale. That is
+      // a genuine "does not fit", so the solver keeps scanning down; it is
+      // only when NO scale works that the cell falls back (N10).
+      return e !== undefined &&
+        e.left + e.right <= cellRcd.w() && e.top + e.bottom <= cellRcd.h();
     };
-    const result = solveContentScale(fits, sFloor, s0);
+    // A track that cannot hold these labels at the LARGEST scale cannot hold
+    // them at any smaller one — the track only gets shorter while the labels
+    // stay the same size — so one attempt at s0 rules out the whole scan.
+    if (
+      placement === "nearest" &&
+      !pieExtentsAt(outside, s0, ratio, mergedStyle, "nearest")
+    ) {
+      placement = "flank";
+    }
+    let result = solveContentScale(fitsUnder(placement), sFloor, s0);
+    if (result.kind === "infeasible" && placement === "nearest") {
+      // N10: this cell cannot be nearest-point at any scale, so it re-solves on
+      // the flank placer — all shipped machinery — and is NOT cramped for that
+      // reason. Flank fitting is a success.
+      placement = "flank";
+      result = solveContentScale(fitsUnder("flank"), sFloor, s0);
+    }
     // infeasible: even the legibility floor cannot fit. Draw at the floor
     // anyway (legibility beats frame) and report it as cramped (plan D6).
     starved = result.kind === "infeasible";
     s = result.kind === "ok" ? result.s : Math.min(sFloor, s0);
   }
 
-  return { indices, cellRcd, outsideIds, outside, s, starved, empty: false };
+  return {
+    indices,
+    cellRcd,
+    outsideIds,
+    outside,
+    labelText,
+    s,
+    placement,
+    starved,
+    empty: false,
+  };
+}
+
+// The ladder may have re-wrapped a label's text to earn a verdict, so the entry
+// the budget places must carry what the ladder tested — not the cell-wrap
+// measurement it started from.
+function withText(
+  e: PieLabelEntry,
+  labelText: Map<string, MeasuredText>,
+): PieLabelEntry {
+  const mText = labelText.get(e.candidate.id);
+  if (!mText || mText === e.candidate.mText) return e;
+  return { ...e, candidate: { ...e.candidate, mText } };
 }
 
 function emitOneCell(
@@ -217,23 +277,28 @@ function emitOneCell(
   mergedStyle: MergedPieStyle,
   s: number,
 ): Primitive[] {
-  const { indices, cellRcd, outsideIds, outside } = solvedCell;
+  const { indices, cellRcd, outsideIds, outside, labelText } = solvedCell;
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
-  const gap = mergedStyle.pie.labelCollision.gap;
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
+
+  // N10: the final nearest-vs-flank choice is made ONCE, here, at the
+  // harmonised grid-minimum scale — a track feasible at this cell's own solved
+  // s can be infeasible at a smaller one, and the centring extents and the
+  // emitted primitives must not disagree about which placer ran.
+  let placement = solvedCell.placement;
+  let extents = outside.length > 0
+    ? pieExtentsAt(outside, s, ratio, mergedStyle, placement)
+    : undefined;
+  if (outside.length > 0 && !extents && placement === "nearest") {
+    placement = "flank";
+    extents = pieExtentsAt(outside, s, ratio, mergedStyle, "flank");
+  }
 
   // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
   // dimension is tight, and centring when underfilling is the standing rule.
   let cx = cellRcd.centerX();
   let cy = cellRcd.centerY();
-  if (outside.length > 0) {
-    const extents = pieExtentsAt(
-      outside,
-      s,
-      ratio,
-      gap,
-      mergedStyle.pie.calloutMargin,
-    );
+  if (extents) {
     cx = cellRcd.x() + (cellRcd.w() - (extents.left + extents.right)) / 2 +
       extents.left;
     cy = cellRcd.y() + (cellRcd.h() - (extents.top + extents.bottom)) / 2 +
@@ -260,15 +325,18 @@ function emitOneCell(
     const insideCandidates: LabelCandidate[] = [];
     const outsideCandidates: LabelCandidate[] = [];
     for (const e of placed) {
-      (outsideIds.has(e.candidate.id) ? outsideCandidates : insideCandidates)
-        .push(e.candidate);
+      // The ladder's wrapping travels by id alongside the split (plan D2): a
+      // label rescued onto two lines at s0 must be drawn on two lines here.
+      const candidate = withText(e, labelText).candidate;
+      (outsideIds.has(candidate.id) ? outsideCandidates : insideCandidates)
+        .push(candidate);
     }
     if (insideCandidates.length > 0 || outsideCandidates.length > 0) {
       primitives.push(
         ...generateResolvedFigureLabelPrimitives(
           insideCandidates,
           outsideCandidates,
-          buildPieLabelGeometry(cell, cellRcd, mergedStyle.pie.calloutMargin),
+          buildPieLabelGeometry(cell, cellRcd, mergedStyle, placement),
           mergedStyle.pie.labelCollision,
           {
             keyPrefix: "pie-label",

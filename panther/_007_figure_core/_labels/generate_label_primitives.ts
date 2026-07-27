@@ -11,6 +11,7 @@ import {
   resolveOutsideCollisions,
 } from "./collision.ts";
 import { buildLabelHalo } from "./label_style.ts";
+import { placeNearestBoxes } from "./place_outside_nearest.ts";
 import type {
   FigureLabelMeta,
   LabelCandidate,
@@ -36,12 +37,17 @@ export function generateFigureLabelPrimitives(
   const inside: LabelCandidate[] = [];
   const outside: LabelCandidate[] = [];
   for (const candidate of candidates) {
-    const placement = resolveLabelPlacement(
+    const { placement, mText } = resolveLabelPlacement(
       mode,
-      candidate.insideBox,
+      candidate.fitsInside,
       candidate.mText,
     );
-    (placement === "inside" ? inside : outside).push(candidate);
+    // The ladder may have re-wrapped the text to earn its inside verdict; the
+    // drawn candidate must carry what was tested, not what was offered.
+    const resolved = mText === candidate.mText
+      ? candidate
+      : { ...candidate, mText };
+    (placement === "inside" ? inside : outside).push(resolved);
   }
 
   return generateResolvedFigureLabelPrimitives(
@@ -204,12 +210,90 @@ function placeInside(
   }));
 }
 
+// Nearest-point placement (plan N2–N5): each label at its own nearest point on
+// the track, anchored where the ray exits its box, slid along the track only as
+// far as the shape or a neighbour forces. Undefined when the track cannot hold
+// them — the figure decides the policy per cell at the harmonised scale, so in
+// practice that has already been ruled out and this is the belt to that braces.
+function placeOutsideNearest(
+  candidates: LabelCandidate[],
+  geometry: LabelGeometry,
+  collision: LabelCollisionConfig,
+  meta: FigureLabelMeta,
+): FigureLabelPrimitive[] | undefined {
+  const outsideTrack = geometry.outsideTrack;
+  if (!outsideTrack) return undefined;
+
+  const placed = placeNearestBoxes(
+    candidates.map((c) => ({
+      anchor: { x: c.anchor.x(), y: c.anchor.y() },
+      width: c.mText.dims.w(),
+      height: c.mText.dims.h(),
+      padLeft: c.dataLabel.padding.pl(),
+      padRight: c.dataLabel.padding.pr(),
+      padTop: c.dataLabel.padding.pt(),
+      padBottom: c.dataLabel.padding.pb(),
+    })),
+    outsideTrack.track,
+    {
+      gap: collision.gap,
+      clearance: geometry.outsideClearance,
+      clearanceFloor: outsideTrack.clearanceFloor,
+      alignmentSwitchAngleDeg: outsideTrack.alignmentSwitchAngleDeg,
+      untangleLeaders: outsideTrack.untangleLeaders,
+    },
+  );
+  if (placed.kind !== "ok") return undefined;
+
+  return candidates.map((candidate, i) => {
+    const dl = candidate.dataLabel;
+    const box = placed.boxes[i];
+    const from = candidate.leaderOrigin ?? candidate.anchor;
+    // N5: a leader is earned by distance. A stub shorter than the clearance it
+    // crosses is noise, which is exactly the undisplaced pie case — the label
+    // is already touching its own slice.
+    const leaderLength = Math.hypot(
+      box.touch.x - from.x(),
+      box.touch.y - from.y(),
+    );
+    // Aim at the box's CENTRE, not at `touch`. The renderer clamps the segment
+    // to where it first meets the padded box, so the join lands where the
+    // straight run from the anchor actually reaches the label. `touch` is the
+    // point nearest the SILHOUETTE, which is the same thing only when the
+    // anchor lies inward of the label — true for a pie slice, false for a map
+    // region whose anchor is deep inside a coastline. Measured on Kenya before
+    // this change: 13 of 16 leaders ended on a CORNER of their label, and the
+    // trim never fired because a line ending AT a corner enters nowhere.
+    const leaderLine = leaderLength > geometry.outsideClearance
+      ? {
+        from,
+        to: new Coordinates([box.center.x, box.center.y]),
+        strokeColor: getColor(dl.leaderLine.strokeColor),
+        strokeWidth: dl.leaderLine.strokeWidth,
+        gap: dl.leaderLine.gap,
+      }
+      : undefined;
+
+    return {
+      ...baseLabelPrimitive(candidate, geometry, meta, "outside"),
+      mText: candidate.mText,
+      position: new Coordinates([box.position.x, box.position.y]),
+      alignment: { h: box.align.h, v: box.align.v },
+      halo: buildLabelHalo(dl),
+      leaderLine,
+    };
+  });
+}
+
 function placeOutside(
   candidates: LabelCandidate[],
   geometry: LabelGeometry,
   collision: LabelCollisionConfig,
   meta: FigureLabelMeta,
 ): FigureLabelPrimitive[] {
+  const nearest = placeOutsideNearest(candidates, geometry, collision, meta);
+  if (nearest) return nearest;
+
   const boxes = placeOutsideBoxes(
     candidates.map((c) => ({
       anchorX: c.anchor.x(),

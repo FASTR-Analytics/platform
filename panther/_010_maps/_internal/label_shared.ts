@@ -15,10 +15,6 @@ import type {
 import { buildDataLabelTextStyle } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 
-// Labels wrap at this fraction of the cell width. Shared so the gutter
-// reservation pass measures exactly what the label pass will draw.
-const LABEL_WRAP_FRACTION = 0.4;
-
 // map.dataLabelMode names an ANCHOR RULE ("centroid"); the shared label system
 // names a REGION ("inside"). Same resolved placement, different vocabulary —
 // this is the only place the two meet.
@@ -63,17 +59,21 @@ export function resolveMapLabelText(
   return info.value !== undefined ? String(info.value) : info.featureId;
 }
 
+// The wrap width is a fraction of the CELL, and it is the same fraction for the
+// gutter-reservation pass and the label pass, so what is reserved is what is
+// drawn (map.labelWrapFraction).
 export function measureMapLabel(
   rc: RenderContext,
   labelText: string,
   cellRcd: RectCoordsDims,
   baseTextStyle: TextInfoUnkeyed,
   dlStyle: Parameters<typeof buildDataLabelTextStyle>[1],
+  labelWrapFraction: number,
 ) {
   return rc.mText(
     labelText,
     buildDataLabelTextStyle(baseTextStyle, dlStyle),
-    cellRcd.w() * LABEL_WRAP_FRACTION,
+    cellRcd.w() * labelWrapFraction,
   );
 }
 

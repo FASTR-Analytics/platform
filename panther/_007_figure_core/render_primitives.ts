@@ -68,9 +68,36 @@ export function renderFigurePrimitives(
   }
 }
 
-// One home for the alignment-aware padded rect drawn behind a label. Shared by
-// chart data labels (renderDataLabel) and figure labels (map regions, pie
-// slices) — the same algorithm was written twice in this file before.
+// One home for the alignment-aware padded rect of a label. Shared by chart data
+// labels (renderDataLabel), figure labels (map regions, pie slices) and the
+// leader-line trim — the same algorithm was written twice in this file before.
+function labelBoxRcd(
+  mText: MeasuredText,
+  position: Coordinates,
+  alignH: "left" | "center" | "right",
+  alignV: "top" | "middle" | "bottom",
+  padding?: Padding,
+): RectCoordsDims {
+  const textW = mText.dims.w();
+  const textH = mText.dims.h();
+  const pad = padding ?? new Padding(0);
+
+  let bgX = position.x() - pad.pl();
+  let bgY = position.y() - pad.pt();
+
+  if (alignH === "center") bgX -= textW / 2;
+  else if (alignH === "right") bgX -= textW;
+  if (alignV === "middle") bgY -= textH / 2;
+  else if (alignV === "bottom") bgY -= textH;
+
+  return new RectCoordsDims({
+    x: bgX,
+    y: bgY,
+    w: textW + pad.pl() + pad.pr(),
+    h: textH + pad.pt() + pad.pb(),
+  });
+}
+
 function renderLabelBackground(
   rc: RenderContext,
   mText: MeasuredText,
@@ -85,25 +112,8 @@ function renderLabelBackground(
     rectRadius?: number;
   },
 ): void {
-  const textW = mText.dims.w();
-  const textH = mText.dims.h();
-  const pad = style.padding ?? new Padding(0);
-
-  let bgX = position.x() - pad.pl();
-  let bgY = position.y() - pad.pt();
-
-  if (alignH === "center") bgX -= textW / 2;
-  else if (alignH === "right") bgX -= textW;
-  if (alignV === "middle") bgY -= textH / 2;
-  else if (alignV === "bottom") bgY -= textH;
-
   rc.rRect(
-    new RectCoordsDims({
-      x: bgX,
-      y: bgY,
-      w: textW + pad.pl() + pad.pr(),
-      h: textH + pad.pt() + pad.pb(),
-    }),
+    labelBoxRcd(mText, position, alignH, alignV, style.padding),
     {
       fillColor: style.fillColor ?? "transparent",
       strokeColor: style.borderColor,
@@ -111,6 +121,41 @@ function renderLabelBackground(
       rectRadius: style.rectRadius,
     },
   );
+}
+
+// Where the segment a→b first meets `box`, as a parameter in [0, 1]. Returns 1
+// when it never enters — including the case that matters most, a segment that
+// only touches the box at its own endpoint, so the caller can hand back `b`
+// untouched rather than recomputing it and drifting by an ulp.
+function segmentEntryParam(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  box: RectCoordsDims,
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  let tEnter = 0;
+  let tExit = 1;
+  // Liang–Barsky: p < 0 is an entering boundary, p > 0 a leaving one.
+  const slab = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > tExit) return false;
+      if (r > tEnter) tEnter = r;
+    } else {
+      if (r < tEnter) return false;
+      if (r < tExit) tExit = r;
+    }
+    return true;
+  };
+  if (!slab(-dx, ax - box.x())) return 1;
+  if (!slab(dx, box.x() + box.w() - ax)) return 1;
+  if (!slab(-dy, ay - box.y())) return 1;
+  if (!slab(dy, box.y() + box.h() - ay)) return 1;
+  return tEnter;
 }
 
 function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
@@ -891,15 +936,43 @@ function renderFigureLabelPrimitive(
     };
     // The gap shortening runs along the FINAL segment (via → to when an
     // elbow is present), so the stub always backs away from the label.
+    //
+    // `to` is only reliably on the OUTSIDE of the label for the flank placer,
+    // whose `to` is the padded near edge approached horizontally. A
+    // nearest-point leader ends at the padded box's own point nearest the
+    // silhouette, which can be any corner — and where the shape has pushed a
+    // label sideways, the straight run from the anchor reaches the box's near
+    // edge well before that corner. So clamp to where the segment first meets
+    // the padded box and measure the stub from there. A segment that only
+    // touches the box at `to` yields `to` itself, which is why flank leaders
+    // come out pixel-identical.
     const tail = via ?? from;
-    const dx = to.x() - tail.x();
-    const dy = to.y() - tail.y();
+    const box = labelBoxRcd(
+      primitive.mText,
+      primitive.position,
+      primitive.alignment.h,
+      primitive.alignment.v,
+      primitive.halo?.padding,
+    );
+    const tEnter = segmentEntryParam(
+      tail.x(),
+      tail.y(),
+      to.x(),
+      to.y(),
+      box,
+    );
+    const end = tEnter >= 1 ? to : new Coordinates([
+      tail.x() + (to.x() - tail.x()) * tEnter,
+      tail.y() + (to.y() - tail.y()) * tEnter,
+    ]);
+    const dx = end.x() - tail.x();
+    const dy = end.y() - tail.y();
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > gap) {
       const ratio = gap / dist;
       const shortenedTo = new Coordinates([
-        to.x() - dx * ratio,
-        to.y() - dy * ratio,
+        end.x() - dx * ratio,
+        end.y() - dy * ratio,
       ]);
       rc.rLine(via ? [from, via, shortenedTo] : [from, shortenedTo], style);
     } else if (via) {

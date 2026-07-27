@@ -92,6 +92,7 @@ export {
   onMount,
   Show,
   Switch,
+  untrack,
   useContext,
 } from "solid-js";
 export type { Component, JSX } from "solid-js";

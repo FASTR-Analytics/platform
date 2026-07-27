@@ -15,6 +15,10 @@ const MAX_ARC_SEGMENT = Math.PI / 2;
 
 export const TWO_PI = Math.PI * 2;
 
+// A sweep this close to the whole turn IS the whole turn: the radial edges
+// coincide, so there is nothing left for them to constrain.
+const FULL_TURN_EPSILON = 1e-9;
+
 export function degreesToRadians(deg: number): number {
   return (deg * Math.PI) / 180;
 }
@@ -119,24 +123,85 @@ export function polarPoint(
   return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
 }
 
-// The inscribed axis-aligned box of a wedge at its mid-radius: how much room a
-// label has if it sits inside the slice. Width is the chord the wedge spans at
-// that radius (capped at the ring's own radial thickness for a full circle,
-// where the chord is degenerate); height is the radial thickness available.
-export function wedgeInsideBox(
+// Does an axis-aligned w x h box centred at `boxCenter` (given RELATIVE to the
+// pie centre) lie inside the annular sector? This is how much room a label has
+// if it sits inside the slice, asked in the frame the label is actually drawn
+// in — the predecessor returned (chord, thickness), which are screen width and
+// height only where a slice points straight up or down, and are transposed at
+// 3 and 9 o'clock.
+//
+// Exact, and no search is needed: a rectangle lies inside an annular sector iff
+// it stays within the outer radius, clears the inner radius, and subtends an
+// arc the sector contains. Direction-independent — only |endAngle - startAngle|
+// and the lower of the two are used.
+export function wedgeFitsBox(
   innerR: number,
   outerR: number,
-  sweepAngle: number,
-): { w: number; h: number } {
-  const midR = (innerR + outerR) / 2;
-  const thickness = outerR - innerR;
-  const halfSweep = Math.min(Math.abs(sweepAngle), TWO_PI) / 2;
-  // Beyond a half turn the wedge contains the whole disc at mid-radius, so the
-  // chord stops being the constraint.
-  const chord = halfSweep >= Math.PI / 2
-    ? 2 * midR
-    : 2 * midR * Math.sin(halfSweep);
-  return { w: chord, h: thickness };
+  startAngle: number,
+  endAngle: number,
+  boxCenter: { x: number; y: number },
+  w: number,
+  h: number,
+): boolean {
+  const halfW = w / 2;
+  const halfH = h / 2;
+  const dx = Math.abs(boxCenter.x);
+  const dy = Math.abs(boxCenter.y);
+
+  // Outer: the farthest point of a rectangle from a point is always a corner.
+  if (Math.hypot(dx + halfW, dy + halfH) > outerR) return false;
+
+  // Inner: the nearest point may be on an edge, so this is the full
+  // point-to-rectangle distance, not the nearest corner.
+  const nearX = Math.max(0, dx - halfW);
+  const nearY = Math.max(0, dy - halfH);
+  if (Math.hypot(nearX, nearY) < innerR) return false;
+
+  const sweep = Math.abs(endAngle - startAngle);
+  // A full sweep has no angular constraint left to apply.
+  if (sweep >= TWO_PI - FULL_TURN_EPSILON) return true;
+  // The pie centre inside the box means the box subtends the whole turn, which
+  // only a full sweep could have contained.
+  if (nearX === 0 && nearY === 0) return false;
+
+  const arc = subtendedArc(boxCenter, halfW, halfH);
+  const offset = normalizeTurn(arc.start - Math.min(startAngle, endAngle));
+  return offset + arc.length <= sweep;
+}
+
+// The minimal arc containing all four corner bearings. A convex body that does
+// not contain the origin subtends less than a half turn, so the arc is the
+// complement of the widest gap between consecutive bearings.
+function subtendedArc(
+  boxCenter: { x: number; y: number },
+  halfW: number,
+  halfH: number,
+): { start: number; length: number } {
+  const bearings = [
+    Math.atan2(boxCenter.y - halfH, boxCenter.x - halfW),
+    Math.atan2(boxCenter.y - halfH, boxCenter.x + halfW),
+    Math.atan2(boxCenter.y + halfH, boxCenter.x + halfW),
+    Math.atan2(boxCenter.y + halfH, boxCenter.x - halfW),
+  ].sort((a, b) => a - b);
+
+  let widestGapIndex = bearings.length - 1;
+  let widestGap = bearings[0] + TWO_PI - bearings[bearings.length - 1];
+  for (let i = 0; i < bearings.length - 1; i++) {
+    const gap = bearings[i + 1] - bearings[i];
+    if (gap > widestGap) {
+      widestGap = gap;
+      widestGapIndex = i;
+    }
+  }
+  return {
+    start: bearings[(widestGapIndex + 1) % bearings.length],
+    length: TWO_PI - widestGap,
+  };
+}
+
+function normalizeTurn(angle: number): number {
+  const wrapped = angle % TWO_PI;
+  return wrapped < 0 ? wrapped + TWO_PI : wrapped;
 }
 
 // Half-width of the circle at a given y — the analytic version of map's
@@ -211,7 +276,7 @@ export function buildSlicePath(p: SlicePathParams): PathSegment[] {
   if (outerR <= 0 || startAngle === endAngle) return segments;
 
   const sweep = Math.abs(endAngle - startAngle);
-  const isFullCircle = sweep >= TWO_PI - 1e-9;
+  const isFullCircle = sweep >= TWO_PI - FULL_TURN_EPSILON;
   const corner = resolveCornerRadius(p, isFullCircle);
 
   // A full ring has no radial edges to round or join, so it is two independent

@@ -202,6 +202,12 @@ export type MergedMapStyle = MergedChartStyleBase & {
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
     labelCollision: LabelCollisionConfig;
+    outsideLabelPlacement: OutsideLabelPlacement;
+    labelClearanceFloor: number;
+    labelAlignmentSwitchAngle: number;
+    maxLabelLines: number;
+    insideFitFraction: number;
+    labelWrapFraction: number;
   };
 };
 
@@ -209,6 +215,10 @@ export type MergedMapStyle = MergedChartStyleBase & {
 // an ANCHOR RULE ("centroid"/"callout"). Deliberately separate style enums;
 // both resolve to the shared LabelPlacement at measure time.
 export type PieLabelMode = "none" | "inside" | "outside" | "auto";
+
+// Which placer runs for labels that go outside. One type for both zero-way
+// figures — the policy is the same choice, and the placers are shared.
+export type OutsideLabelPlacement = "nearest" | "flank";
 
 export type MergedPieStyle = MergedChartStyleBase & {
   pie: {
@@ -221,6 +231,12 @@ export type MergedPieStyle = MergedChartStyleBase & {
     calloutMargin: number;
     centerLabel: "none" | "total";
     labelCollision: LabelCollisionConfig;
+    outsideLabelPlacement: OutsideLabelPlacement;
+    labelClearanceFloor: number;
+    labelAlignmentSwitchAngle: number;
+    maxLabelLines: number;
+    insideFitFraction: number;
+    labelWrapFraction: number;
     remainder: {
       mode: "slice" | "gap";
       fillColor: ColorKeyOrString;

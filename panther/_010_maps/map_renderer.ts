@@ -117,7 +117,12 @@ export function getMapComponentSizes(
     nTiers: transformedData.tierHeaders.length,
     paneHeaders: transformedData.paneHeaders,
     minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
-    minSubChartHeight: Math.max(minLabelPlotExtent, labelBudget.tallestStack),
+    // The vertical demand COMBINES differently by placer (plan N9): under
+    // flank it is a stack the cell must be tall enough for; under nearest the
+    // labels sit above and below the content, so it is additive.
+    minSubChartHeight: mergedStyle.map.outsideLabelPlacement === "nearest"
+      ? minLabelPlotExtent + labelBudget.vertical
+      : Math.max(minLabelPlotExtent, labelBudget.vertical),
     xAxisHeight: 0,
     paneHeaderHeight: 0,
     minYAxisWidth: 0,
@@ -224,12 +229,14 @@ function getMapIdealHeight(
     mergedStyle.text.dataLabels,
   );
 
-  // The content gets what is left of the cell after the flank gutters, is
-  // never squeezed below the legibility floor, and the cell must also hold
-  // the tallest label stack.
+  // The content gets what is left of the cell after the label gutters and is
+  // never squeezed below the legibility floor. The height then combines by
+  // placer, exactly as minSubChartHeight does above.
   const contentW = Math.max(cellW - labelBudget.horizontal, contentFloor);
   const contentH = contentW / aspectRatio;
-  const cellH = Math.max(contentH, labelBudget.tallestStack, contentFloor);
+  const cellH = mergedStyle.map.outsideLabelPlacement === "nearest"
+    ? Math.max(contentH, contentFloor) + labelBudget.vertical
+    : Math.max(contentH, labelBudget.vertical, contentFloor);
 
   const idealH = calculateChartIdealHeight(
     rc,
