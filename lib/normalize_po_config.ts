@@ -1,3 +1,4 @@
+import type { LayoutNode } from "@timroberton/panther";
 import type { RollupEligibilityInputs } from "./admin_area_rollup.ts";
 import {
   getEffectiveRollupLevel,
@@ -7,7 +8,8 @@ import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
-import type { JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { ContentBlock, Slide } from "./types/slides.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
 /** Drop editor states the storage schema rejects: a filter entry with all
@@ -29,6 +31,77 @@ export function dropStorageInvalidTransients(
         : undefined,
     },
   };
+}
+
+function hasStorageInvalidTransients(config: PresentationObjectConfig): boolean {
+  return config.d.filterBy.some((f) => f.values.length === 0) ||
+    config.d.valuesFilter?.length === 0;
+}
+
+/** The same drop for a figure EMBEDDED in a slide or report. Their stored
+ *  schemas reach the identical configDStrict constraints through
+ *  figureBlockSchema.bundle.config, and the embedded figure editor streams the
+ *  same unnormalized mid-edit config into the host's shared doc — so a slide or
+ *  report room wedges its checkpoint exactly like a PO room did. Below is
+ *  identity-preserving: an untouched block/slide/registry comes back as the
+ *  same object, so the checkpoint's `trusted` comparison only goes false when
+ *  something was really dropped. */
+export function dropStorageInvalidTransientsInFigureBlock(
+  block: FigureBlock,
+): FigureBlock {
+  if (
+    block.bundle === undefined ||
+    !hasStorageInvalidTransients(block.bundle.config)
+  ) {
+    return block;
+  }
+  return {
+    ...block,
+    bundle: {
+      ...block.bundle,
+      config: dropStorageInvalidTransients(block.bundle.config),
+    },
+  };
+}
+
+function dropInLayoutNode(
+  node: LayoutNode<ContentBlock>,
+): LayoutNode<ContentBlock> {
+  if (node.type === "item") {
+    if (node.data.type !== "figure") {
+      return node;
+    }
+    const data = dropStorageInvalidTransientsInFigureBlock(node.data);
+    return data === node.data ? node : { ...node, data };
+  }
+  let changed = false;
+  const children = node.children.map((child) => {
+    const next = dropInLayoutNode(child);
+    changed ||= next !== child;
+    return next;
+  });
+  return changed ? { ...node, children } : node;
+}
+
+export function dropStorageInvalidTransientsInSlide(slide: Slide): Slide {
+  if (slide.type !== "content") {
+    return slide;
+  }
+  const layout = dropInLayoutNode(slide.layout);
+  return layout === slide.layout ? slide : { ...slide, layout };
+}
+
+export function dropStorageInvalidTransientsInFigures(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  let changed = false;
+  const out: Record<string, FigureBlock> = {};
+  for (const [id, block] of Object.entries(figures)) {
+    const next = dropStorageInvalidTransientsInFigureBlock(block);
+    changed ||= next !== block;
+    out[id] = next;
+  }
+  return changed ? out : figures;
 }
 
 export function normalizePOConfigForStorage(

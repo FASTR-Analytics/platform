@@ -7,6 +7,8 @@ import {
   type CollabServerMessage,
   createDevProjectUser,
   dropStorageInvalidTransients,
+  dropStorageInvalidTransientsInFigures,
+  dropStorageInvalidTransientsInSlide,
   presenceColorForKey,
   presentationObjectConfigSchema,
   type PresentationObjectConfig,
@@ -313,9 +315,14 @@ routesProjectCollab.get(
           // Validation lives HERE, not in the DB write: a schema rejection is
           // PERMANENT for this doc state (same input parses the same way
           // forever), so the room must not timer-retry it — see DocSaveResult.
+          // The stored copy drops schema-invalid transients from EMBEDDED
+          // figures for the same reason the PO room does (see the po closure):
+          // the figure modal streams a mid-edit config straight into this doc.
           let stored: Slide;
           try {
-            stored = slideConfigSchema.parse(slide) as Slide;
+            stored = slideConfigSchema.parse(
+              dropStorageInvalidTransientsInSlide(slide),
+            ) as Slide;
           } catch (err) {
             console.error(
               `[collab] slide checkpoint validation failed for ${slideId}`,
@@ -393,11 +400,14 @@ routesProjectCollab.get(
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
           // Validation lives HERE (see the slide closure): schema rejection is
           // permanent for this doc state — no timer retry. The body is a plain
-          // string (no parse); figures/images are the parsed surfaces.
+          // string (no parse); figures/images are the parsed surfaces. Figures
+          // drop embedded schema-invalid transients (see the slide closure).
           let storedFigures: typeof content.figures;
           let storedImages: typeof content.images;
           try {
-            storedFigures = reportFiguresSchema.parse(content.figures);
+            storedFigures = reportFiguresSchema.parse(
+              dropStorageInvalidTransientsInFigures(content.figures),
+            );
             storedImages = reportImagesSchema.parse(content.images);
           } catch (err) {
             console.error(
