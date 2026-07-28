@@ -85,34 +85,33 @@ live in git history). Shape:
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
   selection JSON (window or explicit pairs), status
   (`queued|running|complete|error|cancelled`), pair counters, throttled
-  `progress` JSON, `run_stats` (classification summary, per-pair fetch
-  stats), `version_id`. A partial unique index allows
-  at most one `running` row — the INSERT (or the queued→running UPDATE) is the
-  launch claim. Inline credentials travel only in the worker message; stored
-  credentials (`instance_dhis2_credentials` — instance-wide, shared by every
-  DHIS2 flow since PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION, password
-  AES-GCM-encrypted with the `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env key) are
-  decrypted only inside the worker via `resolveDhis2Credentials`.
+  `progress` JSON, `run_stats` (classification summary, per-pair fetch stats),
+  `version_id`. A partial unique index allows at most one `running` row — the
+  INSERT (or the queued→running UPDATE) is the launch claim. Inline credentials
+  travel only in the worker message; stored credentials
+  (`instance_dhis2_credentials` — instance-wide, shared by every DHIS2 flow
+  since PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION, password AES-GCM-encrypted
+  with the `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env key) are decrypted only inside
+  the worker via `resolveDhis2Credentials`.
 - **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot and
   recurring rows, rolling-window selection resolved at fire time) is fired by a
   ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`) — queued runs
   drain FIFO first, then due schedules (occurrence math per IANA timezone, 4 h
   grace, deterministic per-row jitter, `last_fired_at` CAS idempotency).
-  Recurring rows carry a `recurrence` JSON union (migration 064): daily /
-  weekly / monthly-nth-weekday, each with an explicit anchor (weekly:
-  `firstRunDate`, the first occurrence, weekday derived from it; monthly:
-  `anchorMonth` phases everyNMonths > 1) — occurrences are exact arithmetic
-  from the anchor, never counted from the last fire. Ruled 2026-07-25:
-  monthly is nth-weekday only (no day-of-month and its short-month fallback
-  rules), grace is a uniform 4 h at every cadence, and the weekly UI offers
-  1/2/4 weeks (server accepts 1–13). Schedules have no URL of their own —
-  runs pin (the queued-run URL guard), policies follow the stored connection.
-  Refusals/misses are loud (`last_outcome` + datasets-summary attention flag).
-  Two accepted limitations (reviewed
-  2026-07-15, deliberately not fixed): a crash between the CAS claim and the
-  outcome write silently consumes that occurrence (single-server crash-timing
-  window), and rolling-window "current month" resolves from the server clock,
-  not the schedule's timezone (≤hours of skew at month boundaries,
+  Recurring rows carry a `recurrence` JSON union (migration 064): daily / weekly
+  / monthly-nth-weekday, each with an explicit anchor (weekly: `firstRunDate`,
+  the first occurrence, weekday derived from it; monthly: `anchorMonth` phases
+  everyNMonths > 1) — occurrences are exact arithmetic from the anchor, never
+  counted from the last fire. Ruled 2026-07-25: monthly is nth-weekday only (no
+  day-of-month and its short-month fallback rules), grace is a uniform 4 h at
+  every cadence, and the weekly UI offers 1/2/4 weeks (server accepts 1–13).
+  Schedules have no URL of their own — runs pin (the queued-run URL guard),
+  policies follow the stored connection. Refusals/misses are loud
+  (`last_outcome` + datasets-summary attention flag). Two accepted limitations
+  (reviewed 2026-07-15, deliberately not fixed): a crash between the CAS claim
+  and the outcome write silently consumes that occurrence (single-server
+  crash-timing window), and rolling-window "current month" resolves from the
+  server clock, not the schedule's timezone (≤hours of skew at month boundaries,
   self-correcting).
 - The worker classifies every selected raw indicator per run from DHIS2 metadata
   (dispatcher): bare data elements + operands → dataValueSets country-pulls, one
@@ -138,11 +137,11 @@ live in git history). Shape:
   (dataset_hmis.version_id is a NOT NULL FK; no empty versions) and its
   counts/staging_result are finalized at run end.
 - Shadow verification (first-run DVS-vs-analytics parity sampling with a
-  `shadow_passed` unattended gate) was removed 2026-07-24: retroactive edits
-  and lagging/partial analytics rebuilds make DVS-analytics divergence normal
-  on real servers, so the gate aborted healthy first runs with no override
-  path. dataValueSets is the source of truth; migration 063 dropped the
-  column, and older `run_stats` blobs may still carry a `shadow` key.
+  `shadow_passed` unattended gate) was removed 2026-07-24: retroactive edits and
+  lagging/partial analytics rebuilds make DVS-analytics divergence normal on
+  real servers, so the gate aborted healthy first runs with no override path.
+  dataValueSets is the source of truth; migration 063 dropped the column, and
+  older `run_stats` blobs may still carry a `shadow` key.
 - Cross-guards: CSV staging/integration and windowed deletes refuse while a run
   is `running` and vice versa; db_startup sweeps stale `running` rows to `error`
   after a restart. Run cancel terminates the worker; completed pairs stay.
@@ -221,31 +220,28 @@ cancel; staging also pre-drops stale tables at start.
   `select_multiple` expands to one binary var per choice (`{var}_{choice}`):
   selected → `1`, unselected → `0`, unanswered parent → `""` (missing) on every
   expanded var, and a parent answered `-99` (don't know) marks unselected
-  choices `-99` so downstream sentinel handling sees it;
-  the name `weight` (any case, incl. expanded names) is reserved and aborts
-  staging; duplicate var names are a hard error.
-- HFA row filtering + dedup (order is fixed: **filter → review →
-  resolve**; all fields live in the step-2 mappings JSON): optional
-  keep-conditions (`rowFilters`, ANDed; trimmed-string
-  `equals`/`not_equals` on the raw cell, edited on wizard step 2) drop
-  rows before any duplicate handling, then facilities with >1 surviving
-  row are resolved to one row each — `dedupStrategy` ("first"/"last" in
-  file order; the review UI treats it as a bulk quick-set) plus
-  per-facility `dedupOverrides`, edited on the dedicated review step
-  (wizard step 3; staging/integrate are steps 4/5). Row numbers
-  everywhere are the **1-based position of the data row in the file**
-  (header excluded), computed by the scanner
-  (`server_only_funcs_csvs/scan_hfa_rows.ts`, shared by the staging
-  worker and the `getDatasetHfaDuplicatePreview` route that feeds the
-  review step) — never read from any column. The worker stamps every
-  surviving row's `row_seq` into the raw temp table, materializes the
-  resolved keep-set into `temp_keep_rows_hfa`, and joins it when building
-  the staging table; every override is validated against the post-filter
-  duplicate structure (facility still duplicated, `keepRow` among its
-  surviving rows) and a stale override fails staging loudly — never a
-  silent fallback. Pre-deploy `step_2_result` blobs lack the fields; the
-  worker defaults them (`[]`/`"first"`/`[]`), which reproduces the old
-  keep-first behavior.
+  choices `-99` so downstream sentinel handling sees it; the name `weight` (any
+  case, incl. expanded names) is reserved and aborts staging; duplicate var
+  names are a hard error.
+- HFA row filtering + dedup (order is fixed: **filter → review → resolve**; all
+  fields live in the step-2 mappings JSON): optional keep-conditions
+  (`rowFilters`, ANDed; trimmed-string `equals`/`not_equals` on the raw cell,
+  edited on wizard step 2) drop rows before any duplicate handling, then
+  facilities with >1 surviving row are resolved to one row each —
+  `dedupStrategy` ("first"/"last" in file order; the review UI treats it as a
+  bulk quick-set) plus per-facility `dedupOverrides`, edited on the dedicated
+  review step (wizard step 3; staging/integrate are steps 4/5). Row numbers
+  everywhere are the **1-based position of the data row in the file** (header
+  excluded), computed by the scanner (`server_only_funcs_csvs/scan_hfa_rows.ts`,
+  shared by the staging worker and the `getDatasetHfaDuplicatePreview` route
+  that feeds the review step) — never read from any column. The worker stamps
+  every surviving row's `row_seq` into the raw temp table, materializes the
+  resolved keep-set into `temp_keep_rows_hfa`, and joins it when building the
+  staging table; every override is validated against the post-filter duplicate
+  structure (facility still duplicated, `keepRow` among its surviving rows) and
+  a stale override fails staging loudly — never a silent fallback. Pre-deploy
+  `step_2_result` blobs lack the fields; the worker defaults them
+  (`[]`/`"first"`/`[]`), which reproduces the old keep-first behavior.
 - ICEH stages nothing: the zip is parsed in memory and written row-by-row inside
   one transaction at integration.
 
@@ -325,10 +321,9 @@ is an in-memory `_datasetLocks` set keyed `{projectId}_{datasetType}` in the
 route.
 
 - Snapshot tables are the metadata twins of the CSVs:
-  `calculated_indicators_snapshot` (HMIS), `hfa_indicator*_snapshot`
-  (HFA, service-category-scoped), `iceh_indicators_snapshot`. Modules
-  read `../datasets/{type}.csv`; PO metadata and module runs read the
-  snapshots.
+  `calculated_indicators_snapshot` (HMIS), `hfa_indicator*_snapshot` (HFA,
+  service-category-scoped), `iceh_indicators_snapshot`. Modules read
+  `../datasets/{type}.csv`; PO metadata and module runs read the snapshots.
 - **Project-level attach/staleness UI is gone** (PLAN_RESULTS_RUNS item 5):
   datasets reach a project only as results-package run inputs — the wizard's
   choose-data step drives the same attach/export functions
@@ -396,13 +391,13 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
   duplicate-resolution feature shipped in v1.61.2; the SL data still needs the
   cleaning applied: re-upload the corrected 365-row weights file
   (`HFA_SL_R1_weigths_NEW.csv` — the original dropped facilities 374/98/427,
-  which share *names* with other facilities; `id_fac_txt` is the safe key), fix
-  the instance's `ind274` (vaccine index) from `binary`/`sum` to `numeric`/`avg`,
-  then re-import R1 with filter `id_resp_consent equals 1`, dedup `first`, and
-  overrides 433 → row 60 and 442 → row 430 (the survey firm's hand picks), and
-  rerun M10. Oracle for the result: the six vaccine indicators must match
-  `vaccine_availability_viviane.do` (measles 0.94505 N=364, penta 0.92603 N=365,
-  bcg 0.93699, polio 0.93681, pcv 0.95068, hpv 0.89779).
+  which share _names_ with other facilities; `id_fac_txt` is the safe key), fix
+  the instance's `ind274` (vaccine index) from `binary`/`sum` to
+  `numeric`/`avg`, then re-import R1 with filter `id_resp_consent equals 1`,
+  dedup `first`, and overrides 433 → row 60 and 442 → row 430 (the survey firm's
+  hand picks), and rerun M10. Oracle for the result: the six vaccine indicators
+  must match `vaccine_availability_viviane.do` (measles 0.94505 N=364, penta
+  0.92603 N=365, bcg 0.93699, polio 0.93681, pcv 0.95068, hpv 0.89779).
 - **Remove dataset rows in-platform** (M, app-only). Delete rows after ingest so
   ODK→platform direct upload stays usable, keeping a manual re-run/weights-check
   path. Settled: hard-delete (keeps the dataset clean for ODK-direct). Open: the
@@ -416,14 +411,14 @@ Deferred findings from the 2026-07-02 review cycle, plus standing reform:
 - **Sentinel Layer 1 — import review/correction UI** (M, app-only).
   Auto-classification of `(question, code)` pairs into `sentinel_class` is
   shipped; the deferred human-correction step is a review screen between staging
-  and finalize: read the staged classification from the `DICT_VALUES_STAGING_TABLE`
-  (created in `main` via `createBulkImportConnection("main")`, so an ordinary
-  `mainDb` route can read/correct it), let the user reclassify sentinel rows via
-  a class dropdown, and persist corrections back to staging so finalize promotes
-  them. Work: `getDatasetHfaStagedSentinels` / `updateDatasetHfaStagedSentinels`
-  routes (+ Zod + registry), DB read/update on the staging table, and a new
-  wizard `Step` with the stepper renumbered (`index.tsx` `getValidation` +
-  `<Match>` arms).
+  and finalize: read the staged classification from the
+  `DICT_VALUES_STAGING_TABLE` (created in `main` via
+  `createBulkImportConnection("main")`, so an ordinary `mainDb` route can
+  read/correct it), let the user reclassify sentinel rows via a class dropdown,
+  and persist corrections back to staging so finalize promotes them. Work:
+  `getDatasetHfaStagedSentinels` / `updateDatasetHfaStagedSentinels` routes (+
+  Zod + registry), DB read/update on the staging table, and a new wizard `Step`
+  with the stepper renumbered (`index.tsx` `getValidation` + `<Match>` arms).
 - **Parked, on-demand:** upload bugs (admin areas / facilities / weights) —
   revisit with concrete repros against the latent issues listed above; `"Other"`
   (`-96`) coding with AI — exploratory, revisit after the AI authoring loop

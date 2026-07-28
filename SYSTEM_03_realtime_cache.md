@@ -43,18 +43,17 @@ never-refetch-after-mutation) are [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
 version columns is **S2**
 ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it
 is not the request-scoped NDJSON `StreamWriter` in **S1**
-(SYSTEM_01_api_contract.md). The third BroadcastChannel, `RUN_GENERATION_ENDED_CHANNEL`
-(`worker_routines/generate_run/`), is **S8**'s internal worker plumbing
-(SYSTEM_08_module_system.md) — it feeds no SSE endpoint and is exempt from the
-notify-catalog rule.
-`server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
-headers on static assets — a completely different "cache", owned elsewhere.
-The collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
+(SYSTEM_01_api_contract.md). The third BroadcastChannel,
+`RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s
+internal worker plumbing (SYSTEM_08_module_system.md) — it feeds no SSE endpoint
+and is exempt from the notify-catalog rule. `server/middleware/cache.ts`
+(`cacheMiddleware`) sets HTTP `Cache-Control` headers on static assets — a
+completely different "cache", owned elsewhere. The collaboration WebSocket layer
+(live Yjs deltas, presence) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — strictly additive
 inside the same project boundary: its room checkpoints feed this system's
 triangle through the existing notify wrappers and post nothing new to the
-BroadcastChannels.
-Sub-file custody exceptions are in SYSTEMS.md §4.1
+BroadcastChannels. Sub-file custody exceptions are in SYSTEMS.md §4.1
 (`lib/types/project_dirty_states.ts` is owned here, S8 mandatory reader;
 `t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
 `task_management/mod.ts` is S8's barrel and re-exports the notify hub).
@@ -146,19 +145,18 @@ wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectSlideDeckFoldersUpdated`, `notifyProjectReportsUpdated`,
 `notifyProjectReportFoldersUpdated`, `notifyProjectDashboardsUpdated`,
 `notifyProjectUsersUpdated`, `notifyProjectLastUpdatedV2`,
-`notifyProjectRScript`, `notifyProjectRunProgress`,
-`notifyProjectRunAttached`. (The module-dirty-state / any-running /
-modules-updated / datasets-updated wrappers died with the dirty machine —
-PLAN_RESULTS_RUNS; run generation pushes `r_script`, `run_progress`, and
-`run_attached` instead.)
+`notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`.
+(The module-dirty-state / any-running / modules-updated / datasets-updated
+wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushes
+`r_script`, `run_progress`, and `run_attached` instead.)
 
 **The redundant `last_updated` indirection.**
 `server/task_management/notify_last_updated.ts` is a one-line passthrough:
 `notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~56 call sites,
 re-exported via `task_management/mod.ts`) → `notifyProjectLastUpdatedV2` (no
 other callers) → `notifyProjectV2({ type: "last_updated", … })`. Three layers
-for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now:
-**call `notifyLastUpdated`** from routes.
+for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now: **call
+`notifyLastUpdated`** from routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)
@@ -168,18 +166,18 @@ list and broadcast it whole via `notify<Thing>Updated`, guarded by
 `if (list.success)` (but see the stale-on-failure gotcha). The mutation response
 itself is just `success`/`err` — clients never install state from it.
 
-**One deliberate exception — collab checkpoint rebroadcasts.** S16's collab
-room checkpoints (debounced 1.5 s while users co-edit) fire the row-level
-`notifyLastUpdated` on every checkpoint but debounce the list-level
-rebroadcast to 5 s per project (`scheduleReportsListRebroadcast` /
+**One deliberate exception — collab checkpoint rebroadcasts.** S16's collab room
+checkpoints (debounced 1.5 s while users co-edit) fire the row-level
+`notifyLastUpdated` on every checkpoint but debounce the list-level rebroadcast
+to 5 s per project (`scheduleReportsListRebroadcast` /
 `scheduleVizListRebroadcast` in `server/routes/project/project-collab.ts`,
 calling the existing `notifyProjectReportsUpdated` /
 `notifyProjectVisualizationsUpdated`) — the reports list refetch loads every
 report's body, far too heavy per checkpoint while someone is typing. (Slide
-checkpoints skip the list rebroadcast entirely; they row-notify both the
-slide and its deck.) Net effect during active co-editing: an SSE message and
-list refetch roughly every 1.5 s / 5 s — the contract working as designed,
-worth knowing if broadcast volume ever becomes a concern.
+checkpoints skip the list rebroadcast entirely; they row-notify both the slide
+and its deck.) Net effect during active co-editing: an SSE message and list
+refetch roughly every 1.5 s / 5 s — the contract working as designed, worth
+knowing if broadcast volume ever becomes a concern.
 
 **The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same
 timestamp is (a) broadcast via `notifyLastUpdated` → client T1 store → client
@@ -261,36 +259,39 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
   cache-broken.
 
 **Three version layers on the PO family.** Invalidation ingredients are layered,
-and each layer has a distinct job:
+and each layer has a distinct job (PLAN_RESULTS_RUNS §2.5 re-keyed the data
+dimension onto the attached run):
 
-1. **Row version** — `presentationObjectLastUpdated` (PO edits) or
-   `moduleLastRun` + `datasetsVersion` (module re-runs, dataset changes): bumped
-   by normal writes, invalidates per entity/module.
+1. **Run/row version** — `presentationObjectLastUpdated` (PO edits) plus the
+   immutable `runId` (which run the data came from): the runId replaces the old
+   `moduleLastRun` + `datasetsVersion` dimensions — data never changes under a
+   run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"5"`, bump history in the adjacent comment) — a manually-bumped semantic
+   `"9"`, bump history in the adjacent comment) — a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.
-3. **Prefix bump** — `po_detail` → `po_detail_v2`: for payload _shape_ changes
+3. **Prefix bump** — `po_detail` → `po_detail_v4`: for payload _shape_ changes
    on the config cache; consumers additionally re-run
    `presentationObjectConfigSchema.parse` on every hit to adapt cross-deploy
    payloads.
 
 **The cache catalog** — five `_UPPER_SNAKE` module-level singletons (four in
 `server/routes/caches/visualizations.ts`, one in
-`server/routes/caches/dataset.ts`):
+`server/routes/caches/dataset.ts`). The three data caches are run-scoped, not
+project-scoped: two projects attached to the same run share entries.
 
-| Singleton                        | prefix           | uniquenessHash                                      | versionHash                                        |
-| -------------------------------- | ---------------- | --------------------------------------------------- | -------------------------------------------------- |
-| `_PO_DETAIL_CACHE`               | `po_detail_v2`   | `projectId\|poId`                                   | `presentationObjectLastUpdated`                    |
-| `_PO_ITEMS_CACHE`                | `po_items`       | `projectId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_METRIC_INFO_CACHE`             | `metric_info`    | `projectId::metricId`                               | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `projectId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton entry)    | `computeHfaCacheHash(hfa_time_points)`             |
+| Singleton                        | prefix           | uniquenessHash                                  | versionHash                            |
+| -------------------------------- | ---------------- | ----------------------------------------------- | -------------------------------------- |
+| `_PO_DETAIL_CACHE`               | `po_detail_v4`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
+| `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
+| `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
+| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |
+| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
-replicant_opts); unifying them behind a shared key-builder is
-PLAN_ENFORCEMENT item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
+replicant_opts); unifying them behind a shared key-builder is PLAN_ENFORCEMENT
+item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
 `ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 (tombstone comment in
 `dataset.ts`): once the HMIS display route's vizItems moved to the import
 ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
@@ -366,9 +367,9 @@ bump.
   `last_updated → notify` triangle is enforced by hand in ~26 files. A
   write-helper that does mutate + stamp + notify together (or a dev assertion
   flagging mutations without a notify) would make audit §4.3.1 mechanical.
-- Tracked in PLAN_ENFORCEMENT: collapse the notify indirection (item 12),
-  shared cache key-builder + one separator (item 9), retire vestigial `_v2`
-  naming (item 21 sweep).
+- Tracked in PLAN_ENFORCEMENT: collapse the notify indirection (item 12), shared
+  cache key-builder + one separator (item 9), retire vestigial `_v2` naming
+  (item 21 sweep).
 - Factor one canonical SSE connection helper (subscribe-before-build, drain,
   forward, cleanup) — the two endpoints implement the lifecycle two different
   ways.

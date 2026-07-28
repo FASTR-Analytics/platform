@@ -41,15 +41,14 @@ in handlers_, which this app centralizes in `defineRoute` + guards; follow the
 rules, not the examples). Server-side **push** (SSE/ BroadcastChannel) is **S3**
 — the streaming here is request-scoped NDJSON, a different thing. The DB
 functions handlers call, and the error funnel that produces their envelopes, are
-**S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). The Anthropic proxy internals are **S13**; TUS
-upload is **S4**; the collaboration WebSocket
+**S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). The Anthropic
+proxy internals are **S13**; TUS upload is **S4**; the collaboration WebSocket
 (`GET /project_collab/:project_id`) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — S1 owns only its
-seat in the off-registry inventory below; the public dashboard route is
-**S12**; health
-is **S15**, which also _writes_ the `users` / `project_user_roles` rows the
-guards here evaluate — S1 owns the gate, S15 owns the admin surface behind it.
-Client-side consumption rules (tiers, caches) are
+seat in the off-registry inventory below; the public dashboard route is **S12**;
+health is **S15**, which also _writes_ the `users` / `project_user_roles` rows
+the guards here evaluate — S1 owns the gate, S15 owns the admin surface behind
+it. Client-side consumption rules (tiers, caches) are
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). Sub-file custody exceptions are
 in SYSTEMS.md §4.1 (`main.ts` owned here — S2/S15/S12 readers;
 `LoggedInWrapper.tsx` owned here — S3/S14 readers; `routes/instance/users.ts` +
@@ -57,13 +56,14 @@ in SYSTEMS.md §4.1 (`main.ts` owned here — S2/S15/S12 readers;
 
 ## Contract
 
-266 registry routes (29 feature registries), zero direct client↔server imports;
-expected failures travel as HTTP 200 + `{ success: false, err }` — only guards
-and validation emit real 4xx/5xx; the `Project-Id` header (not the body) selects
-the per-project DB handle. This system also owns the _inventory_ of the ~30
-off-registry endpoints (each owned by its home system) — that list is the
-erosion surface of the registry seam and must stay deliberate and enumerated
-(see below).
+265 registry routes (re-counted at the 2026-07-28 results-runs merge: the module
+install/update surface left, the run-generation registry arrived), zero direct
+client↔server imports; expected failures travel as HTTP 200 +
+`{ success: false, err }` — only guards and validation emit real 4xx/5xx; the
+`Project-Id` header (not the body) selects the per-project DB handle. This
+system also owns the _inventory_ of the ~30 off-registry endpoints (each owned
+by its home system) — that list is the erosion surface of the registry seam and
+must stay deliberate and enumerated (see below).
 
 ## The registry contract (`lib/api-routes/`)
 
@@ -254,16 +254,16 @@ generated client action, no registry typing, invisible to
 `validateAllRoutesDefined`. This is the **complete** allowed list; anything not
 here uses the registry.
 
-| File                                                                  | Owner | Why raw                                                                                                                                                                     |
-| --------------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | S3    | SSE long-lived streams, not request/response                                                                                                                                |
+| File                                                                  | Owner | Why raw                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | S3    | SSE long-lived streams, not request/response                                                                                                                                                                                                                                     |
 | `routes/project/project-collab.ts`                                    | S16   | WebSocket upgrade (`GET /project_collab/:project_id`) — long-lived bidirectional collab transport, mounted raw in `main.ts` behind the global `authMiddleware`; project access + per-family permissions resolved pre-upgrade via the same `resolveProjectUserAccess` core as SSE |
-| `routes/project/ai_proxy.ts`, `routes/instance/ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` and `/ai-instance`, both thin wrappers over `routes/anthropic_messages_proxy.ts`) — returns Anthropic-shaped bodies, not `APIResponse` |
-| `routes/project/ai_files.ts`                                          | S13   | Anthropic Files API passthrough                                                                                                                                             |
-| `routes/instance/upload.ts`                                           | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                        |
-| `routes/public/dashboard.ts`                                          | S12   | Public/anonymous, mounted before the global `authMiddleware`                                                                                                                |
-| `routes/instance/health.ts`                                           | S15   | Diagnostics; 13 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                              |
-| `routes/instance/structure.ts` (2 routes only)                        | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file — guarded and logged, but raw                                            |
+| `routes/project/ai_proxy.ts`, `routes/instance/ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` and `/ai-instance`, both thin wrappers over `routes/anthropic_messages_proxy.ts`) — returns Anthropic-shaped bodies, not `APIResponse`                                                                                                      |
+| `routes/project/ai_files.ts`                                          | S13   | Anthropic Files API passthrough                                                                                                                                                                                                                                                  |
+| `routes/instance/upload.ts`                                           | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                                                                                                                             |
+| `routes/public/dashboard.ts`                                          | S12   | Public/anonymous, mounted before the global `authMiddleware`                                                                                                                                                                                                                     |
+| `routes/instance/health.ts`                                           | S15   | Diagnostics; 13 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                                   |
+| `routes/instance/structure.ts` (2 routes only)                        | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file — guarded and logged, but raw                                                                                                                                                 |
 
 ## Access control
 
@@ -402,9 +402,9 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
 - Tracked in PLAN_ENFORCEMENT: startup guard-audit / explicitly-public
-  classification (item 4). (The old health.ts-guards item closed 2026-07-17:
-  the read surface is public-by-design — SYSTEM_15's exposure inventory —
-  and the mutating reset endpoint now requires the status-api key.)
+  classification (item 4). (The old health.ts-guards item closed 2026-07-17: the
+  read surface is public-by-design — SYSTEM_15's exposure inventory — and the
+  mutating reset endpoint now requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401) — either bless that as the contract or
   extend it to 403s deliberately; the two guards' 403 _message formats_ have
