@@ -780,27 +780,34 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       }
     }
 
+    // Only fetch-config CONSTRUCTION may drop a variant (unbuildable combo);
+    // a runtime crash in runItemsPair must propagate to the per-PO catch and
+    // record a GATING skip, exactly like the base synthetic loop above — else
+    // an engine crash occurring only under these corpus shapes stays green.
     const runExtended = async (
       name: string,
       rv: ResultsValue,
       variantConfig: PresentationObjectConfig,
     ) => {
+      let variantFetchConfig: GenericLongFormFetchConfig;
       try {
         const res = getFetchConfigFromPresentationObjectConfig(rv, variantConfig);
         if (res.success === false) {
           syntheticDropCount++;
           return;
         }
-        allResults.push({
-          projectId,
-          poId,
-          poLabel: `${poLabel} [${name}]`,
-          check: "items_synthetic",
-          ...(await runItemsPair(res.data)),
-        });
+        variantFetchConfig = res.data;
       } catch (_e) {
         syntheticDropCount++;
+        return;
       }
+      allResults.push({
+        projectId,
+        poId,
+        poLabel: `${poLabel} [${name}]`,
+        check: "items_synthetic",
+        ...(await runItemsPair(variantFetchConfig)),
+      });
     };
 
     for (const variant of extendedVariants) {
@@ -1305,6 +1312,20 @@ SELECT id, label FROM presentation_objects ORDER BY label
     );
   }
 
+  // The extended kinds each hang on a handful of dev metrics — a corpus
+  // change (module uninstall, config edit) could zero them silently and the
+  // verdict would still read GREEN. Their absence gates in --run mode.
+  const missingExtendedKinds = useRun
+    ? ["blankfilter", "multimember", "nvalues"].filter(
+        (kind) => (synKinds.get(kind) ?? 0) === 0,
+      )
+    : [];
+  if (missingExtendedKinds.length > 0) {
+    console.log(
+      `\nEXTENDED CORPUS MISSING (gating — these variant kinds ran zero times): ${missingExtendedKinds.join(", ")}`,
+    );
+  }
+
   const diffs = allResults.filter((r) => r.outcome === "diff");
   if (diffs.length > 0) {
     console.log("\nDIFFS:");
@@ -1331,11 +1352,12 @@ SELECT id, label FROM presentation_objects ORDER BY label
     await Deno.remove(workDirRoot, { recursive: true });
   }
   await mainDb.end();
-  const gatingCount = diffs.length + bothErrors.length + skips.length;
+  const gatingCount =
+    diffs.length + bothErrors.length + skips.length + missingExtendedKinds.length;
   console.log(
     gatingCount === 0
       ? "\nPARITY GREEN"
-      : `\nPARITY RED: ${diffs.length} diffs, ${bothErrors.length} both_error, ${skips.length} skips`,
+      : `\nPARITY RED: ${diffs.length} diffs, ${bothErrors.length} both_error, ${skips.length} skips, ${missingExtendedKinds.length} missing extended kinds`,
   );
   Deno.exit(gatingCount === 0 ? 0 : 1);
 }

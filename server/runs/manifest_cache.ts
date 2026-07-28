@@ -1,4 +1,8 @@
-import { runManifestSchema, type RunManifest } from "lib";
+import {
+  RUN_MANIFEST_SCHEMA_VERSION,
+  runManifestSchema,
+  type RunManifest,
+} from "lib";
 import { runDirPath, runInputFilePath, runManifestPath } from "./run_paths.ts";
 
 // Runs are immutable, so a manifest is read and parsed at most once per runId
@@ -23,6 +27,15 @@ export async function getRunManifestCached(runId: string): Promise<RunManifest> 
   } catch (e) {
     throw new Error(
       `Run ${runId} is not readable (${e instanceof Error ? e.message : e})`,
+    );
+  }
+  // Explicit version pin, before the Zod shape becomes the incidental gate:
+  // an old manifest gets a clear "regenerate" message instead of a Zod path
+  // dump, and a FUTURE version whose additions happen to parse is refused
+  // rather than silently served by older code.
+  if (manifest.manifestSchemaVersion !== RUN_MANIFEST_SCHEMA_VERSION) {
+    throw new Error(
+      `Run ${runId} has manifest schema version ${manifest.manifestSchemaVersion}, this server requires ${RUN_MANIFEST_SCHEMA_VERSION} — regenerate the run (backfill_runs.ts or a new generation)`,
     );
   }
   MANIFEST_CACHE.set(runId, manifest);

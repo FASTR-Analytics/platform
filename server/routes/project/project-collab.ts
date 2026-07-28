@@ -72,11 +72,11 @@ import {
   unsubscribePo,
 } from "../../collab/po_rooms.ts";
 import {
-  getAllPresentationObjectsForProject,
   getPresentationObjectConfigRow,
   getPresentationObjectCrdtState,
   savePresentationObjectCheckpoint,
 } from "../../db/project/presentation_objects.ts";
+import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
 import {
   noteVersionRoomEmpty,
@@ -143,7 +143,12 @@ function scheduleVizListRebroadcast(projectId: string): void {
     setTimeout(async () => {
       vizRebroadcastTimers.delete(projectId);
       const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
-      const res = await getAllPresentationObjectsForProject(projectDb);
+      const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+      const res = await getAllPresentationObjectsWithVirtualDefaults(
+        mainDb,
+        projectId,
+        projectDb,
+      );
       if (res.success) {
         notifyProjectVisualizationsUpdated(projectId, res.data);
       }

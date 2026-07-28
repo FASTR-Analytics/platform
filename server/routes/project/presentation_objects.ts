@@ -597,12 +597,22 @@ defineRoute(
           8,
         )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
+      // Derived from the manifest, never from the client: the value shapes
+      // period-bound resolution but is absent from the cache hash, so a stale
+      // client detail (from a previously attached run) would poison this
+      // run's shared cache entry. physicalTimeColumn IS the most granular
+      // period column (the derivation inferMostGranularTimePeriodColumn
+      // reduces to it on the run plane).
+      const firstPeriodOption =
+        runCtx.manifest.resultsObjects.find(
+          (ro) => ro.id === body.resultsObjectId,
+        )?.physicalTimeColumn ?? undefined;
       const newPromise = getPresentationObjectItemsFromRun(
         runCtx,
         c.var.ppk.projectId,
         body.resultsObjectId,
         body.fetchConfig as GenericLongFormFetchConfig,
-        body.firstPeriodOption,
+        firstPeriodOption,
       );
       _PO_ITEMS_CACHE.setPromise(
         newPromise,

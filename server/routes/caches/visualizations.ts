@@ -42,7 +42,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // possible-values lists are re-sorted in TS with a pinned comparator
 // (Intl.Collator en, numeric) so Postgres and DuckDB emit identical order —
 // previously-cached entries hold pg-string values and DB-collation order.
-const PO_CACHE_VERSION = "9";
+// "10": the post-merge semantic batch changed payload semantics AFTER "9"
+// was minted (blank-fold completion via manifest textColumns, trim() SQL) —
+// entries cached in that window hold pre-batch payloads under "9".
+const PO_CACHE_VERSION = "10";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -69,8 +72,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // otherwise keep serving old entries for unmodified rows). v2: resultsValue
   // gained hasFacilityLevelRows. v3 was minted twice on divergent branches
   // (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
-  // the merge takes v4: both of those at once.
->("po_detail_v4", {
+  // the merge takes v4: both of those at once. v5: the post-merge semantic
+  // batch populated datasetFamily on the RUN path after v4 was minted —
+  // v4 entries from that window lack the field.
+>("po_detail_v5", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

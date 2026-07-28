@@ -11,7 +11,11 @@ import { formatModuleSettingsForAI } from "./_internal/format_module_settings_fo
 function requireAttachedRunId(): string {
   const runId = projectState.attachedRunId;
   if (runId === null) {
-    throw new Error("No results package is attached to this project yet.");
+    // AIToolFailure, not Error: an unattached project is an anticipated
+    // state the model should be told about, not a crash.
+    throw new AIToolFailure(
+      "No results package is attached to this project yet.",
+    );
   }
   return runId;
 }
