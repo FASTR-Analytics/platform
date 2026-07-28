@@ -19,7 +19,6 @@ import {
   isSampleNProp,
   materializeFigureConfig,
   normalizePOConfigForStorage,
-  periodFilterHasBounds,
   SAMPLE_N_PREFIX,
   type PresenceEntry,
   syncFigureConfigToMap,
@@ -624,48 +623,17 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   let firstRunConfigChange = true;
   createEffect(() => {
-    // These are the items that could potentially require a re-fetch
-    // All other items should be accessed below in the createMemo on the child element
-    for (const k in tempConfig.d) {
-      //@ts-ignore
-      const _v = tempConfig.d[k];
-    }
-    for (const dis of tempConfig.d.disaggregateBy) {
-      // `rollup` changes the fetch (it becomes rollupDim → the UNION branch).
-      // `rollupPosition` is deliberately NOT read: display-only, re-renders
-      // via the child memo without a refetch.
-      const _v = dis.disOpt + "-" + dis.disDisplayOpt + "-" +
-        String(dis.rollup === true);
-    }
-    for (const fil of tempConfig.d.filterBy) {
-      const _v = fil.disOpt + "-" + fil.values.join("-");
-    }
-    // CRITICAL: Explicit reads below subscribe to nested fields on tempConfig.d.
-    // The for-loop above only reliably tracks top-level key changes; nested-field
-    // updates within objects like `periodFilter` won't trigger this effect unless
-    // read explicitly here. If you add a new nested filter field, add a read here
-    // too — otherwise changes to it won't re-fetch the preview.
-    const _periodFilterFilterType = tempConfig.d.periodFilter?.filterType;
-    const _periodFilterNMonths =
-      tempConfig.d.periodFilter?.filterType === "last_n_months"
-        ? tempConfig.d.periodFilter.nMonths
-        : undefined;
-    const _periodFilterNYears =
-      tempConfig.d.periodFilter?.filterType === "last_n_calendar_years"
-        ? tempConfig.d.periodFilter.nYears
-        : undefined;
-    const _periodFilterNQuarters =
-      tempConfig.d.periodFilter?.filterType === "last_n_calendar_quarters"
-        ? tempConfig.d.periodFilter.nQuarters
-        : undefined;
-    const _periodFilterBounded =
-      tempConfig.d.periodFilter &&
-      periodFilterHasBounds(tempConfig.d.periodFilter)
-        ? tempConfig.d.periodFilter
-        : undefined;
-    const _periodFilterMin = _periodFilterBounded?.min;
-    const _periodFilterMax = _periodFilterBounded?.max;
-    const _valuesFilter = tempConfig.d.valuesFilter?.join("-");
+    // Deep-track the DATA config: any change under `d`, however nested —
+    // including collab leaf-updates arriving via reconcile — re-fetches the
+    // preview. This replaced a hand-maintained dependency list that regressed
+    // twice in one day when fields moved between nesting levels; trackStore
+    // makes every current and future `d` field fetch-tracked automatically.
+    // Fields excluded from the fetch-config hash (e.g. rollupPosition) resolve
+    // as instant cache hits that rebuild the figure. `s`/`t` are deliberately
+    // NOT tracked here — style/caption edits re-render via the child memo
+    // without a refetch. Must be called on the live store proxy: trackStore on
+    // an unwrap()ed object silently no-ops (verified by execution 2026-07-28).
+    trackStore(tempConfig.d);
     // Tracked version-key read so the preview refetches when module output or
     // dataset integration changes mid-edit (cache-internal reads are untracked).
     moduleDataVersionKey(

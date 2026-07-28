@@ -454,8 +454,8 @@ function RollupOptions(p: RollupOptionsProps) {
           <RadioGroup
             value={p.keyedDis.rollupPosition ?? "bottom"}
             options={[
-              { value: "top", label: t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
-              { value: "bottom", label: t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
+              { value: "top", label: t3({ en: "Start", fr: "Début", pt: "Início" }) },
+              { value: "bottom", label: t3({ en: "End", fr: "Fin", pt: "Fim" }) },
             ]}
             horizontal
             onChange={(v) =>

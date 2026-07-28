@@ -401,6 +401,14 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   // and a raw write would bypass notification and make the user's next click on
   // that same value a no-op (Solid's setter equality guard). resolveDefaultReplicant
   // returns a fresh copy when it defaults the value (see its doc comment).
+  //
+  // The mirror-image constraint also holds: the ALIASING is load-bearing. The
+  // yielded holder's config shares `s`/`t` (and unchanged sub-objects) BY
+  // REFERENCE with the live editor store, and the editor's style panel relies
+  // on that — its child memo re-reads `config.s` reactively without a refetch.
+  // Inserting a structuredClone or schema re-parse into this pass-through would
+  // silently freeze style/caption editing (the memo would rebuild from a dead
+  // snapshot). Copy-on-write only, never deep-copy.
   const resolvedReplicant = await resolveDefaultReplicant(
     projectId,
     poDetail.resultsValue,
