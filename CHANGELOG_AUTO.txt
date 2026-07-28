@@ -1,3 +1,13 @@
+[TBD] [user] [changed] - Roll-up total rows now work with facility columns, not just admin areas
+[TBD] [user] [changed] - Roll-up option appears on each eligible breakdown dimension individually
+[TBD] [user] [changed] - Roll-up checkbox label updates dynamically to match the selected dimension (e.g., "Include results for all facilities")
+[TBD] [user] [fixed] - Restoring or copying a saved version no longer silently drops roll-up total row settings
+[TBD] [admin] [changed] - Roll-up total rows now support facility columns, not just admin areas
+[TBD] [admin] [changed] - Roll-up setting moved from a global toggle to per-disaggregation option
+[TBD] [admin] [changed] - Roll-up label adapts to context (e.g. "All facilities" or "National")
+[TBD] [admin] [fixed] - Restoring or copying old report/deck versions preserves roll-up settings
+[TBD] [admin] [fixed] - Dashboard items with legacy roll-up settings are properly migrated on upgrade
+[TBD] [admin] [internal] - Data cache version bumped; first load after upgrade may be slightly slower
 [1.62.3] [user] [fixed] - Indicators heading no longer pushes search bar off screen
 [1.62.3] [user] [fixed] - Search bar layout is now consistent and properly aligned
 [1.62.3] [admin] [fixed] - Indicators heading no longer pushes search bar off screen
