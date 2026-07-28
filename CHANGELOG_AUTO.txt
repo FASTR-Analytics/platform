@@ -1,3 +1,9 @@
+[TBD] [user] [changed] - Consistent heading bar design across all screens
+[TBD] [user] [changed] - Cleaner panel borders throughout the application
+[TBD] [user] [changed] - Improved visual appearance of side panels and resizable areas
+[TBD] [user] [changed] - Standardized back button placement in page headers
+[TBD] [admin] [changed] - Standardized header bar appearance across all screens
+[TBD] [admin] [changed] - Removed visible border lines between side panels and main content areas
 [TBD] [user] [added] - Undo and redo buttons added to the report editor toolbar
 [TBD] [user] [added] - Undo and redo buttons added to the slide editor toolbar
 [TBD] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
