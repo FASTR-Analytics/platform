@@ -30,12 +30,6 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 export function dropStorageInvalidTransients(
   config: PresentationObjectConfig,
 ): PresentationObjectConfig {
-  // Canonical roll-up off-state is both fields absent. The flag survives
-  // transient gate closures while editing (the editor no longer eagerly clears
-  // it) and is stripped here, at save time, from every entry except the one
-  // the gate selects.
-  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
-  const dropped = dropStorageInvalidTransients(config);
   return {
     ...config,
     d: {
