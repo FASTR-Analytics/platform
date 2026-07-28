@@ -1,3 +1,11 @@
+[TBD] [user] [added] - Undo and redo buttons added to the report editor toolbar
+[TBD] [user] [added] - Undo and redo buttons added to the slide editor toolbar
+[TBD] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
+[TBD] [user] [changed] - Undo and redo only affect your own edits when collaborating
+[TBD] [admin] [added] - Undo and redo buttons added to report editor toolbar
+[TBD] [admin] [added] - Undo and redo buttons added to slide editor toolbar
+[TBD] [admin] [added] - Keyboard undo/redo support in slide editor canvas
+[TBD] [admin] [changed] - Undo and redo only affect your own edits during collaboration
 [1.64.1] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
 [1.64.1] [admin] [changed] - Rollup labels no longer vary when filters are applied
 [1.64.0] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
