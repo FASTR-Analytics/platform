@@ -91,8 +91,8 @@ approach was removed because acquire/release landed on different pooled
 connections and wedged.
 
 **Staging.** Fixed-name `UNLOGGED` table `temp_structure_staging_{family}`
-(per-family so HMIS/HFA can run concurrently), `rowid SERIAL` for
-first-occurrence dedup ordering, values inlined with `''`-doubling in
+(per-family so HMIS/HFA can run concurrently), `rowid SERIAL` as the dedup
+tie-break (see **Duplicate rows** below), values inlined with `''`-doubling in
 10k-row (CSV) / 5k-row (DHIS2) batches. CSV cap: 100 MB. The table is
 dropped on staging error, after successful integration, and on attempt
 reset/delete. `handleStagingSuccess` computes the **facilityMatch preview**
@@ -116,6 +116,15 @@ Unresolved codes stay raw and are surfaced per column in the staging
 result (`labelResolution`: resolvedCount + up to 10 distinct unresolved
 values), rendered in the step-4 summary. No migration, no cache-shape
 change.
+
+**Duplicate rows.** Survey exports carry one row per submission attempt, so
+the same `facility_id` recurs with only the consented row's metadata cells
+filled. All three integrate strategies therefore keep the staged row with the
+**most non-empty mapped columns** (`buildDedupOrderClause`), `rowid` breaking
+ties — file order alone would pick a blank row and silently drop metadata the
+file does contain. A whole row survives rather than a per-column coalesce:
+admin values are only a valid hierarchy as a tuple, and duplicate rows can
+disagree about it.
 
 **Column scope contract.** Integration writes exactly the columns
 physically present in the staging table (discovered via
