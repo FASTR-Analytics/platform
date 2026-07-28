@@ -631,7 +631,11 @@ export function VisualizationEditorInner(p: InnerProps) {
       const _v = tempConfig.d[k];
     }
     for (const dis of tempConfig.d.disaggregateBy) {
-      const _v = dis.disOpt + "-" + dis.disDisplayOpt;
+      // `rollup` changes the fetch (it becomes rollupDim → the UNION branch).
+      // `rollupPosition` is deliberately NOT read: display-only, re-renders
+      // via the child memo without a refetch.
+      const _v = dis.disOpt + "-" + dis.disDisplayOpt + "-" +
+        String(dis.rollup === true);
     }
     for (const fil of tempConfig.d.filterBy) {
       const _v = fil.disOpt + "-" + fil.values.join("-");
