@@ -22,15 +22,43 @@ export function applyFigureConfigPatch(
   if (patch.valuesFilter !== undefined) {
     d.valuesFilter = patch.valuesFilter === null ? undefined : patch.valuesFilter;
   }
-  if (patch.disaggregateBy !== undefined) d.disaggregateBy = patch.disaggregateBy;
+  if (patch.disaggregateBy !== undefined) {
+    // Carry the roll-up flag across the wholesale replacement: an entry that
+    // doesn't state its own flag inherits the existing entry's (same disOpt),
+    // so replacing disaggregations doesn't silently drop the roll-up. But if
+    // ANY patch entry states a rollup field, the patch is authoritative for
+    // ALL flags — mixing an explicit flag with a carried-over one would
+    // produce two flagged entries, which the gate treats as no roll-up at all
+    // and the save-time strip then deletes both.
+    const anyExplicitFlag = patch.disaggregateBy.some(
+      (e) => e.rollup !== undefined,
+    );
+    d.disaggregateBy = anyExplicitFlag
+      ? patch.disaggregateBy
+      : patch.disaggregateBy.map((e) => {
+          const prev = config.d.disaggregateBy.find((x) => x.disOpt === e.disOpt);
+          return prev?.rollup === true
+            ? { ...e, rollup: true, rollupPosition: prev.rollupPosition }
+            : e;
+        });
+  }
   if (patch.filterBy !== undefined) d.filterBy = patch.filterBy;
   if (patch.selectedReplicantValue !== undefined) {
     d.selectedReplicantValue = patch.selectedReplicantValue === null
       ? undefined
       : patch.selectedReplicantValue;
   }
-  if (patch.includeAdminAreaRollup !== undefined) d.includeAdminAreaRollup = patch.includeAdminAreaRollup;
-  if (patch.adminAreaRollupPosition !== undefined) d.adminAreaRollupPosition = patch.adminAreaRollupPosition;
+  if (patch.rollupDimension !== undefined) {
+    const dim = patch.rollupDimension;
+    d.disaggregateBy = d.disaggregateBy.map((e) =>
+      dim !== null && e.disOpt === dim
+        ? { ...e, rollup: true, rollupPosition: e.rollupPosition ?? "bottom" }
+        : { disOpt: e.disOpt, disDisplayOpt: e.disDisplayOpt });
+  }
+  if (patch.rollupPosition !== undefined) {
+    d.disaggregateBy = d.disaggregateBy.map((e) =>
+      e.rollup === true ? { ...e, rollupPosition: patch.rollupPosition } : e);
+  }
   if (patch.periodFilter !== undefined) {
     if (patch.periodFilter === null) {
       d.periodFilter = undefined;

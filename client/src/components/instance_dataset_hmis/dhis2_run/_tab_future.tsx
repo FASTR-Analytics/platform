@@ -2,6 +2,7 @@ import { t3, type DatasetHmisScheduledImport } from "lib";
 import { Button, Table, createDeleteAction, toNum0, type TableColumn } from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { recurrenceLabel } from "./_recurrence_label";
 
 type Props = {
   schedules: DatasetHmisScheduledImport[];
@@ -24,28 +25,11 @@ export function visibleFutureSchedules(
   });
 }
 
-function dayOfWeekLabel(day: number): string {
-  const labels = [
-    t3({ en: "Sunday", fr: "Dimanche", pt: "Domingo" }),
-    t3({ en: "Monday", fr: "Lundi", pt: "Segunda-feira" }),
-    t3({ en: "Tuesday", fr: "Mardi", pt: "Terça-feira" }),
-    t3({ en: "Wednesday", fr: "Mercredi", pt: "Quarta-feira" }),
-    t3({ en: "Thursday", fr: "Jeudi", pt: "Quinta-feira" }),
-    t3({ en: "Friday", fr: "Vendredi", pt: "Sexta-feira" }),
-    t3({ en: "Saturday", fr: "Samedi", pt: "Sábado" }),
-  ];
-  return labels[day] ?? String(day);
-}
-
 function whenLabel(s: DatasetHmisScheduledImport): string {
   if (s.kind === "one_shot") {
     return s.runAt ? new Date(s.runAt).toLocaleString() : "";
   }
-  const every =
-    (s.intervalWeeks ?? 1) === 1
-      ? t3({ en: "weekly", fr: "chaque semaine", pt: "semanalmente" })
-      : `${t3({ en: "every", fr: "toutes les", pt: "a cada" })} ${s.intervalWeeks} ${t3({ en: "weeks", fr: "semaines", pt: "semanas" })}`;
-  return `${dayOfWeekLabel(s.dayOfWeek ?? 0)} ${s.startTime} (${s.timezone}), ${every}`;
+  return s.recurrence ? recurrenceLabel(s.recurrence) : "";
 }
 
 function selectionLabel(s: DatasetHmisScheduledImport): string {

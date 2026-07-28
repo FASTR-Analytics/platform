@@ -32,7 +32,7 @@ export function getStyleFromPresentationObject(
     return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle);
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, calendar, deckStyle);
+    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle);
   }
   return buildStandardStyle(
     config,

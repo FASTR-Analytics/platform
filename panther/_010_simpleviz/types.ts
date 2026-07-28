@@ -24,7 +24,8 @@ import type {
 ////////////////////////////////////////////////////////////////////////////////
 
 export type SimpleVizInputs = FigureInputsBase & {
-  simpleVizData: SimpleVizData;
+  figureType: "simpleviz";
+  data: SimpleVizData;
 };
 
 export type SimpleVizData = {

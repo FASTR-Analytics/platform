@@ -1,4 +1,8 @@
-import { extractRIdentifiers, stripRStringsAndComments } from "lib";
+import {
+  extractRIdentifiers,
+  normalizeRLogicalOperators,
+  stripRStringsAndComments,
+} from "lib";
 
 export type RCodeValidationResult = {
   syntaxErrors: string[];
@@ -27,9 +31,16 @@ export function validateRCode(
     };
   }
 
-  const syntaxErrors = checkRSyntax(rCode);
-  const identifiers = extractRIdentifiers(rCode);
-  const warnings: string[] = [...checkLoneEquals(rCode)];
+  // Validate exactly what the server will splice into R: normalise first, so a
+  // typo like `x &and y` (which normalises to the scalar `x && y`) is caught by
+  // checkVectorizedLogical instead of passing green and failing at run time.
+  const normalized = normalizeRLogicalOperators(rCode);
+  const syntaxErrors = [
+    ...checkRSyntax(normalized),
+    ...checkVectorizedLogical(normalized),
+  ];
+  const identifiers = extractRIdentifiers(normalized);
+  const warnings: string[] = [...checkLoneEquals(normalized)];
   const unknownVariableErrors: string[] = [];
   const referencedVars: string[] = [];
 
@@ -77,6 +88,27 @@ function checkRSyntax(rCode: string): string[] {
   if (paren > 0) errors.push(`Unclosed '(' (${paren})`);
   if (bracket > 0) errors.push(`Unclosed '[' (${bracket})`);
   if (brace > 0) errors.push(`Unclosed '{' (${brace})`);
+  return errors;
+}
+
+// `&&`/`||` pass R's parser but fail at run time: indicator code runs vectorised
+// over every facility inside a dplyr `case_when`, where the scalar `&&`/`||`
+// error. `AND`/`OR` are accepted (normalised to `&`/`|`), but `&&`/`||` are a
+// distinct mistake we flag rather than silently rewrite. Checked on the
+// string/comment-stripped code so `str_detect(x, "a && b")` is not misflagged.
+function checkVectorizedLogical(rCode: string): string[] {
+  const stripped = stripRStringsAndComments(rCode);
+  const errors: string[] = [];
+  if (stripped.includes("&&")) {
+    errors.push(
+      "Use '&' instead of '&&' — indicator code runs across all facilities at once, so '&&' will fail when the module runs.",
+    );
+  }
+  if (stripped.includes("||")) {
+    errors.push(
+      "Use '|' instead of '||' — indicator code runs across all facilities at once, so '||' will fail when the module runs.",
+    );
+  }
   return errors;
 }
 
@@ -130,7 +162,9 @@ function stripOuterParens(input: string): string {
 export function inferRCodeResultType(
   rCode: string,
 ): "boolean" | "numeric" | "unknown" {
-  const s = stripOuterParens(stripRStringsAndComments(rCode).trim());
+  const s = stripOuterParens(
+    stripRStringsAndComments(normalizeRLogicalOperators(rCode)).trim(),
+  );
   if (!s) return "unknown";
 
   // Scan for operators at the top level (paren/bracket depth 0).

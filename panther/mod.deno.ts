@@ -28,6 +28,7 @@ export * from "./_009_vizgraph/mod.ts";
 export * from "./_010_chartoh/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_maps/mod.ts";
+export * from "./_010_pie/mod.ts";
 export * from "./_010_sankey/mod.ts";
 export * from "./_010_sankey_explicit/mod.ts";
 export * from "./_010_simpleviz/mod.ts";

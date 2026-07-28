@@ -7,6 +7,8 @@ import {
 } from "../db/mod.ts";
 import {
   composeHfaIndicatorLabel,
+  getDatasetFamily,
+  getDatasetTypes,
   getHfaIndicatorMeasure,
   ICEH_STRAT_INFO,
   IndicatorMetadata,
@@ -14,41 +16,6 @@ import {
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
 } from "lib";
-
-type ModuleDataSource = {
-  sourceType: string;
-  datasetType?: string;
-};
-
-function getDatasetTypes(moduleDefinition: string): string[] {
-  try {
-    const parsed = JSON.parse(moduleDefinition);
-    const dataSources = (parsed.dataSources ?? []) as ModuleDataSource[];
-    return dataSources
-      .filter((ds) => ds.sourceType === "dataset" && ds.datasetType)
-      .map((ds) => ds.datasetType!);
-  } catch {
-    return [];
-  }
-}
-
-export function getDatasetFamily(
-  moduleDefinition: string,
-): DatasetType | undefined {
-  try {
-    if (JSON.parse(moduleDefinition).scriptGenerationType === "hfa") {
-      return "hfa";
-    }
-  } catch {
-    return undefined;
-  }
-  const types = new Set(getDatasetTypes(moduleDefinition));
-  if (types.size !== 1) return undefined;
-  const only = [...types][0];
-  return only === "hmis" || only === "hfa" || only === "iceh"
-    ? only
-    : undefined;
-}
 
 export async function getDatasetFamilyForModule(
   projectDb: Sql,
@@ -61,7 +28,6 @@ export async function getDatasetFamilyForModule(
 }
 
 export async function getIndicatorMetadata(
-  mainDb: Sql,
   projectDb: Sql,
   moduleId: string,
 ): Promise<IndicatorMetadata[]> {

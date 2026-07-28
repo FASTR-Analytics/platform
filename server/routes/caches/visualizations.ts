@@ -24,7 +24,18 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "5": hfa_service_category filtering changed from exact-match to set-membership
 // (string_to_array overlap) — previously-cached payloads for configs filtering
 // on this column used the old (wrong) semantics under an unchanged config hash.
-const PO_CACHE_VERSION = "5";
+// "6": NULL/blank now fold onto BLANK_SENTINEL. Both cached shapes change —
+// possible-values gains the sentinel option, and items key their group on it
+// instead of ''/null — and version hashes track row last_updated, not code, so
+// unmodified rows would otherwise keep serving pre-fold payloads.
+// "7": HFA items gained sample-size columns (__n_*) beside their values. The
+// payload shape changes for unmodified rows, which version hashes don't track.
+// "8": fetchConfig gained rollupDim replacing includeAdminAreaRollup+level.
+// The hashFetchConfig segment change already orphans every old key, so this
+// bump is declared hygiene rather than load-bearing — the shape of the cached
+// ItemsHolder.fetchConfig changed, and safety should not rest on the
+// incidental impossibility of an old/new key collision.
+const PO_CACHE_VERSION = "8";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {
@@ -37,9 +48,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   APIResponseWithData<PresentationObjectDetail>
   // Prefix is versioned: bump it whenever the cached payload SHAPE changes
   // (the version hash only tracks the row's last_updated, so a deploy that
-  // adds a field — e.g. resultsValue.hasFacilityLevelRows in v2 — would
-  // otherwise keep serving old-shape payloads for unmodified rows).
->("po_detail_v2", {
+  // adds a field — resultsValue.hasFacilityLevelRows in v2,
+  // resultsValue.datasetFamily in v3 — would otherwise keep serving
+  // old-shape payloads for unmodified rows).
+>("po_detail_v3", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) => params.presentationObjectLastUpdated,

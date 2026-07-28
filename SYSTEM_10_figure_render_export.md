@@ -48,8 +48,8 @@ This is the authoritative record of the FigureBundle refactor. The two planning
 docs that drove it (`PLAN_FIGURE_BUNDLE.md` = vision, `PLAN_FIGURE_BUNDLE_IMPL.md`
 = executable plan) were deleted on completion; this section replaces them.
 Sibling slices live in S9 (the upstream capture side), S12 (the three storage
-surfaces), and S2 (the boot-time backfill). Deferred follow-ons:
-[PLAN_FIGURE_BUNDLE_FOLLOWUPS.md](PLAN_FIGURE_BUNDLE_FOLLOWUPS.md).
+surfaces), and S2 (the boot-time backfill). The deferred phases (provenance /
+stale badge, the Visualization rename) are in Open items below.
 
 ### The idea
 
@@ -248,6 +248,34 @@ live in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied
 app-wide via `setGlobalStyle` at boot
 ([index.tsx:12](client/src/index.tsx#L12)).
 
+### Sample sizes in table headers (`s.showNValues`)
+
+v1 display policy for the `__n_*` columns S9 emits. The data half is
+`nProps` on the table data config
+([get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts)):
+`{ <valueProp>: __n_<valueProp> }` whenever the toggle is on. The display half
+is `getTableColHeadersContent` in `_0_common.ts`, wired into `_1_standard.ts`
+only — scorecard tables are out of scope.
+
+- **Column item headers only.** panther fires the header `textFormatter` for
+  col-GROUP headers as well, with a span-wide digest, so the formatter gates on
+  `info.isGroupHeader` — without it a group label reports the largest n beneath
+  it as its own. Rows and cells stay undecorated (panther supports both;
+  `TableCellInfo.sampleN` is available for a later per-cell policy).
+- **`(n=max)` over the header's slice.** A column whose n is constant shows
+  exactly that n, since max equals it. `n=0` is suppressed: it is a finite
+  number to panther and would render.
+- **Everything self-gates on the data.** No eligibility flag travels with the
+  figure. Absent `sampleN` (items carry no `__n_*`, or roll-up exclusion left
+  no numeric cell) leaves the label untouched, so figures stored before the
+  feature render exactly as before, live and stored alike. The editor toggle is
+  offered only for HFA facility-level metrics (`datasetFamily` +
+  `hasFacilityLevelRows` on the enriched metric) — a UI affordance, not a gate.
+- **Roll-up exclusion is perpendicular.** A roll-up row on the opposite axis
+  would otherwise dominate every column's digest (verified: 212 instead of
+  55/32). panther keys this off `liveDomainExcludeIds`, which the data config
+  already sets whenever roll-up is active — no extra wiring.
+
 A **special mode** is a boolean flag on `config.s` that overrides most
 user-facing style properties with hardcoded rendering. A mode is active only
 when its flag is set AND `config.d.type` matches its gate — the `is*Active`
@@ -286,13 +314,35 @@ falls through to the user-facing conditional-formatting compile path
 (`selectCf` + `compileCfToLegend` in `conditional_formatting/compile.ts`).
 
 **Metric-gated knobs that are not modes.** `special_chart_checks.ts` also
-carries `metricAlwaysObeysFormatAs` and `metricAllowsNegativeScale` (both
-currently `["m9-02-01"]`, whose CIX/SII values are derived measures and can be
-legitimately negative): threaded through `buildFigureInputs` into the standard
-builder, they force the metric's own `formatAs` to win over the displayed
-indicators' format and set the value-axis min to `"auto"`.
-`_0_conditional_consts.ts` holds only `METRICS_WITH_NEGATIVE_PCT_VALUES`,
-consumed by the style-panel UI.
+carries `metricAlwaysObeysFormatAs` (`["m9-02-01"]`, whose CIX/SII values are
+derived measures) and `metricAllowsNegativeScale`, both threaded through
+`buildFigureInputs`. The first forces the metric's own `formatAs` to win over
+the displayed indicators' format.
+
+The second is the app's whole answer to negative values on a value axis.
+`ALLOW_NEGATIVE_SCALE_VALUES_METRICS` is the single list of metrics whose
+displayed values can go below zero — signed-by-construction (m9-02-01,
+m2-01-01..03, m3-0x-02) plus the volume metrics whose expected-value model can
+predict a negative (m3-0x-01, m3-0x-03). Listed metrics get panther's
+`"auto-zero"` axis minimum instead of the default `0`, which would map the
+negative outside the plot box, over the x-axis tick labels. `"auto-zero"` is a
+no-op on data that never crosses zero, so adding a metric cannot change how its
+existing non-negative charts render — which is what makes an always-on
+per-metric list the right shape here, rather than a per-chart toggle. It is
+applied in `_1_standard.ts` (both `yScaleAxis` and `xScaleAxis` — horizontal
+charts route through the latter) and in `_4_disruptions.ts`. **Not** in
+`_3_percent_change.ts`: those bars plot raw volumes and the percent change only
+drives their color and data label, so that axis never carries a negative.
+`forceYMinAuto` is unrelated and unchanged — it stays the user's deliberate
+tight-fit (`"auto"`), which may start above zero.
+
+Known residue, same class: `forceYMax1` pins the axis at `1`, so a coverage
+value above 100% is drawn *above* the plot box. Unaddressed by `"auto-zero"`,
+because a user who forces a max has asked for a fixed axis.
+
+`_0_conditional_consts.ts` separately holds `METRICS_WITH_NEGATIVE_PCT_VALUES`
+(`m3-0x-02`) — a distinct concern despite the similar name: it lets the
+style-panel UI accept negative conditional-formatting thresholds.
 
 ## Slide→page rendering (generate_slide_deck)
 
@@ -406,7 +456,11 @@ with the PDF as attachment.
 ([get_table_export_aoa.ts](client/src/exports/get_table_export_aoa.ts))
 exports the **displayed** text, not raw values: it rebuilds the renderer's
 per-cell `textFormatter` from the hydrated style and replicates the renderer's
-guard order, emitting caption/col-group/header/row-group/footnote rows.
+guard order, emitting caption/col-group/header/row-group/footnote rows. Header
+labels come from panther's `resolveTableHeaders(data, style)` — the same
+label-resolution prelude the renderer runs — so header `textFormatter`s (sample
+sizes today) reach exports too. Reading the raw transformed labels instead
+diverges silently: nothing typechecks red.
 Exactly two consumers: dashboard XLSX and the editor's table CSV (with BOM for
 Excel). It requires hydrated FigureInputs — the formatter is a rebuilt
 closure.
@@ -429,6 +483,19 @@ label to `pdf.save`/`saveAs` (Open item).
 
 ## Open items
 
+- Sample sizes, deliberately deferred out of v1 (each is app-side only —
+  panther already supports all of them): row and group headers, per-cell
+  display via `TableCellInfo.sampleN`, scorecard mode, and AI-tool exposure of
+  `s.showNValues` (no `s` field is AI-editable today). If a per-cell formatter
+  is ever added, `getTableExportAoa` hand-builds its cell infos and would need
+  to source them from panther, the way it now sources header labels.
+- Should M3's expected-volume model emit a negative predicted service volume at
+  all? A negative predicted count is physically impossible, so arguably it
+  should be floored in the R script (`wb-fastr-modules`, m003) rather than
+  rendered. A domain call, not a render one — `"auto-zero"` makes the chart
+  correct either way, which is why it is not blocking. If it is ever floored
+  upstream, `m3-0x-01`/`m3-0x-03`'s entries in
+  `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` become belt-and-braces.
 - Delete the `strip_figure_inputs.ts` comment-only tombstone (zero importers;
   its "kept for the import chain" rationale is void).
 - The three slide-deck exporters triplicate the fetch/convert loop (~150
@@ -477,3 +544,56 @@ label to `pdf.save`/`saveAs` (Open item).
   white); the dashboard PNG bakes `backgroundColor:"none"` — unify (blocked on
   a panther transparent flag).
 - `buildReportFigureMap` is `async` with zero awaits.
+
+- **Deck-themed SERIES colors** (deferred half of the deck-colors work).
+  Structural figure colors — grid lines, borders, data-label backgrounds,
+  strokes — now resolve against the deck's `colorPreset` when a figure renders
+  inside a deck (`structuralColor()` in
+  [get_style_from_po/_0_common.ts](client/src/generate_visualization/get_style_from_po/_0_common.ts));
+  outside a deck they stay `{ key }` against the global palette, so standalone
+  visualizations, editor previews and exports are unchanged. Series colors were
+  deliberately left out: the next step is a `"deck-primary"` color scale that
+  returns `deckStyle.colorPreset.primary`. Note the semantic colors in
+  `_2_coverage`/`_3_percent_change`/`_4_disruptions` (good/bad/neutral,
+  survey/projected) are intentionally NOT theme-routed — they carry meaning.
+
+### FigureBundle deferred phases (from the retired follow-ons plan)
+
+The P1+P2 refactor shipped 2026-06-13; the architecture is documented above and
+in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
+[S2](SYSTEM_02_persistence.md). Two slices were explicitly deferred:
+
+- **Provenance wiring + the stale-badge / "Update data" UI.** The bundle already
+  reserves room: `provenance` carries `moduleLastRun` and `datasetsVersion`
+  (both free from the ItemsHolder). The rest: wire the two import timestamps
+  (`instanceDataImportedAt`, `projectDataAddedAt`) as optional provenance
+  fields — the metric → source-datasets → import-time path is a multi-hop join
+  not yet traced and may need a column rather than just a read (verify
+  `datasets_in_project_*` is even timestamped; owners S5/S6 for the timestamps,
+  S9 to capture them). Then a **stale badge with no re-query**: compare the
+  bundle's captured `(moduleLastRun, datasetsVersion)` against values the client
+  already holds cheaply (module summaries carry `lastRunAt`; `datasetsVersion`
+  is instance metadata) — a diff is a badge, zero per-figure queries. Semantics:
+  it flags "the data *version* moved", not "values definitely changed", which is
+  exactly right for an update nudge; backfilled figures have an approximate
+  `moduleLastRun` (= `snapshotAt`) so their badge is best-effort until first
+  re-capture. Then an **"Update data" action** (S12 UI + S9 re-query): re-run
+  the same live query the editor runs (`config` + `metricId`) → fresh items →
+  reassemble the bundle (re-derive `dateRange`, re-capture `provenance`, bump
+  `snapshotAt`); per-figure, "Update all" is the same call in a loop; it stays
+  an explicit user action to preserve the publish-time freeze. Edge: a figure
+  whose metric is uninstalled in-project can't re-query, so the action disables
+  ("source unavailable") — being un-updatable ≠ un-migratable.
+  **Re-spec this against [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) before
+  building it:** under runs, "needs update?" collapses to "the project's
+  attached run ≠ the latest run", a manifest comparison rather than a
+  per-figure provenance diff, and the two import timestamps come off the run
+  manifest's inputs record for free. Building the provenance-diff version first
+  would be wasted work.
+- **The Visualization rename** (Phase 5, optional). Rename presentation object →
+  Visualization end-to-end: the `presentation_objects` table,
+  `/presentation_objects` routes, `PresentationObjectConfig`,
+  `ItemsHolderPresentationObject`, and the dozens of files using those names. No
+  behavior change — a large mechanical sweep, so its own focused PR (like the
+  snapshot-naming pass), never bundled with feature work. The FigureBundle
+  refactor deliberately kept the PO names to keep this separable.

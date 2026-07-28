@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# S9 query test rig — stands up a throwaway Postgres, seeds declarative
+# fixtures, and runs the PRODUCTION query machinery in ./server against them.
+# Companion to ./validate_migrations, which proves base schema ≡ base +
+# migrations (this rig therefore loads only the base schema files).
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-query-rig-$$"
+DB_PORT=54330
+DB_PASS="testpass"
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm "$CONTAINER_NAME" 2>/dev/null || true
+}
+
+trap cleanup EXIT
+
+fail() {
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║                  QUERY VALIDATION FAILED                     ║"
+    echo "║                                                              ║"
+    printf "║  %-60s║\n" "$1"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
+}
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -p "$DB_PORT:5432" \
+    postgres:17.4 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+# Importing server/db/mod.ts pulls in exposed_env_vars.ts, which reads Deno.env
+# at module load and throws on anything missing. These are dummies pointing at
+# the throwaway container — the real .env is deliberately NOT sourced, so the
+# rig cannot reach a live database even by accident.
+export INSTANCE_NAME="query_rig"
+export INSTANCE_ID="query_rig"
+export INSTANCE_LANGUAGE="en"
+export INSTANCE_CALENDAR="gregorian"
+export SANDBOX_DIR_PATH="/tmp/query_rig/sandbox"
+export SANDBOX_DIR_PATH_EXTERNAL="/tmp/query_rig/sandbox"
+export SANDBOX_DIR_PATH_POSTGRES_INTERNAL="/tmp/query_rig/sandbox"
+export ASSETS_DIR_PATH="/tmp/query_rig/assets"
+export DATABASE_FOLDER="/tmp/query_rig/databases"
+export PG_HOST="127.0.0.1"
+export PG_PORT="$DB_PORT"
+export PG_PASSWORD="$DB_PASS"
+export ANTHROPIC_API_URL="http://localhost:0"
+export ANTHROPIC_API_KEY="unused"
+export STATUS_API_KEY="unused"
+export SEND_GRID_API="unused"
+export SERVER_VERSION="0.0.0-query-rig"
+
+echo "Typechecking rig..."
+if ! deno check -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/query_rig/mod.ts"; then
+    fail "The query rig does not typecheck."
+    exit 1
+fi
+
+echo ""
+if ! deno run --allow-all -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/query_rig/mod.ts"; then
+    fail "One or more query cases failed. See above."
+    exit 1
+fi
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║                  QUERY VALIDATION PASSED                     ║"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

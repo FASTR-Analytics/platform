@@ -22,6 +22,7 @@ import type {
   MergedLegendStyle,
   MergedMapStyle,
   MergedPaneStyle,
+  MergedPieStyle,
   MergedSankeyStyle,
   MergedScaleLegendStyle,
   MergedSimpleVizStyle,
@@ -57,6 +58,7 @@ import {
   getErrorBarStyleFunc,
   getLineStyleFunc,
   getMapRegionStyleFunc,
+  getPieSliceStyleFunc,
   getPointStyleFunc,
   getTableCellStyleFunc,
   getTableColHeaderStyleFunc,
@@ -562,6 +564,155 @@ export class CustomFigureStyle {
             d.map.labelCollision.maxIterations,
           ),
         },
+        // Placement policy: enums, ratios and angles are scale-invariant; only
+        // the clearance floor is a length.
+        outsideLabelPlacement: m(
+          c.map?.outsideLabelPlacement,
+          g.map?.outsideLabelPlacement,
+          d.map.outsideLabelPlacement,
+        ),
+        labelClearanceFloor: ms(
+          sf,
+          c.map?.labelClearanceFloor,
+          g.map?.labelClearanceFloor,
+          d.map.labelClearanceFloor,
+        ),
+        labelAlignmentSwitchAngle: m(
+          c.map?.labelAlignmentSwitchAngle,
+          g.map?.labelAlignmentSwitchAngle,
+          d.map.labelAlignmentSwitchAngle,
+        ),
+        maxLabelLines: m(
+          c.map?.maxLabelLines,
+          g.map?.maxLabelLines,
+          d.map.maxLabelLines,
+        ),
+        insideFitFraction: m(
+          c.map?.insideFitFraction,
+          g.map?.insideFitFraction,
+          d.map.insideFitFraction,
+        ),
+        labelWrapFraction: m(
+          c.map?.labelWrapFraction,
+          g.map?.labelWrapFraction,
+          d.map.labelWrapFraction,
+        ),
+      },
+    };
+  }
+
+  ////////////////////////////////////////////////
+  //  _______    __                             //
+  // /       \  /  |                            //
+  // $$$$$$$  | $$/   ______                    //
+  // $$ |__$$ | /  | /      \                   //
+  // $$    $$/  $$ |/$$$$$$  |                  //
+  // $$$$$$$/   $$ |$$    $$ |                  //
+  // $$ |       $$ |$$$$$$$$/                   //
+  // $$ |       $$ |$$       |                  //
+  // $$/        $$/  $$$$$$$/                   //
+  //                                            //
+  ////////////////////////////////////////////////
+
+  getMergedPieStyle(): MergedPieStyle {
+    const c = this._c;
+    const g = this._g;
+    const d = this._d;
+    const sf = this._sf;
+    return {
+      ...this.getMergedChartStyleBase(),
+      pie: {
+        // Ratios and angles are scale-invariant — only lengths take sf.
+        innerRadiusRatio: m(
+          c.pie?.innerRadiusRatio,
+          g.pie?.innerRadiusRatio,
+          d.pie.innerRadiusRatio,
+        ),
+        startAngle: m(c.pie?.startAngle, g.pie?.startAngle, d.pie.startAngle),
+        direction: m(c.pie?.direction, g.pie?.direction, d.pie.direction),
+        padAngle: m(c.pie?.padAngle, g.pie?.padAngle, d.pie.padAngle),
+        cornerRadius: ms(
+          sf,
+          c.pie?.cornerRadius,
+          g.pie?.cornerRadius,
+          d.pie.cornerRadius,
+        ),
+        labelMode: m(c.pie?.labelMode, g.pie?.labelMode, d.pie.labelMode),
+        calloutMargin: ms(
+          sf,
+          c.pie?.calloutMargin,
+          g.pie?.calloutMargin,
+          d.pie.calloutMargin,
+        ),
+        centerLabel: m(
+          c.pie?.centerLabel,
+          g.pie?.centerLabel,
+          d.pie.centerLabel,
+        ),
+        labelCollision: {
+          gap: ms(
+            sf,
+            c.pie?.labelCollision?.gap,
+            g.pie?.labelCollision?.gap,
+            d.pie.labelCollision.gap,
+          ),
+          maxCentroidDisplacement: ms(
+            sf,
+            c.pie?.labelCollision?.maxCentroidDisplacement,
+            g.pie?.labelCollision?.maxCentroidDisplacement,
+            d.pie.labelCollision.maxCentroidDisplacement,
+          ),
+          maxIterations: m(
+            c.pie?.labelCollision?.maxIterations,
+            g.pie?.labelCollision?.maxIterations,
+            d.pie.labelCollision.maxIterations,
+          ),
+        },
+        // Placement policy: enums, ratios and angles are scale-invariant; only
+        // the clearance floor is a length.
+        outsideLabelPlacement: m(
+          c.pie?.outsideLabelPlacement,
+          g.pie?.outsideLabelPlacement,
+          d.pie.outsideLabelPlacement,
+        ),
+        labelClearanceFloor: ms(
+          sf,
+          c.pie?.labelClearanceFloor,
+          g.pie?.labelClearanceFloor,
+          d.pie.labelClearanceFloor,
+        ),
+        labelAlignmentSwitchAngle: m(
+          c.pie?.labelAlignmentSwitchAngle,
+          g.pie?.labelAlignmentSwitchAngle,
+          d.pie.labelAlignmentSwitchAngle,
+        ),
+        maxLabelLines: m(
+          c.pie?.maxLabelLines,
+          g.pie?.maxLabelLines,
+          d.pie.maxLabelLines,
+        ),
+        insideFitFraction: m(
+          c.pie?.insideFitFraction,
+          g.pie?.insideFitFraction,
+          d.pie.insideFitFraction,
+        ),
+        labelWrapFraction: m(
+          c.pie?.labelWrapFraction,
+          g.pie?.labelWrapFraction,
+          d.pie.labelWrapFraction,
+        ),
+        remainder: {
+          mode: m(
+            c.pie?.remainder?.mode,
+            g.pie?.remainder?.mode,
+            d.pie.remainder.mode,
+          ),
+          fillColor: m(
+            c.pie?.remainder?.fillColor,
+            g.pie?.remainder?.fillColor,
+            d.pie.remainder.fillColor,
+          ),
+        },
       },
     };
   }
@@ -638,9 +789,19 @@ export class CustomFigureStyle {
       },
       tableRowHeaders: {
         getStyle: getTableRowHeaderStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.tableRowHeaders?.textFormatter,
+          g.content?.tableRowHeaders?.textFormatter,
+          d.content.tableRowHeaders.textFormatter,
+        ),
       },
       tableColHeaders: {
         getStyle: getTableColHeaderStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.tableColHeaders?.textFormatter,
+          g.content?.tableColHeaders?.textFormatter,
+          d.content.tableColHeaders.textFormatter,
+        ),
       },
       colHeaderPadding: msPadding(
         sf,
@@ -1251,6 +1412,14 @@ export class CustomFigureStyle {
           c.content?.mapRegions?.textFormatter,
           g.content?.mapRegions?.textFormatter,
           d.content.mapRegions.textFormatter,
+        ),
+      },
+      slices: {
+        getStyle: getPieSliceStyleFunc(sf, c, g, d),
+        textFormatter: m(
+          c.content?.slices?.textFormatter,
+          g.content?.slices?.textFormatter,
+          d.content.slices.textFormatter,
         ),
       },
     };

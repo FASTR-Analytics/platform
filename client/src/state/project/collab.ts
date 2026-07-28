@@ -199,7 +199,19 @@ function applySessionUser(awareness: Awareness): void {
   }
 }
 
+// Set once the deploy-boundary guard has decided to reload (see
+// maybeReloadOnServerVersionChange). socket.onopen re-subscribes every open
+// session BEFORE the `hello` frame carrying the version can possibly be seen,
+// so the server's *_sync answers keep arriving while the reload navigation is
+// still pending — and their two-way catch-up would push this tab's PRE-DEPLOY
+// Yjs docs into the freshly re-seeded rooms, which is exactly what the reload
+// exists to prevent. Muting the socket closes that window deterministically.
+let reloadingForServerVersion = false;
+
 function sendCollab(msg: CollabClientMessage): boolean {
+  if (reloadingForServerVersion) {
+    return false;
+  }
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     return false;
   }
@@ -843,6 +855,17 @@ function maybeReloadOnServerVersionChange(serverVersion: string): void {
     return;
   }
   sessionStorage.setItem(guardKey, "1");
+  // Mute the socket BEFORE navigating: reload() does not stop message
+  // dispatch, and onopen already shipped this tab's subscribes.
+  reloadingForServerVersion = true;
+  // …and CLOSE it, so session.isLive() reports false. Muting alone leaves
+  // isLive() true (it reads ws.readyState), and both close-flush paths in the
+  // editors skip their explicit REST save while isLive() — so a reload that
+  // never commits (browser Stop on a slow deploy-time load) would drop every
+  // later edit while the editor still claimed "Live". Closing also drops this
+  // tab's presence immediately instead of leaving peers a stale cursor until
+  // the server's ~30s sweep. Intentional close ⇒ no reconnect (see onclose).
+  hardClose();
   console.log(
     `Collab: server updated (${stored} → ${serverVersion}) — reloading to resync`,
   );

@@ -1,4 +1,5 @@
 import { t3, type DatasetHmisImportRunSummary, type DatasetHmisScheduledImport } from "lib";
+import { recurrenceLabel } from "./_recurrence_label";
 import {
   Button,
   CollapsibleSection,
@@ -95,7 +96,9 @@ export function Dhis2TabCurrent(p: Props) {
                   })}{" "}
                   {next.kind === "one_shot" && next.runAt
                     ? new Date(next.runAt).toLocaleString()
-                    : `${next.startTime ?? ""} (${next.timezone ?? ""})`}
+                    : next.recurrence
+                      ? recurrenceLabel(next.recurrence)
+                      : ""}
                   {" — "}
                   {t3({ en: "see the Future tab", fr: "voir l'onglet À venir", pt: "ver o separador Futuro" })}
                 </div>

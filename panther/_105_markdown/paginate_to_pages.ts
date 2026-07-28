@@ -268,7 +268,7 @@ function measureContentHeight(
     }).idealH;
   }
 
-  if ("tableData" in item) {
+  if (TableRenderer.isType(item)) {
     return TableRenderer.getIdealHeight(rc, width, item).idealH;
   }
 

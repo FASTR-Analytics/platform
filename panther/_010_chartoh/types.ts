@@ -21,7 +21,8 @@ import type {
 } from "./deps.ts";
 
 export type ChartOHInputs = FigureInputsBase & {
-  chartOHData: ChartOHData;
+  figureType: "chart-oh";
+  data: ChartOHData;
 };
 
 export type ChartOHData = ChartOHDataJson | ChartOHDataTransformed;

@@ -68,12 +68,21 @@ export function findOptimalScale(
   options: { minScale: number; maxScale: number },
   getMinWidthAtScale: (scale: number) => number,
 ): number {
-  const minWidthAt1 = getMinWidthAtScale(1.0);
-  if (availableWidth >= minWidthAt1) {
-    return 1.0;
+  const scales = getDiscreteScales(options.minScale, options.maxScale);
+  if (scales.length === 0) {
+    return options.maxScale;
   }
 
-  const scales = getDiscreteScales(options.minScale, 1.0);
+  // Fast path probes the LADDER'S TOP RUNG, never a hardcoded 1.0: maxScale is
+  // a cap the caller asked for, and content that fits at full size is exactly
+  // the case a sub-1 cap exists to hold back. Using scales[0] (not maxScale
+  // raw) keeps this probe on the same rung the search below would return, so
+  // scale-keyed memo caches see one key per rung.
+  const top = scales[0];
+  if (availableWidth >= getMinWidthAtScale(top)) {
+    return top;
+  }
+
   let lo = 0;
   let hi = scales.length - 1;
   let bestScale = options.minScale;
@@ -100,15 +109,22 @@ export function findOptimalScaleForBounds(
   options: { minScale: number; maxScale: number },
   getSizeAtScale: (scale: number) => { minWidth: number; idealHeight: number },
 ): number {
-  const size1 = getSizeAtScale(1.0);
-  if (
-    availableWidth >= size1.minWidth &&
-    availableHeight >= size1.idealHeight
-  ) {
-    return 1.0;
+  const scales = getDiscreteScales(options.minScale, options.maxScale);
+  if (scales.length === 0) {
+    return options.maxScale;
   }
 
-  const scales = getDiscreteScales(options.minScale, options.maxScale);
+  // Fast path probes the LADDER'S TOP RUNG, never a hardcoded 1.0 — see
+  // findOptimalScale above for why the cap has to win here.
+  const top = scales[0];
+  const sizeTop = getSizeAtScale(top);
+  if (
+    availableWidth >= sizeTop.minWidth &&
+    availableHeight >= sizeTop.idealHeight
+  ) {
+    return top;
+  }
+
   let lo = 0;
   let hi = scales.length - 1;
   let bestScale = options.minScale;

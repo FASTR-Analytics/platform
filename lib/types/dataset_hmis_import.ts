@@ -290,9 +290,6 @@ export type DatasetHmisImportRunSummary = {
   startedAt: string;
   endedAt?: string;
   versionId?: number;
-  // true = this run's shadow verification passed (first dispatcher run per
-  // instance); undefined = shadow did not run (already passed previously).
-  shadowPassed?: boolean;
   progress?: DatasetHmisImportRunProgress;
 };
 
@@ -319,20 +316,8 @@ export type DatasetHmisImportRunStats = {
     // older stored run_stats blobs may carry a nonMonthlyElements key.
   };
   pairFetchStats: Dhis2PairFetchStat[];
-  shadow?: {
-    pairsChecked: number;
-    facilitiesCompared: number;
-    // "hard" fails the pair (and ≥3 hard-mismatch pairs abort the run);
-    // "soft" = zero-vs-absent endpoint ambiguity, recorded only.
-    mismatches: Array<{
-      kind: "hard" | "soft";
-      indicatorRawId: string;
-      periodId: number;
-      facilityId: string;
-      dvsValue: number | undefined;
-      analyticsValue: number | undefined;
-    }>;
-  };
+  // Removed 2026-07-24: older stored run_stats blobs may carry a `shadow`
+  // key (the retired first-run DVS-vs-analytics verification).
 };
 
 // ============================================================================
@@ -358,9 +343,44 @@ export type Dhis2ScheduleSelection =
 
 export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 
+// Recurrence for recurring schedules: an explicit anchor (the first
+// occurrence) plus a kind — occurrences are exact arithmetic from the
+// anchor, never counted from the last fire (PLAN_SCHEDULE_RECURRENCE).
+export type Dhis2ScheduleRecurrence =
+  | {
+      kind: "daily";
+      // "HH:MM" wall time in `timezone` (IANA), all kinds.
+      startTime: string;
+      timezone: string;
+    }
+  | {
+      kind: "weekly";
+      // The date of the FIRST occurrence ("YYYY-MM-DD", a wall date in
+      // `timezone`). The weekday is derived from it — no separate field to
+      // keep consistent. Occurrences are firstRunDate + k·7·everyNWeeks days.
+      firstRunDate: string;
+      everyNWeeks: number;
+      startTime: string;
+      timezone: string;
+    }
+  | {
+      kind: "monthly";
+      // nth `weekday` of the month ("first Thursday"); "last" = final one.
+      nth: 1 | 2 | 3 | 4 | "last";
+      // 0 (Sunday) – 6 (Saturday).
+      weekday: number;
+      everyNMonths: number;
+      // Anchor month ("YYYY-MM") for everyNMonths > 1 phase: months where
+      // monthsSince(anchorMonth) % everyNMonths !== 0 have no occurrence.
+      anchorMonth: string;
+      startTime: string;
+      timezone: string;
+    };
+
 // "launched" = a run was started (last_run_id points at it). "refused" = the
-// fire was blocked at fire time (no stored credentials / unattended shadow
-// gate) — loud, with the reason in lastError. "missed" = the fire window
+// fire was blocked at fire time (no stored credentials, or the stored URL
+// changed under a queued run) — loud, with the reason in lastError.
+// "missed" = the fire window
 // (occurrence + grace) passed with no fire (server down); skipping loudly
 // beats firing into daytime load (PLAN_DHIS2_IMPORTER §2.7).
 export type DatasetHmisScheduledImportOutcome = "launched" | "refused" | "missed";
@@ -372,14 +392,8 @@ export type DatasetHmisScheduledImport = {
   selection: Dhis2ScheduleSelection;
   // one_shot: the fire instant (ISO timestamp).
   runAt?: string;
-  // recurring: 0 (Sunday) – 6 (Saturday), interpreted in `timezone`.
-  dayOfWeek?: number;
-  // recurring: "HH:MM" wall time in `timezone`.
-  startTime?: string;
-  // recurring: IANA timezone, e.g. "Africa/Lagos".
-  timezone?: string;
-  // recurring: 1 = weekly, 2 = fortnightly, …
-  intervalWeeks?: number;
+  // recurring only.
+  recurrence?: Dhis2ScheduleRecurrence;
   createdBy: string;
   createdAt: string;
   lastFiredAt?: string;
@@ -397,23 +411,16 @@ export type DatasetHmisScheduledImportFields = {
   kind: DatasetHmisScheduledImportKind;
   selection: Dhis2ScheduleSelection;
   runAt?: string;
-  dayOfWeek?: number;
-  startTime?: string;
-  timezone?: string;
-  intervalWeeks?: number;
+  recurrence?: Dhis2ScheduleRecurrence;
 };
 
-// One GET for the whole imports surface: schedules + stored-connection state
-// + whether unattended fires are currently allowed.
+// One GET for the whole imports surface: schedules + stored-connection state.
 export type Dhis2ImportSchedulingInfo = {
   schedules: DatasetHmisScheduledImport[];
   storedCredentials?: Dhis2StoredCredentialsInfo;
   // false = DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on the server, so
   // credentials cannot be stored (and nothing can fire unattended).
   encryptionKeyConfigured: boolean;
-  // Stored credentials exist AND a run against their URL has
-  // shadow-verified clean (§7 C4 unattended gate).
-  unattendedReady: boolean;
 };
 
 // ============================================================================

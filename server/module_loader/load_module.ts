@@ -3,6 +3,7 @@ import {
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
   type DefaultPresentationObject,
+  isSampleNProp,
   type Language,
   type Metric,
   type MetricDefinitionGithub,
@@ -14,6 +15,7 @@ import {
   resolveTS,
   type ResultsObjectDefinition,
   type ResultsObjectDefinitionGithub,
+  SAMPLE_N_PREFIX,
 } from "lib";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 
@@ -157,6 +159,23 @@ function validateDefinition(
     ).join("; ");
     throw new Error(`Invalid definition for module "${moduleId}": ${issues}`);
   }
+
+  // The query builder emits sample-size columns into the same result set as the
+  // values (see lib/sample_n.ts), so an authored prop in that namespace would
+  // collide with a generated alias — reject at install rather than emit
+  // duplicate output column names.
+  const reservedProps = result.data.metrics.flatMap((m) => [
+    ...m.valueProps.filter(isSampleNProp),
+    ...(m.postAggregationExpression?.ingredientValues ?? [])
+      .map((iv) => iv.prop)
+      .filter(isSampleNProp),
+  ]);
+  if (reservedProps.length > 0) {
+    throw new Error(
+      `Invalid definition for module "${moduleId}": value props may not start with "${SAMPLE_N_PREFIX}" (reserved for sample sizes): ${reservedProps.join(", ")}`,
+    );
+  }
+
   return result.data as ModuleDefinitionGithub;
 }
 

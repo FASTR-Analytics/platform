@@ -51,7 +51,7 @@ and never changes the DU↔layout mapping.
 ```ts
 // ❌ DON'T — scale as a size knob, per-surface multipliers
 style: { scale: 3 }
-chartInputs={{ ...fi, style: { ...fi.style, scale: 1 } }}     // force-resize per surface
+figureInputs={{ ...fi, style: { ...fi.style, scale: 1 } }}     // force-resize per surface
 scale: (config.s.scale ?? DEFAULT) * 2                         // ×2 for a small tile
 
 // ✅ DO — author the real DU sizes, once, in the global style
@@ -72,11 +72,11 @@ look different in the editor vs a dashboard vs a slide.
 ```tsx
 // ❌ DON'T — treat output pixels as a size, or lower resolution to "shrink"
 writeFigure(path, inputs, 800)        // legacy: 800 was layout width → chunky figure
-<ChartHolder chartInputs={fi} sizing="zoom" height="ideal" resolution={0.2} />  // 0.2 just makes it soft
+<FigureHolder figureInputs={fi} sizing="zoom" height="ideal" resolution={0.2} />  // 0.2 just makes it soft
 
 // ✅ DO — pixels choose sharpness only; a small surface is already small at resolution 1
-<ChartHolder chartInputs={fi} sizing="zoom" height="ideal" />                   // thumbnail, native-crisp
-<ChartHolder chartInputs={fi} height="ideal" />                                 // reflow, native-crisp
+<FigureHolder figureInputs={fi} sizing="zoom" height="ideal" />                   // thumbnail, native-crisp
+<FigureHolder figureInputs={fi} height="ideal" />                                 // reflow, native-crisp
 writeFigure(path, inputs, { outputWidthPx: 2000 })                             // file: 2000px wide
 ```
 
@@ -92,7 +92,7 @@ style: {
 }
 
 // ✅ DO — give it the space; shrink-to-fit + the cramped signal handle it
-<ChartHolder chartInputs={fi} height="flex" />;
+<FigureHolder figureInputs={fi} height="flex" />;
 // surface the `cramped` indicator if you need to flag unreadably small content
 ```
 
@@ -119,11 +119,11 @@ setGlobalStyle({
 
 ```tsx
 // readable surfaces (editor / dashboard / public viewer) → reflow (the default)
-<ChartHolder chartInputs={fi} height="ideal" />                                 // full quality
-<ChartHolder chartInputs={fi} height="flex" />                                  // card (small ⇒ small backing)
+<FigureHolder figureInputs={fi} height="ideal" />                                 // full quality
+<FigureHolder figureInputs={fi} height="flex" />                                  // card (small ⇒ small backing)
 
 // thumbnails / previews / selectors → zoom (faithful miniature)
-<ChartHolder chartInputs={fi} sizing="zoom" height="ideal" />                   // thumbnail, native-crisp
+<FigureHolder figureInputs={fi} sizing="zoom" height="ideal" />                   // thumbnail, native-crisp
 ```
 
 ### Export

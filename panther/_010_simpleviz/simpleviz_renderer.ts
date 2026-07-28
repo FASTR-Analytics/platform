@@ -22,7 +22,7 @@ export const SimpleVizRenderer: Renderer<
 > = {
   isType(item: unknown): item is SimpleVizInputs {
     return typeof item === "object" && item !== null &&
-      "simpleVizData" in item;
+      "figureType" in item && item.figureType === "simpleviz";
   },
 
   measure(

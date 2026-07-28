@@ -22,7 +22,7 @@ export function getTimeseriesSizingData(
   const stacked =
     new CustomFigureStyle(inputs.style).getMergedTimeseriesStyle().content.bars
       .stacking === "stacked";
-  return getTimeseriesDataTransformed(inputs.timeseriesData, stacked);
+  return getTimeseriesDataTransformed(inputs.data, stacked);
 }
 
 export function getTimeseriesComponentSizes(

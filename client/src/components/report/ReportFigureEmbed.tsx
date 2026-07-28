@@ -1,5 +1,5 @@
 import { createEffect, createMemo, type JSX, Match, Switch } from "solid-js";
-import { ChartHolder, type FigureInputs } from "panther";
+import { FigureHolder, type FigureInputs } from "panther";
 import { type FigureBlock, t3 } from "lib";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
@@ -50,8 +50,8 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
     <Switch>
       <Match when={inputs()}>
         {(fi) => (
-          <ChartHolder
-            chartInputs={adaptFigureStyleForDarkMode(fi())}
+          <FigureHolder
+            figureInputs={adaptFigureStyleForDarkMode(fi())}
             height="ideal"
             sizing="zoom"
           />

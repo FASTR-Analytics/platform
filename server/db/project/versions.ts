@@ -20,6 +20,12 @@ import {
   type VersionEditor,
 } from "lib";
 import { DBDeckVersion, DBReportVersion } from "./_project_database_types.ts";
+import {
+  type FigureBlockMut,
+  type SlideLayoutNodeLike,
+  transformFigureBlock,
+  walkSlideLayoutNodes,
+} from "../migrations/data_transforms/_figure_block.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
   generateUniqueDeckId,
@@ -41,8 +47,36 @@ function utf8Bytes(s: string): number {
 // mirror content that was already validated when it was written to the live
 // tables, and a later schema change must not be able to fail the version
 // write (the tracker would retry forever). Validation happens on the way OUT
-// instead — restore/copy parse with the current schemas, which normalizes old
-// snapshots the same way reads of old rows are normalized.
+// instead — restore/copy parse with the current schemas.
+//
+// The parse alone CANNOT cover a renamed/deleted key: Zod strip mode deletes
+// unknown keys instead of normalizing them, so a snapshot from before a
+// rename would lose the setting silently on restore. Every path that reads a
+// snapshot out therefore runs the shared figure-block transforms first (the
+// same upgrade the boot sweeps apply to live rows), via the helpers below —
+// legacy keys migrate instead of vanishing.
+
+function upgradeSnapshotFigures(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  for (const block of Object.values(figures)) {
+    transformFigureBlock(block as unknown as FigureBlockMut);
+  }
+  return figures;
+}
+
+function upgradeSnapshotSlideConfig<T>(config: T): T {
+  const c = config as { type?: unknown; layout?: unknown } | null;
+  if (c && typeof c === "object" && c.type === "content" && c.layout) {
+    walkSlideLayoutNodes(c.layout as SlideLayoutNodeLike, (node) => {
+      const data = node.data as { type?: unknown } | undefined;
+      if (data && data.type === "figure") {
+        transformFigureBlock(data as FigureBlockMut);
+      }
+    });
+  }
+  return config;
+}
 
 // ---------------------------------------------------------------------------
 // Report versions
@@ -167,7 +201,9 @@ export async function getReportVersion(
         restoredFromVersionId: row.restored_from_version_id,
         label: row.label,
         body: row.body,
-        figures: parseJsonOrThrow<Record<string, FigureBlock>>(row.figures),
+        figures: upgradeSnapshotFigures(
+          parseJsonOrThrow<Record<string, FigureBlock>>(row.figures),
+        ),
         images: parseJsonOrThrow<Record<string, ImageBlock>>(row.images),
         bodyAuthors: row.body_authors
           ? parseJsonOrThrow<AuthorRun[]>(row.body_authors)
@@ -241,7 +277,7 @@ export async function restoreReportContent(
       UPDATE reports
       SET label = ${content.label},
           body = ${content.body},
-          figures = ${JSON.stringify(reportFiguresSchema.parse(content.figures))},
+          figures = ${JSON.stringify(reportFiguresSchema.parse(upgradeSnapshotFigures(content.figures)))},
           images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
           last_updated = ${lastUpdated}
       WHERE id = ${reportId}
@@ -280,7 +316,9 @@ export async function copyReportFromVersion(
     ).at(0);
 
     const figures = reportFiguresSchema.parse(
-      parseJsonOrThrow(version.figures),
+      upgradeSnapshotFigures(
+        parseJsonOrThrow<Record<string, FigureBlock>>(version.figures),
+      ),
     );
     const images = reportImagesSchema.parse(parseJsonOrThrow(version.images));
 
@@ -417,6 +455,9 @@ export async function getDeckVersion(
       throw new Error("Version not found");
     }
     const slides = parseJsonOrThrow<DeckVersionSlide[]>(row.slides);
+    for (const s of slides) {
+      upgradeSnapshotSlideConfig(s.config);
+    }
     return {
       success: true,
       data: {
@@ -601,7 +642,7 @@ export async function copyDeckFromVersion(
     // config the current schema rejects) must not leave a half-copied deck.
     const parsedDeckConfig = JSON.stringify(slideDeckConfigSchema.parse(config));
     const parsedSlideConfigs = slides.map((s) =>
-      JSON.stringify(slideConfigSchema.parse(s.config))
+      JSON.stringify(slideConfigSchema.parse(upgradeSnapshotSlideConfig(s.config)))
     );
     const newDeckId = await generateUniqueDeckId(projectDb);
     // generateUniqueSlideId only checks LIVE rows — none of this batch is

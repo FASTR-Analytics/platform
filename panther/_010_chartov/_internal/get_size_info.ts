@@ -23,7 +23,7 @@ export function getChartOVSizingData(
   const stacked =
     new CustomFigureStyle(inputs.style).getMergedChartOVStyle().content.bars
       .stacking === "stacked";
-  return getChartOVDataTransformed(inputs.chartData, stacked);
+  return getChartOVDataTransformed(inputs.data, stacked);
 }
 
 export function getChartOVComponentSizes(

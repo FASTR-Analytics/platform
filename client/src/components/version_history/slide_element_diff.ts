@@ -60,6 +60,32 @@ function textOf(block: ContentBlock): string {
   return block.type === "text" ? (block.markdown ?? "") : "";
 }
 
+/** Structural signature of a layout tree over the SURVIVING blocks: nesting,
+ *  node identity/type, and CONTAINER geometry. Item content and item geometry
+ *  are already compared per block ("block:<id>"), and added/removed blocks are
+ *  already reported as such, so both stay out of this — it answers only "was
+ *  the arrangement changed", with no double-reporting. */
+function layoutShape(layout: unknown, sharedItemIds: Set<string>): string {
+  const walk = (node: AnyNode | undefined): unknown => {
+    if (!node) {
+      return null;
+    }
+    if (node.type === "item") {
+      return sharedItemIds.has(node.id) ? { id: node.id, type: node.type } : null;
+    }
+    const g = node as unknown as Record<string, unknown>;
+    return {
+      id: node.id,
+      type: node.type,
+      span: g.span ?? null,
+      minH: g.minH ?? null,
+      maxH: g.maxH ?? null,
+      children: (node.children ?? []).map(walk).filter((c) => c !== null),
+    };
+  };
+  return canonicalJson(walk(layout as AnyNode | undefined));
+}
+
 export function diffSlideElements(
   oldSlide: Slide,
   newSlide: Slide,
@@ -129,10 +155,16 @@ export function diffSlideElements(
       }
     }
 
-    // Arrangement: surviving blocks in a different document order.
-    const oldOrder = [...oldItems.keys()].filter((id) => newItems.has(id));
-    const newOrder = [...newItems.keys()].filter((id) => oldItems.has(id));
-    if (oldOrder.join(",") !== newOrder.join(",")) {
+    // Arrangement: the layout TREE, not just surviving-item document order —
+    // unwrapping a container, wrapping blocks into columns, or resizing a
+    // container all change the arrangement while leaving item order intact, and
+    // an order-only check reports NOTHING for them (the slide still badges
+    // "edited" from the whole-config compare, so the panel showed a changed
+    // slide with an empty change list).
+    const shared = new Set(
+      [...newItems.keys()].filter((id) => oldItems.has(id)),
+    );
+    if (layoutShape(o.layout, shared) !== layoutShape(n.layout, shared)) {
       changes.push({ key: "layout", kind: "edited" });
     }
   } else {

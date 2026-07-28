@@ -49,18 +49,30 @@ export function isValidPeriodId(periodId: string): boolean {
 }
 
 /**
- * Validates that a count value is a valid non-negative integer
- * @returns true if valid, false otherwise
+ * Parses a count cell into the non-negative int4 the staging column holds, or
+ * null when the cell is not one.
+ *
+ * Accepts any integer-VALUED decimal or exponent form ("123", "123.0", "1e3",
+ * "+5"): that is what exporters emit for integer data — one missing value
+ * turns a whole column float, and every count renders as "123.0". Rejects
+ * non-integers, negatives, hex/Infinity/NaN, and anything outside int4, which
+ * either violate COUNT_CHECK_CONSTRAINT or, as a raw SQL literal, abort the
+ * entire staging batch instead of counting as one invalid row.
+ *
+ * Callers stage the returned NUMBER, never the cell text: Postgres would
+ * assignment-cast a literal 12.5 to 13 rather than reject it, and an unquoted
+ * cell in the VALUES tuple is only safe because it is a number.
  */
-export function isValidCount(countVal: string): boolean {
-  // Digits only, within int4 range — the staging column is INTEGER, and
-  // Number() alone accepts hex/scientific/overflow forms whose SQL literal
-  // aborts the whole staging batch instead of being counted as an invalid row
+export function parseCountValue(countVal: string): number | null {
   const trimmed = countVal.trim();
-  if (!/^\d+$/.test(trimmed)) {
-    return false;
+  if (!/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(trimmed)) {
+    return null;
   }
-  return Number(trimmed) <= 2147483647;
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 0 || n > 2147483647) {
+    return null;
+  }
+  return n;
 }
 
 /**
@@ -72,14 +84,15 @@ export type DatasetRowValidationResult = {
 };
 
 /**
- * Validates all required fields for a dataset row
+ * Validates all required fields for a dataset row. `count` is the output of
+ * parseCountValue — null means the cell was not a stageable count.
  * @returns validation result with failure reason if invalid
  */
 export function isValidDatasetRow(
   periodId: string,
   facilityId: string,
   rawIndicatorId: string,
-  countVal: string
+  count: number | null
 ): DatasetRowValidationResult {
   // Check all fields have values
   if (!periodId?.trim() || !facilityId?.trim() || !rawIndicatorId?.trim()) {
@@ -91,8 +104,7 @@ export function isValidDatasetRow(
     return { isValid: false, failureReason: "invalid_period" };
   }
 
-  // Validate count
-  if (!isValidCount(countVal)) {
+  if (count === null) {
     return { isValid: false, failureReason: "invalid_count" };
   }
 

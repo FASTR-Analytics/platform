@@ -12,7 +12,6 @@ export const ALL_DISAGGREGATION_OPTIONS = [
   "source_indicator",
   "target_population",
   "ratio_type",
-  "facility_name",
   "facility_type",
   "facility_ownership",
   "facility_custom_1",

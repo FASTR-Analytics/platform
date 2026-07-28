@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { upgradeWebSocket } from "hono/deno";
 import {
-  canonicalJson,
   type CollabClientMessage,
   collabClientMessageSchema,
   type CollabServerMessage,
   createDevProjectUser,
   dropStorageInvalidTransients,
+  dropStorageInvalidTransientsInFigures,
+  dropStorageInvalidTransientsInSlide,
   presenceColorForKey,
   presentationObjectConfigSchema,
   type PresentationObjectConfig,
@@ -15,6 +16,7 @@ import {
   reportImagesSchema,
   type Slide,
   slideConfigSchema,
+  storedMatchesDoc,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
@@ -313,9 +315,14 @@ routesProjectCollab.get(
           // Validation lives HERE, not in the DB write: a schema rejection is
           // PERMANENT for this doc state (same input parses the same way
           // forever), so the room must not timer-retry it — see DocSaveResult.
+          // The stored copy drops schema-invalid transients from EMBEDDED
+          // figures for the same reason the PO room does (see the po closure):
+          // the figure modal streams a mid-edit config straight into this doc.
           let stored: Slide;
           try {
-            stored = slideConfigSchema.parse(slide) as Slide;
+            stored = slideConfigSchema.parse(
+              dropStorageInvalidTransientsInSlide(slide),
+            ) as Slide;
           } catch (err) {
             console.error(
               `[collab] slide checkpoint validation failed for ${slideId}`,
@@ -327,7 +334,9 @@ routesProjectCollab.get(
           // what we store — parse-stripped keys would otherwise diverge doc
           // from row while stamped current, and every editor open would adopt
           // the divergent doc (the "viz flip" bug class, 2026-07-24).
-          const trusted = canonicalJson(stored) === canonicalJson(slide);
+          // storedMatchesDoc also rejects a doc holding values JSON cannot
+          // represent, which a plain canonicalJson compare cannot see.
+          const trusted = storedMatchesDoc(stored, slide);
           const res = await saveSlideCheckpoint(
             projectDb,
             slideId,
@@ -393,11 +402,14 @@ routesProjectCollab.get(
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
           // Validation lives HERE (see the slide closure): schema rejection is
           // permanent for this doc state — no timer retry. The body is a plain
-          // string (no parse); figures/images are the parsed surfaces.
+          // string (no parse); figures/images are the parsed surfaces. Figures
+          // drop embedded schema-invalid transients (see the slide closure).
           let storedFigures: typeof content.figures;
           let storedImages: typeof content.images;
           try {
-            storedFigures = reportFiguresSchema.parse(content.figures);
+            storedFigures = reportFiguresSchema.parse(
+              dropStorageInvalidTransientsInFigures(content.figures),
+            );
             storedImages = reportImagesSchema.parse(content.images);
           } catch (err) {
             console.error(
@@ -410,8 +422,8 @@ routesProjectCollab.get(
           // what we store (parse-stripped keys → untrusted → re-seed next
           // open). Body is stored verbatim, so only figures/images can differ.
           const trusted =
-            canonicalJson(storedFigures) === canonicalJson(content.figures) &&
-            canonicalJson(storedImages) === canonicalJson(content.images);
+            storedMatchesDoc(storedFigures, content.figures) &&
+            storedMatchesDoc(storedImages, content.images);
           const res = await saveReportCheckpoint(
             projectDb,
             reportId,
@@ -471,8 +483,7 @@ routesProjectCollab.get(
           // what we store — a diverged doc (dropped transients, parse-stripped
           // keys) must re-seed on next open instead of reasserting itself
           // (every editor open adopts it, visibly "flipping" the viz).
-          const trusted =
-            canonicalJson(storedConfig) === canonicalJson(config);
+          const trusted = storedMatchesDoc(storedConfig, config);
           const res = await savePresentationObjectCheckpoint(
             projectDb,
             poId,

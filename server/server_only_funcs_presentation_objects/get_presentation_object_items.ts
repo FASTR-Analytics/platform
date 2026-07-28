@@ -1,6 +1,5 @@
 import { Sql } from "postgres";
 import {
-  detectColumnExists,
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/mod.ts";
@@ -58,13 +57,13 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     // observations. Mirrors isRollupEligibleResultsValue; app clients never
     // send this — guards hand-crafted requests.
     if (
-      fetchConfig.includeAdminAreaRollup === true &&
+      fetchConfig.rollupDim !== undefined &&
       fetchConfig.postAggregationExpression === undefined &&
       fetchConfig.values.some((v) => v.func === "AVG") &&
-      !(await detectColumnExists(projectDb, tableName, "facility_id"))
+      !queryContext.hasFacilityId
     ) {
       throw new Error(
-        "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",
+        "Invalid rollupDim: AVG values can only be rolled up when the results table has facility-level rows",
       );
     }
 
@@ -75,7 +74,6 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     ///////////////////////////
 
     const indicatorMetadata = await getIndicatorMetadata(
-      mainDb,
       projectDb,
       moduleId,
     );
@@ -88,6 +86,8 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     const nonFacilityWhereStatements = buildWhereClause(
       nonFacilityFetchConfig,
       queryContext.hasPeriodId,
+      undefined,
+      queryContext,
     );
 
     const rawDateRange = await getPeriodBounds(

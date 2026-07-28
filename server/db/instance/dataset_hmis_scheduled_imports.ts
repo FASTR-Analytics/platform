@@ -7,6 +7,7 @@ import {
   type DatasetHmisScheduledImport,
   type DatasetHmisScheduledImportFields,
   type DatasetHmisScheduledImportOutcome,
+  type Dhis2ScheduleRecurrence,
   type Dhis2ScheduleSelection,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -17,8 +18,8 @@ import type { DBDatasetHmisScheduledImport } from "./_main_database_types.ts";
 // schedule rows plus the compare-and-set primitives the ~60 s scheduler tick
 // uses (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
 // last_fired_at is the last HANDLED occurrence — launched, refused, or
-// missed — which doubles as the tick's idempotency token and the
-// interval-weeks anchor.
+// missed — which doubles as the tick's idempotency token. Cadence phase
+// comes from the recurrence's own anchor, never from last_fired_at.
 
 export function isValidIanaTimeZone(timeZone: string): boolean {
   try {
@@ -72,29 +73,41 @@ function validateScheduleFields(
       runAt: new Date(fields.runAt).toISOString(),
     };
   }
-  if (
-    fields.dayOfWeek === undefined ||
-    fields.startTime === undefined ||
-    fields.timezone === undefined ||
-    fields.intervalWeeks === undefined
-  ) {
-    throw new Error(
-      "A recurring schedule needs a day of week, start time, timezone, and interval.",
-    );
+  const rec = fields.recurrence;
+  if (rec === undefined) {
+    throw new Error("A recurring schedule needs a recurrence.");
   }
-  if (!isValidIanaTimeZone(fields.timezone)) {
-    throw new Error(`Unknown timezone: "${fields.timezone}".`);
+  if (!isValidIanaTimeZone(rec.timezone)) {
+    throw new Error(`Unknown timezone: "${rec.timezone}".`);
   }
   if (fields.selection.kind !== "last_n_months") {
     throw new Error("A recurring schedule needs a rolling last-N-months window.");
   }
+  if (rec.kind === "weekly") {
+    // Round-trip check: V8 rolls impossible dates over ("2026-02-29" →
+    // Mar 1) instead of returning Invalid Date. A past anchor is legal (it
+    // just sets the phase) — no recency bound, because the anchor never
+    // advances and every edit re-validates it.
+    const [y, m, d] = rec.firstRunDate.split("-").map(Number);
+    const anchor = new Date(Date.UTC(y, m - 1, d));
+    if (
+      isNaN(anchor.getTime()) ||
+      anchor.getUTCFullYear() !== y ||
+      anchor.getUTCMonth() !== m - 1 ||
+      anchor.getUTCDate() !== d
+    ) {
+      throw new Error(`Invalid first-run date: "${rec.firstRunDate}".`);
+    }
+  }
+  if (rec.kind === "monthly") {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(rec.anchorMonth)) {
+      throw new Error(`Invalid anchor month: "${rec.anchorMonth}".`);
+    }
+  }
   return {
     kind: "recurring",
     selection: fields.selection,
-    dayOfWeek: fields.dayOfWeek,
-    startTime: fields.startTime,
-    timezone: fields.timezone,
-    intervalWeeks: fields.intervalWeeks,
+    recurrence: rec,
   };
 }
 
@@ -109,10 +122,9 @@ function toScheduledImport(
     enabled: row.enabled,
     selection: parseScheduleSelectionOrThrow(row.selection),
     runAt: row.run_at ? new Date(row.run_at).toISOString() : undefined,
-    dayOfWeek: row.day_of_week ?? undefined,
-    startTime: row.start_time ?? undefined,
-    timezone: row.timezone ?? undefined,
-    intervalWeeks: row.interval_weeks ?? undefined,
+    recurrence: row.recurrence
+      ? parseJsonOrThrow<Dhis2ScheduleRecurrence>(row.recurrence)
+      : undefined,
     createdBy: row.created_by,
     createdAt: new Date(row.created_at).toISOString(),
     lastFiredAt: row.last_fired_at
@@ -150,12 +162,10 @@ export async function createDatasetHmisScheduledImport(
     const f = validateScheduleFields(fields);
     const rows = await mainDb<DBDatasetHmisScheduledImport[]>`
       INSERT INTO dataset_hmis_scheduled_imports
-        (kind, enabled, selection, run_at, day_of_week, start_time, timezone,
-         interval_weeks, created_by)
+        (kind, enabled, selection, run_at, recurrence, created_by)
       VALUES
         (${f.kind}, true, ${JSON.stringify(f.selection)}, ${f.runAt ?? null},
-         ${f.dayOfWeek ?? null}, ${f.startTime ?? null}, ${f.timezone ?? null},
-         ${f.intervalWeeks ?? null}, ${createdBy})
+         ${f.recurrence ? JSON.stringify(f.recurrence) : null}, ${createdBy})
       RETURNING *
     `;
     return { success: true, data: toScheduledImport(rows[0]) };
@@ -175,16 +185,13 @@ export async function updateDatasetHmisScheduledImport(
     // last-fire outcome is cleared (the user has addressed it — the
     // attention banner must not outlive the edit), and a one-shot is
     // re-enabled (editing a fired/refused/missed one-shot to a new future
-    // time IS the re-arm gesture; the route re-checks the unattended gate).
+    // time IS the re-arm gesture; the route re-checks stored credentials).
     const updated = await mainDb`
       UPDATE dataset_hmis_scheduled_imports
       SET kind = ${f.kind},
         selection = ${JSON.stringify(f.selection)},
         run_at = ${f.runAt ?? null},
-        day_of_week = ${f.dayOfWeek ?? null},
-        start_time = ${f.startTime ?? null},
-        timezone = ${f.timezone ?? null},
-        interval_weeks = ${f.intervalWeeks ?? null},
+        recurrence = ${f.recurrence ? JSON.stringify(f.recurrence) : null},
         armed_at = now(),
         last_fired_at = NULL,
         last_outcome = NULL,
@@ -219,10 +226,7 @@ export type EnabledScheduledImportRow = {
   kind: "one_shot" | "recurring";
   selection: Dhis2ScheduleSelection;
   runAtMs: number | null;
-  dayOfWeek: number | null;
-  startTime: string | null;
-  timezone: string | null;
-  intervalWeeks: number | null;
+  recurrence: Dhis2ScheduleRecurrence | null;
   createdBy: string;
   // Occurrences before this instant are never due (review finding 1).
   armedAtMs: number;
@@ -242,10 +246,9 @@ export async function getEnabledScheduledImportRows(
     kind: row.kind,
     selection: parseScheduleSelectionOrThrow(row.selection),
     runAtMs: row.run_at ? new Date(row.run_at).getTime() : null,
-    dayOfWeek: row.day_of_week,
-    startTime: row.start_time,
-    timezone: row.timezone,
-    intervalWeeks: row.interval_weeks,
+    recurrence: row.recurrence
+      ? parseJsonOrThrow<Dhis2ScheduleRecurrence>(row.recurrence)
+      : null,
     createdBy: row.created_by,
     armedAtMs: new Date(row.armed_at).getTime(),
     lastFiredAtMs: row.last_fired_at

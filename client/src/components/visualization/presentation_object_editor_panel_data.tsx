@@ -65,7 +65,15 @@ export function PresentationObjectEditorPanelData(p: Props) {
         setTempConfig={p.setTempConfig}
         resultsValueInfo={p.resultsValueInfo}
         allowedFilterOptions={allowedFilterOptions().filter(
-          (o) => !p.singleValueDims.has(o.value),
+          // A one-option filter is noise, EXCEPT when the stored config already
+          // filters on it: the filter still applies to every fetch, so hiding
+          // the row leaves a stale selection that produces "no data" with no
+          // way to see or clear it.
+          (o) =>
+            !p.singleValueDims.has(o.value) ||
+            p.tempConfig.d.filterBy.some(
+              (f) => f.disOpt === o.value && f.values.length > 0,
+            ),
         )}
       />
 

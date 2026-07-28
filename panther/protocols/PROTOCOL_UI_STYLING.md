@@ -2,86 +2,181 @@
 
 **Scope:** UI
 
-See `PROTOCOL_UI_COMPONENTS.md` for component usage.
+Tokens, interactive state, spacing, and theming for app code. For the reasoning,
+the full token catalog, and the theming mechanics, see
+`DOC_UI_COLOR_AND_STATE.md`. For component usage see
+`PROTOCOL_UI_COMPONENTS.md`.
 
 ## Rules
 
-1. **Semantic colors only** — `base-*`, `primary`, `neutral`, `success`,
-   `danger`
-2. **No arbitrary values** — Never `bg-[#ff0000]` or `p-[23px]`
-3. __Use ui-_ utilities_* — `ui-pad`, `ui-gap`, `ui-spy` for spacing
-4. **Sentence case** — All UI text in sentence case, not Title Case
-5. **No inline styles** — Use Tailwind classes only
-6. **Panther components first** — Don't rebuild existing components
-
-## Colors
-
-### Backgrounds
-
-- `base-100` — Cards, primary surfaces
-- `base-200` — Page background, secondary panels
-- `base-300` — Borders (almost always use this for borders)
-
-### Text
-
-- `base-content` — Primary text (default)
-- `neutral` — Secondary/muted text
-
-### Actions & Status
-
-- `primary` — Primary actions, selected states
-- `success` — Ready, complete, positive
-- `danger` — Errors, destructive actions
-- `neutral` — Running, queued, pending
-
-### Borders
-
-```tsx
-// ❌ DON'T
-<div class="border-gray-300">
-<div class="border-primary">  // unless selected/active state
-
-// ✅ DO
-<div class="border-base-300">
-<div class="border-primary">  // only for selected/active
-```
-
-## Spacing
-
-### Padding
-
-- `ui-pad` — Standard container padding
-- `ui-pad-sm` — Compact padding
-- `ui-pad-lg` — Modal/dialog padding
-
-### Gaps
-
-- `ui-gap` — Standard flex/grid gap
-- `ui-gap-sm` — Compact gap
-
-### Vertical Spacing
-
-- `ui-spy` — Vertical spacing between sections
-- `ui-spy-sm` — Compact vertical spacing
+1. **Token colors only** — `base-100/200/300`, `base-content` (+ `-muted`,
+   `-faint`), the five intents (+ `-content`, `-hover`, `-active`, `-subtle`,
+   `-subtle-content`), `border`, `focus`, `scrim`. Nothing else.
+2. **No arbitrary values** — never `bg-[#ff0000]`, `p-[23px]`, or an inline
+   `style` for anything a token covers.
+3. **Cursor change ⇒ background change** — no cursor-only hovers. Sole
+   exception: text-only interactives (inline links, tab labels) may hover on
+   text color.
+4. **`ui-hoverable-{token}` is the state pattern** — every interactive opaque
+   surface uses it. Explicit `hover:`/`active:` pairs only for selectable text
+   or a transparent rest.
+5. **Never stack `bg-*` on a family-classed element** — the utility wins and
+   kills the states. Scope the family per `classList` arm instead.
+6. **Declare `onBackground`** — any outline `Button` / `ButtonGroup` not sitting
+   on `base-100` must declare the surface token it sits on.
+7. **Never write a border color for the default** — bare `border` already paints
+   the border token. A border color class always marks an exception.
+8. **`-subtle` washes are non-interactive** — never a hover target, never a
+   hover destination, never a click target's rest surface. Only exception: the
+   pinned surface of a _selected_ selection control.
+9. **Controls on washes are filled, not outline** — at the wash's own intent.
+10. **Disabled is `opacity-40`** — a treatment, not a color.
+11. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
+12. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
+    variants, not raw `p-4` / `gap-4` / `space-y-6`.
+13. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
+14. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
+    `--color-*` app-side.
+15. **Sentence case** — all UI text, always.
 
 ## Do / Don't
 
 ### Colors
 
 ```tsx
-// ❌ DON'T
-<div class="bg-[#f5f5f5] text-[#333]">
+// ❌ DON'T — off-token palette, arbitrary hex, alpha improvised
 <div class="bg-gray-100 text-gray-800">
+<div class="bg-[#f5f5f5]">
+<div class="bg-primary/10">
 
 // ✅ DO
-<div class="bg-base-100 text-base-content">
+<div class="bg-base-200 text-base-content">
+<div class="bg-primary-subtle text-primary-subtle-content">
 ```
+
+**Why:** The default Tailwind palette is wiped, so off-token classes render
+nothing at all; `-subtle` is the designed opaque wash the `/10` idiom replaced.
+
+### Muted text
+
+```tsx
+// ❌ DON'T — neutral is a fill intent, not a text ramp
+<span class="text-neutral">Last updated 3h ago</span>;
+
+// ✅ DO
+<span class="text-base-content-muted">Last updated 3h ago</span>;
+<span class="ui-text-caption">Last updated 3h ago</span>;
+```
+
+**Why:** `neutral` is for fills (spinners, badges); the foreground ramp is
+`base-content` → `-muted` → `-faint`, and only the ramp inverts correctly on a
+dark theme.
+
+### Interactive surfaces
+
+```tsx
+// ❌ DON'T — cursor with no surface change
+<div class="cursor-pointer" onClick={open}>…</div>;
+
+// ❌ DON'T — utility bg on a family class (utility wins, states die)
+<div class="ui-hoverable-base-100 bg-base-100" onClick={open}>…</div>;
+
+// ✅ DO
+<div class="ui-hoverable-base-100 ui-pad" onClick={open}>…</div>;
+```
+
+**Why:** The family bundles affordance, rest, hover and press as one designed
+unit; a stacked utility overrides the rest surface and silently removes the
+states.
+
+### Selected states
+
+```tsx
+// ❌ DON'T — a wash as the rest surface of a clickable
+<button class="bg-primary-subtle cursor-pointer">{label}</button>;
+
+// ✅ DO — pinned wash on the selected arm only, family on the rest
+<button
+  classList={{
+    "border-primary bg-primary-subtle font-700": isSelected(),
+    "ui-hoverable-base-100": !isSelected(),
+  }}
+>
+  {label}
+</button>;
+```
+
+**Why:** A wash reads as "information", not "control"; pinning it to the
+selected arm keeps that meaning while the unselected arm keeps the affordance.
+
+### Outline buttons
+
+```tsx
+// ❌ DON'T — undeclared backdrop on a non-base-100 surface (paints white)
+<div class="bg-base-200 ui-pad">
+  <Button outline onClick={edit}>Edit</Button>
+</div>;
+
+// ✅ DO
+<div class="bg-base-200 ui-pad">
+  <Button outline onBackground="base-200" onClick={edit}>Edit</Button>
+</div>;
+```
+
+**Why:** An outline control is a quiet interactive _of the surface it sits on_;
+`onBackground` names that surface so rest, hover and press match it.
+
+### Controls in callouts
+
+```tsx
+// ❌ DON'T — outline control on a wash reads as a second wash
+<div class="bg-danger-subtle ui-pad rounded border border-danger">
+  <Button outline intent="danger">Back</Button>
+</div>;
+
+// ✅ DO
+<div class="bg-danger-subtle ui-pad rounded border border-danger">
+  <Button intent="danger" size="sm">Back</Button>
+</div>;
+```
+
+**Why:** On a tinted surface only a solid fill still reads as a control.
+
+### Borders
+
+```tsx
+// ❌ DON'T
+<div class="border border-base-300">
+<div class="border border-border">
+
+// ✅ DO — bare border already paints the border token
+<div class="border rounded">
+<div class="border border-primary rounded">  // only when selected/active
+```
+
+**Why:** `@layer base` sets `border-color: var(--color-border)` on every
+element, so a written border color is noise unless it marks an exception.
+
+### Elevation
+
+```tsx
+// ❌ DON'T
+<div class="rounded-lg shadow-md">          // both scales are wiped: no-ops
+<div class="ui-pad rounded border shadow-floating">  // in-flow, must not float
+
+// ✅ DO
+<div class="ui-pad rounded border">                        // in-flow container
+<div class="bg-base-100 rounded border shadow-floating">   // floating surface
+```
+
+**Why:** `--radius` and `--shadow-floating` are the whole scale; in-flow
+containers are border-only, and shadow means "this left the document flow".
 
 ### Spacing
 
 ```tsx
 // ❌ DON'T
-<div class="p-4 gap-3">
+<div class="p-4 gap-3 space-y-6">
 <div class="p-[23px]">
 
 // ✅ DO
@@ -89,7 +184,10 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 <div class="ui-pad-sm ui-gap-sm">
 ```
 
-### Text Case
+**Why:** The `ui-*` utilities resolve through density vars, so an app can retune
+its whole density from one `@theme` block.
+
+### Text case
 
 ```tsx
 // ❌ DON'T
@@ -101,66 +199,147 @@ See `PROTOCOL_UI_COMPONENTS.md` for component usage.
 <h1>User settings</h1>
 ```
 
-### Status Colors
-
-```tsx
-// ❌ DON'T
-{
-  status === "ready" && <Badge class="bg-green-500">Ready</Badge>;
-}
-
-// ✅ DO
-{
-  status === "ready" && <Badge class="bg-success">Ready</Badge>;
-}
-{
-  status === "error" && <Badge class="bg-danger">Error</Badge>;
-}
-{
-  status === "pending" && <Badge class="bg-neutral">Pending</Badge>;
-}
-```
-
 ## Patterns
 
-### Standard Page Layout
+### Which token do I reach for
+
+| Situation                                    | Reach for                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| Body text                                    | inherited `base-content`                                                  |
+| Sublabels, captions, metadata, help text     | `text-base-content-muted` / `ui-text-caption`                             |
+| One step quieter still                       | `text-base-content-faint`                                                 |
+| Text on a solid fill                         | `text-{intent}-content`                                                   |
+| Text on a wash                               | `text-{intent}-subtle-content`                                            |
+| Disabled anything                            | `opacity-40`                                                              |
+| Page background                              | `bg-base-200`                                                             |
+| Card / panel on the page                     | `bg-base-100`                                                             |
+| Inset or well inside a panel                 | `bg-base-200`                                                             |
+| Chip, slider track, filled placeholder       | `bg-base-300`                                                             |
+| Divider, tick, scrollbar thumb               | `bg-border`                                                               |
+| In-flow container                            | `border rounded` — no color, no shadow                                    |
+| Popover, menu, tooltip, modal panel          | `bg-base-100 border rounded shadow-floating`                              |
+| Modal backdrop                               | `bg-scrim`                                                                |
+| Selected / active border                     | `border-primary`                                                          |
+| Error border                                 | `border-danger`                                                           |
+| Callout or badge                             | `bg-{intent}-subtle` + `text-{intent}-subtle-content`                     |
+| Selected card / option / nav item            | accent select: pinned `bg-primary-subtle` + `border-primary` + `font-700` |
+| Selected row in a dense list                 | fill select: `bg-base-200`                                                |
+| Any interactive opaque surface               | `ui-hoverable-{token}`                                                    |
+| Focus                                        | `ui-focusable`                                                            |
+| Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`       |
+
+Status intents: `success` complete/positive · `warning` caution · `danger`
+error/destructive · `neutral` running/queued/pending · `primary`
+selected/active.
+
+**"I need a new token."** You don't — fix the site. Never add a surface tier, a
+lighter wash, or a per-intent focus color for one awkward site. See
+`DOC_UI_COLOR_AND_STATE.md`.
+
+### Card with a clickable header
 
 ```tsx
-<FrameTop panelChildren={<HeadingBar heading="Title" />}>
-  <div class="ui-pad ui-spy">
-    {/* Content */}
+<div class="rounded border">
+  <div class="ui-hoverable-base-100 ui-pad flex items-center" onClick={toggle}>
+    <div class="flex-1">{title}</div>
+    <Icon iconName="chevronDown" />
   </div>
-</FrameTop>;
-```
-
-### Card with Border
-
-```tsx
-<div class="ui-pad border border-base-300 rounded">
-  {/* Content */}
+  <div class="ui-pad border-t">{body}</div>
 </div>;
 ```
 
-### Success/Active State
+### Status callout with an action
 
 ```tsx
-<div class="border border-success bg-success/10 rounded">
-```
-
-### Grid Layout
-
-```tsx
-<div class="ui-gap grid grid-cols-12">
-  <div class="col-span-4">{/* ... */}</div>
-  <div class="col-span-8">{/* ... */}</div>
+<div class="bg-danger-subtle text-danger-subtle-content ui-pad ui-spy-sm rounded border border-danger text-sm">
+  <div>{errorMessage}</div>
+  <Button intent="danger" size="sm" onClick={retry}>Retry</Button>
 </div>;
 ```
+
+### Selectable card grid
+
+```tsx
+<For each={items()}>
+  {(item) => (
+    <button
+      class="ui-pad w-full rounded border text-left"
+      classList={{
+        "border-primary bg-primary-subtle font-700": isSelected(item),
+        "ui-hoverable-base-100": !isSelected(item),
+      }}
+      onClick={() => select(item)}
+    >
+      <div>{item.label}</div>
+      <div class="ui-text-caption">{item.detail}</div>
+    </button>
+  )}
+</For>;
+```
+
+### App theme block
+
+```css
+@import "tailwindcss";
+@source "./src";
+@import "./panther/_303_components/_fixed.css";
+
+@theme {
+  /* No --color-*: initial — the kit already wiped the palette, and an
+     app-side wipe also nukes the kit's derived state tokens. */
+  --color-primary: #6f2e30;
+  --color-base-200: #ebebec;
+  --color-border: #d6d7d9; /* pin explicitly if you used to theme borders via base-300 */
+  --radius: 3px;
+}
+```
+
+Dark themes additionally override `--color-scrim` (the default 30% black veil
+disappears over near-black surfaces). Palette swaps must land on `:root` —
+`:root[data-theme="dark"] { … }` — never on a wrapper element.
+
+### The public class API
+
+Usable from app code:
+
+- **Spacing/density:** `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
+  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`,
+  `ui-spy-sm`, `ui-spy-lg`
+- **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
+  `ui-form-text-size-sm`, `ui-icon-only-correction`,
+  `ui-icon-only-correction-sm`
+- **State:** the `ui-hoverable-{token}` family — `base-100`, `base-200`,
+  `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
+  `danger` — and `ui-focusable`
+- **Type:** `ui-text-display`, `ui-text-title`, `ui-text-heading`,
+  `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
+  `ui-label`
+- **Skins (only when building a control panther doesn't provide):**
+  `ui-fill-{intent}`, `ui-outline-{intent}`
+
+Every other `ui-*` class is internal and may change without notice.
 
 ## Checklist
 
-- [ ] No arbitrary Tailwind values (`[#xxx]`, `[Npx]`)
-- [ ] Colors use semantic names only
-- [ ] Spacing uses `ui-*` utilities
+- [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`) and no
+      arbitrary values (`p-[Npx]`)
+- [ ] No `/N` alpha as a surface fill (`bg-primary/10`) — `-subtle` instead;
+      `bg-scrim` is the one sanctioned veil
+- [ ] Muted text is `base-content-muted`, never `neutral`
+- [ ] Every `cursor-pointer` element also changes background (or is a text-only
+      interactive changing text color)
+- [ ] Interactive surfaces use `ui-hoverable-{token}`; no utility `bg-*` on the
+      same element
+- [ ] Explicit `hover:bg-*` pairs only for selectable text or transparent-rest
+      affordances
+- [ ] Outline `Button` / `ButtonGroup` off `base-100` declares `onBackground`
+- [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover
+      destination — except a selected arm's pin
+- [ ] Buttons inside `-subtle` callouts are filled at the callout's intent
+- [ ] No `border-base-300` / `border-border`; bare `border` unless marking an
+      exception
+- [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on
+      floating surfaces
+- [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
+- [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case
-- [ ] No inline styles
-- [ ] Borders use `border-base-300` (or `border-primary` for active state)

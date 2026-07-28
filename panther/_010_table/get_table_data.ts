@@ -106,11 +106,19 @@ function getTableDataJsonTransformed(
     totalRows,
     () => createArray(totalCols, UNDEFINED_PLACEHOLDER),
   );
+  const nMatrix = jsonDataConfig.nProps
+    ? createArray(
+      totalRows,
+      () => createArray<number | undefined>(totalCols, () => undefined),
+    )
+    : undefined;
 
   fillDataArray(
     aoa,
+    nMatrix,
     jsonArray,
     valueProps,
+    jsonDataConfig.nProps,
     col.groupProp,
     col.itemProp,
     row.groupProp,
@@ -124,12 +132,17 @@ function getTableDataJsonTransformed(
     row.map((cell) => (cell === UNDEFINED_PLACEHOLDER ? "." : cell))
   );
 
+  // An all-undefined matrix (nProps set but nothing resolved) carries no
+  // information and would serialize as a dense null grid — drop it.
+  const hasAnyN = nMatrix?.some((row) => row.some((v) => v !== undefined));
+
   return {
     isTransformed: true,
     colGroups,
     rowGroups,
     aoa: aoaWithMissing,
     liveDomainExcludeIds: jsonDataConfig.liveDomainExcludeIds,
+    nMatrix: hasAnyN ? nMatrix : undefined,
   };
 }
 
@@ -337,8 +350,10 @@ function makeComboKey(
 
 function fillDataArray(
   aoa: string[][],
+  nMatrix: (number | undefined)[][] | undefined,
   jsonArray: JsonArray,
   valueProps: string[],
+  nProps: Record<string, string> | undefined,
   colGroupProp: string | undefined,
   colProp: string | undefined,
   rowGroupProp: string | undefined,
@@ -377,6 +392,19 @@ function fillDataArray(
         `Duplicate value at col=${colCombo} row=${rowCombo}`,
       );
       aoa[rowIndex][colIndex] = String(obj[vp]);
+
+      const nProp = nProps?.[vp];
+      if (nMatrix && nProp !== undefined) {
+        // Numeric strings are accepted, mirroring the value path (JSON from
+        // CSV/SQL drivers routinely stringifies numbers); "" is not a number.
+        const nVal = obj[nProp];
+        const nNum = typeof nVal === "number"
+          ? nVal
+          : typeof nVal === "string" && nVal.trim() !== ""
+          ? Number(nVal)
+          : NaN;
+        nMatrix[rowIndex][colIndex] = Number.isFinite(nNum) ? nNum : undefined;
+      }
     }
   }
 }

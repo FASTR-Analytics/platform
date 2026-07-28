@@ -25,6 +25,7 @@
 import {
   figureBlockSchema,
   figureBundleSchema,
+  getRollupPosition,
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
@@ -206,6 +207,22 @@ export function transformFigureBlock(block: FigureBlockMut): void {
 
   if (block.source?.type === "from_data" && block.source.config) {
     block.source.config = transformPOConfigData(block.source.config);
+  }
+
+  // Post-P2 blocks: the bundle's frozen config gets the same PO-config
+  // transforms. Without this, the sweep's re-parse (Zod strip mode) would
+  // DELETE a legacy key from bundle.config instead of migrating it — e.g. the
+  // roll-up flag rename would silently drop the user's roll-up.
+  const bundle = block.bundle as Record<string, unknown> | null | undefined;
+  if (
+    bundle &&
+    typeof bundle === "object" &&
+    bundle.config &&
+    typeof bundle.config === "object"
+  ) {
+    bundle.config = transformPOConfigData(
+      bundle.config as Record<string, unknown>,
+    );
   }
 
   // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
@@ -565,7 +582,7 @@ function reverseTransformTimeseries(
   const parsedConfig = presentationObjectConfigSchema.safeParse(sourceConfig);
   const rollupSort: unknown =
     parsedConfig.success && isRollupActive(parsedConfig.data)
-      ? parsedConfig.data.d.adminAreaRollupPosition === "top"
+      ? getRollupPosition(parsedConfig.data) === "top"
         ? { base: "by-label", first: ROLLUP_PIN_IDS }
         : { base: "by-label", last: ROLLUP_PIN_IDS }
       : "by-label";

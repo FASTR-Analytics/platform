@@ -7,8 +7,10 @@ import {
   type FontInfo,
   MapRegionInfo,
   TableCellInfo,
+  TableHeaderInfo,
   getAdjustedColor,
   getFormatterFunc,
+  toNum0,
   type CustomFigureStyleOptions,
 } from "panther";
 import {
@@ -117,10 +119,30 @@ export function getTextStyle(
   };
 }
 
-export function getTableLayoutStyle(config: PresentationObjectConfig) {
+// Structural figure colors — grid lines, borders, label backgrounds, strokes.
+// Inside a deck they resolve against that deck's color preset so a figure obeys
+// the deck's theme; outside one they stay `{ key }` and resolve against
+// panther's global palette exactly as before. The no-deck branch is
+// byte-identical to the pre-theming output, which is the property that keeps
+// standalone visualizations, editor previews and exports visually unchanged.
+// Semantic colors (good/bad/neutral, survey/projected) are deliberately NOT
+// routed through here — they carry meaning, not theme.
+type StructuralColorSlot = "base100" | "base300" | "baseContent";
+
+function structuralColor(
+  slot: StructuralColorSlot,
+  deckStyle: DeckStyleContext | undefined,
+): ColorKeyOrString {
+  return deckStyle ? deckStyle.colorPreset[slot] : { key: slot };
+}
+
+export function getTableLayoutStyle(
+  config: PresentationObjectConfig,
+  deckStyle: DeckStyleContext | undefined,
+) {
   const cfOn = selectCf(config.s).type !== "none";
   return {
-    gridLineColor: cfOn ? { key: "base100" as const } : undefined,
+    gridLineColor: cfOn ? structuralColor("base100", deckStyle) : undefined,
     rowHeaderPadding: cfOn
       ? ([5, 10, 5, 0] as [number, number, number, number])
       : undefined,
@@ -134,20 +156,21 @@ export function getTableLayoutStyle(config: PresentationObjectConfig) {
   };
 }
 
-// Resolves which indicator a table cell belongs to. With a single effective
-// value prop the cell's indicator is unambiguous regardless of which axis (if
-// any) panther renders as a header, so match directly rather than relying on
-// colHeader/rowHeader carrying the indicator id (they may carry neither once
-// a lone value prop no longer forces a header onto either axis).
+// Resolves which indicator a table cell belongs to. Metadata is keyed by
+// indicator id, which reaches the cell either as the value prop (wide-format
+// metrics) or as the col/row header (long-format metrics, where the indicator
+// sits on a disaggregation axis and the lone value prop is "value").
 export function getIndicatorMetaForCell(
   metadataById: Map<string, IndicatorMetadata>,
   effectiveValueProps: string[],
   info: Pick<TableCellInfo, "colHeader" | "rowHeader">,
 ): IndicatorMetadata | undefined {
-  if (effectiveValueProps.length === 1) {
-    return metadataById.get(effectiveValueProps[0]!);
-  }
+  const soleValueProp =
+    effectiveValueProps.length === 1 ? effectiveValueProps[0]! : undefined;
   return (
+    (soleValueProp === undefined
+      ? undefined
+      : metadataById.get(soleValueProp)) ??
     metadataById.get(info.colHeader?.id ?? "") ??
     metadataById.get(info.rowHeader?.id ?? "")
   );
@@ -159,6 +182,7 @@ export function getTableCellsContent(
   indicatorMetadata: IndicatorMetadata[] | undefined,
   obeyMetricFormat: boolean,
   effectiveValueProps: string[],
+  deckStyle: DeckStyleContext | undefined,
 ) {
   const cfOn = selectCf(config.s).type !== "none";
   const metadataById = indicatorMetadata
@@ -170,8 +194,8 @@ export function getTableCellsContent(
       ? {
           backgroundColor: 777 as const,
           textColorStrategy: {
-            ifLight: { key: "baseContent" as const },
-            ifDark: { key: "base100" as const },
+            ifLight: structuralColor("baseContent", deckStyle),
+            ifDark: structuralColor("base100", deckStyle),
           },
         }
       : undefined,
@@ -198,6 +222,41 @@ export function getTableCellsContent(
   };
 }
 
+/**
+ * Appends the sample size to each column header: "Northern (n=55)".
+ *
+ * v1 policy is item headers only. The formatter also fires for col-GROUP
+ * headers, whose digest spans several columns, so the group gate is required —
+ * without it a group label reports the largest n under it as if it were its
+ * own. Rows and cells are deliberately undecorated (panther supports both).
+ *
+ * `max` over the header's slice, per the wb-client product manager: a column
+ * whose n is constant shows exactly that n, since max equals it. A missing
+ * `sampleN` (items carry no __n_*, or roll-up exclusion left no numeric cell)
+ * leaves the label untouched, which is what makes historical figures render
+ * unchanged. Zero is suppressed too: it is a real finite number to panther, but
+ * "(n=0)" tells a reader nothing.
+ *
+ * Must be pure and deterministic — panther caches header widths by label.
+ */
+export function getTableColHeadersContent(config: PresentationObjectConfig) {
+  if (!config.s.showNValues) {
+    return undefined;
+  }
+  return {
+    textFormatter: (info: TableHeaderInfo) => {
+      if (
+        info.isGroupHeader ||
+        info.sampleN === undefined ||
+        info.sampleN.max <= 0
+      ) {
+        return info.label;
+      }
+      return `${info.label} (n=${toNum0(info.sampleN.max)})`;
+    },
+  };
+}
+
 function formatIndicatorValue(
   rawValue: number,
   formatAs: "percent" | "number" | "rate_per_10k",
@@ -212,6 +271,7 @@ function formatIndicatorValue(
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
+  deckStyle: DeckStyleContext | undefined,
 ) {
   if (config.d.type !== "map") return undefined;
   const showRegion = config.s.mapShowRegionLabels ?? false;
@@ -220,14 +280,14 @@ export function getMapRegionsContent(
     func: {
       show: true,
       fillColor: 777 as const,
-      strokeColor: { key: "baseContent" as const },
+      strokeColor: structuralColor("baseContent", deckStyle),
       strokeWidth: 0.5,
       dataLabel: {
         show: showRegion || showData,
-        backgroundColor: { key: "base100" as const },
+        backgroundColor: structuralColor("base100", deckStyle),
         rectRadius: 5,
         padding: [4, 6],
-        borderColor: { key: "base300" as const },
+        borderColor: structuralColor("base300", deckStyle),
         borderWidth: 1,
       },
     },

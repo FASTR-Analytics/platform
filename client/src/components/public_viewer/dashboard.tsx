@@ -9,7 +9,7 @@ import { t3, TC } from "lib";
 import {
   AlertProvider,
   Button,
-  ChartHolder,
+  FigureHolder,
   FrameLeft,
   FrameLeftResizable,
   FrameTop,
@@ -372,8 +372,8 @@ function TileHeader(p: {
 
 function DashboardItemChart(p: { item: PublicItem }) {
   return (
-    <ChartHolder
-      chartInputs={adaptFigureStyleForDarkMode(itemFigureInputs(p.item))}
+    <FigureHolder
+      figureInputs={adaptFigureStyleForDarkMode(itemFigureInputs(p.item))}
       height="flex"
     />
   );

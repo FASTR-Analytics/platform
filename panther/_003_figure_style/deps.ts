@@ -52,6 +52,8 @@ export type {
   LineStyle,
   MapRegionInfo,
   MapRegionInfoFunc,
+  PieSliceInfo,
+  PieSliceInfoFunc,
   PointStyle,
   PointType,
   RectStyle,

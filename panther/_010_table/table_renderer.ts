@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { buildExcludedRowIndices } from "./_internal/excluded_indices.ts";
 import {
-  buildExcludedRowIndices,
   computeAutoColumnMins,
   computeColumnMinMax,
   createPerScaleMeasureCache,
@@ -13,6 +13,7 @@ import {
   type PerScaleMeasureCache,
   resolveColumnWidthEntries,
 } from "./_internal/measure_table.ts";
+import { resolveTableHeadersTransformed } from "./_internal/resolve_headers.ts";
 import { renderTable } from "./_internal/render_table.ts";
 import {
   buildFitReport,
@@ -45,7 +46,12 @@ function getMinComfortableWidth(
     item.autofitSurrounds,
   );
   const s = customFigureStyle.getMergedTableStyle();
-  const d = getTableDataTransformed(item.tableData);
+  // Same label-resolution prelude as measureTable: the shared per-scale
+  // caches key on sf alone, so both entry points must see identical labels.
+  const d = resolveTableHeadersTransformed(
+    getTableDataTransformed(item.data),
+    s,
+  ).data;
 
   const nCols = sum(d.colGroups.map((cg) => cg.cols.length));
   const hasRowGroupHeaders = d.rowGroups.some((rg) => rg.label);
@@ -259,7 +265,8 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
   ////////////////////////////////////////////////////////////////////////////////////////////////////
 
   isType(item: unknown): item is TableInputs {
-    return typeof item === "object" && item !== null && "tableData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "table";
   },
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -333,7 +340,6 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
     const autofitOpts = resolveFigureAutofitOptions(item.autofit);
 
     const cache = createPerScaleMeasureCache();
-    const idealH = getIdealHeightAtScale(rc, width, item, 1.0, cache);
 
     // Width-based scaling for optimizer scoring
     const minComfortableWidth = getMinComfortableWidth(
@@ -348,28 +354,56 @@ export const TableRenderer: Renderer<TableInputs, MeasuredTable> = {
       : width / minComfortableWidth;
 
     const cs = new CustomFigureStyle(item.style);
-    // maxH = idealH signals "I resist stretching past ideal"; the page layouter
-    // owns how far it may actually stretch (content.figureMaxStretch).
-    const maxH = idealH;
 
     if (!autofitOpts) {
+      const idealH = getIdealHeightAtScale(rc, width, item, 1.0, cache);
       return {
         minH: idealH,
         idealH,
-        maxH,
+        // maxH = idealH signals "I resist stretching past ideal"; the page
+        // layouter owns how far it may actually stretch
+        // (content.figureMaxStretch).
+        maxH: idealH,
         neededScalingToFitWidth,
         minComfortableWidth,
       };
     }
 
-    // With autofit - minH is the height at the (floor-aware) minimum scale
-    const floorScale = computeFloorScale({
+    // The height must be reported at the scale `measure` will ACTUALLY apply at
+    // this width, not at scale 1. Below minComfortableWidth the table cannot
+    // render at scale 1 at all, and its text wraps far harder there than it will
+    // once shrink-to-fit applies — so a scale-1 height asks the layouter for
+    // space the table then has to absorb, and measureTable spreads any leftover
+    // across the rows as extra y-padding (a 3px cellPadding became 46px).
+    // Height is deliberately unbounded in this search: this IS the answer to
+    // "how tall do you want to be at this width", so only the width constrains
+    // the scale. Reporting the height at that scale makes the subsequent
+    // measure into this very box settle on the same scale with zero leftover.
+    const getSizeAtScale = memoizeByScale((scale: number) => ({
+      minWidth: getMinComfortableWidth(rc, item, width, scale, cache),
+      idealHeight: getIdealHeightAtScale(rc, width, item, scale, cache),
+    }));
+    const floorOpts = {
       minScale: autofitOpts.minScale,
       maxScale: autofitOpts.maxScale,
       baseFontSizeDu: cs.baseFontSize,
       minFontSizeDu: autofitOpts.minFontSizeDu,
-    });
-    const minH = getIdealHeightAtScale(rc, width, item, floorScale, cache);
+    };
+    const { fitScale } = findFitScaleWithFloor(
+      width,
+      Infinity,
+      floorOpts,
+      getSizeAtScale,
+    );
+    const idealH = getSizeAtScale(fitScale).idealHeight;
+    const maxH = idealH;
+
+    // With autofit - minH is the height at the (floor-aware) minimum scale
+    const floorScale = computeFloorScale(floorOpts);
+    const minH = Math.min(
+      idealH,
+      getIdealHeightAtScale(rc, width, item, floorScale, cache),
+    );
 
     return {
       minH,

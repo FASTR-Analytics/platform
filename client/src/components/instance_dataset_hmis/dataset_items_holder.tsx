@@ -8,7 +8,7 @@ import {
 } from "lib";
 import {
   FigureInputs,
-  ChartHolder,
+  FigureHolder,
   FrameLeftResizable,
   MultiSelect,
   RadioGroup,
@@ -162,7 +162,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     const figureData: FigureInputs =
       figureType === "chart"
         ? {
-            timeseriesData: {
+            figureType: "timeseries",
+            data: {
               jsonArray,
               jsonDataConfig: {
                 valueProps: [value],
@@ -180,7 +181,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             style,
           }
         : {
-            tableData: {
+            figureType: "table",
+            data: {
               jsonArray,
               jsonDataConfig: {
                 valueProps: [value],
@@ -247,8 +249,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
           <StateHolderWrapper state={figureInputs()}>
             {(keyedInputs) => {
               return (
-                <ChartHolder
-                  chartInputs={adaptFigureStyleForDarkMode(keyedInputs)}
+                <FigureHolder
+                  figureInputs={adaptFigureStyleForDarkMode(keyedInputs)}
                   height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );

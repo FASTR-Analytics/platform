@@ -229,11 +229,13 @@ export function unsubscribeSlide(
   unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
 }
 
-/** Persist a slide room's un-checkpointed edits now (no-op when none). */
+/** Persist a slide room's un-checkpointed edits now (no-op when none).
+ *  False ⇒ the checkpoint failed and the DB row is NOT current (see
+ *  flushRoomForDoc). */
 export function flushSlideRoom(
   projectId: string,
   slideId: string,
-): Promise<void> {
+): Promise<boolean> {
   return flushRoomForDoc(projectId, DOC_TYPE, slideId);
 }
 

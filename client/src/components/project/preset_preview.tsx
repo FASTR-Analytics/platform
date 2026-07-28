@@ -7,7 +7,7 @@ import {
   type VizPreset,
 } from "lib";
 import {
-  ChartHolder,
+  FigureHolder,
   LoadingIndicator,
   type FigureInputs,
   type StateHolder,
@@ -99,8 +99,8 @@ export function PresetPreview(p: Props) {
               keyed
             >
               {(figureInputs) => (
-                <ChartHolder
-                  chartInputs={adaptFigureStyleForDarkMode(figureInputs)}
+                <FigureHolder
+                  figureInputs={adaptFigureStyleForDarkMode(figureInputs)}
                   height="ideal"
                   sizing="zoom"
                   />

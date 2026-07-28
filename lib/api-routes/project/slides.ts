@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { route } from "../route-utils.ts";
+import { slideConfigSchema } from "../../types/_slide_config.ts";
 import type { SlideWithMeta, SlidePosition } from "../../types/slides.ts";
 
 // deck_id and slide_id are nanoids (generateUniqueDeckId / generateUniqueSlideId), not UUIDs
@@ -13,9 +14,13 @@ const slidePositionSchema = z.union([
   z.object({ toEnd: z.literal(true) }),
 ]);
 
-// Slide body: z.unknown() — SlideFromSchema/Slide type gap (patternType "none"
-// in panther's PatternType not in the Zod schema) blocks a clean schema here.
-// The DB layer still validates via slideConfigSchema.parse(). Follow-on PR.
+// Slide write bodies validate against slideConfigSchema (strip mode) so a
+// malformed slide is a 400 at the boundary rather than a failure at the DB
+// call. Handlers still cast the parsed value to `Slide`: the schema's recursive
+// layout node is annotated z.ZodTypeAny because z.lazy() cannot reproduce
+// panther's branded LayoutNode<ContentBlock>, so SlideFromSchema is not
+// assignable to Slide. Zod guarantees the structure at runtime; the cast only
+// bridges that compile-time gap.
 
 export const slideRouteRegistry = {
   getSlides: route({
@@ -40,7 +45,7 @@ export const slideRouteRegistry = {
     params: deckIdParamsSchema,
     body: z.object({
       position: slidePositionSchema,
-      slide: z.unknown(),
+      slide: slideConfigSchema,
     }),
     response: {} as {
       slideId: string;
@@ -54,7 +59,7 @@ export const slideRouteRegistry = {
     method: "PUT",
     params: slideIdParamsSchema,
     body: z.object({
-      slide: z.unknown(),
+      slide: slideConfigSchema,
       expectedLastUpdated: z.string().optional(),
       overwrite: z.boolean().optional(),
     }),

@@ -11,7 +11,7 @@ import {
   type TranslatableString,
 } from "lib";
 import {
-  ChartHolder,
+  FigureHolder,
   Checkbox,
   MultiSelect,
   NestedMultiSelect,
@@ -194,7 +194,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             const indicators = getIndicators();
 
             const inputs: TimeseriesInputs = {
-              timeseriesData: timeseriesData,
+              figureType: "timeseries",
+              data: timeseriesData,
               style: {
                 text: {
                   yScaleAxisLabel: {
@@ -282,8 +283,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               <Show when={figureInputs()} keyed>
                 {(figInputs) => {
                   return (
-                    <ChartHolder
-                      chartInputs={adaptFigureStyleForDarkMode(figInputs)}
+                    <FigureHolder
+                      figureInputs={adaptFigureStyleForDarkMode(figInputs)}
                       height={300}
                       sizing="zoom"
                     />

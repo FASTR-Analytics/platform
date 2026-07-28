@@ -97,6 +97,12 @@ function record(
 ): void {
   const touch = touchFor(ledgerFor(projectId, deckId), slideId);
   if (!touch) {
+    // SLIDE_CAP rejected this slide, so it can never appear in a drain — and
+    // element touches (keyed by slide id alone) would then never clear,
+    // leaking into whichever LATER session first records this slide and
+    // attributing old-window edits to someone else's version. Drop them with
+    // it: this is the one path that breaks the pairing invariant above.
+    clearSlideElementTouches(projectId, slideId);
     return;
   }
   (touch[kind] ??= new Set()).add(email);

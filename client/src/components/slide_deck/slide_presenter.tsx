@@ -24,7 +24,11 @@ type Props = EditorComponentProps<
   undefined
 >;
 
-const LOADING_MSG = t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." });
+// A function, not a const: t3 resolves eagerly against panther's language
+// global, which is only set during render — a module-scope const would freeze
+// to "en" at bundle-eval time.
+const loadingMsg = () =>
+  t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." });
 
 // Fullscreen presentation of a slide deck: one slide at a time, click/keyboard
 // navigation, neighbour preloading. Reuses the exact render pipeline that the
@@ -73,7 +77,7 @@ export function SlidePresenter(p: Props) {
       return;
     }
     const renderedAt = projectState.lastUpdated.slides[id];
-    setPage(id, { status: "loading", msg: LOADING_MSG }, renderedAt);
+    setPage(id, { status: "loading", msg: loadingMsg() }, renderedAt);
 
     const res = await getSlideFromCacheOrFetch(p.projectId, id);
     if (!res.success) {
@@ -274,7 +278,7 @@ export function SlidePresenter(p: Props) {
         >
           <Show when={!currentPage() || currentPage()!.status === "loading"}>
             <div class="text-neutral flex h-full w-full items-center justify-center">
-              <div class="text-sm">{LOADING_MSG}</div>
+              <div class="text-sm">{loadingMsg()}</div>
             </div>
           </Show>
           <Show when={currentPage()?.status === "error"}>

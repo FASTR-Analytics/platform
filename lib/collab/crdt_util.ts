@@ -64,9 +64,40 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
+// Why non-finite numbers are rendered instead of collapsing to JSON's `null`:
+// see storedMatchesDoc below.
+const NON_FINITE_MARK = "__nonfinite__:";
+
+function canonicalScalar(val: unknown): unknown {
+  return typeof val === "number" && !Number.isFinite(val)
+    ? `${NON_FINITE_MARK}${String(val)}`
+    : val;
+}
+
+/**
+ * Whether `stored` — once it has been through the row's JSON round trip —
+ * still equals what the doc materializes to. This is the checkpoint's
+ * `trusted` test, and it is NOT just an equality check: `canonicalJson` is
+ * JSON-based, so `canonicalJson(x)` really describes `JSON.parse(JSON
+ * .stringify(x))`, not `x`. A doc holding a value JSON cannot represent
+ * therefore compared EQUAL to the `null` Postgres would store, stamping the
+ * state trusted while the doc and the row disagreed — every editor open then
+ * adopts the doc and the document visibly flips (~1s after open; observed on a
+ * viz 2026-07-24). So trust additionally requires that the DOC itself survives
+ * the round trip, which the sentinel above makes visible.
+ *
+ * A caption containing the sentinel literal merely forces `false` — the safe
+ * direction: the state is stamped untrusted and the room re-seeds from content.
+ */
+export function storedMatchesDoc(stored: unknown, doc: unknown): boolean {
+  const docJson = canonicalJson(doc);
+  return canonicalJson(stored) === docJson && !docJson.includes(NON_FINITE_MARK);
+}
+
 /** Key-order-independent JSON, for content equality checks (materialized doc
  * output has different key order than stored configs, so plain JSON.stringify
- * comparisons produce false differences). */
+ * comparisons produce false differences). Non-finite numbers are rendered
+ * distinctly rather than collapsing to `null` — see canonicalScalar. */
 export function canonicalJson(v: unknown): string {
   return JSON.stringify(v, (_k, val) =>
     val && typeof val === "object" && !Array.isArray(val)
@@ -77,7 +108,7 @@ export function canonicalJson(v: unknown): string {
         },
         {},
       )
-      : val
+      : canonicalScalar(val)
   );
 }
 

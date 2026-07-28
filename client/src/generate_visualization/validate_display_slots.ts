@@ -8,7 +8,7 @@ import type {
 import {
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getEffectivePOConfig,
-  getEffectiveRollupLevel,
+  getEffectiveRollupDimension,
   getSingleValueDimsFromItems,
   hasDuplicateDisaggregatorDisplayOptions,
 } from "lib";
@@ -117,18 +117,25 @@ export function validateDisplaySlots(
     }
   }
 
-  // Roll-up gate: only when the patch turns it ON. Leaving it on while an
-  // unrelated change makes it ineligible degrades gracefully (getFetchConfig
-  // drops it when the level is undefined).
+  // Roll-up gate: only when the patch EXPLICITLY turns it on — via
+  // `rollupDimension` or via `rollup: true` stated on disaggregateBy entries.
+  // An explicitly-requested roll-up that leaves the gate closed (wrong
+  // dimension, two flagged entries, ineligible metric) must error, not
+  // silently render nothing. A flag that merely became latent through other
+  // edits degrades gracefully (getFetchConfig drops it when the gate closes).
+  const explicitlyFlagged =
+    typeof patch.rollupDimension === "string" ||
+    (patch.disaggregateBy?.some((e) => e.rollup === true) ?? false);
   if (
-    patch.includeAdminAreaRollup === true &&
-    getEffectiveRollupLevel(metric, config) === undefined
+    explicitlyFlagged &&
+    getEffectiveRollupDimension(metric, config) === undefined
   ) {
     throw new Error(
-      "includeAdminAreaRollup is not available for this configuration: it "
-      + "requires exactly one disaggregated admin level (admin_area_2/3/4) not "
-      + "shown as replicant/map area and not filtered to a single value, not on a "
-      + "map, and a re-aggregatable metric. No changes were applied.",
+      "The requested roll-up is not available for this configuration: exactly "
+      + "ONE disaggregated dimension may carry it, it must be an admin level "
+      + "(admin_area_2/3/4) or facility column, not shown as replicant/map "
+      + "area, not filtered to a single value, not on a map, and the metric "
+      + "must be re-aggregatable. No changes were applied.",
     );
   }
 }

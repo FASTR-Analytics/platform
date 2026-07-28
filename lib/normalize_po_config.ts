@@ -1,21 +1,32 @@
-import type { RollupEligibilityInputs } from "./admin_area_rollup.ts";
+import type { LayoutNode } from "@timroberton/panther";
+import type { RollupEligibilityInputs } from "./rollup.ts";
 import {
-  getEffectiveRollupLevel,
+  getEffectiveRollupDimension,
   getFilteredValueProps,
 } from "./get_fetch_config_from_po.ts";
 import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
-import type { JsonArrayItem } from "./types/_figure_bundle.ts";
+import {
+  inferPeriodFormatFromValue,
+  inferPeriodFormatFromValuesIfTheSame,
+} from "./types/_metric_installed.ts";
+import { MULTI_MEMBERSHIP_FILTER_COLUMNS } from "./validate_fetch_config.ts";
+import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { ContentBlock, Slide } from "./types/slides.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
 /** Drop editor states the storage schema rejects: a filter entry with all
  *  values un-ticked and an emptied valuesFilter are legal mid-edit but fail
- *  the strict parse (both are min(1) in configDStrict). Shared by the client
- *  save path (normalizePOConfigForStorage) and the server collab checkpoint,
- *  which persists the otherwise-unnormalized live doc and must never be
- *  wedged by a transient editor state. */
+ *  the strict parse (both are min(1) in configDStrict); a bounded periodFilter
+ *  whose min/max don't self-identify the same period format or aren't ordered
+ *  fails periodFilterSchema's refine. Shared by the client save path
+ *  (normalizePOConfigForStorage) and the server collab checkpoint, which
+ *  persists the otherwise-unnormalized live doc and must never be wedged by a
+ *  transient editor state. Every constraint reachable from a live doc belongs
+ *  here — the WS ingress applies raw Yjs updates with no content validation, so
+ *  this is the only thing standing between a mid-edit state and a permanently
+ *  wedged room checkpoint. */
 export function dropStorageInvalidTransients(
   config: PresentationObjectConfig,
 ): PresentationObjectConfig {
@@ -27,29 +38,129 @@ export function dropStorageInvalidTransients(
       valuesFilter: config.d.valuesFilter?.length
         ? config.d.valuesFilter
         : undefined,
+      periodFilter: hasValidPeriodFilter(config.d.periodFilter)
+        ? config.d.periodFilter
+        : undefined,
     },
   };
+}
+
+/** The refine in periodFilterSchema, asked without throwing. A relative filter
+ *  is always fine; a bounded one needs both bounds to self-identify the SAME
+ *  period format and to be ordered. */
+function hasValidPeriodFilter(
+  periodFilter: PresentationObjectConfig["d"]["periodFilter"],
+): boolean {
+  if (periodFilter === undefined) {
+    return true;
+  }
+  if (
+    periodFilter.filterType !== "custom" && periodFilter.filterType !== "from_month"
+  ) {
+    return true;
+  }
+  return (
+    inferPeriodFormatFromValuesIfTheSame(periodFilter.min, periodFilter.max) !==
+      undefined && periodFilter.min <= periodFilter.max
+  );
+}
+
+function hasStorageInvalidTransients(config: PresentationObjectConfig): boolean {
+  return config.d.filterBy.some((f) => f.values.length === 0) ||
+    config.d.valuesFilter?.length === 0 ||
+    !hasValidPeriodFilter(config.d.periodFilter);
+}
+
+/** The same drop for a figure EMBEDDED in a slide or report. Their stored
+ *  schemas reach the identical configDStrict constraints through
+ *  figureBlockSchema.bundle.config, and the embedded figure editor streams the
+ *  same unnormalized mid-edit config into the host's shared doc — so a slide or
+ *  report room wedges its checkpoint exactly like a PO room did. Below is
+ *  identity-preserving: an untouched block/slide/registry comes back as the
+ *  same object, so the checkpoint's `trusted` comparison only goes false when
+ *  something was really dropped. */
+export function dropStorageInvalidTransientsInFigureBlock(
+  block: FigureBlock,
+): FigureBlock {
+  if (
+    block.bundle === undefined ||
+    !hasStorageInvalidTransients(block.bundle.config)
+  ) {
+    return block;
+  }
+  return {
+    ...block,
+    bundle: {
+      ...block.bundle,
+      config: dropStorageInvalidTransients(block.bundle.config),
+    },
+  };
+}
+
+function dropInLayoutNode(
+  node: LayoutNode<ContentBlock>,
+): LayoutNode<ContentBlock> {
+  if (node.type === "item") {
+    if (node.data.type !== "figure") {
+      return node;
+    }
+    const data = dropStorageInvalidTransientsInFigureBlock(node.data);
+    return data === node.data ? node : { ...node, data };
+  }
+  let changed = false;
+  const children = node.children.map((child) => {
+    const next = dropInLayoutNode(child);
+    changed ||= next !== child;
+    return next;
+  });
+  return changed ? { ...node, children } : node;
+}
+
+export function dropStorageInvalidTransientsInSlide(slide: Slide): Slide {
+  if (slide.type !== "content") {
+    return slide;
+  }
+  const layout = dropInLayoutNode(slide.layout);
+  return layout === slide.layout ? slide : { ...slide, layout };
+}
+
+export function dropStorageInvalidTransientsInFigures(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  let changed = false;
+  const out: Record<string, FigureBlock> = {};
+  for (const [id, block] of Object.entries(figures)) {
+    const next = dropStorageInvalidTransientsInFigureBlock(block);
+    changed ||= next !== block;
+    out[id] = next;
+  }
+  return changed ? out : figures;
 }
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
   resultsValue: RollupEligibilityInputs
 ): PresentationObjectConfig {
-  // Canonical roll-up off-state is both fields absent. The flag survives
+  // Canonical roll-up off-state is both entry fields absent. The flag survives
   // transient gate closures while editing (the editor no longer eagerly clears
-  // it) and is stripped here, at save time, when the gate is closed.
-  const rollupOn =
-    !!config.d.includeAdminAreaRollup &&
-    getEffectiveRollupLevel(resultsValue, config) !== undefined;
+  // it) and is stripped here, at save time, from every entry except the one
+  // the gate selects.
+  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
   const dropped = dropStorageInvalidTransients(config);
   return {
     ...dropped,
     d: {
       ...dropped.d,
-      includeAdminAreaRollup: rollupOn ? true : undefined,
-      adminAreaRollupPosition: rollupOn
-        ? (config.d.adminAreaRollupPosition ?? "bottom")
-        : undefined,
+      disaggregateBy: dropped.d.disaggregateBy.map((entry) =>
+        entry.disOpt === rollupDim && entry.rollup === true
+          ? {
+              disOpt: entry.disOpt,
+              disDisplayOpt: entry.disDisplayOpt,
+              rollup: true,
+              rollupPosition: entry.rollupPosition ?? "bottom",
+            }
+          : { disOpt: entry.disOpt, disDisplayOpt: entry.disDisplayOpt }
+      ),
     },
   };
 }
@@ -108,8 +219,13 @@ export function getEffectivePOConfig(
 
     // Replicant slots are exempt: fetches are pinned to the selected replicant
     // value, so items-derived counts would see every replicant as single-valued.
+    // mapArea is exempt for a different reason — it is not a comparison
+    // dimension but the prop items are matched to geography by, so dropping it
+    // repoints the map at whatever admin level the fallback names and every
+    // feature misses. One coloured district is correct output.
     if (
       d.disDisplayOpt !== "replicant" &&
+      d.disDisplayOpt !== "mapArea" &&
       singleValueDims?.has(d.disOpt)
     ) {
       ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_value" });
@@ -169,6 +285,14 @@ export function getSingleValueDimsFromItems(
 
 // Editor-side derivation (pre-fetch): whole-table distinct counts from the
 // possible-values statuses in ResultsValueInfoForPresentationObject.
+//
+// Multi-membership columns are exempt. The one-option inference holds only for
+// scalar columns, where a single distinct value means every row carries it. A
+// set-valued column's options are the unnested members, so one option means
+// "one member of the vocabulary is in use" — rows still split into has-member
+// and has-none, and a blank cell contributes no option row at all
+// (string_to_array('', '|') = {}). Treating such a dimension as constant hid
+// the service-category filter entirely once a single indicator was tagged.
 export function getSingleValueDimsFromPossibleValues(
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -176,6 +300,9 @@ export function getSingleValueDimsFromPossibleValues(
 ): Set<DisaggregationOption> {
   const out = new Set<DisaggregationOption>();
   for (const [disOpt, status] of Object.entries(disaggregationPossibleValues)) {
+    if (MULTI_MEMBERSHIP_FILTER_COLUMNS.has(disOpt)) {
+      continue;
+    }
     if (status.status === "ok" && status.values.length === 1) {
       out.add(disOpt as DisaggregationOption);
     }

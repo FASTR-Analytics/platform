@@ -8,7 +8,7 @@ import {
   moveSlides,
   updateSlide,
 } from "../../db/mod.ts";
-import { type Slide, slideConfigSchema } from "lib";
+import { type Slide } from "lib";
 import {
   applySlideToLiveRoom,
   closeSlideRoom,
@@ -114,19 +114,12 @@ defineRoute(
     // conflict check doesn't apply on this path: merging into the live doc IS
     // the conflict resolution. (The room's checkpoint fires its own SSE
     // notifications.)
-    // Validate at the route boundary BEFORE touching the live room — Yjs
-    // transactions don't roll back, so malformed content would partially
-    // mutate the shared doc (vandalizing co-editors' view) and poison every
-    // subsequent checkpoint's schema parse.
-    let slide: Slide;
-    try {
-      slide = slideConfigSchema.parse(body.slide) as Slide;
-    } catch {
-      return c.json({
-        success: false as const,
-        err: "Invalid slide content",
-      });
-    }
+    // The route body schema validated this before the handler ran, which
+    // matters here: Yjs transactions don't roll back, so malformed content
+    // would partially mutate the shared doc (vandalizing co-editors' view) and
+    // poison every subsequent checkpoint's schema parse. The cast bridges the
+    // branded-LayoutNode gap only (see the schema note in lib/api-routes).
+    const slide = body.slide as Slide;
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applySlideToLiveRoom(
       c.var.ppk.projectId,

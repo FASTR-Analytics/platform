@@ -154,7 +154,6 @@ export type DBDatasetHmisImportRun = {
   started_at: string | Date;
   ended_at: string | Date | null;
   version_id: number | null;
-  shadow_passed: boolean | null;
   progress: string | null;
   run_stats: string | null;
 };
@@ -174,10 +173,7 @@ export type DBDatasetHmisScheduledImport = {
   enabled: boolean;
   selection: string;
   run_at: string | Date | null;
-  day_of_week: number | null;
-  start_time: string | null;
-  timezone: string | null;
-  interval_weeks: number | null;
+  recurrence: string | null;
   created_by: string;
   created_at: string | Date;
   armed_at: string | Date;

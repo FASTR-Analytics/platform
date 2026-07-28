@@ -257,8 +257,36 @@ async function assertNoBlockingReferencesForReplace(
 }
 
 /**
- * Insert all staged facilities (dedup by facility_id, first occurrence wins).
- * Used by replace_all after the wipe. Returns rows inserted.
+ * Duplicate rows per facility_id are normal in survey exports: one row per
+ * submission attempt, where only the consented one carries the metadata (type,
+ * ownership, …) and the rest leave those cells blank. Ranking by file order
+ * would then pick a blank row and silently drop metadata the file does contain,
+ * so the surviving row is the one with the most non-empty mapped columns, with
+ * file order as the tie-break.
+ *
+ * A whole row survives rather than a per-column coalesce: admin values are only
+ * a valid hierarchy as a tuple, and duplicate rows can disagree about it.
+ *
+ * Staged values are already trimmed, so `<> ''` is the emptiness test. Column
+ * names come from the fixed admin list plus `_OPTIONAL_FACILITY_COLUMNS`, never
+ * from user input.
+ */
+function buildDedupOrderClause(writeColumns: string[]): string {
+  if (writeColumns.length === 0) {
+    return "rowid";
+  }
+  const completeness = writeColumns
+    .map(
+      (col) => `(CASE WHEN ${col} IS NOT NULL AND ${col} <> '' THEN 1 ELSE 0 END)`
+    )
+    .join(" + ");
+  return `(${completeness}) DESC, rowid`;
+}
+
+/**
+ * Insert all staged facilities (one row per facility_id, see
+ * buildDedupOrderClause). Used by replace_all after the wipe. Returns rows
+ * inserted.
  */
 async function insertAllFacilities(
   sql: Sql,
@@ -272,7 +300,10 @@ async function insertAllFacilities(
     SELECT ${cols.join(", ")}
     FROM (
       SELECT ${cols.join(", ")},
-             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+             ROW_NUMBER() OVER (
+               PARTITION BY facility_id
+               ORDER BY ${buildDedupOrderClause(writeColumns)}
+             ) as rn
       FROM ${stagingTableName}
     ) t
     WHERE rn = 1
@@ -306,7 +337,10 @@ async function upsertFacilities(
     SELECT ${cols.join(", ")}
     FROM (
       SELECT ${cols.join(", ")},
-             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+             ROW_NUMBER() OVER (
+               PARTITION BY facility_id
+               ORDER BY ${buildDedupOrderClause(writeColumns)}
+             ) as rn
       FROM ${stagingTableName}
     ) t
     WHERE rn = 1
@@ -318,8 +352,8 @@ async function upsertFacilities(
 }
 
 /**
- * Update mapped columns on existing facilities matched by facility_id (dedup by
- * first occurrence). Returns rows updated.
+ * Update mapped columns on existing facilities matched by facility_id (one row
+ * per facility_id, see buildDedupOrderClause). Returns rows updated.
  */
 async function updateExistingFacilities(
   sql: Sql,
@@ -335,7 +369,10 @@ async function updateExistingFacilities(
     SET ${setClause}
     FROM (
       SELECT facility_id, ${writeColumns.join(", ")},
-             ROW_NUMBER() OVER (PARTITION BY facility_id ORDER BY rowid) as rn
+             ROW_NUMBER() OVER (
+               PARTITION BY facility_id
+               ORDER BY ${buildDedupOrderClause(writeColumns)}
+             ) as rn
       FROM ${stagingTableName}
     ) s
     WHERE ${facilitiesTable}.facility_id = s.facility_id

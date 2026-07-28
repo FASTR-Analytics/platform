@@ -140,7 +140,9 @@ function DatasetDisplayPresentation(p: {
             placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables...", pt: "Pesquisar variáveis..." })}
             value={searchText()}
             onChange={setSearchText}
+            label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
             searchIcon
+            clearable
             fullWidth
           />
         </div>

@@ -16,6 +16,7 @@ import type {
   YScaleAxisWidthInfo,
 } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
+import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
 
 export function estimateMinYAxisWidth(
   rc: RenderContext,
@@ -68,28 +69,22 @@ export function measureYScaleAxisWidthInfo(
     : undefined;
 
   const yAxisTickValues = Array.from({ length: tierCount }, (_, i_tier) => {
-    let finalValueMin = typeof sy.min === "function"
-      ? sy.min(i_pane)
-      : sy.min !== "auto"
-      ? sy.min
-      : sy.allowIndividualTierLimits
+    const dataMin = sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMin ?? 0)
       : dy.paneLimits[i_pane].valueMin;
-    let finalValueMax = typeof sy.max === "function"
-      ? sy.max(i_pane)
-      : sy.max !== "auto"
-      ? sy.max
-      : sy.allowIndividualTierLimits
+    const dataMax = sy.allowIndividualTierLimits
       ? (dy.paneLimits[i_pane].tierLimits[i_tier]?.valueMax ?? 1)
       : dy.paneLimits[i_pane].valueMax;
-    if (finalValueMax < finalValueMin) {
-      const temp = finalValueMin;
-      finalValueMin = finalValueMax;
-      finalValueMax = temp;
-    }
+    const { minVal, maxVal } = resolveScaleAxisLimits(
+      sy.min,
+      sy.max,
+      i_pane,
+      dataMin,
+      dataMax,
+    );
     return getGoodAxisTickValues(
-      finalValueMax,
-      finalValueMin,
+      maxVal,
+      minVal,
       guessMaxNTicks,
       formatterForUniquenessCheck,
     );

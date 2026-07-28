@@ -68,20 +68,39 @@ const dhis2ScheduleSelectionSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const startTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+const dhis2ScheduleRecurrenceSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("daily"),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+  z.object({
+    kind: z.literal("weekly"),
+    firstRunDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    everyNWeeks: z.number().int().min(1).max(13),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+  z.object({
+    kind: z.literal("monthly"),
+    nth: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal("last")]),
+    weekday: z.number().int().min(0).max(6),
+    everyNMonths: z.number().int().min(1).max(12),
+    anchorMonth: z.string().regex(/^\d{4}-\d{2}$/),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+]);
+
 // Cross-field requirements per kind (one_shot needs runAt; recurring needs
-// dayOfWeek/startTime/timezone/intervalWeeks) are validated server-side —
-// the schema stays flat so both kinds share one editor payload.
+// recurrence; timezone/date semantics) are validated server-side.
 const dhis2ScheduleFieldsSchema = z.object({
   kind: z.enum(["one_shot", "recurring"]),
   selection: dhis2ScheduleSelectionSchema,
   runAt: z.string().optional(),
-  dayOfWeek: z.number().int().min(0).max(6).optional(),
-  startTime: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .optional(),
-  timezone: z.string().optional(),
-  intervalWeeks: z.number().int().min(1).max(52).optional(),
+  recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
 const hfaCsvMappingParamsSchema = z.object({
@@ -172,7 +191,7 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as DatasetHmisImportRunSummary[],
   }),
-  // Summary + the run_stats blob (per-pair failures, unknown ids, shadow) —
+  // Summary + the run_stats blob (per-pair failures, unknown ids) —
   // fetched on demand from the History row click, never in the polled list.
   getDatasetHmisImportRunDetail: route({
     path: "/datasets/hmis/dhis2-runs/:run_id",

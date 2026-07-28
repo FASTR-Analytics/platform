@@ -110,11 +110,13 @@
      overrides --color-black). Content color on -hover/-active surfaces
      remains --color-{i}-content. `-subtle` is an opaque wash for
      non-interactive communication — callouts, badges, selected-state
-     highlights — and hover destinations; `-subtle-content` is the
-     text/icon color on it. `-subtle` is non-interactive by definition:
-     never a hover target, never a click target's rest surface (a thing
-     that looks like a callout must not carry an onClick — put a real
-     control inside or beside it). Never use it as a border color. */
+     highlights; `-subtle-content` is the text/icon color on it.
+     `-subtle` is non-interactive by definition: never a hover target,
+     never a hover destination, never a click target's rest surface (a
+     thing that looks like a callout must not carry an onClick — put a
+     real control inside or beside it). Never use it as a border color.
+     The one exception is the pinned surface of a *selected* selection
+     control — see DOC_UI_COLOR_AND_STATE.md. */
   --color-primary-hover: color-mix(in oklab, var(--color-primary), black 8%);
   --color-primary-active: color-mix(in oklab, var(--color-primary), black 14%);
   --color-primary-subtle: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
@@ -537,8 +539,9 @@
      utility bg-* on the same element (it wins over these states) —
      where a selected arm pins its own surface, scope the family class
      to the non-selected classList arm instead. Outline-style
-     interactives (transparent rest, tint destination) are NOT covered
-     here — see ui-intent-outline-states. ---- */
+     interactives get their appearance from the stateless
+     ui-outline-{intent} skins below and their states from the family
+     class named by their onBackground token. ---- */
   .ui-hoverable-base-100,
   .ui-hoverable-base-200,
   .ui-hoverable-base-300,

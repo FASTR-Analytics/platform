@@ -1,8 +1,9 @@
 import { CTEManager } from "./cte_manager.ts";
 import {
   applyPostAggregationExpression,
-  buildAdminAreaRollupQuery,
   buildMainQuery,
+  buildRollupQuery,
+  emitsSampleN,
 } from "./query_helpers.ts";
 import type { QueryConfig } from "./types.ts";
 
@@ -21,7 +22,7 @@ export function buildCombinedQuery(config: QueryConfig): string {
     facilityCTEName,
   );
 
-  const rollupQuery = buildAdminAreaRollupQuery(
+  const rollupQuery = buildRollupQuery(
     sourceTable,
     fetchConfig,
     queryContext,
@@ -37,6 +38,7 @@ export function buildCombinedQuery(config: QueryConfig): string {
     combinedQuery,
     fetchConfig.postAggregationExpression,
     fetchConfig.groupBys,
+    emitsSampleN(queryContext),
   );
 
   const withClause = cteManager.emitWITHClause();

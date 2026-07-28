@@ -6,7 +6,6 @@ import {
   type DeckStyleContext,
   type IndicatorMetadata,
   PresentationObjectConfig,
-  ROLLUP_SENTINEL,
 } from "lib";
 import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
 
@@ -101,6 +100,6 @@ export function buildScorecardStyle(
         },
       },
     },
-    table: getTableLayoutStyle(config),
+    table: getTableLayoutStyle(config, deckStyle),
   };
 }

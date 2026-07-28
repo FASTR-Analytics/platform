@@ -20,11 +20,14 @@ import {
   HfaCsvMappingParams,
   classifyChoice,
   classifyNumericSentinel,
+  isReservedHfaVarName,
   parseNumericSentinels,
 } from "lib";
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
   parseXlsForm,
+  qualifiedVarLabel,
+  XLSFORM_LABEL_SEPARATOR,
   type XlsFormChoiceInfo,
   type XlsFormVarInfo,
 } from "../../server_only_funcs_csvs/parse_xlsform.ts";
@@ -145,9 +148,6 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       csvVarMappings.push(mapping);
     }
 
-    // "weight" is reserved: the project hfa.csv export adds a sampling-weight
-    // column with that name, and a survey variable named weight would collide
-    // with it at the module script's pivot_wider.
     const storedVarNames = csvVarMappings.flatMap((m) => {
       const varName = m.xlsFormVar.name.trim();
       if (m.xlsFormVar.type === "select_multiple") {
@@ -157,12 +157,17 @@ async function run(std: { rawDUA: DBDatasetHfaUploadAttempt }) {
       }
       return [varName];
     });
-    const weightCollisions = storedVarNames.filter(
-      (name) => name.toLowerCase() === "weight",
-    );
-    if (weightCollisions.length > 0) {
+    // Reject names that collide with how indicator R code is interpreted —
+    // `and`/`or` operator aliases, R keywords, the common functions the
+    // identifier extractor filters — or with a column the module script owns
+    // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
+    // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
+    // named `weight`/`time_point` would collide with or shadow the script's own
+    // column (single source: isReservedHfaVarName).
+    const reservedCollisions = storedVarNames.filter(isReservedHfaVarName);
+    if (reservedCollisions.length > 0) {
       throw new Error(
-        `The variable name "weight" is reserved for facility sampling weights. Rename the survey variable in the XLSForm/CSV and re-upload.`,
+        `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the survey variable in the XLSForm/CSV and re-upload.`,
       );
     }
 
@@ -395,7 +400,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
 
     for (const mapping of csvVarMappings) {
       const varName = mapping.xlsFormVar.name.trim();
-      const varLabel = mapping.xlsFormVar.label.trim();
+      const varLabel = qualifiedVarLabel(mapping.xlsFormVar);
       const varType = mapping.xlsFormVar.type;
 
       if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
@@ -405,7 +410,7 @@ CREATE UNLOGGED TABLE ${DICT_VALUES_STAGING_TABLE} (
         for (const choice of mapping.choices) {
           const expandedVarName = `${varName}_${String(choice.name).trim()}`;
           const compositeLabel =
-            `${mapping.xlsFormVar.label} - ${choice.label}`.trim();
+            `${varLabel}${XLSFORM_LABEL_SEPARATOR}${choice.label}`.trim();
           dictVarRows.push(
             tup(
               cleanedTimePoint,

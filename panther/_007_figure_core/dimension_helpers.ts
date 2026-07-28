@@ -7,6 +7,7 @@ import type {
   MergedXScaleAxisStyle,
   MergedYScaleAxisStyle,
   RenderContext,
+  TextInfoUnkeyed,
 } from "./deps.ts";
 
 export function calculatePaneGrid(
@@ -44,6 +45,27 @@ export function calculateMinSubChartWidth(
   ).dims.w();
   // Mirror of calculateMinSubChartHeight: 2 tick labels + 2× spacing
   return tickLabelWidth * 4;
+}
+
+// Legibility floor for figures whose plot area contains no axis — only data
+// labels (the zero-way figures: map, pie). Both extents come from this one
+// call: their cells have no axis direction to distinguish, and a pie cell is
+// square (radius = min(w, h) / 2), so width and height are the same quantity.
+//
+// The multiplier is a CALIBRATION, not a derivation. The scale-axis siblings
+// above use 4 because "2 tick labels + 2× spacing" is a real geometry; a
+// label-only plot area has no such stack. 3 reproduces the hand-tuned 50 that
+// map shipped with (17pt label height × 3 = 51 at the default style), so this
+// preserves the calibration while fixing what was actually wrong with it:
+// it was a magic number, and being a literal it did not shrink with the style
+// scale — so shrink-to-fit could never lower a map's floor.
+export function calculateMinLabelPlotExtent(
+  rc: RenderContext,
+  dataLabelsTextStyle: TextInfoUnkeyed,
+): number {
+  const labelHeight = rc.mText("999,999", dataLabelsTextStyle, Infinity).dims
+    .h();
+  return labelHeight * 3;
 }
 
 // Piecewise-linear formula with cumulative-marginal slopes matching the four

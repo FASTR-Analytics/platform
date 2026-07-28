@@ -760,10 +760,21 @@ function syncFigureNode(
   if (lastFigureBundleRef.get(m) === bundle) {
     return;
   }
-  const skipConfig = opts?.skipFigureConfigForBlockIds?.has(blockId) ?? false;
+  // The skip only applies when there IS a figConfig map for the modal to own.
+  // With none, honoring it would write figData alone — and readFigureBundle
+  // keys off figConfig, so the whole bundle becomes unreadable and the
+  // checkpoint stores an empty figure. `trusted` stays true (materialize and
+  // the row agree, on the wrong thing), so the loss is permanent. Reachable
+  // when a peer removes the visualization while the modal is open: their
+  // bundle-less push deletes figConfig, then the modal's close pushes a fresh
+  // bundle while the block id is still in the skip set.
+  const existingConfig = m.get(FIG_CONFIG_KEY);
+  const skipConfig =
+    (opts?.skipFigureConfigForBlockIds?.has(blockId) ?? false) &&
+    existingConfig instanceof Y.Map;
   const { config, figData } = splitBundle(bundle);
   if (!skipConfig) {
-    let cfgMap = m.get(FIG_CONFIG_KEY);
+    let cfgMap = existingConfig;
     if (!(cfgMap instanceof Y.Map)) {
       cfgMap = new Y.Map<unknown>();
       m.set(FIG_CONFIG_KEY, cfgMap);

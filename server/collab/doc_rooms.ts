@@ -224,7 +224,18 @@ function broadcastSaveState(room: Room, failing: boolean): void {
     type: "doc_save_state",
     data: { docType: room.adapter.docType, docId: room.docId, failing },
   };
-  for (const conn of room.conns.values()) conn.send(msg);
+  for (const conn of room.conns.values()) {
+    try {
+      conn.send(msg);
+    } catch {
+      // Per-send guard, like the update fan-out and awareness relay. An
+      // escaping throw here would abort noteSaveFailure BEFORE it arms the
+      // CHECKPOINT_RETRY_MS timer, leaving a dirty room that never retries and
+      // never logs; the rejection is swallowed by saveChain's .catch(), so it
+      // wouldn't even surface. A dead socket is cleaned up by its own
+      // close/error handler.
+    }
+  }
 }
 
 function noteSaveFailure(room: Room, permanent: boolean): void {
@@ -633,9 +644,16 @@ async function finalizeRoom(room: Room): Promise<void> {
     if (room.conns.size > 0) {
       return;
     }
-    if (rooms.get(room.key) === room) {
-      rooms.delete(room.key);
+    // closeRoomsForDoc may have discarded this room during the await (its row
+    // was deleted or replaced by a restore), and the docId may already be
+    // served by a NEW room. The discard ran the teardown already; running it
+    // again here would fire onDocClosed/onEmpty against the SUCCESSOR's live
+    // state — pruning its freshly-seeded authorship ledgers and arming the
+    // version-capture empty-grace while someone is still editing.
+    if (rooms.get(room.key) !== room) {
+      return;
     }
+    rooms.delete(room.key);
     room.doc.destroy();
     room.adapter.onDocClosed?.(room.projectId, room.docId);
     room.deps.onEmpty?.();
@@ -652,21 +670,30 @@ async function finalizeRoom(room: Room): Promise<void> {
  * restore. Always awaits the room's save chain, even when the room is clean:
  * "clean" may mean a save is IN FLIGHT (dirty clears at save start), and the
  * caller is about to read the DB expecting this room's latest state.
+ *
+ * Returns FALSE when the room is still dirty afterwards — its checkpoint
+ * failed, so the DB row does NOT hold the room's state and a caller about to
+ * read it would silently snapshot stale content. Callers that write history
+ * from that read (restore safety versions, version capture) must treat false
+ * as "do not proceed": a wedged room would otherwise get a safety version
+ * missing the session tail, and hash-dedup would often write no version at
+ * all. True means the row is settled and current.
  */
 export async function flushRoomForDoc(
   projectId: string,
   docType: string,
   docId: string,
-): Promise<void> {
+): Promise<boolean> {
   const room = rooms.get(roomKey(projectId, docType, docId));
   if (!room) {
-    return;
+    return true;
   }
   if (room.checkpointTimer) {
     clearTimeout(room.checkpointTimer);
     room.checkpointTimer = null;
   }
   await checkpoint(room);
+  return !room.dirty;
 }
 
 /**
@@ -717,7 +744,14 @@ export function closeRoomsForDoc(
   }
   room.dirty = false; // explicit discard — never checkpoint this doc again
   for (const conn of room.conns.values()) {
-    conn.send(room.adapter.msgError(docId, message, true));
+    try {
+      conn.send(room.adapter.msgError(docId, message, true));
+    } catch {
+      // Per-send guard: an escaping throw would skip the rooms.delete /
+      // doc.destroy() / onDocClosed teardown below and leak a zombie room
+      // still registered under a docId whose row is gone. The bookkeeping
+      // below must run for every conn regardless.
+    }
     connRooms.get(conn.connectionId)?.delete(key);
   }
   room.conns.clear();

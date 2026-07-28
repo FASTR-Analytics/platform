@@ -28,7 +28,6 @@ import {
   getDatasetHmisUploadStatus,
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
-  hasShadowPassedForDhis2Url,
   isDhis2CredentialsEncryptionKeyConfigured,
   launchDatasetHmisDhis2ImportRun,
   updateDatasetHmisScheduledImport,
@@ -269,26 +268,18 @@ defineRoute(
         schedules: await getDatasetHmisScheduledImports(c.var.mainDb),
         storedCredentials: stored ?? undefined,
         encryptionKeyConfigured: isDhis2CredentialsEncryptionKeyConfigured(),
-        unattendedReady: stored
-          ? await hasShadowPassedForDhis2Url(c.var.mainDb, stored.url)
-          : false,
       },
     };
     return c.json(res);
   },
 );
 
-// The §7 C4 unattended-gate enforcement at the editor: schedules cannot be
-// created or re-enabled before the instance has stored credentials and a
-// shadow-verified run against their URL (the tick re-checks at fire time —
-// repointing the DHIS2 URL re-arms shadow and must also re-block fires).
+// Schedules fire with {kind: "stored"} credentials, so they cannot be
+// created or re-enabled before the instance has stored credentials.
 async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
   const stored = await getStoredDhis2CredentialsInfo(mainDb);
   if (!stored) {
     return "Scheduled imports need stored DHIS2 credentials — save credentials first.";
-  }
-  if (!(await hasShadowPassedForDhis2Url(mainDb, stored.url))) {
-    return `Scheduled imports are blocked until an import against ${stored.url} has shadow-verified cleanly. Run an import directly first.`;
   }
   return null;
 }

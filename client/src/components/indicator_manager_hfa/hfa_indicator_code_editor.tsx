@@ -693,6 +693,7 @@ function EditorInner(p: {
                       pt: "Pesquisar variáveis...",
                     })}
                     searchIcon
+                    clearable
                     fullWidth
                   />
                 </div>

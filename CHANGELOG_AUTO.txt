@@ -1,3 +1,123 @@
+[TBD] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
+[TBD] [user] [fixed] - Permission changes now take effect immediately without page reload
+[TBD] [user] [fixed] - Clear notification when you lack permission to edit reports or slides
+[TBD] [user] [fixed] - Edits made right after receiving edit access are now saved properly
+[TBD] [user] [fixed] - Locking or unlocking a project now applies instantly for active editors
+[TBD] [user] [fixed] - Removed from a project mid-session now properly revokes editing
+[TBD] [user] [fixed] - Visualization settings no longer briefly flicker after opening
+[TBD] [user] [fixed] - Slide layout changes now correctly appear in version history
+[TBD] [user] [fixed] - Split panel edits on slides now sync properly to collaborators
+[TBD] [user] [fixed] - Image updates in reports no longer overwrite open figure editor changes
+[TBD] [user] [fixed] - Connection drops are now detected faster, reducing silent edit loss
+[TBD] [user] [fixed] - Restoring a version now warns if unsaved edits prevent a safety snapshot
+[TBD] [user] [added] - Automatic reconnection when the platform is updated while you are working
+[TBD] [admin] [fixed] - Editors now auto-reconnect when permissions or project lock change mid-session
+[TBD] [admin] [fixed] - Users without edit permission now see a clear alert instead of silent edit loss
+[TBD] [admin] [fixed] - Stale collaborator cursors no longer persist indefinitely for late joiners
+[TBD] [admin] [fixed] - Dead network connections now detected and auto-reconnected within ~35 seconds
+[TBD] [admin] [fixed] - Tabs open during a server update now auto-reload instead of pushing stale data
+[TBD] [admin] [fixed] - Visualization configs with invalid mid-edit values no longer permanently wedge saving
+[TBD] [admin] [fixed] - Save failures no longer flood server logs; logging is now throttled
+[TBD] [admin] [fixed] - Slide layout changes (column wraps, container resizes) now appear in version history
+[TBD] [admin] [fixed] - Removing a user mid-session now immediately revokes their edit access
+[TBD] [admin] [fixed] - Restoring a report or deck version now fails safely if live edits cannot be saved first
+[TBD] [admin] [fixed] - Figure edits from one editor no longer overwrite another editor's open figure modal
+[TBD] [admin] [fixed] - Slide split-panel edits now sync reliably to collaborators
+[TBD] [admin] [changed] - Failed save operations now prevent unsafe fallback writes that could lose data
+[TBD] [admin] [internal] - Improved resilience of real-time collaboration checkpoint and finalization logic
+[1.63.5] [user] [fixed] - AI assistant now correctly reports invalid filter dimensions instead of silently creating broken charts
+[1.63.5] [admin] [fixed] - AI tools now properly reject filters on non-existent metric dimensions
+[1.63.4] [user] [fixed] - Importing files with duplicate rows now keeps the most complete data
+[1.63.4] [admin] [fixed] - Importing files with duplicate facility rows now keeps the most complete record
+[1.63.3] [user] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
+[1.63.3] [user] [fixed] - Chart preview now reliably updates when any data setting changes
+[1.63.3] [admin] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
+[1.63.3] [admin] [fixed] - Chart preview now reliably refreshes for all data setting changes
+[1.63.2] [user] [fixed] - Charts now refresh correctly when toggling rollup grouping options
+[1.63.2] [admin] [fixed] - Visualization editor now refreshes correctly when rollup setting changes
+[1.63.1] [user] [added] - Search fields now have a clear button to reset searches
+[1.63.1] [admin] [added] - Search fields now have a clear button
+[1.63.0] [user] [changed] - Roll-up total rows now work with facility columns, not just admin areas
+[1.63.0] [user] [changed] - Roll-up option appears on each eligible breakdown dimension individually
+[1.63.0] [user] [changed] - Roll-up checkbox label updates dynamically to match the selected dimension (e.g., "Include results for all facilities")
+[1.63.0] [user] [fixed] - Restoring or copying a saved version no longer silently drops roll-up total row settings
+[1.63.0] [admin] [changed] - Roll-up total rows now support facility columns, not just admin areas
+[1.63.0] [admin] [changed] - Roll-up setting moved from a global toggle to per-disaggregation option
+[1.63.0] [admin] [changed] - Roll-up label adapts to context (e.g. "All facilities" or "National")
+[1.63.0] [admin] [fixed] - Restoring or copying old report/deck versions preserves roll-up settings
+[1.63.0] [admin] [fixed] - Dashboard items with legacy roll-up settings are properly migrated on upgrade
+[1.63.0] [admin] [internal] - Data cache version bumped; first load after upgrade may be slightly slower
+[1.62.3] [user] [fixed] - Indicators heading no longer pushes search bar off screen
+[1.62.3] [user] [fixed] - Search bar layout is now consistent and properly aligned
+[1.62.3] [admin] [fixed] - Indicators heading no longer pushes search bar off screen
+[1.62.3] [user] [added] - Search bar added to the HFA indicators manager
+[1.62.3] [user] [changed] - Indicator count updates to show filtered vs total results when searching
+[1.62.3] [user] [changed] - Clearer "no results" message when indicator search finds no matches
+[1.62.3] [user] [changed] - Improved variable labels in data dictionaries now include group context for clarity
+[1.62.3] [admin] [added] - Search bar added to the HFA indicators management page
+[1.62.3] [admin] [changed] - Indicator count updates to show filtered vs. total when searching
+[1.62.3] [admin] [changed] - Dictionary labels now include parent group names for clarity
+[1.62.3] [admin] [fixed] - Matrix-style survey questions no longer show duplicate or ambiguous labels
+[1.62.0] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
+[1.62.0] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
+[1.62.0] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
+[1.62.0] [user] [fixed] - Loading message now displays in your selected language during presentations
+[1.62.0] [user] [fixed] - Filters with one option stay visible when already applied, preventing hidden "no data" issues
+[1.62.0] [user] [fixed] - Data uploads now correctly accept count values like "123.0" from exported files
+[1.62.0] [user] [fixed] - Editing existing indicators no longer blocked by reserved name rules applied after creation
+[1.62.0] [admin] [fixed] - Slide deck email validates addresses before generating the PDF
+[1.62.0] [admin] [fixed] - Slide deck sharing now shows server error details on failure
+[1.62.0] [admin] [fixed] - Presentation loading message displays in the correct language
+[1.62.0] [admin] [fixed] - Single-value filters with active selections no longer hidden, preventing invisible "no data" states
+[1.62.0] [admin] [fixed] - Editing indicators with legacy reserved names no longer blocked
+[1.62.0] [admin] [fixed] - Data import now accepts count values like "123.0" or "1e3" from exporters
+[1.62.0] [admin] [fixed] - Invalid count values can no longer abort an entire staging batch
+[1.62.0] [admin] [changed] - Slide deck recipients limited to 50 with a clear error message
+[1.62.0] [admin] [changed] - Visualization detail cache refreshed for new data format
+[1.62.0] [admin] [internal] - Removed temporary dark mode keyboard shortcut (Shift+N)
+[1.62.0] [admin] [fixed] - Saved project tab no longer crashes the page if value is outdated
+[1.62.0] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
+[1.62.0] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
+[1.62.0] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
+[1.62.0] [user] [fixed] - Charts with negative values no longer clip bars below the axis
+[1.62.0] [user] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [added] - Tables for survey metrics can now show sample sizes in column headers
+[1.62.0] [admin] [added] - New "Show sample sizes in column headers" toggle in table style settings for survey (HFA) metrics
+[1.62.0] [admin] [added] - AI assistant now includes sample size context when analyzing survey data
+[1.62.0] [admin] [added] - Underlying data CSV exports now include sample size columns with readable headers
+[1.62.0] [admin] [fixed] - Charts for metrics with negative values no longer clip bars below the axis
+[1.62.0] [admin] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [changed] - More metrics now correctly allow negative values on chart axes
+[1.62.0] [admin] [internal] - Visualization cache updated; cached figures will regenerate automatically
+[1.62.0] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
+[1.62.0] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
+[1.62.0] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
+[1.62.0] [user] [added] - Blank or missing values in filters now appear as a selectable "(Blank)" option
+[1.62.0] [user] [changed] - Dashboard group headings and export sheet names now show friendly labels instead of raw codes
+[1.62.0] [user] [changed] - Filter chips now display a readable label for blank or missing values
+[1.62.0] [user] [fixed] - Using '&&' or '||' in indicator code now shows a clear error instead of failing silently at run time
+[1.62.0] [user] [fixed] - Figures with missing group values no longer disappear from filters and charts
+[1.62.0] [user] [fixed] - Slide deck colors now correctly follow the chosen color theme in tables and maps
+[1.62.0] [admin] [added] - DHIS2 scheduled imports now support daily and monthly recurrence
+[1.62.0] [admin] [added] - "More themes…" modal for browsing and comparing slide deck color themes with live previews
+[1.62.0] [admin] [added] - Reserved word validation when creating HFA indicator variable names
+[1.62.0] [admin] [added] - Blank or missing disaggregation values now appear as a selectable "(Blank)" option in filters and replicants
+[1.62.0] [admin] [changed] - DHIS2 recurring schedule configuration replaced weekly-only interval with daily, weekly, and monthly options
+[1.62.0] [admin] [changed] - Replicant labels in dashboards and exports now display formatted names instead of raw identifiers
+[1.62.0] [admin] [changed] - HFA indicator code editor now flags use of && and || operators as errors before running
+[1.62.0] [admin] [changed] - HFA indicator code now correctly treats missing survey answers as unknown rather than as determinate "no"
+[1.62.0] [admin] [fixed] - Disaggregation filters no longer disappear when a dimension contains blank or missing values
+[1.62.0] [admin] [fixed] - Figures in slide decks now correctly inherit the deck's color theme for structural elements like grid lines and borders
+[1.62.0] [admin] [fixed] - HFA indicator expressions using %in% now correctly propagate missing values instead of treating them as false
+[1.62.0] [admin] [internal] - Slide content validation now enforced at the route boundary instead of inside the handler
+[1.62.0] [admin] [internal] - Visualization cache version updated; cached figures will regenerate on next access
+[1.62.0] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
+[1.62.0] [user] [changed] - Removed "Verification mismatches" section from import run details
+[1.62.0] [user] [changed] - Simplified scheduling guidance message when credentials are missing
+[1.62.0] [admin] [changed] - Scheduling DHIS2 imports no longer requires a prior verification run
+[1.62.0] [admin] [changed] - Shadow verification step removed from DHIS2 import process
+[1.62.0] [admin] [changed] - Verification mismatches section removed from import run details
+[1.62.0] [admin] [changed] - Stored credentials are now the only requirement for scheduled imports
 [1.61.2] [user] [added] - Row filter option during HFA data import to exclude unwanted rows
 [1.61.2] [user] [added] - Duplicate facility review step during HFA data import with manual row selection
 [1.61.2] [user] [changed] - HFA data import now has a dedicated duplicates review step before staging

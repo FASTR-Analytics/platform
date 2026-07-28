@@ -103,6 +103,17 @@ if [ "$VALIDATE_MIGRATIONS" = "y" ] || [ "$VALIDATE_MIGRATIONS" = "Y" ]; then
     fi
 fi
 
+# Optionally validate queries
+echo "Validate queries? (y/n)"
+read -r VALIDATE_QUERIES
+
+if [ "$VALIDATE_QUERIES" = "y" ] || [ "$VALIDATE_QUERIES" = "Y" ]; then
+    if ! "$SCRIPT_DIR/validate_queries"; then
+        echo "ERROR: Query validation failed!"
+        exit 1
+    fi
+fi
+
 if [ "$ADHOC_MODE" = "false" ]; then
     # Parse current version
     MAJOR=$(echo $ORIGINAL_VERSION | cut -d. -f1)
