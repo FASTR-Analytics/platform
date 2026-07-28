@@ -1,6 +1,10 @@
 import { cors } from "hono/cors";
 
-const allowedOrigins = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
+/** Browser origins allowed to call this API with credentials. Shared by the
+ *  HTTP CORS middleware and the collab WebSocket's Origin allowlist
+ *  (project-collab.ts) — WS handshakes are not subject to CORS, so the socket
+ *  enforces this list itself. */
+export const allowedOrigins = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
   "http://localhost:3000",
   "http://localhost:3001",
 ];

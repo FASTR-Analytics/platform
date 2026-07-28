@@ -3,5 +3,5 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./chart_holder.tsx";
+export * from "./figure_holder.tsx";
 export * from "./page_holder.tsx";

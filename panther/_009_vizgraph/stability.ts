@@ -5,7 +5,7 @@
 
 import type { Geometry } from "./types_geometry.ts";
 
-// Prior-geometry matching for sticky relayout (PLAN_VIZGRAPH.md §4
+// Prior-geometry matching for sticky relayout (DOC_VIZGRAPH_ARCHITECTURE.md geometry contract
 // guarantee 3): everything is keyed by caller ids, so matching is a lookup.
 // Prior center-y drives both the stage-3 order seed and the stage-4 initial
 // stack; nodes absent from the prior fall back to their model seeding.

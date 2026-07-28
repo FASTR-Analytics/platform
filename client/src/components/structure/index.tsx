@@ -9,6 +9,7 @@ import {
   Csv,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getEditorWrapper,
   createButtonAction,
   createDeleteAction,
@@ -107,11 +108,7 @@ export function Facilities(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {familyLabel(p.family)}
-            </div>
+          <HeadingBar tonal onBack={p.backToInstance} heading={familyLabel(p.family)}>
             <Show when={csvDataIsReady()}>
               <Button
                 iconName="download"
@@ -121,13 +118,13 @@ export function Facilities(p: Props) {
                 {t3(TC.download)}
               </Button>
             </Show>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>

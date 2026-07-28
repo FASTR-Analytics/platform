@@ -93,7 +93,7 @@ export function EditHfaIndicatorServiceCategory(
           />
         ) : (
           <div class="ui-spy-sm">
-            <div class="text-neutral text-xs">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
+            <div class="ui-text-caption">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
             <div class="font-mono text-sm">{p.existing!.id}</div>
           </div>
         )}

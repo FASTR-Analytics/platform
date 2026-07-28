@@ -4,9 +4,11 @@ name: Visualization Query & Cache Service
 globs:
   - client/src/state/project/t2_presentation_objects.ts
   - client/src/state/project/t2_replicant_options.ts
-  - lib/admin_area_rollup.ts
+  - lib/rollup.ts
   - lib/convert_period_value.ts
+  - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
+  - lib/sample_n.ts
   - lib/validate_fetch_config.ts
   - server/db/project/metric_enricher.ts
   - server/db/project/results_value_resolver.ts
@@ -37,6 +39,11 @@ DOC_ROLLUP_ROWS). The adversarial review's fix batch landed 2026-07-06
 (commits `ce33e3f7…`: period-CTE unification, PAE `=` guard, month/integer
 filter handling, replicant relative-filter resolution, error statuses, cache
 hash hardening, race guards); what remains is in Open items below.
+
+This system's SQL behaviour is covered by `./validate_queries` — declarative
+fixtures on a throwaway Postgres running the production query functions. Adding
+a case is one literal in `query_rig/cases.ts`; the recipe and the rules that
+keep it honest are [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
 
 Boundaries: the Valkey `TimCacheC` class, SSE, and the
 `last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs`
@@ -73,7 +80,7 @@ Valkey po_items (server) / IndexedDB po_items (client)  →  buildFigureInputs (
 ([presentation_objects.ts:399](lib/types/presentation_objects.ts#L399)) is THE
 client→server query contract: `values` (`{prop, func}` pairs or PAE
 ingredients), `groupBys`, `filters`, `periodFilter`,
-`postAggregationExpression`, `includeAdminAreaRollup` + `adminAreaRollupLevel`.
+`postAggregationExpression`, `rollupDim` (presence = roll-up on).
 `periodFilterExactBounds` is server-computed, never client-sent.
 
 Built only by `getFetchConfigFromPresentationObjectConfig`
@@ -81,7 +88,7 @@ Built only by `getFetchConfigFromPresentationObjectConfig`
 `disaggregateBy` disOpts plus `timeseriesGrouping` for timeseries (throws if a
 timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
 metric has a post-aggregation expression, else filtered `valueProps` ×
-`valueFunc`; roll-up level baked in via `getEffectiveRollupLevel`.
+`valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends `{disOpt: replicateBy, values: [selectedReplicantValue ?? "UNSELECTED"]}`
@@ -103,7 +110,7 @@ groupBys sorted, filter values sorted and JSON-encoded (a bare `,`-join could
 collide on comma-holding values), periodFilter discriminated by type with
 only its own fields folded (relative filters hash on `nMonths`/`nYears`/
 `nQuarters`, not on fabricated bounds — so their keys are stable across data
-growth), PAE, roll-up flag + level. `periodFilterExactBounds` and display
+growth), PAE, roll-up dimension. `periodFilterExactBounds` and display
 preferences (roll-up position) are deliberately absent.
 
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
@@ -120,8 +127,8 @@ handler. Both share the same primitives so they can't drift:
 | `groupBys`, `filters[].disOpt`, `replicateBy` | closed-union membership (`disaggregationOption` enum / `isValidDisaggregationOption`) |
 | `values[].prop` / `.func` | `SQL_IDENTIFIER` regex / `valueFuncStrict` enum |
 | `postAggregationExpression` | `isSafePostAggregationExpression` — charset **plus** structural rules: no adjacent value tokens (kills subqueries), identifier-before-`(` must be in the ABS/COALESCE/NULLIF whitelist (kills `pg_sleep(...)`) |
-| `adminAreaRollupLevel` | `isAdminLevel` closed union, and must be in `groupBys` |
-| roll-up sentinel | server constant (`ROLLUP_SENTINEL`) |
+| `rollupDim` | `isRollupDimension` closed union (admin levels + facility columns), and must be in `groupBys` |
+| roll-up sentinel | server constant (`ROLLUP_SENTINEL` / `ALL_FACILITIES_SENTINEL` by dimension kind) |
 
 `validateFetchConfig` also rejects never-eligible roll-up funcs (the
 table-blind half of the eligibility rule — see Roll-up below).
@@ -142,19 +149,50 @@ through `CTEManager`.
 - **`buildCombinedQuery`** ([get_combined_query.ts](server/server_only_funcs_presentation_objects/get_combined_query.ts))
   is the only full-query assembler and its ordering is load-bearing:
   `sourceTable = periodCTEName || tableName` → `buildMainQuery` [+ `UNION ALL`
-  `buildAdminAreaRollupQuery`] → `applyPostAggregationExpression` (wraps in a
+  `buildRollupQuery`] → `applyPostAggregationExpression` (wraps in a
   subquery) → prepend `WITH` (after the wrap, so CTEs stay top-level) → append
   `LIMIT`.
 - **`buildMainQuery`** selects `groupBys` + aggregate columns, grouping by
   `[...groupBys, ...identityValueProps]`, `LEFT JOIN`ing the facility CTE with
   `f.<col>` prefixes on enabled facility columns.
-- **`buildAggregateColumns(values, mode)`**: identity → bare prop in `"main"`
-  mode, `SUM(prop)` in `"rollup"` mode (defense-in-depth only — eligible
-  identity metrics reach the roll-up solely as PAE ingredients); any other func
-  → `FUNC(prop) AS prop`.
+- **`buildAggregateColumns(values, mode, sourceTable, queryContext, hasPAE)`**:
+  identity → bare prop in `"main"` mode, `SUM(prop)` in `"rollup"` mode
+  (defense-in-depth only — eligible identity metrics reach the roll-up solely
+  as PAE ingredients); any other func → `FUNC(prop) AS prop`; plus the
+  sample-size columns below.
+- **Sample size (`__n_*`)** — one extra column per displayed value, carried
+  through `items` to the table renderer (naming in
+  [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`).
+  Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"`
+  **and** `queryContext.hasFacilityId`. n is a survey concept — an HMIS count
+  over a table not grouped by period returns facility-months (40 facilities ×
+  36 months = 1440), and ICEH rows arrive pre-aggregated. Always
+  `COUNT(DISTINCT <sourceTable>.facility_id)`, never a row count: HFA rows are
+  facility × time_point, so a table spanning two rounds would otherwise report
+  double the sample. **The table qualifier is mandatory** — the facilities CTE
+  joins a column of the same name, and unqualified Postgres rejects the query
+  as ambiguous on every facility-column disaggregation. Two rules:
+  - post-aggregation fetches → one **unfiltered** count aliased `__n_all`. The
+    M10 script drops rows whose indicator result is NA, so a facility having a
+    row already means it contributed. Deriving a denominator from the
+    expression instead is wrong on the shipped metrics: `value = COALESCE(
+    sum_val, avg_num / avg_weight)` has a NULL divisor for every
+    sum-aggregation indicator (n would read 0), and `value = dk_num /
+    resp_weight` has `resp_weight = 0` — not NULL — on not-applicable rows.
+  - plain values → `COUNT(DISTINCT …) FILTER (WHERE prop IS NOT NULL) AS
+    __n_<prop>` per non-identity value. No shipped HFA module takes this path.
+
+  The `__n_` prefix is reserved: `validateDefinition` (S8) rejects a module
+  whose value props or PAE ingredients start with it. Adding the columns
+  changed the cached payload shape for unmodified rows, so `PO_CACHE_VERSION`
+  went "6"→"7".
 - **`applyPostAggregationExpression`** splits the PAE on `=` into
   `value = expression`, rewrites `/col` → `/ NULLIF(col, 0)`, and wraps:
-  `SELECT <groupBys>, (<expr>) as <value> FROM (<query>) AS subq`. The
+  `SELECT <groupBys>, (<expr>) as <value>[, __n_all AS __n_<value>] FROM
+  (<query>) AS subq` — the wrapper drops every inner column it doesn't
+  re-project, so the n column must be renamed here to the prop the client looks
+  for, and the `hasSampleNColumn` argument must agree with `emitsSampleN` or it
+  re-projects a column the inner query never selected. The
   validator guarantees exactly one `=` (multi-`=` would silently drop middle
   terms). The NULLIF rewrite handles bare-identifier denominators — every
   authored PAE's shape; a hand-crafted function-call (`a/ABS(b)`) or decimal
@@ -291,9 +329,13 @@ phases:
 2. **Facility columns**, double-gated: the table must have `facility_id` AND
    the instance facility config must enable each column (`includeTypes`,
    `includeOwnership`, `includeCustom1..5`). Labels are display-only and not
-   consulted. `facility_name` is in the type union and config but **not** in
-   the enricher loop — it can never appear as a runtime option (long-standing;
-   Open items).
+   consulted. `facility_name` is deliberately **not** a disaggregation option —
+   it is import/display metadata (toggled by `includeNames`, supplied by DHIS2
+   `displayName`), never a grouping dimension. Removed from
+   `ALL_DISAGGREGATION_OPTIONS` 2026-07-26, so the enricher's omission is now
+   enforced by the type system rather than by convention; `buildQueryContext`
+   derives its facility-column narrowing as `Extract<OptionalFacilityColumn,
+   DisaggregationOption>`.
 3. **Time columns**, priority-branched: `period_id` → all four time options;
    else `quarter_id` → `quarter_id` + `year`; else `year` → `year`.
 
@@ -310,13 +352,18 @@ the lookup wrapper (metric row → `enrichMetric` → `{resultsValue, moduleId}`
 
 **Possible values** ([get_possible_values.ts](server/server_only_funcs_presentation_objects/get_possible_values.ts))
 runs `SELECT DISTINCT <col> AS disaggregation_value … ORDER BY … LIMIT
-MAX_REPLICANT_OPTIONS + 1` (501) per option, with three column shapes: physical
-(direct), dynamic period (CTE when one is needed, else inline derivation
-expression), facility (`LEFT JOIN` to a hand-written `facility_subset` CTE over
-the family facilities table; stacks with the period CTE when both are needed).
-Null/empty values are dropped. Results are `{id, label}` pairs — labels
-resolved server-side from the module's `IndicatorMetadata` (`labelMap`),
-falling back to the raw id.
+REPLICANT_OPTIONS_QUERY_LIMIT` (502) per option, with three column shapes:
+physical (direct), dynamic period (CTE when one is needed, else inline
+derivation expression), facility (`LEFT JOIN` to a hand-written
+`facility_subset` CTE over the family facilities table; stacks with the period
+CTE when both are needed). Null/empty values fold onto `BLANK_SENTINEL` where
+the blank fold applies, and are dropped where it does not (below). Results are
+`{id, label}` pairs — labels resolved server-side from the module's
+`IndicatorMetadata` (`labelMap`), falling back to the raw id.
+
+The cap counts NAMED values (`exceedsMaxReplicantOptions`), and the query
+budget is `MAX_REPLICANT_OPTIONS + 2` so the sentinel can neither displace a
+named value nor tip a dimension holding exactly 500 into `too_many_values`.
 
 The server honors **all** filters it is passed, including one on the queried
 column itself (no self-strip — a replicant filtered to a subset returns exactly
@@ -344,6 +391,54 @@ reads the ICEH snapshot + static `ICEH_STRAT_INFO`; HMIS reads project
 result rides inside items holders and labels possible values — it is
 dataset-derived, which is why the caches version on `datasetsVersion`.
 
+**Blank values.** A row whose disaggregation cell is NULL or whitespace-only is
+a real group — `GROUP BY` emits it — so it must also be a nameable filter
+option. `BLANK_SENTINEL` (`"__BLANK"`, lib/validate_fetch_config.ts) is that id.
+Four sites emit or match it and must agree exactly, or an option is offered
+that no filter can select: the possible-values query, the SELECT list, the
+GROUP BY, and the WHERE predicate. Two shared emitters enforce that —
+`blankFoldedRef` (the `CASE`) and `blankPredicate` (the WHERE test) — behind one
+gate, `shouldFoldBlank`.
+
+Four rules that are each load-bearing:
+
+- **The gate is semantic AND type-based.** `usesBlankSentinel` excludes integer
+  columns, period-derived text (`month`), and multi-membership. On top of that,
+  the column must actually be TEXT (`QueryContext.textColumns`, from
+  `getTextColumnNames`). Results-column types are authored per module, so the
+  same option is not the same type everywhere — `time_point` is `integer` in
+  one instance here and `text` in another. The fold emits `btrim()` and returns
+  a text sentinel from the `CASE`; Postgres rejects both on a numeric column, so
+  a name-only gate turns working visualizations into a hard SQL error.
+- **The fold detects blankness but returns the value UNTRIMMED.** Folding to
+  `btrim(col)` would rewrite non-blank values too, collapsing `' x'` and `'x'`
+  into one group that `UPPER(col) IN (…)` — comparing the raw column — could
+  only half-match. That is the original defect in a new form.
+- **`blankPredicate` is self-parenthesising.** It contains an `OR` and callers
+  `AND` it with other statements; unparenthesised, `a = 1 AND col IS NULL OR
+  btrim(col) = ''` parses as `(a = 1 AND col IS NULL) OR btrim(col) = ''` and
+  the blank test swallows the rest of the WHERE clause.
+- **`btrim`'s charset is spelled out** (`E' \t\r\n'`). Its default is ASCII
+  space only, so a tab-only cell would stay unfolded here while JS `.trim()`
+  still stripped it from the options list.
+
+Multi-membership columns are exempt on both sides: `string_to_array('', '|')`
+is `{}`, so a blank cell yields no row for `unnest` to fold and the filter is an
+array overlap rather than an `IN` list. Their "one option ≠ constant dimension"
+problem is handled instead in `getSingleValueDimsFromPossibleValues`, which
+skips them — one distinct member says nothing about row homogeneity, and
+treating it as constant hid the service-category filter entirely once a single
+indicator was tagged.
+
+Display is client-side (the payload is Valkey-cached, so a translated label must
+not be frozen into it): `BLANK_SENTINEL_LABEL` → "(Blank)", resolved in
+`formatReplicantLabelForDisplay` for every replicant surface and in
+`getDisplayDisaggregationValueLabel` for filter chips. "Blank", not "missing" —
+"Missing" already means HFA non-response counts. The sentinel is moved to the
+END of the option list in TS (SQL cannot: under `SELECT DISTINCT`, `ORDER BY`
+may only use expressions in the select list); left where collation put it, it
+sorted ahead of every lowercase value and became the default replicant.
+
 **Replicant resolution.** `getReplicateByProp` (lib,
 [get_disaggregator_display_prop.ts](lib/get_disaggregator_display_prop.ts)) is
 the single source of truth for "is there an active replicant": the dimension
@@ -359,19 +454,32 @@ live store). The AI figure path (`assert_replicant_valid.ts`) instead throws on
 unset/invalid — the AI must be explicit. Single-replicant-per-viz is
 UI-enforced only (nothing in the schema forbids two `"replicant"` entries).
 
-## Admin-area roll-up
+## Roll-up (admin areas & facility columns)
 
-The synthetic "National"/"All areas" row, produced by a second query
-`UNION ALL`'d onto the main one. Two independent gates, combined by
-`getEffectiveRollupLevel` ([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts))
-— the single gate used by the editor checkbox, the fetch builder, the
-save-time strip, and the AI editor tool:
+The synthetic "National" / "All areas" / "All facilities" row, produced by a
+second query `UNION ALL`'d onto the main one. The collapsible dimensions are a
+WHITELIST (`ROLLUP_DIMENSIONS` in [rollup.ts](lib/rollup.ts) = the three admin
+levels + the seven `facility_*` columns), and the boundary is semantic: a
+roll-up re-aggregates rows across the collapsed dimension's values, which is
+only meaningful for dimensions that PARTITION facilities — indicator
+dimensions would sum different indicators, `time_point` would pool survey
+rounds, `hfa_service_category` is multi-membership. Two independent gates,
+combined by `getEffectiveRollupDimension`
+([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)) — the single
+gate used by the editor checkbox, the fetch builder, the save-time strip, and
+the AI editor tool:
 
-- **Config gate** (`getRollupAdminLevel`): EXACTLY ONE admin level (AA2/3/4)
-  grouped, not displayed as replicant/mapArea, not filtered to a single value;
-  maps excluded entirely. The authoritative doc comment lives on the function.
+- **Config gate** (`getRollupDimension`): the flag lives ON the
+  `disaggregateBy` entry (`rollup: true` + `rollupPosition`); EXACTLY ONE
+  flagged entry must pass `isRollupCandidateDimension` (whitelisted, grouped,
+  not displayed as replicant/mapArea, not filtered to a single value; maps
+  excluded entirely). More than one flagged candidate ⇒ gate closed — the
+  one-roll-up-per-viz rule is phase-1 policy living ONLY in this derivation
+  and the editor UI; the schema allows multiple flags so a future
+  simultaneous-roll-up (cross-product) needs no storage migration. The
+  authoritative doc comment lives on the function.
 - **Metric gate** (`isRollupEligibleResultsValue`,
-  [admin_area_rollup.ts](lib/admin_area_rollup.ts)): re-aggregation must be
+  [rollup.ts](lib/rollup.ts)): re-aggregation must be
   meaningful — SUM/COUNT (additive), identity-with-PAE (ingredients
   re-aggregated, ratio recomputed after the union), or AVG over facility-level
   rows (`hasFacilityLevelRows` — re-averaging raw observations is the correctly
@@ -381,34 +489,52 @@ save-time strip, and the AI editor tool:
   (table-blind); the AVG↔`facility_id` half needs table access and is checked
   in `getPresentationObjectItems`.
 
-**The client chooses the collapse level; the server obeys.** The level is
-baked into the fetch config; the server must never recompute it from raw
+**The client chooses the collapsed dimension; the server obeys.** `rollupDim`
+is baked into the fetch config; the server must never recompute it from raw
 groupBys (those include replicant levels — the wrong collapse target). The
-server's checks (`isAdminLevel`, `groupBys.includes`) are SQL-safety, not
-policy. `buildAdminAreaRollupQuery` replaces the level's column with
-`'__NATIONAL'` (`ROLLUP_SENTINEL`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL`
-survives only in old stored figure grids, render-compat), drops the level from
-GROUP BY, re-aggregates via the `"rollup"` column mode, same WHERE.
+server's checks (`isRollupDimension`, `groupBys.includes`) are SQL-safety, not
+policy — when either fails `buildRollupQuery` returns `null` and the
+roll-up row is **silently omitted** rather than raising: a dimension that isn't
+grouped has no column to replace with the sentinel, so the query cannot be built
+at all. Well-formed clients never reach it (`getEffectiveRollupDimension`
+guarantees the dimension is grouped, and `normalizePOConfigForStorage` strips
+stray flags at save time); stale and hand-crafted configs do, and they degrade
+to a figure without a total row (an instance of the stale-config
+silent-failure trap below). `buildRollupQuery` replaces the collapsed column
+with its sentinel — `'__NATIONAL'` (`ROLLUP_SENTINEL`) for admin levels,
+`'__ALL_FACILITIES'` (`ALL_FACILITIES_SENTINEL`) for facility columns, per
+`rollupSentinelForDimension`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL` survives
+only in old stored figure grids, render-compat — drops the dimension from
+GROUP BY, re-aggregates via the `"rollup"` column mode, same WHERE. A
+collapsed facility column works identically even though it lives on the
+facility CTE: the sentinel replaces the column reference before the `f.`
+prefix is applied, and the `__n_*` count over the collapsed scope is exactly
+the "all facilities" sample size.
 
-**Labels are scope words, never operation words** ("Total" would imply SUM).
-`getRollupLabelContext` precedence: **subset** ("All selected areas" — an admin
-filter restricts geography: 2+ values at/coarser than the roll-up level, or ANY
-values on a finer level; replicant-displayed levels are skipped) → **pinned**
-("{Area} — All areas" — the finest coarser level pinned by replicant or
-single-value filter; the marker distinguishes the row from a same-named child
-area) → **national**. Non-admin filters deliberately don't change the label.
-The same context drives the editor checkbox text, so row and checkbox can't
-tell different stories.
+**Labels are scope words, never operation words** ("Total" would imply SUM),
+**and filters never change the label** (ruling 2026-07-28, removing an earlier
+"All selected areas/facilities" subset kind): a filter is the AUTHOR's
+context, not the READER's — the reader of a report filtered to some areas or
+facility types reads the total row as the total of what the figure shows.
+`getRollupLabelContextForDimension` — admin: **pinned** ("{Area} — All
+areas" — the finest coarser level pinned by replicant or single-value filter;
+the marker distinguishes the row from a same-named child area) →
+**national**. Facility dimensions are always **all_facilities** ("All
+facilities" — one scope word for all seven columns, so no per-column or
+per-instance naming is needed; fr/pt use the app's established
+"établissement" / "estabelecimento"). The same context drives the editor
+checkbox text, so row and checkbox can't tell different stories.
 
-**Position is display-only.** `d.adminAreaRollupPosition` ("top"/"bottom")
-drives client-side sort pinning (`ROLLUP_PIN_IDS`) and is never in the fetch
-config, the SQL, or the cache hash — toggling re-renders without refetching.
-Display mechanics (pin-aware sorts, conditional-formatting exclusion, fixed
-sentinel series color) live in S10's `get_data_config_from_po.ts` /
-`get_style_from_po`. Editor lifecycle: no eager clearing on transient gate
-closures — `normalizePOConfigForStorage(config, resultsValue)` strips the flag
-at save time; canonical off-state is both fields absent. AI data payloads
-deliberately exclude the roll-up row (double-counting hazard).
+**Position is display-only.** The entry's `rollupPosition` ("top"/"bottom",
+read via `getRollupPosition`) drives client-side sort pinning
+(`ROLLUP_PIN_IDS`) and is never in the fetch config, the SQL, or the cache
+hash — toggling re-renders without refetching. Display mechanics (pin-aware
+sorts, conditional-formatting exclusion, fixed sentinel series color) live in
+S10's `get_data_config_from_po.ts` / `get_style_from_po`. Editor lifecycle: no
+eager clearing on transient gate closures — `normalizePOConfigForStorage
+(config, resultsValue)` strips flags at save time; canonical off-state is both
+entry fields absent. AI data payloads deliberately exclude the roll-up row
+(double-counting hazard).
 
 ## Caching
 
@@ -458,14 +584,15 @@ work against the 20-connection pool; the cache check happens *before* queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
 coalesce.
 
-**HMIS/HFA dataset display caches**
-([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hmis` keys
-on indicator type + `hashFacilityColumnsConfig` (note: the *dataset* caches do
-fold facility config — the PO caches are the outlier), versions on
-`versionId_indicatorMappingsVersion`; `ds_hfa` is a singleton versioned on the
-server-computed HFA `cacheHash` (the in-memory `VersionParams.hash` vs payload
-`cacheHash` naming divergence is F8c — the payload field is persisted, do not
-rename it).
+**HFA dataset display cache**
+([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a
+singleton versioned on the server-computed HFA `cacheHash` (the in-memory
+`VersionParams.hash` vs payload `cacheHash` naming divergence is F8c — the
+payload field is persisted, do not rename it). The HMIS counterpart
+(`ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 — once vizItems moved to the
+import ledger the read became a few ms, so `getDatasetHmisDisplayInfo`
+computes live and only the client T2 IndexedDB cache remains (see
+[SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
 **Client (IndexedDB, `createReactiveCache`).** Mirrors of the same four caches
 in [t2_presentation_objects.ts](client/src/state/project/t2_presentation_objects.ts) /
@@ -540,10 +667,21 @@ bundle freezes:
   `getPeriodBounds` now uses).
 - **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the
   escaped `UPPER` text path, never numeric coercion.
-- **The sentinel is not a real admin area**: `__NATIONAL` must be
-  label-replaced and pin-sorted client-side; label replacements for it are
-  added only when the roll-up is active so stored figures never carry dead
-  entries.
+- **The sentinels are not real data values**: `__NATIONAL` /
+  `__ALL_FACILITIES` must be label-replaced and pin-sorted client-side; label
+  replacements for them are added only when the roll-up is active so stored
+  figures never carry dead entries.
+- **The blank label map claims `""`, and that changes STORED figures.** Figures
+  saved before the blank fold keep the raw empty string as their group key, so
+  `""` is mapped alongside `BLANK_SENTINEL` to keep them rendering. In tables
+  that is a visible layout change, not just a caption: panther gates the
+  group-header row on `if (rowGroup.label)`, so a blank row-group that
+  previously rendered with no heading now gets one. Deliberate — an unlabelled
+  group is the confusion the fold exists to remove — but it is an appearance
+  change to already-saved documents. `"null"` is deliberately NOT claimed: it
+  is a value real data can carry, and panther's `resolveId` discards null ids
+  before any replacement is consulted, so claiming it would mislabel real
+  groups to rescue a case it cannot reach.
 - **A one-value replicant is not a replicant** — `getReplicateByProp` returns
   `undefined` and the pin is not appended; code that reads
   `disDisplayOpt === "replicant"` directly will disagree with the rest of the
@@ -586,8 +724,21 @@ F2/F8b and dropped F4 are stated as facts in the prose where relevant):
   separately by `getDatasetFamilyForModule` and `getIndicatorMetadata`; the
   replicant-options route now adds its own time-column probes. One canonical
   resolution pass would remove several queries per cold request.
-- **Dead code:** the unreachable `quarter_id`+calendar-filter block in
-  `getPeriodFilterExactBounds` (TODO'd in code).
+- **Table n-values: the `datasetFamily` enrichment must be redone in the run
+  manifest.** The HFA sample-size feature adds `datasetFamily` to
+  [metric_enricher.ts](server/db/project/metric_enricher.ts) purely so the
+  editor can hide the toggle where it would do nothing (the renderer self-gates
+  on whether `__n_*` keys are present in the items, so nothing else depends on
+  it). Under [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §2.4 the probe-based
+  enricher is deleted outright — `enrichMetric` becomes a manifest lookup — so
+  this field has to move to the manifest's per-metric stamp at finalize. Small,
+  but it is real rework that lands with the runs merge, not before it. The
+  server half (the `__n_*` aggregate columns in `buildAggregateColumns`) needs
+  no rework: it rides the shared SQL builders through the engine seam. One
+  DuckDB caveat if the runs rollout happens after this ships — n-values
+  introduce `COUNT(DISTINCT …) FILTER (WHERE …)`, and the runs plan's §2.4
+  dialect inventory explicitly recorded `FILTER` as *absent* from the S9 SQL
+  surface, so that construct needs a parity check in the golden-diff rig.
 
 Standing decoupling items (from the systems review):
 
@@ -601,8 +752,5 @@ Standing decoupling items (from the systems review):
   semantics — it changes generated SQL (`getQuarterIdExpression`) and filter
   bounds — living in the i18n module (`lib/translate/t-func.ts`, S14-owned).
   A `lib/calendar.ts` would name the truth (at minimum, audit §4.3.5).
-- **`facility_name` is dead in the enricher** (in the union, the Zod
-  validator, and the instance config, but never emitted) — implement or
-  remove.
 - **Three parallel sources of the disOpt list** (TS union, runtime array, Zod
   enum) — derive two from one.

@@ -65,10 +65,10 @@ export function SelectList<T extends string = string, M = never>(
           {(item) => {
             if (!isListItem(item)) {
               if ("divider" in item) {
-                return <div class="border-base-300 my-1 border-b" />;
+                return <div class="my-1 border-b" />;
               }
               return (
-                <div class="text-neutral px-2 py-1 text-xs font-700">
+                <div class="text-base-content-muted px-2 py-1 text-xs font-700">
                   {item.header}
                 </div>
               );
@@ -77,12 +77,12 @@ export function SelectList<T extends string = string, M = never>(
               <div
                 class="cursor-pointer rounded px-2 py-1 text-sm"
                 classList={{
-                  "ui-hoverable": true,
-                  "ui-intent-fill": !!p.intent,
+                  "ui-hoverable-base-100": item.id !== p.value,
+                  [`ui-fill-${p.intent}`]: !!p.intent && item.id === p.value,
+                  [`ui-hoverable-${p.intent}`]: !!p.intent &&
+                    item.id === p.value,
                   "bg-base-200": !p.intent && item.id === p.value,
                 }}
-                data-intent={p.intent}
-                data-outline={item.id !== p.value}
                 onClick={() => p.onChange(item.id)}
               >
                 <Show when={p.renderItem} fallback={item.label}>

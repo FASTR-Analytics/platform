@@ -25,6 +25,8 @@ import {
   msPadding,
   type Padding,
   type PaddingOptions,
+  type PieSliceInfo,
+  type PieSliceInfoFunc,
   type PointStyle,
   type PointType,
   type RectStyle,
@@ -42,6 +44,17 @@ import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.
 export const SERIES_COLOR_SENTINEL = 666;
 export const VALUES_COLOR_SENTINEL = 777;
 
+// A leader line has no existence apart from the label at its end, so it is a
+// property of the label — not a sibling of it on the host element. (It used to
+// sit as three flat fields on GenericMapRegionStyle.)
+export type GenericLeaderLineStyle = {
+  strokeColor: ColorKeyOrString;
+  strokeWidth: number;
+  gap: number;
+};
+
+export type GenericLeaderLineStyleOptions = Partial<GenericLeaderLineStyle>;
+
 export type GenericDataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
@@ -54,9 +67,21 @@ export type GenericDataLabelStyle = {
   borderColor?: ColorKeyOrString;
   borderWidth: number;
   rectRadius: number;
+  // Optional on the per-block defaults (a bar's data label never draws one),
+  // required on the shared cascade base below — so the default lives exactly
+  // once, in content.dataLabel.
+  leaderLine?: GenericLeaderLineStyle;
 };
 
-export type GenericDataLabelStyleOptions = Partial<GenericDataLabelStyle>;
+// The shared content.dataLabel cascade base: the terminal level of the
+// data-label merge, so every field without a per-block default must be here.
+export type GenericDataLabelBaseStyle = GenericDataLabelStyle & {
+  leaderLine: GenericLeaderLineStyle;
+};
+
+export type GenericDataLabelStyleOptions =
+  & Partial<Omit<GenericDataLabelStyle, "leaderLine">>
+  & { leaderLine?: GenericLeaderLineStyleOptions };
 
 export type DataLabelStyle = {
   show: boolean;
@@ -70,6 +95,7 @@ export type DataLabelStyle = {
   borderColor?: ColorKeyOrString;
   borderWidth: number;
   rectRadius: number;
+  leaderLine: GenericLeaderLineStyle;
 };
 
 type ColorPair = {
@@ -120,7 +146,7 @@ function resolveDataLabelDefaults(
   g: GenericDataLabelStyleOptions | undefined,
   gc: GenericDataLabelStyleOptions | undefined,
   d: GenericDataLabelStyle,
-  dc: GenericDataLabelStyle,
+  dc: GenericDataLabelBaseStyle,
 ): DataLabelStyle {
   const pair = pickColorPair([c, cc, g, gc, d, dc]);
   return {
@@ -170,6 +196,32 @@ function resolveDataLabelDefaults(
       gc?.rectRadius ??
       d.rectRadius ??
       dc.rectRadius) * sf,
+    leaderLine: {
+      strokeColor: c?.leaderLine?.strokeColor ??
+        cc?.leaderLine?.strokeColor ??
+        g?.leaderLine?.strokeColor ??
+        gc?.leaderLine?.strokeColor ??
+        d.leaderLine?.strokeColor ??
+        dc.leaderLine.strokeColor,
+      strokeWidth: ms(
+        sf,
+        c?.leaderLine?.strokeWidth ??
+          cc?.leaderLine?.strokeWidth ??
+          g?.leaderLine?.strokeWidth ??
+          gc?.leaderLine?.strokeWidth,
+        d.leaderLine?.strokeWidth,
+        dc.leaderLine.strokeWidth,
+      ),
+      gap: ms(
+        sf,
+        c?.leaderLine?.gap ??
+          cc?.leaderLine?.gap ??
+          g?.leaderLine?.gap ??
+          gc?.leaderLine?.gap,
+        d.leaderLine?.gap,
+        dc.leaderLine.gap,
+      ),
+    },
   };
 }
 
@@ -199,6 +251,15 @@ function applyDataLabelOverrides(
     rectRadius: o.rectRadius !== undefined
       ? o.rectRadius * sf
       : defaults.rectRadius,
+    leaderLine: o.leaderLine === undefined ? defaults.leaderLine : {
+      strokeColor: o.leaderLine.strokeColor ?? defaults.leaderLine.strokeColor,
+      strokeWidth: o.leaderLine.strokeWidth !== undefined
+        ? o.leaderLine.strokeWidth * sf
+        : defaults.leaderLine.strokeWidth,
+      gap: o.leaderLine.gap !== undefined
+        ? o.leaderLine.gap * sf
+        : defaults.leaderLine.gap,
+    },
   };
 }
 
@@ -1182,9 +1243,6 @@ export type GenericMapRegionStyleOptions = {
   strokeColor?: ColorKeyOrString | "none";
   strokeWidth?: number;
   dataLabel?: GenericDataLabelStyleOptions;
-  leaderLineStrokeColor?: ColorKeyOrString;
-  leaderLineStrokeWidth?: number;
-  leaderLineGap?: number;
   centroidOffset?: { dx: number; dy: number };
 };
 
@@ -1194,9 +1252,6 @@ export type GenericMapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: GenericDataLabelStyle;
-  leaderLineStrokeColor: ColorKeyOrString;
-  leaderLineStrokeWidth: number;
-  leaderLineGap: number;
   centroidOffset?: { dx: number; dy: number };
 };
 
@@ -1206,9 +1261,6 @@ export type MapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: DataLabelStyle;
-  leaderLineStrokeColor: ColorKeyOrString;
-  leaderLineStrokeWidth: number;
-  leaderLineGap: number;
   centroidOffset?: { dx: number; dy: number };
 };
 
@@ -1237,23 +1289,6 @@ export function getMapRegionStyleFunc(
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
   const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
-  const dLeaderLineStrokeColor = m(
-    c?.leaderLineStrokeColor,
-    g?.leaderLineStrokeColor,
-    d.leaderLineStrokeColor,
-  );
-  const dLeaderLineStrokeWidth = ms(
-    _sf,
-    c?.leaderLineStrokeWidth,
-    g?.leaderLineStrokeWidth,
-    d.leaderLineStrokeWidth,
-  );
-  const dLeaderLineGap = ms(
-    _sf,
-    c?.leaderLineGap,
-    g?.leaderLineGap,
-    d.leaderLineGap,
-  );
   const dCentroidOffset = m(
     c?.centroidOffset,
     g?.centroidOffset,
@@ -1275,9 +1310,6 @@ export function getMapRegionStyleFunc(
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
     const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    const oLeaderLineStrokeWidth = oc?.leaderLineStrokeWidth ??
-      og?.leaderLineStrokeWidth;
-    const oLeaderLineGap = oc?.leaderLineGap ?? og?.leaderLineGap;
     let dl = dDataLabel;
     dl = applyDataLabelOverrides(dl, og?.dataLabel, _sf);
     dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
@@ -1299,17 +1331,112 @@ export function getMapRegionStyleFunc(
         ? oStrokeWidth * _sf
         : dStrokeWidth,
       dataLabel: dl,
-      leaderLineStrokeColor: oc?.leaderLineStrokeColor ??
-        og?.leaderLineStrokeColor ??
-        dLeaderLineStrokeColor,
-      leaderLineStrokeWidth: oLeaderLineStrokeWidth !== undefined
-        ? oLeaderLineStrokeWidth * _sf
-        : dLeaderLineStrokeWidth,
-      leaderLineGap: oLeaderLineGap !== undefined
-        ? oLeaderLineGap * _sf
-        : dLeaderLineGap,
       centroidOffset: oc?.centroidOffset ?? og?.centroidOffset ??
         dCentroidOffset,
+    };
+  };
+}
+
+////////////////////////////////////////////////
+//  _______    __                             //
+// /       \  /  |                            //
+// $$$$$$$  | $$/   ______                    //
+// $$ |__$$ | /  | /      \                   //
+// $$    $$/  $$ |/$$$$$$  |                  //
+// $$$$$$$/   $$ |$$    $$ |                  //
+// $$ |       $$ |$$$$$$$$/                   //
+// $$ |       $$ |$$       |                  //
+// $$/        $$/  $$$$$$$/                   //
+//                                            //
+////////////////////////////////////////////////
+
+export type GenericPieSliceStyleOptions = {
+  show?: boolean;
+  fillColor?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL | "none";
+  strokeColor?: ColorKeyOrString | "none";
+  strokeWidth?: number;
+  dataLabel?: GenericDataLabelStyleOptions;
+};
+
+export type GenericPieSliceStyle = {
+  show: boolean;
+  fillColor: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL | "none";
+  strokeColor: ColorKeyOrString | "none";
+  strokeWidth: number;
+  dataLabel: GenericDataLabelStyle;
+};
+
+export type PieSliceStyle = {
+  show: boolean;
+  fillColor: ColorKeyOrString | "none";
+  strokeColor: ColorKeyOrString | "none";
+  strokeWidth: number;
+  dataLabel: DataLabelStyle;
+};
+
+export function getPieSliceStyleFunc(
+  _sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+): PieSliceInfoFunc<PieSliceStyle> {
+  const cRaw = _c.content?.slices?.func;
+  const c = typeof cRaw === "object" ? cRaw : undefined;
+  const cf = typeof cRaw === "function" ? cRaw : undefined;
+  const gRaw = _g.content?.slices?.func;
+  const g = typeof gRaw === "object" ? gRaw : undefined;
+  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const d = _d.content.slices.func;
+  const seriesColorFunc = m(
+    _c.seriesColorFunc,
+    _g.seriesColorFunc,
+    _d.seriesColorFunc,
+  );
+  const cc = _c.content?.dataLabel;
+  const gc = _g.content?.dataLabel;
+  const dc = _d.content.dataLabel;
+  const dShow = m(c?.show, g?.show, d.show);
+  const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
+  const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
+  const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
+  const dDataLabel = resolveDataLabelDefaults(
+    _sf,
+    c?.dataLabel,
+    cc,
+    g?.dataLabel,
+    gc,
+    d.dataLabel,
+    dc,
+  );
+
+  return (info: PieSliceInfo): PieSliceStyle => {
+    const oc = cf?.(info);
+    const og = gf?.(info);
+    const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
+    const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
+    const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
+    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
+    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
+    const dlPair = pickColorPair([
+      oc?.dataLabel,
+      og?.dataLabel,
+      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
+    ]);
+    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
+    const resolvedFillColor = fillColor === SERIES_COLOR_SENTINEL
+      ? seriesColorFunc(info)
+      : fillColor;
+    // The slice is the label's host, so an inside label contrasts against the
+    // slice it sits on — the same call every other content builder makes.
+    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
+    return {
+      show: oc?.show ?? og?.show ?? dShow,
+      fillColor: resolvedFillColor,
+      strokeColor,
+      strokeWidth: oStrokeWidth !== undefined
+        ? oStrokeWidth * _sf
+        : dStrokeWidth,
+      dataLabel: dl,
     };
   };
 }

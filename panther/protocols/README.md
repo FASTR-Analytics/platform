@@ -54,9 +54,10 @@ receive it during sync.
 | `PROTOCOL_ALL_TRANSLATION.md` | All   | TranslatableString, t3/resolveTS, language handling                     |
 | `PROTOCOL_UI_SOLIDJS.md`      | UI    | Reactivity rules, component declaration, control flow                   |
 | `PROTOCOL_UI_STATE.md`        | UI    | createQuery, createAction*, StateHolderWrapper patterns                 |
-| `PROTOCOL_UI_STYLING.md`      | UI    | Tailwind theme, semantic colors, ui-* utilities                         |
+| `PROTOCOL_UI_STYLING.md`      | UI    | Color tokens, interactive state, spacing utilities, app theming         |
 | `PROTOCOL_UI_COMPONENTS.md`   | UI    | Using the panther component library                                     |
 | `PROTOCOL_UI_STRUCTURE.md`    | UI    | Client file organization: components mirror UI, `_shared/`, co-location |
+| `PROTOCOL_UI_AI_CHAT.md`      | UI    | AI chat surfaces: views, tools, gating, interactions, approval, prompts |
 | `PROTOCOL_DENO_API.md`        | Deno  | Hono patterns, route structure, validation                              |
 
 ## Protocol Structure
@@ -165,6 +166,7 @@ protocols/
 ├── PROTOCOL_UI_STYLING.md        → UI, Both
 ├── PROTOCOL_UI_COMPONENTS.md     → UI, Both
 ├── PROTOCOL_UI_STRUCTURE.md      → UI, Both
+├── PROTOCOL_UI_AI_CHAT.md        → UI, Both
 └── PROTOCOL_DENO_API.md          → Deno, Both
 ```
 

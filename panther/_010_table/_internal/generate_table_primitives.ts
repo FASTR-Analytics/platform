@@ -18,8 +18,8 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   const d = mTable.transformedData;
   const m = mTable.measuredInfo;
 
-  const extraTop = m.extraTopPaddingForRowsAndAllHeaders;
-  const extraBottom = m.extraBottomPaddingForRowsAndAllHeaders;
+  const extraTop = m.extraTopPaddingForRows;
+  const extraBottom = m.extraBottomPaddingForRows;
 
   //////////////////////////////////////////
   //                                      //
@@ -32,9 +32,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
     m.colGroupHeaderInfos.forEach((cghi, i_colGroup) => {
       const bgH = m.colGroupHeaderMaxHeight +
         s.colHeaderPadding.pt() +
-        s.colHeaderPadding.pb() +
-        extraTop +
-        extraBottom;
+        s.colHeaderPadding.pb();
 
       const colGroupContentWidth = cghi.colGroupInnerWidth -
         s.colHeaderPadding.totalPx();
@@ -46,7 +44,6 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
           currentX + s.colHeaderPadding.pl() + colGroupContentWidth / 2,
           m.colGroupHeadersInnerY +
           s.colHeaderPadding.pt() +
-          extraTop +
           yOffset,
         ]);
       }
@@ -90,9 +87,7 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
       const colWidth = m.colInnerWidths[chi.index];
       const bgH = m.colHeaderMaxHeight +
         s.colHeaderPadding.pt() +
-        s.colHeaderPadding.pb() +
-        extraTop +
-        extraBottom;
+        s.colHeaderPadding.pb();
 
       const colHeaderContentWidth = colWidth -
         s.colHeaderPadding.totalPx();
@@ -109,14 +104,13 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
             currentX + s.colHeaderPadding.pl() + colHeaderContentWidth / 2,
             m.colHeadersInnerY +
             s.colHeaderPadding.pt() +
-            extraTop +
             m.colHeaderMaxHeight,
           ]);
           textAlignV = "bottom";
         } else {
           textPosition = new RectCoordsDims({
             x: currentX + s.colHeaderPadding.pl(),
-            y: m.colHeadersInnerY + s.colHeaderPadding.pt() + extraTop,
+            y: m.colHeadersInnerY + s.colHeaderPadding.pt(),
             w: colHeaderContentWidth,
             h: m.colHeaderMaxHeight,
           });
@@ -137,7 +131,10 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
         zIndex: Z_INDEX.TABLE_HEADER_BG,
         meta: {
           i_col: chi.index,
-          label: chi.mText?.lines.map((l) => l.text).join("") ?? "",
+          // "\n" keeps multi-line (wrapped or formatter-produced) labels
+          // faithful — group (:58) and row (:179) metadata carry the raw
+          // resolved label, so the item header must not diverge.
+          label: chi.mText?.lines.map((l) => l.text).join("\n") ?? "",
           isGroupHeader: false,
         },
         backgroundColor: chi.headerStyle.backgroundColor,

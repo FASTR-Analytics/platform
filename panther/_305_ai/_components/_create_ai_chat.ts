@@ -3,37 +3,34 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  createContext,
-  createEffect,
-  createMemo,
-  createSignal,
-  useContext,
-} from "solid-js";
+import { createContext, createEffect, createMemo, useContext } from "solid-js";
 import { Anthropic } from "../deps.ts";
 import type {
   AnthropicModelConfig,
   ContentBlock,
   DocumentContentBlock,
+  EphemeralSection,
   MessageParam,
-  Usage,
 } from "../deps.ts";
 import {
+  APPROVAL_DECLINED_MESSAGE,
+  APPROVAL_STALE_MESSAGE,
+  assembleTurnSections,
+  buildApprovalViewExitMessage,
   buildCancelledToolResults,
   buildToolResultUserMessage,
   classifyTurnContinuation,
+  demoteStaleCarriers,
   getUserFacingAIErrorMessage,
   lastMessageHasUnresolvedToolUse,
+  openConfirm,
+  renderOutgoingMessages,
   resolveOutputConfig,
   resolveThinkingConfig,
   sanitizePersistedSettings,
   shapeCachedPayload,
-  shapeEphemeralSystemMessages,
-  stripEphemeralContext,
   supportsDynamicWebTools,
-  supportsMidConversationSystem,
   trimDanglingServerToolUse,
-  wrapWithEphemeralContext,
 } from "../deps.ts";
 import {
   ANTHROPIC_BETA_HEADER,
@@ -46,15 +43,32 @@ import {
   clearConversationStore,
   getOrCreateConversationStore,
 } from "../_core/conversation_store.ts";
+import type {
+  ActiveTurn,
+  ConversationStore,
+  PendingDecisionOutcome,
+} from "../_core/conversation_store.ts";
 import { saveConversation } from "../_core/persistence.ts";
 import { getDisplayItemsFromMessage } from "../_core/display_items.ts";
 import { SERVER_TOOL_LABELS } from "../deps.ts";
 import {
+  buildInProgressItem,
+  checkViewGate,
   getInProgressItems,
   processToolUses,
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
+import {
+  AIToolFailure,
+  toolThrowToResultParts,
+} from "../_core/tool_failure.ts";
+import type {
+  AIToolWithMetadata,
+  ProposalResult,
+  ToolUIMetadata,
+} from "../_core/tool_helpers.ts";
+import { ProposalPreviewBody } from "./_renderers/approval_renderer.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
 import { ConversationsContext } from "./use_conversations.ts";
@@ -65,15 +79,29 @@ const SETTINGS_KEY_PREFIX = "panther-ai-settings";
 // pause_turn resumptions) so a pathological loop can't run unbounded.
 const MAX_TURN_CONTINUATIONS = 24;
 
-// Turn-flow decision logic (ephemeral-context wrap/strip, stop-reason
+// Turn-flow decision logic (ephemeral-section wire rendering, stop-reason
 // classification, cancelled-tool-result synthesis, error classification)
 // lives in _110_ai_types/turn_logic.ts as pure functions, covered by
-// tests/ai_turn_logic_test.ts.
+// tests/ai_turn_logic_test.ts. Ephemeral context is typed DATA on the stored
+// turn (ephemeralSections, attached at turn creation); the wire format is
+// derived per request by renderOutgoingMessages and never parsed back.
 
 // Prompt-cache breakpoint placement lives in _110_ai_types/request_shaping.ts
 // (shapeCachedPayload) — it strips any breakpoints persisted in history by
 // older library versions and places a bounded set on the outgoing payload
 // only. Covered by tests/ai_request_shaping_test.ts.
+
+// Turn ownership: the in-flight turn is an ActiveTurn record on the
+// CONVERSATION STORE (one turn per conversation, engine-enforced), claimed
+// synchronously at send time and threaded as a parameter through the whole
+// loop — every read/write in the turn's extent targets turn.store, never the
+// live store() memo, so a turn started in conversation A finishes in
+// conversation A regardless of what is active. createAIChat instances are
+// per-mount subscriptions; instance disposal is inert (a detached turn keeps
+// running into its pinned store). A send while the conversation's turn is
+// active ENQUEUES behind it. Stop aborts the turn's controller and the tool
+// loop races handler awaits against the signal, so Stop always releases the
+// conversation — even under a never-resolving handler.
 
 function loadSettings(key: string): AIChatSettingsValues | undefined {
   try {
@@ -103,6 +131,52 @@ type ToolUseBlock = {
   name: string;
   input: unknown;
 };
+
+// Would this block's input survive the tool's own schema? Used to decide
+// whether a navigation tool's attribution window should open at all — a
+// call the handler will never see must not stamp the user's next move as
+// AI-origin. The real validation still happens inside execution; this is a
+// cheap, side-effect-free preview of it (parse is pure).
+function parsesCleanly(
+  tool: AIToolWithMetadata,
+  input: unknown,
+): boolean {
+  if (!tool.sdkTool.parse) return true;
+  try {
+    tool.sdkTool.parse(input);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Race a handler await against the turn's abort signal. On abort the engine
+// stops waiting and synthesizes cancelled results — the abandoned handler's
+// late resolution is discarded (its side effects may still land, the same
+// class as any post-Stop side effect). This is what guarantees Stop always
+// finalizes the turn.
+function raceAbort<T>(
+  signal: AbortSignal,
+  promise: Promise<T>,
+): Promise<{ aborted: true } | { aborted: false; value: T }> {
+  if (signal.aborted) {
+    return Promise.resolve({ aborted: true });
+  }
+  return new Promise((resolve, reject) => {
+    const onAbort = () => resolve({ aborted: true });
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve({ aborted: false, value });
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      },
+    );
+  });
+}
 
 export const AIChatConfigContext = createContext<AIChatConfig>();
 
@@ -159,32 +233,40 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     )
   );
 
+  // Live accessors for the UI — always the ACTIVE conversation's store. The
+  // turn loop never uses these: it reads/writes through its ActiveTurn's
+  // pinned store exclusively.
   const messages = () => store().messages[0]();
-  const setMessages = (m: MessageParam[]) => store().messages[1](m);
   const displayItems = () => store().displayItems[0]();
-  const setDisplayItems = (d: DisplayItem[]) => store().displayItems[1](d);
   const isLoading = () => store().isLoading[0]();
-  const setIsLoading = (v: boolean) => store().isLoading[1](v);
   const isStreaming = () => store().isStreaming[0]();
-  const setIsStreaming = (v: boolean) => store().isStreaming[1](v);
   const isProcessingTools = () => store().isProcessingTools[0]();
-  const setIsProcessingTools = (v: boolean) => store().isProcessingTools[1](v);
   const error = () => store().error[0]();
-  const setError = (e: string | null) => store().error[1](e);
   const usage = () => store().usage[0]();
-  const setUsage = (u: Usage | null) => store().usage[1](u);
   const currentStreamingText = () => store().currentStreamingText[0]();
-  const setCurrentStreamingText = (t: string | undefined) =>
-    store().currentStreamingText[1](t);
   const usageHistory = () => store().usageHistory[0]();
-  const setUsageHistory = (h: Usage[]) => store().usageHistory[1](h);
   const serverToolLabel = () => store().serverToolLabel[0]();
-  const setServerToolLabel = (l: string | undefined) =>
-    store().serverToolLabel[1](l);
 
+  // Bind BEFORE registering so construction-time tools and later dynamic
+  // register() calls run the same availableIn validation (Feature 2
+  // colleague-proofing: a bad binding fails the app's boot, never a live
+  // conversation).
   const toolRegistry = new ToolRegistry();
+  toolRegistry.bindViewController(config.viewController ?? null);
+  toolRegistry.bindApprovalPolicy(config.approvalPolicy ?? null);
   if (config.tools) {
     config.tools.forEach((tool) => toolRegistry.register(tool));
+  }
+  // A registered custom tool with the text editor's reserved name would be
+  // silently shadowed by the built-in branch in the tool loop (handler AND
+  // gate both bypassed) — fail the boot instead.
+  if (
+    config.textEditorHandler &&
+    toolRegistry.get("str_replace_based_edit_tool")
+  ) {
+    throw new Error(
+      `Tool name "str_replace_based_edit_tool" is reserved by the built-in text editor (config.textEditorHandler is set) — the registered tool would never run. Rename the custom tool.`,
+    );
   }
 
   // Merge custom tools (SDK betaZodTools) with built-in tools (web_search,
@@ -198,40 +280,103 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       ...resolveBuiltInTools(config.builtInTools, modelConfig.model),
     ] as SDKToolUnion[];
 
-  const [queuedMessages, setQueuedMessages] = createSignal<string[]>([]);
-
+  // Queue API — conversation-scoped (the queue lives on ConversationStore).
+  // enqueueMessage never materializes a display item: queued bubbles derive
+  // from the queue signal itself, so clearing the queue clears the bubbles
+  // by construction and nothing unsent can persist.
   function enqueueMessage(text: string) {
-    setQueuedMessages([...queuedMessages(), text]);
-    processMessageForDisplay({ role: "user", content: text });
+    const s = store();
+    const [queued, setQueued] = s.queuedMessages;
+    setQueued([...queued(), { text, resolve: () => {} }]);
   }
 
   function clearQueue() {
-    setQueuedMessages([]);
+    const s = store();
+    const [queued, setQueued] = s.queuedMessages;
+    const entries = queued();
+    setQueued([]);
+    for (const entry of entries) entry.resolve();
   }
 
-  let activeStream: { abort: () => void } | null = null;
-  let abortRequested = false;
+  const queuedMessages = () => store().queuedMessages[0]().map((q) => q.text);
 
-  const addDisplayItems = (items: DisplayItem[]) => {
+  // Reactive: true while the ACTIVE conversation's turn is blocked on a user
+  // decision (Phase 4 gives this meaning; the slot is wired from 0A).
+  const pendingUserAction = () => store().pendingDecision[0]() !== null;
+
+  const addDisplayItemsTo = (s: ConversationStore, items: DisplayItem[]) => {
+    const [displayItems, setDisplayItems] = s.displayItems;
     setDisplayItems([...displayItems(), ...items]);
   };
 
-  const clearInProgressItems = () => {
+  const clearInProgressItemsIn = (s: ConversationStore) => {
+    const [displayItems, setDisplayItems] = s.displayItems;
     setDisplayItems(
       displayItems().filter((item) => item.type !== "tool_in_progress"),
     );
   };
 
-  const messagesContainDocuments = (): boolean => {
-    return messages().some((msg) => {
+  // Public surface (the queue path calls this when typing mid-turn):
+  // engine-managed pending cards are outside its reach — an interactive
+  // card awaiting the user (ask_user_questions, approval spinners) must
+  // survive a queued message; only plain spinners are cleared. The
+  // engine-internal clearInProgressItemsIn (batch end, Stop) clears all.
+  const clearInProgressItems = () => {
+    const [displayItems, setDisplayItems] = store().displayItems;
+    setDisplayItems(
+      displayItems().filter((item) =>
+        item.type !== "tool_in_progress" ||
+        toolRegistry.getMetadata(item.toolName)?.awaitsUserAction === true
+      ),
+    );
+  };
+
+  // Resolves the ACTIVE conversation's pending approval decision — the
+  // inline card's onDecide, also exposed for consumer-built UIs. A no-op
+  // once the decision is resolved (the resolver is idempotent).
+  function decideApproval(accepted: boolean, alwaysThisSession = false) {
+    const pending = store().pendingDecision[0]();
+    if (!pending) return;
+    pending.resolve(
+      accepted ? { kind: "accepted", alwaysThisSession } : { kind: "declined" },
+    );
+  }
+
+  // View-exit auto-decline watcher (Feature 4), created at CONSTRUCTION time
+  // — never inside the tool loop's async continuation (an effect created
+  // there has no Solid owner and never disposes). While the ACTIVE
+  // conversation's decision is pending for a view-gated tool and the live
+  // view is outside the tool's set, the engine declines it: commit closures
+  // capture view-local state that navigation tears down. Fires on the
+  // pendingDecision transition too, so a view change DURING the async
+  // propose is caught the moment the decision registers, and a decision
+  // left pending while no pane was mounted is re-checked on the next mount.
+  // Multiple mounted instances mean multiple watchers; resolution is
+  // idempotent. Tools without availableIn opted out (view-independent).
+  createEffect(() => {
+    const vc = config.viewController;
+    if (!vc) return;
+    const pending = store().pendingDecision[0]();
+    if (!pending?.availableIn) return;
+    const currentViewId = String(vc.current().id);
+    if (!pending.availableIn.includes(currentViewId)) {
+      pending.resolve({
+        kind: "auto_declined",
+        viewId: pending.viewIdAtCreation ?? pending.availableIn[0],
+      });
+    }
+  });
+
+  const messagesContainDocuments = (msgs: MessageParam[]): boolean => {
+    return msgs.some((msg) => {
       if (typeof msg.content === "string") return false;
       return msg.content.some((block) => block.type === "document");
     });
   };
 
-  const documentFileIdsInMessages = (): Set<string> => {
+  const documentFileIdsInMessages = (msgs: MessageParam[]): Set<string> => {
     const ids = new Set<string>();
-    for (const msg of messages()) {
+    for (const msg of msgs) {
       if (typeof msg.content === "string") continue;
       for (const block of msg.content) {
         if (block.type === "document" && block.source.type === "file") {
@@ -242,11 +387,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     return ids;
   };
 
-  const createUserMessage = (text: string): MessageParam => {
+  const createUserMessage = (
+    text: string,
+    existingMessages: MessageParam[],
+  ): MessageParam => {
     // Attach every configured document the conversation hasn't seen yet.
     // Gating on "history has no documents at all" meant a document added
     // mid-conversation was shown as attached but never reached the model.
-    const alreadySent = documentFileIdsInMessages();
+    const alreadySent = documentFileIdsInMessages(existingMessages);
     const documentRefs = (config.getDocumentRefs?.() || []).filter(
       (ref) => !alreadySent.has(ref.file_id),
     );
@@ -268,82 +416,222 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     };
   };
 
-  const processMessageForDisplay = (message: MessageParam) => {
+  const processMessageForDisplayTo = (
+    s: ConversationStore,
+    message: MessageParam,
+  ) => {
     const items = getDisplayItemsFromMessage(message);
-    addDisplayItems(items);
+    addDisplayItemsTo(s, items);
   };
 
-  async function sendMessageStreaming(
-    userMessage: string | undefined,
+  // Synchronous claim of the conversation's turn lock. Callers must check
+  // activeTurn is null in the same synchronous section (two mounted
+  // instances' drain effects can otherwise race past an idle check
+  // together).
+  function claimTurn(s: ConversationStore, id: string): ActiveTurn {
+    const turn: ActiveTurn = {
+      conversationId: id,
+      store: s,
+      abort: new AbortController(),
+      activeStream: null,
+      containerId: undefined,
+      modelAssistantAppended: false,
+      resolveOnFinish: [],
+      cancelPendingInteraction: null,
+    };
+    s.activeTurn[1](turn);
+    return turn;
+  }
+
+  // The turn's ephemeral sections, resolved at turn creation (inside the
+  // protected region — a consumer callback throw surfaces through the normal
+  // error path). With a view controller, sections ride EVERY turn-creating
+  // path — direct sends, batches, queue drains — and the consumer hook's
+  // delivery upgrades with them (intended, documented). Without one, the
+  // hook keeps its historical direct-send-only delivery (the 0B parity
+  // guarantee); directSend encodes that.
+  //
+  // The interaction drain is TRANSACTIONAL: restoreInteractions is invoked
+  // by runTurn's finally iff the turn ends with no assistant message from
+  // the model (failed or stopped send) — entries are never lost on failure
+  // and never double-delivered (the failed carrier's sections are demoted at
+  // the next turn's creation; restored entries ride the retry's fresh
+  // digest). The consumer hook runs BEFORE the drain so a hook throw cannot
+  // strand already-drained entries.
+  function buildTurnSections(directSend: boolean, conversationId: string): {
+    sections: EphemeralSection[];
+    restoreInteractions: (() => void) | null;
+  } {
+    const vc = config.viewController;
+    if (vc) {
+      const consumer = config.getEphemeralContext?.() ?? null;
+      const parts = vc._turnSectionParts();
+      const drained = vc._drainForSend(conversationId);
+      return {
+        sections: assembleTurnSections({
+          view: parts.view,
+          viewInstructions: parts.viewInstructions,
+          digest: drained?.digest ?? null,
+          consumer,
+        }),
+        restoreInteractions: drained?.restore ?? null,
+      };
+    }
+    if (!directSend) return { sections: [], restoreInteractions: null };
+    const consumer = config.getEphemeralContext?.() ?? null;
+    return {
+      sections: consumer ? [{ kind: "consumer", text: consumer }] : [],
+      restoreInteractions: null,
+    };
+  }
+
+  // One turn per CONVERSATION, engine-enforced: a send while the
+  // conversation's turn is active enqueues behind it (from ANY instance)
+  // instead of interleaving a second turn into the store. The returned
+  // promise resolves when the message's turn completes on BOTH paths —
+  // immediate send and queue-drain.
+  function startOrEnqueue(
+    texts: string[],
+    directSend: boolean,
   ): Promise<void> {
-    setError(null);
+    const s = store();
+    const id = conversationId();
+    if (s.activeTurn[0]() !== null) {
+      return new Promise<void>((resolve) => {
+        const [queued, setQueued] = s.queuedMessages;
+        const entries = texts.map((text, i) => ({
+          text,
+          resolve: i === texts.length - 1 ? resolve : () => {},
+        }));
+        setQueued([...queued(), ...entries]);
+      });
+    }
+    const turn = claimTurn(s, id);
+    return runTurn(turn, texts, directSend, []);
+  }
 
-    // Only add user message if provided (undefined means messages already in state)
-    if (userMessage !== undefined) {
-      const ephemeralContext = config.getEphemeralContext?.() ?? null;
-      // On Opus 4.8 the context travels as a mid-conversation system
-      // message (survives tool-loop recursion, no wasted cache writes);
-      // other models get the marker-wrapped fallback spliced into the
-      // user text.
-      const useSystemMessage = ephemeralContext !== null &&
-        supportsMidConversationSystem(modelConfig.model);
-      const fullMessage = useSystemMessage
-        ? userMessage
-        : wrapWithEphemeralContext(userMessage, ephemeralContext);
-      const userMsg = createUserMessage(fullMessage);
-      const isFirstMessage = messages().length === 0;
-      setMessages(
-        useSystemMessage
-          ? [
-            ...messages(),
-            userMsg,
-            { role: "system", content: ephemeralContext },
-          ]
-          : [...messages(), userMsg],
-      );
+  function sendMessage(userMessage: string): Promise<void> {
+    return startOrEnqueue([userMessage], true);
+  }
 
-      if (userMessage.trim()) {
-        processMessageForDisplay(userMsg);
+  function sendMessages(userMessages: string[]): Promise<void> {
+    if (userMessages.length === 0) return Promise.resolve();
+    // No ephemeral context on the batch path — parity with the historical
+    // sendMessages behavior (context rides direct sends only).
+    return startOrEnqueue(userMessages, false);
+  }
+
+  async function runTurn(
+    turn: ActiveTurn,
+    texts: string[],
+    directSend: boolean,
+    queueResolvers: Array<() => void>,
+  ): Promise<void> {
+    const ts = turn.store;
+    const [tMessages, setTMessages] = ts.messages;
+    const [tCurrentStreamingText, setTCurrentStreamingText] =
+      ts.currentStreamingText;
+    turn.resolveOnFinish.push(...queueResolvers);
+    ts.error[1](null);
+    let restoreInteractions: (() => void) | null = null;
+
+    // PROTECTED REGION: everything from here to the finally runs under the
+    // turn lock, and the lock is released on EVERY exit — including a
+    // synchronous throw from a consumer callback (getEphemeralContext,
+    // getDocumentRefs) in the prologue below. A throw surfaces through the
+    // normal error path (error() + tool_error item); the send promise still
+    // resolves (await means "the attempt finished"). Later phases run more
+    // consumer callbacks in the turn's extent (view labels, approval
+    // propose) — they must stay inside this region.
+    try {
+      // Wait for the store's initial hydration attempt to settle before the
+      // first append — a turn that appended first would permanently skip
+      // hydration, and the finally's whole-record save would then destroy
+      // persisted history. Placed here (not in the callers) so EVERY
+      // turn-creating path is covered — direct sends AND the queue-drain
+      // effect — and the callers' synchronous check-then-claim stays intact
+      // (the turn is already claimed while we wait, so nothing can
+      // double-claim). `ready` never rejects (loadConversation catches
+      // internally; disabled persistence resolves immediately).
+      await ts.ready;
+
+      // Storage normalization at turn creation: demote a FAILED prior
+      // turn's carrier so its stale sections can never re-render on this
+      // turn's wire (the render rule alone cannot distinguish that history
+      // from a multi-message batch — see demoteStaleCarriers).
+      const demoted = demoteStaleCarriers(tMessages());
+      if (demoted !== tMessages()) {
+        setTMessages(demoted);
+      }
+
+      if (texts.length > 0) {
+        const isFirstMessage = tMessages().length === 0;
+        const built: MessageParam[] = [];
+        const displayMessages: MessageParam[] = [];
+        // createUserMessage attaches only not-yet-sent documents, so the
+        // first message of a batch carries any new ones and the rest stay
+        // plain text. Sections attach to the batch's FIRST message at turn
+        // creation, storage-only; the wire renders them per request
+        // (renderOutgoingMessages tolerates trailing batch messages).
+        const firstMsg = createUserMessage(texts[0], tMessages());
+        const turnSections = buildTurnSections(
+          directSend,
+          turn.conversationId,
+        );
+        restoreInteractions = turnSections.restoreInteractions;
+        if (turnSections.sections.length > 0) {
+          firstMsg.ephemeralSections = turnSections.sections;
+        }
+        built.push(firstMsg);
+        if (texts[0].trim()) displayMessages.push(firstMsg);
+        for (const text of texts.slice(1)) {
+          const userMsg: MessageParam = { role: "user", content: text };
+          built.push(userMsg);
+          if (text.trim()) displayMessages.push(userMsg);
+        }
+
+        setTMessages([...tMessages(), ...built]);
+        for (const msg of displayMessages) {
+          processMessageForDisplayTo(ts, msg);
+        }
 
         // Update title from first message
-        if (isFirstMessage && conversationsContext) {
+        if (isFirstMessage && texts[0]?.trim() && conversationsContext) {
           conversationsContext.updateTitleFromFirstMessage(
-            conversationId(),
-            userMessage,
+            turn.conversationId,
+            texts[0],
           );
         }
       }
-    }
 
-    setIsLoading(true);
-    setIsStreaming(true);
-    setCurrentStreamingText(undefined);
+      ts.isLoading[1](true);
+      ts.isStreaming[1](true);
+      setTCurrentStreamingText(undefined);
 
-    try {
-      await streamWithToolLoop(messages());
-      if (abortRequested) {
-        const partialText = currentStreamingText();
+      await streamWithToolLoop(turn, tMessages());
+      if (turn.abort.signal.aborted) {
+        const partialText = tCurrentStreamingText();
         if (partialText?.trim()) {
-          addDisplayItems([
+          addDisplayItemsTo(ts, [
             { type: "assistant_text", text: partialText.trim() },
           ]);
         }
       }
     } catch (err) {
-      if (abortRequested) {
-        const partialText = currentStreamingText();
+      if (turn.abort.signal.aborted) {
+        const partialText = tCurrentStreamingText();
         if (partialText?.trim()) {
-          addDisplayItems([
+          addDisplayItemsTo(ts, [
             { type: "assistant_text", text: partialText.trim() },
           ]);
         }
       } else {
         const errorDetails = err instanceof Error ? err.message : String(err);
-        setError(errorDetails);
-        setIsStreaming(false);
-        setCurrentStreamingText(undefined);
-        setServerToolLabel(undefined);
-        addDisplayItems([
+        ts.error[1](errorDetails);
+        ts.isStreaming[1](false);
+        setTCurrentStreamingText(undefined);
+        ts.serverToolLabel[1](undefined);
+        addDisplayItemsTo(ts, [
           {
             type: "tool_error",
             toolName: "system",
@@ -353,57 +641,539 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         ]);
       }
     } finally {
-      if (abortRequested) {
-        const msgs = messages();
+      if (turn.abort.signal.aborted) {
+        const msgs = tMessages();
         const lastMsg = msgs[msgs.length - 1];
-        // A trailing system message (ephemeral context on Opus 4.8) also
-        // needs an assistant turn after it so the persisted history stays
-        // valid when the next user message arrives.
-        if (lastMsg?.role === "user" || lastMsg?.role === "system") {
-          setMessages([
+        if (lastMsg?.role === "user") {
+          setTMessages([
             ...msgs,
             { role: "assistant", content: "[Stopped]" },
           ]);
         }
       }
-      abortRequested = false;
-      activeStream = null;
-      setIsLoading(false);
-      setIsStreaming(false);
-      setCurrentStreamingText(undefined);
-      setServerToolLabel(undefined);
-      setIsProcessingTools(false);
 
-      // Save conversation state after turn completes
+      // Transactional interaction drain (Phase 3): a turn that ends without
+      // any assistant message FROM THE MODEL (failed or stopped before/
+      // during the stream — the synthetic "[Stopped]" repair above doesn't
+      // count) never delivered its digest. Restore the drained entries; they
+      // ride the retry's fresh digest, and the failed carrier's stored
+      // sections are demoted at the next turn's creation, so nothing
+      // double-delivers.
+      if (restoreInteractions && !turn.modelAssistantAppended) {
+        restoreInteractions();
+      }
+      turn.activeStream = null;
+      ts.isLoading[1](false);
+      ts.isStreaming[1](false);
+      setTCurrentStreamingText(undefined);
+      ts.serverToolLabel[1](undefined);
+      ts.isProcessingTools[1](false);
+
+      // Save conversation state after turn completes — the finally-only
+      // save is load-bearing for the no-dangling-tool_use invariant (never
+      // add mid-turn saves).
       if (config.enablePersistence ?? true) {
-        saveConversation(conversationId(), messages(), displayItems());
+        saveConversation(
+          turn.conversationId,
+          tMessages(),
+          ts.displayItems[0](),
+          ts.approvedTools[0](),
+        );
       }
 
       // Update conversation metadata
       if (conversationsContext) {
-        conversationsContext.updateLastMessageTime(conversationId());
+        conversationsContext.updateLastMessageTime(turn.conversationId);
       }
+
+      // Release the conversation's turn lock, then resolve the senders'
+      // promises for every text this turn carried.
+      ts.activeTurn[1](null);
+      for (const resolve of turn.resolveOnFinish) resolve();
+    }
+  }
+
+  // ——— Tool approval lifecycle (Feature 4) ———————————————————————————————
+  // propose a preview → show it → await the store-owned decision →
+  // commit or report declined. The mutation cannot run before consent as a
+  // matter of API shape: commit only exists inside propose's return and only
+  // an accepted decision reaches it. Blocks the tool loop on a promise
+  // (decision log #3 — end-and-resume rejected; a reload mid-approval loses
+  // the turn, documented trade-off). Runs inside the turn's protected
+  // region; every consumer callback throw is mapped, never a wedged lock.
+
+  const removeDisplayItemFrom = (s: ConversationStore, item: DisplayItem) => {
+    const [displayItems, setDisplayItems] = s.displayItems;
+    setDisplayItems(displayItems().filter((i) => i !== item));
+  };
+
+  type ApprovalLifecycleOutput = {
+    result: ToolResult;
+    errorItem?: DisplayItem;
+    successItem?: DisplayItem;
+  };
+
+  // Consumer-authored label callbacks (errorMessage/successMessage) run
+  // while an outcome is being BUILT — a throw there must degrade to the
+  // fallback label, never reject the lifecycle (review H1d; the same
+  // drop-don't-throw rule as every other consumer callback in the turn's
+  // extent).
+  function resolveConsumerLabel(
+    source: string | ((input: unknown) => string) | undefined,
+    input: unknown,
+    fallback: string,
+  ): string {
+    if (source === undefined) return fallback;
+    if (typeof source === "string") return source;
+    try {
+      return source(input);
+    } catch (err) {
+      console.error(
+        "AI tool label callback threw; using the default label. A label callback must never fail a turn.",
+        err,
+      );
+      return fallback;
+    }
+  }
+
+  function approvalErrorOutput(
+    block: ToolUseBlock,
+    metadata: ToolUIMetadata,
+    err: unknown,
+  ): ApprovalLifecycleOutput {
+    const parts = toolThrowToResultParts(err);
+    const errorLabel = resolveConsumerLabel(
+      metadata.errorMessage,
+      block.input,
+      `Tool feedback: ${block.name}`,
+    );
+    return {
+      result: {
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: parts.content,
+        is_error: true,
+      },
+      errorItem: {
+        type: "tool_error",
+        toolName: block.name,
+        errorMessage: errorLabel,
+        errorDetails: parts.content,
+        errorStack: parts.fullError !== parts.content
+          ? parts.fullError
+          : undefined,
+        expected: parts.expected || undefined,
+        toolInput: block.input,
+      },
+    };
+  }
+
+  async function runApprovalLifecycle(
+    turn: ActiveTurn,
+    block: ToolUseBlock,
+    tool: AIToolWithMetadata,
+  ): Promise<ApprovalLifecycleOutput> {
+    const ts = turn.store;
+    const metadata = tool.metadata;
+    const approval = metadata.approval!;
+    const toolName = block.name;
+    const vc = config.viewController;
+    // The view the gate just passed in, captured BEFORE propose's await — a
+    // mid-propose navigation must name the view the user actually LEFT in
+    // auto-decline messages, not the view they arrived in.
+    const viewIdAtStart = vc ? String(vc.current().id) : undefined;
+
+    const normalResult = (content: string): ToolResult => ({
+      type: "tool_result",
+      tool_use_id: block.id,
+      content,
+    });
+    const interruptedOutput = (): ApprovalLifecycleOutput => ({
+      result: {
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: "Tool execution cancelled by user",
+        is_error: true,
+      },
+    });
+    const addDecision = (
+      decision: "approved" | "declined" | "auto_approved" | "auto_declined",
+      title: string,
+    ) => {
+      addDisplayItemsTo(ts, [
+        { type: "approval_decision", toolName, title, decision },
+      ]);
+    };
+
+    // A spinner while propose runs (this block was excluded from the
+    // upfront batch); removed before the card appears and in the finally —
+    // an awaiting tool never shows a spinner alongside its real card.
+    const progressItem = buildInProgressItem(block, toolRegistry);
+    addDisplayItemsTo(ts, [progressItem]);
+
+    let cardItem: DisplayItem | null = null;
+    let settled = false;
+    let clearPending = () => {};
+    try {
+      // 1. Validate input through the tool's own schema (zod failures get
+      // the expected-failure mapping, like every handler tool).
+      let input: unknown;
+      try {
+        input = tool.sdkTool.parse
+          ? tool.sdkTool.parse(block.input)
+          : block.input;
+      } catch (err) {
+        return approvalErrorOutput(block, metadata, err);
+      }
+
+      // 2. propose — read-only by contract; receives the turn's signal so a
+      // long server-side propose can cancel on Stop.
+      let prep: ProposalResult<unknown>;
+      try {
+        prep = await approval.propose(input, vc?.current(), {
+          signal: turn.abort.signal,
+        });
+      } catch (err) {
+        return approvalErrorOutput(block, metadata, err);
+      }
+
+      // A stopped turn must not present a card (Stop during propose).
+      if (turn.abort.signal.aborted) return interruptedOutput();
+
+      // Shape validation (review H1): propose's RETURN VALUE is consumer
+      // data — a type-erased consumer (or a forgotten `return` on one code
+      // path) can hand back undefined/null/a primitive, and consuming it
+      // unguarded rejected the lifecycle, leaving a PERSISTED dangling
+      // tool_use (a permanently bricked conversation, reproduced live). A
+      // malformed shape is an app bug — fail the BLOCK loudly, never the
+      // turn.
+      if (prep === null || typeof prep !== "object") {
+        return approvalErrorOutput(
+          block,
+          metadata,
+          new Error(
+            `approval.propose for "${toolName}" returned ${
+              prep === null ? "null" : typeof prep
+            } instead of a ProposalResult ({skip} | {invalid} | {preview, commit}) — a code path probably forgot to return.`,
+          ),
+        );
+      }
+
+      if ("skip" in prep) {
+        // No-op detected — a NORMAL result, no decision requested. Display
+        // follows the handler path's rule: a tool with a displayComponent
+        // owns its display (no generic tool_success item).
+        const skipText = String(prep.skip);
+        if (metadata.displayComponent) {
+          addDisplayItemsTo(ts, [
+            { type: "tool_display", toolName, input: block.input },
+          ]);
+          return { result: normalResult(skipText) };
+        }
+        return {
+          result: normalResult(skipText),
+          successItem: {
+            type: "tool_success",
+            toolName,
+            toolInput: block.input,
+            message: resolveConsumerLabel(
+              metadata.successMessage ?? metadata.completionMessage,
+              block.input,
+              `Tool success: ${toolName}`,
+            ),
+            result: skipText,
+          },
+        };
+      }
+      if ("invalid" in prep) {
+        // Validation failed in propose — expected-failure display, commit
+        // never existed.
+        return approvalErrorOutput(
+          block,
+          metadata,
+          new AIToolFailure(String(prep.invalid)),
+        );
+      }
+
+      const { preview, commit, stillValid, customProposalUI } = prep;
+      if (
+        preview === null || typeof preview !== "object" ||
+        typeof commit !== "function" ||
+        (customProposalUI !== undefined &&
+          typeof customProposalUI !== "function") ||
+        (stillValid !== undefined && typeof stillValid !== "function")
+      ) {
+        return approvalErrorOutput(
+          block,
+          metadata,
+          new Error(
+            `approval.propose for "${toolName}" returned a malformed preview arm — expected {preview: object, commit: function, stillValid?: function, customProposalUI?: function}.`,
+          ),
+        );
+      }
+      const previewTitle = String(preview.title);
+
+      // propose is done — remove the spinner before ANY presentation shape
+      // (review M3: it used to linger through the modal and customProposalUI
+      // paths for the whole decision window); the finally's removal stays
+      // as the backstop for the arms above.
+      removeDisplayItemFrom(ts, progressItem);
+
+      const runCommit = async (): Promise<ApprovalLifecycleOutput> => {
+        try {
+          const value = await commit();
+          const content = typeof value === "string"
+            ? value
+            : JSON.stringify(value);
+          if (metadata.displayComponent) {
+            addDisplayItemsTo(ts, [
+              { type: "tool_display", toolName, input: block.input },
+            ]);
+          }
+          return { result: normalResult(content) };
+        } catch (err) {
+          // Approved-then-failed: the timeline keeps the recorded approval
+          // plus the standard tool_error — the honest record.
+          return approvalErrorOutput(block, metadata, err);
+        }
+      };
+
+      // Session auto-approve short-circuit: propose ran (fresh preview and
+      // commit), presentation is skipped entirely. No decision registers on
+      // this path, so the auto-decline watcher cannot see a view exit that
+      // happened during propose's await — re-check the live view here before
+      // committing (commit closures capture view-local state that navigation
+      // tears down).
+      if (
+        approval.mode === "session" &&
+        ts.approvedTools[0]().includes(toolName)
+      ) {
+        if (
+          metadata.availableIn && vc &&
+          !metadata.availableIn.includes(String(vc.current().id))
+        ) {
+          addDecision("auto_declined", previewTitle);
+          return {
+            result: normalResult(
+              buildApprovalViewExitMessage(
+                viewIdAtStart ?? metadata.availableIn[0],
+              ),
+            ),
+          };
+        }
+        addDecision("auto_approved", previewTitle);
+        return await runCommit();
+      }
+
+      // 3. Register the store-owned decision (decision lifetime ⊆ turn
+      // lifetime; card unmount and instance disposal are inert; the
+      // resolver is idempotent — first resolution wins).
+      let resolveDecision!: (outcome: PendingDecisionOutcome) => void;
+      const decisionPromise = new Promise<PendingDecisionOutcome>(
+        (resolve) => {
+          resolveDecision = resolve;
+        },
+      );
+      const decide = (outcome: PendingDecisionOutcome) => {
+        if (settled) return;
+        settled = true;
+        ts.pendingDecision[1](null);
+        resolveDecision(outcome);
+      };
+      clearPending = () => {
+        if (!settled) {
+          settled = true;
+          ts.pendingDecision[1](null);
+        }
+      };
+      const sessionCheckbox = approval.mode === "session" &&
+        !customProposalUI &&
+        approval.presentation === "inline";
+      ts.pendingDecision[1]({
+        toolName,
+        preview,
+        sessionCheckbox,
+        availableIn: metadata.availableIn,
+        viewIdAtCreation: viewIdAtStart,
+        resolve: decide,
+      });
+
+      // 4. Present. Three shapes, one decision. If the decision resolved
+      // the moment it registered (the auto-decline watcher fires on the
+      // pendingDecision transition — a view change during propose), skip
+      // presentation entirely.
+      if (settled) {
+        // fall through to await the already-resolved promise
+      } else if (customProposalUI) {
+        // The app's own proposal-review UI (staged diff inside an editor).
+        // The signal aborts when the engine resolves the decision EXTERNALLY
+        // (view-exit auto-decline, Stop) so the staged UI cleans up
+        // deterministically. A customProposalUI acceptance never sets the
+        // session flag (no checkbox affordance).
+        const presenterAbort = new AbortController();
+        decisionPromise.then((outcome) => {
+          if (
+            outcome.kind === "interrupted" || outcome.kind === "auto_declined"
+          ) {
+            presenterAbort.abort();
+          }
+        });
+        // A customProposalUI that throws SYNCHRONOUSLY gets the same
+        // treatment as an async rejection (review H1b): declined + logged —
+        // before this guard the throw rejected the lifecycle and bricked
+        // the conversation.
+        try {
+          customProposalUI(presenterAbort.signal).then(
+            (accepted) => {
+              // Post-abort resolutions are no-ops (decide is idempotent).
+              // Resolving FALSE after abort is the normal cleanup path (the
+              // UI closes itself and its dialog resolves declined). But an
+              // ACCEPT after abort means the staged UI was still
+              // interactable when it should have been gone — the abort
+              // cleanup contract was breached. Surface that in dev.
+              if (accepted && presenterAbort.signal.aborted) {
+                console.warn(
+                  `customProposalUI for "${toolName}" resolved ACCEPTED after its abort signal fired — the staged UI was still interactable post-abort. Wire signal.addEventListener("abort", …) to close it.`,
+                );
+              }
+              decide(
+                accepted
+                  ? { kind: "accepted", alwaysThisSession: false }
+                  : { kind: "declined" },
+              );
+            },
+            (err) => {
+              console.error(
+                `customProposalUI for "${toolName}" rejected; treating as declined.`,
+                err,
+              );
+              decide({ kind: "declined" });
+            },
+          );
+        } catch (err) {
+          console.error(
+            `customProposalUI for "${toolName}" threw; treating as declined.`,
+            err,
+          );
+          decide({ kind: "declined" });
+        }
+      } else if (approval.presentation === "modal") {
+        // openConfirm with the SAME structured preview body the inline card
+        // renders. Displacement cannot hang the turn: a displaced dialog
+        // resolves cancelled → declined. Known limit: a decision resolved
+        // externally (Stop) leaves the dialog visible; its eventual button
+        // click is a no-op (the resolver is idempotent).
+        openConfirm({
+          title: previewTitle,
+          // Lazy thunk: the preview body builds DOM only when the dialog
+          // actually renders. Solid's insert() unwraps function children at
+          // runtime; the JSX.Element type just doesn't admit them — cast.
+          text: (() => ProposalPreviewBody({ preview })) as unknown as Element,
+          intent: preview.intent === "danger" ? "danger" : "primary",
+          confirmButtonLabel: preview.confirmLabel,
+        }).then((accepted) =>
+          decide(
+            accepted
+              ? { kind: "accepted", alwaysThisSession: false }
+              : { kind: "declined" },
+          )
+        );
+      } else {
+        // Inline card — a pure view over the store's decision plus this
+        // display item (the spinner was already removed after propose).
+        cardItem = {
+          type: "approval_pending",
+          toolName,
+          preview,
+          sessionCheckbox,
+        };
+        addDisplayItemsTo(ts, [cardItem]);
+      }
+
+      const outcome = await decisionPromise;
+
+      switch (outcome.kind) {
+        case "interrupted":
+          return interruptedOutput();
+        case "auto_declined":
+          addDecision("auto_declined", previewTitle);
+          return {
+            result: normalResult(buildApprovalViewExitMessage(outcome.viewId)),
+          };
+        case "declined":
+          addDecision("declined", previewTitle);
+          return { result: normalResult(APPROVAL_DECLINED_MESSAGE) };
+        case "accepted": {
+          // Abort check at decision resolution: a Stop that raced the
+          // user's click must win — commit never runs on a stopped turn.
+          if (turn.abort.signal.aborted) return interruptedOutput();
+          if (stillValid) {
+            let ok = false;
+            try {
+              ok = stillValid();
+            } catch (err) {
+              console.error(
+                `Approval stillValid for "${toolName}" threw; treating the proposal as stale (commit not run).`,
+                err,
+              );
+              ok = false;
+            }
+            if (!ok) {
+              addDecision("auto_declined", previewTitle);
+              return { result: normalResult(APPROVAL_STALE_MESSAGE) };
+            }
+          }
+          if (outcome.alwaysThisSession && sessionCheckbox) {
+            const [approvedTools, setApprovedTools] = ts.approvedTools;
+            if (!approvedTools().includes(toolName)) {
+              setApprovedTools([...approvedTools(), toolName]);
+            }
+          }
+          addDecision("approved", previewTitle);
+          return await runCommit();
+        }
+        default:
+          // Exhaustive switch — unreachable; satisfies the return type.
+          return interruptedOutput();
+      }
+    } catch (err) {
+      // FINAL SAFETY NET (review H1): the lifecycle must be structurally
+      // unable to REJECT. A rejection escapes the tool loop with no
+      // tool_result appended, and the finally-only save then persists a
+      // dangling tool_use — a permanently bricked conversation. Anything
+      // the guards above did not map (a hostile getter on a consumer
+      // object, a future edit) resolves the block as an error result
+      // instead.
+      return approvalErrorOutput(block, metadata, err);
+    } finally {
+      // Every exit path — decide, auto-decline, stale, interrupt,
+      // commit-throw, even an unexpected escape — removes the card and
+      // clears an unsettled decision BEFORE the turn's finally save runs
+      // (the card is never persisted; saveConversation strips it as a
+      // second backstop).
+      removeDisplayItemFrom(ts, progressItem);
+      if (cardItem) removeDisplayItemFrom(ts, cardItem);
+      clearPending();
     }
   }
 
   async function streamWithToolLoop(
+    turn: ActiveTurn,
     currentMessages: MessageParam[],
     depth: number = 0,
   ): Promise<void> {
+    const ts = turn.store;
     // Use SDK's beta streaming. The web-fetch beta header is only needed
     // for the basic web_fetch variant used on pre-4.6 models.
     const allTools = getAllTools();
     const betas = getBetasArray(
       hasWebFetchTool(config.builtInTools) &&
         !supportsDynamicWebTools(modelConfig.model),
-      messagesContainDocuments(),
+      messagesContainDocuments(currentMessages),
     );
     const shaped = shapeCachedPayload(
       config.system(),
-      shapeEphemeralSystemMessages(
-        stripEphemeralContext(currentMessages),
-        modelConfig.model,
-      ),
+      renderOutgoingMessages(currentMessages),
     );
     const stream = config.sdkClient.beta.messages.stream({
       model: modelConfig.model,
@@ -425,16 +1195,23 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       messages: shaped.messages,
       tools: allTools,
       system: shaped.system,
+      // The _20260209 web tools run through a code-execution container
+      // (dynamic filtering). A continuation request whose history holds a
+      // pending code-execution-generated tool use is rejected without the
+      // container id from the previous response — turn-scoped on the
+      // ActiveTurn (an expired id errors, so it must never outlive the
+      // turn).
+      container: turn.containerId,
       betas,
     });
-    activeStream = stream;
+    turn.activeStream = stream;
 
     // Subscribe to text events
     stream.on("text", (text) => {
       // Clear server tool label when text starts streaming
-      setServerToolLabel(undefined);
-      const prev = currentStreamingText();
-      setCurrentStreamingText((prev ?? "") + text);
+      ts.serverToolLabel[1](undefined);
+      const prev = ts.currentStreamingText[0]();
+      ts.currentStreamingText[1]((prev ?? "") + text);
     });
 
     // Subscribe to stream events to detect server tool usage and text block boundaries
@@ -449,7 +1226,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           const toolName = streamEvent.content_block.name;
           const label = toolName ? SERVER_TOOL_LABELS[toolName] : undefined;
           if (label) {
-            setServerToolLabel(label);
+            ts.serverToolLabel[1](label);
           }
         }
       }
@@ -457,14 +1234,18 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Wait for completion
     const finalMessage = await stream.finalMessage();
-    activeStream = null;
-    if (abortRequested) return;
+    turn.activeStream = null;
+    if (turn.abort.signal.aborted) return;
 
     // Update usage
     if (finalMessage.usage) {
-      setUsage(finalMessage.usage);
-      setUsageHistory([...usageHistory(), finalMessage.usage]);
+      ts.usage[1](finalMessage.usage);
+      ts.usageHistory[1]([...ts.usageHistory[0](), finalMessage.usage]);
     }
+
+    // Carry the latest container id forward — a continuation response may
+    // return a fresh container, or none (keep the current one then).
+    turn.containerId = finalMessage.container?.id ?? turn.containerId;
 
     // Add assistant message
     const assistantMsg: MessageParam = {
@@ -473,13 +1254,14 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     };
 
     const updatedMessages = [...currentMessages, assistantMsg];
-    setMessages(updatedMessages);
-    processMessageForDisplay(assistantMsg);
+    ts.messages[1](updatedMessages);
+    turn.modelAssistantAppended = true;
+    processMessageForDisplayTo(ts, assistantMsg);
 
     // Clear streaming state immediately after message is processed
-    setIsStreaming(false);
-    setCurrentStreamingText(undefined);
-    setServerToolLabel(undefined);
+    ts.isStreaming[1](false);
+    ts.currentStreamingText[1](undefined);
+    ts.serverToolLabel[1](undefined);
 
     // Stop-reason → next-action mapping is pure logic in turn_logic.ts.
     const continuation = classifyTurnContinuation(
@@ -499,12 +1281,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         `Tool execution stopped: ${continuation.message}`,
       );
       if (cancelled.length > 0) {
-        setMessages([
+        ts.messages[1]([
           ...updatedMessages,
           { role: "user", content: cancelled },
         ]);
       }
-      addDisplayItems([
+      addDisplayItemsTo(ts, [
         {
           type: "system_notice",
           noticeType: continuation.noticeType,
@@ -519,9 +1301,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // iteration limit is reached — re-send with the assistant turn appended
     // to resume where it left off.
     if (continuation.kind === "resume-pause-turn") {
-      setIsStreaming(true);
-      setCurrentStreamingText(undefined);
-      await streamWithToolLoop(updatedMessages, depth + 1);
+      ts.isStreaming[1](true);
+      ts.currentStreamingText[1](undefined);
+      await streamWithToolLoop(turn, updatedMessages, depth + 1);
       return;
     }
 
@@ -536,7 +1318,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         // The API rejects an assistant message with empty content — if every
         // block was a dangling server_tool_use, persist a placeholder text
         // instead (same pattern as the abort "[Stopped]" message).
-        setMessages([
+        ts.messages[1]([
           ...currentMessages,
           {
             role: "assistant",
@@ -546,7 +1328,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           },
         ]);
       }
-      addDisplayItems([
+      addDisplayItemsTo(ts, [
         {
           type: "system_notice",
           noticeType: continuation.noticeType,
@@ -562,7 +1344,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // stopping — a persisted conversation ending in an assistant turn
       // with unresolved tool_use blocks is rejected by the API on every
       // subsequent send, permanently breaking the conversation.
-      setMessages([
+      ts.messages[1]([
         ...updatedMessages,
         {
           role: "user",
@@ -572,7 +1354,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           ),
         },
       ]);
-      addDisplayItems([
+      addDisplayItemsTo(ts, [
         {
           type: "system_notice",
           noticeType: continuation.noticeType,
@@ -589,22 +1371,27 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const toolUseBlocks = (finalMessage.content as ContentBlock[]).filter(
         (block): block is ToolUseBlock => block.type === "tool_use",
       );
-      setIsProcessingTools(true);
+      ts.isProcessingTools[1](true);
 
       // Show in-progress items
       const inProgressItems = getInProgressItems(
         finalMessage.content as ContentBlock[],
         toolRegistry,
       );
-      addDisplayItems(inProgressItems);
+      addDisplayItemsTo(ts, inProgressItems);
 
       // Process tools - handle text editor tool specially
       const allResults: ToolResult[] = [];
       const allErrorItems: DisplayItem[] = [];
       const allSuccessItems: DisplayItem[] = [];
 
+      // CONTRACT: tool blocks execute SEQUENTIALLY, one at a time, in
+      // block order. ask_user_questions' single-slot resolver and the
+      // approval lifecycle's one-pending-decision-per-conversation both
+      // depend on it. Any future parallelization must first add an explicit
+      // approval/question serialization queue.
       for (const block of toolUseBlocks) {
-        if (abortRequested) {
+        if (turn.abort.signal.aborted) {
           allResults.push(
             ...buildCancelledToolResults(
               toolUseBlocks.slice(toolUseBlocks.indexOf(block)),
@@ -619,7 +1406,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           block.name === "str_replace_based_edit_tool" &&
           config.textEditorHandler
         ) {
-          setServerToolLabel(SERVER_TOOL_LABELS[block.name]);
+          ts.serverToolLabel[1](SERVER_TOOL_LABELS[block.name]);
           // The handler contract is "return Error: strings, don't throw" —
           // enforce it here; a throw would propagate after the assistant
           // tool_use message was persisted but before any tool_result,
@@ -632,7 +1419,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
               err instanceof Error ? err.message : String(err)
             }`;
           }
-          setServerToolLabel(undefined);
+          ts.serverToolLabel[1](undefined);
           const isError = result.startsWith("Error:");
           allResults.push({
             type: "tool_result",
@@ -650,11 +1437,116 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
             });
           }
         } else {
-          // Use existing tool processing for custom tools
-          const { results, errorItems, successItems } = await processToolUses(
-            [block],
-            toolRegistry,
+          // Soft gate (Feature 2): refuse an out-of-view execution before
+          // the handler runs — checked per block against the LIVE view, so
+          // a nav tool changing the view mid-turn is seen by the very next
+          // block's check.
+          const vc = config.viewController;
+          const gated = vc
+            ? checkViewGate(block, toolRegistry, String(vc.current().id))
+            : null;
+          if (gated) {
+            allResults.push(gated.result);
+            allErrorItems.push(gated.errorItem);
+            continue;
+          }
+
+          const blockTool = toolRegistry.get(block.name);
+
+          // Approval lifecycle (Feature 4) — raced like any handler await
+          // so Stop finalizes the turn even mid-decision or mid-propose
+          // (stopGeneration also resolves the pending decision, so the
+          // detached lifecycle cleans up its card).
+          if (blockTool?.metadata.approval) {
+            const outcome = await raceAbort(
+              turn.abort.signal,
+              runApprovalLifecycle(turn, block, blockTool),
+            );
+            if (outcome.aborted) {
+              allResults.push(
+                ...buildCancelledToolResults(
+                  toolUseBlocks.slice(toolUseBlocks.indexOf(block)),
+                  "Tool execution cancelled by user",
+                ),
+              );
+              break;
+            }
+            allResults.push(outcome.value.result);
+            if (outcome.value.errorItem) {
+              allErrorItems.push(outcome.value.errorItem);
+            }
+            if (outcome.value.successItem) {
+              allSuccessItems.push(outcome.value.successItem);
+            }
+            continue;
+          }
+
+          // Interactive-card tools without approval (ask_user_questions):
+          // their card was excluded from the upfront batch — create it at
+          // block start, in the same synchronous section as the handler
+          // call below, so a click can never land before the handler wires
+          // its resolver (the old premature-interaction race). Cleared by
+          // the batch-end clearInProgressItemsIn like every spinner. The
+          // turn-scoped canceller lets stopGeneration cancel THIS turn's
+          // pending card only (review H2: a registry-wide sweep cancelled
+          // another conversation's question when chats shared the tool
+          // instance).
+          if (blockTool?.metadata.awaitsUserAction) {
+            addDisplayItemsTo(ts, [buildInProgressItem(block, toolRegistry)]);
+            const cancelHook = blockTool.metadata._cancelPending;
+            if (cancelHook) {
+              turn.cancelPendingInteraction = () => {
+                try {
+                  cancelHook();
+                } catch { /* a cancel hook must never break Stop */ }
+              };
+            }
+          }
+
+          // Use existing tool processing for custom tools — raced against
+          // the turn's abort signal so Stop finalizes the turn even when a
+          // handler never resolves.
+          // AI-navigation attribution (createNavigationTool): open the
+          // controller's window around the WHOLE execution, so any
+          // setView/clearView the app's routing fires — synchronously inside
+          // onAiNavigation, or from a mount effect it triggers — is stamped
+          // origin "ai" and dropped from the __navigation digest instead of
+          // reading as "User navigated". The window is a TIME window
+          // (navAttributionMs): the mark after execution EXTENDS it rather
+          // than closing it, which is what covers a route still settling. (A
+          // fire-and-forget router that settles beyond that needs the public
+          // markAINavigation() escape hatch — see the tool's contract.)
+          //
+          // Gated on the input PARSING, not just on the tool: attribution
+          // used to live inside the nav handler, i.e. after validation, and
+          // a schema-rejected call opened no window. Opening one here for a
+          // call that never executes would stamp the user's own next
+          // navigation as AI-origin and swallow it from the digest.
+          const attributesNav = blockTool?.metadata.attributesNavigation ===
+              true &&
+            vc !== undefined && parsesCleanly(blockTool!, block.input);
+          if (attributesNav) vc!.markAINavigation();
+          const outcome = await raceAbort(
+            turn.abort.signal,
+            processToolUses(
+              [block],
+              toolRegistry,
+              vc ? () => vc.current() : undefined,
+            ).finally(() => {
+              if (attributesNav) vc!.markAINavigation();
+            }),
           );
+          turn.cancelPendingInteraction = null;
+          if (outcome.aborted) {
+            allResults.push(
+              ...buildCancelledToolResults(
+                toolUseBlocks.slice(toolUseBlocks.indexOf(block)),
+                "Tool execution cancelled by user",
+              ),
+            );
+            break;
+          }
+          const { results, errorItems, successItems } = outcome.value;
           allResults.push(...results);
           allErrorItems.push(...errorItems);
           allSuccessItems.push(...successItems);
@@ -663,7 +1555,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           if (errorItems.length === 0) {
             const metadata = toolRegistry.getMetadata(block.name);
             if (metadata?.displayComponent) {
-              addDisplayItems([{
+              addDisplayItemsTo(ts, [{
                 type: "tool_display",
                 toolName: block.name,
                 input: block.input,
@@ -674,84 +1566,104 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       }
 
       // Clear in-progress items now that tools are done
-      clearInProgressItems();
+      clearInProgressItemsIn(ts);
 
       // Add success items to display
       if (allSuccessItems.length > 0) {
-        addDisplayItems(allSuccessItems);
+        addDisplayItemsTo(ts, allSuccessItems);
       }
 
       // Add error items to display
       if (allErrorItems.length > 0) {
-        addDisplayItems(allErrorItems);
+        addDisplayItemsTo(ts, allErrorItems);
       }
 
-      // Check for queued user messages to inject alongside tool results
-      const queuedTexts = queuedMessages();
-      if (queuedTexts.length > 0) setQueuedMessages([]);
+      // Check the turn's own conversation queue for user messages to inject
+      // alongside tool results. Their display bubbles materialize here (they
+      // rendered from the queue signal until now) and their senders'
+      // promises resolve when this turn finishes.
+      const queueEntries = ts.queuedMessages[0]();
+      const queuedTexts = queueEntries.map((q) => q.text);
+      if (queueEntries.length > 0) {
+        ts.queuedMessages[1]([]);
+        turn.resolveOnFinish.push(...queueEntries.map((q) => q.resolve));
+        addDisplayItemsTo(
+          ts,
+          queuedTexts
+            .filter((text) => text.trim())
+            .map((text) => ({ type: "user_text", text: text.trim() })),
+        );
+      }
 
       const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
 
       const messagesWithToolResults = [...updatedMessages, toolResultMsg];
-      setMessages(messagesWithToolResults);
+      ts.messages[1](messagesWithToolResults);
 
-      if (abortRequested) return;
+      if (turn.abort.signal.aborted) return;
 
       // Continue streaming with tool results (recursive call)
-      setIsStreaming(true);
-      setCurrentStreamingText(undefined);
-      await streamWithToolLoop(messagesWithToolResults, depth + 1);
+      ts.isStreaming[1](true);
+      ts.currentStreamingText[1](undefined);
+      await streamWithToolLoop(turn, messagesWithToolResults, depth + 1);
     }
   }
 
-  const sendMessage = sendMessageStreaming;
-
-  function sendMessages(userMessages: string[]): Promise<void> {
-    if (userMessages.length === 0) return Promise.resolve();
-
-    // Add all user messages to conversation. createUserMessage attaches only
-    // not-yet-sent documents, so the first message of the batch carries any
-    // new ones and the rest stay plain text.
-    const messagesToAdd: MessageParam[] = userMessages.map((text, index) => {
-      if (index === 0) {
-        return createUserMessage(text);
-      }
-      return { role: "user" as const, content: text };
-    });
-
-    const newMessages = [...messages(), ...messagesToAdd];
-    setMessages(newMessages);
-    setError(null);
-
-    return sendMessageStreaming(undefined);
-  }
-
-  // Drain queued messages when the turn completes (non-tool-loop case)
+  // Drain the ACTIVE conversation's queue when its own turn lock is free.
+  // The synchronous claim inside the effect makes a second mounted
+  // instance's drain a no-op, not a second turn.
   createEffect(() => {
-    const loading = isLoading();
-    const processingTools = isProcessingTools();
-    const queue = queuedMessages();
-    const msgs = messages();
+    const s = store();
+    const id = conversationId();
+    const turn = s.activeTurn[0]();
+    const queue = s.queuedMessages[0]();
+    const msgs = s.messages[0]();
 
-    const hasUnresolvedTools = lastMessageHasUnresolvedToolUse(msgs);
+    if (turn !== null || queue.length === 0) return;
+    // A persisted conversation stranded on unresolved tool_use would 400 on
+    // any send — hold the queue (matches the historical drain guard).
+    if (lastMessageHasUnresolvedToolUse(msgs)) return;
 
-    if (!loading && !processingTools && queue.length > 0) {
-      if (hasUnresolvedTools) return;
-      setQueuedMessages([]);
-      sendMessages(queue);
-    }
+    s.queuedMessages[1]([]);
+    const claimed = claimTurn(s, id);
+    runTurn(
+      claimed,
+      queue.map((q) => q.text),
+      false,
+      queue.map((q) => q.resolve),
+    );
   });
 
+  // Stop operates on the ACTIVE conversation's turn — any instance's Stop
+  // aborts it regardless of which instance started it. The abort signal
+  // guarantees finalization (see raceAbort): Stop always releases the
+  // conversation.
   function stopGeneration() {
-    if (!isLoading()) return;
-    abortRequested = true;
-    if (activeStream) {
+    const s = store();
+    const turn = s.activeTurn[0]();
+    if (!turn) return;
+    turn.abort.abort();
+    if (turn.activeStream) {
       try {
-        activeStream.abort();
+        turn.activeStream.abort();
       } catch { /* swallow */ }
-      activeStream = null;
+      turn.activeStream = null;
     }
-    clearInProgressItems();
+    // Interruption path for a pending approval: the rejection resolves the
+    // current block (the lifecycle's finally removes its card) while the
+    // loop's abort race synthesizes cancelled results — a persisted
+    // conversation can never dangle on an approval.
+    const pending = turn.store.pendingDecision[0]();
+    if (pending) pending.resolve({ kind: "interrupted" });
+    // Unblock THIS turn's promise-blocking card (ask_user_questions) so its
+    // closure guard resets — with unmount-cancel removed (decision log #6),
+    // Stop is the explicit path that cancels an abandoned question.
+    // Turn-scoped, never a registry sweep (review H2: the sweep cancelled
+    // another conversation's pending question when two chats shared the
+    // same tool instance).
+    turn.cancelPendingInteraction?.();
+    turn.cancelPendingInteraction = null;
+    clearInProgressItemsIn(turn.store);
   }
 
   function clearConversation() {
@@ -794,6 +1706,8 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     enqueueMessage,
     clearQueue,
     queuedMessages,
+    pendingUserAction,
+    decideApproval,
     clearInProgressItems,
     conversationId,
   };

@@ -16,6 +16,7 @@ import {
   Button,
   Checkbox,
   DoubleSlider,
+  MultiSelectSearch,
   RadioGroup,
   Slider,
   StateHolderWrapper,
@@ -24,9 +25,24 @@ import {
   getTimeFromPeriodId,
   type Query,
 } from "panther";
-import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
+import {
+  getDisplayDisaggregationLabel,
+  getDisplayDisaggregationValueLabel,
+} from "~/state/instance/_util_disaggregation_label";
+
+// Above this option count, filter boxes render as a searchable combo-box
+// instead of the flat chip cloud.
+const FILTER_SEARCH_THRESHOLD = 0;
 
 // Extract the calendar year from any period value (year YYYY / quarter_id YYYYQ /
 // period_id YYYYMM), keyed by digit length now that the three formats are disjoint.
@@ -112,6 +128,14 @@ type DataValuesFilterProps = {
 };
 
 function DataValuesFilter(p: DataValuesFilterProps) {
+  function toggleVal(val: string) {
+    p.setTempConfig("d", "valuesFilter", (prev) => {
+      if (prev?.includes(val)) {
+        return prev.filter((v) => v !== val);
+      }
+      return [...(prev ?? []), val];
+    });
+  }
   return (
     <div class="ui-spy-sm">
       <Checkbox
@@ -125,26 +149,41 @@ function DataValuesFilter(p: DataValuesFilterProps) {
           }
         }}
       />
-      <Show when={p.tempConfig.d.valuesFilter} keyed>
-        {(keyedValuesFilter) => {
-          function toggleVal(val: string) {
-            p.setTempConfig("d", "valuesFilter", (prev) => {
-              if (prev?.includes(val)) {
-                return prev.filter((v) => v !== val);
-              }
-              return [...(prev ?? []), val];
-            });
-          }
-          return (
-            <div class="pb-4">
-              <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
+      <Show when={!!p.tempConfig.d.valuesFilter}>
+        <div class="pb-4">
+          <Switch>
+            <Match
+              when={p.poDetail.resultsValue.valueProps.length >
+                FILTER_SEARCH_THRESHOLD}
+            >
+              <MultiSelectSearch
+                values={p.tempConfig.d.valuesFilter ?? []}
+                options={p.poDetail.resultsValue.valueProps.map((v) => ({
+                  value: v,
+                  label: v,
+                }))}
+                onChange={(v) => p.setTempConfig("d", "valuesFilter", v)}
+                mono
+                fullWidth
+              />
+            </Match>
+            <Match
+              when={p.poDetail.resultsValue.valueProps.length <=
+                FILTER_SEARCH_THRESHOLD}
+            >
+              <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
                 <For each={p.poDetail.resultsValue.valueProps}>
                   {(opt) => {
+                    const isSelected = () =>
+                      (p.tempConfig.d.valuesFilter ?? []).includes(opt);
                     return (
                       <div
-                        class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
+                        class="cursor-pointer rounded px-2 py-1"
+                        classList={{
+                          "bg-success text-base-100": isSelected(),
+                          "ui-hoverable-base-200": !isSelected(),
+                        }}
                         onClick={() => toggleVal(opt)}
-                        data-selected={keyedValuesFilter.includes(opt)}
                       >
                         <span class="relative">{opt}</span>
                       </div>
@@ -152,9 +191,9 @@ function DataValuesFilter(p: DataValuesFilterProps) {
                   }}
                 </For>
               </div>
-            </div>
-          );
-        }}
+            </Match>
+          </Switch>
+        </div>
       </Show>
     </div>
   );
@@ -322,7 +361,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                 keyed
               >
                 {(bf) => (
-                  <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                  <div class="ui-gap-sm ui-pad rounded border">
                     <PeriodFilterPeriodIdSingle
                       periodBounds={p.keyedPeriodBounds}
                       periodFilter={bf}
@@ -348,7 +387,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                   keyed
                 >
                   {(bf) => (
-                    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+                    <div class="ui-gap-sm ui-pad rounded border">
                       <PeriodFilterPeriodId
                         periodBounds={p.keyedPeriodBounds}
                         periodFilter={bf}
@@ -409,6 +448,17 @@ type DisaggregationFilterProps = {
 };
 
 function DisaggregationFilter(p: DisaggregationFilterProps) {
+  const okValues = () =>
+    p.keyedStatus.status === "ok" ? p.keyedStatus.values : [];
+  function setValues(values: string[]) {
+    p.setTempConfig(
+      "d",
+      "filterBy",
+      (fil) => fil.disOpt === p.disOpt.value,
+      "values",
+      values,
+    );
+  }
   return (
     <div class="ui-spy-sm">
       <Checkbox
@@ -460,7 +510,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "no_values_available"}>
-                  <div class="ui-pad text-sm text-info">
+                  <div class="ui-pad text-sm text-base-content-muted">
                     {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension.", pt: "Nenhum dado disponível para esta dimensão." })}
                   </div>
                 </Match>
@@ -470,19 +520,55 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                     {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
                   </div>
                 </Match>
-                <Match when={p.keyedStatus.status === "ok"}>
-                  <div class="ui-gap-sm ui-pad border-base-300 flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
+                <Match
+                  when={p.keyedStatus.status === "ok" &&
+                    okValues().length > FILTER_SEARCH_THRESHOLD}
+                >
+                  {(() => {
+                    const canonicalValues = createMemo(() => {
+                      const byLower = new Map(
+                        okValues().map((v) => [v.id.toLowerCase(), v.id]),
+                      );
+                      return keyedFilter.values.map((v) =>
+                        byLower.get(String(v).toLowerCase()) ?? String(v)
+                      );
+                    });
+                    return (
+                      <MultiSelectSearch
+                        values={canonicalValues()}
+                        options={okValues().map((v) => ({
+                          value: v.id,
+                          label: getDisplayDisaggregationValueLabel(v.id, v.label),
+                        }))}
+                        onChange={setValues}
+                        fullWidth
+                      />
+                    );
+                  })()}
+                </Match>
+                <Match
+                  when={p.keyedStatus.status === "ok" &&
+                    okValues().length <= FILTER_SEARCH_THRESHOLD}
+                >
+                  <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
                     <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
                       {(opt) => {
                         return (
                           <div
-                            class="ui-hoverable bg-base-200 data-[selected=true]:bg-success data-[selected=true]:text-base-100 rounded px-2 py-1"
+                            class="cursor-pointer rounded px-2 py-1"
+                            classList={{
+                              "bg-success text-base-100": keyedFilter.values.some(
+                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
+                              ),
+                              "ui-hoverable-base-200": !keyedFilter.values.some(
+                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
+                              ),
+                            }}
                             onClick={() => toggleVal(opt.id)}
-                            data-selected={keyedFilter.values.some(
-                              v => String(v).toLowerCase() === String(opt.id).toLowerCase()
-                            )}
                           >
-                            <span class="relative">{opt.label}</span>
+                            <span class="relative">
+                              {getDisplayDisaggregationValueLabel(opt.id, opt.label)}
+                            </span>
                           </div>
                         );
                       }}
@@ -519,6 +605,26 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
     ),
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  // Mirror external changes (a collaborator's update reconciled into the
+  // config) into the local draft — but never clobber this user's own
+  // in-progress drag (needsSave). Without this the slider kept the value it
+  // was CREATED with: reconcile updates the periodFilter object in place, so
+  // the keyed <Show> above never recreates this component.
+  createEffect(() => {
+    const min = getTimeFromPeriodId(
+      Math.max(p.periodFilter.min, p.periodBounds.min),
+      p.periodType,
+    );
+    const max = getTimeFromPeriodId(
+      Math.min(p.periodFilter.max, p.periodBounds.max),
+      p.periodType,
+    );
+    if (!needsSave()) {
+      setTempMinTime(min);
+      setTempMaxTime(max);
+    }
+  });
 
   function save() {
     p.onUpdate({
@@ -587,6 +693,16 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft; see
+  // PeriodFilterPeriodId for why the keyed <Show> can't do this.
+  createEffect(() => {
+    const min = getTimeFromPeriodId(
+      Math.max(p.periodFilter.min, p.periodBounds.min),
+      p.periodType,
+    );
+    if (!needsSave()) setTempTime(min);
+  });
+
   function save() {
     p.onUpdate({
       minPeriodId: getPeriodIdFromTime(tempTime(), p.periodType),
@@ -643,13 +759,19 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nMonths ?? 12;
+    if (!needsSave()) setTempNMonths(v);
+  });
+
   function save() {
     p.onUpdate(tempNMonths());
     setNeedsSave(false);
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad rounded border">
       <Slider
         label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}
         showValueInLabel
@@ -687,13 +809,19 @@ export function NYearsSelector(p: NYearsSelectorProps) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nYears ?? 1;
+    if (!needsSave()) setTempNYears(v);
+  });
+
   function save() {
     p.onUpdate(tempNYears());
     setNeedsSave(false);
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad rounded border">
       <Slider
         label={t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}
         showValueInLabel
@@ -731,13 +859,19 @@ export function NQuartersSelector(p: NQuartersSelectorProps) {
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const v = p.nQuarters ?? 1;
+    if (!needsSave()) setTempNQuarters(v);
+  });
+
   function save() {
     p.onUpdate(tempNQuarters());
     setNeedsSave(false);
   }
 
   return (
-    <div class="ui-gap-sm ui-pad border-base-300 rounded border">
+    <div class="ui-gap-sm ui-pad rounded border">
       <Slider
         label={t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}
         showValueInLabel
@@ -778,6 +912,16 @@ export function PeriodFilterYear(p: PeriodFilterPropsYear) {
     p.periodFilter.max,
   );
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
+
+  // Mirror external (collaborator) changes into the draft unless mid-edit.
+  createEffect(() => {
+    const min = p.periodFilter.min;
+    const max = p.periodFilter.max;
+    if (!needsSave()) {
+      setTempMinTime(min);
+      setTempMaxTime(max);
+    }
+  });
 
   function save() {
     p.onUpdate({

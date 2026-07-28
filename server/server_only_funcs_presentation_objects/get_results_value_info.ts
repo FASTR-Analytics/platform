@@ -16,7 +16,7 @@ import {
 } from "./get_indicator_metadata.ts";
 import { resolveMetricById } from "../db/project/results_value_resolver.ts";
 import { getFacilityColumnsConfig } from "../db/instance/config.ts";
-import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
+import { exceedsMaxReplicantOptions } from "./consts.ts";
 import type { ItemsVersionInfo } from "./get_presentation_object_items.ts";
 
 // Postgres wrapper — resolves the metric via live enrichment probes, then
@@ -57,7 +57,7 @@ export async function getResultsValueInfoForPresentationObject(
     );
 
     // Fetch indicator metadata once for label lookup
-    const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleId);
+    const indicatorMetadata = await getIndicatorMetadata(projectDb, moduleId);
     const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
     const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
@@ -118,7 +118,7 @@ export async function buildResultsValueInfo(
       const vals = resDisPossibleVals.data;
 
       // Build discriminated union status
-      if (vals.length > MAX_REPLICANT_OPTIONS) {
+      if (exceedsMaxReplicantOptions(vals)) {
         disaggregationPossibleValues[disOpt] = {
           status: "too_many_values",
         };

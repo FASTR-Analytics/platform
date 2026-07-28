@@ -155,7 +155,7 @@ export function Table<
         : "w-full"}
     >
       <Show when={enableSelection() && selectedItems().length > 0}>
-        <div class="ui-pad ui-gap bg-base-100 border-base-300 mb-4 flex items-center rounded border">
+        <div class="ui-pad ui-gap bg-base-100 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
             {selectedItems().length}{" "}
             {p.selectionLabel || t3({ en: "item", fr: "élément", pt: "item" })}
@@ -202,8 +202,8 @@ export function Table<
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
           class={p.fitTableToAvailableHeight
-            ? "border-base-300 h-full overflow-x-auto overflow-y-auto rounded border"
-            : "border-base-300 overflow-x-auto rounded border"}
+            ? "h-full overflow-x-auto overflow-y-auto rounded border"
+            : "overflow-x-auto rounded border"}
           style={{
             ...(p.tableContentMaxHeight && {
               "max-height": p.tableContentMaxHeight,
@@ -226,7 +226,7 @@ export function Table<
               <tr>
                 <Show when={enableSelection()}>
                   <th
-                    class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-medium uppercase tracking-wider`}
+                    class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-700 uppercase tracking-wider`}
                   >
                     <Checkbox
                       checked={allSelected()}
@@ -244,9 +244,7 @@ export function Table<
                           column.alignH,
                         )
                       } font-700 text-base-content text-xs uppercase tracking-wider ${
-                        column.sortable
-                          ? "hover:bg-base-300/30 cursor-pointer select-none"
-                          : ""
+                        column.sortable ? "ui-hoverable-base-200" : ""
                       }`}
                       style={{ width: column.width }}
                       onClick={() => handleSort(column)}
@@ -266,7 +264,7 @@ export function Table<
                   <tr>
                     <td
                       colspan={p.columns.length + (enableSelection() ? 1 : 0)}
-                      class="text-neutral px-4 py-8 text-center text-sm"
+                      class="text-base-content-muted px-4 py-8 text-center text-sm"
                     >
                       {p.noRowsMessage ||
                         t3({
@@ -359,10 +357,16 @@ const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
   const key = () => p.item[p.keyField];
 
   const rowClasses = () => {
-    const classes = ["group", "border-t", "border-base-300"];
+    const classes = ["group", "border-t"];
 
     if (p.onRowClick) {
-      classes.push("hover:bg-base-200/50", "cursor-pointer");
+      // Explicit pair, not ui-hoverable-base-100: the family carries
+      // select-none, which would break selecting/copying cell text.
+      classes.push(
+        "hover:bg-base-100-hover",
+        "active:bg-base-100-active",
+        "cursor-pointer",
+      );
     }
 
     return classes.join(" ");
@@ -437,7 +441,7 @@ const GroupedRows = <
             <tr class="bg-base-200">
               <td
                 colspan={p.columns.length + (p.enableSelection ? 1 : 0)}
-                class={`border-base-300 text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-semibold uppercase tracking-wider`}
+                class={`text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-700 uppercase tracking-wider`}
               >
                 {group.label}
               </td>

@@ -7,7 +7,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Spinner,
   StateHolderWrapper,
   StepperNavigationVisual,
@@ -19,7 +19,7 @@ import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js"
 import type {
   StructureCsvStep1Result,
   StructureUploadAttemptStatus,
-  Dhis2CredentialsRedacted,
+  StructureDhis2ConnectionSnapshot,
   StructureColumnMappings,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
@@ -115,7 +115,8 @@ export function StructureUploadAttemptForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={
             p.family === "hmis"
               ? t3({
@@ -129,7 +130,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   pt: "Importação de estabelecimentos FOSA",
                 })
           }
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
@@ -145,7 +146,7 @@ export function StructureUploadAttemptForm(p: Props) {
               {t3({ en: "Discard upload", fr: "Annuler le téléversement", pt: "Descartar o carregamento" })}
             </Button>
           </div>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper
@@ -167,7 +168,7 @@ export function StructureUploadAttemptForm(p: Props) {
               >
                 {(errorMsg) => (
                   <Show when={dismissedError() !== errorMsg}>
-                    <div class="border-danger bg-danger/10 ui-spy-sm m-4 rounded border p-4">
+                    <div class="border-danger bg-danger-subtle ui-spy-sm m-4 rounded border p-4">
                       <div class="ui-gap flex items-start">
                         <div class="ui-spy-sm flex-1">
                           <div class="text-danger font-700">
@@ -312,7 +313,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <Step1_Dhis2
                       step1Result={
                         keyedUploadAttempt.step1Result as
-                          | Dhis2CredentialsRedacted
+                          | StructureDhis2ConnectionSnapshot
                           | undefined
                       }
                       family={p.family}
@@ -421,7 +422,7 @@ function ImportInProgress(p: ImportInProgressProps) {
           </div>
         )}
       </Show>
-      <div class="text-base-content/70 text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: "This screen will update automatically when the import finishes. It is safe to leave and come back.",
           fr: "Cet écran se mettra à jour automatiquement à la fin de l'importation. Vous pouvez quitter cette page et revenir plus tard.",

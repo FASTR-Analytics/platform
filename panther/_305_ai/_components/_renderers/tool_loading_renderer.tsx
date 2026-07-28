@@ -11,7 +11,7 @@ export function ToolLoadingRenderer(p: {
   item: Extract<DisplayItem, { type: "tool_in_progress" }>;
 }) {
   return (
-    <div class="text-sm text-neutral italic">
+    <div class="text-base-content-muted text-sm italic">
       <SpinningCursor class="mr-1 inline-block" />
       {p.item.label ??
         t3({

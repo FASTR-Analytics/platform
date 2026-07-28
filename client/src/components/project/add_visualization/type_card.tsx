@@ -19,11 +19,11 @@ export function TypeCard(p: Props) {
   return (
     <button
       type="button"
-      class="ui-pad border-base-300 flex w-full items-center justify-center rounded border transition-colors"
+      class="ui-pad flex w-full items-center justify-center rounded border transition-colors"
       classList={{
-        "bg-primary/10 border-primary font-700": p.isSelected,
-        "bg-base-100 ui-hoverable": !p.isSelected && !p.isDisabled,
-        "bg-base-200 opacity-50 cursor-not-allowed": p.isDisabled,
+        "bg-primary-subtle border-primary font-700": p.isSelected,
+        "ui-hoverable-base-100": !p.isSelected && !p.isDisabled,
+        "bg-base-200 opacity-40 cursor-not-allowed": p.isDisabled,
       }}
       disabled={p.isDisabled}
       title={p.isDisabled ? p.disabledReason : undefined}

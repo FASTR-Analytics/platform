@@ -99,6 +99,24 @@ function getContentPageInputs(
   };
 }
 
+// A single content slide at thumbnail scale, for side-by-side theme comparison.
+// Content (not cover) because it exercises the most color surfaces at once —
+// background, body text, header/footer rules — so themes are distinguishable at
+// card size. Logos are deliberately not loaded: they are theme-invariant, and
+// loading them once per card would be N redundant fetches for zero signal.
+// PageHolder always lays out in zoom mode, so a narrow container just scales the
+// page down; no separate thumbnail styling is needed.
+export function ContentSlideMiniPreview(p: StylePreviewProps) {
+  return (
+    <PageHolder
+      pageInputs={getContentPageInputs(p.config, [], [])}
+      pageWidthDu={PAGE_WIDTH_DU}
+      pageHeightDu={PAGE_HEIGHT_DU}
+      simpleError
+    />
+  );
+}
+
 export function StylePreview(p: StylePreviewProps) {
   const colorError = () => {
     if (p.config.colorTheme.type !== "custom") return null;
@@ -111,7 +129,10 @@ export function StylePreview(p: StylePreviewProps) {
   const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
   const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
 
-  const availableCustom = () => p.config.logos.availableCustom;
+  // Spread so every element read is tracked: per-index writes
+  // (setTempConfig("logos", "availableCustom", i, v)) keep the array
+  // reference, so tracking only the reference would miss them.
+  const availableCustom = () => [...p.config.logos.availableCustom];
 
   createEffect(() => {
     const config = p.config;
@@ -179,17 +200,17 @@ export function StylePreview(p: StylePreviewProps) {
         {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
       </div>
       <Show when={colorError()}>
-        <div class="border border-danger rounded bg-danger/10 flex items-center justify-center py-8">
+        <div class="border border-danger rounded bg-danger-subtle flex items-center justify-center py-8">
           <span class="text-danger text-sm">{colorError()}</span>
         </div>
       </Show>
       <Show when={!colorError()}>
         <div class="flex gap-4" style={{ "max-width": "1600px" }}>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={coverInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -198,10 +219,10 @@ export function StylePreview(p: StylePreviewProps) {
             </div>
           </div>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Section", fr: "Section", pt: "Secção" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={sectionInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}
@@ -210,10 +231,10 @@ export function StylePreview(p: StylePreviewProps) {
             </div>
           </div>
           <div class="flex-1">
-            <div class="text-xs text-neutral mb-1">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
             </div>
-            <div class="border border-base-300 rounded overflow-hidden">
+            <div class="border rounded overflow-hidden">
               <PageHolder
                 pageInputs={contentInputs()}
                 pageWidthDu={PAGE_WIDTH_DU}

@@ -25,3 +25,33 @@ export type VizGraphEdgeStyleOptions = {
 export type VizGraphEdgeInfoFunc = (
   info: VizGraphEdgeInfo,
 ) => VizGraphEdgeStyleOptions;
+
+// Per-node style callback, resolved BEFORE layout like edgeInfo (design A,
+// Tim 2026-07-13): info carries the AUTHORED data facts, and the returned
+// strokeWidth folds into the measured size (border is part of the node's
+// outer box), so measurement and paint can never desync. isGroup marks
+// group-shaped elements so ONE callback styles nodes and groups alike (Tim's
+// design): "folded" = the group's rep node (defaults to node chrome),
+// "unfolded" = the decorative group box (defaults to the vizgraph.groups
+// block); false = a regular node. Truthy check covers the fold-agnostic
+// case. Precedence: this callback > the applicable defaults. Paint-only
+// beyond geometry: padding and text SIZE are deliberately not overridable —
+// per-node sizing is the data's `size` field.
+export type VizGraphNodeInfo = {
+  id: string;
+  layer?: number;
+  seq?: number;
+  isGroup: false | "folded" | "unfolded";
+};
+
+export type VizGraphNodeStyleOptions = {
+  fillColor?: ColorKeyOrString;
+  strokeColor?: ColorKeyOrString;
+  strokeWidth?: number;
+  rectRadius?: number;
+  textColor?: ColorKeyOrString;
+};
+
+export type VizGraphNodeInfoFunc = (
+  info: VizGraphNodeInfo,
+) => VizGraphNodeStyleOptions;

@@ -57,13 +57,17 @@ export const Z_INDEX = {
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
   // VizGraph defaults
+  VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
   VIZGRAPH_EDGE: 490, // Behind nodes by default
   VIZGRAPH_NODE: 500,
   // Cascade defaults
   CASCADE_ARROW: 550,
   // Map defaults
   MAP_REGION: 300,
-  MAP_LABEL: 750,
+  // Pie defaults
+  PIE_SLICE: 300,
+  // Figure labels (map regions, pie slices) — above all figure content
+  FIGURE_LABEL: 750,
   // Sankey defaults
   SANKEY_LINK: 300,
   SANKEY_NODE: 400,
@@ -399,8 +403,54 @@ export type ArrowPrimitive = BasePrimitive & {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+// VizGraph owns its primitive types (Tim, 2026-07-13: never reuse
+// simpleviz-box — SimpleViz will be retired). Three primitives:
+// vizgraph-node (real nodes AND folded-group reps), vizgraph-edge, and
+// vizgraph-unfolded-group (a folded group renders as a node, never as this).
+
+export type VizGraphNodePrimitive = BasePrimitive & {
+  type: "vizgraph-node";
+  meta: {
+    // A folded rep's nodeId is its group id.
+    nodeId: string;
+  };
+  // Visual
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  // Text (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+  secondaryText?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
+// The decorative box behind an unfolded group's members, label in the header
+// row. `outline` is the engine's edge-hug ring(s) — pre-rounded closed
+// path(s), possibly several disjoint rings — painted with the rectStyle's
+// fill/stroke when present; rcd stays the bounding-box fallback and hit-test
+// rect.
+export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
+  type: "vizgraph-unfolded-group";
+  meta: {
+    groupId: string;
+  };
+  // Visual
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  outline?: PathSegment[];
+  // Label (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
 // Orthogonal edge route with rounded corners (cubic segments) and optional
-// arrowheads. Nodes reuse BoxPrimitive (simpleviz-box).
+// arrowheads.
 export type VizGraphEdgePrimitive = BasePrimitive & {
   type: "vizgraph-edge";
   meta: {
@@ -490,14 +540,50 @@ export type MapRegionPrimitive = BasePrimitive & {
   pathStyle: PathStyle;
 };
 
-export type MapLabelPrimitive = BasePrimitive & {
-  type: "map-label";
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Pie Primitives                                                          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// The geometric params are kept alongside the path so later consumers (gauges,
+// hit-testing, pies-on-maps) can reuse the primitive without re-deriving the
+// wedge from its bezier approximation.
+export type PieSlicePrimitive = BasePrimitive & {
+  type: "pie-slice";
   meta: {
-    featureId: string;
+    seriesHeader: HeaderItem;
     paneIndex: number;
     tierIndex: number;
     laneIndex: number;
-    placement: "centroid" | "callout";
+    value: number;
+    share: number;
+    isRemainder: boolean;
+  };
+  cx: number;
+  cy: number;
+  innerR: number;
+  outerR: number;
+  startAngle: number;
+  endAngle: number;
+  pathSegments: PathSegment[];
+  pathStyle: PathStyle;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Figure Label Primitives (shared by map regions and pie slices)          //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+export type FigureLabelPrimitive = BasePrimitive & {
+  type: "figure-label";
+  meta: {
+    id: string;
+    paneIndex: number;
+    tierIndex: number;
+    laneIndex: number;
+    placement: "inside" | "outside";
   };
   mText: MeasuredText;
   position: Coordinates;
@@ -514,6 +600,9 @@ export type MapLabelPrimitive = BasePrimitive & {
   };
   leaderLine?: {
     from: Coordinates;
+    // Optional elbow: the line runs from → via → to, giving the standard
+    // radially-out-then-horizontal callout leader.
+    via?: Coordinates;
     to: Coordinates;
     strokeColor: string;
     strokeWidth: number;
@@ -686,6 +775,8 @@ export type Primitive =
   | BoxPrimitive
   | ArrowPrimitive
   // VizGraph primitives
+  | VizGraphNodePrimitive
+  | VizGraphUnfoldedGroupPrimitive
   | VizGraphEdgePrimitive
   // Sankey primitives
   | SankeyNodePrimitive
@@ -694,7 +785,10 @@ export type Primitive =
   | CascadeArrowPrimitive
   // Map primitives
   | MapRegionPrimitive
-  | MapLabelPrimitive
+  // Pie primitives
+  | PieSlicePrimitive
+  // Figure labels (shared)
+  | FigureLabelPrimitive
   // Scale legend primitives
   | ScaleLegendGradientPrimitive
   | ScaleLegendSteppedPrimitive

@@ -91,8 +91,8 @@ approach was removed because acquire/release landed on different pooled
 connections and wedged.
 
 **Staging.** Fixed-name `UNLOGGED` table `temp_structure_staging_{family}`
-(per-family so HMIS/HFA can run concurrently), `rowid SERIAL` for
-first-occurrence dedup ordering, values inlined with `''`-doubling in
+(per-family so HMIS/HFA can run concurrently), `rowid SERIAL` as the dedup
+tie-break (see **Duplicate rows** below), values inlined with `''`-doubling in
 10k-row (CSV) / 5k-row (DHIS2) batches. CSV cap: 100 MB. The table is
 dropped on staging error, after successful integration, and on attempt
 reset/delete. `handleStagingSuccess` computes the **facilityMatch preview**
@@ -116,6 +116,15 @@ Unresolved codes stay raw and are surfaced per column in the staging
 result (`labelResolution`: resolvedCount + up to 10 distinct unresolved
 values), rendered in the step-4 summary. No migration, no cache-shape
 change.
+
+**Duplicate rows.** Survey exports carry one row per submission attempt, so
+the same `facility_id` recurs with only the consented row's metadata cells
+filled. All three integrate strategies therefore keep the staged row with the
+**most non-empty mapped columns** (`buildDedupOrderClause`), `rowid` breaking
+ties — file order alone would pick a blank row and silently drop metadata the
+file does contain. A whole row survives rather than a per-column coalesce:
+admin values are only a valid hierarchy as a tuple, and duplicate rows can
+disagree about it.
 
 **Column scope contract.** Integration writes exactly the columns
 physically present in the staging table (discovered via
@@ -232,9 +241,24 @@ stale). Warnings (lone `=`) are a distinct severity and never persist as
 errors. The R-code lifecycle: instance edits → project HFA-data refresh
 snapshots indicators+taxonomy+code → S8's module run builds a
 cross-indicator dependency graph (topological sort, cycles rejected) and
-splices each round's code into `case_when` branches with auto-generated
-missingness guards; `STOP_IF_INDICATOR_FAILS` (default TRUE) makes one
-invalid indicator kill the run.
+splices each round's code into `case_when` branches;
+`STOP_IF_INDICATOR_FAILS` (default TRUE) makes one invalid indicator kill
+the run.
+
+An indicator is NA when its **own expression** evaluates to NA, not when an
+input is missing — R's `&`/`|` are three-valued, so a skip-logic "." on a
+follow-up question still leaves a determinate 0. Two things make that sound.
+Sentinel codes (`-99` / `-999999` / refusals) are ordinary numbers, so the
+generator binds NA-ified copies of the referenced variables **scoped to the
+expression** (`with(list(v = replace(v, v %in% codes, NA_real_)), case_when(...))`)
+rather than mutating the columns — the response-status expression downstream
+classifies `dont_know` off the raw values, and the sentinel set varies per
+indicator (`DONT_KNOW_TREATMENT` applies to binary indicators only). `%in%`
+returns FALSE rather than NA for a missing input, so it is rebound inside the
+same `with()`. Filter-variable missingness stays an explicit branch, because
+`!(NA)` matches nothing in `case_when`. Consequence: the value object and
+`M10_hfa_response_status.csv` no longer share a denominator — a facility can
+hold a determinate 0 while its per-variable status reads `missing`.
 
 **Calculated indicators** reference common ids (FK RESTRICT both
 directions) and carry the strictest id grammar
@@ -354,14 +378,18 @@ Every config mutation re-reads all configs and pushes one consolidated
   any step resets status to configuring; step 4 stays reachable to retry
   with a different strategy). In-flight imports render a progress view
   polling `getStructureUploadStatus` every 2 s — covering resumed and
-  second-tab sessions. The DHIS2 attempt payload is **redacted**
-  (`Dhis2CredentialsRedacted` — url/username/hasPassword); full
-  credentials stay server-side (`getStructureDhis2Credentials`), the
-  client persists them to sessionStorage only after a successful
-  connection test, and the connection can be changed in place ("Change
-  connection" re-opens the editor; saving resets steps 2–3). A successful
-  integrate also reports geojson `area_id`s orphaned by the import in the
-  step-4 summary.
+  second-tab sessions. DHIS2 structure import is **saved-only**
+  (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 2): step 1 confirms
+  the instance's stored connection (`structureStep1Dhis2_ConfirmConnection`
+  — no credentials in the request body) and writes only a `{ url }`
+  snapshot to `step_1_result`; staging and the org-unit browse
+  route resolve the password from the encrypted store at fetch time
+  (`getStructureDhis2ResolvedCredentials`), refusing loudly if the stored
+  connection's URL has changed since step 1 was confirmed. The client
+  panel shows the stored connection and links to the shared manage-
+  connection modal to replace it — there is no per-attempt credential
+  editor. A successful integrate also reports geojson `area_id`s orphaned
+  by the import in the step-4 summary.
 - Permissions: reads are `can_view_data` (incl. the CSV exports);
   mutations `can_configure_data`; config mutations
   `can_configure_settings`. Several manager UIs still gate their write
@@ -393,13 +421,18 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
+- **Decision needed:** the M10 value object and
+  `M10_hfa_response_status.csv` no longer share a denominator — a facility
+  can hold a determinate 0 for an indicator while its per-variable status
+  reads `missing` or `dont_know`, so a dashboard can show "22% have X
+  (n=9)" beside "55% missing" for the same indicator. Either the status
+  object gains an indicator-level "contributed to the denominator"
+  classification, or the per-variable reading is documented as answering a
+  different question.
 - **Decision needed:** UI write-gates use `currentUserIsGlobalAdmin` while
   the server gates on `can_configure_data` in four slices (HMIS manager,
   HFA manager, geojson manager, weights import) — decide which contract
   wins and align.
-- **Decision needed:** instance-level DHIS2 credentials remain plaintext
-  at rest in the attempt rows (structure and datasets; both API
-  projections are redacted) — at-rest encryption is a separate decision.
 - Server-produced wizard/staging/integration error strings are
   English-only and rendered verbatim by the client — needs a mechanism
   (error codes or translatable errs), not per-string patching.
@@ -407,10 +440,43 @@ Every config mutation re-reads all configs and pushes one consolidated
   closed 2026-07-06: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
-  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); the wizard's opt-in `sessionStorage`
-  store persists the DHIS2 password in plaintext (`t4_dhis2_session.ts` —
-  decide keep/drop); no deeper geometry validation (lon/lat range, polygonal
-  types, non-unique match values).
+  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
+  (lon/lat range, polygonal types, non-unique match values). (The
+  plaintext-sessionStorage credentials item is resolved — the
+  sessionStorage cache was deleted by PLAN_DHIS2_CREDENTIAL_STORE_
+  CONSOLIDATION; geojson now defaults to the encrypted stored connection
+  with an inline one-off override.)
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.
+
+### HFA indicator authoring follow-on (from the retired HFA plans)
+
+- **Sentinel Layer 3b — per-indicator override + authoring gate** (L, app +
+  wb-fastr-modules in lockstep). Layer 3a (the per-variable generator with
+  scoped sentinel bindings) is shipped; 3b is the additive escape hatch plus
+  validation. Three parts: (1) a **per-indicator sentinel-treatment override
+  column** in the indicator dictionary, which is what makes DK-rate indicators
+  authorable at all — the scoped bindings NA-ify `-99` before any `x == -99`
+  rCode could match; cheap now that the binding list is built per indicator.
+  (2) An **authoring gate for NA-swallowing constructs**: indicators are gated
+  on the result of their own expression, so an authored `ifelse` / `is.na` /
+  `grepl` returns a determinate value where a missing input should give NA — all
+  three are allowlisted and none is used today, so the validator should warn.
+  (3) An **authoring-rule validation gate**: indicator R code must test
+  positively for Yes (`x == 1`, `x >= 3`); negated tests (`x != 2`, `x <= 3`)
+  misclassify DK under DK-as-No, and nothing enforces this today, so a
+  mis-authored `!=` indicator silently inverts DK handling. The override column
+  is the natural home for the gate. Touches `HfaIndicator`/`HfaIndicatorCode`
+  ([lib/types/hfa_types.ts](lib/types/hfa_types.ts)), the
+  `hfa_indicators`/`hfa_indicator_code` schema,
+  [server/db/instance/hfa_indicators.ts](server/db/instance/hfa_indicators.ts),
+  the editor UI, generator consumption in
+  [get_script_with_parameters_hfa.ts](server/server_only_funcs/get_script_with_parameters_hfa.ts),
+  and a per-class module parameter in `wb-fastr-modules` m010 if the override
+  needs a policy knob.
+- **Standalone-label surface** (on demand): compose a full "Percentage of
+  facilities with {label}" for a single-indicator KPI title — the
+  `getHfaIndicatorMeasure` lookup is ready, no UI consumer wired. Related: wire
+  the `full` label context to tooltips / chart titles / table headers / exports,
+  which get the compact label today.

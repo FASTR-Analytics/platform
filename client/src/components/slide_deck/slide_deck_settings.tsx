@@ -78,15 +78,22 @@ export function SlideDeckSettings(p: Props) {
 
   const save = createButtonAction(
     async () => {
-      const newConfig = unwrap(tempConfig);
-      if (newConfig.colorTheme.type === "custom") {
-        const v = validateBrandColor(newConfig.colorTheme.primary);
+      const raw = unwrap(tempConfig);
+      if (raw.colorTheme.type === "custom") {
+        const v = validateBrandColor(raw.colorTheme.primary);
         if (!v.valid) {
           return { success: false, err: v.reason };
         }
       }
-      newConfig.logos.availableCustom =
-        newConfig.logos.availableCustom.filter(Boolean);
+      // Drop empty custom-logo rows before saving — on a fresh copy, never by
+      // mutating the unwrapped store data.
+      const newConfig: typeof raw = {
+        ...raw,
+        logos: {
+          ...raw.logos,
+          availableCustom: raw.logos.availableCustom.filter(Boolean),
+        },
+      };
       const res = await p.saveConfig(newConfig);
       if (res.success === false) {
         return res;
@@ -131,7 +138,7 @@ export function SlideDeckSettings(p: Props) {
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="border-base-300 rounded border px-2 py-1 text-base font-normal"
+                  class="rounded border px-2 py-1 text-base font-normal"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}
@@ -170,6 +177,7 @@ export function SlideDeckSettings(p: Props) {
             <StylePreview config={tempConfig} />
             <ColorThemePicker
               value={tempConfig.colorTheme}
+              config={tempConfig}
               onChange={(v) => setTempConfig("colorTheme", v)}
             />
             <FontPicker
@@ -197,7 +205,7 @@ export function SlideDeckSettings(p: Props) {
         <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
           <div class="grid grid-cols-4 gap-6">
             <div class="ui-spy-sm">
-              <div class="text-base-content/70 font-700 mb-2 text-sm">
+              <div class="text-base-content-muted font-700 mb-2 text-sm">
                 {t3({ en: "Custom logos", fr: "Logos personnalisés", pt: "Logótipos personalizados" })}
               </div>
               <For each={tempConfig.logos.availableCustom}>

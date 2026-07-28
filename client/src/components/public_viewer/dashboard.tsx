@@ -9,7 +9,7 @@ import { t3, TC } from "lib";
 import {
   AlertProvider,
   Button,
-  ChartHolder,
+  FigureHolder,
   FrameLeft,
   FrameLeftResizable,
   FrameTop,
@@ -29,6 +29,7 @@ import { _SERVER_HOST } from "~/server_actions";
 import { DownloadDashboardModal } from "./download_dashboard_modal.tsx";
 import { DashboardLogos } from "./dashboard_logos.tsx";
 import { AboutDashboardModal } from "./about_dashboard_modal.tsx";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 function openAbout(bundle: PublicDashboardBundle): void {
   void openComponent({
@@ -105,7 +106,6 @@ function DashboardViewer(p: DashboardViewerProps) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          class="border-base-300"
           heading={<span class="font-800 text-2xl">{p.bundle.title}</span>}
           leftChildren={
             hasLogos() && logoPlacement() === "left" ? (
@@ -149,7 +149,7 @@ function DashboardViewer(p: DashboardViewerProps) {
     >
       <div class="flex h-full w-full flex-col">
         <Show when={p.bundle.about.summary.trim()}>
-          <div class="border-base-300 ui-pad border-b text-sm">
+          <div class="ui-pad md-dark-adapt border-b text-sm">
             <MarkdownPresentationJsx markdown={p.bundle.about.summary} />
           </div>
         </Show>
@@ -182,7 +182,7 @@ function SidebarLayout(p: SidebarLayoutProps) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="ui-pad border-base-300 ui-spy-sm h-full w-56 overflow-auto border-r lg:w-64 xl:w-72">
+        <div class="ui-pad ui-spy-sm h-full w-56 overflow-auto lg:w-64 xl:w-72">
           <For each={p.entries}>
             {(entry) => (
               <Switch>
@@ -225,7 +225,7 @@ function SidebarLayout(p: SidebarLayoutProps) {
           when={p.currentItem}
           keyed
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {t3({
                 en: "No items in this dashboard",
                 fr: "Aucun élément dans ce tableau de bord",
@@ -249,11 +249,11 @@ function NavRow(p: {
 }) {
   return (
     <div
-      class="ui-hoverable cursor-pointer rounded px-2 py-1 text-sm"
+      class="ui-hoverable-base-100 rounded px-2 py-1 text-sm"
       classList={{
         "bg-primary text-primary-content": p.active,
         "pl-5": p.indent,
-        "text-base-content/70": p.indent && !p.active,
+        "text-base-content-muted": p.indent && !p.active,
       }}
       onClick={p.onClick}
     >
@@ -272,7 +272,7 @@ function GridLayout(p: GridLayoutProps) {
     <div class="ui-gap ui-pad grid content-start overflow-auto lg:grid-cols-2">
       <For each={p.entries}>
         {(entry) => (
-          <div class="border-base-300 ui-pad flex aspect-video flex-col rounded border">
+          <div class="ui-pad flex aspect-video flex-col rounded border">
             <Switch>
               <Match when={entry.kind === "item" ? entry : undefined}>
                 {(it) => (
@@ -356,7 +356,7 @@ function TileHeader(p: {
 }) {
   return (
     <div class="ui-gap-sm flex items-center pb-1">
-      <div class="text-neutral font-700 flex-1 truncate text-xs">{p.label}</div>
+      <div class="ui-text-caption font-700 flex-1 truncate">{p.label}</div>
       {p.children}
       <Button
         onClick={p.onDownload}
@@ -371,5 +371,10 @@ function TileHeader(p: {
 }
 
 function DashboardItemChart(p: { item: PublicItem }) {
-  return <ChartHolder chartInputs={itemFigureInputs(p.item)} height="flex" />;
+  return (
+    <FigureHolder
+      figureInputs={adaptFigureStyleForDarkMode(itemFigureInputs(p.item))}
+      height="flex"
+    />
+  );
 }

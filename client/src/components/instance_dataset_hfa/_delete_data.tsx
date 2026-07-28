@@ -3,6 +3,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   Input,
   Select,
   createDeleteAction,
@@ -47,12 +48,11 @@ export function DeleteData(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3(TC.delete)}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3(TC.delete)}
+        />
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
@@ -90,7 +90,7 @@ export function DeleteData(
           </div>
         </Show>
 
-        <div class="text-neutral text-sm">
+        <div class="text-base-content-muted text-sm">
           {t3({
             en: "Time points, sampling weights, and indicator code are kept. Manage time points on the HFA time points page.",
             fr: "Les points temporels, les pondérations d'échantillonnage et le code des indicateurs sont conservés. Gérez les points temporels sur la page des points temporels Enquêtes FOSA.",

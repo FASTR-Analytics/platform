@@ -13,35 +13,35 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   DatasetHmisDetail,
-  DatasetStagingResult,
   DatasetUploadAttemptDetail,
-  type Dhis2ScopedDeletionPreviewItem,
   DatasetUploadAttemptStatus,
   DatasetUploadAttemptStatusLight,
   DatasetUploadAttemptSummary,
   DatasetUploadStatusResponse,
-  Dhis2SelectionParams,
   parseAa3CompositeKey,
   PeriodBounds,
   parseJsonOrThrow,
   parseJsonOrUndefined,
   throwIfErrWithData,
   type DatasetHmisVersion,
-  type Dhis2Credentials,
-  type Dhis2CredentialsRedacted,
+  type DatasetStagingResult,
   type IndicatorType,
   type ItemsHolderDatasetHmisDisplay,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { instantiateIntegrateUploadedDataWorker } from "../../worker_routines/integrate_hmis_data/instantiate_worker.ts";
 import { instantiateStageHmisDataCsvWorker } from "../../worker_routines/stage_hmis_data_csv/instantiate_worker.ts";
-import { instantiateStageHmisDataDhis2Worker } from "../../worker_routines/stage_hmis_data_dhis2/instantiate_worker.ts";
 import {
   clearWorker,
   getWorker,
   setWorker,
 } from "../../worker_routines/worker_store.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
+import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
+import {
+  assertNoRunningDatasetHmisImportRun,
+  hasRunningDatasetHmisImportRun,
+} from "./dataset_hmis_import_runs.ts";
 import type {
   DBDatasetHmisUploadAttempt,
   DBDatasetHmisVersion,
@@ -123,6 +123,15 @@ export async function getDatasetHmisDetail(
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+// A running DHIS2 run's version row is INVISIBLE to every reader until the
+// run ends: per-pair integration keeps mutating dataset_hmis under that id
+// for the run's whole duration, and every version-keyed cache (the client
+// IndexedDB display cache, viz-query staleness hashes) assumes a visible
+// version id names a settled data state. Hiding the row until the run ends
+// makes the cache token flip exactly once, at run end. All version
+// READERS carry this exclusion; version-MINTING paths must not use them —
+// they compute MAX(id) inline in their own transaction (run worker, CSV
+// integrate worker, windowed delete).
 export async function getVersionsForDatasetHmis(
   mainDb: Sql
 ): Promise<APIResponseWithData<DatasetHmisVersion[]>> {
@@ -130,7 +139,12 @@ export async function getVersionsForDatasetHmis(
     const csvVersions = (
       await mainDb<
         DBDatasetHmisVersion[]
-      >`SELECT * FROM dataset_hmis_versions ORDER BY id DESC`
+      >`SELECT * FROM dataset_hmis_versions
+        WHERE id NOT IN (
+          SELECT version_id FROM dataset_hmis_import_runs
+          WHERE status = 'running' AND version_id IS NOT NULL
+        )
+        ORDER BY id DESC`
     ).map<DatasetHmisVersion>((rawDatatableVersion) => {
       return {
         id: rawDatatableVersion.id,
@@ -158,6 +172,10 @@ export async function deleteAllDatasetHmisData(
     // A delete minting a version id while an integration is mid-transaction
     // can collide with the integration's MAX(id)+1 and roll back the whole
     // merge at the end — refuse while an import operation is running.
+    // The reverse direction (a run LAUNCHING mid-delete) is deliberately not
+    // claimed against: a mint collision aborts exactly one side's transaction
+    // loudly, and the ledger reconcile/recompute reads dataset_hmis in-txn,
+    // so both outcomes stay consistent.
     const activeOperations = await mainDb<{ count: string | number }[]>`
       SELECT COUNT(*) as count
       FROM dataset_hmis_upload_attempts
@@ -168,9 +186,10 @@ export async function deleteAllDatasetHmisData(
         "An import operation is in progress. Please wait for it to complete before deleting data."
       );
     }
+    await assertNoRunningDatasetHmisImportRun(mainDb);
 
     // Build WHERE conditions based on windowing
-    const conditions = [];
+    const conditions: string[] = [];
 
     // Period filtering
     conditions.push(`period_id >= ${windowing.start}`);
@@ -216,13 +235,53 @@ export async function deleteAllDatasetHmisData(
       : conditions.join(" AND ");
 
     await mainDb.begin(async (sql) => {
+      // Captured before the DELETE so the ledger reconcile below knows which
+      // (indicator, period) pairs to re-count — a facility-scoped deletion
+      // can leave a pair partially populated.
+      const affectedPairs = (
+        await sql.unsafe<{ indicator_raw_id: string; period_id: number }[]>(`
+          SELECT DISTINCT indicator_raw_id, period_id
+          FROM dataset_hmis
+          WHERE ${whereClause}
+        `)
+      ).map((r) => ({
+        indicatorRawId: r.indicator_raw_id,
+        periodId: r.period_id,
+      }));
+
+      // Zero-count ledger rows (DHIS2 "checked, empty" and error-only pairs)
+      // have no dataset_hmis rows, so the scan above can't see them. A
+      // non-facility-scoped deletion wipes the pair's whole window, so those
+      // records go too; a facility-scoped deletion keeps them (partial
+      // deletion doesn't invalidate pair-level state).
+      const ledgerPairs = facilitySubquery
+        ? []
+        : (
+            await sql.unsafe<
+              { indicator_raw_id: string; period_id: number }[]
+            >(`
+              SELECT indicator_raw_id, period_id
+              FROM dataset_hmis_import_ledger
+              WHERE ${conditions.join(" AND ")}
+            `)
+          ).map((r) => ({
+            indicatorRawId: r.indicator_raw_id,
+            periodId: r.period_id,
+          }));
+
       const deleteResult = await sql.unsafe(`
         DELETE FROM dataset_hmis
         WHERE ${whereClause}
       `);
       const deleteCount = deleteResult.count;
 
+      if (deleteCount === 0 && ledgerPairs.length === 0) {
+        return;
+      }
       if (deleteCount === 0) {
+        // Nothing deleted from dataset_hmis (no version record to mint), but
+        // the window still holds zero-count ledger records to clear.
+        await reconcileHmisLedgerPairsAfterDelete(sql, ledgerPairs);
         return;
       }
 
@@ -255,6 +314,11 @@ export async function deleteAllDatasetHmisData(
           })}
         )
       `;
+
+      await reconcileHmisLedgerPairsAfterDelete(sql, [
+        ...affectedPairs,
+        ...ledgerPairs,
+      ]);
     });
 
     return { success: true };
@@ -373,21 +437,27 @@ async function getDatasetHmisItemsForDisplayRaw(
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Ledger reads (~1,440 rows for Nigeria) instead of a GROUP BY scan over
+    // dataset_hmis (tens of millions of rows) — the ledger is maintained
+    // inside every integration/deletion transaction, so it always agrees.
+    // n_records > 0 keeps display behavior identical: zero-count "checked,
+    // empty" and error-only pairs are checklist information, not data cells.
     const vizItems = await mainDb<Record<string, string>[]>`
-  SELECT COUNT(*) AS count, SUM(count) AS sum, indicator_raw_id AS indicator_id, period_id 
-  FROM dataset_hmis
-  GROUP BY indicator_raw_id, period_id
+  SELECT n_records::bigint AS count, sum_count AS sum, indicator_raw_id AS indicator_id, period_id
+  FROM dataset_hmis_import_ledger
+  WHERE n_records > 0
 `;
 
     const indicators = await mainDb<
       { indicator_raw_id: string; common_ids: string | null }[]
     >`
-  SELECT 
+  SELECT
     dh.indicator_raw_id,
     STRING_AGG(im.indicator_common_id, ', ' ORDER BY im.indicator_common_id) as common_ids
   FROM (
-    SELECT DISTINCT indicator_raw_id 
-    FROM dataset_hmis
+    SELECT DISTINCT indicator_raw_id
+    FROM dataset_hmis_import_ledger
+    WHERE n_records > 0
   ) dh
   LEFT JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
   GROUP BY dh.indicator_raw_id
@@ -409,10 +479,11 @@ async function getDatasetHmisItemsForDisplayRaw(
     // Get period bounds
     const periodBoundsResult = await mainDb<
       { min_period: number; max_period: number }[]
-    >`SELECT 
+    >`SELECT
         MIN(period_id) as min_period,
         MAX(period_id) as max_period
-      FROM dataset_hmis`;
+      FROM dataset_hmis_import_ledger
+      WHERE n_records > 0`;
 
     const periodBounds: PeriodBounds = {
       min:
@@ -449,32 +520,27 @@ async function getDatasetHmisItemsForDisplayCommon(
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
+    // Ledger + mappings join instead of scanning dataset_hmis (see the raw
+    // variant above). `count` is the summed raw record count per (common,
+    // period) — a facility reporting two raw indicators mapped to the same
+    // common id counts twice, where the old per-facility aggregation counted
+    // it once (PLAN_DHIS2_IMPORTER §6 ruled the join+SUM read).
     const vizItems = await mainDb<Record<string, string>[]>`
-      WITH aggregated AS (
-        SELECT 
-          dh.facility_id,
-          im.indicator_common_id,
-          dh.period_id,
-          SUM(dh.count) as count
-        FROM dataset_hmis dh
-        INNER JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
-        GROUP BY 
-          dh.facility_id,
-          im.indicator_common_id,
-          dh.period_id
-      )
-      SELECT COUNT(*) AS count, SUM(count) AS sum, indicator_common_id AS indicator_id, period_id 
-      FROM aggregated
-      GROUP BY indicator_common_id, period_id
+      SELECT SUM(l.n_records) AS count, SUM(l.sum_count) AS sum, im.indicator_common_id AS indicator_id, l.period_id
+      FROM dataset_hmis_import_ledger l
+      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
+      WHERE l.n_records > 0
+      GROUP BY im.indicator_common_id, l.period_id
     `;
 
     const indicators = await mainDb<
       { indicator_common_id: string; indicator_common_label: string }[]
     >`
       SELECT DISTINCT im.indicator_common_id, i.indicator_common_label
-      FROM dataset_hmis dh
-      INNER JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
+      FROM dataset_hmis_import_ledger l
+      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
       INNER JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
+      WHERE l.n_records > 0
       ORDER BY im.indicator_common_id
     `.then((results) =>
       results.map<{ value: string; label: string }>((row) => ({
@@ -491,14 +557,15 @@ async function getDatasetHmisItemsForDisplayCommon(
     // Get period bounds
     const periodBoundsResult = await mainDb<
       { min_period: number; max_period: number }[]
-    >`SELECT 
+    >`SELECT
         MIN(period_id) as min_period,
         MAX(period_id) as max_period
-      FROM dataset_hmis dh
-      WHERE EXISTS (
-        SELECT 1 FROM indicator_mappings im 
-        WHERE dh.indicator_raw_id = im.indicator_raw_id
-      )`;
+      FROM dataset_hmis_import_ledger l
+      WHERE l.n_records > 0
+        AND EXISTS (
+          SELECT 1 FROM indicator_mappings im
+          WHERE l.indicator_raw_id = im.indicator_raw_id
+        )`;
 
     const periodBounds: PeriodBounds = {
       min:
@@ -592,21 +659,9 @@ export async function getDatasetHmisUploadAttemptDetail(
       status: parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status),
     };
 
-    const sourceType =
-      (rawDUA.source_type as "csv" | "dhis2" | null) ?? undefined;
+    const sourceType = (rawDUA.source_type as "csv" | null) ?? undefined;
 
-    let step1Result = parseJsonOrUndefined<unknown>(rawDUA.step_1_result);
-    if (sourceType === "dhis2" && step1Result) {
-      // The password never leaves the server; the staging worker reads the
-      // full credentials from the raw row.
-      const credentials = step1Result as Dhis2Credentials;
-      const redacted: Dhis2CredentialsRedacted = {
-        url: credentials.url,
-        username: credentials.username,
-        hasPassword: true,
-      };
-      step1Result = redacted;
-    }
+    const step1Result = parseJsonOrUndefined<unknown>(rawDUA.step_1_result);
 
     const uaDetail = {
       ...baseDetails,
@@ -630,27 +685,11 @@ export async function getDatasetHmisUploadStatus(
     const status = parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status);
     const step = rawDUA.step as 0 | 1 | 2 | 3 | 4;
 
-    // Convert full status to lightweight version (remove history array if DHIS2)
-    let statusLight: DatasetUploadAttemptStatusLight;
-    if (status.status === "staging_dhis2") {
-      statusLight = {
-        status: "staging_dhis2",
-        progress: status.progress,
-        totalWorkItems: status.totalWorkItems,
-        completedWorkItems: status.completedWorkItems,
-        failedWorkItems: status.failedWorkItems,
-        activeWorkItems: status.activeWorkItems,
-        // Exclude completedWorkItemHistory
-      };
-    } else {
-      statusLight = status as DatasetUploadAttemptStatusLight;
-    }
+    const statusLight: DatasetUploadAttemptStatusLight = status;
 
     // Determine if polling should continue
     const isActive =
-      status.status === "staging" ||
-      status.status === "staging_dhis2" ||
-      status.status === "integrating";
+      status.status === "staging" || status.status === "integrating";
 
     return {
       success: true,
@@ -709,7 +748,7 @@ export async function deleteDatasetHmisUploadAttempt(
 
 export async function updateDatasetUploadAttempt_Step0SourceType(
   mainDb: Sql,
-  sourceType: "csv" | "dhis2"
+  sourceType: "csv"
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await getRawUAOrThrow(mainDb); // Verify exists
@@ -780,8 +819,7 @@ WHERE status_type NOT IN ('staging', 'integrating')
 }
 
 export async function updateDatasetUploadAttempt_Step3Staging(
-  mainDb: Sql,
-  failFastMode?: "fail-fast" | "continue-on-error"
+  mainDb: Sql
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
@@ -801,6 +839,7 @@ export async function updateDatasetUploadAttempt_Step3Staging(
         "This operation is already in progress. Please wait for it to complete."
       );
     }
+    await assertNoRunningDatasetHmisImportRun(mainDb);
 
     // Check if an HMIS worker is already running
     const existingWorker = getWorker("hmis");
@@ -831,19 +870,30 @@ export async function updateDatasetUploadAttempt_Step3Staging(
       );
     }
 
+    // Re-check the run guard AFTER the claim: a run's INSERT claim can land
+    // between the assert above and our UPDATE. The run launcher re-checks
+    // attempts after its claim — both directions must, or both sides pass
+    // their pre-claim reads and proceed concurrently.
+    if (await hasRunningDatasetHmisImportRun(mainDb)) {
+      await mainDb`
+        UPDATE dataset_hmis_upload_attempts
+        SET status = ${JSON.stringify({
+          status: "error",
+          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
+        })},
+          status_type = 'error'
+      `;
+      throw new Error(
+        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
+      );
+    }
+
     // Re-read after the claim: a concurrent step-2 config write can land
     // between the initial read and the claim, and the worker must stage from
     // the row the claim actually locked in — not the pre-claim snapshot.
     const claimedDUA = await getRawUAOrThrow(mainDb);
 
-    // Route to appropriate worker based on source type
-    let worker: Worker;
-    if (claimedDUA.source_type === "dhis2") {
-      worker = instantiateStageHmisDataDhis2Worker(claimedDUA, failFastMode);
-    } else {
-      // Default to CSV staging
-      worker = instantiateStageHmisDataCsvWorker(claimedDUA);
-    }
+    const worker = instantiateStageHmisDataCsvWorker(claimedDUA);
 
     // Store the worker reference globally
     setWorker("hmis", worker);
@@ -881,119 +931,6 @@ export async function updateDatasetUploadAttempt_Step3Staging(
   });
 }
 
-export async function updateDatasetUploadAttempt_Step1Dhis2Confirm(
-  mainDb: Sql,
-  credentials: Dhis2Credentials
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    if (!rawDUA.source_type) {
-      throw new Error("Not yet ready for this step");
-    }
-    const updated = await mainDb`
-  UPDATE dataset_hmis_upload_attempts
-  SET
-    step = 2,
-    step_1_result = ${JSON.stringify(credentials)},
-    step_2_result = NULL,
-    step_3_result = NULL
-  WHERE status_type NOT IN ('staging', 'integrating')
-    `;
-    throwIfNoRowsUpdatedBecauseActive(updated.count);
-    return { success: true };
-  });
-}
-
-export async function updateDatasetUploadAttempt_Step2Dhis2Selection(
-  mainDb: Sql,
-  selection: Dhis2SelectionParams
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    if (!rawDUA.source_type || !rawDUA.step_1_result) {
-      throw new Error("Not yet ready for this step");
-    }
-    // The staging worker enumerates every month from startPeriod to
-    // endPeriod, so an unbounded endPeriod would spin it on far-future
-    // periods with no way to finish.
-    const maxPeriodId = _GLOBAL_MAX_YEAR_FOR_PERIODS * 100 + 12;
-    if (selection.endPeriod > maxPeriodId) {
-      throw new Error(
-        `End period ${selection.endPeriod} is beyond the maximum supported period ${maxPeriodId}`
-      );
-    }
-    if (selection.startPeriod > selection.endPeriod) {
-      throw new Error("Start period must not be after end period");
-    }
-    const updated = await mainDb`
-UPDATE dataset_hmis_upload_attempts
-SET
-  step = 3,
-  step_2_result = ${JSON.stringify(selection)},
-  step_3_result = NULL
-WHERE status_type NOT IN ('staging', 'integrating')
-`;
-    throwIfNoRowsUpdatedBecauseActive(updated.count);
-    return { success: true };
-  });
-}
-
-export async function getDhis2ScopedDeletionPreview(
-  mainDb: Sql
-): Promise<APIResponseWithData<Dhis2ScopedDeletionPreviewItem[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Derive the scope from the active attempt's step_3_result server-side —
-    // the same source integration reads — rather than trusting a client echo.
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    const stagingResult = parseJsonOrUndefined<DatasetStagingResult>(
-      rawDUA.step_3_result
-    );
-
-    if (
-      !stagingResult ||
-      stagingResult.sourceType !== "dhis2" ||
-      !Array.isArray(stagingResult.succeededWorkItems) ||
-      !Array.isArray(stagingResult.fetchedFacilityIds)
-    ) {
-      return { success: true, data: [] };
-    }
-
-    const succeededWorkItems = stagingResult.succeededWorkItems;
-    const fetchedFacilityIds = stagingResult.fetchedFacilityIds;
-    if (succeededWorkItems.length === 0 || fetchedFacilityIds.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    const scopeIndicatorIds = succeededWorkItems.map((w) => w.indicatorRawId);
-    const scopePeriodIds = succeededWorkItems.map((w) => w.periodId);
-
-    // Read-only — mirrors the DHIS2 scoped DELETE predicate in
-    // integrate_hmis_data/worker.ts exactly, so this is the literal set of
-    // rows that DELETE will remove, not an approximation.
-    const rows = await mainDb<
-      { indicator_raw_id: string; period_id: number; n: number }[]
-    >`
-      SELECT dt.indicator_raw_id, dt.period_id, COUNT(*)::INTEGER AS n
-      FROM dataset_hmis dt
-      JOIN UNNEST(
-        ${scopeIndicatorIds}::text[],
-        ${scopePeriodIds}::int[]
-      ) AS s(indicator_raw_id, period_id)
-        ON dt.indicator_raw_id = s.indicator_raw_id AND dt.period_id = s.period_id
-      WHERE dt.facility_id = ANY(${fetchedFacilityIds}::text[])
-      GROUP BY dt.indicator_raw_id, dt.period_id
-    `;
-
-    const data: Dhis2ScopedDeletionPreviewItem[] = rows.map((r) => ({
-      indicatorRawId: r.indicator_raw_id,
-      periodId: r.period_id,
-      rowsToRemove: r.n,
-    }));
-
-    return { success: true, data };
-  });
-}
-
 export async function updateDatasetUploadAttempt_Step4Integrate(
   mainDb: Sql,
   onComplete?: () => void,
@@ -1021,6 +958,7 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
         "This operation is already in progress. Please wait for it to complete."
       );
     }
+    await assertNoRunningDatasetHmisImportRun(mainDb);
 
     // Check if an HMIS worker is already running
     const existingWorker = getWorker("hmis");
@@ -1045,6 +983,21 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
     if (claimed.count === 0) {
       throw new Error(
         "This operation is already in progress or already complete."
+      );
+    }
+
+    // Re-check the run guard AFTER the claim — see the staging claim above.
+    if (await hasRunningDatasetHmisImportRun(mainDb)) {
+      await mainDb`
+        UPDATE dataset_hmis_upload_attempts
+        SET status = ${JSON.stringify({
+          status: "error",
+          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
+        })},
+          status_type = 'error'
+      `;
+      throw new Error(
+        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
       );
     }
 
@@ -1110,23 +1063,34 @@ export async function updateDatasetUploadAttempt_Step4Integrate(
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
+// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
+// Never use for minting a version id.
 export async function getCurrentDatasetHmisMaxVersionId(
   mainDb: Sql
 ): Promise<number | undefined> {
   const maxId = (
     await mainDb<{ max_id: number }[]>`
 SELECT MAX(id) AS max_id FROM dataset_hmis_versions
+WHERE id NOT IN (
+  SELECT version_id FROM dataset_hmis_import_runs
+  WHERE status = 'running' AND version_id IS NOT NULL
+)
 `
   ).at(0)?.max_id;
   return typeof maxId === "number" ? maxId : undefined;
 }
 
+// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
 export async function getCurrentDatasetHmisVersion(
   mainDb: Sql
 ): Promise<DatasetHmisVersion | undefined> {
   const rawDatasetVersion = (
     await mainDb<DBDatasetHmisVersion[]>`
 SELECT * FROM dataset_hmis_versions
+WHERE id NOT IN (
+  SELECT version_id FROM dataset_hmis_import_runs
+  WHERE status = 'running' AND version_id IS NOT NULL
+)
 ORDER BY id DESC
 LIMIT 1
 `

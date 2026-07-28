@@ -67,10 +67,13 @@ class EmbedWidget extends WidgetType {
       () => (
         <div
           class="ui-pad rounded border"
+          // Anchor for peer presence borders (ReportPeerSelectionOverlay) —
+          // the code-pane counterpart of the preview's data-embed-id divs.
+          data-embed-id={this.id}
           classList={{
             "border-primary border-2":
               this.resolver.getSelectedId() === this.id,
-            "border-base-300 hover:border-primary":
+            "hover:border-primary":
               this.resolver.getSelectedId() !== this.id,
           }}
         >

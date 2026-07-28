@@ -11,6 +11,10 @@ import type {
   DisplayRegistry,
   MessageStyle,
 } from "../_core/types.ts";
+import {
+  ApprovalDecisionRenderer,
+  ApprovalPendingRenderer,
+} from "./_renderers/approval_renderer.tsx";
 import { AssistantCompletedTextRenderer } from "./_renderers/assistant_completed_text_renderer.tsx";
 import { AssistantStreamingTextRenderer } from "./_renderers/assistant_streaming_text_renderer.tsx";
 import { DefaultRenderer } from "./_renderers/default_renderer.tsx";
@@ -28,9 +32,18 @@ type Props = {
   isStreaming?: boolean;
   currentStreamingText?: string | undefined;
   serverToolLabel?: string | undefined;
+  // Queued-but-unsent user texts, rendered as a derived tail below the
+  // display items — they come straight from the conversation's queue signal,
+  // so clearing the queue clears the bubbles by construction and nothing
+  // unsent can persist.
+  queuedTexts?: string[];
   customRenderers?: DisplayRegistry;
   fallbackContent?: Component;
   toolRegistry: ToolRegistry;
+  // Resolves the ACTIVE conversation's pending approval decision (Feature
+  // 4). The card is a pure view — this callback is a no-op once the
+  // decision is already resolved.
+  onApprovalDecide?: (accepted: boolean, alwaysThisSession?: boolean) => void;
   userMessageStyle?: MessageStyle;
   assistantMessageStyle?: MessageStyle;
   markdownStyle?: CustomMarkdownStyleOptions;
@@ -89,6 +102,19 @@ export function MessageList(p: Props) {
         const Renderer = registry.thinkingSummary ?? ThinkingSummaryRenderer;
         return <Renderer item={item} />;
       }
+      case "approval_pending": {
+        const Renderer = registry.approvalPending ?? ApprovalPendingRenderer;
+        return (
+          <Renderer
+            item={item}
+            onDecide={p.onApprovalDecide ?? (() => {})}
+          />
+        );
+      }
+      case "approval_decision": {
+        const Renderer = registry.approvalDecision ?? ApprovalDecisionRenderer;
+        return <Renderer item={item} />;
+      }
       case "tool_display": {
         const toolWithMetadata = p.toolRegistry.get(item.toolName);
         if (toolWithMetadata?.metadata.displayComponent) {
@@ -112,7 +138,8 @@ export function MessageList(p: Props) {
   return (
     <div class="ui-gap flex flex-col">
       <Show
-        when={p.displayItems.length > 0 || p.isStreaming}
+        when={p.displayItems.length > 0 || p.isStreaming ||
+          (p.queuedTexts?.length ?? 0) > 0}
         fallback={p.fallbackContent ? p.fallbackContent({}) : null}
       >
         <For each={regularItems()}>{(item) => renderItem(item)}</For>
@@ -134,7 +161,7 @@ export function MessageList(p: Props) {
             })()}
           </Match>
           <Match when={p.serverToolLabel}>
-            <div class="text-sm text-neutral italic">
+            <div class="text-base-content-muted text-sm italic">
               <SpinningCursor class="mr-1 inline-block" />
               {p.serverToolLabel}
             </div>
@@ -143,7 +170,7 @@ export function MessageList(p: Props) {
             when={(p.isStreaming || p.isLoading) &&
               toolInProgressItems().length === 0}
           >
-            <div class="text-sm text-neutral italic">
+            <div class="text-base-content-muted text-sm italic">
               <SpinningCursor class="mr-1 inline-block" />
               Thinking...
             </div>
@@ -151,6 +178,10 @@ export function MessageList(p: Props) {
         </Switch>
 
         <For each={toolInProgressItems()}>{(item) => renderItem(item)}</For>
+
+        <For each={p.queuedTexts ?? []}>
+          {(text) => renderItem({ type: "user_text", text } as DisplayItem)}
+        </For>
       </Show>
     </div>
   );

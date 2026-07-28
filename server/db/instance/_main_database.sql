@@ -360,15 +360,99 @@ CREATE INDEX idx_dataset_hmis_facility_period ON dataset_hmis(facility_id, perio
 CREATE INDEX idx_dataset_hmis_indicator_id ON dataset_hmis(indicator_raw_id);
 CREATE INDEX idx_dataset_hmis_period_id ON dataset_hmis(period_id);
 
+-- Import ledger: latest import state per (raw indicator, month). Written
+-- inside every integration and deletion transaction, so it can never disagree
+-- with dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+CREATE TABLE dataset_hmis_import_ledger (
+  indicator_raw_id text NOT NULL REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
+  period_id integer NOT NULL,
+  n_records integer NOT NULL,
+  sum_count bigint NOT NULL,
+  source text NOT NULL CHECK (source IN ('dhis2', 'csv', 'backfill')),
+  status text NOT NULL CHECK (status IN ('ready', 'error')),
+  error text,
+  imported_at timestamptz,
+  version_id integer REFERENCES dataset_hmis_versions(id),
+  PRIMARY KEY (indicator_raw_id, period_id)
+);
+
+-- DHIS2 import runs: one row per run of the per-pair fetch+integrate worker
+-- (see server/db/instance/dataset_hmis_import_runs.ts). Per-pair outcomes live
+-- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation.
+CREATE TABLE dataset_hmis_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  trigger text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
+  triggered_by text,
+  dhis2_url text NOT NULL,
+  selection text NOT NULL,
+  status text NOT NULL CHECK (status IN ('queued', 'running', 'complete', 'error', 'cancelled')),
+  error text,
+  total_pairs integer NOT NULL DEFAULT 0,
+  succeeded_pairs integer NOT NULL DEFAULT 0,
+  failed_pairs integer NOT NULL DEFAULT 0,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  version_id integer REFERENCES dataset_hmis_versions(id),
+  progress text,
+  run_stats text
+);
+
+-- At most one run can be in flight: the INSERT of a 'running' row is the
+-- atomic concurrency claim for launching a run.
+CREATE UNIQUE INDEX idx_dataset_hmis_import_runs_single_running
+  ON dataset_hmis_import_runs ((true)) WHERE status = 'running';
+
+-- Stored instance DHIS2 credentials (PLAN_DHIS2_CREDENTIAL_STORE_
+-- CONSOLIDATION Phase 1): single row, shared by every DHIS2 flow (structure,
+-- indicators, geojson, HMIS data). Password encrypted at rest with a key
+-- from the DHIS2_CREDENTIALS_ENCRYPTION_KEY env var (never in the DB);
+-- decrypted server-side only at fetch time
+-- (see server/db/instance/instance_dhis2_credentials.ts).
+CREATE TABLE instance_dhis2_credentials (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  url text NOT NULL,
+  username text NOT NULL,
+  password_encrypted text NOT NULL,
+  updated_by text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): one-shot +
+-- recurring rows fired by the ~60 s scheduler tick
+-- (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
+-- selection is a rolling window JSON ({ rawIndicatorIds, monthsBack })
+-- resolved at fire time; last_fired_at is the last HANDLED occurrence — the
+-- tick's compare-and-set idempotency token.
+CREATE TABLE dataset_hmis_scheduled_imports (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  kind text NOT NULL CHECK (kind IN ('one_shot', 'recurring')),
+  enabled boolean NOT NULL,
+  selection text NOT NULL,
+  run_at timestamptz,
+  -- Recurring only: Dhis2ScheduleRecurrence JSON (daily / weekly / monthly).
+  recurrence text,
+  created_by text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  -- Stamped on create/enable/edit; occurrences before it are never due
+  -- (no phantom first fire, no false 'missed' — review finding 1).
+  armed_at timestamptz NOT NULL DEFAULT now(),
+  last_fired_at timestamptz,
+  last_outcome text CHECK (last_outcome IN ('launched', 'refused', 'missed')),
+  last_error text,
+  last_run_id integer REFERENCES dataset_hmis_import_runs(id) ON DELETE SET NULL
+);
+
+-- The CSV import wizard's step-config + status state (single row). DHIS2
+-- imports do not use this table — they are runs (dataset_hmis_import_runs).
 CREATE TABLE dataset_hmis_upload_attempts (
   id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
   date_started text NOT NULL,
   step integer NOT NULL,
   status text NOT NULL,
   status_type text NOT NULL,  -- Simple status: configuring, staging, staged, integrating, error
-  source_type text,  -- csv or dhis2 (nullable until step 0 is completed)
-  step_1_result text,  -- CSV upload OR DHIS2 confirmation
-  step_2_result text,  -- Mappings OR DHIS2 selection
+  source_type text,  -- csv (nullable until step 0 is completed)
+  step_1_result text,  -- CSV upload details
+  step_2_result text,  -- Column mappings
   step_3_result text   -- Staging result
 );
 

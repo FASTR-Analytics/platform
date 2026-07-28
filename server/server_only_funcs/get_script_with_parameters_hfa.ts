@@ -4,7 +4,10 @@ import type {
   ModuleConfigSelections,
   ModuleDefinitionInstalled,
 } from "lib";
-import { serialiseMultiMembershipValues } from "lib";
+import {
+  normalizeRLogicalOperators,
+  serialiseMultiMembershipValues,
+} from "lib";
 import {
   extractDependenciesFromCode,
   buildUnionDependencyGraph,
@@ -59,16 +62,31 @@ function rMembership(codes: string[]): string | undefined {
   return `%in% c(${codes.join(", ")})`;
 }
 
+// `NA %in% c(1, 2)` is FALSE, not NA, so an authored `x %in% c(...)` would read
+// a missing answer as a determinate "no" once the indicator is gated on its
+// result. Bound scoped to the indicator expression, so base `%in%` is untouched
+// everywhere else — including the `replace()` calls in the bindings themselves,
+// whose arguments evaluate in the calling environment.
+const SAFE_IN_BINDING =
+  "    `%in%` = function(x, table) ifelse(is.na(x), NA, base::`%in%`(x, table))";
+
+// Sentinel codes (-99 / -999999 / refusal codes) are ordinary numbers in the
+// data, so the authored expression reads them as determinate answers. Bind
+// NA-ified copies of the referenced variables scoped to that expression rather
+// than mutating the columns: the response-status expression downstream still
+// needs the raw values, and the sentinel set varies per indicator.
+//
 // -999999 (numeric don't-know) is always missing; select don't-know (-99) is
 // missing unless the DONT_KNOW_TREATMENT parameter says to treat it as "No"
-// for binary indicators, in which case it falls through to the indicator's
-// positive test and fails it item-by-item (see PLAN_HFA_FEATURES.md).
-function generateMissingnessCheck(
+// for binary indicators, in which case it stays in the data and fails the
+// indicator's positive test item-by-item (see PLAN_HFA_FEATURES.md).
+function buildSentinelBindings(
   qids: string[],
   includeDontKnow: boolean,
   sentinelMap: Map<string, VarSentinels>,
-): string {
-  const missingChecks = qids.map((varName) => {
+): string[] {
+  const bindings: string[] = [];
+  for (const varName of qids) {
     const entry = sentinelMap.get(varName);
     let codes: string[];
     if (entry) {
@@ -80,19 +98,14 @@ function generateMissingnessCheck(
     } else {
       codes = includeDontKnow ? ["-99", "-999999"] : ["-999999"];
     }
-    const membership = rMembership(codes);
-    return membership
-      ? `is.na(${varName}) | ${varName} ${membership}`
-      : `is.na(${varName})`;
-  });
-
-  if (missingChecks.length === 0) {
-    return "FALSE";
-  } else if (missingChecks.length === 1) {
-    return missingChecks[0];
-  } else {
-    return missingChecks.join(" | ");
+    if (codes.length === 0) {
+      continue;
+    }
+    bindings.push(
+      `    ${varName} = replace(${varName}, ${varName} %in% c(${codes.join(", ")}), NA_real_)`,
+    );
   }
+  return bindings;
 }
 
 // Response-status per-qid checks (policy-independent classification). Fall back
@@ -132,6 +145,14 @@ function statusFilterUnknownCheck(
   return membership ? `is.na(${qid}) | ${qid} ${membership}` : `is.na(${qid})`;
 }
 
+// Gate the indicator on the RESULT of the authored expression, not on its
+// inputs: R's `&`/`|` are three-valued, so the expression itself knows when a
+// missing input cannot change the answer (a skip-logic "." on the follow-up
+// question still leaves a determinate 0). The sentinel bindings wrap the whole
+// per-time-point case_when, so they are emitted once per indicator over the
+// union of the variables its snippets reference. Filter-variable missingness
+// stays an explicit branch — `!(NA)` matches nothing in case_when and would
+// otherwise fall through to the value branch.
 function buildPerTimePointMutateExpression(
   indicator: HfaIndicator,
   codeSnippets: HfaIndicatorCode[],
@@ -142,76 +163,66 @@ function buildPerTimePointMutateExpression(
 ): string {
   const timePointBranches: string[] = [];
   const includeDontKnow = indicator.type === "numeric" || !dontKnowAsNo;
+  const boundQids = new Set<string>();
 
   for (const snippet of codeSnippets) {
-    const rCode = snippet.rCode.trim();
+    const rCode = normalizeRLogicalOperators(snippet.rCode.trim());
     if (!rCode) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
 
-    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const rFilterCode = normalizeRLogicalOperators(
+      snippet.rFilterCode?.trim() ?? "",
+    );
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,
       allIndicatorVarNames,
       knownDatasetVariables,
     );
-    const missingnessCheck = generateMissingnessCheck(
-      deps.qids,
-      includeDontKnow,
-      sentinelMap,
-    );
+    for (const qid of deps.qids) {
+      boundQids.add(qid);
+    }
+
+    if (rFilterCode) {
+      timePointBranches.push(
+        `    time_point == "${timePoint}" & (is.na(${rFilterCode}) | !(${rFilterCode})) ~ NA_real_`,
+      );
+    }
 
     if (indicator.type === "numeric") {
-      if (rFilterCode) {
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & !(${rFilterCode}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" ~ ${rCode}`,
-        );
-      } else {
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" ~ ${rCode}`,
-        );
-      }
+      // A numeric expression evaluating to NA already returns NA, so the
+      // result gate is implicit in the value branch.
+      timePointBranches.push(
+        `    time_point == "${timePoint}" ~ ${rCode}`,
+      );
     } else {
-      if (rFilterCode) {
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & !(${rFilterCode}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" ~ 0`,
-        );
-      } else {
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${missingnessCheck}) ~ NA_real_`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
-        );
-        timePointBranches.push(
-          `    time_point == "${timePoint}" ~ 0`,
-        );
-      }
+      timePointBranches.push(
+        `    time_point == "${timePoint}" & is.na(${rCode}) ~ NA_real_`,
+      );
+      timePointBranches.push(
+        `    time_point == "${timePoint}" & (${rCode}) ~ 1`,
+      );
+      timePointBranches.push(
+        `    time_point == "${timePoint}" ~ 0`,
+      );
     }
   }
 
   timePointBranches.push("    TRUE ~ NA_real_");
 
-  return `case_when(\n${timePointBranches.join(",\n")}\n  )`;
+  const bindings = [
+    SAFE_IN_BINDING,
+    ...buildSentinelBindings(
+      [...boundQids].sort(),
+      includeDontKnow,
+      sentinelMap,
+    ),
+  ];
+
+  return `with(list(\n${bindings.join(",\n")}\n  ), case_when(\n${
+    timePointBranches.join(",\n")
+  }\n  ))`;
 }
 
 // Response-status companion to the value expression: classifies each
@@ -231,7 +242,9 @@ function buildPerTimePointStatusExpression(
     if (!rCode) continue;
 
     const timePoint = snippet.timePoint.replace(/"/g, '\\"');
-    const rFilterCode = snippet.rFilterCode?.trim() ?? "";
+    const rFilterCode = normalizeRLogicalOperators(
+      snippet.rFilterCode?.trim() ?? "",
+    );
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,

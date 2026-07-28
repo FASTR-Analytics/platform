@@ -1,4 +1,4 @@
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import { INFO_TOPICS } from "../../info_catalog";
 
@@ -27,7 +27,7 @@ export function getToolsForInfo() {
         }
         const match = INFO_TOPICS.find((t) => t.topic === input.topic);
         if (!match) {
-          throw new Error(
+          throw new AIToolFailure(
             `Unknown info topic "${input.topic}". Available: ${INFO_TOPICS.map(
               (t) => t.topic,
             ).join(", ")}.`,
@@ -37,7 +37,7 @@ export function getToolsForInfo() {
           cache: "no-cache",
         });
         if (!response.ok) {
-          throw new Error(
+          throw new AIToolFailure(
             `Could not load info "${input.topic}" (${response.status}).`,
           );
         }
@@ -51,6 +51,7 @@ export function getToolsForInfo() {
         input.topic
           ? `Loaded "${input.topic}" reference`
           : "Listed reference topics",
+      kind: "read",
     }),
   ];
 }

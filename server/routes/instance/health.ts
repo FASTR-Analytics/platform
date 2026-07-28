@@ -17,6 +17,7 @@ import {
   _IS_PRODUCTION,
   _SERVER_VERSION,
   _START_TIME,
+  _STATUS_API_KEY,
   _WEEKLY_TOKEN_LIMIT,
 } from "../../exposed_env_vars.ts";
 
@@ -260,6 +261,9 @@ LIMIT ${limit}
 });
 
 routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
+  if (c.req.header("status-api-key") !== _STATUS_API_KEY) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   await mainDb`SELECT pg_stat_statements_reset()`;
   return c.json({ reset: true, serverTime: new Date().toISOString() });

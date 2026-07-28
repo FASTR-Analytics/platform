@@ -53,6 +53,7 @@
      `text-*` utilities from; redefining any of them changes every
      `text-xs`, `text-sm`, etc. usage across the app. */
 
+  --text-*: initial;
   --text-xs: 0.75rem; /* text-xs */
   --text-sm: 0.875rem; /* text-sm */
   --text-base: 1rem; /* text-base */
@@ -69,13 +70,14 @@
      on top of it. `base-*` is the app surface; `base-content` is the
      default foreground on that surface. */
 
+  --color-*: initial;
   --color-transparent: transparent;
   --color-black: #000716;
   --color-white: #ffffff;
 
   --color-base-100: #ffffff;
   --color-base-200: #f2f2f2;
-  --color-base-300: #cacaca;
+  --color-base-300: #e4e4e4;
   --color-base-content: #2a2a2a;
 
   --color-primary: #0e706c;
@@ -94,11 +96,101 @@
   --color-danger-content: #ffffff;
 
   /* ============================================= */
+  /* Derived state tokens (the designed core)      */
+  /* ============================================= */
+  /* Every visible state is a named, overridable decision. Defaults are
+     color-mix() derivations of the base tokens above, so a single-point
+     override (e.g. --color-primary) flows through every state and dark
+     themes get the correct direction automatically — but each token can
+     be pinned independently per app. */
+
+  /* Intent state scales. Solid fills are a shade scale, not a layer:
+     they darken on hover/press regardless of theme direction (literal
+     black is deliberate — the scale must not re-derive if an app
+     overrides --color-black). Content color on -hover/-active surfaces
+     remains --color-{i}-content. `-subtle` is an opaque wash for
+     non-interactive communication — callouts, badges, selected-state
+     highlights; `-subtle-content` is the text/icon color on it.
+     `-subtle` is non-interactive by definition: never a hover target,
+     never a hover destination, never a click target's rest surface (a
+     thing that looks like a callout must not carry an onClick — put a
+     real control inside or beside it). Never use it as a border color.
+     The one exception is the pinned surface of a *selected* selection
+     control — see DOC_UI_COLOR_AND_STATE.md. */
+  --color-primary-hover: color-mix(in oklab, var(--color-primary), black 8%);
+  --color-primary-active: color-mix(in oklab, var(--color-primary), black 14%);
+  --color-primary-subtle: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+  --color-primary-subtle-content: color-mix(in oklab, var(--color-primary) 70%, var(--color-base-content));
+
+  --color-neutral-hover: color-mix(in oklab, var(--color-neutral), black 8%);
+  --color-neutral-active: color-mix(in oklab, var(--color-neutral), black 14%);
+  --color-neutral-subtle: color-mix(in oklab, var(--color-neutral) 10%, var(--color-base-100));
+  --color-neutral-subtle-content: color-mix(in oklab, var(--color-neutral) 70%, var(--color-base-content));
+
+  --color-success-hover: color-mix(in oklab, var(--color-success), black 8%);
+  --color-success-active: color-mix(in oklab, var(--color-success), black 14%);
+  --color-success-subtle: color-mix(in oklab, var(--color-success) 10%, var(--color-base-100));
+  --color-success-subtle-content: color-mix(in oklab, var(--color-success) 70%, var(--color-base-content));
+
+  --color-warning-hover: color-mix(in oklab, var(--color-warning), black 8%);
+  --color-warning-active: color-mix(in oklab, var(--color-warning), black 14%);
+  --color-warning-subtle: color-mix(in oklab, var(--color-warning) 10%, var(--color-base-100));
+  --color-warning-subtle-content: color-mix(in oklab, var(--color-warning) 70%, var(--color-base-content));
+
+  --color-danger-hover: color-mix(in oklab, var(--color-danger), black 8%);
+  --color-danger-active: color-mix(in oklab, var(--color-danger), black 14%);
+  --color-danger-subtle: color-mix(in oklab, var(--color-danger) 10%, var(--color-base-100));
+  --color-danger-subtle-content: color-mix(in oklab, var(--color-danger) 70%, var(--color-base-content));
+
+  /* Foreground ramp — three steps: base-content, muted, faint. Muted:
+     secondary text (sublabels, captions, placeholders, empty states,
+     metadata). Faint: the next step down — still legible, just quieter.
+     Disabled is opacity-40, not a color. */
+  --color-base-content-muted: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
+  --color-base-content-faint: color-mix(in oklab, var(--color-base-content) 50%, var(--color-base-100));
+
+  /* Quiet-surface state pairs — hover/pressed surfaces of quiet
+     interactives, per surface level (base-100/200/300 is a true
+     three-step surface ramp; each level gets its pair). Mixing toward
+     base-content makes the defaults lighten on dark themes. */
+  --color-base-100-hover: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 6%);
+  --color-base-100-active: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 10%);
+  --color-base-200-hover: color-mix(in oklab, var(--color-base-200), var(--color-base-content) 6%);
+  --color-base-200-active: color-mix(in oklab, var(--color-base-200), var(--color-base-content) 10%);
+  --color-base-300-hover: color-mix(in oklab, var(--color-base-300), var(--color-base-content) 6%);
+  --color-base-300-active: color-mix(in oklab, var(--color-base-300), var(--color-base-content) 10%);
+
+  /* Focus, border, scrim */
+  --color-focus: var(--color-primary); /* the one focus-ring color */
+  --color-border: #cacaca; /* the one border color — standalone, detached from the surface ramp. Border-strength fills (dividers, ticks, scrollbar thumbs) use it too; surface-strength fills (tracks, chips) stay base-300 */
+  --color-scrim: rgb(0 0 0 / 0.3); /* modal backdrop — the one sanctioned alpha veil */
+
+  /* ============================================= */
   /* Rect radius */
   /* ============================================= */
+  /* The scale is wiped so off-token classes (rounded-md, rounded-lg…)
+     are visible no-ops instead of silently dodging --radius. */
 
+  --radius-*: initial;
   --radius: 4px; /* rounded */
   --radius-full: 9999px; /* rounded-full */
+
+  /* ============================================= */
+  /* Elevation */
+  /* ============================================= */
+  /* Floating surfaces only (popover, tooltip, modal, picker panels).
+     In-flow containers are border-only, never shadowed. */
+
+  --shadow-*: initial;
+  --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* was shadow-lg; the default shadow scale is wiped — floating surfaces are the only sanctioned elevation */
+
+  /* ============================================= */
+  /* Motion */
+  /* ============================================= */
+
+  --ui-dur-fast: 100ms; /* state feedback */
+  --ui-dur-base: 200ms; /* reveals */
+  --ui-ease: cubic-bezier(0.2, 0, 0, 1); /* the one easing */
 
   /* ============================================= */
   /* Spacing density — pad / gap / spy × sm / default / lg */
@@ -136,19 +228,209 @@
 
      Form text sizes default to the Tailwind text scale via `var()` so
      they track body-text size changes automatically. Override either
-     explicitly to decouple form text from body text. */
+     explicitly to decouple form text from body text.
+
+     --ui-form-content-h is the authoring knob for a control's content
+     height, as a ratio of the control's own text size. It is shared by
+     both sizes: --ui-form-content-h-em pre-multiplies the unit on, and
+     `em` resolves against the using element's font-size, so one var
+     already rescales for sm. Everything else derives from it —
+     --ui-form-line-height(-sm) and --ui-form-height(-sm). Override the
+     ratio, not the derivations; overriding a derived var directly
+     desyncs a control from anything sized off --ui-form-height. */
+
+  --ui-form-content-h: 1.25;
+  --ui-form-content-h-em: calc(var(--ui-form-content-h) * 1em);
 
   --ui-form-pad-x: 0.75rem; /* px-3 */
   --ui-form-pad-y: 0.5rem; /* py-2 */
   --ui-form-text-size: var(--text-sm); /* text-sm */
-  --ui-form-line-height: 1.25; /* leading-tight */
+  --ui-form-line-height: var(--ui-form-content-h);
+  --ui-form-height: calc(
+    2 * var(--ui-form-pad-y) + var(--ui-form-content-h) *
+      var(--ui-form-text-size) + 2px
+  );
   --ui-icon-only-correction: -0.25rem; /* -mx-1 */
 
   --ui-form-pad-sm-x: 0.5rem; /* px-2 */
   --ui-form-pad-sm-y: 0.25rem; /* py-1 */
   --ui-form-text-size-sm: var(--text-xs); /* text-xs */
-  --ui-form-line-height-sm: 1.25; /* leading-tight */
+  --ui-form-line-height-sm: var(--ui-form-content-h);
+  --ui-form-height-sm: calc(
+    2 * var(--ui-form-pad-sm-y) + var(--ui-form-content-h) *
+      var(--ui-form-text-size-sm) + 2px
+  );
   --ui-icon-only-correction-sm: -0.125rem; /* -mx-0.5 */
+
+  /* ============================================= */
+  /* Heading bar surface                           */
+  /* ============================================= */
+  /* THE tonal header surface — one answer for the whole app, so no call site
+     ever picks between base-200 and base-300. `<HeadingBar tonal>` wears it;
+     a HeadingBar without it is flush and draws a border instead. Retune both
+     together: the fg is not derived from the bg. */
+
+  --ui-heading-bar-tonal-bg: var(--color-base-200);
+  --ui-heading-bar-tonal-fg: var(--color-base-content);
+
+  /* ============================================= */
+  /* App-level markdown (--md-*)                   */
+  /* ============================================= */
+  /* Defaults for HTML-rendered markdown (MARKDOWN_BASE_STYLES). Contract:
+     when no style is passed to MarkdownPresentation / the AI chat
+     renderers, deriveMarkdownCssVars() emits no inline vars and these
+     defaults apply — markdown looks like the app (fonts/colors chain to
+     the app tokens above; text colors are currentColor so wrappers like
+     `text-primary` flow in). Passing any style object (use
+     DOCUMENT_MARKDOWN_DEFAULTS for "model defaults") projects the full
+     document style model as inline vars, overriding all of these —
+     markdown mirrors what the model renders to canvas/PDF. Values mirror
+     the document model's defaults (_004_markdown_style) except font
+     family (app tokens), text colors (currentColor), link color
+     (--color-primary), and code family (--font-mono). Zero margins keep
+     units (0em) — they feed Tailwind arbitrary-value utilities. */
+
+  /* paragraph (size comes from surrounding text, e.g. the bubble's text-sm) */
+  --md-p-family: var(--font-sans);
+  --md-p-weight: var(--font-weight-400);
+  --md-p-style: normal;
+  --md-p-lh: 1.2;
+  --md-p-color: currentColor;
+  --md-p-mt: 1em;
+  --md-p-mb: 0em;
+
+  /* h1–h3: bold, sized; h4–h6: mirror model (weight 400, 1em) */
+  --md-h1-family: var(--font-sans);
+  --md-h1-weight: var(--font-weight-700);
+  --md-h1-style: normal;
+  --md-h1-size: 1.5em;
+  --md-h1-lh: 1.2;
+  --md-h1-color: currentColor;
+  --md-h1-mt: 0.9em;
+  --md-h1-mb: 0em;
+
+  --md-h2-family: var(--font-sans);
+  --md-h2-weight: var(--font-weight-700);
+  --md-h2-style: normal;
+  --md-h2-size: 1.25em;
+  --md-h2-lh: 1.2;
+  --md-h2-color: currentColor;
+  --md-h2-mt: 0.95em;
+  --md-h2-mb: 0em;
+
+  --md-h3-family: var(--font-sans);
+  --md-h3-weight: var(--font-weight-700);
+  --md-h3-style: normal;
+  --md-h3-size: 1.125em;
+  --md-h3-lh: 1.2;
+  --md-h3-color: currentColor;
+  --md-h3-mt: 1em;
+  --md-h3-mb: 0em;
+
+  --md-h4-family: var(--font-sans);
+  --md-h4-weight: var(--font-weight-400);
+  --md-h4-style: normal;
+  --md-h4-size: 1em;
+  --md-h4-lh: 1.2;
+  --md-h4-color: currentColor;
+  --md-h4-mt: 1em;
+  --md-h4-mb: 0em;
+
+  --md-h5-family: var(--font-sans);
+  --md-h5-weight: var(--font-weight-400);
+  --md-h5-style: normal;
+  --md-h5-size: 1em;
+  --md-h5-lh: 1.2;
+  --md-h5-color: currentColor;
+  --md-h5-mt: 1em;
+  --md-h5-mb: 0em;
+
+  --md-h6-family: var(--font-sans);
+  --md-h6-weight: var(--font-weight-400);
+  --md-h6-style: normal;
+  --md-h6-size: 1em;
+  --md-h6-lh: 1.2;
+  --md-h6-color: currentColor;
+  --md-h6-mt: 1em;
+  --md-h6-mb: 0em;
+
+  /* lists */
+  --md-list-family: var(--font-sans);
+  --md-list-weight: var(--font-weight-400);
+  --md-list-style: normal;
+  --md-list-size: 1em;
+  --md-list-lh: 1.2;
+  --md-list-color: currentColor;
+  --md-list-mt: 0.5em;
+  --md-list-mb: 0.5em;
+  --md-bullet-indent: 1.714em;
+  --md-bullet-gap: 0.5em;
+  --md-numbered-indent: 1.714em;
+  --md-numbered-gap: 0.5em;
+
+  /* code — app mono font is a deliberate improvement over the model's
+     "inherit base family" default */
+  --md-code-family: var(--font-mono);
+  --md-code-weight: var(--font-weight-400);
+  --md-code-style: normal;
+  --md-code-size: 1em;
+  --md-code-lh: 1.2;
+  --md-code-color: currentColor;
+  --md-code-bg: var(--color-base-200);
+  --md-code-px: 1em;
+  --md-code-py: 1em;
+  --md-code-my: 1.5em;
+
+  /* blockquote */
+  --md-bq-family: var(--font-sans);
+  --md-bq-weight: var(--font-weight-400);
+  --md-bq-style: normal;
+  --md-bq-size: 1em;
+  --md-bq-lh: 1.2;
+  --md-bq-color: currentColor;
+  --md-bq-border-width: 3px;
+  --md-bq-border-color: var(--color-base-content);
+  --md-bq-pt: 0.25em;
+  --md-bq-pb: 0.25em;
+  --md-bq-pl: 0.75em;
+  --md-bq-pr: 0em;
+  --md-bq-gap: 0.5em;
+  --md-bq-my: 1.5em;
+
+  /* link — token substitution for the model's #0066cc */
+  --md-link-color: var(--color-primary);
+
+  /* image / table / hr / math */
+  --md-img-mt: 1em;
+  --md-img-mb: 1.5em;
+  --md-table-mt: 1em;
+  --md-table-mb: 1.5em;
+  --md-table-border-width: 1px;
+  --md-table-border-color: var(--color-base-300);
+  --md-table-cell-px: 0.5em;
+  --md-table-cell-py: 0.25em;
+  --md-table-header-bg: var(--color-base-200);
+  --md-hr-my: 1.5em;
+  --md-hr-color: var(--color-base-300);
+  --md-math-align: center;
+}
+
+@layer base {
+  /* Tailwind v4's preflight defaults bare borders to currentColor, so an
+     uncolored `border-b` renders in the text color — a dark border nobody
+     chose. Default uncolored borders to the border token; sites that want
+     a dark border must say `border-base-content` explicitly. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
+  /* Native placeholders otherwise render UA-default gray — an unchosen
+     color, and wrong on dark themes. */
+  ::placeholder {
+    color: var(--color-base-content-muted);
+  }
 }
 
 /* =============================================================
@@ -268,6 +550,15 @@
   margin-inline: var(--ui-icon-only-correction-sm);
 }
 
+/* ---- Heading bar surface ---- */
+/* The one tonal header surface. Worn by <HeadingBar tonal>; retune the two
+   vars above to move every tonal header in the app at once. */
+
+@utility ui-heading-bar-tonal {
+  background-color: var(--ui-heading-bar-tonal-bg);
+  color: var(--ui-heading-bar-tonal-fg);
+}
+
 @layer components {
   /* =============================================================
      Component-layer classes.
@@ -279,27 +570,66 @@
          Apps shouldn't depend on these — they may change.
      ============================================================= */
 
-  /* ---- Hoverable — public. Adds hover/active states to any element ---- */
-  .ui-hoverable {
-    @apply relative cursor-pointer select-none overflow-clip;
+  /* ---- Hoverable family — public. One bundle per surface/intent token:
+     affordance (cursor + select-none) + rest surface + its designed
+     hover/active pair. THE single state pattern for interactive opaque
+     surfaces — the successor to both the old ui-hoverable veil (a
+     computed filter over arbitrary surfaces — removed) and the interim
+     explicit utility pairs. Component-layer class: never stack a
+     utility bg-* on the same element (it wins over these states) —
+     where a selected arm pins its own surface, scope the family class
+     to the non-selected classList arm instead. Outline-style
+     interactives get their appearance from the stateless
+     ui-outline-{intent} skins below and their states from the family
+     class named by their onBackground token. ---- */
+  .ui-hoverable-base-100,
+  .ui-hoverable-base-200,
+  .ui-hoverable-base-300,
+  .ui-hoverable-primary,
+  .ui-hoverable-neutral,
+  .ui-hoverable-success,
+  .ui-hoverable-warning,
+  .ui-hoverable-danger,
+  .ui-hoverable-base-content {
+    @apply cursor-pointer select-none;
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
   }
 
-  .ui-hoverable::before {
-    @apply absolute inset-0 block;
-    border-radius: inherit;
-    content: "";
+  .ui-hoverable-base-100 {
+    @apply bg-base-100 hover:bg-base-100-hover active:bg-base-100-active;
   }
-
-  .ui-hoverable:hover::before {
-    backdrop-filter: brightness(92%);
+  .ui-hoverable-base-200 {
+    @apply bg-base-200 hover:bg-base-200-hover active:bg-base-200-active;
   }
-
-  .ui-hoverable:active::before {
-    backdrop-filter: brightness(86%);
+  .ui-hoverable-base-300 {
+    @apply bg-base-300 hover:bg-base-300-hover active:bg-base-300-active;
   }
-
-  .ui-hoverable > *:not(.absolute) {
-    @apply relative;
+  .ui-hoverable-primary {
+    @apply bg-primary hover:bg-primary-hover active:bg-primary-active;
+  }
+  .ui-hoverable-neutral {
+    @apply bg-neutral hover:bg-neutral-hover active:bg-neutral-active;
+  }
+  .ui-hoverable-success {
+    @apply bg-success hover:bg-success-hover active:bg-success-active;
+  }
+  .ui-hoverable-warning {
+    @apply bg-warning hover:bg-warning-hover active:bg-warning-active;
+  }
+  .ui-hoverable-danger {
+    @apply bg-danger hover:bg-danger-hover active:bg-danger-active;
+  }
+  /* base-content has no -hover/-active tokens (they would misread as
+     text-ramp tokens) — its lighten-toward-base-100 states live here,
+     the family member's own definition, not an exception elsewhere. */
+  .ui-hoverable-base-content {
+    @apply bg-base-content;
+  }
+  .ui-hoverable-base-content:hover {
+    background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 8%);
+  }
+  .ui-hoverable-base-content:active {
+    background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 14%);
   }
 
   /* =============================================================
@@ -312,9 +642,13 @@
     @apply pointer-events-none opacity-40;
   }
 
-  /* Focus States */
+  /* Focus States — one focus signal, everywhere: 2px outline in
+     --color-focus with a genuinely transparent 2px gap (outlines don't
+     paint the offset, so there is no offset color to name — the old
+     ring-offset-base-100 painted an unchosen rectangle on non-base-100
+     surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
-    @apply ring-primary ring-offset-base-100 data-[intent=neutral]:focus-visible:ring-neutral data-[intent=success]:focus-visible:ring-success data-[intent=danger]:focus-visible:ring-danger outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+    @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
   }
 
   .ui-never-focusable {
@@ -325,26 +659,82 @@
   /* Intent Color Utilities                        */
   /* ============================================= */
 
-  /* Intent colors for filled components (outline=false) */
-  .ui-intent-fill {
-    @apply data-[outline=false]:bg-primary data-[outline=false]:text-primary-content data-[outline=false]:border-primary;
-    @apply data-[intent=neutral]:data-[outline=false]:bg-neutral data-[intent=neutral]:data-[outline=false]:text-neutral-content data-[intent=neutral]:data-[outline=false]:border-neutral;
-    @apply data-[intent=success]:data-[outline=false]:bg-success data-[intent=success]:data-[outline=false]:text-success-content data-[intent=success]:data-[outline=false]:border-success;
-    @apply data-[intent=danger]:data-[outline=false]:bg-danger data-[intent=danger]:data-[outline=false]:text-danger-content data-[intent=danger]:data-[outline=false]:border-danger;
-    @apply data-[intent=base-content]:data-[outline=false]:bg-base-content data-[intent=base-content]:data-[outline=false]:text-base-100 data-[intent=base-content]:data-[outline=false]:border-base-content;
-    @apply data-[intent=base-100]:data-[outline=false]:bg-base-100 data-[intent=base-100]:data-[outline=false]:text-base-content data-[intent=base-100]:data-[outline=false]:border-base-100;
+  /* Fill skins — pure appearance (bg + content + border per intent), no
+     states, no affordance. One class per intent; components compose
+     `ui-fill-${intent}` from the intent prop (dynamic names are fine —
+     these are handwritten component classes, not scanned utilities).
+     Interactive fills pair this with the matching ui-hoverable-{intent};
+     non-hoverable intent components use the skin alone. */
+  .ui-fill-primary {
+    @apply bg-primary text-primary-content border-primary;
+  }
+  .ui-fill-neutral {
+    @apply bg-neutral text-neutral-content border-neutral;
+  }
+  .ui-fill-success {
+    @apply bg-success text-success-content border-success;
+  }
+  .ui-fill-warning {
+    @apply bg-warning text-warning-content border-warning;
+  }
+  .ui-fill-danger {
+    @apply bg-danger text-danger-content border-danger;
+  }
+  .ui-fill-base-content {
+    @apply bg-base-content text-base-100 border-base-content;
+  }
+  .ui-fill-base-100 {
+    @apply bg-base-100 text-base-content border-base-100;
+  }
+  .ui-fill-base-200 {
+    @apply bg-base-200 text-base-content border-base-200;
+  }
+  .ui-fill-base-300 {
+    @apply bg-base-300 text-base-content border-base-300;
   }
 
-  /* Intent colors for outlined components (outline=true) */
-  .ui-intent-outline {
-    @apply data-[outline=true]:text-primary;
-    @apply data-[intent=neutral]:data-[outline=true]:text-neutral;
-    @apply data-[intent=success]:data-[outline=true]:text-success;
-    @apply data-[intent=danger]:data-[outline=true]:text-danger;
-    @apply data-[intent=base-content]:data-[outline=true]:text-base-content;
-    @apply data-[intent=base-100]:data-[outline=true]:text-base-100;
-    @apply data-[outline=true]:border-[currentColor] data-[outline=true]:bg-transparent;
-    @apply data-[fill-base-100=true]:data-[outline=true]:bg-base-100;
+  /* Outline skins — intent-colored text on a currentColor border. No bg
+     here: an outline Button's rest surface comes from its onBackground
+     family class (the declared backdrop token, painted opaque — which is
+     also what makes it safe over busy content); stateless consumers
+     (Select, Input) have no bg of their own anyway. */
+  .ui-outline-primary,
+  .ui-outline-neutral,
+  .ui-outline-success,
+  .ui-outline-warning,
+  .ui-outline-danger,
+  .ui-outline-base-content,
+  .ui-outline-base-100,
+  .ui-outline-base-200,
+  .ui-outline-base-300 {
+    @apply border-[currentColor];
+  }
+  .ui-outline-primary {
+    @apply text-primary;
+  }
+  .ui-outline-neutral {
+    @apply text-neutral;
+  }
+  .ui-outline-success {
+    @apply text-success;
+  }
+  .ui-outline-warning {
+    @apply text-warning;
+  }
+  .ui-outline-danger {
+    @apply text-danger;
+  }
+  .ui-outline-base-content {
+    @apply text-base-content;
+  }
+  .ui-outline-base-100 {
+    @apply text-base-100;
+  }
+  .ui-outline-base-200 {
+    @apply text-base-200;
+  }
+  .ui-outline-base-300 {
+    @apply text-base-300;
   }
 
   /* ============================================= */
@@ -377,10 +767,10 @@
     @apply outline-none;
   }
   .ui-slider:focus-visible::-webkit-slider-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
   .ui-slider:focus-visible::-moz-range-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
 
   /* Slider Disabled */
@@ -401,11 +791,11 @@
   }
 
   .ui-slider-tick-major {
-    @apply bg-base-300 h-2.5;
+    @apply bg-border h-2.5;
   }
 
   .ui-slider-tick-minor {
-    @apply bg-base-300 h-2 opacity-70;
+    @apply bg-border h-2 opacity-70;
   }
 
   /* Slider Tick Labels */
@@ -476,11 +866,11 @@
   }
   .ui-doubleslider-low:focus-visible::-webkit-slider-thumb,
   .ui-doubleslider-high:focus-visible::-webkit-slider-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
   .ui-doubleslider-low:focus-visible::-moz-range-thumb,
   .ui-doubleslider-high:focus-visible::-moz-range-thumb {
-    @apply ring-primary ring-offset-base-100 ring-2 ring-offset-2;
+    @apply outline-focus outline-2 outline-offset-2;
   }
 
   /* Comparison Slider - extends Double Slider */
@@ -528,10 +918,11 @@
 
   /* Checkbox with intent - unchecked state */
   .ui-checkbox-intent {
-    @apply border-base-300 bg-base-100;
+    @apply bg-base-100;
   }
 
-  /* Checkbox intent colors when checked (follows ui-intent-fill pattern) */
+  /* Checkbox intent colors when checked (data-attr matrix — the checkbox
+     glyph's own skin, kept separate from the ui-fill-{intent} skins) */
   .ui-checkbox-intent:checked {
     @apply bg-primary border-primary;
   }
@@ -541,6 +932,9 @@
   .ui-checkbox-intent:checked[data-intent="success"] {
     @apply bg-success border-success;
   }
+  .ui-checkbox-intent:checked[data-intent="warning"] {
+    @apply bg-warning border-warning;
+  }
   .ui-checkbox-intent:checked[data-intent="danger"] {
     @apply bg-danger border-danger;
   }
@@ -549,6 +943,12 @@
   }
   .ui-checkbox-intent:checked[data-intent="base-100"] {
     @apply bg-base-100 border-base-100;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-200"] {
+    @apply bg-base-200 border-base-200;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-300"] {
+    @apply bg-base-300 border-base-300;
   }
 
   /* Checkmark SVG colors when checkbox is checked with intent */
@@ -561,6 +961,9 @@
   .ui-checkbox-intent:checked[data-intent="success"] ~ svg {
     color: var(--color-success-content) !important;
   }
+  .ui-checkbox-intent:checked[data-intent="warning"] ~ svg {
+    color: var(--color-warning-content) !important;
+  }
   .ui-checkbox-intent:checked[data-intent="danger"] ~ svg {
     color: var(--color-danger-content) !important;
   }
@@ -568,6 +971,12 @@
     color: var(--color-base-100) !important;
   }
   .ui-checkbox-intent:checked[data-intent="base-100"] ~ svg {
+    color: var(--color-base-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-200"] ~ svg {
+    color: var(--color-base-content) !important;
+  }
+  .ui-checkbox-intent:checked[data-intent="base-300"] ~ svg {
     color: var(--color-base-content) !important;
   }
 
@@ -591,6 +1000,11 @@
     margin: 0;
   }
 
+  /* Hide native date/time picker glyph (panther overlays its own icon) */
+  input.ui-native-picker::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
   /* ============================================= */
   /* Scrollbar Utilities                          */
   /* ============================================= */
@@ -602,7 +1016,7 @@
   }
 
   .rounded ::-webkit-scrollbar-thumb {
-    background-color: var(--color-base-300);
+    background-color: var(--color-border);
     border-radius: var(--radius);
   }
 
@@ -611,20 +1025,41 @@
   }
 
   .rounded {
-    scrollbar-color: var(--color-base-300) transparent;
+    scrollbar-color: var(--color-border) transparent;
   }
 
   /* ============================================= */
   /* Typography Utilities                          */
   /* ============================================= */
 
-  /* Text Styles */
+  /* Text Styles — the named type scale. Weights stay 400/700 in the
+     kit; app-added weights are per-app theme extensions. */
   .ui-form-text {
     @apply text-base-content font-400 text-sm leading-tight;
   }
 
+  /* Hero/page-level display text */
+  .ui-text-display {
+    @apply font-700 text-2xl tracking-tight;
+  }
+
+  /* Page/section title (HeadingBar-level) */
+  .ui-text-title {
+    @apply font-700 text-xl;
+  }
+
   .ui-text-heading {
     @apply font-700 text-base-content text-lg;
+  }
+
+  /* Small-caps section label; color stays the caller's */
+  .ui-text-overline {
+    @apply font-700 text-xs uppercase tracking-wide;
+  }
+
+  /* Secondary small text: sublabels, captions, metadata */
+  .ui-text-caption {
+    @apply text-base-content-muted text-xs leading-tight;
   }
 
   .ui-text-small {
@@ -756,6 +1191,12 @@
     position-try-fallbacks: --pm-left, --pm-bottom-end, --pm-top-end;
   }
 
+  /* Pinned popovers choose their side once at open (JS sets data-position) —
+     fallbacks disabled so the panel never flips while open */
+  .ui-popover[data-pinned="true"] {
+    position-try-fallbacks: none;
+  }
+
   /* Sub-menu popover */
   .ui-popover-submenu {
     position: absolute;
@@ -801,14 +1242,14 @@
     background-color: var(--color-base-content);
     color: var(--color-base-100);
     white-space: nowrap;
-    border-radius: 4px;
+    border-radius: var(--radius);
     padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     line-height: 1.25rem;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    box-shadow: var(--shadow-floating);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.15s ease-in-out;
+    transition: opacity var(--ui-dur-fast) var(--ui-ease);
   }
 
   .ui-tooltip-wrapper[data-tooltip]:hover::after {
@@ -857,7 +1298,8 @@
     fill: none;
   }
   .ui-vizgraph-arrowhead {
-    @apply fill-neutral;
+    @apply stroke-neutral;
+    fill: none;
   }
   .ui-vizgraph-node {
     @apply absolute;
@@ -868,6 +1310,6 @@
     border-radius: var(--radius);
   }
   .ui-vizgraph-node-default {
-    @apply bg-base-100 border-base-300 text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
+    @apply bg-base-100 text-base-content flex h-full w-full items-center justify-center rounded border px-2 text-center text-xs;
   }
 }

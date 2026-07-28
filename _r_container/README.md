@@ -4,14 +4,14 @@ Build context for the R image that executes module R scripts.
 
 When a module runs, `server/worker_routines/run_module/run_module_iterator.ts`
 spawns `Rscript` inside this image (prod) or runs `Rscript` on the host (dev).
-See [DOC_MODULE_EXECUTION.md](../DOC_MODULE_EXECUTION.md).
+See [SYSTEM_08_module_system.md](../SYSTEM_08_module_system.md).
 
 ## Images
 
-| Tag                                  | When  | How built                       |
-| ------------------------------------ | ----- | ------------------------------- |
-| `timroberton/comb:wb-hmis-r-linux`   | prod  | `--platform linux/amd64`, pushed |
-| `timroberton/comb:wb-hmis-r-local`   | dev   | host arch, local only            |
+| Tag                                | When | How built                        |
+| ---------------------------------- | ---- | -------------------------------- |
+| `timroberton/comb:wb-hmis-r-linux` | prod | `--platform linux/amd64`, pushed |
+| `timroberton/comb:wb-hmis-r-local` | dev  | host arch, local only            |
 
 Both are built from the same `Dockerfile` — only the platform/tag differ. The
 image selected at runtime is `_DOCKER_IMAGE_TIDYVERSE_4_0_2` in

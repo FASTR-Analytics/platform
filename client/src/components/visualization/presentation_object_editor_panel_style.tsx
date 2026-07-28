@@ -36,6 +36,13 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
   const showScorecardMode = () => canUseSpecialScorecardTable(metricId());
 
+  // n is a survey concept and is counted over facility rows, so the server only
+  // emits it for HFA metrics whose results table has facility_id. Offering the
+  // toggle anywhere else would be a switch that does nothing.
+  const showNValuesToggle = () =>
+    p.poDetail.resultsValue.datasetFamily === "hfa" &&
+    p.poDetail.resultsValue.hasFacilityLevelRows === true;
+
   async function editCustomSeriesStyles() {
     const res = await openComponent({
       element: CustomSeriesStyles,
@@ -57,7 +64,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
 
 
   return (
-    <div class="ui-pad ui-spy h-full w-full overflow-auto">
+    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
       <SharedControlsTop
         poDetail={p.poDetail}
         tempConfig={p.tempConfig}
@@ -90,6 +97,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             showScorecardMode={showScorecardMode()}
+            showNValuesToggle={showNValuesToggle()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>

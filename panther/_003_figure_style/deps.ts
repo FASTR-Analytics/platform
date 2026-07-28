@@ -52,6 +52,8 @@ export type {
   LineStyle,
   MapRegionInfo,
   MapRegionInfoFunc,
+  PieSliceInfo,
+  PieSliceInfoFunc,
   PointStyle,
   PointType,
   RectStyle,
@@ -61,4 +63,6 @@ export type {
   TableHeaderInfoFunc,
   VizGraphEdgeInfo,
   VizGraphEdgeInfoFunc,
+  VizGraphNodeInfo,
+  VizGraphNodeInfoFunc,
 } from "../_001_render_system/mod.ts";

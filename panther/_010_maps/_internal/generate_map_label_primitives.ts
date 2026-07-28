@@ -4,454 +4,660 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  DataLabelStyle,
-  MapDataLabelMode,
-  MapLabelCollisionConfig,
-  MapLabelPrimitive,
-  MapRegionInfoFunc,
-  MapRegionStyle,
+  DirectionalExtents,
+  DistanceField,
+  LabelCandidate,
+  LabelGeometry,
+  LabelMode,
+  LabelTrack,
   MergedMapStyle,
+  OutsideLabelPlacement,
   Primitive,
   RectCoordsDims,
   RenderContext,
-  TextInfoUnkeyed,
+  Ring,
 } from "../deps.ts";
-import { Coordinates, getColor, Z_INDEX } from "../deps.ts";
-import type { GeoJSONFeature } from "./geojson_types.ts";
+import {
+  buildDataLabelTextStyle,
+  buildDistanceField,
+  Coordinates,
+  fieldTrack,
+  generateResolvedFigureLabelPrimitives,
+  placeNearestBoxes,
+  placeOutsideBoxes,
+  scaledTrack,
+} from "../deps.ts";
 import type { FittedProjection } from "./fit_projection.ts";
 import {
+  bboxOfScreenRings,
   computeGeoCentroid,
-  computeScreenBBox,
-  findBoundaryIntersection,
+  computeRegionPole,
+  intersectScreenRingsAtY,
   projectCentroid,
+  projectRings,
+  type ScreenRings,
 } from "./centroid.ts";
+import type { ShownMapRegion } from "./generate_map_region_primitives.ts";
 import {
-  type CollisionLabel,
-  resolveCalloutCollisions,
-  resolveCentroidCollisions,
-} from "./label_collision.ts";
+  buildMapRegionInfo,
+  type MapCellHeaders,
+  measureMapLabel,
+  resolveMapLabelText,
+  toLabelMode,
+} from "./label_shared.ts";
 
-type LabelInfo = {
-  featureId: string;
-  feature: GeoJSONFeature;
-  value: number | undefined;
-  screenPos: { x: number; y: number };
-  screenBBox:
-    | {
-      minX: number;
-      minY: number;
-      maxX: number;
-      maxY: number;
-    }
-    | undefined;
-  mText: ReturnType<RenderContext["mText"]>;
-  regionStyle: MapRegionStyle;
-  placement: "centroid" | "callout";
+type CellIndices = {
+  paneIndex: number;
+  tierIndex: number;
+  laneIndex: number;
 };
 
-export function generateMapLabelPrimitives(
+// The label-bearing facts of one region, shared by the drawn candidates and
+// the autofit floor budget so the two can never disagree on which labels
+// exist or what they say.
+export type MapLabelSpec = {
+  id: string;
+  text: string;
+  dl: LabelCandidate["dataLabel"];
+  offset: { dx: number; dy: number };
+  feature: ShownMapRegion["feature"];
+};
+
+export function collectMapLabelSpecs(
+  shown: ShownMapRegion[],
+  mergedStyle: MergedMapStyle,
+  indices: CellIndices,
+  headers: MapCellHeaders,
+): MapLabelSpec[] {
+  const specs: MapLabelSpec[] = [];
+  for (const region of shown) {
+    const dl = region.style.dataLabel;
+    if (!dl.show) continue;
+
+    const text = resolveMapLabelText(
+      mergedStyle.content.mapRegions.textFormatter,
+      buildMapRegionInfo(
+        region.featureId,
+        region.feature,
+        region.value,
+        indices.paneIndex,
+        indices.tierIndex,
+        indices.laneIndex,
+        headers,
+      ),
+    );
+    if (!text) continue;
+
+    specs.push({
+      id: region.featureId,
+      text,
+      dl,
+      offset: {
+        dx: region.style.centroidOffset?.dx ?? 0,
+        dy: region.style.centroidOffset?.dy ?? 0,
+      },
+      feature: region.feature,
+    });
+  }
+  return specs;
+}
+
+// One label-bearing region with everything the budget placer needs, at UNIT
+// scale (projection scale 1, content-centred): scaling is affine, so anchors,
+// bboxes and raycasts at any content scale s are the unit values × s. The
+// centroidOffset is in screen DU and does not scale.
+export type MapLabelEntry = {
+  id: string;
+  // The label's own words, so the I3 ladder can re-wrap them at a trial width.
+  text: string;
+  mText: LabelCandidate["mText"];
+  dl: LabelCandidate["dataLabel"];
+  offset: { dx: number; dy: number };
+  unitAnchor: { x: number; y: number };
+  // The flank, frozen at s0 alongside the placement split: centroidOffset.dx
+  // is in screen DU while unitAnchor.x scales with s, so the anchor-vs-centre
+  // sign can vary with s — one decision, in one frame, used by solve and
+  // emission alike (adversarial review F1).
+  side: "left" | "right";
+  // Does a w x h box fit inside this region, in screen DU at s0? Present only
+  // in "auto" mode, where the placement split is decided; absent everywhere
+  // else because the verdict is already known.
+  fitsInside?: (w: number, h: number) => boolean;
+};
+
+export function buildMapLabelEntries(
   rc: RenderContext,
   cellRcd: RectCoordsDims,
-  filteredFeatures: GeoJSONFeature[],
-  valueMap: Record<string, number | undefined>,
-  areaMatchProp: string,
+  shown: ShownMapRegion[],
   mergedStyle: MergedMapStyle,
-  fitted: FittedProjection,
-  shownFeatureStyles: Map<string, MapRegionStyle>,
-  textFormatter: MapRegionInfoFunc<string | undefined> | "none",
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-): Primitive[] {
-  const dlMode = mergedStyle.map.dataLabelMode;
-  if (dlMode === "none") return [];
+  unitFitted: FittedProjection,
+  mode: Exclude<LabelMode, "none">,
+  indices: CellIndices,
+  headers: MapCellHeaders,
+  s0: number,
+): MapLabelEntry[] {
+  const entries: MapLabelEntry[] = [];
+  for (
+    const spec of collectMapLabelSpecs(shown, mergedStyle, indices, headers)
+  ) {
+    // `dataLabelMode: "centroid"` names an anchor RULE and is explicitly out of
+    // scope: it keeps the area-weighted centroid it asked for. Every other mode
+    // takes the pole of inaccessibility, which is inside its own region even
+    // when the centroid is not (plan I2).
+    const pole = mode === "inside"
+      ? undefined
+      : computeRegionPole(projectRings(spec.feature.geometry, unitFitted));
+    const geoCentroid = computeGeoCentroid(spec.feature.geometry);
+    const unitAnchor = pole?.point ??
+      (geoCentroid ? projectCentroid(geoCentroid, unitFitted) : undefined);
+    if (!unitAnchor) continue;
 
-  const collisionConfig = mergedStyle.map.labelCollision;
-  const baseTextStyle = mergedStyle.text.dataLabels;
-  const labelInfos: LabelInfo[] = [];
+    entries.push({
+      id: spec.id,
+      text: spec.text,
+      mText: measureMapLabel(
+        rc,
+        spec.text,
+        cellRcd,
+        mergedStyle.text.dataLabels,
+        spec.dl,
+        mergedStyle.map.labelWrapFraction,
+      ),
+      dl: spec.dl,
+      offset: spec.offset,
+      unitAnchor,
+      side: unitAnchor.x * s0 + spec.offset.dx <= 0 ? "left" : "right",
+      fitsInside: mode === "auto" && pole
+        ? (w, h) => pole.fitsBox(w / s0, h / s0)
+        : undefined,
+    });
+  }
+  return entries;
+}
 
-  for (const feature of filteredFeatures) {
-    const featureId = getFeatureMatchKey(feature, areaMatchProp);
-    const value = valueMap[featureId];
+// The cell's silhouette at unit scale: content half-extents from the FITTING
+// features (what the cell frames), band + coastline rings + bbox fallback
+// from the SHOWN features (what labels stack against and hug).
+export type MapUnitGeometry = {
+  contentHalfW: number;
+  contentHalfH: number;
+  band: { minX: number; minY: number; maxX: number; maxY: number };
+  rings: ScreenRings;
+  // The signed distance field of the shown silhouette, built lazily and at most
+  // ONCE per cell (the EDT is ~50ms; extracting a level set from it is ~18ms).
+  //
+  // Deliberately NOT at unit scale, despite everything else here being: unit
+  // coordinates span a fraction of a DU, so a 1 DU raster pitch there would
+  // give a 2x2 grid. It is built at a reference scale the caller names, and
+  // because distances are affine in the content scale one field then answers
+  // for every trial scale — see scaledTrack.
+  fieldAt: (
+    refScale: number,
+    margin: number,
+    exactBandFor: (refScale: number) => number,
+  ) => DistanceField;
+};
 
-    const regionStyle = shownFeatureStyles.get(featureId);
-    if (!regionStyle) continue;
-    const dlStyle = regionStyle.dataLabel;
-    if (!dlStyle.show) continue;
+export function buildMapUnitGeometry(
+  shown: ShownMapRegion[],
+  unitFitted: FittedProjection,
+  contentHalfW: number,
+  contentHalfH: number,
+): MapUnitGeometry {
+  const rings: ScreenRings = [];
+  for (const region of shown) {
+    rings.push(...projectRings(region.feature.geometry, unitFitted));
+  }
+  const band = bboxOfScreenRings(rings) ?? {
+    minX: -contentHalfW,
+    minY: -contentHalfH,
+    maxX: contentHalfW,
+    maxY: contentHalfH,
+  };
 
-    const mapRegionInfo = {
-      featureId,
-      value,
-      valueMin: 0,
-      valueMax: 0,
-      featureProperties: feature.properties,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-    };
-    const labelText = textFormatter !== "none"
-      ? textFormatter(mapRegionInfo)
-      : value !== undefined
-      ? String(value)
-      : featureId;
-    if (!labelText) continue;
+  let cached: { key: string; field: DistanceField } | undefined;
+  const fieldAt = (
+    refScale: number,
+    margin: number,
+    exactBandFor: (refScale: number) => number,
+  ): DistanceField => {
+    const key = `${refScale}/${margin}`;
+    if (cached?.key === key) return cached.field;
+    const scaled: Ring[] = rings.map((ring) =>
+      ring.map(([x, y]) => ({ x: x * refScale, y: y * refScale }))
+    );
+    const field = buildDistanceField(scaled, {
+      pitch: FIELD_PITCH_DU,
+      margin,
+      // Exactness is needed across the band the track and the floor test read,
+      // which is the clearance — NOT across the whole grid margin, which is
+      // sized for the smallest content scale the solve might reach. Tying them
+      // together costs ~8us per query instead of ~0.05us, over millions of
+      // queries. Three clearances covers every trial scale down to a third of
+      // the reference one; below that the raster's ~1 DU answers, which is
+      // what the polyline's own tolerance already is.
+      exactBand: exactBandFor(refScale),
+    });
+    cached = { key, field };
+    return field;
+  };
 
-    const geoCentroid = computeGeoCentroid(feature.geometry);
-    if (!geoCentroid) continue;
+  return { contentHalfW, contentHalfH, band, rings, fieldAt };
+}
 
-    const offset = regionStyle.centroidOffset;
-    const screenPos = projectCentroid(geoCentroid, fitted, offset);
-    const screenBBox = dlMode === "auto"
-      ? computeScreenBBox(feature.geometry, fitted)
-      : undefined;
+// How many clearances out the field answers exactly. See the call site.
+const EXACT_BAND_CLEARANCES = 3;
 
-    const textStyle: TextInfoUnkeyed = {
-      ...baseTextStyle,
-      ...(dlStyle.color !== undefined
-        ? { color: getColor(dlStyle.color) }
-        : {}),
-      ...(dlStyle.relFontSize !== undefined
-        ? { fontSize: baseTextStyle.fontSize * dlStyle.relFontSize }
-        : {}),
-    };
+// Plan-ruled: 1 DU. In-band accuracy is pitch-independent (every query the band
+// placement reads is answered exactly against the real segments), so the pitch
+// only bounds the deep-interior maximum, which feeds inside capacity where half
+// a DU is irrelevant. 1 halves the build cost against 0.5.
+const FIELD_PITCH_DU = 1;
 
-    const mText = rc.mText(labelText, textStyle, cellRcd.w() * 0.4);
+// The track at content scale s, centred at (cx, cy), or undefined when the
+// silhouette has no extractable level set at all. `refScale` names the scale
+// the field was built at; the level extracted is the clearance measured in that
+// field's own units, and scaledTrack maps the result back out.
+function mapTrackAt(
+  geom: MapUnitGeometry,
+  refScale: number,
+  fieldMargin: number,
+  s: number,
+  cx: number,
+  cy: number,
+  calloutMargin: number,
+): LabelTrack | undefined {
+  if (!(s > 0) || !(refScale > 0)) return undefined;
+  const field = geom.fieldAt(
+    refScale,
+    fieldMargin,
+    (r) => EXACT_BAND_CLEARANCES * calloutMargin * r / refScale,
+  );
+  const inner = fieldTrack(field, (calloutMargin * refScale) / s);
+  if (inner.components.length === 0) return undefined;
+  return scaledTrack(inner, s / refScale, cx, cy);
+}
 
-    const placement = resolvePlacement(dlMode, screenBBox, mText);
+// How far beyond the silhouette the field must stay VALID, in the field's own
+// units (screen DU at refScale). The field must be accurate across the band the
+// track and the floor test read — the silhouette out to the clearance — and
+// that band is widest, relative to the shrinking silhouette, at the smallest
+// content scale the solve will try.
+//
+// It deliberately does NOT budget for the reach of a whole label box. Outside
+// the grid the field clamps to its edge value, which UNDERSTATES the clearance
+// there (the true distance only grows), so a box hanging past the grid is
+// judged as closer to the shape than it is. That direction is safe: it can cost
+// a placement, never authorise a bad one. Budgeting for it instead would scale
+// the grid with the longest label and is what makes this affordable.
+export function mapFieldMargin(
+  calloutMargin: number,
+  refScale: number,
+  sMin: number,
+): number {
+  const bandInFieldUnits = (calloutMargin * refScale) /
+    Math.max(sMin, 1e-9);
+  return bandInFieldUnits + 4 * FIELD_PITCH_DU;
+}
 
-    labelInfos.push({
-      featureId,
-      feature,
-      value,
-      screenPos,
-      screenBBox,
-      mText,
-      regionStyle,
-      placement,
+function mapEdgeAtYUnit(
+  geom: MapUnitGeometry,
+  side: "left" | "right",
+  yUnit: number,
+): number {
+  return intersectScreenRingsAtY(geom.rings, side, yUnit) ??
+    (side === "left" ? geom.band.minX : geom.band.maxX);
+}
+
+// The driver-geometry hooks at content scale s centred on (cx, cy). centerX
+// is the CONTENT centre (plan D7): the old cell-centre split let labels flip
+// sides as padding moved the content; on the content centre the split is
+// s-invariant, so the solve and the draw agree.
+function labelGeometryPartsAt(
+  geom: MapUnitGeometry,
+  s: number,
+  cx: number,
+  cy: number,
+  calloutMargin: number,
+): Pick<
+  LabelGeometry,
+  "centerX" | "outsideBand" | "outsideEdgeAtY" | "outsideClearance"
+> {
+  return {
+    centerX: cx,
+    outsideBand: {
+      minY: cy + geom.band.minY * s,
+      maxY: cy + geom.band.maxY * s,
+    },
+    outsideEdgeAtY: (side, y) =>
+      cx + mapEdgeAtYUnit(geom, side, (y - cy) / s) * s,
+    outsideClearance: calloutMargin,
+  };
+}
+
+// Always, and it is the map that has the problem: a region's anchor sits at an
+// arbitrary interior point rather than on the silhouette directly inward of its
+// own label, so two labels can be in the correct TRACK order with crossing
+// leaders (DOC_FIGURE_ARCHITECTURE, "Outside placement"). A pie cannot be in
+// that position and must never be re-ordered — see PIE_UNTANGLES_LEADERS. Not a
+// style option: this is per figure type, not per user.
+const MAP_UNTANGLES_LEADERS = true;
+
+// Map's driver-geometry hooks, with the nearest-point track attached when that
+// is the policy for this cell. outsideEdgeAtY stays wired either way — it is
+// the FLANK path's coastline ray-cast, and flank is the fallback.
+export function buildMapLabelGeometry(
+  geom: MapUnitGeometry,
+  cellRcd: RectCoordsDims,
+  s: number,
+  cx: number,
+  cy: number,
+  mergedStyle: MergedMapStyle,
+  placement: OutsideLabelPlacement,
+  ctx: MapTrackContext,
+): LabelGeometry {
+  const calloutMargin = mergedStyle.map.calloutMargin;
+  const track = placement === "nearest"
+    ? mapTrackAt(geom, ctx.refScale, ctx.fieldMargin, s, cx, cy, calloutMargin)
+    : undefined;
+  return {
+    cellRcd,
+    ...labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
+    untangleLeaders: MAP_UNTANGLES_LEADERS,
+    outsideTrack: track
+      ? {
+        track,
+        clearanceFloor: mergedStyle.map.labelClearanceFloor,
+        alignmentSwitchAngleDeg: mergedStyle.map.labelAlignmentSwitchAngle,
+      }
+      : undefined,
+  };
+}
+
+// Everything a nearest-point map placement needs that varies per cell rather
+// than per trial scale: the field's reference scale and how far it stays valid.
+export type MapTrackContext = {
+  refScale: number;
+  fieldMargin: number;
+};
+
+// Top-left of one label's TEXT box — all the extents pass needs, and the one
+// shape both placers can state.
+export type MapOutsideBox = { x: number; y: number };
+
+// Places every frozen-outside label at content scale s, through the same placer
+// core the driver draws with — the reserve IS the draw (one placer, plan D1).
+//
+// Undefined only under "nearest", and only when the track at this s cannot hold
+// the labels: the N10 fallback signal, not an error.
+export function placeMapOutsideBoxesAt(
+  outside: MapLabelEntry[],
+  geom: MapUnitGeometry,
+  s: number,
+  cx: number,
+  cy: number,
+  mergedStyle: MergedMapStyle,
+  placement: OutsideLabelPlacement,
+  ctx: MapTrackContext,
+): MapOutsideBox[] | undefined {
+  const gap = mergedStyle.map.labelCollision.gap;
+  const calloutMargin = mergedStyle.map.calloutMargin;
+  const anchorOf = (e: MapLabelEntry) => ({
+    x: cx + e.unitAnchor.x * s + e.offset.dx,
+    y: cy + e.unitAnchor.y * s + e.offset.dy,
+  });
+
+  if (placement === "nearest") {
+    const track = mapTrackAt(
+      geom,
+      ctx.refScale,
+      ctx.fieldMargin,
+      s,
+      cx,
+      cy,
+      calloutMargin,
+    );
+    if (!track) return undefined;
+    const nearest = placeNearestBoxes(
+      outside.map((e) => ({
+        anchor: anchorOf(e),
+        width: e.mText.dims.w(),
+        height: e.mText.dims.h(),
+        padLeft: e.dl.padding.pl(),
+        padRight: e.dl.padding.pr(),
+        padTop: e.dl.padding.pt(),
+        padBottom: e.dl.padding.pb(),
+      })),
+      track,
+      {
+        gap,
+        clearance: calloutMargin,
+        clearanceFloor: mergedStyle.map.labelClearanceFloor,
+        alignmentSwitchAngleDeg: mergedStyle.map.labelAlignmentSwitchAngle,
+        untangleLeaders: MAP_UNTANGLES_LEADERS,
+      },
+    );
+    if (nearest.kind !== "ok") return undefined;
+    return nearest.boxes.map((box, i) => {
+      const w = outside[i].mText.dims.w();
+      const h = outside[i].mText.dims.h();
+      return {
+        x: box.align.h === "left"
+          ? box.position.x
+          : box.align.h === "right"
+          ? box.position.x - w
+          : box.position.x - w / 2,
+        y: box.position.y - h / 2,
+      };
     });
   }
 
-  let mapMinX = Infinity;
-  let mapMaxX = -Infinity;
-  let mapMinY = Infinity;
-  let mapMaxY = -Infinity;
-
-  for (const feature of filteredFeatures) {
-    const bbox = computeScreenBBox(feature.geometry, fitted);
-    if (bbox) {
-      mapMinX = Math.min(mapMinX, bbox.minX);
-      mapMaxX = Math.max(mapMaxX, bbox.maxX);
-      mapMinY = Math.min(mapMinY, bbox.minY);
-      mapMaxY = Math.max(mapMaxY, bbox.maxY);
-    }
-  }
-
-  const overallMapBounds = {
-    minX: mapMinX,
-    maxX: mapMaxX,
-    minY: mapMinY,
-    maxY: mapMaxY,
-  };
-
-  const centroidInfos = labelInfos.filter((i) => i.placement === "centroid");
-  const calloutInfos = labelInfos.filter((i) => i.placement === "callout");
-
-  const primitives: Primitive[] = [];
-
-  if (centroidInfos.length > 0) {
-    primitives.push(
-      ...createCentroidLabels(
-        centroidInfos,
-        cellRcd,
-        collisionConfig,
-        paneIndex,
-        tierIndex,
-        laneIndex,
-      ),
-    );
-  }
-
-  if (calloutInfos.length > 0) {
-    primitives.push(
-      ...createCalloutLabels(
-        calloutInfos,
-        cellRcd,
-        overallMapBounds,
-        filteredFeatures,
-        fitted,
-        collisionConfig,
-        paneIndex,
-        tierIndex,
-        laneIndex,
-      ),
-    );
-  }
-
-  return primitives;
-}
-
-function buildHalo(dl: DataLabelStyle): MapLabelPrimitive["halo"] {
-  const fillColor = dl.backgroundColor !== "none"
-    ? getColor(dl.backgroundColor)
-    : undefined;
-  const borderColor = dl.borderWidth > 0 && dl.borderColor !== undefined
-    ? getColor(dl.borderColor)
-    : undefined;
-  const borderWidth = borderColor !== undefined ? dl.borderWidth : undefined;
-  if (!fillColor && !borderColor) return undefined;
-  return {
-    fillColor,
-    borderColor,
-    borderWidth,
-    padding: dl.padding,
-    rectRadius: dl.rectRadius,
-  };
-}
-
-function resolvePlacement(
-  mode: MapDataLabelMode,
-  screenBBox:
-    | { minX: number; minY: number; maxX: number; maxY: number }
-    | undefined,
-  mText: ReturnType<RenderContext["mText"]>,
-): "centroid" | "callout" {
-  if (mode === "centroid") return "centroid";
-  if (mode === "callout") return "callout";
-
-  if (!screenBBox) return "centroid";
-
-  const textW = mText.dims.w();
-  const textH = mText.dims.h();
-  const bboxW = screenBBox.maxX - screenBBox.minX;
-  const bboxH = screenBBox.maxY - screenBBox.minY;
-
-  return textW <= bboxW * 0.9 && textH <= bboxH * 0.9 ? "centroid" : "callout";
-}
-
-function getFeatureMatchKey(
-  feature: GeoJSONFeature,
-  areaMatchProp: string,
-): string {
-  const val = feature.properties[areaMatchProp];
-  if (val !== undefined && val !== null) return String(val);
-  if (feature.id !== undefined) return String(feature.id);
-  return "";
-}
-
-function createCentroidLabels(
-  infos: LabelInfo[],
-  cellRcd: RectCoordsDims,
-  collisionConfig: MapLabelCollisionConfig,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-): MapLabelPrimitive[] {
-  const collisionLabels: (CollisionLabel & { info: LabelInfo })[] = infos.map(
-    (info) => ({
-      info,
-      naturalX: info.screenPos.x,
-      naturalY: info.screenPos.y,
-      x: info.screenPos.x,
-      y: info.screenPos.y,
-      width: info.mText.dims.w(),
-      height: info.mText.dims.h(),
+  return placeOutsideBoxes(
+    outside.map((e) => {
+      const anchor = anchorOf(e);
+      return {
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        width: e.mText.dims.w(),
+        height: e.mText.dims.h(),
+        padLeft: e.dl.padding.pl(),
+        padRight: e.dl.padding.pr(),
+        side: e.side,
+      };
     }),
-  );
-
-  resolveCentroidCollisions(
-    collisionLabels,
-    collisionConfig.maxIterations,
-    collisionConfig.maxCentroidDisplacement,
-  );
-
-  return collisionLabels.map((cl) => {
-    const info = cl.info;
-    const dl = info.regionStyle.dataLabel;
-    return {
-      type: "map-label" as const,
-      key: `map-label-${paneIndex}-${tierIndex}-${laneIndex}-${info.featureId}`,
-      bounds: cellRcd,
-      zIndex: Z_INDEX.MAP_LABEL,
-      meta: {
-        featureId: info.featureId,
-        paneIndex,
-        tierIndex,
-        laneIndex,
-        placement: "centroid" as const,
-      },
-      mText: info.mText,
-      position: new Coordinates([cl.x, cl.y]),
-      alignment: { h: "center" as const, v: "middle" as const },
-      halo: buildHalo(dl),
-    };
-  });
-}
-
-function createCalloutLabels(
-  infos: LabelInfo[],
-  cellRcd: RectCoordsDims,
-  mapBounds: { minX: number; maxX: number; minY: number; maxY: number },
-  allFeatures: GeoJSONFeature[],
-  fitted: FittedProjection,
-  collisionConfig: MapLabelCollisionConfig,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-): MapLabelPrimitive[] {
-  const centerX = cellRcd.centerX();
-  const gap = collisionConfig.gap;
-
-  const leftInfos = infos.filter((i) => i.screenPos.x <= centerX);
-  const rightInfos = infos.filter((i) => i.screenPos.x > centerX);
-
-  const primitives: MapLabelPrimitive[] = [];
-
-  primitives.push(
-    ...placeCalloutSide(
-      leftInfos,
-      mapBounds,
-      allFeatures,
-      fitted,
-      "left",
-      gap,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-      cellRcd,
-    ),
-  );
-  primitives.push(
-    ...placeCalloutSide(
-      rightInfos,
-      mapBounds,
-      allFeatures,
-      fitted,
-      "right",
-      gap,
-      paneIndex,
-      tierIndex,
-      laneIndex,
-      cellRcd,
-    ),
-  );
-
-  return primitives;
-}
-
-function findMapBoundaryAtY(
-  allFeatures: GeoJSONFeature[],
-  fitted: FittedProjection,
-  side: "left" | "right",
-  atY: number,
-): number | undefined {
-  let bestX: number | undefined;
-
-  for (const feature of allFeatures) {
-    const intersection = findBoundaryIntersection(
-      feature.geometry,
-      fitted,
-      side,
-      atY,
-    );
-    if (intersection) {
-      if (bestX === undefined) {
-        bestX = intersection.x;
-      } else if (side === "left") {
-        bestX = Math.min(bestX, intersection.x);
-      } else {
-        bestX = Math.max(bestX, intersection.x);
-      }
-    }
-  }
-
-  return bestX;
-}
-
-function placeCalloutSide(
-  infos: LabelInfo[],
-  mapBounds: { minX: number; maxX: number; minY: number; maxY: number },
-  allFeatures: GeoJSONFeature[],
-  fitted: FittedProjection,
-  side: "left" | "right",
-  gap: number,
-  paneIndex: number,
-  tierIndex: number,
-  laneIndex: number,
-  cellRcd: RectCoordsDims,
-): MapLabelPrimitive[] {
-  if (infos.length === 0) return [];
-
-  const collisionLabels: (CollisionLabel & { info: LabelInfo })[] = infos.map(
-    (info) => ({
-      info,
-      naturalX: 0,
-      naturalY: info.screenPos.y,
-      x: 0,
-      y: info.screenPos.y,
-      width: info.mText.dims.w(),
-      height: info.mText.dims.h(),
-    }),
-  );
-
-  resolveCalloutCollisions(
-    collisionLabels,
-    { minY: mapBounds.minY, maxY: mapBounds.maxY },
+    labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
     gap,
+    MAP_UNTANGLES_LEADERS,
   );
+}
 
-  return collisionLabels.map((cl) => {
-    const info = cl.info;
-    const rs = info.regionStyle;
-    const dlStyle = rs.dataLabel;
-    const finalY = cl.y + cl.height / 2;
+// Union bbox of (content at s) ∪ (outside label boxes at s), outward from the
+// content centre — derived from the placer's own output, never re-derived
+// alongside it. Halo padding is included unconditionally: the placement
+// offset applies it whether or not a halo is drawn.
+export function mapExtentsAt(
+  outside: MapLabelEntry[],
+  geom: MapUnitGeometry,
+  s: number,
+  mergedStyle: MergedMapStyle,
+  placement: OutsideLabelPlacement,
+  ctx: MapTrackContext,
+): DirectionalExtents | undefined {
+  const boxes = placeMapOutsideBoxesAt(
+    outside,
+    geom,
+    s,
+    0,
+    0,
+    mergedStyle,
+    placement,
+    ctx,
+  );
+  if (!boxes) return undefined;
+  let left = geom.contentHalfW * s;
+  let right = geom.contentHalfW * s;
+  let top = geom.contentHalfH * s;
+  let bottom = geom.contentHalfH * s;
+  for (let i = 0; i < outside.length; i++) {
+    const e = outside[i];
+    const box = boxes[i];
+    const pad = e.dl.padding;
+    const w = e.mText.dims.w();
+    const h = e.mText.dims.h();
+    left = Math.max(left, -(box.x - pad.pl()));
+    right = Math.max(right, box.x + w + pad.pr());
+    top = Math.max(top, -(box.y - pad.pt()));
+    bottom = Math.max(bottom, box.y + h + pad.pb());
+  }
+  return { left, right, top, bottom };
+}
 
-    const boundaryX = findMapBoundaryAtY(allFeatures, fitted, side, finalY);
-    const haloPad = dlStyle.padding;
+// Emits the cell's label primitives at the solved (s, cx, cy), honouring the
+// frozen s0 placement split carried by id (plan D2).
+export function generateResolvedMapLabelPrimitives(
+  entries: MapLabelEntry[],
+  outsideIds: Set<string>,
+  geom: MapUnitGeometry,
+  cellRcd: RectCoordsDims,
+  s: number,
+  cx: number,
+  cy: number,
+  mergedStyle: MergedMapStyle,
+  indices: CellIndices,
+  placement: OutsideLabelPlacement,
+  ctx: MapTrackContext,
+): Primitive[] {
+  if (entries.length === 0) return [];
 
-    let labelX: number;
-    if (boundaryX !== undefined) {
-      if (side === "left") {
-        labelX = boundaryX - gap - cl.width - haloPad.pr();
+  const inside: LabelCandidate[] = [];
+  const outside: LabelCandidate[] = [];
+  for (const e of entries) {
+    const candidate: LabelCandidate = {
+      id: e.id,
+      mText: e.mText,
+      anchor: new Coordinates([
+        cx + e.unitAnchor.x * s + e.offset.dx,
+        cy + e.unitAnchor.y * s + e.offset.dy,
+      ]),
+      dataLabel: e.dl,
+      outsideSide: e.side,
+    };
+    (outsideIds.has(e.id) ? outside : inside).push(candidate);
+  }
+
+  return generateResolvedFigureLabelPrimitives(
+    inside,
+    outside,
+    buildMapLabelGeometry(
+      geom,
+      cellRcd,
+      s,
+      cx,
+      cy,
+      mergedStyle,
+      placement,
+      ctx,
+    ),
+    mergedStyle.map.labelCollision,
+    { keyPrefix: "map-label", ...indices },
+  );
+}
+
+// The label terms of the autofit floor (plan D4), measured UNWRAPPED
+// (maxWidth Infinity) so the floor is exactly proportional to the font scale
+// (monotone) and has no cell dependence (no circularity). Budgets every shown
+// label as outside: with no cell in existence there is nothing to resolve
+// `auto` against, and the conservative side is the only safe one; the draw
+// freezes at s0, so floor ≥ draw. Sides split on the unit-anchor x sign,
+// which is s-invariant.
+export type MapLabelFloorBudget = {
+  // Extra width beyond the content that outside labels demand.
+  horizontal: number;
+  // Extra height. What this MEANS differs by placer, and so does how the
+  // consumer combines it (plan N9): under flank it is the tallest single-flank
+  // stack, which the cell must be at least as tall as; under nearest labels sit
+  // above and below the content too, so the demand is ADDITIVE.
+  vertical: number;
+};
+
+export function calculateMapLabelFloorBudget(
+  rc: RenderContext,
+  // unitFitted is per cell: under fit "only-regions-in-data" each cell's
+  // content centre (and so each label's flank) depends on that cell's data.
+  shownPerCell: {
+    shown: ShownMapRegion[];
+    indices: CellIndices;
+    headers: MapCellHeaders;
+    unitFitted: FittedProjection;
+  }[],
+  mergedStyle: MergedMapStyle,
+): MapLabelFloorBudget {
+  const mode = toLabelMode(mergedStyle.map.dataLabelMode);
+  if (mode === "none" || mode === "inside") {
+    return { horizontal: 0, vertical: 0 };
+  }
+  const gap = mergedStyle.map.labelCollision.gap;
+  const calloutMargin = mergedStyle.map.calloutMargin;
+  const nearest = mergedStyle.map.outsideLabelPlacement === "nearest";
+
+  let maxLeftW = 0;
+  let maxRightW = 0;
+  let tallestStack = 0;
+  // Nearest-point labels can land on any side, so the floor is side-blind: the
+  // widest and the tallest label, budgeted on both sides. Still unwrapped,
+  // still monotone in the font scale, still free of any cell dependence.
+  let maxW = 0;
+  let maxH = 0;
+  for (const { shown, indices, headers, unitFitted } of shownPerCell) {
+    let leftStack = 0;
+    let rightStack = 0;
+    let nLeft = 0;
+    let nRight = 0;
+    for (
+      const spec of collectMapLabelSpecs(shown, mergedStyle, indices, headers)
+    ) {
+      const geoCentroid = computeGeoCentroid(spec.feature.geometry);
+      if (!geoCentroid) continue;
+      const unitAnchor = projectCentroid(geoCentroid, unitFitted);
+      const mText = rc.mText(
+        spec.text,
+        buildDataLabelTextStyle(mergedStyle.text.dataLabels, spec.dl),
+        Infinity,
+      );
+      const pad = spec.dl.padding;
+      const w = mText.dims.w() + pad.pl() + pad.pr();
+      const h = mText.dims.h();
+      maxW = Math.max(maxW, w);
+      maxH = Math.max(maxH, h + pad.pt() + pad.pb());
+      if (unitAnchor.x <= 0) {
+        maxLeftW = Math.max(maxLeftW, w);
+        leftStack += h;
+        nLeft++;
       } else {
-        labelX = boundaryX + gap + haloPad.pl();
-      }
-    } else {
-      if (side === "left") {
-        labelX = mapBounds.minX - gap - cl.width - haloPad.pr();
-      } else {
-        labelX = mapBounds.maxX + gap + haloPad.pl();
+        maxRightW = Math.max(maxRightW, w);
+        rightStack += h;
+        nRight++;
       }
     }
+    tallestStack = Math.max(
+      tallestStack,
+      leftStack + Math.max(0, nLeft - 1) * gap,
+      rightStack + Math.max(0, nRight - 1) * gap,
+    );
+  }
 
-    const labelCoords = new Coordinates([labelX, finalY]);
-    const centroidCoords = new Coordinates([
-      info.screenPos.x,
-      info.screenPos.y,
-    ]);
+  const horizontal = (maxLeftW > 0 ? calloutMargin + maxLeftW : 0) +
+    (maxRightW > 0 ? calloutMargin + maxRightW : 0);
+  if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
 
-    return {
-      type: "map-label" as const,
-      key: `map-label-${paneIndex}-${tierIndex}-${laneIndex}-${info.featureId}`,
-      bounds: cellRcd,
-      zIndex: Z_INDEX.MAP_LABEL,
-      meta: {
-        featureId: info.featureId,
-        paneIndex,
-        tierIndex,
-        laneIndex,
-        placement: "callout" as const,
-      },
-      mText: info.mText,
-      position: labelCoords,
-      alignment: { h: "left" as const, v: "middle" as const },
-      halo: buildHalo(dlStyle),
-      leaderLine: {
-        from: centroidCoords,
-        to: labelCoords,
-        strokeColor: getColor(rs.leaderLineStrokeColor),
-        strokeWidth: rs.leaderLineStrokeWidth,
-        gap: rs.leaderLineGap,
-      },
-    };
-  });
+  // Under nearest the floor must cover BOTH placers, because any cell may fall
+  // back to flank (N10) and the floor is what autofit shrinks the type against.
+  // Budgeting nearest alone is how a 47-label map starved: the floor asked for
+  // 94 DU of height, nothing was shrunk, the cell then fell back to flank and
+  // needed 612 with full-size type. "Floor >= draw" is the property that makes
+  // a floor a floor, and a fallback is part of the draw.
+  return {
+    horizontal: Math.max(horizontal, 2 * (calloutMargin + maxW)),
+    vertical: Math.max(tallestStack, 2 * (calloutMargin + maxH)),
+  };
 }

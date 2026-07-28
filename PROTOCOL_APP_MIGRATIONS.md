@@ -167,13 +167,18 @@ When a transform block renames or deletes a key, the sweep gate must force the
 transform for rows still carrying the old key. See
 `configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
 `data_transforms/po_config.ts` (used by the po_config, dashboard_items,
-reports, slide_config, metric, and module_definition sweeps for the
-`includeNational*` → `adminAreaRollup*` rename). Add new legacy keys to those
-helpers whenever a rename/delete block is added.
+reports, slide_config, metric, and module_definition sweeps — first for the
+`includeNational*` → `adminAreaRollup*` rename, then for the
+`includeAdminAreaRollup`/`adminAreaRollupPosition` → per-entry
+`rollup`/`rollupPosition` move). Add new legacy keys to those helpers whenever
+a rename/delete block is added. Embedded configs are covered because
+`transformFigureBlock` runs `transformPOConfigData` on BOTH `source.config`
+and `bundle.config` — without the bundle half, the sweep's re-parse would
+strip a legacy key from a bundle instead of migrating it.
 
 ### Cache Invalidation
 
-Valkey caches use `last_updated` timestamps as version hashes (the full mechanics live in [DOC_VALKEY_CACHE.md](DOC_VALKEY_CACHE.md)). When a migration updates a row's `last_updated`:
+Valkey caches use `last_updated` timestamps as version hashes (the full mechanics live in [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)). When a migration updates a row's `last_updated`:
 
 1. Cache entry has old timestamp in version hash
 2. Next request: DB returns new timestamp, cache has old
@@ -309,6 +314,7 @@ END $$;
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
 - Don't rewrite old migrations — fix forward
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
+- SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 

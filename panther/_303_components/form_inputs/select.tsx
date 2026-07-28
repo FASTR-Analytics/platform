@@ -7,41 +7,8 @@ import { For, type JSX, Show } from "solid-js";
 import type { Intent } from "../types.ts";
 import { Icon } from "../icons/mod.ts";
 import type { SelectOption } from "./types.ts";
+import { getSelectClasses } from "./_internal/input_classes.ts";
 import { useAutoFocus } from "./utils.ts";
-
-// Select classes composed from utility classes and component classes
-function getSelectClasses(size: "sm" | undefined, outline: boolean) {
-  return [
-    // Component classes (defined in CSS)
-    "ui-focusable",
-    "ui-never-focusable", // Override focusable
-
-    // Form utilities
-    size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
-    size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
-    "font-400",
-
-    // Appearance: Button-identical intent outline, or neutral box
-    ...(outline
-      ? ["ui-intent-fill", "ui-intent-outline"]
-      : ["text-base-content", "border-base-300", "bg-base-100"]),
-    "rounded",
-    "border",
-
-    // Select specific
-    "w-full",
-    "cursor-pointer",
-    "appearance-none",
-    "truncate",
-    "!pr-[2.5em]",
-
-    // Mono variant
-    "data-[mono=true]:font-mono",
-
-    // Placeholder state (grey text when no value selected)
-    "data-[placeholder=true]:text-neutral",
-  ].join(" ");
-}
 
 type Props<T extends string> = {
   value: T | undefined;
@@ -54,6 +21,7 @@ type Props<T extends string> = {
   autoFocus?: boolean;
   invalidMsg?: string;
   mono?: boolean;
+  disabled?: boolean;
   size?: "sm";
   outline?: boolean;
 };
@@ -73,12 +41,11 @@ export function Select<T extends string>(p: Props<T>) {
           value={p.value ?? ""}
           onChange={(e) =>
             p.onChange(e.currentTarget.value as T)}
-          class={getSelectClasses(p.size, !!p.outline)}
-          data-intent={p.intent}
-          data-outline={!!p.outline}
+          class={getSelectClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
           data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
+          disabled={p.disabled}
         >
           <Show when={p.placeholder && !p.value}>
             <option value="" disabled>
@@ -95,10 +62,8 @@ export function Select<T extends string>(p: Props<T>) {
           class="pointer-events-none absolute bottom-0 right-[0.5em] top-0 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center"
           classList={{
             "text-base-content": !p.outline,
-            "ui-intent-outline": !!p.outline,
+            [`ui-outline-${p.intent ?? "primary"}`]: !!p.outline,
           }}
-          data-intent={p.intent}
-          data-outline={!!p.outline}
         >
           <Icon iconName="selector" />
         </div>

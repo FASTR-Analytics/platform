@@ -6,6 +6,7 @@
 export type { CustomMarkdownStyleOptions } from "../_004_markdown_style/mod.ts";
 export type { ImageMap } from "../_105_markdown/mod.ts";
 export {
+  DOCUMENT_MARKDOWN_DEFAULTS,
   MarkdownPresentation,
   MarkdownPresentationJsx,
 } from "../_303_components/mod.ts";

@@ -24,8 +24,10 @@ import SortableVendor, {
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
+import { PresenceAvatars } from "./presence_avatars";
+import { otherPeers } from "~/state/project/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { useAIProjectContext } from "~/components/project_ai";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 
 type Props = {
   projectState: ProjectState;
@@ -39,12 +41,12 @@ type Props = {
   handleOpenSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
+  present: () => Promise<void>;
+  openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
 };
 
 export function SlideList(p: Props) {
-  const { notifyAI } = useAIProjectContext();
-
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
     null,
@@ -55,14 +57,16 @@ export function SlideList(p: Props) {
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
     p.setSelectedSlideIds(Array.from(newSelected));
-    notifyAI({ type: "selected_slides", slideIds: Array.from(newSelected) });
+    projectAIViewController.notify("selected_slides", {
+      slideIds: Array.from(newSelected),
+    });
   }
 
   function clearSelection() {
     setSelectedIds(new Set<string>());
     setLastSelectedIndex(null);
     p.setSelectedSlideIds([]);
-    notifyAI({ type: "selected_slides", slideIds: [] });
+    projectAIViewController.notify("selected_slides", { slideIds: [] });
     document.querySelectorAll(".sortable-selected").forEach((el) => {
       SortableJs.utils.deselect(el);
     });
@@ -328,12 +332,17 @@ export function SlideList(p: Props) {
 
     if (movedIds.length === 0 || !targetPosition) return;
 
-    await serverActions.moveSlides({
+    const res = await serverActions.moveSlides({
       projectId: p.projectState.id,
       deck_id: p.deckId,
       slideIds: movedIds,
       position: targetPosition,
     });
+    if (!res.success) {
+      // The drag was applied optimistically in setItems; the server rejected
+      // the move and notifies nothing on failure, so roll the order back.
+      setSortableSlideItems(oldSlideIds.map((id) => ({ id })));
+    }
   }
 
   function getInsertPosition(): { after: string } | { toEnd: true } {
@@ -410,6 +419,11 @@ export function SlideList(p: Props) {
       icon: "arrowRight",
       onClick: () => p.share(),
     },
+    {
+      label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
+      icon: "rotate",
+      onClick: () => p.openVersionHistory(),
+    },
     // { type: "divider" },
     // {
     //   label: "Batch edit visualizations",
@@ -421,13 +435,15 @@ export function SlideList(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={p.deckLabel}
-          leftChildren={
-            <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-          }
+          onBack={() => p.handleClose()}
         >
           <div class="ui-gap-sm flex items-center">
+            <PresenceAvatars
+              peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
+            />
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
                 <Slider
@@ -445,6 +461,9 @@ export function SlideList(p: Props) {
                 outline
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
+              <Button iconName="presentation" onClick={() => p.present()}>
+                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+              </Button>
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
               <Button iconName="plus">
@@ -472,10 +491,12 @@ export function SlideList(p: Props) {
             </Show>
           </div>
         </HeadingBar>
+        </div>
       }
     >
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
+        data-page-cursor-surface={`deck:${p.deckId}`}
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -496,7 +517,7 @@ export function SlideList(p: Props) {
           />
         </Show>
         <Show when={!p.isLoading && p.slideIds.length === 0}>
-          <div class="text-neutral w-full py-16 text-center">
+          <div class="text-base-content-muted w-full py-16 text-center">
             {t3({
               en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
               fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
@@ -522,7 +543,7 @@ export function SlideList(p: Props) {
             selectedClass="sortable-selected"
             animation={150}
             ghostClass="opacity-50"
-            chosenClass="shadow-2xl"
+            chosenClass="shadow-floating"
             dragClass="cursor-grabbing"
             fallbackTolerance={3}
           >
@@ -549,6 +570,7 @@ export function SlideList(p: Props) {
                   onDelete={() => handleDelete(item.id)}
                   onDuplicate={() => handleDuplicate(item.id)}
                   deckConfig={p.deckConfig}
+                  viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
                 />
               );
             }}

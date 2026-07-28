@@ -15,6 +15,8 @@ import {
 
 type Props = {
   markdown: string;
+  // Absent → app look (_fixed.css --md-* defaults). Any object (use
+  // DOCUMENT_MARKDOWN_DEFAULTS for model defaults) → document style model.
   style?: CustomMarkdownStyleOptions;
   scale?: number;
   images?: ImageMap;
@@ -37,6 +39,7 @@ export function MarkdownPresentation(p: Props) {
   });
 
   createEffect(() => {
+    htmlContent();
     if (!p.images || !containerRef) return;
 
     containerRef.querySelectorAll("img").forEach((img) => {

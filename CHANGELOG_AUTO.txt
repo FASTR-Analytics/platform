@@ -1,3 +1,383 @@
+[TBD] [user] [changed] - Consistent heading bar design across all screens
+[TBD] [user] [changed] - Cleaner panel borders throughout the application
+[TBD] [user] [changed] - Improved visual appearance of side panels and resizable areas
+[TBD] [user] [changed] - Standardized back button placement in page headers
+[TBD] [admin] [changed] - Standardized header bar appearance across all screens
+[TBD] [admin] [changed] - Removed visible border lines between side panels and main content areas
+[TBD] [user] [added] - Undo and redo buttons added to the report editor toolbar
+[TBD] [user] [added] - Undo and redo buttons added to the slide editor toolbar
+[TBD] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
+[TBD] [user] [changed] - Undo and redo only affect your own edits when collaborating
+[TBD] [admin] [added] - Undo and redo buttons added to report editor toolbar
+[TBD] [admin] [added] - Undo and redo buttons added to slide editor toolbar
+[TBD] [admin] [added] - Keyboard undo/redo support in slide editor canvas
+[TBD] [admin] [changed] - Undo and redo only affect your own edits during collaboration
+[1.64.1] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
+[1.64.1] [admin] [changed] - Rollup labels no longer vary when filters are applied
+[1.64.0] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
+[1.64.0] [user] [fixed] - Permission changes now take effect immediately without page reload
+[1.64.0] [user] [fixed] - Clear notification when you lack permission to edit reports or slides
+[1.64.0] [user] [fixed] - Edits made right after receiving edit access are now saved properly
+[1.64.0] [user] [fixed] - Locking or unlocking a project now applies instantly for active editors
+[1.64.0] [user] [fixed] - Removed from a project mid-session now properly revokes editing
+[1.64.0] [user] [fixed] - Visualization settings no longer briefly flicker after opening
+[1.64.0] [user] [fixed] - Slide layout changes now correctly appear in version history
+[1.64.0] [user] [fixed] - Split panel edits on slides now sync properly to collaborators
+[1.64.0] [user] [fixed] - Image updates in reports no longer overwrite open figure editor changes
+[1.64.0] [user] [fixed] - Connection drops are now detected faster, reducing silent edit loss
+[1.64.0] [user] [fixed] - Restoring a version now warns if unsaved edits prevent a safety snapshot
+[1.64.0] [user] [added] - Automatic reconnection when the platform is updated while you are working
+[1.64.0] [admin] [fixed] - Editors now auto-reconnect when permissions or project lock change mid-session
+[1.64.0] [admin] [fixed] - Users without edit permission now see a clear alert instead of silent edit loss
+[1.64.0] [admin] [fixed] - Stale collaborator cursors no longer persist indefinitely for late joiners
+[1.64.0] [admin] [fixed] - Dead network connections now detected and auto-reconnected within ~35 seconds
+[1.64.0] [admin] [fixed] - Tabs open during a server update now auto-reload instead of pushing stale data
+[1.64.0] [admin] [fixed] - Visualization configs with invalid mid-edit values no longer permanently wedge saving
+[1.64.0] [admin] [fixed] - Save failures no longer flood server logs; logging is now throttled
+[1.64.0] [admin] [fixed] - Slide layout changes (column wraps, container resizes) now appear in version history
+[1.64.0] [admin] [fixed] - Removing a user mid-session now immediately revokes their edit access
+[1.64.0] [admin] [fixed] - Restoring a report or deck version now fails safely if live edits cannot be saved first
+[1.64.0] [admin] [fixed] - Figure edits from one editor no longer overwrite another editor's open figure modal
+[1.64.0] [admin] [fixed] - Slide split-panel edits now sync reliably to collaborators
+[1.64.0] [admin] [changed] - Failed save operations now prevent unsafe fallback writes that could lose data
+[1.64.0] [admin] [internal] - Improved resilience of real-time collaboration checkpoint and finalization logic
+[1.63.5] [user] [fixed] - AI assistant now correctly reports invalid filter dimensions instead of silently creating broken charts
+[1.63.5] [admin] [fixed] - AI tools now properly reject filters on non-existent metric dimensions
+[1.63.4] [user] [fixed] - Importing files with duplicate rows now keeps the most complete data
+[1.63.4] [admin] [fixed] - Importing files with duplicate facility rows now keeps the most complete record
+[1.63.3] [user] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
+[1.63.3] [user] [fixed] - Chart preview now reliably updates when any data setting changes
+[1.63.3] [admin] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
+[1.63.3] [admin] [fixed] - Chart preview now reliably refreshes for all data setting changes
+[1.63.2] [user] [fixed] - Charts now refresh correctly when toggling rollup grouping options
+[1.63.2] [admin] [fixed] - Visualization editor now refreshes correctly when rollup setting changes
+[1.63.1] [user] [added] - Search fields now have a clear button to reset searches
+[1.63.1] [admin] [added] - Search fields now have a clear button
+[1.63.0] [user] [changed] - Roll-up total rows now work with facility columns, not just admin areas
+[1.63.0] [user] [changed] - Roll-up option appears on each eligible breakdown dimension individually
+[1.63.0] [user] [changed] - Roll-up checkbox label updates dynamically to match the selected dimension (e.g., "Include results for all facilities")
+[1.63.0] [user] [fixed] - Restoring or copying a saved version no longer silently drops roll-up total row settings
+[1.63.0] [admin] [changed] - Roll-up total rows now support facility columns, not just admin areas
+[1.63.0] [admin] [changed] - Roll-up setting moved from a global toggle to per-disaggregation option
+[1.63.0] [admin] [changed] - Roll-up label adapts to context (e.g. "All facilities" or "National")
+[1.63.0] [admin] [fixed] - Restoring or copying old report/deck versions preserves roll-up settings
+[1.63.0] [admin] [fixed] - Dashboard items with legacy roll-up settings are properly migrated on upgrade
+[1.63.0] [admin] [internal] - Data cache version bumped; first load after upgrade may be slightly slower
+[1.62.3] [user] [fixed] - Indicators heading no longer pushes search bar off screen
+[1.62.3] [user] [fixed] - Search bar layout is now consistent and properly aligned
+[1.62.3] [admin] [fixed] - Indicators heading no longer pushes search bar off screen
+[1.62.3] [user] [added] - Search bar added to the HFA indicators manager
+[1.62.3] [user] [changed] - Indicator count updates to show filtered vs total results when searching
+[1.62.3] [user] [changed] - Clearer "no results" message when indicator search finds no matches
+[1.62.3] [user] [changed] - Improved variable labels in data dictionaries now include group context for clarity
+[1.62.3] [admin] [added] - Search bar added to the HFA indicators management page
+[1.62.3] [admin] [changed] - Indicator count updates to show filtered vs. total when searching
+[1.62.3] [admin] [changed] - Dictionary labels now include parent group names for clarity
+[1.62.3] [admin] [fixed] - Matrix-style survey questions no longer show duplicate or ambiguous labels
+[1.62.0] [user] [fixed] - Email addresses are now validated before generating the slide deck PDF
+[1.62.0] [user] [fixed] - Clear error messages shown for invalid email addresses when sharing slide decks
+[1.62.0] [user] [fixed] - Sharing slide decks now shows the specific error when sending fails
+[1.62.0] [user] [fixed] - Loading message now displays in your selected language during presentations
+[1.62.0] [user] [fixed] - Filters with one option stay visible when already applied, preventing hidden "no data" issues
+[1.62.0] [user] [fixed] - Data uploads now correctly accept count values like "123.0" from exported files
+[1.62.0] [user] [fixed] - Editing existing indicators no longer blocked by reserved name rules applied after creation
+[1.62.0] [admin] [fixed] - Slide deck email validates addresses before generating the PDF
+[1.62.0] [admin] [fixed] - Slide deck sharing now shows server error details on failure
+[1.62.0] [admin] [fixed] - Presentation loading message displays in the correct language
+[1.62.0] [admin] [fixed] - Single-value filters with active selections no longer hidden, preventing invisible "no data" states
+[1.62.0] [admin] [fixed] - Editing indicators with legacy reserved names no longer blocked
+[1.62.0] [admin] [fixed] - Data import now accepts count values like "123.0" or "1e3" from exporters
+[1.62.0] [admin] [fixed] - Invalid count values can no longer abort an entire staging batch
+[1.62.0] [admin] [changed] - Slide deck recipients limited to 50 with a clear error message
+[1.62.0] [admin] [changed] - Visualization detail cache refreshed for new data format
+[1.62.0] [admin] [internal] - Removed temporary dark mode keyboard shortcut (Shift+N)
+[1.62.0] [admin] [fixed] - Saved project tab no longer crashes the page if value is outdated
+[1.62.0] [user] [added] - Tables can now show sample sizes in column headers for survey metrics
+[1.62.0] [user] [added] - Sample sizes appear as "(n=…)" next to values in AI-generated data summaries
+[1.62.0] [user] [changed] - Exported CSV files now label sample size columns clearly as "sample_size_…"
+[1.62.0] [user] [fixed] - Charts with negative values no longer clip bars below the axis
+[1.62.0] [user] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [added] - Tables for survey metrics can now show sample sizes in column headers
+[1.62.0] [admin] [added] - New "Show sample sizes in column headers" toggle in table style settings for survey (HFA) metrics
+[1.62.0] [admin] [added] - AI assistant now includes sample size context when analyzing survey data
+[1.62.0] [admin] [added] - Underlying data CSV exports now include sample size columns with readable headers
+[1.62.0] [admin] [fixed] - Charts for metrics with negative values no longer clip bars below the axis
+[1.62.0] [admin] [fixed] - Table exports now match the column headers shown on screen
+[1.62.0] [admin] [changed] - More metrics now correctly allow negative values on chart axes
+[1.62.0] [admin] [internal] - Visualization cache updated; cached figures will regenerate automatically
+[1.62.0] [user] [added] - Scheduled DHIS2 imports now support daily and monthly recurrence options
+[1.62.0] [user] [added] - Color theme picker now includes a "More themes…" modal with live previews
+[1.62.0] [user] [added] - Reserved variable names are now blocked when creating HFA indicators
+[1.62.0] [user] [added] - Blank or missing values in filters now appear as a selectable "(Blank)" option
+[1.62.0] [user] [changed] - Dashboard group headings and export sheet names now show friendly labels instead of raw codes
+[1.62.0] [user] [changed] - Filter chips now display a readable label for blank or missing values
+[1.62.0] [user] [fixed] - Using '&&' or '||' in indicator code now shows a clear error instead of failing silently at run time
+[1.62.0] [user] [fixed] - Figures with missing group values no longer disappear from filters and charts
+[1.62.0] [user] [fixed] - Slide deck colors now correctly follow the chosen color theme in tables and maps
+[1.62.0] [admin] [added] - DHIS2 scheduled imports now support daily and monthly recurrence
+[1.62.0] [admin] [added] - "More themes…" modal for browsing and comparing slide deck color themes with live previews
+[1.62.0] [admin] [added] - Reserved word validation when creating HFA indicator variable names
+[1.62.0] [admin] [added] - Blank or missing disaggregation values now appear as a selectable "(Blank)" option in filters and replicants
+[1.62.0] [admin] [changed] - DHIS2 recurring schedule configuration replaced weekly-only interval with daily, weekly, and monthly options
+[1.62.0] [admin] [changed] - Replicant labels in dashboards and exports now display formatted names instead of raw identifiers
+[1.62.0] [admin] [changed] - HFA indicator code editor now flags use of && and || operators as errors before running
+[1.62.0] [admin] [changed] - HFA indicator code now correctly treats missing survey answers as unknown rather than as determinate "no"
+[1.62.0] [admin] [fixed] - Disaggregation filters no longer disappear when a dimension contains blank or missing values
+[1.62.0] [admin] [fixed] - Figures in slide decks now correctly inherit the deck's color theme for structural elements like grid lines and borders
+[1.62.0] [admin] [fixed] - HFA indicator expressions using %in% now correctly propagate missing values instead of treating them as false
+[1.62.0] [admin] [internal] - Slide content validation now enforced at the route boundary instead of inside the handler
+[1.62.0] [admin] [internal] - Visualization cache version updated; cached figures will regenerate on next access
+[1.62.0] [user] [changed] - Scheduling imports now only requires saved credentials, no verification run needed
+[1.62.0] [user] [changed] - Removed "Verification mismatches" section from import run details
+[1.62.0] [user] [changed] - Simplified scheduling guidance message when credentials are missing
+[1.62.0] [admin] [changed] - Scheduling DHIS2 imports no longer requires a prior verification run
+[1.62.0] [admin] [changed] - Shadow verification step removed from DHIS2 import process
+[1.62.0] [admin] [changed] - Verification mismatches section removed from import run details
+[1.62.0] [admin] [changed] - Stored credentials are now the only requirement for scheduled imports
+[1.61.2] [user] [added] - Row filter option during HFA data import to exclude unwanted rows
+[1.61.2] [user] [added] - Duplicate facility review step during HFA data import with manual row selection
+[1.61.2] [user] [changed] - HFA data import now has a dedicated duplicates review step before staging
+[1.61.2] [user] [changed] - AI assistant now shows a preview of proposed changes before applying them
+[1.61.2] [user] [changed] - AI-proposed edits to indicators require explicit approval via a confirmation dialog
+[1.61.2] [user] [added] - Staging results now show how many rows were removed by filters
+[1.61.2] [user] [added] - Staging results now show which dedup strategy was used and how many manual overrides applied
+[1.61.2] [admin] [added] - HFA data import now supports row filtering before staging
+[1.61.2] [admin] [added] - HFA data import now lets you review and resolve duplicate facility rows
+[1.61.2] [admin] [added] - AI assistant now requires your approval before making changes to data
+[1.61.2] [admin] [changed] - HFA data import wizard has a new step for duplicate review
+[1.61.2] [admin] [changed] - AI-proposed changes now show a detailed before/after preview for your review
+[1.61.2] [admin] [fixed] - AI assistant no longer silently applies edits; all writes require explicit confirmation
+[1.61.2] [admin] [internal] - Heading bar component moved from shared library to application code
+[1.61.1] [user] [fixed] - Fixed crash when generating charts from AI-suggested configurations
+[1.61.1] [admin] [fixed] - Resolved crash when AI tools generate visualizations
+[1.61.1] [user] [fixed] - Report editor now updates correctly when switching dark/light mode
+[1.61.1] [admin] [fixed] - Report editor now updates correctly when switching themes
+[1.61.1] [admin] [changed] - Instance information dialog layout slightly improved
+[1.61.1] [user] [fixed] - Slide presenter now updates live when collaborators edit slides
+[1.61.1] [user] [fixed] - Slide presenter refreshes slide list when collaborators add or remove slides
+[1.61.1] [user] [fixed] - Permission and lock changes now apply immediately in open editors
+[1.61.1] [user] [fixed] - Connection status banner no longer hidden behind other elements
+[1.61.1] [user] [changed] - Cleaner border styling throughout the interface
+[1.61.1] [user] [fixed] - Live collaboration indicator more reliably detects disconnections
+[1.61.1] [user] [fixed] - Undo no longer crashes after a visualization is deleted by a collaborator
+[1.61.1] [admin] [fixed] - Slide presenter now reflects live edits from collaborators
+[1.61.1] [admin] [fixed] - Slide presenter updates when peers add, delete, or reorder slides
+[1.61.1] [admin] [fixed] - Permission and lock changes now propagate into open caption editors
+[1.61.1] [admin] [fixed] - Collab connection status indicator more reliably detects socket drops
+[1.61.1] [admin] [fixed] - Prevented potential crash when a collaboration room is discarded during editing
+[1.61.1] [admin] [fixed] - Server now handles dead peer sockets without disrupting other collaborators
+[1.61.1] [admin] [changed] - Dark mode profile dialog colors now sourced from the shared theme definition
+[1.61.1] [admin] [internal] - Improved error logging for collaboration session failures
+[1.61.0] [user] [added] - Dark mode toggle in profile settings
+[1.61.0] [user] [added] - Live cursors show collaborators' mouse pointers in real time
+[1.61.0] [user] [added] - Cursor chat lets you press "/" to send quick messages to collaborators
+[1.61.0] [user] [added] - Click ripples show where collaborators click on shared surfaces
+[1.61.0] [user] [added] - "Connection lost — reconnecting" banner when collaboration drops
+[1.61.0] [user] [added] - "Live again" notification when collaboration connection recovers
+[1.61.0] [user] [added] - Toast notifications when collaborators join or leave your document
+[1.61.0] [user] [added] - Live presence avatars shown on visualization cards
+[1.61.0] [user] [added] - Collaborative text editing with visible collaborator cursors and selections
+[1.61.0] [user] [added] - Hover over a collaborator's text selection to see their name
+[1.61.0] [user] [changed] - Charts and tables now adapt colors for dark mode readability
+[1.61.0] [user] [changed] - Login page text stays readable in dark mode
+[1.61.0] [user] [changed] - Connection status banner colors adapt properly to dark mode
+[1.61.0] [user] [changed] - AI chat pane adapts to dark mode
+[1.61.0] [user] [changed] - Account management window matches dark mode when enabled
+[1.61.0] [user] [fixed] - Near-black chart lines no longer invisible in dark mode
+[1.61.0] [admin] [added] - Dark mode toggle in user profile settings
+[1.61.0] [admin] [added] - Live cursors show collaborators' pointers in real time
+[1.61.0] [admin] [added] - Cursor chat lets collaborators send quick messages via live cursors
+[1.61.0] [admin] [added] - Presence toasts announce when collaborators join or leave a document
+[1.61.0] [admin] [added] - Connection lost banner with reconnection status and reload option
+[1.61.0] [admin] [added] - Presence avatars shown on visualization cards for active editors
+[1.61.0] [admin] [fixed] - Login page text now readable in dark mode
+[1.61.0] [admin] [fixed] - Charts and tables now adapt colors properly for dark mode
+[1.61.0] [admin] [fixed] - Connection status indicator colors adapt to dark mode
+[1.61.0] [admin] [fixed] - Clerk account management window now styled correctly in dark mode
+[1.61.0] [admin] [changed] - File upload now supports restricting allowed file types
+[1.61.0] [admin] [internal] - Collaborative markdown editor added for real-time co-editing
+[1.60.1] [user] [fixed] - Pop-up dialogs no longer appear unexpectedly inside projects
+[1.60.1] [admin] [fixed] - Post-login pop-ups no longer appear when viewing a project
+[1.60.0] [user] [changed] - Filter options now appear as a searchable dropdown for easier selection
+[1.60.0] [admin] [added] - Filters now show a searchable dropdown for long option lists
+[1.60.0] [admin] [changed] - Data and disaggregation filter selectors use search instead of chip clouds
+[1.60.0] [user] [changed] - Refined border styling for a more consistent visual appearance across the interface
+[1.60.0] [user] [added] - AI assistant now recognizes when you are viewing Dashboards or Cache tabs
+[1.60.0] [user] [added] - Confirmation prompt before saving bulk indicator validation results
+[1.60.0] [user] [changed] - "Back to step 1" button in DHIS2 import wizard is now more visually distinct
+[1.60.0] [user] [changed] - Font picker options now highlight on hover for easier selection
+[1.60.0] [admin] [added] - AI assistant now recognizes Dashboards and Cache views
+[1.60.0] [admin] [changed] - Bulk indicator validation now asks for confirmation before saving
+[1.60.0] [admin] [fixed] - Consistent border styling across the entire interface
+[1.60.0] [admin] [changed] - Error-state buttons now use clearer danger styling
+[1.60.0] [user] [fixed] - Dashboard and chart thumbnails now refresh automatically after data updates
+[1.60.0] [user] [fixed] - Admin-only actions now appear and disappear correctly when permissions change
+[1.60.0] [user] [changed] - Improved visual consistency of borders, text colors, and status badges throughout the platform
+[1.60.0] [user] [changed] - Permission category headings now appear bolder for easier reading
+[1.60.0] [user] [changed] - Scheduled DHIS2 import alerts no longer appear as clickable when they shouldn't be
+[1.60.0] [user] [fixed] - Category manager admin buttons now react properly to permission changes without page reload
+[1.60.0] [user] [changed] - Selected categories and time points are now highlighted with a clearer background color
+[1.60.0] [user] [changed] - Hoverable cards on data and project pages have more consistent hover effects
+[1.60.0] [user] [changed] - Remove button for feedback images now shows a subtle style instead of red by default
+[1.60.0] [admin] [fixed] - Dashboard and visualization thumbnails now refresh automatically after data changes
+[1.60.0] [admin] [fixed] - HFA category manager admin permissions now update correctly without page reload
+[1.60.0] [admin] [fixed] - Stale data no longer appears when rapidly switching between data fetches
+[1.60.0] [admin] [changed] - DHIS2 import queue and scheduled import notices no longer act as clickable links
+[1.60.0] [admin] [changed] - Asset uploads and deletions now refresh automatically without extra server calls
+[1.60.0] [admin] [improved] - Improved visual consistency of status badges, borders, and muted text across the platform
+[1.60.0] [admin] [fixed] - Table action buttons and bulk actions now correctly appear or hide when admin role changes
+[1.60.0] [user] [changed] - Refined border rounding for a more consistent visual style
+[1.60.0] [user] [changed] - Improved shadow styling on floating elements like popovers and notifications
+[1.60.0] [user] [fixed] - Improved visual consistency of checkbox borders in permissions settings
+[1.60.0] [user] [fixed] - Error messages now display in a consistent red color throughout the app
+[1.60.0] [user] [changed] - Backup list styling now adapts correctly to light and dark themes
+[1.60.0] [user] [changed] - Style preset cards have a cleaner, simpler border appearance
+[1.60.0] [admin] [fixed] - Improved visual consistency of UI colors across the platform
+[1.59.1] [user] [changed] - Expand/collapse arrows now use consistent chevron icons
+[1.59.1] [user] [fixed] - Improved error messages when AI assistant encounters issues
+[1.59.1] [admin] [fixed] - AI chat errors now display more accurate error details
+[1.59.1] [admin] [internal] - Replaced text arrows with proper icons in AI chat expandable sections
+[1.59.0] [user] [added] - DHIS2 credentials button added to the Data page
+[1.59.0] [user] [added] - Manage DHIS2 connection from a single shared location
+[1.59.0] [user] [changed] - DHIS2 credentials are now stored once for the whole instance
+[1.59.0] [user] [changed] - No longer need to re-enter DHIS2 credentials for each workflow
+[1.59.0] [user] [changed] - GeoJSON DHIS2 import defaults to stored connection automatically
+[1.59.0] [user] [changed] - Structure import uses stored connection instead of manual entry
+[1.59.0] [user] [changed] - Indicator search uses stored connection by default
+[1.59.0] [user] [added] - "Change connection" button when searching DHIS2 indicators
+[1.59.0] [user] [changed] - Scheduling an import uses timezone-aware date and time inputs
+[1.59.0] [user] [changed] - Recurring import time picker now includes searchable timezone selector
+[1.59.0] [user] [removed] - "Save credentials for this session" checkbox no longer needed
+[1.59.0] [admin] [added] - DHIS2 credentials button on the Data page for managing the instance connection
+[1.59.0] [admin] [changed] - DHIS2 credentials are now stored once per instance and shared across all DHIS2 features
+[1.59.0] [admin] [changed] - Structure import uses the instance's stored DHIS2 connection instead of per-attempt credentials
+[1.59.0] [admin] [changed] - GeoJSON import from DHIS2 defaults to the stored connection with an option to override
+[1.59.0] [admin] [changed] - DHIS2 indicator search defaults to the stored connection with an option to change
+[1.59.0] [admin] [changed] - Session-based credential storage in the browser has been removed
+[1.59.0] [admin] [changed] - Stored DHIS2 credentials no longer expose the username to the browser
+[1.59.0] [admin] [changed] - Scheduling time inputs now include explicit timezone selection
+[1.59.0] [admin] [fixed] - Structure import detects if the stored DHIS2 connection changed mid-wizard and asks you to re-confirm
+[1.59.0] [user] [added] - View detailed error information for each DHIS2 import run by clicking on it
+[1.59.0] [user] [added] - Retry failed indicator-month pairs directly from the import run detail view
+[1.59.0] [user] [added] - See which indicators were not found in DHIS2 during an import
+[1.59.0] [user] [added] - View verification mismatches between DHIS2 data sources for an import run
+[1.59.0] [user] [changed] - Failed pair counts are now highlighted in red in the import history table
+[1.59.0] [user] [changed] - Scheduled and one-time import error messages are now shown directly in the table instead of only on hover
+[1.59.0] [admin] [added] - Click any DHIS2 import run to view full error details
+[1.59.0] [admin] [added] - Retry failed indicator-month pairs directly from run detail view
+[1.59.0] [admin] [added] - Unknown DHIS2 indicator IDs are now clearly listed per run
+[1.59.0] [admin] [added] - Verification mismatches between DHIS2 data sources shown in run detail
+[1.59.0] [admin] [changed] - Failed pair counts in import history are now highlighted in red
+[1.59.0] [admin] [changed] - Scheduled and one-time import errors now display inline instead of tooltip-only
+[1.58.0] [user] [added] - Indicator labels now shown in the import status table
+[1.58.0] [user] [changed] - Scheduled imports split into Recurring and One-time sections
+[1.58.0] [user] [changed] - One-time scheduled imports now use an exact date range instead of a rolling window
+[1.58.0] [user] [changed] - Recurring import month selector replaced with a visual slider
+[1.58.0] [user] [changed] - Import progress view layout improved with collapsible panel
+[1.58.0] [user] [changed] - Common IDs column in indicator picker is now sortable
+[1.58.0] [user] [changed] - Schedule enable/disable toggle removed; use Edit or Delete instead
+[1.58.0] [user] [changed] - Clearer status labels for scheduled imports (e.g., "Skipped", "Didn't run")
+[1.58.0] [user] [changed] - Completed one-time imports are automatically cleaned up from the schedule list
+[1.58.0] [user] [fixed] - "Last N months" now counts consistently with the visualization editor's filter
+[1.58.0] [admin] [added] - Import status table now shows indicator labels alongside IDs
+[1.58.0] [admin] [added] - One-time scheduled imports now use explicit date ranges instead of rolling windows
+[1.58.0] [admin] [added] - Scheduled imports list separates recurring and one-time imports into distinct sections
+[1.58.0] [admin] [changed] - Removed the Enabled/Disabled toggle for scheduled imports; use Edit or Delete instead
+[1.58.0] [admin] [changed] - "Last N months" for recurring imports now uses a slider instead of a text field
+[1.58.0] [admin] [changed] - "Last N months" counting now matches the visualization editor convention (N months total, not current plus N)
+[1.58.0] [admin] [changed] - Import progress view layout redesigned with collapsible panel and sidebar cancel button
+[1.58.0] [admin] [changed] - Sidebar no longer shows inline DHIS2 import progress card; open the import screen instead
+[1.58.0] [admin] [changed] - Completed one-time scheduled imports are automatically cleaned up from the list
+[1.58.0] [admin] [changed] - Clearer status labels for scheduled imports (e.g., "Skipped" instead of "Refused")
+[1.58.0] [admin] [changed] - Stored DHIS2 connection display no longer shows the username
+[1.58.0] [admin] [fixed] - Common IDs column in the indicator picker is now sortable
+[1.58.0] [admin] [internal] - Removed server-side HMIS display cache; reads are now fast enough without it
+[1.58.0] [user] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[1.58.0] [user] [added] - Review summary screen before launching or scheduling an import
+[1.58.0] [user] [changed] - Import screen reorganized into Current, Future, and History tabs
+[1.58.0] [user] [added] - "Manage connection" button to update DHIS2 credentials without starting an import
+[1.58.0] [user] [added] - Tab badges show count of active/queued imports and enabled schedules
+[1.58.0] [user] [changed] - Collapsible progress view for the currently running import
+[1.58.0] [user] [added] - "New import" button always visible in the top toolbar
+[1.58.0] [user] [changed] - Scheduling and one-time future imports now configured within the same wizard
+[1.58.0] [user] [added] - Next scheduled import shown when no import is running
+[1.58.0] [admin] [changed] - DHIS2 import setup now uses a step-by-step wizard
+[1.58.0] [admin] [added] - New "Manage connection" button to update stored DHIS2 credentials without starting an import
+[1.58.0] [admin] [changed] - DHIS2 imports page reorganized into Current, Future, and History tabs
+[1.58.0] [admin] [added] - Current tab shows next scheduled import when no import is running
+[1.58.0] [admin] [changed] - Scheduling and one-time future imports are now configured through the same wizard
+[1.58.0] [admin] [added] - Review step summarizes connection, indicators, timing, and pair count before launching
+[1.58.0] [admin] [changed] - Wizard automatically detects if an import is running and offers to queue instead
+[1.58.0] [admin] [added] - Tab badges show counts of active/queued imports and enabled schedules
+[1.58.0] [user] [added] - Schedule recurring or one-time automatic DHIS2 imports
+[1.58.0] [user] [added] - Queue additional DHIS2 imports while one is already running
+[1.58.0] [user] [added] - Store DHIS2 connection credentials securely for unattended imports
+[1.58.0] [user] [added] - View and manage queued imports with option to remove them
+[1.58.0] [user] [added] - Alert banner when a scheduled import needs attention
+[1.58.0] [user] [added] - Sidebar shows count of queued DHIS2 imports
+[1.58.0] [user] [added] - Option to use stored credentials instead of entering them each time
+[1.58.0] [user] [added] - Import history now labels scheduled imports distinctly
+[1.58.0] [user] [changed] - DHIS2 imports page now shows running, queued, scheduled, and history in one view
+[1.58.0] [user] [changed] - Queuing an import requires explicit confirmation before proceeding
+[1.58.0] [admin] [added] - Scheduled DHIS2 imports with recurring or one-time options
+[1.58.0] [admin] [added] - Queue additional DHIS2 imports while one is already running
+[1.58.0] [admin] [added] - Stored DHIS2 credentials for unattended imports with encrypted passwords
+[1.58.0] [admin] [added] - Sidebar alerts when a scheduled import needs attention
+[1.58.0] [admin] [added] - Queued import count shown on the imports overview
+[1.58.0] [admin] [added] - Option to use stored credentials instead of entering them each time
+[1.58.0] [admin] [added] - Confirmation dialog before queueing an import
+[1.58.0] [admin] [added] - Queued imports table with ability to remove individual items
+[1.58.0] [admin] [added] - Schedule editor with day, time, timezone, and interval controls
+[1.58.0] [admin] [added] - Enable and disable individual import schedules
+[1.58.0] [admin] [changed] - Imports page now shows running, queued, scheduled, and history in one view
+[1.58.0] [admin] [changed] - Import history now labels scheduled versus manual imports
+[1.58.0] [admin] [changed] - Server requires DHIS2_CREDENTIALS_ENCRYPTION_KEY to store credentials
+[1.58.0] [admin] [changed] - Scheduling unlocks only after a successful shadow-verified import
+[1.58.0] [admin] [fixed] - DHIS2 data fetching now works correctly on Ethiopian-calendar servers
+[1.58.0] [admin] [fixed] - Module data migration now correctly handles alternate asset formats
+[1.58.0] [user] [changed] - Data tables now update live during DHIS2 imports instead of showing stale results
+[1.58.0] [user] [fixed] - Fixed rare issue where cached data could show incorrect values during an active DHIS2 import
+[1.58.0] [user] [fixed] - Fixed issue where cancelling or interrupting a DHIS2 import could block future imports
+[1.58.0] [user] [added] - DHIS2 imports are now blocked during data export to prevent incomplete project data
+[1.58.0] [user] [fixed] - Fixed issue where starting a DHIS2 import could fail silently and block all future imports
+[1.58.0] [admin] [added] - DHIS2 import progress is now visible in real time during active runs
+[1.58.0] [admin] [added] - Shadow verification aborts the run if too many data mismatches are detected
+[1.58.0] [admin] [fixed] - Cached data no longer shows stale results while a DHIS2 import is in progress
+[1.58.0] [admin] [fixed] - Cancelling or crashing a DHIS2 import now properly cleans up version records
+[1.58.0] [admin] [fixed] - Concurrent CSV upload and DHIS2 import can no longer conflict silently
+[1.58.0] [admin] [fixed] - Server restart during an import no longer permanently blocks future imports
+[1.58.0] [admin] [fixed] - Worker startup failure no longer leaves imports stuck in a "running" state
+[1.58.0] [admin] [fixed] - Exporting HMIS data to a project is now blocked while an import is running
+[1.58.0] [admin] [fixed] - Non-Gregorian calendar instances no longer fetch incorrect date ranges from DHIS2
+[1.58.0] [admin] [changed] - Shadow verification is now scoped per DHIS2 server URL
+[1.58.0] [admin] [changed] - DHIS2 data pulls now fetch one month at a time instead of multi-month windows
+[1.58.0] [user] [added] - Import health data directly from DHIS2 with a dedicated import button
+[1.58.0] [user] [added] - View real-time progress of DHIS2 imports with percentage and pair counts
+[1.58.0] [user] [added] - Import status dashboard showing each indicator's import history by month
+[1.58.0] [user] [added] - Retry all failed DHIS2 imports with one click
+[1.58.0] [user] [added] - Re-import all months for a specific indicator from its detail view
+[1.58.0] [user] [added] - See error details classified as configuration or server issues per indicator-month
+[1.58.0] [user] [added] - View history of previous DHIS2 import runs with success and failure counts
+[1.58.0] [user] [added] - Cancel a running DHIS2 import while keeping already-completed data
+[1.58.0] [user] [changed] - CSV upload button now labeled "Upload CSV file" instead of "Start new import"
+[1.58.0] [user] [changed] - CSV import starts immediately without choosing between CSV and DHIS2 first
+[1.58.0] [user] [changed] - Data overview loads faster by reading from a pre-computed summary instead of scanning all records
+[1.58.0] [admin] [added] - DHIS2 imports now run as standalone background jobs with live progress tracking
+[1.58.0] [admin] [added] - New "Import from DHIS2" button on the HMIS dataset page
+[1.58.0] [admin] [added] - Import status view shows per-indicator, per-month import health at a glance
+[1.58.0] [admin] [added] - Retry all failed indicator-month pairs in one click from the import status view
+[1.58.0] [admin] [added] - Re-import all months for a single indicator from its detail view
+[1.58.0] [admin] [added] - DHIS2 import progress bar with real-time pair-level completion and failure counts
+[1.58.0] [admin] [added] - Ability to cancel a running DHIS2 import while keeping already-imported pairs
+[1.58.0] [admin] [added] - DHIS2 import history table showing past runs, who triggered them, and outcomes
+[1.58.0] [admin] [added] - Failed imports now classify errors as configuration or server issues
+[1.58.0] [admin] [changed] - CSV upload button now starts directly at file upload instead of asking for source type
+[1.58.0] [admin] [changed] - DHIS2 imports are separate from the CSV upload wizard and no longer share its steps
+[1.58.0] [admin] [changed] - Dataset summary grid now loads faster using a pre-computed import ledger
+[1.58.0] [admin] [changed] - Each DHIS2 indicator-month pair is saved independently so partial failures no longer lose successful data
+[1.58.0] [admin] [changed] - "Start new import" button renamed to "Upload CSV file" for clarity
+[1.58.0] [user] [added] - Slide style editor now available in French and Portuguese
+[1.58.0] [admin] [added] - Slide style editor now supports French and Portuguese
 [1.57.6] [user] [fixed] - File downloads now work correctly for filenames with special characters
 [1.57.6] [admin] [fixed] - Asset downloads now work for filenames with special characters
 [1.57.5] [user] [fixed] - Charts no longer show breakdowns for dimensions with only one value in the data

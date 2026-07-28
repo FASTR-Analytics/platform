@@ -17,10 +17,13 @@ import {
   type MapRegionInfoFunc,
   normalizeTo01,
   type PaddingOptions,
+  type PieSliceInfoFunc,
   type TableCellInfoFunc,
+  type TableHeaderInfoFunc,
   toPct0,
   type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
+  type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   ArrowheadFitFallback,
@@ -29,10 +32,11 @@ import type {
   GenericCascadeArrowStyle,
   GenericConfidenceBandStyle,
   GenericConnectorStyle,
-  GenericDataLabelStyle,
+  GenericDataLabelBaseStyle,
   GenericErrorBarStyle,
   GenericLineStyle,
   GenericMapRegionStyle,
+  GenericPieSliceStyle,
   GenericPointStyle,
   GenericTableCellStyle,
   GenericTableHeaderStyle,
@@ -42,10 +46,52 @@ import {
   SERIES_COLOR_SENTINEL,
   VALUES_COLOR_SENTINEL,
 } from "./style_func_types.ts";
+import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
 
 function typed<T>(value: T): T {
   return value;
+}
+
+// Shared default for every figure's labelCollision block (map, pie). The
+// blocks stay per-figure (collision policy is figure-wide structural style),
+// but the numbers are one calibration.
+function defaultLabelCollision(): LabelCollisionConfig {
+  return {
+    gap: 12,
+    maxCentroidDisplacement: 20,
+    maxIterations: 10,
+  };
+}
+
+// Shared defaults for every zero-way figure's label-placement policy (map,
+// pie). Same reasoning as defaultLabelCollision: the blocks stay per-figure
+// because placement policy is figure-wide structural style, but the numbers are
+// one calibration.
+function defaultLabelPlacement() {
+  return {
+    // Which placer runs for labels that go outside. "flank" stacks them in a
+    // column per side; "nearest" puts each at its own nearest point on the
+    // figure's silhouette. Each figure flips its own default as it is wired.
+    outsideLabelPlacement: typed<"nearest" | "flank">("flank"),
+    // How close a padded label box may come to the silhouette at directions
+    // where its CORNER leads. At the cardinals an edge leads and the clearance
+    // is calloutMargin exactly; this guards the diagonals, where ray-exit
+    // anchoring alone drives a wide label into the shape.
+    labelClearanceFloor: 4,
+    // Direction, in degrees off a cardinal, at which a nearest-point label's
+    // text alignment flips from centred to edge-aligned. 45 gives even
+    // quarters and puts the switch where the box's own corner starts to lead.
+    labelAlignmentSwitchAngle: 45,
+    // How many lines a label may wrap onto while fighting to stay INSIDE its
+    // own element. 1 is a single unwrapped test.
+    maxLabelLines: 2,
+    // The share of the room at its anchor a label's text must fit within to
+    // stay inside. Below 1 so "fits" means comfortably, not exactly.
+    insideFitFraction: 0.9,
+    // The width an OUTSIDE label's text wraps at, as a fraction of the cell.
+    labelWrapFraction: 0.4,
+  };
 }
 
 const _DS = {
@@ -140,8 +186,10 @@ const _DS = {
     maxTickLabelHeightAsPctOfChart: 0.5,
   },
   xScaleAxis: {
-    max: typed<number | "auto" | ((i_pane: number) => number)>("auto"),
-    min: typed<number | "auto" | ((i_pane: number) => number)>(0),
+    max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
+      "auto",
+    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
     labelGap: 10,
     tickHeight: 10,
     tickLabelGap: 5,
@@ -169,8 +217,12 @@ const _DS = {
     maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
-    max: typed<number | "auto" | ((i_series: number) => number)>("auto"),
-    min: typed<number | "auto" | ((i_series: number) => number)>(0),
+    max: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+      "auto",
+    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+      0,
+    ),
     labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 5,
@@ -192,13 +244,21 @@ const _DS = {
   },
   // Content`
   content: {
-    dataLabel: typed<GenericDataLabelStyle>({
+    dataLabel: typed<GenericDataLabelBaseStyle>({
       show: false,
       offset: 3,
       backgroundColor: "none",
       padding: 0,
       borderWidth: 0,
       rectRadius: 0,
+      // The single home for leader-line defaults. A leader line belongs to the
+      // label at its end, so every figure that draws one (map callouts, pie
+      // outside labels) reads it from here — no per-figure duplicate.
+      leaderLine: {
+        strokeColor: { key: "base300" },
+        strokeWidth: 1,
+        gap: 4,
+      },
     }),
     points: {
       func: typed<GenericPointStyle>({
@@ -331,11 +391,25 @@ const _DS = {
           borderWidth: 0,
           rectRadius: 0,
         },
-        leaderLineStrokeColor: { key: "base300" },
-        leaderLineStrokeWidth: 1,
-        leaderLineGap: 4,
       }),
       textFormatter: typed<MapRegionInfoFunc<string> | "none">("none"),
+    },
+    slices: {
+      func: typed<GenericPieSliceStyle>({
+        show: true,
+        fillColor: SERIES_COLOR_SENTINEL,
+        strokeColor: "none",
+        strokeWidth: 0,
+        dataLabel: {
+          show: false,
+          offset: 0,
+          backgroundColor: "none",
+          padding: 3,
+          borderWidth: 0,
+          rectRadius: 0,
+        },
+      }),
+      textFormatter: typed<PieSliceInfoFunc<string> | "none">("none"),
     },
     // alignV for cells and row headers is deliberately absent here — its
     // default is the table-wide `table.alignV` (resolved as a fallback
@@ -354,6 +428,7 @@ const _DS = {
         textColorStrategy: "none",
         alignH: "left",
       }),
+      textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
     tableColHeaders: {
       func: typed<GenericTableHeaderStyleOptions>({
@@ -361,6 +436,7 @@ const _DS = {
         alignH: "center",
         alignV: "bottom",
       }),
+      textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
   },
   // Grid
@@ -431,6 +507,7 @@ const _DS = {
       padding: typed<PaddingOptions>(10),
       maxTextWidth: 200,
       textGap: 6,
+      nodeInfo: typed<VizGraphNodeInfoFunc>(() => ({})),
     },
     edges: {
       strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
@@ -438,6 +515,16 @@ const _DS = {
       lineDash: typed<"solid" | "dashed">("solid"),
       arrowheadSize: 7,
       edgeInfo: typed<VizGraphEdgeInfoFunc>(() => ({})),
+    },
+    // Defaults for UNFOLDED group boxes (drawn behind member nodes); folded
+    // reps default to node chrome. Per-group overrides flow through
+    // nodes.nodeInfo with info.isGroup.
+    groups: {
+      fillColor: typed<ColorKeyOrString>("transparent"),
+      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+      strokeWidth: 1,
+      rectRadius: 6,
+      labelInset: 8,
     },
   },
   // Sankey
@@ -457,12 +544,84 @@ const _DS = {
     ),
     fit: typed<"all-regions" | "only-regions-in-data">("all-regions"),
     boundingBox: typed<[number, number, number, number] | undefined>(undefined),
-    dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("centroid"),
-    calloutMargin: 30,
-    labelCollision: {
-      gap: 12,
-      maxCentroidDisplacement: 20,
-      maxIterations: 10,
+    // Where a region's label goes. "centroid" pins every label to its region's
+    // centroid whatever happens; "callout" sends every label outside; "auto"
+    // keeps a label inside when it genuinely fits and exiles the rest.
+    //
+    // "auto" since 2026-07-27, ruled by the owner. The old default was
+    // "centroid", and on any dense map it produced a pile: Kenya adm1 with all
+    // 47 counties labelled draws seventeen of them on top of each other in the
+    // west, unreadable. Under "auto" the same map keeps 20 inside and takes 27
+    // out to their own nearest points, all legible, zero overlaps.
+    //
+    // It is NOT free, and the cost is the reason this was a decision rather
+    // than an obvious fix. "centroid" needs no distance field, no track and no
+    // content-scale solve against labels; "auto" needs all three as soon as one
+    // label is exiled. Measured, one measure() of a labelled map:
+    //
+    //   kenya, 47 regions     131ms -> 2254ms
+    //   east africa, 19       95ms  -> 861ms
+    //   kenya, 16 labelled    96ms  -> 340ms
+    //
+    // Nothing changes for a map that draws no labels, which is the default
+    // (content.mapRegions.func.dataLabel.show is false): the whole label solve
+    // is gated on there being labels at all. A consumer who wants the old
+    // behaviour, or the old cost, sets this key to "centroid".
+    dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("auto"),
+    // The silhouette-to-label clearance for callout labels. 12 preserves the
+    // look shipped while this key was dead and the clearance was hardwired to
+    // labelCollision.gap.
+    calloutMargin: 12,
+    labelCollision: defaultLabelCollision(),
+    ...defaultLabelPlacement(),
+    // Each outside label goes to the nearest point on the map's own dilated
+    // outline rather than into a column on the flank. Ruled and shipped
+    // 2026-07-27, on these measurements — nearest against flank on identical
+    // inputs, mean anchor-to-label distance:
+    //
+    //   kenya callout, 16 labels    105.9 -> 77.0
+    //   east africa callout, 10     125.5 -> 78.2
+    //   east africa auto, 19        117.5 -> 76.1   inside 4 -> 6
+    //   kenya auto, 26 outside      140.1 -> 123.7
+    //   kenya callout, 47           identical: that cell is genuinely
+    //                               saturated and falls back to flank, which
+    //                               is the design (plan N10)
+    //
+    // Zero overlaps, zero escapes and zero crossing leaders throughout, except
+    // two near-saturated cells that keep 2 and 1 (budgeted in
+    // map_figure_check.ts). The bar the owner set was "beats flank on leader
+    // length AND inside retention"; the last case that missed it, Kenya adm1
+    // `auto`, was 2.4% worse until the step-10 untangle and is now 14% better.
+    //
+    // The flank placer is not gone: it is the per-cell fallback when a track
+    // cannot hold its labels, and the opt-out via this key.
+    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
+  },
+
+  pie: {
+    // 0 = pie; 0..1 = doughnut (the fraction of the outer radius left empty).
+    innerRadiusRatio: 0,
+    // 12 o'clock, matching every mainstream library.
+    startAngle: -90,
+    direction: typed<"clockwise" | "counterclockwise">("clockwise"),
+    // Angular gap between adjacent slices, in degrees.
+    padAngle: 0,
+    cornerRadius: 0,
+    labelMode: typed<"none" | "inside" | "outside" | "auto">("auto"),
+    // The silhouette-to-label clearance for outside labels; see map's note.
+    calloutMargin: 12,
+    centerLabel: typed<"none" | "total">("none"),
+    labelCollision: defaultLabelCollision(),
+    ...defaultLabelPlacement(),
+    // Pie ships on nearest-point placement: a slice at 12 o'clock gets its
+    // label directly above the disc, whatever bearing that turns out to be.
+    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
+    // Partial pies (an explicit `total` the values do not reach) draw the
+    // unfilled part as a slice by default — a bare gap is indistinguishable
+    // from a rendering bug at small sizes.
+    remainder: {
+      mode: typed<"slice" | "gap">("slice"),
+      fillColor: typed<ColorKeyOrString>({ key: "base200" }),
     },
   },
 };

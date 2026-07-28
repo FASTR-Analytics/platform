@@ -1,7 +1,6 @@
 import {
   Button,
   FrameTop,
-  HeadingBarMainRibbon,
   Table,
   TabsNavigation,
   createDeleteAction,
@@ -9,6 +8,7 @@ import {
   type ListItem,
   type TableColumn,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
@@ -18,7 +18,7 @@ import {
   cleanupUppy,
 } from "~/components/_uppy_file_upload";
 import type Uppy from "@uppy/core";
-import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
@@ -60,12 +60,6 @@ export function InstanceAssets() {
       triggerId: "#select-file-button",
       maxNumberOfFiles: 0,
     });
-
-    uppy.on("complete", () => {
-      serverActions.getAssets({}).then((res) => {
-        if (res.success) updateInstanceAssets(res.data);
-      });
-    });
   });
 
   onCleanup(() => {
@@ -85,8 +79,6 @@ export function InstanceAssets() {
       () => serverActions.deleteAssets({ assetFileNames: [assetFileName] }),
     );
     await deleteAction.click();
-    const res = await serverActions.getAssets({});
-    if (res.success) updateInstanceAssets(res.data);
   }
 
   return (
@@ -150,7 +142,7 @@ function AssetFileSystem(p: {
     <Show
       when={activeType()}
       fallback={
-        <p class="text-neutral ui-pad text-sm">
+        <p class="text-base-content-muted ui-pad text-sm">
           {t3({
             en: "No assets uploaded yet",
             fr: "Aucune ressource téléversée",
@@ -203,7 +195,7 @@ function AssetTable(p: {
       header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-neutral text-sm">{formatFileSize(asset.size)}</span>
+        <span class="text-base-content-muted text-sm">{formatFileSize(asset.size)}</span>
       ),
     },
     {
@@ -211,7 +203,7 @@ function AssetTable(p: {
       header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-neutral text-sm">
+        <span class="text-base-content-muted text-sm">
           {formatDate(asset.lastModified)}
         </span>
       ),
@@ -224,7 +216,7 @@ function AssetTable(p: {
         <Show
           when={asset.uploaderEmail}
           fallback={
-            <span class="text-neutral/50 text-sm italic">
+            <span class="text-base-content-muted text-sm italic">
               {t3({ en: "system", fr: "système", pt: "sistema" })}
             </span>
           }
@@ -285,8 +277,6 @@ function AssetTable(p: {
       () => serverActions.deleteAssets({ assetFileNames }),
     );
     await deleteAction.click();
-    const res = await serverActions.getAssets({});
-    if (res.success) updateInstanceAssets(res.data);
   }
 
   const bulkActions = createMemo((): BulkAction<AssetInfo>[] => {

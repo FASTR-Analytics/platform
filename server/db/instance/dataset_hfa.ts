@@ -21,8 +21,11 @@ import {
   DatasetHfaUploadAttemptSummary,
   DatasetHfaUploadStatusResponse,
   HfaCsvMappingParams,
+  HfaDuplicateGroup,
+  HfaDuplicatePreview,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { instantiateIntegrateHfaDataWorker } from "../../worker_routines/integrate_hfa_data/instantiate_worker.ts";
 import { instantiateStageHfaDataCsvWorker } from "../../worker_routines/stage_hfa_data_csv/instantiate_worker.ts";
@@ -377,7 +380,7 @@ export async function getDatasetHfaUploadAttemptDetail(
 
     const uaDetail = {
       ...baseDetails,
-      step: rawDUA.step as 1 | 2 | 3 | 4,
+      step: rawDUA.step as 1 | 2 | 3 | 4 | 5,
       sourceType: "csv" as const,
       step1Result: parseJsonOrUndefined(rawDUA.step_1_result),
       step2Result: parseJsonOrUndefined(rawDUA.step_2_result),
@@ -397,7 +400,7 @@ export async function getDatasetHfaUploadStatus(
     const status = parseJsonOrThrow<DatasetHfaUploadAttemptStatus>(
       rawDUA.status
     );
-    const step = rawDUA.step as 1 | 2 | 3 | 4;
+    const step = rawDUA.step as 1 | 2 | 3 | 4 | 5;
 
     const statusLight: DatasetHfaUploadAttemptStatusLight =
       status as DatasetHfaUploadAttemptStatusLight;
@@ -447,6 +450,7 @@ export async function deleteDatasetHfaUploadAttempt(
     await mainDb.unsafe(
       `DROP TABLE IF EXISTS ${UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME}`
     );
+    await mainDb.unsafe(`DROP TABLE IF EXISTS temp_keep_rows_hfa`);
     return { success: true };
   });
 }
@@ -510,7 +514,8 @@ export async function updateDatasetHfaUploadAttempt_Step1CsvUpload(
 
 export async function updateDatasetHfaUploadAttempt_Step2Mappings(
   mainDb: Sql,
-  mappings: HfaCsvMappingParams
+  mappings: HfaCsvMappingParams,
+  reviewConfirmed: boolean
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const rawDUA = await getRawUAOrThrow(mainDb);
@@ -531,20 +536,97 @@ export async function updateDatasetHfaUploadAttempt_Step2Mappings(
         `Time point "${timePoint}" does not exist. Create it on the HFA time points page before importing data.`
       );
     }
+    const rowFilters = mappings.rowFilters.map((f) => ({
+      column: f.column,
+      op: f.op,
+      value: f.value.trim(),
+    }));
+    for (const f of rowFilters) {
+      if (!f.column) {
+        throw new Error("Each row filter needs a column");
+      }
+      if (!f.value) {
+        throw new Error(
+          "Each row filter needs a value (blank-matching is not supported)",
+        );
+      }
+    }
+    const overrideFacilities = new Set<string>();
+    for (const o of mappings.dedupOverrides) {
+      if (overrideFacilities.has(o.facilityId)) {
+        throw new Error(
+          `Duplicate override for facility "${o.facilityId}"`,
+        );
+      }
+      overrideFacilities.add(o.facilityId);
+    }
     const cleanedMappings: HfaCsvMappingParams = {
       facilityIdColumn: mappings.facilityIdColumn,
       timePoint,
+      rowFilters,
+      dedupStrategy: mappings.dedupStrategy,
+      dedupOverrides: mappings.dedupOverrides,
     };
+    // The client positions the wizard from the stored step: a step-2 save
+    // advances into the duplicates review (3), the review's confirming save
+    // advances to staging (4).
     const updated = await mainDb`
 UPDATE hfa_upload_attempts
 SET
-  step = 3,
+  step = ${reviewConfirmed ? 4 : 3},
   step_2_result = ${JSON.stringify(cleanedMappings)},
   step_3_result = NULL
 WHERE status_type NOT IN ('staging', 'integrating')
 `;
     throwIfNoRowsUpdatedBecauseActive(updated.count);
     return { success: true };
+  });
+}
+
+// Streams the saved step-1 CSV through the saved step-2 filters and reports
+// the facilities left with >1 surviving row (the step-2 duplicates review).
+export async function getDatasetHfaDuplicatePreview(
+  mainDb: Sql
+): Promise<APIResponseWithData<HfaDuplicatePreview>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rawDUA = await getRawUAOrThrow(mainDb);
+    if (!rawDUA.step_1_result || !rawDUA.step_2_result) {
+      throw new Error(
+        "Upload a file and save the mappings before previewing duplicates"
+      );
+    }
+    const step1Result = parseJsonOrThrow<DatasetHfaStep1Result>(
+      rawDUA.step_1_result
+    );
+    const mappings = parseJsonOrThrow<HfaCsvMappingParams>(
+      rawDUA.step_2_result
+    );
+    const scan = await getHfaRowScanComponents(
+      step1Result.csv.filePath,
+      mappings.facilityIdColumn,
+      mappings.rowFilters ?? []
+    );
+    const facilityRowNumbers = new Map<string, number[]>();
+    const totals = await scan.processFilteredRows(
+      (_row, rowNumber, facilityId) => {
+        const existing = facilityRowNumbers.get(facilityId);
+        if (existing) {
+          existing.push(rowNumber);
+        } else {
+          facilityRowNumbers.set(facilityId, [rowNumber]);
+        }
+      }
+    );
+    const groups: HfaDuplicateGroup[] = [];
+    for (const [facilityId, rows] of facilityRowNumbers) {
+      if (rows.length > 1) {
+        groups.push({ facilityId, rows });
+      }
+    }
+    return {
+      success: true,
+      data: { groups, nRowsFilteredOut: totals.nRowsFilteredOut },
+    };
   });
 }
 
@@ -589,7 +671,7 @@ export async function updateDatasetHfaUploadAttempt_Step3Staging(
       SET
         status = ${JSON.stringify({ status: "staging", progress: 0 })},
         status_type = 'staging',
-        step = 3,
+        step = 4,
         step_3_result = NULL
       WHERE status_type NOT IN ('staging', 'integrating')
     `;

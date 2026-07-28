@@ -85,7 +85,7 @@ export function EditHfaIndicatorSubCategory(
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
-          <div class="text-neutral text-xs">{t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}</div>
+          <div class="ui-text-caption">{t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}</div>
           <div class="font-700 text-sm">{p.category.label}</div>
         </div>
         <Input
@@ -108,7 +108,7 @@ export function EditHfaIndicatorSubCategory(
           />
         ) : (
           <div class="ui-spy-sm">
-            <div class="text-neutral text-xs">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
+            <div class="ui-text-caption">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
             <div class="font-mono text-sm">{p.existing!.id}</div>
           </div>
         )}

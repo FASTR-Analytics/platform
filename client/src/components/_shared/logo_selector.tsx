@@ -34,7 +34,7 @@ export function LogoSelector(p: Props) {
       </div>
       <Show when={p.values.length > 1}>
         <div class="pt-2">
-          <div class="text-neutral mb-1 text-xs">
+          <div class="ui-text-caption mb-1">
             {t3({ en: "Order", fr: "Ordre", pt: "Ordem" })}
           </div>
           <SortableList
@@ -42,7 +42,7 @@ export function LogoSelector(p: Props) {
             onReorder={(ids) => p.onChange(ids)}
           >
             {(item) => (
-              <span class="text-base-content/70 text-xs">
+              <span class="text-base-content-muted text-xs">
                 {getLogoLabel(item.id)}
               </span>
             )}

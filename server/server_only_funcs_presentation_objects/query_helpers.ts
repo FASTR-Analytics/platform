@@ -4,14 +4,79 @@ import type {
   PeriodOption,
 } from "lib";
 import {
+  BLANK_SENTINEL,
   INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
-  isAdminLevel,
+  isRollupDimension,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
-  ROLLUP_SENTINEL,
+  type RollupDimension,
+  rollupSentinelForDimension,
+  SAMPLE_N_PREFIX,
+  sampleNProp,
+  usesBlankSentinel,
 } from "lib";
 import type { QueryContext } from "./types.ts";
+
+// ============================================================================
+// Blank Folding
+// ============================================================================
+
+// btrim's default charset is ASCII space only, so the whitespace classes have
+// to be spelled out — a tab-only cell would otherwise stay unfolded here while
+// JS `.trim()` still stripped it from the options list, which is precisely the
+// chart-group-with-no-filter-option defect this whole mechanism exists to kill.
+const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
+
+/**
+ * Wraps a column reference so NULL and whitespace-only cells both surface as
+ * BLANK_SENTINEL. THE single emitter — the options query, the SELECT list, the
+ * GROUP BY and the filter predicate must agree exactly, or the option id and
+ * the item group key stop being the same id space.
+ *
+ * Detects blankness with a trim but returns the value UNTRIMMED. Folding to
+ * `btrim(col)` would rewrite non-blank values too: ' services' and 'services'
+ * would collapse into one group keyed 'services', which buildWhereClause's
+ * `UPPER(col) IN (…)` — comparing against the raw column — could then only
+ * half-match. That reintroduces the same defect in a new form.
+ */
+export function blankFoldedRef(columnRef: string): string {
+  return `CASE WHEN ${blankPredicate(columnRef)} THEN '${BLANK_SENTINEL}' ELSE ${columnRef} END`;
+}
+
+/**
+ * Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL. THE
+ * single gate — the options query, the SELECT, the GROUP BY and the WHERE
+ * clause must all agree, or an option is offered that no filter can match.
+ *
+ * Two conditions. `usesBlankSentinel` is the semantic one: integer and
+ * period-derived columns have no blank state, and a multi-membership column's
+ * blank cell yields no row to fold. The type check is the mechanical one — the
+ * fold emits btrim() and returns a text sentinel from the CASE, neither of
+ * which Postgres will accept on an integer or numeric column, and disaggregation
+ * columns are only text by convention (module authors declare the type).
+ */
+export function shouldFoldBlank(
+  disOpt: string,
+  queryContext: Pick<QueryContext, "textColumns">,
+): boolean {
+  return usesBlankSentinel(disOpt) && queryContext.textColumns.has(disOpt);
+}
+
+/**
+ * "This cell has no value" as a WHERE-clause predicate. Shares one definition
+ * of blankness with blankFoldedRef: a row the fold keys as BLANK_SENTINEL must
+ * be exactly a row this predicate selects, or picking the blank option would
+ * return a different set than the group it was offered for.
+ *
+ * Self-parenthesising, because it contains an OR and callers AND it together
+ * with other statements. `a = 1 AND col IS NULL OR btrim(col) = ''` parses as
+ * `(a = 1 AND col IS NULL) OR btrim(col) = ''` — the blank test escapes its own
+ * filter and swallows every other predicate in the WHERE clause.
+ */
+export function blankPredicate(columnRef: string): string {
+  return `(${columnRef} IS NULL OR btrim(${columnRef}, ${BLANK_WHITESPACE_CHARS}) = '')`;
+}
 
 // ============================================================================
 // Main and Roll-up Query Builders
@@ -26,7 +91,13 @@ export function buildMainQuery(
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string {
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "main");
+  const aggregateColumns = buildAggregateColumns(
+    fetchConfig.values,
+    "main",
+    sourceTable,
+    queryContext,
+    fetchConfig.postAggregationExpression !== undefined,
+  );
 
   const identityValueProps = fetchConfig.values
     .filter((v) => v.func === "identity")
@@ -36,9 +107,10 @@ export function buildMainQuery(
     sourceTable,
     fetchConfig,
     {
-      selectColumns: fetchConfig.groupBys,
+      groupBys: fetchConfig.groupBys,
+      extraGroupByColumns: identityValueProps,
+      collapsedLevel: undefined,
       aggregateColumns,
-      groupByColumns: [...fetchConfig.groupBys, ...identityValueProps],
     },
     queryContext,
     facilityCTEName,
@@ -46,46 +118,48 @@ export function buildMainQuery(
 }
 
 /**
- * Builds the admin-area roll-up (total) query using externally managed CTEs.
- * Collapses the admin level chosen client-side (see getRollupAdminLevel) into a
- * single roll-up row: sentinel in that column, dropped from GROUP BY, values
+ * Builds the roll-up (total) query using externally managed CTEs. Collapses
+ * the dimension chosen client-side (see getRollupDimension) into a single
+ * roll-up row: sentinel in that column, dropped from GROUP BY, values
  * re-aggregated.
  */
-export function buildAdminAreaRollupQuery(
+export function buildRollupQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string | null {
-  // `level` is interpolated raw into SQL, so isAdminLevel() is the SQL-safety
-  // boundary (closed union, not free-text). It must also actually be grouped.
-  const level = fetchConfig.adminAreaRollupLevel;
+  // `dim` is interpolated raw into SQL, so isRollupDimension() is the
+  // SQL-safety boundary (closed union, not free-text). It must also actually
+  // be grouped.
+  const dim = fetchConfig.rollupDim;
   if (
-    !fetchConfig.includeAdminAreaRollup ||
-    level === undefined ||
-    !isAdminLevel(level) ||
-    !fetchConfig.groupBys.includes(level)
+    dim === undefined ||
+    !isRollupDimension(dim) ||
+    !fetchConfig.groupBys.includes(dim)
   ) {
     return null;
   }
 
-  // Replace the collapsed level with the sentinel constant.
-  const selectColumns: string[] = fetchConfig.groupBys.map((gb) =>
-    gb === level ? `'${ROLLUP_SENTINEL}' AS ${level}` : gb,
+  const aggregateColumns = buildAggregateColumns(
+    fetchConfig.values,
+    "rollup",
+    sourceTable,
+    queryContext,
+    fetchConfig.postAggregationExpression !== undefined,
   );
 
-  const aggregateColumns = buildAggregateColumns(fetchConfig.values, "rollup");
-
-  // GROUP BY excludes the collapsed level (it's replaced with a constant)
-  const groupByColumns = fetchConfig.groupBys.filter((gb) => gb !== level);
-
+  // The collapsed dimension becomes its sentinel constant in SELECT and drops
+  // out of GROUP BY; every other grouped column is treated exactly as in the
+  // main query, blank fold included.
   return buildSelectQuery(
     sourceTable,
     fetchConfig,
     {
-      selectColumns,
+      groupBys: fetchConfig.groupBys,
+      extraGroupByColumns: [],
+      collapsedLevel: dim,
       aggregateColumns,
-      groupByColumns,
     },
     queryContext,
     facilityCTEName,
@@ -103,14 +177,16 @@ function buildSelectQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   options: {
-    selectColumns: string[];
+    groupBys: string[];
+    extraGroupByColumns: string[];
+    collapsedLevel: RollupDimension | undefined;
     aggregateColumns: string;
-    groupByColumns: string[];
   },
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string {
-  const { selectColumns, aggregateColumns, groupByColumns } = options;
+  const { groupBys, extraGroupByColumns, collapsedLevel, aggregateColumns } =
+    options;
 
   const columnPrefixes = new Map<string, string>();
   if (queryContext.needsFacilityJoin) {
@@ -121,6 +197,27 @@ function buildSelectQuery(
 
   const applyColumnPrefixes = (columns: string[]) =>
     columns.map((col) => columnPrefixes.get(col) || col);
+
+  // A blank-folded column must carry its bare name into the result set, or the
+  // item key would come back as "coalesce". SELECT aliases it; GROUP BY repeats
+  // the expression, which must match the SELECT exactly — grouping on the raw
+  // column while selecting the folded one would emit NULL and '' as two rows
+  // carrying the same key.
+  const groupByRef = (col: string): string => {
+    const prefixed = columnPrefixes.get(col) || col;
+    return shouldFoldBlank(col, queryContext)
+      ? blankFoldedRef(prefixed)
+      : prefixed;
+  };
+  const selectRef = (col: string): string => {
+    if (collapsedLevel !== undefined && col === collapsedLevel) {
+      return `'${rollupSentinelForDimension(collapsedLevel)}' AS ${col}`;
+    }
+    const prefixed = columnPrefixes.get(col) || col;
+    return shouldFoldBlank(col, queryContext)
+      ? `${blankFoldedRef(prefixed)} AS ${col}`
+      : prefixed;
+  };
 
   ///////////////////////
   //                   //
@@ -138,7 +235,7 @@ function buildSelectQuery(
   //    SELECT clause    //
   //                     //
   /////////////////////////
-  const adjustedSelectColumns = applyColumnPrefixes(selectColumns);
+  const adjustedSelectColumns = groupBys.map(selectRef);
 
   const selectStr =
     adjustedSelectColumns.length === 0
@@ -154,6 +251,7 @@ function buildSelectQuery(
     fetchConfig,
     queryContext.hasPeriodId,
     columnPrefixes,
+    queryContext,
   );
 
   const whereClause =
@@ -167,7 +265,12 @@ function buildSelectQuery(
   //                       //
   ///////////////////////////
 
-  const adjustedGroupByColumns = applyColumnPrefixes(groupByColumns);
+  // Identity value props are result-table columns, not disaggregators — they
+  // group by their bare name and are never folded.
+  const adjustedGroupByColumns = [
+    ...groupBys.filter((gb) => gb !== collapsedLevel).map(groupByRef),
+    ...applyColumnPrefixes(extraGroupByColumns),
+  ];
 
   const groupByClause =
     adjustedGroupByColumns.length === 0
@@ -196,7 +299,8 @@ ${groupByClause}`;
 export function buildWhereClause(
   fetchConfig: GenericLongFormFetchConfig,
   hasPeriodId: boolean,
-  columnPrefixes?: Map<string, string>,
+  columnPrefixes: Map<string, string> | undefined,
+  queryContext: Pick<QueryContext, "textColumns">,
 ): string[] {
   const whereStatements: string[] = [];
 
@@ -224,11 +328,32 @@ export function buildWhereClause(
       const values = filter.values.map((v) => Number(v)).join(", ");
       whereStatements.push(`${columnName} IN (${values})`);
     } else {
-      // Case-insensitive comparison for text columns
-      const quotedValues = filter.values
-        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
-        .join(", ");
-      whereStatements.push(`UPPER(${columnName}) IN (${quotedValues})`);
+      // Case-insensitive comparison for text columns. BLANK_SENTINEL cannot ride
+      // the IN list — `NULL IN ('__BLANK')` is NULL, never true — so it splits
+      // out into its own OR-ed predicate matching both blank routes.
+      const wantsBlank =
+        shouldFoldBlank(filter.disOpt, queryContext) &&
+        filter.values.some((v) => String(v) === BLANK_SENTINEL);
+      const namedValues = wantsBlank
+        ? filter.values.filter((v) => String(v) !== BLANK_SENTINEL)
+        : filter.values;
+
+      const predicates: string[] = [];
+      if (namedValues.length > 0) {
+        const quotedValues = namedValues
+          .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+          .join(", ");
+        predicates.push(`UPPER(${columnName}) IN (${quotedValues})`);
+      }
+      if (wantsBlank) {
+        predicates.push(blankPredicate(columnName));
+      }
+      // A sentinel-only selection whose named list is empty still yields
+      // predicates; the `values.length === 0` guard above covers the truly
+      // empty filter.
+      whereStatements.push(
+        predicates.length === 1 ? predicates[0] : `(${predicates.join(" OR ")})`,
+      );
     }
   }
 
@@ -269,26 +394,112 @@ export function buildWhereClause(
  * Builds aggregate column expressions based on value configuration. In the
  * roll-up branch SUM/COUNT re-add and AVG re-averages — the latter is only
  * correct over raw facility rows, which eligibility guarantees
- * (isRollupEligibleResultsValue client-side; the facility_id check in
- * getPresentationObjectItems server-side). Identity values cannot reach the
- * roll-up branch from a real config (eligible identity metrics carry a PAE,
- * whose ingredients are SUM/AVG); the SUM fallback there is defense-in-depth
- * for hand-crafted fetch configs.
+ * (isRollupEligibleResultsValue client-side; queryContext.hasFacilityId
+ * server-side). Identity values cannot reach the roll-up branch from a real
+ * config (eligible identity metrics carry a PAE, whose ingredients are
+ * SUM/AVG); the SUM fallback there is defense-in-depth for hand-crafted fetch
+ * configs.
  */
 function buildAggregateColumns(
   values: GenericLongFormFetchConfig["values"],
   mode: "main" | "rollup",
+  sourceTable: string,
+  queryContext: QueryContext,
+  hasPostAggregationExpression: boolean,
 ): string {
+  const valueColumns = values.map((valueObj) => {
+    if (valueObj.func === "identity") {
+      return mode === "rollup"
+        ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
+        : valueObj.prop;
+    }
+    return `${valueObj.func.toUpperCase()}(${valueObj.prop}) AS ${valueObj.prop}`;
+  });
+
+  return [
+    ...valueColumns,
+    ...buildSampleNColumns(
+      values,
+      sourceTable,
+      queryContext,
+      hasPostAggregationExpression,
+    ),
+  ].join(", ");
+}
+
+// ============================================================================
+// Sample Size (n)
+// ============================================================================
+
+// The single n column a post-aggregation fetch emits from the inner query. The
+// wrapper renames it to `__n_<target>` (applyPostAggregationExpression), which
+// is the name the client's nProps map looks for.
+const SAMPLE_N_PAE_COLUMN = `${SAMPLE_N_PREFIX}all`;
+
+/**
+ * Whether this fetch emits sample-size columns at all. THE single gate — the
+ * aggregate builder and the post-aggregation wrapper must agree, or the wrapper
+ * re-projects a column the inner query never selected.
+ *
+ * HFA only: n is a survey concept. An HMIS count over a table that doesn't
+ * group by period returns facility-months (40 facilities × 36 months = 1440),
+ * which no reader interprets as a sample size; ICEH rows arrive pre-aggregated.
+ * And no facility_id means no facilities to count.
+ */
+export function emitsSampleN(queryContext: QueryContext): boolean {
+  return queryContext.datasetFamily === "hfa" && queryContext.hasFacilityId;
+}
+
+/**
+ * n = distinct facilities contributing to the displayed statistic.
+ *
+ * COUNT(DISTINCT facility_id) rather than a row count, because HFA rows are
+ * facility × time_point: a table spanning two survey rounds without grouping by
+ * round would otherwise report double the sample. The facility_id reference is
+ * table-qualified because the facilities CTE joins in a column of the same name
+ * (buildSelectQuery's LEFT JOIN) — unqualified, Postgres rejects it as
+ * ambiguous on every facility-column disaggregation.
+ *
+ * Two rules, and the split is load-bearing:
+ *
+ * - **Post-aggregation fetches: unqualified count, one column.** The M10 script
+ *   drops rows whose indicator result is NA, so a facility having a row in the
+ *   group already means it contributed. Deriving a denominator from the
+ *   expression instead looks tidier and is wrong: the shipped HFA metrics are
+ *   `value = COALESCE(sum_val, avg_num / avg_weight)`, where the divisor is NULL
+ *   for every sum-aggregation indicator (n would read 0 on those columns), and
+ *   `value = dk_num / resp_weight`, where resp_weight is 0 — not NULL — for
+ *   not-applicable rows (n would over-count).
+ * - **Plain values: one column per value, filtered.** A NULL cell contributes
+ *   nothing to AVG/SUM. No shipped HFA module takes this path (all four M10
+ *   metrics carry a PAE), so it is defensive rather than exercised.
+ */
+function buildSampleNColumns(
+  values: GenericLongFormFetchConfig["values"],
+  sourceTable: string,
+  queryContext: QueryContext,
+  hasPostAggregationExpression: boolean,
+): string[] {
+  if (!emitsSampleN(queryContext)) {
+    return [];
+  }
+
+  // Cast to int because COUNT returns bigint, which the driver hands back as a
+  // string — the payload should carry n as a number, not "212". A facility
+  // count cannot approach the int4 ceiling. The cast wraps the whole aggregate:
+  // FILTER binds to the aggregate itself and must precede it.
+  const distinctFacilities = `COUNT(DISTINCT ${sourceTable}.facility_id)`;
+
+  if (hasPostAggregationExpression) {
+    return [`(${distinctFacilities})::int AS ${SAMPLE_N_PAE_COLUMN}`];
+  }
+
   return values
-    .map((valueObj) => {
-      if (valueObj.func === "identity") {
-        return mode === "rollup"
-          ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
-          : valueObj.prop;
-      }
-      return `${valueObj.func.toUpperCase()}(${valueObj.prop}) AS ${valueObj.prop}`;
-    })
-    .join(", ");
+    .filter((valueObj) => valueObj.func !== "identity")
+    .map(
+      (valueObj) =>
+        `(${distinctFacilities} FILTER (WHERE ${valueObj.prop} IS NOT NULL))::int AS ${sampleNProp(valueObj.prop)}`,
+    );
 }
 
 // ============================================================================
@@ -303,6 +514,7 @@ export function applyPostAggregationExpression(
   sqlQuery: string,
   postAggregationExpression: string | undefined,
   groupBys: (DisaggregationOption | PeriodOption)[],
+  hasSampleNColumn: boolean,
 ): string {
   if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
     return sqlQuery;
@@ -324,8 +536,15 @@ export function applyPostAggregationExpression(
 
   const groupByPrefix = groupBys.length === 0 ? "" : `${groupBys.join(", ")}, `;
 
+  // The wrapper drops every inner column it doesn't re-project, so the sample-n
+  // column has to be named here — renamed to the target the client looks for,
+  // since `value` is the prop the items carry.
+  const sampleNSuffix = hasSampleNColumn
+    ? `, ${SAMPLE_N_PAE_COLUMN} AS ${sampleNProp(value)}`
+    : "";
+
   // Build the post-aggregation wrapper
-  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value} FROM (${sqlQuery}) AS subq`;
+  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value}${sampleNSuffix} FROM (${sqlQuery}) AS subq`;
 
   // If there are CTEs, they need to be moved to the outer level
   // This is handled by the caller in buildCombinedQuery

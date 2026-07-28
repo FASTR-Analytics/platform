@@ -423,11 +423,17 @@ export function measureChartWithAutofit<
   }
 
   const measured = measureFn(rc, bounds, inputs, fitScale);
-  measured.cramped = cramped;
+  // OR, never overwrite: the figure itself may have flagged starvation (a
+  // label budget infeasible even at the legibility floor), and that signal
+  // must survive the autofit decision. The autofit-off path above returns
+  // measureFn's result untouched, so the figure's own flag survives there
+  // without any code.
+  const combinedCramped = cramped || measured.cramped === true;
+  measured.cramped = combinedCramped;
   measured.fitReport = buildFitReport(
     fitScale,
     floorScale,
-    cramped,
+    combinedCramped,
     getSizeAtScale,
     naturalHOverride,
   );

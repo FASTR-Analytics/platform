@@ -20,9 +20,10 @@ export function getStyleFromPresentationObject(
   indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
   obeyMetricFormat: boolean,
+  effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
-    return buildScorecardStyle(config, indicatorMetadata, deckStyle);
+    return buildScorecardStyle(config, indicatorMetadata, effectiveValueProps, deckStyle);
   }
   if (isSpecialCoverageChartActive(config)) {
     return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
@@ -31,7 +32,7 @@ export function getStyleFromPresentationObject(
     return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle);
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, calendar, deckStyle);
+    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle);
   }
   return buildStandardStyle(
     config,
@@ -41,5 +42,6 @@ export function getStyleFromPresentationObject(
     indicatorMetadata,
     allowNegativeScale,
     obeyMetricFormat,
+    effectiveValueProps,
   );
 }

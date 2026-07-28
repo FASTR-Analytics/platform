@@ -55,6 +55,22 @@ export type CascadeArrowInfo = ChartSeriesInfo & {
 
 export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;
 
+// A pie slice IS a series (parts-of-a-whole are series everywhere in panther),
+// so its info extends ChartSeriesInfo rather than paralleling it: the same
+// object reaches seriesColorFunc, which is what makes the legend swatch and
+// the plotted slice provably one colour, and makes a consumer's existing
+// seriesColorFunc usable on pies unchanged.
+export type PieSliceInfo = ChartSeriesInfo & {
+  value: number;
+  // value / the DECLARED denominator. With an explicit `total` smaller than
+  // the cell's sum this exceeds 1 — geometry still fills the circle, but the
+  // true number is carried here so a formatter can print "103%".
+  share: number;
+  total: number;
+};
+
+export type PieSliceInfoFunc<T> = (info: PieSliceInfo) => T;
+
 export type ChartConnectorInfo = {
   i_val: number;
   isFirstVal: boolean;
@@ -91,6 +107,9 @@ export type MapRegionInfo = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
+  paneHeader: HeaderItem;
+  tierHeader: HeaderItem;
+  laneHeader: HeaderItem;
 };
 
 export type MapRegionInfoFunc<T> = (info: MapRegionInfo) => T;
@@ -106,16 +125,41 @@ export type TableCellInfo = {
   nCols: number;
   rowHeader: HeaderItem | undefined;
   colHeader: HeaderItem | undefined;
+  // Sample size (n) for this cell, from TableDataTransformed.nMatrix.
+  sampleN?: number;
 };
 
 export type TableCellInfoFunc<T> = (info: TableCellInfo) => T;
 
+// Sample-size digest for one header's slice of nMatrix. first/min/max/varies
+// exclude non-numeric cells (undefined, and null/NaN/Infinity normalized away
+// at the read boundary) and cells whose PERPENDICULAR header id is in
+// liveDomainExcludeIds. Exclusion is perpendicular ONLY: a group header's
+// digest keeps roll-up members that sit on its own axis within its span (a
+// "total" row inside a row group still feeds that group's digest). `slice` is
+// raw — every cell of the header's slice, in final sorted display order
+// (group headers: span flattened item-by-item). Omitted entirely when no
+// numeric cell survives exclusion, so every inner field is required.
+export type TableHeaderSampleN = {
+  first: number;
+  min: number;
+  max: number;
+  varies: boolean;
+  slice: (number | undefined)[];
+};
+
+// Label semantics: the header textFormatter receives the RAW (pre-format)
+// label and returns the final display string; every other consumer — getStyle
+// funcs, TableCellInfo.rowHeader/colHeader, primitive metadata,
+// MeasuredTable.transformedData, resolveTableHeaders output — sees the
+// RESOLVED label. `id` is the raw match key everywhere.
 export type TableHeaderInfo = {
   id: string | undefined;
   label: string;
   index: number | undefined;
-  n: number;
+  itemCount: number;
   isGroupHeader: boolean;
+  sampleN?: TableHeaderSampleN;
 };
 
 export type TableHeaderInfoFunc<T> = (info: TableHeaderInfo) => T;

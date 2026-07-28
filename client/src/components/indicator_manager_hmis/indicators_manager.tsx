@@ -5,12 +5,14 @@ import {
   type InstanceIndicatorDetails,
   type RawIndicatorWithMappings,
   type CalculatedIndicator,
+  type Dhis2RunCredentialsSource,
 } from "lib";
 import {
   Button,
   FrameLeft,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
@@ -23,7 +25,7 @@ import {
   type ListItem,
   type StateHolder,
 } from "panther";
-import { Show, createEffect, createSignal } from "solid-js";
+import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -36,10 +38,6 @@ import { EditIndicatorRawForm } from "./_edit_indicator_raw";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { CalculatedIndicatorsTable } from "./calculated_indicators_table";
-import {
-  getDhis2SessionCredentials,
-  setDhis2SessionCredentials,
-} from "~/state/instance/t4_dhis2_session";
 
 type Props = {
   backToInstance: () => void;
@@ -177,27 +175,24 @@ export function IndicatorsManager(p: Props) {
   }
 
   async function handleDhis2IndicatorSelect() {
-    const result = await openComponent({
-      element: Dhis2CredentialsForm,
-      props: {
-        existingCredentials: getDhis2SessionCredentials() ?? undefined,
-        showSaveCheckbox: true,
-      },
-    });
-
-    if (!result || result.shouldClear || !result.credentials) {
-      return;
-    }
-
-    if (result.shouldSave) {
-      setDhis2SessionCredentials(result.credentials);
+    const infoRes = await serverActions.getInstanceDhis2CredentialsInfo({});
+    let credentialsSource: Dhis2RunCredentialsSource;
+    if (infoRes.success && infoRes.data.storedCredentials) {
+      credentialsSource = { kind: "stored" };
+    } else {
+      const result = await openComponent({
+        element: Dhis2CredentialsForm,
+        props: {},
+      });
+      if (!result) {
+        return;
+      }
+      credentialsSource = { kind: "inline", credentials: result.credentials };
     }
 
     await openEditor({
       element: Dhis2IndicatorSelectForm,
-      props: {
-        credentials: result.credentials,
-      },
+      props: { credentialsSource },
     });
   }
 
@@ -205,11 +200,11 @@ export function IndicatorsManager(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
+          >
             <div class="ui-gap-sm flex items-center">
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button iconName="upload" onClick={handleBatchUpload}>
@@ -221,7 +216,7 @@ export function IndicatorsManager(p: Props) {
                 </Button>
               </Show>
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameTop
@@ -408,35 +403,39 @@ function CommonIndicatorsTable(p: {
     },
   ];
 
-  if (instanceState.currentUserIsGlobalAdmin) {
-    columns.push({
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (indicator) => (
-        <div class="ui-gap-sm flex justify-end">
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleUpdateIndicator(indicator);
-            }}
-            iconName="pencil"
-            intent="base-100"
-          />
-          <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleDeleteIndicator(indicator);
-            }}
-            iconName="trash"
-            intent="base-100"
-          />
-        </div>
-      ),
-    });
-  }
+  const allColumns = createMemo<TableColumn<CommonIndicatorWithMappings>[]>(() => {
+    if (!instanceState.currentUserIsGlobalAdmin) return columns;
+    return [
+      ...columns,
+      {
+        key: "actions",
+        header: "",
+        alignH: "right",
+        render: (indicator) => (
+          <div class="ui-gap-sm flex justify-end">
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleUpdateIndicator(indicator);
+              }}
+              iconName="pencil"
+              intent="base-100"
+            />
+            <Button
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleDeleteIndicator(indicator);
+              }}
+              iconName="trash"
+              intent="base-100"
+            />
+          </div>
+        ),
+      },
+    ];
+  });
 
-  const bulkActions: BulkAction<CommonIndicatorWithMappings>[] =
+  const bulkActions = createMemo<BulkAction<CommonIndicatorWithMappings>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {
@@ -446,7 +445,8 @@ function CommonIndicatorsTable(p: {
             onClick: handleBulkDeleteIndicators,
           },
         ]
-      : [];
+      : [],
+  );
 
   return (
     <div class="flex h-full flex-col">
@@ -478,14 +478,14 @@ function CommonIndicatorsTable(p: {
       <div class="h-0 w-full flex-1">
         <Table
           data={p.commonIndicators}
-          columns={columns}
+          columns={allColumns()}
           keyField="indicator_common_id"
           noRowsMessage={t3({
             en: "No common indicators",
             fr: "Aucun indicateur commun",
             pt: "Nenhum indicador comum",
           })}
-          bulkActions={bulkActions}
+          bulkActions={bulkActions()}
           selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />
@@ -609,37 +609,41 @@ function RawIndicatorsTable(p: {
     },
   ];
 
-  if (instanceState.currentUserIsGlobalAdmin) {
-    columns.push({
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (mapping) => {
-        return (
-          <div class="ui-gap-sm flex justify-end">
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                handleUpdateMapping(mapping);
-              }}
-              iconName="pencil"
-              intent="base-100"
-            />
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                handleDeleteMapping(mapping);
-              }}
-              iconName="trash"
-              intent="base-100"
-            />
-          </div>
-        );
+  const allColumns = createMemo<TableColumn<RawIndicatorWithMappings>[]>(() => {
+    if (!instanceState.currentUserIsGlobalAdmin) return columns;
+    return [
+      ...columns,
+      {
+        key: "actions",
+        header: "",
+        alignH: "right",
+        render: (mapping) => {
+          return (
+            <div class="ui-gap-sm flex justify-end">
+              <Button
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  handleUpdateMapping(mapping);
+                }}
+                iconName="pencil"
+                intent="base-100"
+              />
+              <Button
+                onClick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  handleDeleteMapping(mapping);
+                }}
+                iconName="trash"
+                intent="base-100"
+              />
+            </div>
+          );
+        },
       },
-    });
-  }
+    ];
+  });
 
-  const bulkActions: BulkAction<RawIndicatorWithMappings>[] =
+  const bulkActions = createMemo<BulkAction<RawIndicatorWithMappings>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {
@@ -649,7 +653,8 @@ function RawIndicatorsTable(p: {
             onClick: handleBulkDeleteRawIndicators,
           },
         ]
-      : [];
+      : [],
+  );
 
   return (
     <div class="flex h-full flex-col">
@@ -692,14 +697,14 @@ function RawIndicatorsTable(p: {
       <div class="h-0 w-full flex-1">
         <Table
           data={p.rawIndicators}
-          columns={columns}
+          columns={allColumns()}
           keyField="raw_indicator_id"
           noRowsMessage={t3({
             en: "No DHIS2 indicators",
             fr: "Aucun indicateur DHIS2",
             pt: "Nenhum indicador DHIS2",
           })}
-          bulkActions={bulkActions}
+          bulkActions={bulkActions()}
           selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
           fitTableToAvailableHeight
         />

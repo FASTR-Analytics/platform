@@ -32,7 +32,7 @@ export function Step1File(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-600">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON", pt: "Passo 1: Selecionar o ficheiro GeoJSON" })}</div>
+      <div class="font-700">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON", pt: "Passo 1: Selecionar o ficheiro GeoJSON" })}</div>
 
       <FileUploadSelector
         buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON", pt: "Carregar um novo ficheiro GeoJSON" })}

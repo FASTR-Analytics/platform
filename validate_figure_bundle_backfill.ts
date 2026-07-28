@@ -30,6 +30,7 @@ import {
   type FigureBlockMut,
   type SlideLayoutNodeLike,
 } from "./server/db/migrations/data_transforms/_figure_block.ts";
+import { rawJsonNeedsForcedTransform } from "./server/db/migrations/data_transforms/po_config.ts";
 import { _INSTANCE_LANGUAGE, _INSTANCE_CALENDAR } from "./server/exposed_env_vars.ts";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -65,7 +66,11 @@ function dryRunBlock(
   localization: ReturnType<typeof getTransformLocalization>,
   geoData: unknown,
 ): { outcome: Outcome; failMsg?: string } {
-  const already = figureBlockSchema.safeParse(figureBlock).success;
+  // Mirror the real sweeps' forced gate: a block that parses clean can still
+  // carry legacy keys (Zod strip mode) that the boot sweep would migrate —
+  // skipping it here would under-report the rows the deploy will touch.
+  const already = figureBlockSchema.safeParse(figureBlock).success &&
+    !rawJsonNeedsForcedTransform(JSON.stringify(figureBlock));
   if (already) {
     return { outcome: figureBlock.bundle !== undefined ? "already-bundle" : "empty" };
   }

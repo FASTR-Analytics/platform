@@ -27,7 +27,7 @@ export function StratifiersTab(p: { strats: DisplayRow[] }) {
       header: t3({ en: "Equity dimension", fr: "Dimension d'équité", pt: "Dimensão de equidade" }),
       sortable: true,
       render: (item) => (
-        <span class={item.isEquityDimension ? "text-success" : "text-neutral"}>
+        <span class={item.isEquityDimension ? "text-success" : "text-base-content-muted"}>
           {item.isEquityDimension
             ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
             : t3({ en: "No", fr: "Non", pt: "Não" })}

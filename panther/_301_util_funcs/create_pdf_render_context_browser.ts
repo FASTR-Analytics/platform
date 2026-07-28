@@ -10,7 +10,7 @@ import {
   injectKerningIntoJsPdf,
   PdfRenderContext,
 } from "./deps.ts";
-import { loadFontsWithTimeout } from "./fonts_ready.ts";
+import { loadFontsWithTimeout } from "./deps.ts";
 
 export async function createPdfRenderContextWithFontsBrowser(
   width: number,

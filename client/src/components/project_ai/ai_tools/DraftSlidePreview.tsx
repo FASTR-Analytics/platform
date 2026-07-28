@@ -26,7 +26,7 @@ import {
 } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { projectState } from "~/state/project/t1_store";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
@@ -43,17 +43,15 @@ type Props = {
 };
 
 export function DraftSlidePreview(p: Props) {
-  const { aiContext } = useAIProjectContext();
-
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
     msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." }),
   });
 
   function getDeckConfig(): SlideDeckConfig {
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide_deck") {
-      return ctx.getDeckConfig();
+    const view = projectAIViewController.current();
+    if (view.id === "editing_slide_deck") {
+      return view.context.getDeckConfig();
     }
     return getStartingConfigForSlideDeck("Draft");
   }
@@ -102,7 +100,7 @@ export function DraftSlidePreview(p: Props) {
         pageInputs: state.data.pageInputs,
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
-          aiContext().mode === "editing_slide_deck"
+          projectAIViewController.current().id === "editing_slide_deck"
             ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
             : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" }),
       },
@@ -112,9 +110,13 @@ export function DraftSlidePreview(p: Props) {
   async function handleAddToDeck() {
     const state = slideState();
     if (state.status !== "ready") return;
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide_deck") {
-      await addSlideDirectlyToDeck(p.projectId, state.data.convertedSlide, ctx);
+    const view = projectAIViewController.current();
+    if (view.id === "editing_slide_deck") {
+      await addSlideDirectlyToDeck(
+        p.projectId,
+        state.data.convertedSlide,
+        view.params.deckId,
+      );
     } else {
       await openComponent({
         element: AddToDeckModal,
@@ -130,9 +132,9 @@ export function DraftSlidePreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+      <div class="bg-base-100 max-w-[400px] rounded border">
         <div
-          class="cursor-pointer p-1.5 transition-opacity hover:opacity-80"
+          class="cursor-pointer p-1.5"
           onClick={openExpandedView}
         >
           <div class="pointer-events-none">
@@ -143,7 +145,7 @@ export function DraftSlidePreview(p: Props) {
             message is visible (mirrors DraftVisualizationPreview) instead of
             the whole preview vanishing under a "slide preview shown" line. */}
         <Show when={slideState().status !== "error"}>
-          <div class="border-base-300 flex gap-1.5 border-t p-1.5">
+          <div class="flex gap-1.5 border-t p-1.5">
             <Button
               size="sm"
               outline
@@ -151,7 +153,7 @@ export function DraftSlidePreview(p: Props) {
               onClick={openExpandedView}
             />
             <Button size="sm" outline onClick={handleAddToDeck}>
-              {aiContext().mode === "editing_slide_deck"
+              {projectAIViewController.current().id === "editing_slide_deck"
                 ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
                 : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
             </Button>
@@ -222,7 +224,7 @@ function ExpandedSlideModal(
         ]
       }
     >
-      <div class="border-base-300 aspect-video overflow-hidden rounded border">
+      <div class="aspect-video overflow-hidden rounded border">
         <PageHolder
           pageInputs={p.pageInputs}
           pageWidthDu={PAGE_WIDTH_DU}

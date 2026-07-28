@@ -11,11 +11,6 @@ import {
   md,
 } from "./_markdown_utils.ts";
 
-// Strip AI context markers from display (but they're still sent to API)
-function stripAIContext(text: string): string {
-  return text.replace(/<<<.*?>>>/gs, "").trim();
-}
-
 export function UserTextRenderer(p: {
   item: Extract<DisplayItem, { type: "user_text" }>;
   markdownStyle?: CustomMarkdownStyleOptions;
@@ -23,7 +18,10 @@ export function UserTextRenderer(p: {
 }) {
   const bg = p.messageStyle?.background ?? "bg-base-200";
   const text = p.messageStyle?.text ?? "text-base-content";
-  const displayText = stripAIContext(p.item.text);
+  // Display text is clean by construction: ephemeral context is typed data
+  // on the stored turn (never spliced into content), and v1 records are
+  // stripped by the persistence migration.
+  const displayText = p.item.text;
 
   return (
     <div class="ml-auto max-w-[80%]">

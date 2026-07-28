@@ -19,6 +19,7 @@ export function buildDisruptionsChartStyle(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
   calendar: CalendarType,
+  allowNegativeScale: boolean,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
@@ -33,7 +34,11 @@ export function buildDisruptionsChartStyle(
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
       max: config.s.forceYMax1 ? 1 : undefined,
-      min: config.s.forceYMinAuto ? "auto" : undefined,
+      min: config.s.forceYMinAuto
+        ? "auto"
+        : allowNegativeScale
+        ? "auto-zero"
+        : undefined,
       tickLabelFormatter: (formatAs === "percent"
         ? "auto-percent"
         : "auto-number") as TickLabelFormatterOption,

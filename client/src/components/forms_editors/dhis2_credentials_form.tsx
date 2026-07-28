@@ -7,35 +7,22 @@ import {
   StateHolderFormError,
 } from "panther";
 import { createStore } from "solid-js/store";
-import { createSignal } from "solid-js";
 import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 import { serverActions } from "~/server_actions";
 
+// A one-off, never-persisted DHIS2 connection override (PLAN_DHIS2_
+// CREDENTIAL_STORE_CONSOLIDATION Phase 3) — used where a flow defaults to
+// the instance's stored connection but needs an inline alternative.
 export function Dhis2CredentialsForm(
-  p: AlertComponentProps<
-    {
-      existingCredentials?: Dhis2Credentials;
-      allowClear?: boolean;
-      showSaveCheckbox?: boolean;
-    },
-    | {
-        credentials?: Dhis2Credentials;
-        shouldSave?: boolean;
-        shouldClear?: boolean;
-      }
-    | undefined
-  >,
+  p: AlertComponentProps<{}, { credentials: Dhis2Credentials } | undefined>,
 ) {
   const [tempCredentials, setTempCredentials] = createStore<Dhis2Credentials>({
-    url: p.existingCredentials?.url ?? "",
-    username: p.existingCredentials?.username ?? "",
-    password: p.existingCredentials?.password ?? "",
+    url: "",
+    username: "",
+    password: "",
   });
 
-  const [saveToSession, setSaveToSession] = createSignal<boolean>(false);
-
   const saveAction = createFormAction(async () => {
-    // Validate required fields
     if (!tempCredentials.url.trim()) {
       return { success: false, err: t3({ en: "DHIS2 URL is required", fr: "L'URL DHIS2 est requise", pt: "O URL DHIS2 é obrigatório" }) };
     }
@@ -53,24 +40,17 @@ export function Dhis2CredentialsForm(
     };
 
     const testResult = await serverActions.testDhis2IndicatorsConnection({
-      dhis2Credentials: creds,
+      credentialsSource: { kind: "inline", credentials: creds },
     });
 
     if (!testResult.success) {
       return { success: false, err: testResult.err };
     }
 
-    p.close({
-      credentials: creds,
-      shouldSave: !p.showSaveCheckbox || saveToSession(),
-    });
+    p.close({ credentials: creds });
 
     return { success: true };
   });
-
-  function handleClear() {
-    p.close({ shouldClear: true });
-  }
 
   function handleCancel() {
     p.close(undefined);
@@ -101,27 +81,19 @@ export function Dhis2CredentialsForm(
           </Button>,
         ]
       }
-      rightButtons={
-        p.allowClear
-          ? // eslint-disable-next-line jsx-key
-            [
-              <Button onClick={handleClear} intent="danger" outline>
-                {t3({ en: "Clear Credentials", fr: "Effacer les identifiants", pt: "Limpar credenciais" })}
-              </Button>,
-            ]
-          : undefined
-      }
     >
       <div class="text-base-content text-sm">
-        {t3({ en: "Enter your DHIS2 instance credentials. These will be stored only for this session.", fr: "Saisissez vos identifiants DHIS2. Ils ne seront conservés que pour cette session.", pt: "Introduza as credenciais da sua instância DHIS2. Serão guardadas apenas durante esta sessão." })}
+        {t3({
+          en: "Enter DHIS2 connection details for this session only — not saved as the instance's stored connection.",
+          fr: "Saisissez les informations de connexion DHIS2 pour cette session uniquement — non enregistrées comme connexion de l'instance.",
+          pt: "Introduza os dados de ligação DHIS2 apenas para esta sessão — não são guardados como a ligação da instância.",
+        })}
       </div>
 
       <div class="ui-spy-sm">
         <Dhis2CredentialsEditor
           credentials={() => tempCredentials}
           setCredentials={setTempCredentials}
-          saveToSession={p.showSaveCheckbox ? saveToSession : undefined}
-          setSaveToSession={p.showSaveCheckbox ? setSaveToSession : undefined}
           fullWidth
         />
       </div>

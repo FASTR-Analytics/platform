@@ -1,7 +1,7 @@
 import {
   getDisaggregationLabel,
-  getEffectiveRollupLevel,
-  getRollupAdminLevel,
+  getEffectiveRollupDimension,
+  getRollupPosition,
   inferPeriodFormatFromValue,
   isRollupEligibleResultsValue,
   periodFilterHasBounds,
@@ -81,19 +81,17 @@ export function formatVizEditorForAI(
     lines.push("");
   }
 
-  const rollupLevel = getEffectiveRollupLevel(resultsValue, config);
-  if (config.d.includeAdminAreaRollup && rollupLevel !== undefined) {
+  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
+  if (rollupDim !== undefined) {
     lines.push(
-      `Include admin-area total row: yes (position: ${config.d.adminAreaRollupPosition ?? "bottom"}). ` +
+      `Roll-up total row: yes — collapses ${rollupDim} (position: ${getRollupPosition(config)}). ` +
         `NOTE: the rendered figure includes this total row, but the data excerpt below EXCLUDES it.`,
     );
   } else {
     const reason = !isRollupEligibleResultsValue(resultsValue)
-      ? "unavailable for this metric (values are not re-aggregatable across areas — requires SUM/COUNT, a post-aggregation expression, or AVG over facility-level data)"
-      : getRollupAdminLevel(config) === undefined
-        ? "unavailable for this configuration (requires exactly one grouped admin level, not shown as replicant/map area, not filtered to a single value; not available on maps)"
-        : "no";
-    lines.push(`Include admin-area total row: ${reason === "no" ? "no" : `no — ${reason}`}`);
+      ? "no — unavailable for this metric (values are not re-aggregatable — requires SUM/COUNT, a post-aggregation expression, or AVG over facility-level data)"
+      : "no (set rollupDimension on a disaggregated admin level or facility column to add one)";
+    lines.push(`Roll-up total row: ${reason}`);
   }
   lines.push("");
 

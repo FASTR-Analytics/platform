@@ -1,4 +1,4 @@
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 
 const GITHUB_API_BASE = "https://api.github.com/repos/FASTR-Analytics/fastr-resource-hub/contents/methodology";
@@ -14,7 +14,7 @@ export function getToolsForMethodologyDocs() {
         const url = `${GITHUB_API_BASE}/index.md`;
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error(`GitHub API error (${response.status}): ${response.statusText || "Failed to fetch methodology index"}`);
+          throw new AIToolFailure(`GitHub API error (${response.status}): ${response.statusText || "Failed to fetch methodology index"}`);
         }
         const fileData = (await response.json()) as {
           content: string;
@@ -28,10 +28,11 @@ export function getToolsForMethodologyDocs() {
           };
         }
 
-        throw new Error("Unexpected encoding from GitHub API");
+        throw new AIToolFailure("Unexpected encoding from GitHub API");
       },
       inProgressLabel: "Fetching methodology docs index...",
       completionMessage: "Retrieved methodology docs index",
+      kind: "read",
     }),
 
     createAITool({
@@ -43,15 +44,15 @@ export function getToolsForMethodologyDocs() {
       }),
       handler: async (input) => {
         if (input.fileName.includes("..")) {
-          throw new Error(`Invalid file name: "${input.fileName}". Path traversal is not allowed.`);
+          throw new AIToolFailure(`Invalid file name: "${input.fileName}". Path traversal is not allowed.`);
         }
         const url = `${GITHUB_API_BASE}/${input.fileName}`;
         const response = await fetch(url);
         if (!response.ok) {
           if (response.status === 404) {
-            throw new Error(`File "${input.fileName}" not found. Use get_methodology_docs_list to see available files.`);
+            throw new AIToolFailure(`File "${input.fileName}" not found. Use get_methodology_docs_list to see available files.`);
           }
-          throw new Error(`GitHub API error (${response.status}): ${response.statusText || "Unknown error"}`);
+          throw new AIToolFailure(`GitHub API error (${response.status}): ${response.statusText || "Unknown error"}`);
         }
         const fileData = (await response.json()) as {
           content: string;
@@ -67,10 +68,11 @@ export function getToolsForMethodologyDocs() {
           };
         }
 
-        throw new Error("Unexpected encoding from GitHub API");
+        throw new AIToolFailure("Unexpected encoding from GitHub API");
       },
       inProgressLabel: input => `Reading ${input.fileName}...`,
       completionMessage: input => `Read ${input.fileName}`,
+      kind: "read",
     }),
   ];
 }

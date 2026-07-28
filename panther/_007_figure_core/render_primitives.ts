@@ -16,8 +16,10 @@ import type {
   ChartLabelPrimitive,
   ChartLegendPrimitive,
   DataLabel,
+  FigureLabelPrimitive,
   LineStyle,
-  MapLabelPrimitive,
+  MeasuredText,
+  PieSlicePrimitive,
   Primitive,
   RenderContext,
   SankeyLinkPrimitive,
@@ -28,6 +30,8 @@ import type {
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   VizGraphEdgePrimitive,
+  VizGraphNodePrimitive,
+  VizGraphUnfoldedGroupPrimitive,
 } from "./deps.ts";
 import { Coordinates, Padding, RectCoordsDims } from "./deps.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
@@ -64,37 +68,105 @@ export function renderFigurePrimitives(
   }
 }
 
-function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
-  if (dl.style) {
-    const textW = dl.mText.dims.w();
-    const textH = dl.mText.dims.h();
-    const pad = dl.style.padding ?? new Padding(0);
+// One home for the alignment-aware padded rect of a label. Shared by chart data
+// labels (renderDataLabel), figure labels (map regions, pie slices) and the
+// leader-line trim — the same algorithm was written twice in this file before.
+function labelBoxRcd(
+  mText: MeasuredText,
+  position: Coordinates,
+  alignH: "left" | "center" | "right",
+  alignV: "top" | "middle" | "bottom",
+  padding?: Padding,
+): RectCoordsDims {
+  const textW = mText.dims.w();
+  const textH = mText.dims.h();
+  const pad = padding ?? new Padding(0);
 
-    let bgX = dl.position.x() - pad.pl();
-    let bgY = dl.position.y() - pad.pt();
-    const bgW = textW + pad.pl() + pad.pr();
-    const bgH = textH + pad.pt() + pad.pb();
+  let bgX = position.x() - pad.pl();
+  let bgY = position.y() - pad.pt();
 
-    if (dl.alignH === "center") bgX -= textW / 2;
-    else if (dl.alignH === "right") bgX -= textW;
-    if (dl.alignV === "middle") bgY -= textH / 2;
-    else if (dl.alignV === "bottom") bgY -= textH;
+  if (alignH === "center") bgX -= textW / 2;
+  else if (alignH === "right") bgX -= textW;
+  if (alignV === "middle") bgY -= textH / 2;
+  else if (alignV === "bottom") bgY -= textH;
 
-    const bgRcd = new RectCoordsDims({
-      x: bgX,
-      y: bgY,
-      w: bgW,
-      h: bgH,
-    });
+  return new RectCoordsDims({
+    x: bgX,
+    y: bgY,
+    w: textW + pad.pl() + pad.pr(),
+    h: textH + pad.pt() + pad.pb(),
+  });
+}
 
-    if (dl.style.backgroundColor || dl.style.borderWidth) {
-      rc.rRect(bgRcd, {
-        fillColor: dl.style.backgroundColor ?? "transparent",
-        strokeColor: dl.style.borderColor,
-        strokeWidth: dl.style.borderWidth,
-        rectRadius: dl.style.rectRadius,
-      });
+function renderLabelBackground(
+  rc: RenderContext,
+  mText: MeasuredText,
+  position: Coordinates,
+  alignH: "left" | "center" | "right",
+  alignV: "top" | "middle" | "bottom",
+  style: {
+    fillColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    padding?: Padding;
+    rectRadius?: number;
+  },
+): void {
+  rc.rRect(
+    labelBoxRcd(mText, position, alignH, alignV, style.padding),
+    {
+      fillColor: style.fillColor ?? "transparent",
+      strokeColor: style.borderColor,
+      strokeWidth: style.borderWidth,
+      rectRadius: style.rectRadius,
+    },
+  );
+}
+
+// Where the segment a→b first meets `box`, as a parameter in [0, 1]. Returns 1
+// when it never enters — including the case that matters most, a segment that
+// only touches the box at its own endpoint, so the caller can hand back `b`
+// untouched rather than recomputing it and drifting by an ulp.
+function segmentEntryParam(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  box: RectCoordsDims,
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  let tEnter = 0;
+  let tExit = 1;
+  // Liang–Barsky: p < 0 is an entering boundary, p > 0 a leaving one.
+  const slab = (p: number, q: number): boolean => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > tExit) return false;
+      if (r > tEnter) tEnter = r;
+    } else {
+      if (r < tEnter) return false;
+      if (r < tExit) tExit = r;
     }
+    return true;
+  };
+  if (!slab(-dx, ax - box.x())) return 1;
+  if (!slab(dx, box.x() + box.w() - ax)) return 1;
+  if (!slab(-dy, ay - box.y())) return 1;
+  if (!slab(dy, box.y() + box.h() - ay)) return 1;
+  return tEnter;
+}
+
+function renderDataLabel(rc: RenderContext, dl: DataLabel): void {
+  if (dl.style && (dl.style.backgroundColor || dl.style.borderWidth)) {
+    renderLabelBackground(rc, dl.mText, dl.position, dl.alignH, dl.alignV, {
+      fillColor: dl.style.backgroundColor,
+      borderColor: dl.style.borderColor,
+      borderWidth: dl.style.borderWidth,
+      padding: dl.style.padding,
+      rectRadius: dl.style.rectRadius,
+    });
   }
 
   rc.rText(dl.mText, dl.position, dl.alignH, dl.alignV);
@@ -226,6 +298,12 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
     case "simpleviz-arrow":
       renderArrowPrimitive(rc, primitive);
       break;
+    case "vizgraph-node":
+      renderVizGraphNodePrimitive(rc, primitive);
+      break;
+    case "vizgraph-unfolded-group":
+      renderVizGraphUnfoldedGroupPrimitive(rc, primitive);
+      break;
     case "vizgraph-edge":
       renderVizGraphEdgePrimitive(rc, primitive);
       break;
@@ -246,8 +324,12 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       rc.rPath(primitive.pathSegments, primitive.pathStyle);
       break;
 
-    case "map-label":
-      renderMapLabelPrimitive(rc, primitive);
+    case "pie-slice":
+      renderPieSlicePrimitive(rc, primitive);
+      break;
+
+    case "figure-label":
+      renderFigureLabelPrimitive(rc, primitive);
       break;
 
     case "table-cell":
@@ -615,6 +697,45 @@ function renderArrowPrimitive(
   );
 }
 
+function renderVizGraphNodePrimitive(
+  rc: RenderContext,
+  primitive: VizGraphNodePrimitive,
+): void {
+  rc.rRect(primitive.rcd, primitive.rectStyle);
+  if (primitive.text) {
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
+  }
+  if (primitive.secondaryText) {
+    rc.rText(
+      primitive.secondaryText.mText,
+      primitive.secondaryText.position,
+      "center",
+      "middle",
+    );
+  }
+}
+
+function renderVizGraphUnfoldedGroupPrimitive(
+  rc: RenderContext,
+  primitive: VizGraphUnfoldedGroupPrimitive,
+): void {
+  if (primitive.outline !== undefined && primitive.outline.length > 0) {
+    const { fillColor, strokeColor, strokeWidth } = primitive.rectStyle;
+    rc.rPath(primitive.outline, {
+      fill: { color: fillColor },
+      stroke: strokeColor !== undefined && strokeWidth !== undefined &&
+          strokeWidth > 0
+        ? { color: strokeColor, width: strokeWidth }
+        : undefined,
+    });
+  } else {
+    rc.rRect(primitive.rcd, primitive.rectStyle);
+  }
+  if (primitive.text) {
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
+  }
+}
+
 function renderVizGraphEdgePrimitive(
   rc: RenderContext,
   primitive: VizGraphEdgePrimitive,
@@ -627,6 +748,8 @@ function renderVizGraphEdgePrimitive(
   const lineStyle: LineStyle = {
     strokeWidth: stroke.width,
     strokeColor: stroke.color,
+    // Deliberately solid even when the shaft is dashed — a dashed arrowhead
+    // reads as broken.
     lineDash: "solid",
   };
   if (primitive.arrowheads?.start) {
@@ -782,30 +905,81 @@ function renderCascadeArrowPrimitive(
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//    Map Label Rendering                                                     //
+//    Pie Slice Rendering                                                     //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-function renderMapLabelPrimitive(
+function renderPieSlicePrimitive(
   rc: RenderContext,
-  primitive: MapLabelPrimitive,
+  primitive: PieSlicePrimitive,
+): void {
+  rc.rPath(primitive.pathSegments, primitive.pathStyle);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//    Figure Label Rendering                                                  //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+function renderFigureLabelPrimitive(
+  rc: RenderContext,
+  primitive: FigureLabelPrimitive,
 ): void {
   if (primitive.leaderLine) {
-    const { from, to, strokeColor, strokeWidth, gap } = primitive.leaderLine;
-    const dx = to.x() - from.x();
-    const dy = to.y() - from.y();
+    const { from, via, to, strokeColor, strokeWidth, gap } =
+      primitive.leaderLine;
+    const style = {
+      strokeColor,
+      strokeWidth,
+      lineDash: "solid" as const,
+    };
+    // The gap shortening runs along the FINAL segment (via → to when an
+    // elbow is present), so the stub always backs away from the label.
+    //
+    // `to` is only reliably on the OUTSIDE of the label for the flank placer,
+    // whose `to` is the padded near edge approached horizontally. A
+    // nearest-point leader ends at the padded box's own point nearest the
+    // silhouette, which can be any corner — and where the shape has pushed a
+    // label sideways, the straight run from the anchor reaches the box's near
+    // edge well before that corner. So clamp to where the segment first meets
+    // the padded box and measure the stub from there. A segment that only
+    // touches the box at `to` yields `to` itself, which is why flank leaders
+    // come out pixel-identical.
+    const tail = via ?? from;
+    const box = labelBoxRcd(
+      primitive.mText,
+      primitive.position,
+      primitive.alignment.h,
+      primitive.alignment.v,
+      primitive.halo?.padding,
+    );
+    const tEnter = segmentEntryParam(
+      tail.x(),
+      tail.y(),
+      to.x(),
+      to.y(),
+      box,
+    );
+    const end = tEnter >= 1 ? to : new Coordinates([
+      tail.x() + (to.x() - tail.x()) * tEnter,
+      tail.y() + (to.y() - tail.y()) * tEnter,
+    ]);
+    const dx = end.x() - tail.x();
+    const dy = end.y() - tail.y();
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > gap) {
       const ratio = gap / dist;
       const shortenedTo = new Coordinates([
-        to.x() - dx * ratio,
-        to.y() - dy * ratio,
+        end.x() - dx * ratio,
+        end.y() - dy * ratio,
       ]);
-      rc.rLine([from, shortenedTo], {
-        strokeColor,
-        strokeWidth,
-        lineDash: "solid",
-      });
+      rc.rLine(via ? [from, via, shortenedTo] : [from, shortenedTo], style);
+    } else if (via) {
+      // The elbow's horizontal run is shorter than the stub gap (a tight
+      // calloutMargin): keep the radial part and stop at the elbow rather
+      // than dropping the whole leader.
+      rc.rLine([from, via], style);
     }
   }
 
@@ -815,31 +989,13 @@ function renderMapLabelPrimitive(
     const hasBorder = halo.borderColor !== undefined &&
       halo.borderWidth !== undefined && halo.borderWidth > 0;
     if (hasFill || hasBorder) {
-      const pad = halo.padding;
-      const textW = primitive.mText.dims.w();
-      const textH = primitive.mText.dims.h();
-      const pos = primitive.position;
-
-      let x = pos.x();
-      let y = pos.y();
-      if (primitive.alignment.h === "center") x -= textW / 2;
-      else if (primitive.alignment.h === "right") x -= textW;
-      if (primitive.alignment.v === "middle") y -= textH / 2;
-      else if (primitive.alignment.v === "bottom") y -= textH;
-
-      rc.rRect(
-        new RectCoordsDims({
-          x: x - pad.pl(),
-          y: y - pad.pt(),
-          w: textW + pad.pl() + pad.pr(),
-          h: textH + pad.pt() + pad.pb(),
-        }),
-        {
-          fillColor: halo.fillColor ?? "transparent",
-          strokeColor: halo.borderColor,
-          strokeWidth: halo.borderWidth,
-          rectRadius: halo.rectRadius,
-        },
+      renderLabelBackground(
+        rc,
+        primitive.mText,
+        primitive.position,
+        primitive.alignment.h,
+        primitive.alignment.v,
+        halo,
       );
     }
   }

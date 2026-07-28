@@ -3,7 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createHeaderItems, type JsonArray, sortHeaderItems } from "./deps.ts";
+import {
+  collectHeaders,
+  createHeaderItems,
+  getHeaderIndex,
+  sortHeaderItems,
+} from "./deps.ts";
 import type { GeoJSONFeature } from "./_internal/geojson_types.ts";
 import { decodeTopojson } from "./_internal/topojson_decode.ts";
 import type { MapData, MapDataJson, MapDataTransformed } from "./types.ts";
@@ -20,21 +25,21 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
 
   const paneHeaders = sortHeaderItems(
     createHeaderItems(
-      collectUniqueHeaders(jsonArray, config.paneProp),
+      collectHeaders(jsonArray, config.paneProp, []),
       config.labelReplacements,
     ),
     config.sort?.pane,
   );
   const tierHeaders = sortHeaderItems(
     createHeaderItems(
-      collectUniqueHeaders(jsonArray, config.tierProp),
+      collectHeaders(jsonArray, config.tierProp, []),
       config.labelReplacements,
     ),
     config.sort?.tier,
   );
   const laneHeaders = sortHeaderItems(
     createHeaderItems(
-      collectUniqueHeaders(jsonArray, config.laneProp),
+      collectHeaders(jsonArray, config.laneProp, []),
       config.labelReplacements,
     ),
     config.sort?.lane,
@@ -59,21 +64,24 @@ function transformMapData(data: MapDataJson): MapDataTransformed {
     const rawValue = row[config.valueProp];
     const value = typeof rawValue === "number" ? rawValue : undefined;
 
-    const ip = config.paneProp
-      ? paneHeaders.findIndex((h) =>
-        h.id === String(row[config.paneProp!] ?? "")
-      )
-      : 0;
-    const it = config.tierProp
-      ? tierHeaders.findIndex((h) =>
-        h.id === String(row[config.tierProp!] ?? "")
-      )
-      : 0;
-    const il = config.laneProp
-      ? laneHeaders.findIndex((h) =>
-        h.id === String(row[config.laneProp!] ?? "")
-      )
-      : 0;
+    const ip = getHeaderIndex(
+      config.paneProp,
+      config.valueProp,
+      row,
+      paneHeaders,
+    );
+    const it = getHeaderIndex(
+      config.tierProp,
+      config.valueProp,
+      row,
+      tierHeaders,
+    );
+    const il = getHeaderIndex(
+      config.laneProp,
+      config.valueProp,
+      row,
+      laneHeaders,
+    );
 
     if (ip === -1 || it === -1 || il === -1) continue;
 
@@ -108,21 +116,4 @@ function resolveGeoFeatures(data: MapDataJson): GeoJSONFeature[] {
     data.geoData.objectName,
   );
   return decoded.features;
-}
-
-function collectUniqueHeaders(
-  jsonArray: JsonArray,
-  prop: string | undefined,
-): string[] {
-  if (!prop) return [""];
-  const seen = new Set<string>();
-  const headers: string[] = [];
-  for (const row of jsonArray) {
-    const v = String(row[prop] ?? "");
-    if (!seen.has(v)) {
-      seen.add(v);
-      headers.push(v);
-    }
-  }
-  return headers;
 }

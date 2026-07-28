@@ -73,7 +73,10 @@ Two layers, both under `FigureInputsBase.style` (see
   `content.tableColHeaders`** (per-element): `func` accepts a static object
   (uniform) or an info callback (per cell / per column). Resolvable fields:
   `backgroundColor`, `textColorStrategy`, `alignH`, `alignV` (+
-  `annotationGroup` and `textFormatter` on cells).
+  `annotationGroup` on cells). All three blocks also take a `textFormatter`: on
+  cells it formats the value; on row/col headers it rewrites the final header
+  label (receives the raw label + `sampleN`, applies to item and group headers,
+  resolved once before column widths).
 
 ```typescript
 // Uniform: right-align all cells

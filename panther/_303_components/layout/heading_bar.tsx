@@ -6,108 +6,88 @@
 import { type JSX, Show } from "solid-js";
 import { Input } from "../form_inputs/input.tsx";
 import { Button } from "../form_inputs/button.tsx";
-import { t3 } from "../deps.ts";
 
 type Props = {
   heading: string | JSX.Element;
-  children?: JSX.Element;
+  subheading?: string | JSX.Element;
+  onBack?: () => void;
+  tonal?: boolean;
   leftChildren?: JSX.Element;
   centerChildren?: JSX.Element;
-  setSearchText?: (v: string) => void;
+  children?: JSX.Element;
   searchText?: string;
-  class?: string;
-  ensureHeightAsIfButton?: boolean;
+  setSearchText?: (v: string) => void;
 };
 
 export function HeadingBar(p: Props) {
+  // A tonal bar has a surface of its own, and that surface change IS the
+  // divider. A flush bar sits on the same surface as its content, so it draws
+  // one. The tonal surface is a kit-owned token, not a per-call-site choice —
+  // there is exactly one tonal header in an app.
+  const surfaceClass = () => p.tonal ? "ui-heading-bar-tonal" : "border-b";
+  // Slots collapse on prop PRESENCE, not on rendered content: several consumers
+  // pass children that are a <Show> and render nothing under some app state,
+  // and keying on output would slide the centred search field sideways as that
+  // state changes.
+  const hasCenter = () =>
+    p.setSearchText !== undefined || p.centerChildren !== undefined;
+  // Called through, not passed through: a consumer whose onBack identity
+  // changes (a conditional back button) would otherwise leave a stale handler
+  // bound on the button element.
+  const handleBack = () => p.onBack?.();
+
+  // The inner row's height floor is a form control's height, so a bar holding
+  // only a title is as tall as one holding buttons. It cannot sit on the root,
+  // which carries ui-pad over box-sizing: border-box.
   return (
-    <div
-      class={`ui-pad ui-gap flex w-full flex-none items-center overflow-hidden border-b${
-        p.class ? ` ${p.class}` : ""
-      }`}
-    >
-      <div class="ui-gap flex flex-1 basis-1 items-center">
-        <Show when={p.leftChildren} keyed>
-          {(keyedLeftChildren) => {
-            return <div class="flex-none">{keyedLeftChildren}</div>;
-          }}
-        </Show>
-        <div class="font-700 truncate text-xl">{p.heading}</div>
-      </div>
-      <div class="ui-gap-sm flex flex-1 items-center justify-center">
-        <Show when={p.setSearchText}>
-          <div class="ui-gap-sm flex min-w-48 max-w-72 flex-1 items-center">
-            <Input
-              onChange={p.setSearchText}
-              value={p.searchText ?? ""}
-              fullWidth
-              label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
-              searchIcon
-            />
-            <Show when={p.searchText}>
-              <Button
-                onClick={() => p.setSearchText!("")}
-                iconName="x"
-                intent="neutral"
-                outline
-              />
+    <div class={`ui-pad w-full flex-none overflow-hidden ${surfaceClass()}`}>
+      <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
+        <div class="ui-gap flex flex-1 basis-1 items-center">
+          <Show when={p.onBack !== undefined}>
+            <Button iconName="chevronLeft" onClick={handleBack} />
+          </Show>
+          <Show when={p.leftChildren} keyed>
+            {(keyedLeftChildren) => {
+              return <div class="flex-none">{keyedLeftChildren}</div>;
+            }}
+          </Show>
+          <div class="ui-text-title truncate">
+            {p.heading}
+            <Show when={p.subheading}>
+              <span class="font-400 ml-4">{p.subheading}</span>
+            </Show>
+          </div>
+        </div>
+        <Show when={hasCenter()}>
+          <div class="ui-gap-sm flex flex-1 items-center justify-center">
+            <Show when={p.setSearchText}>
+              <div class="ui-gap-sm flex min-w-48 max-w-72 flex-1 items-center">
+                <Input
+                  onChange={p.setSearchText}
+                  value={p.searchText ?? ""}
+                  fullWidth
+                  searchIcon
+                  clearable
+                />
+              </div>
+            </Show>
+            <Show when={p.centerChildren} keyed>
+              {(keyedCenterChildren) => (
+                <div class="flex-none">{keyedCenterChildren}</div>
+              )}
             </Show>
           </div>
         </Show>
-        <Show when={p.centerChildren} keyed>
-          {(keyedCenterChildren) => (
-            <div class="flex-none">{keyedCenterChildren}</div>
-          )}
-        </Show>
-      </div>
-      <div class="flex flex-1 basis-1 items-center justify-end">
         <Show when={p.children} keyed>
           {(keyedRightChildren) => {
-            return <div class="flex-none">{keyedRightChildren}</div>;
+            return (
+              <div class="flex flex-1 basis-1 items-center justify-end">
+                <div class="flex-none">{keyedRightChildren}</div>
+              </div>
+            );
           }}
         </Show>
-        <Show when={p.ensureHeightAsIfButton && !p.children && !p.leftChildren}>
-          <div class="pointer-events-none invisible w-0 overflow-hidden">
-            <Button>X</Button>
-          </div>
-        </Show>
       </div>
-    </div>
-  );
-}
-
-export function HeadingBarMainRibbon(p: Props) {
-  return (
-    <div class="ui-pad ui-gap bg-base-content text-base-100 flex w-full flex-none items-center overflow-hidden">
-      <Show when={p.leftChildren} keyed>
-        {(keyedLeftChildren) => {
-          return <div class="flex-none">{keyedLeftChildren}</div>;
-        }}
-      </Show>
-      <div class="font-700 flex-1 py-1.5 text-lg">{p.heading}</div>
-      <Show when={p.children} keyed>
-        {(keyedRightChildren) => {
-          return <div class="flex-none">{keyedRightChildren}</div>;
-        }}
-      </Show>
-    </div>
-  );
-}
-
-type HeaderBarCanGoBackProps = {
-  heading: string | JSX.Element;
-  children?: JSX.Element;
-  back?: () => void;
-};
-
-export function HeaderBarCanGoBack(p: HeaderBarCanGoBackProps) {
-  return (
-    <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-      <Show when={p.back !== undefined}>
-        <Button iconName="chevronLeft" onClick={p.back} />
-      </Show>
-      <div class="font-700 flex-1 truncate text-xl">{p.heading}</div>
-      <div class="flex flex-none items-center">{p.children}</div>
     </div>
   );
 }

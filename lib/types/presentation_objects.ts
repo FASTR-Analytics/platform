@@ -1,4 +1,4 @@
-import { ADMIN_LEVELS, type AdminLevel } from "../admin_area_rollup.ts";
+import { ADMIN_LEVELS, type RollupDimension } from "../rollup.ts";
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { t3 } from "../translate/mod.ts";
 import {
@@ -376,8 +376,6 @@ export function getStartingConfigForPresentationObject(
       filterBy: [],
       periodFilter: undefined,
       selectedReplicantValue: undefined,
-      includeAdminAreaRollup: undefined,
-      adminAreaRollupPosition: undefined,
     },
     s: {
       ...DEFAULT_S_CONFIG,
@@ -418,6 +416,8 @@ export type GenericLongFormFetchConfig = {
   periodFilter: PeriodFilter | undefined;
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;
-  includeAdminAreaRollup?: boolean;
-  adminAreaRollupLevel?: AdminLevel;
+  // The dimension the roll-up collapses; presence = roll-up on. Baked in
+  // client-side by getEffectiveRollupDimension — the server obeys, never
+  // recomputes it.
+  rollupDim?: RollupDimension;
 };

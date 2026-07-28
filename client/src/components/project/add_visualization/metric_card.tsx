@@ -38,12 +38,13 @@ export function MetricCard(p: Props) {
 
   return (
     <div
-      class="ui-pad border-base-300 rounded border transition-colors"
+      class="ui-pad rounded border transition-colors"
       classList={{
-        "bg-primary/5 border-primary": isGroupSelected(),
-        "bg-base-100": !isGroupSelected(),
-        "ui-hoverable cursor-pointer": canSelectGroup(),
-        "opacity-50": !hasVariants() && firstMetric().status !== "ready",
+        "bg-primary-subtle border-primary": isGroupSelected(),
+        "bg-base-100": !isGroupSelected() && !canSelectGroup(),
+        "ui-hoverable-base-100": canSelectGroup() && !isGroupSelected(),
+        "cursor-pointer": canSelectGroup(),
+        "opacity-40": !hasVariants() && firstMetric().status !== "ready",
       }}
       onClick={handleGroupClick}
       title={
@@ -58,13 +59,13 @@ export function MetricCard(p: Props) {
         {/* <div class="flex flex-wrap gap-1">
           <For each={firstMetric().disaggregationOptions.slice(0, 4)}>
             {(disOpt) => (
-              <span class="bg-base-200 text-neutral rounded px-1.5 py-0.5 text-xs">
+              <span class="bg-base-200 ui-text-caption rounded px-1.5 py-0.5">
                 {t3(getDisplayDisaggregationLabel(disOpt.value))}
               </span>
             )}
           </For>
           <Show when={firstMetric().disaggregationOptions.length > 4}>
-            <span class="text-neutral text-xs">
+            <span class="ui-text-caption">
               +{firstMetric().disaggregationOptions.length - 4}
             </span>
           </Show>
@@ -80,8 +81,8 @@ export function MetricCard(p: Props) {
         </Show>
 
         <Show when={hasVariants()}>
-          <div class="border-base-300 border-t pt-2">
-            <div class="text-neutral mb-1 text-xs">
+          <div class="border-t pt-2">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :", pt: "Selecione o nível geográfico:" })}
             </div>
             <div class="flex flex-wrap gap-1">
@@ -113,8 +114,8 @@ function VariantRow(p: VariantRowProps) {
     <div
       class="rounded px-2 py-1 text-sm transition-colors cursor-pointer"
       classList={{
-        "bg-primary/10 font-700": p.isSelected,
-        "bg-base-200 ui-hoverable": !p.isSelected,
+        "bg-primary-subtle font-700": p.isSelected,
+        "ui-hoverable-base-200": !p.isSelected,
       }}
       onClick={(e) => {
         e.stopPropagation();

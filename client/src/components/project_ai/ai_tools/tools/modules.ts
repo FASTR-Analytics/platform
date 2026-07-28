@@ -1,5 +1,5 @@
 import { serverActions } from "~/server_actions";
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
 import { projectState } from "~/state/project/t1_store";
@@ -31,6 +31,7 @@ export function getToolsForModules(
         return formatModulesListForAI(modules, metrics);
       },
       inProgressLabel: "Getting available modules...",
+      kind: "read",
     }),
 
     createAITool({
@@ -43,10 +44,11 @@ export function getToolsForModules(
           run_id: requireAttachedRunId(),
           module_id: input.id,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throw new AIToolFailure(res.err);
         return res.data.script;
       },
       inProgressLabel: "Getting module script...",
+      kind: "read",
     }),
 
     createAITool({
@@ -60,10 +62,11 @@ export function getToolsForModules(
           run_id: requireAttachedRunId(),
           module_id: input.id,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throw new AIToolFailure(res.err);
         return res.data.logs;
       },
       inProgressLabel: "Getting module log...",
+      kind: "read",
     }),
 
     createAITool({
@@ -76,10 +79,11 @@ export function getToolsForModules(
           projectId,
           module_id: input.id,
         });
-        if (!res.success) throw new Error(res.err);
+        if (!res.success) throw new AIToolFailure(res.err);
         return formatModuleSettingsForAI(res.data);
       },
       inProgressLabel: "Getting module settings...",
+      kind: "read",
     }),
   ];
 }

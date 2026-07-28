@@ -7,7 +7,6 @@ export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
 export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
   Arrowhead,
-  BoxPrimitive,
   HeightConstraints,
   Measured,
   MeasuredText,
@@ -16,25 +15,42 @@ export type {
   RenderContext,
   Renderer,
   VizGraphEdgePrimitive,
+  VizGraphNodeInfo,
+  VizGraphNodePrimitive,
+  VizGraphUnfoldedGroupPrimitive,
 } from "../_001_render_system/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedVizGraphStyle } from "../_003_figure_style/mod.ts";
 export {
+  buildFitReport,
+  computeFloorScale,
+  findFitScaleWithFloor,
   generateSurroundsPrimitives,
   measureSurrounds,
+  memoizeByScale,
   renderFigureBackground,
   renderFigurePrimitives,
+  resolveFigureAutofitOptions,
 } from "../_007_figure_core/mod.ts";
 export type {
   FigureInputsBase,
   MeasuredSurrounds,
 } from "../_007_figure_core/mod.ts";
-export { layout } from "../_009_vizgraph/mod.ts";
+export {
+  DEFAULT_SPACING,
+  layout,
+  pathRenderCommands,
+  pathRenderCommandsClosedRing,
+} from "../_009_vizgraph/mod.ts";
 export type {
+  Constraints,
+  GapRange,
   Geometry,
   GraphModel,
   LayoutOptions,
   NodeMeasurer,
+  PathCommand,
   PathSpec,
   Pt,
+  Spacing,
 } from "../_009_vizgraph/mod.ts";

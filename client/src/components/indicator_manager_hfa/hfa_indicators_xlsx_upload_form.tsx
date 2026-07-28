@@ -4,7 +4,7 @@ import {
   Button,
   type EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Input,
   RadioGroup,
   Select,
@@ -60,20 +60,21 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({
             en: "Import HFA Indicators from Excel",
             fr: "Importer des indicateurs HFA depuis Excel",
             pt: "Importar indicadores HFA a partir do Excel",
           })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
           <Show when={!p.showAi()}>
-            <Button iconName="chevronLeft" outline onClick={p.openAi}>
+            <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <div class="ui-pad ui-spy max-w-3xl">
@@ -378,7 +379,7 @@ function ReconcileStep(p: {
       <div class="font-700 text-base">
         {t3({ en: "Map time points", fr: "Mapper les points temporels", pt: "Mapear pontos temporais" })}
       </div>
-      <div class="text-neutral text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: `XLSX has ${N} code column(s). Platform has ${M} time point(s).`,
           fr: `Le classeur contient ${N} colonne(s) de code. La plateforme a ${M} point(s) temporel(s).`,

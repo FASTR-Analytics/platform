@@ -12,8 +12,11 @@ import {
   ItemsHolderPresentationObject,
   getFiltersWithReplicant,
   inferPeriodFormatFromValue,
+  isSampleNProp,
   periodFilterHasBounds,
+  sampleNProp,
 } from "lib";
+import { AIToolFailure } from "panther";
 import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
@@ -51,7 +54,7 @@ export async function getMetricDataForAI(
   const periodFilter = periodFilterOverride ?? inferPeriodFilter(startDate, endDate);
 
   const metric = metrics.find((m) => m.id === metricId);
-  if (!metric) throw new Error(`Metric "${metricId}" not found`);
+  if (!metric) throw new AIToolFailure(`Metric "${metricId}" not found`);
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const requiredDisaggregationOptions = metric.disaggregationOptions
@@ -84,7 +87,7 @@ export async function getMetricDataForAI(
           periodFilter,
           postAggregationExpression:
             metric.postAggregationExpression.expression,
-          includeAdminAreaRollup: false,
+          rollupDim: undefined,
         }
       : {
           values: valuePropsToFetch.map((prop) => ({
@@ -95,7 +98,7 @@ export async function getMetricDataForAI(
           filters: filters,
           periodFilter,
           postAggregationExpression: undefined,
-          includeAdminAreaRollup: false,
+          rollupDim: undefined,
         };
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
@@ -130,7 +133,7 @@ export async function getMetricDataForAI(
 
     const res = await newPromise;
     if (!res.success) {
-      throw new Error(res.err);
+      throw new AIToolFailure(res.err);
     }
     itemsHolder = res.data;
   }
@@ -269,8 +272,13 @@ function formatItemsAsMarkdown(
     return lines.join("\n");
   }
 
-  // Dimension summary (only for disaggregation dimensions, not value columns)
-  const columns = Object.keys(items[0]);
+  // Dimension summary (only for disaggregation dimensions, not value columns).
+  // Sample-size columns are deliberately NOT columns of their own: they are
+  // concatenated onto their value below. A second value column would flip
+  // pivotToWide out of its single-value header shape, doubling the table's
+  // width and renaming every existing column.
+  const columns = Object.keys(items[0]).filter((col) => !isSampleNProp(col));
+  const hasSampleN = Object.keys(items[0]).some(isSampleNProp);
   const dimensionColumns = columns.filter((col) =>
     disaggregations.includes(col as DisaggregationOption),
   );
@@ -309,6 +317,12 @@ function formatItemsAsMarkdown(
   // Format as CSV (with smart pivot)
   lines.push("## Data (CSV)");
   lines.push("");
+  if (hasSampleN) {
+    lines.push(
+      "Values are followed by `(n=…)`: the number of surveyed facilities contributing to that value. Only survey (HFA) metrics carry it.",
+    );
+    lines.push("");
+  }
   const csvData = pivotAndFormatAsCSV(
     items,
     columns,
@@ -482,8 +496,9 @@ function pivotToWide(
       if (matchingItem) {
         // Add all value columns for this pivot value
         for (const valueCol of valueColumns) {
-          const val = matchingItem[valueCol];
-          pivotedValues.push(formatValue(val, decimalPlaces));
+          pivotedValues.push(
+            formatValueWithN(matchingItem, valueCol, decimalPlaces),
+          );
         }
       } else {
         // No data for this pivot value - add empty cells for all value columns
@@ -512,11 +527,38 @@ function formatLongCSV(
 
   // Rows
   for (const item of items) {
-    const values = columns.map((col) => formatValue(item[col], decimalPlaces));
+    const values = columns.map((col) =>
+      formatValueWithN(item, col, decimalPlaces),
+    );
     lines.push(values.join(","));
   }
 
   return lines.join("\n");
+}
+
+// A value plus its sample size, as one cell: "0.453 (n=120)". Dimension columns
+// have no n column and pass through unchanged. The count is written plain, with
+// no thousands separator — rows are joined on "," without quoting, so a grouped
+// number would break the column count.
+function formatValueWithN(
+  item: JsonArrayItem,
+  col: string,
+  decimalPlaces: number,
+): string {
+  const formatted = formatValue(item[col], decimalPlaces);
+  if (formatted === "") {
+    return formatted;
+  }
+  const raw = item[sampleNProp(col)];
+  const n = typeof raw === "number"
+    ? raw
+    : typeof raw === "string" && raw.trim() !== ""
+      ? Number(raw)
+      : NaN;
+  if (!Number.isFinite(n) || n <= 0) {
+    return formatted;
+  }
+  return `${formatted} (n=${n})`;
 }
 
 function formatValue(val: any, decimalPlaces: number): string {

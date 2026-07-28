@@ -129,11 +129,21 @@ function opacityToHex(opacity: number): string {
   return alpha;
 }
 
+// The blessed spelling of "document look with model defaults". Passing any
+// style object (this constant included) projects the document style model as
+// inline vars; passing nothing/null yields the app look via the _fixed.css
+// --md-* defaults. This is the one place in panther where undefined and {}
+// mean different things.
+export const DOCUMENT_MARKDOWN_DEFAULTS: CustomMarkdownStyleOptions = {};
+
 // Generate CSS variable values from style config
 // Uses CustomMarkdownStyle to handle all merging logic
 export function deriveMarkdownCssVars(
   style?: CustomMarkdownStyleOptions,
 ): JSX.CSSProperties {
+  if (style == null) {
+    return {};
+  }
   const styleInstance = new CustomMarkdownStyle(style);
   const merged = styleInstance.getMergedMarkdownStyle();
   const em = styleInstance.getEmValues();

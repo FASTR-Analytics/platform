@@ -301,12 +301,6 @@ export function supportsDynamicWebTools(model: AnthropicModel): boolean {
   return ADAPTIVE_CAPABLE_MODEL_PREFIXES.some((p) => model.startsWith(p));
 }
 
-// Mid-conversation {role: "system"} messages (no beta header) are accepted
-// only by Opus 4.8 — every other model 400s on them.
-export function supportsMidConversationSystem(model: AnthropicModel): boolean {
-  return model.startsWith("claude-opus-4-8");
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // EFFORT SUPPORT
 ////////////////////////////////////////////////////////////////////////////////

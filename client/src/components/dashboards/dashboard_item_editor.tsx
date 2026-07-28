@@ -20,7 +20,7 @@ export function DashboardItemEditor(p: Props) {
       <Show
         when={p.item}
         fallback={
-          <div class="ui-pad text-base-content/60 text-sm">
+          <div class="ui-pad text-base-content-muted text-sm">
             <Show
               when={p.selectedCount > 1}
               fallback={t3({

@@ -14,6 +14,7 @@ import type { IconComponent, IconName } from "./icon_types.ts";
 //   - arrowsDiagonal2 -> arrows-out-simple (no mirrored diagonal; same as arrowsDiagonal)
 //   - arrowsDiagonalMinimize2 -> arrows-in-simple (same as arrowsDiagonalMinimize)
 //   - badge -> seal (nearest award/badge shape)
+//   - calendar -> calendar-blank (plain calendar has digits, too busy small)
 //   - clearAll -> list-dashes (nearest to staggered-lines glyph)
 //   - databaseImport -> tray-arrow-down (Phosphor has no database-import)
 //   - helpSquare -> question (no square variant; same as help)
@@ -132,6 +133,14 @@ function PhBox(p: { class?: string }) {
   );
 }
 
+function PhCalendar(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z" />
+    </PhosphorWrapper>
+  );
+}
+
 function PhChart(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
@@ -192,6 +201,14 @@ function PhClearAll(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M88,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H96A8,8,0,0,1,88,64Zm128,56H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM56,56H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhClock(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z" />
     </PhosphorWrapper>
   );
 }
@@ -705,6 +722,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   backspace: PhBackspace,
   badge: PhBadge,
   box: PhBox,
+  calendar: PhCalendar,
   chart: PhChart,
   check: PhCheck,
   chevronDown: PhChevronDown,
@@ -713,6 +731,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   chevronUp: PhChevronUp,
   circleX: PhCircleX,
   clearAll: PhClearAll,
+  clock: PhClock,
   code: PhCode,
   copy: PhCopy,
   dashboard: PhDashboard,

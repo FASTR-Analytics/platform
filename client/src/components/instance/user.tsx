@@ -12,7 +12,7 @@ import {
   Button,
   Checkbox,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   SettingsSection,
   openComponent,
   createButtonAction,
@@ -136,8 +136,9 @@ export function User(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
-          back={p.close}
+        <HeadingBar
+          tonal
+          onBack={p.close}
           heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de", pt: "Perfil de utilizador de" })} ${p.user.email}`}
         />
       }
@@ -222,7 +223,7 @@ export function User(p: Props) {
                 {p.projects.map((project) => (
                   <button
                     type="button"
-                    class="ui-pad ui-hoverable border-base-300 min-h-[60px] rounded border text-left text-sm font-semibold"
+                    class="ui-pad ui-hoverable-base-100 min-h-[60px] rounded border text-left text-sm font-700"
                     onClick={() => openProjectPermissions(project.id, project.label)}
                   >
                     {project.label}
@@ -230,7 +231,7 @@ export function User(p: Props) {
                 ))}
                 <button
                   type="button"
-                  class="ui-pad ui-hoverable border-base-300 col-span-full min-h-[40px] rounded border text-left text-sm italic text-neutral"
+                  class="ui-pad ui-hoverable-base-100 col-span-full min-h-[40px] rounded border text-left text-sm italic text-base-content-muted"
                   onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" }))}
                 >
                   {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" })}

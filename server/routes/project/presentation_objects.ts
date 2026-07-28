@@ -3,9 +3,12 @@ import type { Sql } from "postgres";
 import {
   getPeriodFilterExactBounds,
   isValidDisaggregationOption,
+  syncFigureConfigField,
+  syncFigureConfigToMap,
   validateFetchConfig,
   type PeriodBounds,
 } from "lib";
+import { applyPoToLiveRoom, closePoRoom } from "../../collab/po_rooms.ts";
 import {
   addPresentationObject,
   batchUpdatePresentationObjectsPeriodFilter,
@@ -22,7 +25,7 @@ import {
 } from "lib";
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { MAX_REPLICANT_OPTIONS } from "../../server_only_funcs_presentation_objects/consts.ts";
+import { exceedsMaxReplicantOptions } from "../../server_only_funcs_presentation_objects/consts.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
@@ -232,7 +235,9 @@ defineRoute(
               ...existing,
               data: {
                 ...existing.data,
-                config: presentationObjectConfigSchema.parse(existing.data.config),
+                config: presentationObjectConfigSchema.parse(
+                  existing.data.config,
+                ),
               },
             }
           : existing,
@@ -326,10 +331,37 @@ defineRoute(
         err: "You cannot update a default visualization",
       });
     }
+    const config = body.config as PresentationObjectConfig;
+    // Chokepoint: if a live collab room holds this visualization, merge the
+    // write into it (collab is authoritative → the field-level merge IS the
+    // conflict resolution, so the optimistic-lock check is skipped). The room's
+    // checkpoint already persisted, fired notifyLastUpdated and scheduled the
+    // viz-list rebroadcast.
+    const roomRes = await applyPoToLiveRoom(
+      c.var.ppk.projectId,
+      params.po_id,
+      (m) => syncFigureConfigToMap(m, config),
+    );
+    if (roomRes.status === "saved") {
+      return c.json({
+        success: true,
+        data: { lastUpdated: roomRes.lastUpdated },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // The room applied the change (peers already see it) but could not
+      // persist it. Do NOT fall back to a direct DB write — the room owns
+      // persistence and its next successful checkpoint would clobber it.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
+      });
+    }
+
     const res = await updatePresentationObjectConfig(
       c.var.ppk.projectDb,
       params.po_id,
-      body.config as PresentationObjectConfig,
+      config,
       body.expectedLastUpdated,
       body.overwrite,
     );
@@ -362,6 +394,11 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { body }) => {
+    // Virtual defaults have no row and must be refused BEFORE any live-room
+    // application, so the room merges and the DB write always operate on the
+    // same id set (the pre-runs version of this route partially applied a
+    // mixed batch to rooms and then errored — see PLAN_RESULTS_RUNS
+    // "Inherited defect").
     const manifest = await getAttachedManifestOrNull(
       c.var.mainDb,
       c.var.ppk.projectId,
@@ -377,31 +414,78 @@ defineRoute(
         err: "You cannot update a default visualization",
       });
     }
-    const res = await batchUpdatePresentationObjectsPeriodFilter(
-      c.var.ppk.projectDb,
-      body.presentationObjectIds,
-      body.periodFilter,
-    );
+    const projectId = c.var.ppk.projectId;
+    const ids: string[] = body.presentationObjectIds;
+    const periodFilter = body.periodFilter;
 
-    if (res.success) {
-      notifyLastUpdated(
-        c.var.ppk.projectId,
-        "presentation_objects",
-        body.presentationObjectIds,
-        res.data.lastUpdated,
+    // Chokepoint: any of these visualizations with a live collab room gets the
+    // period-filter change merged into the room (avoids clobbering a peer's
+    // in-progress edits); the rest go through the batch DB write.
+    const roomHandled = new Set<string>();
+    const saveFailedIds: string[] = [];
+    let lastUpdated: string | null = null;
+    for (const id of ids) {
+      const roomRes = await applyPoToLiveRoom(projectId, id, (m) =>
+        syncFigureConfigField(m, "d", "periodFilter", periodFilter),
       );
-
-      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
-      c.var.mainDb,
-      c.var.ppk.projectId,
-      c.var.ppk.projectDb,
-    );
-      if (vizRes.success) {
-        notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
+      // save_failed still counts as room-handled: the room absorbed the change
+      // (peers see it) and owns persisting it — a direct DB write here would
+      // be clobbered by the room's next successful checkpoint.
+      if (roomRes.status !== "no_room") {
+        roomHandled.add(id);
+        if (roomRes.status === "saved") {
+          lastUpdated = roomRes.lastUpdated;
+        } else {
+          saveFailedIds.push(id);
+        }
       }
     }
 
-    return c.json(res);
+    const remaining = ids.filter((id) => !roomHandled.has(id));
+    if (remaining.length > 0) {
+      const res = await batchUpdatePresentationObjectsPeriodFilter(
+        c.var.ppk.projectDb,
+        remaining,
+        periodFilter,
+      );
+      if (res.success === false) {
+        return c.json(res);
+      }
+      lastUpdated = res.data.lastUpdated;
+      notifyLastUpdated(
+        projectId,
+        "presentation_objects",
+        remaining,
+        res.data.lastUpdated,
+      );
+      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+        c.var.mainDb,
+        projectId,
+        c.var.ppk.projectDb,
+      );
+      if (vizRes.success) {
+        notifyProjectVisualizationsUpdated(projectId, vizRes.data);
+      }
+    }
+
+    if (saveFailedIds.length > 0) {
+      // The rooms absorbed the change (peers already see it) but could not
+      // persist it — matching updatePresentationObjectConfig above, report
+      // the failure instead of claiming success with a synthetic timestamp.
+      return c.json({
+        success: false as const,
+        err:
+          `The period filter was applied to ${saveFailedIds.length} live editing session(s) but could not be saved yet. Saving will retry automatically.`,
+      });
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        lastUpdated: lastUpdated ?? new Date().toISOString(),
+        updatedCount: ids.length,
+      },
+    });
   },
 );
 
@@ -427,6 +511,9 @@ defineRoute(
     if (res.success === false) {
       return c.json(res);
     }
+    // Discard any live room for the now-deleted PO (its checkpoints would fail
+    // against the gone row); connected editors get a po_error and fall back.
+    closePoRoom(c.var.ppk.projectId, params.po_id, "Visualization deleted");
     const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
       c.var.mainDb,
       c.var.ppk.projectId,
@@ -653,7 +740,10 @@ defineRoute(
     const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
     validateFetchConfig(fetchConfig);
     if (!isValidDisaggregationOption(body.replicateBy)) {
-      return c.json({ success: false, err: `Invalid replicateBy: ${body.replicateBy}` });
+      return c.json({
+        success: false,
+        err: `Invalid replicateBy: ${body.replicateBy}`,
+      });
     }
 
     const t0 = performance.now();
@@ -801,7 +891,7 @@ defineRoute(
 
         const vals = resDisPossibleVals.data;
 
-        if (vals.length > MAX_REPLICANT_OPTIONS) {
+        if (exceedsMaxReplicantOptions(vals)) {
           return {
             success: true as const,
             data: {

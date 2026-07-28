@@ -24,7 +24,17 @@ export { useConversations } from "./_components/use_conversations.ts";
 // CORE FUNCTIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-export { createAITool } from "./_core/tool_helpers.ts";
+export {
+  aiToolFactory,
+  AIToolFailure,
+  createAITool,
+} from "./_core/tool_helpers.ts";
+export { createAIViewController } from "./_core/views.ts";
+export { defineAIViews, view } from "./_core/view_types.ts";
+export { createNavigationTool } from "./_core/navigation_tool.ts";
+export { defineAIInteractions, interaction } from "./_core/interactions.ts";
+export { buildToolCatalog } from "./_core/tool_catalog.ts";
+export { validateAIChatConfig } from "./_core/validate_config.ts";
 export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx";
 export { createSDKClient } from "./_core/sdk_client.ts";
 export { callAI, callAIStructured } from "./_core/one_shot.ts";
@@ -35,6 +45,45 @@ export { getBetaHeaders } from "./_core/beta_headers.ts";
 ////////////////////////////////////////////////////////////////////////////////
 
 export type { AIChatConfig } from "./_core/types.ts";
+export type {
+  AIToolApprovalConfig,
+  AIToolKind,
+  AIToolWithMetadata,
+  ApprovalPolicy,
+  CreateAIToolConfig,
+  CreateAIToolConfigCommon,
+  CreateViewAIToolConfig,
+  ProposalPreview,
+  ProposalResult,
+  ToolUIMetadata,
+  ViewAIToolApprovalConfig,
+} from "./_core/tool_helpers.ts";
+export type { AIViewController } from "./_core/views.ts";
+export type {
+  AIView,
+  AIViewContext,
+  AIViewDefinition,
+  AIViewParams,
+  AIViewRegistry,
+  AIViewState,
+  AIViewStateFor,
+  AIViewVoidKeys,
+  AnyAIView,
+  SetViewArgs,
+} from "./_core/view_types.ts";
+export type {
+  AIInteraction,
+  AIInteractionDef,
+  AIInteractionPayload,
+  AIInteractionRegistry,
+  AnyAIInteraction,
+  NotifyArgs,
+} from "./_core/interactions.ts";
+export type {
+  AINavigationTarget,
+  AINavigationToolInput,
+  CreateAINavigationToolConfig,
+} from "./_core/navigation_tool.ts";
 export type {
   AIChatSettingsField,
   AIChatSettingsPanelProps,

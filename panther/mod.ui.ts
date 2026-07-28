@@ -28,6 +28,7 @@ export * from "./_009_vizgraph/mod.ts";
 export * from "./_010_chartoh/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_maps/mod.ts";
+export * from "./_010_pie/mod.ts";
 export * from "./_010_sankey/mod.ts";
 export * from "./_010_sankey_explicit/mod.ts";
 export * from "./_010_simpleviz/mod.ts";
@@ -42,7 +43,51 @@ export * from "./_100_csv/mod.ts";
 export * from "./_101_csv_query/mod.ts";
 export * from "./_105_markdown/mod.ts";
 export * from "./_106_markdown_to_word/mod.ts";
-export * from "./_110_ai_types/mod.ts";
+// _110_ai_types: CURATED re-export (Phase 3 review, bucket 3). Model
+// consts/capabilities and message/config types are package-public; the
+// engine logic (turn_logic, view_logic, request_shaping — wire rendering,
+// digest reduction, cache shaping) is internal to the vendored engine and
+// deliberately NOT re-exported, so its formats can evolve without consumer
+// breakage. Add a symbol here only when a consumer should see it.
+export {
+  BETA_HEADERS,
+  BUILTIN_TOOL_TYPES,
+  DEFAULT_PRICING,
+  getMaxOutputTokens,
+  getSupportedEffortLevels,
+  MAX_OUTPUT_TOKENS,
+  MODEL_MAX_OUTPUT_TOKENS,
+  MODEL_OPTIONS,
+  MODEL_PRICING,
+  RETIRED_MODEL_IDS,
+  SERVER_TOOL_LABELS,
+  supportsAdaptiveThinking,
+  supportsDisabledThinking,
+  supportsDynamicWebTools,
+  supportsManualThinking,
+  supportsSamplingParams,
+} from "./_110_ai_types/mod.ts";
+export type {
+  AnthropicModel,
+  AnthropicModelConfig,
+  CacheControl,
+  ContentBlock,
+  DocumentContentBlock,
+  DocumentSource,
+  EffortLevel,
+  EphemeralSection,
+  MessageParam,
+  MessagePayload,
+  MessageRole,
+  ModelPricing,
+  OutputConfig,
+  RedactedThinkingBlock,
+  ThinkingBlock,
+  ThinkingConfig,
+  ToolDefinition,
+  Usage,
+} from "./_110_ai_types/mod.ts";
+export * from "./_111_api_contract/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";
@@ -78,3 +123,4 @@ export * from "./_307_vizgraph_view/mod.ts";
 // @protocol PROTOCOL_UI_STYLING.md
 // @protocol PROTOCOL_UI_COMPONENTS.md
 // @protocol PROTOCOL_UI_STRUCTURE.md
+// @protocol PROTOCOL_UI_AI_CHAT.md

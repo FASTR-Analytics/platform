@@ -167,6 +167,12 @@ export const configDStrict = z
       z.object({
         disOpt: disaggregationOption,
         disDisplayOpt: disaggregationDisplayOptionSchema,
+        // Roll-up ("National" / "All facilities") on THIS dimension. Schema
+        // allows the flag on any entry; the gate (getRollupDimension) only
+        // honors exactly one flagged whitelisted entry. Canonical off-state is
+        // both fields absent (normalizePOConfigForStorage strips them).
+        rollup: z.boolean().optional(),
+        rollupPosition: z.enum(["bottom", "top"]).optional(),
       }),
     ),
     filterBy: z.array(
@@ -177,8 +183,6 @@ export const configDStrict = z
     ),
     periodFilter: periodFilterSchema,
     selectedReplicantValue: z.string().optional(),
-    includeAdminAreaRollup: z.boolean().optional(),
-    adminAreaRollupPosition: z.enum(["bottom", "top"]).optional(),
   });
 // Note: Duplicate disDisplayOpt/disOpt entries are allowed in stored data.
 // The UI shows a warning and blocks rendering until user fixes it.
@@ -227,6 +231,7 @@ export const configSStrict = z
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
+    showNValues: z.boolean().optional(),
     forceYMax1: z.boolean(),
     forceYMinAuto: z.boolean(),
     customSeriesStyles: z.array(

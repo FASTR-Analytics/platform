@@ -20,7 +20,7 @@ export function DashboardGroupEditor(p: Props) {
   return (
     <div class="flex h-full w-full flex-col overflow-auto">
       <div class="ui-pad ui-spy">
-        <div class="text-neutral text-xs">
+        <div class="ui-text-caption">
           {t3({
             en: `Replicant group · ${p.group.replicants.length} replicants`,
             fr: `Groupe de réplicants · ${p.group.replicants.length} réplicants`,

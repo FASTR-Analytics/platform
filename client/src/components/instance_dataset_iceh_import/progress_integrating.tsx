@@ -18,10 +18,10 @@ export function ProgressIntegrating(p: Props) {
             style={{ width: `${p.status.progress}%` }}
           />
         </div>
-        <p class="text-neutral mt-1 text-sm">{p.status.progress}%</p>
+        <p class="text-base-content-muted mt-1 text-sm">{p.status.progress}%</p>
       </div>
 
-      <p class="text-neutral">
+      <p class="text-base-content-muted">
         {t3({
           en: "Writing data to database... Please wait.",
           fr: "Écriture des données dans la base... Veuillez patienter.",

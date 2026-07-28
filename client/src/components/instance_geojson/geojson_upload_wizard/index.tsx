@@ -1,4 +1,4 @@
-import { t3, type Dhis2Credentials } from "lib";
+import { t3, type Dhis2RunCredentialsSource } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -55,8 +55,10 @@ export type WizardState = {
   geoToAdmin: () => Record<string, string>;
   setGeoToAdmin: (mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   // DHIS2 source state
-  dhis2Credentials: () => Dhis2Credentials | undefined;
-  setDhis2Credentials: (c: Dhis2Credentials | undefined) => void;
+  dhis2CredentialsSource: () => Dhis2RunCredentialsSource | undefined;
+  setDhis2CredentialsSource: (c: Dhis2RunCredentialsSource | undefined) => void;
+  dhis2ConnectionUrl: () => string | undefined;
+  setDhis2ConnectionUrl: (url: string | undefined) => void;
   dhis2Levels: () => Dhis2Level[];
   setDhis2Levels: (levels: Dhis2Level[]) => void;
   selectedDhis2Level: () => number | null;
@@ -83,7 +85,10 @@ export function GeoJsonUploadWizard(p: Props) {
   const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>({});
 
   // DHIS2 source state
-  const [dhis2Credentials, setDhis2Credentials] = createSignal<Dhis2Credentials | undefined>(undefined);
+  const [dhis2CredentialsSource, setDhis2CredentialsSource] = createSignal<
+    Dhis2RunCredentialsSource | undefined
+  >(undefined);
+  const [dhis2ConnectionUrl, setDhis2ConnectionUrl] = createSignal<string | undefined>(undefined);
   const [dhis2Levels, setDhis2Levels] = createSignal<Dhis2Level[]>([]);
   const [selectedDhis2Level, setSelectedDhis2Level] = createSignal<number | null>(null);
   const [dhis2Features, setDhis2Features] = createSignal<Dhis2FeatureContext[]>([]);
@@ -111,8 +116,10 @@ export function GeoJsonUploadWizard(p: Props) {
     setAdminAreaOptions,
     geoToAdmin,
     setGeoToAdmin,
-    dhis2Credentials,
-    setDhis2Credentials,
+    dhis2CredentialsSource,
+    setDhis2CredentialsSource,
+    dhis2ConnectionUrl,
+    setDhis2ConnectionUrl,
     dhis2Levels,
     setDhis2Levels,
     selectedDhis2Level,

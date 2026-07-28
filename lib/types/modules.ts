@@ -16,6 +16,7 @@ import { t3 } from "../translate/mod.ts";
 export type ModuleDefinitionDetail = ModuleDefinitionInstalled & {
   metrics: Metric[];
 };
+import type { DatasetType } from "./datasets.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { DisaggregationOption, PresentationOption } from "./presentation_objects.ts";
 
@@ -34,6 +35,11 @@ export type ResultsValue = {
   // field (absence reads as false). Drives admin-area roll-up eligibility
   // for AVG metrics (isRollupEligibleResultsValue).
   hasFacilityLevelRows?: boolean;
+  // The dataset family of the module that produced this metric. Optional for
+  // the same reason as above. UI affordance only — it decides whether the
+  // editor offers the sample-size toggle (n is HFA-only); the renderer itself
+  // self-gates on whether the items carry __n_* columns.
+  datasetFamily?: DatasetType;
   valueLabelReplacements?: Record<string, string>;
   label: string;
   variantLabel?: string;

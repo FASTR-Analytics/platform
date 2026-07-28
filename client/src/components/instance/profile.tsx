@@ -1,4 +1,5 @@
 import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
+import { darkMode, setDarkMode } from "~/state/t4_ui";
 import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {
@@ -10,10 +11,47 @@ import {
   StateHolderWrapper,
   createButtonAction,
   createQuery,
+  KEY_COLOR_THEMES,
   type AlertComponentProps,
 } from "panther";
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
+
+const DARK_THEME_COLORS = KEY_COLOR_THEMES["neutral-dark"].colors;
+
+// app.css's dark block overrides primary to the GFF teal instead of
+// neutral-dark's monochrome default — mirror that override here too.
+const DARK_PRIMARY = "#14b8a6";
+const DARK_PRIMARY_CONTENT = "#052e2b";
+
+// Clerk's account window renders in its own portal with Clerk's own styling,
+// so the app's CSS tokens don't reach it. Pass dark appearance variables
+// (sourced from the same neutral-dark theme as app.css) at open time —
+// evaluated per open, so it follows the theme active when the window is
+// launched.
+function openClerkUserProfile() {
+  clerk.openUserProfile(
+    darkMode()
+      ? {
+        appearance: {
+          variables: {
+            colorBackground: DARK_THEME_COLORS.base100,
+            colorText: DARK_THEME_COLORS.baseContent,
+            colorTextSecondary: DARK_THEME_COLORS.neutral,
+            colorNeutral: DARK_THEME_COLORS.baseContent,
+            colorInputBackground: DARK_THEME_COLORS.base200,
+            colorInputText: DARK_THEME_COLORS.baseContent,
+            colorPrimary: DARK_PRIMARY,
+            colorTextOnPrimaryBackground: DARK_PRIMARY_CONTENT,
+            colorDanger: DARK_THEME_COLORS.danger,
+            colorSuccess: DARK_THEME_COLORS.success,
+            colorWarning: DARK_THEME_COLORS.warning,
+          },
+        },
+      }
+      : undefined,
+  );
+}
 
 export function ProfileForm(
   p: AlertComponentProps<
@@ -102,12 +140,12 @@ export function ProfileForm(
           return (
             <>
               {/* Hero */}
-              <div class="border-base-300 flex flex-col items-center gap-3 border-b pt-2 pb-6">
+              <div class="flex flex-col items-center gap-3 border-b pt-2 pb-6">
                 {clerk.user?.imageUrl && (
                   <button
                     type="button"
                     class="hover:ring-primary cursor-pointer rounded-full ring-2 ring-transparent transition"
-                    onClick={() => clerk.openUserProfile()}
+                    onClick={() => openClerkUserProfile()}
                     title={t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   >
                     <img
@@ -123,11 +161,11 @@ export function ProfileForm(
                       .filter(Boolean)
                       .join(" ") || "—"}
                   </div>
-                  <div class="text-neutral text-sm">{keyedUser.email}</div>
+                  <div class="text-base-content-muted text-sm">{keyedUser.email}</div>
                   <button
                     type="button"
                     class="text-primary mt-1 cursor-pointer text-xs hover:underline"
-                    onClick={() => clerk.openUserProfile()}
+                    onClick={() => openClerkUserProfile()}
                   >
                     {t3({ en: "Manage account", fr: "Gérer le compte", pt: "Gerir a conta" })}
                   </button>
@@ -142,8 +180,8 @@ export function ProfileForm(
                   when={editingOrganisation()}
                   fallback={
                     <div class="flex items-center gap-2">
-                      <span class="text-base-content/80 text-sm flex-1">
-                        {organisation() || <span class="text-base-content/40">{t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}</span>}
+                      <span class="text-base-content-muted text-sm flex-1">
+                        {organisation() || <span class="text-base-content-muted">{t3({ en: "Not set", fr: "Non défini", pt: "Não definido" })}</span>}
                       </span>
                       <Button onClick={() => setEditingOrganisation(true)} outline size="sm" iconName="pencil">
                         {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
@@ -176,6 +214,21 @@ export function ProfileForm(
                 </Show>
               </SettingsSection>
 
+              {/* Appearance */}
+              <SettingsSection
+                header={t3({ en: "Appearance", fr: "Apparence", pt: "Aparência" })}
+              >
+                <Checkbox
+                  checked={darkMode()}
+                  onChange={setDarkMode}
+                  label={t3({
+                    en: "Dark mode",
+                    fr: "Mode sombre",
+                    pt: "Modo escuro",
+                  })}
+                />
+              </SettingsSection>
+
               {/* AI usage */}
               <SettingsSection
                 header={t3({ en: "AI usage today", fr: "Utilisation IA aujourd'hui", pt: "Utilização de IA hoje" })}
@@ -195,7 +248,7 @@ export function ProfileForm(
                             />
                           </div>
                         )}
-                        <div class="text-neutral text-sm">
+                        <div class="text-base-content-muted text-sm">
                           {usage.isUnlimited
                             ? t3({ en: "Unlimited", fr: "Illimité", pt: "Ilimitado" })
                             : <>
@@ -231,7 +284,7 @@ export function ProfileForm(
                             />
                           </div>
                         )}
-                        <div class="text-neutral text-sm">
+                        <div class="text-base-content-muted text-sm">
                           {usage.tokensUsedThisWeek.toLocaleString()}{" "}
                           {usage.weeklyTokenLimit !== null
                             ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`

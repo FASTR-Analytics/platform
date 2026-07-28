@@ -7,7 +7,6 @@ import { createEffect, onCleanup } from "solid-js";
 
 export type ScrollManagerOptions = {
   threshold?: number;
-  enabled?: boolean;
 };
 
 export function createScrollManager(
@@ -15,7 +14,7 @@ export function createScrollManager(
   dependencies: () => unknown[],
   options: ScrollManagerOptions = {},
 ) {
-  const { threshold = 50, enabled = true } = options;
+  const { threshold = 50 } = options;
   let shouldAutoScroll = true;
   let ignoreScrollEvents = false;
   let ignoreScrollTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -35,7 +34,7 @@ export function createScrollManager(
 
   const scrollToBottom = (force = false) => {
     const container = containerRef();
-    if (!container || !enabled) return;
+    if (!container) return;
 
     if (force) {
       shouldAutoScroll = true;
@@ -51,11 +50,9 @@ export function createScrollManager(
 
   createEffect(() => {
     dependencies();
-    if (enabled) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => scrollToBottom());
-      });
-    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollToBottom());
+    });
   });
 
   return {

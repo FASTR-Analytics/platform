@@ -6,6 +6,7 @@ import {
 } from "../db/mod.ts";
 import {
   APIResponseWithData,
+  BLANK_SENTINEL,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   MULTI_MEMBERSHIP_DELIMITER,
@@ -16,8 +17,12 @@ import {
   buildQueryContext,
   facilitiesTableForFamily,
 } from "./get_query_context.ts";
-import { buildWhereClause } from "./query_helpers.ts";
-import { MAX_REPLICANT_OPTIONS } from "./consts.ts";
+import {
+  blankFoldedRef,
+  buildWhereClause,
+  shouldFoldBlank,
+} from "./query_helpers.ts";
+import { REPLICANT_OPTIONS_QUERY_LIMIT } from "./consts.ts";
 import {
   type DynamicPeriodColumn,
   PERIOD_COLUMN_EXPRESSIONS,
@@ -139,6 +144,7 @@ export async function getPossibleValuesCore(
       fetchConfig,
       queryContext.hasPeriodId,
       columnPrefixes,
+      queryContext,
     );
     const whereClause =
       whereStatements.length === 0
@@ -199,6 +205,11 @@ export async function getPossibleValuesCore(
     );
     if (isMultiMembership) {
       columnRef = `unnest(string_to_array(${columnRef}, '${MULTI_MEMBERSHIP_DELIMITER}'))`;
+    } else if (shouldFoldBlank(disaggregationOption, queryContext)) {
+      // Fold NULL/blank onto the sentinel here, using the SAME emitter and the
+      // SAME gate the SELECT, GROUP BY and WHERE use, so an option id and an
+      // item group key are always the same string.
+      columnRef = blankFoldedRef(columnRef);
     }
     const orderByRef = isMultiMembership ? "disaggregation_value" : columnRef;
 
@@ -260,7 +271,7 @@ FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
 ${whereClause}
 ORDER BY ${orderByRef}
-LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
+LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
     } else {
       // Check if the column exists before querying (skip for dynamic period columns)
       if (!isDynamicPeriodColumn) {
@@ -292,13 +303,13 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
 FROM ${sourceTable}
 ${whereClause}
 ORDER BY ${orderByRef}
-LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
+LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
       } else {
         sqlQuery = `SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${tableName}
 ${whereClause}
 ORDER BY ${orderByRef}
-LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
+LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
       }
     }
 
@@ -306,6 +317,11 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
       disaggregation_value: string;
     }[];
 
+    // Blank-folded columns have no NULL/blank left to strip — those rows came
+    // back as BLANK_SENTINEL. The strip still applies to the columns the fold
+    // skips (integer, period-derived, multi-membership), where a blank is not a
+    // selectable group: an unnested empty set yields no member, and an integer
+    // column has no blank state to offer.
     const rawValues = results
       .map((opt) => opt.disaggregation_value)
       .filter((v) => v != null && String(v).trim() !== "");
@@ -317,6 +333,17 @@ LIMIT ${MAX_REPLICANT_OPTIONS + 1}`;
     }));
 
     possibleValues.sort((a, b) => OPTION_COLLATOR.compare(a.id, b.id));
+
+    // Sentinel last, regardless of collation. SQL cannot do this under SELECT
+    // DISTINCT (ORDER BY may only use expressions that appear in the select
+    // list, and the sort key is a comparison against the alias), and the set is
+    // capped at MAX_REPLICANT_OPTIONS so ordering it here is free. Leaving it
+    // where the collation put it — first, ahead of every lowercase value — made
+    // the blank cohort the auto-selected default replicant.
+    const blankIndex = possibleValues.findIndex((v) => v.id === BLANK_SENTINEL);
+    if (blankIndex >= 0) {
+      possibleValues.push(possibleValues.splice(blankIndex, 1)[0]);
+    }
 
     return { success: true, data: possibleValues };
   });

@@ -4,7 +4,13 @@ import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { purgeExpiredProjects } from "./server/db/mod.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
+import { startDhis2ImportScheduler } from "./server/worker_routines/import_hmis_data_dhis2/scheduler.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
+import {
+  flushAllVersions,
+  startVersionSweeper,
+} from "./server/collab/version_capture.ts";
+import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import {
   authMiddleware,
@@ -16,6 +22,7 @@ import {
 // Instance routes
 import { routesAssets } from "./server/routes/instance/assets.ts";
 import { routesDatasets } from "./server/routes/instance/datasets.ts";
+import { routesDhis2Credentials } from "./server/routes/instance/dhis2_credentials.ts";
 import { routesHealth } from "./server/routes/instance/health.ts";
 import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts";
 import { routesHfaTimePoints } from "./server/routes/instance/hfa_time_points.ts";
@@ -36,6 +43,7 @@ import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 // Project routes
 import { routesProject } from "./server/routes/project/project.ts";
 import { routesProjectSSEV2 } from "./server/routes/project/project-sse-v2.ts";
+import { routesProjectCollab } from "./server/routes/project/project-collab.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesSlideDecks } from "./server/routes/project/slide_decks.ts";
@@ -68,11 +76,20 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   purgeExpiredProjects(db).catch((e) =>
-    console.error("Project purge failed:", e)
+    console.error("Project purge failed:", e),
   );
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
+
+// DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
+// runs FIFO and firing due schedules — a minute-level tick, NOT one of the
+// boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
+// Lagos window).
+startDhis2ImportScheduler();
+
+// Version history: sweep editing-session accumulators into stored versions.
+startVersionSweeper();
 
 await connectValkey();
 
@@ -117,6 +134,7 @@ app.route("/", routesInstanceSSE);
 app.route("/", routesUsers);
 app.route("/", routesProject);
 app.route("/", routesProjectSSEV2);
+app.route("/", routesProjectCollab);
 app.route("/", routesStructure);
 app.route("/", routesRunGeneration);
 app.route("/", routesBackups);
@@ -124,6 +142,7 @@ app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
+app.route("/", routesDhis2Credentials);
 app.route("/", routesHfaIndicators);
 app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);
@@ -160,6 +179,22 @@ app.get("*", (c) => {
 // Validate that all routes in the registry have been defined
 validateAllRoutesDefined();
 
+// Process-level backstop for the serving phase. A single collaborative-editing
+// frame — or any other un-awaited async path — must never take down this
+// multi-tenant server. The known Yjs crash vectors are guarded at their source
+// (server/collab/doc_rooms.ts); these handlers are defense-in-depth so an
+// unforeseen throw degrades one request instead of every project. Both log
+// loudly so nothing is silently swallowed. Registered AFTER startup so a failed
+// dbStartUp/valkey/route-validation still crashes fast rather than limping on.
+globalThis.addEventListener("unhandledrejection", (e) => {
+  console.error("[unhandledrejection]", e.reason);
+  e.preventDefault();
+});
+globalThis.addEventListener("error", (e) => {
+  console.error("[uncaught error]", e.error ?? e.message);
+  e.preventDefault();
+});
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`Starting server on port ${port}...`);
 
@@ -171,6 +206,17 @@ const shutdown = async () => {
     console.warn("[Shutdown] Timed out — forcing exit");
     Deno.exit(1);
   }, 8000);
+  // Collab rooms first: dirty rooms hold up to CHECKPOINT_DEBOUNCE_MS of
+  // typing that exists nowhere else, and the version flush below reads
+  // document content from the DB — so the rooms' checkpoints must land first.
+  // Both must finish BEFORE closeAllConnections() — they write through the pools.
+  await flushAllRooms().catch((e) =>
+    console.error("Room flush on shutdown failed:", e),
+  );
+  // Version history: open editing sessions become versions before exit.
+  await flushAllVersions().catch((e) =>
+    console.error("Version flush on shutdown failed:", e),
+  );
   await Promise.all([
     server.shutdown(),
     disconnectValkey(),

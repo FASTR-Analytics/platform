@@ -309,7 +309,8 @@ function measureOH(
 
 export const ChartOHRenderer: Renderer<ChartOHInputs, MeasuredChartOH> = {
   isType(item: unknown): item is ChartOHInputs {
-    return typeof item === "object" && item !== null && "chartOHData" in item;
+    return typeof item === "object" && item !== null &&
+      "figureType" in item && item.figureType === "chart-oh";
   },
 
   measure(

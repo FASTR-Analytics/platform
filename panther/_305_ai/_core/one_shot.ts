@@ -130,6 +130,31 @@ export async function callAI(
   config: CallAIConfig,
   messages: MessageParam[],
 ): Promise<CallAIResult> {
+  // View-typed tools cannot run here: the one-shot path has no
+  // viewController, so there is no live view to inject and the gate that
+  // availableIn promises would be silently skipped. The SDK's tool runner
+  // calls run(input) with no view accessor, so such a handler would read
+  // undefined. Fail loud instead.
+  for (const tool of config.tools ?? []) {
+    if (tool.metadata.availableIn) {
+      throw new Error(
+        `callAI: tool "${tool.sdkTool.name}" declares availableIn — view-gated tools are chat-only (callAI has no viewController to gate against). Use a plain createAITool tool here.`,
+      );
+    }
+    if (tool.metadata._viewRegistry !== undefined) {
+      throw new Error(
+        `callAI: tool "${tool.sdkTool.name}" declares a views registry — its handler expects the live view state the chat engine injects, which callAI has no controller to supply. Use a plain createAITool tool here.`,
+      );
+    }
+    // Same class of bypass: the one-shot path has no UI to present an
+    // approval card, so the confirm-before-apply lifecycle cannot run (the
+    // tool's run() would throw mid-call — fail loud at entry instead).
+    if (tool.metadata.approval) {
+      throw new Error(
+        `callAI: tool "${tool.sdkTool.name}" declares approval — confirm-before-apply tools are chat-only (callAI has no user to ask). Use a plain handler tool here.`,
+      );
+    }
+  }
   const { model, max_tokens } = config.modelConfig;
   const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools, model);
   const hasTools = config.tools?.length || resolvedBuiltInTools.length;

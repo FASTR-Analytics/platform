@@ -175,6 +175,45 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// DHIS2 Import Tuning (Optional)
+///////////////////////////////////////////////////////////////////////////////
+
+export const _DHIS2_FACILITY_BATCH_SIZE: number = Deno.env.get(
+  "DHIS2_FACILITY_BATCH_SIZE",
+)
+  ? parseInt(Deno.env.get("DHIS2_FACILITY_BATCH_SIZE")!)
+  : 400;
+if (
+  Number.isNaN(_DHIS2_FACILITY_BATCH_SIZE) ||
+  _DHIS2_FACILITY_BATCH_SIZE < 1
+) {
+  throw new Error(
+    "DHIS2_FACILITY_BATCH_SIZE is set but is not a positive number",
+  );
+}
+
+export const _DHIS2_CONCURRENT_REQUESTS: number = Deno.env.get(
+  "DHIS2_CONCURRENT_REQUESTS",
+)
+  ? parseInt(Deno.env.get("DHIS2_CONCURRENT_REQUESTS")!)
+  : 5;
+if (
+  Number.isNaN(_DHIS2_CONCURRENT_REQUESTS) ||
+  _DHIS2_CONCURRENT_REQUESTS < 1
+) {
+  throw new Error(
+    "DHIS2_CONCURRENT_REQUESTS is set but is not a positive number",
+  );
+}
+
+// Encrypts the stored DHIS2 password at rest (PLAN_DHIS2_IMPORTER Phase 4,
+// C3). Unset = credentials cannot be stored, so nothing can fire unattended;
+// saving/decrypting fails loudly with a clear message. Changing the key
+// orphans the stored password (re-save credentials once).
+export const _DHIS2_CREDENTIALS_ENCRYPTION_KEY: string =
+  Deno.env.get("DHIS2_CREDENTIALS_ENCRYPTION_KEY") ?? "";
+
+///////////////////////////////////////////////////////////////////////////////
 // Authentication (Optional)
 ///////////////////////////////////////////////////////////////////////////////
 

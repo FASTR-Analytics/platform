@@ -8,9 +8,11 @@ import {
   ADMIN_LEVELS,
   type AdminLevel,
   isAdminLevel,
+  isRollupDimension,
   isRollupEligibleResultsValue,
+  type RollupDimension,
   type RollupEligibilityInputs,
-} from "./admin_area_rollup.ts";
+} from "./rollup.ts";
 import { getReplicateByProp, hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import {
   periodFilterHasBounds,
@@ -47,12 +49,9 @@ export function getFetchConfigFromPresentationObjectConfig(
     groupBys.push(config.d.timeseriesGrouping);
   }
 
-  // Collapse level baked in client-side; the server obeys it — see
-  // getEffectiveRollupLevel.
-  const rollupLevel = getEffectiveRollupLevel(resultsValue, config);
-  const includeAdminAreaRollup =
-    !!config.d.includeAdminAreaRollup && rollupLevel !== undefined;
-  const adminAreaRollupLevel = includeAdminAreaRollup ? rollupLevel : undefined;
+  // Collapsed dimension baked in client-side; the server obeys it — see
+  // getEffectiveRollupDimension.
+  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
 
   const filters = options?.excludeReplicantFilter
     ? getFiltersWithoutReplicant(config)
@@ -68,8 +67,7 @@ export function getFetchConfigFromPresentationObjectConfig(
         groupBys,
         filters,
         periodFilter: config.d.periodFilter,
-        includeAdminAreaRollup,
-        adminAreaRollupLevel,
+        rollupDim,
       },
     };
   }
@@ -86,8 +84,7 @@ export function getFetchConfigFromPresentationObjectConfig(
       groupBys,
       filters,
       periodFilter: config.d.periodFilter,
-      includeAdminAreaRollup,
-      adminAreaRollupLevel,
+      rollupDim,
     },
   };
 }
@@ -129,8 +126,17 @@ export function getPeriodFilterExactBounds(
     return { min: max, max };
   }
 
-  // TODO: Calendar-based filters are hidden in UI for quarter_id data (see _2_filters.tsx:236-250).
-  // This code path is unreachable. Either implement the feature or remove this block.
+  // Calendar-based filter types are hidden in the UI for quarter_id data
+  // (_2_filters.tsx), but this block is NOT dead and must not be deleted. A
+  // config saved while the metric held period_id data still carries one after a
+  // module re-run switches the table to quarter_id, and AI/hand-crafted configs
+  // are not bound by the UI at all. Returning the raw bounds degrades to "no
+  // period filter" — all data, which is the safe reading.
+  //
+  // Deleting it drops through to getLastFullYearBounds / getLastFullQuarterBounds,
+  // whose YYYYMM math on a YYYYQ value turns max 20244 into {20101, 20112} — a
+  // range no quarter_id row can match, so "show everything" silently becomes
+  // no_data_available. Verified by execution 2026-07-26.
   if (
     fmt === "quarter_id" &&
     (periodFilter.filterType === "last_calendar_year" ||
@@ -282,8 +288,7 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
     fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
     fc.postAggregationExpression ?? "",
-    fc.includeAdminAreaRollup ? "yes" : "no",
-    fc.adminAreaRollupLevel ?? "",
+    fc.rollupDim ?? "",
   ].join("#");
 }
 
@@ -299,99 +304,104 @@ export function getFilteredValueProps(
 }
 
 
-// The single admin level the roll-up collapses, or undefined if the roll-up isn't
-// applicable. There must be EXACTLY ONE admin level that is grouped, NOT displayed
-// as replicant/mapArea, and NOT filtered to a single value (more than one would
-// require per-parent subtotals, which the display layer can't render). Maps are
-// excluded entirely (a "National" pane is not wanted). This is the single source
-// of truth for the config-shape gate: the server collapse (via the baked
-// `adminAreaRollupLevel`), the display label, and the axis pins all derive from
-// it — the server must NOT recompute the level from raw groupBys (those include
-// replicant levels, the wrong collapse target). Metric eligibility is layered on
-// top by getEffectiveRollupLevel.
-export function getRollupAdminLevel(
+// Whether an entry could carry the roll-up flag as the config stands: a
+// whitelisted dimension, NOT displayed as replicant/mapArea, NOT filtered to a
+// single value, and not on a map (a "National" pane is not wanted). Shared by
+// the gate below and the editor (which shows the checkbox on every candidate
+// dimension).
+export function isRollupCandidateDimension(
   config: PresentationObjectConfig,
-): AdminLevel | undefined {
-  if (config.d.type === "map") {
-    return undefined;
-  }
-  const effective = config.d.disaggregateBy.flatMap((d) =>
-    isAdminLevel(d.disOpt) &&
-    d.disDisplayOpt !== "replicant" &&
-    d.disDisplayOpt !== "mapArea" &&
-    !hasOnlyOneFilteredValue(config, d.disOpt)
-      ? [d.disOpt]
-      : [],
+  entry: PresentationObjectConfig["d"]["disaggregateBy"][number],
+): boolean {
+  return (
+    config.d.type !== "map" &&
+    isRollupDimension(entry.disOpt) &&
+    entry.disDisplayOpt !== "replicant" &&
+    entry.disDisplayOpt !== "mapArea" &&
+    !hasOnlyOneFilteredValue(config, entry.disOpt)
   );
-  return effective.length === 1 ? effective[0] : undefined;
 }
 
-// getRollupAdminLevel plus metric eligibility (isRollupEligibleResultsValue):
+// The single dimension the roll-up collapses, or undefined if the roll-up
+// isn't active. The flag lives on the disaggregateBy entry (`rollup: true`);
+// EXACTLY ONE flagged entry must pass isRollupCandidateDimension — more than
+// one would require cross-product subtotals (2^n union branches), which is
+// deliberately not built; the schema still allows multiple flags so lifting
+// that limit later needs no storage migration. This is the single source of
+// truth for the config-shape gate: the server collapse (via the baked
+// `rollupDim`), the display label, and the axis pins all derive from it — the
+// server must NOT recompute the dimension from raw groupBys (those include
+// replicant levels, the wrong collapse target). Metric eligibility is layered
+// on top by getEffectiveRollupDimension.
+export function getRollupDimension(
+  config: PresentationObjectConfig,
+): RollupDimension | undefined {
+  const flagged = config.d.disaggregateBy.flatMap((d) =>
+    d.rollup === true && isRollupCandidateDimension(config, d)
+      ? [d.disOpt as RollupDimension]
+      : [],
+  );
+  return flagged.length === 1 ? flagged[0] : undefined;
+}
+
+// getRollupDimension plus metric eligibility (isRollupEligibleResultsValue):
 // the gate used everywhere a ResultsValue is in scope — the UI checkbox, the
 // fetch-config builder, the save-time strip, and the AI editor tool.
-export function getEffectiveRollupLevel(
+export function getEffectiveRollupDimension(
   resultsValue: RollupEligibilityInputs,
   config: PresentationObjectConfig,
-): AdminLevel | undefined {
+): RollupDimension | undefined {
   return isRollupEligibleResultsValue(resultsValue)
-    ? getRollupAdminLevel(config)
+    ? getRollupDimension(config)
     : undefined;
 }
 
-// Whether a config's figure can contain roll-up sentinel rows: the flag is on
-// AND the config-shape gate is open. Display-side gate (no ResultsValue):
+// Whether a config's figure can contain roll-up sentinel rows: a flagged entry
+// passes the config-shape gate. Display-side gate (no ResultsValue):
 // metric-ineligible configs with a stale flag get no sentinel rows from the
 // server, so display consumers of this remain inert for them.
 export function isRollupActive(config: PresentationObjectConfig): boolean {
-  return (
-    !!config.d.includeAdminAreaRollup &&
-    getRollupAdminLevel(config) !== undefined
-  );
+  return getRollupDimension(config) !== undefined;
+}
+
+// The roll-up row's display position — from the flagged entry; display-only,
+// never in the fetch config or the cache hash.
+export function getRollupPosition(
+  config: PresentationObjectConfig,
+): "top" | "bottom" {
+  const dim = getRollupDimension(config);
+  const entry = dim
+    ? config.d.disaggregateBy.find((d) => d.disOpt === dim && d.rollup === true)
+    : undefined;
+  return entry?.rollupPosition ?? "bottom";
 }
 
 export type RollupLabelContext =
-  | { kind: "subset" }
   | { kind: "pinned"; level: AdminLevel; value: string | undefined }
-  | { kind: "national" };
+  | { kind: "national" }
+  | { kind: "all_facilities" };
 
 // What the roll-up row's scope actually is, for labeling (row label + editor
-// checkbox). Precedence:
-// 1. subset ("All selected areas") — an admin filter restricts the geography:
-//    2+ values at or coarser than the roll-up level, or ANY values on a level
-//    finer than it (finer filters subset the data even with one value).
-//    Levels displayed as REPLICANT are skipped: their filter narrows which
-//    panes exist, while the replicant pin (rule 2) governs each pane's data.
-// 2. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
+// checkbox), for a GIVEN dimension — the editor labels the checkbox of every
+// candidate dimension, not just the flagged one. Admin precedence:
+// 1. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
 //    value (replicant or single-value filter) names the row.
-// 3. national — no geographic restriction.
-// Non-admin filters (facility type, indicator, ...) deliberately do not affect
-// the label ("national among the selection" reading).
-export function getRollupLabelContext(
+// 2. national.
+// Facility dimensions are always "all_facilities".
+// FILTERS NEVER CHANGE THE LABEL (Tim 2026-07-28 — this removed an earlier
+// "All selected areas/facilities" subset kind): a filter is the AUTHOR's
+// context, not the READER's; the row states the figure's scope, and the
+// reader of a report filtered to some areas or facility types reads the total
+// row as the total of what the figure shows.
+export function getRollupLabelContextForDimension(
   config: PresentationObjectConfig,
-): RollupLabelContext | undefined {
-  const level = getRollupAdminLevel(config);
-  if (level === undefined) {
-    return undefined;
+  dim: RollupDimension,
+): RollupLabelContext {
+  if (!isAdminLevel(dim)) {
+    return { kind: "all_facilities" };
   }
+  const level = dim;
   const levelIdx = ADMIN_LEVELS.indexOf(level);
-  const replicantLevels = new Set(
-    config.d.disaggregateBy
-      .filter((d) => d.disDisplayOpt === "replicant")
-      .map((d) => d.disOpt),
-  );
-  for (const l of ADMIN_LEVELS) {
-    if (replicantLevels.has(l)) {
-      continue;
-    }
-    const filter = config.d.filterBy.find((f) => f.disOpt === l);
-    if (!filter || filter.values.length === 0) {
-      continue;
-    }
-    const minValuesForSubset = ADMIN_LEVELS.indexOf(l) <= levelIdx ? 2 : 1;
-    if (filter.values.length >= minValuesForSubset) {
-      return { kind: "subset" };
-    }
-  }
   const coarser = ADMIN_LEVELS.slice(0, levelIdx);
   for (let i = coarser.length - 1; i >= 0; i--) {
     const l = coarser[i];
@@ -405,6 +415,16 @@ export function getRollupLabelContext(
     }
   }
   return { kind: "national" };
+}
+
+// Label context for the ACTIVE roll-up dimension, or undefined when none.
+export function getRollupLabelContext(
+  config: PresentationObjectConfig,
+): RollupLabelContext | undefined {
+  const dim = getRollupDimension(config);
+  return dim === undefined
+    ? undefined
+    : getRollupLabelContextForDimension(config, dim);
 }
 
 function getFiltersWithoutReplicant(config: PresentationObjectConfig): {

@@ -149,6 +149,51 @@ export type DBRunGenerationAttempt = {
   step_2_result: string | null; // JSON: RunGenerationStep2Result
 };
 
+// DHIS2 import runs in main
+
+export type DBDatasetHmisImportRun = {
+  id: number;
+  trigger: "manual" | "schedule";
+  triggered_by: string | null;
+  dhis2_url: string;
+  selection: string;
+  status: "queued" | "running" | "complete" | "error" | "cancelled";
+  error: string | null;
+  total_pairs: number;
+  succeeded_pairs: number;
+  failed_pairs: number;
+  started_at: string | Date;
+  ended_at: string | Date | null;
+  version_id: number | null;
+  progress: string | null;
+  run_stats: string | null;
+};
+
+export type DBInstanceDhis2Credentials = {
+  singleton: boolean;
+  url: string;
+  username: string;
+  password_encrypted: string;
+  updated_by: string;
+  updated_at: string | Date;
+};
+
+export type DBDatasetHmisScheduledImport = {
+  id: number;
+  kind: "one_shot" | "recurring";
+  enabled: boolean;
+  selection: string;
+  run_at: string | Date | null;
+  recurrence: string | null;
+  created_by: string;
+  created_at: string | Date;
+  armed_at: string | Date;
+  last_fired_at: string | Date | null;
+  last_outcome: "launched" | "refused" | "missed" | null;
+  last_error: string | null;
+  last_run_id: number | null;
+};
+
 // Dataset versions in main
 
 export type DBDatasetHmisVersion = {

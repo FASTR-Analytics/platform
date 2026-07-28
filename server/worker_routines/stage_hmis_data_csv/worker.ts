@@ -9,6 +9,7 @@ import {
   COUNT_CHECK_CONSTRAINT,
   PERIOD_ID_CHECK_CONSTRAINT,
   isValidDatasetRow,
+  parseCountValue,
   parseJsonOrThrow,
   throwIfErrWithData,
   type CsvDetails,
@@ -178,16 +179,16 @@ CREATE UNLOGGED TABLE ${tempTableName} (
         const facilityId = row[headerIndexes.facilityId];
         const rawIndicatorId = row[headerIndexes.rawIndicatorId];
         // Numeric cleaning only: tolerate thousands separators / stray quotes
-        const countVal = (row[headerIndexes.count] ?? "")
-          .replace(/[,'"]/g, "")
-          .trim();
+        const count = parseCountValue(
+          (row[headerIndexes.count] ?? "").replace(/[,'"]/g, "")
+        );
 
         // Validate row and track specific failure reasons
         const validation = isValidDatasetRow(
           periodId,
           facilityId,
           rawIndicatorId,
-          countVal
+          count
         );
         if (!validation.isValid) {
           invalidRows++;
@@ -213,7 +214,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
           `('${facilityId.replace(/'/g, "''")}','${rawIndicatorId.replace(
             /'/g,
             "''"
-          )}','${periodId}',${countVal})`
+          )}','${periodId}',${count})`
         );
         totalRows++;
 

@@ -24,12 +24,15 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   });
 
+  let fetchRunId = 0;
   async function attemptGetDatatable(cacheHash: string) {
+    const runId = ++fetchRunId;
     setItemsHolder({
       status: "loading",
       msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
     });
     const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(cacheHash);
+    if (runId !== fetchRunId) return;
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });
       return;
@@ -131,13 +134,15 @@ function DatasetDisplayPresentation(p: {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="border-base-300 flex-none border-b p-2">
+      <div class="flex-none border-b p-2">
         <div class="w-96">
           <Input
             placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables...", pt: "Pesquisar variáveis..." })}
             value={searchText()}
             onChange={setSearchText}
+            label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
             searchIcon
+            clearable
             fullWidth
           />
         </div>

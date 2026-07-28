@@ -5,6 +5,7 @@
 
 import { createSignal, Show } from "solid-js";
 import { MarkdownPresentation } from "../content/markdown_presentation.tsx";
+import { DOCUMENT_MARKDOWN_DEFAULTS } from "../utils/markdown_tailwind.ts";
 import {
   type APIResponseWithData,
   createMarkdownIt,
@@ -203,16 +204,16 @@ function PresentationViewerContent(p: ContentProps) {
         <Show
           when={currentSlide()}
           fallback={
-            <div class="ui-pad text-neutral flex h-full items-center justify-center">
+            <div class="ui-pad text-base-content-muted flex h-full items-center justify-center">
               No slides available
             </div>
           }
         >
           <FrameBottom
             panelChildren={
-              <div class="ui-pad border-base-300 bg-base-100 ui-gap flex select-none items-center justify-end border-t">
+              <div class="ui-pad bg-base-100 ui-gap flex select-none items-center justify-end">
                 <div class="ui-gap flex items-center">
-                  <div class="text-neutral text-sm">
+                  <div class="text-base-content-muted text-sm">
                     Slide {currentSlideIndex() + 1} of {totalSlides()}
                   </div>
                   <div class="min-w-[200px]">
@@ -273,7 +274,7 @@ function PresentationViewerContent(p: ContentProps) {
               <MarkdownPresentation
                 markdown={currentSlide()!}
                 scale={scale()}
-                style={p.style?.markdown}
+                style={p.style?.markdown ?? DOCUMENT_MARKDOWN_DEFAULTS}
               />
             </div>
           </FrameBottom>

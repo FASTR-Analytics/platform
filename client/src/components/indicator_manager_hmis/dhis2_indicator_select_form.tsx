@@ -1,26 +1,28 @@
 import {
   t3,
-  type Dhis2Credentials,
+  type Dhis2RunCredentialsSource,
   type DHIS2Indicator,
   type DHIS2DataElement,
   type DHIS2CategoryOptionCombo,
 } from "lib";
 import {
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   TextArea,
   Button,
   StateHolderFormError,
   createFormAction,
   type EditorComponentProps,
   createButtonAction,
+  openComponent,
 } from "panther";
 import { createSignal, Show, For } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 
 type Props = EditorComponentProps<
   {
-    credentials: Dhis2Credentials;
+    credentialsSource: Dhis2RunCredentialsSource;
   },
   undefined
 >;
@@ -37,6 +39,9 @@ type SearchResults = {
 };
 
 export function Dhis2IndicatorSelectForm(p: Props) {
+  const [credentialsSource, setCredentialsSource] = createSignal<Dhis2RunCredentialsSource>(
+    p.credentialsSource,
+  );
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
   const [searchResults, setSearchResults] = createSignal<SearchResults>({
     indicators: [],
@@ -64,7 +69,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
 
     const response = await serverActions.searchDhis2All({
-      dhis2Credentials: p.credentials,
+      credentialsSource: credentialsSource(),
       query,
       includeDataElements: true,
       includeIndicators: true,
@@ -164,17 +169,27 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     );
   }
 
+  async function changeConnection() {
+    const result = await openComponent({ element: Dhis2CredentialsForm, props: {} });
+    if (!result) return;
+    setCredentialsSource({ kind: "inline", credentials: result.credentials });
+  }
+
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({
             en: "DHIS2 Indicator Selection",
             fr: "Sélection d'indicateurs DHIS2",
             pt: "Seleção de indicadores DHIS2",
           })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
+          <Button onClick={changeConnection} outline onBackground="base-200" iconName="settings">
+            {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
+          </Button>
           <Button
             onClick={save.click}
             state={save.state()}
@@ -185,7 +200,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             {t3({ en: "Save Selected", fr: "Enregistrer la sélection", pt: "Guardar seleção" })} (
             {tempSelectedElements().length})
           </Button>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <div class="flex h-full w-full">
@@ -251,7 +266,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           {/* Results Section */}
           <Show when={hasSearched()}>
             <Show when={search.state().status === "ready"}>
-              <div class="border-success bg-success/10 ui-pad-sm w-full flex-none rounded border">
+              <div class="border-success bg-success-subtle ui-pad-sm w-full flex-none rounded border">
                 <div class="text-success font-700">
                   {t3({ en: "Search completed:", fr: "Recherche terminée :", pt: "Pesquisa concluída:" })}{" "}
                   {totalResultCount()}{" "}
@@ -262,7 +277,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <Show
               when={totalResultCount() > 0}
               fallback={
-                <div class="border-base-300 bg-base-200 ui-pad rounded border text-center">
+                <div class="bg-base-200 ui-pad rounded border text-center">
                   <div class="text-base-content">
                     {t3({
                       en: "No results found. Try a different search term.",
@@ -278,8 +293,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   {/* Indicators */}
                   <For each={searchResults().indicators}>
                     {(indicator) => (
-                      <div class="border-base-300 ui-pad-sm flex items-center gap-2 rounded border">
-                        <span class="bg-primary/10 text-primary font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                      <div class="ui-pad-sm flex items-center gap-2 rounded border">
+                        <span class="bg-primary-subtle text-primary-subtle-content font-400 inline-block flex-none rounded px-2 py-1 text-xs">
                           {t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })}
                         </span>
                         <span class="font-700 flex-1 truncate">
@@ -311,7 +326,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                   {/* Data Elements */}
                   <For each={searchResults().dataElements}>
                     {(de) => (
-                      <div class="border-base-300 rounded border">
+                      <div class="rounded border">
                         {/* Data Element row */}
                         <div class="ui-pad-sm flex items-center gap-2">
                           <Show when={hasDisaggregation(de)}>
@@ -326,7 +341,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               outline
                             />
                           </Show>
-                          <span class="bg-success/10 text-success font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                          <span class="bg-success-subtle text-success-subtle-content font-400 inline-block flex-none rounded px-2 py-1 text-xs">
                             {t3({
                               en: "Data Element",
                               fr: "Élément de données",
@@ -337,7 +352,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                             {de.name}
                           </span>
                           <Show when={hasDisaggregation(de)}>
-                            <span class="bg-warning/10 text-warning flex-none rounded px-2 py-0.5 text-xs">
+                            <span class="bg-warning-subtle text-warning-subtle-content flex-none rounded px-2 py-0.5 text-xs">
                               {getCOCs(de).length}{" "}
                               {t3({
                                 en: "COCs",
@@ -369,14 +384,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
 
                         {/* Expanded COCs */}
                         <Show when={hasDisaggregation(de) && isExpanded(de.id)}>
-                          <div class="border-base-300 bg-base-50 border-t">
+                          <div class="bg-base-200 border-t">
                             <For each={getCOCs(de)}>
                               {(coc) => {
                                 const operandId = `${de.id}.${coc.id}`;
                                 const operandLabel = `${de.name} - ${coc.displayName || coc.name}`;
                                 return (
                                   <div class="border-base-200 ui-pad-sm flex items-center gap-2 border-b pl-10 last:border-b-0">
-                                    <span class="bg-info/10 text-info font-400 inline-block flex-none rounded px-2 py-1 text-xs">
+                                    <span class="bg-neutral-subtle text-neutral-subtle-content font-400 inline-block flex-none rounded px-2 py-1 text-xs">
                                       {t3({ en: "COC", fr: "COC", pt: "COC" })}
                                     </span>
                                     <span class="font-400 flex-1 truncate">
@@ -417,7 +432,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         </div>
 
         {/* Selected Items Panel */}
-        <div class="ui-pad border-base-300 h-full w-0 flex-1 overflow-auto border-l">
+        <div class="ui-pad h-full w-0 flex-1 overflow-auto border-l">
           <div class="mb-4">
             <div class="font-700 text-lg">
               {t3({ en: "Selected Items", fr: "Éléments sélectionnés", pt: "Elementos selecionados" })}
@@ -432,7 +447,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           <Show
             when={tempSelectedElements().length > 0}
             fallback={
-              <div class="text-neutral text-sm">
+              <div class="text-base-content-muted text-sm">
                 {t3({
                   en: "No items selected. Search for items and click 'Add' from search results.",
                   fr: "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats.",
@@ -444,17 +459,17 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             <div class="ui-spy">
               <For each={tempSelectedElements()}>
                 {(item) => (
-                  <div class="border-base-300 ui-pad-sm ui-gap flex items-center justify-between rounded border">
+                  <div class="ui-pad-sm ui-gap flex items-center justify-between rounded border">
                     <div class="flex-1">
                       <div class="font-700">{item.name}</div>
                       <div class="ui-gap-sm flex items-center text-sm">
                         <span
                           class={`font-400 inline-block rounded px-2 py-1 text-xs ${
                             item.type === "indicator"
-                              ? "bg-primary/10 text-primary"
+                              ? "bg-primary-subtle text-primary-subtle-content"
                               : item.type === "dataElementOperand"
-                                ? "bg-info/10 text-info"
-                                : "bg-success/10 text-success"
+                                ? "bg-neutral-subtle text-neutral-subtle-content"
+                                : "bg-success-subtle text-success-subtle-content"
                           }`}
                         >
                           {item.type === "indicator"

@@ -41,6 +41,8 @@ import {
 } from "~/state/t4_ui";
 import { sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
+import { collabState, otherPeers } from "~/state/project/collab";
+import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { NotAvailableBox } from "./NotAvailableBox";
 import { EditFolderModal } from "./project/edit_folder_modal";
@@ -48,18 +50,30 @@ import { MoveToFolderModal } from "./project/move_to_folder_modal";
 import { DuplicateVisualization } from "./visualization/duplicate_visualization";
 import { CreateSlideFromVisualizationModal } from "./visualization/create_slide_from_visualization_modal";
 import { EditCommonPropertiesModal } from "./visualization/edit_common_properties_modal";
-import { useAIProjectContext } from "~/components/project_ai";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 
 function getGroupingOptions(): {
   value: VisualizationGroupingMode;
   label: string;
 }[] {
   return [
-    { value: "folders", label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }) },
-    { value: "module", label: t3({ en: "By module", fr: "Par module", pt: "Por módulo" }) },
-    { value: "metric", label: t3({ en: "By metric", fr: "Par métrique", pt: "Por métrica" }) },
+    {
+      value: "folders",
+      label: t3({ en: "By folder", fr: "Par dossier", pt: "Por pasta" }),
+    },
+    {
+      value: "module",
+      label: t3({ en: "By module", fr: "Par module", pt: "Por módulo" }),
+    },
+    {
+      value: "metric",
+      label: t3({ en: "By metric", fr: "Par métrique", pt: "Por métrica" }),
+    },
     // { value: "ownership", label: t3({ en: "By ownership", fr: "Par propriétaire", pt: "Por proprietário" }) },
-    { value: "flat", label: t3({ en: "Flat list", fr: "Liste plate", pt: "Lista simples" }) },
+    {
+      value: "flat",
+      label: t3({ en: "Flat list", fr: "Liste plate", pt: "Lista simples" }),
+    },
   ];
 }
 
@@ -80,10 +94,14 @@ type Props = {
   projectState: ProjectState;
   searchText: string;
   onClick: (presentationObject: PresentationObjectSummary) => void;
+  /** Tag the grid as a page-cursor surface (see live_cursors.tsx "page").
+   *  Set ONLY by the project Visualizations tab — this component is also
+   *  rendered by the slide editor's viz picker, which must not emit
+   *  page-scoped cursors. */
+  pageCursorSurface?: boolean;
 };
 
 export function PresentationObjectPanelDisplay(p: Props) {
-
   const metricModuleMap = () =>
     new Map(p.projectState.metrics.map((m) => [m.id, m.moduleId]));
 
@@ -120,7 +138,11 @@ export function PresentationObjectPanelDisplay(p: Props) {
         const groups: GroupOption[] = [
           {
             value: "_defaults",
-            label: t3({ en: "Defaults", fr: "Par défaut", pt: "Predefinições" }),
+            label: t3({
+              en: "Defaults",
+              fr: "Par défaut",
+              pt: "Predefinições",
+            }),
             count: defaults.length,
           },
           { value: "_unfiled", label: t3(TC.general), count: generalCount },
@@ -333,7 +355,11 @@ export function PresentationObjectPanelDisplay(p: Props) {
         },
       },
       {
-        label: t3({ en: "Delete folder", fr: "Supprimer le dossier", pt: "Eliminar pasta" }),
+        label: t3({
+          en: "Delete folder",
+          fr: "Supprimer le dossier",
+          pt: "Eliminar pasta",
+        }),
         icon: "trash",
         intent: "danger",
         onClick: async () => {
@@ -383,14 +409,14 @@ export function PresentationObjectPanelDisplay(p: Props) {
             }}
           />
           <span class="flex-1 truncate">{opt.label}</span>
-          <span class="text-neutral text-xs">({opt.count})</span>
+          <span class="ui-text-caption">({opt.count})</span>
         </div>
       );
     }
     return (
       <div class="flex items-center justify-between gap-2">
         <span class="truncate">{opt.label}</span>
-        <span class="text-neutral text-xs">({opt.count})</span>
+        <span class="ui-text-caption">({opt.count})</span>
       </div>
     );
   };
@@ -400,10 +426,12 @@ export function PresentationObjectPanelDisplay(p: Props) {
       startingWidth={180}
       minWidth={170}
       maxWidth={300}
-      hoverOffset="offset-for-border-1-on-left"
       panelChildren={
-        <div class="border-base-300 flex h-full w-full flex-col border-r">
-          <div class="border-base-300 flex flex-col gap-2 border-b p-3">
+        <div
+          class="flex h-full w-full flex-col"
+          data-cursor-zone="folders"
+        >
+          <div class="flex flex-col gap-2 border-b p-3">
             <Select
               options={getGroupingOptions()}
               value={vizGroupingMode()}
@@ -446,7 +474,11 @@ export function PresentationObjectPanelDisplay(p: Props) {
                     });
                   }}
                 >
-                  {t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })}
+                  {t3({
+                    en: "New folder",
+                    fr: "Nouveau dossier",
+                    pt: "Nova pasta",
+                  })}
                 </Button>
               </div>
             </Show>
@@ -465,6 +497,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}
+        pageCursorSurface={p.pageCursorSurface}
       />
     </FrameLeftResizable>
   );
@@ -481,11 +514,11 @@ type VisualizationGridProps = {
   subGroupConfig: SubGroupConfig | null;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
+  pageCursorSurface?: boolean;
 };
 
 function VisualizationGrid(p: VisualizationGridProps) {
   const metricLookup = () => createMetricLookup(p.metrics);
-  const { notifyAI } = useAIProjectContext();
 
   const getOrderedVisualizationIds = (): string[] => {
     if (!p.subGroupConfig) {
@@ -524,7 +557,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
     ids: () => getOrderedVisualizationIds(),
     mode: "multi",
     onSelectionChange: (ids) =>
-      notifyAI({ type: "selected_visualizations", vizIds: ids }),
+      projectAIViewController.notify("selected_visualizations", {
+        vizIds: ids,
+      }),
   });
 
   const visualIndexMap = (): Map<string, number> => {
@@ -714,14 +749,18 @@ function VisualizationGrid(p: VisualizationGridProps) {
   );
 
   const emptyMessage = () => (
-    <div class="text-neutral text-sm">
+    <div class="text-base-content-muted text-sm">
       {p.searchText.length >= 3
         ? t3({
             en: "No matching visualizations",
             fr: "Aucune visualisation correspondante",
             pt: "Nenhuma visualização correspondente",
           })
-        : t3({ en: "No visualizations", fr: "Aucune visualisation", pt: "Nenhuma visualização" })}
+        : t3({
+            en: "No visualizations",
+            fr: "Aucune visualisation",
+            pt: "Nenhuma visualização",
+          })}
     </div>
   );
 
@@ -731,6 +770,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       fallback={
         <div
           class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
           onClick={() => selection.clear()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
@@ -772,6 +812,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return (
           <div
             class="h-full w-full overflow-auto"
+            {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
             onClick={() => selection.clear()}
           >
             <Show
@@ -784,11 +825,11 @@ function VisualizationGrid(p: VisualizationGridProps) {
                     class="mb-6"
                     classList={{ "pt-4": i() === 0, "pt-2": i() > 0 }}
                   >
-                    <div class="border-base-300 mx-4 mb-3 flex items-center gap-3 border-b pb-2">
+                    <div class="mx-4 mb-3 flex items-center gap-3 border-b pb-2">
                       <span class="text-base-content font-700 text-sm">
                         {group.label}
                       </span>
-                      <span class="text-neutral text-xs">
+                      <span class="ui-text-caption">
                         ({group.items.length})
                       </span>
                     </div>
@@ -849,7 +890,11 @@ function VisualizationCard(p: VisualizationCardProps) {
           fr: `Créer ${p.selectedCount} diapositives...`,
           pt: `Criar ${p.selectedCount} diapositivos...`,
         })
-      : t3({ en: "Create slide...", fr: "Créer une diapositive...", pt: "Criar diapositivo..." });
+      : t3({
+          en: "Create slide...",
+          fr: "Créer une diapositive...",
+          pt: "Criar diapositivo...",
+        });
 
     const moveToFolderLabel = isMultiSelect
       ? t3({
@@ -857,7 +902,11 @@ function VisualizationCard(p: VisualizationCardProps) {
           fr: `Déplacer ${p.selectedCount} visualisations vers un dossier...`,
           pt: `Mover ${p.selectedCount} visualizações para uma pasta...`,
         })
-      : t3({ en: "Move to folder...", fr: "Déplacer vers un dossier...", pt: "Mover para uma pasta..." });
+      : t3({
+          en: "Move to folder...",
+          fr: "Déplacer vers un dossier...",
+          pt: "Mover para uma pasta...",
+        });
 
     const duplicateLabel = isMultiSelect
       ? t3({
@@ -923,6 +972,12 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
 
+  // Editors currently inside this visualization (live presence), for avatars.
+  const cardPeers = () => {
+    void collabState.peers; // track
+    return otherPeers().filter((peer) => peer.poId === p.po.id);
+  };
+
   return (
     <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
       <div class="ui-gap-sm flex items-end pb-1">
@@ -933,7 +988,6 @@ function VisualizationCard(p: VisualizationCardProps) {
       <div
         class="relative cursor-pointer rounded border p-2"
         classList={{
-          "border-base-300": !p.isSelected,
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}
@@ -941,6 +995,11 @@ function VisualizationCard(p: VisualizationCardProps) {
         onContextMenu={handleContextMenu}
       >
         <SelectionCircle isSelected={p.isSelected} onClick={p.onCircleClick} />
+        {/* Live-presence avatars, overlaid bottom-left on the thumbnail — same
+            placement as the deck and report lists. */}
+        <div class="pointer-events-none absolute bottom-1 left-1 z-10">
+          <PresenceAvatars peers={cardPeers()} size="sm" showEditingPulse />
+        </div>
         {/* The card stays interactive even when the metric has no results, so it
             can still be selected and deleted (via the context menu). Only the
             inner preview falls back to the "Not available" placeholder. */}
@@ -973,7 +1032,11 @@ function VisualizationCard(p: VisualizationCardProps) {
         </Show>
         <Show when={p.po.replicateBy && p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">
-            {t3({ en: "REPL. & FILT.", fr: "REMPL. & FILT.", pt: "REPL. & FILT." })}
+            {t3({
+              en: "REPL. & FILT.",
+              fr: "REMPL. & FILT.",
+              pt: "REPL. & FILT.",
+            })}
           </div>
         </Show>
         <Show when={p.po.createdByAI}>

@@ -3,7 +3,22 @@ import type { ContentBlock } from "lib";
 import type { IdGenerator, LayoutNode } from "panther";
 
 const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
-const generateId = customAlphabet(alphabet, 3);
+
+// Per-client (per-tab) prefix, minted once at module load. Block ids are only
+// required to be unique within a single slide's layout, but under realtime
+// co-editing two clients can mint a new block at the same instant before either
+// has seen the other's op. The shared prefix guarantees their ids differ even
+// when their suffixes happen to collide. 31^6 ≈ 8.9e8 keeps prefix collision
+// between concurrent editors negligible. The within-layout check below still
+// guards the (now astronomically unlikely) same-client suffix repeat.
+const generatePrefix = customAlphabet(alphabet, 6);
+const CLIENT_PREFIX = generatePrefix();
+
+const generateSuffix = customAlphabet(alphabet, 4);
+
+function generateId(): string {
+  return `${CLIENT_PREFIX}${generateSuffix()}`;
+}
 
 function getAllIdsInLayout(layout: LayoutNode<ContentBlock>): Set<string> {
   const ids = new Set<string>();

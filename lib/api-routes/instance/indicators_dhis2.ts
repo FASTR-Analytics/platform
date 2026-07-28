@@ -7,12 +7,17 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
+const dhis2RunCredentialsSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("inline"), credentials: dhis2CredentialsSchema }),
+  z.object({ kind: z.literal("stored") }),
+]);
+
 export const indicatorsDhis2RouteRegistry = {
   searchDhis2Indicators: route({
     path: "/indicators-dhis2/search",
     method: "POST",
     body: z.object({
-      dhis2Credentials: dhis2CredentialsSchema,
+      credentialsSource: dhis2RunCredentialsSourceSchema,
       query: z.string(),
       searchBy: z.enum(["name", "code"]).optional(),
     }),
@@ -22,7 +27,7 @@ export const indicatorsDhis2RouteRegistry = {
     path: "/data-elements-dhis2/search",
     method: "POST",
     body: z.object({
-      dhis2Credentials: dhis2CredentialsSchema,
+      credentialsSource: dhis2RunCredentialsSourceSchema,
       query: z.string(),
       additionalFilters: z.array(z.string()).optional(),
     }),
@@ -32,7 +37,7 @@ export const indicatorsDhis2RouteRegistry = {
     path: "/indicators-dhis2/search-all",
     method: "POST",
     body: z.object({
-      dhis2Credentials: dhis2CredentialsSchema,
+      credentialsSource: dhis2RunCredentialsSourceSchema,
       query: z.string(),
       searchBy: z.enum(["name", "code"]).optional(),
       includeDataElements: z.boolean().optional(),
@@ -43,7 +48,7 @@ export const indicatorsDhis2RouteRegistry = {
   testDhis2IndicatorsConnection: route({
     path: "/indicators-dhis2/test-connection",
     method: "POST",
-    body: z.object({ dhis2Credentials: dhis2CredentialsSchema }),
+    body: z.object({ credentialsSource: dhis2RunCredentialsSourceSchema }),
     response: {} as {
       dataElementCount?: number;
       indicatorCount?: number;

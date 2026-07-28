@@ -8,13 +8,13 @@ import {
   Button,
   Checkbox,
   FrameTop,
-  HeadingBarMainRibbon,
   Input,
   RadioGroup,
   SettingsSection,
   getSelectOptions,
   createButtonAction,
 } from "panther";
+import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -344,7 +344,7 @@ export function InstanceSettings(p: Props) {
           }
         >
           <div class="ui-spy-sm">
-            <div class="text-neutral text-xs">
+            <div class="ui-text-caption">
               {t3({
                 en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
                 fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",

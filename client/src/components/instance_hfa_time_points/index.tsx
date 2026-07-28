@@ -3,6 +3,7 @@ import {
   Button,
   EditableList,
   FrameTop,
+  HeadingBar,
   Input,
   type ListItem,
   MonthSelect,
@@ -24,12 +25,11 @@ export function InstanceHfaTimePoints(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={p.backToInstance} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "HFA time points", fr: "Points temporels HFA", pt: "Pontos temporais HFA" })}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={p.backToInstance}
+          heading={t3({ en: "HFA time points", fr: "Points temporels HFA", pt: "Pontos temporais HFA" })}
+        />
       }
     >
       <div class="ui-pad h-full w-full overflow-auto">
@@ -138,7 +138,7 @@ export function HfaTimePointsEditor() {
   return (
     <div class="ui-spy max-w-3xl">
       <Show when={editing() !== null}>
-        <div class="border-base-300 ui-spy rounded border p-4">
+        <div class="ui-spy rounded border p-4">
           <div class="font-700">
             {editing() === ""
               ? t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })
@@ -196,10 +196,10 @@ export function HfaTimePointsEditor() {
           pt: "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
         })}
         renderItem={(item) => (
-          <div class="border-base-300 min-w-0 flex-1 rounded border px-3 py-2">
+          <div class="min-w-0 flex-1 rounded border px-3 py-2">
             <div class="font-700 truncate text-sm">{item.label}</div>
             <Show when={item.sublabel}>
-              <div class="text-neutral truncate text-xs">{item.sublabel}</div>
+              <div class="ui-text-caption truncate">{item.sublabel}</div>
             </Show>
           </div>
         )}

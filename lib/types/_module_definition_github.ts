@@ -166,6 +166,8 @@ const configDGithubStrict = z
       z.object({
         disOpt: disaggregationOptionGithub,
         disDisplayOpt: disaggregationDisplayOptionGithub,
+        rollup: z.boolean().optional(),
+        rollupPosition: z.enum(["bottom", "top"]).optional(),
       }),
     ),
     filterBy: z.array(
@@ -176,8 +178,6 @@ const configDGithubStrict = z
     ),
     periodFilter: periodFilterGithub,
     selectedReplicantValue: z.string().optional(),
-    includeAdminAreaRollup: z.boolean().optional(),
-    adminAreaRollupPosition: z.enum(["bottom", "top"]).optional(),
   });
 // Note: Duplicate disDisplayOpt/disOpt entries are allowed — UI handles gracefully.
 
@@ -226,6 +226,7 @@ const configSGithubStrict = z
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
+    showNValues: z.boolean().optional(),
     forceYMax1: z.boolean(),
     forceYMinAuto: z.boolean(),
     customSeriesStyles: z.array(

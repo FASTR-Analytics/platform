@@ -24,13 +24,25 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "5": hfa_service_category filtering changed from exact-match to set-membership
 // (string_to_array overlap) — previously-cached payloads for configs filtering
 // on this column used the old (wrong) semantics under an unchanged config hash.
-// "6": the PLAN_RESULTS_RUNS cutover — payloads are now sourced from the
-// attached run (DuckDB over parquet: native numbers where postgres.js
-// returned NUMERIC strings) and possible-values lists are re-sorted in TS
-// with a pinned comparator (Intl.Collator en, numeric) so Postgres and DuckDB
-// emit identical order — previously-cached entries hold pg-string values and
-// DB-collation order.
-const PO_CACHE_VERSION = "6";
+// "6": NULL/blank now fold onto BLANK_SENTINEL. Both cached shapes change —
+// possible-values gains the sentinel option, and items key their group on it
+// instead of ''/null — and version hashes track row last_updated, not code, so
+// unmodified rows would otherwise keep serving pre-fold payloads.
+// "7": HFA items gained sample-size columns (__n_*) beside their values. The
+// payload shape changes for unmodified rows, which version hashes don't track.
+// "8": fetchConfig gained rollupDim replacing includeAdminAreaRollup+level.
+// The hashFetchConfig segment change already orphans every old key, so this
+// bump is declared hygiene rather than load-bearing — the shape of the cached
+// ItemsHolder.fetchConfig changed, and safety should not rest on the
+// incidental impossibility of an old/new key collision.
+// "9": the PLAN_RESULTS_RUNS cutover (merged past both sides' independent
+// bump histories — the results-runs branch used "6" for this change) —
+// payloads are now sourced from the attached run (DuckDB over parquet:
+// native numbers where postgres.js returned NUMERIC strings) and
+// possible-values lists are re-sorted in TS with a pinned comparator
+// (Intl.Collator en, numeric) so Postgres and DuckDB emit identical order —
+// previously-cached entries hold pg-string values and DB-collation order.
+const PO_CACHE_VERSION = "9";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -55,9 +67,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // SOURCING changes (the version hash only tracks the row's last_updated +
   // runId, so a deploy that adds a field or re-sources the payload would
   // otherwise keep serving old entries for unmodified rows). v2: resultsValue
-  // gained hasFacilityLevelRows. v3: resultsValue now resolves from the run
-  // manifest (PLAN_RESULTS_RUNS).
->("po_detail_v3", {
+  // gained hasFacilityLevelRows. v3 was minted twice on divergent branches
+  // (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
+  // the merge takes v4: both of those at once.
+>("po_detail_v4", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

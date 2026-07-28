@@ -6,6 +6,7 @@
 import type { PNode, ProperGraph } from "../_internal/pipeline_types.ts";
 import type { ResolvedSpacing } from "../types_options.ts";
 import type { PlacementPass } from "./types.ts";
+import { requiredGap } from "./types.ts";
 
 // Priority policy (direction-aware — DOC_VIZGRAPH_PLACEMENT.md,
 // attach-sweeps entry): forward-edge dummy chains place first and stay
@@ -116,13 +117,12 @@ export function budgeNode(
   spacing: ResolvedSpacing,
 ): void {
   const k = pnode.order;
-  const gap = spacing.nodeGap;
 
   let lowerBound = -Infinity;
   {
     let acc = 0;
     for (let j = k - 1; j >= 0; j--) {
-      acc += layer[j].h + gap;
+      acc += layer[j].h + requiredGap(layer[j], layer[j + 1], spacing);
       if (placed.has(layer[j])) {
         lowerBound = layer[j].y + acc;
         break;
@@ -131,13 +131,14 @@ export function budgeNode(
   }
   let upperBound = Infinity;
   {
-    let acc = pnode.h + gap;
+    let acc = pnode.h + requiredGap(pnode, layer[k + 1] ?? pnode, spacing);
     for (let j = k + 1; j < layer.length; j++) {
       if (placed.has(layer[j])) {
         upperBound = layer[j].y - acc;
         break;
       }
-      acc += layer[j].h + gap;
+      acc += layer[j].h +
+        requiredGap(layer[j], layer[j + 1] ?? layer[j], spacing);
     }
   }
   if (lowerBound > upperBound) {
@@ -146,9 +147,17 @@ export function budgeNode(
   pnode.y = Math.min(Math.max(desiredTop, lowerBound), upperBound);
 
   for (let j = k - 1; j >= 0; j--) {
-    layer[j].y = Math.min(layer[j].y, layer[j + 1].y - gap - layer[j].h);
+    layer[j].y = Math.min(
+      layer[j].y,
+      layer[j + 1].y - requiredGap(layer[j], layer[j + 1], spacing) -
+        layer[j].h,
+    );
   }
   for (let j = k + 1; j < layer.length; j++) {
-    layer[j].y = Math.max(layer[j].y, layer[j - 1].y + layer[j - 1].h + gap);
+    layer[j].y = Math.max(
+      layer[j].y,
+      layer[j - 1].y + layer[j - 1].h +
+        requiredGap(layer[j - 1], layer[j], spacing),
+    );
   }
 }

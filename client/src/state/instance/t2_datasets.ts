@@ -50,7 +50,20 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   indicatorMappingsVersion: string,
   facilityColumns: InstanceConfigFacilityColumns,
   maxAdminArea: number,
+  hmisImportRunActive: boolean,
 ) {
+  // While a run is integrating per-pair, the data keeps changing under the
+  // settled version token — neither read nor store the IndexedDB cache
+  // (mirrors the server's Valkey bypass; the token flips at run end).
+  if (hmisImportRunActive) {
+    return await serverActions.getDatasetHmisDisplayInfo({
+      rawOrCommonIndicators,
+      versionId,
+      indicatorMappingsVersion,
+      facilityColumns,
+    });
+  }
+
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
     rawOrCommonIndicators,
     facilityColumns,

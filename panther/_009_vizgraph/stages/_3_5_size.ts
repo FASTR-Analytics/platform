@@ -12,8 +12,9 @@ import type {
   ResolvedSpacing,
 } from "../types_options.ts";
 import type { PriorIndex } from "../stability.ts";
+import type { PlacementPlan } from "../placement/types.ts";
 import { coordsStage } from "./_4_coords.ts";
-import { computeGutterTotal } from "./_5_route.ts";
+import { applyPortGapFloor, computeGutterTotal } from "./_5_route.ts";
 
 // Probe budgets: ≈0 finds a node's floor (its widest unbreakable content —
 // the measurer returns w > budget when the budget is unreachable, and that
@@ -25,7 +26,7 @@ const IDEAL_PROBE_WIDTH = Number.POSITIVE_INFINITY;
 const MAX_FIT_ROUNDS = 3;
 const FIT_EPS = 0.5;
 
-// Stage [3½] (PLAN_VIZGRAPH.md §5): dynamic node sizing + width allocation.
+// Stage [3½] (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline): dynamic node sizing + width allocation.
 // Unsized nodes take their EXACT measured size (wrapping included) from
 // options.measureNode; in fit mode the engine budgets per-layer widths from
 // fit.width (minus what gutters consume) and adopts the returned sizes as
@@ -38,6 +39,7 @@ export function sizeStage(
   spacing: ResolvedSpacing,
   prior: PriorIndex | undefined,
   warnings: LayoutWarning[],
+  plan?: PlacementPlan,
 ): void {
   const fit = options?.fit;
   const measure = options?.measureNode;
@@ -64,6 +66,9 @@ export function sizeStage(
       pnode.w = ideal.w;
       pnode.h = ideal.h;
     }
+    // Measured heights replaced the grown ones — restore the port-gap floor
+    // before anything downstream reads heights.
+    applyPortGapFloor(proper, spacing);
     if (fit !== undefined) {
       for (const pnode of dynamic) {
         minWByNodeId.set(pnode.id, measure(pnode.id, MIN_PROBE_WIDTH).w);
@@ -83,6 +88,7 @@ export function sizeStage(
       options,
       spacing,
       prior,
+      plan,
     );
 
     // Reachability check at final sizes (covers all-fixed models too):
@@ -90,7 +96,7 @@ export function sizeStage(
     // thrown, and the caller's min-width probe sees the same floor. The
     // floor is computed at COMPACT gaps (layerGapRange.min) — the true
     // minimum, matching what pressure can actually reach.
-    coordsStage(proper, spacing, prior);
+    coordsStage(proper, spacing, prior, plan);
     const gutterAtMin = computeGutterTotal(proper, options, {
       ...spacing,
       layerGap: spacing.layerGapRange.min,
@@ -133,6 +139,7 @@ function allocateWidths(
   options: LayoutOptions | undefined,
   spacing: ResolvedSpacing,
   prior: PriorIndex | undefined,
+  plan: PlacementPlan | undefined,
 ): void {
   const layerCount = proper.layers.length;
 
@@ -162,7 +169,7 @@ function allocateWidths(
 
   let prevGutterAtIdeal = -1;
   for (let round = 0; round < MAX_FIT_ROUNDS; round++) {
-    coordsStage(proper, spacing, prior);
+    coordsStage(proper, spacing, prior, plan);
     // gutterTotal is linear in layerGap (each interior gutter carries it as
     // base pad), so measure once at ideal and derive the compressed values
     // arithmetically. Track bundles depend on y only — gap-independent.
@@ -211,5 +218,9 @@ function allocateWidths(
       pnode.w = size.w;
       pnode.h = size.h;
     }
+    // Re-measure changed heights (narrower budgets rewrap taller) — restore
+    // the port-gap floor so the next round's y/gutter arithmetic and the
+    // final reachability check see grown heights.
+    applyPortGapFloor(proper, spacing);
   }
 }

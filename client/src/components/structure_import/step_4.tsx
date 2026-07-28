@@ -256,7 +256,7 @@ export function Step4(p: Props) {
               keyed
             >
               {(orphans) => (
-                <div class="border-danger bg-danger/10 rounded border p-4">
+                <div class="border-danger bg-danger-subtle rounded border p-4">
                   <div class="text-danger text-sm">
                     {t3({
                       en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
@@ -419,7 +419,7 @@ export function Step4(p: Props) {
           <div class="ui-gap-sm flex">
             <Switch>
               <Match when={p.step3Result.totalRowsStaged > 0}>
-                <div class="ui-spy border-primary bg-primary/10 w-full rounded border p-4">
+                <div class="ui-spy border-primary bg-primary-subtle w-full rounded border p-4">
                   <Show
                     when={!adminMissingForInsert()}
                     fallback={
@@ -454,7 +454,7 @@ export function Step4(p: Props) {
                 </div>
               </Match>
               <Match when={true}>
-                <div class="border-danger bg-danger/10 rounded border p-4">
+                <div class="border-danger bg-danger-subtle rounded border p-4">
                   <div class="text-danger text-sm">
                     {t3({
                       en: "There are no rows to import. Either go back and edit this upload config, or delete the upload attempt.",

@@ -10,7 +10,7 @@ import {
   createFormAction,
   type EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Checkbox,
   RadioGroup,
 } from "panther";
@@ -73,9 +73,10 @@ export function BatchUploadForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({ en: "Batch import indicators", fr: "Importation groupée d'indicateurs", pt: "Importação em lote de indicadores" })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         />
       }
     >

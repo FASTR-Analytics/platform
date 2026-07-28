@@ -80,8 +80,8 @@ export function HfaIndicatorChatPane(p: Props) {
   ];
 
   return (
-    <div class="flex h-full w-full flex-col border-l">
-      <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
+    <div class="flex h-full w-full flex-col">
+      <div class="ui-pad ui-gap border-base-content dark:border-base-300 bg-primary text-primary-content flex items-center justify-between border-b">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">
             {t3({ en: "Indicator AI", fr: "IA Indicateurs", pt: "IA de Indicadores" })}
@@ -89,11 +89,12 @@ export function HfaIndicatorChatPane(p: Props) {
         </h3>
         <div class="ui-gap-sm flex items-center">
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
-            <Button outline intent="base-100" iconName="moreVertical" ariaLabel="Menu" />
+            <Button outline onBackground="primary" intent="base-100" iconName="moreVertical" ariaLabel="Menu" />
           </MenuTriggerWrapper>
           <Button
             onClick={p.onClose}
             outline
+            onBackground="primary"
             intent="base-100"
             iconName="chevronRight"
             ariaLabel="Hide AI panel"
@@ -101,7 +102,7 @@ export function HfaIndicatorChatPane(p: Props) {
         </div>
       </div>
 
-      <div class="flex-1 overflow-hidden">
+      <div class="md-dark-adapt flex-1 overflow-hidden">
         <AIChat
           placeholder={t3({
             en: "Ask me to clean up labels or organise indicators...",

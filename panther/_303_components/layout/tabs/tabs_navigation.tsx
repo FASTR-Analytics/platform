@@ -42,25 +42,29 @@ export function TabsNavigation<T extends string = string, M = never>(
       // container's continuous underline (see containerClasses + rowClasses
       // below for the -mb-px trick). Active tab covers with primary; inactive
       // tab is transparent so the container line shows through — producing a
-      // single clean rail across the whole tab strip.
+      // single clean rail across the whole tab strip. The inactive arm needs
+      // bg-clip-padding: the family's opaque rest bg would otherwise paint
+      // under the transparent border strip and hide the rail.
       const baseClasses =
-        "ui-hoverable ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer border-b-2";
+        "ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer select-none border-b-2";
 
       if (isActive(id)) {
         return `${baseClasses} border-primary text-primary bg-base-100`;
       }
-      return `${baseClasses} border-transparent text-base-content hover:text-primary hover:border-primary/40`;
+      return `${baseClasses} ui-hoverable-base-100 bg-clip-padding border-transparent text-base-content hover:text-primary hover:border-primary/40`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
       const paddingClass = isCollapsed() ? "pr-4 pl-5 py-4" : "py-4 pr-4 pl-5";
       const baseClasses =
-        `ui-hoverable ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer`;
+        `ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer select-none`;
 
       if (isActive(id)) {
         return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
       }
-      return `${baseClasses} text-base-content hover:text-primary hover:bg-base-100`;
+      // ui-hoverable-base-100, not the old hover:bg-base-100 — that was an
+      // invisible hover on the sidebar's own base-100 background.
+      return `${baseClasses} ui-hoverable-base-100 text-base-content hover:text-primary`;
     }
   };
 
@@ -71,7 +75,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = p.tabLabelFormatter ?? labelString;
 
   const containerClasses = !isVertical
-    ? "bg-base-100 w-full border-b border-base-300"
+    ? "bg-base-100 w-full border-b"
     : "bg-base-100 flex w-full flex-col h-full";
 
   // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2

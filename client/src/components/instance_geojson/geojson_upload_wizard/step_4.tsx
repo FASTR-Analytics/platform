@@ -63,14 +63,14 @@ export function Step4(p: Props) {
         }
         return res;
       } else {
-        const creds = state.dhis2Credentials();
+        const credentialsSource = state.dhis2CredentialsSource();
         const dhis2Level = state.selectedDhis2Level();
-        if (!creds || dhis2Level === null) {
+        if (!credentialsSource || dhis2Level === null) {
           return { success: false, err: "DHIS2 credentials or level not found" };
         }
 
         const res = await serverActions.dhis2SaveGeoJsonMap({
-          ...creds,
+          credentialsSource,
           dhis2Level,
           adminAreaLevel,
           areaMatchProp: state.selectedProp(),
@@ -98,10 +98,10 @@ export function Step4(p: Props) {
       when={!saveCounts()}
       fallback={
         <div class="ui-spy">
-          <div class="font-600">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
+          <div class="font-700">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
           <Show when={saveCounts()} keyed>
             {(counts) => (
-              <div class="text-base-500 ui-spy-sm text-sm">
+              <div class="text-base-content-muted ui-spy-sm text-sm">
                 <div>
                   {counts.featureCount} {t3({ en: "boundaries saved", fr: "limites enregistrées", pt: "limites guardados" })}
                 </div>
@@ -126,15 +126,15 @@ export function Step4(p: Props) {
     >
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-600">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
+        <div class="font-700">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
       </div>
 
-      <div class="text-base-500 ui-spy-sm text-sm">
+      <div class="text-base-content-muted ui-spy-sm text-sm">
         <Show when={state.source() === "file"}>
           <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: {state.selectedFileName()}</div>
         </Show>
         <Show when={state.source() === "dhis2"}>
-          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state.dhis2Credentials()?.url})</div>
+          <div>{t3({ en: "Source", fr: "Source", pt: "Fonte" })}: DHIS2 ({state.dhis2ConnectionUrl()})</div>
           <div>{t3({ en: "DHIS2 level", fr: "Niveau DHIS2", pt: "Nível DHIS2" })}: {dhis2LevelName()}</div>
         </Show>
         <div>{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}: AA{state.adminAreaLevel()}</div>
@@ -148,8 +148,8 @@ export function Step4(p: Props) {
       </div>
 
       <Show when={duplicateNames().length > 0}>
-        <div class="bg-warning/10 border-warning text-warning rounded border p-3 text-sm">
-          <div class="font-600 mb-1">
+        <div class="bg-warning-subtle border-warning text-warning-subtle-content rounded border p-3 text-sm">
+          <div class="font-700 mb-1">
             {t3({ en: "Warning: Duplicate admin area names", fr: "Attention : Noms de zones administratives en double", pt: "Atenção: nomes de zonas administrativas duplicados" })}
           </div>
           <div>

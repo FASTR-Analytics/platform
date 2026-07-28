@@ -14,7 +14,7 @@ import { Reorderable } from "./_internal/reorderable.tsx";
 export function SortableList<T extends { id: string }>(p: {
   items: T[];
   onReorder: (orderedIds: string[]) => void;
-  children: (item: T, index: number) => JSX.Element;
+  children: (item: T) => JSX.Element;
   showHandle?: boolean;
   handlePosition?: "left" | "right";
 }) {
@@ -28,7 +28,7 @@ export function SortableList<T extends { id: string }>(p: {
       handle={showHandle() ? ".sl-handle" : undefined}
       class="ui-spy-sm w-full"
     >
-      {(item, index) => (
+      {(item) => (
         <div
           class="flex items-center gap-2"
           classList={{
@@ -37,15 +37,15 @@ export function SortableList<T extends { id: string }>(p: {
           }}
         >
           <Show when={showHandle() && handlePos() === "left"}>
-            <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
+            <div class="sl-handle text-base-content-muted flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
               <Icon iconName="gripVertical" />
             </div>
           </Show>
 
-          <div class="flex-1">{p.children(item, index)}</div>
+          <div class="flex-1">{p.children(item)}</div>
 
           <Show when={showHandle() && handlePos() === "right"}>
-            <div class="sl-handle text-neutral flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
+            <div class="sl-handle text-base-content-muted flex h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing">
               <Icon iconName="gripVertical" />
             </div>
           </Show>

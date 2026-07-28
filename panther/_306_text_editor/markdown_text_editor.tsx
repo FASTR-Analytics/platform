@@ -5,6 +5,7 @@
 
 import {
   type CustomMarkdownStyleOptions,
+  DOCUMENT_MARKDOWN_DEFAULTS,
   type ImageMap,
   type MarkdownImageRenderer,
   MarkdownPresentation,
@@ -48,7 +49,7 @@ export function MarkdownTextEditor(p: Props) {
             <Match when={p.renderImage}>
               <MarkdownPresentationJsx
                 markdown={p.value}
-                style={p.style}
+                style={p.style ?? DOCUMENT_MARKDOWN_DEFAULTS}
                 scale={p.scale}
                 images={p.images}
                 contentWidth={p.contentWidth}
@@ -58,7 +59,7 @@ export function MarkdownTextEditor(p: Props) {
             <Match when={!p.renderImage}>
               <MarkdownPresentation
                 markdown={p.value}
-                style={p.style}
+                style={p.style ?? DOCUMENT_MARKDOWN_DEFAULTS}
                 scale={p.scale}
                 images={p.images}
                 contentWidth={p.contentWidth}

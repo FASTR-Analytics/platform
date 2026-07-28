@@ -26,6 +26,9 @@ const contentSlideSplitFillSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("plain") }),
   z.object({
     type: z.literal("pattern"),
+    // Mirrors panther's PatternType exactly, "none" included. The slide UI
+    // never produces "none", but a route-body schema must accept everything a
+    // valid Slide can hold.
     patternType: z.enum([
       "ovals",
       "circles",
@@ -35,6 +38,7 @@ const contentSlideSplitFillSchema = z.discriminatedUnion("type", [
       "chevrons",
       "waves",
       "noise",
+      "none",
     ]),
   }),
   z.object({

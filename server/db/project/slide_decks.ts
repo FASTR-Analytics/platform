@@ -4,6 +4,12 @@ import { DBSlideDeck } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueDeckId, generateUniqueSlideId } from "../../utils/id_generation.ts";
 
+/** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
+ *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
+ *  → drop the editing session" from "transient error → retry". Reword only
+ *  in lockstep with that set. */
+export const SLIDE_DECK_NOT_FOUND = "Slide deck not found";
+
 function parseDeckConfig(deck: DBSlideDeck): SlideDeckConfig {
   if (deck.config) {
     return parseJsonOrThrow(deck.config) as SlideDeckConfig;
@@ -47,7 +53,7 @@ export async function getSlideDeckDetail(
     ).at(0);
 
     if (!deck) {
-      throw new Error("Slide deck not found");
+      throw new Error(SLIDE_DECK_NOT_FOUND);
     }
 
     const slideIds = (
@@ -154,7 +160,7 @@ export async function duplicateSlideDeck(
       `
     ).at(0);
     if (!deck) {
-      throw new Error("Slide deck not found");
+      throw new Error(SLIDE_DECK_NOT_FOUND);
     }
 
     const newDeckId = await generateUniqueDeckId(projectDb);

@@ -14,7 +14,7 @@
 
 import { dashboardFigureBlockSchema } from "lib";
 import type { Sql } from "postgres";
-import { type MigrationStats } from "./po_config.ts";
+import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
 import {
   type FigureBlockMut,
   transformFigureBlock,
@@ -38,7 +38,12 @@ export async function migrateDashboardItems(
   for (const row of rows) {
     const figureBlock = JSON.parse(row.figure_block) as FigureBlockMut;
 
-    if (dashboardFigureBlockSchema.safeParse(figureBlock).success) {
+    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // strips from the embedded bundle.config) still need the rename.
+    if (
+      dashboardFigureBlockSchema.safeParse(figureBlock).success &&
+      !rawJsonNeedsForcedTransform(row.figure_block)
+    ) {
       continue;
     }
 

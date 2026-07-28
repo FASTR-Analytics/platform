@@ -1,4 +1,4 @@
-import { t3, TC } from "lib";
+import { emailRecipientsSchema, t3, TC } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -74,6 +74,29 @@ export function ShareSlideDeck(
       return;
     }
 
+    // Before the export, not after: the route enforces the same schema, and a
+    // rejection there costs a full deck render and sends to nobody.
+    const check = emailRecipientsSchema.safeParse(recipients);
+    if (!check.success) {
+      const invalid = check.error.issues
+        .map((i) => (typeof i.path[0] === "number" ? recipients[i.path[0]] : undefined))
+        .filter((v): v is string => v !== undefined);
+      setErr(
+        invalid.length > 0
+          ? t3({
+              en: `Not a valid email address: ${invalid.join(", ")}`,
+              fr: `Adresse email non valide : ${invalid.join(", ")}`,
+              pt: `Endereço de email inválido: ${invalid.join(", ")}`,
+            })
+          : t3({
+              en: `Select at most 50 recipients (currently ${recipients.length})`,
+              fr: `Sélectionnez au maximum 50 destinataires (actuellement ${recipients.length})`,
+              pt: `Selecione no máximo 50 destinatários (atualmente ${recipients.length})`,
+            }),
+      );
+      return;
+    }
+
     setErr("");
     setPct(0.02);
 
@@ -106,10 +129,9 @@ export function ShareSlideDeck(
     if (res.success && res.data.sent) {
       setSent(true);
     } else {
-      const failedList =
-        res.success && res.data.failedRecipients
-          ? res.data.failedRecipients.join(", ")
-          : "";
+      const failedList = res.success
+        ? (res.data.failedRecipients?.join(", ") ?? "")
+        : res.err;
       setErr(
         t3({
           en: `Failed to send${failedList ? ` to: ${failedList}` : ""}`,

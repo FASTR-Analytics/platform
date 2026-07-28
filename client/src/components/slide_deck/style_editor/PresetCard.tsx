@@ -11,17 +11,16 @@ export function PresetCard(p: PresetCardProps) {
   return (
     <button
       type="button"
-      class="flex w-24 cursor-pointer flex-col rounded-lg border p-2 text-left"
+      class="flex w-24 cursor-pointer flex-col rounded border p-2 text-left"
       classList={{
         "border-primary border-2": p.selected,
-        "border-base-300 hover:border-base-400": !p.selected,
       }}
       onClick={p.onClick}
     >
-      <div class="border-base-300 relative mb-1 aspect-video overflow-hidden rounded border">
+      <div class="relative mb-1 aspect-video overflow-hidden rounded border">
         {p.children}
       </div>
-      <div class="text-center text-sm font-medium">{p.name}</div>
+      <div class="text-center text-sm">{p.name}</div>
     </button>
   );
 }

@@ -298,6 +298,104 @@ WHERE id = ${presentationObjectId}
   });
 }
 
+// ── Collab (visualization editor) room support ──────────────────────────────
+
+// Lightweight config loader for the collab room's load() — the room needs only
+// the config (no resultsValue/mainDb resolution like getPresentationObjectDetail).
+// Returns null (inside a success) when the row is absent; carries isDefault so
+// the room deps can refuse to open a room for a read-only default visualization.
+export async function getPresentationObjectConfigRow(
+  projectDb: Sql,
+  presentationObjectId: string,
+): Promise<
+  APIResponseWithData<
+    { config: PresentationObjectConfig; isDefault: boolean } | null
+  >
+> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<{ config: string; is_default_visualization: boolean }[]>`
+SELECT config, is_default_visualization FROM presentation_objects WHERE id = ${presentationObjectId}
+`
+    ).at(0);
+    if (!row) return { success: true, data: null };
+    return {
+      success: true,
+      data: {
+        config: parsePresentationObjectConfig(row.config),
+        isDefault: row.is_default_visualization,
+      },
+    };
+  });
+}
+
+// Read the persisted Yjs CRDT state for a visualization (collab rooms). Returns
+// the base64 state only if it is CURRENT — crdt_state_last_updated matches the
+// PO's last_updated; otherwise the PO was edited outside collab since the state
+// was saved, so the room must re-seed from config (which is always safe).
+export async function getPresentationObjectCrdtState(
+  projectDb: Sql,
+  presentationObjectId: string,
+): Promise<APIResponseWithData<{ state: string | null }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await projectDb<
+        {
+          crdt_state: string | null;
+          crdt_state_last_updated: string | null;
+          last_updated: string;
+        }[]
+      >`
+SELECT crdt_state, crdt_state_last_updated, last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
+`
+    ).at(0);
+    if (!row) {
+      throw new Error("No presentation object with this id");
+    }
+    const isCurrent = row.crdt_state !== null &&
+      row.crdt_state_last_updated === row.last_updated;
+    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+  });
+}
+
+// Collab checkpoint: persist the config AND the Yjs CRDT state atomically
+// (collab is authoritative → always overwrites, no conflict check). Plain
+// write — POLICY LIVES IN THE CALLER (the PO room's save closure in
+// routes/project/project-collab.ts): `storedConfig` must already be
+// schema-parsed with schema-invalid transients dropped, and `crdtTrusted`
+// says whether the doc materializes to exactly `storedConfig`. When trusted,
+// crdt_state_last_updated is stamped equal to last_updated so the state
+// reads back as current; when not, it is stamped NULL so the next room open
+// re-seeds from config instead of restoring a doc that disagrees with the
+// row (which every editor open would adopt, visibly "flipping" the viz ~1s
+// after open). Refuses default visualizations (read-only) — a room should
+// never have been opened for one.
+export async function savePresentationObjectCheckpoint(
+  projectDb: Sql,
+  presentationObjectId: string,
+  storedConfig: PresentationObjectConfig,
+  crdtState: string,
+  crdtTrusted: boolean,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    const rows = await projectDb`
+UPDATE presentation_objects
+SET
+  config = ${JSON.stringify(storedConfig)},
+  crdt_state = ${crdtState},
+  crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
+  last_updated = ${lastUpdated}
+WHERE id = ${presentationObjectId} AND is_default_visualization = FALSE
+RETURNING id
+`;
+    if (rows.length === 0) {
+      throw new Error("Presentation object not found (or is a default)");
+    }
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
 export async function batchUpdatePresentationObjectsPeriodFilter(
   projectDb: Sql,
   presentationObjectIds: string[],
@@ -309,6 +407,25 @@ export async function batchUpdatePresentationObjectsPeriodFilter(
   }>
 > {
   return await tryCatchDatabaseAsync(async () => {
+    if (presentationObjectIds.length === 0) {
+      return {
+        success: true,
+        data: { lastUpdated: new Date().toISOString(), updatedCount: 0 },
+      };
+    }
+
+    const defaultRows = await projectDb<{ id: string }[]>`
+      SELECT id FROM presentation_objects
+      WHERE id IN ${projectDb(presentationObjectIds)}
+        AND is_default_visualization = TRUE
+    `;
+    if (defaultRows.length > 0) {
+      return {
+        success: false,
+        err: "You cannot update a default visualization",
+      };
+    }
+
     const lastUpdated = new Date().toISOString();
 
     await projectDb.begin(async (sql: Sql) => {

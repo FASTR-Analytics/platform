@@ -43,14 +43,14 @@ export function measureSimpleViz(
   const boxPrimitives = buildBoxPrimitives(
     rc,
     contentRcd,
-    item.simpleVizData,
+    item.data,
     customFigureStyle,
   );
 
   // Build arrow primitives using box positions
   const arrowPrimitives = buildArrowPrimitives(
-    item.simpleVizData.arrows,
-    item.simpleVizData.boxes,
+    item.data.arrows,
+    item.data.boxes,
     boxPrimitives.filter((p) => p.type === "simpleviz-box"),
     customFigureStyle.getMergedSimpleVizStyle(),
   );
@@ -73,7 +73,7 @@ export function measureSimpleViz(
     measuredSurrounds,
     extraHeightDueToSurrounds,
     customFigureStyle,
-    transformedData: item.simpleVizData,
+    transformedData: item.data,
     primitives,
     caption,
     subCaption,

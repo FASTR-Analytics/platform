@@ -1,5 +1,9 @@
 import type { PresentationObjectConfig, ResultsValue } from "lib";
-import { getFetchConfigFromPresentationObjectConfig, getReplicateByProp } from "lib";
+import {
+  formatReplicantLabelForDisplay,
+  getFetchConfigFromPresentationObjectConfig,
+  getReplicateByProp,
+} from "lib";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 
 // Strict replicant validation, shared by every path where the AI CREATES or EDITS
@@ -38,12 +42,12 @@ export async function assertReplicantValid(
     if (!selected) {
       throw new Error(
         `This figure replicates by "${replicateBy}" and needs a selected replicant value. `
-        + `Valid values: ${valid.map((v) => v.label).join(", ")}`,
+        + `Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
       );
     }
     if (!valid.some((v) => v.id === selected)) {
       throw new Error(
-        `Invalid replicant value "${selected}". Valid values: ${valid.map((v) => v.label).join(", ")}`,
+        `Invalid replicant value "${selected}". Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
       );
     }
   }

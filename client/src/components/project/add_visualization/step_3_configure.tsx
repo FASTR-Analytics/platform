@@ -80,7 +80,7 @@ export function Step3Configure(p: Props) {
           <Show
             when={availableDisaggregations().length > 0}
             fallback={
-              <div class="text-neutral text-sm">
+              <div class="text-base-content-muted text-sm">
                 {t3({
                   en: "No disaggregation options available for this visualization type",
                   fr: "Aucune option de désagrégation disponible pour ce type de visualisation",
@@ -93,7 +93,8 @@ export function Step3Configure(p: Props) {
               <For each={availableDisaggregations()}>
                 {(disOpt) => {
                   const isRequired = disOpt.isRequired;
-                  const isChecked = isRequired || p.selectedDisaggregations.includes(disOpt.value);
+                  const isChecked = () =>
+                    isRequired || p.selectedDisaggregations.includes(disOpt.value);
 
                   return (
                     <Checkbox
@@ -101,13 +102,13 @@ export function Step3Configure(p: Props) {
                         <>
                           {t3(getDisplayDisaggregationLabel(disOpt.value))}
                           <Show when={isRequired}>
-                            <span class="text-neutral ml-2 text-xs">
+                            <span class="ui-text-caption ml-2">
                               ({t3({ en: "required", fr: "requis", pt: "obrigatório" })})
                             </span>
                           </Show>
                         </>
                       }
-                      checked={isChecked}
+                      checked={isChecked()}
                       disabled={isRequired}
                       onChange={(checked) => {
                         if (!isRequired) {

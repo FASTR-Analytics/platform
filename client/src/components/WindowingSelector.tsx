@@ -11,7 +11,7 @@ import {
   type TranslatableString,
 } from "lib";
 import {
-  ChartHolder,
+  FigureHolder,
   Checkbox,
   MultiSelect,
   NestedMultiSelect,
@@ -31,6 +31,7 @@ import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
 import { PeriodSelector } from "./PeriodSelector";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
@@ -73,6 +74,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
         p.indicatorMappingsVersion,
         p.facilityColumns,
         instanceState.maxAdminArea,
+        instanceState.hmisImportRunActive,
       ),
     t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
   );
@@ -192,7 +194,8 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             const indicators = getIndicators();
 
             const inputs: TimeseriesInputs = {
-              timeseriesData: timeseriesData,
+              figureType: "timeseries",
+              data: timeseriesData,
               style: {
                 text: {
                   yScaleAxisLabel: {
@@ -273,13 +276,19 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
         return (
           <div class="ui-gap flex flex-col xl:grid xl:grid-cols-12 xl:items-start xl:space-y-0">
-            <div class="ui-spy-sm ui-pad border-base-300 flex-none rounded border xl:col-span-8">
+            <div class="ui-spy-sm ui-pad flex-none rounded border xl:col-span-8">
               <div class="text-md font-700">
                 {t3({ en: "Time period", fr: "Période", pt: "Período" })}
               </div>
               <Show when={figureInputs()} keyed>
                 {(figInputs) => {
-                  return <ChartHolder chartInputs={figInputs} height={300} sizing="zoom" />;
+                  return (
+                    <FigureHolder
+                      figureInputs={adaptFigureStyleForDarkMode(figInputs)}
+                      height={300}
+                      sizing="zoom"
+                    />
+                  );
                 }}
               </Show>
               <PeriodSelector
@@ -397,7 +406,7 @@ type ToggledMultiSelectProps = {
 
 function ToggledMultiSelect(p: ToggledMultiSelectProps) {
   return (
-    <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+    <div class="ui-spy-sm ui-pad max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
       <div class="text-md font-700">
         {t3(p.heading)}
       </div>
@@ -431,7 +440,7 @@ type ToggledNestedMultiSelectProps = {
 
 function ToggledNestedMultiSelect(p: ToggledNestedMultiSelectProps) {
   return (
-    <div class="ui-spy-sm ui-pad border-base-300 max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
+    <div class="ui-spy-sm ui-pad max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
       <div class="text-md font-700">
         {t3(p.heading)}
       </div>

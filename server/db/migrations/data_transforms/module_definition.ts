@@ -16,6 +16,8 @@
 //
 // TRANSFORM BLOCKS:
 // 1. Fill missing top-level fields: prerequisites, lastScriptUpdate, dataSources, etc.
+// 1b. Collapse pinned-repo-asset objects in assetsToImport (results-runs branch
+//     shape, not on main) back down to plain name strings
 // 2. Fill metricId and sortOrder in defaultPresentationObjects items
 // 3. DELETE metrics from blob (metrics are stored in metrics table, not blob)
 // 4. Convert createTableStatementPossibleColumns: empty/null/undefined → false, array → Record
@@ -53,6 +55,15 @@ function transformModuleDefinition(mod: Record<string, unknown>): void {
   if (!("script" in mod)) mod.script = "";
   if (!("assetsToImport" in mod)) mod.assetsToImport = [];
   if (!("resultsObjects" in mod)) mod.resultsObjects = [];
+
+  // Block 1b: Collapse pinned-repo-asset objects ({name, repoPath, commit,
+  // sha256} — introduced on the results-runs branch, not on main) back down
+  // to plain name strings.
+  if (Array.isArray(mod.assetsToImport)) {
+    mod.assetsToImport = (mod.assetsToImport as unknown[]).map((a) =>
+      typeof a === "string" ? a : (a as { name: string }).name
+    );
+  }
   if (!("defaultPresentationObjects" in mod)) {
     mod.defaultPresentationObjects = [];
   }

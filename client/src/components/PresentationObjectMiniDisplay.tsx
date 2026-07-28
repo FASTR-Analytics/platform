@@ -1,9 +1,10 @@
 import { ReplicantValueOverride, t3 } from "lib";
-import { FigureInputs, ChartHolder, LoadingIndicator, StateHolder } from "panther";
+import { FigureInputs, FigureHolder, LoadingIndicator, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
-import { projectState } from "~/state/project/t1_store";
+import { projectState, runVersionKey } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
+import { adaptFigureStyleForDarkMode } from "./_shared/dark_mode_figures";
 
 type Props = {
   projectId: string;
@@ -44,6 +45,10 @@ export function PresentationObjectMiniDisplay(p: Props) {
 
   createEffect(() => {
     void projectState.lastUpdated.presentation_objects[p.presentationObjectId];
+    // Tracked version-key read so mounted thumbnails refetch when a different
+    // run is attached (the caches this renders through version on it, and
+    // cache-internal reads are untracked).
+    runVersionKey(projectState);
     attemptGetFigureInputs();
   });
 
@@ -127,7 +132,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
       >
         {(keyedFigureInputs) => {
           const h1 =
-            "tableData" in keyedFigureInputs
+            keyedFigureInputs.figureType === "table"
               ? ("ideal" as const)
               : ("flex" as const);
           const renderError = (err: string) => (
@@ -137,8 +142,8 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
             <Switch>
               <Match when={p.shapeType === "force-aspect-video"}>
                 <div class="aspect-video overflow-hidden">
-                  <ChartHolder
-                    chartInputs={keyedFigureInputs}
+                  <FigureHolder
+                    figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                     height={h1}
                     sizing="zoom"
                     renderError={renderError}
@@ -146,8 +151,8 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
                 </div>
               </Match>
               <Match when={true}>
-                <ChartHolder
-                  chartInputs={keyedFigureInputs}
+                <FigureHolder
+                  figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                   height={h1}
                   sizing="zoom"
                   renderError={renderError}

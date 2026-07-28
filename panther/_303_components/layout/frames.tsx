@@ -18,40 +18,31 @@ import {
 import { clamp } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 
-type FrameProps = {
+type FrameBaseProps = {
   panelChildren?: JSX.Element;
   children: JSX.Element;
+};
+
+// A side frame creates the boundary between its panel and its content, so it
+// draws the divider on that boundary. `noBorder` opts out — for a panel that is
+// tonal against its content, or one drawing a deliberately non-default border
+// colour. FrameTop is deliberately not in this family: its panel is a component
+// that knows its own tone (see HeadingBar) and owns its own bottom edge.
+type SideFrameProps = FrameBaseProps & {
+  noBorder?: boolean;
+};
+
+type FrameTopProps = FrameBaseProps & {
   allowShowHide?: boolean;
 };
 
-export type HoverOffset =
-  | "offset-for-border-1-on-left"
-  | "offset-for-border-2-on-left"
-  | "offset-for-border-1-on-right"
-  | "offset-for-border-2-on-right";
-
-const HOVER_OFFSET_PX: Record<HoverOffset, number> = {
-  "offset-for-border-1-on-left": -0.5,
-  "offset-for-border-2-on-left": -1,
-  "offset-for-border-1-on-right": 0.5,
-  "offset-for-border-2-on-right": 1,
-};
-
-function hoverOffsetStyle(
-  offset: HoverOffset | undefined,
-): JSX.CSSProperties | undefined {
-  if (!offset) return undefined;
-  return { transform: `translateX(${HOVER_OFFSET_PX[offset]}px)` };
-}
-
-type ResizableFrameProps = FrameProps & {
+type ResizableFrameProps = SideFrameProps & {
   startingWidth: number;
   minWidth?: number;
   maxWidth?: number;
   preventPanelResizeOnParentResize?: boolean;
   isShown?: boolean;
   onToggleShow?: () => void;
-  hoverOffset?: HoverOffset;
 };
 
 type ThreeColumnResizableProps = {
@@ -66,26 +57,58 @@ type ThreeColumnResizableProps = {
   minWidths?: [number, number];
   maxWidths?: [number, number];
   resetKey?: string | number;
-  hiddenTabColor?: string;
-  leftHandleHoverOffset?: HoverOffset;
-  rightHandleHoverOffset?: HoverOffset;
+  noBorder?: boolean;
 };
 
-export function FrameLeft(p: FrameProps) {
+// The resize handle: a hit strip that paints nothing, with a 1px line inside
+// it sitting exactly on the boundary pixel — the same pixel the non-resizable
+// frames' wrapper border occupies, which is what makes swapping FrameLeft <->
+// FrameLeftResizable a rename. The panel content div reserves that pixel with
+// a 1px margin (mirroring border-r consuming a pixel of the border box) so
+// the line never paints over content. The strip is symmetric about the
+// boundary it grabs: 9px (4+1+4) around the 1px divider, or 8px (4+4) around
+// the bare 0-width edge when `noBorder` — which renders no line at all; the
+// cursor is the only affordance. Offsets and widths are exact-px arbitrary
+// values, never spacing-scale utilities, so an app `--spacing` override
+// cannot skew the geometry. The strip must stay borderless: a border on the
+// panel wrapper would move its padding box and shift the hit area by 1px.
+function ResizeHandleLine(p: { side: "left" | "right"; noBorder?: boolean }) {
+  return (
+    <Show when={!p.noBorder}>
+      <div
+        class="bg-border group-hover:bg-primary group-data-[dragging=true]:bg-primary absolute top-0 h-full w-px"
+        classList={{
+          "right-[4px]": p.side === "left",
+          "left-[4px]": p.side === "right",
+        }}
+        style={{
+          transition: "background-color var(--ui-dur-fast) var(--ui-ease)",
+        }}
+      />
+    </Show>
+  );
+}
+
+export function FrameLeft(p: SideFrameProps) {
   return (
     <Show
       when={p.panelChildren}
       fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
     >
       <div class="flex h-full w-full">
-        <div class="h-full flex-none overflow-auto">{p.panelChildren}</div>
+        <div
+          class="h-full flex-none overflow-auto"
+          classList={{ "border-r": !p.noBorder }}
+        >
+          {p.panelChildren}
+        </div>
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
       </div>
     </Show>
   );
 }
 
-export function FrameRight(p: FrameProps) {
+export function FrameRight(p: SideFrameProps) {
   return (
     <Show
       when={p.panelChildren}
@@ -93,13 +116,18 @@ export function FrameRight(p: FrameProps) {
     >
       <div class="flex h-full w-full">
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
-        <div class="h-full flex-none overflow-auto">{p.panelChildren}</div>
+        <div
+          class="h-full flex-none overflow-auto"
+          classList={{ "border-l": !p.noBorder }}
+        >
+          {p.panelChildren}
+        </div>
       </div>
     </Show>
   );
 }
 
-export function FrameTop(p: FrameProps) {
+export function FrameTop(p: FrameTopProps) {
   const [isPanelShown, setIsPanelShown] = createSignal(true);
 
   return (
@@ -138,7 +166,7 @@ export function FrameTop(p: FrameProps) {
   );
 }
 
-export function FrameBottom(p: FrameProps) {
+export function FrameBottom(p: SideFrameProps) {
   return (
     <Show
       when={p.panelChildren}
@@ -146,7 +174,12 @@ export function FrameBottom(p: FrameProps) {
     >
       <div class="flex h-full w-full flex-col">
         <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
-        <div class="w-full flex-none overflow-auto">{p.panelChildren}</div>
+        <div
+          class="w-full flex-none overflow-auto"
+          classList={{ "border-t": !p.noBorder }}
+        >
+          {p.panelChildren}
+        </div>
       </div>
     </Show>
   );
@@ -155,8 +188,7 @@ export function FrameBottom(p: FrameProps) {
 // Shared resizable-panel logic for FrameLeftResizable / FrameRightResizable.
 // The two frames are identical except for the drag direction and the JSX
 // order/handle side, so the signals, ResizeObserver, drag handlers and cleanup
-// live here once. Kept internal — the exported components and their props are
-// unchanged.
+// live here once. Kept internal.
 function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
   const minWidth = p.minWidth ?? 100;
   const maxWidth = p.maxWidth ?? 600;
@@ -170,7 +202,10 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
 
   let containerRef: HTMLDivElement | undefined;
-  let isDragging = false;
+  // A signal, not a `let`: the handle styles from it. `:active` cannot cover a
+  // drag — once the pointer leaves the 8px strip mid-drag both :hover and
+  // :active drop — so the drag state has to be projected as a data attribute.
+  const [isDragging, setIsDragging] = createSignal(false);
   let handleMouseMove: ((e: MouseEvent) => void) | undefined;
   let handleMouseUp: (() => void) | undefined;
   let resizeObserver: ResizeObserver | undefined;
@@ -199,14 +234,14 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
   });
 
   const handleMouseDown = (e: MouseEvent) => {
-    isDragging = true;
+    setIsDragging(true);
     e.preventDefault();
 
     const startX = e.clientX;
     const startWidth = actualWidth();
 
     handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging()) return;
 
       // Right panel drag is reversed relative to the left panel.
       const deltaX = side === "left" ? e.clientX - startX : startX - e.clientX;
@@ -219,7 +254,7 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
     };
 
     handleMouseUp = () => {
-      isDragging = false;
+      setIsDragging(false);
       if (handleMouseMove) {
         document.removeEventListener("mousemove", handleMouseMove);
         handleMouseMove = undefined;
@@ -252,11 +287,12 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
     },
     displayWidth,
     handleMouseDown,
+    isDragging,
   };
 }
 
 export function FrameLeftResizable(p: ResizableFrameProps) {
-  const { setContainerRef, displayWidth, handleMouseDown } =
+  const { setContainerRef, displayWidth, handleMouseDown, isDragging } =
     createResizablePanel(p, "left");
 
   return (
@@ -271,18 +307,20 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
         >
           <div
             class="h-full overflow-auto"
+            classList={{ "mr-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
             {p.panelChildren}
           </div>
           <div
-            class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
             onMouseDown={handleMouseDown}
-            style={{
-              display: p.isShown === false ? "none" : "block",
-              ...hoverOffsetStyle(p.hoverOffset),
-            }}
-          />
+            data-dragging={isDragging()}
+            style={{ display: p.isShown === false ? "none" : "block" }}
+          >
+            <ResizeHandleLine side="left" noBorder={p.noBorder} />
+          </div>
         </div>
         <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
       </div>
@@ -291,7 +329,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
 }
 
 export function FrameRightResizable(p: ResizableFrameProps) {
-  const { setContainerRef, displayWidth, handleMouseDown } =
+  const { setContainerRef, displayWidth, handleMouseDown, isDragging } =
     createResizablePanel(p, "right");
 
   return (
@@ -306,15 +344,17 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           style={{ width: `${displayWidth()}px` }}
         >
           <div
-            class="hover:bg-primary/20 active:bg-primary/20 absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="group absolute -left-[4px] top-0 z-50 h-full cursor-col-resize"
+            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
             onMouseDown={handleMouseDown}
-            style={{
-              display: p.isShown === false ? "none" : "block",
-              ...hoverOffsetStyle(p.hoverOffset),
-            }}
-          />
+            data-dragging={isDragging()}
+            style={{ display: p.isShown === false ? "none" : "block" }}
+          >
+            <ResizeHandleLine side="right" noBorder={p.noBorder} />
+          </div>
           <div
             class="h-full overflow-auto"
+            classList={{ "ml-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
             {p.panelChildren}
@@ -341,8 +381,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
 
   let containerRef!: HTMLDivElement;
-  let isDragging = false;
-  let activeHandle: "left" | "right" | null = null;
+  // Both are signals and both are needed: one isDragging is shared by two
+  // handles, so projecting it alone would light up both during either drag.
+  const [isDragging, setIsDragging] = createSignal(false);
+  const [activeHandle, setActiveHandle] = createSignal<"left" | "right" | null>(
+    null,
+  );
   let handleMouseMove: ((e: MouseEvent) => void) | undefined;
   let handleMouseUp: (() => void) | undefined;
   let resizeObserver: ResizeObserver | undefined;
@@ -412,8 +456,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   });
 
   const handleMouseDown = (handle: "left" | "right") => (e: MouseEvent) => {
-    isDragging = true;
-    activeHandle = handle;
+    setIsDragging(true);
+    setActiveHandle(handle);
     e.preventDefault();
 
     const startX = e.clientX;
@@ -421,7 +465,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     const startRightWidth = rightWidth();
 
     handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging()) return;
 
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
@@ -430,7 +474,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       rafId = requestAnimationFrame(() => {
         const deltaX = e.clientX - startX;
 
-        if (activeHandle === "left") {
+        if (activeHandle() === "left") {
           const maxDelta = maxWidths[0] - startLeftWidth;
           const minDelta = minWidths[0] - startLeftWidth;
           const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
@@ -442,7 +486,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           if (containerWidth() > 0) {
             setLeftPercent(newLeftWidth / containerWidth());
           }
-        } else if (activeHandle === "right") {
+        } else if (activeHandle() === "right") {
           const maxDelta = startRightWidth - minWidths[1];
           const minDelta = startRightWidth - maxWidths[1];
           const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
@@ -461,8 +505,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     };
 
     handleMouseUp = () => {
-      isDragging = false;
-      activeHandle = null;
+      setIsDragging(false);
+      setActiveHandle(null);
       if (handleMouseMove) {
         document.removeEventListener("mousemove", handleMouseMove);
         handleMouseMove = undefined;
@@ -511,23 +555,45 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             class="relative h-full flex-none"
             style={{ width: `${leftWidth()}px` }}
           >
-            <div class="h-full overflow-auto">{p.leftChild}</div>
             <div
-              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
-              style={hoverOffsetStyle(p.leftHandleHoverOffset)}
+              class="h-full overflow-auto"
+              classList={{ "mr-px": !p.noBorder }}
+            >
+              {p.leftChild}
+            </div>
+            <div
+              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+              data-dragging={isDragging() && activeHandle() === "left"}
               onMouseDown={handleMouseDown("left")}
-            />
+            >
+              <ResizeHandleLine side="left" noBorder={p.noBorder} />
+            </div>
           </div>
         </Show>
 
         <div class="relative h-full w-0 flex-1">
-          <div class="h-full overflow-auto">{p.centerChild}</div>
+          <div
+            class="h-full overflow-auto"
+            classList={{ "mr-px": hasRight() && !p.noBorder }}
+          >
+            {p.centerChild}
+          </div>
           <Show when={hasRight()}>
+            {
+              /* Rendered on the CENTRE pane, so its line occupies the centre
+                pane's last pixel rather than the right pane's first — the same
+                boundary, and the one handle whose pane is not the pane the
+                divider "belongs" to. */
+            }
             <div
-              class="hover:bg-primary/20 active:bg-primary/20 absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
-              style={hoverOffsetStyle(p.rightHandleHoverOffset)}
+              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
+              data-dragging={isDragging() && activeHandle() === "right"}
               onMouseDown={handleMouseDown("right")}
-            />
+            >
+              <ResizeHandleLine side="left" noBorder={p.noBorder} />
+            </div>
           </Show>
         </div>
 
@@ -546,9 +612,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <For each={collapsedPanes()}>
             {(pane) => (
               <div
-                class={`ui-hoverable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0 ${
-                  p.hiddenTabColor ?? "bg-primary/20"
-                }`}
+                class="ui-hoverable-base-200 border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0"
                 onClick={pane.onClick}
               >
                 <div class="font-700 whitespace-nowrap text-sm">

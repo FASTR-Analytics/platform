@@ -1,5 +1,6 @@
-import { t3, type SlideDeckConfig } from "lib";
+import { t3, type PresenceEntry, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
+import { PresenceAvatars } from "./presence_avatars";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
@@ -20,6 +21,7 @@ type Props = {
   onDelete: () => void;
   onDuplicate: () => void;
   deckConfig: SlideDeckConfig;
+  viewers?: PresenceEntry[];
 };
 
 export function SlideCard(p: Props) {
@@ -29,18 +31,23 @@ export function SlideCard(p: Props) {
   });
 
   // Fetch slide from cache, reactive to state updates
+  let fetchRunId = 0;
   createEffect(async () => {
     projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
     const config = p.deckConfig; // Track synchronously before first await
+    const index = p.index;
+    const runId = ++fetchRunId;
 
     const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    if (runId !== fetchRunId) return;
 
     if (!res.success) {
       setPageInputs({ status: "error", err: res.err });
       return;
     }
 
-    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, p.index, config);
+    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, index, config);
+    if (runId !== fetchRunId) return;
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
@@ -82,13 +89,12 @@ export function SlideCard(p: Props) {
       classList={{ "sortable-selected": p.isSelected }}
       style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
     >
-      <div class="mb-2 text-base-content text-center text-sm font-medium">
+      <div class="mb-2 text-base-content text-center text-sm">
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper group relative overflow-clip rounded-lg border bg-white cursor-pointer"
+        class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
         classList={{
-          "border-base-300": !p.isSelected,
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
         }}
@@ -101,7 +107,7 @@ export function SlideCard(p: Props) {
         <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
           classList={{
             "bg-primary text-primary-content opacity-100": p.isSelected,
-            "border border-base-300 bg-transparent hover:bg-base-300 hover:text-white [&:not(:hover)]:text-transparent": !p.isSelected,
+            "border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
           }}
           onClick={(e) => p.onCardClick(e, true)}
         >
@@ -113,6 +119,11 @@ export function SlideCard(p: Props) {
             />
           </svg>
         </div>
+        <Show when={(p.viewers?.length ?? 0) > 0}>
+          <div class="absolute bottom-2 left-2 z-10">
+            <PresenceAvatars peers={p.viewers!} size="sm" />
+          </div>
+        </Show>
         <Show when={pageInputs().status === "loading"}>
           <div
             class="bg-base-200 flex items-center justify-center"

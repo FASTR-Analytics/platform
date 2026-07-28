@@ -6,6 +6,7 @@ import {
   Button,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getEditorWrapper,
   createButtonAction,
   toPct0,
@@ -19,9 +20,11 @@ import {
   onMount,
 } from "solid-js";
 import { DatasetHmisUploadAttemptForm } from "~/components/instance_dataset_hmis_import";
+import { DatasetHmisDhis2Runs } from "./dhis2_run";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
+import { ImportLedger } from "./_import_ledger";
 import { PreviousImports } from "./_previous_imports";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
@@ -64,8 +67,18 @@ export function InstanceDatasetHmis(p: Props) {
     }
   });
 
+  // The wizard is CSV-only (DHIS2 imports are runs): the source type is set
+  // at creation so the wizard opens straight at the CSV upload step.
   const newUploadAttempt = createButtonAction(
-    () => serverActions.createDatasetUploadAttempt({}),
+    async () => {
+      const res = await serverActions.createDatasetUploadAttempt({});
+      if (!res.success) {
+        return res;
+      }
+      return await serverActions.setDatasetUploadSourceType({
+        sourceType: "csv",
+      });
+    },
     fetchUploadAttempt,
     openUploadAttempt,
   );
@@ -79,11 +92,27 @@ export function InstanceDatasetHmis(p: Props) {
     });
   }
 
+  async function openDhis2Runs() {
+    await openEditor({
+      element: DatasetHmisDhis2Runs,
+      props: {
+        silentFetch: fetchUploadAttempt,
+      },
+    });
+  }
+
   async function viewPreviousImports() {
     await openEditor({
       element: PreviousImports,
       props: {
       },
+    });
+  }
+
+  async function viewImportLedger() {
+    await openEditor({
+      element: ImportLedger,
+      props: {},
     });
   }
 
@@ -105,24 +134,53 @@ export function InstanceDatasetHmis(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-              <span class="font-400 ml-4">
-                {t3({ en: "HMIS Data", fr: "Données HMIS", pt: "Dados HMIS" })}
-              </span>
-            </div>
-          </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
+            subheading={t3({ en: "HMIS Data", fr: "Données HMIS", pt: "Dados HMIS" })}
+          />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
+                <Show when={instanceState.hmisScheduledImportAttention}>
+                  <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
+                    {t3({
+                      en: "A scheduled DHIS2 import needs attention.",
+                      fr: "Une importation DHIS2 planifiée nécessite votre attention.",
+                      pt: "Uma importação DHIS2 agendada precisa de atenção.",
+                    })}
+                  </div>
+                </Show>
+                <div class="">
+                  <Button
+                    onClick={openDhis2Runs}
+                    iconName="databaseImport"
+                    fullWidth
+                  >
+                    {t3({
+                      en: "Import from DHIS2",
+                      fr: "Importer depuis DHIS2",
+                      pt: "Importar do DHIS2",
+                    })}
+                  </Button>
+                </div>
+                <Show when={instanceState.hmisImportRunsQueued > 0}>
+                  <div class="ui-pad bg-base-200 rounded border text-sm">
+                    {instanceState.hmisImportRunsQueued}{" "}
+                    {t3({
+                      en: "DHIS2 import(s) queued.",
+                      fr: "importation(s) DHIS2 en file d'attente.",
+                      pt: "importação(ões) DHIS2 em fila.",
+                    })}
+                  </div>
+                </Show>
                 <Switch>
                   <Match when={!uploadAttempt()}>
                     <div class="">
@@ -133,9 +191,9 @@ export function InstanceDatasetHmis(p: Props) {
                         fullWidth
                       >
                         {t3({
-                          en: "Start new import",
-                          fr: "Nouvelle importation",
-                          pt: "Iniciar nova importação",
+                          en: "Upload CSV file",
+                          fr: "Téléverser un fichier CSV",
+                          pt: "Carregar um ficheiro CSV",
                         })}
                       </Button>
                     </div>
@@ -144,7 +202,7 @@ export function InstanceDatasetHmis(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                          class="ui-pad ui-hoverable-base-200 rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>
@@ -178,10 +236,7 @@ export function InstanceDatasetHmis(p: Props) {
                             </Match>
                             <Match
                               when={
-                                keyedUploadAttempt.status.status ===
-                                  "staging" ||
-                                keyedUploadAttempt.status.status ===
-                                  "staging_dhis2"
+                                keyedUploadAttempt.status.status === "staging"
                               }
                               keyed
                             >
@@ -258,6 +313,20 @@ export function InstanceDatasetHmis(p: Props) {
                 </Switch>
                 <Show when={instanceState.hmisNVersions > 0}>
                   <div class="ui-spy text-sm">
+                    <div class="">
+                      <Button
+                        onClick={viewImportLedger}
+                        outline
+                        fullWidth
+                        iconName="databaseImport"
+                      >
+                        {t3({
+                          en: "Import status by indicator",
+                          fr: "État des importations par indicateur",
+                          pt: "Estado das importações por indicador",
+                        })}
+                      </Button>
+                    </div>
                     <div class="">
                       <Button
                         onClick={viewPreviousImports}

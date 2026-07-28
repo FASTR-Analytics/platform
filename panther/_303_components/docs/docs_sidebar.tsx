@@ -42,7 +42,7 @@ export function DocsSidebar(p: DocsSidebarProps) {
   };
 
   return (
-    <div class="bg-base-100 border-base-300 h-full overflow-auto border-r">
+    <div class="bg-base-100 h-full overflow-auto">
       <For each={p.rootItems}>
         {(item) => (
           <CollapsibleSection
@@ -190,12 +190,12 @@ function NavItemComponent(p: {
         type="button"
         class={`ui-pad-sm flex w-full cursor-pointer items-center justify-between border-l-4 text-left text-sm ${paddingLeft()}`}
         classList={{
-          "bg-primary/10": isActive(),
+          "bg-primary-subtle": isActive(),
           "text-primary": isActive(),
           "border-primary": isActive(),
           "text-base-content": !isActive(),
           "border-transparent": !isActive(),
-          "hover:bg-base-200": !isActive(),
+          "ui-hoverable-base-100": !isActive(),
         }}
         onClick={handleLabelClick}
         role="link"
@@ -205,7 +205,7 @@ function NavItemComponent(p: {
         <Show when={hasChildren()} keyed>
           <button
             type="button"
-            class="flex h-[1.25em] w-[1.25em] items-center justify-center"
+            class="flex h-[1.25em] w-[1.25em] cursor-pointer items-center justify-center"
             onClick={handleChevronClick}
             aria-label={p.isExpanded ? "Collapse" : "Expand"}
             aria-expanded={p.isExpanded}

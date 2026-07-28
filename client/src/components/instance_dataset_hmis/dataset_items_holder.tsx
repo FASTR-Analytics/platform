@@ -8,7 +8,7 @@ import {
 } from "lib";
 import {
   FigureInputs,
-  ChartHolder,
+  FigureHolder,
   FrameLeftResizable,
   MultiSelect,
   RadioGroup,
@@ -28,6 +28,7 @@ import {
 import { createStore } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   versionId: number;
@@ -60,6 +61,7 @@ export function DatasetItemsHolder(p: Props) {
       indicatorMappingsVersion,
       p.facilityColumns,
       instanceState.maxAdminArea,
+      instanceState.hmisImportRunActive,
     );
     if (res.success === false) {
       setItemsHolder({ status: "error", err: res.err });
@@ -160,7 +162,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     const figureData: FigureInputs =
       figureType === "chart"
         ? {
-            timeseriesData: {
+            figureType: "timeseries",
+            data: {
               jsonArray,
               jsonDataConfig: {
                 valueProps: [value],
@@ -178,7 +181,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             style,
           }
         : {
-            tableData: {
+            figureType: "table",
+            data: {
               jsonArray,
               jsonDataConfig: {
                 valueProps: [value],
@@ -198,9 +202,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     <FrameLeftResizable
       startingWidth={300}
       maxWidth={800}
-      hoverOffset="offset-for-border-1-on-left"
       panelChildren={
-        <div class="ui-pad ui-spy border-base-300 h-full w-full border-r">
+        <div class="ui-pad ui-spy h-full w-full">
           <RadioGroup
             label={t3({ en: "Common or DHIS2 indicators", fr: "Indicateurs communs ou DHIS2", pt: "Indicadores comuns ou DHIS2" })}
             options={[
@@ -245,8 +248,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
           <StateHolderWrapper state={figureInputs()}>
             {(keyedInputs) => {
               return (
-                <ChartHolder
-                  chartInputs={keyedInputs}
+                <FigureHolder
+                  figureInputs={adaptFigureStyleForDarkMode(keyedInputs)}
                   height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );

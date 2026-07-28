@@ -146,11 +146,11 @@ export function ProjectDashboards(p: Props) {
   return (
     <FrameTop
       panelChildren={
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
           setSearchText={setSearchText}
-          class="border-base-300"
           centerChildren={
             <SortControl
               value={dashboardSortMode()}
@@ -164,16 +164,18 @@ export function ProjectDashboards(p: Props) {
             </Button>
           </Show>
         </HeadingBar>
+        </div>
       }
     >
       <div
         class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
+        data-page-cursor-surface
         onClick={() => selection.clear()}
       >
         <For
           each={filtered()}
           fallback={
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {searchText().length >= 3
                 ? t3({
                     en: "No matching dashboards",
@@ -192,9 +194,9 @@ export function ProjectDashboards(p: Props) {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
               <div
-                class="group relative cursor-pointer rounded-md border p-3"
+                class="group relative cursor-pointer rounded border p-3"
                 classList={{
-                  "border-base-300 hover:border-primary": !isSelected(),
+                  "hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),
                 }}
                 onClick={(e) => {
@@ -210,10 +212,10 @@ export function ProjectDashboards(p: Props) {
                   onClick={(e) => selection.handleClick(dashboard.id, e)}
                 />
                 <div class="font-700 truncate text-base">{dashboard.title}</div>
-                <div class="text-neutral truncate font-mono text-xs">
+                <div class="ui-text-caption truncate font-mono">
                   /{dashboard.slug}
                 </div>
-                <div class="text-neutral flex items-center justify-between text-xs">
+                <div class="ui-text-caption flex items-center justify-between">
                   <span>
                     {dashboard.itemCount} {t3({ en: "items", fr: "éléments", pt: "elementos" })}
                   </span>
@@ -221,7 +223,7 @@ export function ProjectDashboards(p: Props) {
                     class={
                       dashboard.isPublic
                         ? "text-success font-700"
-                        : "text-neutral"
+                        : "text-base-content-muted"
                     }
                   >
                     {dashboard.isPublic

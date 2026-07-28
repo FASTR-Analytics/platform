@@ -11,6 +11,7 @@ export type {
   DocumentContentBlock,
   DocumentSource,
   EffortLevel,
+  EphemeralSection,
   MessageParam,
   MessagePayload,
   MessageRole,
@@ -38,7 +39,6 @@ export {
   supportsDisabledThinking,
   supportsDynamicWebTools,
   supportsManualThinking,
-  supportsMidConversationSystem,
   supportsSamplingParams,
 } from "./anthropic_consts.ts";
 
@@ -56,12 +56,12 @@ export {
   buildCancelledToolResults,
   buildToolResultUserMessage,
   classifyTurnContinuation,
+  demoteStaleCarriers,
   getUserFacingAIErrorMessage,
   lastMessageHasUnresolvedToolUse,
-  shapeEphemeralSystemMessages,
-  stripEphemeralContext,
+  legacyStripEphemeralMarkers,
+  renderOutgoingMessages,
   trimDanglingServerToolUse,
-  wrapWithEphemeralContext,
 } from "./turn_logic.ts";
 
 export type {
@@ -70,5 +70,31 @@ export type {
   ToolResultBlock,
   TurnContinuation,
 } from "./turn_logic.ts";
+
+export {
+  APPROVAL_DECLINED_MESSAGE,
+  APPROVAL_STALE_MESSAGE,
+  assembleTurnSections,
+  buildApprovalViewExitMessage,
+  buildAvailabilityHint,
+  buildInteractionDigest,
+  buildNavigationDigestLine,
+  buildNavigationDoneMessage,
+  buildNavigationPendingMessage,
+  buildViewGateMessage,
+  buildViewLabelSectionText,
+  dropSuppressedEchoes,
+  INTERACTION_DIGEST_PREFIX,
+  NAVIGATION_INTERACTION_ID,
+} from "./view_logic.ts";
+
+export type {
+  AIInteractionDefLike,
+  EchoMarks,
+  InteractionQueueEntry,
+  InteractionViewStateLike,
+  NavigationEventPayload,
+  TurnSectionParts,
+} from "./view_logic.ts";
 
 export type { ModelPricing } from "./anthropic_consts.ts";

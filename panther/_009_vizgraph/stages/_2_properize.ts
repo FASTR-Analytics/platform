@@ -21,9 +21,10 @@ export function properizeStage(
   const layers: PNode[][] = Array.from({ length: layerCount }, () => []);
   const pnodeByRealId = new Map<string, PNode>();
 
-  // Order seed: prior layout position wins over model seq (sticky relayout);
-  // nodes new since the prior seed after the survivors, by seq/input order —
-  // the stage-3 sweeps then settle them by barycenter.
+  // The order-seed policy (DOC_VIZGRAPH_ORDERING.md): prior layout position
+  // wins over model seq (sticky relayout); nodes new since the prior seed
+  // after the survivors, by seq/input order — the stage-3 sweeps then settle
+  // them by barycenter.
   const realNodes = [...index.nodeById.values()];
   realNodes.sort((a, b) => {
     const pa = prior?.centerYByNodeId.get(a.id);
@@ -52,6 +53,8 @@ export function properizeStage(
       order: 0,
       x: 0,
       y: 0,
+      padTop: 0,
+      padBottom: 0,
       leftNeighbors: [],
       rightNeighbors: [],
     };
@@ -88,6 +91,8 @@ export function properizeStage(
         order: 0,
         x: 0,
         y: 0,
+        padTop: 0,
+        padBottom: 0,
         leftNeighbors: [],
         rightNeighbors: [],
       };
@@ -113,6 +118,7 @@ export function properizeStage(
     chainByEdgeId,
     sameLayerEdges,
     crossLayerEdges,
+    innermostGroupByNodeId: new Map(),
   };
 }
 

@@ -1,18 +1,18 @@
 # Systems map — wb-fastr
 
-> Canonical topology: 15 systems (+ a read-but-don't-own kernel). This is the
+> Canonical topology: 16 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the custody table, the kernel rule, the
 > cross-cutting audits, the execution model, and the documentation model.
 > Each system's description — scope, contract, prose — lives in its own
 > `SYSTEM_NN_*.md` file, whose `globs:` frontmatter is the machine-checked
 > manifest (`lint_systems.ts` asserts every tracked file is claimed by
-> exactly one system). Migration of the old `DOC_*` set into the SYSTEM
-> files: [PLAN_DOC_CONSOLIDATION.md](PLAN_DOC_CONSOLIDATION.md).
+> exactly one system). The old `DOC_*` set is fully absorbed into these
+> files (completed 2026-07-17); every SYSTEM file holds verified prose.
 
 ## The map
 
 Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
-artifacts (12), assist (13), frame (14–15).
+artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 
 | #                                        | System                                   | One line                                                                                   |
 |------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -20,7 +20,7 @@ artifacts (12), assist (13), frame (14–15).
 | [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | multi-DB Postgres, migrations + data transforms, fail-stop boot, backup/restore            |
 | [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
 | [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
-| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config        |
+| [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
 | [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
 | [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
 | [S8](SYSTEM_08_module_system.md)         | Module System                            | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_*          |
@@ -31,11 +31,12 @@ artifacts (12), assist (13), frame (14–15).
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
+| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one project WS; rooms checkpoint into S12 tables + S3 notifies    |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
 
-Cross-cutting docs (conventions, not code ownership):
-[CROSS_UI_CONVENTIONS.md](CROSS_UI_CONVENTIONS.md),
-[CROSS_CLIENT_STATE.md](CROSS_CLIENT_STATE.md).
+App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6),
+e.g. [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md) — they own no files in
+the manifest.
 
 ## §4.1 Shared-custody files
 
@@ -48,9 +49,9 @@ list.)
 |-------------------------------------------------------------------------|-------|-------------------|-------------------------------------------------------|
 | `server/db/project/projects.ts`                                         | S15   | S2, S1, S8        | four systems in 1,108 lines                           |
 | `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
-| `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3           | queries / CRUD / cache interleaved                    |
+| `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3, S16      | queries / CRUD / cache / live-room chokepoint         |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
-| `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S10, S3           | hottest client file (20 importers)                    |
+| `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
 | `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | install heart + read API (~540+)                      |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |
@@ -67,6 +68,8 @@ list.)
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
 | `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |
+| `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
+| `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
 
 ## §4.2 Kernel — read but don't own
 

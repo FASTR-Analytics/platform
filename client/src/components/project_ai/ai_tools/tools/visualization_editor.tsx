@@ -1,13 +1,15 @@
 import {
   configDStrict,
-  getEffectiveRollupLevel,
+  getEffectiveRollupDimension,
   getReplicateByProp,
   presentationObjectConfigTStrict,
+  ROLLUP_DIMENSIONS,
   type MetricWithStatus,
+  type PresentationObjectConfig,
 } from "lib";
-import { createAITool } from "panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { AIContext } from "~/components/project_ai/types";
+import { projectAIViews } from "~/components/project_ai/ai_views";
 import { convertPeriodValue } from "lib";
 import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
@@ -37,7 +39,12 @@ const vizConfigUpdateSchema = z.object({
     z.null(),
   ]).optional().describe("Which value properties to show, or null to show all."),
   disaggregateBy: configDStrict.shape.disaggregateBy.optional().describe(
-    "How to disaggregate data. Replaces all existing disaggregations.",
+    "How to disaggregate data. Replaces all existing disaggregations. An "
+    + "existing roll-up flag is carried over onto the same dimension — unless "
+    + "ANY entry states its own `rollup` field, in which case the provided "
+    + "flags replace all existing ones (at most one entry may be flagged; an "
+    + "unavailable flag is an error). Prefer `rollupDimension` for roll-up "
+    + "changes.",
   ),
   filterBy: configDStrict.shape.filterBy.optional().describe(
     "Data filters. Replaces all existing filters. Use empty array to clear.",
@@ -46,11 +53,11 @@ const vizConfigUpdateSchema = z.object({
     z.string(),
     z.null(),
   ]).optional().describe("Selected replicant value, or null to clear."),
-  includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup.describe(
-    "Include an admin-area total row. Only available when EXACTLY ONE admin level (admin_area_2/3/4) is disaggregated, not shown as replicant/map area, and not filtered to a single value; not available on maps; the metric must be re-aggregatable (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). Setting this when unavailable is an error.",
+  rollupDimension: z.union([z.enum(ROLLUP_DIMENSIONS), z.null()]).optional().describe(
+    "Add a roll-up total row ('National' / 'All facilities') collapsing this dimension; null removes the roll-up. The dimension must be a disaggregated admin level (admin_area_2/3/4) or facility column, not shown as replicant/map area, and not filtered to a single value; not available on maps; the metric must be re-aggregatable (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). Setting this when unavailable is an error.",
   ),
-  adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition.describe(
-    "Where to position the admin-area total row (top or bottom). Display-only; defaults to bottom.",
+  rollupPosition: z.enum(["bottom", "top"]).optional().describe(
+    "Where to position the roll-up total row (top or bottom). Display-only; defaults to bottom.",
   ),
 
   // EXCEPTION: periodFilter uses simpler abstraction (like startDate/endDate)
@@ -74,23 +81,20 @@ const vizConfigUpdateSchema = z.object({
 
 export function getToolsForVizEditor(
   projectId: string,
-  getAIContext: () => AIContext,
   metrics: MetricWithStatus[],
 ) {
   return [
     createAITool({
+      viewRegistry: projectAIViews,
       name: "get_viz_editor",
       description: "Get current configuration, available options, and underlying CSV data for the visualization being edited. Shows live state from the editor (including unsaved changes). Call this to understand current settings and see the data.",
       inputSchema: z.object({}),
-      handler: async () => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_visualization") {
-          throw new Error("This tool is only available when editing a visualization");
-        }
-
-        const config = ctx.getTempConfig();
-        const resultsValue = ctx.resultsValue;
-        const presentationObjectId = ctx.vizId;
+      availableIn: ["editing_visualization"],
+      kind: "read",
+      handler: async (_input, view) => {
+        const config = view.context.getTempConfig();
+        const resultsValue = view.context.resultsValue;
+        const presentationObjectId = view.params.vizId;
 
         const metric = metrics.find(m => m.id === resultsValue.id);
         const dataOutput = await getDataFromConfig(projectId, resultsValue.id, metrics, config, metric?.aiDescription);
@@ -101,15 +105,14 @@ export function getToolsForVizEditor(
       completionMessage: "Retrieved visualization",
     }),
     createAITool({
+      viewRegistry: projectAIViews,
       name: "update_viz_config",
       description: "Update the visualization configuration. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save button. Use get_viz_editor to see current state and valid options.",
       inputSchema: vizConfigUpdateSchema,
-      handler: async (input) => {
-        const ctx = getAIContext();
-        if (ctx.mode !== "editing_visualization") {
-          throw new Error("This tool is only available when editing a visualization");
-        }
-
+      availableIn: ["editing_visualization"],
+      kind: "write",
+      handler: async (input, view) => {
+        const ctx = view.context;
         const resultsValue = ctx.resultsValue;
         const setTempConfig = ctx.setTempConfig;
         const changes: string[] = [];
@@ -119,13 +122,13 @@ export function getToolsForVizEditor(
 
         // Runtime validation for data-dependent constraints
         if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
-          throw new Error(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
+          throw new AIToolFailure(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
         }
 
         if (input.valuesDisDisplayOpt) {
           const valid = VALID_VALUES_DISPLAY[effectiveType];
           if (valid && !valid.includes(input.valuesDisDisplayOpt)) {
-            throw new Error(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
+            throw new AIToolFailure(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
           }
         }
 
@@ -134,30 +137,67 @@ export function getToolsForVizEditor(
           const availableDims = resultsValue.disaggregationOptions.map(o => o.value);
           for (const d of input.disaggregateBy) {
             if (!availableDims.includes(d.disOpt)) {
-              throw new Error(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
+              throw new AIToolFailure(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
             }
             if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
-              throw new Error(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
+              throw new AIToolFailure(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
             }
           }
         }
 
-        // Roll-up gate, validated UP FRONT like the other checks (a throw must
-        // mean "nothing changed") against a candidate of the post-edit config.
-        if (input.includeAdminAreaRollup === true) {
+        // Roll-up handling. mergeRollupFlags is the ONE composition rule,
+        // used both for the up-front gate candidate and the later store
+        // write so they cannot disagree: a replaced disaggregateBy carries
+        // the existing flag over UNLESS any patch entry states its own
+        // rollup field (then the patch is authoritative for ALL flags —
+        // mixing explicit with carried-over flags would produce two flagged
+        // entries, which the gate reads as no roll-up); `rollupDimension`
+        // then overrides everything.
+        const mergeRollupFlags = (
+          prev: PresentationObjectConfig["d"]["disaggregateBy"],
+        ) => {
+          let next = input.disaggregateBy
+            ? (input.disaggregateBy.some((e) => e.rollup !== undefined)
+              ? input.disaggregateBy
+              : input.disaggregateBy.map((e) => {
+                const old = prev.find((x) => x.disOpt === e.disOpt);
+                return old?.rollup === true
+                  ? { ...e, rollup: true, rollupPosition: old.rollupPosition }
+                  : e;
+              }))
+            : [...prev];
+          if (input.rollupDimension !== undefined) {
+            const dim = input.rollupDimension;
+            next = next.map((e) =>
+              dim !== null && e.disOpt === dim
+                ? { ...e, rollup: true, rollupPosition: e.rollupPosition ?? "bottom" }
+                : { disOpt: e.disOpt, disDisplayOpt: e.disDisplayOpt }
+            );
+          }
+          return next;
+        };
+
+        // Gate, validated UP FRONT like the other checks (a throw must mean
+        // "nothing changed") against a candidate of the post-edit config —
+        // only when the input EXPLICITLY requests a roll-up; flags that
+        // merely become latent through other edits degrade gracefully.
+        const explicitlyFlagged =
+          typeof input.rollupDimension === "string" ||
+          (input.disaggregateBy?.some((e) => e.rollup === true) ?? false);
+        if (explicitlyFlagged) {
           const current = ctx.getTempConfig();
           const candidate = {
             ...current,
             d: {
               ...current.d,
               type: input.type ?? current.d.type,
-              disaggregateBy: input.disaggregateBy ?? current.d.disaggregateBy,
+              disaggregateBy: mergeRollupFlags(current.d.disaggregateBy),
               filterBy: input.filterBy ?? current.d.filterBy,
             },
           };
-          if (getEffectiveRollupLevel(resultsValue, candidate) === undefined) {
-            throw new Error(
-              "includeAdminAreaRollup is not available here: it requires exactly one disaggregated admin level (admin_area_2/3/4) not shown as replicant/map area and not filtered to a single value, not on a map, and a re-aggregatable metric (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). No changes were applied.",
+          if (getEffectiveRollupDimension(resultsValue, candidate) === undefined) {
+            throw new AIToolFailure(
+              "The requested roll-up is not available here: exactly ONE disaggregated dimension may carry it, it must be an admin level (admin_area_2/3/4) or facility column, not shown as replicant/map area, and not filtered to a single value; not on a map; and the metric must be re-aggregatable (SUM/COUNT, a post-aggregation expression, or AVG over facility-level data). No changes were applied.",
             );
           }
         }
@@ -210,9 +250,14 @@ export function getToolsForVizEditor(
           changes.push("valuesFilter");
         }
 
-        if (input.disaggregateBy) {
-          setTempConfig("d", "disaggregateBy", input.disaggregateBy);
-          changes.push("disaggregateBy");
+        if (input.disaggregateBy || input.rollupDimension !== undefined) {
+          setTempConfig(
+            "d",
+            "disaggregateBy",
+            mergeRollupFlags(ctx.getTempConfig().d.disaggregateBy),
+          );
+          if (input.disaggregateBy) changes.push("disaggregateBy");
+          if (input.rollupDimension !== undefined) changes.push("rollupDimension");
         }
 
         if (input.filterBy) {
@@ -227,7 +272,7 @@ export function getToolsForVizEditor(
           } else {
             const filterPeriodOpt = resultsValue.mostGranularTimePeriodColumnInResultsFile;
             if (!filterPeriodOpt) {
-              throw new Error("Cannot set periodFilter: metric has no time period column");
+              throw new AIToolFailure("Cannot set periodFilter: metric has no time period column");
             }
             const rawMin = input.periodFilter.min;
             const rawMax = input.periodFilter.max;
@@ -247,7 +292,7 @@ export function getToolsForVizEditor(
                 );
                 dataBounds = infoRes.success ? infoRes.data.periodBounds : undefined;
                 if (!dataBounds) {
-                  throw new Error(
+                  throw new AIToolFailure(
                     "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
                   );
                 }
@@ -284,20 +329,23 @@ export function getToolsForVizEditor(
           changes.push("selectedReplicantValue");
         }
 
-        if (input.includeAdminAreaRollup !== undefined) {
-          setTempConfig("d", "includeAdminAreaRollup", input.includeAdminAreaRollup);
-          if (
-            input.includeAdminAreaRollup === true &&
-            !ctx.getTempConfig().d.adminAreaRollupPosition
-          ) {
-            setTempConfig("d", "adminAreaRollupPosition", "bottom");
+        if (input.rollupPosition) {
+          // Only a change when a flagged entry exists to receive it — the
+          // filter write matches nothing otherwise, and reporting a change
+          // that did nothing would mislead the model.
+          const hasFlagged = ctx
+            .getTempConfig()
+            .d.disaggregateBy.some((e) => e.rollup === true);
+          if (hasFlagged) {
+            setTempConfig(
+              "d",
+              "disaggregateBy",
+              (e) => e.rollup === true,
+              "rollupPosition",
+              input.rollupPosition,
+            );
+            changes.push("rollupPosition");
           }
-          changes.push("includeAdminAreaRollup");
-        }
-
-        if (input.adminAreaRollupPosition) {
-          setTempConfig("d", "adminAreaRollupPosition", input.adminAreaRollupPosition);
-          changes.push("adminAreaRollupPosition");
         }
 
         if (input.caption !== undefined) {

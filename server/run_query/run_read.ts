@@ -3,6 +3,8 @@ import type { Sql } from "postgres";
 import {
   composeHfaIndicatorLabel,
   disaggregationOption,
+  getDatasetFamily,
+  getDatasetTypes,
   getDisaggregationAllowedPresentationOptions,
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
@@ -49,10 +51,6 @@ import {
   runInputFilePath,
   runResultsObjectParquetPath,
 } from "../runs/run_paths.ts";
-import {
-  getDatasetFamily,
-  getDatasetTypes,
-} from "../server_only_funcs_presentation_objects/get_indicator_metadata.ts";
 import { computeFacilityContext } from "../server_only_funcs_presentation_objects/get_query_context.ts";
 import {
   buildMinimalFetchConfig,

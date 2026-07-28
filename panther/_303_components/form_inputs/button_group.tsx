@@ -5,15 +5,17 @@
 
 import { For, type JSX, Show } from "solid-js";
 import type { ListItem } from "../list_selection/list_item_types.ts";
+import type { Intent } from "../types.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button group item classes composed from utility classes and component classes
 function getButtonGroupItemClasses(size?: "sm") {
   return [
-    // Component classes (defined in CSS)
-    "ui-hoverable",
+    // Component classes (defined in CSS). Both arms take their surface +
+    // states from the hoverable family (added per-arm in classList):
+    // selected = the item's intent (+ ui-fill skin), unselected = the
+    // declared onBackground token (quiet interactive of that surface).
     "ui-focusable",
-    "ui-intent-fill",
 
     // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
@@ -22,6 +24,7 @@ function getButtonGroupItemClasses(size?: "sm") {
 
     // Layout and appearance
     "inline-flex",
+    "cursor-pointer",
     "select-none",
     "appearance-none",
     "items-center",
@@ -36,9 +39,8 @@ function getButtonGroupItemClasses(size?: "sm") {
     "data-[last=true]:rounded-r",
     "data-[first=true]:border-l",
     "data-[selected=true]:border",
-    "data-[selected=false]:text-neutral",
-    "data-[selected=false]:border-base-300",
-    "data-[selected=false]:bg-base-100",
+    "data-[selected=false]:text-base-content-muted",
+    "data-[selected=false]:border-border",
     "data-[selected=false]:focus-visible:border",
     "data-[LeftOfSelected=true]:border-r-0",
   ].join(" ");
@@ -56,6 +58,7 @@ export type ButtonGroupProps<T extends string, M = never> = {
   itemWidth?: string;
   size?: "sm";
   allowDeselect?: boolean;
+  onBackground?: Intent;
 };
 
 export function ButtonGroup<T extends string, M = never>(
@@ -82,13 +85,17 @@ export function ButtonGroup<T extends string, M = never>(
             return (
               <button
                 class={getButtonGroupItemClasses(p.size)}
+                classList={{
+                  [`ui-fill-${item.intent ?? "primary"}`]: isSelected(),
+                  [`ui-hoverable-${item.intent ?? "primary"}`]: isSelected(),
+                  [`ui-hoverable-${p.onBackground ?? "base-100"}`]:
+                    !isSelected(),
+                }}
                 style={{ width: p.itemWidth }}
                 data-selected={isSelected()}
                 data-first={isFirst()}
                 data-last={isLast()}
                 data-LeftOfSelected={isLeftOfSelected()}
-                data-intent={item.intent}
-                data-outline={!isSelected()}
                 aria-label={item.labelText}
                 disabled={item.disabled}
                 onClick={() =>
@@ -100,13 +107,13 @@ export function ButtonGroup<T extends string, M = never>(
                 {/* Icon & Text */}
                 <Show when={hasLabel() && item.iconName}>
                   <IconRenderer iconName={item.iconName} size={p.size} />
-                  <span class="relative inline-flex min-h-[1.25em] items-center">
+                  <span class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center">
                     {item.label}
                   </span>
                 </Show>
                 {/* Only Text */}
                 <Show when={hasLabel() && !item.iconName}>
-                  <span class="relative inline-flex min-h-[1.25em] items-center">
+                  <span class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center">
                     {item.label}
                   </span>
                 </Show>

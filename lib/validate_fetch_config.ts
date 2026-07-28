@@ -1,4 +1,4 @@
-import { isAdminLevel } from "./admin_area_rollup.ts";
+import { isRollupDimension } from "./rollup.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./types/disaggregation_options.ts";
 import { valueFuncStrict } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
@@ -128,6 +128,52 @@ export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
 // is the single point of consistency across both worlds.
 export const MULTI_MEMBERSHIP_DELIMITER = "|";
 
+// The id standing for "this row has no value in this column", covering both
+// SQL NULL and a whitespace-only cell. NULL and blank are one thing to a
+// reader, and they are reachable by different routes for the same column (an
+// unmatched LEFT JOIN yields NULL where the stored column only ever holds
+// blanks), so they fold together rather than becoming two options.
+//
+// Uppercase so it passes through buildWhereClause's UPPER() comparison
+// unchanged. Same theoretical collision exposure as ROLLUP_SENTINEL — a
+// literal "__BLANK" in source data — accepted on the same grounds.
+//
+// Interpolated into SQL by blankFoldedRef (query_helpers.ts) and matched
+// client-side for display; never stored.
+export const BLANK_SENTINEL = "__BLANK";
+
+// Display text for BLANK_SENTINEL, in ONE place because it is resolved by two
+// different mechanisms: figures pick it from their own FigureLocalization
+// (pickLang), UI chips from the ambient language (t3).
+//
+// "Blank", not "missing": "Missing" already means the count of facilities that
+// did not answer an HFA question — a data-quality claim about non-response.
+// This is the display state of a cell, and it covers three different origins
+// (no value stored, nothing assigned, no matching facility row), so it names
+// what is observable rather than inferring a cause.
+export const BLANK_SENTINEL_LABEL = {
+  en: "(Blank)",
+  fr: "(Vide)",
+  pt: "(Em branco)",
+};
+
+// Period-derived TEXT columns, excluded from the blank fold alongside the
+// integer ones: `month` is LPAD'd out of period_id by the period CTE, so it is
+// present whenever its source column is.
+const PERIOD_DERIVED_TEXT_COLUMNS: ReadonlySet<string> = new Set(["month"]);
+
+// Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL.
+// Excluded: integer columns (no blank state), period-derived text, and
+// multi-membership columns — a blank cell there yields NO row from
+// string_to_array('', '|') = {}, so there is nothing for the fold to catch.
+export function usesBlankSentinel(disOpt: string): boolean {
+  return (
+    !INTEGER_FILTER_COLUMNS.has(disOpt) &&
+    !PERIOD_DERIVED_TEXT_COLUMNS.has(disOpt) &&
+    !MULTI_MEMBERSHIP_FILTER_COLUMNS.has(disOpt)
+  );
+}
+
 // Encode/decode a multi-membership set for storage cells (RO column via the
 // R generator, xlsx workbook cells). parse mirrors Postgres
 // string_to_array('', '|') = {}: empty/blank cell → [], never [""].
@@ -219,37 +265,30 @@ export function validateFetchConfig(
   }
 
   if (
-    fetchConfig.includeAdminAreaRollup !== undefined &&
-    typeof fetchConfig.includeAdminAreaRollup !== "boolean"
-  ) {
-    throw new Error("Invalid includeAdminAreaRollup: must be a boolean");
-  }
-
-  if (
-    fetchConfig.adminAreaRollupLevel !== undefined &&
-    !isAdminLevel(fetchConfig.adminAreaRollupLevel)
+    fetchConfig.rollupDim !== undefined &&
+    !isRollupDimension(fetchConfig.rollupDim)
   ) {
     throw new Error(
-      "Invalid adminAreaRollupLevel: must be admin_area_2, admin_area_3, or admin_area_4"
+      "Invalid rollupDim: must be an admin level (admin_area_2/3/4) or a facility column"
     );
   }
 
   // Server-side mirror of isRollupEligibleResultsValue: the roll-up
-  // re-aggregates across admin areas, which is only meaningful for additive
-  // funcs, post-aggregation ingredients (recomputed after the union), or AVG
-  // over facility-level rows. AVG's facility-rows condition needs the table
-  // and is enforced in getPresentationObjectItems; here we reject the funcs
-  // that are never eligible. App clients never send these; this guards
+  // re-aggregates across the collapsed dimension, which is only meaningful for
+  // additive funcs, post-aggregation ingredients (recomputed after the union),
+  // or AVG over facility-level rows. AVG's facility-rows condition needs the
+  // table and is enforced in getPresentationObjectItems; here we reject the
+  // funcs that are never eligible. App clients never send these; this guards
   // hand-crafted requests.
   if (
-    fetchConfig.includeAdminAreaRollup === true &&
+    fetchConfig.rollupDim !== undefined &&
     fetchConfig.postAggregationExpression === undefined &&
     fetchConfig.values.some(
       (v) => v.func !== "SUM" && v.func !== "COUNT" && v.func !== "AVG"
     )
   ) {
     throw new Error(
-      "Invalid includeAdminAreaRollup: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
+      "Invalid rollupDim: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
     );
   }
 }

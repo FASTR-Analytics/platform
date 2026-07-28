@@ -11,7 +11,6 @@ export * from "./dimensions.ts";
 export * from "./downloads.ts";
 export * from "./figure_to_image.ts";
 export * from "./file_saver_vendored.ts";
-export * from "./fonts_ready.ts";
 export * from "./markdown_to_pdf_browser.ts";
 export * from "./markdown_to_word_browser.ts";
 export * from "./pages_to_pdf_browser.ts";

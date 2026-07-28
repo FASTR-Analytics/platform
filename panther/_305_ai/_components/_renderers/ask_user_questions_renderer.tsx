@@ -3,15 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  Button,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-  t3,
-} from "../../deps.ts";
+import { Button, createSignal, For, onMount, Show, t3 } from "../../deps.ts";
 import type {
   AskUserQuestionsAnswer,
   AskUserQuestionsInput,
@@ -27,11 +19,10 @@ export function AskUserQuestionsRenderer(p: Props) {
   const [selected, setSelected] = createSignal<string[]>([]);
   const [submitted, setSubmitted] = createSignal(false);
 
-  onCleanup(() => {
-    if (!submitted()) {
-      p.onCancel();
-    }
-  });
+  // Deliberately NO onCleanup cancel (decision log #6): unmount is inert —
+  // a pane hidden in a tab/<Show> leaves the question pending and
+  // recoverable on remount. Only explicit paths cancel: the Cancel button
+  // here, and Stop (via the tool's _cancelPending hook).
 
   const options = () => Array.isArray(p.input?.options) ? p.input.options : [];
 
@@ -74,10 +65,10 @@ export function AskUserQuestionsRenderer(p: Props) {
   });
 
   return (
-    <div ref={containerRef} class="border-base-300 rounded border p-3">
+    <div ref={containerRef} class="rounded border p-3">
       <div class="font-700 mb-2 text-sm">{p.input.question}</div>
       <Show when={p.input.allowMultiple}>
-        <div class="text-neutral mb-2 text-xs">
+        <div class="text-base-content-muted mb-2 text-xs">
           {t3({
             en: "Select all that apply",
             fr: "Sélectionnez toutes les réponses applicables",
@@ -94,12 +85,12 @@ export function AskUserQuestionsRenderer(p: Props) {
               onClick={() => handleSelect(option.label)}
               classList={{
                 "w-full rounded border px-3 py-2 text-left": true,
-                "border-primary bg-primary/10 font-700": isSelected(
+                "border-primary bg-primary-subtle font-700": isSelected(
                   option.label,
                 ),
-                "border-base-300 hover:bg-base-200":
-                  !isSelected(option.label) && !submitted(),
-                "border-base-300 opacity-60": !isSelected(option.label) &&
+                " ui-hoverable-base-100": !isSelected(option.label) &&
+                  !submitted(),
+                " opacity-60": !isSelected(option.label) &&
                   submitted(),
                 "cursor-pointer": !submitted(),
                 "cursor-default": submitted(),
@@ -107,7 +98,7 @@ export function AskUserQuestionsRenderer(p: Props) {
             >
               <div class="text-sm">{option.label}</div>
               <Show when={option.description}>
-                <div class="text-neutral mt-0.5 text-xs">
+                <div class="text-base-content-muted mt-0.5 text-xs">
                   {option.description}
                 </div>
               </Show>
@@ -127,7 +118,7 @@ export function AskUserQuestionsRenderer(p: Props) {
           <button
             type="button"
             onClick={handleCancel}
-            class="text-neutral hover:text-base-content cursor-pointer text-xs"
+            class="text-base-content-muted hover:text-base-content cursor-pointer text-xs"
           >
             {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
           </button>

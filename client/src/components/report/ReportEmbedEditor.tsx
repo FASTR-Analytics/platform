@@ -79,7 +79,7 @@ export function ReportEmbedEditor(p: Props) {
           <Show
             when={p.canConfigure}
             fallback={
-              <div class="ui-pad text-base-content/60 text-sm">
+              <div class="ui-pad text-base-content-muted text-sm">
                 {t3({
                   en: "Click a visualization or image to edit it.",
                   fr: "Cliquez sur une visualisation ou une image pour la modifier.",

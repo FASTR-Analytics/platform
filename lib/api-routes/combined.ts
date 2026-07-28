@@ -2,6 +2,7 @@ import { assetRouteRegistry } from "./instance/assets.ts";
 import { geojsonMapRouteRegistry } from "./instance/geojson_maps.ts";
 import { backupRouteRegistry } from "./instance/backups.ts";
 import { datasetRouteRegistry } from "./instance/datasets.ts";
+import { dhis2CredentialsRouteRegistry } from "./instance/dhis2_credentials.ts";
 import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { hfaTimePointRouteRegistry } from "./instance/hfa_time_points.ts";
 import { icehRouteRegistry } from "./instance/iceh.ts";
@@ -35,6 +36,7 @@ export const routeRegistryIndividualCount =
   Object.keys(geojsonMapRouteRegistry).length +
   Object.keys(backupRouteRegistry).length +
   Object.keys(datasetRouteRegistry).length +
+  Object.keys(dhis2CredentialsRouteRegistry).length +
   Object.keys(hfaIndicatorRouteRegistry).length +
   Object.keys(hfaTimePointRouteRegistry).length +
   Object.keys(icehRouteRegistry).length +
@@ -66,6 +68,7 @@ export const routeRegistry = {
   ...geojsonMapRouteRegistry,
   ...backupRouteRegistry,
   ...datasetRouteRegistry,
+  ...dhis2CredentialsRouteRegistry,
   ...hfaIndicatorRouteRegistry,
   ...hfaTimePointRouteRegistry,
   ...icehRouteRegistry,

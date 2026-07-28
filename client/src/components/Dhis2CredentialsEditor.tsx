@@ -1,43 +1,22 @@
 import { t3, type Dhis2Credentials } from "lib";
-import { Button, Checkbox, Input } from "panther";
+import { Button, Input } from "panther";
 import type { Accessor, Setter } from "solid-js";
-import { Show, createSignal, onMount } from "solid-js";
-import { getDhis2SessionCredentials } from "~/state/instance/t4_dhis2_session";
+import { createSignal } from "solid-js";
 
 type Props = {
   credentials: Accessor<Dhis2Credentials>;
   setCredentials: Setter<Dhis2Credentials>;
-  saveToSession?: Accessor<boolean>;
-  setSaveToSession?: Setter<boolean>;
   disabled?: boolean;
   fullWidth?: boolean;
 };
 
 export function Dhis2CredentialsEditor(p: Props) {
-  const [showSaveOption, setShowSaveOption] = createSignal<boolean>(false);
   const [showCredentials, setShowCredentials] = createSignal<boolean>(false);
 
-  onMount(() => {
-    // Check if credentials are empty and load from session if available
-    const current = p.credentials();
-    const isEmpty = !current.url && !current.username && !current.password;
-
-    if (isEmpty) {
-      const sessionCredentials = getDhis2SessionCredentials();
-      if (sessionCredentials) {
-        p.setCredentials(sessionCredentials);
-      } else {
-        setShowSaveOption(true);
-      }
-    }
-  });
-
-  // Save to session when appropriate
   const handleCredentialChange = (
     field: keyof Dhis2Credentials,
     value: string,
   ) => {
-    setShowSaveOption(true);
     p.setCredentials((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -83,17 +62,6 @@ export function Dhis2CredentialsEditor(p: Props) {
           ? t3({ en: "Hide credentials", fr: "Masquer les identifiants", pt: "Ocultar credenciais" })
           : t3({ en: "Show credentials", fr: "Afficher les identifiants", pt: "Mostrar credenciais" })}
       </Button>
-
-      <Show when={showSaveOption() && p.saveToSession && p.setSaveToSession}>
-        <div class="mt-4">
-          <Checkbox
-            checked={!!p.saveToSession?.()}
-            onChange={(v) => p.setSaveToSession?.(v)}
-            label={t3({ en: "Save credentials for this session", fr: "Enregistrer les identifiants pour cette session", pt: "Guardar as credenciais para esta sessão" })}
-            disabled={p.disabled}
-          />
-        </div>
-      </Show>
     </div>
   );
 }

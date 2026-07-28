@@ -8,15 +8,8 @@ import type {
   StructureDhis2OrgUnitMetadata,
   StructureIntegrateStrategy,
   StructureIntegrateSummary,
-  Dhis2Credentials,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
-
-const dhis2CredentialsSchema = z.object({
-  url: z.string(),
-  username: z.string(),
-  password: z.string(),
-});
 
 const facilityFamilySchema = z.enum(["hmis", "hfa"]);
 
@@ -118,11 +111,10 @@ export const structureRouteRegistry = {
       xlsFormAssetFileName: z.string().optional(),
     }),
   }),
-  structureStep1Dhis2_SetCredentials: route({
-    path: "/structure/step1_dhis2_set_credentials/:family",
+  structureStep1Dhis2_ConfirmConnection: route({
+    path: "/structure/step1_dhis2_confirm_connection/:family",
     method: "POST",
     params: z.object({ family: facilityFamilySchema }),
-    body: dhis2CredentialsSchema,
   }),
   // Step 2
   structureStep2Csv_SetColumnMappings: route({

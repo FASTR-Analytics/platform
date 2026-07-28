@@ -85,16 +85,6 @@ export const projectRouteRegistry = {
     requiresProject: true,
   }),
 
-  updateProjectUserRole: route({
-    path: "/project_user_role",
-    method: "POST",
-    body: z.object({
-      emails: z.array(z.string()),
-      role: z.enum(["none", "viewer", "editor"]),
-    }),
-    requiresProject: true,
-  }),
-
   getProjectDetail: route({
     path: "/project_detail",
     method: "GET",

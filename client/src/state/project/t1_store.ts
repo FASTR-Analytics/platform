@@ -5,6 +5,7 @@ import {
   _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { forceCollabReconnect } from "./collab";
 
 const EMPTY_PROJECT_STATE: ProjectState = {
   isReady: false,
@@ -78,7 +79,13 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
 
     case "project_config_updated":
       setProjectState("label", msg.data.label);
-      setProjectState("isLocked", msg.data.isLocked);
+      // The collab socket's server-side auth folds the lock in per connection
+      // (every edit permission is forced off while locked) — reconnect so a
+      // live lock/unlock actually reaches open editors.
+      if (projectState.isLocked !== msg.data.isLocked) {
+        setProjectState("isLocked", msg.data.isLocked);
+        forceCollabReconnect("project lock changed");
+      }
       if (msg.data.aiContext !== undefined) {
         setProjectState("aiContext", msg.data.aiContext);
       }
@@ -129,16 +136,40 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("dashboards", reconcile(msg.data.dashboards));
       break;
 
-    case "project_users_updated":
+    case "project_users_updated": {
+      const wasListed = projectState.projectUsers.some(
+        (u) => u.email === projectState.currentUserEmail
+      );
       setProjectState("projectUsers", reconcile(msg.data.projectUsers));
       const currentUser = msg.data.projectUsers.find(
         (u) => u.email === projectState.currentUserEmail
       );
       if (currentUser) {
         const { email, role, isGlobalAdmin, firstName, lastName, ...permissions } = currentUser;
+        const changed = Object.entries(permissions).some(
+          ([k, v]) =>
+            projectState.thisUserPermissions[k as keyof typeof permissions] !== v
+        );
         setProjectState("thisUserPermissions", permissions);
+        // The collab socket's server-side view/edit auth is snapshotted per
+        // connection: without a reconnect, a freshly-granted editor keeps
+        // getting silent "No edit permission" rejections (edits render
+        // locally, never save), and a revoked one can keep editing.
+        if (changed) {
+          forceCollabReconnect("own project permissions changed");
+        }
+      } else if (wasListed) {
+        // Removed from the project mid-session. Guarded on wasListed so
+        // open-access users (legitimately absent from the list) keep their
+        // implicit permissions from the `starting` payload.
+        setProjectState(
+          "thisUserPermissions",
+          structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS)
+        );
+        forceCollabReconnect("removed from project");
       }
       break;
+    }
 
     case "last_updated":
       for (const id of msg.data.ids) {

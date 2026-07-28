@@ -1,31 +1,42 @@
 import { Hono } from "hono";
+import type { Sql } from "postgres";
 import {
   // HFA imports
   addDatasetHfaUploadAttempt,
   addDatasetHmisUploadAttempt,
+  cancelDatasetHmisImportRun,
   computeHfaCacheHash,
+  createDatasetHmisScheduledImport,
   deleteDatasetHfaData,
   deleteAllDatasetHmisData,
   deleteDatasetHfaUploadAttempt,
+  deleteDatasetHmisScheduledImport,
   deleteDatasetHmisUploadAttempt,
+  enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
+  getDatasetHfaDuplicatePreview,
   getDatasetHfaItemsForDisplay,
   getDatasetHfaUploadAttemptDetail,
   getDatasetHfaUploadStatus,
   getDatasetHmisDetail,
+  getDatasetHmisImportLedgerItems,
+  getDatasetHmisImportRunDetail,
+  getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
+  getDatasetHmisScheduledImports,
   getDatasetHmisUploadAttemptDetail,
   getDatasetHmisUploadStatus,
-  getDhis2ScopedDeletionPreview,
+  getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
+  isDhis2CredentialsEncryptionKeyConfigured,
+  launchDatasetHmisDhis2ImportRun,
+  updateDatasetHmisScheduledImport,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
   updateDatasetHfaUploadAttempt_Step3Staging,
   updateDatasetHfaUploadAttempt_Step4Integrate,
   updateDatasetUploadAttempt_Step0SourceType,
   updateDatasetUploadAttempt_Step1CsvUpload,
-  updateDatasetUploadAttempt_Step1Dhis2Confirm,
-  updateDatasetUploadAttempt_Step2Dhis2Selection,
   updateDatasetUploadAttempt_Step2Mappings,
   updateDatasetUploadAttempt_Step3Staging,
   updateDatasetUploadAttempt_Step4Integrate,
@@ -34,10 +45,7 @@ import {
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
-import {
-  _FETCH_CACHE_DATASET_HFA_ITEMS,
-  _FETCH_CACHE_DATASET_HMIS_ITEMS,
-} from "../caches/dataset.ts";
+import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
 import { t3 } from "lib";
@@ -80,46 +88,268 @@ defineRoute(
 
 defineRoute(
   routesDatasets,
+  "getDatasetHmisImportLedger",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportLedger"),
+  async (c) => {
+    const res = await getDatasetHmisImportLedgerItems(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
   "getDatasetHmisDisplayInfo",
   requireGlobalPermission("can_view_data"),
   log("getDatasetHmisDisplayInfo"),
   async (c, { body }) => {
-    const existing = await _FETCH_CACHE_DATASET_HMIS_ITEMS.get(
-      {
-        rawOrCommonIndicators: body.rawOrCommonIndicators,
-        facilityColumns: body.facilityColumns,
-      },
-      {
-        versionId: body.versionId,
-        indicatorMappingsVersion: body.indicatorMappingsVersion,
-      },
-    );
-
-    if (existing) {
-      return c.json(existing);
-    }
-
-    const newPromise = getDatasetHmisItemsForDisplay(
+    // Computed live on every call. Since vizItems moved to the import ledger
+    // (~1.4k rows, not a dataset_hmis scan) the read costs a few ms, so the
+    // Valkey layer that used to shield it (ds_hmis_v2) was deleted along with
+    // its liabilities: the mid-run cache-bypass dance and the prefix-bump
+    // obligation on every payload-shape change. Client-side caching remains —
+    // the T2 IndexedDB cache keys on versionId + indicatorMappingsVersion,
+    // which only flip at run end (running-run versions are hidden from
+    // readers — see getVersionsForDatasetHmis), and the client bypasses it
+    // while a run is active, so mid-run reads stay live end to end.
+    const res = await getDatasetHmisItemsForDisplay(
       c.var.mainDb,
       body.versionId,
       body.indicatorMappingsVersion,
       body.rawOrCommonIndicators,
       body.facilityColumns,
     );
+    return c.json(res);
+  },
+);
 
-    _FETCH_CACHE_DATASET_HMIS_ITEMS.setPromise(
-      newPromise,
-      {
-        rawOrCommonIndicators: body.rawOrCommonIndicators,
-        facilityColumns: body.facilityColumns,
+/////////////////////////////////
+//                             //
+//    DHIS2 import runs        //
+//                             //
+/////////////////////////////////
+
+defineRoute(
+  routesDatasets,
+  "launchDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("launchDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    // Absent credentials = use the stored instance credentials (Phase 4 C3).
+    // Stored launches skip pre-validation — validating would decrypt the
+    // password in the host, and decryption is worker-only; bad stored
+    // credentials fail the run loudly within seconds.
+    let dhis2Url: string;
+    if (body.credentials) {
+      const validation = await validateDhis2Connection(body.credentials);
+      if (!validation.valid) {
+        return c.json({ success: false, err: t3(validation.message) });
+      }
+      dhis2Url = body.credentials.url;
+    } else {
+      const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+      if (!stored) {
+        return c.json({
+          success: false,
+          err: "No stored DHIS2 credentials — enter credentials or save them first.",
+        });
+      }
+      dhis2Url = stored.url;
+    }
+    const res = await launchDatasetHmisDhis2ImportRun(c.var.mainDb, {
+      credentialsSource: body.credentials
+        ? { kind: "inline", credentials: body.credentials }
+        : { kind: "stored" },
+      dhis2Url,
+      selection: body.selection,
+      trigger: "manual",
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
       },
-      {
-        versionId: body.versionId,
-        indicatorMappingsVersion: body.indicatorMappingsVersion,
+    });
+    if (res.success) {
+      // Flip hmisImportRunActive on every connected client now — their
+      // display caches must be bypassed for the run's duration.
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+// C6 — explicit queueing while a run is active (the client always asks the
+// user first; queueing is never the silent default). Unattended when it
+// fires, so it requires stored credentials up front.
+defineRoute(
+  routesDatasets,
+  "enqueueDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("enqueueDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+    if (!stored) {
+      return c.json({
+        success: false,
+        err: "Queued imports need stored DHIS2 credentials — save credentials first.",
+      });
+    }
+    const res = await enqueueDatasetHmisImportRun(c.var.mainDb, {
+      dhis2Url: stored.url,
+      selection: body.selection,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+    });
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisImportRuns",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportRuns"),
+  async (c) => {
+    const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisImportRunDetail",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisImportRunDetail"),
+  async (c, { params }) => {
+    const res = await getDatasetHmisImportRunDetail(c.var.mainDb, params.run_id);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "cancelDatasetHmisDhis2Run",
+  requireGlobalPermission("can_configure_data"),
+  log("cancelDatasetHmisDhis2Run"),
+  async (c, { body }) => {
+    const res = await cancelDatasetHmisImportRun(c.var.mainDb, body.runId);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+/////////////////////////////////////////
+//                                     //
+//    DHIS2 credentials + schedules    //
+//                                     //
+/////////////////////////////////////////
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHmisDhis2Scheduling",
+  requireGlobalPermission("can_view_data"),
+  log("getDatasetHmisDhis2Scheduling"),
+  async (c) => {
+    const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+    const res = {
+      success: true as const,
+      data: {
+        schedules: await getDatasetHmisScheduledImports(c.var.mainDb),
+        storedCredentials: stored ?? undefined,
+        encryptionKeyConfigured: isDhis2CredentialsEncryptionKeyConfigured(),
       },
+    };
+    return c.json(res);
+  },
+);
+
+// Schedules fire with {kind: "stored"} credentials, so they cannot be
+// created or re-enabled before the instance has stored credentials.
+async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
+  const stored = await getStoredDhis2CredentialsInfo(mainDb);
+  if (!stored) {
+    return "Scheduled imports need stored DHIS2 credentials — save credentials first.";
+  }
+  return null;
+}
+
+defineRoute(
+  routesDatasets,
+  "createDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("createDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    const blocked = await assertUnattendedReady(c.var.mainDb);
+    if (blocked) {
+      return c.json({ success: false, err: blocked });
+    }
+    const res = await createDatasetHmisScheduledImport(
+      c.var.mainDb,
+      body.schedule,
+      c.var.globalUser?.email ?? "unknown",
     );
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
 
-    const res = await newPromise;
+defineRoute(
+  routesDatasets,
+  "updateDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("updateDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    // Editing a one-shot re-enables it (the re-arm gesture), so it goes
+    // through the same unattended gate as create/enable.
+    if (body.schedule.kind === "one_shot") {
+      const blocked = await assertUnattendedReady(c.var.mainDb);
+      if (blocked) {
+        return c.json({ success: false, err: blocked });
+      }
+    }
+    const res = await updateDatasetHmisScheduledImport(
+      c.var.mainDb,
+      body.id,
+      body.schedule,
+    );
+    if (res.success) {
+      // The edit clears the last-fire outcome — the instance-wide attention
+      // banner must clear with it (review finding 5).
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "deleteDatasetHmisDhis2Schedule",
+  requireGlobalPermission("can_configure_data"),
+  log("deleteDatasetHmisDhis2Schedule"),
+  async (c, { body }) => {
+    const res = await deleteDatasetHmisScheduledImport(c.var.mainDb, body.id);
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );
@@ -247,11 +477,8 @@ defineRoute(
   "updateDatasetStaging",
   requireGlobalPermission("can_configure_data"),
   log("updateDatasetStaging"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step3Staging(
-      c.var.mainDb,
-      body.failFastMode,
-    );
+  async (c) => {
+    const res = await updateDatasetUploadAttempt_Step3Staging(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -268,52 +495,6 @@ defineRoute(
         notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
       },
     );
-    return c.json(res);
-  },
-);
-
-// DHIS2-specific endpoints
-defineRoute(
-  routesDatasets,
-  "dhis2ConfirmCredentials",
-  requireGlobalPermission("can_configure_data"),
-  log("dhis2ConfirmCredentials"),
-  async (c, { body }) => {
-    console.log("[dhis2ConfirmCredentials] Validating URL:", body.url);
-    const validation = await validateDhis2Connection(body);
-    console.log("[dhis2ConfirmCredentials] Result:", JSON.stringify(validation));
-    if (!validation.valid) {
-      return c.json({ success: false, err: t3(validation.message) });
-    }
-    const res = await updateDatasetUploadAttempt_Step1Dhis2Confirm(
-      c.var.mainDb,
-      body,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "dhis2SetSelection",
-  requireGlobalPermission("can_configure_data"),
-  log("dhis2SetSelection"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step2Dhis2Selection(
-      c.var.mainDb,
-      body,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDhis2ScopedDeletionPreview",
-  requireGlobalPermission("can_configure_data"),
-  log("getDhis2ScopedDeletionPreview"),
-  async (c) => {
-    const res = await getDhis2ScopedDeletionPreview(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -479,7 +660,19 @@ defineRoute(
     const res = await updateDatasetHfaUploadAttempt_Step2Mappings(
       c.var.mainDb,
       body.mappings,
+      body.reviewConfirmed,
     );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHfaDuplicatePreview",
+  requireGlobalPermission("can_configure_data"),
+  log("getDatasetHfaDuplicatePreview"),
+  async (c) => {
+    const res = await getDatasetHfaDuplicatePreview(c.var.mainDb);
     return c.json(res);
   },
 );

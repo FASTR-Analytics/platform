@@ -1,4 +1,5 @@
 import {
+  type FigureBundle,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ProjectState,
@@ -9,12 +10,14 @@ import {
 } from "lib";
 import { AlertComponentProps, StateHolderWrapper, createQuery } from "panther";
 import { Match, Switch } from "solid-js";
+import type { Awareness } from "y-protocols/awareness";
+import type * as Y from "yjs";
 import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 import { VisualizationEditorInner } from "./visualization_editor_inner";
-import type { AIContext } from "~/components/project_ai/types";
+import type { ProjectAIViewState } from "~/components/project_ai/ai_views";
 
 export type EditModeReturn = undefined | { deleted: true } | { saved: true };
 export type CreateModeReturn =
@@ -24,13 +27,41 @@ export type EphemeralModeReturn =
   | undefined
   | { updated: { config: PresentationObjectConfig } };
 
+/**
+ * Live-collab binding for the ephemeral (embedded figure) editor. The host
+ * (slide/report editor) passes this so the modal co-edits the figure's config
+ * IN the host's shared doc (the figConfig Y.Map), rather than committing once on
+ * Apply. Absent (or not live) → the modal keeps the classic Apply/Cancel flow.
+ */
+export type VizFigureCollabBinding = {
+  /** Host-side id of the figure being edited (slide layout blockId / report
+   *  figure registry id) — scopes live-cursor broadcasts to viewers of the
+   *  same figure. */
+  figureId: string;
+  /** The figConfig Y.Map in the host doc (slide node / report figure entry),
+   *  or undefined if the figure isn't decomposed (no live co-editing then). */
+  getConfigMap: () => Y.Map<unknown> | undefined;
+  /** The host session's Yjs awareness (carries caption carets). */
+  awareness: Awareness;
+  isLive: () => boolean;
+  /** Accessor (not a baked value) so a lock / permission / fatal-room change
+   *  while the modal is open propagates into the caption editors. */
+  canEdit: () => boolean;
+  /** Transaction origin for this client's edits (for the scoped undo manager). */
+  localOrigin: object;
+  /** Called when a coherent bundle (edited config + refreshed items) is ready,
+   *  so the host can path-set it into its doc — keeps canvas peers' data in step
+   *  with the config being co-edited. */
+  onCoherentBundle: (bundle: FigureBundle) => void;
+};
+
 type EditModeProps = {
   mode: "edit";
   presentationObjectId: string;
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   close: (result: EditModeReturn) => void;
 };
 
@@ -42,7 +73,7 @@ type CreateModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
   close: (result: CreateModeReturn) => void;
 };
 
@@ -54,7 +85,9 @@ type EphemeralModeProps = {
   projectId: string;
 
   projectStateSnapshot: ProjectState;
-  returnToContext?: AIContext;
+  returnToContext?: ProjectAIViewState;
+  /** When present + live, the figure is co-edited in the host doc (see type). */
+  collabBinding?: VizFigureCollabBinding;
   close: (result: EphemeralModeReturn) => void;
 };
 
@@ -237,6 +270,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
             poDetail={syntheticPoDetail}
             resultsValueInfo={keyedResultsValueInfo}
             returnToContext={p.returnToContext}
+            collabBinding={p.collabBinding}
             onClose={p.close}
           />
         );

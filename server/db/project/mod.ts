@@ -12,5 +12,6 @@ export * from "./slides.ts";
 export * from "./move_slides.ts";
 export * from "./reports.ts";
 export * from "./report_folders.ts";
+export * from "./versions.ts";
 export * from "./calculated_indicators_snapshot.ts";
 export * from "./dashboards.ts";

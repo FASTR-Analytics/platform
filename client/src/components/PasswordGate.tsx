@@ -23,7 +23,7 @@ export function PasswordGate(p: Props) {
       fallback={
         <div class="flex h-full items-center justify-center">
           <div class="flex w-72 flex-col ui-gap">
-            <div class="text-base-content font-600 text-sm">
+            <div class="text-base-content text-sm">
               This content is password protected
             </div>
             <Input

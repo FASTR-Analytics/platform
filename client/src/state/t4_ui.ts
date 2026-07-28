@@ -11,17 +11,7 @@ import type {
 // ============================================================================
 
 // Active tab selection
-export type TabOption =
-  | "reports"
-  | "decks"
-  | "dashboards"
-  | "visualizations"
-  | "metrics"
-  | "results_package"
-  | "settings"
-  | "cache";
-
-const _TAB_OPTIONS: readonly TabOption[] = [
+const ALL_TAB_OPTIONS = [
   "reports",
   "decks",
   "dashboards",
@@ -30,18 +20,26 @@ const _TAB_OPTIONS: readonly TabOption[] = [
   "results_package",
   "settings",
   "cache",
-];
+] as const;
 
-// Stored prefs may hold a tab that no longer exists (e.g. the removed
-// "modules"/"data" tabs) — fall back rather than selecting nothing.
-const rawStoredTab = localStorage.getItem("projectTab");
-const storedTab = _TAB_OPTIONS.includes(rawStoredTab as TabOption)
-  ? (rawStoredTab as TabOption)
-  : null;
+export type TabOption = (typeof ALL_TAB_OPTIONS)[number];
 
-export const [projectTab, setProjectTabInternal] = createSignal<TabOption>(
-  storedTab ?? "visualizations",
-);
+// Checked, unlike the sort/grouping modes below: this is the one stored value
+// that feeds a lookup which THROWS on a miss (PROJECT_TAB_TO_VIEW ->
+// panther's setView, from a mount effect with no ErrorBoundary above it, so
+// the throw also skips every effect queued after it). A value written by a
+// build that spelled a tab differently — or holding a removed tab like
+// "modules"/"data" — would take the project page down with no error surface;
+// the modes below only feed comparisons and degrade.
+const storedTab = localStorage.getItem("projectTab");
+const initialTab: TabOption =
+  storedTab !== null &&
+  (ALL_TAB_OPTIONS as readonly string[]).includes(storedTab)
+    ? (storedTab as TabOption)
+    : "visualizations";
+
+export const [projectTab, setProjectTabInternal] =
+  createSignal<TabOption>(initialTab);
 
 export function setProjectTab(tab: TabOption) {
   localStorage.setItem("projectTab", tab);
@@ -249,6 +247,32 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
     setPolicyHeaderOrContent(updates.policyHeaderOrContent);
   }
 }
+
+// ============================================================================
+// Appearance
+// ============================================================================
+
+// Applied at module scope so the stored theme is on <html> before first paint
+const storedDarkMode = localStorage.getItem("darkMode") === "true";
+
+export const [darkMode, setDarkModeInternal] =
+  createSignal<boolean>(storedDarkMode);
+
+export function setDarkMode(value: boolean) {
+  localStorage.setItem("darkMode", String(value));
+  setDarkModeInternal(value);
+  applyThemeToDocument(value);
+}
+
+function applyThemeToDocument(dark: boolean) {
+  if (dark) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+}
+
+applyThemeToDocument(storedDarkMode);
 
 // ============================================================================
 // Chart/Viz Display Settings

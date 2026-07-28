@@ -11,6 +11,12 @@ type Props = AlertComponentProps<
     oldText: string;
     newText: string;
     summary?: string;
+    // Set when staged via the approval lifecycle's customProposalUI override
+    // (report_editor's propose-edit tools): aborts on an EXTERNAL resolution
+    // (Stop) — this UI's cleanup obligation is to close itself, since
+    // panther has no dismissal API for an already-open openComponent
+    // dialog.
+    signal?: AbortSignal;
   },
   boolean
 >;
@@ -24,6 +30,15 @@ export function ReportMarkdownDiff(p: Props) {
   let merge: MergeView | undefined;
 
   onMount(() => {
+    if (p.signal) {
+      if (p.signal.aborted) {
+        p.close(false);
+        return;
+      }
+      const onAbort = () => p.close(false);
+      p.signal.addEventListener("abort", onAbort);
+      onCleanup(() => p.signal?.removeEventListener("abort", onAbort));
+    }
     const base = [
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),

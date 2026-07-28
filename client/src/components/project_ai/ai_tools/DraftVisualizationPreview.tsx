@@ -12,7 +12,7 @@ import {
 import type { AlertComponentProps, FigureInputs, StateHolder } from "panther";
 import {
   Button,
-  ChartHolder,
+  FigureHolder,
   LoadingIndicator,
   ModalContainer,
   openAlert,
@@ -37,9 +37,10 @@ import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
 import { projectState } from "~/state/project/t1_store";
-import { useAIProjectContext } from "~/components/project_ai/context";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
+import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type FigureInput = AiFigureFromVisualization | AiFigureFromMetric;
 
@@ -51,8 +52,6 @@ type Props = {
 };
 
 export function DraftVisualizationPreview(p: Props) {
-  const { aiContext } = useAIProjectContext();
-
   const [figureState, setFigureState] = createSignal<StateHolder<FigureInputs>>(
     {
       status: "loading",
@@ -102,7 +101,7 @@ export function DraftVisualizationPreview(p: Props) {
         onEditSave: handleSave,
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
-          aiContext().mode === "editing_slide_deck"
+          projectAIViewController.current().id === "editing_slide_deck"
             ? t3({
                 en: "Add to this deck",
                 fr: "Ajouter au deck",
@@ -185,8 +184,8 @@ export function DraftVisualizationPreview(p: Props) {
   }
 
   async function handleAddToDeck() {
-    const ctx = aiContext();
-    if (ctx.mode === "editing_slide") {
+    const view = projectAIViewController.current();
+    if (view.id === "editing_slide") {
       await openAlert({
         text: t3({
           en: "Switch back to the full slide deck viewer to add this as a slide.",
@@ -204,8 +203,8 @@ export function DraftVisualizationPreview(p: Props) {
         blocks: [p.figure],
       };
       const deckConfig: SlideDeckConfig =
-        ctx.mode === "editing_slide_deck"
-          ? ctx.getDeckConfig()
+        view.id === "editing_slide_deck"
+          ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck("Draft");
       const slide: Slide = await convertAiInputToSlide(
         p.projectId,
@@ -213,8 +212,8 @@ export function DraftVisualizationPreview(p: Props) {
         p.metrics,
         deckConfig,
       );
-      if (ctx.mode === "editing_slide_deck") {
-        await addSlideDirectlyToDeck(p.projectId, slide, ctx);
+      if (view.id === "editing_slide_deck") {
+        await addSlideDirectlyToDeck(p.projectId, slide, view.params.deckId);
       } else {
         await openComponent({
           element: AddToDeckModal,
@@ -238,7 +237,7 @@ export function DraftVisualizationPreview(p: Props) {
 
   return (
     <ErrorBoundary fallback={<></>}>
-      <div class="border-base-300 bg-base-100 max-w-[400px] rounded border">
+      <div class="bg-base-100 max-w-[400px] rounded border">
         <div class="p-1.5">
           <Show
             when={
@@ -249,7 +248,7 @@ export function DraftVisualizationPreview(p: Props) {
           >
             {(vizFigure) => (
               <div
-                class="cursor-pointer transition-opacity hover:opacity-80"
+                class="cursor-pointer"
                 onClick={openExpandedViewForViz}
               >
                 <div class="pointer-events-none">
@@ -269,7 +268,7 @@ export function DraftVisualizationPreview(p: Props) {
           </Show>
           <Show when={p.figure.type === "from_metric"}>
             <div
-              class="cursor-pointer transition-opacity hover:opacity-80"
+              class="cursor-pointer"
               onClick={openExpandedViewForMetric}
             >
               <div class="pointer-events-none">
@@ -278,7 +277,7 @@ export function DraftVisualizationPreview(p: Props) {
             </div>
           </Show>
         </div>
-        <div class="border-base-300 flex gap-1.5 border-t p-1.5">
+        <div class="flex gap-1.5 border-t p-1.5">
           <Button
             size="sm"
             outline
@@ -297,7 +296,7 @@ export function DraftVisualizationPreview(p: Props) {
             })}
           </Button>
           <Button size="sm" outline onClick={handleAddToDeck}>
-            {aiContext().mode === "editing_slide_deck"
+            {projectAIViewController.current().id === "editing_slide_deck"
               ? t3({
                   en: "Add to this deck",
                   fr: "Ajouter au deck",
@@ -340,13 +339,13 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
       >
         {(keyedFigureInputs) => {
           const h1 =
-            "tableData" in keyedFigureInputs
+            keyedFigureInputs.figureType === "table"
               ? ("ideal" as const)
               : ("flex" as const);
           return (
             <div class="aspect-video overflow-hidden">
-              <ChartHolder
-                chartInputs={keyedFigureInputs}
+              <FigureHolder
+                figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
                 height={h1}
                 sizing="zoom"
               />

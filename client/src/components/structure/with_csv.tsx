@@ -17,12 +17,15 @@ export function StructureWithCsv(p: Props) {
     msg: t3(TC.fetchingData),
   });
 
+  let fetchRunId = 0;
   async function attemptGetStructureItems(lastUpdated: string, maxAA: number, fcHash: string) {
+    const runId = ++fetchRunId;
     setStructureItems({
       status: "loading",
       msg: t3(TC.fetchingData),
     });
     const res = await getStructureItemsFromCacheOrFetch(p.family, lastUpdated, maxAA, fcHash);
+    if (runId !== fetchRunId) return;
     if (res.success === false) {
       setStructureItems({ status: "error", err: res.err });
       return;

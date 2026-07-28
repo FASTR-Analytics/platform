@@ -6,6 +6,7 @@ import type {
 import type {
   DatasetHfaUploadAttemptDetail,
   DatasetHfaUploadStatusResponse,
+  HfaDuplicatePreview,
 } from "../../types/dataset_hfa_import.ts";
 import {
   datasetHmisWindowingRawSchema,
@@ -13,13 +14,15 @@ import {
 } from "../../types/mod.ts";
 import type {
   DatasetHmisDetail,
+  DatasetHmisImportLedgerItem,
+  DatasetHmisImportRunDetail,
+  DatasetHmisImportRunSummary,
+  DatasetHmisScheduledImport,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
   DatasetUploadAttemptDetail,
   DatasetUploadStatusResponse,
-  Dhis2Credentials,
-  Dhis2ScopedDeletionPreviewItem,
-  Dhis2SelectionParams,
+  Dhis2ImportSchedulingInfo,
   IndicatorType,
   InstanceConfigFacilityColumns,
   ItemsHolderDatasetHmisDisplay,
@@ -32,15 +35,92 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
-const dhis2SelectionParamsSchema = z.object({
-  rawIndicatorIds: z.array(z.string()),
-  startPeriod: z.number(),
-  endPeriod: z.number(),
+const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("window"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    startPeriod: z.number().int(),
+    endPeriod: z.number().int(),
+  }),
+  z.object({
+    kind: z.literal("pairs"),
+    pairs: z
+      .array(
+        z.object({
+          indicatorRawId: z.string(),
+          periodId: z.number().int(),
+        }),
+      )
+      .min(1),
+  }),
+]);
+
+const dhis2ScheduleSelectionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("last_n_months"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    monthsBack: z.number().int().min(1).max(120),
+  }),
+  z.object({
+    kind: z.literal("explicit_range"),
+    rawIndicatorIds: z.array(z.string()).min(1),
+    startPeriod: z.number().int(),
+    endPeriod: z.number().int(),
+  }),
+]);
+
+const startTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+const dhis2ScheduleRecurrenceSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("daily"),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+  z.object({
+    kind: z.literal("weekly"),
+    firstRunDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    everyNWeeks: z.number().int().min(1).max(13),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+  z.object({
+    kind: z.literal("monthly"),
+    nth: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal("last")]),
+    weekday: z.number().int().min(0).max(6),
+    everyNMonths: z.number().int().min(1).max(12),
+    anchorMonth: z.string().regex(/^\d{4}-\d{2}$/),
+    startTime: startTimeSchema,
+    timezone: z.string(),
+  }),
+]);
+
+// Cross-field requirements per kind (one_shot needs runAt; recurring needs
+// recurrence; timezone/date semantics) are validated server-side.
+const dhis2ScheduleFieldsSchema = z.object({
+  kind: z.enum(["one_shot", "recurring"]),
+  selection: dhis2ScheduleSelectionSchema,
+  runAt: z.string().optional(),
+  recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
   timePoint: z.string(),
+  rowFilters: z.array(
+    z.object({
+      column: z.string(),
+      op: z.enum(["equals", "not_equals"]),
+      value: z.string(),
+    }),
+  ),
+  dedupStrategy: z.enum(["first", "last"]),
+  dedupOverrides: z.array(
+    z.object({
+      facilityId: z.string(),
+      keepRow: z.number().int().min(1),
+    }),
+  ),
 });
 
 
@@ -55,6 +135,11 @@ export const datasetRouteRegistry = {
     path: "/datasets/hmis/versions",
     method: "GET",
     response: {} as DatasetHmisVersion[],
+  }),
+  getDatasetHmisImportLedger: route({
+    path: "/datasets/hmis/import-ledger",
+    method: "GET",
+    response: {} as DatasetHmisImportLedgerItem[],
   }),
   getDatasetHmisDisplayInfo: route({
     path: "/datasets/hmis/data",
@@ -73,7 +158,70 @@ export const datasetRouteRegistry = {
     body: z.object({ windowing: datasetHmisWindowingRawSchema }),
   }),
 
-  // Upload workflow
+  // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
+  // credentials absent = use the stored instance credentials (Phase 4 C3).
+  launchDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs",
+    method: "POST",
+    body: z.object({
+      credentials: dhis2CredentialsSchema.optional(),
+      selection: dhis2RunSelectionSchema,
+    }),
+    response: {} as { runId: number },
+  }),
+  getDatasetHmisImportRuns: route({
+    path: "/datasets/hmis/dhis2-runs",
+    method: "GET",
+    response: {} as DatasetHmisImportRunSummary[],
+  }),
+  // Summary + the run_stats blob (per-pair failures, unknown ids) —
+  // fetched on demand from the History row click, never in the polled list.
+  getDatasetHmisImportRunDetail: route({
+    path: "/datasets/hmis/dhis2-runs/:run_id",
+    method: "GET",
+    params: z.object({ run_id: z.coerce.number().int() }),
+    response: {} as DatasetHmisImportRunDetail,
+  }),
+  // Cancels a running run, or removes a queued one.
+  cancelDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs/cancel",
+    method: "POST",
+    body: z.object({ runId: z.number().int() }),
+  }),
+
+  // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4 — C3/C4/C6)
+  enqueueDatasetHmisDhis2Run: route({
+    path: "/datasets/hmis/dhis2-runs/enqueue",
+    method: "POST",
+    body: z.object({ selection: dhis2RunSelectionSchema }),
+    response: {} as { runId: number },
+  }),
+  getDatasetHmisDhis2Scheduling: route({
+    path: "/datasets/hmis/dhis2-scheduling",
+    method: "GET",
+    response: {} as Dhis2ImportSchedulingInfo,
+  }),
+  createDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules",
+    method: "POST",
+    body: z.object({ schedule: dhis2ScheduleFieldsSchema }),
+    response: {} as DatasetHmisScheduledImport,
+  }),
+  updateDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules/update",
+    method: "POST",
+    body: z.object({
+      id: z.number().int(),
+      schedule: dhis2ScheduleFieldsSchema,
+    }),
+  }),
+  deleteDatasetHmisDhis2Schedule: route({
+    path: "/datasets/hmis/dhis2-schedules",
+    method: "DELETE",
+    body: z.object({ id: z.number().int() }),
+  }),
+
+  // Upload workflow (CSV — DHIS2 imports are runs, above)
   createDatasetUploadAttempt: route({
     path: "/datasets/hmis/uploads",
     method: "POST",
@@ -81,7 +229,7 @@ export const datasetRouteRegistry = {
   setDatasetUploadSourceType: route({
     path: "/dataset-uploads/hmis/source-type",
     method: "POST",
-    body: z.object({ sourceType: z.enum(["csv", "dhis2"]) }),
+    body: z.object({ sourceType: z.enum(["csv"]) }),
   }),
   getDatasetUpload: route({
     path: "/dataset-uploads/hmis",
@@ -110,30 +258,10 @@ export const datasetRouteRegistry = {
   updateDatasetStaging: route({
     path: "/dataset-uploads/hmis/staging",
     method: "POST",
-    body: z.object({
-      failFastMode: z.enum(["fail-fast", "continue-on-error"]).optional(),
-    }),
   }),
   finalizeDatasetIntegration: route({
     path: "/dataset-uploads/hmis/integrate",
     method: "POST",
-  }),
-
-  // DHIS2-specific endpoints
-  dhis2ConfirmCredentials: route({
-    path: "/dataset-uploads/hmis/dhis2-confirm",
-    method: "POST",
-    body: dhis2CredentialsSchema,
-  }),
-  dhis2SetSelection: route({
-    path: "/dataset-uploads/hmis/dhis2-selection",
-    method: "POST",
-    body: dhis2SelectionParamsSchema,
-  }),
-  getDhis2ScopedDeletionPreview: route({
-    path: "/dataset-uploads/hmis/dhis2-deletion-preview",
-    method: "GET",
-    response: {} as Dhis2ScopedDeletionPreviewItem[],
   }),
 
   // HFA Dataset Endpoints
@@ -180,10 +308,21 @@ export const datasetRouteRegistry = {
       xlsFormAssetFileName: z.string(),
     }),
   }),
+  // reviewConfirmed: false = step-2 (mappings/filters) save → wizard lands on
+  // the review step; true = step-3 (duplicates review) save → wizard advances
+  // to staging
   updateDatasetHfaMappings: route({
     path: "/dataset-uploads/hfa/mappings",
     method: "POST",
-    body: z.object({ mappings: hfaCsvMappingParamsSchema }),
+    body: z.object({
+      mappings: hfaCsvMappingParamsSchema,
+      reviewConfirmed: z.boolean(),
+    }),
+  }),
+  getDatasetHfaDuplicatePreview: route({
+    path: "/dataset-uploads/hfa/duplicate-preview",
+    method: "GET",
+    response: {} as HfaDuplicatePreview,
   }),
   updateDatasetHfaStaging: route({
     path: "/dataset-uploads/hfa/staging",

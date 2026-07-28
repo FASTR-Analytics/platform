@@ -6,6 +6,7 @@
 import type { PNode } from "../_internal/pipeline_types.ts";
 import type { ResolvedSpacing } from "../types_options.ts";
 import type { PlacementPass } from "./types.ts";
+import { requiredGap } from "./types.ts";
 
 // straighten (DOC_VIZGRAPH_PLACEMENT.md): remove residual micro-jogs left by
 // the earlier passes — the yFiles `straightenEdges` analogue. Scope is
@@ -92,10 +93,11 @@ function trySnap(
     const desiredTop = target - pnode.h / 2;
     const k = pnode.order;
     const lower = k > 0
-      ? layer[k - 1].y + layer[k - 1].h + spacing.nodeGap
+      ? layer[k - 1].y + layer[k - 1].h +
+        requiredGap(layer[k - 1], pnode, spacing)
       : -Infinity;
     const upper = k < layer.length - 1
-      ? layer[k + 1].y - spacing.nodeGap - pnode.h
+      ? layer[k + 1].y - requiredGap(pnode, layer[k + 1], spacing) - pnode.h
       : Infinity;
     if (desiredTop < lower || desiredTop > upper) {
       continue; // partial moves create new half-jogs — all or nothing

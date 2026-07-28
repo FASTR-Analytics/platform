@@ -30,6 +30,11 @@ import {
   getAdminAreaLabelsConfig,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
+import {
+  countQueuedDatasetHmisImportRuns,
+  hasRunningDatasetHmisImportRun,
+} from "./dataset_hmis_import_runs.ts";
+import { hasScheduledImportAttention } from "./dataset_hmis_scheduled_imports.ts";
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
 import { getHfaWeightsCoverage } from "./hfa_facility_weights.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
@@ -226,11 +231,17 @@ export async function getInstanceDatasetsSummary(
     datasetsWithData.push("iceh");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
+  // Running-run versions excluded, same as every version reader — see
+  // getVersionsForDatasetHmis.
   const hmisNVersions =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM dataset_hmis_versions`
+      >`SELECT COUNT(*) as count FROM dataset_hmis_versions
+        WHERE id NOT IN (
+          SELECT version_id FROM dataset_hmis_import_runs
+          WHERE status = 'running' AND version_id IS NOT NULL
+        )`
     )[0]?.count ?? 0;
   const hfaTimePointRows = await mainDb<
     {
@@ -251,6 +262,9 @@ export async function getInstanceDatasetsSummary(
       hfa: hfaTimePointRows.length > 0 ? hfaTimePointRows.length : undefined,
     },
     hmisNVersions,
+    hmisImportRunActive: await hasRunningDatasetHmisImportRun(mainDb),
+    hmisImportRunsQueued: await countQueuedDatasetHmisImportRuns(mainDb),
+    hmisScheduledImportAttention: await hasScheduledImportAttention(mainDb),
     hfaTimePoints: hfaTimePointRows.map((r) => ({
       label: r.label,
       periodId: r.period_id,

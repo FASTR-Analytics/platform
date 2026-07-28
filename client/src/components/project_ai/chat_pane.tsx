@@ -8,6 +8,7 @@ import {
   type AIChatSystemPromptPanelProps,
   Button,
   createAIChat,
+  Icon,
   MenuTriggerWrapper,
   openComponent,
   openConfirm,
@@ -16,7 +17,7 @@ import {
 } from "panther";
 import { t3, TC } from "lib";
 import { createEffect, createSignal, on, onMount, Show, type Accessor } from "solid-js";
-import { useAIProjectContext } from "./context";
+import { projectAIViewController } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
@@ -31,15 +32,15 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
   const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
   const resetTime = () => props.item.errorDetails.match(RESET_RE)?.[1] ?? null;
   return (
-    <div class="border-base-300 bg-base-100 my-1 max-w-sm rounded border p-3">
-      <div class="text-warning text-sm font-medium">
+    <div class="bg-base-100 my-1 max-w-sm rounded border p-3">
+      <div class="text-warning text-sm">
         {isWeekly()
           ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte", pt: "Limite de utilização da IA do país atingido" })
           : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte", pt: "Limite diário de utilização da IA atingido" })}
       </div>
       <Show when={resetTime()}>
         {(time) => (
-          <div class="text-neutral mt-1 text-xs">
+          <div class="ui-text-caption mt-1">
             {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à", pt: "A utilização será reposta às" })} {time()}
           </div>
         )}
@@ -57,10 +58,14 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+          class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
         >
-          <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
-          <span class="font-medium">{props.item.errorMessage}</span>
+          <div class="mt-0.5">
+            {expanded()
+              ? <Icon iconName="chevronDown" class="h-3 w-3" />
+              : <Icon iconName="chevronRight" class="h-3 w-3" />}
+          </div>
+          <span>{props.item.errorMessage}</span>
         </button>
         <Show when={expanded()}>
           <div class="ml-4 mt-1 text-xs">{props.item.errorDetails}</div>
@@ -82,10 +87,14 @@ function SystemNoticeRenderer(props: { item: { message: string; details: string 
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        class="text-neutral/80 hover:text-neutral flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+        class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
-        <span class="mt-0.5">{expanded() ? "▾" : "▸"}</span>
-        <span class="font-medium">{props.item.message}</span>
+        <div class="mt-0.5">
+          {expanded()
+            ? <Icon iconName="chevronDown" class="h-3 w-3" />
+            : <Icon iconName="chevronRight" class="h-3 w-3" />}
+        </div>
+        <span>{props.item.message}</span>
       </button>
       <Show when={expanded()}>
         <div class="ml-4 mt-1 text-xs">{props.item.details}</div>
@@ -102,7 +111,6 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { aiContext } = useAIProjectContext();
   const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
     createAIChat();
   const conversations = useConversations();
@@ -250,8 +258,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   ];
 
   const placeholder = () => {
-    const ctx = aiContext();
-    switch (ctx.mode) {
+    const view = projectAIViewController.current();
+    switch (view.id) {
       case "editing_slide_deck":
         return t3({
           en: "Ask about this slide deck...",
@@ -276,46 +284,25 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       case "viewing_slide_decks":
       case "viewing_reports":
       case "viewing_metrics":
+      case "viewing_results_package":
       case "viewing_settings":
+      case "viewing_dashboards":
+      case "viewing_cache":
         return t3({
           en: "Explore your data...",
           fr: "Explorez vos données...",
           pt: "Explore os seus dados...",
         });
       default: {
-        const _exhaustive: never = ctx;
+        const _exhaustive: never = view;
         return _exhaustive;
       }
     }
   };
 
-  const titleSubtext = () => {
-    const ctx = aiContext();
-    switch (ctx.mode) {
-      case "editing_slide_deck":
-        return ctx.deckLabel;
-      case "editing_slide":
-        return ctx.slideLabel;
-      case "editing_visualization":
-        return ctx.vizLabel;
-      case "editing_report":
-        return ctx.reportLabel;
-      case "viewing_visualizations":
-        return t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" });
-      case "viewing_slide_decks":
-        return t3({ en: "Slide Decks", fr: "Présentations", pt: "Apresentações" });
-      case "viewing_reports":
-        return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
-      case "viewing_metrics":
-        return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
-      case "viewing_settings":
-        return t3(TC.settings);
-      default: {
-        const _exhaustive: never = ctx;
-        return _exhaustive;
-      }
-    }
-  };
+  // The per-mode label switch moved onto the view registry (ai_views.ts) —
+  // the controller resolves the current view's label.
+  const titleSubtext = () => projectAIViewController.currentLabel();
 
   type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null };
   const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
@@ -349,8 +336,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   };
 
   return (
-    <div class="flex h-full w-full flex-col border-l">
-      <div class="ui-pad ui-gap border-base-content bg-primary flex items-center justify-between border-b text-white">
+    <div class="flex h-full w-full flex-col">
+      <div class="ui-pad ui-gap border-base-content dark:border-base-300 bg-primary text-primary-content flex items-center justify-between border-b">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
@@ -359,6 +346,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
             <Button
               outline
+              onBackground="primary"
               intent="base-100"
               iconName="moreVertical"
               ariaLabel="Menu"
@@ -367,6 +355,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <Button
             onClick={() => setShowAi(false)}
             outline
+            onBackground="primary"
             intent="base-100"
             iconName="chevronRight"
             ariaLabel="Hide AI panel"
@@ -379,7 +368,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onRemove={p.aiDocs.removeDocument}
       />
 
-      <div class="flex-1 overflow-hidden">
+      <div class="md-dark-adapt flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}
@@ -403,7 +392,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
               class={usagePct()! >= 80 ? "" : "text-primary"}
             />
           </svg>
-          <span class="text-neutral text-xs">{usagePct()}% of daily AI limit used</span>
+          <span class="ui-text-caption">{usagePct()}% of daily AI limit used</span>
         </div>
       </Show>
     </div>

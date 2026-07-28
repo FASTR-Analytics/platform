@@ -75,8 +75,7 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
         execute: (sql) => projectDb.unsafe(sql),
         columnExists: (table, column) =>
           detectColumnExists(projectDb, table, column),
-        getIndicatorMetadata: () =>
-          getIndicatorMetadata(mainDb, projectDb, moduleId),
+        getIndicatorMetadata: () => getIndicatorMetadata(projectDb, moduleId),
       },
       projectId,
       resultsObjectId,
@@ -106,13 +105,13 @@ export async function getPresentationObjectItemsCore(
     // observations. Mirrors isRollupEligibleResultsValue; app clients never
     // send this — guards hand-crafted requests.
     if (
-      fetchConfig.includeAdminAreaRollup === true &&
+      fetchConfig.rollupDim !== undefined &&
       fetchConfig.postAggregationExpression === undefined &&
       fetchConfig.values.some((v) => v.func === "AVG") &&
-      !(await deps.columnExists(tableName, "facility_id"))
+      !queryContext.hasFacilityId
     ) {
       throw new Error(
-        "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",
+        "Invalid rollupDim: AVG values can only be rolled up when the results table has facility-level rows",
       );
     }
 
@@ -132,6 +131,8 @@ export async function getPresentationObjectItemsCore(
     const nonFacilityWhereStatements = buildWhereClause(
       nonFacilityFetchConfig,
       queryContext.hasPeriodId,
+      undefined,
+      queryContext,
     );
 
     const rawDateRange = await getPeriodBoundsCore(

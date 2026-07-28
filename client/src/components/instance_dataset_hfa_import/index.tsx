@@ -6,7 +6,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
@@ -23,6 +23,7 @@ import { Step1 } from "./step_1";
 import { Step2 } from "./step_2";
 import { Step3 } from "./step_3";
 import { Step4 } from "./step_4";
+import { Step5 } from "./step_5";
 
 type Props = EditorComponentProps<
   {
@@ -63,7 +64,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
     // no arm matches (dead-end error screen).
     initialStep: 1,
     minStep: 1,
-    maxStep: 4,
+    maxStep: 5,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {
         return { canGoPrev: false, canGoNext: false };
@@ -76,19 +77,19 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
         }
         return { canGoPrev: true, canGoNext: false };
       }
-      if (currentStep === 2) {
+      if (currentStep === 2 || currentStep === 3) {
         if (dua.step1Result && dua.step2Result) {
           return { canGoPrev: true, canGoNext: true };
         }
         return { canGoPrev: true, canGoNext: false };
       }
-      if (currentStep === 3) {
+      if (currentStep === 4) {
         if (dua.step1Result && dua.step2Result && dua.step3Result) {
           return { canGoPrev: true, canGoNext: true };
         }
         return { canGoPrev: true, canGoNext: false };
       }
-      if (currentStep === 4) {
+      if (currentStep === 5) {
         return { canGoPrev: true, canGoNext: false };
       }
       return { canGoPrev: false, canGoNext: false };
@@ -161,8 +162,9 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
-          back={() => p.close(undefined)}
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
           heading={
             <>
               {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS", pt: "IMPORTAÇÃO EM CURSO" })}
@@ -184,7 +186,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
               {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper
@@ -234,15 +236,27 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
               </Match>
               <Match
                 when={
-                  stepper.currentStep() === 4 &&
+                  stepper.currentStep() === 5 &&
                   keyedUploadAttempt.step3Result &&
+                  keyedUploadAttempt.step2Result &&
+                  keyedUploadAttempt.step1Result
+                }
+              >
+                <Step5
+                  silentFetch={uploadAttempt.silentFetch}
+                  step3Result={keyedUploadAttempt.step3Result!}
+                />
+              </Match>
+              <Match
+                when={
+                  stepper.currentStep() >= 4 &&
                   keyedUploadAttempt.step2Result &&
                   keyedUploadAttempt.step1Result
                 }
               >
                 <Step4
                   silentFetch={uploadAttempt.silentFetch}
-                  step3Result={keyedUploadAttempt.step3Result!}
+                  step3Result={keyedUploadAttempt.step3Result}
                 />
               </Match>
               <Match
@@ -254,7 +268,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
               >
                 <Step3
                   silentFetch={uploadAttempt.silentFetch}
-                  step3Result={keyedUploadAttempt.step3Result}
+                  step2Result={keyedUploadAttempt.step2Result!}
                 />
               </Match>
               <Match

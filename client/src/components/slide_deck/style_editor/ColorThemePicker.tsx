@@ -5,23 +5,17 @@ import {
   type ColorPreset,
 } from "@timroberton/panther";
 import { BRAND_PRESETS, t3, type BrandPresetId } from "lib";
-import type { ColorTheme, AllPresetId } from "lib";
+import type { ColorTheme, AllPresetId, SlideDeckConfig } from "lib";
+import { ColorThemePickerModal } from "./ColorThemePickerModal.tsx";
+import { normalizeHex } from "./color_theme_utils.ts";
 
 type ColorThemePickerProps = {
   value: ColorTheme;
+  // Needed only to render the modal's live previews; the swatch row itself
+  // doesn't depend on the rest of the deck config.
+  config: SlideDeckConfig;
   onChange: (theme: ColorTheme) => void;
 };
-
-function normalizeHex(input: string): string {
-  const stripped = input.trim().replace(/^#/, "");
-  if (/^[0-9A-Fa-f]{6}$/.test(stripped)) {
-    return `#${stripped}`;
-  }
-  if (/^[0-9A-Fa-f]{3}$/.test(stripped)) {
-    return `#${stripped}`;
-  }
-  return input;
-}
 
 export function ColorThemePicker(p: ColorThemePickerProps) {
   // "custom" is the synthetic brand-color preset, never a picker swatch
@@ -34,6 +28,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
     p.value.type === "custom" ? p.value.primary : "",
   );
   const [showCustomInput, setShowCustomInput] = createSignal(false);
+  const [showModal, setShowModal] = createSignal(false);
 
   const isCustomActive = () => p.value.type === "custom";
   const customColor = () =>
@@ -99,8 +94,8 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         type="button"
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
         classList={{
-          "border-base-content/20": isPresetSelected(props.id),
-          "border-transparent hover:border-base-300": !isPresetSelected(
+          "border-base-content": isPresetSelected(props.id),
+          "border-transparent hover:border-border": !isPresetSelected(
             props.id,
           ),
         }}
@@ -117,12 +112,42 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
 
   return (
     <div>
-      <div class="ui-label">
-        {t3({ en: "Color theme", fr: "Thème de couleurs", pt: "Tema de cores" })}
+      <div class="flex items-center justify-between">
+        <div class="ui-label">
+          {t3({
+            en: "Color theme",
+            fr: "Thème de couleurs",
+            pt: "Tema de cores",
+          })}
+        </div>
+        <button
+          type="button"
+          class="cursor-pointer text-sm underline"
+          onClick={() => setShowModal(true)}
+        >
+          {t3({
+            en: "More themes…",
+            fr: "Plus de thèmes…",
+            pt: "Mais temas…",
+          })}
+        </button>
       </div>
+      <Show when={showModal()}>
+        <ColorThemePickerModal
+          value={p.value}
+          config={p.config}
+          onChange={(theme) => {
+            if (theme.type === "custom") {
+              setCustomHex(theme.primary);
+            }
+            p.onChange(theme);
+          }}
+          onClose={() => setShowModal(false)}
+        />
+      </Show>
       <div class="ui-spy-sm">
         <div>
-          <div class="text-neutral mb-1 text-xs">
+          <div class="ui-text-caption mb-1">
             {t3({ en: "Standard colors", fr: "Couleurs standard", pt: "Cores padrão" })}
           </div>
           <div class="flex flex-wrap gap-1.5">
@@ -133,7 +158,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         </div>
         <Show when={BRAND_PRESETS.length > 0}>
           <div>
-            <div class="text-neutral mb-1 text-xs">
+            <div class="ui-text-caption mb-1">
               {t3({ en: "Special colors", fr: "Couleurs spéciales", pt: "Cores especiais" })}
             </div>
             <div class="flex flex-wrap gap-1.5">
@@ -149,7 +174,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
           </div>
         </Show>
         <div>
-          <div class="text-neutral mb-1 text-xs">
+          <div class="ui-text-caption mb-1">
             {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
           </div>
           <div class="flex items-center gap-2">
@@ -157,8 +182,8 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
               type="button"
               class="flex h-7 w-7 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
               classList={{
-                "border-base-content/20": isCustomActive(),
-                "border-transparent hover:border-base-300": !isCustomActive(),
+                "border-base-content": isCustomActive(),
+                "border-transparent hover:border-border": !isCustomActive(),
               }}
               style={{
                 background:
@@ -183,7 +208,6 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
                 class="w-24 rounded border px-2 py-1 font-mono text-sm"
                 classList={{
                   "border-danger": !validation().valid,
-                  "border-base-300": validation().valid,
                 }}
                 placeholder="#000000"
                 value={customHex()}

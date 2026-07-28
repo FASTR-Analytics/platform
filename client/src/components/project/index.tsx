@@ -11,6 +11,7 @@ import {
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import { createEffect, Match, Show, Switch } from "solid-js";
+import { ProjectPageCursors } from "~/components/_shared/cursors/page_cursors";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
@@ -31,7 +32,11 @@ import {
   setNavCollapsed,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
-import { AIProjectWrapper, useAIProjectContext } from "../project_ai";
+import { AIProjectWrapper } from "../project_ai";
+import {
+  PROJECT_TAB_TO_VIEW,
+  projectAIViewController,
+} from "../project_ai/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
@@ -39,33 +44,19 @@ type Props = {
 };
 
 function AIContextSync() {
-  const { setAIContext } = useAIProjectContext();
-
   createEffect(() => {
-    const tab = projectTab();
-    switch (tab) {
-      case "visualizations":
-        setAIContext({ mode: "viewing_visualizations" });
-        break;
-      case "reports":
-        setAIContext({ mode: "viewing_reports" });
-        break;
-      case "decks":
-        setAIContext({ mode: "viewing_slide_decks" });
-        break;
-      case "metrics":
-        setAIContext({ mode: "viewing_metrics" });
-        break;
-      case "settings":
-        setAIContext({ mode: "viewing_settings" });
-        break;
-    }
+    projectAIViewController.setView(PROJECT_TAB_TO_VIEW[projectTab()]);
   });
 
   return null;
 }
 
 export default function Project(p: Props) {
+  // The view controller is a module singleton but its interaction log is
+  // project-scoped data: without this, a client-side project switch (the
+  // keyed <Match> remounts us) delivers the previous project's retained
+  // actions to this project's first digest as fake user activity.
+  projectAIViewController.clearInteractionLog();
   return (
     <ProjectSSEBoundary projectId={p.projectId}>
       <ProjectInner />
@@ -145,6 +136,9 @@ function ProjectInner() {
   return (
     <AIProjectWrapper>
       <AIContextSync />
+      {/* Page-level live cursors (renders into body portals; document-level
+          listeners — placement here is inert). */}
+      <ProjectPageCursors />
       <ProjectEditorWrapper>
         <Show
           when={tabItems().length > 0}
@@ -160,7 +154,10 @@ function ProjectInner() {
         >
           <FrameTop
             panelChildren={
-              <div class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b">
+              <div
+                class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b"
+                data-cursor-zone="topbar"
+              >
                 <Button iconName="chevronLeft" onClick={() => navigate("/")} />
                 <div class="font-700 flex-1 truncate text-xl">
                   <span class="font-400">{projectState.label}</span>
@@ -177,6 +174,7 @@ function ProjectInner() {
                     }
                     intent="base-100"
                     outline
+                    onBackground="base-content"
                   >
                     {t3({
                       en: "Send feedback",
@@ -190,6 +188,7 @@ function ProjectInner() {
                       iconName="chevronLeft"
                       intent="base-100"
                       outline
+                      onBackground="base-content"
                     >
                       {t3({ en: "AI", fr: "IA", pt: "IA" })}
                     </Button>
@@ -200,7 +199,7 @@ function ProjectInner() {
           >
             <FrameLeft
               panelChildren={
-                <div class="h-full border-r">
+                <div class="h-full" data-cursor-zone="nav">
                   <TabsNavigation
                     items={tabItems()}
                     value={projectTab()}

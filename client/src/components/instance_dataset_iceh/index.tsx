@@ -7,6 +7,7 @@ import {
   Button,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getEditorWrapper,
   createButtonAction,
   toPct0,
@@ -96,21 +97,18 @@ export function InstanceDatasetIceh(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-              <span class="font-400 ml-4">
-                {t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
-              </span>
-            </div>
-          </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
+            subheading={t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
+          />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy border-base-300 flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
@@ -135,7 +133,7 @@ export function InstanceDatasetIceh(p: Props) {
                     {(keyedUploadAttempt) => {
                       return (
                         <div
-                          class="ui-hoverable ui-pad border-base-300 bg-base-200 rounded border"
+                          class="ui-pad ui-hoverable-base-200 rounded border"
                           onClick={openUploadAttempt}
                         >
                           <Switch>
