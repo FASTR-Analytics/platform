@@ -1,5 +1,5 @@
-[TBD] [user] [fixed] - AI assistant now correctly reports invalid filter dimensions instead of silently creating broken charts
-[TBD] [admin] [fixed] - AI tools now properly reject filters on non-existent metric dimensions
+[1.63.5] [user] [fixed] - AI assistant now correctly reports invalid filter dimensions instead of silently creating broken charts
+[1.63.5] [admin] [fixed] - AI tools now properly reject filters on non-existent metric dimensions
 [1.63.4] [user] [fixed] - Importing files with duplicate rows now keeps the most complete data
 [1.63.4] [admin] [fixed] - Importing files with duplicate facility rows now keeps the most complete record
 [1.63.3] [user] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
