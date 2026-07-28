@@ -938,6 +938,7 @@ export function HfaIndicatorsManager(p: Props) {
                             pt: "Pesquisar indicadores...",
                           })}
                           searchIcon
+                          clearable
                           fullWidth
                         />
                       </div>

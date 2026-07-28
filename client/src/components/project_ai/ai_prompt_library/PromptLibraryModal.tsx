@@ -330,6 +330,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
           fr: "Rechercher des prompts...",
           pt: "Pesquisar prompts...",
         })}
+        clearable
         autoFocus
         fullWidth
       />

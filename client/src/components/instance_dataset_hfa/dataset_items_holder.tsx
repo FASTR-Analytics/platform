@@ -142,6 +142,7 @@ function DatasetDisplayPresentation(p: {
             onChange={setSearchText}
             label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
             searchIcon
+            clearable
             fullWidth
           />
         </div>
