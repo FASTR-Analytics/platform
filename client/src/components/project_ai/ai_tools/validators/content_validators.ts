@@ -180,9 +180,23 @@ export async function validateMetricInputs(
   );
   if (!metricInfoRes.success) return;
 
+  // getResultsValueInfo writes one entry per real dimension of the metric
+  // (whatever its value status), so an ABSENT key means the dimension is not in
+  // this metric's results file at all. Fail closed here rather than at the call
+  // sites: the edit paths (update_figure, update_report_figure,
+  // update_viz_config) run this validator and nothing else, so a filter on a
+  // non-existent column would otherwise pass and build a broken fetch config.
+  // The create paths already reject it earlier via validateFilters.
+  const availableDims = Object.keys(metricInfoRes.data.disaggregationPossibleValues);
   for (const filter of filters ?? []) {
     const dimValues = metricInfoRes.data.disaggregationPossibleValues[filter.disOpt];
-    if (dimValues?.status === "ok") {
+    if (dimValues === undefined) {
+      throw new AIToolFailure(
+        `Filter dimension "${filter.disOpt}" is not available for metric "${metricId}". ` +
+        `Available dimensions: ${availableDims.length > 0 ? availableDims.join(", ") : "none"}`,
+      );
+    }
+    if (dimValues.status === "ok") {
       const invalid = filter.values.filter(v => !dimValues.values.some(dv => dv.id === String(v)));
       if (invalid.length > 0) {
         throw new AIToolFailure(
