@@ -60,13 +60,18 @@ type ThreeColumnResizableProps = {
   noBorder?: boolean;
 };
 
-// The resize handle: an 8px hit strip that paints nothing, with a 1px line
+// The resize handle: a 9px hit strip that paints nothing, with a 1px line
 // inside it sitting exactly on the boundary pixel — the same pixel the
 // non-resizable frames' wrapper border occupies, which is what makes swapping
-// FrameLeft <-> FrameLeftResizable a rename. The strip must stay borderless:
-// a border on the panel wrapper would move its padding box and shift the hit
-// area by 1px. `noBorder` makes the line transparent at rest, never absent —
-// removing it would delete the grab affordance.
+// FrameLeft <-> FrameLeftResizable a rename. The width must stay odd: 4px of
+// strip on each side of the 1px line, symmetric about the divider. The panel
+// content div reserves the line's pixel with a 1px margin (mirroring border-r
+// consuming a pixel of the border box) so the line never paints over content.
+// The strip must stay borderless: a border on the panel wrapper would move its
+// padding box and shift the hit area by 1px. `noBorder` makes the line
+// transparent at rest, never absent — removing it would delete the grab
+// affordance — and drops the margin, since there is no opaque pixel to
+// reserve.
 function ResizeHandleLine(p: { side: "left" | "right"; noBorder?: boolean }) {
   return (
     <div
@@ -302,12 +307,13 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
         >
           <div
             class="h-full overflow-auto"
+            classList={{ "mr-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
             {p.panelChildren}
           </div>
           <div
-            class="group absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
             onMouseDown={handleMouseDown}
             data-dragging={isDragging()}
             style={{ display: p.isShown === false ? "none" : "block" }}
@@ -337,7 +343,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           style={{ width: `${displayWidth()}px` }}
         >
           <div
-            class="group absolute -left-1 top-0 z-50 h-full w-2 cursor-col-resize"
+            class="group absolute -left-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
             onMouseDown={handleMouseDown}
             data-dragging={isDragging()}
             style={{ display: p.isShown === false ? "none" : "block" }}
@@ -346,6 +352,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           </div>
           <div
             class="h-full overflow-auto"
+            classList={{ "ml-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
             {p.panelChildren}
@@ -546,9 +553,14 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             class="relative h-full flex-none"
             style={{ width: `${leftWidth()}px` }}
           >
-            <div class="h-full overflow-auto">{p.leftChild}</div>
             <div
-              class="group absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              class="h-full overflow-auto"
+              classList={{ "mr-px": !p.noBorder }}
+            >
+              {p.leftChild}
+            </div>
+            <div
+              class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
               data-dragging={isDragging() && activeHandle() === "left"}
               onMouseDown={handleMouseDown("left")}
             >
@@ -558,7 +570,12 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         </Show>
 
         <div class="relative h-full w-0 flex-1">
-          <div class="h-full overflow-auto">{p.centerChild}</div>
+          <div
+            class="h-full overflow-auto"
+            classList={{ "mr-px": hasRight() && !p.noBorder }}
+          >
+            {p.centerChild}
+          </div>
           <Show when={hasRight()}>
             {
               /* Rendered on the CENTRE pane, so its line occupies the centre
@@ -567,7 +584,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 divider "belongs" to. */
             }
             <div
-              class="group absolute -right-1 top-0 z-50 h-full w-2 cursor-col-resize"
+              class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
               data-dragging={isDragging() && activeHandle() === "right"}
               onMouseDown={handleMouseDown("right")}
             >
