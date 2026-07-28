@@ -1,6 +1,6 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: build DONE and main MERGED — exit gate PARITY GREEN on the merged tree 2026-07-28 (719 checks, extended corpus). All code work is complete on `results-runs`; what remains is Tim's rollout (trial instance → backfill + rig there → fleet, Ethiopia early as the Ethiopian-quarter gate). This Status block is the build record
+## Status: build DONE, main MERGED, post-merge adversarial review FIXED — exit gate PARITY GREEN on the merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD `675b63be`). All code work is complete on `results-runs`; what remains is Tim's rollout (trial instance → backfill + rig there → fleet, Ethiopia early as the Ethiopian-quarter gate), then Phase 3 after a design session (§10 Q1/Q4/Q8). This Status block is the build record
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy review
@@ -99,7 +99,8 @@ identity + backfill. ALL BUILD ITEMS DONE + exit gate passed 2026-07-14 — this
 rollout is what remains.** Full spec: §4 Phase 2 plus the model above.
 Pre-deploy checklist (each recorded where cited): re-run the prod-image binding
 smoke for `@duckdb/node-api@1.4.5-r.1` (Phase 0 bullet addendum); push
-wb-fastr-modules (local HEAD `6ba142e` — m004/m005 pinned-asset commits); add
+wb-fastr-modules (local HEAD `004fdc2` — contains both the pinned-asset and
+showNValues workstreams, 4 unpushed commits ride the deploy); add
 the runs volume to the POSTGRES container in each instance's compose (item 7
 notes + Dockerfile comment). Rollout: deploy to one trial prod instance → serve
 starts, the backfill synthesizes runs (docker-exec runbook in item 7) → run the
@@ -130,7 +131,9 @@ finalize at the wizard build. Disposition as ruled:
   self-heal; the parity rig (all three modes); the engine seam + pg wrapper
   split (wrappers stay solely as the rig baseline); migration 056 + the `runs`
   table + `projects.run_id` (dormant → live); the SQL→JSON mirror-table rewrite
-  surface (§2.4); `PO_CACHE_VERSION` "6" + `po_detail_v3`.
+  surface (§2.4); `PO_CACHE_VERSION` "6" + `po_detail_v3`. (Since renumbered/
+  rebumped at the merge: migrations 056/057/030 → **065/066/038** onto main's
+  tail, cache knobs → "10"/v5 — see Binding decision 2.)
 - **Restored from branch history**: the runId cache re-key (§2.5), the `runId`
   payload fields, and client `attachedRunId` from the original Phase-1 cut
   (reverted in the `d81ac24d` re-fit; comes back now), with `po_detail` folding
@@ -894,15 +897,48 @@ Postgres-only `btrim(col, chars)` — now the portable two-arg `trim(col,
 chars)` (verified by execution on both engines; `E'…'` strings work on both).
 Next: trial-instance rollout per Deploy phasing (Ethiopia early).
 
+### Post-merge adversarial review — DONE 2026-07-28, all findings fixed
+
+Three review agents (merge resolutions, semantic-batch diff, cache
+composition) swept the surfaces the rig cannot gate. All actionable findings
+fixed in `0014d455` + `675b63be`; gates re-run green (typecheck + rig 719
+checks, hardened: extended-variant runtime crashes now gate, and zero-count
+blankfilter/multimember/nvalues kinds turn the verdict RED in `--run` mode).
+Fixed: **HIGH** — the collab viz-list rebroadcast used the raw row function,
+erasing virtual defaults from every connected client during collab sessions
+(now `getAllPresentationObjectsWithVirtualDefaults`); `PO_CACHE_VERSION` →
+**"10"**, `po_detail` → **v5** (the semantic batch changed payload semantics
+after "9"/v4 were minted); the po_items route derives `firstPeriodOption`
+from the manifest, never the client (a stale cross-run value could poison
+the run-keyed shared cache entry, which no longer self-heals); client batch
+delete/edit-common-properties filter out defaults with a single-select
+delete gate (server refuses them, item 5b ruling); AI module tools throw
+`AIToolFailure` on no-attached-package; `getRunManifestCached` pins
+`manifestSchemaVersion` explicitly; AI `switch_tab` gained
+`results_package` with a permission-gated soft refusal (Tim's ruling).
+
+Accepted LOWs, recorded here, not fixed: the virtual-default write guard
+fails OPEN when an attached run's manifest is unreadable (operational edge);
+the client reactive cache stores under the optimistic pre-fetch key with no
+response-side runId check (latent until an attach-old-run control exists —
+add the guard when Phase 3 builds one); dead `lastUpdated.modules/datasets`
+tables still queried and shipped per SSE connection; the results-package tab
+has no presence-cursor markup; AI prompt drift (module "status" promised but
+no longer returned; "Installed analysis modules" wording).
+
 ### Binding implementation decisions (do not re-derive)
 
 1. Engine seam = `SqlRowsExecutor` + core/wrapper split in
    `server_only_funcs_presentation_objects/`; pg wrappers preserve legacy
    behavior byte-for-byte and are deleted with the Postgres read path.
-2. `PO_CACHE_VERSION` "6" = TS re-sort of option lists
-   (`Intl.Collator("en", {numeric: true})`, BOTH engines, in
-   `getPossibleValuesCore`) — pins away the Postgres-collation vs DuckDB-binary
-   ordering delta.
+2. `PO_CACHE_VERSION` — the branch minted "6" for the TS re-sort of option
+   lists (`Intl.Collator("en", {numeric: true})`, BOTH engines, in
+   `getPossibleValuesCore`), which pins away the Postgres-collation vs
+   DuckDB-binary ordering delta. CURRENT value is **"10"** with prefix
+   **`po_detail_v5`** (merge took "9"/v4 past both sides' independent bumps;
+   the review bumped again because the semantic batch changed payloads after
+   "9"/v4 were minted). The authoritative values live in
+   `server/routes/caches/visualizations.ts` with their lineage comments.
 3. Capture-time instance reads are correct (into the manifest at finalize);
    read-time live reads are forbidden.
 4. `RUNS_DIR_PATH` returns, WITH its three path namespaces — the wizard mounts
