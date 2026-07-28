@@ -1,5 +1,5 @@
-[TBD] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
-[TBD] [admin] [changed] - Rollup labels no longer vary when filters are applied
+[1.64.1] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
+[1.64.1] [admin] [changed] - Rollup labels no longer vary when filters are applied
 [1.64.0] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
 [1.64.0] [user] [fixed] - Permission changes now take effect immediately without page reload
 [1.64.0] [user] [fixed] - Clear notification when you lack permission to edit reports or slides
