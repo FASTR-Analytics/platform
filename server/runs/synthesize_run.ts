@@ -2,6 +2,7 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   getAssetToImportName,
+  getDatasetFamily,
   postAggregationExpressionStrict,
   RUN_MANIFEST_SCHEMA_VERSION,
   runManifestSchema,
@@ -10,6 +11,7 @@ import {
   type InstanceConfigFacilityColumns,
   type RunAsset,
   type RunDataset,
+  type RunFacilitiesTable,
   type RunManifest,
   type RunMetric,
   type RunMetricAvailability,
@@ -194,7 +196,7 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE id = ANY(${opts.module
     };
   });
 
-  const metrics = await projectDb<RunMetric[]>`
+  const metrics = await projectDb<Omit<RunMetric, "datasetFamily">[]>`
 SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements,
   post_aggregation_expression, results_object_id, ai_description, viz_presets,
@@ -202,7 +204,13 @@ SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
 FROM metrics
 ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts.moduleIds})`}
 `;
-  const runMetrics: RunMetric[] = [...metrics];
+  const familyByModuleId = new Map(
+    modules.map((m) => [m.id, getDatasetFamily(m.module_definition) ?? null]),
+  );
+  const runMetrics: RunMetric[] = metrics.map((m) => ({
+    ...m,
+    datasetFamily: familyByModuleId.get(m.module_id) ?? null,
+  }));
 
   // Results-object catalog from the installed definitions; actual schema and
   // query metadata from the normalized parquet built into the run — copied
@@ -355,6 +363,7 @@ WHERE table_schema = 'public' AND table_name = ${tableName}
     );
     inputFiles.push(`inputs/${fileName}`);
   }
+  const facilitiesTables: RunFacilitiesTable[] = [];
   for (const tableName of INPUT_FACILITIES_TABLES) {
     const fileName = `${tableName}.parquet`;
     const columns = await exportPgTableToParquet(
@@ -364,6 +373,7 @@ WHERE table_schema = 'public' AND table_name = ${tableName}
     );
     if (columns !== undefined) {
       inputFiles.push(`inputs/${fileName}`);
+      facilitiesTables.push({ tableName, columns });
     }
   }
 
@@ -390,6 +400,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     countryIso3,
     facilityColumnsConfig: facilityConfig,
     datasets,
+    facilitiesTables,
     assets,
     modules: runModules,
     metrics: runMetrics,

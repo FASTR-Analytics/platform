@@ -51,7 +51,10 @@ import {
   runInputFilePath,
   runResultsObjectParquetPath,
 } from "../runs/run_paths.ts";
-import { computeFacilityContext } from "../server_only_funcs_presentation_objects/get_query_context.ts";
+import {
+  computeFacilityContext,
+  facilitiesTableForFamily,
+} from "../server_only_funcs_presentation_objects/get_query_context.ts";
 import {
   buildMinimalFetchConfig,
   getPossibleValuesCore,
@@ -223,8 +226,23 @@ function buildQueryContextFromManifest(
     neededPeriodColumns,
     calendar: manifest.calendar,
   });
+  // Mirrors buildQueryContext's getTextColumnNames: both sides of the join,
+  // from the manifest stamps instead of information_schema probes.
+  const textColumns = new Set(
+    ro.columns.filter((c) => c.duckDbType === "VARCHAR").map((c) => c.name),
+  );
+  if (facilityContext.needsFacilityJoin) {
+    const facilitiesTable = manifest.facilitiesTables.find(
+      (t) => t.tableName === facilitiesTableForFamily(datasetFamily),
+    );
+    for (const col of facilitiesTable?.columns ?? []) {
+      if (col.duckDbType === "VARCHAR") textColumns.add(col.name);
+    }
+  }
   return {
+    textColumns,
     datasetFamily,
+    hasFacilityId: ro.hasFacilityId,
     hasPeriodId,
     hasQuarterId,
     calendar: manifest.calendar,
@@ -439,6 +457,7 @@ export function enrichMetricFromManifest(
     valueProps: z.array(z.string()).parse(JSON.parse(metric.value_props)),
     valueFunc: metric.value_func as ResultsValue["valueFunc"],
     hasFacilityLevelRows: ro?.hasFacilityId ?? false,
+    datasetFamily: metric.datasetFamily ?? undefined,
     postAggregationExpression: metric.post_aggregation_expression
       ? postAggregationExpressionStrict.parse(
           JSON.parse(metric.post_aggregation_expression),

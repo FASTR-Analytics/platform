@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { instanceConfigFacilityColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
+import type { DatasetType } from "./datasets.ts";
 
 // The run manifest (PLAN_RESULTS_RUNS §2.2) — written once by the finalize
 // step of a generation (wizard, or the backfill synthesizer), the ONLY thing
@@ -9,7 +10,14 @@ import { disaggregationOption } from "./_metric_installed.ts";
 // Identity is in the artifact: runId required, and no projectId or any other
 // instance FK inside run files (§9 layer rule).
 
-export const RUN_MANIFEST_SCHEMA_VERSION = 1;
+export const RUN_MANIFEST_SCHEMA_VERSION = 2;
+
+// Typed against DatasetType so the enum cannot drift from the union.
+export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
+  "hmis",
+  "hfa",
+  "iceh",
+]);
 
 export const runPhysicalTimeColumnSchema = z.enum([
   "period_id",
@@ -53,8 +61,11 @@ export const runModuleSchema = z.object({
 export type RunModule = z.infer<typeof runModuleSchema>;
 
 // Metric catalog entry — the project-DB metrics row verbatim (snake_case
-// field names kept so ResultsValue construction reuses the DBMetric path).
+// field names kept so ResultsValue construction reuses the DBMetric path),
+// plus the build-time datasetFamily stamp (camelCase marks it as derived at
+// finalize via getDatasetFamily, not a DB column; null = no single family).
 export const runMetricSchema = z.object({
+  datasetFamily: runDatasetFamilySchema.nullable(),
   id: z.string(),
   module_id: z.string(),
   label: z.string(),
@@ -100,6 +111,15 @@ export const runAssetSchema = z.object({
 });
 export type RunAsset = z.infer<typeof runAssetSchema>;
 
+// Post-export schema of a facilities input parquet (inputs/{tableName}.parquet)
+// — the join side of facility-column queries, stamped so the read path can
+// build textColumns without probing the parquet.
+export const runFacilitiesTableSchema = z.object({
+  tableName: z.string(),
+  columns: z.array(z.object({ name: z.string(), duckDbType: z.string() })),
+});
+export type RunFacilitiesTable = z.infer<typeof runFacilitiesTableSchema>;
+
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
@@ -120,6 +140,7 @@ export const runManifestSchema = z.object({
   facilityColumnsConfig: instanceConfigFacilityColumnsSchema,
 
   datasets: z.array(runDatasetSchema),
+  facilitiesTables: z.array(runFacilitiesTableSchema),
   assets: z.array(runAssetSchema),
   modules: z.array(runModuleSchema),
   metrics: z.array(runMetricSchema),

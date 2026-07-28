@@ -48,11 +48,14 @@
 import { join } from "@std/path";
 import { _SANDBOX_DIR_PATH } from "./server/exposed_env_vars.ts";
 import {
-  getEffectiveRollupLevel,
+  BLANK_SENTINEL,
+  getEffectiveRollupDimension,
   getPeriodFilterExactBounds,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
   postAggregationExpressionStrict,
+  SAMPLE_N_PREFIX,
+  usesBlankSentinel,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
   type InstanceConfigFacilityColumns,
@@ -65,7 +68,7 @@ import {
 } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnection } from "./server/db/postgres/connection_manager.ts";
-import { getResultsObjectTableName } from "./server/db/utils.ts";
+import { getResultsObjectTableName, getTextColumnNames } from "./server/db/utils.ts";
 import { getPresentationObjectDetail } from "./server/db/project/presentation_objects.ts";
 import { getResultsObjectItems } from "./server/db/project/results_objects.ts";
 import { getFacilityColumnsConfig } from "./server/db/instance/config.ts";
@@ -307,7 +310,18 @@ function diffItemsHolders(
     return `row count: pg=${pgItems.length} duck=${duckItems.length}`;
   }
   const groupBys = fetchConfig.groupBys;
-  const valueCols = getValueColumns(fetchConfig);
+  // Sample-size columns (__n_*) ride HFA payloads from the query context, not
+  // the fetch config — compare whatever either engine emitted, so a missing or
+  // wrong n on one side is a diff, not invisible.
+  const nCols = new Set<string>();
+  for (const items of [pgItems, duckItems] as Record<string, unknown>[][]) {
+    for (const row of items) {
+      for (const col of Object.keys(row)) {
+        if (col.startsWith(SAMPLE_N_PREFIX)) nCols.add(col);
+      }
+    }
+  }
+  const valueCols = [...getValueColumns(fetchConfig), ...[...nCols].sort()];
 
   const bucket = (items: Record<string, unknown>[]) => {
     const m = new Map<string, unknown[][]>();
@@ -437,7 +451,7 @@ SELECT module_id FROM results_objects WHERE id = ${detail.resultsValue.resultsOb
   ).at(0);
   if (!moduleRow) return [];
   const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleRow.module_id);
-  const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleRow.module_id);
+  const indicatorMetadata = await getIndicatorMetadata(projectDb, moduleRow.module_id);
   const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
   const res = await getPossibleValues(
     projectDb,
@@ -629,7 +643,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     if (resExCfg.success === true) {
       const moduleId = moduleRow!.module_id;
       const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
-      const indicatorMetadata = await getIndicatorMetadata(mainDb, projectDb, moduleId);
+      const indicatorMetadata = await getIndicatorMetadata(projectDb, moduleId);
       const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
       // Bounds resolved once on Postgres and fed to both engines: the SQL under
       // test here is the DISTINCT option query, not bounds resolution (that is
@@ -708,6 +722,109 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
         ...(await runItemsPair(variantFetchConfig)),
       });
     }
+
+    // ---- extended corpus (merge exit gate) ----
+    // Shapes the stored corpus has none of: a blank-value filter (the
+    // BLANK_SENTINEL fold + predicate), a multi-membership filter
+    // (string_to_array overlap), and the plain-values HFA n path
+    // (COUNT(DISTINCT facility_id) FILTER — every shipped HFA metric carries
+    // a PAE, so that branch has no stored config).
+    const moduleId = moduleRow!.module_id;
+    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
+    const indicatorMetadata = await getIndicatorMetadata(projectDb, moduleId);
+    const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+    const availableOpts = resultsValue.disaggregationOptions.map((d) => d.value);
+    const roTextColumns = await getTextColumnNames(projectDb, roTableName);
+    const valuesFor = async (disOpt: DisaggregationOption) => {
+      const res = await getPossibleValues(
+        projectDb, resultsValue.resultsObjectId, datasetFamily,
+        disOpt as Parameters<typeof getPossibleValues>[3], mainDb, labelMap, [], undefined,
+      );
+      return res.success === true ? res.data : [];
+    };
+    const extendedVariants: { name: string; d: PresentationObjectConfig["d"] }[] = [];
+
+    const blankOpt = availableOpts.find(
+      (opt) => usesBlankSentinel(opt) && roTextColumns.has(opt) && opt !== replicateBy,
+    );
+    if (blankOpt) {
+      const realIds = (await valuesFor(blankOpt))
+        .filter((v) => v.id !== BLANK_SENTINEL)
+        .slice(0, 1)
+        .map((v) => v.id);
+      extendedVariants.push({
+        name: `syn:blankfilter:${blankOpt}`,
+        d: {
+          ...config.d,
+          filterBy: [
+            ...config.d.filterBy.filter((f) => f.disOpt !== blankOpt),
+            { disOpt: blankOpt, values: [BLANK_SENTINEL, ...realIds] },
+          ],
+        },
+      });
+    }
+
+    if (availableOpts.includes("hfa_service_category")) {
+      const ids = (await valuesFor("hfa_service_category")).map((v) => v.id).slice(0, 2);
+      if (ids.length > 0) {
+        extendedVariants.push({
+          name: "syn:multimember:hfa_service_category",
+          d: {
+            ...config.d,
+            filterBy: [
+              ...config.d.filterBy.filter((f) => f.disOpt !== "hfa_service_category"),
+              { disOpt: "hfa_service_category", values: ids },
+            ],
+          },
+        });
+      }
+    }
+
+    const runExtended = async (
+      name: string,
+      rv: ResultsValue,
+      variantConfig: PresentationObjectConfig,
+    ) => {
+      try {
+        const res = getFetchConfigFromPresentationObjectConfig(rv, variantConfig);
+        if (res.success === false) {
+          syntheticDropCount++;
+          return;
+        }
+        allResults.push({
+          projectId,
+          poId,
+          poLabel: `${poLabel} [${name}]`,
+          check: "items_synthetic",
+          ...(await runItemsPair(res.data)),
+        });
+      } catch (_e) {
+        syntheticDropCount++;
+      }
+    };
+
+    for (const variant of extendedVariants) {
+      await runExtended(variant.name, resultsValue, { ...config, d: variant.d });
+    }
+
+    if (
+      datasetFamily === "hfa" &&
+      resultsValue.hasFacilityLevelRows &&
+      resultsValue.postAggregationExpression
+    ) {
+      const plainResultsValue: ResultsValue = {
+        ...resultsValue,
+        postAggregationExpression: undefined,
+        valueProps: resultsValue.postAggregationExpression.ingredientValues.map(
+          (v) => v.prop,
+        ),
+        valueFunc: "SUM",
+      };
+      await runExtended("syn:nvalues:plain", plainResultsValue, {
+        ...config,
+        d: { ...config.d, valuesFilter: undefined },
+      });
+    }
   }
 }
 
@@ -730,12 +847,20 @@ function buildSyntheticVariants(
   if (adminOpt) {
     const dRollup: PresentationObjectConfig["d"] = {
       ...baseD,
-      disaggregateBy: [{ disOpt: adminOpt, disDisplayOpt: "series" }],
+      disaggregateBy: [
+        {
+          disOpt: adminOpt,
+          disDisplayOpt: "series",
+          rollup: true,
+          rollupPosition: "bottom",
+        },
+      ],
       selectedReplicantValue: undefined,
-      includeAdminAreaRollup: true,
-      adminAreaRollupPosition: "bottom",
     };
-    if (getEffectiveRollupLevel(resultsValue, { ...config, d: dRollup }) !== undefined) {
+    if (
+      getEffectiveRollupDimension(resultsValue, { ...config, d: dRollup }) !==
+        undefined
+    ) {
       variants.push({ name: `syn:rollup:${adminOpt}`, d: dRollup });
     }
   }

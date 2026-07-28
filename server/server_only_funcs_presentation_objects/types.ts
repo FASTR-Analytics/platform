@@ -43,7 +43,7 @@ export interface QueryContext {
   facilityFilters: GenericLongFormFetchConfig["filters"];
   // TEXT-typed columns across the results table AND the joined facilities
   // table, by bare column name. Gates the blank fold: its SQL is text-only
-  // (btrim, and a text sentinel in the CASE result), and disaggregation
+  // (trim, and a text sentinel in the CASE result), and disaggregation
   // columns are not reliably text — module authors declare the type, so
   // `time_point` is integer in one instance here and text in another.
   textColumns: ReadonlySet<string>;
