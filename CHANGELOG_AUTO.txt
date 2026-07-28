@@ -1,3 +1,5 @@
+[1.63.2] [user] [fixed] - Charts now refresh correctly when toggling rollup grouping options
+[1.63.2] [admin] [fixed] - Visualization editor now refreshes correctly when rollup setting changes
 [1.63.1] [user] [added] - Search fields now have a clear button to reset searches
 [1.63.1] [admin] [added] - Search fields now have a clear button
 [1.63.0] [user] [changed] - Roll-up total rows now work with facility columns, not just admin areas
