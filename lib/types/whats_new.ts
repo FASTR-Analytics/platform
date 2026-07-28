@@ -26,6 +26,26 @@ export const WHATS_NEW_LAYOUTS: Record<
   cover: { hasImage: true, row: false, imageFirst: true, widthPct: 100, cover: true },
 };
 
+// Per-page media scale. The preset fixes WHERE media sits and its base width;
+// this scales that width down, so pages stay visually consistent while a
+// smaller screenshot or clip can be shown at a sensible size.
+export type WhatsNewMediaSize = "sm" | "md" | "full";
+
+export const WHATS_NEW_MEDIA_SCALES: Record<WhatsNewMediaSize, number> = {
+  sm: 0.5,
+  md: 0.75,
+  full: 1,
+};
+
+// Final rendered width % for a page's media (cover ignores width entirely)
+export function whatsNewMediaWidthPct(
+  preset: WhatsNewLayoutPreset,
+  size: WhatsNewMediaSize | undefined,
+): number {
+  const layout = WHATS_NEW_LAYOUTS[preset] ?? WHATS_NEW_LAYOUTS.textOnly;
+  return layout.widthPct * (WHATS_NEW_MEDIA_SCALES[size ?? "full"] ?? 1);
+}
+
 // Authored text, per language. English is required; fr/pt fall back to
 // English when absent — same semantics as the app's t3() translations.
 export type WhatsNewText = {
@@ -38,6 +58,7 @@ export type WhatsNewPage = {
   title?: WhatsNewText;
   body: WhatsNewText; // markdown
   imageUrl?: string; // absolute URL on status-api; required for image presets
+  mediaSize?: WhatsNewMediaSize; // default "full"
   layoutPreset: WhatsNewLayoutPreset;
 };
 

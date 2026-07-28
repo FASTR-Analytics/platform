@@ -4,6 +4,7 @@ import {
   isWhatsNewVideo,
   t3,
   WHATS_NEW_LAYOUTS,
+  whatsNewMediaWidthPct,
   type WhatsNewPage,
   type WhatsNewPost,
   type WhatsNewText,
@@ -154,7 +155,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
                 src={p.page.imageUrl!}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
-                width={`${layout().widthPct}%`}
+                width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
               />
             </Show>
             <div class="min-w-0 grow">
@@ -165,7 +166,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
                 src={p.page.imageUrl!}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
-                width={`${layout().widthPct}%`}
+                width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
               />
             </Show>
           </div>
