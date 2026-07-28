@@ -79,6 +79,9 @@ export function getInputClasses(
     // Left variant for search icon
     "data-[left=true]:rounded-l-[0px]",
 
+    // Room for the inline clear button
+    "data-[clearable=true]:!pr-[2.5em]",
+
     // Mono variant
     "data-[mono=true]:font-mono",
 

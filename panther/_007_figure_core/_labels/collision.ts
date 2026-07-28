@@ -12,6 +12,21 @@ export type CollisionLabel = {
   y: number;
   width: number;
   height: number;
+  // Where this label should stack, when that is not its own natural Y — the
+  // sort key AND the position the greedy starts it from. Absent, which it is
+  // for every caller that has not opted in, leaves both exactly `naturalY`, so
+  // the stack is bit-for-bit what it always was.
+  //
+  // A caller supplies this to CHOOSE the order. Sorting by natural Y only
+  // guarantees non-crossing leaders when the anchors share an x — true of a
+  // pie's slices, false of a map's regions (DOC_FIGURE_ARCHITECTURE, "Outside
+  // placement"). It has to displace the natural Y rather than merely re-sort
+  // against it: leaving `naturalY` as
+  // the greedy's floor means a label handed a slot ABOVE its own anchor cannot
+  // take it, so the column grows taller than the one it replaced and the
+  // content shrinks to make room. Measured on Kenya adm1 at 47 labels: the map
+  // lost 5% of its width to a re-order that was supposed to be free.
+  stackY?: number;
 };
 
 // Outside labels: sort by natural Y, push down greedily, then shift the whole
@@ -23,11 +38,12 @@ export function resolveOutsideCollisions(
 ): void {
   if (labels.length === 0) return;
 
-  labels.sort((a, b) => a.naturalY - b.naturalY);
+  const wants = (label: CollisionLabel) => label.stackY ?? label.naturalY;
+  labels.sort((a, b) => wants(a) - wants(b));
 
   let occupiedUntilY = bounds.minY;
   for (const label of labels) {
-    label.y = Math.max(label.naturalY, occupiedUntilY);
+    label.y = Math.max(wants(label), occupiedUntilY);
     occupiedUntilY = label.y + label.height + gap;
   }
 

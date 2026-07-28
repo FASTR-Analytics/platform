@@ -332,9 +332,9 @@ function labelGeometryPartsAt(
 // Always, and it is the map that has the problem: a region's anchor sits at an
 // arbitrary interior point rather than on the silhouette directly inward of its
 // own label, so two labels can be in the correct TRACK order with crossing
-// leaders (plan step 10). A pie cannot be in that position and must never be
-// re-ordered — see PIE_UNTANGLES_LEADERS. Not a style option: the owner ruled
-// this per figure type, not per user.
+// leaders (DOC_FIGURE_ARCHITECTURE, "Outside placement"). A pie cannot be in
+// that position and must never be re-ordered — see PIE_UNTANGLES_LEADERS. Not a
+// style option: this is per figure type, not per user.
 const MAP_UNTANGLES_LEADERS = true;
 
 // Map's driver-geometry hooks, with the nearest-point track attached when that
@@ -357,12 +357,12 @@ export function buildMapLabelGeometry(
   return {
     cellRcd,
     ...labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
+    untangleLeaders: MAP_UNTANGLES_LEADERS,
     outsideTrack: track
       ? {
         track,
         clearanceFloor: mergedStyle.map.labelClearanceFloor,
         alignmentSwitchAngleDeg: mergedStyle.map.labelAlignmentSwitchAngle,
-        untangleLeaders: MAP_UNTANGLES_LEADERS,
       }
       : undefined,
   };
@@ -461,6 +461,7 @@ export function placeMapOutsideBoxesAt(
     }),
     labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
     gap,
+    MAP_UNTANGLES_LEADERS,
   );
 }
 

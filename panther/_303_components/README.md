@@ -19,7 +19,9 @@ Complete set of production-ready SolidJS components including:
 Your application must have:
 
 - **SolidJS** v1.8+
-- **Tailwind CSS** v4 with theme configuration (see main CLAUDE.md)
+- **Tailwind CSS** v4, importing `_fixed.css` (which ships the full `@theme`
+  token block — an app overrides only what it wants; see
+  **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**)
 
 ## Component Categories
 
@@ -107,12 +109,28 @@ Rich data tables with built-in features.
 
 ## CSS Public API
 
-Only these 7 utility classes for external use:
+`_fixed.css` holds the `@theme` token block and the `ui-*` classes. Public
+surface for app code:
 
-- `ui-pad`, `ui-pad-sm` - Padding
-- `ui-gap`, `ui-gap-sm` - Gap spacing
-- `ui-spy`, `ui-spy-sm` - Vertical spacing
-- `ui-hoverable` - Hover effects
+- **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
+  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`,
+  `ui-spy-sm`, `ui-spy-lg`
+- **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
+  `ui-form-text-size-sm`, `ui-icon-only-correction`,
+  `ui-icon-only-correction-sm`
+- **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`,
+  `base-300`, `base-content`, and the five intents) and `ui-focusable`
+- **Type** — `ui-text-display`, `ui-text-title`, `ui-text-heading`,
+  `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
+  `ui-label`
+- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, for building a control
+  the kit doesn't provide
+
+Every other `ui-*` class is internal and may change without notice.
+
+Color tokens, the state doctrine, and theming:
+**[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)**. App-facing
+rules: `protocols/PROTOCOL_UI_STYLING.md`.
 
 ## Usage Example
 

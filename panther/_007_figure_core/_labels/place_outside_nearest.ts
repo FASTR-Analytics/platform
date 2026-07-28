@@ -74,9 +74,9 @@ export type NearestPlacementOptions = {
   // Direction at which text alignment flips from centred to edge-aligned
   // (labelAlignmentSwitchAngle; plan-ruled default 45).
   alignmentSwitchAngleDeg: number;
-  // May two labels exchange track slots to uncross their leaders (plan step
-  // 10)? MAP ONLY, and it is not a style option: on a pie the angular order is
-  // not a seed to be improved, it IS the meaning — a slice's label has to sit
+  // May two labels exchange track slots to uncross their leaders? MAP ONLY,
+  // and not a style option: on a pie the angular order is not a seed to be
+  // improved, it IS the meaning — a slice's label has to sit
   // beside its own slice, and swapping two of them would move a label away
   // from the thing it names to buy a crossing that does not exist. Pie
   // measures zero crossings on every case because the placement is right, and
@@ -125,9 +125,9 @@ const REPAIR_MIN_SEPARATION_DU = 1;
 const REPAIR_MAX_ARC_PER_DU = 4;
 // Enough to clear the overlap outright rather than land exactly on it.
 const REPAIR_SLACK_DU = 1;
-// Passes the untangle sweep may run (plan step 10). A pass costs a whole
-// re-placement, so both of these are cost bounds first: the sweep keeps the best
-// layout it has seen, so stopping early only ever forgoes a further gain.
+// Passes the untangle sweep may run. A pass costs a whole re-placement, so
+// both of these are cost bounds first: the sweep keeps the best layout it has
+// seen, so stopping early only ever forgoes a further gain.
 const UNTANGLE_SWEEPS = 4;
 // Passes without a new best tolerated before it gives up.
 const UNTANGLE_PATIENCE = 1;
@@ -218,6 +218,19 @@ function boxClearance(
     if (clearance < stopBelow) break;
     const span = stack.pop() as Span;
     const length = Math.hypot(span.b.x - span.a.x, span.b.y - span.a.y);
+    // A span this short cannot hold a point more than length/2 below its own
+    // ends, which is already inside the tolerance this search reports to.
+    //
+    // Without this the recursion does not terminate, and the case that hangs it
+    // is an ORDINARY one, not a pathological one: a label sitting alongside a
+    // straight stretch of coast has a whole EDGE at the same distance from it,
+    // and the bisection in placeBoxAt leaves that distance equal to the
+    // clearance floor to within 0.01 DU. The bound below then reads
+    // `max(clearance - tolerance, stopBelow)`, which at a tie collapses to
+    // `clearance` exactly, so `min(ends) - length/2 >= clearance` needs
+    // length = 0 and every span on that edge subdivides forever — 4 GB of Span
+    // objects in about ten seconds. Measured on a two-label slot fixture.
+    if (length <= EDGE_SEARCH_TOLERANCE_DU) continue;
     const lowestPossible = Math.min(span.da, span.db) - length / 2;
     if (
       lowestPossible >=
@@ -466,11 +479,8 @@ function boxesOverlap(a: Box, b: Box): boolean {
 function segmentsCross(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
   const side = (p: Point, q: Point, r: Point) =>
     (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
-  const d1 = side(a1, a2, b1);
-  const d2 = side(a1, a2, b2);
-  const d3 = side(b1, b2, a1);
-  const d4 = side(b1, b2, a2);
-  return (d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0);
+  return side(a1, a2, b1) * side(a1, a2, b2) < 0 &&
+    side(b1, b2, a1) * side(b1, b2, a2) < 0;
 }
 
 function alignmentFor(

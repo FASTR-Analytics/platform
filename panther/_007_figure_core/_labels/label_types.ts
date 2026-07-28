@@ -74,11 +74,17 @@ export type LabelGeometry = {
     track: LabelTrack;
     clearanceFloor: number;
     alignmentSwitchAngleDeg: number;
-    // Map only — see NearestPlacementOptions.untangleLeaders. Carried here so
-    // the driver's emission and the figure's own budget pass ask the placer
-    // the identical question (the one-placer rule).
-    untangleLeaders: boolean;
   };
+  // May this figure exchange two outside labels' places to uncross their
+  // leaders? MAP ONLY, and not a style option — it is set per figure TYPE. A
+  // pie must never be re-ordered: its angular order is
+  // not a seed to be improved, it IS the meaning, since a slice's label has to
+  // sit beside its own slice. Read by BOTH placers, so it lives here rather
+  // than inside `outsideTrack`, which the flank path does not have.
+  //
+  // Carried on the geometry so the driver's emission and the figure's own
+  // budget pass ask the identical question (the one-placer rule).
+  untangleLeaders: boolean;
 };
 
 export type FigureLabelMeta = {

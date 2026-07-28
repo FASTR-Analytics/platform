@@ -168,7 +168,6 @@ function pieTrack(
     track: circleTrack(cx, cy, outerR, mergedStyle.pie.calloutMargin),
     clearanceFloor: mergedStyle.pie.labelClearanceFloor,
     alignmentSwitchAngleDeg: mergedStyle.pie.labelAlignmentSwitchAngle,
-    untangleLeaders: PIE_UNTANGLES_LEADERS,
   };
 }
 
@@ -189,6 +188,7 @@ export function buildPieLabelGeometry(
     outsideBand: { minY: cy - outerR, maxY: cy + outerR },
     outsideEdgeAtY: (side, y) => circleEdgeAtY(cx, cy, outerR, side, y),
     outsideClearance: mergedStyle.pie.calloutMargin,
+    untangleLeaders: PIE_UNTANGLES_LEADERS,
     outsideTrack: placement === "nearest"
       ? pieTrack(cx, cy, outerR, mergedStyle)
       : undefined,

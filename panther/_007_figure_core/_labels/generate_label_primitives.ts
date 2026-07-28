@@ -103,10 +103,41 @@ export type OutsidePlacedBox = {
   y: number;
 };
 
+// Passes the flank untangle sweep may run, and how many may pass without a new
+// best before it gives up. A pass is only a sort and a linear stack, so this is
+// cheap — unlike the nearest placer's sweep, which re-seats every box.
+const FLANK_UNTANGLE_SWEEPS = 8;
+const FLANK_UNTANGLE_PATIENCE = 2;
+// Exchange rounds inside one pass. Every exchange strictly shortens two
+// segments, so it converges; the bound is a backstop.
+const FLANK_UNTANGLE_ROUNDS = 200;
+
+// Do the two flank leaders cross? Proper crossing only.
+function flankLeadersCross(
+  a1: { x: number; y: number },
+  a2: { x: number; y: number },
+  b1: { x: number; y: number },
+  b2: { x: number; y: number },
+): boolean {
+  const side = (
+    p: { x: number; y: number },
+    q: { x: number; y: number },
+    r: { x: number; y: number },
+  ) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  return side(a1, a2, b1) * side(a1, a2, b2) < 0 &&
+    side(b1, b2, a1) * side(b1, b2, a2) < 0;
+}
+
 // Pure outside placement for both flanks: split on centerX, greedy-stack each
 // side within the band (gap apart), then push each label against the
 // silhouette edge at its final y, outsideClearance away. Returns boxes in
 // input order.
+//
+// `untangleLeaders` is MAP ONLY (DOC_FIGURE_ARCHITECTURE, "Outside placement")
+// and defaults off, so a pie — which reaches this placer whenever a cell falls
+// back to it, or the style asks for "flank" — is bit-for-bit unchanged. A pie
+// has nothing to gain here anyway: its anchors sit on one arc, so stacking by y
+// is already the visual order.
 export function placeOutsideBoxes(
   inputs: OutsideLabelInput[],
   geometry: Pick<
@@ -114,6 +145,7 @@ export function placeOutsideBoxes(
     "centerX" | "outsideBand" | "outsideEdgeAtY" | "outsideClearance"
   >,
   gap: number,
+  untangleLeaders = false,
 ): OutsidePlacedBox[] {
   const out = new Array<OutsidePlacedBox>(inputs.length);
 
@@ -124,44 +156,146 @@ export function placeOutsideBoxes(
   );
 
   for (const side of ["left", "right"] as const) {
-    const labels: (CollisionLabel & { inputIndex: number })[] = [];
+    const members: number[] = [];
     for (let i = 0; i < inputs.length; i++) {
-      const input = inputs[i];
-      if (sides[i] !== side) continue;
-      // The collision solver treats y as a TOP edge; seed it with the anchor's
-      // top so the uncollided label centres on its anchor.
-      const topY = input.anchorY - input.height / 2;
-      labels.push({
-        inputIndex: i,
-        naturalX: 0,
-        naturalY: topY,
-        x: 0,
-        y: topY,
-        width: input.width,
-        height: input.height,
-      });
+      if (sides[i] === side) members.push(i);
     }
-    if (labels.length === 0) continue;
+    if (members.length === 0) continue;
 
-    resolveOutsideCollisions(labels, geometry.outsideBand, gap);
+    // One stacking, from a choice of desired y positions. Those decide the
+    // ORDER; the greedy inside resolveOutsideCollisions then decides the
+    // spacing, exactly as it always has.
+    const stack = (stackY: Map<number, number>) => {
+      const labels: (CollisionLabel & { inputIndex: number })[] = members.map(
+        (i) => {
+          const input = inputs[i];
+          // The collision solver treats y as a TOP edge; seed it with the
+          // anchor's top so the uncollided label centres on its anchor.
+          const topY = input.anchorY - input.height / 2;
+          return {
+            inputIndex: i,
+            naturalX: 0,
+            naturalY: topY,
+            x: 0,
+            y: topY,
+            width: input.width,
+            height: input.height,
+            stackY: stackY.get(i),
+          };
+        },
+      );
+      resolveOutsideCollisions(labels, geometry.outsideBand, gap);
 
-    // One clean column per flank: every label sits against the side's EXTREME
-    // silhouette edge rather than its own scanline's, so the near edges align
-    // instead of staggering with the shape.
-    let columnEdgeX = side === "left" ? Infinity : -Infinity;
-    for (const l of labels) {
-      const edgeX = geometry.outsideEdgeAtY(side, l.y + l.height / 2);
-      columnEdgeX = side === "left"
-        ? Math.min(columnEdgeX, edgeX)
-        : Math.max(columnEdgeX, edgeX);
+      // One clean column per flank: every label sits against the side's EXTREME
+      // silhouette edge rather than its own scanline's, so the near edges align
+      // instead of staggering with the shape.
+      let columnEdgeX = side === "left" ? Infinity : -Infinity;
+      for (const l of labels) {
+        const edgeX = geometry.outsideEdgeAtY(side, l.y + l.height / 2);
+        columnEdgeX = side === "left"
+          ? Math.min(columnEdgeX, edgeX)
+          : Math.max(columnEdgeX, edgeX);
+      }
+      return { labels, columnEdgeX };
+    };
+
+    const clearance = geometry.outsideClearance;
+    let keys = new Map<number, number>();
+    let placed = stack(keys);
+
+    if (untangleLeaders && members.length > 1) {
+      // The leader's drawn end: every label on a flank shares this x, because
+      // the column is common and the near edge is a clearance in from it.
+      const endXOf = (columnEdgeX: number) =>
+        side === "left" ? columnEdgeX - clearance : columnEdgeX + clearance;
+
+      // Which label owns which of the stack's y slots. Same forecast the
+      // nearest placer uses: hold the slots still, exchange owners until no
+      // pair crosses, then re-stack and measure for real.
+      const uncross = (layout: ReturnType<typeof stack>) => {
+        const endX = endXOf(layout.columnEdgeX);
+        // Centres for the crossing test, tops for the hand-back: the stacker
+        // works in top edges.
+        const slotY = layout.labels.map((l) => l.y + l.height / 2);
+        const slotTop = layout.labels.map((l) => l.y);
+        const owner = layout.labels.map((l) => l.inputIndex);
+        const crosses = (a: number, b: number, i: number, j: number) =>
+          flankLeadersCross(
+            { x: inputs[a].anchorX, y: inputs[a].anchorY },
+            { x: endX, y: slotY[i] },
+            { x: inputs[b].anchorX, y: inputs[b].anchorY },
+            { x: endX, y: slotY[j] },
+          );
+        const count = () => {
+          let n = 0;
+          for (let i = 0; i < owner.length; i++) {
+            for (let j = i + 1; j < owner.length; j++) {
+              if (crosses(owner[i], owner[j], i, j)) n++;
+            }
+          }
+          return n;
+        };
+        const before = count();
+        let exchanged = false;
+        for (let round = 0; round < FLANK_UNTANGLE_ROUNDS; round++) {
+          let any = false;
+          for (let i = 0; i < owner.length; i++) {
+            for (let j = i + 1; j < owner.length; j++) {
+              if (!crosses(owner[i], owner[j], i, j)) continue;
+              const t = owner[i];
+              owner[i] = owner[j];
+              owner[j] = t;
+              any = true;
+              exchanged = true;
+            }
+          }
+          if (!any) break;
+        }
+        return { before, owner, slotTop, exchanged };
+      };
+
+      let best = placed;
+      let bestKeys = keys;
+      let bestCrossings = uncross(placed).before;
+      let barren = 0;
+      for (
+        let sweep = 0;
+        bestCrossings > 0 && sweep < FLANK_UNTANGLE_SWEEPS &&
+        barren < FLANK_UNTANGLE_PATIENCE;
+        sweep++
+      ) {
+        const step = uncross(placed);
+        if (!step.exchanged) break;
+        // Hand each label the slot the forecast gave it. Seeding the desired y
+        // from the PREVIOUS stack's own tops is what makes the re-stack land
+        // back on positions that already fit — the column neither grows nor
+        // drifts, only its owners change.
+        const nextKeys = new Map<number, number>();
+        for (let k = 0; k < step.owner.length; k++) {
+          nextKeys.set(step.owner[k], step.slotTop[k]);
+        }
+        const next = stack(nextKeys);
+        const crossings = uncross(next).before;
+        keys = nextKeys;
+        placed = next;
+        if (crossings < bestCrossings) {
+          bestCrossings = crossings;
+          bestKeys = nextKeys;
+          best = next;
+          barren = 0;
+        } else {
+          barren++;
+        }
+      }
+      keys = bestKeys;
+      placed = best;
     }
 
-    for (const l of labels) {
+    for (const l of placed.labels) {
       const input = inputs[l.inputIndex];
-      const clearance = geometry.outsideClearance;
       const x = side === "left"
-        ? columnEdgeX - clearance - input.width - input.padRight
-        : columnEdgeX + clearance + input.padLeft;
+        ? placed.columnEdgeX - clearance - input.width - input.padRight
+        : placed.columnEdgeX + clearance + input.padLeft;
       out[l.inputIndex] = { side, x, y: l.y };
     }
   }
@@ -240,7 +374,7 @@ function placeOutsideNearest(
       clearance: geometry.outsideClearance,
       clearanceFloor: outsideTrack.clearanceFloor,
       alignmentSwitchAngleDeg: outsideTrack.alignmentSwitchAngleDeg,
-      untangleLeaders: outsideTrack.untangleLeaders,
+      untangleLeaders: geometry.untangleLeaders,
     },
   );
   if (placed.kind !== "ok") return undefined;
@@ -306,6 +440,7 @@ function placeOutside(
     })),
     geometry,
     collision.gap,
+    geometry.untangleLeaders,
   );
 
   return candidates.map((candidate, i) => {
