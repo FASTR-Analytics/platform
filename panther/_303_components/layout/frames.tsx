@@ -60,32 +60,32 @@ type ThreeColumnResizableProps = {
   noBorder?: boolean;
 };
 
-// The resize handle: a 9px hit strip that paints nothing, with a 1px line
-// inside it sitting exactly on the boundary pixel — the same pixel the
-// non-resizable frames' wrapper border occupies, which is what makes swapping
-// FrameLeft <-> FrameLeftResizable a rename. The width must stay odd: 4px of
-// strip on each side of the 1px line, symmetric about the divider. The panel
-// content div reserves the line's pixel with a 1px margin (mirroring border-r
-// consuming a pixel of the border box) so the line never paints over content.
-// The strip must stay borderless: a border on the panel wrapper would move its
-// padding box and shift the hit area by 1px. `noBorder` makes the line
-// transparent at rest, never absent — removing it would delete the grab
-// affordance — and drops the margin, since there is no opaque pixel to
-// reserve.
+// The resize handle: a hit strip that paints nothing, with a 1px line inside
+// it sitting exactly on the boundary pixel — the same pixel the non-resizable
+// frames' wrapper border occupies, which is what makes swapping FrameLeft <->
+// FrameLeftResizable a rename. The panel content div reserves that pixel with
+// a 1px margin (mirroring border-r consuming a pixel of the border box) so
+// the line never paints over content. The strip is symmetric about the
+// boundary it grabs: 9px (4+1+4) around the 1px divider, or 8px (4+4) around
+// the bare 0-width edge when `noBorder` — which renders no line at all; the
+// cursor is the only affordance. Offsets and widths are exact-px arbitrary
+// values, never spacing-scale utilities, so an app `--spacing` override
+// cannot skew the geometry. The strip must stay borderless: a border on the
+// panel wrapper would move its padding box and shift the hit area by 1px.
 function ResizeHandleLine(p: { side: "left" | "right"; noBorder?: boolean }) {
   return (
-    <div
-      class="group-hover:bg-primary group-data-[dragging=true]:bg-primary absolute top-0 h-full w-px"
-      classList={{
-        "right-1": p.side === "left",
-        "left-1": p.side === "right",
-        "bg-border": !p.noBorder,
-        "bg-transparent": !!p.noBorder,
-      }}
-      style={{
-        transition: "background-color var(--ui-dur-fast) var(--ui-ease)",
-      }}
-    />
+    <Show when={!p.noBorder}>
+      <div
+        class="bg-border group-hover:bg-primary group-data-[dragging=true]:bg-primary absolute top-0 h-full w-px"
+        classList={{
+          "right-[4px]": p.side === "left",
+          "left-[4px]": p.side === "right",
+        }}
+        style={{
+          transition: "background-color var(--ui-dur-fast) var(--ui-ease)",
+        }}
+      />
+    </Show>
   );
 }
 
@@ -313,7 +313,8 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
             {p.panelChildren}
           </div>
           <div
-            class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
+            class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
             onMouseDown={handleMouseDown}
             data-dragging={isDragging()}
             style={{ display: p.isShown === false ? "none" : "block" }}
@@ -343,7 +344,8 @@ export function FrameRightResizable(p: ResizableFrameProps) {
           style={{ width: `${displayWidth()}px` }}
         >
           <div
-            class="group absolute -left-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
+            class="group absolute -left-[4px] top-0 z-50 h-full cursor-col-resize"
+            classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
             onMouseDown={handleMouseDown}
             data-dragging={isDragging()}
             style={{ display: p.isShown === false ? "none" : "block" }}
@@ -560,7 +562,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
               {p.leftChild}
             </div>
             <div
-              class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
+              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
               data-dragging={isDragging() && activeHandle() === "left"}
               onMouseDown={handleMouseDown("left")}
             >
@@ -584,7 +587,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
                 divider "belongs" to. */
             }
             <div
-              class="group absolute -right-1 top-0 z-50 h-full w-[9px] cursor-col-resize"
+              class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
+              classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
               data-dragging={isDragging() && activeHandle() === "right"}
               onMouseDown={handleMouseDown("right")}
             >
