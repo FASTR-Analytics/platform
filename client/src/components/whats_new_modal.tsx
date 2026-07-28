@@ -1,6 +1,7 @@
 import {
   compareDottedVersions,
   getLanguage,
+  isWhatsNewVideo,
   t3,
   WHATS_NEW_LAYOUTS,
   type WhatsNewPage,
@@ -149,7 +150,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
           </Show>
           <div classList={{ "ui-spy": !layout().row, "flex items-start gap-6": layout().row }}>
             <Show when={showImage() && layout().imageFirst}>
-              <WhatsNewImage
+              <WhatsNewMedia
                 src={p.page.imageUrl!}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
@@ -160,7 +161,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
               <MarkdownPresentationJsx markdown={rt(p.page.body)} />
             </div>
             <Show when={showImage() && !layout().imageFirst}>
-              <WhatsNewImage
+              <WhatsNewMedia
                 src={p.page.imageUrl!}
                 wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
@@ -172,7 +173,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
       }
     >
       <div class="relative h-full overflow-hidden rounded">
-        <WhatsNewImage
+        <WhatsNewMedia
           src={p.page.imageUrl!}
           wrapClass="absolute inset-0 h-full w-full"
           imgClass="h-full w-full object-cover"
@@ -188,11 +189,12 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
   );
 }
 
-// Post image: hides itself on load failure, and under prefers-reduced-motion
-// renders a GIF's first frame on a canvas (an <img> draws only frame 1; pixels
-// are never read back, so cross-origin taint is irrelevant) with a play button
-// to opt back into the animation.
-function WhatsNewImage(p: {
+// Post media (image, GIF or mp4): hides itself on load failure. Under
+// prefers-reduced-motion a video doesn't autoplay (native controls let the
+// user start it), and a GIF renders its first frame on a canvas (an <img>
+// draws only frame 1; pixels are never read back, so cross-origin taint is
+// irrelevant) with a play button to opt back into the animation.
+function WhatsNewMedia(p: {
   src: string;
   wrapClass: string;
   imgClass: string;
@@ -200,7 +202,9 @@ function WhatsNewImage(p: {
 }) {
   const [failed, setFailed] = createSignal(false);
   const [play, setPlay] = createSignal(false);
-  const staticFrame = () => REDUCED_MOTION && /\.gif(\?|$)/i.test(p.src) && !play();
+  const isVideo = () => isWhatsNewVideo(p.src);
+  const staticFrame = () =>
+    REDUCED_MOTION && !isVideo() && /\.gif(\?|$)/i.test(p.src) && !play();
   let canvasRef: HTMLCanvasElement | undefined;
 
   createEffect(() => {
@@ -222,32 +226,48 @@ function WhatsNewImage(p: {
 
   return (
     <Show when={!failed()}>
-      <Show
-        when={staticFrame()}
-        fallback={
-          <img
-            src={p.src}
-            alt=""
-            class={`${p.wrapClass} ${p.imgClass}`}
-            style={p.width ? { width: p.width } : undefined}
-            onError={() => setFailed(true)}
-          />
-        }
-      >
-        <div
-          class={`relative ${p.wrapClass}`}
+      <Show when={!isVideo()} fallback={
+        <video
+          src={p.src}
+          class={`${p.wrapClass} ${p.imgClass}`}
           style={p.width ? { width: p.width } : undefined}
+          autoplay={!REDUCED_MOTION}
+          loop
+          controls={REDUCED_MOTION}
+          ref={(el) => {
+            el.muted = true;
+            el.playsInline = true;
+          }}
+          onError={() => setFailed(true)}
+        />
+      }>
+        <Show
+          when={staticFrame()}
+          fallback={
+            <img
+              src={p.src}
+              alt=""
+              class={`${p.wrapClass} ${p.imgClass}`}
+              style={p.width ? { width: p.width } : undefined}
+              onError={() => setFailed(true)}
+            />
+          }
         >
-          <canvas ref={canvasRef} class={p.imgClass} />
-          <button
-            type="button"
-            class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"
-            title={t3({ en: "Play animation", fr: "Lire l'animation", pt: "Reproduzir animação" })}
-            onClick={() => setPlay(true)}
+          <div
+            class={`relative ${p.wrapClass}`}
+            style={p.width ? { width: p.width } : undefined}
           >
-            ▶
-          </button>
-        </div>
+            <canvas ref={canvasRef} class={p.imgClass} />
+            <button
+              type="button"
+              class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"
+              title={t3({ en: "Play animation", fr: "Lire l'animation", pt: "Reproduzir animação" })}
+              onClick={() => setPlay(true)}
+            >
+              ▶
+            </button>
+          </div>
+        </Show>
       </Show>
     </Show>
   );

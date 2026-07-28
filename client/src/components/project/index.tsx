@@ -54,7 +54,11 @@ import {
   checkDataNeedsUpdate,
   checkModulesNeedUpdate,
 } from "./staleness_checks";
-import { setupDeckTours, setupReportTours } from "~/onboarding";
+import {
+  setupDeckTours,
+  setupModuleTours,
+  setupReportTours,
+} from "~/onboarding";
 
 type Props = {
   projectId: string;
@@ -98,6 +102,7 @@ function ProjectInner() {
 
   setupDeckTours();
   setupReportTours();
+  setupModuleTours();
 
   const dataNeedsUpdate = createMemo(() =>
     checkDataNeedsUpdate(projectState, instanceState),

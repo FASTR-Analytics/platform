@@ -97,7 +97,7 @@ export function ProjectModules(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-cursor-zone="header">
+          <div class="h-full w-full" data-cursor-zone="header" data-tour="modules-header">
           <HeadingBar
             heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
             ensureHeightAsIfButton
@@ -118,18 +118,20 @@ export function ProjectModules(p: Props) {
                   })}
                 </span>
               </Show>
-              <Button
-                onClick={fetchLatestCommits}
-                iconName="refresh"
-                outline
-                state={checkingUpdates() ? { status: "loading" } : undefined}
-              >
-                {t3({
-                  en: "Check for updates",
-                  fr: "Vérifier les mises à jour",
-                  pt: "Verificar atualizações",
-                })}
-              </Button>
+              <div data-tour="modules-check-updates">
+                <Button
+                  onClick={fetchLatestCommits}
+                  iconName="refresh"
+                  outline
+                  state={checkingUpdates() ? { status: "loading" } : undefined}
+                >
+                  {t3({
+                    en: "Check for updates",
+                    fr: "Vérifier les mises à jour",
+                    pt: "Verificar atualizações",
+                  })}
+                </Button>
+              </div>
               <Show
                 when={
                   !projectState.isLocked &&
@@ -137,16 +139,18 @@ export function ProjectModules(p: Props) {
                   (instanceState.currentUserIsGlobalAdmin || p.canConfigureModules)
                 }
               >
-                <Button onClick={updateAllModules} iconName="refresh" outline>
-                  {t3({ en: "Update all", fr: "Tout mettre à jour", pt: "Atualizar tudo" })}
-                </Button>
+                <div data-tour="modules-update-all">
+                  <Button onClick={updateAllModules} iconName="refresh" outline>
+                    {t3({ en: "Update all", fr: "Tout mettre à jour", pt: "Atualizar tudo" })}
+                  </Button>
+                </div>
               </Show>
             </div>
           </HeadingBar>
           </div>
         }
       >
-        <div class="ui-pad ui-spy" data-page-cursor-surface>
+        <div class="ui-pad ui-spy" data-page-cursor-surface data-tour="modules-list">
           <For each={getPossibleModules(getInstanceCountryIso3())}>
             {(possibleModuleDef) => {
               return (
@@ -369,7 +373,7 @@ function InstalledModulePresentation(p: InstalledModuleProps) {
   }
 
   return (
-    <div class="rounded border">
+    <div class="rounded border" data-tour="modules-installed-card">
       <div class="ui-pad ui-gap-sm flex flex-wrap items-center justify-end border-b">
         <div class="font-700 flex-none text-lg">
           <span class="mr-4">{p.thisInstalledModule.label}</span>
@@ -540,7 +544,10 @@ function UninstalledModulePresentation(p: UninstalledModuleProps) {
   });
 
   return (
-    <div class="ui-pad col-span-1 flex items-center rounded border">
+    <div
+      class="ui-pad col-span-1 flex items-center rounded border"
+      data-tour="modules-uninstalled-card"
+    >
       <div class="font-700 flex-1 text-lg">{p.thisUninstalledModuleLabel}</div>
       <Show
         when={

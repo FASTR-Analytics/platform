@@ -434,26 +434,30 @@ export function ProjectReports(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div class="h-full w-full" data-cursor-zone="header" data-tour="reports-header">
           <HeadingBar
             heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <SortControl
-                value={reportSortMode()}
-                onChange={setReportSortMode}
-              />
+              <div data-tour="reports-sort">
+                <SortControl
+                  value={reportSortMode()}
+                  onChange={setReportSortMode}
+                />
+              </div>
             }
           >
             <Show when={!projectState.isLocked}>
-              <Button onClick={attemptAddReport} iconName="plus">
-                {t3({
-                  en: "Create report",
-                  fr: "Créer un rapport",
-                  pt: "Criar relatório",
-                })}
-              </Button>
+              <div data-tour="reports-create">
+                <Button onClick={attemptAddReport} iconName="plus">
+                  {t3({
+                    en: "Create report",
+                    fr: "Créer un rapport",
+                    pt: "Criar relatório",
+                  })}
+                </Button>
+              </div>
             </Show>
           </HeadingBar>
         </div>
@@ -468,6 +472,7 @@ export function ProjectReports(p: ExtendedProps) {
           <div
             class="flex h-full w-full flex-col border-r"
             data-cursor-zone="folders"
+            data-tour="reports-folders"
           >
             <div class="border-b p-3">
               <Select
@@ -516,6 +521,7 @@ export function ProjectReports(p: ExtendedProps) {
         <div
           class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
           data-page-cursor-surface
+          data-tour="reports-grid"
           onClick={() => selection.clear()}
         >
           <For

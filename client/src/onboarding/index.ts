@@ -6,8 +6,15 @@ import {
   buildDecksManageTour,
   buildDecksOpenDeckTour,
   buildDecksViewerTour,
+  buildModulesEnableTour,
+  buildModulesIntroTour,
+  buildModulesManageTour,
+  buildReportsEditorTour,
+  buildReportsManageTour,
   buildReportsOpenReportTour,
+  buildReportsViewerTour,
 } from "./tours";
+import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
 import {
   deckGroupingMode,
@@ -75,9 +82,14 @@ export function setupDeckTours(): TourManagerController {
   return tours;
 }
 
+// Same layering as the decks tours: a viewer part for everyone, a
+// permission-gated editor part, and card parts deferred until a report is on
+// screen.
 export function setupReportTours(): TourManagerController {
+  const hasReports = () => projectState.reports.length > 0;
   const reportCardOnScreen = () =>
     document.querySelector('[data-tour="reports-report-card"]') !== null;
+  const isEditor = () => projectState.thisUserPermissions.can_configure_reports;
   const tours = createTourManager({
     storage: clerkOnboardingStorage,
     pages: {
@@ -93,8 +105,71 @@ export function setupReportTours(): TourManagerController {
     tours: [
       {
         page: "reports",
-        when: () => projectState.reports.length > 0 && reportCardOnScreen(),
+        tour: buildReportsViewerTour(),
+      },
+      {
+        page: "reports",
+        when: () => hasReports() && reportCardOnScreen(),
         tour: buildReportsOpenReportTour(),
+      },
+      {
+        page: "reports",
+        when: isEditor,
+        tour: buildReportsEditorTour(),
+      },
+      {
+        page: "reports",
+        when: () =>
+          isEditor() &&
+          !projectState.isLocked &&
+          hasReports() &&
+          reportCardOnScreen(),
+        tour: buildReportsManageTour(),
+      },
+    ],
+  });
+  return tours;
+}
+
+// The modules tab has no folders or search — the parts split by what's on
+// screen instead: the intro always runs, while the manage and enable parts
+// wait for an enabled / available module card to exist.
+export function setupModuleTours(): TourManagerController {
+  const canConfigure = () =>
+    instanceState.currentUserIsGlobalAdmin ||
+    projectState.thisUserPermissions.can_configure_modules;
+  const installedCardOnScreen = () =>
+    document.querySelector('[data-tour="modules-installed-card"]') !== null;
+  const availableCardOnScreen = () =>
+    document.querySelector('[data-tour="modules-uninstalled-card"]') !== null;
+  const tours = createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      modules: () => {
+        const perms = projectState.thisUserPermissions;
+        return (
+          projectTab() === "modules" &&
+          (perms.can_configure_modules ||
+            perms.can_run_modules ||
+            perms.can_view_script_code)
+        );
+      },
+    },
+    watch: [() => projectState.projectModules.length],
+    tours: [
+      {
+        page: "modules",
+        tour: buildModulesIntroTour(),
+      },
+      {
+        page: "modules",
+        when: () => canConfigure() && installedCardOnScreen(),
+        tour: buildModulesManageTour(),
+      },
+      {
+        page: "modules",
+        when: () => canConfigure() && availableCardOnScreen(),
+        tour: buildModulesEnableTour(),
       },
     ],
   });

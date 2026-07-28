@@ -55,6 +55,11 @@ export type WhatsNewPost = {
 
 export type WhatsNewEvent = "seen" | "skipped" | "completed";
 
+// Page media may be an image/GIF or an mp4 clip; both live in imageUrl
+export function isWhatsNewVideo(url: string | undefined): boolean {
+  return !!url && /\.mp4(\?|$)/i.test(url);
+}
+
 // Numeric dotted-version compare ("1.9.0" < "1.10.0"); missing or non-numeric
 // parts count as 0 (so "1.61.0-beta" orders as "1.61.0", not NaN).
 // Returns <0 if a<b, 0 if equal, >0 if a>b.
