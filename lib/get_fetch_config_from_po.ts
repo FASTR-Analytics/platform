@@ -377,57 +377,31 @@ export function getRollupPosition(
 }
 
 export type RollupLabelContext =
-  | { kind: "subset" }
   | { kind: "pinned"; level: AdminLevel; value: string | undefined }
   | { kind: "national" }
-  | { kind: "all_facilities" }
-  | { kind: "facility_subset" };
+  | { kind: "all_facilities" };
 
 // What the roll-up row's scope actually is, for labeling (row label + editor
 // checkbox), for a GIVEN dimension — the editor labels the checkbox of every
 // candidate dimension, not just the flagged one. Admin precedence:
-// 1. subset ("All selected areas") — an admin filter restricts the geography:
-//    2+ values at or coarser than the roll-up level, or ANY values on a level
-//    finer than it (finer filters subset the data even with one value).
-//    Levels displayed as REPLICANT are skipped: their filter narrows which
-//    panes exist, while the replicant pin (rule 2) governs each pane's data.
-// 2. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
+// 1. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
 //    value (replicant or single-value filter) names the row.
-// 3. national — no geographic restriction.
-// Facility dimensions have no hierarchy, so only two kinds: facility_subset
-// ("All selected facilities") when the rolled column ITSELF is filtered to 2+
-// values, else all_facilities. In both families, filters on OTHER dimensions
-// deliberately do not affect the label ("all, among the selection" reading).
+// 2. national.
+// Facility dimensions are always "all_facilities".
+// FILTERS NEVER CHANGE THE LABEL (Tim 2026-07-28 — this removed an earlier
+// "All selected areas/facilities" subset kind): a filter is the AUTHOR's
+// context, not the READER's; the row states the figure's scope, and the
+// reader of a report filtered to some areas or facility types reads the total
+// row as the total of what the figure shows.
 export function getRollupLabelContextForDimension(
   config: PresentationObjectConfig,
   dim: RollupDimension,
 ): RollupLabelContext {
   if (!isAdminLevel(dim)) {
-    const filter = config.d.filterBy.find((f) => f.disOpt === dim);
-    return filter && filter.values.length >= 2
-      ? { kind: "facility_subset" }
-      : { kind: "all_facilities" };
+    return { kind: "all_facilities" };
   }
   const level = dim;
   const levelIdx = ADMIN_LEVELS.indexOf(level);
-  const replicantLevels = new Set(
-    config.d.disaggregateBy
-      .filter((d) => d.disDisplayOpt === "replicant")
-      .map((d) => d.disOpt),
-  );
-  for (const l of ADMIN_LEVELS) {
-    if (replicantLevels.has(l)) {
-      continue;
-    }
-    const filter = config.d.filterBy.find((f) => f.disOpt === l);
-    if (!filter || filter.values.length === 0) {
-      continue;
-    }
-    const minValuesForSubset = ADMIN_LEVELS.indexOf(l) <= levelIdx ? 2 : 1;
-    if (filter.values.length >= minValuesForSubset) {
-      return { kind: "subset" };
-    }
-  }
   const coarser = ADMIN_LEVELS.slice(0, levelIdx);
   for (let i = coarser.length - 1; i >= 0; i--) {
     const l = coarser[i];
