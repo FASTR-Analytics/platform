@@ -104,6 +104,79 @@ export function get_QUARTERS_TWO_CHARS() {
 
 export const _QUARTERS_ONE_CHARS = ["1", "2", "3", "4"];
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//                        Fiscal Year (July-June)                             //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// The FY calendar is a pure relabeling of quarter ids: July already falls on a
+// calendar-quarter boundary, so calendar Q3 is fiscal Q1. It applies to
+// year-quarter axes only — year-month and year fall through to gregorian.
+
+const _FY_JULY_START_QUARTER = 3;
+
+// Representative quarter id (2025 Q3 = the start of FY2025/26), used to size
+// label exemplars so the width budget always tracks the real label format.
+const _FY_EXEMPLAR_PERIOD_ID = 20253;
+
+const _YEAR_EXEMPLAR_FOUR_DIGIT = "2022";
+const _YEAR_EXEMPLAR_TWO_DIGIT = "22";
+
+const FY_PREFIX_BY_LANG: Record<Language, string> = {
+  en: "FY",
+  fr: "EF",
+  pt: "AF",
+};
+
+export function isFiscalYearQuarterAxis(
+  periodType: PeriodType,
+  calendar: CalendarType,
+): boolean {
+  return calendar === "gregorian-fy-july" && periodType === "year-quarter";
+}
+
+function getFiscalYearStartYear(year: number, subPeriod: number): number {
+  return subPeriod < _FY_JULY_START_QUARTER ? year - 1 : year;
+}
+
+function getFiscalQuarter(subPeriod: number): number {
+  return ((subPeriod - _FY_JULY_START_QUARTER + 4) % 4) + 1;
+}
+
+// The large-label fallback ladder. A form fully determines both what the label
+// says and how the period is decoded, so rendering needs nothing else.
+//   gregorian:  2022        -> 22
+//   FY:         FY2025/26   -> FY25/26   -> 25/26
+export type LargeLabelForm =
+  | "year-four"
+  | "year-two"
+  | "fy-full"
+  | "fy-compact"
+  | "fy-short";
+
+export function getLargeLabelForms(
+  periodType: PeriodType,
+  calendar: CalendarType,
+): LargeLabelForm[] {
+  if (isFiscalYearQuarterAxis(periodType, calendar)) {
+    return ["fy-full", "fy-compact", "fy-short"];
+  }
+  return ["year-four", "year-two"];
+}
+
+// The exemplar a form's width budget is measured against. FY forms go through
+// the real formatter so the localized prefix is never out of step.
+export function getLargeLabelExemplar(form: LargeLabelForm): string {
+  if (form === "year-four") {
+    return _YEAR_EXEMPLAR_FOUR_DIGIT;
+  }
+  if (form === "year-two") {
+    return _YEAR_EXEMPLAR_TWO_DIGIT;
+  }
+  return getLargePeriodLabel(_FY_EXEMPLAR_PERIOD_ID, form);
+}
+
 export function getSmallPeriodLabelIfAny(
   v: number | string,
   periodAxisType: PeriodAxisType,
@@ -122,11 +195,17 @@ export function getSmallPeriodLabelIfAny(
   }
   if (periodAxisType === "quarter-two-year") {
     const { subPeriod } = decodePeriod(v, "year-quarter");
-    return get_QUARTERS_TWO_CHARS()[subPeriod - 1] ?? "?";
+    const q = calendar === "gregorian-fy-july"
+      ? getFiscalQuarter(subPeriod)
+      : subPeriod;
+    return get_QUARTERS_TWO_CHARS()[q - 1] ?? "?";
   }
   if (periodAxisType === "quarter-one-year") {
     const { subPeriod } = decodePeriod(v, "year-quarter");
-    return _QUARTERS_ONE_CHARS[subPeriod - 1] ?? "?";
+    const q = calendar === "gregorian-fy-july"
+      ? getFiscalQuarter(subPeriod)
+      : subPeriod;
+    return _QUARTERS_ONE_CHARS[q - 1] ?? "?";
   }
   if (periodAxisType === "quarter-none-year") {
     return undefined;
@@ -142,23 +221,41 @@ export function getSmallPeriodLabelIfAny(
 
 export function getLargePeriodLabel(
   v: number | string,
-  digits: "two" | "four",
+  form: LargeLabelForm,
 ): string {
-  if (digits === "four") {
+  if (form === "year-four") {
     return String(v).slice(0, 4);
   }
-  return String(v).slice(2, 4);
+  if (form === "year-two") {
+    return String(v).slice(2, 4);
+  }
+  const { year, subPeriod } = decodePeriod(v, "year-quarter");
+  const startYear = getFiscalYearStartYear(year, subPeriod);
+  const startFour = String(startYear);
+  const endTwo = String(startYear + 1).slice(2, 4);
+  if (form === "fy-short") {
+    return startFour.slice(2, 4) + "/" + endTwo;
+  }
+  const prefix = FY_PREFIX_BY_LANG[getLanguage()];
+  if (form === "fy-compact") {
+    return prefix + startFour.slice(2, 4) + "/" + endTwo;
+  }
+  return prefix + startFour + "/" + endTwo;
 }
 
 export function isLargePeriod(
   v: number | string,
   periodType: PeriodType,
+  calendar: CalendarType,
 ): boolean {
   if (periodType === "year-month") {
     return decodePeriod(v, "year-month").subPeriod === 1;
   }
   if (periodType === "year-quarter") {
-    return decodePeriod(v, "year-quarter").subPeriod === 1;
+    const startQuarter = isFiscalYearQuarterAxis(periodType, calendar)
+      ? _FY_JULY_START_QUARTER
+      : 1;
+    return decodePeriod(v, "year-quarter").subPeriod === startQuarter;
   }
   return true;
 }
@@ -367,12 +464,20 @@ function getMaxWidthWord(
   return maxWidth;
 }
 
-export function getYearDigits(
+// A label must clear 1.5x its own width to be considered a fit, so year labels
+// keep visible air between them rather than butting up against the band edge.
+const _LABEL_FIT_SLACK = 1.5;
+
+export function pickLargeLabelForm(
   availableSpace: number,
-  fourDigitW: number,
-): "four" | "two" {
-  const minWidthNeeded = fourDigitW + (fourDigitW / 2);
-  return minWidthNeeded < availableSpace ? "four" : "two";
+  forms: { form: LargeLabelForm; w: number }[],
+): LargeLabelForm {
+  for (const f of forms) {
+    if (f.w * _LABEL_FIT_SLACK < availableSpace) {
+      return f.form;
+    }
+  }
+  return forms[forms.length - 1].form;
 }
 
 export function calculateYearSkipInterval(
@@ -382,14 +487,17 @@ export function calculateYearSkipInterval(
   periodIncrementWidth: number,
   axisStyle: MergedXPeriodAxisStyle,
 ): number {
-  const twoDigitYearW = rc
+  // Sized against the narrowest rung of the ladder: the skip interval only has
+  // to guarantee that *some* form of the year label fits.
+  const forms = getLargeLabelForms(periodType, axisStyle.calendar);
+  const shortestFormW = rc
     .mText(
-      "22",
+      getLargeLabelExemplar(forms[forms.length - 1]),
       axisStyle.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     )
     .dims.w();
-  const minWidthNeeded = twoDigitYearW + (twoDigitYearW / 2);
+  const minWidthNeeded = shortestFormW * _LABEL_FIT_SLACK;
 
   let periodsPerYear: number;
   if (periodType === "year-month") periodsPerYear = 12;
@@ -414,10 +522,14 @@ export function shouldShowYearBoundary(
   v: number | string,
   periodType: PeriodType,
   skipInterval: number,
+  calendar: CalendarType,
 ): boolean {
-  if (!isLargePeriod(v, periodType)) return false;
+  if (!isLargePeriod(v, periodType, calendar)) return false;
 
-  const year = decodePeriod(v, periodType).year;
+  const decoded = decodePeriod(v, periodType);
+  const year = isFiscalYearQuarterAxis(periodType, calendar)
+    ? getFiscalYearStartYear(decoded.year, decoded.subPeriod)
+    : decoded.year;
 
   if (skipInterval === 1) return true;
   if (skipInterval === 2) return year % 2 === 0;

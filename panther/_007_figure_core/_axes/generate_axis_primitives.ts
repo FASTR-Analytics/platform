@@ -27,7 +27,7 @@ import { getScaleAxisTickPositions } from "./scale_tick_positions.ts";
 import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
-  getYearDigits,
+  pickLargeLabelForm,
   shouldShowYearBoundary,
 } from "./x_period/helpers.ts";
 
@@ -231,7 +231,12 @@ export function generateXPeriodAxisPrimitive(
     const period = getPeriodIdFromTime(time, periodType);
     const isLargeTick = mx.periodAxisType !== "year-centered" &&
       (i_val === 0 ||
-        shouldShowYearBoundary(period, periodType, mx.yearSkipInterval));
+        shouldShowYearBoundary(
+          period,
+          periodType,
+          mx.yearSkipInterval,
+          sx.calendar,
+        ));
 
     if (isLargeTick) {
       // Large tick (year boundary) - full height
@@ -310,11 +315,11 @@ export function generateXPeriodAxisPrimitive(
       } else {
         // Year-centered: label every Nth
         if (i_val % mx.yearSkipInterval === 0) {
-          const digits = getYearDigits(
+          const form = pickLargeLabelForm(
             mx.periodIncrementWidth * mx.yearSkipInterval,
-            mx.fourDigitYearW,
+            mx.largeLabelForms,
           );
-          const yearLabel = getLargePeriodLabel(period, digits);
+          const yearLabel = getLargePeriodLabel(period, form);
           const mText = rc.mText(
             yearLabel,
             sx.text.xPeriodAxisTickLabels,
@@ -365,11 +370,11 @@ export function generateXPeriodAxisPrimitive(
     const minLargeTickSpace = Math.min(
       ...largeTicks.map((lt) => lt.rightX - lt.leftX - sg.gridStrokeWidth),
     );
-    const digits = getYearDigits(minLargeTickSpace, mx.fourDigitYearW);
+    const form = pickLargeLabelForm(minLargeTickSpace, mx.largeLabelForms);
 
     for (const largeTick of largeTicks) {
       const mText = rc.mText(
-        getLargePeriodLabel(largeTick.periodId, digits),
+        getLargePeriodLabel(largeTick.periodId, form),
         sx.text.xPeriodAxisTickLabels,
         mx.periodIncrementWidth,
       );
