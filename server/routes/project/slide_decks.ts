@@ -371,8 +371,17 @@ defineRoute(
     if (!idsRes.success) {
       return c.json(idsRes);
     }
+    // A FAILED flush means that slide's row is stale, so the "safety" version
+    // would not contain the current state — abort rather than overwrite the
+    // deck while promising a rollback point we don't have.
     for (const slideId of idsRes.data.slideIds) {
-      await flushSlideRoom(projectId, slideId);
+      if (!await flushSlideRoom(projectId, slideId)) {
+        return c.json({
+          success: false as const,
+          err:
+            "This deck has unsaved live edits that could not be saved yet, so a safety version cannot be created. Please retry once saving recovers.",
+        });
+      }
     }
 
     // Absorb the open editing session's attribution into the safety version;
@@ -484,6 +493,12 @@ defineRoute(
       plan,
     );
     if (!structRes.success) {
+      // Nothing was restored — put the drained session back, exactly like the
+      // load/safety-insert/remap failure paths above. Without this the drained
+      // editors and the per-slide element ledger are dropped on the floor, and
+      // when the safety version was skipped by hash-dedup that attribution is
+      // lost outright.
+      reinjectDrained();
       return c.json(structRes);
     }
     let lastUpdated = structRes.data.lastUpdated;
@@ -494,13 +509,17 @@ defineRoute(
     // restored-state version claiming the full snapshot, nor report success.
     const failedSlideIds: string[] = [];
     for (const s of plan.toUpdate) {
-      const roomLastUpdated = await applySlideToLiveRoom(
+      const roomRes = await applySlideToLiveRoom(
         projectId,
         s.id,
         s.config,
       );
-      if (roomLastUpdated !== null) {
-        lastUpdated = roomLastUpdated;
+      if (roomRes.status === "saved") {
+        lastUpdated = roomRes.lastUpdated;
+      } else if (roomRes.status === "save_failed") {
+        // Room absorbed the restore but couldn't persist it — partial apply;
+        // no direct-write fallback (the room owns persistence).
+        failedSlideIds.push(s.id);
       } else {
         const res = await updateSlide(projectDb, s.id, s.config, undefined, undefined);
         if (res.success) {

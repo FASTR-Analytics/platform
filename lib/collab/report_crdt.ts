@@ -217,8 +217,13 @@ function syncFigureEntry(
     return;
   }
   const { config, ...figData } = bundle;
-  if (!skipConfig) {
-    let cfgMap = entry.get(FIG_CONFIG_KEY);
+  // Honor the skip only when there IS a figConfig map for the modal to own —
+  // see the same guard in slide_crdt.ts syncFigureNode. Without a map, writing
+  // figData alone makes readFigureEntry report a bundle-less figure, so the
+  // checkpoint stores an empty one and stamps crdt_state trusted.
+  const existingConfig = entry.get(FIG_CONFIG_KEY);
+  if (!skipConfig || !(existingConfig instanceof Y.Map)) {
+    let cfgMap = existingConfig;
     if (!(cfgMap instanceof Y.Map)) {
       cfgMap = new Y.Map<unknown>();
       entry.set(FIG_CONFIG_KEY, cfgMap);

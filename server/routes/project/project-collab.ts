@@ -5,11 +5,21 @@ import {
   collabClientMessageSchema,
   type CollabServerMessage,
   createDevProjectUser,
+  dropStorageInvalidTransients,
+  dropStorageInvalidTransientsInFigures,
+  dropStorageInvalidTransientsInSlide,
   presenceColorForKey,
+  presentationObjectConfigSchema,
+  type PresentationObjectConfig,
   type ProjectUser,
+  reportFiguresSchema,
+  reportImagesSchema,
+  type Slide,
+  slideConfigSchema,
+  storedMatchesDoc,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
-import { _BYPASS_AUTH } from "../../exposed_env_vars.ts";
+import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { allowedOrigins } from "../../middleware/cors.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
@@ -302,15 +312,46 @@ routesProjectCollab.get(
         },
         saveSlide: async (slide, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
-          const res = await saveSlideCheckpoint(projectDb, slideId, slide, crdtState);
+          // Validation lives HERE, not in the DB write: a schema rejection is
+          // PERMANENT for this doc state (same input parses the same way
+          // forever), so the room must not timer-retry it — see DocSaveResult.
+          // The stored copy drops schema-invalid transients from EMBEDDED
+          // figures for the same reason the PO room does (see the po closure):
+          // the figure modal streams a mid-edit config straight into this doc.
+          let stored: Slide;
+          try {
+            stored = slideConfigSchema.parse(
+              dropStorageInvalidTransientsInSlide(slide),
+            ) as Slide;
+          } catch (err) {
+            console.error(
+              `[collab] slide checkpoint validation failed for ${slideId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store — parse-stripped keys would otherwise diverge doc
+          // from row while stamped current, and every editor open would adopt
+          // the divergent doc (the "viz flip" bug class, 2026-07-24).
+          // storedMatchesDoc also rejects a doc holding values JSON cannot
+          // represent, which a plain canonicalJson compare cannot see.
+          const trusted = storedMatchesDoc(stored, slide);
+          const res = await saveSlideCheckpoint(
+            projectDb,
+            slideId,
+            stored,
+            crdtState,
+            trusted,
+          );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
           if (deckId) {
             notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
           }
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
         onEdit: (editor) => {
           if (deckId) {
@@ -359,19 +400,44 @@ routesProjectCollab.get(
         },
         save: async (content, crdtState) => {
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
+          // Validation lives HERE (see the slide closure): schema rejection is
+          // permanent for this doc state — no timer retry. The body is a plain
+          // string (no parse); figures/images are the parsed surfaces. Figures
+          // drop embedded schema-invalid transients (see the slide closure).
+          let storedFigures: typeof content.figures;
+          let storedImages: typeof content.images;
+          try {
+            storedFigures = reportFiguresSchema.parse(
+              dropStorageInvalidTransientsInFigures(content.figures),
+            );
+            storedImages = reportImagesSchema.parse(content.images);
+          } catch (err) {
+            console.error(
+              `[collab] report checkpoint validation failed for ${reportId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store (parse-stripped keys → untrusted → re-seed next
+          // open). Body is stored verbatim, so only figures/images can differ.
+          const trusted =
+            storedMatchesDoc(storedFigures, content.figures) &&
+            storedMatchesDoc(storedImages, content.images);
           const res = await saveReportCheckpoint(
             projectDb,
             reportId,
-            content,
+            { body: content.body, figures: storedFigures, images: storedImages },
             crdtState,
             getAuthorRuns(projectId, reportId, content.body),
+            trusted,
           );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);
           scheduleReportsListRebroadcast(projectId);
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
         onEdit: (editor) => recordVersionEdit(projectId, "report", reportId, editor),
         onEmpty: () => noteVersionRoomEmpty(projectId, "report", reportId),
@@ -395,14 +461,38 @@ routesProjectCollab.get(
         },
         save: async (config, crdtState) => {
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
+          // The stored copy drops schema-invalid transients (a filter chip
+          // with all values un-ticked is legal mid-edit; the strict parse used
+          // to throw on it, wedging the room's checkpoint permanently —
+          // observed 2026-07-23 on sierraleone/testing2). The live doc keeps
+          // the transient state; only the row is normalized. A residual parse
+          // failure is PERMANENT for this doc state — no timer retry.
+          let storedConfig: PresentationObjectConfig;
+          try {
+            storedConfig = presentationObjectConfigSchema.parse(
+              dropStorageInvalidTransients(config),
+            );
+          } catch (err) {
+            console.error(
+              `[collab] po checkpoint validation failed for ${poId}`,
+              err,
+            );
+            return { ok: false, permanent: true };
+          }
+          // Trust the CRDT state only when the doc materializes to exactly
+          // what we store — a diverged doc (dropped transients, parse-stripped
+          // keys) must re-seed on next open instead of reasserting itself
+          // (every editor open adopts it, visibly "flipping" the viz).
+          const trusted = storedMatchesDoc(storedConfig, config);
           const res = await savePresentationObjectCheckpoint(
             projectDb,
             poId,
-            config,
+            storedConfig,
             crdtState,
+            trusted,
           );
           if (!res.success) {
-            return null;
+            return { ok: false };
           }
           notifyLastUpdated(
             projectId,
@@ -411,7 +501,7 @@ routesProjectCollab.get(
             res.data.lastUpdated,
           );
           scheduleVizListRebroadcast(projectId);
-          return res.data.lastUpdated;
+          return { ok: true, lastUpdated: res.data.lastUpdated };
         },
       };
     }
@@ -442,7 +532,7 @@ routesProjectCollab.get(
         addConnection(projectId, connectionId, auth, ws);
         const hello: CollabServerMessage = {
           type: "hello",
-          data: { connectionId },
+          data: { connectionId, serverVersion: _SERVER_VERSION },
         };
         ws.send(JSON.stringify(hello));
         broadcastPresence(projectId);
@@ -489,6 +579,14 @@ routesProjectCollab.get(
           return;
         }
         switch (msg.type) {
+          case "ping": {
+            // Client-side liveness probe (see lib/types/collab.ts). The reply
+            // is the point: the client's watchdog force-closes a socket that
+            // gets no traffic back.
+            const pong: CollabServerMessage = { type: "pong" };
+            ws.send(JSON.stringify(pong));
+            break;
+          }
           case "presence_update":
             updateConnectionPresence(projectId, connectionId, msg.data);
             broadcastPresence(projectId);
@@ -619,5 +717,14 @@ routesProjectCollab.get(
         handleConnGone(connectionId);
       },
     };
+  }, {
+    // Server-side dead-peer detection: Deno pings every client at the
+    // protocol level and closes the connection (firing onClose/onError above,
+    // which run all presence/room cleanup) when no pong arrives within this
+    // many SECONDS. 30 is Deno's own default — pinned here so the contract is
+    // explicit rather than inherited, and survives a runtime default change.
+    // The client-side mirror (browsers can't see protocol pings) is the
+    // ping/pong watchdog in client/src/state/project/collab.ts.
+    idleTimeout: 30,
   }),
 );

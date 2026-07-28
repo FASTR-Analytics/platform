@@ -28,6 +28,7 @@ import {
   type DocRoomAdapter,
   type DocRoomDeps,
   flushRoomForDoc,
+  type LiveRoomApplyResult,
   relayDocAwareness,
   type RoomConn,
   subscribeDoc,
@@ -137,11 +138,13 @@ export function unsubscribeReport(
   unsubscribeDoc(projectId, DOC_TYPE, reportId, conn);
 }
 
-/** Persist a report room's un-checkpointed edits now (no-op when none). */
+/** Persist a report room's un-checkpointed edits now (no-op when none).
+ *  False ⇒ the checkpoint failed and the DB row is NOT current (see
+ *  flushRoomForDoc). */
 export function flushReportRoom(
   projectId: string,
   reportId: string,
-): Promise<void> {
+): Promise<boolean> {
   return flushRoomForDoc(projectId, DOC_TYPE, reportId);
 }
 
@@ -157,16 +160,16 @@ export function closeReportRoom(
 
 /** Route a non-collab report save (the body/figures/images HTTP routes)
  *  through a live room, if one exists. Only the provided fields are synced
- *  onto the doc; the checkpoint persists the whole document. Returns the new
- *  last_updated, or null when no room is live (caller writes the DB directly).
- *  `editor` attributes the write to version history; omit for restores (they
- *  version themselves explicitly). */
+ *  onto the doc; the checkpoint persists the whole document. See
+ *  LiveRoomApplyResult — on `save_failed` the caller must NOT fall back to a
+ *  direct DB write. `editor` attributes the write to version history; omit
+ *  for restores (they version themselves explicitly). */
 export function applyReportToLiveRoom(
   projectId: string,
   reportId: string,
   partial: Partial<ReportDocContent>,
   editor?: VersionEditor,
-): Promise<string | null> {
+): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
     projectId,
     DOC_TYPE,

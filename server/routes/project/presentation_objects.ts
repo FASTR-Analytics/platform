@@ -292,13 +292,25 @@ defineRoute(
     // conflict resolution, so the optimistic-lock check is skipped). The room's
     // checkpoint already persisted, fired notifyLastUpdated and scheduled the
     // viz-list rebroadcast.
-    const roomLastUpdated = await applyPoToLiveRoom(
+    const roomRes = await applyPoToLiveRoom(
       c.var.ppk.projectId,
       params.po_id,
       (m) => syncFigureConfigToMap(m, config),
     );
-    if (roomLastUpdated !== null) {
-      return c.json({ success: true, data: { lastUpdated: roomLastUpdated } });
+    if (roomRes.status === "saved") {
+      return c.json({
+        success: true,
+        data: { lastUpdated: roomRes.lastUpdated },
+      });
+    }
+    if (roomRes.status === "save_failed") {
+      // The room applied the change (peers already see it) but could not
+      // persist it. Do NOT fall back to a direct DB write — the room owns
+      // persistence and its next successful checkpoint would clobber it.
+      return c.json({
+        success: false as const,
+        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
+      });
     }
 
     const res = await updatePresentationObjectConfig(
@@ -343,14 +355,22 @@ defineRoute(
     // period-filter change merged into the room (avoids clobbering a peer's
     // in-progress edits); the rest go through the batch DB write.
     const roomHandled = new Set<string>();
+    const saveFailedIds: string[] = [];
     let lastUpdated: string | null = null;
     for (const id of ids) {
-      const ts = await applyPoToLiveRoom(projectId, id, (m) =>
+      const roomRes = await applyPoToLiveRoom(projectId, id, (m) =>
         syncFigureConfigField(m, "d", "periodFilter", periodFilter),
       );
-      if (ts !== null) {
+      // save_failed still counts as room-handled: the room absorbed the change
+      // (peers see it) and owns persisting it — a direct DB write here would
+      // be clobbered by the room's next successful checkpoint.
+      if (roomRes.status !== "no_room") {
         roomHandled.add(id);
-        lastUpdated = ts;
+        if (roomRes.status === "saved") {
+          lastUpdated = roomRes.lastUpdated;
+        } else {
+          saveFailedIds.push(id);
+        }
       }
     }
 
@@ -377,6 +397,17 @@ defineRoute(
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(projectId, vizRes.data);
       }
+    }
+
+    if (saveFailedIds.length > 0) {
+      // The rooms absorbed the change (peers already see it) but could not
+      // persist it — matching updatePresentationObjectConfig above, report
+      // the failure instead of claiming success with a synthetic timestamp.
+      return c.json({
+        success: false as const,
+        err:
+          `The period filter was applied to ${saveFailedIds.length} live editing session(s) but could not be saved yet. Saving will retry automatically.`,
+      });
     }
 
     return c.json({

@@ -242,11 +242,17 @@ export async function getSlideCrdtState(
 // state atomically (collab is authoritative, so this always overwrites — no
 // conflict check). crdt_state_last_updated is stamped equal to last_updated so
 // the state reads back as current until a non-collab edit bumps last_updated.
+// Plain write — POLICY LIVES IN THE CALLER (the slide room's save closure in
+// routes/project/project-collab.ts): `slide` must already be schema-parsed,
+// and `crdtTrusted` says whether the doc materializes to exactly `slide`.
+// Untrusted → crdt_state_last_updated stamped NULL, so the next room open
+// re-seeds from config instead of restoring a doc that disagrees with the row.
 export async function saveSlideCheckpoint(
   projectDb: Sql,
   slideId: string,
   slide: Slide,
-  crdtState: string
+  crdtState: string,
+  crdtTrusted: boolean,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const existing = (
@@ -264,9 +270,9 @@ export async function saveSlideCheckpoint(
     await projectDb.begin((sql) => [
       sql`
         UPDATE slides
-        SET config = ${JSON.stringify(slideConfigSchema.parse(slide))},
+        SET config = ${JSON.stringify(slide)},
             crdt_state = ${crdtState},
-            crdt_state_last_updated = ${lastUpdated},
+            crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
             last_updated = ${lastUpdated}
         WHERE id = ${slideId}
       `,

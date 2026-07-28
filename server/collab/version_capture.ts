@@ -128,7 +128,16 @@ export async function loadReportVersionData(
   // A live room can be up to 1.5s ahead of the DB — snapshot the room's real
   // end state (body AND the ledger's final tombstones), not the last
   // checkpoint's. No-op when no room / nothing dirty.
-  await flushReportRoom(projectId, reportId);
+  // A FAILED flush means the row is stale: throwing (rather than snapshotting
+  // it) merges the session back for the next sweep, exactly like a failed read.
+  // Versioning the stale row instead would date the version AND usually
+  // hash-dedup to nothing, silently ending this document's version history for
+  // as long as its room stays wedged.
+  if (!await flushReportRoom(projectId, reportId)) {
+    throw new Error(
+      `Report ${reportId} has a live room whose checkpoint is failing — deferring version capture`,
+    );
+  }
   const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
   const res = await getReportDetail(projectDb, reportId);
   if (!res.success) {
@@ -176,7 +185,14 @@ export async function loadDeckVersionData(
     .filter((id) => isRoomOpen(projectId, "slide", id));
   if (openIds.length > 0) {
     for (const id of openIds) {
-      await flushSlideRoom(projectId, id);
+      // A failed flush leaves that slide's row stale — see the report loader:
+      // throw so the session merges back and retries, rather than freezing a
+      // deck version that misses the slide's session tail.
+      if (!await flushSlideRoom(projectId, id)) {
+        throw new Error(
+          `Slide ${id} has a live room whose checkpoint is failing — deferring version capture`,
+        );
+      }
     }
     slidesRes = await getSlides(projectDb, deckId);
     if (!slidesRes.success) {

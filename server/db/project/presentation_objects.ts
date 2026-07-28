@@ -386,25 +386,33 @@ SELECT crdt_state, crdt_state_last_updated, last_updated FROM presentation_objec
   });
 }
 
-// Collab checkpoint: persist the materialized config AND the Yjs CRDT state
-// atomically (collab is authoritative → always overwrites, no conflict check).
-// crdt_state_last_updated is stamped equal to last_updated so the state reads
-// back as current until a non-collab edit bumps last_updated. Refuses default
-// visualizations (read-only) — a room should never have been opened for one.
+// Collab checkpoint: persist the config AND the Yjs CRDT state atomically
+// (collab is authoritative → always overwrites, no conflict check). Plain
+// write — POLICY LIVES IN THE CALLER (the PO room's save closure in
+// routes/project/project-collab.ts): `storedConfig` must already be
+// schema-parsed with schema-invalid transients dropped, and `crdtTrusted`
+// says whether the doc materializes to exactly `storedConfig`. When trusted,
+// crdt_state_last_updated is stamped equal to last_updated so the state
+// reads back as current; when not, it is stamped NULL so the next room open
+// re-seeds from config instead of restoring a doc that disagrees with the
+// row (which every editor open would adopt, visibly "flipping" the viz ~1s
+// after open). Refuses default visualizations (read-only) — a room should
+// never have been opened for one.
 export async function savePresentationObjectCheckpoint(
   projectDb: Sql,
   presentationObjectId: string,
-  config: PresentationObjectConfig,
+  storedConfig: PresentationObjectConfig,
   crdtState: string,
+  crdtTrusted: boolean,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await projectDb`
 UPDATE presentation_objects
 SET
-  config = ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
+  config = ${JSON.stringify(storedConfig)},
   crdt_state = ${crdtState},
-  crdt_state_last_updated = ${lastUpdated},
+  crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
   last_updated = ${lastUpdated}
 WHERE id = ${presentationObjectId} AND is_default_visualization = FALSE
 RETURNING id

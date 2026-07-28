@@ -92,7 +92,16 @@ export type CollabClientMessage =
   // project tab pages, which have no doc room. Opaque relay to every other
   // admitted connection in the project — presence-class visibility, never
   // persisted, never applied to any server doc.
-  | { type: "project_awareness_update"; data: { update: string } };
+  | { type: "project_awareness_update"; data: { update: string } }
+  // Client-side liveness probe. The SERVER side of dead-peer detection is
+  // Deno's built-in protocol ping (idleTimeout — see project-collab.ts), but
+  // browsers can neither see protocol pings nor send their own, so a client
+  // whose path died silently would keep an OPEN-looking socket for minutes.
+  // The client sends this on a timer and force-closes the socket when no
+  // traffic (the pong, or anything else) arrives back in time — dropping into
+  // the normal reconnect + catch-up machinery. Server replies `pong`; never
+  // required (older clients simply don't send it).
+  | { type: "ping" };
 
 // ── Server-side frame validation ─────────────────────────────────────────────
 // Every frame arriving on the collab socket is schema-checked before any
@@ -200,7 +209,14 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
       type: z.literal("project_awareness_update"),
       data: z.object({ update: awarenessUpdateSchema }),
     }),
+    z.object({ type: z.literal("ping") }),
   ]);
+
+/** The non-fatal `*_error` message a doc room sends when it drops an update
+ *  from a connection whose snapshot auth lacks the family's edit permission.
+ *  Shared so clients can recognize it: when it contradicts the client's live
+ *  permission state, the socket's auth is stale and a reconnect re-derives it. */
+export const COLLAB_NO_EDIT_PERMISSION = "No edit permission";
 
 /** Server → client messages.
  *
@@ -210,7 +226,10 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
  *  dropped). Non-fatal errors are per-operation rejections (no edit
  *  permission, malformed update) and the session stays usable. */
 export type CollabServerMessage =
-  | { type: "hello"; data: { connectionId: string } }
+  // `serverVersion` lets a tab that stayed open across a server update detect
+  // the deploy boundary on reconnect and force-reload (see collab.ts) instead
+  // of pushing its pre-deploy Yjs docs into freshly re-seeded rooms.
+  | { type: "hello"; data: { connectionId: string; serverVersion: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
   // Connection-level rejection (e.g. over-sized or invalid frame) — the client
   // logs it; per-document failures use the families' own *_error messages.
@@ -260,7 +279,11 @@ export type CollabServerMessage =
   }
   // Project-scoped awareness relayed from another connection (see the client
   // message counterpart above).
-  | { type: "project_awareness"; data: { update: string } };
+  | { type: "project_awareness"; data: { update: string } }
+  // Reply to a client `ping` (liveness probe — see the client message note).
+  // Carries no data: ANY received traffic proves the link, this just
+  // guarantees there is some.
+  | { type: "pong" };
 
 const PRESENCE_PALETTE = [
   "#ef4444",

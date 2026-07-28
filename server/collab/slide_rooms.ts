@@ -34,7 +34,9 @@ import {
   closeRoomsForDoc,
   type DocRoomAdapter,
   type DocRoomDeps,
+  type DocSaveResult,
   flushRoomForDoc,
+  type LiveRoomApplyResult,
   relayDocAwareness,
   type RoomConn,
   subscribeDoc,
@@ -160,9 +162,10 @@ export type SlideRoomDeps = {
    *  from (present only when current); when null the room seeds from `slide`. */
   loadSlide: () => Promise<{ slide: Slide; crdtState: string | null } | null>;
   /** Persist the materialized slide config + Yjs state (collab is
-   *  authoritative, so this overwrites) and fire SSE notifications. Returns
-   *  the new last_updated, or null when the save failed. */
-  saveSlide: (slide: Slide, crdtState: string) => Promise<string | null>;
+   *  authoritative, so this overwrites) and fire SSE notifications. Schema
+   *  validation belongs in this closure — classify a rejection as permanent
+   *  (see DocSaveResult in doc_rooms.ts). */
+  saveSlide: (slide: Slide, crdtState: string) => Promise<DocSaveResult>;
   /** Version-history capture (see DocRoomDeps). */
   onEdit?: (editor: VersionEditor) => void;
   onEmpty?: () => void;
@@ -226,11 +229,13 @@ export function unsubscribeSlide(
   unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
 }
 
-/** Persist a slide room's un-checkpointed edits now (no-op when none). */
+/** Persist a slide room's un-checkpointed edits now (no-op when none).
+ *  False ⇒ the checkpoint failed and the DB row is NOT current (see
+ *  flushRoomForDoc). */
 export function flushSlideRoom(
   projectId: string,
   slideId: string,
-): Promise<void> {
+): Promise<boolean> {
   return flushRoomForDoc(projectId, DOC_TYPE, slideId);
 }
 
@@ -249,14 +254,15 @@ export function closeSlideRoom(
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see
- *  applyToLiveRoom in doc_rooms.ts). `editor` attributes the write to version
+ *  applyToLiveRoom in doc_rooms.ts — on `save_failed` the caller must NOT
+ *  fall back to a direct DB write). `editor` attributes the write to version
  *  history; omit for restores (they version themselves explicitly). */
 export function applySlideToLiveRoom(
   projectId: string,
   slideId: string,
   slide: Slide,
   editor?: VersionEditor,
-): Promise<string | null> {
+): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
     projectId,
     DOC_TYPE,

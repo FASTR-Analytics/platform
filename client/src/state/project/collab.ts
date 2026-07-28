@@ -199,7 +199,19 @@ function applySessionUser(awareness: Awareness): void {
   }
 }
 
+// Set once the deploy-boundary guard has decided to reload (see
+// maybeReloadOnServerVersionChange). socket.onopen re-subscribes every open
+// session BEFORE the `hello` frame carrying the version can possibly be seen,
+// so the server's *_sync answers keep arriving while the reload navigation is
+// still pending — and their two-way catch-up would push this tab's PRE-DEPLOY
+// Yjs docs into the freshly re-seeded rooms, which is exactly what the reload
+// exists to prevent. Muting the socket closes that window deterministically.
+let reloadingForServerVersion = false;
+
 function sendCollab(msg: CollabClientMessage): boolean {
+  if (reloadingForServerVersion) {
+    return false;
+  }
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     return false;
   }
@@ -816,12 +828,57 @@ function sendPresence(): void {
   ws.send(JSON.stringify(message));
 }
 
+// Deploy-boundary guard. A tab that stays open across a server update never
+// re-runs the mount-time version check (LoggedInWrapper), so it keeps running
+// OLD client code with OLD caches — and worse, its reconnect catch-up would
+// push its pre-deploy Yjs docs back into the server's freshly re-seeded rooms
+// (the two-way sync ships "what the server is missing", which after a deploy
+// is exactly the stale state a crdt_state-nulling migration just discarded).
+// On the first hello carrying a NEW server version, force a reload instead:
+// the reloaded page runs the mount check against the SAME localStorage key,
+// which busts the IndexedDB caches — realtime teardown and cache bust ride
+// one trigger. Edits made during the disconnection window are discarded
+// (the accepted close()-while-offline tradeoff — and exactly the merge a
+// version boundary must not allow). The sessionStorage flag caps this at one
+// reload per seen version, so nothing can loop; localStorage itself is only
+// ever written by the mount check, keeping ownership in one place.
+function maybeReloadOnServerVersionChange(serverVersion: string): void {
+  if (!serverVersion) {
+    return;
+  }
+  const stored = localStorage.getItem("serverVersion");
+  if (!stored || stored === serverVersion) {
+    return;
+  }
+  const guardKey = `collabReloadedForVersion::${serverVersion}`;
+  if (sessionStorage.getItem(guardKey)) {
+    return;
+  }
+  sessionStorage.setItem(guardKey, "1");
+  // Mute the socket BEFORE navigating: reload() does not stop message
+  // dispatch, and onopen already shipped this tab's subscribes.
+  reloadingForServerVersion = true;
+  // …and CLOSE it, so session.isLive() reports false. Muting alone leaves
+  // isLive() true (it reads ws.readyState), and both close-flush paths in the
+  // editors skip their explicit REST save while isLive() — so a reload that
+  // never commits (browser Stop on a slow deploy-time load) would drop every
+  // later edit while the editor still claimed "Live". Closing also drops this
+  // tab's presence immediately instead of leaving peers a stale cursor until
+  // the server's ~30s sweep. Intentional close ⇒ no reconnect (see onclose).
+  hardClose();
+  console.log(
+    `Collab: server updated (${stored} → ${serverVersion}) — reloading to resync`,
+  );
+  window.location.reload();
+}
+
 function openSocket(projectId: string): void {
   const socket = new WebSocket(collabWsUrl(projectId));
   ws = socket;
 
   socket.onopen = () => {
     attempts = 0;
+    lastReceivedAt = Date.now(); // liveness watchdog baseline
     setSocketOpen(true);
     notifyCollabConnection("connected");
     sendPresence();
@@ -854,6 +911,8 @@ function openSocket(projectId: string): void {
   };
 
   socket.onmessage = (event) => {
+    // Any received frame proves the link is alive (liveness watchdog below).
+    lastReceivedAt = Date.now();
     let msg: CollabServerMessage;
     try {
       msg = parseJsonOrThrow<CollabServerMessage>(event.data);
@@ -863,6 +922,7 @@ function openSocket(projectId: string): void {
     }
     if (msg.type === "hello") {
       setCollabStore("connectionId", msg.data.connectionId);
+      maybeReloadOnServerVersionChange(msg.data.serverVersion);
     } else if (msg.type === "error") {
       // Connection-level rejection (e.g. an over-sized frame). The doc
       // families carry their own *_error messages; this one is just logged —
@@ -898,6 +958,8 @@ function openSocket(projectId: string): void {
       // Room checkpoint health — editors surface "not saving" instead of
       // claiming "Live" while the server can't persist.
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
+    } else if (msg.type === "pong") {
+      // Liveness only — receipt was already recorded above.
     } else if (
       !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
     ) {
@@ -1005,6 +1067,45 @@ setInterval(() => {
   }
 }, IDLE_CHECK_MS);
 
+// ── Connection liveness watchdog (client-side heartbeat) ────────────────────
+// The SERVER side of dead-peer detection is Deno's protocol-level ping
+// (idleTimeout: 30 in project-collab.ts). Browsers can neither observe
+// protocol pings nor send their own, so when the path dies silently under
+// this tab (NAT drop, server hard-kill, network switch) the socket keeps
+// LOOKING open for however long TCP takes to notice — editors claim "Live",
+// session.isLive() misleads the close-flush logic, and edits stream into a
+// dead pipe. So: send an app-level ping on a timer, and if NO traffic at all
+// (the pong, or anything else) arrives back within the deadline, force-close
+// the socket — onclose (not marked intentional) then runs the normal
+// reconnect + Yjs catch-up. Worst-case detection ≈ interval + deadline.
+// Registered once for the module's lifetime, like the idle detector.
+
+const PING_INTERVAL_MS = 25_000;
+const PONG_DEADLINE_MS = 10_000;
+
+// Stamped on open and on EVERY received frame (any traffic proves the link).
+let lastReceivedAt = 0;
+
+setInterval(() => {
+  const socket = ws;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  const sentAt = Date.now();
+  sendCollab({ type: "ping" });
+  setTimeout(() => {
+    // Only kill the SAME socket, still nominally open, that received nothing
+    // since the ping left. (A frozen-then-resumed tab re-enters here cleanly:
+    // the next tick pings again before any deadline can fire.)
+    if (ws !== socket || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (lastReceivedAt < sentAt) {
+      socket.close();
+    }
+  }, PONG_DEADLINE_MS);
+}, PING_INTERVAL_MS);
+
 // ── Project-level awareness (page cursors) ──────────────────────────────────
 // The project tab pages have no doc room, so their live cursors ride a
 // dedicated PROJECT-scoped Awareness: local field writes relay opaquely to
@@ -1079,6 +1180,41 @@ function hardClose(): void {
     ws = undefined;
     setSocketOpen(false);
   }
+}
+
+/** Tear down and immediately re-open the collab socket. Needed when this
+ *  user's project permissions (or the project lock) change while connected:
+ *  the server snapshots authorization once per connection, so a live grant
+ *  or revoke never reaches an open socket — a viewer-connected editor keeps
+ *  getting non-fatal "No edit permission" rejections while its local doc
+ *  diverges. Reconnecting re-derives auth server-side; onopen re-subscribes
+ *  every open session and the two-way sync pushes any local ops the server
+ *  is missing (edits typed during the stale window get saved, not lost).
+ *  No-op when no project connection is wanted. */
+export function forceCollabReconnect(reason: string): void {
+  if (!currentProjectId) {
+    return;
+  }
+  console.log(`Collab: reconnecting (${reason})`);
+  hardClose();
+  retryNow();
+}
+
+// Self-heal for a "No edit permission" rejection that CONTRADICTS the client's
+// live permission state: the socket's snapshot auth is stale (the grant's SSE
+// event raced or was missed), so reconnect to re-derive it. Cooldown-guarded —
+// if the server still rejects after a fresh connect, the disagreement is real
+// (client store wrong, not the socket) and looping reconnects would just churn.
+let lastStaleAuthReconnectAt = 0;
+const STALE_AUTH_RECONNECT_COOLDOWN_MS = 30_000;
+
+export function reconnectForStaleEditAuth(): void {
+  const now = Date.now();
+  if (now - lastStaleAuthReconnectAt < STALE_AUTH_RECONNECT_COOLDOWN_MS) {
+    return;
+  }
+  lastStaleAuthReconnectAt = now;
+  forceCollabReconnect("edit rejected but permissions say editable");
 }
 
 export function connectCollab(projectId: string): void {

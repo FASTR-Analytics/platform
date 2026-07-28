@@ -44,7 +44,7 @@ import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import type { LayoutNode } from "@timroberton/panther";
 import type { ContentBlock, Slide } from "../types/slides.ts";
 import type { FigureBundle } from "../types/_figure_bundle.ts";
-import { setOpaque, setScalar, syncText } from "./crdt_util.ts";
+import { setOpaque, setOpaqueByValue, setScalar, syncText } from "./crdt_util.ts";
 import {
   materializeFigureConfig,
   seedFigureConfigMap,
@@ -760,10 +760,21 @@ function syncFigureNode(
   if (lastFigureBundleRef.get(m) === bundle) {
     return;
   }
-  const skipConfig = opts?.skipFigureConfigForBlockIds?.has(blockId) ?? false;
+  // The skip only applies when there IS a figConfig map for the modal to own.
+  // With none, honoring it would write figData alone — and readFigureBundle
+  // keys off figConfig, so the whole bundle becomes unreadable and the
+  // checkpoint stores an empty figure. `trusted` stays true (materialize and
+  // the row agree, on the wrong thing), so the loss is permanent. Reachable
+  // when a peer removes the visualization while the modal is open: their
+  // bundle-less push deletes figConfig, then the modal's close pushes a fresh
+  // bundle while the block id is still in the skip set.
+  const existingConfig = m.get(FIG_CONFIG_KEY);
+  const skipConfig =
+    (opts?.skipFigureConfigForBlockIds?.has(blockId) ?? false) &&
+    existingConfig instanceof Y.Map;
   const { config, figData } = splitBundle(bundle);
   if (!skipConfig) {
-    let cfgMap = m.get(FIG_CONFIG_KEY);
+    let cfgMap = existingConfig;
     if (!(cfgMap instanceof Y.Map)) {
       cfgMap = new Y.Map<unknown>();
       m.set(FIG_CONFIG_KEY, cfgMap);
@@ -822,6 +833,7 @@ function rebuildNodeInPlace(
       m.delete(k);
     }
   }
+  setScalar(m, "id", node.id);
   m.set("type", node.type);
   setScalar(m, "minH", node.minH);
   setScalar(m, "maxH", node.maxH);
@@ -844,6 +856,12 @@ function syncNode(
     rebuildNodeInPlace(m, node, opts);
     return;
   }
+  // The root layout node is NOT keyed by id (children are), so an operation
+  // that swaps the root for a new node — first split of a single-block slide,
+  // delete-with-cleanup promoting a child — must write the new id here. A
+  // stale root id can shadow a descendant's id, and materializeNode's
+  // duplicate-id guard would then drop that descendant (a real content block).
+  setScalar(m, "id", node.id);
   setScalar(m, "minH", node.minH);
   setScalar(m, "maxH", node.maxH);
   setScalar(m, "span", node.span);
@@ -942,7 +960,13 @@ export function syncSlideToDoc(
     for (const f of CONTENT_SCALAR_FIELDS) {
       setScalar(root, f, rec[f]);
     }
-    setOpaque(root, "split", target.split);
+    // By VALUE, not setOpaque: the split panel is edited via nested store
+    // path-sets (placement/sizeAsPct/fill), which mutate the object in place —
+    // setOpaque's reference cache would skip the write (and the doc's stored
+    // value would alias the mutated object), silently dropping the edit for
+    // peers and the checkpoint. setOpaqueByValue clones on write and compares
+    // canonically, so in-place edits still sync. The object is tiny.
+    setOpaqueByValue(root, "split", target.split);
     const layout = root.get("layout") as Y.Map<unknown> | undefined;
     if (!layout) {
       root.set("layout", buildNode(target.layout, null));

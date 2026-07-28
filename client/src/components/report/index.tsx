@@ -1,5 +1,6 @@
 import {
   canonicalJson,
+  COLLAB_NO_EDIT_PERMISSION,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
@@ -44,6 +45,7 @@ import {
   docSaveFailing,
   openReportSession,
   otherPeers,
+  reconnectForStaleEditAuth,
   type ReportSession,
   setCollabView,
 } from "~/state/project/collab";
@@ -190,6 +192,9 @@ export function ProjectReport(p: Props) {
   // Content as fetched at mount, for the first-sync merge rule.
   let loadedSnapshot: ReportDocContent | undefined;
   let removeLastUpdatedListener: (() => void) | undefined;
+  // "You can't edit" alerted at most once per editor instance (each rejected
+  // op repeats the same non-fatal error).
+  let permErrorShown = false;
 
   // The figure-editor sidebar collapses in View, so clear the embed selection
   // when entering View. The CM editor is visible in Edit & Split — re-measure it when it
@@ -587,7 +592,33 @@ export function ProjectReport(p: Props) {
           // Fatal ⇔ the report/room is gone (deleted, not found): the server
           // silently drops every further update, so lock the editor instead of
           // letting the user type into a void that still says "Live".
-          if (fatal) setCollabFatal(errMsg);
+          if (fatal) {
+            setCollabFatal(errMsg);
+            return;
+          }
+          // Edit rejected on the socket's snapshot auth. If the live store
+          // says this user CAN edit, the socket is stale (permission granted
+          // after connect) — reconnect to re-derive auth; the resync then
+          // pushes the rejected local ops. Otherwise the user really is
+          // read-only: say so once instead of silently dropping their edits.
+          if (errMsg === COLLAB_NO_EDIT_PERMISSION) {
+            if (
+              projectState.thisUserPermissions.can_configure_reports &&
+              !projectState.isLocked
+            ) {
+              reconnectForStaleEditAuth();
+            } else if (!permErrorShown) {
+              permErrorShown = true;
+              void openAlert({
+                text: t3({
+                  en: "You don't have permission to edit reports — your changes are not being saved.",
+                  fr: "Vous n'avez pas la permission de modifier les rapports — vos modifications ne sont pas enregistrées.",
+                  pt: "Não tem permissão para editar relatórios — as suas alterações não estão a ser guardadas.",
+                }),
+                intent: "danger",
+              });
+            }
+          }
         },
       );
       setSession(s);
@@ -923,10 +954,18 @@ export function ProjectReport(p: Props) {
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
-    // Live collab: see persistFigures.
+    // Live collab: see persistFigures — including the skip set, or this push
+    // re-diffs an open figure modal's config from the host's stale copy.
     const s = session();
     if (collabReady() && s) {
-      s.pushRegistries(figures(), next);
+      const editing = editingFigureId();
+      s.pushRegistries(
+        figures(),
+        next,
+        editing
+          ? { skipFigureConfigForFigureIds: new Set([editing]) }
+          : undefined,
+      );
       return;
     }
     setSaveStatus("saving");

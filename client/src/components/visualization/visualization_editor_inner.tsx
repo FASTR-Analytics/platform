@@ -12,6 +12,7 @@ import {
   ProjectState,
   ResultsValueInfoForPresentationObject,
   canonicalJson,
+  COLLAB_NO_EDIT_PERMISSION,
   getEffectivePOConfig,
   getReplicateByProp,
   getSingleValueDimsFromPossibleValues,
@@ -70,6 +71,7 @@ import {
   collabState,
   openPoSession,
   otherPeers,
+  reconnectForStaleEditAuth,
   type PoSession,
   setCollabView,
 } from "~/state/project/collab";
@@ -478,6 +480,18 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   function handlePoError(message: string) {
+    // Edit rejected on the socket's snapshot auth while the live store says
+    // this user CAN edit: the socket is stale (permission granted after
+    // connect). Keep the session — the reconnect re-subscribes it and the
+    // resync pushes the rejected local ops.
+    if (
+      message === COLLAB_NO_EDIT_PERMISSION &&
+      projectState.thisUserPermissions.can_configure_visualizations &&
+      !projectState.isLocked
+    ) {
+      reconnectForStaleEditAuth();
+      return;
+    }
     // Room discarded (e.g. the visualization was deleted elsewhere). Tear down
     // the undo machinery BEFORE destroying the doc it points at — the document
     // keydown handler stays attached until unmount, and Ctrl+Z would otherwise

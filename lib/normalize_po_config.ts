@@ -1,3 +1,4 @@
+import type { LayoutNode } from "@timroberton/panther";
 import type { RollupEligibilityInputs } from "./rollup.ts";
 import {
   getEffectiveRollupDimension,
@@ -6,10 +7,141 @@ import {
 import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
-import { inferPeriodFormatFromValue } from "./types/_metric_installed.ts";
+import {
+  inferPeriodFormatFromValue,
+  inferPeriodFormatFromValuesIfTheSame,
+} from "./types/_metric_installed.ts";
 import { MULTI_MEMBERSHIP_FILTER_COLUMNS } from "./validate_fetch_config.ts";
-import type { JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
+import type { ContentBlock, Slide } from "./types/slides.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
+
+/** Drop editor states the storage schema rejects: a filter entry with all
+ *  values un-ticked and an emptied valuesFilter are legal mid-edit but fail
+ *  the strict parse (both are min(1) in configDStrict); a bounded periodFilter
+ *  whose min/max don't self-identify the same period format or aren't ordered
+ *  fails periodFilterSchema's refine. Shared by the client save path
+ *  (normalizePOConfigForStorage) and the server collab checkpoint, which
+ *  persists the otherwise-unnormalized live doc and must never be wedged by a
+ *  transient editor state. Every constraint reachable from a live doc belongs
+ *  here — the WS ingress applies raw Yjs updates with no content validation, so
+ *  this is the only thing standing between a mid-edit state and a permanently
+ *  wedged room checkpoint. */
+export function dropStorageInvalidTransients(
+  config: PresentationObjectConfig,
+): PresentationObjectConfig {
+  // Canonical roll-up off-state is both fields absent. The flag survives
+  // transient gate closures while editing (the editor no longer eagerly clears
+  // it) and is stripped here, at save time, from every entry except the one
+  // the gate selects.
+  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
+  const dropped = dropStorageInvalidTransients(config);
+  return {
+    ...config,
+    d: {
+      ...config.d,
+      filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
+      valuesFilter: config.d.valuesFilter?.length
+        ? config.d.valuesFilter
+        : undefined,
+      periodFilter: hasValidPeriodFilter(config.d.periodFilter)
+        ? config.d.periodFilter
+        : undefined,
+    },
+  };
+}
+
+/** The refine in periodFilterSchema, asked without throwing. A relative filter
+ *  is always fine; a bounded one needs both bounds to self-identify the SAME
+ *  period format and to be ordered. */
+function hasValidPeriodFilter(
+  periodFilter: PresentationObjectConfig["d"]["periodFilter"],
+): boolean {
+  if (periodFilter === undefined) {
+    return true;
+  }
+  if (
+    periodFilter.filterType !== "custom" && periodFilter.filterType !== "from_month"
+  ) {
+    return true;
+  }
+  return (
+    inferPeriodFormatFromValuesIfTheSame(periodFilter.min, periodFilter.max) !==
+      undefined && periodFilter.min <= periodFilter.max
+  );
+}
+
+function hasStorageInvalidTransients(config: PresentationObjectConfig): boolean {
+  return config.d.filterBy.some((f) => f.values.length === 0) ||
+    config.d.valuesFilter?.length === 0 ||
+    !hasValidPeriodFilter(config.d.periodFilter);
+}
+
+/** The same drop for a figure EMBEDDED in a slide or report. Their stored
+ *  schemas reach the identical configDStrict constraints through
+ *  figureBlockSchema.bundle.config, and the embedded figure editor streams the
+ *  same unnormalized mid-edit config into the host's shared doc — so a slide or
+ *  report room wedges its checkpoint exactly like a PO room did. Below is
+ *  identity-preserving: an untouched block/slide/registry comes back as the
+ *  same object, so the checkpoint's `trusted` comparison only goes false when
+ *  something was really dropped. */
+export function dropStorageInvalidTransientsInFigureBlock(
+  block: FigureBlock,
+): FigureBlock {
+  if (
+    block.bundle === undefined ||
+    !hasStorageInvalidTransients(block.bundle.config)
+  ) {
+    return block;
+  }
+  return {
+    ...block,
+    bundle: {
+      ...block.bundle,
+      config: dropStorageInvalidTransients(block.bundle.config),
+    },
+  };
+}
+
+function dropInLayoutNode(
+  node: LayoutNode<ContentBlock>,
+): LayoutNode<ContentBlock> {
+  if (node.type === "item") {
+    if (node.data.type !== "figure") {
+      return node;
+    }
+    const data = dropStorageInvalidTransientsInFigureBlock(node.data);
+    return data === node.data ? node : { ...node, data };
+  }
+  let changed = false;
+  const children = node.children.map((child) => {
+    const next = dropInLayoutNode(child);
+    changed ||= next !== child;
+    return next;
+  });
+  return changed ? { ...node, children } : node;
+}
+
+export function dropStorageInvalidTransientsInSlide(slide: Slide): Slide {
+  if (slide.type !== "content") {
+    return slide;
+  }
+  const layout = dropInLayoutNode(slide.layout);
+  return layout === slide.layout ? slide : { ...slide, layout };
+}
+
+export function dropStorageInvalidTransientsInFigures(
+  figures: Record<string, FigureBlock>,
+): Record<string, FigureBlock> {
+  let changed = false;
+  const out: Record<string, FigureBlock> = {};
+  for (const [id, block] of Object.entries(figures)) {
+    const next = dropStorageInvalidTransientsInFigureBlock(block);
+    changed ||= next !== block;
+    out[id] = next;
+  }
+  return changed ? out : figures;
+}
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
@@ -20,11 +152,12 @@ export function normalizePOConfigForStorage(
   // it) and is stripped here, at save time, from every entry except the one
   // the gate selects.
   const rollupDim = getEffectiveRollupDimension(resultsValue, config);
+  const dropped = dropStorageInvalidTransients(config);
   return {
-    ...config,
+    ...dropped,
     d: {
-      ...config.d,
-      disaggregateBy: config.d.disaggregateBy.map((entry) =>
+      ...dropped.d,
+      disaggregateBy: dropped.d.disaggregateBy.map((entry) =>
         entry.disOpt === rollupDim && entry.rollup === true
           ? {
               disOpt: entry.disOpt,
@@ -34,10 +167,6 @@ export function normalizePOConfigForStorage(
             }
           : { disOpt: entry.disOpt, disDisplayOpt: entry.disDisplayOpt }
       ),
-      filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
-      valuesFilter: config.d.valuesFilter?.length
-        ? config.d.valuesFilter
-        : undefined,
     },
   };
 }

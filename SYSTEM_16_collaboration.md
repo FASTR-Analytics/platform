@@ -18,7 +18,7 @@ _Google-Docs-style real-time co-editing for slide decks, reports, and
 visualizations — WebSocket transport, server-authoritative Yjs rooms, presence,
 live cursors — plus the version-history layer built on top: editing-session
 capture, per-character / per-slide / per-element attribution, and restore._
-Reviewed against code 2026-07-21 (absorbs DOC_SLIDE_COLLAB,
+Reviewed against code 2026-07-27 (absorbs DOC_SLIDE_COLLAB,
 DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 
 ## Scope
@@ -128,15 +128,32 @@ avatar URL is self-reported).
 - Message protocol ([lib/types/collab.ts](lib/types/collab.ts)):
   - client → server: `presence_update`, `{slide,report,po}_subscribe` /
     `_update` / `_unsubscribe`, `awareness_update`, `report_awareness_update`,
-    `po_awareness_update`, and the project-scoped `project_awareness_update`
-    (page cursors — below).
+    `po_awareness_update`, the project-scoped `project_awareness_update`
+    (page cursors — below), and `ping` (liveness probe — below).
   - server → client: `hello` (connectionId), `presence_state` (full peer
     list), `{slide,report,po}_sync` / `_update` / `_error`, `awareness` /
     `report_awareness` / `po_awareness`, `project_awareness`, `doc_save_state`
-    (room checkpoint health), and a connection-level `error` (oversized or
-    invalid frame). The `*_error` messages carry an optional `fatal` flag:
-    fatal ⇔ the document/room is gone (deleted, replaced, not found) and the
-    session must stop editing; non-fatal = per-operation rejection.
+    (room checkpoint health), `pong`, and a connection-level `error`
+    (oversized or invalid frame). The `*_error` messages carry an optional
+    `fatal` flag: fatal ⇔ the document/room is gone (deleted, replaced, not
+    found) and the session must stop editing; non-fatal = per-operation
+    rejection.
+- Dead-peer detection is asymmetric by platform necessity:
+  - **Server side is the runtime's.** Deno pings every client at the protocol
+    level and closes unresponsive connections (`idleTimeout: 30`, pinned
+    explicitly at the upgrade call in project-collab.ts), firing the same
+    onClose/onError handlers as a graceful close — so an ungracefully dropped
+    client leaves presence and its rooms within ~30 s. (Verified empirically:
+    a handshaked-but-silent TCP peer is reaped at exactly 30 s.) These
+    protocol pings also keep idle tunnels alive through nginx's default 60 s
+    proxy timeouts.
+  - **Client side is the app-level `ping`/`pong` watchdog** (collab.ts):
+    browsers can neither observe protocol pings nor send their own, so the
+    client pings every 25 s and force-closes the socket when no traffic at
+    all returns within 10 s — dropping into the normal reconnect + catch-up
+    path. Without it, a silently dead path (NAT drop, server hard-kill) keeps
+    the socket OPEN-looking for minutes: editors claim "Live" and
+    `session.isLive()` misleads the close-flush logic.
 - Client manager:
   [client/src/state/project/collab.ts](client/src/state/project/collab.ts)
   (~1,150 lines). `ProjectSSEBoundary`
@@ -152,7 +169,12 @@ avatar URL is self-reported).
   **per socket** (WeakSet) so a project switch can't mistake its own teardown
   for a failure and open a duplicate connection. `socket.onopen` re-sends
   presence, re-subscribes every open doc session, and re-announces project
-  awareness.
+  awareness. The server's `hello` carries `serverVersion`; a mismatch against
+  the mount-check's localStorage key forces a page reload (once per version,
+  sessionStorage-guarded) — a tab surviving a deploy must NOT ship its
+  pre-deploy Yjs docs into freshly re-seeded rooms via the catch-up, and the
+  reload re-runs the mount check, busting the IndexedDB caches off the same
+  trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
   `/project_collab` (the server-cli site generator emits this; older sites
   were patched in place).
@@ -235,9 +257,16 @@ avatar URL is self-reported).
   that stored the whole bundle under `bundle` are read and converted on the
   next sync. `syncSlideToDoc(doc, slide, { skipFigureConfigForBlockIds })`
   lets a host with an open figure-editor modal exclude that figure's config
-  from its push (the modal owns it live). This shape change is why migration
-  037 clears stored slide + report `crdt_state` (rooms re-seed from the
-  unchanged stored content).
+  from its push (the modal owns it live). The skip applies ONLY when a
+  `figConfig` map already exists: `readFigureBundle`/`readFigureEntry` key off
+  `figConfig`, so writing `figData` without one makes the whole bundle
+  unreadable and the checkpoint stores an empty figure — with `trusted` TRUE
+  (materialize and the row agree, on the wrong thing), so the loss survives
+  every re-open. Reachable before the guard: a peer's "Remove visualization"
+  deletes `figConfig` while your modal is open, then the modal's close pushes a
+  fresh bundle with that block id still in the skip set. This shape change is
+  why migration 037 clears stored slide + report `crdt_state` (rooms re-seed
+  from the unchanged stored content).
 - Entry points: `seedSlideDoc(doc, slide)` (build), `materializeSlide(doc)`
   (read back), `syncSlideToDoc(doc, slide)` (idempotent 2-way diff used for
   every local push — a no-op when the doc already matches, which is what makes
@@ -302,17 +331,30 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   (each chains behind the previous save) so two saves can never commit out of
   order — and `flushRoomForDoc` awaits the chain even when the room looks
   clean, because "clean" may mean a save is in flight (the restore routes
-  snapshot the DB right after flushing). A failed save keeps the room dirty,
-  retries on a 10 s timer, and broadcasts `doc_save_state failing` to the room
-  (recovery broadcasts the clear; late joiners get the failing state re-sent
-  right after their sync) so editors show "Not saving — retrying" instead of a
-  false "Live".
+  snapshot the DB right after flushing). It RETURNS whether the row is now
+  settled: `false` ⇔ the room is still dirty, i.e. its checkpoint failed and
+  the DB does NOT hold the room's state. Every caller that reads the row
+  afterwards must honour it (see Version history) — silently snapshotting a
+  wedged room's stale row would date the version, and hash-dedup would then
+  usually write no version at all. A failed save keeps the room dirty
+  and broadcasts `doc_save_state failing` to the room (recovery broadcasts the
+  clear; late joiners get the failing state re-sent right after their sync) so
+  editors show "Not saving — retrying" instead of a false "Live". Failures are
+  CLASSIFIED by the save closure (`DocSaveResult`): TRANSIENT (DB trouble)
+  retries on a 10 s timer; PERMANENT (schema validation — the same doc state
+  fails identically forever) retries only on the next edit, never on a timer
+  (a wedged PO room once burned ~6k log lines/day hot-retrying an input that
+  could never save — 2026-07-23). Failure logs are throttled to the first
+  attempt and every 30th.
 - **Close**: when the last connection unsubscribes (or its socket dies),
   `finalizeRoom` flushes a final checkpoint and destroys the room — unless a
   new subscriber arrived during the async flush, in which case the room stays
   alive for them. A FAILED final checkpoint never discards the room (its doc
-  is the sole copy of the session tail): finalize retries with backoff, then
-  keeps the room registered and re-runs on a 30 s cycle until the save lands.
+  is the sole copy of the session tail): a transient failure retries with
+  backoff, then keeps the room registered and re-runs on a 30 s cycle until
+  the save lands; a PERMANENT (validation) failure keeps the room registered
+  with NO cycle — only a returning editor's repair edit (or a restart, which
+  drops the tail) resolves it.
   A subscribe whose async load outlives its connection (socket died, or an
   unsubscribe raced it) is NOT registered — the room finalizes instead of
   leaking with a phantom member. On shutdown, `main.ts` starts an 8 s
@@ -325,9 +367,15 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   the payload is synced _into_ the authoritative doc (relayed live to all
   editors) and checkpointed immediately — the chokepoint forces the room
   dirty even when the doc already matched, so the HTTP caller always gets a
-  fresh `last_updated`; only when no room is live does the route write the DB
-  directly. This is what prevents the room's next checkpoint from silently
-  reverting AI/manual saves — and why those saves appear live in open editors.
+  fresh `last_updated`; only when no room is live (`LiveRoomApplyResult`
+  `no_room`) does the route write the DB directly. On `save_failed` (room
+  applied it, checkpoint failed) routes return an error WITHOUT a direct-write
+  fallback — the room retains the change and owns persistence; a direct write
+  would be clobbered by the room's next successful checkpoint. (Previously
+  both outcomes were a single `null`, so routes double-wrote the DB while a
+  wedged room kept serving its divergent doc.) This is what prevents the
+  room's next checkpoint from silently reverting AI/manual saves — and why
+  those saves appear live in open editors.
   `closeRoomsForDoc` is the opposite primitive: discard a live room WITHOUT
   checkpointing and error its clients fatally (used when the row is deleted or
   wholesale-replaced — see Version history).
@@ -428,6 +476,24 @@ roll-up flag (the per-entry `rollup`/`rollupPosition` fields on
 `disaggregateBy` — valid optional schema fields whose gate is transiently
 closed) can persist through a live-session checkpoint; the next standard save
 strips it via `normalizePOConfigForStorage`.
+Schema-INVALID transients are instead dropped from the stored config at
+checkpoint via `dropStorageInvalidTransients`, without touching the doc: the
+strict parse used to throw on them, permanently wedging the room's checkpoint
+(observed in production 2026-07-23). Covered: a filter chip with all values
+un-ticked, an emptied `valuesFilter` (both min(1) in storage), and a bounded
+`periodFilter` (`custom`/`from_month`) whose min/max don't self-identify the
+same period format or aren't ordered (`periodFilterSchema`'s refine).
+**Every constraint reachable from a live doc belongs in that function** — the
+WS ingress applies raw Yjs updates with NO content validation (only the REST
+chokepoints validate), so it is the sole guard between a mid-edit state and a
+permanently wedged checkpoint. The mirror hazard is a MISSING key rather than
+an invalid value: `syncSection` deletes doc keys the pushed config lacks, which
+is right for a cleared optional field but would strip a REQUIRED one from the
+SHARED doc (wedging every peer's checkpoint), so it never drops a key the
+storage schema requires — the required sets are derived from
+`presentationObjectConfigSchema` itself so they cannot drift. Such checkpoints
+stamp the CRDT state untrusted — see the staleness rule under Persistence &
+migrations.
 
 ### Canvas overlays
 
@@ -537,7 +603,27 @@ peer border appears only once text exists.
   equal; any non-collab write bumps `last_updated` alone, invalidating the
   state so the next room open re-seeds from content. (With the
   `apply*ToLiveRoom` chokepoints, non-collab writes during a live room go
-  through the room anyway.)
+  through the room anyway.) All three checkpoints additionally stamp the
+  state untrusted (NULL) whenever the doc does NOT materialize to exactly the
+  stored content (dropped schema-invalid transients, parse-stripped keys) —
+  restoring such a doc would make every editor open adopt a state that
+  disagrees with the row, visibly "flipping" the document ~1s after open
+  (observed on a viz 2026-07-24). Trusted state therefore always materializes
+  to the row content, by construction. The validate/normalize/trust policy
+  lives in the per-type save closures in `project-collab.ts`; the db
+  checkpoint functions are plain writes.
+  All three closures ask that question through **`storedMatchesDoc`**
+  ([crdt_util.ts](lib/collab/crdt_util.ts)), not a bare `canonicalJson`
+  equality: `canonicalJson` is `JSON.stringify`-based, so it describes
+  `JSON.parse(JSON.stringify(x))` rather than `x`. A doc holding a value JSON
+  cannot represent (`NaN`/`±Infinity`, which item layout nodes admit via
+  `style: z.record(z.string(), z.unknown())`) therefore compared EQUAL to the
+  `null` Postgres would store and stamped the state trusted while doc and row
+  disagreed — the same flip class, through a hole the check could not see.
+  `storedMatchesDoc` additionally requires that the DOC survive the round trip,
+  so such a state is stamped untrusted and the room re-seeds from content.
+  The rendering is inert for every JSON-representable value, so version dedup
+  hashes are unchanged (`hashVersionData` shares `canonicalJson`).
 - **Model changes**: changing the doc schema breaks restore of old states —
   ship a migration that nulls `crdt_state`; rooms re-seed from content, which
   is always safe. Precedents: `031` (slide titles became Y.Text), `037`
@@ -750,8 +836,13 @@ load current content → hash-dedup vs newest version → insert + prune. The
 loaders flush any LIVE room first (report room / every open slide room, then
 re-read) — a room can be up to 1.5 s ahead of the DB, and snapshotting the
 stale row would both date the version and fail the ledger-vs-text validation
-below. The load contract is strict: **null means the document ROW IS GONE**
-(session dropped); the loaders map only not-found to null and THROW on
+below. A flush that reports NOT-settled (`flushRoomForDoc` → false: that room's
+checkpoint is failing) THROWS for the same reason a failed read does — the row
+is stale, and versioning it anyway would freeze pre-tail content and then
+usually hash-dedup to nothing, silently ending the document's version history
+for as long as its room stays wedged. The load contract is strict: **null means
+the document ROW IS GONE** (session dropped); the loaders map only
+not-found to null and THROW on
 anything else (connection blip, pool exhaustion), which — like a failed
 insert — merges the accumulator back and retries next sweep. Graceful shutdown
 calls `flushAllVersions()` **before** the DB pools close; a hard crash loses
@@ -885,8 +976,11 @@ summaries compute sizes/counts in SQL and never ship snapshot content.
 
 **Restore sequencing** (both kinds): ⓪ validate the snapshot's content fields
 with current schemas (fail fast, zero side effects), flush the document's live
-room(s) (`flushRoomForDoc`), and drain the document's open tracker session
-(`drainVersionEditors`) → ① write a **safety version** of the current state
+room(s) (`flushRoomForDoc`) — a flush that reports NOT-settled ABORTS the
+restore, because the safety version would be written from a stale row and so
+would not actually be the rollback point the confirm dialog promises — and
+drain the document's open tracker session (`drainVersionEditors`)
+→ ① write a **safety version** of the current state
 (editors = the drained session's editors, or [restorer] when none; skipped
 when it already equals the newest version by hash — on any early failure the
 drained editors are re-injected into the tracker) → ② apply the snapshot →
@@ -1029,22 +1123,44 @@ overflow menu.
   d-scalar merged independently. Accepted for now (same class as any two
   concurrent disaggregation edits); fix shape if taken up: per-entry keyed
   merge for `disaggregateBy`.
-- **No heartbeat/ping-pong or idle-connection reaper on the collab WS**
-  (Sweep 5 finding, ON HOLD per Tim 2026-07-21). Cleanup of the presence map
-  and room `conns` runs exclusively off WS `onClose`/`onError`; a connection
-  that dies without a close frame (killed tab, sleep, silent network drop) can
-  leave a ghost presence entry and keep a doc room alive while any other real
-  user stays in it. Fix shape when taken up: periodic server→client ping with
-  pong-timeout invoking the existing `removeConnection`/`handleConnGone`
-  cleanup.
-- **Unguarded per-send broadcasts in `doc_rooms.ts`** (Sweep 5 finding,
-  awaiting ruling): the update fan-out and awareness relay loops (and
-  `subscribeDoc`'s two sync sends) lack the per-send try/catch
-  `presence_registry.ts` uses. One stale peer's throwing `send()` can unwind
-  into `applyDocUpdate`'s catch, misreport a valid editor's update as
-  "Malformed document update", skip attribution, and in a worst-case
-  interleaving leave the last edit un-dirty so `finalizeRoom` skips
-  persisting it.
+- ~~**No heartbeat/ping-pong or idle-connection reaper on the collab WS**~~
+  RESOLVED — both halves of dead-peer detection now exist and are described
+  under Transport: the server side is Deno's protocol ping with `idleTimeout:
+  30` pinned explicitly at the upgrade call (project-collab.ts), which fires
+  the same `onClose` that runs `removeConnection`/`handleConnGone`; the client
+  side is the app-level ping/pong watchdog in collab.ts (25 s ping, 10 s
+  no-traffic deadline, then force-close into the normal reconnect path). The
+  ON-HOLD note contradicted the Transport section of this same file and the
+  code; retired 2026-07-27.
+- ~~**Unguarded per-send broadcasts in `doc_rooms.ts`**~~ Mostly resolved, and
+  the escalation it described is not reachable. The update fan-out, the
+  awareness relay and `subscribeDoc`'s two sync sends all carry the per-send
+  try/catch now, so a throwing peer can no longer unwind into
+  `applyDocUpdate`'s catch — a valid update is still applied, attributed, and
+  marked dirty (verified by executing the described interleaving). Separately,
+  a server-side `WebSocket.send()` in Deno does not throw on a dead peer at
+  all: the only mandated throw is `readyState === CONNECTING`, unreachable
+  after the upgrade (verified empirically).
+  The last two unguarded loops (`broadcastSaveState`, the error loop in
+  `closeRoomsForDoc`) were closed 2026-07-27 for symmetry: a throw in the
+  former aborted `noteSaveFailure` before it armed the `CHECKPOINT_RETRY_MS`
+  timer (dirty room, no retry, no log line until the last client left), and one
+  in the latter would have skipped `rooms.delete` / `doc.destroy()` /
+  `onDocClosed` and leaked a zombie room.
+- **The PO/embedded-figure wedge guard rests on client-side widgets, not on
+  the server.** `dropStorageInvalidTransients` covers the three states the
+  editor is known to produce (all-values-unticked filter chip, emptied
+  `valuesFilter`, unordered/format-mismatched bounded `periodFilter`), but the
+  WS ingress validates nothing, so any *crafted* update can still wedge a
+  checkpoint on a constraint it does not cover — e.g. `nMonths`/`nYears`/
+  `nQuarters` `.min(1)`, or `NaN` in any `z.number()` field. Those are not
+  reachable through the current UI (the N-selectors clamp to ≥ 1). Treat "every
+  constraint reachable from a live doc belongs in that function" as a rule
+  about the editor's *current* widgets — adding a free-text numeric input to
+  the viz editor re-opens the class.
+- **`lib/normalize_po_config.ts` is load-bearing for this system's checkpoints
+  but is not in the `globs:` manifest above** (it is S9-adjacent). Changes to
+  `dropStorageInvalidTransients*` are S16 changes in everything but the lint.
 
 - **[URGENT] Report registry edits are outside undo entirely, and collab is why.**
   Absorbed from PLAN_REPORT_UNDO_REDO.md, deleted 2026-07-26 — its design was

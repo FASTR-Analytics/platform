@@ -241,22 +241,30 @@ export async function getReportCrdtState(
 // conflict check). crdt_state_last_updated is stamped equal to last_updated so
 // the state reads back as current until a non-collab edit bumps last_updated.
 // body_authors (per-character authorship ledger) rides the same stamp.
+// Plain write — POLICY LIVES IN THE CALLER (the report room's save closure in
+// routes/project/project-collab.ts): `content.figures`/`content.images` must
+// already be schema-parsed, and `crdtTrusted` says whether the doc
+// materializes to exactly this content. Untrusted → crdt_state_last_updated
+// stamped NULL, so the next room open re-seeds from content instead of
+// restoring a doc that disagrees with the row (the stale stamp also drops the
+// authorship ledger, whose validity is tied to a current crdt_state).
 export async function saveReportCheckpoint(
   projectDb: Sql,
   reportId: string,
   content: ReportDocContent,
   crdtState: string,
   bodyAuthors: AuthorRun[] | null,
+  crdtTrusted: boolean,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const rows = await projectDb`
       UPDATE reports
       SET body = ${content.body},
-          figures = ${JSON.stringify(reportFiguresSchema.parse(content.figures))},
-          images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
+          figures = ${JSON.stringify(content.figures)},
+          images = ${JSON.stringify(content.images)},
           crdt_state = ${crdtState},
-          crdt_state_last_updated = ${lastUpdated},
+          crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
           body_authors = ${bodyAuthors ? JSON.stringify(bodyAuthors) : null},
           last_updated = ${lastUpdated}
       WHERE id = ${reportId}

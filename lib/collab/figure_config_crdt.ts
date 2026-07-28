@@ -28,7 +28,10 @@
 // Runs on both the Deno server and the Vite client.
 
 import * as Y from "yjs";
-import type { PresentationObjectConfig } from "../types/_presentation_object_config.ts";
+import {
+  type PresentationObjectConfig,
+  presentationObjectConfigSchema,
+} from "../types/_presentation_object_config.ts";
 import { setOpaqueByValue, setScalar, syncText } from "./crdt_util.ts";
 
 /** The Y.Doc map key holding a standalone visualization's config (the PO room
@@ -49,6 +52,28 @@ const CAPTION_TEXT_SET: ReadonlySet<string> = new Set(CAPTION_TEXT_KEYS);
 function isOpaqueValue(v: unknown): boolean {
   return typeof v === "object" && v !== null;
 }
+
+// Keys a section REQUIRES, derived from the storage schema itself so the two can
+// never drift. syncSection deletes doc keys the pushed config lacks — correct
+// for a cleared OPTIONAL field, catastrophic for a required one: the key leaves
+// the SHARED doc, so every peer loses it and every checkpoint's strict parse
+// fails identically, wedging the room permanently. A config can lack a required
+// key without any user action (an older tab still open across a deploy that
+// added a field), so absence is never treated as intent to clear.
+const REQUIRED_KEYS_BY_SECTION: Record<Section, ReadonlySet<string>> = (() => {
+  const out = {} as Record<Section, ReadonlySet<string>>;
+  const shape = presentationObjectConfigSchema.shape;
+  for (const section of SECTIONS) {
+    const sub = shape[section].shape as Record<
+      string,
+      { safeParse: (v: unknown) => { success: boolean } }
+    >;
+    out[section] = new Set(
+      Object.keys(sub).filter((k) => !sub[k].safeParse(undefined).success),
+    );
+  }
+  return out;
+})();
 
 function newCaptionText(value: unknown): Y.Text {
   const t = new Y.Text();
@@ -136,7 +161,8 @@ function syncSection(
   );
   // Drop keys no longer in the target (a cleared optional filter/replicant).
   // Caption Y.Texts are kept and cleared to "" instead of deleted, so a bound
-  // editor never loses its Y.Text.
+  // editor never loses its Y.Text. REQUIRED keys are never dropped — see
+  // REQUIRED_KEYS_BY_SECTION.
   for (const k of [...sub.keys()]) {
     if (present.has(k)) {
       continue;
@@ -146,6 +172,9 @@ function syncSection(
       if (t instanceof Y.Text) {
         syncText(t, "");
       }
+      continue;
+    }
+    if (REQUIRED_KEYS_BY_SECTION[section].has(k)) {
       continue;
     }
     sub.delete(k);
