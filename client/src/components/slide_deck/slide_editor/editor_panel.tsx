@@ -16,7 +16,9 @@ type Props = {
   session: SlideSession | null;
   collabReady: boolean;
   onSelectTextTarget: (targetId: string | undefined) => void;
-  openEditor: <TProps, TReturn>(v: OpenEditorProps<TProps, TReturn>) => Promise<TReturn | undefined>;
+  openEditor: <TProps, TReturn>(
+    v: OpenEditorProps<TProps, TReturn>,
+  ) => Promise<TReturn | undefined>;
   contentTab: "slide" | "block";
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
@@ -31,7 +33,7 @@ type Props = {
 
 export function SlideEditorPanel(p: Props) {
   return (
-    <div class="flex h-full flex-col overflow-auto border-r border-base-content dark:border-base-300">
+    <div class="flex h-full flex-col overflow-auto">
       <Switch>
         <Match when={p.tempSlide.type === "cover"}>
           <SlideEditorPanelCover

@@ -10,6 +10,7 @@ import {
   Csv,
   FrameRight,
   FrameTop,
+  HeadingBar,
   Select,
   StateHolderFormError,
   StateHolderWrapper,
@@ -58,15 +59,15 @@ export function HfaWeights(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({
-                en: "HFA facility sampling weights",
-                fr: "Pondérations d'échantillonnage des établissements Enquêtes FOSA",
-                pt: "Ponderações de amostragem dos estabelecimentos FOSA",
-              })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({
+              en: "HFA facility sampling weights",
+              fr: "Pondérations d'échantillonnage des établissements Enquêtes FOSA",
+              pt: "Ponderações de amostragem dos estabelecimentos FOSA",
+            })}
+          >
             <Show when={csvDataIsReady()}>
               <Button
                 iconName="download"
@@ -76,13 +77,13 @@ export function HfaWeights(p: Props) {
                 {t3(TC.download)}
               </Button>
             </Show>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
@@ -203,23 +204,17 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Show
-            when={wizard().step !== "upload"}
-            fallback={
-              <div class="font-700 text-xl">
-                {t3({ en: "Import weights", fr: "Importer des pondérations", pt: "Importar ponderações" })}
-              </div>
-            }
-          >
-            <Button iconName="chevronLeft" onClick={() => setWizard({ step: "upload" })} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {wizard().step === "map"
-                ? t3({ en: "Map columns", fr: "Mapper les colonnes", pt: "Associar as colunas" })
-                : t3({ en: "Import complete", fr: "Importation terminée", pt: "Importação concluída" })}
-            </div>
-          </Show>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={wizard().step !== "upload"
+            ? () => setWizard({ step: "upload" })
+            : undefined}
+          heading={wizard().step === "upload"
+            ? t3({ en: "Import weights", fr: "Importer des pondérations", pt: "Importar ponderações" })
+            : wizard().step === "map"
+            ? t3({ en: "Map columns", fr: "Mapper les colonnes", pt: "Associar as colunas" })
+            : t3({ en: "Import complete", fr: "Importation terminée", pt: "Importação concluída" })}
+        />
       }
     >
       <div class="ui-pad ui-spy max-w-xl">

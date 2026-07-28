@@ -100,7 +100,6 @@ export function ProjectModules(p: Props) {
           <div class="h-full w-full" data-cursor-zone="header">
           <HeadingBar
             heading={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
-            ensureHeightAsIfButton
           >
             <div class="ui-gap-sm flex items-center">
               <Show when={checkError()}>

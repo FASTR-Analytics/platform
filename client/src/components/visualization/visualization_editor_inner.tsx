@@ -1270,7 +1270,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           startingWidth={384}
           minWidth={300}
           maxWidth={600}
-          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <PresentationObjectEditorPanel
               projectStateSnapshot={p.projectStateSnapshot}

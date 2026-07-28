@@ -1434,12 +1434,7 @@ export function ProjectReport(p: Props) {
           <div class="h-full w-full" data-cursor-zone="header">
             <HeadingBar
               heading={label()}
-              leftChildren={
-                <Button
-                  iconName="chevronLeft"
-                  onClick={() => p.close(undefined)}
-                />
-              }
+              onBack={() => p.close(undefined)}
               centerChildren={
                 <ButtonGroup<ReportMode>
                   items={[
@@ -1520,7 +1515,7 @@ export function ProjectReport(p: Props) {
           panelChildren={
             mode() !== "view" ? (
               <div
-                class="flex h-full flex-col border-r"
+                class="flex h-full flex-col"
                 style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
               >
                 <ReportEmbedEditor

@@ -2,6 +2,7 @@ import { type GeoJsonMapSummary, t3 } from "lib";
 import {
   Button,
   FrameTop,
+  HeadingBar,
   Table,
   type TableColumn,
   getEditorWrapper,
@@ -96,18 +97,17 @@ export function GeoJsonManager(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 text-lg">
-              {t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
-            </div>
-            <div class="flex-1" />
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
+          >
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <Button iconName="plus" onClick={handleUpload}>
                 {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON", pt: "Carregar GeoJSON" })}
               </Button>
             </Show>
-          </div>
+          </HeadingBar>
         }
       >
         <div class="ui-pad ui-spy">

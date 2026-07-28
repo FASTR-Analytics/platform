@@ -438,9 +438,7 @@ export function SlideList(p: Props) {
         <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
           heading={p.deckLabel}
-          leftChildren={
-            <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-          }
+          onBack={() => p.handleClose()}
         >
           <div class="ui-gap-sm flex items-center">
             <PresenceAvatars

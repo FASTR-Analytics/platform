@@ -8,7 +8,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   StateHolderWrapper,
   TabsNavigation,
   createQuery,
@@ -218,8 +218,9 @@ export function DatasetHmisDhis2Runs(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeaderBarCanGoBack
-            back={() => p.close(undefined)}
+          <HeadingBar
+            tonal
+            onBack={() => p.close(undefined)}
             heading={t3({ en: "Import from DHIS2", fr: "Importation depuis DHIS2", pt: "Importação a partir do DHIS2" })}
           >
             <div class="ui-gap-sm flex flex-none items-center">
@@ -247,7 +248,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
                 }}
               />
             </div>
-          </HeaderBarCanGoBack>
+          </HeadingBar>
         }
       >
         <StateHolderWrapper state={runs.state()}>

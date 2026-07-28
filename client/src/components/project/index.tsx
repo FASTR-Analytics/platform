@@ -246,7 +246,7 @@ function ProjectInner() {
           >
             <FrameLeft
               panelChildren={
-                <div class="h-full border-r" data-cursor-zone="nav">
+                <div class="h-full" data-cursor-zone="nav">
                   <TabsNavigation
                     items={tabItems()}
                     value={projectTab()}

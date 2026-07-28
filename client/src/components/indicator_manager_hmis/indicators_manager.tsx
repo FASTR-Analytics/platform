@@ -12,6 +12,7 @@ import {
   FrameLeft,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
@@ -199,11 +200,11 @@ export function IndicatorsManager(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
+          >
             <div class="ui-gap-sm flex items-center">
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button iconName="upload" onClick={handleBatchUpload}>
@@ -215,7 +216,7 @@ export function IndicatorsManager(p: Props) {
                 </Button>
               </Show>
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameTop

@@ -12,6 +12,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   Input,
   MultiSelect,
   RadioGroup,
@@ -84,46 +85,50 @@ export function HfaIndicatorCodeEditor(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Show
-            when={needsSaving()}
-            fallback={
-              <Button
-                iconName="chevronLeft"
-                onClick={() => p.close(undefined)}
-              />
-            }
-          >
-            <Button
-              onClick={saveAndClose.click}
-              state={saveAndClose.state()}
-              intent="success"
-              iconName="save"
-            >
-              {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
-            </Button>
-            <Button
-              intent="success"
-              iconName="save"
-              onClick={save.click}
-              state={save.state()}
-            >
-              {t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" })}
-            </Button>
-            <Button intent="neutral" onClick={() => p.close(undefined)}>
-              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-            </Button>
-          </Show>
-          <div class="font-700 flex-1 truncate text-xl">
-            <span class="font-mono">{p.indicator.varName}</span>
-            <span class="font-400 ml-4">{p.indicator.definition}</span>
-          </div>
+        <HeadingBar
+          tonal
+          leftChildren={
+            <div class="ui-gap flex items-center">
+              <Show
+                when={needsSaving()}
+                fallback={
+                  <Button
+                    iconName="chevronLeft"
+                    onClick={() => p.close(undefined)}
+                  />
+                }
+              >
+                <Button
+                  onClick={saveAndClose.click}
+                  state={saveAndClose.state()}
+                  intent="success"
+                  iconName="save"
+                >
+                  {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
+                </Button>
+                <Button
+                  intent="success"
+                  iconName="save"
+                  onClick={save.click}
+                  state={save.state()}
+                >
+                  {t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" })}
+                </Button>
+                <Button intent="neutral" onClick={() => p.close(undefined)}>
+                  {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+                </Button>
+              </Show>
+            </div>
+          }
+          heading={<span class="font-mono">{p.indicator.varName}</span>}
+          subheading={p.indicator.definition}
+        >
           <Show when={!p.showAi()}>
             <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>
-        </div>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper state={codeQuery.state()}>

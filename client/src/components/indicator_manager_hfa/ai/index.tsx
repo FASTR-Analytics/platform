@@ -44,7 +44,6 @@ export function HfaIndicatorAiWrapper(props: Props) {
         minWidth={300}
         startingWidth={560}
         maxWidth={1200}
-        hoverOffset="offset-for-border-1-on-right"
         isShown={props.show()}
         onToggleShow={props.onClose}
         panelChildren={

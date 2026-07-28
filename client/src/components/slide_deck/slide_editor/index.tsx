@@ -995,9 +995,7 @@ export function SlideEditor(p: Props) {
                 fr: "Modifier la diapositive",
                 pt: "Editar diapositivo",
               })}
-              leftChildren={
-                <Button iconName="chevronLeft" onClick={handleCancel} />
-              }
+              onBack={handleCancel}
             >
               <div class="ui-gap-sm flex items-center">
                 {/* Who else is currently editing THIS slide (live presence). */}
@@ -1052,7 +1050,6 @@ export function SlideEditor(p: Props) {
           startingWidth={400}
           minWidth={300}
           maxWidth={600}
-          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <div class="h-full w-full" data-cursor-zone="panel">
               <SlideEditorPanel

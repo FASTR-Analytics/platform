@@ -4,6 +4,7 @@ import {
   Csv,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   StateHolderWrapper,
   TableFromCsv,
   createQuery,
@@ -34,12 +35,12 @@ export function ViewResultsObject(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap flex h-full w-full items-center border-b bg-base-200">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="flex-1 truncate text-xl font-700">
-            {t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS", pt: "FICHEIRO DE RESULTADOS" })}
-            <span class="ml-4 font-400">{p.resultsObjectId}</span>
-          </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS", pt: "FICHEIRO DE RESULTADOS" })}
+          subheading={p.resultsObjectId}
+        >
           <div class="ui-gap-sm flex items-center">
             <Button
               href={`${_SERVER_HOST}/${p.projectId}/${p.moduleId}/${p.resultsObjectId}?t=${Date.now()}`}
@@ -51,7 +52,7 @@ export function ViewResultsObject(
             </Button>
             <Button iconName="refresh" onClick={items.fetch} />
           </div>
-        </div>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper

@@ -65,8 +65,7 @@ export function ProjectMetrics(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full" data-cursor-zone="header">
-        <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })}
-          ensureHeightAsIfButton></HeadingBar>
+        <HeadingBar heading={t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" })} />
         </div>
       }
     >

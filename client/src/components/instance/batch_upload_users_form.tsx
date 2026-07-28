@@ -10,7 +10,7 @@ import {
   createFormAction,
   type EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Checkbox,
 } from "panther";
 import {
@@ -76,13 +76,14 @@ export function BatchUploadUsersForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({
             en: "Batch import users",
             fr: "Importation groupée d'utilisateurs",
             pt: "Importação em lote de utilizadores",
           })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         />
       }
     >

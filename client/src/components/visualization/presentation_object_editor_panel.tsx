@@ -89,7 +89,7 @@ export function PresentationObjectEditorPanel(p: Props) {
   return (
     <div
       id="VIZ_PANEL_ROOT"
-      class="flex h-full w-full flex-col border-r"
+      class="flex h-full w-full flex-col"
       data-cursor-zone="panel"
     >
       <div class="flex w-full flex-none border-b">

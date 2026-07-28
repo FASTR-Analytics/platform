@@ -7,7 +7,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Spinner,
   StateHolderWrapper,
   StepperNavigationVisual,
@@ -115,7 +115,8 @@ export function StructureUploadAttemptForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={
             p.family === "hmis"
               ? t3({
@@ -129,7 +130,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   pt: "Importação de estabelecimentos FOSA",
                 })
           }
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
@@ -145,7 +146,7 @@ export function StructureUploadAttemptForm(p: Props) {
               {t3({ en: "Discard upload", fr: "Annuler le téléversement", pt: "Descartar o carregamento" })}
             </Button>
           </div>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper
