@@ -31,6 +31,10 @@ export function HeadingBar(p: Props) {
   // state changes.
   const hasCenter = () =>
     p.setSearchText !== undefined || p.centerChildren !== undefined;
+  // Called through, not passed through: a consumer whose onBack identity
+  // changes (a conditional back button) would otherwise leave a stale handler
+  // bound on the button element.
+  const handleBack = () => p.onBack?.();
 
   // The inner row's height floor is a form control's height, so a bar holding
   // only a title is as tall as one holding buttons. It cannot sit on the root,
@@ -40,11 +44,7 @@ export function HeadingBar(p: Props) {
       <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
         <div class="ui-gap flex flex-1 basis-1 items-center">
           <Show when={p.onBack !== undefined}>
-            <Button
-              iconName="chevronLeft"
-              onClick={() =>
-                p.onBack?.()}
-            />
+            <Button iconName="chevronLeft" onClick={handleBack} />
           </Show>
           <Show when={p.leftChildren} keyed>
             {(keyedLeftChildren) => {
@@ -89,20 +89,5 @@ export function HeadingBar(p: Props) {
         </Show>
       </div>
     </div>
-  );
-}
-
-type HeaderBarCanGoBackProps = {
-  heading: string | JSX.Element;
-  children?: JSX.Element;
-  back?: () => void;
-};
-
-// Migration shim over HeadingBar — deleted once wb-fastr has no references.
-export function HeaderBarCanGoBack(p: HeaderBarCanGoBackProps) {
-  return (
-    <HeadingBar tonal heading={p.heading} onBack={p.back}>
-      {p.children}
-    </HeadingBar>
   );
 }
