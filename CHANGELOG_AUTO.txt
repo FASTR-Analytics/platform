@@ -1,3 +1,5 @@
+[1.63.4] [user] [fixed] - Importing files with duplicate rows now keeps the most complete data
+[1.63.4] [admin] [fixed] - Importing files with duplicate facility rows now keeps the most complete record
 [1.63.3] [user] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
 [1.63.3] [user] [fixed] - Chart preview now reliably updates when any data setting changes
 [1.63.3] [admin] [changed] - Rollup position labels renamed from "Top/Bottom" to "Start/End"
