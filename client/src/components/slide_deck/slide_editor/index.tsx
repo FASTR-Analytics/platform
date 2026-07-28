@@ -15,6 +15,7 @@ import {
   findSlideFigureConfigMap,
   getSlideTitle,
   materializeSlide,
+  slideDocRoot,
   t3,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
@@ -57,6 +58,7 @@ import {
   onMount,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import * as Y from "yjs";
 import {
   createStore,
   produce,
@@ -214,6 +216,47 @@ export function SlideEditor(p: Props) {
     }
   }
 
+  // ── Per-user undo/redo ──────────────────────────────────────────────────────
+  // Mirrors the visualization editor: a Y.UndoManager scoped to the slide doc
+  // that tracks ONLY this client's pushes (session.localOrigin), so undoing
+  // never reverts a collaborator's edit. Text typed in a CodeMirror block/title
+  // carries the yCollab binding's own origin, so it is deliberately NOT tracked
+  // here — those editors keep their own per-user undo keymap.
+  let undoMgr: Y.UndoManager | undefined;
+  const canUndoRedo = () =>
+    !!session() &&
+    collabReady() &&
+    projectState.thisUserPermissions.can_configure_slide_decks &&
+    !projectState.isLocked;
+
+  function undo() {
+    undoMgr?.undo();
+  }
+  function redo() {
+    undoMgr?.redo();
+  }
+
+  // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
+  // onKeyDown misses the common case of focus sitting on the canvas or page
+  // body). Bails while a sub-editor covers the canvas: the figure modal
+  // installs its OWN document handler, and both firing would undo twice, in
+  // two different docs. Text-editing contexts keep their native/CM undo.
+  function handleEditorKeyDown(e: KeyboardEvent) {
+    if (!undoMgr || !canUndoRedo() || subEditorOpen() > 0) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || e.key.toLowerCase() !== "z") return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      target.closest(".cm-editor, input, textarea, [contenteditable='true']")
+    ) {
+      return;
+    }
+    e.preventDefault();
+    if (e.shiftKey) redo();
+    else undo();
+  }
+
   // Live cursors: surface glue lives in _shared/cursors/slide_cursors.tsx
   // (mounted in the JSX below). Disabled while a sub-editor modal covers the
   // canvas (the figure modal's own broadcaster takes over the awareness field).
@@ -369,6 +412,19 @@ export function SlideEditor(p: Props) {
     );
     setSession(s);
 
+    undoMgr = new Y.UndoManager(slideDocRoot(s.doc), {
+      trackedOrigins: new Set([s.localOrigin]),
+      captureTimeout: 500,
+    });
+    // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
+    // result back into the store — the same adopt path a remote change takes.
+    // The push the tracking effect then fires is idempotent (the doc already
+    // matches), so nothing echoes back.
+    undoMgr.on("stack-item-popped", () => {
+      manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
+    });
+    document.addEventListener("keydown", handleEditorKeyDown);
+
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
     // other users' saves) bump last_updated, so the explicit Save fallback
     // won't raise a spurious conflict while co-editing.
@@ -398,6 +454,12 @@ export function SlideEditor(p: Props) {
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
+    // Tear the undo machinery down BEFORE the session closes (closing destroys
+    // the doc it points at), and drop the listener so a late Ctrl+Z can't drive
+    // a destroyed doc.
+    document.removeEventListener("keydown", handleEditorKeyDown);
+    undoMgr?.destroy();
+    undoMgr = undefined;
     if (p.returnToContext) {
       restoreProjectAIView(p.returnToContext);
     }
@@ -943,6 +1005,11 @@ export function SlideEditor(p: Props) {
                   peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
                   size="sm"
                 />
+                {/* Per-user undo/redo of this client's own slide edits. */}
+                <Show when={canUndoRedo()}>
+                  <Button onClick={undo} iconName="undo" outline />
+                  <Button onClick={redo} iconName="redo" outline />
+                </Show>
                 <Select
                   options={[
                     {

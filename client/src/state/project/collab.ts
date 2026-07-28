@@ -146,6 +146,7 @@ type InternalSlideSession = {
   slideId: string;
   doc: Y.Doc;
   awareness: Awareness;
+  localOrigin: object;
   ready: boolean;
   onRemote: () => void;
   /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found) — the
@@ -160,6 +161,12 @@ export type SlideSession = {
   doc: Y.Doc;
   /** Yjs awareness for this slide — carries local + remote cursor/selection. */
   awareness: Awareness;
+  /** Transaction origin for this client's pushLocal writes — pass to a
+   *  Y.UndoManager `trackedOrigins` so undo/redo only affects this user's
+   *  edits. Text typed in a yCollab CodeMirror carries that binding's own
+   *  origin instead, so it keeps its per-editor undo (same split as the
+   *  visualization editor's captions). */
+  localOrigin: object;
   isReady: () => boolean;
   /**
    * Ready AND the socket is currently open — i.e. collab is actually
@@ -259,6 +266,7 @@ export function openSlideSession(
     slideId,
     doc,
     awareness,
+    localOrigin: {},
     ready: false,
     onRemote,
     onError,
@@ -302,13 +310,14 @@ export function openSlideSession(
   return {
     doc,
     awareness,
+    localOrigin: s.localOrigin,
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (slide: Slide, opts?: SyncSlideOpts) => {
       if (!s.ready) {
         return;
       }
-      doc.transact(() => syncSlideToDoc(doc, slide, opts));
+      doc.transact(() => syncSlideToDoc(doc, slide, opts), s.localOrigin);
     },
     close: () => closeSlideSession(slideId),
   };

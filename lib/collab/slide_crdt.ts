@@ -359,6 +359,14 @@ export function materializeSlide(doc: Y.Doc): Slide {
   return out as unknown as Slide;
 }
 
+/** The slide doc's root Y.Map — the scope for a per-user Y.UndoManager. Yjs
+ *  tracks a change when its parent type is the scope OR a descendant of it, so
+ *  this one root covers the whole slide (layout nodes, styles, figure configs).
+ */
+export function slideDocRoot(doc: Y.Doc): Y.Map<unknown> {
+  return doc.getMap<unknown>(ROOT_KEY);
+}
+
 /** Get a root-level text field's Y.Text (for binding a CodeMirror to a title/
  *  header field), or undefined if absent. */
 export function findRootTextField(
