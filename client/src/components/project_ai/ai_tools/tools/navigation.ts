@@ -2,6 +2,7 @@ import { createAITool } from "panther";
 import { z } from "zod";
 import { updateProjectView } from "~/state/t4_ui";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
+import { instanceState } from "~/state/instance/t1_store";
 
 // Kept as a PLAIN tool (PLAN_FUTURE_AI_ADOPTIONS.md feature 8, option 2): the
 // family guard below is deliberately a SOFT return, not a throw — a throw
@@ -18,16 +19,33 @@ export function getToolsForNavigation() {
     createAITool({
       name: "switch_tab",
       description:
-        "Switch the main project tab. Available tabs: reports, decks, visualizations, metrics, settings. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
+        "Switch the main project tab. Available tabs: reports, decks, visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
       inputSchema: z.object({
         tab: z
-          .enum(["reports", "decks", "visualizations", "metrics", "settings"])
+          .enum([
+            "reports",
+            "decks",
+            "visualizations",
+            "metrics",
+            "results_package",
+            "settings",
+          ])
           .describe("The tab to switch to"),
       }),
       kind: "nav",
       handler: async (input) => {
         if (projectAIViewController.current().id.startsWith("editing_")) {
           return "Cannot switch tabs - user is currently editing. Ask them to save/close first.";
+        }
+        // Same gate as the tab bar and content Match (project/index.tsx) —
+        // switching a non-admin here would land them on a tab with no content.
+        // Soft return, matching the editing guard above.
+        if (
+          input.tab === "results_package" &&
+          !instanceState.currentUserIsGlobalAdmin &&
+          !instanceState.currentUserPermissions.can_configure_data
+        ) {
+          return "Cannot switch to results_package - this user does not have permission to see that tab.";
         }
         projectAIViewController.markAINavigation();
         updateProjectView({ tab: input.tab });
