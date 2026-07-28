@@ -110,8 +110,8 @@ assumption is that the _code_ is wrong, not the expectation. Only pin observed
 behaviour after confirming it is intended, and say so in a comment with the
 reason. Two live examples:
 
-- `adminAreaRollupLevel` absent from `groupBys` does not error —
-  `buildAdminAreaRollupQuery` returns `null` and the `__NATIONAL` row is
+- `rollupDim` absent from `groupBys` does not error —
+  `buildRollupQuery` returns `null` and the roll-up row is
   silently omitted. Intended: those checks are the SQL-safety boundary, and the
   client owns the collapse decision (S9). The case pins the contract; it does
   not bless the silence.

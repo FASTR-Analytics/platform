@@ -675,7 +675,7 @@ count is surfaced in the proposal summary). Remaining:
 - **[MED]** Saved-viz list drops `valuesFilter` / period / replicant value
   (`PresentationObjectSummary` omits them), degrading the AI's clone-vs-build
   decision.
-- **[MED]** `get_metric_data` hard-codes `includeAdminAreaRollup: false`, so
+- **[MED]** `get_metric_data` hard-codes `rollupDim: undefined`, so
   explored data differs from a roll-up-enabled figure — and the disclosure lives
   in a different tool's formatter.
 - **[LOW]** `update_slide_editor` silently ignores fields that don't match the

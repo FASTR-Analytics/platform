@@ -265,9 +265,9 @@ all guarded `can_configure_visualizations` with
 
 - **`normalizePOConfigForStorage`**: drops empty `filterBy` entries,
   collapses empty `valuesFilter`, canonicalizes the roll-up off-state to
-  *both fields absent* (kept only when the flag is set AND the
-  `getEffectiveRollupLevel` gate is open). Deliberately save-time-only — the
-  editor does not eagerly clear the flag on transient gate closures.
+  *both entry fields absent* (`rollup`/`rollupPosition` kept only on the entry
+  the `getEffectiveRollupDimension` gate selects). Deliberately save-time-only
+  — the editor does not eagerly clear the flag on transient gate closures.
 - **`getEffectivePOConfig`**: filters ineffective disaggregators with four
   recorded reasons (`filtered_to_one_value`, `single_value`, `single_period`,
   `single_year`); the **replicant exemption** applies to `single_value` only

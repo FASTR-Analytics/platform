@@ -1,4 +1,4 @@
-import { BLANK_SENTINEL, ROLLUP_SENTINEL } from "lib";
+import { ALL_FACILITIES_SENTINEL, BLANK_SENTINEL, ROLLUP_SENTINEL } from "lib";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
@@ -235,8 +235,7 @@ const EXPLICIT_CASES: Case[] = [
     fetchConfig: {
       ...base(),
       groupBys: ["admin_area_2"],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     expect: {
       status: "ok",
@@ -259,8 +258,7 @@ const EXPLICIT_CASES: Case[] = [
       filters: [],
       periodFilter: undefined,
       postAggregationExpression: "rate = num/den",
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     // Mean of ratios would be 0.1625; the correct recomputation is 80/1000.
     expect: {
@@ -279,8 +277,7 @@ const EXPLICIT_CASES: Case[] = [
       ...base(),
       values: [{ prop: "value", func: "AVG" }],
       groupBys: ["admin_area_2"],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     expect: {
       status: "ok",
@@ -298,8 +295,7 @@ const EXPLICIT_CASES: Case[] = [
       ...base(),
       values: [{ prop: "value", func: "AVG" }],
       groupBys: ["admin_area_2"],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     expect: { err: "AVG" },
   },
@@ -309,10 +305,9 @@ const EXPLICIT_CASES: Case[] = [
     fetchConfig: {
       ...base(),
       groupBys: ["admin_area_3"],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
-    // buildAdminAreaRollupQuery returns null rather than throwing: the server's
+    // buildRollupQuery returns null rather than throwing: the server's
     // isAdminLevel/groupBys.includes checks are SQL-safety, not policy — the
     // client owns the collapse decision. Result is the plain grouping with no
     // __NATIONAL row.
@@ -333,14 +328,146 @@ const EXPLICIT_CASES: Case[] = [
       ...base(),
       groupBys: ["admin_area_2"],
       filters: [{ disOpt: "admin_area_2", values: ["A2_south"] }],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     expect: {
       status: "ok",
       rows: [
         { admin_area_2: "A2_south", value: 17 },
         { admin_area_2: ROLLUP_SENTINEL, value: 17 },
+      ],
+    },
+  },
+
+  // ── Facility-column roll-up ──────────────────────────────────────────────
+  //
+  // Same UNION machinery as the admin roll-up, but the collapsed column lives
+  // on the facility CTE (LEFT JOIN), not the results table, and the sentinel
+  // is __ALL_FACILITIES.
+  {
+    name: "facility_type roll-up (HFA) → __ALL_FACILITIES row with whole-sample n",
+    fixture: "hfa_service_cats",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["facility_type"],
+      rollupDim: "facility_type",
+    },
+    // hospital = h1+h4, clinic = h2+h3, health_post = h5; the ALL row
+    // re-counts distinct facilities over the whole table (5), not 2+2+1 rows.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 31, __n_value: 2 },
+        { facility_type: "clinic", value: 21, __n_value: 2 },
+        { facility_type: "health_post", value: 4, __n_value: 1 },
+        { facility_type: ALL_FACILITIES_SENTINEL, value: 56, __n_value: 5 },
+      ],
+    },
+  },
+  {
+    name: "facility_type roll-up honours a filter on the rolled column (subset total)",
+    fixture: "hfa_service_cats",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["facility_type"],
+      filters: [{ disOpt: "facility_type", values: ["hospital", "health_post"] }],
+      rollupDim: "facility_type",
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 31, __n_value: 2 },
+        { facility_type: "health_post", value: 4, __n_value: 1 },
+        { facility_type: ALL_FACILITIES_SENTINEL, value: 35, __n_value: 3 },
+      ],
+    },
+  },
+  {
+    name: "facility_type roll-up alongside admin grouping → one ALL row per area",
+    fixture: "hfa_service_cats",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["admin_area_2", "facility_type"],
+      rollupDim: "facility_type",
+    },
+    // The HFA-table shape this feature exists for: rows = area, columns =
+    // facility type + an "All facilities" column. The roll-up branch keeps the
+    // admin grouping and collapses only facility_type.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", facility_type: "hospital", value: 30, __n_value: 1 },
+        { admin_area_2: "A2_north", facility_type: "clinic", value: 11, __n_value: 1 },
+        { admin_area_2: "A2_south", facility_type: "clinic", value: 10, __n_value: 1 },
+        { admin_area_2: "A2_south", facility_type: "hospital", value: 1, __n_value: 1 },
+        { admin_area_2: "A2_south", facility_type: "health_post", value: 4, __n_value: 1 },
+        { admin_area_2: "A2_north", facility_type: ALL_FACILITIES_SENTINEL, value: 41, __n_value: 2 },
+        { admin_area_2: "A2_south", facility_type: ALL_FACILITIES_SENTINEL, value: 15, __n_value: 3 },
+      ],
+    },
+  },
+  {
+    name: "facility_type roll-up (HMIS) → no n columns, facility join in both branches",
+    fixture: "hmis_monthly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["facility_type"],
+      rollupDim: "facility_type",
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 33 },
+        { facility_type: "clinic", value: 15 },
+        { facility_type: "health_post", value: 4 },
+        { facility_type: ALL_FACILITIES_SENTINEL, value: 52 },
+      ],
+    },
+  },
+  {
+    name: "facility_type roll-up with PAE → ratio recomputed across facility types",
+    fixture: "hmis_ratio",
+    fetchConfig: {
+      values: [
+        { prop: "num", func: "identity" },
+        { prop: "den", func: "identity" },
+      ],
+      groupBys: ["facility_type"],
+      filters: [],
+      periodFilter: undefined,
+      postAggregationExpression: "rate = num/den",
+      rollupDim: "facility_type",
+    },
+    // Mean of ratios would be 0.1625; the correct recomputation is 80/1000 —
+    // the same invariant as the admin PAE case, but collapsing the facility
+    // CTE column.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", rate: 0.3 },
+        { facility_type: "clinic", rate: 0.025 },
+        { facility_type: ALL_FACILITIES_SENTINEL, rate: 0.08 },
+      ],
+    },
+  },
+  {
+    name: "facility_type roll-up over blank-folded values → __BLANK group and ALL row coexist",
+    fixture: "hfa_facility_blanks",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["facility_type"],
+      rollupDim: "facility_type",
+    },
+    // e2 (NULL cell) and e_missing (unmatched LEFT JOIN) fold into one __BLANK
+    // group in the main branch; the roll-up branch has no filter on the
+    // collapsed column, so blank-typed facilities are INCLUDED in the ALL row
+    // (35 over 3 facilities).
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 10, __n_value: 1 },
+        { facility_type: BLANK_SENTINEL, value: 25, __n_value: 2 },
+        { facility_type: ALL_FACILITIES_SENTINEL, value: 35, __n_value: 3 },
       ],
     },
   },
@@ -518,8 +645,7 @@ const EXPLICIT_CASES: Case[] = [
     fetchConfig: {
       ...base(),
       groupBys: ["admin_area_2"],
-      includeAdminAreaRollup: true,
-      adminAreaRollupLevel: "admin_area_2",
+      rollupDim: "admin_area_2",
     },
     // Both branches must project the same columns or the UNION would not
     // typecheck; the national row re-counts over the whole table (5 facilities,

@@ -57,13 +57,13 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
     // observations. Mirrors isRollupEligibleResultsValue; app clients never
     // send this — guards hand-crafted requests.
     if (
-      fetchConfig.includeAdminAreaRollup === true &&
+      fetchConfig.rollupDim !== undefined &&
       fetchConfig.postAggregationExpression === undefined &&
       fetchConfig.values.some((v) => v.func === "AVG") &&
       !queryContext.hasFacilityId
     ) {
       throw new Error(
-        "Invalid includeAdminAreaRollup: AVG values can only be rolled up when the results table has facility-level rows",
+        "Invalid rollupDim: AVG values can only be rolled up when the results table has facility-level rows",
       );
     }
 

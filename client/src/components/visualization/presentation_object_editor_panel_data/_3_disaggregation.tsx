@@ -8,9 +8,10 @@ import {
   ResultsValue,
   TC,
   getNextAvailableDisaggregationDisplayOption,
-  getRollupAdminLevel,
-  getRollupLabelContext,
+  getRollupLabelContextForDimension,
   get_DISAGGREGATION_DISPLAY_OPTIONS,
+  isRollupCandidateDimension,
+  isRollupDimension,
   isRollupEligibleResultsValue,
   t3,
 } from "lib";
@@ -318,37 +319,36 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
         }}
         fullWidth
       />
-      {/* The roll-up option appears only on the single level the roll-up would
-          collapse (config-shape gate). When the METRIC is ineligible
-          (isRollupEligibleResultsValue — e.g. pre-aggregated values that can't
-          be summed/averaged across areas), show the control disabled with a
-          reason rather than hiding it, so the absence is explicable. */}
-      <Show when={getRollupAdminLevel(p.tempConfig) === p.disOpt.value}>
+      {/* The roll-up option appears on every dimension the roll-up could
+          collapse (admin levels and facility columns passing the shape rules).
+          When the METRIC is ineligible (isRollupEligibleResultsValue — e.g.
+          pre-aggregated values that can't be summed/averaged), show the
+          control disabled with a reason rather than hiding it, so the absence
+          is explicable. */}
+      <Show when={isRollupCandidateDimension(p.tempConfig, p.keyedDis)}>
         <Show
           when={isRollupEligibleResultsValue(p.poDetail.resultsValue)}
           fallback={
             <div class="flex flex-col items-end">
               <Checkbox
-                label={t3({
-                  en: "Include National results",
-                  fr: "Inclure les résultats nationaux",
-                  pt: "Incluir resultados nacionais",
-                })}
+                label={rollupCheckboxLabel(p.tempConfig, p.disOpt.value)}
                 checked={false}
                 disabled={true}
                 onChange={() => {}}
               />
               <div class="text-warning text-xs">
                 {t3({
-                  en: "Not available for this metric (values cannot be aggregated across areas)",
-                  fr: "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les zones)",
-                  pt: "Não disponível para esta métrica (os valores não podem ser agregados entre zonas)",
+                  en: "Not available for this metric (values cannot be aggregated across groups)",
+                  fr: "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les groupes)",
+                  pt: "Não disponível para esta métrica (os valores não podem ser agregados entre grupos)",
                 })}
               </div>
             </div>
           }
         >
-          <AdminAreaOptions
+          <RollupOptions
+            disOpt={p.disOpt.value}
+            keyedDis={p.keyedDis}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
           />
@@ -358,55 +358,101 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
   );
 }
 
-type AdminAreaOptionsProps = {
+// The checkbox label mirrors what the roll-up row will actually contain —
+// getRollupLabelContextForDimension is the same helper that labels the
+// rendered row. Pinned names the LEVEL, not the pinned value, because with a
+// replicant the value differs per replicant.
+function rollupCheckboxLabel(
+  config: PresentationObjectConfig,
+  disOpt: DisaggregationOptionValue,
+): string {
+  if (!isRollupDimension(disOpt)) {
+    return "";
+  }
+  const ctx = getRollupLabelContextForDimension(config, disOpt);
+  if (ctx.kind === "subset") {
+    return t3({
+      en: "Include results for all selected areas",
+      fr: "Inclure les résultats de toutes les zones sélectionnées",
+      pt: "Incluir resultados de todas as zonas selecionadas",
+    });
+  }
+  if (ctx.kind === "pinned") {
+    const name = t3(getDisplayDisaggregationLabel(ctx.level));
+    return t3({
+      en: `Include ${name} results`,
+      fr: `Inclure les résultats : ${name}`,
+      pt: `Incluir resultados de ${name}`,
+    });
+  }
+  if (ctx.kind === "all_facilities") {
+    return t3({
+      en: "Include results for all facilities",
+      fr: "Inclure les résultats de tous les établissements",
+      pt: "Incluir resultados de todos os estabelecimentos",
+    });
+  }
+  if (ctx.kind === "facility_subset") {
+    return t3({
+      en: "Include results for all selected facilities",
+      fr: "Inclure les résultats de tous les établissements sélectionnés",
+      pt: "Incluir resultados de todos os estabelecimentos selecionados",
+    });
+  }
+  return t3({
+    en: "Include National results",
+    fr: "Inclure les résultats nationaux",
+    pt: "Incluir resultados nacionais",
+  });
+}
+
+type RollupOptionsProps = {
+  disOpt: DisaggregationOptionValue;
+  keyedDis: PresentationObjectConfig["d"]["disaggregateBy"][number];
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
 
-function AdminAreaOptions(p: AdminAreaOptionsProps) {
-  // The checkbox label mirrors what the roll-up row will actually contain —
-  // getRollupLabelContext is the same helper that labels the rendered row.
-  // Pinned names the LEVEL, not the pinned value, because with a replicant the
-  // value differs per replicant.
-  const rollupCheckboxLabel = () => {
-    const ctx = getRollupLabelContext(p.tempConfig);
-    if (ctx?.kind === "subset") {
-      return t3({
-        en: "Include results for all selected areas",
-        fr: "Inclure les résultats de toutes les zones sélectionnées",
-        pt: "Incluir resultados de todas as zonas selecionadas",
-      });
-    }
-    if (ctx?.kind === "pinned") {
-      const name = t3(getDisplayDisaggregationLabel(ctx.level));
-      return t3({
-        en: `Include ${name} results`,
-        fr: `Inclure les résultats : ${name}`,
-        pt: `Incluir resultados de ${name}`,
-      });
-    }
-    return t3({
-      en: "Include National results",
-      fr: "Inclure les résultats nationaux",
-      pt: "Incluir resultados nacionais",
-    });
-  };
+function RollupOptions(p: RollupOptionsProps) {
   return (
     <div class="flex flex-col items-end">
       <Checkbox
-        label={rollupCheckboxLabel()}
-        checked={!!p.tempConfig.d.includeAdminAreaRollup}
+        label={rollupCheckboxLabel(p.tempConfig, p.disOpt)}
+        checked={p.keyedDis.rollup === true}
         onChange={(v) => {
-          p.setTempConfig("d", "includeAdminAreaRollup", v);
-          if (v && !p.tempConfig.d.adminAreaRollupPosition) {
-            p.setTempConfig("d", "adminAreaRollupPosition", "bottom");
+          if (v) {
+            // Phase-1 rule: one roll-up per viz — flagging this dimension
+            // clears any other entry's flag (the gate treats 2+ as inert).
+            p.setTempConfig(
+              "d",
+              "disaggregateBy",
+              (d) => d.rollup === true && d.disOpt !== p.disOpt,
+              "rollup",
+              undefined,
+            );
+          }
+          p.setTempConfig(
+            "d",
+            "disaggregateBy",
+            (d) => d.disOpt === p.disOpt,
+            "rollup",
+            v ? true : undefined,
+          );
+          if (v && !p.keyedDis.rollupPosition) {
+            p.setTempConfig(
+              "d",
+              "disaggregateBy",
+              (d) => d.disOpt === p.disOpt,
+              "rollupPosition",
+              "bottom",
+            );
           }
         }}
       />
-      <Show when={p.tempConfig.d.includeAdminAreaRollup}>
+      <Show when={p.keyedDis.rollup === true}>
         <div class="flex justify-end pt-1.5 text-sm">
           <RadioGroup
-            value={p.tempConfig.d.adminAreaRollupPosition ?? "bottom"}
+            value={p.keyedDis.rollupPosition ?? "bottom"}
             options={[
               { value: "top", label: t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
               { value: "bottom", label: t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
@@ -415,7 +461,9 @@ function AdminAreaOptions(p: AdminAreaOptionsProps) {
             onChange={(v) =>
               p.setTempConfig(
                 "d",
-                "adminAreaRollupPosition",
+                "disaggregateBy",
+                (d) => d.disOpt === p.disOpt,
+                "rollupPosition",
                 v as "bottom" | "top",
               )
             }

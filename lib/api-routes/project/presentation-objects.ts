@@ -7,7 +7,7 @@ import {
   valueFuncStrict,
   ALL_DISAGGREGATION_OPTIONS,
 } from "../../types/mod.ts";
-import { ADMIN_LEVELS } from "../../admin_area_rollup.ts";
+import { ROLLUP_DIMENSIONS } from "../../rollup.ts";
 import {
   INTEGER_FILTER_COLUMNS,
   SQL_IDENTIFIER,
@@ -73,8 +73,7 @@ const genericLongFormFetchConfigSchema = z.object({
     .string()
     .refine(isSafePostAggregationExpression)
     .optional(),
-  includeAdminAreaRollup: z.boolean().optional(),
-  adminAreaRollupLevel: z.enum(ADMIN_LEVELS).optional(),
+  rollupDim: z.enum(ROLLUP_DIMENSIONS).optional(),
 });
 
 export const presentationObjectRouteRegistry = {

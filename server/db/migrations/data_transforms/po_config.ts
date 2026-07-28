@@ -38,6 +38,10 @@
 // 21. Strip unused count fields from relative filters
 // 22. Fill default nMonths for last_n_months without count
 // 23. Convert quarter_id bounds YYYY0Q (6-digit) → YYYYQ (5-digit)
+// 24. Rename includeNationalForAdminArea2/includeNationalPosition →
+//     includeAdminAreaRollup/adminAreaRollupPosition
+// 25. Move includeAdminAreaRollup/adminAreaRollupPosition onto the
+//     disaggregateBy entry (rollup/rollupPosition), delete the d-level fields
 //
 // =============================================================================
 
@@ -216,8 +220,7 @@ export function transformConfigD(d: Record<string, unknown>): void {
   }
 
   // Block 24: Rename admin-area roll-up fields (AA2-specific names → mechanism
-  // names, now that the roll-up collapses whichever single admin level the gate
-  // selects — see getRollupAdminLevel in lib/get_fetch_config_from_po.ts).
+  // names). Feeds Block 25, which moves the flag onto the disaggregateBy entry.
   //   includeNationalForAdminArea2 → includeAdminAreaRollup
   //   includeNationalPosition      → adminAreaRollupPosition
   if ("includeNationalForAdminArea2" in d && !("includeAdminAreaRollup" in d)) {
@@ -227,6 +230,55 @@ export function transformConfigD(d: Record<string, unknown>): void {
   if ("includeNationalPosition" in d && !("adminAreaRollupPosition" in d)) {
     d.adminAreaRollupPosition = d.includeNationalPosition;
     delete d.includeNationalPosition;
+  }
+
+  // Block 25: Roll-up flag moves onto the disaggregateBy entry (facility
+  // roll-up generalization — see getRollupDimension in
+  // lib/get_fetch_config_from_po.ts). The old global boolean is unambiguous
+  // because the old gate required exactly one admin level; the target entry is
+  // chosen by replicating that gate. Latent flags are preserved: when the old
+  // gate is only TRANSIENTLY closed (single-value filter, replicant display —
+  // conditions the flag was designed to survive, see
+  // normalizePOConfigForStorage) but exactly ONE admin-level entry exists, that
+  // entry is tagged so the setting can reactivate exactly as before. With 0 or
+  // ambiguous 2+ admin entries the flag was inert AND ambiguous — dropped.
+  if ("includeAdminAreaRollup" in d || "adminAreaRollupPosition" in d) {
+    if (d.includeAdminAreaRollup === true) {
+      const ADMIN = new Set(["admin_area_2", "admin_area_3", "admin_area_4"]);
+      const entries = Array.isArray(d.disaggregateBy)
+        ? (d.disaggregateBy as Record<string, unknown>[])
+        : [];
+      const filterBy = Array.isArray(d.filterBy)
+        ? (d.filterBy as { disOpt?: unknown; values?: unknown[] }[])
+        : [];
+      const singleValueFiltered = (disOpt: unknown) =>
+        filterBy.some(
+          (f) =>
+            f.disOpt === disOpt &&
+            Array.isArray(f.values) &&
+            f.values.length === 1,
+        );
+      const adminEntries = entries.filter((e) => ADMIN.has(e.disOpt as string));
+      const effective = adminEntries.filter(
+        (e) =>
+          e.disDisplayOpt !== "replicant" &&
+          e.disDisplayOpt !== "mapArea" &&
+          !singleValueFiltered(e.disOpt),
+      );
+      const target =
+        d.type !== "map" && effective.length === 1
+          ? effective[0]
+          : adminEntries.length === 1
+            ? adminEntries[0]
+            : undefined;
+      if (target) {
+        target.rollup = true;
+        target.rollupPosition =
+          d.adminAreaRollupPosition === "top" ? "top" : "bottom";
+      }
+    }
+    delete d.includeAdminAreaRollup;
+    delete d.adminAreaRollupPosition;
   }
 }
 
@@ -354,7 +406,10 @@ export function configNeedsForcedTransform(
 ): boolean {
   const d = (config.d ?? {}) as Record<string, unknown>;
   return (
-    "includeNationalForAdminArea2" in d || "includeNationalPosition" in d
+    "includeNationalForAdminArea2" in d ||
+    "includeNationalPosition" in d ||
+    "includeAdminAreaRollup" in d ||
+    "adminAreaRollupPosition" in d
   );
 }
 
@@ -368,7 +423,9 @@ export function configNeedsForcedTransform(
 export function rawJsonNeedsForcedTransform(raw: string): boolean {
   return (
     raw.includes('"includeNationalForAdminArea2"') ||
-    raw.includes('"includeNationalPosition"')
+    raw.includes('"includeNationalPosition"') ||
+    raw.includes('"includeAdminAreaRollup"') ||
+    raw.includes('"adminAreaRollupPosition"')
   );
 }
 

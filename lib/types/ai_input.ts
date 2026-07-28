@@ -6,6 +6,7 @@ import {
 } from "../consts.ts";
 import { configDStrict } from "./_metric_installed.ts";
 import { presentationObjectConfigTStrict } from "./_presentation_object_config.ts";
+import { ROLLUP_DIMENSIONS } from "../rollup.ts";
 
 // ============================================================================
 // Shared filter schema - DERIVED from storage schema (configDStrict.filterBy)
@@ -159,7 +160,12 @@ export const AiFigureConfigPatchSchema = z.object({
   disaggregateBy: configDStrict.shape.disaggregateBy.optional()
     .describe(
       "Replaces ALL disaggregations. Each is { disOpt, disDisplayOpt }; set a "
-      + "dimension's disDisplayOpt to 'replicant' to replicate by it.",
+      + "dimension's disDisplayOpt to 'replicant' to replicate by it. An "
+      + "existing roll-up flag is carried over onto the same dimension — "
+      + "unless ANY entry states its own `rollup` field, in which case the "
+      + "provided flags replace all existing ones (at most one entry may be "
+      + "flagged; an unavailable flag is an error). Prefer `rollupDimension` "
+      + "for roll-up changes.",
     ),
   filterBy: configDStrict.shape.filterBy.optional()
     .describe("Replaces ALL data filters. Empty array clears."),
@@ -168,9 +174,13 @@ export const AiFigureConfigPatchSchema = z.object({
       "Which replicant value to show (e.g. 'opd'); null to clear. Only "
       + "meaningful when a disaggregation is displayed as 'replicant'.",
     ),
-  includeAdminAreaRollup: configDStrict.shape.includeAdminAreaRollup
-    .describe("Add an admin-area total row — true to add (constraints apply; error if unavailable), false to remove."),
-  adminAreaRollupPosition: configDStrict.shape.adminAreaRollupPosition
+  rollupDimension: z.union([z.enum(ROLLUP_DIMENSIONS), z.null()]).optional()
+    .describe(
+      "Add a roll-up total row ('National' / 'All facilities') collapsing this "
+      + "dimension — must be a disaggregated admin level or facility column "
+      + "(constraints apply; error if unavailable); null to remove the roll-up.",
+    ),
+  rollupPosition: z.enum(["bottom", "top"]).optional()
     .describe("'top' or 'bottom'; defaults to bottom."),
   periodFilter: z.union([
     z.object({

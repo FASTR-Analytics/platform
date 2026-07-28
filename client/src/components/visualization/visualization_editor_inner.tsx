@@ -676,11 +676,12 @@ export function VisualizationEditorInner(p: InnerProps) {
     attemptGetPresentationObjectItems(unwrappedTempConfig);
   });
 
-  // NOTE: there is deliberately no effect clearing includeAdminAreaRollup when the
-  // gate (getEffectiveRollupLevel) closes. Gate closures are often transient while
-  // editing (filter chips toggle one value at a time), the fetch-config builder
-  // re-derives the flag safely, the checkbox UI hides itself, and the flag is
-  // stripped at save time in normalizePOConfigForStorage.
+  // NOTE: there is deliberately no effect clearing the entry roll-up flag when
+  // the gate (getEffectiveRollupDimension) closes. Gate closures are often
+  // transient while editing (filter chips toggle one value at a time), the
+  // fetch-config builder re-derives the flag safely, the checkbox UI hides
+  // itself, and the flag is stripped at save time in
+  // normalizePOConfigForStorage.
   let firstRunNeedsSave = true;
   createEffect(() => {
     trackStore(tempConfig);

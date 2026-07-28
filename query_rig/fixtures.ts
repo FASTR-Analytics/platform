@@ -226,10 +226,10 @@ export const F4_HMIS_RATIO: Fixture = {
   moduleId: "m_ratio",
   moduleDefinition: hmisModule(),
   resultsObjectId: "dddddddd-eeee-ffff-0000-111111111111",
-  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
   facilities: [
-    { facility_id: "r1", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_alpha", admin_area_4: "A4_w1", facility_type: null },
-    { facility_id: "r2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: null },
+    { facility_id: "r1", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_alpha", admin_area_4: "A4_w1", facility_type: "hospital" },
+    { facility_id: "r2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: "clinic" },
   ],
   roColumns: [
     { name: "facility_id", type: "text" },

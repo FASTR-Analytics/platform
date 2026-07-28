@@ -1,4 +1,4 @@
-export * from "./admin_area_rollup.ts";
+export * from "./rollup.ts";
 export * from "./api-routes/mod.ts";
 export * from "./consts.ts";
 export * from "./convert_period_value.ts";

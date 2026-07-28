@@ -7,10 +7,11 @@ import {
   BLANK_SENTINEL,
   INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
-  isAdminLevel,
+  isRollupDimension,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
-  ROLLUP_SENTINEL,
+  type RollupDimension,
+  rollupSentinelForDimension,
   SAMPLE_N_PREFIX,
   sampleNProp,
   usesBlankSentinel,
@@ -117,25 +118,25 @@ export function buildMainQuery(
 }
 
 /**
- * Builds the admin-area roll-up (total) query using externally managed CTEs.
- * Collapses the admin level chosen client-side (see getRollupAdminLevel) into a
- * single roll-up row: sentinel in that column, dropped from GROUP BY, values
+ * Builds the roll-up (total) query using externally managed CTEs. Collapses
+ * the dimension chosen client-side (see getRollupDimension) into a single
+ * roll-up row: sentinel in that column, dropped from GROUP BY, values
  * re-aggregated.
  */
-export function buildAdminAreaRollupQuery(
+export function buildRollupQuery(
   sourceTable: string,
   fetchConfig: GenericLongFormFetchConfig,
   queryContext: QueryContext,
   facilityCTEName?: string,
 ): string | null {
-  // `level` is interpolated raw into SQL, so isAdminLevel() is the SQL-safety
-  // boundary (closed union, not free-text). It must also actually be grouped.
-  const level = fetchConfig.adminAreaRollupLevel;
+  // `dim` is interpolated raw into SQL, so isRollupDimension() is the
+  // SQL-safety boundary (closed union, not free-text). It must also actually
+  // be grouped.
+  const dim = fetchConfig.rollupDim;
   if (
-    !fetchConfig.includeAdminAreaRollup ||
-    level === undefined ||
-    !isAdminLevel(level) ||
-    !fetchConfig.groupBys.includes(level)
+    dim === undefined ||
+    !isRollupDimension(dim) ||
+    !fetchConfig.groupBys.includes(dim)
   ) {
     return null;
   }
@@ -148,16 +149,16 @@ export function buildAdminAreaRollupQuery(
     fetchConfig.postAggregationExpression !== undefined,
   );
 
-  // The collapsed level becomes the ROLLUP_SENTINEL constant in SELECT and
-  // drops out of GROUP BY; every other grouped column is treated exactly as in
-  // the main query, blank fold included.
+  // The collapsed dimension becomes its sentinel constant in SELECT and drops
+  // out of GROUP BY; every other grouped column is treated exactly as in the
+  // main query, blank fold included.
   return buildSelectQuery(
     sourceTable,
     fetchConfig,
     {
       groupBys: fetchConfig.groupBys,
       extraGroupByColumns: [],
-      collapsedLevel: level,
+      collapsedLevel: dim,
       aggregateColumns,
     },
     queryContext,
@@ -178,7 +179,7 @@ function buildSelectQuery(
   options: {
     groupBys: string[];
     extraGroupByColumns: string[];
-    collapsedLevel: string | undefined;
+    collapsedLevel: RollupDimension | undefined;
     aggregateColumns: string;
   },
   queryContext: QueryContext,
@@ -209,8 +210,8 @@ function buildSelectQuery(
       : prefixed;
   };
   const selectRef = (col: string): string => {
-    if (col === collapsedLevel) {
-      return `'${ROLLUP_SENTINEL}' AS ${col}`;
+    if (collapsedLevel !== undefined && col === collapsedLevel) {
+      return `'${rollupSentinelForDimension(collapsedLevel)}' AS ${col}`;
     }
     const prefixed = columnPrefixes.get(col) || col;
     return shouldFoldBlank(col, queryContext)

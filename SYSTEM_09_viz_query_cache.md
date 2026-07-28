@@ -4,7 +4,7 @@ name: Visualization Query & Cache Service
 globs:
   - client/src/state/project/t2_presentation_objects.ts
   - client/src/state/project/t2_replicant_options.ts
-  - lib/admin_area_rollup.ts
+  - lib/rollup.ts
   - lib/convert_period_value.ts
   - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
@@ -69,7 +69,7 @@ Valkey po_items (server) / IndexedDB po_items (client)  →  buildFigureInputs (
 ([presentation_objects.ts:399](lib/types/presentation_objects.ts#L399)) is THE
 client→server query contract: `values` (`{prop, func}` pairs or PAE
 ingredients), `groupBys`, `filters`, `periodFilter`,
-`postAggregationExpression`, `includeAdminAreaRollup` + `adminAreaRollupLevel`.
+`postAggregationExpression`, `rollupDim` (presence = roll-up on).
 `periodFilterExactBounds` is server-computed, never client-sent.
 
 Built only by `getFetchConfigFromPresentationObjectConfig`
@@ -77,7 +77,7 @@ Built only by `getFetchConfigFromPresentationObjectConfig`
 `disaggregateBy` disOpts plus `timeseriesGrouping` for timeseries (throws if a
 timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
 metric has a post-aggregation expression, else filtered `valueProps` ×
-`valueFunc`; roll-up level baked in via `getEffectiveRollupLevel`.
+`valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends `{disOpt: replicateBy, values: [selectedReplicantValue ?? "UNSELECTED"]}`
@@ -99,7 +99,7 @@ groupBys sorted, filter values sorted and JSON-encoded (a bare `,`-join could
 collide on comma-holding values), periodFilter discriminated by type with
 only its own fields folded (relative filters hash on `nMonths`/`nYears`/
 `nQuarters`, not on fabricated bounds — so their keys are stable across data
-growth), PAE, roll-up flag + level. `periodFilterExactBounds` and display
+growth), PAE, roll-up dimension. `periodFilterExactBounds` and display
 preferences (roll-up position) are deliberately absent.
 
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
@@ -116,8 +116,8 @@ handler. Both share the same primitives so they can't drift:
 | `groupBys`, `filters[].disOpt`, `replicateBy` | closed-union membership (`disaggregationOption` enum / `isValidDisaggregationOption`) |
 | `values[].prop` / `.func` | `SQL_IDENTIFIER` regex / `valueFuncStrict` enum |
 | `postAggregationExpression` | `isSafePostAggregationExpression` — charset **plus** structural rules: no adjacent value tokens (kills subqueries), identifier-before-`(` must be in the ABS/COALESCE/NULLIF whitelist (kills `pg_sleep(...)`) |
-| `adminAreaRollupLevel` | `isAdminLevel` closed union, and must be in `groupBys` |
-| roll-up sentinel | server constant (`ROLLUP_SENTINEL`) |
+| `rollupDim` | `isRollupDimension` closed union (admin levels + facility columns), and must be in `groupBys` |
+| roll-up sentinel | server constant (`ROLLUP_SENTINEL` / `ALL_FACILITIES_SENTINEL` by dimension kind) |
 
 `validateFetchConfig` also rejects never-eligible roll-up funcs (the
 table-blind half of the eligibility rule — see Roll-up below).
@@ -138,7 +138,7 @@ through `CTEManager`.
 - **`buildCombinedQuery`** ([get_combined_query.ts](server/server_only_funcs_presentation_objects/get_combined_query.ts))
   is the only full-query assembler and its ordering is load-bearing:
   `sourceTable = periodCTEName || tableName` → `buildMainQuery` [+ `UNION ALL`
-  `buildAdminAreaRollupQuery`] → `applyPostAggregationExpression` (wraps in a
+  `buildRollupQuery`] → `applyPostAggregationExpression` (wraps in a
   subquery) → prepend `WITH` (after the wrap, so CTEs stay top-level) → append
   `LIMIT`.
 - **`buildMainQuery`** selects `groupBys` + aggregate columns, grouping by
@@ -443,19 +443,32 @@ live store). The AI figure path (`assert_replicant_valid.ts`) instead throws on
 unset/invalid — the AI must be explicit. Single-replicant-per-viz is
 UI-enforced only (nothing in the schema forbids two `"replicant"` entries).
 
-## Admin-area roll-up
+## Roll-up (admin areas & facility columns)
 
-The synthetic "National"/"All areas" row, produced by a second query
-`UNION ALL`'d onto the main one. Two independent gates, combined by
-`getEffectiveRollupLevel` ([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts))
-— the single gate used by the editor checkbox, the fetch builder, the
-save-time strip, and the AI editor tool:
+The synthetic "National" / "All areas" / "All facilities" row, produced by a
+second query `UNION ALL`'d onto the main one. The collapsible dimensions are a
+WHITELIST (`ROLLUP_DIMENSIONS` in [rollup.ts](lib/rollup.ts) = the three admin
+levels + the seven `facility_*` columns), and the boundary is semantic: a
+roll-up re-aggregates rows across the collapsed dimension's values, which is
+only meaningful for dimensions that PARTITION facilities — indicator
+dimensions would sum different indicators, `time_point` would pool survey
+rounds, `hfa_service_category` is multi-membership. Two independent gates,
+combined by `getEffectiveRollupDimension`
+([get_fetch_config_from_po.ts](lib/get_fetch_config_from_po.ts)) — the single
+gate used by the editor checkbox, the fetch builder, the save-time strip, and
+the AI editor tool:
 
-- **Config gate** (`getRollupAdminLevel`): EXACTLY ONE admin level (AA2/3/4)
-  grouped, not displayed as replicant/mapArea, not filtered to a single value;
-  maps excluded entirely. The authoritative doc comment lives on the function.
+- **Config gate** (`getRollupDimension`): the flag lives ON the
+  `disaggregateBy` entry (`rollup: true` + `rollupPosition`); EXACTLY ONE
+  flagged entry must pass `isRollupCandidateDimension` (whitelisted, grouped,
+  not displayed as replicant/mapArea, not filtered to a single value; maps
+  excluded entirely). More than one flagged candidate ⇒ gate closed — the
+  one-roll-up-per-viz rule is phase-1 policy living ONLY in this derivation
+  and the editor UI; the schema allows multiple flags so a future
+  simultaneous-roll-up (cross-product) needs no storage migration. The
+  authoritative doc comment lives on the function.
 - **Metric gate** (`isRollupEligibleResultsValue`,
-  [admin_area_rollup.ts](lib/admin_area_rollup.ts)): re-aggregation must be
+  [rollup.ts](lib/rollup.ts)): re-aggregation must be
   meaningful — SUM/COUNT (additive), identity-with-PAE (ingredients
   re-aggregated, ratio recomputed after the union), or AVG over facility-level
   rows (`hasFacilityLevelRows` — re-averaging raw observations is the correctly
@@ -465,41 +478,53 @@ save-time strip, and the AI editor tool:
   (table-blind); the AVG↔`facility_id` half needs table access and is checked
   in `getPresentationObjectItems`.
 
-**The client chooses the collapse level; the server obeys.** The level is
-baked into the fetch config; the server must never recompute it from raw
+**The client chooses the collapsed dimension; the server obeys.** `rollupDim`
+is baked into the fetch config; the server must never recompute it from raw
 groupBys (those include replicant levels — the wrong collapse target). The
-server's checks (`isAdminLevel`, `groupBys.includes`) are SQL-safety, not
-policy — when either fails `buildAdminAreaRollupQuery` returns `null` and the
-roll-up row is **silently omitted** rather than raising: a level that isn't
+server's checks (`isRollupDimension`, `groupBys.includes`) are SQL-safety, not
+policy — when either fails `buildRollupQuery` returns `null` and the
+roll-up row is **silently omitted** rather than raising: a dimension that isn't
 grouped has no column to replace with the sentinel, so the query cannot be built
-at all. Well-formed clients never reach it (`getEffectiveRollupLevel` guarantees
-the level is grouped, and `normalizePOConfigForStorage` strips the flag at save
-time); stale and hand-crafted configs do, and they degrade to a figure without a
-National row (an instance of the stale-config silent-failure trap below).
-`buildAdminAreaRollupQuery` replaces the level's column with
-`'__NATIONAL'` (`ROLLUP_SENTINEL`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL`
-survives only in old stored figure grids, render-compat), drops the level from
-GROUP BY, re-aggregates via the `"rollup"` column mode, same WHERE.
+at all. Well-formed clients never reach it (`getEffectiveRollupDimension`
+guarantees the dimension is grouped, and `normalizePOConfigForStorage` strips
+stray flags at save time); stale and hand-crafted configs do, and they degrade
+to a figure without a total row (an instance of the stale-config
+silent-failure trap below). `buildRollupQuery` replaces the collapsed column
+with its sentinel — `'__NATIONAL'` (`ROLLUP_SENTINEL`) for admin levels,
+`'__ALL_FACILITIES'` (`ALL_FACILITIES_SENTINEL`) for facility columns, per
+`rollupSentinelForDimension`; `LEGACY_ROLLUP_SENTINEL` `zzNATIONAL` survives
+only in old stored figure grids, render-compat — drops the dimension from
+GROUP BY, re-aggregates via the `"rollup"` column mode, same WHERE. A
+collapsed facility column works identically even though it lives on the
+facility CTE: the sentinel replaces the column reference before the `f.`
+prefix is applied, and the `__n_*` count over the collapsed scope is exactly
+the "all facilities" sample size.
 
 **Labels are scope words, never operation words** ("Total" would imply SUM).
-`getRollupLabelContext` precedence: **subset** ("All selected areas" — an admin
-filter restricts geography: 2+ values at/coarser than the roll-up level, or ANY
-values on a finer level; replicant-displayed levels are skipped) → **pinned**
-("{Area} — All areas" — the finest coarser level pinned by replicant or
-single-value filter; the marker distinguishes the row from a same-named child
-area) → **national**. Non-admin filters deliberately don't change the label.
-The same context drives the editor checkbox text, so row and checkbox can't
-tell different stories.
+`getRollupLabelContextForDimension` — admin precedence: **subset** ("All
+selected areas" — an admin filter restricts geography: 2+ values at/coarser
+than the roll-up level, or ANY values on a finer level; replicant-displayed
+levels are skipped) → **pinned** ("{Area} — All areas" — the finest coarser
+level pinned by replicant or single-value filter; the marker distinguishes the
+row from a same-named child area) → **national**. Facility dimensions have no
+hierarchy: **facility_subset** ("All selected facilities" — the rolled column
+itself filtered to 2+ values) → **all_facilities** ("All facilities" — one
+scope word for all seven columns, so no per-column or per-instance naming is
+needed; fr/pt use the app's established "établissement" / "estabelecimento").
+In both families, filters on OTHER dimensions deliberately don't change the
+label. The same context drives the editor checkbox text, so row and checkbox
+can't tell different stories.
 
-**Position is display-only.** `d.adminAreaRollupPosition` ("top"/"bottom")
-drives client-side sort pinning (`ROLLUP_PIN_IDS`) and is never in the fetch
-config, the SQL, or the cache hash — toggling re-renders without refetching.
-Display mechanics (pin-aware sorts, conditional-formatting exclusion, fixed
-sentinel series color) live in S10's `get_data_config_from_po.ts` /
-`get_style_from_po`. Editor lifecycle: no eager clearing on transient gate
-closures — `normalizePOConfigForStorage(config, resultsValue)` strips the flag
-at save time; canonical off-state is both fields absent. AI data payloads
-deliberately exclude the roll-up row (double-counting hazard).
+**Position is display-only.** The entry's `rollupPosition` ("top"/"bottom",
+read via `getRollupPosition`) drives client-side sort pinning
+(`ROLLUP_PIN_IDS`) and is never in the fetch config, the SQL, or the cache
+hash — toggling re-renders without refetching. Display mechanics (pin-aware
+sorts, conditional-formatting exclusion, fixed sentinel series color) live in
+S10's `get_data_config_from_po.ts` / `get_style_from_po`. Editor lifecycle: no
+eager clearing on transient gate closures — `normalizePOConfigForStorage
+(config, resultsValue)` strips flags at save time; canonical off-state is both
+entry fields absent. AI data payloads deliberately exclude the roll-up row
+(double-counting hazard).
 
 ## Caching
 
@@ -632,10 +657,10 @@ bundle freezes:
   `getPeriodBounds` now uses).
 - **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the
   escaped `UPPER` text path, never numeric coercion.
-- **The sentinel is not a real admin area**: `__NATIONAL` must be
-  label-replaced and pin-sorted client-side; label replacements for it are
-  added only when the roll-up is active so stored figures never carry dead
-  entries.
+- **The sentinels are not real data values**: `__NATIONAL` /
+  `__ALL_FACILITIES` must be label-replaced and pin-sorted client-side; label
+  replacements for them are added only when the roll-up is active so stored
+  figures never carry dead entries.
 - **The blank label map claims `""`, and that changes STORED figures.** Figures
   saved before the blank fold keep the raw empty string as their group key, so
   `""` is mapped alongside `BLANK_SENTINEL` to keep them rendering. In tables

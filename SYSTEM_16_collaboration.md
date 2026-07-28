@@ -423,10 +423,11 @@ awareness field (internal keys `"data" | "style" | "text"`). REST config
 writes route through the live room via the chokepoints in
 `server/routes/project/presentation_objects.ts` (config save + the batch
 period-filter update), skipping the optimistic lock while a room is live.
-Accepted trade-off: the live push is deliberately unnormalized, so the
-render-only `d.includeAdminAreaRollup`/`adminAreaRollupPosition` fields can
-persist through a live-session checkpoint (they are valid optional schema
-fields); the next standard save strips them via `normalizePOConfigForStorage`.
+Accepted trade-off: the live push is deliberately unnormalized, so a latent
+roll-up flag (the per-entry `rollup`/`rollupPosition` fields on
+`disaggregateBy` — valid optional schema fields whose gate is transiently
+closed) can persist through a live-session checkpoint; the next standard save
+strips it via `normalizePOConfigForStorage`.
 
 ### Canvas overlays
 
@@ -1019,6 +1020,15 @@ overflow menu.
 
 ## Open items
 
+- **Roll-up toggles now merge at whole-array granularity in PO co-editing**
+  (2026-07-28, from the facility roll-up adversarial review). The roll-up flag
+  moved from d-level scalars into `disaggregateBy` entries, and the CRDT
+  bridge (`lib/collab/figure_config_crdt.ts`) treats `disaggregateBy` as
+  whole-array LWW — so a roll-up toggle can clobber (or be clobbered by) a
+  concurrent peer's edit to another dimension's display slot, where the old
+  d-scalar merged independently. Accepted for now (same class as any two
+  concurrent disaggregation edits); fix shape if taken up: per-entry keyed
+  merge for `disaggregateBy`.
 - **No heartbeat/ping-pong or idle-connection reaper on the collab WS**
   (Sweep 5 finding, ON HOLD per Tim 2026-07-21). Cleanup of the presence map
   and room `conns` runs exclusively off WS `onClose`/`onError`; a connection

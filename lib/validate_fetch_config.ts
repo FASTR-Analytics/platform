@@ -1,4 +1,4 @@
-import { isAdminLevel } from "./admin_area_rollup.ts";
+import { isRollupDimension } from "./rollup.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./types/disaggregation_options.ts";
 import { valueFuncStrict } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
@@ -265,37 +265,30 @@ export function validateFetchConfig(
   }
 
   if (
-    fetchConfig.includeAdminAreaRollup !== undefined &&
-    typeof fetchConfig.includeAdminAreaRollup !== "boolean"
-  ) {
-    throw new Error("Invalid includeAdminAreaRollup: must be a boolean");
-  }
-
-  if (
-    fetchConfig.adminAreaRollupLevel !== undefined &&
-    !isAdminLevel(fetchConfig.adminAreaRollupLevel)
+    fetchConfig.rollupDim !== undefined &&
+    !isRollupDimension(fetchConfig.rollupDim)
   ) {
     throw new Error(
-      "Invalid adminAreaRollupLevel: must be admin_area_2, admin_area_3, or admin_area_4"
+      "Invalid rollupDim: must be an admin level (admin_area_2/3/4) or a facility column"
     );
   }
 
   // Server-side mirror of isRollupEligibleResultsValue: the roll-up
-  // re-aggregates across admin areas, which is only meaningful for additive
-  // funcs, post-aggregation ingredients (recomputed after the union), or AVG
-  // over facility-level rows. AVG's facility-rows condition needs the table
-  // and is enforced in getPresentationObjectItems; here we reject the funcs
-  // that are never eligible. App clients never send these; this guards
+  // re-aggregates across the collapsed dimension, which is only meaningful for
+  // additive funcs, post-aggregation ingredients (recomputed after the union),
+  // or AVG over facility-level rows. AVG's facility-rows condition needs the
+  // table and is enforced in getPresentationObjectItems; here we reject the
+  // funcs that are never eligible. App clients never send these; this guards
   // hand-crafted requests.
   if (
-    fetchConfig.includeAdminAreaRollup === true &&
+    fetchConfig.rollupDim !== undefined &&
     fetchConfig.postAggregationExpression === undefined &&
     fetchConfig.values.some(
       (v) => v.func !== "SUM" && v.func !== "COUNT" && v.func !== "AVG"
     )
   ) {
     throw new Error(
-      "Invalid includeAdminAreaRollup: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
+      "Invalid rollupDim: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
     );
   }
 }

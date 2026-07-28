@@ -1,6 +1,6 @@
-import type { RollupEligibilityInputs } from "./admin_area_rollup.ts";
+import type { RollupEligibilityInputs } from "./rollup.ts";
 import {
-  getEffectiveRollupLevel,
+  getEffectiveRollupDimension,
   getFilteredValueProps,
 } from "./get_fetch_config_from_po.ts";
 import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
@@ -15,23 +15,28 @@ export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
   resultsValue: RollupEligibilityInputs
 ): PresentationObjectConfig {
-  // Canonical roll-up off-state is both fields absent. The flag survives
+  // Canonical roll-up off-state is both entry fields absent. The flag survives
   // transient gate closures while editing (the editor no longer eagerly clears
-  // it) and is stripped here, at save time, when the gate is closed.
-  const rollupOn =
-    !!config.d.includeAdminAreaRollup &&
-    getEffectiveRollupLevel(resultsValue, config) !== undefined;
+  // it) and is stripped here, at save time, from every entry except the one
+  // the gate selects.
+  const rollupDim = getEffectiveRollupDimension(resultsValue, config);
   return {
     ...config,
     d: {
       ...config.d,
+      disaggregateBy: config.d.disaggregateBy.map((entry) =>
+        entry.disOpt === rollupDim && entry.rollup === true
+          ? {
+              disOpt: entry.disOpt,
+              disDisplayOpt: entry.disDisplayOpt,
+              rollup: true,
+              rollupPosition: entry.rollupPosition ?? "bottom",
+            }
+          : { disOpt: entry.disOpt, disDisplayOpt: entry.disDisplayOpt }
+      ),
       filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
       valuesFilter: config.d.valuesFilter?.length
         ? config.d.valuesFilter
-        : undefined,
-      includeAdminAreaRollup: rollupOn ? true : undefined,
-      adminAreaRollupPosition: rollupOn
-        ? (config.d.adminAreaRollupPosition ?? "bottom")
         : undefined,
     },
   };

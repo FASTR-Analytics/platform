@@ -6,7 +6,6 @@ import {
   type DeckStyleContext,
   type IndicatorMetadata,
   PresentationObjectConfig,
-  ROLLUP_SENTINEL,
 } from "lib";
 import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
 

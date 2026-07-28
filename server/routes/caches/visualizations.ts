@@ -30,7 +30,12 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // unmodified rows would otherwise keep serving pre-fold payloads.
 // "7": HFA items gained sample-size columns (__n_*) beside their values. The
 // payload shape changes for unmodified rows, which version hashes don't track.
-const PO_CACHE_VERSION = "7";
+// "8": fetchConfig gained rollupDim replacing includeAdminAreaRollup+level.
+// The hashFetchConfig segment change already orphans every old key, so this
+// bump is declared hygiene rather than load-bearing — the shape of the cached
+// ItemsHolder.fetchConfig changed, and safety should not rest on the
+// incidental impossibility of an old/new key collision.
+const PO_CACHE_VERSION = "8";
 
 export const _PO_DETAIL_CACHE = new TimCacheC<
   {
