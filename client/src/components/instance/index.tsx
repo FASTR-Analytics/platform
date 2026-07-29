@@ -73,9 +73,9 @@ function compactNavItems(): ListItem<InstanceTab>[] {
       id: "results_packages",
       label: "",
       labelText: t3({
-        en: "Results packages",
-        fr: "Paquets de résultats",
-        pt: "Pacotes de resultados",
+        en: "Results",
+        fr: "Résultats",
+        pt: "Resultados",
       }),
       iconName: "chart",
     });
@@ -126,9 +126,9 @@ function wideNavItems(): ListItem<InstanceTab>[] {
     items.push({
       id: "results_packages",
       label: t3({
-        en: "Results packages",
-        fr: "Paquets de résultats",
-        pt: "Pacotes de resultados",
+        en: "Results",
+        fr: "Résultats",
+        pt: "Resultados",
       }),
       iconName: "chart",
     });
@@ -226,11 +226,7 @@ export default function Instance(p: Props) {
     <>
       <Switch>
         <Match when={getFirstString(searchParams.p)} keyed>
-          {(projectId) => (
-            <Project
-              projectId={projectId}
-            />
-          )}
+          {(projectId) => <Project projectId={projectId} />}
         </Match>
         <Match when={true}>
           <FrameTop
@@ -298,7 +294,11 @@ export default function Instance(p: Props) {
                     position="bottom-end"
                   >
                     <Button intent="base-100">
-                      {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
+                      {
+                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                          getLanguage()
+                        ]
+                      }
                     </Button>
                   </MenuTriggerWrapper>
                   <Show when={instanceState.currentUserApproved}>
@@ -346,15 +346,15 @@ export default function Instance(p: Props) {
                       instanceState.currentUserPermissions.can_configure_data)
                   }
                 >
-                  <InstanceData
-                  />
+                  <InstanceData />
                 </Match>
-                <Match when={tab() === "results_packages" && canConfigureData()}>
+                <Match
+                  when={tab() === "results_packages" && canConfigureData()}
+                >
                   <InstanceResultsPackages />
                 </Match>
                 <Match when={tab() === "assets"}>
-                  <InstanceAssets
-                  />
+                  <InstanceAssets />
                 </Match>
                 <Match
                   when={

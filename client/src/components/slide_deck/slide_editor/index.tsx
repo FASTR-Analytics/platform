@@ -1449,7 +1449,7 @@ function PeerSelectionOverlay(p: {
                 <For each={b.editors}>
                   {(e) => (
                     <div
-                      class="rounded px-1 text-[10px] font-semibold whitespace-nowrap text-white"
+                      class="rounded px-1 text-[10px] font-700 whitespace-nowrap text-white"
                       style={{ "background-color": e.color }}
                     >
                       {e.name}

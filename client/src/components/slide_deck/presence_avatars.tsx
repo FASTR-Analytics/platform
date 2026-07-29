@@ -52,7 +52,7 @@ export function PresenceAvatars(p: {
           {(peer) => (
             <div class="relative" title={title(peer)}>
               <div
-                class={`${dim()} flex items-center justify-center overflow-hidden rounded-full font-semibold text-white ring-2 ring-white transition-opacity duration-500`}
+                class={`${dim()} flex items-center justify-center overflow-hidden rounded-full font-700 text-white ring-2 ring-white transition-opacity duration-500`}
                 classList={{ "opacity-40 grayscale": isDimmed(peer) }}
                 style={{ "background-color": peer.color }}
               >
@@ -80,7 +80,7 @@ export function PresenceAvatars(p: {
         </For>
         <Show when={overflow() > 0}>
           <div
-            class={`${dim()} bg-base-300 text-base-content flex items-center justify-center rounded-full font-semibold ring-2 ring-white`}
+            class={`${dim()} bg-base-300 text-base-content flex items-center justify-center rounded-full font-700 ring-2 ring-white`}
           >
             +{overflow()}
           </div>

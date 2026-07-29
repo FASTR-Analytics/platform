@@ -126,7 +126,7 @@ export function SlideDeckSettings(p: Props) {
             <div class="flex items-center gap-2">
               <span>{p.heading}:</span>
               <Show when={!editingName()}>
-                <span class="font-normal">{tempConfig.label}</span>
+                <span class="font-400">{tempConfig.label}</span>
                 <Button
                   iconName="pencil"
                   intent="neutral"
@@ -138,7 +138,7 @@ export function SlideDeckSettings(p: Props) {
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="rounded border px-2 py-1 text-base font-normal"
+                  class="rounded border px-2 py-1 text-base font-400"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}
