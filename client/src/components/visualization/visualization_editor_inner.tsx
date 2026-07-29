@@ -109,6 +109,19 @@ import {
 } from "../project_ai/ai_views";
 import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
+// Input types with no native undo — they must not swallow the editor's Ctrl+Z.
+const NON_TEXT_INPUT_TYPES = new Set([
+  "radio",
+  "checkbox",
+  "button",
+  "submit",
+  "reset",
+  "range",
+  "color",
+  "file",
+  "image",
+]);
+
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
   projectStateSnapshot: ProjectState;
@@ -518,18 +531,24 @@ export function VisualizationEditorInner(p: InnerProps) {
   // misses the common case where focus is on the chart preview / page body,
   // which is why the button worked but the shortcut didn't). Leaves text-editing
   // contexts to their own undo: CodeMirror captions have a per-user undo keymap;
-  // native inputs keep native undo.
+  // native text inputs keep native undo. Radios/checkboxes are inputs too but
+  // have no native undo AND keep focus after a click, so ceding to them would
+  // dead-key the shortcut until the user clicked somewhere else.
+  function isTextEntryTarget(target: HTMLElement | null): boolean {
+    const el = target?.closest(
+      ".cm-editor, input, textarea, [contenteditable='true']",
+    );
+    if (!el) return false;
+    if (el instanceof HTMLInputElement) {
+      return !NON_TEXT_INPUT_TYPES.has(el.type);
+    }
+    return true;
+  }
   function handleEditorKeyDown(e: KeyboardEvent) {
     if (!undoMgr) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.key.toLowerCase() !== "z") return;
-    const target = e.target as HTMLElement | null;
-    if (
-      target &&
-      target.closest(".cm-editor, input, textarea, [contenteditable='true']")
-    ) {
-      return;
-    }
+    if (isTextEntryTarget(e.target as HTMLElement | null)) return;
     e.preventDefault();
     if (e.shiftKey) redo();
     else undo();
