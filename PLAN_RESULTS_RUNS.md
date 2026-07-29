@@ -22,8 +22,8 @@
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
-> item 1 = `92cce0ba`, item 2 = `823d6575`, item 3 = see the item-3 build
-> record). Still, do not assume the tree is clean: always run
+> item 1 = `92cce0ba`, item 2 = `823d6575`, item 3 = `5d7d6b90`). Still, do
+> not assume the tree is clean: always run
 > `git status` first, and expect files outside your scope — parallel
 > workstreams are normal here, and their errors are not yours to fix without
 > asking. Never create a branch.
