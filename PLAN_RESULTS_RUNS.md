@@ -1,6 +1,24 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-## Status: build DONE, main MERGED, post-merge adversarial review FIXED — exit gate PARITY GREEN on the merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD `675b63be`). RE-CUT 2026-07-29 (Tim): the Phase 3 USER-MODEL CORE now ships BEFORE the deploy (see "Phase 3 re-cut" section) so users get ONE big change (instance-based packages), not two; after that build, Tim's rollout (trial instance → backfill + rig there → fleet, Ethiopia early as the Ethiopian-quarter gate). This Status block is the build record
+> **START HERE (continuing this plan).** The live work is the **"Phase 3 core
+> — work items"** numbered list inside the Status section's "Phase 3 re-cut"
+> subsection: **item 0 is DONE; items 1–5 remain, in order, one per session.**
+> Read, in this order: (1) the Status block down through "Phase 3 re-cut"
+> (the decided model, the five rulings, the signed-off design); (2) the
+> "**How to work this list**" paragraph further down — its operating rules,
+> rig invocation, and dev-setup commands govern the Phase 3 items too;
+> (3) "Binding implementation decisions" + "Empirical gotchas" (closed — do
+> not re-derive). Everything the design settles is settled: build it, don't
+> re-litigate it. Branch is `results-runs`; do NOT touch `main`.
+>
+> **Before writing item-1 code, read the "OPEN DESIGN QUESTIONS" block just
+> above the work-item list and put those questions to Tim** — they are real
+> holes in the design (instance-run identity, project-scoped SSE vs an
+> instance catalogue, reuse base, cache GC, how items 2/4 pass the rig gate,
+> a viewer permission change), each with a recommendation. Everything else is
+> decided.
+
+## Status: build DONE, main MERGED INTO this branch (never the reverse — `results-runs` has NOT been merged to `main`), post-merge adversarial review FIXED — exit gate PARITY GREEN on the merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD `675b63be`). RE-CUT 2026-07-29 (Tim): the Phase 3 USER-MODEL CORE now ships BEFORE the deploy (see "Phase 3 re-cut" section) so users get ONE big change (instance-based packages), not two; after that build, Tim's rollout (trial instance → backfill + rig there → fleet, Ethiopia early as the Ethiopian-quarter gate). This Status block is the build record
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy review
@@ -83,7 +101,8 @@ the previous image just works).
    synthesis completes.
 
 6. **No runtime cutover flag.** One read path in the build; staging = trial prod
-   instance + rig; rollback = previous image; cache correctness via the standard
+   instance + rig; rollback = hosting-level volume restore (ruling 5 replaced
+   the previous-image rollback stated here); cache correctness via the standard
    knobs (`PO_CACHE_VERSION`, key prefixes) plus runId keys after this deploy.
 
 7. **Killed in the same deploy**: per-module rerun, the dirty-state cascade,
@@ -110,14 +129,17 @@ showNValues workstreams, 4 unpushed commits ride the deploy); add
 the runs volume to the POSTGRES container in each instance's compose (item 7
 notes + Dockerfile comment). Rollout: deploy to one trial prod instance → serve
 starts, the backfill synthesizes runs (docker-exec runbook in item 7) → run the
-rig there (pg vs run read path — the dual-write keeps pg a live baseline) →
-green → roll the fleet with Ethiopia early (its rig run is the Ethiopian-quarter
-gate; it cannot run pre-flip — accepted, mitigated by the dual-write,
-trial-first ordering, and cheap rollback). Rollback: redeploy the previous image
-(model point 4).
+rig there (pg vs run read path — the pg plane is FROZEN at deploy, so only
+each project's backfill-provenance run is gateable; rulings 4/5) → green → roll
+the fleet with Ethiopia early (its rig run is the Ethiopian-quarter gate; it
+cannot run pre-flip — accepted, mitigated by trial-first ordering and volume
+restore). Rollback: hosting-level restore of the pre-deploy instance volume
+(ruling 5, which supersedes model point 4's previous-image rollback).
 
-**Phase 3 — instance-level factory + catalogue + attach** and **Phase 4 —
-demolition + docs**: unchanged from the original spec (§4 below).
+**Phase 3 — instance-level factory + catalogue + attach**: RE-CUT 2026-07-29 —
+its user-model core now ships BEFORE this deploy (see "Phase 3 re-cut" below);
+§4's Phase 3 entry is annotated accordingly. **Phase 4 — demolition + docs**:
+unchanged from the original spec (§4 below), still gated on fleet verification.
 
 ### What is on the branch — salvage map (EXECUTED 2026-07-12)
 
@@ -248,11 +270,14 @@ checks, 0 diffs, 0 skips). What landed:
    wizard deploy); boot ensures the runs dir + sweeps `.tmp-` debris;
    `migrateMetricsColumns`' metric_info cache clear removed (immutable runs make
    it meaningless).
-6. Rig `--package` → `--run`: resolves each project's attached run, skips
-   unattached projects.
+6. Rig `--package` → `--run`: resolves each project's attached run. (Skipping
+   unattached projects was the behavior AT THIS DATE; item 8 later made every
+   skip — including NO RUN ATTACHED — a gating RED result. See item 8.)
 
-Known interim behavior: superseded run dirs/rows accumulate until run GC (a
-Phase 3 item). Wizard publishes push `run_attached`, but backfill-script
+Known interim behavior: superseded run dirs/rows accumulate. (Resolved by the
+Phase 3 re-cut ruling 3: there is NO automatic GC — reclamation is the
+catalogue's guarded hard delete, an explicit operator act, built by Phase 3
+core item 3.) Wizard publishes push `run_attached`, but backfill-script
 repoints emit no SSE — after `backfill_runs.ts`, clients learn the new
 `attachedRunId` on reconnect. (The original note about module reruns not
 updating the served run is void since item 5 — the per-module rerun surface no
@@ -268,7 +293,13 @@ natively**, then drop. No §10 blockers remain for this milestone (Q1/Q4/Q8 are
 Phase 3 design).
 
 **How to work this list**: execute items in order, ONE item per session, each
-gated by `deno task typecheck` + the rig green. Rig invocation:
+gated by `deno task typecheck` (which itself runs server + client + `lint:systems`) +
+the rig green. NOTE ON NUMBERING: this paragraph and the items it refers to
+are the CLOSED wizard-deploy list; the live Phase 3 list is separately
+numbered 0–5. Unqualified "item N" in THIS section and in build records dated
+2026-07-14 or earlier means the wizard-deploy item N; inside the Phase 3
+re-cut section, references to the closed list say "wizard-deploy item N"
+explicitly. Rig invocation:
 `deno run --allow-all --unstable-broadcast-channel --env-file -c
 deno.json validate_results_runs_parity.ts --run`
 (same flags for `backfill_runs.ts`). Dev setup: `./pg_run` starts Postgres
@@ -286,13 +317,18 @@ rulings, and empirical gotchas sections are closed; do not re-derive or improve
 them. An item too large for one session stops at a clean seam with gates green
 and records the stopping point inside the item — nowhere else. Items 1 and 2
 span wb-fastr-modules (CLAUDE.md three-repo lockstep rule: commit that repo
-locally; the push stays deploy-gated — its local HEAD is `6ba142e`). ALL items
+locally; the push stays deploy-gated — its local HEAD was `6ba142e` at that
+date; CURRENT local HEAD is `004fdc2`, 4 unpushed commits riding the deploy). ALL items
 are DONE (1–5b, 7, 8; item 6 RETIRED — details inside each item) and the exit
-gate below has PASSED (2026-07-14); **next is the Deploy phasing rollout**
-(trial instance → rig there → fleet with Ethiopia early). After items 3–5 the
-dev app exercises the full new UX end-to-end (generate → progress → repoint →
-all read surfaces from the run) and is reviewable in the browser; items 6–8 are
-export/deploy/hardening and don't gate dev review.
+gate below has PASSED (2026-07-14). **This wizard-deploy list is CLOSED. The
+live work is now the "Phase 3 core — work items" list in the Status section's
+"Phase 3 re-cut" (item 0 DONE, items 1–5 remain), worked under the same
+operating rules stated in this paragraph — one item per session, gated by
+`deno task typecheck` + the rig green, same rig/dev invocations.** After items
+3–5 the
+dev app exercised the full new UX end-to-end (generate → progress → repoint →
+all read surfaces from the run); wizard-deploy items 6–8 were
+export/deploy/hardening.
 
 Work items, in order:
 
@@ -901,7 +937,8 @@ on the MERGED tree (`deno task typecheck` + rig PARITY GREEN in `--run` mode,
 caught and fixed one real cross-engine defect: main's blank-fold SQL used
 Postgres-only `btrim(col, chars)` — now the portable two-arg `trim(col,
 chars)` (verified by execution on both engines; `E'…'` strings work on both).
-Next: trial-instance rollout per Deploy phasing (Ethiopia early).
+(What came next was re-cut on 2026-07-29: the Phase 3 core ships before the
+rollout — see "Phase 3 re-cut".)
 
 ### Post-merge adversarial review — DONE 2026-07-28, all findings fixed
 
@@ -946,9 +983,13 @@ architecture.
 
 - Wizard entry moves to the instance shell (generation stays
   `can_configure_data`).
-- Runs catalogue UI: list, label, disk usage, retire.
-- Project attach/detach/swap with the §2.6 compatibility report before any
-  repoint; attach = project editor (permissions split per §4 Phase 3).
+- Runs catalogue UI: list, disk usage, retire. (`label` is a DISPLAYED
+  column, set once at wizard confirm — per-run rename is deferred as luxury
+  below.)
+- Project attach/swap with the §2.6 compatibility report before any repoint;
+  attach = project editor (permissions split per §4 Phase 3). (No detach
+  control — deferred as luxury below; a null `projects.run_id` still renders
+  the typed no-run state, it just has no button.)
 - **Mandatory (was an accepted LOW):** the client reactive cache's
   response-side runId guard — the LOW was accepted as "latent until an
   attach-old-run control exists"; this re-cut builds that control, so the
@@ -992,8 +1033,12 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    unavailable render states, which are never silent.
 3. **Retire = guarded hard delete** (Q1 resolved): ONE act — delete the
    catalog row + run dir, refused while any `projects.run_id` references the
-   run. No archived state, no automatic GC. §5 backup-reachability accepted
-   (backups don't carry run dirs yet; restore already degrades loudly).
+   run OR the run is still `generating` (sub-fork e). No archived state, no
+   automatic GC. §5 backup-reachability accepted (backups don't carry run
+   dirs yet; restore already degrades loudly). CONSEQUENCE for item 3: the
+   `retired` value in §2.6's `generating|ready|failed|retired` status enum is
+   dead — nothing ever sets it. Leave the column type alone (no migration);
+   just never write it, and build no retired filter.
 4. **Rig**: typed non-gating outcome (`foreign_run`) in `--run` mode when a
    project's attached run has no pg oracle — counted and printed in TOTALS,
    never a silent skip, never RED. Under ruling 5 the rule is simple: **gate
@@ -1003,7 +1048,7 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    defined; the rollout gate (freshly backfilled 1:1 projects, Ethiopia
    early) is unchanged.
 5. **NO backwards compat — the dual-write is deleted before the deploy**
-   (Tim's ruling, this session). Writing a legacy plane purely for a
+   (Tim's ruling, 2026-07-29). Writing a legacy plane purely for a
    temporary rollback window is waste; commit to the new design. Deleted
    from the branch as pre-deploy work: the per-module legacy dual-write
    (`legacy_store_results_object.ts` ro_* COPY, sandbox output copies,
@@ -1021,7 +1066,14 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    dissolves sub-fork (b) — attach is pointer-only everywhere, launch-target
    dual-writes never existed.
 
-#### Phase 3 core — design (PROPOSED 2026-07-29, pending Tim's sign-off; sub-forks a–e flagged in chat)
+#### Phase 3 core — design (SIGNED OFF by Tim 2026-07-29; do not re-derive)
+
+All sub-forks are ruled: (a) windowing lives in the defaults store alongside
+module params; (b) DISSOLVED by ruling 5 (there are no dual-write targets —
+attach is pointer-only everywhere); (c) the generation attempt is keyed per
+admin user; (d) launch is blocked while any selected attach target is already
+a target of a generating run; (e) delete is refused for `generating` runs as
+well as referenced ones.
 
 - **Instance defaults store (Q8)**: `instance_config` key
   `run_generation_defaults` (the existing key/value pattern in
@@ -1033,7 +1085,10 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
   editor page. Merge order: resume > entry-anchor manifest (shortcut entry
   only) > instance defaults > definition defaults, via
   `getMergedModuleConfigSelections` semantics; unknown moduleIds in the
-  store are tolerated (modules evolve).
+  store are tolerated (modules evolve). The merge order is exactly
+  **resume > instance defaults > definition defaults** — an earlier draft
+  carried an "entry-anchor manifest" tier for the deferred Regenerate
+  shortcut, so that tier does NOT exist.
 - **Instance shell surface**: new "Results packages" area
   (`can_configure_data`): catalogue table (label, status, created at/by,
   provenance/source, disk size, attached-projects list), generate → wizard,
@@ -1043,7 +1098,9 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
   (existing components; routes unchanged). Disk size
   stamped into the run summary at finalize AND by the backfill synthesizer —
   at rollout every prod run is backfill-born, so no lazy `du` fallback is
-  needed.
+  needed. Dev runs minted before the stamp existed have no size: item 3
+  re-backfills the dev instance (`backfill_runs.ts`) rather than adding a
+  fallback path.
 - **Wizard re-entry**: instance-entered ONLY (no project context; the
   Regenerate shortcut is deferred): prefill = resume > instance defaults >
   definition defaults; family availability from instance datasets (already
@@ -1078,14 +1135,87 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
 - **Client cache guard (mandatory)**: response-side runId check in the
   reactive caches — a response is stored only under the runId it was
   computed for (the accepted-LOW, now live because attach-old-run exists).
-- **Rig**: implement ruling 4 (`foreign_run` typed outcome, non-gating,
-  printed; gate iff attached run = newest ready run dual-write-targeted at
-  this project — backfill runs carry their project as target, so rollout
-  gating is unchanged).
+- **Rig**: implement ruling 4 — `foreign_run` typed outcome, non-gating,
+  printed. THE RULE (ruling 5 removed the dual-write, so there is no
+  "targeted" notion): **gate a project iff its attached run is that project's
+  own backfill-provenance run**; every wizard-generated attachment is
+  `foreign_run`. Rollout gating is unchanged because backfill gives every
+  project a 1:1 run before anyone regenerates.
 - **Vocabulary**: all new UI strings "Results package(s)" (EN/FR/PT inline
-  t3). New files claimed in SYSTEM globs.
+  t3). **Each item claims its OWN new files in the SYSTEM globs** — the lint
+  gate runs inside `deno task typecheck`, so a new dir left unclaimed fails
+  that item's own gate (the gate only sees TRACKED files, so a new file
+  passes until committed, then orphans). Item 5's "sweep" is prose/doc
+  reconciliation only, not glob catch-up.
 
 #### Phase 3 core — work items (execute in order, one per session, each gated by `deno task typecheck` + rig `--run` green)
+
+Each item below is a checklist; **its full spec is the matching bullet in the
+"Phase 3 core — design" subsection directly above** (item 1 ↔ "Instance
+defaults store" and "Wizard re-entry", item 2 ↔ "Wizard re-entry" confirm-step
+and concurrency, item 3 ↔ "Instance shell surface", item 4 ↔ "Attach (project
+surface)" and "Client cache guard", item 5 ↔ "Rig"). Read both before starting.
+
+**OPEN DESIGN QUESTIONS — raise with Tim BEFORE the item that hits them.**
+Surfaced by an adversarial read of this design on 2026-07-29; each is a real
+hole in the design above, not a documentation gap. Recommendations given, but
+do NOT decide them solo.
+
+- **Q-A (item 1/2) — what is `sourceProjectId` for an instance-generated
+  run?** Instance entry has no source project, but three SHIPPED mechanisms
+  key on it: the launch concurrency guard (`summary::jsonb->>'sourceProjectId'`),
+  the viewer auth guard `runReadableByProject` (ready + sourceProjectId, or
+  the attached run), and ruling 4's rig rule. RECOMMENDATION: make it
+  nullable, have the launch guard key on the ATTACH TARGET list instead
+  (sub-fork d already re-keys it that way), and have the viewer guard accept
+  "attached to a project I can read" plus instance-admin. Backfill runs keep
+  their project, which is what ruling 4's gating rule needs.
+- **Q-B (item 3) — `run_progress` and the viewers are project-scoped, but the
+  catalogue is an instance surface.** `run_progress` is a project-SSE message
+  consumed by the project store's listener registry, and the viewer routes sit
+  behind `runReadableByProject` on a project-scoped mount. A run launched with
+  zero attach targets has no project channel at all, so item 3's "reuse
+  `run_progress` SSE" and "routes unchanged" are not achievable as written.
+  RECOMMENDATION: add an instance-SSE `run_progress` (the instance channel
+  already exists) and mount the viewers instance-side under
+  `can_configure_data`; keep the project-SSE copy for attached projects.
+- **Q-C (item 1) — the §3.7 reuse base for instance entry.** The existing
+  else-branch is "latest `ready` FOR THE PROJECT"; instance entry has no
+  project. RECOMMENDATION: latest `ready` run instance-wide. Reuse fails
+  closed (a poor base only costs a re-run), so this is safe, but it should be
+  a decision rather than a silent behavior change.
+- **Q-D (item 3) — cache GC on run deletion.** §2.5 requires
+  `clearEntriesWithPrefix(runId)` alongside run retirement; the item-3
+  checklist does not mention it. RECOMMENDATION: it ships with the guarded
+  hard delete — not optional, or deleted runs leave Valkey garbage forever.
+- **Q-E (items 2 and 4) — how do they pass their own rig gate?** Both exist
+  to attach non-backfill runs to dev projects, which under ruling 4 are
+  `foreign_run` (non-gating) — but `foreign_run` is only implemented in item
+  5, and with the dual-write gone a wizard-attached project has no pg
+  counterpart at all. RECOMMENDATION: either move the item-5 rig work to the
+  front of the list, or make the standing rule explicit: re-backfill the dev
+  projects (`backfill_runs.ts`) before running the rig, so every project is
+  attached to its own backfill run at gate time.
+- **Q-F (items 3/4) — permission regression on the debug viewers.** §2.6 says
+  runs are "readable by any project member of an attached project", but item
+  3 moves the script/log/file viewers to a `can_configure_data` instance
+  surface and item 4's project tab has none. Ordinary project members lose a
+  surface they have today. RECOMMENDATION: intended (debug surfaces are
+  admin-shaped), but say so out loud before shipping it.
+
+**Known live oddity — OPEN, raise with Tim BEFORE starting item 1 (do not
+decide it solo; it changes project-creation UX):**
+`createProject` still calls `addDataset{Hmis,Hfa}ToProject` + `installModule`,
+so creating a project exports a full dataset extract into its sandbox and
+writes project catalog rows that **nothing reads any more** (T1 and the
+virtual defaults both come from the attached run's manifest). It survives
+only because project creation predates the wizard. RECOMMENDATION to put to
+Tim: delete it in item 1 — the create-project form's dataset/module pickers
+go, and a new project starts with no package attached (the typed no-run
+state), getting one via attach. That also removes a multi-GB-scale wasted
+export per project creation on big instances. If Tim prefers the form left
+alone for now, do the server-side deletion only. Either way
+`addDataset*ToProject` dies with its last caller.
 
 0. **Dual-write deletion (ruling 5) — DONE 2026-07-29** (gates green:
    `deno task typecheck` + lint:systems + rig PARITY GREEN `--run`, 719
@@ -1177,9 +1307,10 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    picker (editor-gated swap with §2.6 compat report; read-only for
    members); the mandatory response-side runId guard in the client reactive
    caches.
-5. **Rig `foreign_run` + sweep.** Rig gates iff attached run = the
-   project's backfill run, `foreign_run` typed non-gating outcome otherwise;
-   SYSTEM doc/glob touches; exit gate re-run (typecheck + rig green + live
+5. **Rig `foreign_run` + docs.** Rig gates iff attached run = the project's
+   own backfill-provenance run, `foreign_run` typed non-gating outcome
+   otherwise; SYSTEM doc prose reconciliation (globs are claimed by each item
+   as it lands); exit gate re-run (typecheck + rig green + live
    dev pass: instance generation with multi-attach, swap with compat
    report, guarded delete, defaults save/prefill).
 
@@ -1558,7 +1689,8 @@ tables go; its role sharpens into exactly one half of the boundary:
 ### 2.6 Catalog, pointer, access
 
 - Main DB: new `runs` table (id, label, status
-  `generating|ready|failed|retired`, created_at, created_by, manifest summary
+  `generating|ready|failed|retired` — `retired` is DEAD per ruling 3, never
+  written, created_at, created_by, manifest summary
   for listing) — the catalogue. `projects` gains `run_id` (nullable FK) — the
   pointer. Swapping runs is an UPDATE + SSE notify. **Invariant:** `run_id` is
   only ever set to a run with `status='ready'` (which is only set after the
@@ -1582,7 +1714,7 @@ tables go; its role sharpens into exactly one half of the boundary:
   referencing a disaggregation the run doesn't offer surfaces the same way —
   upgrading today's known trap where a stale config's vanished disOpt is
   **silently omitted** with no error surface (SYSTEM_09 "stale configs fail
-  silent"). Attach/detach/swap shows a **compatibility report** before
+  silent"). Attach/swap shows a **compatibility report** before
   repointing ("N visualizations reference metrics not in this run; M use
   dimensions it doesn't produce") — computed by resolving the project's POs
   against the candidate manifest, no data queries needed.
@@ -1654,19 +1786,21 @@ authored-content clone + same run pointer).
    vision's "instance-level config including default settings for modules"). The
    wizard pre-fills from an instance-level defaults store and freezes selections
    into the manifest; per-project module state disappears with the project
-   `modules` table. The defaults store's shape (instance_config key vs table,
-   per-country presets?) is deliberately unspecified until Phase 3 design — open
-   question 8.
+   `modules` table. The defaults store's shape is RESOLVED (2026-07-29,
+   ruling 1): the `instance_config` key `run_generation_defaults`, flat, no
+   migration; built in Phase 3 core item 1.
 6. **One cutover deploy; no runtime flag** (re-cut 2026-07-12, collapsing the
    2026-07-10 two-deploy cut; both replaced the earlier `RESULTS_READ_PATH`
    env-flag design — an env flip cannot un-migrate anyway, and two serving modes
    in one build is complexity with no payoff). The deploy has exactly one read
    path. Staging = deploy to a trial prod instance, verify with the rig, roll
-   the fleet. Rollback = redeploy the previous image: the backfill migration is
+   the fleet. **SUPERSEDED BY RULING 5 (2026-07-29)** — original text for the
+   record: "Rollback = redeploy the previous image: the backfill migration is
    additive (synthesized run dirs beside an untouched sandbox; Postgres
    untouched) and the wizard dual-writes legacy `ro_*` until the fleet is
-   verified, so the old image serves current data. Then the Postgres read path,
-   dual-write, and legacy ingest are deleted (Phase 3 entry). Cross-deploy cache
+   verified, so the old image serves current data." The dual-write was deleted
+   pre-deploy (Phase 3 core item 0); rollback is now a hosting-level volume
+   restore, and the frozen pg plane is only the rig's oracle until Phase 4. Cross-deploy cache
    correctness uses the standard knobs (`PO_CACHE_VERSION`, key-prefix bumps),
    never runtime modes. Precedent: the FigureBundle boot-time cutover with its
    36-instance read-only dry-run gate (0 failures) — same discipline here.
@@ -1818,8 +1952,10 @@ package builder and now becomes the deploy's backfill synthesizer.
   carries runId and no projectId; copy, not move — the Status model has the
   rollback posture); caches re-key to runId (§2.5); client T1 gains
   `attachedRunId` and the T2 caches re-key (`export_central` was RETIRED, not
-  flipped — work item 6). Legacy `ro_*` ingest is dual-written until fleet
-  verification, then deleted with the Postgres read path (Phase 3 entry).
+  flipped — work item 6). Legacy `ro_*` ingest was to be dual-written until
+  fleet verification — **CANCELLED by ruling 5**: the dual-write was deleted
+  pre-deploy (Phase 3 core item 0), `ro_*` is frozen as the rig oracle, and
+  the Postgres read path drops in Phase 4.
 - **Memoized generation ships here** (§3.7) — it is what keeps regeneration fast
   once per-module rerun is deleted; the §6.1/§6.5 hermeticity fixes are its
   prerequisites and land first.
@@ -1843,10 +1979,11 @@ two bullets (the user-model core) ship BEFORE the deploy; the queryable-inputs
 UI and scheduled generation are deferred post-deploy; demolition entry (dual-
 write/pg-read-path deletion) stays gated on fleet verification.**
 
-- Move the wizard entry to the instance shell; `runs` catalogue UI (list, label,
-  retire, disk usage); project settings gets attach/detach/swap with "newer run
-  available" surfacing and the §2.6 compatibility report shown before any
-  repoint.
+- Move the wizard entry to the instance shell; `runs` catalogue UI (list,
+  disk usage, retire); project settings gets attach/swap with the §2.6
+  compatibility report shown before any repoint. (Removed from this bullet by
+  the 2026-07-29 luxury deferrals: per-run rename, detach control, and "newer
+  run available" surfacing.)
 - Permissions: generation instance-admin; attach = project editor. Multi-
   project attachment lands here (cache sharing is already run-keyed).
 - **Queryable run inputs UI**: a project surface for querying the attached run's
@@ -1856,7 +1993,8 @@ write/pg-read-path deletion) stays gated on fleet verification.**
   modules (M9) whose only job is re-materializing input as queryable output.
 - Scheduled generation (the DHIS2 scheduled-import unblock, PLAN_TODO_TRACKER
   #6) becomes possible: an automated import + generate + (optional) auto-repoint
-  pipeline. In scope as a stretch goal.
+  pipeline. **DEFERRED post-deploy by the 2026-07-29 re-cut (§10 Q4)** — not
+  part of the pre-deploy core.
 
 ### Phase 4 — demolition + docs
 
@@ -1883,9 +2021,10 @@ write/pg-read-path deletion) stays gated on fleet verification.**
 ## 5. Migration & rollback posture
 
 - The deploy's migration is additive (synthesized run dirs beside an untouched
-  sandbox + `projects.run_id` pointers; Postgres untouched; the wizard
-  dual-writes `ro_*`), so rollback = redeploy the previous image (§3.6).
-  Destructive drops wait for Phase 4, after fleet verification.
+  sandbox + `projects.run_id` pointers; Postgres untouched and frozen).
+  **Rollback = hosting-level restore of the pre-deploy instance volume**
+  (ruling 5; the previous-image rollback this bullet used to describe died
+  with the dual-write). Destructive drops wait for Phase 4.
 - Fleet check discipline: the golden-diff rig runs read-only against every
   instance before each cutover (FigureBundle precedent: 36 instances, 17,142
   figures, 0 fails, then deploy).
@@ -1901,8 +2040,10 @@ write/pg-read-path deletion) stays gated on fleet verification.**
   delete a run reachable from any retained backup or any project's `run_id`.
   Until that lands, a restore that references a missing run must degrade loudly
   (project renders "run not available"), never silently.
-- Disk: runs accumulate. Retention = keep referenced runs always; unreferenced
-  runs kept N days (catalog "retire" = explicit delete with referenced-guard).
+- Disk: runs accumulate. Retention (ruling 3): keep referenced runs always;
+  reclamation is ONLY the catalogue's explicit guarded hard delete — there is
+  no time-based/automatic GC (an earlier draft said "unreferenced runs kept N
+  days"; that is not the model).
   Reuse the existing disk-space guard pattern.
 
 ---
@@ -1943,7 +2084,8 @@ doesn't know to copy.
 
 - **T1**: `moduleDirtyStates`/`moduleLastRun`/`anyRunning`/staleness slices
   replaced by `attachedRunId` + run summary; wizard progress state lives with
-  the wizard (attempt-record polling or SSE). `metrics` list comes from the
+  the run, pushed via the `run_progress` SSE message (the
+  attempt-record-polling alternative was not taken). `metrics` list comes from the
   manifest (status vocabulary shrinks).
 - **T2**: the three run-keyed caches re-key (mechanism unchanged —
   `createReactiveCache` is version-string-agnostic; an immutable runId is a
@@ -2001,8 +2143,9 @@ doesn't know to copy.
 
 ## 10. Open questions for Tim
 
-1. **Retention/GC**: how long do unreferenced runs live? Is catalog "retire"
-   hard-delete or archive?
+1. **Retention/GC** — **RESOLVED 2026-07-29 (Tim, ruling 3)**: retire IS a
+   guarded hard delete (row + dir), refused while referenced or generating;
+   no archive state, no automatic/time-based GC.
 2. **Who generates** — **RESOLVED 2026-07-12 (Tim)**: instance-admin only
    (matches today's data-attach gating).
 3. **Raw CSV retention** — **RESOLVED 2026-07-12 (Tim)**: keep raw CSVs in runs
@@ -2027,9 +2170,11 @@ doesn't know to copy.
    parity run**: DOUBLE aggregates + relative-epsilon diff. 69/69 real Nigeria
    configs matched Postgres to max 2.0e-15 (the float floor), so no DECIMAL
    needed. Left here only as the record of the decision.
-8. **Instance module-defaults store shape** (§3.5): an `instance_config` key vs
-   a dedicated table; whether defaults are per-country presets or flat. Design
-   lands with Phase 3; flagging now that it is a new config surface.
+8. **Instance module-defaults store shape** (§3.5) — **RESOLVED 2026-07-29
+   (Tim, ruling 1)**: the `instance_config` key `run_generation_defaults`
+   (no migration), Zod-validated, FLAT (one-country-per-instance makes
+   per-country presets meaningless); edited via "save as instance defaults" on
+   the wizard confirm step. Built in Phase 3 core item 1.
 
 ## 11. Execution strategy — how to staff the agentic work
 
