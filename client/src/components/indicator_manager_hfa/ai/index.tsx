@@ -5,7 +5,7 @@ import {
   validateAIChatConfig,
 } from "panther";
 import type { Accessor, ParentProps } from "solid-js";
-import { createHfaIndicatorAiSDKClient, HFA_AI_MODEL_CONFIG } from "./sdk_client";
+import { createHfaIndicatorAiSDKClient } from "./sdk_client";
 import { buildHfaIndicatorTools } from "./tools";
 import { buildHfaIndicatorSystemPrompt } from "./system_prompt";
 import { HfaIndicatorChatPane } from "./chat_pane";
@@ -27,7 +27,9 @@ export function HfaIndicatorAiWrapper(props: Props) {
 
   const config: AIChatConfig = {
     sdkClient,
-    modelConfig: HFA_AI_MODEL_CONFIG,
+    // Model comes from panther's defaults; only the smaller output cap is
+    // HFA-specific (indicator authoring never needs long outputs).
+    modelConfig: { max_tokens: 4096 },
     tools: buildHfaIndicatorTools() as AIChatConfig["tools"],
     scope: "hfa-indicators",
     system,

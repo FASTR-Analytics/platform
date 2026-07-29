@@ -151,14 +151,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       props: {
         initialValues: current,
         // max_tokens is exposed so the truncation notice's "increase max
-        // tokens in the AI settings" advice is actionable.
+        // tokens in the AI settings" advice is actionable. The model list is
+        // panther's MODEL_OPTIONS — curated there, not per app.
         adjustable: ["model", "max_tokens"],
-        allowedModels: [
-          "claude-opus-4-8",
-          "claude-opus-4-6",
-          "claude-sonnet-4-6",
-          "claude-haiku-4-5",
-        ],
       },
     });
     if (result) {

@@ -1,5 +1,3 @@
-import type { AnthropicModel } from "@timroberton/panther";
-
 export const COUNTRY_ISO3_TO_LABEL: Record<string, string> = {
   AFG: "Afghanistan",
   ALB: "Albania",
@@ -149,8 +147,6 @@ export const _IMAGE_DIMENSIONS = {
   md: { w: 720, h: 405 },
 };
 
-export const DEFAULT_ANTHROPIC_MODEL: AnthropicModel = "claude-sonnet-4-6";
-
 // Maximum content blocks per slide/whiteboard - panther optimizer limit is 4,
 // but we use 3 for better layouts
 export const MAX_CONTENT_BLOCKS = 3;
@@ -178,11 +174,32 @@ export const PAGE_HEIGHT_DU = Math.round(PAGE_WIDTH_DU * PAGE_ASPECT);
 // renderer, schema, and migration all read these. Retune sizing by editing the
 // numbers here, no data migration needed (the stored keys are stable).
 export const TEXT_SIZE_KEYS = [
-  "3xs", "2xs", "xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl", "6xl",
+  "3xs",
+  "2xs",
+  "xs",
+  "s",
+  "m",
+  "l",
+  "xl",
+  "2xl",
+  "3xl",
+  "4xl",
+  "5xl",
+  "6xl",
 ] as const;
 export type TextSizeKey = (typeof TEXT_SIZE_KEYS)[number];
 export const DEFAULT_TEXT_SIZE_KEY: TextSizeKey = "m";
 export const TEXT_SIZE_REL: Record<TextSizeKey, number> = {
-  "3xs": 0.41, "2xs": 0.51, xs: 0.64, s: 0.8, m: 1, l: 1.25,
-  xl: 1.56, "2xl": 1.95, "3xl": 2.44, "4xl": 3.05, "5xl": 3.81, "6xl": 4.77,
+  "3xs": 0.41,
+  "2xs": 0.51,
+  xs: 0.64,
+  s: 0.8,
+  m: 1,
+  l: 1.25,
+  xl: 1.56,
+  "2xl": 1.95,
+  "3xl": 2.44,
+  "4xl": 3.05,
+  "5xl": 3.81,
+  "6xl": 4.77,
 };
