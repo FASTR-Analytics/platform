@@ -11,6 +11,7 @@ import {
   createGeneratingRun,
   deleteRunGenerationAttempt,
   getGeneratingRunIdForAttachTargets,
+  getIneligibleAttachTargetNames,
   getRunGenerationAttempt,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
@@ -97,6 +98,20 @@ export async function launchRunGeneration(
     return {
       success: false,
       err: "The results-package configuration is not complete",
+    };
+  }
+
+  const ineligibleTargets = await getIneligibleAttachTargetNames(
+    mainDb,
+    attachTargetProjectIds,
+  );
+  if (ineligibleTargets.length > 0) {
+    return {
+      success: false,
+      err:
+        `These projects can no longer be attached to (deleted, locked, or being copied): ${
+          ineligibleTargets.join(", ")
+        }`,
     };
   }
 

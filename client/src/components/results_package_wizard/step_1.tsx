@@ -169,7 +169,7 @@ function Step1Inner(p: {
       <h3 class="font-700 text-lg">
         {t3({ en: "Choose data", fr: "Choisir les données", pt: "Escolher os dados" })}
       </h3>
-      <div class="text-neutral text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: "Choose which data families this results package is generated from, and how each is scoped.",
           fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré, et leur périmètre.",
@@ -177,7 +177,7 @@ function Step1Inner(p: {
         })}
       </div>
 
-      <div class="border-base-300 ui-pad ui-spy rounded border">
+      <div class="ui-pad ui-spy rounded border">
         <Checkbox
           label={t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}
           checked={includeHmis()}
@@ -185,7 +185,7 @@ function Step1Inner(p: {
           disabled={!hmisAvailable()}
         />
         <Show when={!hmisAvailable()}>
-          <div class="text-neutral text-sm">{notAvailableNote}</div>
+          <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
         </Show>
         <Show when={includeHmis() && instanceState.datasetVersions.hmis}>
           {(keyedVersionId) => (
@@ -201,7 +201,7 @@ function Step1Inner(p: {
         </Show>
       </div>
 
-      <div class="border-base-300 ui-pad ui-spy rounded border">
+      <div class="ui-pad ui-spy rounded border">
         <Checkbox
           label={t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}
           checked={includeHfa()}
@@ -209,7 +209,7 @@ function Step1Inner(p: {
           disabled={!hfaAvailable()}
         />
         <Show when={!hfaAvailable()}>
-          <div class="text-neutral text-sm">{notAvailableNote}</div>
+          <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
         </Show>
         <Show when={includeHfa()}>
           <StateHolderWrapper state={serviceCategoriesQuery.state()}>
@@ -240,7 +240,7 @@ function Step1Inner(p: {
         </Show>
       </div>
 
-      <div class="border-base-300 ui-pad ui-spy rounded border">
+      <div class="ui-pad ui-spy rounded border">
         <Checkbox
           label={t3({
             en: "ICEH equity data",
@@ -252,7 +252,7 @@ function Step1Inner(p: {
           disabled={!icehAvailable()}
         />
         <Show when={!icehAvailable()}>
-          <div class="text-neutral text-sm">{notAvailableNote}</div>
+          <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
         </Show>
       </div>
 

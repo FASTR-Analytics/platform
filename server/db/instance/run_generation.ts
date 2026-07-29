@@ -322,6 +322,33 @@ WHERE status = 'generating'
   return rows.at(0)?.id;
 }
 
+// Launch-time eligibility of the confirm step's attach selection: a target
+// must still exist, be 'ready' (not copying, not scheduled for deletion) and
+// be unlocked — the same set the wizard's multi-select offers, re-checked
+// because the selection is made before launch. Returns a display name per
+// ineligible target (its label, or the id when the project is gone).
+export async function getIneligibleAttachTargetNames(
+  mainDb: Sql,
+  projectIds: string[],
+): Promise<string[]> {
+  if (projectIds.length === 0) {
+    return [];
+  }
+  const rows = await mainDb<
+    { id: string; label: string; status: string; is_locked: boolean }[]
+  >`
+SELECT id, label, status, is_locked FROM projects WHERE id = ANY(${projectIds})
+`;
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return projectIds.flatMap((projectId) => {
+    const row = byId.get(projectId);
+    if (row === undefined) {
+      return [projectId];
+    }
+    return row.status !== "ready" || row.is_locked ? [row.label] : [];
+  });
+}
+
 // Access check for the per-run outputs surface (script/logs/files viewers):
 // a project may read the ready run it currently serves from. (Q-A dropped
 // the "run this project generated" arm — a run has no source project any

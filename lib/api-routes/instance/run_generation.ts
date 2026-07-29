@@ -80,7 +80,7 @@ export const runGenerationRouteRegistry = {
     method: "POST",
     body: z.object({
       label: z.string().min(1).max(200),
-      attachTargetProjectIds: z.array(z.string()),
+      attachTargetProjectIds: z.array(z.uuid()),
     }),
     response: {} as { runId: string },
   }),

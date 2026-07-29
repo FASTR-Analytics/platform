@@ -116,7 +116,7 @@ export function ProjectResultsPackage() {
                 <Show
                   when={keyedRuns.length > 0}
                   fallback={
-                    <div class="text-neutral">
+                    <div class="text-base-content-muted">
                       {t3({
                         en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
                         fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
@@ -177,10 +177,7 @@ function RunCard(p: {
   return (
     <div
       class="ui-pad ui-spy-sm rounded border"
-      classList={{
-        "border-primary": isAttached(),
-        "border-base-300": !isAttached(),
-      }}
+      classList={{ "border-primary": isAttached() }}
     >
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
@@ -191,7 +188,7 @@ function RunCard(p: {
         </Show>
         <RunStatusBadge status={p.run.status} />
       </div>
-      <div class="text-neutral text-xs">
+      <div class="text-base-content-muted text-xs">
         {new Date(p.run.createdAt).toLocaleString()}
         {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
         {p.run.provenance === "synthetic-backfill"
@@ -206,7 +203,7 @@ function RunCard(p: {
       <Show when={p.run.status === "ready" && p.run.summary} keyed>
         {(summary) => (
           <div class="ui-spy-sm">
-            <div class="text-neutral text-sm">
+            <div class="text-base-content-muted text-sm">
               {summary.moduleIds.length}{" "}
               {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
               {summary.metricCount}{" "}
@@ -259,7 +256,7 @@ function RunCard(p: {
             </div>
             <Show when={keyedProgress.currentModuleId} keyed>
               {(currentModuleId) => (
-                <div class="text-neutral truncate font-mono text-xs">
+                <div class="text-base-content-muted truncate font-mono text-xs">
                   {p.rLogs[currentModuleId]?.latest ?? "..."}
                 </div>
               )}
@@ -317,7 +314,7 @@ function ModuleProgressChip(p: {
     <div
       class="rounded border px-2 py-0.5 text-xs"
       classList={{
-        "border-base-300 text-neutral": p.status === "pending",
+        "text-base-content-muted": p.status === "pending",
         "border-primary text-primary": p.status === "running",
         "border-success text-success":
           p.status === "done" || p.status === "reused",

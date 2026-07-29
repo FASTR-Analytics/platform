@@ -13,9 +13,10 @@ import { serverActions } from "~/server_actions";
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 item
 // 1): generation is an instance-level act, so this is where the launch
 // wizard is entered — one in-flight configuration per admin, resumable. The
-// catalogue itself (listing, disk usage, guarded delete, live progress, the
-// per-module viewers) is item 3; until it lands, a generated package is
-// attached from a project's Results package tab.
+// wizard's confirm step chooses which projects the finished package attaches
+// to (item 2); a package launched with no targets is attached later from a
+// project's Results package tab. The catalogue itself (listing, disk usage,
+// guarded delete, live progress, the per-module viewers) is item 3.
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -89,7 +90,7 @@ export function InstanceResultsPackages() {
         }
       >
         <div class="ui-pad ui-spy">
-          <div class="text-neutral max-w-2xl">
+          <div class="text-base-content-muted max-w-2xl">
             {t3({
               en: "A results package is generated once for the whole instance from the data and modules you choose, then attached to the projects that should use it.",
               fr: "Un paquet de résultats est généré une fois pour toute l'instance à partir des données et des modules que vous choisissez, puis rattaché aux projets qui doivent l'utiliser.",

@@ -2,13 +2,14 @@
 
 > **START HERE (continuing this plan).**
 >
-> **Your next action is Phase 3 core item 2 (attach-at-launch).** The work
+> **Your next action is Phase 3 core item 3 (the catalogue).** The work
 > list is "**Phase 3 core — work items**", inside the Status section's
-> "Phase 3 re-cut" subsection: **items 0 and 1 are DONE; items 2, 3, 4, 5
-> remain, in order, one per session.** Item 2 is now small — item 1 landed
-> its entire server half, so what remains is the wizard confirm step's
-> "attach to project(s)" multi-select (step 3 currently sends an empty list)
-> plus live verification. Item 2's checklist entry says exactly this.
+> "Phase 3 re-cut" subsection: **items 0, 1 and 2 are DONE; items 3, 4, 5
+> remain, in order, one per session.** Item 3 is the biggest of the three —
+> the instance catalogue table plus the five rulings that land with it
+> (Q-B instance SSE, Q-D cache purge, Q-F viewer move, Q-G static mount, and
+> the `r_script` line moving with progress). Item 3's checklist entry lists
+> them all.
 >
 > **Read, in this order:** (1) the Status block down through "Phase 3 re-cut"
 > — the decided model, the five rulings, and the signed-off design, where
@@ -49,7 +50,7 @@
 > rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
-## Status: Phase 3 core IN PROGRESS — items 0 and 1 DONE (2026-07-29, both gates green), item 2 is next
+## Status: Phase 3 core IN PROGRESS — items 0, 1 and 2 DONE (both gates green), item 3 is next
 
 The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
 branch (never the reverse — `results-runs` has NOT been merged to `main`); the
@@ -59,9 +60,10 @@ merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD
 now ships BEFORE the deploy (see "Phase 3 re-cut") so users get ONE big change
 (instance-based packages), not two. Phase 3 core progress: **item 0
 (dual-write deletion) DONE, item 1 (defaults store + instance-shell wizard
-entry + run identity + catalog-wide reuse + createProject cleanup) DONE — rig
-PARITY GREEN 719 checks after a full dev re-backfill; items 2–5 remain.** After
-item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
+entry + run identity + catalog-wide reuse + createProject cleanup) DONE, item 2
+(attach-at-launch: confirm-step multi-select + launch-time target eligibility)
+DONE 2026-07-30 — rig PARITY GREEN 719 checks after a full dev re-backfill;
+items 3–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
 Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
 the build record
 
@@ -369,7 +371,7 @@ date; CURRENT local HEAD is `004fdc2`, 4 unpushed commits riding the deploy). AL
 are DONE (1–5b, 7, 8; item 6 RETIRED — details inside each item) and the exit
 gate below has PASSED (2026-07-14). **This wizard-deploy list is CLOSED. The
 live work is now the "Phase 3 core — work items" list in the Status section's
-"Phase 3 re-cut" (items 0–1 DONE, items 2–5 remain), worked under the same
+"Phase 3 re-cut" (items 0–2 DONE, items 3–5 remain), worked under the same
 operating rules stated in this paragraph — one item per session, gated by
 `deno task typecheck` + the rig green, same rig/dev invocations.** After items
 3–5 the
@@ -1167,8 +1169,8 @@ well as referenced ones.
   needed. Dev runs minted before the stamp existed have no size: item 3
   re-backfills the dev instance (`backfill_runs.ts`) rather than adding a
   fallback path.
-- **Wizard re-entry** — BUILT in item 1 except the confirm-step attach
-  multi-select, which is item 2: instance-entered ONLY (no project context; the
+- **Wizard re-entry** — BUILT in item 1, with the confirm-step attach
+  multi-select in item 2: instance-entered ONLY (no project context; the
   Regenerate shortcut is deferred): prefill = resume > instance defaults >
   definition defaults; family availability from instance datasets (already
   instance-level). `run_generation_attempts` re-keyed PK
@@ -1240,6 +1242,17 @@ in both items' text.
    attached to its own backfill-provenance run at gate time:
    `deno run --allow-all --unstable-broadcast-channel --env-file -c deno.json
    backfill_runs.ts [--project <id>]` (same flags for both).
+
+**Client work follows the panther UI protocols**, not the surrounding code —
+`PROTOCOL_UI_STYLING.md` above all
+([panther/protocols/](panther/protocols/PROTOCOL_UI_STYLING.md), with
+`PROTOCOL_UI_COMPONENTS`/`_SOLIDJS`/`_STATE`/`_STRUCTURE`). Two token rules
+this plan's own surfaces broke and item 2 swept: a written border color is an
+exception marker (`border` alone already paints the token — never
+`border-base-300`), and the muted foreground ramp is
+`text-base-content-muted`, never `text-neutral` (`neutral` is a FILL intent —
+`bg-neutral text-neutral-content` badges are correct). Read the protocol
+before styling anything new rather than copying a neighbouring file.
 
 **Verify by executing, not by reading.** Every item so far was live-verified
 on the dev instance with a throwaway harness:
@@ -1554,14 +1567,53 @@ on big instances. `addDataset*ToProject` dies with its last caller.
    Gate rule for this and every item below (Q-E): re-backfill the dev projects
    (`backfill_runs.ts`) before running the rig, so every project is attached to
    its own backfill-provenance run at gate time.
-2. **Attach-at-launch.** Confirm-step multi-select; multi-target repoint in
-   the publish tx + per-target `run_attached` SSE; concurrency guard
-   re-keyed to targets (launch blocked while any selected target is a
-   target of a generating run). **Item 1 landed the whole server half** (the
-   launch route body already takes `attachTargetProjectIds`, publish repoints
-   every target in one tx, per-target `run_attached`, guard keyed to targets);
-   what remains is the confirm-step multi-select — step 3 currently sends an
-   empty list — plus its live verification.
+2. **Attach-at-launch — DONE 2026-07-30** (gates green: `deno task typecheck`
+   incl. lint:systems + rig PARITY GREEN `--run` after a full dev re-backfill;
+   live-verified on dev end-to-end by harness, 7/7 checks). Item 1 had landed
+   the whole server half (launch takes `attachTargetProjectIds`, publish
+   repoints every target in one tx, per-target `run_attached`, guard keyed to
+   targets), so this item is the confirm-step selection plus the eligibility
+   rule it implies. What landed:
+   - **Confirm-step multi-select** (`results_package_wizard/step_3.tsx`): a
+     checkbox per `instanceState.projects` entry, defaulting to none, sent as
+     `attachTargetProjectIds` at launch. A project that cannot receive a
+     package — `copying`, `pending_deletion` or locked — renders disabled with
+     the reason appended to its label rather than being hidden, so an expected
+     project is never silently absent. Attach targets are deliberately NOT part
+     of the instance defaults store (a per-generation act, not a configuration
+     default), so the "save as instance defaults" payload is unchanged.
+   - **Launch-time eligibility re-check** (the selection predates launch):
+     `getIneligibleAttachTargetNames` (db/instance/run_generation.ts) returns a
+     display name per ineligible target — its label, or the raw id when the
+     project is gone — and `launchRunGeneration` refuses with them named,
+     BEFORE the attempt is consumed and before any run row is minted. Without
+     it a deleted target would have reached the publish transaction, where the
+     per-target repoint event opens the target's project DB.
+   - `launchRunGeneration`'s body schema tightened to `z.array(z.uuid())`
+     (project ids are `crypto.randomUUID`, matching the `project_id` param in
+     the same registry) — verified against all 7 real dev ids.
+   - **Styling pass on the results-package surfaces** (spotted in passing, all
+     files from this plan's own build): `border-base-300` and `text-neutral`
+     violate PROTOCOL_UI_STYLING (bare `border` already paints the token;
+     `neutral` is a fill intent, the foreground ramp is `base-content-muted`).
+     Fixed in wizard steps 1–3, `instance_results_packages.tsx` and
+     `project_results_package.tsx`; the `bg-neutral text-neutral-content`
+     status badges are correct and stay.
+   - **Live-verified on dev** (harness, fixtures deleted after): two throwaway
+     projects created via `addProject`, plus a locked fixture row — an
+     ineligible target refuses the launch naming it, leaves the attempt intact
+     and mints no run row; a multi-target launch records both targets on the
+     catalog row; a second launch naming one of those targets is refused; the
+     generation (m009, real R execution, `done` not `reused`) reached `ready`
+     and the publish transaction repointed BOTH projects to the new run. Also
+     unit-checked the eligibility SQL across ready / locked / copying /
+     pending_deletion / missing / mixed-order inputs, and that all 7 real dev
+     projects are eligible. Fixture projects force-deleted, the run row and
+     its dir removed.
+   - **Noticed, not acted on**: the dev catalog holds run rows whose
+     directories are gone (earlier sessions' cleanups) — the reuse search logs
+     each as unreadable and skips it, exactly as designed. Reclaiming them is
+     item 3's guarded delete.
 3. **Catalogue.** Instance "Results packages" surface: listing (label,
    status, created at/by, provenance, disk size, attached projects),
    generate entry, guarded hard delete (refused while referenced by any

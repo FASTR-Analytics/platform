@@ -225,7 +225,7 @@ function Step2Inner(p: {
           pt: "Configurar os módulos",
         })}
       </h3>
-      <div class="text-neutral text-sm">
+      <div class="text-base-content-muted text-sm">
         {t3({
           en: "Choose which modules this results package runs. Selecting a module automatically includes the modules it depends on.",
           fr: "Choisissez les modules exécutés par ce paquet de résultats. La sélection d'un module inclut automatiquement les modules dont il dépend.",
@@ -238,7 +238,7 @@ function Step2Inner(p: {
           const offerable = isOfferable(option.id);
           const missingFamilies = missingFamiliesFor(option.id);
           return (
-            <div class="border-base-300 ui-pad ui-spy-sm rounded border">
+            <div class="ui-pad ui-spy-sm rounded border">
               <Checkbox
                 label={option.label}
                 checked={selected[option.id] === true}
@@ -250,7 +250,7 @@ function Step2Inner(p: {
                 }
               />
               <Show when={!offerable}>
-                <div class="text-neutral text-sm">
+                <div class="text-base-content-muted text-sm">
                   <Show
                     when={missingFamilies.length > 0}
                     fallback={t3({
@@ -274,7 +274,7 @@ function Step2Inner(p: {
                   selectedDependentsOf(option.id).length > 0
                 }
               >
-                <div class="text-neutral text-sm">
+                <div class="text-base-content-muted text-sm">
                   {t3({
                     en: "Required by:",
                     fr: "Requis par :",
