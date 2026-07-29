@@ -1,5 +1,4 @@
 import {
-  getValidatedModuleId,
   t3,
   TC,
   type RunCatalogItem,
@@ -28,20 +27,16 @@ import {
 import { createStore } from "solid-js/store";
 import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import {
-  ModuleProgressChip,
-  RunStatusBadge,
-  formatBytes,
-  moduleLabel,
-} from "~/components/_shared/results_package_status";
+  ResultsPackageContents,
+  ResultsPackageProvenanceLine,
+} from "~/components/_shared/results_package/package_contents";
+import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
 import { serverActions } from "~/server_actions";
 import {
   addInstanceRScriptListener,
   addInstanceRunProgressListener,
 } from "~/state/instance/t1_sse";
-import { ViewFiles } from "./view_files";
-import { ViewLogs } from "./view_logs";
-import { ViewScript } from "./view_script";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
@@ -215,22 +210,6 @@ function RunCard(p: {
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
   refreshAll: () => Promise<void>;
 }) {
-  const progress = () => p.liveProgress ?? p.run.progress;
-
-  function openViewer(
-    element: typeof ViewScript | typeof ViewLogs | typeof ViewFiles,
-    moduleId: string,
-  ): void {
-    void p.openEditor({
-      element,
-      props: {
-        runId: p.run.id,
-        moduleId: getValidatedModuleId(moduleId),
-        moduleLabel: moduleLabel(moduleId),
-      },
-    });
-  }
-
   // Guarded hard delete (fork ruling 3): ONE act — catalog row, files and
   // cached results — with no archived state and no automatic GC. The server
   // refuses while a project points at the package or it is still
@@ -305,20 +284,7 @@ function RunCard(p: {
         </Show>
       </div>
 
-      <div class="text-base-content-muted text-xs">
-        {new Date(p.run.createdAt).toLocaleString()}
-        {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
-        {p.run.provenance === "synthetic-backfill"
-          ? ` · ${t3({
-            en: "created from existing project results",
-            fr: "créé à partir des résultats existants du projet",
-            pt: "criado a partir dos resultados existentes do projeto",
-          })}`
-          : ""}
-        {p.run.summary?.diskSizeBytes != null
-          ? ` · ${formatBytes(p.run.summary.diskSizeBytes)}`
-          : ""}
-      </div>
+      <ResultsPackageProvenanceLine run={p.run} showDiskSize />
 
       <div class="text-base-content-muted text-xs">
         <Show
@@ -335,81 +301,13 @@ function RunCard(p: {
         </Show>
       </div>
 
-      <Show when={p.run.status === "ready" && p.run.summary} keyed>
-        {(summary) => (
-          <div class="ui-spy-sm">
-            <div class="text-base-content-muted text-sm">
-              {summary.moduleIds.length}{" "}
-              {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
-              {summary.metricCount}{" "}
-              {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
-            </div>
-            <For each={summary.moduleIds}>
-              {(moduleId) => (
-                <div class="ui-gap-sm flex items-center text-sm">
-                  <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewScript, moduleId)}
-                  >
-                    {t3({ en: "Script", fr: "Script", pt: "Script" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewLogs, moduleId)}
-                  >
-                    {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewFiles, moduleId)}
-                  >
-                    {t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" })}
-                  </Button>
-                </div>
-              )}
-            </For>
-          </div>
-        )}
-      </Show>
-
-      <Show when={p.run.status === "generating" && progress()} keyed>
-        {(keyedProgress) => (
-          <div class="ui-spy-sm">
-            <div class="ui-gap-sm flex flex-wrap">
-              <For each={keyedProgress.moduleOrder}>
-                {(moduleId) => (
-                  <ModuleProgressChip
-                    label={moduleLabel(moduleId)}
-                    status={keyedProgress.moduleStatus[moduleId] ?? "pending"}
-                  />
-                )}
-              </For>
-            </div>
-            <Show when={keyedProgress.currentModuleId} keyed>
-              {(currentModuleId) => (
-                <div class="text-base-content-muted truncate font-mono text-xs">
-                  {p.rLogs[`${p.run.id}|${currentModuleId}`] ?? "..."}
-                </div>
-              )}
-            </Show>
-          </div>
-        )}
-      </Show>
-
-      <Show when={p.run.status === "failed"}>
-        <div class="text-danger text-sm">
-          {progress()?.errorDetail ??
-            t3({
-              en: "Generation failed",
-              fr: "Échec de la génération",
-              pt: "Falha na geração",
-            })}
-        </div>
-      </Show>
+      <ResultsPackageContents
+        run={p.run}
+        liveProgress={p.liveProgress}
+        latestRLine={(moduleId) => p.rLogs[`${p.run.id}|${moduleId}`]}
+        canViewPackageInternals
+        openEditor={p.openEditor}
+      />
     </div>
   );
 }

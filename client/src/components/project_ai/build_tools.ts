@@ -20,6 +20,7 @@ import { getToolsForSlides } from "./ai_tools/tools/slides";
 import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getToolsForNavigation } from "./ai_tools/tools/navigation";
 import { getToolsForVisualizations } from "./ai_tools/tools/visualizations";
+import { projectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
   projectId: string;
@@ -39,7 +40,15 @@ export function buildToolsForContext(params: BuildToolsParams) {
   return [
     // Base data tools - always available
     ...getToolsForMetrics(projectId, metrics, icehIndicators, hfaTaxonomy),
-    ...getToolsForModules(projectId, modules, metrics),
+    // The package these tools read is resolved at CALL time, not bound here:
+    // a repoint mid-conversation must move them to the newly attached
+    // package.
+    ...getToolsForModules(
+      projectId,
+      () => projectState.attachedRunId,
+      modules,
+      metrics,
+    ),
     ...getToolsForVisualizations(projectId, visualizations, metrics),
     ...getToolsForSlideDecks(slideDecks),
     ...getToolsForReports(projectId, reports),

@@ -71,13 +71,13 @@ templating); `server_only_types/mod.ts`;
 (the latter now also carries the catalogue listing, the guarded hard delete
 and the per-module script/log/file viewers moved off the project mount);
 lib module + run types + `module_registry.ts`; client:
-`instance_results_packages/**` (catalogue + `view_{files,logs,script}.tsx`),
-`project_results_package.tsx`, `results_package_wizard/**`,
-`compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody:
-`_shared/results_package_status.tsx` (status badge / progress chip / module
-label, rendered by both package surfaces) sits under S12's `_shared/**` glob
-— §4.1 records S8 as its owner. External: wb-fastr-modules repo, Docker
-images.
+`instance_results_packages/**` (the catalogue), `project_results_package.tsx`,
+`results_package_wizard/**`, `compare_projects.tsx`,
+`metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
+what a package CONTAINS, rendered identically wherever a package is explored
+(`package_contents.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). It
+sits under S12's `_shared/**` glob; §4.1 records S8 as its owner. External:
+wb-fastr-modules repo, Docker images.
 
 ## Contract
 
@@ -146,6 +146,24 @@ raw-file download surface they link to — the `_RUNS_DIR_PATH` static mount in
 `middleware/static.ts` — was narrowed to `/:run_id/outputs/*` under the same
 guard in the same item (Q-G; it previously answered any path under the runs
 volume for any authenticated user).
+
+**Exploring a package is ONE capability, mounted twice.** The routes are
+RUN-keyed, not project-keyed, and the client renders them through
+`_shared/results_package/` — the same components on the instance catalogue
+and on a project's Results package tab. The rule that decides what belongs
+there: **if the answer to the question lives inside the run directory, it is
+the same view for everyone who can see that package.** What a package
+contains does not depend on who is asking; only the chrome around it does
+(the catalogue adds the run list, generate, guarded delete, disk size and
+attached projects; the project tab adds the in-use marker and the attach
+picker). The same rule governs the AI tools: `getToolsForModules` takes a
+run RESOLVER, never a runId from the model — inside a project there is
+exactly one correct package, and resolving at call time means a
+mid-conversation repoint moves the tools with it. An instance-level copilot
+would pass its selected run and reuse the tools unchanged. The permission
+model for package internals is still open (PLAN_RESULTS_RUNS item 3b); the
+client gates the viewer buttons on one expression per surface so a caller
+without access sees no button rather than one that 403s.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

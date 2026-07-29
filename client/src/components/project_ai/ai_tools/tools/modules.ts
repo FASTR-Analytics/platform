@@ -2,18 +2,24 @@ import { serverActions } from "~/server_actions";
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
-import { projectState } from "~/state/project/t1_store";
 import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
 import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 
-// Script/logs read from the attached results package's run dir — resolved at
-// call time so a mid-conversation repoint reads the new package. The routes
-// they call moved to the instance catalogue's can_configure_data mount in
-// Phase 3 item 3 (Q-F: debug surfaces are admin-shaped), so for a project
-// member who is not an instance data admin these two tools now answer with a
-// permission failure. Typed and visible to the model, never silent.
-function requireAttachedRunId(): string {
-  const runId = projectState.attachedRunId;
+// Tools over ONE results package. Which package is never a model-facing
+// input — inside a project there is exactly one correct answer (whatever is
+// attached), so asking the model to name a run would invite it to get right
+// what it cannot get wrong. The host binds the package instead, and binds it
+// as a RESOLVER, not a value: a mid-conversation repoint must move these
+// tools to the new package, which a value captured at construction would
+// not do.
+//
+// The resolver is also what makes these reusable beyond a project: an
+// instance-level copilot over the results-package catalogue passes its
+// selected run and gets the same tools, no duplication.
+type AttachedRunResolver = () => string | null;
+
+function requireRunId(resolveRunId: AttachedRunResolver): string {
+  const runId = resolveRunId();
   if (runId === null) {
     // AIToolFailure, not Error: an unattached project is an anticipated
     // state the model should be told about, not a crash.
@@ -26,6 +32,7 @@ function requireAttachedRunId(): string {
 
 export function getToolsForModules(
   projectId: string,
+  resolveRunId: AttachedRunResolver,
   modules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
 ) {
@@ -48,7 +55,7 @@ export function getToolsForModules(
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
         const res = await serverActions.getRunModuleScript({
-          run_id: requireAttachedRunId(),
+          run_id: requireRunId(resolveRunId),
           module_id: input.id,
         });
         if (!res.success) throw new AIToolFailure(res.err);
@@ -65,7 +72,7 @@ export function getToolsForModules(
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
         const res = await serverActions.getRunModuleLogs({
-          run_id: requireAttachedRunId(),
+          run_id: requireRunId(resolveRunId),
           module_id: input.id,
         });
         if (!res.success) throw new AIToolFailure(res.err);

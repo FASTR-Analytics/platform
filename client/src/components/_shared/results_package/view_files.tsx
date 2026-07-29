@@ -8,7 +8,7 @@ import {
   createQuery,
 } from "panther";
 import { For, Show } from "solid-js";
-import { formatBytes } from "~/components/_shared/results_package_status";
+import { formatBytes } from "./status";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 

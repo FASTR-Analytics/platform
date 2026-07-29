@@ -1,5 +1,11 @@
 import { t3, type RunListingItem, type RunProgress } from "lib";
-import { FrameTop, HeadingBar, StateHolderWrapper, type StateHolder } from "panther";
+import {
+  FrameTop,
+  HeadingBar,
+  StateHolderWrapper,
+  getEditorWrapper,
+  type StateHolder,
+} from "panther";
 import {
   For,
   Show,
@@ -10,25 +16,32 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
-  ModuleProgressChip,
-  RunStatusBadge,
-  moduleLabel,
-} from "~/components/_shared/results_package_status";
+  ResultsPackageContents,
+  ResultsPackageProvenanceLine,
+} from "~/components/_shared/results_package/package_contents";
+import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { serverActions } from "~/server_actions";
 import {
   addRScriptListener,
   addRunProgressListener,
 } from "~/state/project/t1_sse";
+import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
 
 // The project "Results package" surface (PLAN_RESULTS_RUNS item 2, narrowed
-// by Phase 3 items 1 and 3): the package this project currently serves from,
-// with live progress pushed over SSE while a generation it is a target of
-// runs. Generation moved to the instance shell (a run belongs to no
-// project), the per-module script/log/file viewers moved to the instance
-// catalogue with it (Q-F — debug surfaces are admin-shaped), and item 4
-// turns this surface into the attach picker.
+// by Phase 3 item 1): the package this project currently serves from, with
+// live progress pushed over SSE while a generation it is a target of runs.
+// Generation moved to the instance shell (a run belongs to no project), and
+// item 4 turns this surface into the attach picker.
+//
+// What the package CONTAINS is rendered by the shared
+// `_shared/results_package/` components — byte-identical to the instance
+// catalogue, because the answer to "what is in this package" lives in the
+// run directory and does not depend on who is asking. This surface only adds
+// its own chrome: the "in use" marker, and (item 4) the picker.
 export function ProjectResultsPackage() {
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
   const [runs, setRuns] = createSignal<StateHolder<RunListingItem[]>>({
     status: "loading",
   });
@@ -57,7 +70,7 @@ export function ProjectResultsPackage() {
   const [liveProgress, setLiveProgress] = createSignal<
     Record<string, RunProgress>
   >({});
-  const [rLogs, setRLogs] = createStore<Record<string, { latest: string }>>({});
+  const [rLogs, setRLogs] = createStore<Record<string, string>>({});
 
   onMount(() => {
     const unsubProgress = addRunProgressListener((runId, progress) => {
@@ -70,7 +83,7 @@ export function ProjectResultsPackage() {
       }
     });
     const unsubRScript = addRScriptListener((moduleId, text) => {
-      setRLogs(moduleId, { latest: text });
+      setRLogs(moduleId, text);
     });
     onCleanup(() => {
       unsubProgress();
@@ -79,58 +92,70 @@ export function ProjectResultsPackage() {
   });
 
   return (
-    <FrameTop
-      panelChildren={
-        <HeadingBar
-          heading={t3({
-            en: "Results package",
-            fr: "Paquet de résultats",
-            pt: "Pacote de resultados",
-          })}
-        />
-      }
-    >
-      <div class="ui-pad ui-spy">
-        <StateHolderWrapper state={runs()} noPad>
-          {(keyedRuns) => (
-            <div class="ui-spy">
-              <Show
-                when={keyedRuns.length > 0}
-                fallback={
-                  <div class="text-base-content-muted">
-                    {t3({
-                      en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
-                      fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
-                      pt: "Este projeto ainda não tem nenhum pacote de resultados anexado. Um administrador da instância gera um na página Pacotes de resultados.",
-                    })}
-                  </div>
-                }
-              >
-                <For each={keyedRuns}>
-                  {(run) => (
-                    <RunCard
-                      run={run}
-                      liveProgress={liveProgress()[run.id]}
-                      rLogs={rLogs}
-                    />
-                  )}
-                </For>
-              </Show>
-            </div>
-          )}
-        </StateHolderWrapper>
-      </div>
-    </FrameTop>
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <HeadingBar
+            heading={t3({
+              en: "Results package",
+              fr: "Paquet de résultats",
+              pt: "Pacote de resultados",
+            })}
+          />
+        }
+      >
+        <div class="ui-pad ui-spy">
+          <StateHolderWrapper state={runs()} noPad>
+            {(keyedRuns) => (
+              <div class="ui-spy">
+                <Show
+                  when={keyedRuns.length > 0}
+                  fallback={
+                    <div class="text-base-content-muted">
+                      {t3({
+                        en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
+                        fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
+                        pt: "Este projeto ainda não tem nenhum pacote de resultados anexado. Um administrador da instância gera um na página Pacotes de resultados.",
+                      })}
+                    </div>
+                  }
+                >
+                  <For each={keyedRuns}>
+                    {(run) => (
+                      <RunCard
+                        run={run}
+                        liveProgress={liveProgress()[run.id]}
+                        rLogs={rLogs}
+                        openEditor={openEditor}
+                      />
+                    )}
+                  </For>
+                </Show>
+              </div>
+            )}
+          </StateHolderWrapper>
+        </div>
+      </FrameTop>
+    </EditorWrapper>
   );
 }
 
 function RunCard(p: {
   run: RunListingItem;
   liveProgress: RunProgress | undefined;
-  rLogs: Record<string, { latest: string }>;
+  rLogs: Record<string, string>;
+  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
-  const progress = () => p.liveProgress ?? p.run.progress;
   const isAttached = () => projectState.attachedRunId === p.run.id;
+
+  // Whether to offer the per-module viewers. The routes behind them are
+  // instance-admin gated today, so offering the buttons to anyone else would
+  // hand out a control that 403s. The permission model for package internals
+  // is an open question (PLAN_RESULTS_RUNS item 3b) — this is the one
+  // expression to change when it is settled.
+  const canViewPackageInternals = () =>
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_data;
 
   return (
     <div
@@ -150,70 +175,16 @@ function RunCard(p: {
         </Show>
         <RunStatusBadge status={p.run.status} />
       </div>
-      <div class="text-base-content-muted text-xs">
-        {new Date(p.run.createdAt).toLocaleString()}
-        {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
-        {p.run.provenance === "synthetic-backfill"
-          ? ` · ${t3({
-            en: "created from existing project results",
-            fr: "créé à partir des résultats existants du projet",
-            pt: "criado a partir dos resultados existentes do projeto",
-          })}`
-          : ""}
-      </div>
 
-      <Show when={p.run.status === "ready" && p.run.summary} keyed>
-        {(summary) => (
-          <div class="ui-spy-sm">
-            <div class="text-base-content-muted text-sm">
-              {summary.moduleIds.length}{" "}
-              {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
-              {summary.metricCount}{" "}
-              {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
-            </div>
-            <For each={summary.moduleIds}>
-              {(moduleId) => (
-                <div class="text-sm">{moduleLabel(moduleId)}</div>
-              )}
-            </For>
-          </div>
-        )}
-      </Show>
+      <ResultsPackageProvenanceLine run={p.run} showDiskSize={false} />
 
-      <Show when={p.run.status === "generating" && progress()} keyed>
-        {(keyedProgress) => (
-          <div class="ui-spy-sm">
-            <div class="ui-gap-sm flex flex-wrap">
-              <For each={keyedProgress.moduleOrder}>
-                {(moduleId) => (
-                  <ModuleProgressChip
-                    label={moduleLabel(moduleId)}
-                    status={keyedProgress.moduleStatus[moduleId] ?? "pending"}
-                  />
-                )}
-              </For>
-            </div>
-            <Show when={keyedProgress.currentModuleId} keyed>
-              {(currentModuleId) => (
-                <div class="text-base-content-muted truncate font-mono text-xs">
-                  {p.rLogs[currentModuleId]?.latest ?? "..."}
-                </div>
-              )}
-            </Show>
-          </div>
-        )}
-      </Show>
-
-      <Show when={p.run.status === "failed"}>
-        <div class="text-danger text-sm">
-          {progress()?.errorDetail ??
-            t3({
-              en: "Generation failed",
-              fr: "Échec de la génération",
-              pt: "Falha na geração",
-            })}
-        </div>
-      </Show>
+      <ResultsPackageContents
+        run={p.run}
+        liveProgress={p.liveProgress}
+        latestRLine={(moduleId) => p.rLogs[moduleId]}
+        canViewPackageInternals={canViewPackageInternals()}
+        openEditor={p.openEditor}
+      />
     </div>
   );
 }

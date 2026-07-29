@@ -14,7 +14,8 @@
 > **Your next action is Phase 3 core item 4 (project picker + cache
 > guard).** The work list is "**Phase 3 core — work items**", inside the
 > Status section's "Phase 3 re-cut" subsection: **items 0, 1, 2 and 3 are
-> DONE; items 4 and 5 remain, in order, one per session.** Item 4 turns the
+> DONE (plus item 3b, a correction to item 3); items 4 and 5 remain, in
+> order, one per session.** Item 4 turns the
 > project results_package tab into the attach picker (ready-package list +
 > the §2.6 compatibility report + repoint, opened to project
 > editors/members, `listRunsForProject` deleted) and ships the mandatory
@@ -64,21 +65,22 @@
 > hole the design does not cover, raise it with Tim rather than inventing a
 > ruling.
 >
-> **One flag for Tim — it does NOT block items 4 or 5.** Item 3's Q-F
-> permission move reaches the project AI copilot's `get_module_r_script` /
-> `get_module_log` tools: they now fail for a project member who is not an
-> instance data admin (typed `AIToolFailure`, never silent). Whether to also
-> gate those two tools out of a non-admin's toolset is a policy call about
-> already-shipped behavior. It is recorded in item 3's build record and
-> deliberately NOT decided — do not decide it yourself, and do not wait on
-> it to start item 4.
+> **One open question, deliberately deferred — it does NOT block items 4 or
+> 5.** What permission governs a package's INTERNALS (script, log, raw
+> output files)? Item 3 made them `can_configure_data`; Tim then ruled the
+> governing principle is "**if the answer lives inside the run package
+> directory, a project user attached to that package can see it**", which
+> points at any member of an attached project (§2.6's original wording).
+> Item 3b restructured the code so this is a one-expression change when
+> settled, and explicitly left it unsettled — **do not decide it yourself,
+> and do not wait on it.** Full context in item 3b's build record.
 >
 > **After item 5** the Phase 3 core is done and the branch is ready for
 > Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
 > rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
-## Status: Phase 3 core IN PROGRESS — items 0, 1, 2 and 3 DONE (both gates green), item 4 is next
+## Status: Phase 3 core IN PROGRESS — items 0, 1, 2, 3 and 3b DONE (both gates green), item 4 is next
 
 The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
 branch (never the reverse — `results-runs` has NOT been merged to `main`); the
@@ -91,8 +93,9 @@ now ships BEFORE the deploy (see "Phase 3 re-cut") so users get ONE big change
 entry + run identity + catalog-wide reuse + createProject cleanup) DONE, item 2
 (attach-at-launch: confirm-step multi-select + launch-time target eligibility)
 DONE, item 3 (catalogue + disk size + guarded hard delete + Q-B/Q-D/Q-F/Q-G)
-DONE 2026-07-30 — rig PARITY GREEN 719 checks after a full dev re-backfill;
-items 4–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
+DONE, item 3b (shared package explorer + host-agnostic AI tools, Tim's
+correction to item 3's debug-vs-content split) DONE 2026-07-30 — rig PARITY
+GREEN 719 checks after a full dev re-backfill; items 4–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
 Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
 the build record
 
@@ -1771,6 +1774,57 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      the dev runs volume went 415 MB → 12 MB and the catalogue 78 → the 7
      attached backfill runs. Every attached run was refused, which is the
      guard working on real rows.
+3b. **Shared package explorer — DONE 2026-07-30** (gates green; Tim's
+   correction to item 3's framing, same session). Item 3 split the package
+   surfaces by "debug vs content" and moved the viewers to the instance
+   catalogue only. **Tim rejected that split. The rule is: if the answer to
+   the question lives inside the run package directory, a project user
+   attached to that package can see it.** Script, log and raw outputs are all
+   in the run dir, so they are not an admin-only class — they are package
+   contents. Consequences, all built:
+   - **Exploring a package is one capability, mounted twice.**
+     `_shared/results_package/` now holds what a package CONTAINS —
+     `package_contents.tsx` (module list + per-module viewers, the generating
+     progress chips + live R line, the failed state, and the provenance
+     line), `status.tsx`, and the three viewers moved out of
+     `instance_results_packages/`. Both surfaces render the identical
+     component; each keeps only its own chrome (catalogue: run list,
+     generate, guarded delete, disk size, attached projects — project: the
+     in-use marker and, next, the picker). The two RunCards no longer carry
+     ~110 duplicated lines: 634 lines across the two surfaces became 503
+     across three files, and the project tab gained the viewers it never had.
+   - **`latestRLine` is a lookup, not a map**, so each surface keeps its own
+     R-line store shape: the catalogue keys by run+module because two
+     generations can be on screen at once, a project only ever watches its
+     own.
+   - **AI tools are host-agnostic.** `getToolsForModules` takes a run
+     RESOLVER (`() => string | null`), never a runId from the model — inside
+     a project there is exactly one correct package, so asking the model to
+     name one would invite it to get wrong what it cannot get wrong. A
+     resolver rather than a value because binding at construction would
+     leave the tools on a stale package after a mid-conversation repoint (a
+     regression the value-passing version I first proposed would have
+     shipped). An instance-level copilot passes its selected run and reuses
+     the tools unchanged.
+   - **Permissions deliberately NOT decided** (Tim: "trivial, solve it
+     later"). The routes stay `can_configure_data`; the client offers the
+     viewer buttons behind one `canViewPackageInternals` expression per
+     surface, so a caller without access sees no button rather than one that
+     403s. When the permission model is settled it is that one expression
+     plus the route guard — no structural change, which is the point of
+     keeping the routes run-keyed.
+   - **Still open, tracked here, not blocking:** what permission actually
+     governs package internals. Under Tim's rule the natural answer is "any
+     member of a project attached to this run", which is §2.6's ORIGINAL
+     wording — item 3 overwrote that sentence with the Q-F/Q-G carve-out and
+     it should be restored when this is settled. Note Q-G rejected
+     per-project readability partly on a wrong premise (that it
+     "re-introduces exactly the project-scoped guard Q-A deletes" — Q-A
+     deleted the `sourceProjectId` arm and explicitly KEPT the attached-run
+     arm as "end-state-correct for the project surface"). The awkward piece
+     is the raw-file download: it is a `serveStatic` mount with no project
+     context, so per-project readability there means replacing it with a
+     streaming route that does the check.
 4. **Project picker + cache guard — NEXT.** Full spec = the "Attach (project
    surface)" and "Client cache guard" bullets in "Phase 3 core — design".
    Two deliverables: `project_results_package.tsx` becomes the attach picker
