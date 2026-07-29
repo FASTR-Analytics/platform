@@ -2,6 +2,15 @@
 
 > **START HERE (continuing this plan).**
 >
+> **What this plan is, in four lines.** Module results stop living in
+> per-project Postgres. Each generation act produces an immutable **run
+> directory** keyed by a run id; the viz query layer queries its parquet via
+> **DuckDB**; caches key on the run id; a project holds a pointer
+> (`projects.run_id`) to the one run it serves from; generation is an
+> instance-level wizard. Projects become pure authoring spaces. All of that
+> is BUILT and green on this branch — what remains is the last of the
+> user-model surface (below), then Tim's rollout.
+>
 > **Your next action is Phase 3 core item 4 (project picker + cache
 > guard).** The work list is "**Phase 3 core — work items**", inside the
 > Status section's "Phase 3 re-cut" subsection: **items 0, 1, 2 and 3 are
@@ -11,14 +20,23 @@
 > editors/members, `listRunsForProject` deleted) and ships the mandatory
 > response-side runId guard in the client reactive caches.
 >
-> **Read, in this order:** (1) the Status block down through "Phase 3 re-cut"
-> — the decided model, the five rulings, and the signed-off design, where
-> each item's FULL SPEC is the matching bullet in "Phase 3 core — design";
-> (2) "**How to work a Phase 3 item**" immediately above the work-item list
-> (operating rules, gate commands, dev setup, known traps — everything you
-> need to run, verify and gate); (3) "Binding implementation decisions" +
-> "Empirical gotchas" (closed — do not re-derive). Everything the design
-> settles is settled: build it, don't re-litigate it.
+> **Read, in this order — nothing outside these four is required reading:**
+> (1) the Status block down through "Phase 3 re-cut" — the decided model,
+> the fork rulings, and the signed-off design, where each item's FULL SPEC
+> is the matching bullet in "Phase 3 core — design"; (2) "**How to work a
+> Phase 3 item**" immediately above the work-item list — operating rules,
+> the two gate commands verbatim, where the code lives, dev setup, known
+> traps; (3) your item's entry in "Phase 3 core — work items"; (4) "Binding
+> implementation decisions" + "Empirical gotchas" (closed — do not
+> re-derive). Everything the design settles is settled: build it, don't
+> re-litigate it.
+>
+> **Definition of done for an item:** both gates green (`deno task
+> typecheck`, then re-backfill + the parity rig `--run`), live-verified on
+> the dev instance by a throwaway harness, the item's own new files claimed
+> in a `SYSTEM_NN_*.md` `globs:` list, a build record written INTO that
+> item's entry here, and ONE commit. The exact commands are in the operating
+> rules. Then stop — one item per session.
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
@@ -46,12 +64,14 @@
 > hole the design does not cover, raise it with Tim rather than inventing a
 > ruling.
 >
-> **One thing needs Tim, and only Tim.** Item 3's Q-F permission move
-> reaches the project AI copilot's `get_module_r_script` /
+> **One flag for Tim — it does NOT block items 4 or 5.** Item 3's Q-F
+> permission move reaches the project AI copilot's `get_module_r_script` /
 > `get_module_log` tools: they now fail for a project member who is not an
-> instance data admin (typed failure, never silent). Whether to also gate
-> those two tools out of a non-admin's toolset is a policy call, recorded in
-> item 3's build record and NOT decided.
+> instance data admin (typed `AIToolFailure`, never silent). Whether to also
+> gate those two tools out of a non-admin's toolset is a policy call about
+> already-shipped behavior. It is recorded in item 3's build record and
+> deliberately NOT decided — do not decide it yourself, and do not wait on
+> it to start item 4.
 >
 > **After item 5** the Phase 3 core is done and the branch is ready for
 > Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
@@ -1089,14 +1109,15 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    shell.) Launch-attach shows no pre-launch compat report (the run doesn't
    exist yet) — robustness is covered by the typed `not_in_run` /
    unavailable render states, which are never silent.
-3. **Retire = guarded hard delete** (Q1 resolved): ONE act — delete the
+3. **Retire = guarded hard delete** (Q1 resolved; BUILT in item 3): ONE act — delete the
    catalog row + run dir, refused while any `projects.run_id` references the
    run OR the run is still `generating` (sub-fork e). No archived state, no
    automatic GC. §5 backup-reachability accepted (backups don't carry run
-   dirs yet; restore already degrades loudly). CONSEQUENCE for item 3: the
-   `retired` value in §2.6's `generating|ready|failed|retired` status enum is
-   dead — nothing ever sets it. Leave the column type alone (no migration);
-   just never write it, and build no retired filter.
+   dirs yet; restore already degrades loudly). CONSEQUENCE, honoured by item
+   3: the `retired` value in §2.6's `generating|ready|failed|retired` status
+   enum is dead — nothing ever sets it. The column type was left alone (no
+   migration), nothing writes it, and there is no retired filter; the status
+   badge keeps a `retired` arm only because it switches over the type.
 4. **Rig**: typed non-gating outcome (`foreign_run`) in `--run` mode when a
    project's attached run has no pg oracle — counted and printed in TOTALS,
    never a silent skip, never RED. Under ruling 5 the rule is simple: **gate
@@ -1159,9 +1180,9 @@ well as referenced ones.
   **resume > instance defaults > definition defaults** — an earlier draft
   carried an "entry-anchor manifest" tier for the deferred Regenerate
   shortcut, so that tier does NOT exist.
-- **Instance shell surface** — item 3; item 1 created the tab and the
-  generate/resume entry only, so the catalogue table, disk size, guarded
-  delete, live progress and the re-hosted viewers all remain: new
+- **Instance shell surface** — BUILT: item 1 created the tab and the
+  generate/resume entry, item 3 added everything else (catalogue, disk size,
+  guarded delete, live progress, re-hosted viewers). New
   "Results packages" area
   (`can_configure_data`): catalogue table (label, status, created at/by,
   provenance/source, disk size, attached-projects list), generate → wizard,
@@ -1176,7 +1197,7 @@ well as referenced ones.
   stamped into the run summary at finalize AND by the backfill synthesizer —
   at rollout every prod run is backfill-born, so no lazy `du` fallback is
   needed. Dev runs minted before the stamp existed have no size: item 3
-  re-backfills the dev instance (`backfill_runs.ts`) rather than adding a
+  re-backfilled the dev instance (`backfill_runs.ts`) rather than adding a
   fallback path.
 - **Wizard re-entry** — BUILT in item 1, with the confirm-step attach
   multi-select in item 2: instance-entered ONLY (no project context; the
@@ -1207,13 +1228,20 @@ well as referenced ones.
   run is attached; no data queries) → confirm → `projects.run_id` UPDATE +
   `run_attached` SSE (the publish machinery minus the status flip).
   Read-only for non-editor members. No runs-in-progress view, no detach
-  control, no viewers here — the per-module script/log/file viewers (item-5
-  build, currently on the project tab's RunCards) move to the instance
-  catalogue, the right home for a debug surface; `listRunsForProject`
-  (sourceProjectId filter) is obsoleted by the catalogue listing.
+  control, no viewers here — the per-module script/log/file viewers ALREADY
+  moved to the instance catalogue in item 3, the right home for a debug
+  surface; `listRunsForProject` is obsoleted by the catalogue listing and is
+  deleted by this item. **This bullet plus the next one are item 4's full
+  spec, and both are unbuilt — everything else in this design section has
+  shipped.**
 - **Client cache guard (mandatory)**: response-side runId check in the
   reactive caches — a response is stored only under the runId it was
   computed for (the accepted-LOW, now live because attach-old-run exists).
+  The caches are the `~/state/_infra/reactive_cache.ts` instances that key
+  on `runVersionKey(pds)` — `t2_presentation_objects.ts` (three of them) and
+  `t2_replicant_options.ts`. Today they compute a version key when the
+  request goes out; the hole is an in-flight response landing after a
+  repoint and being stored under the NEW key.
 - **Rig**: implement ruling 4 — `foreign_run` typed outcome, non-gating,
   printed. THE RULE (ruling 5 removed the dual-write, so there is no
   "targeted" notion): **gate a project iff its attached run is that project's
@@ -1286,6 +1314,35 @@ the rig reports diffs like "duck=Unknown results object" / "Metric not found"
 on that one project. That is not a code bug — re-backfill that project and
 re-run. (This is the same remedy as the Q-E rule above.)
 
+**Where the results-package code lives** (as of item 3 — verify, don't
+assume, but this is the map):
+
+| Concern | File |
+| --- | --- |
+| Run dir layout + tmp/rename paths | `server/runs/run_paths.ts` |
+| Shared package builder (both writers) + backfill synthesizer | `server/runs/synthesize_run.ts` |
+| Manifest + input-JSON read cache | `server/runs/manifest_cache.ts` |
+| Guarded hard delete (row → dir → caches) | `server/runs/delete_run.ts` |
+| Generation pipeline, launch, execute/reuse, inputs | `server/worker_routines/generate_run/**` |
+| Dual-channel generation telemetry | `server/worker_routines/generate_run/notify_run.ts` |
+| Catalog rows, attempts, listings, publish tx | `server/db/instance/run_generation.ts` |
+| Wizard + catalogue + viewer routes (all `can_configure_data`) | `server/routes/instance/run_generation.ts` |
+| Run-output downloads (`/:run_id/outputs/*`) | `server/middleware/static.ts` |
+| Instance SSE endpoint + the per-user message filter | `server/routes/instance/instance-sse.ts` |
+| Read plane over the attached run (DuckDB) | `server/run_query/**` |
+| PO caches + `PO_CACHE_VERSION` | `server/routes/caches/visualizations.ts` |
+| Run/manifest/summary types | `lib/types/run_manifest.ts`, `lib/types/run_generation.ts` |
+| Route registry | `lib/api-routes/instance/run_generation.ts` |
+| Instance catalogue UI + debug viewers | `client/src/components/instance_results_packages/**` |
+| Launch wizard | `client/src/components/results_package_wizard/**` |
+| Project package tab (item 4 turns this into the picker) | `client/src/components/project/project_results_package.tsx` |
+| Shared status badge / progress chip / labels | `client/src/components/_shared/results_package_status.tsx` |
+| Client SSE listener registries | `client/src/state/instance/t1_sse.tsx`, `client/src/state/project/t1_sse.tsx` |
+| Backfill script / parity rig | `backfill_runs.ts`, `validate_results_runs_parity.ts` |
+
+Owning system docs: **S8** (module system — the pipeline, routes and client
+surfaces), **S9** (viz query & cache), **S3** (SSE + cache invalidation).
+
 #### Phase 3 core — work items (execute in order, one per session, each gated by `deno task typecheck` + rig `--run` green)
 
 Each item below is a checklist; **its full spec is the matching bullet in the
@@ -1327,8 +1384,9 @@ replaced. Do not re-litigate any of them.
   `backfillSourceProjectId` on the catalog row. DB summary only, never in
   `manifest.json` (the no-instance-FK-in-run-files rule, review finding 24 —
   unchanged). Wizard runs carry null, which is exactly the point.
-- **Q-B (item 3) — `run_progress` and the viewers are project-scoped, but the
-  catalogue is an instance surface. RULED: instance SSE, filtered per user.**
+- **Q-B (item 3, BUILT) — `run_progress` and the viewers are project-scoped,
+  but the catalogue is an instance surface. RULED: instance SSE, filtered per
+  user.**
   `run_progress` is a project-SSE message consumed by the project store's
   listener registry, and the viewer routes sit behind `runReadableByProject`
   on a project-scoped mount. A run launched with zero attach targets has no
@@ -1354,7 +1412,7 @@ replaced. Do not re-litigate any of them.
   only ever costs a re-run. Ruled in the same breath: **hardlink dedup**
   replaces "copy, never link" — see the amended §3.7 bullets, which are
   authoritative for both.
-- **Q-D (item 3) — cache GC on run deletion. RULED: targeted purge of the
+- **Q-D (item 3, BUILT) — cache GC on run deletion. RULED: targeted purge of the
   three runId-prefixed caches; `po_detail` is left to TTL.** The question's
   original framing was wrong on two counts, corrected here (verified
   2026-07-29): (1) this is **disk reclamation, not correctness** —
@@ -1379,8 +1437,8 @@ replaced. Do not re-litigate any of them.
   no new code — and it is the same remedy the wizard build already used for
   the "narrower package" rig trap (see "How to work this list"). Applies to
   EVERY Phase 3 item, not just 2 and 4.
-- **Q-F (items 3/4) — permission change on the debug viewers. RULED: accept
-  the move as designed.** The question's premise was wrong and is corrected
+- **Q-F (items 3/4, BUILT in item 3) — permission change on the debug
+  viewers. RULED: accept the move as designed.** The question's premise was wrong and is corrected
   here: the viewer routes are guarded by
   `requireProjectPermission("can_configure_modules")`
   ([modules.ts:71/115/157](server/routes/project/modules.ts#L71)), and
@@ -1391,8 +1449,8 @@ replaced. Do not re-litigate any of them.
   So the real effect of the move is that **project admins who are not instance
   admins lose the viewers**. Accepted: debug surfaces are admin-shaped.
   Recorded here rather than discovered post-deploy.
-- **Q-G (item 3) — the runs static mount is under-guarded. RULED: tighten it
-  to `can_configure_data` in item 3.** Found 2026-07-29 while verifying Q-F:
+- **Q-G (item 3, BUILT) — the runs static mount is under-guarded. RULED:
+  tighten it to `can_configure_data` in item 3.** Found 2026-07-29 while verifying Q-F:
   the actual file-download surface, `/{runId}/outputs/{moduleId}/{file}`, is
   served by `serveStatic({ root: _RUNS_DIR_PATH })` behind only
   `requireGlobalPermission()`
@@ -1713,23 +1771,56 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      the dev runs volume went 415 MB → 12 MB and the catalogue 78 → the 7
      attached backfill runs. Every attached run was refused, which is the
      guard working on real rows.
-4. **Project picker + cache guard.** results_package tab → the attach
-   picker (editor-gated swap with §2.6 compat report; read-only for
-   members); the mandatory response-side runId guard in the client reactive
-   caches. State after item 1: the tab already shows ONLY the attached
-   package (`listRunsForProject` is a join on `projects.run_id`) with a
-   typed empty state, still `can_configure_data`-gated, and still hosting the
-   per-module viewers that item 3 moves to the catalogue. This item adds the
-   ready-package list + compat report + repoint, opens the surface to project
-   editors/members per §4 Phase 3, and deletes `listRunsForProject`.
-5. **Rig `foreign_run` + docs.** Rig gates iff attached run = the project's
-   own backfill-provenance run, `foreign_run` typed non-gating outcome
-   otherwise — the field to test is `RunSummary.backfillSourceProjectId`
-   (added in item 1, stamped ONLY by `synthesizeRunForProject`; wizard runs
-   carry null, which is exactly the signal); SYSTEM doc prose reconciliation (globs are claimed by each item
-   as it lands); exit gate re-run (typecheck + rig green + live
-   dev pass: instance generation with multi-attach, swap with compat
-   report, guarded delete, defaults save/prefill).
+4. **Project picker + cache guard — NEXT.** Full spec = the "Attach (project
+   surface)" and "Client cache guard" bullets in "Phase 3 core — design".
+   Two deliverables: `project_results_package.tsx` becomes the attach picker
+   (editor-gated swap with the §2.6 compat report; read-only for members),
+   and the mandatory response-side runId guard lands in the client reactive
+   caches.
+
+   **State of the tree as you start** (items 1 and 3 already moved most of
+   the furniture — check, don't assume):
+   - `client/src/components/project/project_results_package.tsx` shows ONLY
+     the attached package, via `listRunsForProject` (a join on
+     `projects.run_id`), with a typed "no package attached yet" empty state.
+     It has no editor wrapper, no viewers and no generate entry any more;
+     status badge / progress chip / module label come from
+     `client/src/components/_shared/results_package_status.tsx`.
+   - The tab is still `can_configure_data`-gated in TWO places in
+     `client/src/components/project/index.tsx` — the nav-items builder and
+     the `<Match>` that renders it. Opening the surface to project
+     editors/members per §4 Phase 3 means changing both (and the server
+     guard); a half-done gate change leaves a nav entry that renders
+     nothing.
+   - Live progress for a generation targeting this project still arrives on
+     PROJECT SSE (`run_progress` / `r_script`); item 3 added instance-SSE
+     copies for the catalogue and did not touch these.
+   - The instance catalogue (`listRunCatalog`, `RunCatalogItem`) already
+     returns every run with its attached projects — the picker's
+     ready-package list is a narrowing of that, not a new query.
+
+   **What this item builds:** the ready-package list, the compat report, the
+   repoint, the permission opening, deletion of `listRunsForProject` (and
+   its route + registry entry), and the cache guard.
+5. **Rig `foreign_run` + docs — LAST.** Full spec = the "Rig" bullet in
+   "Phase 3 core — design". Rig gates iff a project's attached run is that
+   project's own backfill-provenance run, `foreign_run` typed non-gating
+   outcome otherwise — the field to test is
+   `RunSummary.backfillSourceProjectId` (added in item 1, stamped ONLY by
+   `synthesizeRunForProject`; wizard runs carry null, which is exactly the
+   signal). `foreign_run` is COUNTED and printed in TOTALS, never a silent
+   skip and never RED.
+
+   Then the closing sweep: SYSTEM doc prose reconciliation — **prose only,
+   never glob catch-up** (each item claims its own globs as it lands, and
+   items 0–4 did). Items 3 and 4 both touch S8's route/client prose and S3's
+   notify catalog; item 3 already reconciled its own, so this sweep is for
+   whatever items 4 and 5 leave behind plus a read-through for drift.
+
+   Then the exit gate: `deno task typecheck` + rig green + a live dev pass
+   covering instance generation with multi-attach, a swap with the compat
+   report, the guarded delete, and defaults save/prefill. When that is green
+   the Phase 3 core is DONE and the branch is Tim's to roll out.
 
 ### Binding implementation decisions (do not re-derive)
 
