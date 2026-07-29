@@ -21,6 +21,19 @@
 > editors/members, `listRunsForProject` deleted) and ships the mandatory
 > response-side runId guard in the client reactive caches.
 >
+> **Standing design rule for anything touching a results package (Tim,
+> 2026-07-30).** **If the answer to a question lives inside the run package
+> directory, a project user attached to that package can see it.** What a
+> package contains does not depend on who is asking — only the chrome around
+> it does. So exploring a package is ONE capability rendered from
+> `_shared/results_package/` on both the instance catalogue and a project's
+> package tab; when you need something new there, decide first whether it
+> belongs to the PACKAGE (shared component, both surfaces get it) or to a
+> SURFACE's relationship with the package (that surface's own chrome). The
+> same rule made the AI tools host-agnostic: they take a run RESOLVER, never
+> a runId from the model. This rule replaced an earlier "debug vs content"
+> split that item 3 shipped and item 3b removed — do not reintroduce it.
+>
 > **Read, in this order — nothing outside these four is required reading:**
 > (1) the Status block down through "Phase 3 re-cut" — the decided model,
 > the fork rulings, and the signed-off design, where each item's FULL SPEC
@@ -60,10 +73,12 @@
 > cache GC, Q-E rig gating, Q-F viewer permissions, Q-G the under-guarded
 > static mount, and the `createProject` oddity) was ruled by Tim on
 > 2026-07-29; read them as decided and build them. Q-C also amended §3.7's
-> reuse and storage bullets. **There are no open design questions — nothing
-> in this plan needs a decision before it can be built.** If you hit a real
-> hole the design does not cover, raise it with Tim rather than inventing a
-> ruling.
+> reuse and storage bullets. **One exception: Q-F was partly RE-RULED by
+> item 3b** — its UI half ("the viewers live only on the instance surface")
+> is dead, and its route guard became the deferred question below; the Q-F
+> entry says so in place. **Nothing in this plan needs a decision before it
+> can be built.** If you hit a real hole the design does not cover, raise it
+> with Tim rather than inventing a ruling.
 >
 > **One open question, deliberately deferred — it does NOT block items 4 or
 > 5.** What permission governs a package's INTERNALS (script, log, raw
@@ -1193,10 +1208,12 @@ well as referenced ones.
   `run_progress` — but as an INSTANCE-SSE message filtered to
   `can_configure_data`, per the Q-B ruling; the existing progress-chip
   components are unchanged), and the per-module script/log/file viewers
-  re-hosted here from the project tab (existing components; the routes move
-  to a `can_configure_data` instance mount and the runs static mount is
-  tightened to the same guard — Q-F/Q-G rulings, superseding this bullet's
-  original "routes unchanged"). Disk size
+  (the routes move to a `can_configure_data` instance mount and the runs
+  static mount is tightened to the same guard — Q-F/Q-G rulings, superseding
+  this bullet's original "routes unchanged"). **Item 3b superseded the
+  "re-hosted HERE from the project tab" part**: exploring a package is one
+  capability rendered on both surfaces from `_shared/results_package/`, not
+  something the catalogue took away from the project tab. Disk size
   stamped into the run summary at finalize AND by the backfill synthesizer —
   at rollout every prod run is backfill-born, so no lazy `du` fallback is
   needed. Dev runs minted before the stamp existed have no size: item 3
@@ -1230,11 +1247,11 @@ well as referenced ones.
   by PO label; virtual defaults excluded — they are projections of whatever
   run is attached; no data queries) → confirm → `projects.run_id` UPDATE +
   `run_attached` SSE (the publish machinery minus the status flip).
-  Read-only for non-editor members. No runs-in-progress view, no detach
-  control, no viewers here — the per-module script/log/file viewers ALREADY
-  moved to the instance catalogue in item 3, the right home for a debug
-  surface; `listRunsForProject` is obsoleted by the catalogue listing and is
-  deleted by this item. **This bullet plus the next one are item 4's full
+  Read-only for non-editor members. No runs-in-progress view and no detach
+  control. (This bullet's "no viewers here" is SUPERSEDED by item 3b: the
+  per-module viewers are part of what a package contains and render on both
+  surfaces from `_shared/results_package/`.) `listRunsForProject` is
+  obsoleted by the catalogue listing and is deleted by this item. **This bullet plus the next one are item 4's full
   spec, and both are unbuilt — everything else in this design section has
   shipped.**
 - **Client cache guard (mandatory)**: response-side runId check in the
@@ -1336,10 +1353,11 @@ assume, but this is the map):
 | PO caches + `PO_CACHE_VERSION` | `server/routes/caches/visualizations.ts` |
 | Run/manifest/summary types | `lib/types/run_manifest.ts`, `lib/types/run_generation.ts` |
 | Route registry | `lib/api-routes/instance/run_generation.ts` |
-| Instance catalogue UI + debug viewers | `client/src/components/instance_results_packages/**` |
+| **What a package CONTAINS** — rendered identically on BOTH surfaces (item 3b): module list + per-module script/log/file viewers, generating progress + live R line, failed state, provenance line, status badge | `client/src/components/_shared/results_package/**` |
+| Instance catalogue chrome (run list, generate, guarded delete, disk size, attached projects) | `client/src/components/instance_results_packages/index.tsx` |
+| Project package tab chrome (in-use marker; item 4 turns this into the picker) | `client/src/components/project/project_results_package.tsx` |
 | Launch wizard | `client/src/components/results_package_wizard/**` |
-| Project package tab (item 4 turns this into the picker) | `client/src/components/project/project_results_package.tsx` |
-| Shared status badge / progress chip / labels | `client/src/components/_shared/results_package_status.tsx` |
+| AI tools over a package (run RESOLVER, host-agnostic) | `client/src/components/project_ai/ai_tools/tools/modules.ts` |
 | Client SSE listener registries | `client/src/state/instance/t1_sse.tsx`, `client/src/state/project/t1_sse.tsx` |
 | Backfill script / parity rig | `backfill_runs.ts`, `validate_results_runs_parity.ts` |
 
@@ -1440,8 +1458,12 @@ replaced. Do not re-litigate any of them.
   no new code — and it is the same remedy the wizard build already used for
   the "narrower package" rig trap (see "How to work this list"). Applies to
   EVERY Phase 3 item, not just 2 and 4.
-- **Q-F (items 3/4, BUILT in item 3) — permission change on the debug
-  viewers. RULED: accept the move as designed.** The question's premise was wrong and is corrected
+- **Q-F (items 3/4, BUILT in item 3 — then PARTLY RE-RULED by item 3b; read
+  that entry with this one) — permission change on the debug viewers.
+  RULED: accept the move as designed.** _Item 3b's ruling: the UI is NOT
+  admin-only — exploring a package renders on both surfaces. What survives
+  of Q-F is only the route GUARD, and that guard is now the deferred open
+  question, not a settled ruling._ The question's premise was wrong and is corrected
   here: the viewer routes are guarded by
   `requireProjectPermission("can_configure_modules")`
   ([modules.ts:71/115/157](server/routes/project/modules.ts#L71)), and
@@ -1450,8 +1472,10 @@ replaced. Do not re-litigate any of them.
   project admins reach them today, not ordinary members. §2.6's "readable by
   any project member of an attached project" was never true of these routes.
   So the real effect of the move is that **project admins who are not instance
-  admins lose the viewers**. Accepted: debug surfaces are admin-shaped.
-  Recorded here rather than discovered post-deploy.
+  admins lose the viewers**. Accepted at the time as "debug surfaces are
+  admin-shaped" — the framing item 3b then rejected, since script/log/files
+  all live inside the run package directory and are therefore package
+  contents. Recorded here rather than discovered post-deploy.
 - **Q-G (item 3, BUILT) — the runs static mount is under-guarded. RULED:
   tighten it to `can_configure_data` in item 3.** Found 2026-07-29 while verifying Q-F:
   the actual file-download surface, `/{runId}/outputs/{moduleId}/{file}`, is
@@ -1724,10 +1748,13 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      `TimCacheC.clearByUniquenessHash` — a scanned hash cannot be turned back
      into params), evicts the run's manifest-cache entries, and leaves
      `po_detail` to TTL exactly as ruled.
-   - **(c) Viewer move (Q-F)**: `getScript`/`getLogs`/`listRunModuleFiles`
+   - **(c) Viewer move (Q-F — the ROUTES only; item 3b reversed the UI
+     half)**: `getScript`/`getLogs`/`listRunModuleFiles`
      left the project registry for `runGenerationRouteRegistry` as
      `getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles` under
      `can_configure_data`; `runReadableByProject` died with its last caller.
+     The run-keyed route shape is what makes the surfaces shareable and
+     stays; the guard on them is the deferred question.
      `routes/project/modules.ts` is now only what a project MEMBER reads from
      the attached manifest.
    - **(d) Static mount (Q-G)**: the runs serve is now
@@ -1745,7 +1772,9 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      listing when an unknown run appears (another admin launched it) and
      whenever `currentModuleId` is null — true exactly at the two boundaries
      of a generation, which is when status/summary/disk size change. The
-     project tab lost the viewers and its editor wrapper with them.
+     project tab lost the viewers and its editor wrapper with them —
+     **reversed by item 3b**, which made the viewers shared rather than
+     admin-only.
    - **AI tools — flagged, not ruled**: the project copilot's
      `get_module_r_script` / `get_module_log` call these same routes, so
      Q-F's permission move reaches them: they are repointed at the instance
@@ -1832,14 +1861,18 @@ on big instances. `addDataset*ToProject` dies with its last caller.
    and the mandatory response-side runId guard lands in the client reactive
    caches.
 
-   **State of the tree as you start** (items 1 and 3 already moved most of
-   the furniture — check, don't assume):
+   **State of the tree as you start** (items 1, 3 and 3b already moved most
+   of the furniture — check, don't assume):
    - `client/src/components/project/project_results_package.tsx` shows ONLY
      the attached package, via `listRunsForProject` (a join on
      `projects.run_id`), with a typed "no package attached yet" empty state.
-     It has no editor wrapper, no viewers and no generate entry any more;
-     status badge / progress chip / module label come from
-     `client/src/components/_shared/results_package_status.tsx`.
+     It has no generate entry. Everything the card shows BELOW its header —
+     provenance line, module list, per-module viewers, progress, failed
+     state — is rendered by `_shared/results_package/`, identical to the
+     instance catalogue (item 3b). **Add picker UI as this surface's own
+     chrome; do not fork the shared components.** If something you need
+     belongs to the package rather than to this surface's relationship with
+     it, it goes in the shared component and the catalogue gets it too.
    - The tab is still `can_configure_data`-gated in TWO places in
      `client/src/components/project/index.tsx` — the nav-items builder and
      the `<Match>` that renders it. Opening the surface to project
@@ -2267,11 +2300,15 @@ tables go; its role sharpens into exactly one half of the boundary:
 - Project isolation today is connection-level via the `Project-Id` header guard.
   Run reads add: resolve `projects.run_id` inside the guard (or per-route) → run
   paths. Runs are instance-level artifacts whose DATA is readable by any
-  project member of an attached project (the ordinary viz/read path); the
-  **debug surfaces** — script, logs, raw file listing and the static file
-  download — are `can_configure_data` instance-admin only, per the Q-F and Q-G
-  rulings, which supersede the blanket "readable by any project member"
-  reading of this sentence. **Generating** runs is instance-admin gated
+  project member of an attached project (the ordinary viz/read path). Item 3
+  carved the **package internals** — script, logs, raw file listing and the
+  static file download — out of that sentence as `can_configure_data`
+  instance-admin only, per Q-F/Q-G. **Item 3b re-opened that carve-out**
+  (Tim: if the answer lives inside the run package directory, a project user
+  attached to that package can see it — which is what this sentence
+  originally said). The UI already follows the restored rule; only the route
+  guards still carry the item-3 carve-out, and settling them is the plan's
+  one deferred question. See item 3b's build record. **Generating** runs is instance-admin gated
   (matches today: dataset attach is admin-gated in the UI). Central-reporting cross-project
   reads were retired with the `export_central.ts` route (work item 6); a future
   central hub streams the run's files.
