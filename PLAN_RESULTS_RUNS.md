@@ -2,14 +2,14 @@
 
 > **START HERE (continuing this plan).**
 >
-> **Your next action is Phase 3 core item 3 (the catalogue).** The work
-> list is "**Phase 3 core — work items**", inside the Status section's
-> "Phase 3 re-cut" subsection: **items 0, 1 and 2 are DONE; items 3, 4, 5
-> remain, in order, one per session.** Item 3 is the biggest of the three —
-> the instance catalogue table plus the five rulings that land with it
-> (Q-B instance SSE, Q-D cache purge, Q-F viewer move, Q-G static mount, and
-> the `r_script` line moving with progress). Item 3's checklist entry lists
-> them all.
+> **Your next action is Phase 3 core item 4 (project picker + cache
+> guard).** The work list is "**Phase 3 core — work items**", inside the
+> Status section's "Phase 3 re-cut" subsection: **items 0, 1, 2 and 3 are
+> DONE; items 4 and 5 remain, in order, one per session.** Item 4 turns the
+> project results_package tab into the attach picker (ready-package list +
+> the §2.6 compatibility report + repoint, opened to project
+> editors/members, `listRunsForProject` deleted) and ships the mandatory
+> response-side runId guard in the client reactive caches.
 >
 > **Read, in this order:** (1) the Status block down through "Phase 3 re-cut"
 > — the decided model, the five rulings, and the signed-off design, where
@@ -22,8 +22,8 @@
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
-> item 1 = `92cce0ba`, item 2 = `823d6575`). Still, do not assume the tree is
-> clean: always run
+> item 1 = `92cce0ba`, item 2 = `823d6575`, item 3 = see the item-3 build
+> record). Still, do not assume the tree is clean: always run
 > `git status` first, and expect files outside your scope — parallel
 > workstreams are normal here, and their errors are not yours to fix without
 > asking. Never create a branch.
@@ -46,12 +46,19 @@
 > hole the design does not cover, raise it with Tim rather than inventing a
 > ruling.
 >
+> **One thing needs Tim, and only Tim.** Item 3's Q-F permission move
+> reaches the project AI copilot's `get_module_r_script` /
+> `get_module_log` tools: they now fail for a project member who is not an
+> instance data admin (typed failure, never silent). Whether to also gate
+> those two tools out of a non-admin's toolset is a policy call, recorded in
+> item 3's build record and NOT decided.
+>
 > **After item 5** the Phase 3 core is done and the branch is ready for
 > Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
 > rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
-## Status: Phase 3 core IN PROGRESS — items 0, 1 and 2 DONE (both gates green), item 3 is next
+## Status: Phase 3 core IN PROGRESS — items 0, 1, 2 and 3 DONE (both gates green), item 4 is next
 
 The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
 branch (never the reverse — `results-runs` has NOT been merged to `main`); the
@@ -63,8 +70,9 @@ now ships BEFORE the deploy (see "Phase 3 re-cut") so users get ONE big change
 (dual-write deletion) DONE, item 1 (defaults store + instance-shell wizard
 entry + run identity + catalog-wide reuse + createProject cleanup) DONE, item 2
 (attach-at-launch: confirm-step multi-select + launch-time target eligibility)
+DONE, item 3 (catalogue + disk size + guarded hard delete + Q-B/Q-D/Q-F/Q-G)
 DONE 2026-07-30 — rig PARITY GREEN 719 checks after a full dev re-backfill;
-items 3–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
+items 4–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
 Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
 the build record
 
@@ -1615,31 +1623,96 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      directories are gone (earlier sessions' cleanups) — the reuse search logs
      each as unreadable and skips it, exactly as designed. Reclaiming them is
      item 3's guarded delete.
-3. **Catalogue.** Instance "Results packages" surface: listing (label,
-   status, created at/by, provenance, disk size, attached projects),
-   generate entry, guarded hard delete (refused while referenced by any
-   `projects.run_id` OR status `generating`), live progress, viewers
-   re-hosted from the project tab. Plus the four rulings that land here:
-   - **(a) Progress (Q-B)** — add `run_progress` to `InstanceSseMessage` and
-     filter it in `routesInstanceSSE` to callers with `can_configure_data`;
-     the project-SSE emitter stays for attached projects.
-   - **(b) Cache purge (Q-D)** — the guarded delete also scans + clears
-     `po_items`/`metric_info`/`replicant_opts` by runId prefix; `po_detail`
-     is left to TTL by design.
-   - **(c) Viewer move (Q-F)** — script/log/file viewers live only here,
-     under `can_configure_data`; project admins who are not instance admins
-     lose them, accepted.
-   - **(d) Static mount (Q-G)** — gate the `_RUNS_DIR_PATH` static mount on
-     `can_configure_data` instead of bare `requireGlobalPermission()`.
-   - **(e) The live R line moves with progress** (found building item 1):
-     Q-B names `run_progress`, but the current-module line under a generating
-     run comes from the project-scoped `r_script` message
-     (`notifyProjectRScript`, emitted per attach target by
-     `execute_module.ts`). A run launched with NO attach targets has no
-     project channel, so the catalogue's live line needs `r_script` on
-     instance SSE under the same `can_configure_data` filter as
-     `run_progress`. Keep the project-SSE copy for attached projects, exactly
-     as (a) does.
+3. **Catalogue — DONE 2026-07-30** (gates green: `deno task typecheck` incl.
+   lint:systems + rig PARITY GREEN `--run`, 719 checks, after a full dev
+   re-backfill; live-verified on dev end-to-end, server up, 16/16 harness
+   checks plus an HTTP/SSE pass). All five rulings landed with it. What
+   landed:
+   - **Catalogue** (`listRunCatalog`, `RunCatalogItem`): every run newest
+     first with its attached projects. Those come from `projects.run_id` —
+     the serving pointer — never from the summary's launch-time attach
+     selection, which says nothing about where a run ended up; they are the
+     same fact the delete guard tests, so the column and the guard can never
+     disagree. `listRunsForProject` and the catalogue now share one row
+     mapper.
+   - **Disk size**: `RunSummary.diskSizeBytes`, summed over the finished tmp
+     dir by the SHARED builder, so both writers stamp it at the one moment
+     the package is final. Typed `number | null` because rows written before
+     the stamp existed have none — displayed as unknown, never recomputed
+     (a run dir is immutable, so a lazy `du` would only be a slower way to
+     the same number). Verified: 807,413 bytes stamped vs 812K on disk.
+   - **Guarded hard delete** (`server/runs/delete_run.ts`): the guard is IN
+     the DELETE (`AND status <> 'generating' AND NOT EXISTS (… projects
+     WHERE run_id = …)`) so a project cannot attach between check and
+     delete; a refusal re-reads the row to say WHICH reason. Row first, then
+     the directory, then caches: if the directory removal fails the loss is
+     disk, not correctness, and it logs loudly — a half-deleted run that was
+     still LISTED would be an attachable package with no files.
+   - **(a)/(e) Progress + R line on instance SSE (Q-B)**: `run_progress` and
+     `r_script` added to `InstanceSseMessage` (the instance `r_script` also
+     carries `runId`, since two generations can run at once), dropped in
+     `routesInstanceSSE`'s forward loop for callers without
+     `can_configure_data`. No emitter calls the project wrappers directly any
+     more: `generate_run/notify_run.ts` pairs the instance push with the
+     per-target project pushes, so the dual fan-out is one fact rather than
+     five call sites. The publish-time final progress moved OUT of the
+     per-target loop — a run with no targets does none of those iterations,
+     and that message is what ends the generation on both surfaces.
+   - **(b) Cache purge (Q-D)**: delete scans + clears `po_items`,
+     `metric_info` and `replicant_opts` by runId prefix (new
+     `TimCacheC.clearByUniquenessHash` — a scanned hash cannot be turned back
+     into params), evicts the run's manifest-cache entries, and leaves
+     `po_detail` to TTL exactly as ruled.
+   - **(c) Viewer move (Q-F)**: `getScript`/`getLogs`/`listRunModuleFiles`
+     left the project registry for `runGenerationRouteRegistry` as
+     `getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles` under
+     `can_configure_data`; `runReadableByProject` died with its last caller.
+     `routes/project/modules.ts` is now only what a project MEMBER reads from
+     the attached manifest.
+   - **(d) Static mount (Q-G)**: the runs serve is now
+     `/:run_id/outputs/*` + `can_configure_data`, not `*` +
+     `requireGlobalPermission()`. The PATH scope is load-bearing as well as
+     the guard: a wildcard mount carrying this permission would 403 every
+     non-admin request that falls through to the assets serve mounted after
+     it. Verified live — `/{runId}/outputs/{mod}/{file}` 200s,
+     `/{runId}/manifest.json` and `/{runId}/inputs/*` no longer serve at all.
+   - **Client**: `components/instance_results_packages/` (the surface moved
+     out of `instance/`, plus the three viewers moved out of `project/`);
+     shared badge/chip/label/bytes in
+     `_shared/results_package_status.tsx` (S12's `_shared/**` glob owns the
+     path, SYSTEMS §4.1 records S8 as owner). The catalogue refetches its
+     listing when an unknown run appears (another admin launched it) and
+     whenever `currentModuleId` is null — true exactly at the two boundaries
+     of a generation, which is when status/summary/disk size change. The
+     project tab lost the viewers and its editor wrapper with them.
+   - **AI tools — flagged, not ruled**: the project copilot's
+     `get_module_r_script` / `get_module_log` call these same routes, so
+     Q-F's permission move reaches them: they are repointed at the instance
+     routes and now answer with a permission failure for a project member who
+     is not an instance data admin. Typed and visible to the model, never
+     silent. Gating the two tools out of a non-admin's toolset (the instance
+     store has the permission client-side) was NOT done — it is a policy
+     call for Tim, and the static "Results Package" view instructions name
+     both tools.
+   - **Live-verified on dev**: harness — catalogue ordering, attachedProjects
+     equal to `projects.run_id` exactly, disk size on every attached run,
+     delete refused for an attached run (row + dir survive) and for a
+     `generating` fixture, delete succeeding for a ready+unattached fixture
+     (row and dir gone), a row whose dir is already missing deleting cleanly,
+     and an unknown id refused as not found. Then over HTTP with the server
+     up: the catalogue, the three viewers at their new paths (typed
+     "no script/log" on a backfill run, real content on a wizard run), the
+     old project paths gone, the static-mount scope above, and a REAL
+     generation (m009, R executed, `done` not `reused`) launched with ZERO
+     attach targets — the whole thing arrived on instance SSE (launch
+     progress → running → live R lines → terminal progress), which is the
+     case that had no channel at all before this item. Deleted it over HTTP
+     afterwards: row gone, dir gone, download 302s.
+   - **Dev reclamation** (item 2's note, closed here): 71 unattached leftover
+     runs from earlier re-backfills were reclaimed with the guarded delete —
+     the dev runs volume went 415 MB → 12 MB and the catalogue 78 → the 7
+     attached backfill runs. Every attached run was refused, which is the
+     guard working on real rows.
 4. **Project picker + cache guard.** results_package tab → the attach
    picker (editor-gated swap with §2.6 compat report; read-only for
    members); the mandatory response-side runId guard in the client reactive

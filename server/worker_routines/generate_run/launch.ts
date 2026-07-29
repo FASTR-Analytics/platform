@@ -17,8 +17,8 @@ import {
 } from "../../db/instance/run_generation.ts";
 import { runTmpDirPath } from "../../runs/mod.ts";
 import { checkSpaceForDataset } from "../../utils/disk_space.ts";
-import { notifyProjectRunProgress } from "../../task_management/notify_project_v2.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
+import { notifyRunProgress } from "./notify_run.ts";
 import { instantiateGenerateRunWorker } from "./instantiate_worker.ts";
 import {
   RUN_GENERATION_ENDED_CHANNEL,
@@ -172,6 +172,7 @@ export async function launchRunGeneration(
       moduleIds,
       metricCount: 0,
       totalRowCount: 0,
+      diskSizeBytes: null,
     };
     await createGeneratingRun(mainDb, {
       runId,
@@ -206,9 +207,7 @@ export async function launchRunGeneration(
       return targetAlreadyGenerating;
     }
     entry.worker = worker;
-    for (const projectId of attachTargetProjectIds) {
-      notifyProjectRunProgress(projectId, runId, progress);
-    }
+    notifyRunProgress(attachTargetProjectIds, runId, progress);
     return { success: true, data: { runId } };
   } catch (e) {
     GENERATING_BY_RUN.delete(runId);
@@ -256,8 +255,6 @@ async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
     "The generation worker crashed",
   );
   if (progress !== null) {
-    for (const projectId of entry.attachTargetProjectIds) {
-      notifyProjectRunProgress(projectId, runId, progress);
-    }
+    notifyRunProgress(entry.attachTargetProjectIds, runId, progress);
   }
 }

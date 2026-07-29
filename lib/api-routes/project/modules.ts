@@ -9,13 +9,10 @@ import { route } from "../route-utils.ts";
 // z.string() is used rather than a Zod enum (don't tighten while migrating).
 const moduleIdParamsSchema = z.object({ module_id: z.string() });
 
-// Script/logs/files read from an immutable run's outputs dir
-// (runs/{runId}/outputs/{moduleId}) — the run must have been generated from
-// this project or be its attached run.
-const runModuleParamsSchema = z.object({
-  run_id: z.string(),
-  module_id: z.string(),
-});
+// The per-module script/logs/files viewers used to live here; Phase 3 item 3
+// moved them to the instance results-package catalogue
+// (`runGenerationRouteRegistry`, can_configure_data) — a run belongs to no
+// project, so a debug surface over its outputs is an instance-admin one.
 
 export const moduleRouteRegistry = {
   getResultsObjectItems: route({
@@ -24,27 +21,6 @@ export const moduleRouteRegistry = {
     // results_object_id is a module-defined filename (e.g. "M10_hfa_results.csv"), not a UUID
     params: z.object({ results_object_id: z.string() }),
     response: {} as ItemsHolderResultsObject,
-    requiresProject: true,
-  }),
-  getScript: route({
-    path: "/run/:run_id/module/:module_id/script",
-    method: "GET",
-    params: runModuleParamsSchema,
-    response: {} as { script: string },
-    requiresProject: true,
-  }),
-  getLogs: route({
-    path: "/run/:run_id/module/:module_id/logs",
-    method: "GET",
-    params: runModuleParamsSchema,
-    response: {} as { logs: string },
-    requiresProject: true,
-  }),
-  listRunModuleFiles: route({
-    path: "/run/:run_id/module/:module_id/files",
-    method: "GET",
-    params: runModuleParamsSchema,
-    response: {} as { files: { name: string; sizeBytes: number }[] },
     requiresProject: true,
   }),
   getModuleWithConfigSelections: route({

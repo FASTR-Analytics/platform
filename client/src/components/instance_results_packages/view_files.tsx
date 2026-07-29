@@ -8,20 +8,16 @@ import {
   createQuery,
 } from "panther";
 import { For, Show } from "solid-js";
+import { formatBytes } from "~/components/_shared/results_package_status";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 // Lists the actual files in the run's outputs/{moduleId} dir; downloads serve
-// from the runs static mount at /{runId}/outputs/{moduleId}/{file}.
+// from the runs static mount at /{runId}/outputs/{moduleId}/{file}, which
+// carries the same can_configure_data guard as this listing (Q-F/Q-G).
 export function ViewFiles(
   p: EditorComponentProps<
-    { projectId: string; runId: string; moduleId: ModuleId; moduleLabel: string },
+    { runId: string; moduleId: ModuleId; moduleLabel: string },
     undefined
   >,
 ) {
@@ -30,7 +26,6 @@ export function ViewFiles(
       serverActions.listRunModuleFiles({
         run_id: p.runId,
         module_id: p.moduleId,
-        projectId: p.projectId,
       }),
     t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers...", pt: "A carregar a lista de ficheiros..." }),
   );
@@ -57,7 +52,7 @@ export function ViewFiles(
             <Show
               when={keyedFiles.files.length > 0}
               fallback={
-                <div class="text-neutral">
+                <div class="text-base-content-muted">
                   {t3({
                     en: "No files in this results package for this module.",
                     fr: "Aucun fichier dans ce paquet de résultats pour ce module.",

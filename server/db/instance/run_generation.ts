@@ -6,6 +6,7 @@ import {
   runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
+  type RunCatalogItem,
   type RunCatalogStatus,
   type RunGenerationAttemptDetail,
   type RunGenerationStep1Result,
@@ -26,12 +27,15 @@ import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
 // no claim machinery here; each config-step write advances step and nulls
 // downstream results, and the row is deleted at launch (and by discard).
 //
-// The second half of this file is the runs-catalog execution state the
-// pipeline writes: the 'generating' row minted at launch, worker progress
-// updates, the ready-publish transaction (status flip + projects.run_id
-// repoint of every attach target), and failure marking. These are
-// worker/host internals, so they throw instead of returning APIResponse
-// envelopes.
+// The middle of this file is the runs catalog's read surface: the instance
+// catalogue listing (Phase 3 item 3) and the guarded hard delete, plus the
+// project surface's attached-run row.
+//
+// The last section is the runs-catalog execution state the pipeline writes:
+// the 'generating' row minted at launch, worker progress updates, the
+// ready-publish transaction (status flip + projects.run_id repoint of every
+// attach target), and failure marking. These are worker/host internals, so
+// they throw instead of returning APIResponse envelopes.
 
 const CONFIGURING_STATUS = JSON.stringify({ status: "configuring" });
 
@@ -211,59 +215,154 @@ DELETE FROM run_generation_attempts WHERE created_by_user_email = ${userEmail}
   }
 }
 
+type RunListingRow = {
+  id: string;
+  label: string;
+  status: string;
+  provenance: string;
+  created_at: Date;
+  created_by: string | null;
+  summary: string | null;
+  progress: string | null;
+};
+
+// summary/progress are stored JSON; a malformed blob degrades that field to
+// null rather than hiding the row — a run the catalogue cannot summarise is
+// still a run an admin must be able to see and delete.
+function toRunListingItem(row: RunListingRow): RunListingItem {
+  let summary: RunSummary | null = null;
+  try {
+    summary = row.summary === null ? null : JSON.parse(row.summary);
+  } catch {
+    summary = null;
+  }
+  let progress: RunProgress | null = null;
+  if (row.progress !== null) {
+    const parsed = runProgressSchema.safeParse(JSON.parse(row.progress));
+    progress = parsed.success ? parsed.data : null;
+  }
+  return {
+    id: row.id,
+    label: row.label,
+    status: row.status as RunCatalogStatus,
+    provenance: row.provenance as RunProvenance,
+    createdAt: row.created_at.toISOString(),
+    createdBy: row.created_by,
+    summary,
+    progress,
+  };
+}
+
+// The instance catalogue (Phase 3 item 3): every run on the instance, newest
+// first, each with the projects currently pointing at it. Those pointers are
+// both the "attached projects" column and the delete guard's subject, so
+// they come from projects.run_id — the serving pointer — never from the
+// summary's launch-time attach selection, which says nothing about where a
+// run ended up.
+export async function listRunCatalog(
+  mainDb: Sql,
+): Promise<APIResponseWithData<RunCatalogItem[]>> {
+  try {
+    const rows = await mainDb<
+      (RunListingRow & { attached_projects: { id: string; label: string }[] })[]
+    >`
+SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
+  r.summary, r.progress,
+  COALESCE(
+    (
+      SELECT json_agg(json_build_object('id', p.id, 'label', p.label)
+        ORDER BY p.label)
+      FROM projects p
+      WHERE p.run_id = r.id
+    ),
+    '[]'::json
+  ) AS attached_projects
+FROM runs r
+ORDER BY r.created_at DESC
+`;
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...toRunListingItem(row),
+        attachedProjects: row.attached_projects,
+      })),
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem listing results packages: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// Guarded hard delete's DB half (Q1 ruling: ONE act, no archived state). The
+// guard is IN the DELETE so a project cannot attach between a check and the
+// delete; a refusal re-reads the row to say WHY. The caller
+// (server/runs/delete_run.ts) owns the run dir and cache purge and only runs
+// them once this returns deleted.
+export async function deleteRunCatalogRow(
+  mainDb: Sql,
+  runId: string,
+): Promise<APIResponseNoData> {
+  try {
+    const deleted = await mainDb<{ id: string }[]>`
+DELETE FROM runs
+WHERE id = ${runId}
+  AND status <> 'generating'
+  AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.run_id = ${runId})
+RETURNING id
+`;
+    if (deleted.length > 0) {
+      return { success: true };
+    }
+    const row = (
+      await mainDb<{ status: string; attached_count: number }[]>`
+SELECT r.status,
+  (SELECT COUNT(*)::int FROM projects p WHERE p.run_id = r.id) AS attached_count
+FROM runs r WHERE r.id = ${runId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Results package not found" };
+    }
+    if (row.status === "generating") {
+      return {
+        success: false,
+        err: "This results package is still being generated",
+      };
+    }
+    return {
+      success: false,
+      err:
+        "This results package is in use — detach it from every project first",
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem deleting results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
 // The run this project currently serves from, as a listing row for the
 // project "Results package" surface — a run no longer belongs to a project
 // (Q-A), so the attached one is the only run the project surface has
-// business showing. Empty when nothing is attached. summary/progress are
-// stored JSON; a malformed blob degrades that field to null rather than
-// hiding the row.
+// business showing. Empty when nothing is attached.
 export async function listRunsForProject(
   mainDb: Sql,
   projectId: string,
 ): Promise<APIResponseWithData<RunListingItem[]>> {
   try {
-    const rows = await mainDb<
-      {
-        id: string;
-        label: string;
-        status: string;
-        provenance: string;
-        created_at: Date;
-        created_by: string | null;
-        summary: string | null;
-        progress: string | null;
-      }[]
-    >`
+    const rows = await mainDb<RunListingRow[]>`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress
 FROM runs r
 JOIN projects p ON p.run_id = r.id
 WHERE p.id = ${projectId}
 `;
-    const items: RunListingItem[] = rows.map((row) => {
-      let summary: RunSummary | null = null;
-      try {
-        summary = row.summary === null ? null : JSON.parse(row.summary);
-      } catch {
-        summary = null;
-      }
-      let progress: RunProgress | null = null;
-      if (row.progress !== null) {
-        const parsed = runProgressSchema.safeParse(JSON.parse(row.progress));
-        progress = parsed.success ? parsed.data : null;
-      }
-      return {
-        id: row.id,
-        label: row.label,
-        status: row.status as RunCatalogStatus,
-        provenance: row.provenance as RunProvenance,
-        createdAt: row.created_at.toISOString(),
-        createdBy: row.created_by,
-        summary,
-        progress,
-      };
-    });
-    return { success: true, data: items };
+    return { success: true, data: rows.map(toRunListingItem) };
   } catch (e) {
     return {
       success: false,
@@ -347,29 +446,6 @@ SELECT id, label, status, is_locked FROM projects WHERE id = ANY(${projectIds})
     }
     return row.status !== "ready" || row.is_locked ? [row.label] : [];
   });
-}
-
-// Access check for the per-run outputs surface (script/logs/files viewers):
-// a project may read the ready run it currently serves from. (Q-A dropped
-// the "run this project generated" arm — a run has no source project any
-// more; item 3 moves these viewers to the instance catalogue.)
-export async function runReadableByProject(
-  mainDb: Sql,
-  runId: string,
-  projectId: string,
-): Promise<boolean> {
-  const run = (
-    await mainDb<{ status: string }[]>`
-SELECT status FROM runs WHERE id = ${runId}
-`
-  ).at(0);
-  if (run === undefined || run.status !== "ready") return false;
-  const project = (
-    await mainDb<{ run_id: string | null }[]>`
-SELECT run_id FROM projects WHERE id = ${projectId}
-`
-  ).at(0);
-  return project?.run_id === runId;
 }
 
 export async function updateRunProgress(

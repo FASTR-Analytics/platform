@@ -89,10 +89,18 @@ Client EventSource (t1_sse.tsx) → T1 store → version keys flip → caches mi
 
 Exactly **two SSE-feeding** broadcast channels, each with one endpoint:
 
-| Channel                | Endpoint                          | File                               | Guard                                                    |
-| ---------------------- | --------------------------------- | ---------------------------------- | -------------------------------------------------------- |
-| `"instance_updates"`   | `GET /instance_updates`           | `routes/instance/instance-sse.ts`  | `requireGlobalPermission()` (hard-deny)                  |
-| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `resolveProjectUserAccess` (hard-deny) |
+| Channel                | Endpoint                          | File                               | Guard                                                         |
+| ---------------------- | --------------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| `"instance_updates"`   | `GET /instance_updates`           | `routes/instance/instance-sse.ts`  | `requireGlobalPermission()` (hard-deny) + per-message filter† |
+| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `resolveProjectUserAccess` (hard-deny)      |
+
+† The instance endpoint admits every logged-in user, so the two
+results-package generation messages — `run_progress` and `r_script`, which
+carry run labels, module ids and R error detail — are dropped in the forward
+loop for callers without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The
+permission set is the one captured at connect; a change takes effect on
+reconnect, exactly like `currentUserPermissions` in the starting payload.
+No other message on either channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process — which is how a background worker's
@@ -130,14 +138,16 @@ a `queue: []` + `ReadableStream` controller; **project** uses a
 **The notify catalog (normative).** Every broadcast to the two SSE channels goes
 through a typed wrapper — never `postMessage` directly.
 `server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus eight wrappers, one per
+`notifyInstanceUpdate(message)` plus ten wrappers, one per
 `InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceProjectsLastUpdated` (`projects_last_updated`),
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
 `notifyInstanceStructureUpdated` (`structure_updated`),
 `notifyInstanceIndicatorsUpdated` (`indicators_updated`),
-`notifyInstanceDatasetsUpdated` (`datasets_updated`).
+`notifyInstanceDatasetsUpdated` (`datasets_updated`),
+`notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
+(`r_script`).
 `server/task_management/notify_project_v2.ts` exposes
 `notifyProjectV2(projectId, message)` (spreads `projectId` in) plus thirteen
 wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
@@ -148,7 +158,11 @@ wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`.
 (The module-dirty-state / any-running / modules-updated / datasets-updated
 wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushes
-`r_script`, `run_progress`, and `run_attached` instead.)
+`r_script`, `run_progress`, and `run_attached` instead.) Generation telemetry
+fans out on BOTH channels and no emitter calls the project wrappers directly:
+`worker_routines/generate_run/notify_run.ts` pairs each instance push with the
+per-attach-target project pushes, because a run launched with no attach
+targets has no project channel at all.
 
 **The redundant `last_updated` indirection.**
 `server/task_management/notify_last_updated.ts` is a one-line passthrough:

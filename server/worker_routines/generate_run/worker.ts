@@ -2,7 +2,7 @@ import type { Sql } from "postgres";
 import { createWorkerReadConnection } from "../../db/mod.ts";
 import { markRunGenerationFailed } from "../../db/instance/run_generation.ts";
 import { runTmpDirPath } from "../../runs/mod.ts";
-import { notifyProjectRunProgress } from "../../task_management/notify_project_v2.ts";
+import { notifyRunProgress } from "./notify_run.ts";
 import { runGenerationPipeline } from "./pipeline.ts";
 import {
   RUN_GENERATION_ENDED_CHANNEL,
@@ -73,8 +73,6 @@ async function failGeneration(
     e instanceof Error ? e.message : String(e),
   );
   if (progress !== null) {
-    for (const projectId of std.attachTargetProjectIds) {
-      notifyProjectRunProgress(projectId, std.runId, progress);
-    }
+    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
   }
 }

@@ -490,8 +490,26 @@ SELECT dataset_type, info, last_updated FROM datasets
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),
+    // The manifest above is the last file either writer produces, so the tmp
+    // dir is complete here — the catalogue's disk column is stamped once, at
+    // the only moment the package's contents are final and still immutable
+    // afterwards.
+    diskSizeBytes: await sumFileSizes(tmpDir),
   };
   return { manifest, summary };
+}
+
+async function sumFileSizes(dir: string): Promise<number> {
+  let total = 0;
+  for await (const entry of Deno.readDir(dir)) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory) {
+      total += await sumFileSizes(path);
+    } else if (entry.isFile) {
+      total += (await Deno.stat(path)).size;
+    }
+  }
+  return total;
 }
 
 async function statOrUndefined(path: string): Promise<Deno.FileInfo | undefined> {

@@ -30,15 +30,13 @@ import {
   getModuleSummariesFromManifest,
   getProjectDatasetsFromManifest,
 } from "../../run_query/mod.ts";
-import {
-  notifyProjectRunAttached,
-  notifyProjectRunProgress,
-} from "../../task_management/notify_project_v2.ts";
+import { notifyProjectRunAttached } from "../../task_management/notify_project_v2.ts";
 import {
   executeRunModule,
   ReuseSourceMissingError,
   reuseRunModule,
 } from "./execute_module.ts";
+import { notifyRunProgress } from "./notify_run.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
 import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
 import {
@@ -79,9 +77,7 @@ export async function runGenerationPipeline(
   };
   const pushProgress = async () => {
     await updateRunProgress(mainDb, std.runId, progress);
-    for (const projectId of std.attachTargetProjectIds) {
-      notifyProjectRunProgress(projectId, std.runId, progress);
-    }
+    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
   };
 
   const resCountryIso3 = await getCountryIso3Config(mainDb);
@@ -137,6 +133,7 @@ export async function runGenerationPipeline(
       try {
         result = await reuseRunModule({
           attachTargetProjectIds: std.attachTargetProjectIds,
+          runId: std.runId,
           tmpDir,
           module: mod,
           sourceRunId: reuseSource.runId,
@@ -207,6 +204,12 @@ export async function runGenerationPipeline(
   // longer written, so it is never read here either). A run launched with no
   // targets publishes silently and is attached later from a project's
   // picker.
+  // Final progress first, on both channels: it is what tells the catalogue
+  // and every target's package surface that this generation is over, so it
+  // must not be gated on the per-target catalog reads below (a run with no
+  // targets does none of them).
+  notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+
   const runCtx = { runId: std.runId, manifest };
   const projectModules = getModuleSummariesFromManifest(manifest);
   const metrics = getMetricsWithStatusFromManifest(manifest);
@@ -214,7 +217,6 @@ export async function runGenerationPipeline(
   const commonIndicators = await getCommonIndicatorsFromManifestInputs(runCtx);
   const icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
   for (const projectId of std.attachTargetProjectIds) {
-    notifyProjectRunProgress(projectId, std.runId, progress);
     const projectDb = createWorkerReadConnection(projectId);
     try {
       const visualizationsRes =

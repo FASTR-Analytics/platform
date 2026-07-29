@@ -65,6 +65,7 @@ list.)
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
 | `server/db/project/results_objects.ts`                                  | S8    | S9                | `ro_*` read = the S8→S9 data spine                    |
 | `client/src/components/project/staleness_checks.ts`                     | S6    | S8                | also exports `checkModulesNeedUpdate`                 |
+| `client/src/components/_shared/results_package_status.tsx`              | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
 | `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |

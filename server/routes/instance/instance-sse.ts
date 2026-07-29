@@ -122,6 +122,20 @@ routesInstanceSSE.get(
           } satisfies InstanceSseMessage),
         });
 
+        // Per-user message filter (Q-B ruling): this endpoint is guarded by
+        // requireGlobalPermission() — every logged-in user — but the
+        // results-package generation messages carry run labels, module ids
+        // and R error detail, which are for instance data admins only. The
+        // permission set is the one captured for this connection; a
+        // permission change takes effect on reconnect, exactly like the
+        // currentUserPermissions in the starting payload above.
+        const canSeeRunMessages =
+          instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_configure_data;
+        const shouldForward = (msg: InstanceSseMessage): boolean =>
+          canSeeRunMessages ||
+          (msg.type !== "run_progress" && msg.type !== "r_script");
+
         // 3. Create ReadableStream and switch listener to stream mode
         const rs = new ReadableStream<InstanceSseMessage>({
           start(c) {
@@ -145,6 +159,7 @@ routesInstanceSSE.get(
             if (stream.aborted) break;
             const { done, value } = await reader.read();
             if (done) break;
+            if (!shouldForward(value)) continue;
             await stream.writeSSE({
               data: JSON.stringify(value),
             });

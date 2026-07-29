@@ -164,6 +164,12 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 // `attachTargetProjectIds` is the wizard's launch-time attach selection: the
 // projects the publish transaction repoints, and the key the launch
 // concurrency guard uses.
+// `diskSizeBytes` is the package's total file size, summed by the shared
+// builder over the finished tmp dir — both writers stamp it, so every run
+// minted from Phase 3 item 3 onwards carries one. Null is a run written
+// before the stamp existed: displayed as unknown, never recomputed at read
+// time (a run dir is immutable, so a `du` fallback would only ever be a
+// slower way to get the same number).
 export type RunSummary = {
   manifestSchemaVersion: number;
   provenance: RunProvenance;
@@ -172,4 +178,5 @@ export type RunSummary = {
   moduleIds: string[];
   metricCount: number;
   totalRowCount: number;
+  diskSizeBytes: number | null;
 };

@@ -12,8 +12,8 @@ import {
 import { checkSpaceForModuleRun } from "../../utils/disk_space.ts";
 import { importAsset } from "./import_asset.ts";
 import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
-import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
+import { notifyRunRScript } from "./notify_run.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 
@@ -56,13 +56,11 @@ export async function executeRunModule(args: {
 }): Promise<ModuleRunResult> {
   const { module: mod } = args;
   const moduleId = mod.moduleId;
-  // The live R line goes to every attach target's project channel; a run
-  // launched with no targets simply has no live viewer (the full log is
-  // captured in the run either way).
+  // The live R line goes to the instance catalogue and to every attach
+  // target's project channel (Q-B/(e)); the full log is captured in the run
+  // either way.
   const notifyRScript = (line: string) => {
-    for (const projectId of args.attachTargetProjectIds) {
-      notifyProjectRScript(projectId, moduleId, line);
-    }
+    notifyRunRScript(args.attachTargetProjectIds, args.runId, moduleId, line);
   };
 
   const moduleSpaceCheck = await checkSpaceForModuleRun();
@@ -154,6 +152,7 @@ export async function executeRunModule(args: {
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
   attachTargetProjectIds: string[];
+  runId: string;
   tmpDir: string;
   module: ResolvedRunModule;
   sourceRunId: string;
@@ -190,13 +189,12 @@ export async function reuseRunModule(args: {
       `Reusing outputs from results package ${args.sourceRunId} — inputs unchanged`,
       "starting",
     );
-    for (const projectId of args.attachTargetProjectIds) {
-      notifyProjectRScript(
-        projectId,
-        moduleId,
-        "Reusing outputs from an earlier results package (inputs unchanged)",
-      );
-    }
+    notifyRunRScript(
+      args.attachTargetProjectIds,
+      args.runId,
+      moduleId,
+      "Reusing outputs from an earlier results package (inputs unchanged)",
+    );
     for (const ro of mod.detail.resultsObjects) {
       await writeToLog("Reusing output: " + ro.id, "download-file");
       await Deno.copyFile(

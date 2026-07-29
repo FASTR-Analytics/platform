@@ -4,6 +4,7 @@ export {
   synthesizeRunForProject,
   type RunBuildOptions,
 } from "./synthesize_run.ts";
+export { deleteRun } from "./delete_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
 export {
@@ -12,6 +13,7 @@ export {
   type ExportedColumn,
 } from "./pg_export.ts";
 export {
+  evictRunFromManifestCache,
   getRunManifestCached,
   readRunInputJsonCached,
 } from "./manifest_cache.ts";

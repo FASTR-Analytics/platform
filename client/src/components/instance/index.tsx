@@ -21,7 +21,7 @@ import { OrganisationModal } from "~/components/organisation_modal";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
-import { InstanceResultsPackages } from "~/components/instance/instance_results_packages";
+import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";

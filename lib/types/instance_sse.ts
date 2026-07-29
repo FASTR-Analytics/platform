@@ -6,6 +6,7 @@ import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, InstanceFiscalYear, OtherUser } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
+import type { RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
 // ============================================================================
@@ -140,8 +141,20 @@ export type InstanceDatasetsSummary = {
 // Instance SSE Message (discriminated union)
 // ============================================================================
 
+// `run_progress` and `r_script` are the results-package catalogue's live
+// generation view (Q-B ruling). They are ephemeral execution state, not
+// InstanceState fields, and they are the only messages on this channel that
+// are FILTERED per user: routesInstanceSSE drops them for callers without
+// can_configure_data, because run labels, module ids and R error detail must
+// not fan out to every connected user. Both keep their project-SSE copies
+// for attach targets; a run with no targets has only this channel.
 export type InstanceSseMessage =
   | { type: "starting"; data: InstanceState }
+  | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
+  | {
+      type: "r_script";
+      data: { runId: string; moduleId: string; text: string };
+    }
   | { type: "config_updated"; data: InstanceConfig }
   | { type: "projects_last_updated"; data: string }
   | { type: "users_updated"; data: OtherUser[] }

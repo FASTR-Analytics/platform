@@ -49,6 +49,16 @@ export async function getRunManifestCached(runId: string): Promise<RunManifest> 
   return manifest;
 }
 
+// A deleted run's entries are dead weight, not a correctness hazard (a
+// deleted run can never be attached, and run ids are never reused), so this
+// is memory hygiene at the one moment a run stops existing.
+export function evictRunFromManifestCache(runId: string): void {
+  MANIFEST_CACHE.delete(runId);
+  for (const key of INPUT_JSON_CACHE.keys()) {
+    if (key.startsWith(`${runId}|`)) INPUT_JSON_CACHE.delete(key);
+  }
+}
+
 export async function readRunInputJsonCached(
   runId: string,
   fileName: string,

@@ -9,26 +9,28 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-export function ViewLogs(
+// The R script this results package generated for one module. Instance-admin
+// surface (PLAN_RESULTS_RUNS Q-F): a run belongs to no project, so its debug
+// viewers live with the catalogue.
+export function ViewScript(
   p: EditorComponentProps<
-    { projectId: string; runId: string; moduleId: ModuleId; moduleLabel: string },
+    { runId: string; moduleId: ModuleId; moduleLabel: string },
     undefined
   >,
 ) {
-  const rLogs = createQuery(
+  const rScript = createQuery(
     () =>
-      serverActions.getLogs({
+      serverActions.getRunModuleScript({
         run_id: p.runId,
         module_id: p.moduleId,
-        projectId: p.projectId,
       }),
-    t3({ en: "Loading logs...", fr: "Chargement des journaux...", pt: "A carregar registos..." }),
+    t3({ en: "Loading script...", fr: "Chargement du script...", pt: "A carregar o script..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Logs for", fr: "Journaux pour", pt: "Registos de" })} ${p.moduleLabel}`}>
+        <HeadingBar heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}>
           <div class="ui-gap-sm flex">
             <Button
               onClick={() => p.close(undefined)}
@@ -41,11 +43,11 @@ export function ViewLogs(
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={rLogs.state()}>
-        {(keyedLogs) => {
+      <StateHolderWrapper state={rScript.state()}>
+        {(keyedScript) => {
           return (
             <div class="ui-pad whitespace-pre font-mono text-xs">
-              {keyedLogs.logs}
+              {keyedScript.script}
             </div>
           );
         }}

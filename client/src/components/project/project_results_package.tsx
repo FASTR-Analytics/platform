@@ -1,33 +1,19 @@
-import {
-  MODULE_REGISTRY,
-  t3,
-  getValidatedModuleId,
-  type RunListingItem,
-  type RunModuleProgressStatus,
-  type RunProgress,
-} from "lib";
-import {
-  Button,
-  FrameTop,
-  HeadingBar,
-  StateHolderWrapper,
-  getEditorWrapper,
-  type StateHolder,
-} from "panther";
+import { t3, type RunListingItem, type RunProgress } from "lib";
+import { FrameTop, HeadingBar, StateHolderWrapper, type StateHolder } from "panther";
 import {
   For,
-  Match,
   Show,
-  Switch,
   createEffect,
   createSignal,
   onCleanup,
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { ViewFiles } from "~/components/project/view_files";
-import { ViewLogs } from "~/components/project/view_logs";
-import { ViewScript } from "~/components/project/view_script";
+import {
+  ModuleProgressChip,
+  RunStatusBadge,
+  moduleLabel,
+} from "~/components/_shared/results_package_status";
 import { serverActions } from "~/server_actions";
 import {
   addRScriptListener,
@@ -36,13 +22,13 @@ import {
 import { projectState } from "~/state/project/t1_store";
 
 // The project "Results package" surface (PLAN_RESULTS_RUNS item 2, narrowed
-// by Phase 3 item 1): the package this project currently serves from, with
-// live progress pushed over SSE while a generation it is a target of runs.
-// Generation itself moved to the instance shell (a run belongs to no
-// project), and item 4 turns this surface into the attach picker.
+// by Phase 3 items 1 and 3): the package this project currently serves from,
+// with live progress pushed over SSE while a generation it is a target of
+// runs. Generation moved to the instance shell (a run belongs to no
+// project), the per-module script/log/file viewers moved to the instance
+// catalogue with it (Q-F — debug surfaces are admin-shaped), and item 4
+// turns this surface into the attach picker.
 export function ProjectResultsPackage() {
-  const { openEditor, EditorWrapper } = getEditorWrapper();
-
   const [runs, setRuns] = createSignal<StateHolder<RunListingItem[]>>({
     status: "loading",
   });
@@ -64,10 +50,6 @@ export function ProjectResultsPackage() {
         : { status: "error", err: runsRes.err },
     );
   });
-
-  async function refreshAll(): Promise<void> {
-    setVersion((v) => v + 1);
-  }
 
   // Live generation state: run_progress patches the row in place; a runId
   // this list has never seen (launched elsewhere) or a failure (status
@@ -97,82 +79,58 @@ export function ProjectResultsPackage() {
   });
 
   return (
-    <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            heading={t3({
-              en: "Results package",
-              fr: "Paquet de résultats",
-              pt: "Pacote de resultados",
-            })}
-          />
-        }
-      >
-        <div class="ui-pad ui-spy">
-          <StateHolderWrapper state={runs()} noPad>
-            {(keyedRuns) => (
-              <div class="ui-spy">
-                <Show
-                  when={keyedRuns.length > 0}
-                  fallback={
-                    <div class="text-base-content-muted">
-                      {t3({
-                        en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
-                        fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
-                        pt: "Este projeto ainda não tem nenhum pacote de resultados anexado. Um administrador da instância gera um na página Pacotes de resultados.",
-                      })}
-                    </div>
-                  }
-                >
-                  <For each={keyedRuns}>
-                    {(run) => (
-                      <RunCard
-                        run={run}
-                        liveProgress={liveProgress()[run.id]}
-                        rLogs={rLogs}
-                        openEditor={openEditor}
-                      />
-                    )}
-                  </For>
-                </Show>
-              </div>
-            )}
-          </StateHolderWrapper>
-        </div>
-      </FrameTop>
-    </EditorWrapper>
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          heading={t3({
+            en: "Results package",
+            fr: "Paquet de résultats",
+            pt: "Pacote de resultados",
+          })}
+        />
+      }
+    >
+      <div class="ui-pad ui-spy">
+        <StateHolderWrapper state={runs()} noPad>
+          {(keyedRuns) => (
+            <div class="ui-spy">
+              <Show
+                when={keyedRuns.length > 0}
+                fallback={
+                  <div class="text-base-content-muted">
+                    {t3({
+                      en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
+                      fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
+                      pt: "Este projeto ainda não tem nenhum pacote de resultados anexado. Um administrador da instância gera um na página Pacotes de resultados.",
+                    })}
+                  </div>
+                }
+              >
+                <For each={keyedRuns}>
+                  {(run) => (
+                    <RunCard
+                      run={run}
+                      liveProgress={liveProgress()[run.id]}
+                      rLogs={rLogs}
+                    />
+                  )}
+                </For>
+              </Show>
+            </div>
+          )}
+        </StateHolderWrapper>
+      </div>
+    </FrameTop>
   );
-}
-
-function moduleLabel(moduleId: string): string {
-  const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
-  return entry === undefined ? moduleId : t3(entry.label);
 }
 
 function RunCard(p: {
   run: RunListingItem;
   liveProgress: RunProgress | undefined;
   rLogs: Record<string, { latest: string }>;
-  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
   const progress = () => p.liveProgress ?? p.run.progress;
   const isAttached = () => projectState.attachedRunId === p.run.id;
-
-  function openViewer(
-    element: typeof ViewScript | typeof ViewLogs | typeof ViewFiles,
-    moduleId: string,
-  ): void {
-    void p.openEditor({
-      element,
-      props: {
-        projectId: projectState.id,
-        runId: p.run.id,
-        moduleId: getValidatedModuleId(moduleId),
-        moduleLabel: moduleLabel(moduleId),
-      },
-    });
-  }
 
   return (
     <div
@@ -183,7 +141,11 @@ function RunCard(p: {
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
         <Show when={isAttached()}>
           <div class="bg-primary text-primary-content rounded px-2 py-0.5 text-xs">
-            {t3({ en: "In use", fr: "En cours d'utilisation", pt: "Em utilização" })}
+            {t3({
+              en: "In use",
+              fr: "En cours d'utilisation",
+              pt: "Em utilização",
+            })}
           </div>
         </Show>
         <RunStatusBadge status={p.run.status} />
@@ -211,30 +173,7 @@ function RunCard(p: {
             </div>
             <For each={summary.moduleIds}>
               {(moduleId) => (
-                <div class="ui-gap-sm flex items-center text-sm">
-                  <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewScript, moduleId)}
-                  >
-                    {t3({ en: "Script", fr: "Script", pt: "Script" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewLogs, moduleId)}
-                  >
-                    {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    outline
-                    onClick={() => openViewer(ViewFiles, moduleId)}
-                  >
-                    {t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" })}
-                  </Button>
-                </div>
+                <div class="text-sm">{moduleLabel(moduleId)}</div>
               )}
             </For>
           </div>
@@ -274,61 +213,6 @@ function RunCard(p: {
               pt: "Falha na geração",
             })}
         </div>
-      </Show>
-    </div>
-  );
-}
-
-function RunStatusBadge(p: { status: RunListingItem["status"] }) {
-  return (
-    <Switch>
-      <Match when={p.status === "generating"}>
-        <div class="bg-neutral text-neutral-content rounded px-2 py-0.5 text-xs">
-          {t3({ en: "Generating", fr: "En cours de génération", pt: "A gerar" })}
-        </div>
-      </Match>
-      <Match when={p.status === "ready"}>
-        <div class="bg-success text-success-content rounded px-2 py-0.5 text-xs">
-          {t3({ en: "Ready", fr: "Prêt", pt: "Pronto" })}
-        </div>
-      </Match>
-      <Match when={p.status === "failed"}>
-        <div class="bg-danger text-danger-content rounded px-2 py-0.5 text-xs">
-          {t3({ en: "Failed", fr: "Échoué", pt: "Falhou" })}
-        </div>
-      </Match>
-      <Match when={p.status === "retired"}>
-        <div class="bg-neutral text-neutral-content rounded px-2 py-0.5 text-xs">
-          {t3({ en: "Retired", fr: "Retiré", pt: "Retirado" })}
-        </div>
-      </Match>
-    </Switch>
-  );
-}
-
-function ModuleProgressChip(p: {
-  label: string;
-  status: RunModuleProgressStatus;
-}) {
-  return (
-    <div
-      class="rounded border px-2 py-0.5 text-xs"
-      classList={{
-        "text-base-content-muted": p.status === "pending",
-        "border-primary text-primary": p.status === "running",
-        "border-success text-success":
-          p.status === "done" || p.status === "reused",
-        "border-danger text-danger": p.status === "error",
-      }}
-    >
-      {p.label}
-      <Show when={p.status === "running"}>
-        {" "}
-        <span class="animate-pulse">●</span>
-      </Show>
-      <Show when={p.status === "reused"}>
-        {" "}
-        ({t3({ en: "reused", fr: "réutilisé", pt: "reutilizado" })})
       </Show>
     </div>
   );

@@ -95,6 +95,13 @@ export type RunListingItem = {
   progress: RunProgress | null;
 };
 
+// The instance catalogue row (Phase 3 item 3): every run on the instance,
+// plus the projects currently pointing at it — which is both the "attached
+// projects" column and the reason a run cannot be deleted.
+export type RunCatalogItem = RunListingItem & {
+  attachedProjects: { id: string; label: string }[];
+};
+
 export type RunGenerationAttemptDetail = {
   step: number;
   dateStarted: string;
@@ -103,9 +110,12 @@ export type RunGenerationAttemptDetail = {
   step2Result: RunGenerationStep2Result | null;
 };
 
-// Worker-updated pipeline progress (runs.progress JSON), pushed over project
-// SSE as run_progress on every state change. moduleOrder is execution order;
-// the reuse plan is readable from it (§3.7 UX: per-module reused/will-run).
+// Worker-updated pipeline progress (runs.progress JSON), pushed on every
+// state change over BOTH project SSE (each attach target) and instance SSE
+// (the catalogue, filtered to can_configure_data — Q-B): a run launched with
+// no attach targets has no project channel at all. moduleOrder is execution
+// order; the reuse plan is readable from it (§3.7 UX: per-module
+// reused/will-run).
 export const runModuleProgressStatusSchema = z.enum([
   "pending",
   "reused",

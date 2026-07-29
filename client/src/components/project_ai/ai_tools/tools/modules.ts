@@ -7,7 +7,11 @@ import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
 import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 
 // Script/logs read from the attached results package's run dir — resolved at
-// call time so a mid-conversation repoint reads the new package.
+// call time so a mid-conversation repoint reads the new package. The routes
+// they call moved to the instance catalogue's can_configure_data mount in
+// Phase 3 item 3 (Q-F: debug surfaces are admin-shaped), so for a project
+// member who is not an instance data admin these two tools now answer with a
+// permission failure. Typed and visible to the model, never silent.
 function requireAttachedRunId(): string {
   const runId = projectState.attachedRunId;
   if (runId === null) {
@@ -43,8 +47,7 @@ export function getToolsForModules(
       description: "Get the R script for a specific module",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await serverActions.getScript({
-          projectId,
+        const res = await serverActions.getRunModuleScript({
           run_id: requireAttachedRunId(),
           module_id: input.id,
         });
@@ -61,8 +64,7 @@ export function getToolsForModules(
         "Get the log file for a module that has recently run. This is useful for debugging errors or explaining why a module hasn't run.",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await serverActions.getLogs({
-          projectId,
+        const res = await serverActions.getRunModuleLogs({
           run_id: requireAttachedRunId(),
           module_id: input.id,
         });

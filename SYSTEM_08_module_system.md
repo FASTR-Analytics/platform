@@ -3,13 +3,10 @@ system: 8
 name: Module System
 globs:
   - client/src/components/instance/compare_projects.tsx
-  - client/src/components/instance/instance_results_packages.tsx
+  - client/src/components/instance_results_packages/**
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_results_package.tsx
   - client/src/components/results_package_wizard/**
-  - client/src/components/project/view_files.tsx
-  - client/src/components/project/view_logs.tsx
-  - client/src/components/project/view_script.tsx
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -70,11 +67,17 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `server/runs/**` + `worker_routines/generate_run/**` (the results-package
 pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
-`routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`;
+`routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`
+(the latter now also carries the catalogue listing, the guarded hard delete
+and the per-module script/log/file viewers moved off the project mount);
 lib module + run types + `module_registry.ts`; client:
+`instance_results_packages/**` (catalogue + `view_{files,logs,script}.tsx`),
 `project_results_package.tsx`, `results_package_wizard/**`,
-`view_{files,logs,script}.tsx`, `compare_projects.tsx`,
-`metric_details_modal.tsx`. External: wb-fastr-modules repo, Docker images.
+`compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody:
+`_shared/results_package_status.tsx` (status badge / progress chip / module
+label, rendered by both package surfaces) sits under S12's `_shared/**` glob
+— §4.1 records S8 as its owner. External: wb-fastr-modules repo, Docker
+images.
 
 ## Contract
 
@@ -128,20 +131,31 @@ and `upsertModuleCatalogForGeneratedRun` (called per generated module from
 Stored module blobs keep an empty `defaultPresentationObjects: []` key for
 previous-image schema compat (delete with the legacy plane).
 
-`routes/project/modules.ts` is read-only: `getResultsObjectItems` (raw preview),
-`getScript`/`getLogs`/`listRunModuleFiles` (run-dir viewers, keyed by
-`(run_id, module_id)` behind the `runReadableByProject` guard),
-`getModuleWithConfigSelections`. Instance level: `routes/instance/modules.ts`
-(`compareProjects`) and `routes/instance/run_generation.ts` (the wizard's
-attempt CRUD + prefill/module-options/launch/runs-list — 9 routes).
+`routes/project/modules.ts` is read-only and, since Phase 3 item 3, holds only
+what a project MEMBER may read from the attached run's manifest:
+`getResultsObjectItems` (raw preview) and `getModuleWithConfigSelections`.
+Instance level: `routes/instance/modules.ts` (`compareProjects`) and
+`routes/instance/run_generation.ts` — the wizard's attempt CRUD +
+defaults/module-options/launch/attached-run listing, plus the catalogue
+listing, the guarded hard delete, and the `(run_id, module_id)` run-dir
+viewers (`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), all
+behind `can_configure_data`. The viewers moved here from the project mount
+with the `runReadableByProject` guard deleted (Q-F: a run belongs to no
+project, so a debug surface over its outputs is instance-admin shaped); the
+raw-file download surface they link to — the `_RUNS_DIR_PATH` static mount in
+`middleware/static.ts` — was narrowed to `/:run_id/outputs/*` under the same
+guard in the same item (Q-G; it previously answered any path under the runs
+volume for any authenticated user).
 
 ## Generation (`server/worker_routines/generate_run/`)
 
 Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename →
 `projects.run_id` repoint (`publishReadyRun`, one transaction). Launch consumes
 a `run_generation_attempts` row, inserts a `runs` row `generating`, and spawns
-the worker; progress streams via
-`notifyProjectRScript`/`notifyProjectRunProgress` SSE and completion via
+the worker; progress and the live R line stream via `notify_run.ts`, which
+pairs an INSTANCE-SSE push (the catalogue; `can_configure_data`-filtered in
+the endpoint) with the per-attach-target project pushes — a run with no
+attach targets has only the former. Completion goes via
 `RUN_GENERATION_ENDED_CHANNEL` + `notifyProjectRunAttached`. Stages: prepare
 (dataset extracts COPY'd by Postgres directly into the run tmp dir via
 `RUNS_DIR_PATH_POSTGRES_INTERNAL`, mirrored to sandbox as the dual-write);
