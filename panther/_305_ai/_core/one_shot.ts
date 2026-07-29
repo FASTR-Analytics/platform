@@ -16,6 +16,7 @@ import {
   betaZodOutputFormat,
   buildCancelledToolResults,
   lastMessageHasUnresolvedToolUse,
+  resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   supportsDynamicWebTools,
@@ -46,7 +47,9 @@ const MAX_CLIENT_TOOL_ITERATIONS = 24;
 
 export interface CallAIConfig {
   sdkClient: Anthropic;
-  modelConfig: AnthropicModelConfig;
+  // Model defaults live in panther (DEFAULT_MODEL_CONFIG) — omit entirely to
+  // track them; pass a partial only for a genuinely call-specific override.
+  modelConfig?: Partial<AnthropicModelConfig>;
   system?: () =>
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
@@ -81,14 +84,16 @@ export async function callAIStructured<T>(
   messages: MessageParam[],
   schema: zType.ZodType<T>,
 ): Promise<CallAIStructuredResult<T>> {
-  const { model, max_tokens } = config.modelConfig;
+  const modelConfig = resolveModelConfig(config.modelConfig);
+  const { model, max_tokens } = modelConfig;
   const temperature = supportsSamplingParams(model)
-    ? config.modelConfig.temperature
+    ? modelConfig.temperature
     : undefined;
-  const thinking = resolveThinkingConfig(model, config.modelConfig.thinking);
+  const thinking = resolveThinkingConfig(model, modelConfig.thinking);
   const effortConfig = resolveOutputConfig(
     model,
-    config.modelConfig.output_config,
+    modelConfig.output_config,
+    thinking,
   );
 
   const res = await config.sdkClient.beta.messages.parse({
@@ -155,7 +160,8 @@ export async function callAI(
       );
     }
   }
-  const { model, max_tokens } = config.modelConfig;
+  const modelConfig = resolveModelConfig(config.modelConfig);
+  const { model, max_tokens } = modelConfig;
   const resolvedBuiltInTools = resolveBuiltInTools(config.builtInTools, model);
   const hasTools = config.tools?.length || resolvedBuiltInTools.length;
 
@@ -170,15 +176,16 @@ export async function callAI(
   // Models from Opus 4.7 onward reject non-default sampling params with a
   // 400 — omit temperature there. Thinking config is resolved per model:
   // manual budgets are dropped on adaptive-only models, but an explicit
-  // {type: "disabled"} is kept wherever the model accepts it (on Sonnet 5,
-  // omitting the field would silently enable adaptive thinking).
+  // {type: "disabled"} is kept wherever the model accepts it (on Opus 5 and
+  // Sonnet 5, omitting the field would silently enable adaptive thinking).
   const temperature = supportsSamplingParams(model)
-    ? config.modelConfig.temperature
+    ? modelConfig.temperature
     : undefined;
-  const thinking = resolveThinkingConfig(model, config.modelConfig.thinking);
+  const thinking = resolveThinkingConfig(model, modelConfig.thinking);
   const output_config = resolveOutputConfig(
     model,
-    config.modelConfig.output_config,
+    modelConfig.output_config,
+    thinking,
   );
 
   const allTools = hasTools

@@ -34,6 +34,7 @@ export {
   MODEL_PRICING,
   NAVIGATION_INTERACTION_ID,
   renderOutgoingMessages,
+  resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   sanitizePersistedSettings,

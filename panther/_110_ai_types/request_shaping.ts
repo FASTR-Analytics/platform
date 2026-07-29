@@ -13,6 +13,7 @@ import type {
   ThinkingConfig,
 } from "./types.ts";
 import {
+  capsEffortWhenThinkingDisabled,
   getMaxOutputTokens,
   getSupportedEffortLevels,
   MAX_OUTPUT_TOKENS,
@@ -172,10 +173,13 @@ export function countPayloadBreakpoints(
 // - Manual thinking ({enabled, budget_tokens}) passes through on pre-4.7
 //   models; adaptive-only models (Opus 4.7+, Sonnet 5, Fable 5, Mythos 5)
 //   reject it with a 400: drop the config.
-// - An explicit {type: "disabled"} must be KEPT where accepted — on Sonnet 5
-//   omitting the field silently enables adaptive thinking, which the caller
-//   explicitly asked to avoid. Only Fable 5 / Mythos 5 (always-on thinking)
-//   reject explicit disabled, so it is dropped there.
+// - An explicit {type: "disabled"} must be KEPT where accepted — on Opus 5
+//   and Sonnet 5 omitting the field silently enables adaptive thinking,
+//   which the caller explicitly asked to avoid. Only Fable 5 / Mythos 5
+//   (always-on thinking) reject explicit disabled, so it is dropped there.
+//   Opus 5 accepts disabled only at effort "high" or below — that
+//   cross-parameter constraint is enforced in resolveOutputConfig, which
+//   takes the resolved thinking config.
 
 export function resolveThinkingConfig(
   model: AnthropicModel,
@@ -200,17 +204,30 @@ export function resolveThinkingConfig(
 // getSupportedEffortLevels); unsupported values return a 400. A level the
 // model doesn't offer is clamped DOWN to "high" (the highest level every
 // effort-capable model accepts) rather than up to "max" — never spend more
-// than the caller asked for.
+// than the caller asked for. The same down-clamp applies on Opus 5 when the
+// caller pairs "xhigh"/"max" with disabled thinking (a 400): disabled wins
+// and effort drops to "high", honoring the explicit no-thinking request
+// without spending more than asked. Pass the RESOLVED thinking config (the
+// return value of resolveThinkingConfig) so a config already dropped for
+// the model can't trigger the clamp.
 
 export function resolveOutputConfig(
   model: AnthropicModel,
   outputConfig: OutputConfig | undefined,
+  thinking?: ThinkingConfig,
 ): OutputConfig | undefined {
   const effort = outputConfig?.effort;
   if (!effort) return undefined;
   const supported = getSupportedEffortLevels(model);
   if (supported.length === 0) return undefined;
-  const resolved: EffortLevel = supported.includes(effort) ? effort : "high";
+  let resolved: EffortLevel = supported.includes(effort) ? effort : "high";
+  if (
+    thinking?.type === "disabled" &&
+    (resolved === "xhigh" || resolved === "max") &&
+    capsEffortWhenThinkingDisabled(model)
+  ) {
+    resolved = "high";
+  }
   return { effort: resolved };
 }
 

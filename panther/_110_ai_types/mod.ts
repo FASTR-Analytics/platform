@@ -26,6 +26,8 @@ export type {
 export {
   BETA_HEADERS,
   BUILTIN_TOOL_TYPES,
+  capsEffortWhenThinkingDisabled,
+  DEFAULT_MODEL_CONFIG,
   DEFAULT_PRICING,
   getMaxOutputTokens,
   getSupportedEffortLevels,
@@ -33,6 +35,7 @@ export {
   MODEL_MAX_OUTPUT_TOKENS,
   MODEL_OPTIONS,
   MODEL_PRICING,
+  resolveModelConfig,
   RETIRED_MODEL_IDS,
   SERVER_TOOL_LABELS,
   supportsAdaptiveThinking,
