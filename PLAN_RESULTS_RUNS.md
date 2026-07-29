@@ -20,12 +20,11 @@
 > settles is settled: build it, don't re-litigate it.
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
-> merge this branch into it. Each item is normally one commit (item 0 =
-> `aef409ea`), but do not assume the tree is clean: **item 1's work was left
-> UNCOMMITTED at the end of its session, together with this plan update.**
-> Always run `git status` first, and expect files outside your scope —
-> parallel workstreams are normal here, and their errors are not yours to fix
-> without asking. Never create a branch.
+> merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
+> item 1 = `92cce0ba`). Still, do not assume the tree is clean: always run
+> `git status` first, and expect files outside your scope — parallel
+> workstreams are normal here, and their errors are not yours to fix without
+> asking. Never create a branch.
 >
 > **How to read the old sections.** Everything above "Phase 3 re-cut" is a
 > BUILD RECORD of work that already shipped on this branch (the wizard
