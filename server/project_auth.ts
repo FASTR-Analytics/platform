@@ -5,6 +5,7 @@ import { Sql } from "postgres";
 import {
   _BYPASS_AUTH,
   _INSTANCE_CALENDAR,
+  _INSTANCE_FISCAL_YEAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _OPEN_ACCESS,
@@ -154,6 +155,7 @@ export async function getGlobalUser(
       _INSTANCE_NAME,
       _INSTANCE_LANGUAGE,
       _INSTANCE_CALENDAR,
+      _INSTANCE_FISCAL_YEAR,
     );
   }
 
@@ -194,6 +196,7 @@ export async function getGlobalUser(
       instanceName: _INSTANCE_NAME,
       instanceLanguage: _INSTANCE_LANGUAGE,
       instanceCalendar: _INSTANCE_CALENDAR,
+      instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
       openAccess: _OPEN_ACCESS,
       email,
       firstName: auth.sessionClaims.firstName as string,

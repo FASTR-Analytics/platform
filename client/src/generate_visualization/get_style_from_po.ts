@@ -1,5 +1,11 @@
 import { CustomFigureStyleOptions, type CalendarType } from "panther";
-import { type DeckStyleContext, type IndicatorMetadata, PresentationObjectConfig } from "lib";
+import {
+  type DeckStyleContext,
+  type FigureLocalization,
+  type IndicatorMetadata,
+  PresentationObjectConfig,
+  resolveFigureCalendar,
+} from "lib";
 import { buildStandardStyle } from "./get_style_from_po/_1_standard";
 import { buildCoverageChartStyle } from "./get_style_from_po/_2_coverage";
 import { buildPercentChangeChartStyle } from "./get_style_from_po/_3_percent_change";
@@ -15,13 +21,14 @@ import {
 export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
   formatAs: "percent" | "number",
-  calendar: CalendarType,
+  localization: FigureLocalization,
   deckStyle: DeckStyleContext | undefined,
   indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
   obeyMetricFormat: boolean,
   effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
+  const calendar = resolveFigureCalendar(config, localization);
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
     return buildScorecardStyle(config, indicatorMetadata, effectiveValueProps, deckStyle);
   }

@@ -11,6 +11,7 @@ import type {
   InstanceConfigFacilityColumns,
   OtherUser,
   ProjectSummary,
+  FigureLocalization,
 } from "lib";
 
 // ============================================================================
@@ -22,6 +23,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   instanceName: "",
   instanceLanguage: "en",
   instanceCalendar: "gregorian",
+  instanceFiscalYear: "none",
   maxAdminArea: 0,
   countryIso3: undefined,
   facilityColumns: {
@@ -101,9 +103,14 @@ export function getInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
 }
 
-export function getInstanceLocalization(): { language: Language; calendar: "gregorian" | "ethiopian"; countryIso3: string } {
+export function getInstanceLocalization(): FigureLocalization {
   const s = unwrap(instanceState);
-  return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 ?? "" };
+  return {
+    language: s.instanceLanguage,
+    calendar: s.instanceCalendar,
+    countryIso3: s.countryIso3 ?? "",
+    fiscalYear: s.instanceFiscalYear,
+  };
 }
 
 export function getInstanceProjects(): ProjectSummary[] {

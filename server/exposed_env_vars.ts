@@ -1,4 +1,10 @@
-import { InstanceCalendar, setCalendar, setLanguage } from "lib";
+import {
+  ALL_INSTANCE_FISCAL_YEARS,
+  InstanceCalendar,
+  InstanceFiscalYear,
+  setCalendar,
+  setLanguage,
+} from "lib";
 import type { Language } from "@timroberton/panther";
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,6 +56,28 @@ if (
   throw new Error("Could not get INSTANCE_CALENDAR env variable");
 }
 setCalendar(_INSTANCE_CALENDAR);
+
+// Fiscal-year reporting mode. Orthogonal to INSTANCE_CALENDAR: it relabels
+// quarterly timeseries axes only, and only for gregorian instances (FY-July is
+// a gregorian variant; Ethiopian quarters bucket differently). Unset means
+// "none", so existing instances need no env change.
+export const _INSTANCE_FISCAL_YEAR = (Deno.env
+  .get("INSTANCE_FISCAL_YEAR")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "")
+  .trim() as InstanceFiscalYear) ?? "none";
+if (!ALL_INSTANCE_FISCAL_YEARS.includes(_INSTANCE_FISCAL_YEAR)) {
+  throw new Error(
+    `INSTANCE_FISCAL_YEAR must be one of ${
+      ALL_INSTANCE_FISCAL_YEARS.join(" | ")
+    } (got "${_INSTANCE_FISCAL_YEAR}")`,
+  );
+}
+if (_INSTANCE_FISCAL_YEAR !== "none" && _INSTANCE_CALENDAR !== "gregorian") {
+  throw new Error(
+    `INSTANCE_FISCAL_YEAR is only supported with INSTANCE_CALENDAR=gregorian (got "${_INSTANCE_CALENDAR}")`,
+  );
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Directory Paths

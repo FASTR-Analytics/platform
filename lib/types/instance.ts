@@ -60,10 +60,19 @@ export const CountryCodes = {
 
 export type InstanceCalendar = "gregorian" | "ethiopian";
 
+// Fiscal-year reporting mode. Orthogonal to InstanceCalendar: it only relabels
+// quarterly timeseries axes, and only for gregorian instances. Named rather
+// than boolean so a second FY start month (e.g. "october") is a new member here
+// instead of a breaking reshape of every call site.
+export const ALL_INSTANCE_FISCAL_YEARS = ["none", "july"] as const;
+
+export type InstanceFiscalYear = (typeof ALL_INSTANCE_FISCAL_YEARS)[number];
+
 export type InstanceMeta = {
   instanceName: string;
   instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
+  instanceFiscalYear: InstanceFiscalYear;
   openAccess: boolean;
   serverVersion: string;
   adminVersion: string;
@@ -216,6 +225,7 @@ export type GlobalUser = {
   instanceName: string;
   instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
+  instanceFiscalYear: InstanceFiscalYear;
   openAccess: boolean;
   email: string;
   firstName: string;
@@ -271,11 +281,13 @@ export function createDevGlobalUser(
   instanceName: string,
   instanceLanguage: Language,
   instanceCalendar: InstanceCalendar,
+  instanceFiscalYear: InstanceFiscalYear,
 ): GlobalUser {
   return {
     instanceName,
     instanceLanguage,
     instanceCalendar,
+    instanceFiscalYear,
     openAccess: false,
     email: "dev@offline.local",
     firstName: "Dev",

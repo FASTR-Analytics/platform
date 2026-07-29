@@ -4,7 +4,7 @@ import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
-import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, OtherUser } from "./instance.ts";
+import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, InstanceFiscalYear, OtherUser } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
@@ -24,6 +24,7 @@ export type InstanceState = {
   instanceName: string;
   instanceLanguage: Language;
   instanceCalendar: InstanceCalendar;
+  instanceFiscalYear: InstanceFiscalYear;
 
   // Config (rarely changes, updated via `config_updated` event)
   maxAdminArea: number;

@@ -16,6 +16,7 @@ import { notifyInstanceConfigUpdated } from "../../task_management/notify_instan
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
+  _INSTANCE_FISCAL_YEAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _IS_PRODUCTION,
@@ -38,6 +39,7 @@ defineRoute(routesInstance, "getInstanceMeta", async (c) => {
   const instance: InstanceMeta = {
     instanceName: _INSTANCE_NAME,
     instanceCalendar: _INSTANCE_CALENDAR,
+    instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
     instanceLanguage: _INSTANCE_LANGUAGE,
     openAccess: _OPEN_ACCESS,
     serverVersion: _SERVER_VERSION,

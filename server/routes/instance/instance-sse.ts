@@ -3,7 +3,7 @@ import { streamSSE } from "hono/streaming";
 import type { InstanceSseMessage, InstanceState } from "lib";
 import { getInstanceDatasetsSummary, getInstanceDetail, getInstanceIndicatorsSummary } from "../../db/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { _INSTANCE_CALENDAR, _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
+import { _INSTANCE_CALENDAR, _INSTANCE_FISCAL_YEAR, _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 
 export const routesInstanceSSE = new Hono();
 
@@ -77,6 +77,7 @@ routesInstanceSSE.get(
           instanceName: res.data.instanceName,
           instanceLanguage: _INSTANCE_LANGUAGE,
           instanceCalendar: _INSTANCE_CALENDAR,
+          instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
           maxAdminArea: res.data.maxAdminArea,
           countryIso3: res.data.countryIso3,
           facilityColumns: res.data.facilityColumns,

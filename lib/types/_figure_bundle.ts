@@ -16,6 +16,7 @@ import type { IndicatorMetadata } from "./indicators.ts";
 import type { PeriodBounds } from "./presentation_objects.ts";
 import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
+import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
 
 // ── Sub-schemas (matching existing lib types exactly) ────────────────────────
 // Runtime locks: parse a Required<T> so a new field in the source type causes
@@ -82,6 +83,10 @@ export const figureLocalizationSchema = z.strictObject({
   language: z.enum(["en", "fr", "pt"]),
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string(),
+  // Defaulted rather than required so bundles stored before this field existed
+  // still validate — they predate FY entirely, so "none" is the correct
+  // reading, not a guess.
+  fiscalYear: z.enum(ALL_INSTANCE_FISCAL_YEARS).default("none"),
 });
 
 export type FigureLocalization = z.infer<typeof figureLocalizationSchema>;

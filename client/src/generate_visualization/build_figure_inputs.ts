@@ -95,7 +95,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
       legend: getLegendFromConfig(config, effectiveFormatAs, localization),
     };
   }
@@ -121,7 +121,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
       legend: getLegendFromConfig(config, effectiveFormatAs, localization),
     };
   }
@@ -131,7 +131,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
       legend: getLegendFromConfig(config, effectiveFormatAs, localization),
     };
     if (effectiveConfig.s.horizontal) {
@@ -201,7 +201,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
       legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs, localization),
     };
   }

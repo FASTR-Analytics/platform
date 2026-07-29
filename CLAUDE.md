@@ -462,6 +462,8 @@ Key variables (see `.env.example`):
 - `ASSETS_DIR_PATH` - File uploads
 - `INSTANCE_LANGUAGE` - Default language (en/fr)
 - `INSTANCE_CALENDAR` - Calendar type (gregorian/ethiopian)
+- `INSTANCE_FISCAL_YEAR` - Fiscal-year reporting (none/july, default none;
+  relabels quarterly timeseries axes; gregorian only)
 
 ## License
 
