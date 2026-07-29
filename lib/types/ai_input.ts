@@ -154,7 +154,12 @@ export const AiFigureConfigPatchSchema = z.object({
   // ── config.d (data spec) ──
   // NOTE: chart `type` is intentionally NOT editable — the figure keeps its type.
   valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional()
-    .describe("Display slot for the values dimension. Valid slots depend on the figure's type."),
+    .describe(
+      "Display slot for the value dimension — where a metric's MULTIPLE data "
+      + "values (e.g. actual vs expected) are laid out. Valid slots depend on "
+      + "the figure's type, and it has no effect at all on a figure showing a "
+      + "single data value. It is NOT a label, caption or styling control.",
+    ),
   valuesFilter: z.union([configDStrict.shape.valuesFilter, z.null()]).optional()
     .describe("Which value properties to show, or null to show all."),
   disaggregateBy: configDStrict.shape.disaggregateBy.optional()

@@ -54,11 +54,6 @@ export function validateDisplaySlots(
   });
 
   const touchesDisagg = patch.disaggregateBy !== undefined;
-  // valuesFilter is included: it flips how many value props are shown, which
-  // makes valuesDisDisplayOpt a live (validatable) slot.
-  const touchesValuesSlot =
-    patch.valuesDisDisplayOpt !== undefined ||
-    patch.valuesFilter !== undefined;
 
   // Per-dimension: the dimension exists on the metric and its slot is legal for
   // the type. (A slot that is invalid for the type silently drops the dimension
@@ -105,10 +100,34 @@ export function validateDisplaySlots(
     }
   }
 
-  // valuesDisDisplayOpt legality — only meaningful (and only checked) when the
-  // figure shows more than one value prop; a stale value on a single-prop figure
-  // is ignored at render.
-  if (hasMultipleValueProps && touchesValuesSlot) {
+  // valuesDisDisplayOpt set EXPLICITLY — always checked, whatever the value-prop
+  // count. Both failures below are silent no-ops at render, so without this the
+  // tool saves a dead field and reports success having changed nothing.
+  //
+  // The slot enum is shared across presentation types (`mapArea` is a member for
+  // disaggregations), so Zod cannot reject a per-type-illegal slot; only this
+  // table can. And on a single-value-prop figure the field is inert whatever it
+  // holds — getDisaggregatorDisplayProp only places the value dimension when
+  // effectiveValueProps.length > 1.
+  if (patch.valuesDisDisplayOpt !== undefined) {
+    const validValues = VALID_VALUES_DISPLAY[type];
+    if (validValues && !validValues.includes(patch.valuesDisDisplayOpt)) {
+      throw new Error(
+        `Invalid valuesDisDisplayOpt "${patch.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}. No changes were applied.`,
+      );
+    }
+    if (!hasMultipleValueProps) {
+      throw new Error(
+        `valuesDisDisplayOpt has no effect on this figure: it shows a single data `
+        + `value, so there is no value dimension to place. It is NOT a label, `
+        + `caption or styling control. No changes were applied.`,
+      );
+    }
+  }
+
+  // valuesFilter can flip the figure TO multiple value props, making an
+  // INHERITED (unpatched) slot live — validate the resulting config's slot.
+  if (hasMultipleValueProps && patch.valuesFilter !== undefined) {
     const validValues = VALID_VALUES_DISPLAY[type];
     if (validValues && !validValues.includes(config.d.valuesDisDisplayOpt)) {
       throw new Error(
