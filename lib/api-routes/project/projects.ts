@@ -2,16 +2,12 @@ import { z } from "zod";
 import { PROJECT_PERMISSIONS } from "../../types/mod.ts";
 import type {
   ProjectPermission,
-  ProjectUserRoleType,
   UserLog,
   ProjectDetail,
-  DatasetType,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 const projectIdParamsSchema = z.object({ project_id: z.uuid() });
-
-const datasetTypeSchema = z.enum(["hmis", "hfa", "iceh"]);
 
 // Same security rationale as users.ts permissionsSchema: these keys flow into SQL SET clauses
 // via sql(permissions), so only known ProjectPermission column names must pass.
@@ -21,23 +17,13 @@ const projectPermissionsRequiredSchema = z.object(
 const projectPermissionsPartialSchema = projectPermissionsRequiredSchema.partial();
 
 export const projectRouteRegistry = {
+  // A new project starts empty — datasets and modules arrive with the
+  // results package an admin attaches to it (Phase 3 item 1).
   createProject: route({
     path: "/projects",
     method: "POST",
-    body: z.object({
-      label: z.string(),
-      datasetsToEnable: z.array(datasetTypeSchema),
-      modulesToEnable: z.array(z.string()),
-      projectEditors: z.array(z.string()),
-      projectViewers: z.array(z.string()),
-    }),
-    response: {} as {
-      newProjectId: string;
-      datasetLastUpdateds: Array<{
-        datasetType: DatasetType;
-        lastUpdated: string;
-      }>;
-    },
+    body: z.object({ label: z.string() }),
+    response: {} as { newProjectId: string },
   }),
 
   updateProject: route({

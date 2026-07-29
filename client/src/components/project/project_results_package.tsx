@@ -2,7 +2,6 @@ import {
   MODULE_REGISTRY,
   t3,
   getValidatedModuleId,
-  type RunGenerationAttemptDetail,
   type RunListingItem,
   type RunModuleProgressStatus,
   type RunProgress,
@@ -13,7 +12,6 @@ import {
   HeadingBar,
   StateHolderWrapper,
   getEditorWrapper,
-  createButtonAction,
   type StateHolder,
 } from "panther";
 import {
@@ -27,7 +25,6 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { ResultsPackageWizard } from "~/components/results_package_wizard";
 import { ViewFiles } from "~/components/project/view_files";
 import { ViewLogs } from "~/components/project/view_logs";
 import { ViewScript } from "~/components/project/view_script";
@@ -38,20 +35,17 @@ import {
 } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
-// The project "Results package" surface (PLAN_RESULTS_RUNS item 2): the
-// attached package, this project's runs (generating/ready/failed) with live
-// progress pushed over SSE, and the generate/resume entry into the launch
-// wizard. Instance-admin surface for now (generation gating) — the Phase-3
-// instance-catalogue precursor.
+// The project "Results package" surface (PLAN_RESULTS_RUNS item 2, narrowed
+// by Phase 3 item 1): the package this project currently serves from, with
+// live progress pushed over SSE while a generation it is a target of runs.
+// Generation itself moved to the instance shell (a run belongs to no
+// project), and item 4 turns this surface into the attach picker.
 export function ProjectResultsPackage() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [runs, setRuns] = createSignal<StateHolder<RunListingItem[]>>({
     status: "loading",
   });
-  const [attempt, setAttempt] = createSignal<RunGenerationAttemptDetail | null>(
-    null,
-  );
   const [version, setVersion] = createSignal(0);
 
   // Stale-while-revalidate: refetches on version bump and on attachedRunId
@@ -61,18 +55,14 @@ export function ProjectResultsPackage() {
     version();
     const _attachedRunId = projectState.attachedRunId;
     const projectId = projectState.id;
-    const [runsRes, attemptRes] = await Promise.all([
-      serverActions.listRunsForProject({ project_id: projectId }),
-      serverActions.getRunGenerationAttempt({ project_id: projectId }),
-    ]);
+    const runsRes = await serverActions.listRunsForProject({
+      project_id: projectId,
+    });
     setRuns(
       runsRes.success
         ? { status: "ready", data: runsRes.data }
         : { status: "error", err: runsRes.err },
     );
-    if (attemptRes.success) {
-      setAttempt(attemptRes.data);
-    }
   });
 
   async function refreshAll(): Promise<void> {
@@ -106,32 +96,6 @@ export function ProjectResultsPackage() {
     });
   });
 
-  const anyGenerating = () => {
-    const state = runs();
-    return state.status === "ready" &&
-      state.data.some((r) => r.status === "generating");
-  };
-
-  async function openWizard(): Promise<void> {
-    await openEditor({
-      element: ResultsPackageWizard,
-      props: {
-        projectId: projectState.id,
-        silentFetch: refreshAll,
-      },
-    });
-    await refreshAll();
-  }
-
-  const startConfiguration = createButtonAction(
-    () =>
-      serverActions.createRunGenerationAttempt({
-        project_id: projectState.id,
-      }),
-    refreshAll,
-    openWizard,
-  );
-
   return (
     <EditorWrapper>
       <FrameTop
@@ -142,47 +106,10 @@ export function ProjectResultsPackage() {
               fr: "Paquet de résultats",
               pt: "Pacote de resultados",
             })}
-          >
-            <div class="ui-gap-sm flex">
-              <Switch>
-                <Match when={attempt() !== null}>
-                  <Button onClick={openWizard} iconName="pencil">
-                    {t3({
-                      en: "Resume configuration",
-                      fr: "Reprendre la configuration",
-                      pt: "Retomar a configuração",
-                    })}
-                  </Button>
-                </Match>
-                <Match when={true}>
-                  <Button
-                    onClick={startConfiguration.click}
-                    state={startConfiguration.state()}
-                    iconName="package"
-                    disabled={anyGenerating()}
-                  >
-                    {t3({
-                      en: "Generate new results package",
-                      fr: "Générer un nouveau paquet de résultats",
-                      pt: "Gerar novo pacote de resultados",
-                    })}
-                  </Button>
-                </Match>
-              </Switch>
-            </div>
-          </HeadingBar>
+          />
         }
       >
         <div class="ui-pad ui-spy">
-          <Show when={anyGenerating()}>
-            <div class="text-neutral text-sm">
-              {t3({
-                en: "A results package is currently being generated for this project.",
-                fr: "Un paquet de résultats est en cours de génération pour ce projet.",
-                pt: "Um pacote de resultados está a ser gerado para este projeto.",
-              })}
-            </div>
-          </Show>
           <StateHolderWrapper state={runs()} noPad>
             {(keyedRuns) => (
               <div class="ui-spy">
@@ -191,9 +118,9 @@ export function ProjectResultsPackage() {
                   fallback={
                     <div class="text-neutral">
                       {t3({
-                        en: "No results packages have been generated for this project yet.",
-                        fr: "Aucun paquet de résultats n'a encore été généré pour ce projet.",
-                        pt: "Ainda não foi gerado nenhum pacote de resultados para este projeto.",
+                        en: "This project has no results package attached yet. An instance administrator generates one on the Results packages page.",
+                        fr: "Aucun paquet de résultats n'est encore rattaché à ce projet. Un administrateur de l'instance en génère un sur la page Paquets de résultats.",
+                        pt: "Este projeto ainda não tem nenhum pacote de resultados anexado. Um administrador da instância gera um na página Pacotes de resultados.",
                       })}
                     </div>
                   }

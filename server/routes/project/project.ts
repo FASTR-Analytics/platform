@@ -16,9 +16,7 @@ import {
   updateProject,
   updateProjectUserPermissions,
 } from "../../db/mod.ts";
-import type { ModuleId } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { notifyLastUpdated } from "../../task_management/mod.ts";
 import {
   notifyProjectConfigUpdated,
   notifyProjectUsersUpdated,
@@ -52,25 +50,9 @@ defineRoute(
           : `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). Please contact your administrator.`,
       });
     }
-    const res = await addProject(
-      c.var.mainDb,
-      c.var.globalUser,
-      body.label,
-      body.datasetsToEnable,
-      body.modulesToEnable as ModuleId[],
-      body.projectEditors,
-      body.projectViewers,
-    );
+    const res = await addProject(c.var.mainDb, c.var.globalUser, body.label);
     if (res.success === false) {
       return c.json(res);
-    }
-    for (const enabledDataset of res.data.datasetLastUpdateds) {
-      notifyLastUpdated(
-        res.data.newProjectId,
-        "datasets",
-        [enabledDataset.datasetType],
-        enabledDataset.lastUpdated,
-      );
     }
     notifyInstanceProjectsLastUpdated(new Date().toISOString());
     return c.json(res);
@@ -291,8 +273,7 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       await closePgConnection(params.project_id);
       copyProjectInBackground(params.project_id, res.data.newProjectId)
-        .then(async () => {
-          const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+        .then(() => {
           notifyInstanceProjectsLastUpdated(new Date().toISOString());
         })
         .catch(() => {});

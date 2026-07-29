@@ -307,21 +307,22 @@ CREATE TABLE structure_upload_attempts (
 -- RESULTS-PACKAGE GENERATION (PLAN_RESULTS_RUNS item 2)
 -- ============================================================================
 
--- The launch wizard's attempt record: one configuring attempt per source
--- project (structure_upload_attempts pattern). status_type is only ever
+-- The launch wizard's attempt record: one configuring attempt per admin user
+-- (structure_upload_attempts pattern; the wizard is entered from the
+-- instance shell, so there is no source project). status_type is only ever
 -- 'configuring' — execution state never touches the attempt; the row is
 -- deleted at launch (and by discard).
 CREATE TABLE run_generation_attempts (
-  source_project_id text NOT NULL,
+  created_by_user_email text NOT NULL,
   date_started text NOT NULL,
   step integer NOT NULL,
   status text NOT NULL,  -- JSON: RunGenerationAttemptStatus
   status_type text NOT NULL,  -- only ever 'configuring'
   step_1_result text,  -- JSON: RunGenerationStep1Result (data selection)
   step_2_result text,  -- JSON: RunGenerationStep2Result (module selection)
-  CONSTRAINT run_generation_attempts_pkey PRIMARY KEY (source_project_id),
-  CONSTRAINT run_generation_attempts_project_fkey
-    FOREIGN KEY (source_project_id) REFERENCES projects(id) ON DELETE CASCADE
+  CONSTRAINT run_generation_attempts_pkey PRIMARY KEY (created_by_user_email),
+  CONSTRAINT run_generation_attempts_user_fkey
+    FOREIGN KEY (created_by_user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 -- ============================================================================

@@ -18,42 +18,44 @@ import {
 import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
 
 // The results-package launch wizard's attempt record (PLAN_RESULTS_RUNS
-// item 2): one configuring attempt per source project
-// (structure_upload_attempts pattern). The attempt is configuration only —
-// status_type is only ever 'configuring', execution state lives on the runs
-// catalog row — so there is no claim machinery here; each config-step write
-// advances step and nulls downstream results, and the row is deleted at
-// launch (and by discard).
+// item 2, re-keyed by Phase 3 item 1): one configuring attempt per admin
+// user (structure_upload_attempts pattern) — the wizard is entered from the
+// instance shell, so an attempt belongs to whoever is configuring it, not to
+// a project. The attempt is configuration only — status_type is only ever
+// 'configuring', execution state lives on the runs catalog row — so there is
+// no claim machinery here; each config-step write advances step and nulls
+// downstream results, and the row is deleted at launch (and by discard).
 //
 // The second half of this file is the runs-catalog execution state the
 // pipeline writes: the 'generating' row minted at launch, worker progress
 // updates, the ready-publish transaction (status flip + projects.run_id
-// repoint), and failure marking. These are worker/host internals, so they
-// throw instead of returning APIResponse envelopes.
+// repoint of every attach target), and failure marking. These are
+// worker/host internals, so they throw instead of returning APIResponse
+// envelopes.
 
 const CONFIGURING_STATUS = JSON.stringify({ status: "configuring" });
 
 async function getRawAttempt(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
 ): Promise<DBRunGenerationAttempt | undefined> {
   const rows = await mainDb<DBRunGenerationAttempt[]>`
-SELECT * FROM run_generation_attempts WHERE source_project_id = ${projectId}
+SELECT * FROM run_generation_attempts WHERE created_by_user_email = ${userEmail}
 `;
   return rows.at(0);
 }
 
 export async function createRunGenerationAttempt(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
 ): Promise<APIResponseNoData> {
   try {
     await mainDb`
 INSERT INTO run_generation_attempts
-  (source_project_id, date_started, step, status, status_type)
+  (created_by_user_email, date_started, step, status, status_type)
 VALUES
-  (${projectId}, ${new Date().toISOString()}, 1, ${CONFIGURING_STATUS}, 'configuring')
-ON CONFLICT (source_project_id) DO UPDATE SET
+  (${userEmail}, ${new Date().toISOString()}, 1, ${CONFIGURING_STATUS}, 'configuring')
+ON CONFLICT (created_by_user_email) DO UPDATE SET
   date_started = EXCLUDED.date_started,
   step = 1,
   status = EXCLUDED.status,
@@ -73,10 +75,10 @@ ON CONFLICT (source_project_id) DO UPDATE SET
 
 export async function getRunGenerationAttempt(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
 ): Promise<APIResponseWithData<RunGenerationAttemptDetail | null>> {
   try {
-    const raw = await getRawAttempt(mainDb, projectId);
+    const raw = await getRawAttempt(mainDb, userEmail);
     if (raw === undefined) {
       return { success: true, data: null };
     }
@@ -109,7 +111,7 @@ export async function getRunGenerationAttempt(
 
 export async function updateRunGenerationAttemptStep1(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
   step1Result: RunGenerationStep1Result,
 ): Promise<APIResponseNoData> {
   try {
@@ -128,13 +130,13 @@ UPDATE run_generation_attempts SET
   step = 2,
   step_1_result = ${JSON.stringify(step1Result)},
   step_2_result = NULL
-WHERE source_project_id = ${projectId}
-RETURNING source_project_id
+WHERE created_by_user_email = ${userEmail}
+RETURNING created_by_user_email
 `;
     if (rows.length === 0) {
       return {
         success: false,
-        err: "No results-package configuration in progress for this project",
+        err: "No results-package configuration in progress",
       };
     }
     return { success: true };
@@ -149,7 +151,7 @@ RETURNING source_project_id
 
 export async function updateRunGenerationAttemptStep2(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
   step2Result: RunGenerationStep2Result,
 ): Promise<APIResponseNoData> {
   try {
@@ -172,8 +174,8 @@ export async function updateRunGenerationAttemptStep2(
 UPDATE run_generation_attempts SET
   step = 3,
   step_2_result = ${JSON.stringify(step2Result)}
-WHERE source_project_id = ${projectId} AND step_1_result IS NOT NULL
-RETURNING source_project_id
+WHERE created_by_user_email = ${userEmail} AND step_1_result IS NOT NULL
+RETURNING created_by_user_email
 `;
     if (rows.length === 0) {
       return {
@@ -193,11 +195,11 @@ RETURNING source_project_id
 
 export async function deleteRunGenerationAttempt(
   mainDb: Sql,
-  projectId: string,
+  userEmail: string,
 ): Promise<APIResponseNoData> {
   try {
     await mainDb`
-DELETE FROM run_generation_attempts WHERE source_project_id = ${projectId}
+DELETE FROM run_generation_attempts WHERE created_by_user_email = ${userEmail}
 `;
     return { success: true };
   } catch (e) {
@@ -209,9 +211,12 @@ DELETE FROM run_generation_attempts WHERE source_project_id = ${projectId}
   }
 }
 
-// This project's runs, newest first, for the "Results package" listing.
-// summary/progress are stored JSON; a malformed blob degrades that field to
-// null rather than hiding the row.
+// The run this project currently serves from, as a listing row for the
+// project "Results package" surface — a run no longer belongs to a project
+// (Q-A), so the attached one is the only run the project surface has
+// business showing. Empty when nothing is attached. summary/progress are
+// stored JSON; a malformed blob degrades that field to null rather than
+// hiding the row.
 export async function listRunsForProject(
   mainDb: Sql,
   projectId: string,
@@ -229,10 +234,11 @@ export async function listRunsForProject(
         progress: string | null;
       }[]
     >`
-SELECT id, label, status, provenance, created_at, created_by, summary, progress
-FROM runs
-WHERE summary::jsonb ->> 'sourceProjectId' = ${projectId}
-ORDER BY created_at DESC
+SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
+  r.summary, r.progress
+FROM runs r
+JOIN projects p ON p.run_id = r.id
+WHERE p.id = ${projectId}
 `;
     const items: RunListingItem[] = rows.map((row) => {
       let summary: RunSummary | null = null;
@@ -290,36 +296,47 @@ VALUES (
 `;
 }
 
-// The one-generating-run-per-project guard's DB half (the in-memory registry
-// is the synchronous half). sourceProjectId lives in the summary JSON — the
-// catalog deliberately has no source_project_id column.
-export async function getGeneratingRunIdForProject(
+// The launch concurrency guard's DB half (the in-memory registry is the
+// synchronous half): the projects a generation would repoint at publish are
+// its attach targets, so a launch is refused while any selected target is
+// already a target of a generating run. Targets live in the summary JSON —
+// the catalog deliberately has no project columns.
+export async function getGeneratingRunIdForAttachTargets(
   mainDb: Sql,
-  projectId: string,
+  projectIds: string[],
 ): Promise<string | undefined> {
+  if (projectIds.length === 0) {
+    return undefined;
+  }
   const rows = await mainDb<{ id: string }[]>`
 SELECT id FROM runs
-WHERE status = 'generating' AND summary::jsonb ->> 'sourceProjectId' = ${projectId}
+WHERE status = 'generating'
+  AND EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements_text(
+      summary::jsonb -> 'attachTargetProjectIds'
+    ) AS target(project_id)
+    WHERE target.project_id = ANY(${projectIds})
+  )
 `;
   return rows.at(0)?.id;
 }
 
 // Access check for the per-run outputs surface (script/logs/files viewers):
-// a project may read a READY run it generated (summary sourceProjectId) or
-// the run it currently serves from (projects.run_id).
+// a project may read the ready run it currently serves from. (Q-A dropped
+// the "run this project generated" arm — a run has no source project any
+// more; item 3 moves these viewers to the instance catalogue.)
 export async function runReadableByProject(
   mainDb: Sql,
   runId: string,
   projectId: string,
 ): Promise<boolean> {
   const run = (
-    await mainDb<{ status: string; source_project_id: string | null }[]>`
-SELECT status, summary::jsonb ->> 'sourceProjectId' AS source_project_id
-FROM runs WHERE id = ${runId}
+    await mainDb<{ status: string }[]>`
+SELECT status FROM runs WHERE id = ${runId}
 `
   ).at(0);
   if (run === undefined || run.status !== "ready") return false;
-  if (run.source_project_id === projectId) return true;
   const project = (
     await mainDb<{ run_id: string | null }[]>`
 SELECT run_id FROM projects WHERE id = ${projectId}
@@ -339,13 +356,16 @@ UPDATE runs SET progress = ${JSON.stringify(progress)} WHERE id = ${runId}
 }
 
 // Ready-publish: exactly one transaction after the atomic rename — status
-// flip, final summary/progress, and the projects.run_id repoint together, so
-// readers can never observe a ready run without the pointer (or vice versa).
+// flip, final summary/progress, and the projects.run_id repoint of every
+// attach target together, so readers can never observe a ready run without
+// the pointers (or vice versa). Zero targets is normal: a run generated
+// without an attach selection is published and attached later from the
+// project picker.
 export async function publishReadyRun(
   mainDb: Sql,
   args: {
     runId: string;
-    projectId: string;
+    attachTargetProjectIds: string[];
     summary: RunSummary;
     progress: RunProgress;
   },
@@ -358,9 +378,12 @@ UPDATE runs SET
   progress = ${JSON.stringify(args.progress)}
 WHERE id = ${args.runId}
 `;
-    await sql`
-UPDATE projects SET run_id = ${args.runId} WHERE id = ${args.projectId}
+    if (args.attachTargetProjectIds.length > 0) {
+      await sql`
+UPDATE projects SET run_id = ${args.runId}
+WHERE id = ANY(${args.attachTargetProjectIds})
 `;
+    }
   });
 }
 

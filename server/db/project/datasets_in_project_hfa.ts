@@ -1,4 +1,3 @@
-import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import { type HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 import {
@@ -67,95 +66,6 @@ export type DatasetHfaRunCapture = {
     r_filter_code: string | null;
   }[];
 };
-
-export async function addDatasetHfaToProject(
-  mainDb: Sql,
-  projectDb: Sql,
-  csvTarget: DatasetCsvTarget,
-  onProgress?: (progress: number, message: string) => Promise<void>,
-  // Service-category ids to include. Empty = include all.
-  serviceCategoryScope: string[] = [],
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  const resCapture = await computeDatasetHfaRunCapture(
-    mainDb,
-    csvTarget,
-    onProgress,
-    serviceCategoryScope,
-  );
-  if (resCapture.success === false) {
-    return resCapture;
-  }
-  const capture = resCapture.data;
-  return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    // Snapshot-code rows FK into snapshot-indicator rows, so the DELETE
-    // order matters (code first).
-    await projectDb.begin((sql) => [
-      sql`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'hfa',
-  ${JSON.stringify(capture.info)},
-  ${capture.lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`,
-      sql`DELETE FROM hfa_indicator_code_snapshot`,
-      sql`DELETE FROM hfa_indicators_snapshot`,
-      sql`DELETE FROM hfa_variable_values_snapshot`,
-      sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-      sql`DELETE FROM facilities_hfa`,
-      sql`DELETE FROM indicators_hfa`,
-      ...capture.facilities.map(
-        (fac) =>
-          sql`INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`,
-      ),
-      ...capture.indicatorsHfa.map(
-        (ind) =>
-          sql`INSERT INTO indicators_hfa (var_name, example_values)
-            VALUES (${ind.var_name}, ${ind.example_values})`,
-      ),
-      ...capture.sentinelValues.map(
-        (r) =>
-          sql`INSERT INTO hfa_variable_values_snapshot (var_name, value, sentinel_class, is_numeric)
-            VALUES (${r.var_name}, ${r.value}, ${r.sentinel_class}, ${r.is_numeric})`,
-      ),
-      ...capture.categories.map(
-        (cat) =>
-          sql`INSERT INTO hfa_indicator_categories_snapshot (id, label, sort_order)
-            VALUES (${cat.id}, ${cat.label}, ${cat.sort_order})`,
-      ),
-      ...capture.subCategories.map(
-        (subCat) =>
-          sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
-            VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
-      ),
-      ...capture.serviceCategories.map(
-        (svcCat) =>
-          sql`INSERT INTO hfa_indicator_service_categories_snapshot (id, label, sort_order)
-            VALUES (${svcCat.id}, ${svcCat.label}, ${svcCat.sort_order})`,
-      ),
-      ...capture.indicators.map(
-        (ind) =>
-          sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_ids}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
-      ),
-      ...capture.indicatorCode.map(
-        (c) =>
-          sql`INSERT INTO hfa_indicator_code_snapshot
-            (var_name, time_point, r_code, r_filter_code)
-            VALUES (${c.var_name}, ${c.time_point}, ${c.r_code}, ${c.r_filter_code})`,
-      ),
-    ]);
-    return { success: true, data: { lastUpdated: capture.lastUpdated } };
-  });
-}
 
 export async function computeDatasetHfaRunCapture(
   mainDb: Sql,

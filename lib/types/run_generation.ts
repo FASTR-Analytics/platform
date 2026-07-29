@@ -5,11 +5,14 @@ import type { ModuleParameter } from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
-// Results-package generation (PLAN_RESULTS_RUNS item 2). Two surfaces: the
-// LAUNCH wizard (configuration only — its attempt record holds these step
-// results, one configuring attempt per source project, deleted at launch or
-// discard) and the run pipeline (execution state lives on the runs catalog
-// row: runs.status + runs.progress — never on the attempt).
+// Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
+// item 1). Two surfaces: the LAUNCH wizard (configuration only — its attempt
+// record holds these step results, one configuring attempt per admin user,
+// deleted at launch or discard) and the run pipeline (execution state lives
+// on the runs catalog row: runs.status + runs.progress — never on the
+// attempt). The wizard is entered from the instance shell: generation is an
+// instance-level act, and a run attaches to projects rather than belonging
+// to one.
 
 // Step 1 — choose data: family checkboxes + per-family windowing, reusing
 // the per-project dataset windowing semantics verbatim (§10 ruling 6).
@@ -39,15 +42,22 @@ export type RunGenerationStep2Result = z.infer<
   typeof runGenerationStep2ResultSchema
 >;
 
-// Wizard-support reads (session-3 server reads). Prefill comes from the
-// ATTACHED run's manifest — resume (the attempt's own step results) always
-// beats prefill client-side. Absent run = null step1 / empty module maps.
-export type RunGenerationPrefill = {
-  attachedRunId: string | null;
-  step1: RunGenerationStep1Result | null;
-  moduleIds: string[];
-  parameterSelections: Record<string, Record<string, string>>;
-};
+// The instance defaults store (Q8, §3.5): the wizard's starting values,
+// saved from the confirm step by an admin and kept in instance_config under
+// `run_generation_defaults`. Flat — one country per instance makes per-country
+// presets meaningless. Merge order in the wizard is resume > instance
+// defaults > definition defaults; there is no manifest tier (the wizard is
+// instance-entered, so there is no anchor run). Unknown moduleIds in the
+// store are tolerated: modules evolve, the store does not have to.
+export const runGenerationDefaultsSchema = z.object({
+  step1: runGenerationStep1ResultSchema.nullable(),
+  moduleIds: z.array(z.string()),
+  parameterSelections: z.record(
+    z.string(),
+    z.record(z.string(), z.string()),
+  ),
+});
+export type RunGenerationDefaults = z.infer<typeof runGenerationDefaultsSchema>;
 
 // One module the wizard's step 2 can offer: the definition resolved from the
 // modules repo at the shared gitRef. datasetTypes/moduleDependencies mirror

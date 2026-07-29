@@ -1,24 +1,70 @@
 # Plan: Results Runs — file-based immutable results + DuckDB query layer
 
-> **START HERE (continuing this plan).** The live work is the **"Phase 3 core
-> — work items"** numbered list inside the Status section's "Phase 3 re-cut"
-> subsection: **item 0 is DONE; items 1–5 remain, in order, one per session.**
-> Read, in this order: (1) the Status block down through "Phase 3 re-cut"
-> (the decided model, the five rulings, the signed-off design); (2) the
-> "**How to work this list**" paragraph further down — its operating rules,
-> rig invocation, and dev-setup commands govern the Phase 3 items too;
-> (3) "Binding implementation decisions" + "Empirical gotchas" (closed — do
-> not re-derive). Everything the design settles is settled: build it, don't
-> re-litigate it. Branch is `results-runs`; do NOT touch `main`.
+> **START HERE (continuing this plan).**
 >
-> **Before writing item-1 code, read the "OPEN DESIGN QUESTIONS" block just
-> above the work-item list and put those questions to Tim** — they are real
-> holes in the design (instance-run identity, project-scoped SSE vs an
-> instance catalogue, reuse base, cache GC, how items 2/4 pass the rig gate,
-> a viewer permission change), each with a recommendation. Everything else is
-> decided.
+> **Your next action is Phase 3 core item 2 (attach-at-launch).** The work
+> list is "**Phase 3 core — work items**", inside the Status section's
+> "Phase 3 re-cut" subsection: **items 0 and 1 are DONE; items 2, 3, 4, 5
+> remain, in order, one per session.** Item 2 is now small — item 1 landed
+> its entire server half, so what remains is the wizard confirm step's
+> "attach to project(s)" multi-select (step 3 currently sends an empty list)
+> plus live verification. Item 2's checklist entry says exactly this.
+>
+> **Read, in this order:** (1) the Status block down through "Phase 3 re-cut"
+> — the decided model, the five rulings, and the signed-off design, where
+> each item's FULL SPEC is the matching bullet in "Phase 3 core — design";
+> (2) "**How to work a Phase 3 item**" immediately above the work-item list
+> (operating rules, gate commands, dev setup, known traps — everything you
+> need to run, verify and gate); (3) "Binding implementation decisions" +
+> "Empirical gotchas" (closed — do not re-derive). Everything the design
+> settles is settled: build it, don't re-litigate it.
+>
+> **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
+> merge this branch into it. Each item is normally one commit (item 0 =
+> `aef409ea`), but do not assume the tree is clean: **item 1's work was left
+> UNCOMMITTED at the end of its session, together with this plan update.**
+> Always run `git status` first, and expect files outside your scope —
+> parallel workstreams are normal here, and their errors are not yours to fix
+> without asking. Never create a branch.
+>
+> **How to read the old sections.** Everything above "Phase 3 re-cut" is a
+> BUILD RECORD of work that already shipped on this branch (the wizard
+> deploy's items 1–8, the identity read plane, the post-merge review). It is
+> history, kept deliberately; it describes the code AS OF ITS OWN DATE and
+> is NOT a description of the current tree. Where Phase 3 superseded it, the
+> newer section wins and usually says so. Do not "correct" a build record,
+> and do not treat a closed item's description as a to-do.
+>
+> **The "DESIGN QUESTIONS" block just above the work-item list is CLOSED.**
+> Every question (Q-A run identity, Q-B progress SSE, Q-C reuse base, Q-D
+> cache GC, Q-E rig gating, Q-F viewer permissions, Q-G the under-guarded
+> static mount, and the `createProject` oddity) was ruled by Tim on
+> 2026-07-29; read them as decided and build them. Q-C also amended §3.7's
+> reuse and storage bullets. **There are no open design questions — nothing
+> in this plan needs a decision before it can be built.** If you hit a real
+> hole the design does not cover, raise it with Tim rather than inventing a
+> ruling.
+>
+> **After item 5** the Phase 3 core is done and the branch is ready for
+> Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
+> rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
+> fleet verification and is NOT part of this build.
 
-## Status: build DONE, main MERGED INTO this branch (never the reverse — `results-runs` has NOT been merged to `main`), post-merge adversarial review FIXED — exit gate PARITY GREEN on the merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD `675b63be`). RE-CUT 2026-07-29 (Tim): the Phase 3 USER-MODEL CORE now ships BEFORE the deploy (see "Phase 3 re-cut" section) so users get ONE big change (instance-based packages), not two; after that build, Tim's rollout (trial instance → backfill + rig there → fleet, Ethiopia early as the Ethiopian-quarter gate). This Status block is the build record
+## Status: Phase 3 core IN PROGRESS — items 0 and 1 DONE (2026-07-29, both gates green), item 2 is next
+
+The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
+branch (never the reverse — `results-runs` has NOT been merged to `main`); the
+post-merge adversarial review is FIXED, with the exit gate PARITY GREEN on the
+merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD
+`675b63be` at that date). RE-CUT 2026-07-29 (Tim): the Phase 3 USER-MODEL CORE
+now ships BEFORE the deploy (see "Phase 3 re-cut") so users get ONE big change
+(instance-based packages), not two. Phase 3 core progress: **item 0
+(dual-write deletion) DONE, item 1 (defaults store + instance-shell wizard
+entry + run identity + catalog-wide reuse + createProject cleanup) DONE — rig
+PARITY GREEN 719 checks after a full dev re-backfill; items 2–5 remain.** After
+item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
+Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
+the build record
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy review
@@ -292,9 +338,11 @@ the internal/code/DB name); **raw CSVs stay in runs until R emits parquet
 natively**, then drop. No §10 blockers remain for this milestone (Q1/Q4/Q8 are
 Phase 3 design).
 
-**How to work this list**: execute items in order, ONE item per session, each
-gated by `deno task typecheck` (which itself runs server + client + `lint:systems`) +
-the rig green. NOTE ON NUMBERING: this paragraph and the items it refers to
+**How to work this list** (the CLOSED wizard-deploy list; the live Phase 3
+rules are in "How to work a Phase 3 item", which supersedes this paragraph and
+repeats everything still current): execute items in order, ONE item per
+session, each gated by `deno task typecheck` (which itself runs server +
+client + `lint:systems`) + the rig green. NOTE ON NUMBERING: this paragraph and the items it refers to
 are the CLOSED wizard-deploy list; the live Phase 3 list is separately
 numbered 0–5. Unqualified "item N" in THIS section and in build records dated
 2026-07-14 or earlier means the wizard-deploy item N; inside the Phase 3
@@ -322,7 +370,7 @@ date; CURRENT local HEAD is `004fdc2`, 4 unpushed commits riding the deploy). AL
 are DONE (1–5b, 7, 8; item 6 RETIRED — details inside each item) and the exit
 gate below has PASSED (2026-07-14). **This wizard-deploy list is CLOSED. The
 live work is now the "Phase 3 core — work items" list in the Status section's
-"Phase 3 re-cut" (item 0 DONE, items 1–5 remain), worked under the same
+"Phase 3 re-cut" (items 0–1 DONE, items 2–5 remain), worked under the same
 operating rules stated in this paragraph — one item per session, gated by
 `deno task typecheck` + the rig green, same rig/dev invocations.** After items
 3–5 the
@@ -1065,6 +1113,18 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    against a post-deploy database. This supersedes model point 4 and
    dissolves sub-fork (b) — attach is pointer-only everywhere, launch-target
    dual-writes never existed.
+6. **Second design session (Tim, 2026-07-29, after item 0 landed)** — Q-A (run
+   identity: `sourceProjectId` deleted, backfill-only
+   `backfillSourceProjectId`), Q-C (reuse is a catalog-wide inputKey search;
+   storage gets hardlink dedup, superseding §3.7's "copy, never link"), Q-E
+   (re-backfill before every rig gate) and the `createProject` legacy-write
+   deletion are RULED. Their authoritative statements are the
+   Q-A/Q-C/Q-E/oddity entries in the "DESIGN QUESTIONS" block below and the
+   amended §2.1/§3.7 bullets — deliberately not restated here. Later in the
+   same session Q-B (instance-SSE `run_progress`, filtered per user), Q-D
+   (targeted cache purge, `po_detail` to TTL), Q-F (viewer permission move
+   accepted) and the new Q-G (the under-guarded runs static mount) were ruled
+   too, all item-3 work. **No design question in this plan is open.**
 
 #### Phase 3 core — design (SIGNED OFF by Tim 2026-07-29; do not re-derive)
 
@@ -1075,7 +1135,7 @@ admin user; (d) launch is blocked while any selected attach target is already
 a target of a generating run; (e) delete is refused for `generating` runs as
 well as referenced ones.
 
-- **Instance defaults store (Q8)**: `instance_config` key
+- **Instance defaults store (Q8)** — BUILT in item 1: `instance_config` key
   `run_generation_defaults` (the existing key/value pattern in
   `server/db/instance/config.ts`; no migration), Zod-validated:
   per-module `ModuleConfigSelections` + per-family dataset windowing. Flat —
@@ -1089,29 +1149,38 @@ well as referenced ones.
   **resume > instance defaults > definition defaults** — an earlier draft
   carried an "entry-anchor manifest" tier for the deferred Regenerate
   shortcut, so that tier does NOT exist.
-- **Instance shell surface**: new "Results packages" area
+- **Instance shell surface** — item 3; item 1 created the tab and the
+  generate/resume entry only, so the catalogue table, disk size, guarded
+  delete, live progress and the re-hosted viewers all remain: new
+  "Results packages" area
   (`can_configure_data`): catalogue table (label, status, created at/by,
   provenance/source, disk size, attached-projects list), generate → wizard,
   per-run guarded delete, live progress on generating runs (reuse
-  `run_progress` SSE + the existing progress-chip components), and the
-  per-module script/log/file viewers re-hosted here from the project tab
-  (existing components; routes unchanged). Disk size
+  `run_progress` — but as an INSTANCE-SSE message filtered to
+  `can_configure_data`, per the Q-B ruling; the existing progress-chip
+  components are unchanged), and the per-module script/log/file viewers
+  re-hosted here from the project tab (existing components; the routes move
+  to a `can_configure_data` instance mount and the runs static mount is
+  tightened to the same guard — Q-F/Q-G rulings, superseding this bullet's
+  original "routes unchanged"). Disk size
   stamped into the run summary at finalize AND by the backfill synthesizer —
   at rollout every prod run is backfill-born, so no lazy `du` fallback is
   needed. Dev runs minted before the stamp existed have no size: item 3
   re-backfills the dev instance (`backfill_runs.ts`) rather than adding a
   fallback path.
-- **Wizard re-entry**: instance-entered ONLY (no project context; the
+- **Wizard re-entry** — BUILT in item 1 except the confirm-step attach
+  multi-select, which is item 2: instance-entered ONLY (no project context; the
   Regenerate shortcut is deferred): prefill = resume > instance defaults >
   definition defaults; family availability from instance datasets (already
   instance-level). `run_generation_attempts` re-keyed PK
   `source_project_id` → created-by user id (one in-flight configuration per
-  admin) — migration. §3.7 reuse base = latest `ready` run (the existing
-  else-branch; pessimistic reuse fails closed, so a poor base only costs a
-  re-run, never correctness). Confirm step: "attach to project(s)"
+  admin) — migration. §3.7 reuse = catalog-wide inputKey search, no base run
+  at all (Q-C ruling 2026-07-29; pessimistic reuse fails closed, so a miss
+  only costs a re-run, never correctness). Confirm step: "attach to project(s)"
   multi-select (defaults to none); `publishReadyRun` repoints ALL selected
   targets in the one tx + `run_attached` SSE per target.
-- **Dual-write deletion (ruling 5, pre-deploy work item)**: the generation
+- **Dual-write deletion (ruling 5, pre-deploy work item)** — BUILT in item 0
+  (the concurrency-guard re-cut in this bullet landed in item 1): the generation
   pipeline sheds the per-module `ro_*` COPY, sandbox output copies, legacy
   catalog upserts, dataset sandbox mirror-back, and the
   `defaultPresentationObjects: []` shim. Attach is pointer-only everywhere.
@@ -1148,6 +1217,54 @@ well as referenced ones.
   passes until committed, then orphans). Item 5's "sweep" is prose/doc
   reconciliation only, not glob catch-up.
 
+#### How to work a Phase 3 item (operating rules — these govern every item below)
+
+**One item per session, in order.** An item too large for one session stops at
+a clean seam with the gates green and records its stopping point INSIDE that
+item — nowhere else. Do not start the next item early, and do not fold a later
+item's deliverable into an earlier one; when the work forces an exception (as
+item 1 did, because Q-A's guard re-key IS item 2's attach-target list), say so
+in both items' text.
+
+**Both gates must pass before an item is DONE:**
+
+1. `deno task typecheck` — runs the server check, the client `tsc`, AND
+   `lint:systems`. The systems lint only sees TRACKED files, so a new file
+   passes until it is committed and then orphans: **claim every new file in
+   the owning `SYSTEM_NN_*.md` `globs:` list as part of the item that creates
+   it** (`git add -N` a new file to make the lint see it early). Item 5's
+   "sweep" is prose reconciliation only, never glob catch-up.
+2. The parity rig, GREEN:
+   `deno run --allow-all --unstable-broadcast-channel --env-file -c deno.json
+   validate_results_runs_parity.ts --run`
+   **Re-backfill first (the Q-E standing rule)** so every dev project is
+   attached to its own backfill-provenance run at gate time:
+   `deno run --allow-all --unstable-broadcast-channel --env-file -c deno.json
+   backfill_runs.ts [--project <id>]` (same flags for both).
+
+**Verify by executing, not by reading.** Every item so far was live-verified
+on the dev instance with a throwaway harness:
+`deno run --allow-all --env-file -c deno.json <harness>.ts` with
+absolute-path imports (add `--unstable-broadcast-channel` when the code path
+touches SSE/worker channels). Put harnesses in a scratch dir, use disposable
+fixtures (never write to a real named row), and delete everything they create.
+A barrel trap that has cost real time: `deno check` follows source imports, so
+a symbol missing from a `mod.ts` re-export list typechecks clean and fails only
+at runtime.
+
+**Dev environment.** `./pg_run` starts Postgres with BOTH the sandbox and runs
+volumes mounted (dataset extracts `COPY` straight into run tmp dirs — a `pg`
+container started before that change must be restarted). Instance migrations
+run at server boot, or call `runInstanceMigrations` from a harness. The server
+has no `--watch`: restart it manually after server/lib edits; the client
+hot-reloads.
+
+**Known rig trap.** A generation that selected a SUBSET of modules leaves its
+attached project on a legitimately narrower package than the pg baseline, and
+the rig reports diffs like "duck=Unknown results object" / "Metric not found"
+on that one project. That is not a code bug — re-backfill that project and
+re-run. (This is the same remedy as the Q-E rule above.)
+
 #### Phase 3 core — work items (execute in order, one per session, each gated by `deno task typecheck` + rig `--run` green)
 
 Each item below is a checklist; **its full spec is the matching bullet in the
@@ -1155,67 +1272,128 @@ Each item below is a checklist; **its full spec is the matching bullet in the
 defaults store" and "Wizard re-entry", item 2 ↔ "Wizard re-entry" confirm-step
 and concurrency, item 3 ↔ "Instance shell surface", item 4 ↔ "Attach (project
 surface)" and "Client cache guard", item 5 ↔ "Rig"). Read both before starting.
+A DONE item carries its own build record; that record, not the checklist above
+it, describes the current tree.
 
-**OPEN DESIGN QUESTIONS — raise with Tim BEFORE the item that hits them.**
-Surfaced by an adversarial read of this design on 2026-07-29; each is a real
-hole in the design above, not a documentation gap. Recommendations given, but
-do NOT decide them solo.
+**DESIGN QUESTIONS — ALL RULED (Tim, 2026-07-29). Nothing here is open.**
+Surfaced by an adversarial read of this design on 2026-07-29; each was a real
+hole, not a documentation gap. Q-A/Q-C/Q-E and the `createProject` oddity were
+ruled first, then Q-B/Q-D/Q-F/Q-G in the same session. **Three of them were
+stated WRONG in the original question and are corrected in place** (Q-D: TTLs
+and the actual cache primitive; Q-F: the viewers were never member-readable;
+Q-G: found while verifying Q-F) — read the RULED text, not the premise it
+replaced. Do not re-litigate any of them.
 
-- **Q-A (item 1/2) — what is `sourceProjectId` for an instance-generated
-  run?** Instance entry has no source project, but three SHIPPED mechanisms
-  key on it: the launch concurrency guard (`summary::jsonb->>'sourceProjectId'`),
-  the viewer auth guard `runReadableByProject` (ready + sourceProjectId, or
-  the attached run), and ruling 4's rig rule. RECOMMENDATION: make it
-  nullable, have the launch guard key on the ATTACH TARGET list instead
-  (sub-fork d already re-keys it that way), and have the viewer guard accept
-  "attached to a project I can read" plus instance-admin. Backfill runs keep
-  their project, which is what ruling 4's gating rule needs.
+- **Q-A (item 1/2) — what is `sourceProjectId` for an instance-generated run?
+  RULED: it does not make sense any more — DELETE it from `RunSummary`.** A
+  run generated at instance level has no source project, so the field goes
+  rather than becoming a nullable everything-field. The mechanisms that key on
+  it are re-cut with it:
+  - launch concurrency guard (`summary::jsonb->>'sourceProjectId'`) → re-keys
+    to the ATTACH TARGET list (sub-fork d already ruled it that way);
+  - viewer auth guard `runReadableByProject` (today: ready + sourceProjectId,
+    OR the attached run) → item 1 drops the FIRST arm, leaving the attached-run
+    arm, which is end-state-correct for the project surface; the move to an
+    instance-admin surface is item 3 (per the Q-F and Q-G rulings);
+  - `listRunsForProject` (sourceProjectId filter) → narrows to the attached run
+    in item 1 and is deleted in item 4 when the project tab becomes a picker;
+    the catalogue listing (item 3) obsoletes it;
+  - the §3.7 reuse-base lookup → dissolved by Q-C's catalog-wide search.
+
+  ONE thing still needs a project link: ruling 4's rig rule gates iff a
+  project's attached run is **that project's own backfill run**. So the
+  backfill synthesizer — and ONLY it — stamps a nullable
+  `backfillSourceProjectId` on the catalog row. DB summary only, never in
+  `manifest.json` (the no-instance-FK-in-run-files rule, review finding 24 —
+  unchanged). Wizard runs carry null, which is exactly the point.
 - **Q-B (item 3) — `run_progress` and the viewers are project-scoped, but the
-  catalogue is an instance surface.** `run_progress` is a project-SSE message
-  consumed by the project store's listener registry, and the viewer routes sit
-  behind `runReadableByProject` on a project-scoped mount. A run launched with
-  zero attach targets has no project channel at all, so item 3's "reuse
-  `run_progress` SSE" and "routes unchanged" are not achievable as written.
-  RECOMMENDATION: add an instance-SSE `run_progress` (the instance channel
-  already exists) and mount the viewers instance-side under
-  `can_configure_data`; keep the project-SSE copy for attached projects.
-- **Q-C (item 1) — the §3.7 reuse base for instance entry.** The existing
-  else-branch is "latest `ready` FOR THE PROJECT"; instance entry has no
-  project. RECOMMENDATION: latest `ready` run instance-wide. Reuse fails
-  closed (a poor base only costs a re-run), so this is safe, but it should be
-  a decision rather than a silent behavior change.
-- **Q-D (item 3) — cache GC on run deletion.** §2.5 requires
-  `clearEntriesWithPrefix(runId)` alongside run retirement; the item-3
-  checklist does not mention it. RECOMMENDATION: it ships with the guarded
-  hard delete — not optional, or deleted runs leave Valkey garbage forever.
-- **Q-E (items 2 and 4) — how do they pass their own rig gate?** Both exist
-  to attach non-backfill runs to dev projects, which under ruling 4 are
-  `foreign_run` (non-gating) — but `foreign_run` is only implemented in item
-  5, and with the dual-write gone a wizard-attached project has no pg
-  counterpart at all. RECOMMENDATION: either move the item-5 rig work to the
-  front of the list, or make the standing rule explicit: re-backfill the dev
-  projects (`backfill_runs.ts`) before running the rig, so every project is
-  attached to its own backfill run at gate time.
-- **Q-F (items 3/4) — permission regression on the debug viewers.** §2.6 says
-  runs are "readable by any project member of an attached project", but item
-  3 moves the script/log/file viewers to a `can_configure_data` instance
-  surface and item 4's project tab has none. Ordinary project members lose a
-  surface they have today. RECOMMENDATION: intended (debug surfaces are
-  admin-shaped), but say so out loud before shipping it.
+  catalogue is an instance surface. RULED: instance SSE, filtered per user.**
+  `run_progress` is a project-SSE message consumed by the project store's
+  listener registry, and the viewer routes sit behind `runReadableByProject`
+  on a project-scoped mount. A run launched with zero attach targets has no
+  project channel at all, so item 3's "reuse `run_progress` SSE" and "routes
+  unchanged" were not achievable as written. Item 3 therefore:
+  - adds `run_progress` to `InstanceSseMessage` (the `instance_updates`
+    BroadcastChannel + `notifyInstanceUpdate`, the shipped pattern);
+  - **filters it in the route**: `routesInstanceSSE` is guarded by
+    `requireGlobalPermission()` — every logged-in user — but has `globalUser`
+    in context, so it drops `run_progress` for callers without
+    `can_configure_data`. Run labels, module ids and R error details must not
+    fan out to every connected user just because the catalogue is admin-only.
+  - keeps the project-SSE `run_progress` copy for attached projects
+    (unchanged emitter; both fire).
+- **Q-C (item 1) — the §3.7 reuse base for instance entry. RULED: DISSOLVED —
+  reuse searches the whole catalogue by inputKey.** There is no "base run" any
+  more: a module reuses iff ANY readable `ready` run's manifest records the
+  same non-null `inputKey` with a recorded hash for every declared results
+  object. This is the direct answer to "each component has its own hash, so
+  search all past runs", and it removes the concept the question was about.
+  §3.7's "single base, no catalog-wide search in v1" is SUPERSEDED. Still
+  fails closed: no match, an unreadable manifest, or a since-deleted source
+  only ever costs a re-run. Ruled in the same breath: **hardlink dedup**
+  replaces "copy, never link" — see the amended §3.7 bullets, which are
+  authoritative for both.
+- **Q-D (item 3) — cache GC on run deletion. RULED: targeted purge of the
+  three runId-prefixed caches; `po_detail` is left to TTL.** The question's
+  original framing was wrong on two counts, corrected here (verified
+  2026-07-29): (1) this is **disk reclamation, not correctness** —
+  `TimCacheC` entries carry a 15–30 day TTL
+  ([cache_class_C.ts:3-5](server/valkey/cache_class_C.ts#L3-L5)) and a
+  stale-version entry is never served, because `get` compares version hashes;
+  (2) `clearEntriesWithPrefix` does not exist — the real primitive is
+  `scanUniquenessHashes(hashPrefix)` +
+  `clear` ([cache_class_C.ts:161-195](server/valkey/cache_class_C.ts#L161)).
+  So the guarded hard delete also scans + deletes `po_items`, `metric_info`
+  and `replicant_opts`, whose uniqueness hashes START with runId.
+  **`po_detail` cannot be prefix-purged** — it folds runId into its VERSION
+  hash, not its uniqueness hash — and is deliberately left to expire: its
+  entries are version-dead the moment the run goes. Re-keying it to fold runId
+  into uniqueness was considered and rejected (it would need a cache-prefix
+  bump v5 → v6 for pure disk reclamation of already-dead entries). §2.5's
+  `clearEntriesWithPrefix` wording is superseded by this bullet.
+- **Q-E (items 2 and 4) — how do they pass their own rig gate? RULED: the
+  standing rule is re-backfill before the gate.** Run `backfill_runs.ts` on
+  the dev projects before running the rig, so every project is attached to its
+  own backfill-provenance run at gate time. No re-ordering of the item list,
+  no new code — and it is the same remedy the wizard build already used for
+  the "narrower package" rig trap (see "How to work this list"). Applies to
+  EVERY Phase 3 item, not just 2 and 4.
+- **Q-F (items 3/4) — permission change on the debug viewers. RULED: accept
+  the move as designed.** The question's premise was wrong and is corrected
+  here: the viewer routes are guarded by
+  `requireProjectPermission("can_configure_modules")`
+  ([modules.ts:71/115/157](server/routes/project/modules.ts#L71)), and
+  `can_configure_modules` is **false in BOTH the Viewer and Editor presets**
+  ([permissions.ts:129-215](lib/types/permissions.ts#L129)) — only full-access
+  project admins reach them today, not ordinary members. §2.6's "readable by
+  any project member of an attached project" was never true of these routes.
+  So the real effect of the move is that **project admins who are not instance
+  admins lose the viewers**. Accepted: debug surfaces are admin-shaped.
+  Recorded here rather than discovered post-deploy.
+- **Q-G (item 3) — the runs static mount is under-guarded. RULED: tighten it
+  to `can_configure_data` in item 3.** Found 2026-07-29 while verifying Q-F:
+  the actual file-download surface, `/{runId}/outputs/{moduleId}/{file}`, is
+  served by `serveStatic({ root: _RUNS_DIR_PATH })` behind only
+  `requireGlobalPermission()`
+  ([static.ts:26-33](server/middleware/static.ts#L26)) — ANY authenticated
+  instance user who knows a runId can download any run's raw output CSVs,
+  regardless of project membership or module permissions. It gets the same
+  guard the viewers move to, in item 3, which is already in this code. (The
+  per-project-readability alternative was rejected: more machinery, and it
+  re-introduces exactly the project-scoped guard Q-A deletes.)
 
-**Known live oddity — OPEN, raise with Tim BEFORE starting item 1 (do not
-decide it solo; it changes project-creation UX):**
-`createProject` still calls `addDataset{Hmis,Hfa}ToProject` + `installModule`,
-so creating a project exports a full dataset extract into its sandbox and
-writes project catalog rows that **nothing reads any more** (T1 and the
-virtual defaults both come from the attached run's manifest). It survives
-only because project creation predates the wizard. RECOMMENDATION to put to
-Tim: delete it in item 1 — the create-project form's dataset/module pickers
-go, and a new project starts with no package attached (the typed no-run
-state), getting one via attach. That also removes a multi-GB-scale wasted
-export per project creation on big instances. If Tim prefers the form left
-alone for now, do the server-side deletion only. Either way
-`addDataset*ToProject` dies with its last caller.
+**Known live oddity — RULED (Tim, 2026-07-29): delete it in item 1, server AND
+form.** `createProject` still calls `addDataset{Hmis,Hfa}ToProject` +
+`installModule`
+([projects.ts:367-411](server/db/project/projects.ts#L367-L411)), so creating a
+project exports a full dataset extract into its sandbox and writes project
+catalog rows that **nothing reads any more** (T1 and the virtual defaults both
+come from the attached run's manifest). It survives only because project
+creation predates the wizard. Item 1 deletes the server-side writes AND the
+create-project form's dataset/module pickers: a new project starts with no
+package attached (the typed no-run state) and gets one via the item-4 attach
+picker. That also removes a multi-GB-scale wasted export per project creation
+on big instances. `addDataset*ToProject` dies with its last caller.
 
 0. **Dual-write deletion (ruling 5) — DONE 2026-07-29** (gates green:
    `deno task typecheck` + lint:systems + rig PARITY GREEN `--run`, 719
@@ -1289,27 +1467,141 @@ alone for now, do the server-side deletion only. Either way
    - Accepted, unchanged: `project_last_updated`'s `datasets`/`modules`
      stamps are now permanently frozen (the recorded dead-table LOW; the
      client keys on runVersionKey, so nothing reads them).
-1. **Defaults store + wizard re-entry.** `run_generation_defaults` in
-   `instance_config` (Zod, per-module ModuleConfigSelections + per-family
-   windowing); attempt PK re-key migration (source_project_id → created-by
-   user); instance-shell wizard entry; prefill merge order; save-as-defaults
-   on confirm.
+1. **Defaults store + wizard re-entry + run identity — DONE 2026-07-29**
+   (gates green: `deno task typecheck` incl. lint:systems + rig PARITY GREEN
+   `--run` after a full dev re-backfill, 719 checks, 0 diffs/both_error/skips;
+   live-verified on dev by harness). Generation is now an instance-level act
+   with no project context anywhere in its path. What landed:
+   - **Defaults store**: `instance_config` key `run_generation_defaults`
+     (`getRunGenerationDefaultsConfig`/`updateRunGenerationDefaultsConfig` in
+     `db/instance/config.ts`, no migration), Zod `runGenerationDefaultsSchema`
+     = `{step1, moduleIds, parameterSelections}` — the same three fields the
+     wizard's old manifest prefill produced, so step 1/step 2 seeding is
+     unchanged in shape and only its SOURCE moved. Absent key or an
+     unparseable blob degrades to the empty defaults (logged), never an
+     error: a bad blob can't block generation. Written by a "Save these
+     selections as instance defaults" button on the confirm step.
+     `getRunGenerationPrefill` and `step1FromManifest` are deleted — the
+     merge order is exactly resume > instance defaults > definition defaults.
+   - **Attempt re-key**: migration `067_run_generation_attempt_by_user.sql`
+     drops and recreates `run_generation_attempts` keyed
+     `created_by_user_email` (PK, FK `users(email)` CASCADE); attempts are
+     configuration only and deleted at launch, so in-flight rows are dropped
+     rather than reassigned. Base schema + `DBRunGenerationAttempt` follow;
+     every attempt function takes the calling admin's email, so a user only
+     ever sees their own configuration.
+   - **(a) Run identity (Q-A)**: `RunSummary` loses `sourceProjectId` and
+     gains `backfillSourceProjectId: string | null` (stamped ONLY by the
+     backfill synthesizer) plus `attachTargetProjectIds: string[]`.
+     `getGeneratingRunIdForProject` → `getGeneratingRunIdForAttachTargets`
+     (jsonb target scan, `jsonb_array_elements_text` in an EXISTS —
+     summary-less rows are simply no match); `runReadableByProject` keeps
+     only the attached-run arm; `listRunsForProject` is now a join on
+     `projects.run_id` (the attached run, or nothing).
+   - **(b) Catalog-wide reuse (Q-C)**: `resolveBaseRun`/`baseEntryForReuse`
+     replaced by `createReuseSearch(mainDb)` — one candidate read per
+     generation (ready runs, newest first), manifests read lazily and
+     filtered by the summary's `moduleIds`, each (moduleId, inputKey) verdict
+     memoized so the pessimistic plan and the authoritative execute loop ask
+     once. Unreadable manifest → logged and skipped (dev has 12 pre-merge
+     schema-v1 runs; they were skipped exactly this way in the live test).
+   - **Attach targets through the pipeline**: `GenerateRunStartData` carries
+     `attachTargetProjectIds` instead of a `projectId`; launch claims by
+     target (in-memory map keyed by runId + the catalog check), progress and
+     `r_script` fan out to each target, `publishReadyRun` repoints them all
+     in the one transaction, and the repoint event is emitted per target
+     (its project DB opened just for the visualizations list). Zero targets
+     is a normal, silent publish. The confirm-step multi-select that fills
+     this list is item 2 — the server half had to land here because Q-A's
+     guard re-key IS the target list.
+   - **(c) `createProject` legacy writes**: `addProject` is now
+     `(mainDb, globalUser, label)` — no dataset export, no `installModule`,
+     no `datasetLastUpdateds`; the route's body and notify loop shrank with
+     it, and `addDataset{Hmis,Hfa,Iceh}ToProject` + `sandboxDatasetCsvTarget`
+     are deleted (the capture halves are untouched). The create-project
+     form's commented-out dataset/module/user pickers are gone.
+   - **Client**: new instance tab "Results packages"
+     (`instance_results_packages.tsx`, `can_configure_data`-gated in both nav
+     builders and the tab fallback) hosting the generate/resume entry; the
+     wizard lost its `projectId` prop and all four `project_id` route params;
+     the project tab kept its RunCard/viewers but lost the generate entry,
+     the attempt read and the multi-run listing — it shows the attached
+     package only, with a "no package attached yet" empty state.
+   - **Live-verified on dev** (harnesses, fixtures deleted after): attempt
+     CRUD by user (create → step1 → step2 → resume → step-1 re-save nulls
+     step 2 → delete; empty-family and unknown-module rejections; another
+     user's attempt invisible); the guard SQL against fixture rows (claimed
+     target hit, free target miss, overlap in a multi-target list hit, ready
+     runs ignored, NULL-summary row harmless, empty list short-circuits);
+     `listRunsForProject` = the attached run with its new summary shape;
+     viewer auth true only for the attached project; defaults save/read
+     round trip + bad-blob degrade. Then the FULL pipeline twice with an
+     identical config: run A executed R and published unattached (0 projects
+     repointed), run B completed in **0.9 s** with module status `reused`,
+     identical inputKey and all five output CSVs byte-identical — the
+     catalog-wide search, with no base run and no attached project anywhere
+     in the lookup. Both harness runs deleted.
+   - **Noticed in passing, fixed**: `lib/resolve_figure_calendar.ts` (added by
+     the "fy calendar" commit) was claimed by no system, so `lint:systems` was
+     already RED at branch HEAD — claimed by S10. A dead
+     `const mainDb = …` in `copyProject`'s background `.then(async …)`
+     (`routes/project/project.ts`) removed with its needless `async`.
+   - **Carried to item 3**: Q-B moves `run_progress` onto instance SSE, but
+     the live R line (`notifyProjectRScript`, the `r_script` message) is
+     project-scoped too and today has no channel for a run with no attach
+     targets — the catalogue's current-module line needs it to move with
+     `run_progress`, under the same `can_configure_data` filter.
+
+   Gate rule for this and every item below (Q-E): re-backfill the dev projects
+   (`backfill_runs.ts`) before running the rig, so every project is attached to
+   its own backfill-provenance run at gate time.
 2. **Attach-at-launch.** Confirm-step multi-select; multi-target repoint in
    the publish tx + per-target `run_attached` SSE; concurrency guard
    re-keyed to targets (launch blocked while any selected target is a
-   target of a generating run).
+   target of a generating run). **Item 1 landed the whole server half** (the
+   launch route body already takes `attachTargetProjectIds`, publish repoints
+   every target in one tx, per-target `run_attached`, guard keyed to targets);
+   what remains is the confirm-step multi-select — step 3 currently sends an
+   empty list — plus its live verification.
 3. **Catalogue.** Instance "Results packages" surface: listing (label,
    status, created at/by, provenance, disk size, attached projects),
    generate entry, guarded hard delete (refused while referenced by any
    `projects.run_id` OR status `generating`), live progress, viewers
-   re-hosted from the project tab.
+   re-hosted from the project tab. Plus the four rulings that land here:
+   - **(a) Progress (Q-B)** — add `run_progress` to `InstanceSseMessage` and
+     filter it in `routesInstanceSSE` to callers with `can_configure_data`;
+     the project-SSE emitter stays for attached projects.
+   - **(b) Cache purge (Q-D)** — the guarded delete also scans + clears
+     `po_items`/`metric_info`/`replicant_opts` by runId prefix; `po_detail`
+     is left to TTL by design.
+   - **(c) Viewer move (Q-F)** — script/log/file viewers live only here,
+     under `can_configure_data`; project admins who are not instance admins
+     lose them, accepted.
+   - **(d) Static mount (Q-G)** — gate the `_RUNS_DIR_PATH` static mount on
+     `can_configure_data` instead of bare `requireGlobalPermission()`.
+   - **(e) The live R line moves with progress** (found building item 1):
+     Q-B names `run_progress`, but the current-module line under a generating
+     run comes from the project-scoped `r_script` message
+     (`notifyProjectRScript`, emitted per attach target by
+     `execute_module.ts`). A run launched with NO attach targets has no
+     project channel, so the catalogue's live line needs `r_script` on
+     instance SSE under the same `can_configure_data` filter as
+     `run_progress`. Keep the project-SSE copy for attached projects, exactly
+     as (a) does.
 4. **Project picker + cache guard.** results_package tab → the attach
    picker (editor-gated swap with §2.6 compat report; read-only for
    members); the mandatory response-side runId guard in the client reactive
-   caches.
+   caches. State after item 1: the tab already shows ONLY the attached
+   package (`listRunsForProject` is a join on `projects.run_id`) with a
+   typed empty state, still `can_configure_data`-gated, and still hosting the
+   per-module viewers that item 3 moves to the catalogue. This item adds the
+   ready-package list + compat report + repoint, opens the surface to project
+   editors/members per §4 Phase 3, and deletes `listRunsForProject`.
 5. **Rig `foreign_run` + docs.** Rig gates iff attached run = the project's
    own backfill-provenance run, `foreign_run` typed non-gating outcome
-   otherwise; SYSTEM doc prose reconciliation (globs are claimed by each item
+   otherwise — the field to test is `RunSummary.backfillSourceProjectId`
+   (added in item 1, stamped ONLY by `synthesizeRunForProject`; wizard runs
+   carry null, which is exactly the signal); SYSTEM doc prose reconciliation (globs are claimed by each item
    as it lands); exit gate re-run (typecheck + rig green + live
    dev pass: instance generation with multi-attach, swap with compat
    report, guarded delete, defaults save/prefill).
@@ -1515,7 +1807,10 @@ volume-mounted into it — a docker-compose change), the Deno process writes
 manifest + parquet, and the R container mounts it for execution. Generation
 writes into `runs/.tmp-<id>/` and atomically renames to `runs/<id>/` at finalize
 — a crashed generation leaves no readable run, and immutability is enforced by
-construction, not convention.
+construction, not convention. A post-finalize dedup pass (§3.7, ruled
+2026-07-29) may replace any file with a hardlink to an identical blob in
+another run and `chmod 0444` it: the run stays a directory of ordinary files at
+ordinary paths, and only inodes are shared.
 
 ### 2.2 The manifest — precomputed, not probed
 
@@ -1682,9 +1977,12 @@ tables go; its role sharpens into exactly one half of the boundary:
   `getDatasetsVersion` per-request reads; the write-only
   `global_last_updated('any_module_last_run')` row (zero readers today —
   deletable independently).
-- Immutability makes server/Valkey entries for dead runs garbage — add
-  run-deletion GC (`clearEntriesWithPrefix(runId)`) alongside run retirement;
-  client IDB relies on the existing deploy flush as today.
+- Immutability makes server/Valkey entries for dead runs garbage — the guarded
+  delete purges them. Mechanism and scope are ruled in the Q-D entry of the
+  "DESIGN QUESTIONS" block (targeted `scanUniquenessHashes` purge of the three
+  runId-prefixed caches; `po_detail` to TTL), which supersedes this bullet's
+  original `clearEntriesWithPrefix(runId)` wording. Client IDB relies on the
+  existing deploy flush as today.
 
 ### 2.6 Catalog, pointer, access
 
@@ -1698,9 +1996,13 @@ tables go; its role sharpens into exactly one half of the boundary:
   can never be observed. Failed/abandoned `.tmp-` dirs are swept at boot.
 - Project isolation today is connection-level via the `Project-Id` header guard.
   Run reads add: resolve `projects.run_id` inside the guard (or per-route) → run
-  paths. Runs are instance-level artifacts readable by any project member of an
-  attached project; **generating** runs is instance-admin gated (matches today:
-  dataset attach is admin-gated in the UI). Central-reporting cross-project
+  paths. Runs are instance-level artifacts whose DATA is readable by any
+  project member of an attached project (the ordinary viz/read path); the
+  **debug surfaces** — script, logs, raw file listing and the static file
+  download — are `can_configure_data` instance-admin only, per the Q-F and Q-G
+  rulings, which supersede the blanket "readable by any project member"
+  reading of this sentence. **Generating** runs is instance-admin gated
+  (matches today: dataset attach is admin-gated in the UI). Central-reporting cross-project
   reads were retired with the `export_central.ts` route (work item 6); a future
   central hub streams the run's files.
 - **PO validity across swaps — module evolution is per-run, informed, never
@@ -1816,19 +2118,55 @@ authored-content clone + same run pointer).
      snapshot-generated R blocks — so a presentation-only module update leaves
      the key unchanged and reuses, automatically mirroring today's
      compute/presentation split with zero extra logic.
-   - **Reuse**: key matches the **base run**'s manifest (the project's attached
-     run, else the latest `ready` run — single base, no catalog-wide search in
-     v1) → **copy** that module's raw output CSVs into the new run and skip R.
-     Key differs → execute. Downstream forcing is automatic: a re-executed
-     upstream yields new output hashes, which change every dependent's key.
-   - **Copy, never link**: reused outputs are physically copied so every run
-     stays a self-contained, independently-deletable, zippable directory. A
-     shared content-addressed blob store would save disk but breaks the
-     transportable-directory property and complicates GC — rejected even though
-     raw CSV volumes are real (multi-GB per module on Nigeria-scale runs, NOT
-     small; corrected 2026-07-12). Disk pressure is answered by run retention/GC
-     and the R-emits-parquet end-state (§10 Q3 ruling), not by sharing bytes
-     between runs.
+   - **Reuse — catalog-wide** (re-cut 2026-07-29, Tim; supersedes the original
+     single-base rule, which was "the project's attached run, else its latest
+     `ready` run"): the key is looked up **across the whole catalogue** — a
+     module reuses iff ANY readable `ready` run's manifest records the same
+     non-null `inputKey` with a recorded hash for every declared results object
+     → that module's raw output CSVs are materialized into the new run and R is
+     skipped. Key found nowhere → execute. There is no "base run" concept and
+     no project scoping, which is what makes the instance-level model work
+     (Q-C). Downstream forcing is automatic: a re-executed upstream yields new
+     output hashes, which change every dependent's key.
+   - **Hardlink dedup, not a reference model** (re-cut 2026-07-29, Tim;
+     supersedes the 2026-07-12 "copy, never link" rejection of a shared blob
+     store). A run dir stays a real, self-contained, independently-deletable,
+     zippable directory of ordinary files — the R mount contract, the
+     `../{upstreamModuleId}/` reads, transport, and the read path are all
+     untouched. Bytes are shared at the INODE level by a generic
+     **post-finalize dedup pass**: hash every file in the finished tmp dir and,
+     where a blob with that hash already exists, unlink + `Deno.link` to it,
+     then `chmod 0444`. Properties:
+     - The filesystem does the refcounting — `rm -rf runs/{runId}` decrements,
+       and the last release frees the bytes. No mark-and-sweep, no refcount
+       table, no GC design at all; that is what the 2026-07-12 rejection was
+       actually objecting to, and it matters more now that ruling 3 made
+       deletion an explicit operator act with no automatic GC.
+     - It is GENERIC, so it covers what reuse never touches: the
+       `inputs/datasets/` extracts (18 MB of the largest 78 MB dev run),
+       parquet, assets, snapshot JSONs.
+     - Measured on the dev instance 2026-07-29: 861 files, 394.6 MB total,
+       105.6 MB distinct content — **73.2%**, single files appearing 13×.
+       Catalog-wide search makes reuse hit more often, which makes duplication
+       worse, which is exactly what this absorbs.
+     - **0444 is load-bearing**: a truncate-in-place would corrupt every run
+       sharing the inode, and with the dual-write gone the run dir is the only
+       copy. Today's code is already safe (the run path starts from
+       `emptyDir()`, and unlink breaks the link rather than mutating it), but
+       read-only mode turns a latent silent corruption into a loud failure.
+     - Constraints, accepted: one filesystem for the runs volume (true today,
+       now a deployment rule); backup tooling must preserve hardlinks (rsync
+       `-H`) or a restore balloons to apparent size — decide that when §5
+       backups learn to carry run dirs, not a blocker now; the catalogue's
+       per-run size column is APPARENT size (stamped at finalize as specced),
+       with actual usage reported once at instance level.
+     A pure manifest-of-references model (a run = a manifest pointing at blobs,
+     with no directory) was considered and REJECTED: on a local volume it buys
+     nothing over hardlinks and costs the R mount contract, transport, delete,
+     and the read path.
+   - **Sequencing**: the catalog-wide search is item-1 work (it IS Q-C). The
+     dedup pass is purely additive and changes no semantics — it may land
+     before or after the deploy, and nothing depends on it.
    - **Finalize is never cached**: parquet + manifest + query metadata are
      rebuilt fresh every generation (seconds). Only R execution is memoized — so
      anything that changes the _data_ (e.g. a facility-column toggle changes the
@@ -2145,15 +2483,18 @@ doesn't know to copy.
 
 1. **Retention/GC** — **RESOLVED 2026-07-29 (Tim, ruling 3)**: retire IS a
    guarded hard delete (row + dir), refused while referenced or generating;
-   no archive state, no automatic/time-based GC.
+   no archive state, no automatic/time-based GC. Unchanged by the §3.7
+   hardlink-dedup ruling — `rm -rf` still just works; it simply frees only
+   the bytes no surviving run shares.
 2. **Who generates** — **RESOLVED 2026-07-12 (Tim)**: instance-admin only
    (matches today's data-attach gating).
 3. **Raw CSV retention** — **RESOLVED 2026-07-12 (Tim)**: keep raw CSVs in runs
-   (they're the debug/download surface and the copy-on-reuse source, §3.7) UNTIL
-   the R scripts read/write parquet natively (the §2.1 sibling end-state), then
-   drop the CSVs. Note the corrected size picture: raw CSVs are multi-GB per
-   module on Nigeria-scale runs, not small — the copy-on-reuse argument wins
-   anyway.
+   (they're the debug/download surface and the reuse source, §3.7) UNTIL the R
+   scripts read/write parquet natively (the §2.1 sibling end-state), then drop
+   the CSVs. Note the corrected size picture: raw CSVs are multi-GB per module
+   on Nigeria-scale runs, not small — the reuse argument won anyway, and the
+   §3.7 hardlink dedup (ruled 2026-07-29) removes the duplication cost that
+   made this a close call.
 4. **Scheduled auto-runs** (import → generate → auto-repoint) — **RESOLVED
    2026-07-29 (Tim)**: deferred post-deploy, NOT in the pre-deploy Phase 3
    core (purely additive later). Auto-repoint in particular changes what

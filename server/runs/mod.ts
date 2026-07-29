@@ -5,10 +5,7 @@ export {
   type RunBuildOptions,
 } from "./synthesize_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
-export {
-  getRunGenerationModuleOptions,
-  getRunGenerationPrefill,
-} from "./generation_wizard_reads.ts";
+export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
 export {
   exportPgTableToParquet,
   exportRowsToParquet,

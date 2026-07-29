@@ -3,6 +3,7 @@ system: 8
 name: Module System
 globs:
   - client/src/components/instance/compare_projects.tsx
+  - client/src/components/instance/instance_results_packages.tsx
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_results_package.tsx
   - client/src/components/results_package_wizard/**

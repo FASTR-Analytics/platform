@@ -154,12 +154,21 @@ export const runManifestSchema = z.object({
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
 // Stored in the instance-DB runs catalog row (runs.summary) for listing —
-// DB-side, so a source project reference is fine here (the layer rule only
-// forbids instance FKs inside run FILES).
+// DB-side, so project references are fine here (the layer rule only forbids
+// instance FKs inside run FILES).
+//
+// Run identity (Q-A ruling): an instance-generated run has no source
+// project, so there is no sourceProjectId. `backfillSourceProjectId` is
+// stamped by the backfill synthesizer and ONLY by it — the rig gates a
+// project iff its attached run is that project's own backfill run.
+// `attachTargetProjectIds` is the wizard's launch-time attach selection: the
+// projects the publish transaction repoints, and the key the launch
+// concurrency guard uses.
 export type RunSummary = {
   manifestSchemaVersion: number;
   provenance: RunProvenance;
-  sourceProjectId: string;
+  backfillSourceProjectId: string | null;
+  attachTargetProjectIds: string[];
   moduleIds: string[];
   metricCount: number;
   totalRowCount: number;

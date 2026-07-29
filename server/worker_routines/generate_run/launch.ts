@@ -10,7 +10,7 @@ import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createGeneratingRun,
   deleteRunGenerationAttempt,
-  getGeneratingRunIdForProject,
+  getGeneratingRunIdForAttachTargets,
   getRunGenerationAttempt,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
@@ -25,58 +25,71 @@ import {
 } from "./types.ts";
 
 // Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch consumes
-// the configuring attempt, mints the 'generating' catalog row, and spawns
-// the worker; the run owns its whole lifecycle from here. Concurrency
-// ruling: cross-project generations run concurrently, ONE generating run per
-// project — claimed in the same synchronous segment as the check
+// the launching admin's configuring attempt, mints the 'generating' catalog
+// row, and spawns the worker; the run owns its whole lifecycle from here.
+// Concurrency ruling (Phase 3 sub-fork d): generations run concurrently, but
+// a launch is refused while any of its ATTACH TARGETS is already the target
+// of a generating run — claimed in the same synchronous segment as the check
 // (run_module's claim pattern), with the catalog as the cross-restart
 // backstop. The host owns teardown: workers never self-close, and a crashed
 // worker's containers are removed by deterministic name.
 
 type GeneratingEntry = {
-  runId: string;
+  attachTargetProjectIds: string[];
   moduleIds: string[];
   worker: Worker | null;
 };
 
-const GENERATING_BY_PROJECT = new Map<string, GeneratingEntry>();
+const GENERATING_BY_RUN = new Map<string, GeneratingEntry>();
+
+function targetsClaimed(projectIds: string[]): boolean {
+  for (const entry of GENERATING_BY_RUN.values()) {
+    if (
+      entry.attachTargetProjectIds.some((id) => projectIds.includes(id))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 const broadcastEnded = new BroadcastChannel(RUN_GENERATION_ENDED_CHANNEL);
 broadcastEnded.addEventListener("message", (evt) => {
   const data = (evt as MessageEvent).data as GenerateRunEndedData;
-  const entry = GENERATING_BY_PROJECT.get(data.projectId);
-  if (entry === undefined || entry.runId !== data.runId) {
+  const entry = GENERATING_BY_RUN.get(data.runId);
+  if (entry === undefined) {
     // Stale completion from a superseded generation.
     return;
   }
   entry.worker?.terminate();
-  GENERATING_BY_PROJECT.delete(data.projectId);
+  GENERATING_BY_RUN.delete(data.runId);
 });
 
-export async function launchRunGenerationForProject(
+export async function launchRunGeneration(
   mainDb: Sql,
-  projectId: string,
+  attachTargetProjectIds: string[],
   label: string,
   createdBy: string,
 ): Promise<APIResponseWithData<{ runId: string }>> {
-  const alreadyGenerating = {
+  const targetAlreadyGenerating = {
     success: false as const,
-    err: "A results package is already being generated for this project",
+    err:
+      "A results package is already being generated for one of the projects you selected",
   };
   // Checked before the attempt read: launch deletes the attempt, so a
   // duplicate launch would otherwise surface as the misleading "no
   // configuration in progress".
-  if (GENERATING_BY_PROJECT.has(projectId)) {
-    return alreadyGenerating;
+  if (targetsClaimed(attachTargetProjectIds)) {
+    return targetAlreadyGenerating;
   }
-  const resAttempt = await getRunGenerationAttempt(mainDb, projectId);
+  const resAttempt = await getRunGenerationAttempt(mainDb, createdBy);
   if (resAttempt.success === false) {
     return resAttempt;
   }
   if (resAttempt.data === null) {
     return {
       success: false,
-      err: "No results-package configuration in progress for this project",
+      err: "No results-package configuration in progress",
     };
   }
   const attempt = resAttempt.data;
@@ -106,22 +119,26 @@ export async function launchRunGenerationForProject(
     }
   }
 
-  if (GENERATING_BY_PROJECT.has(projectId)) {
-    return alreadyGenerating;
+  if (targetsClaimed(attachTargetProjectIds)) {
+    return targetAlreadyGenerating;
   }
   // Claim the slot in the same synchronous segment as the check above, so
-  // concurrent launch requests cannot both start a generation.
+  // concurrent launch requests cannot both start a generation for a target.
   const runId = crypto.randomUUID();
   const moduleIds = attempt.step2Result.modules.map((m) => m.moduleId);
-  GENERATING_BY_PROJECT.set(projectId, { runId, moduleIds, worker: null });
+  GENERATING_BY_RUN.set(runId, {
+    attachTargetProjectIds,
+    moduleIds,
+    worker: null,
+  });
   try {
-    const dbGeneratingRunId = await getGeneratingRunIdForProject(
+    const dbGeneratingRunId = await getGeneratingRunIdForAttachTargets(
       mainDb,
-      projectId,
+      attachTargetProjectIds,
     );
     if (dbGeneratingRunId !== undefined) {
-      GENERATING_BY_PROJECT.delete(projectId);
-      return alreadyGenerating;
+      GENERATING_BY_RUN.delete(runId);
+      return targetAlreadyGenerating;
     }
 
     const progress: RunProgress = {
@@ -135,7 +152,8 @@ export async function launchRunGenerationForProject(
     const summary: RunSummary = {
       manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
       provenance: "wizard",
-      sourceProjectId: projectId,
+      backfillSourceProjectId: null,
+      attachTargetProjectIds,
       moduleIds,
       metricCount: 0,
       totalRowCount: 0,
@@ -147,13 +165,13 @@ export async function launchRunGenerationForProject(
       summary,
       progress,
     });
-    const resDelete = await deleteRunGenerationAttempt(mainDb, projectId);
+    const resDelete = await deleteRunGenerationAttempt(mainDb, createdBy);
     if (resDelete.success === false) {
       throw new Error(resDelete.err);
     }
 
     const worker = instantiateGenerateRunWorker({
-      projectId,
+      attachTargetProjectIds,
       runId,
       label,
       step1Result: attempt.step1Result,
@@ -161,24 +179,24 @@ export async function launchRunGenerationForProject(
     });
     worker.addEventListener("error", (e) => {
       e.preventDefault(); // Never let a worker error crash the server
-      handleGenerateRunWorkerCrash(projectId, runId, moduleIds).catch(
-        (error) => {
-          console.error("Error handling generate-run worker crash:", error);
-        },
-      );
+      handleGenerateRunWorkerCrash(runId).catch((error) => {
+        console.error("Error handling generate-run worker crash:", error);
+      });
     });
-    const entry = GENERATING_BY_PROJECT.get(projectId);
-    if (entry === undefined || entry.runId !== runId) {
+    const entry = GENERATING_BY_RUN.get(runId);
+    if (entry === undefined) {
       // Superseded between claim and spawn — cannot happen while the claim
       // above holds, but mirror the run_module attach guard anyway.
       worker.terminate();
-      return alreadyGenerating;
+      return targetAlreadyGenerating;
     }
     entry.worker = worker;
-    notifyProjectRunProgress(projectId, runId, progress);
+    for (const projectId of attachTargetProjectIds) {
+      notifyProjectRunProgress(projectId, runId, progress);
+    }
     return { success: true, data: { runId } };
   } catch (e) {
-    GENERATING_BY_PROJECT.delete(projectId);
+    GENERATING_BY_RUN.delete(runId);
     await markRunGenerationFailed(
       mainDb,
       runId,
@@ -195,19 +213,15 @@ export async function launchRunGenerationForProject(
 // A crashed worker cannot clean up after itself: mark the run failed, sweep
 // its tmp dir, and remove any containers it may have started — terminating
 // the worker only kills the `docker run` CLI client, never the container.
-async function handleGenerateRunWorkerCrash(
-  projectId: string,
-  runId: string,
-  moduleIds: string[],
-): Promise<void> {
-  const entry = GENERATING_BY_PROJECT.get(projectId);
-  if (entry === undefined || entry.runId !== runId) {
+async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
+  const entry = GENERATING_BY_RUN.get(runId);
+  if (entry === undefined) {
     return;
   }
   entry.worker?.terminate();
-  GENERATING_BY_PROJECT.delete(projectId);
+  GENERATING_BY_RUN.delete(runId);
   if (_IS_PRODUCTION) {
-    for (const moduleId of moduleIds) {
+    for (const moduleId of entry.moduleIds) {
       new Deno.Command("docker", {
         args: ["rm", "-f", getGenerateRunContainerName(runId, moduleId)],
         stdout: "null",
@@ -227,6 +241,8 @@ async function handleGenerateRunWorkerCrash(
     "The generation worker crashed",
   );
   if (progress !== null) {
-    notifyProjectRunProgress(projectId, runId, progress);
+    for (const projectId of entry.attachTargetProjectIds) {
+      notifyProjectRunProgress(projectId, runId, progress);
+    }
   }
 }

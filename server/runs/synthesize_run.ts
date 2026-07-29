@@ -100,10 +100,13 @@ export type RunBuildOptions = {
   label: string;
   provenance: RunProvenance;
   source: RunBuildSource;
-  // The project this run was generated for — the catalog summary's
-  // sourceProjectId (run listing, reuse base lookup, read guards). Stays
-  // per-project until the wizard moves to the instance shell.
-  sourceProjectId: string;
+  // Run identity in the catalog summary (Q-A). Only the backfill
+  // synthesizer stamps a source project — it is what makes a run 1:1 with a
+  // project's frozen Postgres plane, which is the rig's gating rule.
+  // Wizard runs carry null and list their launch-time attach targets
+  // instead.
+  backfillSourceProjectId: string | null;
+  attachTargetProjectIds: string[];
   // §3.7 memoization fields per module — computed only by real wizard
   // generation; synthesized runs carry null and are never reuse sources.
   moduleMemo: Map<
@@ -136,7 +139,8 @@ export async function synthesizeRunForProject(
         label: projectLabel,
         provenance: "synthetic-backfill",
         source: { kind: "project_db", projectDb, projectId, moduleIds: null },
-        sourceProjectId: projectId,
+        backfillSourceProjectId: projectId,
+        attachTargetProjectIds: [projectId],
         moduleMemo: null,
         moduleCsvDir: (moduleId) => join(_SANDBOX_DIR_PATH, projectId, moduleId),
         extraInputFiles: [],
@@ -481,7 +485,8 @@ SELECT dataset_type, info, last_updated FROM datasets
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     provenance: opts.provenance,
-    sourceProjectId: opts.sourceProjectId,
+    backfillSourceProjectId: opts.backfillSourceProjectId,
+    attachTargetProjectIds: opts.attachTargetProjectIds,
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),

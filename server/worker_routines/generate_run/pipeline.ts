@@ -8,7 +8,10 @@ import {
   type RunModule,
   type RunProgress,
 } from "lib";
-import { getCountryIso3Config } from "../../db/mod.ts";
+import {
+  createWorkerReadConnection,
+  getCountryIso3Config,
+} from "../../db/mod.ts";
 import { prepareModuleDefinitionForStorage } from "../../db/project/modules.ts";
 import {
   publishReadyRun,
@@ -39,11 +42,10 @@ import {
 import { prepareRunInputs } from "./prepare_inputs.ts";
 import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
 import {
-  baseEntryForReuse,
   computeModuleInputs,
   computeModuleKey,
+  createReuseSearch,
   planReuse,
-  resolveBaseRun,
 } from "./resolve_reuse.ts";
 import type { GenerateRunStartData } from "./types.ts";
 
@@ -64,7 +66,6 @@ import type { GenerateRunStartData } from "./types.ts";
 
 export async function runGenerationPipeline(
   mainDb: Sql,
-  projectDb: Sql,
   std: GenerateRunStartData,
 ): Promise<void> {
   const tmpDir = runTmpDirPath(std.runId);
@@ -78,7 +79,9 @@ export async function runGenerationPipeline(
   };
   const pushProgress = async () => {
     await updateRunProgress(mainDb, std.runId, progress);
-    notifyProjectRunProgress(std.projectId, std.runId, progress);
+    for (const projectId of std.attachTargetProjectIds) {
+      notifyProjectRunProgress(projectId, std.runId, progress);
+    }
   };
 
   const resCountryIso3 = await getCountryIso3Config(mainDb);
@@ -94,11 +97,11 @@ export async function runGenerationPipeline(
   );
   progress.moduleOrder = resolved.map((m) => m.moduleId);
 
-  const base = await resolveBaseRun(mainDb, std.projectId);
+  const reuseSearch = await createReuseSearch(mainDb);
   const assetHashCache = new Map<string, string>();
   const planned = await planReuse(
     resolved,
-    base,
+    reuseSearch,
     prepared.datasetExtractHashes,
     assetHashCache,
   );
@@ -127,21 +130,19 @@ export async function runGenerationPipeline(
     let result:
       | { inputKey: string; outputFileHashes: Record<string, string> }
       | null = null;
-    const baseEntry = base !== null
-      ? baseEntryForReuse(base, mod, inputKey)
-      : null;
-    if (base !== null && baseEntry !== null) {
+    const reuseSource = await reuseSearch.find(mod, inputKey);
+    if (reuseSource !== null) {
       progress.moduleStatus[mod.moduleId] = "reused";
       await pushProgress();
       try {
         result = await reuseRunModule({
-          projectId: std.projectId,
+          attachTargetProjectIds: std.attachTargetProjectIds,
           tmpDir,
           module: mod,
-          baseRunId: base.runId,
-          baseRunDir: base.runDir,
+          sourceRunId: reuseSource.runId,
+          sourceRunDir: reuseSource.runDir,
           inputKey,
-          outputFileHashes: baseEntry.outputFileHashes,
+          outputFileHashes: reuseSource.outputFileHashes,
         });
       } catch (e) {
         if (!(e instanceof ReuseSourceMissingError)) throw e;
@@ -152,7 +153,7 @@ export async function runGenerationPipeline(
       progress.moduleStatus[mod.moduleId] = "running";
       await pushProgress();
       result = await executeRunModule({
-        projectId: std.projectId,
+        attachTargetProjectIds: std.attachTargetProjectIds,
         runId: std.runId,
         tmpDir,
         module: mod,
@@ -185,7 +186,8 @@ export async function runGenerationPipeline(
         datasets: prepared.datasets,
         facilitiesTables: prepared.facilitiesTables,
       },
-      sourceProjectId: std.projectId,
+      backfillSourceProjectId: null,
+      attachTargetProjectIds: std.attachTargetProjectIds,
       moduleMemo: memo,
       moduleCsvDir: (moduleId) => join(tmpDir, "outputs", moduleId),
       extraInputFiles: prepared.extraInputFiles,
@@ -195,30 +197,45 @@ export async function runGenerationPipeline(
   await Deno.rename(tmpDir, runDirPath(std.runId));
   await publishReadyRun(mainDb, {
     runId: std.runId,
-    projectId: std.projectId,
+    attachTargetProjectIds: std.attachTargetProjectIds,
     summary,
     progress,
   });
-  notifyProjectRunProgress(std.projectId, std.runId, progress);
 
-  // Repoint event: the full catalog, every field derived from the run just
-  // published (the legacy project plane is no longer written, so it is never
-  // read here either).
+  // Repoint events, one per attach target: the full catalog, every field
+  // derived from the run just published (the legacy project plane is no
+  // longer written, so it is never read here either). A run launched with no
+  // targets publishes silently and is attached later from a project's
+  // picker.
   const runCtx = { runId: std.runId, manifest };
-  const visualizationsRes = await getAllPresentationObjectsWithVirtualDefaults(
-    mainDb,
-    std.projectId,
-    projectDb,
-  );
-  notifyProjectRunAttached(std.projectId, {
-    attachedRunId: std.runId,
-    projectModules: getModuleSummariesFromManifest(manifest),
-    metrics: getMetricsWithStatusFromManifest(manifest),
-    projectDatasets: getProjectDatasetsFromManifest(manifest),
-    commonIndicators: await getCommonIndicatorsFromManifestInputs(runCtx),
-    icehIndicators: await getIcehIndicatorsFromManifestInputs(runCtx),
-    visualizations: visualizationsRes.success ? visualizationsRes.data : [],
-  });
+  const projectModules = getModuleSummariesFromManifest(manifest);
+  const metrics = getMetricsWithStatusFromManifest(manifest);
+  const projectDatasets = getProjectDatasetsFromManifest(manifest);
+  const commonIndicators = await getCommonIndicatorsFromManifestInputs(runCtx);
+  const icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
+  for (const projectId of std.attachTargetProjectIds) {
+    notifyProjectRunProgress(projectId, std.runId, progress);
+    const projectDb = createWorkerReadConnection(projectId);
+    try {
+      const visualizationsRes =
+        await getAllPresentationObjectsWithVirtualDefaults(
+          mainDb,
+          projectId,
+          projectDb,
+        );
+      notifyProjectRunAttached(projectId, {
+        attachedRunId: std.runId,
+        projectModules,
+        metrics,
+        projectDatasets,
+        commonIndicators,
+        icehIndicators,
+        visualizations: visualizationsRes.success ? visualizationsRes.data : [],
+      });
+    } finally {
+      await projectDb.end();
+    }
+  }
 }
 
 // The manifest's module/metric catalog for a wizard generation: the resolved

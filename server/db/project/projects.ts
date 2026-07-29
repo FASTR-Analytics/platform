@@ -4,15 +4,11 @@ import {
   APIResponseWithData,
   DatasetInProject,
   EMPTY_HFA_TAXONOMY,
-  getPossibleModules,
-  getValidatedModuleId,
   ProjectDetail,
   throwIfErrWithData,
-  type DatasetType,
   type GlobalUser,
   type InstalledModuleSummary,
   type MetricWithStatus,
-  type ModuleId,
   type ProjectPermission,
   type ProjectUser,
   type ProjectUserRoleType,
@@ -24,7 +20,6 @@ import {
   DBUser,
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
-import { getCountryIso3Config } from "../instance/config.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
 import {
   closePgConnection,
@@ -32,12 +27,6 @@ import {
   getPgConnectionFromCacheOrNew,
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { addDatasetHfaToProject } from "./datasets_in_project_hfa.ts";
-import {
-  addDatasetHmisToProject,
-  sandboxDatasetCsvTarget,
-} from "./datasets_in_project_hmis.ts";
-import { installModule } from "./modules.ts";
 import {
   getCommonIndicatorsFromManifestInputs,
   getHfaTaxonomyFromManifestInputs,
@@ -261,21 +250,17 @@ export async function getProjectDetail(
 //                    //
 ////////////////////////
 
+// A new project starts empty: no datasets, no modules, no results package
+// attached (the typed no-run state) — an admin generates a package from the
+// instance shell and attaches it here. The old dataset export + installModule
+// writes are gone with the legacy plane (Phase 3 item 1): nothing read them
+// any more, and on a big instance they cost a multi-GB extract per project
+// creation.
 export async function addProject(
   mainDb: Sql,
   globalUser: GlobalUser,
   projectLabel: string,
-  datasetsToEnable: DatasetType[],
-  modulesToEnable: ModuleId[],
-  _projectEditors: string[],
-  _projectViewers: string[],
-): Promise<
-  APIResponseWithData<{
-    newProjectId: string;
-    projectDb: Sql;
-    datasetLastUpdateds: { datasetType: DatasetType; lastUpdated: string }[];
-  }>
-> {
+): Promise<APIResponseWithData<{ newProjectId: string; projectDb: Sql }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newProjectId = crypto.randomUUID();
     const matchingDatabases = await mainDb<
@@ -359,61 +344,9 @@ export async function addProject(
         },
       ),
     ]);
-    const datasetLastUpdateds: {
-      datasetType: DatasetType;
-      lastUpdated: string;
-    }[] = [];
-    if (datasetsToEnable.includes("hmis")) {
-      const res = await addDatasetHmisToProject(
-        mainDb,
-        projectDb,
-        sandboxDatasetCsvTarget(newProjectId, "hmis"),
-        undefined,
-      );
-      throwIfErrWithData(res);
-      datasetLastUpdateds.push({
-        datasetType: "hmis",
-        lastUpdated: res.data.lastUpdated,
-      });
-    }
-    if (datasetsToEnable.includes("hfa")) {
-      const res = await addDatasetHfaToProject(
-        mainDb,
-        projectDb,
-        sandboxDatasetCsvTarget(newProjectId, "hfa"),
-        undefined,
-      );
-      throwIfErrWithData(res);
-      datasetLastUpdateds.push({
-        datasetType: "hfa",
-        lastUpdated: res.data.lastUpdated,
-      });
-    }
-
-    // Dynamically add prerequisite modules based on getPossibleModules()
-    const countryIso3Res = await getCountryIso3Config(mainDb);
-    const countryIso3 = countryIso3Res.success
-      ? countryIso3Res.data.countryIso3
-      : undefined;
-    const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
-    for (const moduleId of modulesToEnable) {
-      const moduleDefinition = getPossibleModules(countryIso3).find(
-        (m) => m.id === moduleId,
-      );
-      if (moduleDefinition?.prerequisiteModules) {
-        for (const prereq of moduleDefinition.prerequisiteModules) {
-          modulesWithPrereqs.add(getValidatedModuleId(prereq));
-        }
-      }
-    }
-    const uniqueModulesToEnable = Array.from(modulesWithPrereqs);
-    for (const moduleId of uniqueModulesToEnable) {
-      const res = await installModule(projectDb, moduleId);
-      throwIfErrWithData(res);
-    }
     return {
       success: true,
-      data: { newProjectId, projectDb, datasetLastUpdateds },
+      data: { newProjectId, projectDb },
     };
   });
 }

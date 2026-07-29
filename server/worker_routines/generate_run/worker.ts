@@ -34,11 +34,10 @@ async function run(std: GenerateRunStartData) {
   alreadyRunning = true;
 
   const mainDb = createWorkerReadConnection("main");
-  const projectDb = createWorkerReadConnection(std.projectId);
   try {
     let successOrError: GenerateRunEndedData["successOrError"] = "success";
     try {
-      await runGenerationPipeline(mainDb, projectDb, std);
+      await runGenerationPipeline(mainDb, std);
     } catch (e) {
       successOrError = "error";
       console.error(
@@ -49,13 +48,11 @@ async function run(std: GenerateRunStartData) {
       await failGeneration(mainDb, std, e);
     }
     const ended: GenerateRunEndedData = {
-      projectId: std.projectId,
       runId: std.runId,
       successOrError,
     };
     broadcastEnded.postMessage(ended);
   } finally {
-    await projectDb.end();
     await mainDb.end();
   }
 }
@@ -76,6 +73,8 @@ async function failGeneration(
     e instanceof Error ? e.message : String(e),
   );
   if (progress !== null) {
-    notifyProjectRunProgress(std.projectId, std.runId, progress);
+    for (const projectId of std.attachTargetProjectIds) {
+      notifyProjectRunProgress(projectId, std.runId, progress);
+    }
   }
 }

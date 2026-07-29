@@ -1,106 +1,25 @@
 import type { Sql } from "postgres";
-import { z } from "zod";
 import {
-  datasetHmisWindowingCommonSchema,
   getValidatedModuleId,
   isModuleAllowedForCountry,
   MODULE_REGISTRY,
   type APIResponseWithData,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
-  type RunGenerationPrefill,
-  type RunGenerationStep1Result,
-  type RunManifest,
 } from "lib";
 import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 import { getCountryIso3Config } from "../db/instance/config.ts";
 import { fetchCommits } from "../github/fetch_module.ts";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { MODULE_SOURCE } from "../module_loader/module_source.ts";
-import { getRunReadContext } from "../run_query/mod.ts";
 
-// Wizard-support reads for the results-package launch wizard
-// (PLAN_RESULTS_RUNS item 2, session 3). Both are read-only: prefill mines
-// the ATTACHED run's manifest for the wizard's starting values; module
-// options resolves every offerable module's definition from the modules repo
-// at latest commit, returning the one gitRef step 2 records so the run
-// pipeline re-fetches identical definitions.
-
-// Manifest dataset `info` is z.unknown() (a verbatim copy of the project-DB
-// datasets.info JSON), so the wizard-facing fields are re-parsed here; a
-// row that doesn't parse degrades to "family not prefilled".
-const hmisInfoSchema = z.object({ windowing: datasetHmisWindowingCommonSchema });
-const hfaInfoSchema = z.object({
-  serviceCategoryScope: z.array(z.string()).optional(),
-});
-const configSelectionsPrefillSchema = z.object({
-  parameterSelections: z.record(z.string(), z.string()),
-});
-
-function step1FromManifest(manifest: RunManifest): RunGenerationStep1Result {
-  const byType = new Map(manifest.datasets.map((d) => [d.datasetType, d.info]));
-  const hmisInfo = byType.has("hmis")
-    ? hmisInfoSchema.safeParse(byType.get("hmis"))
-    : undefined;
-  const hfaInfo = byType.has("hfa")
-    ? hfaInfoSchema.safeParse(byType.get("hfa"))
-    : undefined;
-  return {
-    hmis: hmisInfo?.success ? { windowing: hmisInfo.data.windowing } : null,
-    hfa: hfaInfo === undefined
-      ? null
-      : {
-        serviceCategoryScope: hfaInfo.success
-          ? hfaInfo.data.serviceCategoryScope ?? []
-          : [],
-      },
-    iceh: byType.has("iceh"),
-  };
-}
-
-export async function getRunGenerationPrefill(
-  mainDb: Sql,
-  projectId: string,
-): Promise<APIResponseWithData<RunGenerationPrefill>> {
-  const empty: RunGenerationPrefill = {
-    attachedRunId: null,
-    step1: null,
-    moduleIds: [],
-    parameterSelections: {},
-  };
-  const resCtx = await getRunReadContext(mainDb, projectId);
-  if (resCtx.success === false) {
-    // No run attached (or the run is unreadable): the wizard starts from
-    // scratch — an expected state, not an error.
-    return { success: true, data: empty };
-  }
-  const manifest = resCtx.data.manifest;
-  const parameterSelections: Record<string, Record<string, string>> = {};
-  for (const mod of manifest.modules) {
-    if (mod.configSelections === null) {
-      continue;
-    }
-    try {
-      const parsed = configSelectionsPrefillSchema.safeParse(
-        JSON.parse(mod.configSelections),
-      );
-      if (parsed.success) {
-        parameterSelections[mod.id] = parsed.data.parameterSelections;
-      }
-    } catch {
-      // Malformed stored JSON: skip this module's prefill.
-    }
-  }
-  return {
-    success: true,
-    data: {
-      attachedRunId: resCtx.data.runId,
-      step1: step1FromManifest(manifest),
-      moduleIds: manifest.modules.map((m) => m.id),
-      parameterSelections,
-    },
-  };
-}
+// Wizard-support read for the results-package launch wizard
+// (PLAN_RESULTS_RUNS item 2, session 3): every offerable module's definition
+// resolved from the modules repo at latest commit, returning the one gitRef
+// step 2 records so the run pipeline re-fetches identical definitions. The
+// wizard's other starting values come from the instance defaults store
+// (`getRunGenerationDefaultsConfig`) — the wizard is instance-entered, so
+// there is no anchor run to mine a prefill from.
 
 // "Latest commit" = the repo's HEAD, resolved once — a single commit that
 // contains every module path's latest content, unlike per-path last-touch

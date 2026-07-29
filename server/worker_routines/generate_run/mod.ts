@@ -1,1 +1,1 @@
-export { launchRunGenerationForProject } from "./launch.ts";
+export { launchRunGeneration } from "./launch.ts";

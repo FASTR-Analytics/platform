@@ -5,7 +5,7 @@ import {
   type ModuleId,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
-  type RunGenerationPrefill,
+  type RunGenerationDefaults,
   type RunGenerationStep1Result,
   type RunGenerationStep2Result,
 } from "lib";
@@ -23,7 +23,6 @@ import { ModuleParameterInputs } from "~/components/_shared/module_parameter_inp
 import { serverActions } from "~/server_actions";
 
 type Props = {
-  projectId: string;
   step1Result: RunGenerationStep1Result;
   step2Result: RunGenerationStep2Result | null;
   silentFetch: () => Promise<void>;
@@ -35,26 +34,24 @@ type Props = {
 // mirroring the resolve-stage validation: checking a module auto-includes
 // its dependency closure, a module cannot be unchecked while a dependent is
 // checked, and a module whose closure needs data not chosen in step 1 is
-// disabled. Parameter values: resume beats the attached run's manifest
-// prefill beats definition defaults (getMergedModuleConfigSelections).
+// disabled. Parameter values: resume beats the instance defaults store beats
+// definition defaults (getMergedModuleConfigSelections).
 export function Step2(p: Props) {
   const query = createQuery(
     async () => {
-      const [optionsRes, prefillRes] = await Promise.all([
-        serverActions.getRunGenerationModuleOptions({
-          project_id: p.projectId,
-        }),
-        serverActions.getRunGenerationPrefill({ project_id: p.projectId }),
+      const [optionsRes, defaultsRes] = await Promise.all([
+        serverActions.getRunGenerationModuleOptions({}),
+        serverActions.getRunGenerationDefaults({}),
       ]);
       if (optionsRes.success === false) {
         return optionsRes;
       }
-      if (prefillRes.success === false) {
-        return prefillRes;
+      if (defaultsRes.success === false) {
+        return defaultsRes;
       }
       return {
         success: true as const,
-        data: { options: optionsRes.data, prefill: prefillRes.data },
+        data: { options: optionsRes.data, defaults: defaultsRes.data },
       };
     },
     t3({
@@ -68,11 +65,10 @@ export function Step2(p: Props) {
     <StateHolderWrapper state={query.state()}>
       {(keyed) => (
         <Step2Inner
-          projectId={p.projectId}
           step1Result={p.step1Result}
           step2Result={p.step2Result}
           options={keyed.options}
-          prefill={keyed.prefill}
+          defaults={keyed.defaults}
           silentFetch={p.silentFetch}
         />
       )}
@@ -81,11 +77,10 @@ export function Step2(p: Props) {
 }
 
 function Step2Inner(p: {
-  projectId: string;
   step1Result: RunGenerationStep1Result;
   step2Result: RunGenerationStep2Result | null;
   options: RunGenerationModuleOptions;
-  prefill: RunGenerationPrefill;
+  defaults: RunGenerationDefaults;
   silentFetch: () => Promise<void>;
 }) {
   const selectedFamilies = new Set<DatasetType>([
@@ -138,11 +133,11 @@ function Step2Inner(p: {
     return closures.get(id)!.complete && missingFamiliesFor(id).length === 0;
   }
 
-  // Seed: resume beats prefill; drop anything no longer offerable, then
-  // closure-complete what remains.
+  // Seed: resume beats the instance defaults; drop anything no longer
+  // offerable, then closure-complete what remains.
   const seedIds =
     p.step2Result?.modules.map((m) => m.moduleId as ModuleId) ??
-      p.prefill.moduleIds.map((id) => id as ModuleId);
+      p.defaults.moduleIds.map((id) => id as ModuleId);
   const initialSelected: Record<string, boolean> = {};
   for (const id of seedIds) {
     if (optionById.has(id) && isOfferable(id)) {
@@ -157,7 +152,7 @@ function Step2Inner(p: {
 
   function seedSelectionsFor(id: ModuleId): Record<string, string> {
     const resumed = p.step2Result?.modules.find((m) => m.moduleId === id);
-    return resumed?.parameterSelections ?? p.prefill.parameterSelections[id] ??
+    return resumed?.parameterSelections ?? p.defaults.parameterSelections[id] ??
       {};
   }
   const [paramValues, setParamValues] = createStore<
@@ -205,7 +200,6 @@ function Step2Inner(p: {
       };
     }
     return await serverActions.updateRunGenerationAttemptStep2({
-      project_id: p.projectId,
       step2Result: {
         gitRef: p.options.gitRef,
         modules: chosen.map((o) => ({

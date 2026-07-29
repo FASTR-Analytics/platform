@@ -140,7 +140,7 @@ export type DBStructureUploadAttempt = {
 };
 
 export type DBRunGenerationAttempt = {
-  source_project_id: string;
+  created_by_user_email: string;
   date_started: string;
   step: number;
   status: string; // JSON: RunGenerationAttemptStatus

@@ -25,12 +25,13 @@ import type { ResolvedRunModule } from "./resolve_modules.ts";
 // because module dirs stay siblings; dataset reads resolve to the run's own
 // ../../inputs/datasets/ (generated scripts are pointed there per-caller).
 //
-// Reuse (§3.7): when the pipeline finds the module's inputKey in the base
-// run, reuseRunModule copies that run's raw output CSVs instead of running R
-// — only R execution is memoized; finalize rebuilds parquet fresh under the
-// CURRENT facility config, so copied CSVs never freeze stale normalization.
-// A base output file gone missing throws ReuseSourceMissingError and the
-// pipeline falls back to a real run (fails closed).
+// Reuse (§3.7): when the catalog-wide search finds the module's inputKey in
+// a ready run, reuseRunModule copies that run's raw output CSVs instead of
+// running R — only R execution is memoized; finalize rebuilds parquet fresh
+// under the CURRENT facility config, so copied CSVs never freeze stale
+// normalization. A source output file gone missing throws
+// ReuseSourceMissingError and the pipeline falls back to a real run (fails
+// closed).
 //
 // There is no legacy-plane dual-write: under the Phase 3 re-cut (ruling 5)
 // a generation writes ONLY into the run. Rollback is a hosting-level volume
@@ -45,7 +46,7 @@ type ModuleRunResult = {
 };
 
 export async function executeRunModule(args: {
-  projectId: string;
+  attachTargetProjectIds: string[];
   runId: string;
   tmpDir: string;
   module: ResolvedRunModule;
@@ -53,8 +54,16 @@ export async function executeRunModule(args: {
   // recorded in the manifest as this module's memoization key.
   inputKey: string;
 }): Promise<ModuleRunResult> {
-  const { module: mod, projectId } = args;
+  const { module: mod } = args;
   const moduleId = mod.moduleId;
+  // The live R line goes to every attach target's project channel; a run
+  // launched with no targets simply has no live viewer (the full log is
+  // captured in the run either way).
+  const notifyRScript = (line: string) => {
+    for (const projectId of args.attachTargetProjectIds) {
+      notifyProjectRScript(projectId, moduleId, line);
+    }
+  };
 
   const moduleSpaceCheck = await checkSpaceForModuleRun();
   if (!moduleSpaceCheck.ok) {
@@ -81,18 +90,18 @@ export async function executeRunModule(args: {
     for (const asset of mod.detail.assetsToImport) {
       const assetName = getAssetToImportName(asset);
       await writeToLog("Getting asset: " + assetName, "download-file");
-      notifyProjectRScript(projectId, moduleId, "Getting asset: " + assetName);
+      notifyRScript("Getting asset: " + assetName);
       await importAsset(asset, workspace, moduleId);
     }
 
     await writeToLog("Starting R script", "r-output");
-    notifyProjectRScript(projectId, moduleId, "Starting R script");
+    notifyRScript("Starting R script");
     await runRScript(args.runId, moduleId, (line, isError) => {
       writeToLog(line, isError ? "stderr" : "stdout").catch(() => {});
-      notifyProjectRScript(projectId, moduleId, line);
+      notifyRScript(line);
     });
     await writeToLog("Finished R script", "r-output");
-    notifyProjectRScript(projectId, moduleId, "Finished R script");
+    notifyRScript("Finished R script");
 
     // Verify every declared results object was written (write-time
     // contract), hash outputs for downstream inputKeys, and warn on
@@ -138,32 +147,32 @@ export async function executeRunModule(args: {
   }
 }
 
-// §3.7 reuse: the module's inputs are byte-identical to the base run's, so
-// its raw output CSVs are copied from the base run's outputs/{moduleId} and
-// R is skipped. Copy, never link — every run stays a self-contained,
-// independently-deletable directory. outputFileHashes come from the base
+// §3.7 reuse: the module's inputs are byte-identical to the matched run's,
+// so its raw output CSVs are copied from that run's outputs/{moduleId} and R
+// is skipped. Copy, never link — every run stays a self-contained,
+// independently-deletable directory. outputFileHashes come from the source
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
-  projectId: string;
+  attachTargetProjectIds: string[];
   tmpDir: string;
   module: ResolvedRunModule;
-  baseRunId: string;
-  baseRunDir: string;
+  sourceRunId: string;
+  sourceRunDir: string;
   inputKey: string;
   outputFileHashes: Record<string, string>;
 }): Promise<ModuleRunResult> {
-  const { module: mod, projectId } = args;
+  const { module: mod } = args;
   const moduleId = mod.moduleId;
 
-  const baseModuleDir = join(args.baseRunDir, "outputs", moduleId);
+  const sourceModuleDir = join(args.sourceRunDir, "outputs", moduleId);
   // All-or-nothing check BEFORE any copy, so the fallback to a real run
   // almost always starts from an untouched workspace.
   for (const ro of mod.detail.resultsObjects) {
     try {
-      await Deno.lstat(join(baseModuleDir, ro.id));
+      await Deno.lstat(join(sourceModuleDir, ro.id));
     } catch {
       throw new ReuseSourceMissingError(
-        `Base run ${args.baseRunId} is missing output ${ro.id} for module ${moduleId}`,
+        `Results package ${args.sourceRunId} is missing output ${ro.id} for module ${moduleId}`,
       );
     }
   }
@@ -178,18 +187,20 @@ export async function reuseRunModule(args: {
   const { writeToLog, closeLog } = await openModuleLog(workspace);
   try {
     await writeToLog(
-      `Reusing outputs from results package ${args.baseRunId} — inputs unchanged`,
+      `Reusing outputs from results package ${args.sourceRunId} — inputs unchanged`,
       "starting",
     );
-    notifyProjectRScript(
-      projectId,
-      moduleId,
-      "Reusing outputs from the previous results package (inputs unchanged)",
-    );
+    for (const projectId of args.attachTargetProjectIds) {
+      notifyProjectRScript(
+        projectId,
+        moduleId,
+        "Reusing outputs from an earlier results package (inputs unchanged)",
+      );
+    }
     for (const ro of mod.detail.resultsObjects) {
       await writeToLog("Reusing output: " + ro.id, "download-file");
       await Deno.copyFile(
-        join(baseModuleDir, ro.id),
+        join(sourceModuleDir, ro.id),
         join(workspace, ro.id),
       );
     }

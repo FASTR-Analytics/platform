@@ -45,21 +45,6 @@ export type DatasetCsvTarget = {
   denoPath: string;
 };
 
-export function sandboxDatasetCsvTarget(
-  projectId: string,
-  datasetType: DatasetType,
-): DatasetCsvTarget {
-  return {
-    postgresPath: join(
-      _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-      projectId,
-      "datasets",
-      `${datasetType}.csv`,
-    ),
-    denoPath: getDatasetFilePath(projectId, datasetType),
-  };
-}
-
 // Ensures the target's parent dir exists and is writable by the Postgres
 // container user before `COPY … TO` runs (same 0o777 the sandbox datasets
 // dir has always used).
@@ -125,69 +110,6 @@ export type DatasetHmisRunCapture = {
   facilities: ProjectFacilityRow[];
   calculatedIndicators: CalculatedIndicator[];
 };
-
-export async function addDatasetHmisToProject(
-  mainDb: Sql,
-  projectDb: Sql,
-  csvTarget: DatasetCsvTarget,
-  windowing: DatasetHmisWindowingCommon | undefined,
-  onProgress?: (progress: number, message: string) => Promise<void>
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  const resCapture = await computeDatasetHmisRunCapture(
-    mainDb,
-    csvTarget,
-    windowing,
-    onProgress
-  );
-  if (resCapture.success === false) {
-    return resCapture;
-  }
-  const capture = resCapture.data;
-  return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    await projectDb.begin((sql) => [
-      sql`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'hmis',
-  ${JSON.stringify(capture.info)},
-  ${capture.lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`,
-      sql`DELETE FROM indicators`,
-      sql`DELETE FROM facilities_hmis`,
-      sql`DELETE FROM calculated_indicators_snapshot`,
-      ...capture.indicators.map(
-        (ind) =>
-          sql`INSERT INTO indicators (indicator_common_id, indicator_common_label)
-        VALUES (${ind.indicator_common_id}, ${ind.indicator_common_label})`
-      ),
-      ...capture.facilities.map(
-        (fac) =>
-          sql`INSERT INTO facilities_hmis (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`
-      ),
-      ...capture.calculatedIndicators
-        .map(calculatedIndicatorToSnapshotRow)
-        .map(
-          (ci) =>
-            sql`INSERT INTO calculated_indicators_snapshot (
-            calculated_indicator_id, label, group_label, sort_order,
-            num_indicator_id, denom_kind, denom_indicator_id, denom_population_type, denom_population_multiplier,
-            format_as, threshold_direction, threshold_green, threshold_yellow
-          ) VALUES (
-            ${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
-            ${ci.num_indicator_id}, ${ci.denom_kind}, ${ci.denom_indicator_id}, ${ci.denom_population_type}, ${ci.denom_population_multiplier},
-            ${ci.format_as}, ${ci.threshold_direction}, ${ci.threshold_green}, ${ci.threshold_yellow}
-          )`
-        ),
-    ]);
-    return { success: true, data: { lastUpdated: capture.lastUpdated } };
-  });
-}
 
 // The calculated_indicators_snapshot row shape (denormalized denom) — shared
 // by the project-DB apply above and the run input JSON export.

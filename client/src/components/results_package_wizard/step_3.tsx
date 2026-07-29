@@ -14,7 +14,6 @@ import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
-  projectId: string;
   step1Result: RunGenerationStep1Result;
   step2Result: RunGenerationStep2Result;
   onLaunched: () => Promise<void>;
@@ -22,8 +21,12 @@ type Props = {
 
 // Step 3 — confirm: label + selection summary, then Launch. Launch consumes
 // the attempt server-side (the run owns its lifecycle from here), so on
-// success the wizard closes and progress shows on the project's Results
-// package surface via SSE.
+// success the wizard closes and progress shows on the Results packages
+// surface via SSE. "Save as instance defaults" writes this configuration to
+// the instance defaults store (§3.5), which is what the next wizard run
+// starts from. The launch-time "attach to project(s)" multi-select is item
+// 2: the launch route already takes the target list, and this step sends it
+// empty, so a package generated today is attached from the project picker.
 export function Step3(p: Props) {
   const [label, setLabel] = createSignal(
     `${t3({
@@ -32,11 +35,22 @@ export function Step3(p: Props) {
       pt: "Pacote de resultados",
     })} ${new Date().toISOString().slice(0, 10)}`,
   );
-
   function moduleLabel(moduleId: string): string {
     const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
     return entry === undefined ? moduleId : t3(entry.label);
   }
+
+  const saveAsDefaults = createFormAction(async () => {
+    return await serverActions.saveRunGenerationDefaults({
+      defaults: {
+        step1: p.step1Result,
+        moduleIds: p.step2Result.modules.map((m) => m.moduleId),
+        parameterSelections: Object.fromEntries(
+          p.step2Result.modules.map((m) => [m.moduleId, m.parameterSelections]),
+        ),
+      },
+    });
+  }, async () => {});
 
   const launch = createFormAction(async () => {
     const trimmed = label().trim();
@@ -51,8 +65,8 @@ export function Step3(p: Props) {
       };
     }
     const res = await serverActions.launchRunGeneration({
-      project_id: p.projectId,
       label: trimmed,
+      attachTargetProjectIds: [],
     });
     if (res.success === false) {
       return res;
@@ -124,12 +138,13 @@ export function Step3(p: Props) {
 
       <div class="text-neutral text-sm">
         {t3({
-          en: "Generation runs in the background. You can leave this page and follow progress on the Results package tab.",
-          fr: "La génération s'exécute en arrière-plan. Vous pouvez quitter cette page et suivre la progression dans l'onglet Paquet de résultats.",
-          pt: "A geração é executada em segundo plano. Pode sair desta página e acompanhar o progresso no separador Pacote de resultados.",
+          en: "Generation runs in the background. You can leave this page and follow progress on the Results packages surface.",
+          fr: "La génération s'exécute en arrière-plan. Vous pouvez quitter cette page et suivre la progression sur la page Paquets de résultats.",
+          pt: "A geração é executada em segundo plano. Pode sair desta página e acompanhar o progresso na página Pacotes de resultados.",
         })}
       </div>
 
+      <StateHolderFormError state={saveAsDefaults.state()} />
       <StateHolderFormError state={launch.state()} />
 
       <div class="ui-gap-sm flex">
@@ -143,6 +158,18 @@ export function Step3(p: Props) {
             en: "Launch generation",
             fr: "Lancer la génération",
             pt: "Iniciar a geração",
+          })}
+        </Button>
+        <Button
+          onClick={saveAsDefaults.click}
+          outline
+          state={saveAsDefaults.state()}
+          iconName="save"
+        >
+          {t3({
+            en: "Save these selections as instance defaults",
+            fr: "Enregistrer ces sélections comme valeurs par défaut de l'instance",
+            pt: "Guardar estas seleções como predefinições da instância",
           })}
         </Button>
       </div>

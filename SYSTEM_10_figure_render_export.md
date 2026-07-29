@@ -8,6 +8,7 @@ globs:
   - client/src/state/project/t2_images.ts
   - lib/brand_presets.ts
   - lib/key_colors.ts
+  - lib/resolve_figure_calendar.ts
   - lib/types/_figure_bundle.ts
   - lib/types/_slide_fonts.ts
 docs_absorbed:
@@ -198,6 +199,19 @@ global `t3`/`getCalendar`/`getLanguage` singletons.
   handled by the same bundle thread, **not** a new `TimeseriesInputs` prop or a
   `FigureInputs`-shape change (panther's period formatting is calendar-only, no
   language).
+- **Fiscal-year reporting is a figure-style calendar, nothing more.**
+  [resolve_figure_calendar.ts](lib/resolve_figure_calendar.ts) is the ONE place
+  `INSTANCE_FISCAL_YEAR=july` becomes a panther calendar: it returns
+  `"gregorian-fy-july"` only for a gregorian, quarterly, timeseries figure and
+  otherwise passes `localization.calendar` through. `get_style_from_po.ts` calls
+  it, so the relabeled axis (large ticks on July, band reading FY2025/26) rides
+  the same bundle thread as every other calendar decision. It changes nothing
+  about how periods are stored, filtered, sorted or fetched — the period-range
+  filter above a chart still reads calendar quarters, which is intended. The
+  three guards are load-bearing (quarterly-only, timeseries-only,
+  gregorian-only); the server also refuses fiscal-year + Ethiopian at boot
+  ([exposed_env_vars.ts](server/exposed_env_vars.ts)), and this function is the
+  second line of defence that protects already-stored bundles.
 - **Deliberate behavior change (a bugfix).** Previously those `t3` calls followed
   the session toggle, so a Senegal figure showed English legends if the author had
   toggled English. Now figures are **always** instance-language; the EN/FR UI

@@ -3,7 +3,7 @@ import {
   DEFAULT_PERIOD_START,
   t3,
   type DatasetHmisWindowingCommon,
-  type RunGenerationPrefill,
+  type RunGenerationDefaults,
   type RunGenerationStep1Result,
 } from "lib";
 import {
@@ -23,32 +23,31 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  projectId: string;
   step1Result: RunGenerationStep1Result | null;
   silentFetch: () => Promise<void>;
 };
 
 // Step 1 — choose data: family checkboxes + per-family scoping, reusing the
 // per-project windowing UI verbatim (§10 ruling 6). Starting values: the
-// attempt's own step1Result (resume) beats the attached run's manifest
-// prefill beats defaults.
+// attempt's own step1Result (resume) beats the instance defaults store beats
+// definition defaults — there is no anchor run, the wizard is
+// instance-entered.
 export function Step1(p: Props) {
-  const prefill = createQuery(
-    () => serverActions.getRunGenerationPrefill({ project_id: p.projectId }),
+  const defaults = createQuery(
+    () => serverActions.getRunGenerationDefaults({}),
     t3({
-      en: "Loading current data selection...",
-      fr: "Chargement de la sélection de données actuelle...",
-      pt: "A carregar a seleção de dados atual...",
+      en: "Loading the instance's default data selection...",
+      fr: "Chargement de la sélection de données par défaut de l'instance...",
+      pt: "A carregar a seleção de dados predefinida da instância...",
     }),
   );
 
   return (
-    <StateHolderWrapper state={prefill.state()}>
-      {(keyedPrefill) => (
+    <StateHolderWrapper state={defaults.state()}>
+      {(keyedDefaults) => (
         <Step1Inner
-          projectId={p.projectId}
           step1Result={p.step1Result}
-          prefill={keyedPrefill}
+          defaults={keyedDefaults}
           silentFetch={p.silentFetch}
         />
       )}
@@ -57,12 +56,11 @@ export function Step1(p: Props) {
 }
 
 function Step1Inner(p: {
-  projectId: string;
   step1Result: RunGenerationStep1Result | null;
-  prefill: RunGenerationPrefill;
+  defaults: RunGenerationDefaults;
   silentFetch: () => Promise<void>;
 }) {
-  const initial = p.step1Result ?? p.prefill.step1;
+  const initial = p.step1Result ?? p.defaults.step1;
 
   function hmisAvailable(): boolean {
     return (
@@ -156,7 +154,6 @@ function Step1Inner(p: {
       };
     }
     return await serverActions.updateRunGenerationAttemptStep1({
-      project_id: p.projectId,
       step1Result: { hmis, hfa, iceh: includeIceh() },
     });
   }, p.silentFetch);

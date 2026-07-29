@@ -29,43 +29,6 @@ export type DatasetIcehRunCapture = {
   indicators: DBIcehIndicator[];
 };
 
-export async function addDatasetIcehToProject(
-  mainDb: Sql,
-  projectDb: Sql,
-  csvTarget: DatasetCsvTarget,
-  onProgress?: (progress: number, message: string) => Promise<void>,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  const resCapture = await computeDatasetIcehRunCapture(
-    mainDb,
-    csvTarget,
-    onProgress,
-  );
-  if (resCapture.success === false) {
-    return resCapture;
-  }
-  const capture = resCapture.data;
-  return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    await projectDb.begin((sql) => [
-      sql`
-        INSERT INTO datasets (dataset_type, info, last_updated)
-        VALUES ('iceh', ${JSON.stringify(capture.info)}, ${capture.lastUpdated})
-        ON CONFLICT (dataset_type) DO UPDATE SET
-          info = EXCLUDED.info,
-          last_updated = EXCLUDED.last_updated
-      `,
-      sql`DELETE FROM iceh_indicators_snapshot`,
-      ...capture.indicators.map(
-        (ind) =>
-          sql`INSERT INTO iceh_indicators_snapshot
-            (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
-            VALUES (${ind.iceh_indicator}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
-      ),
-    ]);
-    return { success: true, data: { lastUpdated: capture.lastUpdated } };
-  });
-}
-
 export async function computeDatasetIcehRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
