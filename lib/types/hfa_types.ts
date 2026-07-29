@@ -38,6 +38,15 @@ export type HfaIndicatorCode = {
   rFilterCode?: string | undefined;
 };
 
+// The no-run / unreadable-run state: every taxonomy list empty.
+export const EMPTY_HFA_TAXONOMY: HfaTaxonomyForAI = {
+  categories: [],
+  subCategories: [],
+  serviceCategories: [],
+  timePoints: [],
+  indicators: [],
+};
+
 // Full HFA indicator taxonomy surfaced to the AI (get_available_metrics).
 // Sourced from the per-project snapshot tables, so it reflects the project's
 // service-category scoping. Categories/sub-categories/service-categories carry

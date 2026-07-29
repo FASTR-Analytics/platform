@@ -1087,16 +1087,78 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
 
 #### Phase 3 core — work items (execute in order, one per session, each gated by `deno task typecheck` + rig `--run` green)
 
-0. **Dual-write deletion (ruling 5).** Strip the generation pipeline of the
-   per-module `ro_*` COPY (`legacy_store_results_object.ts`), sandbox output
-   copies, `upsertModuleCatalogForGeneratedRun`, the dataset sandbox
-   mirror-back in `prepare_inputs.ts`, and the `defaultPresentationObjects:
-   []` shim. TRAP: the legacy dataset-attach functions do double duty — some
-   writes (e.g. `datasets` rows whose `info` feeds the manifest capture) are
-   still read by run finalize; re-source those from the wizard's own
-   computation, don't delete blindly. pg read wrappers + `ro_*` + project
-   catalog tables stay untouched (frozen rig oracle). Backfill synthesizer
-   unaffected (it READS pg, never writes it).
+0. **Dual-write deletion (ruling 5) — DONE 2026-07-29** (gates green:
+   `deno task typecheck` + lint:systems + rig PARITY GREEN `--run`, 719
+   checks 0 diffs/both_error/skips; live-verified on dev). A generation now
+   writes ONLY into its run; no project DB and no sandbox are touched. What
+   landed:
+   - **Dataset attach split** (the double-duty trap, resolved by
+     construction): `computeDataset{Hmis,Hfa,Iceh}RunCapture` do every
+     instance read, validation and the `COPY … TO` and RETURN the captured
+     rows; `addDataset*ToProject` are thin appliers over the same capture and
+     survive only for `createProject`'s legacy plane. The per-family
+     remove-then-write is gone from the capture half (the run tmp dir is
+     always fresh), and the redundant `projectId` params went with it.
+   - **prepare_inputs** writes the captures into the run as its own inputs —
+     `indicators.json`, `calculated_indicators_snapshot.json`, the four HFA
+     mirror JSONs, `iceh_indicators_snapshot.json`, plus
+     `facilities_{hmis,hfa}.parquet` via the new `exportRowsToParquet`
+     (in-memory sibling of `exportPgTableToParquet`) — and returns the
+     manifest `datasets` entries and the script-generation inputs. No
+     sandbox mirror-back, no project writes, no detach calls.
+   - **resolve_modules** takes those script inputs instead of re-reading
+     project snapshot tables. ORDERING TRAP CAUGHT: the old snapshot reader
+     ordered HFA indicators by category → sub-category → indicator sort
+     order, while the instance query orders by (sort_order, var_name); the
+     order reaches generated R script text (hence the module inputKey), so
+     it is reproduced explicitly in prepare_inputs.
+   - **execute_module**: `dualWriteModuleToLegacyPlane` and
+     `legacy_store_results_object.ts` deleted; both the run and reuse paths
+     end at the run. `upsertModuleCatalogForGeneratedRun` and the
+     `defaultPresentationObjects: []` rollback shim deleted from
+     `db/project/modules.ts` (`prepareModuleDefinitionForStorage` exported).
+   - **Builder** gained a `RunBuildSource` discriminator: `project_db` (the
+     backfill synthesizer, unchanged behavior) vs `captured` (the wizard —
+     modules/metrics/datasets/facilitiesTables handed in, zero project-DB
+     round trips). `sourceProjectId` is now an explicit build option.
+     `pipeline.ts` builds the manifest catalog from the resolved definitions
+     and frozen selections directly.
+   - **Read re-points** (surfaces that would otherwise have served frozen
+     pre-cutover rows): `getProjectDetail`'s projectDatasets /
+     commonIndicators / icehIndicators / hfaTaxonomy now come from the
+     attached run (`getProjectDatasetsFromManifest`,
+     `get{Common,Iceh}IndicatorsFromManifestInputs`,
+     `getHfaTaxonomyFromManifestInputs` in run_read.ts; time points stay
+     instance-wide via `getHfaTimePointsForAI`); `getAllDatasetsForProject`
+     and `getHfaTaxonomyForAI` deleted; the publish `run_attached` payload
+     reads the same helpers; `cache_status`'s metric→RO map comes from the
+     manifest; the admin `compareProjects` route reads each project's
+     attached manifest, and `CompareProjectsModule` shed the dirty-state and
+     per-half definition stamps (dead concepts) with the client table
+     updated to match.
+   - **Live dev verification** (harness, Test project): full pipeline both
+     ways — real R execution AND a §3.7 reuse (0.9 s, `reused` not re-run) —
+     each asserting the manifest is complete (real inputKey/output hashes,
+     datasets info with totalRows, facilities columns, every input file
+     present on disk, availability stamps) AND that the legacy plane is
+     byte-untouched: all 7 catalog/mirror tables and all 14 `ro_*` tables
+     unchanged, `modules` rows (incl. `last_run_at`) and `datasets` rows
+     identical, sandbox files identical. T1 verified served from the run
+     (commonIndicators = 9 from run inputs on a project whose legacy
+     `indicators` table holds 0 rows — the re-point demonstrably matters).
+     Harness runs deleted and the original backfill run reattached.
+   - **Env note**: the dev `pg` container predated item 7's runs mount and
+     had to be restarted via `./pg_run` (which mounts
+     `_example_instance_dir/runs:/app/runs`) before Postgres could COPY
+     extracts into run tmp dirs — the same per-instance compose change the
+     fleet rollout needs.
+   - **Barrel trap** (cost two harness runs): `deno check` follows source
+     imports, so a symbol missing from a `mod.ts` re-export list typechecks
+     clean and fails only at runtime. New exports must be added to the
+     barrel — verify by executing, not by checking.
+   - Accepted, unchanged: `project_last_updated`'s `datasets`/`modules`
+     stamps are now permanently frozen (the recorded dead-table LOW; the
+     client keys on runVersionKey, so nothing reads them).
 1. **Defaults store + wizard re-entry.** `run_generation_defaults` in
    `instance_config` (Zod, per-module ModuleConfigSelections + per-family
    windowing); attempt PK re-key migration (source_project_id → created-by

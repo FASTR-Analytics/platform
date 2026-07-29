@@ -69,3 +69,48 @@ ORDER BY ordinal_position
   await Deno.remove(csvPath);
   return columns;
 }
+
+// Same encoding as exportPgTableToParquet, but for rows already in memory
+// (the wizard's dataset captures — instance-DB subsets that never touch a
+// project table under the no-dual-write model, Phase 3 re-cut ruling 5).
+export async function exportRowsToParquet(
+  rows: Record<string, unknown>[],
+  columns: ExportedColumn[],
+  parquetPath: string,
+): Promise<void> {
+  const csvPath = join(
+    await Deno.makeTempDir({ prefix: "rows_export_" }),
+    "rows.csv",
+  );
+  const file = await Deno.open(csvPath, { write: true, create: true, truncate: true });
+  const writer = file.writable.getWriter();
+  const enc = new TextEncoder();
+  try {
+    await writer.write(enc.encode(columns.map((c) => c.name).join(",") + "\n"));
+    let chunk = "";
+    for (const row of rows) {
+      const fields = columns.map((c) => {
+        const v = row[c.name];
+        if (v === null || v === undefined) return PG_NULL_SENTINEL;
+        return `"${String(v).replaceAll('"', '""')}"`;
+      });
+      chunk += fields.join(",") + "\n";
+      if (chunk.length > 1_000_000) {
+        await writer.write(enc.encode(chunk));
+        chunk = "";
+      }
+    }
+    if (chunk.length > 0) {
+      await writer.write(enc.encode(chunk));
+    }
+  } finally {
+    await writer.close();
+  }
+  await writeParquetFromCsv({
+    csvPath,
+    parquetPath,
+    columns,
+    nullStrings: [PG_NULL_SENTINEL],
+  });
+  await Deno.remove(csvPath);
+}

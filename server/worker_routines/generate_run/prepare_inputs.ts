@@ -1,37 +1,46 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
-  throwIfErrNoData,
   throwIfErrWithData,
+  type CalculatedIndicator,
   type DatasetType,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+  type RunDataset,
   type RunGenerationStep1Result,
 } from "lib";
 import {
-  addDatasetHfaToProject,
-  addDatasetHmisToProject,
-  addDatasetIcehToProject,
-  ensureDatasetCsvTargetDir,
-  removeDatasetFromProject,
-  sandboxDatasetCsvTarget,
+  calculatedIndicatorToSnapshotRow,
+  computeDatasetHfaRunCapture,
+  computeDatasetHmisRunCapture,
+  computeDatasetIcehRunCapture,
+  dbRowToHfaIndicator,
+  PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
+  type ProjectFacilityRow,
 } from "../../db/mod.ts";
 import { _RUNS_DIR_PATH_POSTGRES_INTERNAL } from "../../exposed_env_vars.ts";
-import { readCsvHeaders, runTmpDirPath } from "../../runs/mod.ts";
+import {
+  exportRowsToParquet,
+  readCsvHeaders,
+  runInputFilePath,
+  runTmpDirPath,
+  type ExportedColumn,
+} from "../../runs/mod.ts";
 import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
+import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
 // Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2;
-// COPY TO re-targeted by item 7, binding decision 4). The attach functions
-// COPY each dataset extract DIRECTLY into the run's inputs/datasets/ (the
-// Postgres container writes through the runs volume via the
-// _POSTGRES_INTERNAL namespace) and still perform the project-DB
-// mirror/snapshot rewrite. The extract is then mirrored back into the
-// sandbox — that copy IS the dual-write rollback path for data: the
-// previous image's R contract (../datasets/), mirrors, and datasets rows
-// all stay current. The run's extracts get explicit-schema parquet twins
-// (§2.1), and the generated scripts read ../../inputs/datasets/. A family
-// deselected in step 1 is detached from the project — legacy semantics, and
-// the finalize capture then correctly omits it from manifest.datasets.
+// COPY TO re-targeted by item 7, binding decision 4; project-DB writes
+// deleted by the Phase 3 re-cut, ruling 5). The dataset CAPTURE functions do
+// every instance-DB read plus the `COPY … TO` that writes each extract
+// DIRECTLY into the run's inputs/datasets/ (the Postgres container writes
+// through the runs volume via the _POSTGRES_INTERNAL namespace). Nothing is
+// written to any project database: the captured rows become this run's own
+// input mirrors (JSON + facilities parquet) and its manifest datasets info,
+// and they feed script generation. A family not selected in step 1 simply
+// has no extract and no manifest entry.
 
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];
@@ -39,12 +48,32 @@ export type PreparedRunInputs = {
   datasetExtractHashes: Map<DatasetType, string>;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
+  // Manifest `datasets` entries, built from the captures (the project
+  // `datasets` table is never written or read on this path).
+  datasets: RunDataset[];
+  // Facilities tables captured into the run, with their parquet columns.
+  facilitiesTables: { tableName: string; columns: ExportedColumn[] }[];
+  // Everything script generation needs (previously re-read from the project
+  // snapshot tables the dual-write had just populated).
+  scriptInputs: {
+    knownDatasetVariables: Set<string>;
+    hfaIndicators: HfaIndicator[];
+    hfaIndicatorCode: HfaIndicatorCode[];
+    hfaSentinelRows: HfaSentinelRow[];
+    calculatedIndicators: CalculatedIndicator[];
+  };
 };
+
+// The project facilities tables are all-text; the run parquet declares the
+// same (§2.3 declared types, never inferred).
+const FACILITY_PARQUET_COLUMNS: ExportedColumn[] =
+  PROJECT_FACILITY_COLUMN_NAMES.map((name) => ({
+    name,
+    duckDbType: "VARCHAR",
+  }));
 
 export async function prepareRunInputs(
   mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
   step1: RunGenerationStep1Result,
   runId: string,
 ): Promise<PreparedRunInputs> {
@@ -63,65 +92,149 @@ export async function prepareRunInputs(
     denoPath: join(tmpDir, "inputs", "datasets", `${datasetType}.csv`),
   });
 
-  const attached = new Set(
-    (
-      await projectDb<{ dataset_type: string }[]>`
-SELECT dataset_type FROM datasets
-`
-    ).map((r) => r.dataset_type as DatasetType),
-  );
-
   const selectedFamilies: DatasetType[] = [];
+  const datasets: RunDataset[] = [];
+  const extraInputFiles: string[] = [];
+  const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
+    [];
+  const scriptInputs: PreparedRunInputs["scriptInputs"] = {
+    knownDatasetVariables: new Set<string>(),
+    hfaIndicators: [],
+    hfaIndicatorCode: [],
+    hfaSentinelRows: [],
+    calculatedIndicators: [],
+  };
+
   if (step1.hmis !== null) {
     selectedFamilies.push("hmis");
-    const res = await addDatasetHmisToProject(
+    const res = await computeDatasetHmisRunCapture(
       mainDb,
-      projectDb,
-      projectId,
       runCsvTarget("hmis"),
       step1.hmis.windowing,
     );
     throwIfErrWithData(res);
-  } else if (attached.has("hmis")) {
-    throwIfErrNoData(await removeDatasetFromProject(projectDb, projectId, "hmis"));
+    const capture = res.data;
+    datasets.push({
+      datasetType: "hmis",
+      lastUpdated: capture.lastUpdated,
+      info: capture.info,
+    });
+    await writeInputJson(tmpDir, "indicators.json", capture.indicators);
+    extraInputFiles.push("inputs/indicators.json");
+    await writeInputJson(
+      tmpDir,
+      "calculated_indicators_snapshot.json",
+      capture.calculatedIndicators.map(calculatedIndicatorToSnapshotRow),
+    );
+    extraInputFiles.push("inputs/calculated_indicators_snapshot.json");
+    await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
+    extraInputFiles.push("inputs/facilities_hmis.parquet");
+    facilitiesTables.push({
+      tableName: "facilities_hmis",
+      columns: FACILITY_PARQUET_COLUMNS,
+    });
+    scriptInputs.calculatedIndicators = capture.calculatedIndicators;
   }
+
   if (step1.hfa !== null) {
     selectedFamilies.push("hfa");
-    const res = await addDatasetHfaToProject(
+    const res = await computeDatasetHfaRunCapture(
       mainDb,
-      projectDb,
-      projectId,
       runCsvTarget("hfa"),
       undefined,
       step1.hfa.serviceCategoryScope,
     );
     throwIfErrWithData(res);
-  } else if (attached.has("hfa")) {
-    throwIfErrNoData(await removeDatasetFromProject(projectDb, projectId, "hfa"));
+    const capture = res.data;
+    datasets.push({
+      datasetType: "hfa",
+      lastUpdated: capture.lastUpdated,
+      info: capture.info,
+    });
+    await writeInputJson(
+      tmpDir,
+      "hfa_indicators_snapshot.json",
+      capture.indicators,
+    );
+    extraInputFiles.push("inputs/hfa_indicators_snapshot.json");
+    for (
+      const [fileName, rows] of [
+        ["hfa_indicator_categories_snapshot.json", capture.categories],
+        ["hfa_indicator_sub_categories_snapshot.json", capture.subCategories],
+        [
+          "hfa_indicator_service_categories_snapshot.json",
+          capture.serviceCategories,
+        ],
+      ] as const
+    ) {
+      await writeInputJson(tmpDir, fileName, rows);
+      extraInputFiles.push(`inputs/${fileName}`);
+    }
+    await writeFacilitiesParquet(tmpDir, "facilities_hfa", capture.facilities);
+    extraInputFiles.push("inputs/facilities_hfa.parquet");
+    facilitiesTables.push({
+      tableName: "facilities_hfa",
+      columns: FACILITY_PARQUET_COLUMNS,
+    });
+    scriptInputs.knownDatasetVariables = new Set(
+      capture.indicatorsHfa.map((r) => r.var_name),
+    );
+    // Script generation consumed these through the project snapshot reader,
+    // which ordered by category → sub-category → indicator sort order. The
+    // order reaches the generated R script (hence the module inputKey), so
+    // it is reproduced here rather than inherited from the instance query.
+    const categoryOrder = new Map(
+      capture.categories.map((c) => [c.id, c.sort_order]),
+    );
+    const subCategoryOrder = new Map(
+      capture.subCategories.map((s) => [s.id, s.sort_order]),
+    );
+    scriptInputs.hfaIndicators = capture.indicators
+      .toSorted(
+        (a, b) =>
+          (categoryOrder.get(a.category_id ?? "") ?? 999999) -
+            (categoryOrder.get(b.category_id ?? "") ?? 999999) ||
+          (subCategoryOrder.get(a.sub_category_id ?? "") ?? 999999) -
+            (subCategoryOrder.get(b.sub_category_id ?? "") ?? 999999) ||
+          a.sort_order - b.sort_order ||
+          a.var_name.localeCompare(b.var_name),
+      )
+      .map(dbRowToHfaIndicator);
+    scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
+      varName: c.var_name,
+      timePoint: c.time_point,
+      rCode: c.r_code,
+      rFilterCode: c.r_filter_code ?? undefined,
+    }));
+    scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
+      varName: r.var_name,
+      value: r.value,
+      sentinelClass: r.sentinel_class,
+      isNumeric: r.is_numeric,
+    }));
   }
+
   if (step1.iceh) {
     selectedFamilies.push("iceh");
-    const res = await addDatasetIcehToProject(
-      mainDb,
-      projectDb,
-      projectId,
-      runCsvTarget("iceh"),
-    );
+    const res = await computeDatasetIcehRunCapture(mainDb, runCsvTarget("iceh"));
     throwIfErrWithData(res);
-  } else if (attached.has("iceh")) {
-    throwIfErrNoData(await removeDatasetFromProject(projectDb, projectId, "iceh"));
+    const capture = res.data;
+    datasets.push({
+      datasetType: "iceh",
+      lastUpdated: capture.lastUpdated,
+      info: capture.info,
+    });
+    await writeInputJson(
+      tmpDir,
+      "iceh_indicators_snapshot.json",
+      capture.indicators,
+    );
+    extraInputFiles.push("inputs/iceh_indicators_snapshot.json");
   }
 
   const datasetExtractHashes = new Map<DatasetType, string>();
-  const extraInputFiles: string[] = [];
   for (const datasetType of selectedFamilies) {
-    // The COPY TO wrote the extract at the run path; mirror it into the
-    // sandbox (the dual-write rollback path — the previous image's R
-    // contract reads sandbox/{projectId}/datasets/).
     const csvPath = runCsvTarget(datasetType).denoPath;
-    const sandboxTarget = sandboxDatasetCsvTarget(projectId, datasetType);
-    await ensureDatasetCsvTargetDir(sandboxTarget);
-    await Deno.copyFile(csvPath, sandboxTarget.denoPath);
     const headers = await readCsvHeaders(csvPath);
     await writeParquetFromCsv({
       csvPath,
@@ -141,10 +254,37 @@ SELECT dataset_type FROM datasets
     );
   }
 
-  // The legacy plane's datasets changed mid-generation; clients learn the
-  // full new catalog (datasets included) from run_attached at publish.
+  return {
+    selectedFamilies,
+    datasetExtractHashes,
+    extraInputFiles,
+    datasets,
+    facilitiesTables,
+    scriptInputs,
+  };
+}
 
-  return { selectedFamilies, datasetExtractHashes, extraInputFiles };
+async function writeInputJson(
+  tmpDir: string,
+  fileName: string,
+  rows: unknown[],
+): Promise<void> {
+  await Deno.writeTextFile(
+    runInputFilePath(tmpDir, fileName),
+    JSON.stringify(rows),
+  );
+}
+
+async function writeFacilitiesParquet(
+  tmpDir: string,
+  tableName: string,
+  facilities: ProjectFacilityRow[],
+): Promise<void> {
+  await exportRowsToParquet(
+    facilities as unknown as Record<string, unknown>[],
+    FACILITY_PARQUET_COLUMNS,
+    runInputFilePath(tmpDir, `${tableName}.parquet`),
+  );
 }
 
 // Explicit parquet schema for the extract twins (§2.3: declared types, never

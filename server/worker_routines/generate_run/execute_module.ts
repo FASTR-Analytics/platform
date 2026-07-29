@@ -2,23 +2,15 @@ import { emptyDir } from "@std/fs";
 import { join } from "@std/path";
 import { mergeReadableStreams } from "@std/streams";
 import { stripVTControlCharacters } from "node:util";
-import type { Sql } from "postgres";
-import {
-  getAssetToImportName,
-  throwIfErrNoData,
-  type InstanceConfigFacilityColumns,
-} from "lib";
+import { getAssetToImportName } from "lib";
 import {
   _IS_PRODUCTION,
   _MODULE_LOG_FILE_NAME,
   _MODULE_SCRIPT_FILE_NAME,
   _RUNS_DIR_PATH_EXTERNAL,
-  _SANDBOX_DIR_PATH,
 } from "../../exposed_env_vars.ts";
 import { checkSpaceForModuleRun } from "../../utils/disk_space.ts";
-import { upsertModuleCatalogForGeneratedRun } from "../../db/mod.ts";
 import { importAsset } from "./import_asset.ts";
-import { storeResultsObject } from "./legacy_store_results_object.ts";
 import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import { notifyProjectRScript } from "../../task_management/notify_project_v2.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
@@ -40,10 +32,10 @@ import type { ResolvedRunModule } from "./resolve_modules.ts";
 // A base output file gone missing throws ReuseSourceMissingError and the
 // pipeline falls back to a real run (fails closed).
 //
-// Both paths end with the legacy-plane dual-write (model point 4): outputs
-// copied to the project sandbox, catalog rows upserted, and today's ro_*
-// COPY run unchanged from the sandbox — so a rollback to the previous image
-// serves this generation's data even when a module was reused.
+// There is no legacy-plane dual-write: under the Phase 3 re-cut (ruling 5)
+// a generation writes ONLY into the run. Rollback is a hosting-level volume
+// restore, and the frozen ro_* tables serve solely as the parity rig's
+// oracle for backfill-provenance runs.
 
 export class ReuseSourceMissingError extends Error {}
 
@@ -53,12 +45,10 @@ type ModuleRunResult = {
 };
 
 export async function executeRunModule(args: {
-  projectDb: Sql;
   projectId: string;
   runId: string;
   tmpDir: string;
   module: ResolvedRunModule;
-  facilityColumns: InstanceConfigFacilityColumns;
   // Computed by the pipeline from the actual inputs (resolve_reuse.ts) —
   // recorded in the manifest as this module's memoization key.
   inputKey: string;
@@ -135,15 +125,6 @@ export async function executeRunModule(args: {
       }
     }
 
-    await dualWriteModuleToLegacyPlane({
-      projectDb: args.projectDb,
-      projectId,
-      workspace,
-      module: mod,
-      facilityColumns: args.facilityColumns,
-      writeToLog,
-    });
-
     await writeToLog("Module execution completed successfully", "good-close");
     return { inputKey: args.inputKey, outputFileHashes };
   } catch (e) {
@@ -163,11 +144,9 @@ export async function executeRunModule(args: {
 // independently-deletable directory. outputFileHashes come from the base
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
-  projectDb: Sql;
   projectId: string;
   tmpDir: string;
   module: ResolvedRunModule;
-  facilityColumns: InstanceConfigFacilityColumns;
   baseRunId: string;
   baseRunDir: string;
   inputKey: string;
@@ -215,15 +194,6 @@ export async function reuseRunModule(args: {
       );
     }
 
-    await dualWriteModuleToLegacyPlane({
-      projectDb: args.projectDb,
-      projectId,
-      workspace,
-      module: mod,
-      facilityColumns: args.facilityColumns,
-      writeToLog,
-    });
-
     await writeToLog("Module outputs reused successfully", "good-close");
     return { inputKey: args.inputKey, outputFileHashes: args.outputFileHashes };
   } catch (e) {
@@ -235,54 +205,6 @@ export async function reuseRunModule(args: {
     throw e;
   } finally {
     closeLog();
-  }
-}
-
-// Legacy-plane dual-write (rollback path, model point 4), shared by the run
-// and reuse paths: sandbox copy, catalog upsert, then today's ro_* COPY from
-// the sandbox. Runs for reused modules too — the project's pg tables may
-// have drifted from the base run (e.g. a legacy per-module rerun before
-// item 5 deletes that surface), and the rig diffs pg against the served run.
-async function dualWriteModuleToLegacyPlane(args: {
-  projectDb: Sql;
-  projectId: string;
-  workspace: string;
-  module: ResolvedRunModule;
-  facilityColumns: InstanceConfigFacilityColumns;
-  writeToLog: (message: string, type: string) => Promise<void>;
-}): Promise<void> {
-  const { module: mod, projectId } = args;
-  const moduleId = mod.moduleId;
-  const lastRunAt = new Date().toISOString();
-  const sandboxModuleDir = join(_SANDBOX_DIR_PATH, projectId, moduleId);
-  await emptyDir(sandboxModuleDir);
-  for await (const entry of Deno.readDir(args.workspace)) {
-    if (entry.isFile) {
-      await Deno.copyFile(
-        join(args.workspace, entry.name),
-        join(sandboxModuleDir, entry.name),
-      );
-    }
-  }
-  await upsertModuleCatalogForGeneratedRun(
-    args.projectDb,
-    mod.detail,
-    mod.configSelections,
-    mod.gitRef,
-    lastRunAt,
-  );
-  for (const ro of mod.detail.resultsObjects) {
-    notifyProjectRScript(projectId, moduleId, "Storing results object: " + ro.id);
-    await args.writeToLog("Storing results object: " + ro.id, "upload-file");
-    throwIfErrNoData(
-      await storeResultsObject(
-        args.projectDb,
-        projectId,
-        moduleId,
-        ro,
-        args.facilityColumns,
-      ),
-    );
   }
 }
 

@@ -3,10 +3,6 @@ import {
   getMergedModuleConfigSelections,
   MODULE_REGISTRY,
   throwIfErrWithData,
-  type CalculatedIndicator,
-  type DatasetType,
-  type HfaIndicator,
-  type HfaIndicatorCode,
   type ModuleConfigSelections,
   type ModuleDefinitionDetail,
   type ModuleId,
@@ -14,23 +10,16 @@ import {
 } from "lib";
 import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 import { getModuleDefinitionDetail } from "../../module_loader/mod.ts";
-import {
-  getAllCalculatedIndicatorsFromSnapshot,
-  getAllHfaIndicatorCodeFromSnapshot,
-  getAllHfaIndicatorsFromSnapshot,
-  getHfaSentinelRowsFromSnapshot,
-  getHfaTimePointOrder,
-} from "../../db/mod.ts";
+import { getHfaTimePointOrder } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
+import type { PreparedRunInputs } from "./prepare_inputs.ts";
 
 // Stage 2 of the run pipeline — resolve (PLAN_RESULTS_RUNS item 2 / §3.7).
 // Re-fetches the exact definitions the wizard's step 2 recorded (pinned
 // gitRef), validates the selection is a closed DAG whose data sources are
 // all in the run, freezes parameter selections, and generates each module's
 // R script — the script text is an inputKey ingredient, so generation
-// happens here, after prepare refreshed the project snapshots it reads.
-// Item 2 forces every resolved node to execute; item 3 adds the base-run
-// diff that turns reuse on.
+// happens here, from the dataset captures prepare just produced.
 
 export type ResolvedRunModule = {
   moduleId: ModuleId;
@@ -42,14 +31,16 @@ export type ResolvedRunModule = {
 
 export async function resolveRunModules(
   mainDb: Sql,
-  projectDb: Sql,
-  selectedFamilies: DatasetType[],
+  prepared: PreparedRunInputs,
   step2: RunGenerationStep2Result,
   countryIso3: string | undefined,
 ): Promise<ResolvedRunModule[]> {
-  const familySet = new Set(selectedFamilies);
+  const familySet = new Set(prepared.selectedFamilies);
   const selectedIds = new Set(step2.modules.map((m) => m.moduleId));
-  const scriptInputs = await readScriptGenerationInputs(mainDb, projectDb);
+  const scriptInputs: ScriptGenerationInputs = {
+    ...prepared.scriptInputs,
+    hfaTimePointOrder: await getHfaTimePointOrder(mainDb),
+  };
 
   const resolved = new Map<string, ResolvedRunModule>();
   for (const selection of step2.modules) {
@@ -133,34 +124,14 @@ function sortByDependencies(modules: ResolvedRunModule[]): ResolvedRunModule[] {
   return ordered;
 }
 
-type ScriptGenerationInputs = {
-  knownDatasetVariables: Set<string>;
-  hfaIndicators: HfaIndicator[];
-  hfaIndicatorCode: HfaIndicatorCode[];
-  hfaSentinelRows: Awaited<ReturnType<typeof getHfaSentinelRowsFromSnapshot>>;
+// The script-generation inputs come from THIS run's dataset captures
+// (prepare_inputs), not from project snapshot tables — under the
+// no-dual-write model (Phase 3 re-cut ruling 5) nothing is written to a
+// project DB, and the captured rows are by construction the ones this run's
+// extracts were built from. Time-point order is instance-wide.
+type ScriptGenerationInputs = PreparedRunInputs["scriptInputs"] & {
   hfaTimePointOrder: string[];
-  calculatedIndicators: CalculatedIndicator[];
 };
-
-// The same project-snapshot reads runModuleIterator does per module —
-// gathered once per generation, after prepare refreshed the snapshots, so
-// every generated script is consistent with this run's extracts.
-async function readScriptGenerationInputs(
-  mainDb: Sql,
-  projectDb: Sql,
-): Promise<ScriptGenerationInputs> {
-  const hfaVarRows = await projectDb<{ var_name: string }[]>`
-SELECT DISTINCT var_name FROM indicators_hfa ORDER BY var_name
-`;
-  return {
-    knownDatasetVariables: new Set(hfaVarRows.map((r) => r.var_name)),
-    hfaIndicators: await getAllHfaIndicatorsFromSnapshot(projectDb),
-    hfaIndicatorCode: await getAllHfaIndicatorCodeFromSnapshot(projectDb),
-    hfaSentinelRows: await getHfaSentinelRowsFromSnapshot(projectDb),
-    hfaTimePointOrder: await getHfaTimePointOrder(mainDb),
-    calculatedIndicators: await getAllCalculatedIndicatorsFromSnapshot(projectDb),
-  };
-}
 
 function generateScript(
   detail: ModuleDefinitionDetail,

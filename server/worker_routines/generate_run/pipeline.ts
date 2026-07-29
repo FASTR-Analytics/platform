@@ -1,11 +1,15 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
-import { throwIfErrWithData, type RunProgress } from "lib";
 import {
-  getAllDatasetsForProject,
-  getCountryIso3Config,
-  getFacilityColumnsConfig,
-} from "../../db/mod.ts";
+  getDatasetFamily,
+  metricStrict,
+  throwIfErrWithData,
+  type RunMetric,
+  type RunModule,
+  type RunProgress,
+} from "lib";
+import { getCountryIso3Config } from "../../db/mod.ts";
+import { prepareModuleDefinitionForStorage } from "../../db/project/modules.ts";
 import {
   publishReadyRun,
   updateRunProgress,
@@ -17,8 +21,11 @@ import {
 } from "../../runs/mod.ts";
 import {
   getAllPresentationObjectsWithVirtualDefaults,
+  getCommonIndicatorsFromManifestInputs,
+  getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
   getModuleSummariesFromManifest,
+  getProjectDatasetsFromManifest,
 } from "../../run_query/mod.ts";
 import {
   notifyProjectRunAttached,
@@ -30,7 +37,7 @@ import {
   reuseRunModule,
 } from "./execute_module.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
-import { resolveRunModules } from "./resolve_modules.ts";
+import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
 import {
   baseEntryForReuse,
   computeModuleInputs,
@@ -74,23 +81,14 @@ export async function runGenerationPipeline(
     notifyProjectRunProgress(std.projectId, std.runId, progress);
   };
 
-  const resFacilityColumns = await getFacilityColumnsConfig(mainDb);
-  throwIfErrWithData(resFacilityColumns);
   const resCountryIso3 = await getCountryIso3Config(mainDb);
   throwIfErrWithData(resCountryIso3);
 
-  const prepared = await prepareRunInputs(
-    mainDb,
-    projectDb,
-    std.projectId,
-    std.step1Result,
-    std.runId,
-  );
+  const prepared = await prepareRunInputs(mainDb, std.step1Result, std.runId);
 
   const resolved = await resolveRunModules(
     mainDb,
-    projectDb,
-    prepared.selectedFamilies,
+    prepared,
     std.step2Result,
     resCountryIso3.data.countryIso3,
   );
@@ -137,11 +135,9 @@ export async function runGenerationPipeline(
       await pushProgress();
       try {
         result = await reuseRunModule({
-          projectDb,
           projectId: std.projectId,
           tmpDir,
           module: mod,
-          facilityColumns: resFacilityColumns.data,
           baseRunId: base.runId,
           baseRunDir: base.runDir,
           inputKey,
@@ -156,12 +152,10 @@ export async function runGenerationPipeline(
       progress.moduleStatus[mod.moduleId] = "running";
       await pushProgress();
       result = await executeRunModule({
-        projectDb,
         projectId: std.projectId,
         runId: std.runId,
         tmpDir,
         module: mod,
-        facilityColumns: resFacilityColumns.data,
         inputKey,
       });
       progress.moduleStatus[mod.moduleId] = "done";
@@ -173,18 +167,25 @@ export async function runGenerationPipeline(
   progress.currentModuleId = null;
 
   // ONE finalize (§3.8): wholesale manifest + inputs capture via the shared
-  // package builder, reading the catalog the dual-write just wrote and the
-  // raw CSVs the modules wrote inside this run.
+  // package builder. Under the no-dual-write model (Phase 3 re-cut ruling 5)
+  // the catalog is handed to the builder from THIS generation's resolved
+  // definitions — no project-DB round trip — and the input mirrors were
+  // written by prepare.
   const { manifest, summary } = await buildRunPackageIntoTmp(
     mainDb,
-    projectDb,
-    std.projectId,
     std.runId,
     tmpDir,
     {
       label: std.label,
       provenance: "wizard",
-      moduleIds: resolved.map((m) => m.moduleId),
+      source: {
+        kind: "captured",
+        modules: buildRunModules(resolved, memo),
+        metrics: buildRunMetrics(resolved),
+        datasets: prepared.datasets,
+        facilitiesTables: prepared.facilitiesTables,
+      },
+      sourceProjectId: std.projectId,
       moduleMemo: memo,
       moduleCsvDir: (moduleId) => join(tmpDir, "outputs", moduleId),
       extraInputFiles: prepared.extraInputFiles,
@@ -200,33 +201,10 @@ export async function runGenerationPipeline(
   });
   notifyProjectRunProgress(std.projectId, std.runId, progress);
 
-  // Repoint event: the full run-derived catalog, live — modules/metrics from
-  // the just-built manifest, datasets/indicators from the dual-write plane
-  // this generation freshened (byte-current by construction).
-  const datasetsRes = await getAllDatasetsForProject(projectDb);
-  const commonIndicators = (
-    await projectDb<
-      { indicator_common_id: string; indicator_common_label: string }[]
-    >`
-SELECT indicator_common_id, indicator_common_label FROM indicators
-ORDER BY indicator_common_label
-`
-  ).map((row) => ({
-    id: row.indicator_common_id,
-    label: row.indicator_common_label,
-  }));
-  const icehIndicators = (
-    await projectDb<
-      { iceh_indicator: string; indicator_name: string; category: string }[]
-    >`
-SELECT iceh_indicator, indicator_name, category FROM iceh_indicators_snapshot
-ORDER BY sort_order, iceh_indicator
-`
-  ).map((row) => ({
-    id: row.iceh_indicator,
-    label: row.indicator_name,
-    category: row.category,
-  }));
+  // Repoint event: the full catalog, every field derived from the run just
+  // published (the legacy project plane is no longer written, so it is never
+  // read here either).
+  const runCtx = { runId: std.runId, manifest };
   const visualizationsRes = await getAllPresentationObjectsWithVirtualDefaults(
     mainDb,
     std.projectId,
@@ -236,9 +214,68 @@ ORDER BY sort_order, iceh_indicator
     attachedRunId: std.runId,
     projectModules: getModuleSummariesFromManifest(manifest),
     metrics: getMetricsWithStatusFromManifest(manifest),
-    projectDatasets: datasetsRes.success ? datasetsRes.data : [],
-    commonIndicators,
-    icehIndicators,
+    projectDatasets: getProjectDatasetsFromManifest(manifest),
+    commonIndicators: await getCommonIndicatorsFromManifestInputs(runCtx),
+    icehIndicators: await getIcehIndicatorsFromManifestInputs(runCtx),
     visualizations: visualizationsRes.success ? visualizationsRes.data : [],
   });
+}
+
+// The manifest's module/metric catalog for a wizard generation: the resolved
+// definitions and frozen selections themselves, in the shapes the manifest
+// stores (installModule's row shapes, minus the round trip through Postgres).
+function buildRunModules(
+  resolved: ResolvedRunModule[],
+  memo: Map<string, { inputKey: string; outputFileHashes: Record<string, string> }>,
+): RunModule[] {
+  const now = new Date().toISOString();
+  return resolved.map((mod) => {
+    const entry = memo.get(mod.moduleId);
+    return {
+      id: mod.moduleId,
+      moduleDefinition: prepareModuleDefinitionForStorage(mod.detail),
+      configSelections: JSON.stringify(mod.configSelections),
+      lastRunAt: now,
+      lastRunGitRef: mod.gitRef,
+      inputKey: entry?.inputKey ?? null,
+      outputFileHashes: entry?.outputFileHashes ?? null,
+    };
+  });
+}
+
+function buildRunMetrics(resolved: ResolvedRunModule[]): RunMetric[] {
+  const metrics: RunMetric[] = [];
+  for (const mod of resolved) {
+    const datasetFamily = getDatasetFamily(
+      prepareModuleDefinitionForStorage(mod.detail),
+    ) ?? null;
+    for (const metric of mod.detail.metrics) {
+      const m = metricStrict.parse(metric);
+      metrics.push({
+        datasetFamily,
+        id: m.id,
+        module_id: mod.moduleId,
+        label: m.label,
+        variant_label: m.variantLabel,
+        value_func: m.valueFunc,
+        format_as: m.formatAs,
+        value_props: JSON.stringify(m.valueProps),
+        required_disaggregation_options: JSON.stringify(
+          m.requiredDisaggregationOptions,
+        ),
+        value_label_replacements: m.valueLabelReplacements
+          ? JSON.stringify(m.valueLabelReplacements)
+          : null,
+        post_aggregation_expression: m.postAggregationExpression
+          ? JSON.stringify(m.postAggregationExpression)
+          : null,
+        results_object_id: m.resultsObjectId,
+        ai_description: m.aiDescription ? JSON.stringify(m.aiDescription) : null,
+        viz_presets: JSON.stringify(m.vizPresets),
+        hide: m.hide,
+        important_notes: m.importantNotes,
+      });
+    }
+  }
+  return metrics;
 }

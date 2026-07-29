@@ -9,7 +9,11 @@ export {
   getRunGenerationModuleOptions,
   getRunGenerationPrefill,
 } from "./generation_wizard_reads.ts";
-export { exportPgTableToParquet, type ExportedColumn } from "./pg_export.ts";
+export {
+  exportPgTableToParquet,
+  exportRowsToParquet,
+  type ExportedColumn,
+} from "./pg_export.ts";
 export {
   getRunManifestCached,
   readRunInputJsonCached,

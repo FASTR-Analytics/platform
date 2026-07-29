@@ -14,8 +14,8 @@ import {
   InstanceConfigFacilityColumns,
   isValidPeriodId,
   parseAa3CompositeKey,
-  throwIfErrNoData,
   throwIfErrWithData,
+  type CalculatedIndicator,
   type DatasetHmisInfoInProject,
   type DatasetType,
 } from "lib";
@@ -71,14 +71,166 @@ export async function ensureDatasetCsvTargetDir(
   await Deno.chmod(dir, 0o777);
 }
 
+// The HMIS "attach" split under the no-dual-write model (PLAN_RESULTS_RUNS
+// Phase 3 re-cut ruling 5): computeDatasetHmisRunCapture does every
+// instance-DB read, validation, and the COPY TO export — and returns the
+// captured rows the caller needs (run input mirrors, script-generation
+// inputs, manifest datasets info) WITHOUT touching any project DB. The run
+// pipeline consumes the capture directly; addDatasetHmisToProject applies
+// the same capture to a project DB and remains solely for createProject's
+// legacy plane.
+
+// The facilities_{hmis,hfa} column set, in project-table order — the run's
+// facilities parquet is built from these rows directly (no project table to
+// export from under the no-dual-write model).
+export const PROJECT_FACILITY_COLUMN_NAMES = [
+  "facility_id",
+  "admin_area_4",
+  "admin_area_3",
+  "admin_area_2",
+  "admin_area_1",
+  "facility_name",
+  "facility_type",
+  "facility_ownership",
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+] as const;
+
+export type ProjectFacilityRow = {
+  facility_id: string;
+  admin_area_4: string;
+  admin_area_3: string;
+  admin_area_2: string;
+  admin_area_1: string;
+  facility_name: string | null;
+  facility_type: string | null;
+  facility_ownership: string | null;
+  facility_custom_1: string | null;
+  facility_custom_2: string | null;
+  facility_custom_3: string | null;
+  facility_custom_4: string | null;
+  facility_custom_5: string | null;
+};
+
+export type DatasetHmisRunCapture = {
+  info: DatasetHmisInfoInProject;
+  lastUpdated: string;
+  indicators: {
+    indicator_common_id: string;
+    indicator_common_label: string;
+  }[];
+  facilities: ProjectFacilityRow[];
+  calculatedIndicators: CalculatedIndicator[];
+};
+
 export async function addDatasetHmisToProject(
   mainDb: Sql,
   projectDb: Sql,
-  projectId: string,
   csvTarget: DatasetCsvTarget,
   windowing: DatasetHmisWindowingCommon | undefined,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  const resCapture = await computeDatasetHmisRunCapture(
+    mainDb,
+    csvTarget,
+    windowing,
+    onProgress
+  );
+  if (resCapture.success === false) {
+    return resCapture;
+  }
+  const capture = resCapture.data;
+  return await tryCatchDatabaseAsync(async () => {
+    if (onProgress) await onProgress(0.8, "Updating project database...");
+    await projectDb.begin((sql) => [
+      sql`
+INSERT INTO datasets (dataset_type, info, last_updated)
+VALUES (
+  'hmis',
+  ${JSON.stringify(capture.info)},
+  ${capture.lastUpdated}
+)
+ON CONFLICT (dataset_type) DO UPDATE SET
+  info = EXCLUDED.info,
+  last_updated = EXCLUDED.last_updated
+`,
+      sql`DELETE FROM indicators`,
+      sql`DELETE FROM facilities_hmis`,
+      sql`DELETE FROM calculated_indicators_snapshot`,
+      ...capture.indicators.map(
+        (ind) =>
+          sql`INSERT INTO indicators (indicator_common_id, indicator_common_label)
+        VALUES (${ind.indicator_common_id}, ${ind.indicator_common_label})`
+      ),
+      ...capture.facilities.map(
+        (fac) =>
+          sql`INSERT INTO facilities_hmis (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
+        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`
+      ),
+      ...capture.calculatedIndicators
+        .map(calculatedIndicatorToSnapshotRow)
+        .map(
+          (ci) =>
+            sql`INSERT INTO calculated_indicators_snapshot (
+            calculated_indicator_id, label, group_label, sort_order,
+            num_indicator_id, denom_kind, denom_indicator_id, denom_population_type, denom_population_multiplier,
+            format_as, threshold_direction, threshold_green, threshold_yellow
+          ) VALUES (
+            ${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
+            ${ci.num_indicator_id}, ${ci.denom_kind}, ${ci.denom_indicator_id}, ${ci.denom_population_type}, ${ci.denom_population_multiplier},
+            ${ci.format_as}, ${ci.threshold_direction}, ${ci.threshold_green}, ${ci.threshold_yellow}
+          )`
+        ),
+    ]);
+    return { success: true, data: { lastUpdated: capture.lastUpdated } };
+  });
+}
+
+// The calculated_indicators_snapshot row shape (denormalized denom) — shared
+// by the project-DB apply above and the run input JSON export.
+export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
+  calculated_indicator_id: string;
+  label: string;
+  group_label: string;
+  sort_order: number;
+  num_indicator_id: string;
+  denom_kind: string;
+  denom_indicator_id: string | null;
+  denom_population_type: string | null;
+  denom_population_multiplier: number | null;
+  format_as: string;
+  threshold_direction: string;
+  threshold_green: number;
+  threshold_yellow: number;
+} {
+  return {
+    calculated_indicator_id: ci.calculated_indicator_id,
+    label: ci.label,
+    group_label: ci.group_label,
+    sort_order: ci.sort_order,
+    num_indicator_id: ci.num_indicator_id,
+    denom_kind: ci.denom.kind,
+    denom_indicator_id: ci.denom.kind === "indicator" ? ci.denom.indicator_id : null,
+    denom_population_type:
+      ci.denom.kind === "population" ? ci.denom.population_type : null,
+    denom_population_multiplier:
+      ci.denom.kind === "population" ? ci.denom.multiplier : null,
+    format_as: ci.format_as,
+    threshold_direction: ci.threshold_direction,
+    threshold_green: ci.threshold_green,
+    threshold_yellow: ci.threshold_yellow,
+  };
+}
+
+export async function computeDatasetHmisRunCapture(
+  mainDb: Sql,
+  csvTarget: DatasetCsvTarget,
+  windowing: DatasetHmisWindowingCommon | undefined,
+  onProgress?: (progress: number, message: string) => Promise<void>
+): Promise<APIResponseWithData<DatasetHmisRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // A per-pair DHIS2 run mutates dataset_hmis for hours; exporting during
     // one would copy torn mid-run data into the project stamped with the
@@ -135,10 +287,6 @@ export async function addDatasetHmisToProject(
         `Invalid maximum period format: ${maxPeriod}. Expected YYYYMM format.`
       );
     }
-
-    if (onProgress) await onProgress(0.2, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "hmis");
-    throwIfErrNoData(res);
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
@@ -236,7 +384,8 @@ WHERE EXISTS (
     }
 
     // Fetch facilities based on the windowing configuration
-    let facilitiesQuery = `SELECT * FROM facilities_hmis`;
+    let facilitiesQuery =
+      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`;
     const facilityWhereConditions: string[] = [];
 
     // Filter by admin areas — AA3 takes priority over AA2
@@ -297,70 +446,23 @@ WHERE EXISTS (
       facilitiesQuery += ` WHERE ${facilityWhereConditions.join(" AND ")}`;
     }
 
-    const facilities = (await mainDb.unsafe(facilitiesQuery)) as Array<{
-      facility_id: string;
-      admin_area_4: string;
-      admin_area_3: string;
-      admin_area_2: string;
-      admin_area_1: string;
-      facility_name: string | null;
-      facility_type: string | null;
-      facility_ownership: string | null;
-      facility_custom_1: string | null;
-      facility_custom_2: string | null;
-      facility_custom_3: string | null;
-      facility_custom_4: string | null;
-      facility_custom_5: string | null;
-    }>;
+    const facilities = (await mainDb.unsafe(
+      facilitiesQuery,
+    )) as ProjectFacilityRow[];
 
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
-    await projectDb.begin((sql) => [
-      sql`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'hmis',
-  ${JSON.stringify(info)},
-  ${lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`,
-      sql`DELETE FROM indicators`,
-      sql`DELETE FROM facilities_hmis`,
-      sql`DELETE FROM calculated_indicators_snapshot`,
-      ...indicators.map(
-        (ind) =>
-          sql`INSERT INTO indicators (indicator_common_id, indicator_common_label)
-        VALUES (${ind.indicator_common_id}, ${ind.indicator_common_label})`
-      ),
-      ...(facilities.length > 0
-        ? facilities.map(
-            (fac) =>
-              sql`INSERT INTO facilities_hmis (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`
-          )
-        : []),
-      ...calculatedIndicators.map(
-        (ci) =>
-          sql`INSERT INTO calculated_indicators_snapshot (
-            calculated_indicator_id, label, group_label, sort_order,
-            num_indicator_id, denom_kind, denom_indicator_id, denom_population_type, denom_population_multiplier,
-            format_as, threshold_direction, threshold_green, threshold_yellow
-          ) VALUES (
-            ${ci.calculated_indicator_id}, ${ci.label}, ${ci.group_label}, ${ci.sort_order},
-            ${ci.num_indicator_id}, ${ci.denom.kind},
-            ${ci.denom.kind === "indicator" ? ci.denom.indicator_id : null},
-            ${ci.denom.kind === "population" ? ci.denom.population_type : null},
-            ${ci.denom.kind === "population" ? ci.denom.multiplier : null},
-            ${ci.format_as}, ${ci.threshold_direction},
-            ${ci.threshold_green}, ${ci.threshold_yellow}
-          )`
-      ),
-    ]);
-
-    return { success: true, data: { lastUpdated } };
+    return {
+      success: true,
+      data: {
+        info,
+        lastUpdated: new Date().toISOString(),
+        indicators: indicators.map((ind) => ({
+          indicator_common_id: ind.indicator_common_id,
+          indicator_common_label: ind.indicator_common_label,
+        })),
+        facilities,
+        calculatedIndicators,
+      },
+    };
   });
 }
 

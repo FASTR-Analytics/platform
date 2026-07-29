@@ -75,12 +75,35 @@ const INPUT_MIRROR_TABLES = [
 
 const INPUT_FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"];
 
+// Where the builder gets the catalog + input mirrors. Under the
+// no-dual-write model (Phase 3 re-cut ruling 5) a wizard generation never
+// writes to a project DB, so it hands the builder everything it captured;
+// the backfill synthesizer still reads the (frozen) project plane.
+export type RunBuildSource =
+  | {
+    kind: "project_db";
+    projectDb: Sql;
+    projectId: string;
+    // Restrict the captured catalog to these modules; null = all of them.
+    moduleIds: string[] | null;
+  }
+  | {
+    kind: "captured";
+    modules: RunModule[];
+    metrics: RunMetric[];
+    datasets: RunDataset[];
+    // Input mirrors/facilities the caller already wrote into the tmp dir.
+    facilitiesTables: RunFacilitiesTable[];
+  };
+
 export type RunBuildOptions = {
   label: string;
   provenance: RunProvenance;
-  // Restrict the captured catalog to these modules (the wizard's selection);
-  // null = every module in the project DB (synthesis).
-  moduleIds: string[] | null;
+  source: RunBuildSource;
+  // The project this run was generated for — the catalog summary's
+  // sourceProjectId (run listing, reuse base lookup, read guards). Stays
+  // per-project until the wizard moves to the instance shell.
+  sourceProjectId: string;
   // §3.7 memoization fields per module — computed only by real wizard
   // generation; synthesized runs carry null and are never reuse sources.
   moduleMemo: Map<
@@ -91,7 +114,7 @@ export type RunBuildOptions = {
   // synthesis, the run's own outputs/{moduleId} for the wizard finalize.
   moduleCsvDir: (moduleId: string) => string;
   // Relative paths (from the run dir root) of input files the caller already
-  // placed in the tmp dir (the wizard's inputs/datasets extracts + twins).
+  // placed in the tmp dir (the wizard's dataset extracts, twins, mirrors).
   extraInputFiles: string[];
 };
 
@@ -107,14 +130,13 @@ export async function synthesizeRunForProject(
   try {
     const { summary } = await buildRunPackageIntoTmp(
       mainDb,
-      projectDb,
-      projectId,
       runId,
       tmpDir,
       {
         label: projectLabel,
         provenance: "synthetic-backfill",
-        moduleIds: null,
+        source: { kind: "project_db", projectDb, projectId, moduleIds: null },
+        sourceProjectId: projectId,
         moduleMemo: null,
         moduleCsvDir: (moduleId) => join(_SANDBOX_DIR_PATH, projectId, moduleId),
         extraInputFiles: [],
@@ -143,8 +165,6 @@ VALUES (${runId}, ${projectLabel}, 'ready', 'synthetic-backfill', NULL, ${JSON.s
 
 export async function buildRunPackageIntoTmp(
   mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
   runId: string,
   tmpDir: string,
   opts: RunBuildOptions,
@@ -161,56 +181,90 @@ export async function buildRunPackageIntoTmp(
 
   await Deno.mkdir(join(tmpDir, "inputs"), { recursive: true });
 
-  const modules = await projectDb<
-    {
-      id: string;
-      module_definition: string;
-      config_selections: string | null;
-      last_run_at: string | null;
-      last_run_git_ref: string | null;
-    }[]
-  >`
+  const src = opts.source;
+  let runModules: RunModule[];
+  let runMetrics: RunMetric[];
+  // Installed definitions keyed by module id — the results-object catalog and
+  // the declared-asset capture below read them from either source.
+  let moduleDefinitions: {
+    id: string;
+    moduleDefinition: string;
+    lastRunAt: string | null;
+  }[];
+
+  if (src.kind === "captured") {
+    runModules = src.modules.map((m) => {
+      const memo = opts.moduleMemo?.get(m.id);
+      return {
+        ...m,
+        inputKey: memo?.inputKey ?? m.inputKey,
+        outputFileHashes: memo?.outputFileHashes ?? m.outputFileHashes,
+      };
+    });
+    runMetrics = src.metrics;
+    moduleDefinitions = runModules.map((m) => ({
+      id: m.id,
+      moduleDefinition: m.moduleDefinition,
+      lastRunAt: m.lastRunAt,
+    }));
+  } else {
+    const { projectDb, moduleIds } = src;
+    const modules = await projectDb<
+      {
+        id: string;
+        module_definition: string;
+        config_selections: string | null;
+        last_run_at: string | null;
+        last_run_git_ref: string | null;
+      }[]
+    >`
 SELECT id, module_definition, config_selections, last_run_at, last_run_git_ref
 FROM modules
-${opts.moduleIds === null ? projectDb`` : projectDb`WHERE id = ANY(${opts.moduleIds})`}
+${moduleIds === null ? projectDb`` : projectDb`WHERE id = ANY(${moduleIds})`}
 `;
-  if (opts.moduleIds !== null) {
-    const present = new Set(modules.map((m) => m.id));
-    const missing = opts.moduleIds.filter((id) => !present.has(id));
-    if (missing.length > 0) {
-      throw new Error(
-        `run modules missing from project catalog: ${missing.join(", ")}`,
-      );
+    if (moduleIds !== null) {
+      const present = new Set(modules.map((m) => m.id));
+      const missing = moduleIds.filter((id) => !present.has(id));
+      if (missing.length > 0) {
+        throw new Error(
+          `run modules missing from project catalog: ${missing.join(", ")}`,
+        );
+      }
     }
-  }
-  const runModules: RunModule[] = modules.map((m) => {
-    const memo = opts.moduleMemo?.get(m.id);
-    return {
-      id: m.id,
-      moduleDefinition: m.module_definition,
-      configSelections: m.config_selections,
-      lastRunAt: m.last_run_at,
-      lastRunGitRef: m.last_run_git_ref,
-      inputKey: memo?.inputKey ?? null,
-      outputFileHashes: memo?.outputFileHashes ?? null,
-    };
-  });
+    runModules = modules.map((m) => {
+      const memo = opts.moduleMemo?.get(m.id);
+      return {
+        id: m.id,
+        moduleDefinition: m.module_definition,
+        configSelections: m.config_selections,
+        lastRunAt: m.last_run_at,
+        lastRunGitRef: m.last_run_git_ref,
+        inputKey: memo?.inputKey ?? null,
+        outputFileHashes: memo?.outputFileHashes ?? null,
+      };
+    });
 
-  const metrics = await projectDb<Omit<RunMetric, "datasetFamily">[]>`
+    const metrics = await projectDb<Omit<RunMetric, "datasetFamily">[]>`
 SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
   required_disaggregation_options, value_label_replacements,
   post_aggregation_expression, results_object_id, ai_description, viz_presets,
   hide, important_notes
 FROM metrics
-${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts.moduleIds})`}
+${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds})`}
 `;
-  const familyByModuleId = new Map(
-    modules.map((m) => [m.id, getDatasetFamily(m.module_definition) ?? null]),
-  );
-  const runMetrics: RunMetric[] = metrics.map((m) => ({
-    ...m,
-    datasetFamily: familyByModuleId.get(m.module_id) ?? null,
-  }));
+    const familyByModuleId = new Map(
+      modules.map((m) => [m.id, getDatasetFamily(m.module_definition) ?? null]),
+    );
+    runMetrics = metrics.map((m) => ({
+      ...m,
+      datasetFamily: familyByModuleId.get(m.module_id) ?? null,
+    }));
+    moduleDefinitions = modules.map((m) => ({
+      id: m.id,
+      moduleDefinition: m.module_definition,
+      lastRunAt: m.last_run_at,
+    }));
+  }
 
   // Results-object catalog from the installed definitions; actual schema and
   // query metadata from the normalized parquet built into the run — copied
@@ -218,8 +272,8 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
   // raw CSV. A per-RO build failure degrades that RO to hasParquet=false
   // (metric stamped unavailable) rather than failing the whole run.
   const runResultsObjects: RunResultsObject[] = [];
-  for (const mod of modules) {
-    const def = JSON.parse(mod.module_definition) as {
+  for (const mod of moduleDefinitions) {
+    const def = JSON.parse(mod.moduleDefinition) as {
       resultsObjects?: {
         id: string;
         createTableStatementPossibleColumns: Record<string, string> | false;
@@ -247,7 +301,7 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
       // A never-run module has no query data even when the sandbox holds
       // leftover CSVs from a previous install (uninstall keeps files but
       // drops the Postgres tables — the run must match, not resurrect).
-      if (mod.last_run_at === null) {
+      if (mod.lastRunAt === null) {
         runResultsObjects.push(noQueryData);
         continue;
       }
@@ -280,7 +334,7 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
         });
       } catch (e) {
         console.error(
-          `[runs] parquet FAILED for ${ro.id} in module ${mod.id} (project ${projectId}): ${
+          `[runs] parquet FAILED for ${ro.id} in module ${mod.id} (run ${runId}): ${
             e instanceof Error ? e.message : e
           }`,
         );
@@ -308,8 +362,8 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
     string,
     { asset: AssetToImport; moduleId: string }
   >();
-  for (const mod of modules) {
-    const def = JSON.parse(mod.module_definition) as {
+  for (const mod of moduleDefinitions) {
+    const def = JSON.parse(mod.moduleDefinition) as {
       assetsToImport?: AssetToImport[];
     };
     for (const asset of def.assetsToImport ?? []) {
@@ -333,7 +387,7 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
       bytes = await Deno.readFile(sourcePath);
     } catch (e) {
       console.error(
-        `[runs] asset "${fileName}" not captured for project ${projectId}: ${
+        `[runs] asset "${fileName}" not captured for run ${runId}: ${
           e instanceof Error ? e.message : e
         }`,
       );
@@ -347,46 +401,56 @@ ${opts.moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${opts
     assets.push({ fileName, sha256 });
     inputFiles.push(`inputs/assets/${fileName}`);
   }
-  for (const tableName of INPUT_MIRROR_TABLES) {
-    const exists = (
-      await projectDb<{ n: string }[]>`
+  // Input mirrors + facilities parquet + dataset stamps: the captured source
+  // already wrote its own into the tmp dir (prepare_inputs), so only the
+  // project_db source exports them here.
+  let facilitiesTables: RunFacilitiesTable[];
+  let datasets: RunDataset[];
+  if (src.kind === "captured") {
+    facilitiesTables = src.facilitiesTables;
+    datasets = src.datasets;
+  } else {
+    const { projectDb } = src;
+    facilitiesTables = [];
+    for (const tableName of INPUT_MIRROR_TABLES) {
+      const exists = (
+        await projectDb<{ n: string }[]>`
 SELECT count(*) AS n FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name = ${tableName}
 `
-    )[0];
-    if (Number(exists.n) === 0) continue;
-    const rows = await projectDb.unsafe(`SELECT * FROM "${tableName}"`);
-    const fileName = `${tableName}.json`;
-    await Deno.writeTextFile(
-      runInputFilePath(tmpDir, fileName),
-      JSON.stringify([...rows]),
-    );
-    inputFiles.push(`inputs/${fileName}`);
-  }
-  const facilitiesTables: RunFacilitiesTable[] = [];
-  for (const tableName of INPUT_FACILITIES_TABLES) {
-    const fileName = `${tableName}.parquet`;
-    const columns = await exportPgTableToParquet(
-      projectDb,
-      tableName,
-      runInputFilePath(tmpDir, fileName),
-    );
-    if (columns !== undefined) {
+      )[0];
+      if (Number(exists.n) === 0) continue;
+      const rows = await projectDb.unsafe(`SELECT * FROM "${tableName}"`);
+      const fileName = `${tableName}.json`;
+      await Deno.writeTextFile(
+        runInputFilePath(tmpDir, fileName),
+        JSON.stringify([...rows]),
+      );
       inputFiles.push(`inputs/${fileName}`);
-      facilitiesTables.push({ tableName, columns });
     }
-  }
-
-  const datasetRows = await projectDb<
-    { dataset_type: string; info: string; last_updated: string }[]
-  >`
+    for (const tableName of INPUT_FACILITIES_TABLES) {
+      const fileName = `${tableName}.parquet`;
+      const columns = await exportPgTableToParquet(
+        projectDb,
+        tableName,
+        runInputFilePath(tmpDir, fileName),
+      );
+      if (columns !== undefined) {
+        inputFiles.push(`inputs/${fileName}`);
+        facilitiesTables.push({ tableName, columns });
+      }
+    }
+    const datasetRows = await projectDb<
+      { dataset_type: string; info: string; last_updated: string }[]
+    >`
 SELECT dataset_type, info, last_updated FROM datasets
 `;
-  const datasets: RunDataset[] = datasetRows.map((d) => ({
-    datasetType: d.dataset_type,
-    lastUpdated: d.last_updated,
-    info: JSON.parse(d.info),
-  }));
+    datasets = datasetRows.map((d) => ({
+      datasetType: d.dataset_type,
+      lastUpdated: d.last_updated,
+      info: JSON.parse(d.info),
+    }));
+  }
 
   const manifest: RunManifest = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
@@ -417,7 +481,7 @@ SELECT dataset_type, info, last_updated FROM datasets
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     provenance: opts.provenance,
-    sourceProjectId: projectId,
+    sourceProjectId: opts.sourceProjectId,
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),

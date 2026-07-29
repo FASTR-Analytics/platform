@@ -18,10 +18,12 @@ import {
   throwIfErrWithData,
   vizPresetInstalled,
   type APIResponseWithData,
+  type DatasetInProject,
   type DatasetType,
   type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
+  type HfaTaxonomyForAI,
   type IndicatorMetadata,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
@@ -269,6 +271,16 @@ const labeledRow = z.object({
   label: z.string(),
   sort_order: z.number(),
 });
+// The taxonomy projection needs the category links the metadata reader
+// doesn't; both read the same captured hfa_indicators_snapshot.json.
+const hfaTaxonomyIndicatorRow = hfaIndicatorRow.extend({
+  category_id: z.string().nullable(),
+  sub_category_id: z.string().nullable(),
+  service_category_ids: z.unknown(),
+});
+const hfaSubCategoryRow = labeledRow.extend({
+  category_id: z.string(),
+});
 const icehIndicatorRow = z.object({
   iceh_indicator: z.string(),
   indicator_name: z.string(),
@@ -290,8 +302,12 @@ const calculatedIndicatorRow = z.object({
   threshold_yellow: z.number(),
 });
 
+// The input-mirror readers need only identity + manifest, so the wizard can
+// call them on a run it just built (before any read context exists).
+export type RunInputSource = { runId: string; manifest: RunManifest };
+
 async function readInputRows<T>(
-  ctx: RunReadContext,
+  ctx: RunInputSource,
   fileName: string,
   rowSchema: z.ZodType<T>,
 ): Promise<T[]> {
@@ -300,10 +316,122 @@ async function readInputRows<T>(
   return z.array(rowSchema).parse(raw);
 }
 
+// The project-level dataset/indicator lists that T1 carries, all served from
+// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5 —
+// the project mirror tables are no longer written, so they are never read).
+
+export function getProjectDatasetsFromManifest(
+  manifest: RunManifest,
+): DatasetInProject[] {
+  return manifest.datasets.map((d) => ({
+    datasetType: d.datasetType,
+    info: d.info,
+    dateExported: d.lastUpdated,
+  } as DatasetInProject));
+}
+
+export async function getCommonIndicatorsFromManifestInputs(
+  ctx: RunInputSource,
+): Promise<{ id: string; label: string }[]> {
+  const rows = await readInputRows(ctx, "indicators.json", indicatorRow);
+  return rows
+    .flatMap((r) =>
+      r.indicator_common_id && r.indicator_common_label
+        ? [{ id: r.indicator_common_id, label: r.indicator_common_label }]
+        : []
+    )
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export async function getIcehIndicatorsFromManifestInputs(
+  ctx: RunInputSource,
+): Promise<{ id: string; label: string; category: string }[]> {
+  const rows = await readInputRows(
+    ctx,
+    "iceh_indicators_snapshot.json",
+    icehIndicatorRow,
+  );
+  return rows
+    .toSorted(
+      (a, b) =>
+        a.sort_order - b.sort_order ||
+        a.iceh_indicator.localeCompare(b.iceh_indicator),
+    )
+    .map((r) => ({
+      id: r.iceh_indicator,
+      label: r.indicator_name,
+      category: r.category,
+    }));
+}
+
+// The AI's HFA taxonomy, from the run's captured indicator/category mirrors.
+// Time points stay instance-wide (they are not run content).
+export async function getHfaTaxonomyFromManifestInputs(
+  ctx: RunInputSource,
+  timePoints: { id: string; label: string; periodId: string }[],
+): Promise<HfaTaxonomyForAI> {
+  const [indicators, categories, subCategories, serviceCategories] =
+    await Promise.all([
+      readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
+      readInputRows(ctx, "hfa_indicator_categories_snapshot.json", labeledRow),
+      readInputRows(
+        ctx,
+        "hfa_indicator_sub_categories_snapshot.json",
+        hfaSubCategoryRow,
+      ),
+      readInputRows(
+        ctx,
+        "hfa_indicator_service_categories_snapshot.json",
+        labeledRow,
+      ),
+    ]);
+  return {
+    categories: categories
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((c) => ({ id: c.id, label: c.label })),
+    subCategories: subCategories
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((s) => ({ id: s.id, categoryId: s.category_id, label: s.label })),
+    serviceCategories: serviceCategories
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((s) => ({ id: s.id, label: s.label })),
+    timePoints,
+    indicators: indicators
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((i) => ({
+        id: i.var_name,
+        label: composeHfaIndicatorLabel(
+          { shortLabel: i.short_label, definition: i.definition },
+          "full",
+        ),
+        measure: getHfaIndicatorMeasure(
+          i.type as HfaIndicatorType,
+          i.aggregation as HfaIndicatorAggregation,
+        ).label.en,
+        categoryId: i.category_id,
+        subCategoryId: i.sub_category_id,
+        serviceCategoryIds: parseServiceCategoryIds(i.service_category_ids),
+      })),
+  };
+}
+
+function parseServiceCategoryIds(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw as string[];
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed as string[] : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 // Mirrors getIndicatorMetadata (get_indicator_metadata.ts) over the run's
 // input files, including its per-branch ORDER BYs (re-sorted in TS).
 export async function getIndicatorMetadataFromRun(
-  ctx: RunReadContext,
+  ctx: RunInputSource,
   moduleId: string,
 ): Promise<IndicatorMetadata[]> {
   const metadata: IndicatorMetadata[] = [];

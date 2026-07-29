@@ -46,6 +46,23 @@ export async function getHfaTimePointOrder(mainDb: Sql): Promise<string[]> {
   return rows.map((r) => r.label);
 }
 
+// Time points are instance-wide (not run content — every run of an instance
+// shares its survey rounds), restricted to those actually imported.
+export async function getHfaTimePointsForAI(
+  mainDb: Sql,
+): Promise<{ id: string; label: string; periodId: string }[]> {
+  const rows = await mainDb<{ label: string; period_id: string }[]>`
+    SELECT label, period_id FROM hfa_time_points
+    WHERE imported_at IS NOT NULL
+    ORDER BY sort_order
+  `;
+  return rows.map((t) => ({
+    id: t.label,
+    label: t.label,
+    periodId: t.period_id,
+  }));
+}
+
 export function computeHfaCacheHash(
   timePointRows: { label: string; sort_order: number; imported_at: string | null }[],
 ): string {

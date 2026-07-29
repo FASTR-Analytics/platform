@@ -7,7 +7,6 @@ import {
   DatasetHfaInfoInProject,
   getHfaIndicatorMeasure,
   hashFacilityColumnsConfig,
-  throwIfErrNoData,
   throwIfErrWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -32,22 +31,139 @@ import {
   dbRowToHfaIndicatorSubCategory,
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
-import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
+import { tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   ensureDatasetCsvTargetDir,
-  removeDatasetFromProject,
+  PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
+  type ProjectFacilityRow,
 } from "./datasets_in_project_hmis.ts";
+
+// The HFA attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5) — see the
+// HMIS file's header note. computeDatasetHfaRunCapture does the instance
+// reads + COPY export and returns every captured row set;
+// addDatasetHfaToProject applies one to a project DB (createProject's legacy
+// plane only).
+
+export type DatasetHfaRunCapture = {
+  info: DatasetHfaInfoInProject;
+  lastUpdated: string;
+  facilities: ProjectFacilityRow[];
+  indicatorsHfa: { var_name: string; example_values: string }[];
+  sentinelValues: {
+    var_name: string;
+    value: string;
+    sentinel_class: string;
+    is_numeric: boolean;
+  }[];
+  categories: DBHfaIndicatorCategory[];
+  subCategories: DBHfaIndicatorSubCategory[];
+  serviceCategories: DBHfaIndicatorServiceCategory[];
+  indicators: DBHfaIndicator[];
+  indicatorCode: {
+    var_name: string;
+    time_point: string;
+    r_code: string;
+    r_filter_code: string | null;
+  }[];
+};
 
 export async function addDatasetHfaToProject(
   mainDb: Sql,
   projectDb: Sql,
-  projectId: string,
   csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
   // Service-category ids to include. Empty = include all.
   serviceCategoryScope: string[] = [],
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  const resCapture = await computeDatasetHfaRunCapture(
+    mainDb,
+    csvTarget,
+    onProgress,
+    serviceCategoryScope,
+  );
+  if (resCapture.success === false) {
+    return resCapture;
+  }
+  const capture = resCapture.data;
+  return await tryCatchDatabaseAsync(async () => {
+    if (onProgress) await onProgress(0.8, "Updating project database...");
+    // Snapshot-code rows FK into snapshot-indicator rows, so the DELETE
+    // order matters (code first).
+    await projectDb.begin((sql) => [
+      sql`
+INSERT INTO datasets (dataset_type, info, last_updated)
+VALUES (
+  'hfa',
+  ${JSON.stringify(capture.info)},
+  ${capture.lastUpdated}
+)
+ON CONFLICT (dataset_type) DO UPDATE SET
+  info = EXCLUDED.info,
+  last_updated = EXCLUDED.last_updated
+`,
+      sql`DELETE FROM hfa_indicator_code_snapshot`,
+      sql`DELETE FROM hfa_indicators_snapshot`,
+      sql`DELETE FROM hfa_variable_values_snapshot`,
+      sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
+      sql`DELETE FROM hfa_indicator_categories_snapshot`,
+      sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
+      sql`DELETE FROM facilities_hfa`,
+      sql`DELETE FROM indicators_hfa`,
+      ...capture.facilities.map(
+        (fac) =>
+          sql`INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
+        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`,
+      ),
+      ...capture.indicatorsHfa.map(
+        (ind) =>
+          sql`INSERT INTO indicators_hfa (var_name, example_values)
+            VALUES (${ind.var_name}, ${ind.example_values})`,
+      ),
+      ...capture.sentinelValues.map(
+        (r) =>
+          sql`INSERT INTO hfa_variable_values_snapshot (var_name, value, sentinel_class, is_numeric)
+            VALUES (${r.var_name}, ${r.value}, ${r.sentinel_class}, ${r.is_numeric})`,
+      ),
+      ...capture.categories.map(
+        (cat) =>
+          sql`INSERT INTO hfa_indicator_categories_snapshot (id, label, sort_order)
+            VALUES (${cat.id}, ${cat.label}, ${cat.sort_order})`,
+      ),
+      ...capture.subCategories.map(
+        (subCat) =>
+          sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
+            VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
+      ),
+      ...capture.serviceCategories.map(
+        (svcCat) =>
+          sql`INSERT INTO hfa_indicator_service_categories_snapshot (id, label, sort_order)
+            VALUES (${svcCat.id}, ${svcCat.label}, ${svcCat.sort_order})`,
+      ),
+      ...capture.indicators.map(
+        (ind) =>
+          sql`INSERT INTO hfa_indicators_snapshot
+            (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order)
+            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_ids}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
+      ),
+      ...capture.indicatorCode.map(
+        (c) =>
+          sql`INSERT INTO hfa_indicator_code_snapshot
+            (var_name, time_point, r_code, r_filter_code)
+            VALUES (${c.var_name}, ${c.time_point}, ${c.r_code}, ${c.r_filter_code})`,
+      ),
+    ]);
+    return { success: true, data: { lastUpdated: capture.lastUpdated } };
+  });
+}
+
+export async function computeDatasetHfaRunCapture(
+  mainDb: Sql,
+  csvTarget: DatasetCsvTarget,
+  onProgress?: (progress: number, message: string) => Promise<void>,
+  // Service-category ids to include. Empty = include all.
+  serviceCategoryScope: string[] = [],
+): Promise<APIResponseWithData<DatasetHfaRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate and capture staleness metadata BEFORE removing the existing
     // attachment: a failure after the remove leaves the project detached
@@ -129,10 +245,6 @@ export async function addDatasetHfaToProject(
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    if (onProgress) await onProgress(0.3, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "hfa");
-    throwIfErrNoData(res);
-
     await ensureDatasetCsvTargetDir(csvTarget);
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
@@ -169,9 +281,6 @@ ORDER BY h.facility_id, h.time_point, h.var_name, h.value`;
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
-
     // Fetch HFA categories from instance DB for snapshot
     const hfaCategoriesForSnapshot = await mainDb<DBHfaIndicatorCategory[]>`
       SELECT id, label, sort_order FROM hfa_indicator_categories ORDER BY sort_order, label
@@ -196,24 +305,10 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
         serviceCategoryScope.length > 0 ? serviceCategoryScope : undefined,
     };
 
-    // Fetch facilities from main database to populate project database
+    // Fetch facilities from main database for the project/run capture
     const facilities = (await mainDb.unsafe(
-      `SELECT * FROM facilities_hfa`,
-    )) as Array<{
-      facility_id: string;
-      admin_area_4: string;
-      admin_area_3: string;
-      admin_area_2: string;
-      admin_area_1: string;
-      facility_name: string | null;
-      facility_type: string | null;
-      facility_ownership: string | null;
-      facility_custom_1: string | null;
-      facility_custom_2: string | null;
-      facility_custom_3: string | null;
-      facility_custom_4: string | null;
-      facility_custom_5: string | null;
-    }>;
+      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
+    )) as ProjectFacilityRow[];
 
     // Fetch unique HFA indicators (var_name) from main database with sample values
     const hfaIndicators = (await mainDb.unsafe(`
@@ -265,99 +360,24 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       is_numeric: boolean;
     }>;
 
-    // Clear existing data and populate with HFA data. Snapshot-code rows FK
-    // into snapshot-indicator rows, so the DELETE order matters (code first).
-    await projectDb.begin((sql) => [
-      sql`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'hfa',
-  ${JSON.stringify(info)},
-  ${lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`,
-      sql`DELETE FROM hfa_indicator_code_snapshot`,
-      sql`DELETE FROM hfa_indicators_snapshot`,
-      sql`DELETE FROM hfa_variable_values_snapshot`,
-      sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-      sql`DELETE FROM facilities_hfa`,
-      sql`DELETE FROM indicators_hfa`,
-      ...(facilities.length > 0
-        ? facilities.map(
-            (fac) =>
-              sql`INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`,
-          )
-        : []),
-      ...(hfaIndicators.length > 0
-        ? [
-          sql.unsafe(`
-        INSERT INTO indicators_hfa (var_name, example_values)
-        VALUES ${
-            hfaIndicators
-              .map((ind) =>
-                `('${escapeSqlString(ind.var_name)}', '${
-                  escapeSqlString(ind.sample_values || "")
-                }')`
-              )
-              .join(",\n")
-          }
-      `),
-        ]
-        : []),
-      ...(hfaSentinelValuesForSnapshot.length > 0
-        ? [
-          sql.unsafe(`
-        INSERT INTO hfa_variable_values_snapshot (var_name, value, sentinel_class, is_numeric)
-        VALUES ${
-            hfaSentinelValuesForSnapshot
-              .map((r) =>
-                `('${escapeSqlString(r.var_name)}', '${
-                  escapeSqlString(r.value)
-                }', '${escapeSqlString(r.sentinel_class)}', ${
-                  r.is_numeric ? "TRUE" : "FALSE"
-                })`
-              )
-              .join(",\n")
-          }
-      `),
-        ]
-        : []),
-      ...hfaCategoriesForSnapshot.map(
-        (cat) =>
-          sql`INSERT INTO hfa_indicator_categories_snapshot (id, label, sort_order)
-            VALUES (${cat.id}, ${cat.label}, ${cat.sort_order})`,
-      ),
-      ...hfaSubCategoriesForSnapshot.map(
-        (subCat) =>
-          sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
-            VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
-      ),
-      ...hfaServiceCategoriesForSnapshot.map(
-        (svcCat) =>
-          sql`INSERT INTO hfa_indicator_service_categories_snapshot (id, label, sort_order)
-            VALUES (${svcCat.id}, ${svcCat.label}, ${svcCat.sort_order})`,
-      ),
-      ...hfaIndicatorRowsForSnapshot.map(
-        (ind) =>
-          sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_ids}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
-      ),
-      ...hfaIndicatorCodeRowsForSnapshot.map(
-        (c) =>
-          sql`INSERT INTO hfa_indicator_code_snapshot
-            (var_name, time_point, r_code, r_filter_code)
-            VALUES (${c.var_name}, ${c.time_point}, ${c.r_code}, ${c.r_filter_code})`,
-      ),
-    ]);
-
-    return { success: true, data: { lastUpdated } };
+    return {
+      success: true,
+      data: {
+        info,
+        lastUpdated: new Date().toISOString(),
+        facilities,
+        indicatorsHfa: hfaIndicators.map((ind) => ({
+          var_name: ind.var_name,
+          example_values: ind.sample_values || "",
+        })),
+        sentinelValues: hfaSentinelValuesForSnapshot,
+        categories: hfaCategoriesForSnapshot,
+        subCategories: hfaSubCategoriesForSnapshot,
+        serviceCategories: hfaServiceCategoriesForSnapshot,
+        indicators: hfaIndicatorRowsForSnapshot,
+        indicatorCode: hfaIndicatorCodeRowsForSnapshot,
+      },
+    };
   });
 }
 

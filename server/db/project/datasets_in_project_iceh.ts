@@ -2,13 +2,11 @@ import { Sql } from "postgres";
 import {
   APIResponseWithData,
   DatasetIcehInfoInProject,
-  throwIfErrNoData,
   type IcehIndicator,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   ensureDatasetCsvTargetDir,
-  removeDatasetFromProject,
   type DatasetCsvTarget,
 } from "./datasets_in_project_hmis.ts";
 import { getIcehCacheHash } from "../instance/dataset_iceh.ts";
@@ -22,13 +20,57 @@ type DBIcehIndicator = {
   sort_order: number;
 };
 
+// The ICEH attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5) — see
+// the HMIS file's header note.
+
+export type DatasetIcehRunCapture = {
+  info: DatasetIcehInfoInProject;
+  lastUpdated: string;
+  indicators: DBIcehIndicator[];
+};
+
 export async function addDatasetIcehToProject(
   mainDb: Sql,
   projectDb: Sql,
-  projectId: string,
   csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  const resCapture = await computeDatasetIcehRunCapture(
+    mainDb,
+    csvTarget,
+    onProgress,
+  );
+  if (resCapture.success === false) {
+    return resCapture;
+  }
+  const capture = resCapture.data;
+  return await tryCatchDatabaseAsync(async () => {
+    if (onProgress) await onProgress(0.8, "Updating project database...");
+    await projectDb.begin((sql) => [
+      sql`
+        INSERT INTO datasets (dataset_type, info, last_updated)
+        VALUES ('iceh', ${JSON.stringify(capture.info)}, ${capture.lastUpdated})
+        ON CONFLICT (dataset_type) DO UPDATE SET
+          info = EXCLUDED.info,
+          last_updated = EXCLUDED.last_updated
+      `,
+      sql`DELETE FROM iceh_indicators_snapshot`,
+      ...capture.indicators.map(
+        (ind) =>
+          sql`INSERT INTO iceh_indicators_snapshot
+            (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
+            VALUES (${ind.iceh_indicator}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
+      ),
+    ]);
+    return { success: true, data: { lastUpdated: capture.lastUpdated } };
+  });
+}
+
+export async function computeDatasetIcehRunCapture(
+  mainDb: Sql,
+  csvTarget: DatasetCsvTarget,
+  onProgress?: (progress: number, message: string) => Promise<void>,
+): Promise<APIResponseWithData<DatasetIcehRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate BEFORE removing the existing attachment — a validation
     // failure after the remove would leave the project detached with
@@ -46,10 +88,6 @@ export async function addDatasetIcehToProject(
     // store the new hash against pre-import CSV data if an instance import
     // commits in between, masking the staleness forever.
     const icehCacheHash = await getIcehCacheHash(mainDb);
-
-    if (onProgress) await onProgress(0.2, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "iceh");
-    throwIfErrNoData(res);
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
@@ -71,37 +109,20 @@ export async function addDatasetIcehToProject(
       ) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true)
     `);
 
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
-
     const indicators = await mainDb<DBIcehIndicator[]>`
       SELECT iceh_indicator, indicator_name, category, numerator, denominator, sort_order
       FROM iceh_indicators
       ORDER BY sort_order, iceh_indicator
     `;
 
-    const info: DatasetIcehInfoInProject = {
-      icehCacheHash,
+    return {
+      success: true,
+      data: {
+        info: { icehCacheHash },
+        lastUpdated: new Date().toISOString(),
+        indicators,
+      },
     };
-
-    await projectDb.begin((sql) => [
-      sql`
-        INSERT INTO datasets (dataset_type, info, last_updated)
-        VALUES ('iceh', ${JSON.stringify(info)}, ${lastUpdated})
-        ON CONFLICT (dataset_type) DO UPDATE SET
-          info = EXCLUDED.info,
-          last_updated = EXCLUDED.last_updated
-      `,
-      sql`DELETE FROM iceh_indicators_snapshot`,
-      ...indicators.map(
-        (ind) =>
-          sql`INSERT INTO iceh_indicators_snapshot
-            (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
-            VALUES (${ind.iceh_indicator}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
-      ),
-    ]);
-
-    return { success: true, data: { lastUpdated } };
   });
 }
 
