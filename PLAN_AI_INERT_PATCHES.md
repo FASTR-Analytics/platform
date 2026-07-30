@@ -1,8 +1,7 @@
 # PLAN: AI patches that are accepted but inert — a systematic fix
 
-Status: **DESIGNED, one fork open, not started.** Everything is ruled except the
-`periodFilter` resolution under Phase 2 step 1 (marked OPEN FORK below, with a
-recommendation); Phase 1 does not depend on it. No sequencing constraint against
+Status: **DESIGNED AND RULED, not started.** The forks below are closed; what
+remains is the build in the order given. No sequencing constraint against
 results-runs (AI-tool-layer only, near-zero merge overlap with the run/query
 surface) — but the working tree carries results-runs work, so check
 `git status` before staging.
@@ -10,9 +9,54 @@ surface) — but the working tree carries results-runs work, so check
 Re-verified against code 2026-07-30 (a read-only review of the previous draft;
 its findings are folded in, and the two forks it opened — ruling F's type-change
 semantics and the Type 1 mechanism — are ruled below). A second read-only pass
-the same day corrected four things and opened **one fork that is NOT ruled** —
-the `periodFilter` shape under Phase 2 step 1, see "What Zod owns". Everything
-else stands.
+the same day corrected four things and opened one further fork — the
+`periodFilter` shape — ruled as G. A third pass corrected ruling F's parity
+claim and the drifted-copy count in place, added ruling F's grouping-default
+sub-ruling, and rejected four other claims (recorded at the end). A fourth pass
+read the required docs above and folded in four things: the `[HIGH]` open item
+this plan does NOT close, the `selectedReplicantValue` predicate asymmetry, the
+validator's placement, and step 7's real doc-drift list. **No fork is open.
+Everything else stands — build it.**
+
+## Required reading before touching code
+
+- [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) — the tool-schema recipe.
+  Binds Phase 2 step 1 directly: derive from storage schemas, the "slightly
+  different is forbidden" table, the Layer 1 (Zod) / Layer 2 (data-dependent)
+  line this plan's checks live on, and the `z.strictObject` / `strict: true`
+  bans. Phase 2 step 7 writes the Type 1 / Type 2 rule back into it.
+- [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — the architecture.
+  Read at minimum "Tools, view gating, and approval" (how a handler reaches
+  `getTempConfig`/`setTempConfig` through the view registry's live context),
+  "Tool input schemas", and the "Surface gaps — read-projection ≠ write-schema ≠
+  stored-shape" inventory, of which this whole plan is one member. **Exactly one**
+  of its open items is closed by Phase 1 — the `[LOW]` `update_slide_editor`
+  field-drop (Phase 1 item 2); remove that one there rather than leaving two
+  records. **Do NOT touch the `[HIGH]` value-discoverability item.** It is about
+  filter/disaggregation VALUES for dimensions like `admin_area_2/3/4`,
+  `facility_type`, `denominator` — with its own fix direction (a
+  `get_dimension_values` tool, or bounded lists in the metric-list formatter).
+  Phase 1 item 1's read-back lists the metric's **value props** for
+  `valuesFilter`: the same pattern on a different surface, and it leaves that
+  item entirely unfixed.
+- [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — period
+  semantics, the roll-up gate and the effective-config model. The authority
+  behind ruling G, the two roll-up structural checks, and why
+  `getEffectivePOConfig` cannot be used as an effect diff (ruling A). Its
+  **"a one-value replicant is not a replicant"** trap binds the
+  `selectedReplicantValue` work — see Type 2 member 2 below.
+- `panther/_305_ai/_core/tool_failure.ts` — the failure-channel contract in the
+  doc comment on `AIToolFailure`, which is what Phase 1 item 3 implements. The
+  fuller consumer rulebook is
+  [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md) (vendored).
+  **`panther/` is a synced external library — never edit it from this repo.**
+- [PROTOCOL_ALL_TYPESCRIPT.md](panther/protocols/PROTOCOL_ALL_TYPESCRIPT.md) —
+  the code-quality rules that keep getting broken by default: no default
+  arguments, `undefined` over `null`, no `any`, no dynamic imports, no silent
+  catch, braces on every `if`.
+
+Nothing outside these is required reading. Everything the rulings below settle is
+settled — build it, don't re-litigate it.
 
 ## The class
 
@@ -55,12 +99,21 @@ check. Not derivable from a config comparison — the config genuinely differs.
 
 Known Type 2 members, in full — three:
 
-1. `valuesDisDisplayOpt` on a single-value-prop figure (already fixed, the
-   worked example).
-2. `selectedReplicantValue` on a figure with no dimension displayed as
-   `replicant`
+1. `valuesDisDisplayOpt` on a single-value-prop figure (the worked example —
+   fixed in the shared validator, so fixed for the two figure tools; the viz
+   editor's inline copy still lacks it, see "the copy has already drifted").
+2. `selectedReplicantValue` on a figure with no ACTIVE replicant
    ([assert_replicant_valid.ts:23-24](client/src/generate_visualization/assert_replicant_valid.ts#L23-L24)
-   early-returns, so the value is stored and never read).
+   early-returns, so the value is stored and never read). **The predicate is
+   `getReplicateByProp`, not a scan for `disDisplayOpt === "replicant"`** — a
+   replicant dimension filtered to a single value returns `undefined`
+   ([get_disaggregator_display_prop.ts:59-71](lib/get_disaggregator_display_prop.ts#L59-L71)),
+   which SYSTEM_09's traps name outright: *"a one-value replicant is not a
+   replicant… code that reads `disDisplayOpt === 'replicant'` directly will
+   disagree with the rest of the app."* A raw scan would wave through exactly the
+   inert case this member exists to catch — this bug class re-entering through
+   its own detector. Note the write-time CLEAR uses the OTHER predicate; the
+   asymmetry is deliberate and is stated at Phase 2 step 3.
 3. `timeseriesGrouping` on a non-timeseries config — reachable only from
    `update_viz_config` (the figure patch schema carries no such field). EVERY
    query/render reader gates on `type === "timeseries"`:
@@ -283,10 +336,41 @@ store, already calls it
 ([_1_summary.tsx:95](client/src/components/visualization/presentation_object_editor_panel_data/_1_summary.tsx#L95)).
 The AI path bypassing it is the outlier, not the reference.
 
+**The AI adopts the converted config WHOLE, which is deliberately not
+byte-identical to the human handler.** Two differences, both verified, neither
+a reason to imitate the handler:
+
+- The dropdown keeps a per-session `Map` of prior per-type settings and, on a
+  return switch, restores from it and **bypasses `convertVisualizationType`
+  entirely** ([_1_summary.tsx:76-93](client/src/components/visualization/presentation_object_editor_panel_data/_1_summary.tsx#L76-L93)).
+  The AI has no such session cache and should not grow one.
+- On the convert branch the handler writes only five fields (`d.type`,
+  `d.valuesDisDisplayOpt`, `d.disaggregateBy`, `s.content`, `styleResets`) and
+  **drops `converted.d.timeseriesGrouping` on the floor** — which is why a human
+  switching a grouping-less table to timeseries gets a
+  "Timeseries config missing timeseriesGrouping" throw
+  ([get_fetch_config_from_po.ts:45-49](lib/get_fetch_config_from_po.ts#L45-L49)).
+  Taking the whole config fixes that for the AI path.
+
+**Sub-ruling: the grouping default is the metric's granularity, not
+`"period_id"`.** `convertVisualizationType` defaults it to
+`config.d.timeseriesGrouping ?? "period_id"`
+([convert_visualization_type.ts:82-84](lib/convert_visualization_type.ts#L82-L84))
+without consulting the metric, and timeseries is offered to any metric carrying
+a time dimension — including a year-only one
+([presentation_objects.ts:325,345](lib/types/presentation_objects.ts#L325)). So
+on a year-granularity metric that default pushes a column that isn't in the
+results file into `groupBys`. Pass the metric's
+`mostGranularTimePeriodColumnInResultsFile` and use it as the default (it is
+already in scope — apply takes `source: ResultsValue`). Pre-existing sharp edge,
+loud either way, three words to get right in a path this ruling newly makes
+reachable.
+
 So: when `patch.type` differs from the current type, the shared apply function
 runs `convertVisualizationType` FIRST, then applies the rest of the patch on
-top. A type-only switch therefore succeeds and produces exactly what the human
-dropdown produces. Validation then rejects only slots the **patch itself**
+top. A type-only switch therefore succeeds and produces the transform's own
+output — the same transform the human dropdown runs, modulo the two differences
+above. Validation then rejects only slots the **patch itself**
 supplies that are illegal for the new type — the genuine "you asked for
 something impossible" case, where the tool states intent and the system never
 guesses. Ordering matters and is not negotiable: convert first (it rewrites
@@ -297,6 +381,59 @@ This also answers, rather than parks, the question the earlier draft sent to
 [PLAN_PO_CONFIG_TYPE_UNION.md](PLAN_PO_CONFIG_TYPE_UNION.md) — "what should a
 *human* switching type get?" It is already built and shipped; the AI now shares
 it. Nothing about type switching is owed to that plan.
+
+**G. An open-ended `periodFilter` resolves to `from_month`, and "to present" is
+the truth the read-back must tell.** The question was: when the AI is told "from
+2023 onward", does the figure keep extending as new data lands, or freeze at
+today's latest period?
+
+It extends. The human period dropdown already offers this as a first-class choice
+labelled **"From specific month to present"**
+([_2_filters.tsx:275-277](client/src/components/visualization/presentation_object_editor_panel_data/_2_filters.tsx#L275-L277),
+and the same option in `edit_common_properties_modal.tsx`), and the viz editor's
+AI path already produces it
+([visualization_editor.tsx:307-313](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L307-L313)).
+Freezing to `custom` would mean the AI cannot express a filter the app names in
+its own UI — the same "AI held tighter than the human for no reason" defect
+step 6 exists to remove — and it would silently pin an end date the user never
+asked for. So the shared apply writes `from_month` for an omitted max, and the
+figure tools gain it.
+
+The mechanism, verified: `from_month` **discards its stored `max`** —
+[get_fetch_config_from_po.ts:159-163](lib/get_fetch_config_from_po.ts#L159-L163)
+returns `{min: reAnchored, max: periodBounds.max}`, where `periodBounds` is the
+live `rawDateRange` computed server-side per query
+([get_presentation_object_items.ts:157](server/server_only_funcs_presentation_objects/get_presentation_object_items.ts#L157)).
+Two things follow, and they are the price of the ruling:
+
+- **The stored `max` is schema-mandated dead weight, and that is NOT this plan's
+  problem to fix.** `from_month` extends `boundedFilterBase`
+  ([_metric_installed.ts:134-136](lib/types/_metric_installed.ts#L134-L136)), so
+  both bounds are required and the refine demands they share a format — the human
+  UI stores `max: keyedPeriodBounds.max` for exactly this reason. It is not an
+  inert field in this plan's sense (nobody set it expecting an effect); it is a
+  required companion of a filter type whose meaning is "to present". Making it
+  optional is a storage-schema change with a migration —
+  [PLAN_PO_CONFIG_TYPE_UNION.md](PLAN_PO_CONFIG_TYPE_UNION.md) territory.
+- **Two real defects, both live today and both Phase 1.** (1) The three AI
+  formatters print `from <min> to <max>` for `from_month` because they branch on
+  `periodFilterHasBounds`
+  ([presentation_objects.ts:78](lib/types/presentation_objects.ts#L78)), so the
+  model reads back a fixed upper bound that the renderer ignores — including on
+  figures a *human* set that way. They must say "to present". (2) Both figure
+  tools gate the period range check on `filterType === "custom"`
+  ([slide_editor.tsx:421](client/src/components/project_ai/ai_tools/tools/slide_editor.tsx#L421),
+  [report_editor.ts:365](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L365)),
+  so a `from_month` config skips `validateMetricInputs`' period argument
+  entirely — widen them to `periodFilterHasBounds`. (2) is inert-safe today only
+  because figures cannot yet hold `from_month`; step 3 makes them able to, so it
+  must land with step 3, not step 5.
+
+Snapshot note, so it is not discovered later: a slide/report figure carries its
+own fetched items, so a `from_month` figure does not shift spontaneously — its
+range re-anchors on the next re-resolve (any later edit). That is the same
+"to present" contract the human path has, applied at the moment the figure is
+rebuilt.
 
 ## Why the fix lands in one place, not three
 
@@ -312,7 +449,7 @@ so an all-unsupported patch arrives `{}`). `update_figure` has no such guard —
 verified, `grep "Object.keys(input.patch"` hits report_editor.ts only. So
 `update_figure` with `{patch: {type: "table"}}` strips to `{}`, re-resolves the
 bundle unchanged, and returns `Updated figure <blockId>`: a full round trip that
-changed nothing, reported as success. Phase 1 item 5.
+changed nothing, reported as success. Phase 1 item 6.
 
 `update_viz_config` is a **parallel reimplementation** of that path:
 
@@ -327,12 +464,23 @@ changed nothing, reported as success. Phase 1 item 5.
 - it skips `convertVisualizationType` on the one edit only it can make
   (ruling F).
 
-**And the copy has already drifted.** The shared validator runs two checks the
+**And the copy has already drifted.** The shared validator runs three checks the
 inline version does not: it rejects `FILTER_ONLY_DISAGGREGATION_OPTIONS` used
-as grouping dimensions, and it rejects dropping a dimension the metric marks
-`isRequired` (which silently produces double-counted numbers). The viz editor
-is missing both today, purely because it is a copy. Unifying gains them for
-free, which is the concrete measure of what the duplication cost.
+as grouping dimensions, it rejects dropping a dimension the metric marks
+`isRequired` (which silently produces double-counted numbers), and — the one
+that matters most here — it rejects `valuesDisDisplayOpt` on a
+single-value-prop figure. The viz editor's inline check
+([visualization_editor.tsx:128-133](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L128-L133))
+tests per-type slot validity only, so **the worked example's own bug is still
+live in `update_viz_config`** — and
+[format_viz_editor_for_ai.ts:78-80](client/src/components/project_ai/ai_tools/tools/_internal/format_viz_editor_for_ai.ts#L78-L80)
+prints `Values display: <slot>` with no value-prop gate, so the read-back
+confirms it (the suppression ruling C describes exists only in
+`format_figure_config_for_ai`). Phase 2 step 4 closes the write side for all
+three tools; the read-back line is ruling C's deferred territory and is
+harmless once the write errors. The viz editor is missing all three today
+purely because it is a copy. Unifying gains them for free, which is the
+concrete measure of what the duplication cost.
 
 **And the copy already breaks the contract it advertises.** `update_viz_config`
 writes `type`, `timeseriesGrouping`, `valuesDisDisplayOpt`, `valuesFilter`,
@@ -387,44 +535,8 @@ marks *Forbidden — worst of both worlds*. Resolution:
 - Unify `periodFilter` on the **open-ended** form (`min?`/`max?`), threading the
   metric's real data bounds into `applyFigureConfigPatch` so an omitted side is
   filled from data. Keeping two shapes is the forbidden middle ground; narrowing
-  the viz editor would remove working capability. **But what an omitted side
-  RESOLVES TO is an open fork — see below.**
-
-**OPEN FORK — what an open-ended side resolves to.** Not ruled; decide before
-Phase 2 step 3. The viz editor's existing resolution
-([visualization_editor.tsx:287-321](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L287-L321))
-writes `filterType: "from_month"` for an omitted max. Copying that verbatim into
-the shared apply is NOT the free move it looks like, because **`from_month`
-discards its stored `max`**:
-[get_fetch_config_from_po.ts:159-163](lib/get_fetch_config_from_po.ts#L159-L163)
-returns `{min: reAnchored, max: periodBounds.max}`, and `periodBounds` there is
-the live `rawDateRange` computed server-side per query
-([get_presentation_object_items.ts:157](server/server_only_funcs_presentation_objects/get_presentation_object_items.ts#L157)).
-So the option is:
-
-- **(a) Resolve everything to `custom`** — fill the omitted side from data bounds
-  and store concrete min/max. One schema, no snapshot question, and the period
-  range check keeps working unchanged (see below). Cost: the viz editor loses
-  "from X onward, tracking new data" — a real capability it has today.
-- **(b) Keep `from_month`** — the viz editor's behaviour is preserved and figures
-  gain it. Two consequences to accept, not discover: a slide/report figure's
-  upper bound then re-anchors to live data on its next re-resolve (bundles carry
-  their items, so nothing shifts spontaneously — but an unrelated later edit can
-  move the range), and the range check must be widened, because BOTH figure tools
-  gate it on `filterType === "custom"`
-  ([slide_editor.tsx:421](client/src/components/project_ai/ai_tools/tools/slide_editor.tsx#L421),
-  [report_editor.ts:365](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L365))
-  and would silently skip `validateMetricInputs`' period argument on every
-  `from_month` patch. `periodFilterHasBounds`
-  ([presentation_objects.ts:78](lib/types/presentation_objects.ts#L78)) is the
-  existing predicate for "custom or from_month" to widen them with. Under (b)
-  that widening lands in step 3, NOT step 5 — step 3 is what makes `from_month`
-  reachable from a figure.
-
-Recommendation: **(a)**. The AI figure tools are the surface this plan is
-hardening, and (b) hands them a filter shape whose stored value is not what
-renders — the same read-vs-render split the plan exists to close — to buy a
-phrasing the AI can already express by naming both ends.
+  the viz editor would remove working capability. An omitted max resolves to
+  `from_month` — ruling G.
 
 **Delete the two AI lookup tables; derive from the canonical one.**
 `VALID_DIS_DISPLAY` and `VALID_VALUES_DISPLAY`
@@ -476,7 +588,7 @@ function called before any mutation.
 
 ## The work, in order
 
-Phase 1 is five independently shippable commits that fix live bugs and need no
+Phase 1 is six independently shippable commits that fix live bugs and need no
 refactor. Phase 2 is the unification, which carries the only real risk in this
 plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
 
@@ -518,7 +630,17 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    `resOptions.err` throw the earlier draft missed),
    `apply_figure_config_patch.ts:67`,
    `resolve_bundle_from_metric_and_config.ts:27,32` (verified AI-only — its
-   three callers are all AI paths). **Leave `build_figure_inputs.ts:73` as plain
+   three callers are all AI paths). Two of those five are dead branches:
+   `getFetchConfigFromPresentationObjectConfig` never returns
+   `{success: false}` — it throws instead — so
+   `resolve_bundle_from_metric_and_config.ts:32` and
+   `assert_replicant_valid.ts:31` are currently unreachable. Convert them anyway
+   (harmless, and forward-safe if that function ever returns a failure), but
+   know that its LIVE plain-`Error` surface is
+   [get_fetch_config_from_po.ts:47](lib/get_fetch_config_from_po.ts#L47)
+   ("Timeseries config missing timeseriesGrouping") — in `lib/`, shared with
+   human renders, so it stays plain `Error`, and ruling F's grouping default is
+   what keeps the AI path from reaching it. **Leave `build_figure_inputs.ts:73` as plain
    `Error`** — that file runs for human renders too, so an AI-specific class
    there is a layering error.
 4. **`timeseriesGrouping` liveness, check and read-back together.** Reject
@@ -531,7 +653,17 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    next to code the unification will rewrite anyway; do them now because the
    confirmation loop is live. Note the effective type is `input.type ?? current`
    — setting `type: "timeseries"` and a grouping in one call is legal.
-5. **`update_figure`'s empty patch.** Port `update_report_figure`'s guard
+5. **`from_month` reads back as "to present"** (ruling G, defect 1). Three
+   formatters print a fixed upper bound the renderer ignores, all by branching on
+   `periodFilterHasBounds`:
+   [format_figure_config_for_ai.ts:90-96](client/src/components/project_ai/ai_tools/tools/_internal/format_figure_config_for_ai.ts#L90-L96),
+   [format_viz_editor_for_ai.ts:59-66](client/src/components/project_ai/ai_tools/tools/_internal/format_viz_editor_for_ai.ts#L59-L66),
+   [format_metric_data_for_ai.ts:242-245](client/src/components/project_ai/ai_tools/tools/_internal/format_metric_data_for_ai.ts#L242-L245).
+   Split the `from_month` case out of the bounded branch in all three. Live today
+   on any human-set `from_month` figure — the model reads a fixed range and may
+   "correct" a filter that was already right — and a prerequisite for Phase 2
+   step 3, which lets the AI create these itself.
+6. **`update_figure`'s empty patch.** Port `update_report_figure`'s guard
    ([report_editor.ts:336-344](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L336-L344))
    to `update_figure`, with its message adjusted (`replace_slide` / a
    from_metric-from_visualization block is the way to change metric or type on a
@@ -541,9 +673,8 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
 ### Phase 2 — unification
 
 1. **Schema unification.** One patch schema in `lib/types/ai_input.ts` + a viz
-   extension; `periodFilter` on the open-ended form (resolution per the open fork
-   above — settle it here, it decides work in steps 3 and 5); delete
-   `vizConfigUpdateSchema`.
+   extension; `periodFilter` on the open-ended form (an omitted max resolves to
+   `from_month` — ruling G); delete `vizConfigUpdateSchema`.
 2. **Lookup tables.** Delete `VALID_DIS_DISPLAY` / `VALID_VALUES_DISPLAY`, add
    `getValidValuesDisplayOptions`, repoint every consumer at `VIZ_TYPE_CONFIG`,
    drop the `validValues &&` fail-open guards. Do this before step 4 so the
@@ -555,7 +686,9 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    `convertVisualizationType` takes `disaggregationOptions`, so apply needs the
    same `source: ResultsValue` the validator takes — the target shape below is
    `(config, patch, source, dataBounds)`, not the four-arg form the earlier draft
-   sketched; and the roll-up carry-over currently reads `config.d.disaggregateBy`
+   sketched (`source` also carries the
+   `mostGranularTimePeriodColumnInResultsFile` the grouping default needs — see
+   ruling F's sub-ruling); and the roll-up carry-over currently reads `config.d.disaggregateBy`
    from the pre-patch config
    ([apply_figure_config_patch.ts:39](client/src/generate_visualization/apply_figure_config_patch.ts#L39)),
    which must rebind to the CONVERTED config once convert runs first (convert
@@ -564,7 +697,19 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    `replicant` slot — that is the "prefer clearing at write time" ruling below,
    and putting it in apply is what makes it cover the convert path too (a type
    change can drop the slot; `convertVisualizationType` does not clear the
-   value). `update_viz_config` builds a
+   value). **The clear tests structural slot absence — `disDisplayOpt ===
+   "replicant"` on no entry — NOT `getReplicateByProp`,** which is the opposite
+   of the liveness check in step 4 and deliberately so: `getReplicateByProp`
+   also returns `undefined` for a replicant dimension transiently filtered to
+   one value, and clearing on that would destroy the user's stored value on a
+   filter edit. Same policy the roll-up flag follows — no eager clearing on
+   transient gate closures, stripped at save instead
+   (SYSTEM_09 "Position is display-only"). Structural absence is permanent;
+   liveness is not. And because this step is what first lets a figure hold `from_month`,
+   widen both figure tools' period-check gates from `filterType === "custom"` to
+   `periodFilterHasBounds` in the same commit (ruling G, defect 2) — otherwise the
+   new capability arrives with its range validation silently switched off.
+   `update_viz_config` builds a
    whole new config and writes it once via `reconcile` instead of twelve
    `setTempConfig` calls; the periodFilter resolution (including the bounds
    fetch) moves above every write, which is also what makes its range check
@@ -579,8 +724,19 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    `validateDisplaySlots`, the viz editor's inline loops, and both roll-up
    gates — plus the new checks: the structural checks for the two conditional
    fields (the whole Type 1 error surface), the Type 2 `selectedReplicantValue`
-   liveness check, and the Type 2 `timeseriesGrouping` check from Phase 1 item 4
-   moving in with the rest. The leave-one-out comparison lands here too but as the
+   liveness check (on `getReplicateByProp` — see Type 2 member 2; the OPPOSITE
+   predicate to step 3's clear), and the Type 2 `timeseriesGrouping` check from
+   Phase 1 item 4 moving in with the rest.
+   **Placement is deliberate and needs one line of docs (step 7).** It goes
+   beside `validateDisplaySlots`, i.e. under S10's glob
+   (`client/src/generate_visualization/**`), while being S13 machinery —
+   SYSTEM_13's schema section places Layer-2 validation in
+   `validators/content_validators.ts`. That file is for checks needing FETCHED
+   data (`validateMetricInputs` and friends, which stay where they are); these
+   are pure config checks that the S13 doc's own "Validate-before-commit"
+   paragraph already describes living here. No `lint_systems.ts` change is
+   needed (S10's manifest is glob-based, not per-file), but say it in the docs
+   or the inventory drifts on the next review. The leave-one-out comparison lands here too but as the
    change REPORT feeding ruling D, not as an error path — see "How Type 1 is
    detected". It needs a small hand-rolled deep-equal (there is none in `lib/`,
    `client/src/` or `panther/_000_utils`; `JSON.stringify` is key-order sensitive
@@ -606,8 +762,8 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    earlier draft claimed. (The original seed for this read "confirm the
    relative/`from_month` variants" — those are unreachable from the figure patch
    *today*, which always produces `filterType: "custom"`; this is the real gap
-   behind it. Under fork option (b) they become reachable and the two figure
-   tools' `filterType === "custom"` gates must widen in step 3 — see the fork.)
+   behind it. Ruling G makes `from_month` reachable, which is why the figure
+   tools' own gates widen in step 3 rather than here.)
 6. **Rule on `timeseriesGrouping`'s over-strict VALUE gate**, since step 3
    rewrites the line. Distinct from the liveness check in Phase 1 item 4: that one
    asks "is this field live for this type at all", this one asks "which values may
@@ -626,10 +782,31 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) (the tool-author
    recipe), a single-line pointer from
    [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md), and delete this
-   plan.
+   plan. Plus the drift the code changes create — enumerated, because two of
+   these docs actively point authors at things that will no longer exist:
+   - **`vizConfigUpdateSchema` is named in two docs as a surface to copy from.**
+     [SYSTEM_13:344-347](SYSTEM_13_ai_assistant.md#L344) ("Three derived
+     surfaces exist") and
+     [PROTOCOL_APP_AI_TOOLS.md:30-33](PROTOCOL_APP_AI_TOOLS.md#L30) ("Existing
+     derived surfaces to copy from"). Step 1 deletes it; both become three-→two
+     and a pointer to the extended base schema.
+   - **SYSTEM_10 records the `strip_figure_inputs.ts` tombstone twice** —
+     [:238](SYSTEM_10_figure_render_export.md#L238) ("one comment-only tombstone
+     survives… — Open item") and the open item itself at
+     [:513](SYSTEM_10_figure_render_export.md#L513). Deleting the file deletes
+     both records.
+   - **The validator's placement** gets the one line step 4 asks for (pure
+     config checks beside `validateDisplaySlots`; fetched-data checks stay in
+     `content_validators.ts`).
+   - **SYSTEM_13's "Validate-before-commit" paragraph
+     ([:320-324](SYSTEM_13_ai_assistant.md#L320)) is currently FALSE for
+     `update_viz_config`** — it claims all three tools validate before any store
+     write. Step 3 is what makes it true; no edit needed after, but do not read
+     it as evidence the hole doesn't exist.
 
 Fix in passing: `client/src/generate_visualization/strip_figure_inputs.ts` is a
-three-line comment-only file with zero importers repo-wide (verified). Delete it.
+three-line comment-only file with zero importers repo-wide (verified). Delete it,
+and with it the two SYSTEM_10 records above.
 
 ### Verification
 
@@ -641,12 +818,17 @@ config→fetch-config, not coverage of this work. The real checks are a direct
 `deno run` harness over the pure apply/validate functions (see "Verify by
 executing"), plus two things typecheck cannot see, both requiring the viz editor
 run in a browser: that the preview does not re-fetch on every edit after the
-whole-config write, and that an AI `type` change now produces the same config as
-clicking the type dropdown (compare the two paths on one figure with a `rowGroup`
-slot and `specialBarChart` on).
+whole-config write, and that an AI `type` change now runs the conversion at all
+(compare against the type dropdown on one figure with a `rowGroup` slot and
+`specialBarChart` on). Two traps in that comparison, both from ruling F: switch
+the dropdown only ONCE from a freshly-opened editor, or its per-type cache
+restores instead of converting; and expect `timeseriesGrouping` to differ, since
+the handler drops the converted value and the AI keeps it. Slots, content and
+style resets are what should match.
 
-Under fork option (b) the rig does become relevant on one axis — `from_month`
-reaching stored figure configs — so add a case there if (b) is chosen.
+The rig IS relevant on one axis: ruling G puts `from_month` into stored figure
+configs for the first time, so add a case covering a figure-shaped config with
+that filter type.
 
 ## Non-goal (ruled, do not reopen)
 
@@ -728,7 +910,10 @@ uses. No style field becomes addressable.
   `selectedReplicantValue`: give the figure a `replicant` slot later and a
   stale value gets pinned, after which `assertReplicantValid` rejects the *next*
   AI edit on a figure the user never mis-edited. Prefer clearing it at write
-  time when no replicant slot exists over a one-off sweep. `valuesDisDisplayOpt`
+  time when no replicant slot exists over a one-off sweep — on STRUCTURAL slot
+  absence only, per Phase 2 step 3; clearing on `getReplicateByProp` would
+  destroy a live value whenever the replicant dimension is transiently filtered
+  to one. `valuesDisDisplayOpt`
   and `rollupPosition` are harmless to leave. Note this holds only while the
   storage schema stays permissive —
   [PLAN_PO_CONFIG_TYPE_UNION.md](PLAN_PO_CONFIG_TYPE_UNION.md) would make those
@@ -772,10 +957,17 @@ Recorded so the same wrong leads are not re-followed:
   load-bearing for ruling B (it survives at three).
 - **"The two figure tools share everything, nothing to unify"** — they differ on
   the empty-patch guard, and the tool missing it is squarely in this class.
-- **The `periodFilter` widening was costed as "slight".** `from_month` discards
-  its stored `max` at query time, which makes the resolution an actual fork
-  (recorded above, unruled) rather than a schema detail, and one of its branches
-  moves work from step 5 into step 3.
+- **The `periodFilter` widening was costed as "slight"**, and the review that
+  caught that then recommended the wrong resolution. `from_month` discards its
+  stored `max` at query time, so the review proposed resolving everything to
+  `custom` on purity grounds — freezing the range. That was wrong: the human
+  period dropdown offers "From specific month to present" as a first-class
+  choice, so freezing would have made the AI unable to express a filter the app
+  names in its own UI, and would have pinned an end date nobody asked for. Ruling
+  G keeps `from_month`; the two real defects it exposed (the read-back's false
+  upper bound, the `custom`-only range gate) are Phase 1 item 5 and Phase 2
+  step 3. Do not re-litigate the stored-`max`-is-ignored observation: it is
+  schema-mandated and the human path does the same.
 - **Three claims from that same review pass were checked and REJECTED**, recorded
   so they are not re-raised: `convertVisualizationType` handing a dimension the
   `replicant` slot, and its de-collision leaving a collision when no slot is free,
@@ -795,4 +987,31 @@ Recorded so the same wrong leads are not re-followed:
   don't retype — and the "interim step before PLAN_PO_CONFIG_TYPE_UNION"
   framing went with it.
 - **The shared validator needs no structural-narrowing type.** `ResultsValue`
-  is already the common supertype of both callers' sources.
+  is already the common supertype of both callers' sources. (Its justification
+  is slightly wider than first stated — the validator also reads `valueFunc` /
+  `postAggregationExpression` / `hasFacilityLevelRows` via
+  `getEffectiveRollupDimension`. All are on `ResultsValue`; the conclusion is
+  unchanged.)
+- **Ruling F's "exactly what the human dropdown produces" was over-claimed**,
+  and the drifted-copy count was two rather than three. Both corrected in place
+  (2026-07-30, a fourth read-only pass). The same pass raised four further
+  claims that were checked and **REJECTED** — recorded so they are not
+  re-raised:
+  1. `disaggregateBy` belongs in `CONDITIONALLY_APPLIED_FIELDS` because the
+     roll-up carry-over can override omitted flags. The case is real (patch
+     entries with no `rollup` field, stored flag restored, result deep-equals
+     stored) but harmless: the report says "not changed", which is TRUE of the
+     config and is not a success message. The harm criterion is "a success
+     teaching the model a field works when it does not" — not triggered.
+  2. Ruling G should widen the create path's `startDate`/`endDate`.
+     `validateDateRange` throws a clear both-or-neither error
+     ([content_validators.ts:151-155](client/src/components/project_ai/ai_tools/validators/content_validators.ts#L151-L155)),
+     so it is a loud correct rejection, not this class. Widening it is scope
+     creep against the non-goal.
+  3. The apply-clears vs validator-errors ordering for
+     `selectedReplicantValue` is ambiguous. The delta-gating rule
+     ("validate what the patch touches") already settles it: the check tests
+     `patch.selectedReplicantValue`, not the post-apply field.
+  4. Phase 1 should absorb the viz editor's `valuesDisDisplayOpt` liveness
+     hole. Phase 2 step 4 fixes it by construction; hoisting it is only
+     insurance against Phase 2 stalling, not a defect.
