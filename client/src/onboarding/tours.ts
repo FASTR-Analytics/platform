@@ -517,6 +517,7 @@ export function buildDeckEditorIntroTour(): TourDefinition {
           pt: "Os diapositivos aparecem na ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
         }),
         placement: "top",
+        when: () => elementExists('[data-tour="deck-grid"]'),
       },
       {
         id: "slide-size",

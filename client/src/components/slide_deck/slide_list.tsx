@@ -504,7 +504,6 @@ export function SlideList(p: Props) {
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
         data-page-cursor-surface={`deck:${p.deckId}`}
-        data-tour="deck-grid"
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -534,6 +533,10 @@ export function SlideList(p: Props) {
           </div>
         </Show>
         <Show when={!p.isLoading && p.slideIds.length > 0}>
+          {/* Wrapper exists so a tour can spotlight just the slides; the
+              scroll container above is full-height, which leaves a tour
+              popover nowhere to sit. */}
+          <div data-tour="deck-grid">
           <SortableVendor
             idField="id"
             items={sortableSlideItems()}
@@ -583,6 +586,7 @@ export function SlideList(p: Props) {
               );
             }}
           </SortableVendor>
+          </div>
         </Show>
       </div>
     </FrameTop>
