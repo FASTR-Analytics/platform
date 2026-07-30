@@ -3,6 +3,7 @@ import type { TourManagerController } from "@njwse/roadtrip";
 import { clerkOnboardingStorage } from "./storage";
 import {
   buildDeckEditorIntroTour,
+  buildDeckEditorPresentTour,
   buildDeckEditorSettingsTour,
   buildDeckEditorSlidesTour,
   buildDecksEditorTour,
@@ -124,6 +125,11 @@ export function setupDeckTours(): TourManagerController {
         page: "deck-editor",
         when: slideCardOnScreen,
         tour: buildDeckEditorSlidesTour(),
+      },
+      {
+        page: "deck-editor",
+        when: () => document.querySelector("#deck-present-button") !== null,
+        tour: buildDeckEditorPresentTour(),
       },
       {
         page: "deck-editor",

@@ -480,9 +480,6 @@ export function buildModulesEnableTour(): TourDefinition {
 
 // ------------------------------------------------------- Slide deck editor
 
-const elementExists = (selector: string) =>
-  document.querySelector(selector) !== null;
-
 export function buildDeckEditorIntroTour(): TourDefinition {
   return {
     id: "deck-editor-intro",
@@ -502,50 +499,6 @@ export function buildDeckEditorIntroTour(): TourDefinition {
           pt: "Esta é a própria apresentação. A barra superior reúne tudo o que pode fazer à apresentação como um todo; os diapositivos ficam abaixo.",
         }),
         placement: "bottom",
-      },
-      {
-        id: "grid",
-        target: tourTarget("deck-grid"),
-        title: t3({
-          en: "Your slides",
-          fr: "Vos diapositives",
-          pt: "Os seus diapositivos",
-        }),
-        body: t3({
-          en: "Slides appear in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
-          fr: "Les diapositives apparaissent dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
-          pt: "Os diapositivos aparecem na ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
-        }),
-        placement: "top",
-        when: () => elementExists('[data-tour="deck-grid"]'),
-      },
-      {
-        id: "slide-size",
-        target: tourTarget("deck-slide-size"),
-        title: t3({
-          en: "Thumbnail size",
-          fr: "Taille des vignettes",
-          pt: "Tamanho das miniaturas",
-        }),
-        body: t3({
-          en: "Zoom the thumbnails to see more slides at once, or use the button beside it to fill the width with one slide.",
-          fr: "Ajustez la taille des vignettes pour voir plus de diapositives à la fois, ou utilisez le bouton à côté pour occuper toute la largeur avec une seule diapositive.",
-          pt: "Ajuste o tamanho das miniaturas para ver mais diapositivos ao mesmo tempo, ou utilize o botão ao lado para ocupar toda a largura com um diapositivo.",
-        }),
-        placement: "bottom",
-        when: () => elementExists('[data-tour="deck-slide-size"]'),
-      },
-      {
-        id: "present",
-        target: "#deck-present-button",
-        title: t3({ en: "Present", fr: "Présenter", pt: "Apresentar" }),
-        body: t3({
-          en: "Play the deck full screen, one slide at a time — useful for reviewing it before a meeting.",
-          fr: "Lancez la présentation en plein écran, diapositive par diapositive — pratique pour la relire avant une réunion.",
-          pt: "Apresente em ecrã inteiro, um diapositivo de cada vez — útil para revê-la antes de uma reunião.",
-        }),
-        placement: "bottom",
-        when: () => elementExists("#deck-present-button"),
       },
       {
         id: "add-slide",
@@ -581,12 +534,44 @@ export function buildDeckEditorIntroTour(): TourDefinition {
   };
 }
 
-// Deferred until a slide card is on screen (an empty deck has none).
+// Deferred until a slide card is on screen: the grid, its view controls and
+// the card itself only exist once the deck has slides, so an empty deck's
+// first visit skips this and gets it after the first slide is added.
 export function buildDeckEditorSlidesTour(): TourDefinition {
   return {
     id: "deck-editor-slides",
     labels: tourLabels(),
     steps: [
+      {
+        id: "grid",
+        target: tourTarget("deck-grid"),
+        title: t3({
+          en: "Your slides",
+          fr: "Vos diapositives",
+          pt: "Os seus diapositivos",
+        }),
+        body: t3({
+          en: "Slides appear in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
+          fr: "Les diapositives apparaissent dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
+          pt: "Os diapositivos aparecem na ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "slide-size",
+        target: tourTarget("deck-slide-size"),
+        title: t3({
+          en: "Thumbnail size",
+          fr: "Taille des vignettes",
+          pt: "Tamanho das miniaturas",
+        }),
+        body: t3({
+          en: "Zoom the thumbnails to see more slides at once, or use the button beside it to fill the width with one slide.",
+          fr: "Ajustez la taille des vignettes pour voir plus de diapositives à la fois, ou utilisez le bouton à côté pour occuper toute la largeur avec une seule diapositive.",
+          pt: "Ajuste o tamanho das miniaturas para ver mais diapositivos ao mesmo tempo, ou utilize o botão ao lado para ocupar toda a largura com um diapositivo.",
+        }),
+        placement: "bottom",
+      },
       {
         id: "slide-card",
         target: tourTarget("deck-slide-card"),
@@ -602,6 +587,47 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
         }),
         placement: "right",
         waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}
+
+// Deferred until the Present button is on screen — it only renders once the
+// deck has slides.
+export function buildDeckEditorPresentTour(): TourDefinition {
+  return {
+    id: "deck-editor-present",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "present",
+        target: "#deck-present-button",
+        title: t3({
+          en: "Present the deck",
+          fr: "Présenter la présentation",
+          pt: "Apresentar",
+        }),
+        body: t3({
+          en: "Play the deck full screen from the first slide — ideal for a live meeting or a last read-through.",
+          fr: "Lancez la présentation en plein écran depuis la première diapositive — idéal pour une réunion en direct ou une dernière relecture.",
+          pt: "Apresente em ecrã inteiro a partir do primeiro diapositivo — ideal para uma reunião ao vivo ou uma última revisão.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "present-controls",
+        target: "#deck-present-button",
+        title: t3({
+          en: "Moving through the slides",
+          fr: "Naviguer entre les diapositives",
+          pt: "Percorrer os diapositivos",
+        }),
+        body: t3({
+          en: "Once presenting: arrow keys, space or Page Up/Down move between slides, Home and End jump to the first or last, and Escape closes the presenter.",
+          fr: "Pendant la présentation : les flèches, la barre d'espace ou Page haut/bas changent de diapositive, Début et Fin vont à la première ou à la dernière, et Échap ferme le présentateur.",
+          pt: "Durante a apresentação: as teclas de seta, a barra de espaços ou Page Up/Down mudam de diapositivo, Home e End saltam para o primeiro ou o último, e Esc fecha o apresentador.",
+        }),
+        placement: "bottom",
       },
     ],
   };
