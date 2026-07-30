@@ -147,10 +147,12 @@ export async function executeRunModule(args: {
 
 // §3.7 reuse: the module's inputs are byte-identical to the matched run's,
 // so its raw output CSVs are copied from that run's outputs/{moduleId} and R
-// is skipped. It COPIES today, so every run stays a self-contained,
-// independently-deletable directory; hardlink dedup is ruled (PLAN_RESULTS_RUNS
-// Q-C, amending §3.7's original "copy, never link") but unimplemented — see
-// S8's open item before changing this. outputFileHashes come from the source
+// is skipped. **Copy, never link — an ironclad rule** (Tim, 2026-07-30):
+// every file in a results package is an unlinked copy, so the package is 100%
+// immutable, 100% standalone, and transportable by copying its directory
+// alone. Never turn this into `Deno.link`/`Deno.symlink`; the duplicated bytes
+// are an accepted cost, and PLAN_RESULTS_RUNS §10 Q3 (parquet-native R) is the
+// ruled way to pay them down. outputFileHashes come from the source
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
   attachTargetProjectIds: string[];

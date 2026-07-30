@@ -100,12 +100,13 @@
 > settled, and explicitly left it unsettled — **do not decide it yourself.**
 > Full context in item 3b's build record; its one follow-on (the two copilot
 > tools that call those routes) is spelled out in the pre-deploy checklist.
-> (2) **One ruled-but-unbuilt deliverable**: hardlink dedup for run storage
-> (Q-C, amending §3.7's "copy, never link"). No Phase 3 item owned it, nothing
-> depends on it, and it may land before or after the deploy; it is now a named
-> open item in SYSTEM_08 with a pointer in `reuseRunModule`'s doc comment.
-> Everything else in this document is either built or a deliberate post-deploy
-> deferral (§4 Phase 3's last two bullets; §4 Phase 4's demolition).
+> (2) Nothing else. Q-C's hardlink dedup — the one ruled deliverable no item
+> owned — was **KILLED by Tim on 2026-07-30**: no links, ever; every file in a
+> package is an unlinked copy and a package is transportable by copying its
+> directory (§3.7's storage bullet is authoritative, and it names the disk cost
+> this accepts plus the ruled remedy, §10 Q3). Everything else in this document
+> is either built or a deliberate post-deploy deferral (§4 Phase 3's last two
+> bullets; §4 Phase 4's demolition).
 >
 > **The branch is ready for Tim's rollout** (see "Deploy phasing"): trial prod
 > instance → backfill → rig there → fleet, Ethiopia early. **Do not deploy —
@@ -1267,7 +1268,7 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
 6. **Second design session (Tim, 2026-07-29, after item 0 landed)** — Q-A (run
    identity: `sourceProjectId` deleted, backfill-only
    `backfillSourceProjectId`), Q-C (reuse is a catalog-wide inputKey search;
-   storage gets hardlink dedup, superseding §3.7's "copy, never link"), Q-E
+   its storage half — hardlink dedup — was later KILLED, see below), Q-E
    (re-backfill before every rig gate) and the `createProject` legacy-write
    deletion are RULED. Their authoritative statements are the
    Q-A/Q-C/Q-E/oddity entries in the "DESIGN QUESTIONS" block below and the
@@ -1536,9 +1537,10 @@ replaced. Do not re-litigate any of them.
   search all past runs", and it removes the concept the question was about.
   §3.7's "single base, no catalog-wide search in v1" is SUPERSEDED. Still
   fails closed: no match, an unreadable manifest, or a since-deleted source
-  only ever costs a re-run. Ruled in the same breath: **hardlink dedup**
-  replaces "copy, never link" — see the amended §3.7 bullets, which are
-  authoritative for both.
+  only ever costs a re-run. Q-C also ruled hardlink dedup in the same breath,
+  and **that half is DEAD — Tim reversed it on 2026-07-30: no links, ever.**
+  A package is unlinked copies only, standalone and transportable by copying
+  its directory; §3.7's storage bullet is authoritative.
 - **Q-D (item 3, BUILT) — cache GC on run deletion. RULED: targeted purge of the
   three runId-prefixed caches; `po_detail` is left to TTL.** The question's
   original framing was wrong on two counts, corrected here (verified
@@ -2102,11 +2104,11 @@ on big instances. `addDataset*ToProject` dies with its last caller.
 
    **One ruled deliverable belongs to no work item — record it, do not build
    it.** Q-C also ruled hardlink dedup for run storage (amending §3.7's "copy,
-   never link"), and no Phase 3 item owns it; §3.7 says it may land before or
-   after the deploy and nothing depends on it. It is unimplemented (no
-   `Deno.link` anywhere under `server/runs/` or `generate_run/`). Item 5's
-   sweep should leave it as a named open item somewhere Tim will see it again,
-   rather than letting it fall out of the plan when Phase 3 closes.
+   never link"), and no Phase 3 item owns it. Item 5 recorded it as a named
+   open item rather than letting it fall out of the plan when Phase 3 closes —
+   and Tim then **killed it outright on 2026-07-30** (no links, ever; see
+   §3.7's storage bullet), so the open item was deleted again the same day.
+   That exchange is the point of recording rather than quietly dropping.
 
    Then the exit gate — **this is what makes item 5 different in SHAPE from
    items 0–4, which each ended at their own two gates**: `deno task
@@ -2165,10 +2167,17 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      the run-deletion cache purge (Q-D) it never documented and had `"9"` /
      `po_detail_v4` where the code says `"10"` / `po_detail_v5`; S9's banner
      carried the same two stale values.
-   - **Hardlink dedup now has a home Tim will see** (the ruled deliverable no
-     item owned): a named S8 open item, next to the Phase 4 demolition item,
-     plus a pointer in `reuseRunModule`'s doc comment — which had been stating
-     the superseded "Copy, never link" rule as if it were current.
+   - **Hardlink dedup was surfaced, then KILLED.** Item 5 gave the ruled-but-
+     unowned deliverable a home Tim would see (an S8 open item + a pointer in
+     `reuseRunModule`). Presented as a timing question on 2026-07-30, Tim
+     reversed the ruling instead: **no links, ever** — a package is unlinked
+     copies only, 100% immutable, 100% standalone, transportable by copying
+     the directory, no dependencies. So `reuseRunModule`'s original
+     "copy, never link" comment was right all along and is restored as an
+     invariant; §3.7's storage bullet records the accepted 73.2%-duplication
+     cost and the ruled remedy (§10 Q3, parquet-native R drops the raw CSVs).
+     Verified at the ruling: 496 files across 14 dev packages, zero symlinks,
+     zero shared inodes, no absolute host paths in any manifest/script/log.
    - **Noticed, fixed in passing**: `installModule` had been dead since item 1
      removed its `createProject` call — 130 lines whose execution would have
      DROPPED the `ro_*` tables the rig reads, so it was not a harmless orphan.
@@ -2402,18 +2411,18 @@ volume-mounted into it — a docker-compose change), the Deno process writes
 manifest + parquet, and the R container mounts it for execution. Generation
 writes into `runs/.tmp-<id>/` and atomically renames to `runs/<id>/` at finalize
 — a crashed generation leaves no readable run, and immutability is enforced by
-construction, not convention. A post-finalize dedup pass (§3.7, ruled
-2026-07-29) may replace any file with a hardlink to an identical blob in
-another run and `chmod 0444` it: the run stays a directory of ordinary files at
-ordinary paths, and only inodes are shared.
+construction, not convention. Every file in a published run is an **unlinked
+copy** and stays one: no symlinks, no hardlinks, no shared blob store (Tim's
+ironclad rule 2026-07-30, §3.7). A package is therefore transportable by
+copying its directory — nothing else has to come with it.
 
 **Immutability — audited 2026-07-30, statically and empirically. This is the
 invariant the whole design rests on; anything that would break it is a defect,
 not a trade-off.** Every caching layer assumes it: `manifest_cache.ts` parses a
 manifest at most once per runId with NO invalidation path, `virtual_defaults`'
 `DERIVED_CACHE` is keyed by runId alone, the Valkey caches fold runId into
-their hashes, and §3.7's hardlink dedup is only safe because run files are
-write-once.
+their hashes, and the guarded delete assumes a run dir is nobody else's
+business.
 
 Enumerated: every filesystem write in the server that targets the runs volume
 resolves to `runTmpDirPath(runId)` (i.e. `.tmp-{runId}`) — prepare, execute,
@@ -2759,45 +2768,38 @@ authored-content clone + same run pointer).
      no project scoping, which is what makes the instance-level model work
      (Q-C). Downstream forcing is automatic: a re-executed upstream yields new
      output hashes, which change every dependent's key.
-   - **Hardlink dedup, not a reference model** (re-cut 2026-07-29, Tim;
-     supersedes the 2026-07-12 "copy, never link" rejection of a shared blob
-     store). A run dir stays a real, self-contained, independently-deletable,
-     zippable directory of ordinary files — the R mount contract, the
-     `../{upstreamModuleId}/` reads, transport, and the read path are all
-     untouched. Bytes are shared at the INODE level by a generic
-     **post-finalize dedup pass**: hash every file in the finished tmp dir and,
-     where a blob with that hash already exists, unlink + `Deno.link` to it,
-     then `chmod 0444`. Properties:
-     - The filesystem does the refcounting — `rm -rf runs/{runId}` decrements,
-       and the last release frees the bytes. No mark-and-sweep, no refcount
-       table, no GC design at all; that is what the 2026-07-12 rejection was
-       actually objecting to, and it matters more now that ruling 3 made
-       deletion an explicit operator act with no automatic GC.
-     - It is GENERIC, so it covers what reuse never touches: the
-       `inputs/datasets/` extracts (18 MB of the largest 78 MB dev run),
-       parquet, assets, snapshot JSONs.
-     - Measured on the dev instance 2026-07-29: 861 files, 394.6 MB total,
-       105.6 MB distinct content — **73.2%**, single files appearing 13×.
-       Catalog-wide search makes reuse hit more often, which makes duplication
-       worse, which is exactly what this absorbs.
-     - **0444 is load-bearing**: a truncate-in-place would corrupt every run
-       sharing the inode, and with the dual-write gone the run dir is the only
-       copy. Today's code is already safe (the run path starts from
-       `emptyDir()`, and unlink breaks the link rather than mutating it), but
-       read-only mode turns a latent silent corruption into a loud failure.
-     - Constraints, accepted: one filesystem for the runs volume (true today,
-       now a deployment rule); backup tooling must preserve hardlinks (rsync
-       `-H`) or a restore balloons to apparent size — decide that when §5
-       backups learn to carry run dirs, not a blocker now; the catalogue's
-       per-run size column is APPARENT size (stamped at finalize as specced),
-       with actual usage reported once at instance level.
-     A pure manifest-of-references model (a run = a manifest pointing at blobs,
-     with no directory) was considered and REJECTED: on a local volume it buys
-     nothing over hardlinks and costs the R mount contract, transport, delete,
-     and the read path.
-   - **Sequencing**: the catalog-wide search is item-1 work (it IS Q-C). The
-     dedup pass is purely additive and changes no semantics — it may land
-     before or after the deploy, and nothing depends on it.
+   - **NO LINKS, EVER — unlinked copies only (Tim's ironclad rule, 2026-07-30;
+     this SUPERSEDES Q-C's hardlink-dedup amendment, which is dead, and
+     restores the original "copy, never link").** Every file in a results
+     package is an unlinked copy: the directory is 100% immutable, 100%
+     standalone, and transportable by copying the directory itself, with no
+     dependency on any other run, on the instance that made it, or on a shared
+     blob store. Nothing in the tree may create a symlink or a hardlink under
+     the runs volume. **Verified 2026-07-30 on the dev instance**: 496 files
+     across 14 packages, zero symlinks, zero inodes with `nlink > 1`, and no
+     absolute host path inside any manifest, generated script or log.
+     - **The cost is accepted, with eyes open.** Measured 2026-07-29: 861
+       files, 394.6 MB total, 105.6 MB distinct — **73.2% of run bytes are
+       duplicate content**, single files appearing 13×. Catalog-wide reuse
+       makes packages share MORE modules, so the ratio grows with use. The
+       ruled remedy is not deduplication but **§10 Q3**: once R reads and
+       writes parquet natively, the raw CSVs — the multi-GB part — are dropped
+       from run dirs entirely, and parquet is ~23× smaller. Buy the disk;
+       keep the invariant.
+     - **What the invariant buys**, and what dedup would have taxed: a package
+       can be moved, zipped, copied to another instance or handed to someone
+       with `cp -r`; `diskSizeBytes` means exactly what it says, so the
+       catalogue's size column and the guarded delete's reclamation agree; the
+       runs volume needs no single-filesystem deployment rule; backups are a
+       plain directory copy with no `rsync -H` obligation; and a
+       truncate-in-place bug can never corrupt a second package.
+     - Two alternatives are now both REJECTED on the record: hardlink dedup
+       (above), and a pure manifest-of-references model (a run = a manifest
+       pointing at blobs, with no directory), which on a local volume bought
+       nothing and cost the R mount contract, transport, delete and the read
+       path.
+   - **Sequencing**: the catalog-wide search is item-1 work (it IS Q-C) and
+     shipped there. There is no dedup pass to sequence.
    - **Finalize is never cached**: parquet + manifest + query metadata are
      rebuilt fresh every generation (seconds). Only R execution is memoized — so
      anything that changes the _data_ (e.g. a facility-column toggle changes the
@@ -3105,6 +3107,13 @@ the wizard deploy.
 
 - Layer rule: project plane reads only the attached run; runs read nothing live.
   No instance FKs/ids inside run files.
+- **NO LINKS IN A RUN DIR — EVER** (Tim, 2026-07-30). Every file in a results
+  package is an unlinked copy; a package is 100% immutable, 100% standalone,
+  and transportable by copying the directory alone, with no dependency on
+  another run, on a blob store, or on the instance that made it. No
+  `Deno.link`, no `Deno.symlink`, under the runs volume, at any layer. The
+  duplicated bytes are an accepted cost (§3.7); §10 Q3 is how they get paid
+  down. This reversed Q-C's hardlink-dedup ruling — do not re-derive it.
 - `PO_CACHE_VERSION` (meaning) and key-prefix (shape) knobs survive run-ID
   keying; any input NOT in the run still needs its own folded stamp
   (`po_detail` + PO `last_updated`).
@@ -3128,18 +3137,22 @@ the wizard deploy.
 
 1. **Retention/GC** — **RESOLVED 2026-07-29 (Tim, ruling 3)**: retire IS a
    guarded hard delete (row + dir), refused while referenced or generating;
-   no archive state, no automatic/time-based GC. Unchanged by the §3.7
-   hardlink-dedup ruling — `rm -rf` still just works; it simply frees only
-   the bytes no surviving run shares.
+   no archive state, no automatic/time-based GC. `rm -rf` on the run dir is the
+   whole mechanism, and the no-links rule (§3.7) keeps it exact: deleting a
+   package frees precisely the bytes the catalogue said it held.
 2. **Who generates** — **RESOLVED 2026-07-12 (Tim)**: instance-admin only
    (matches today's data-attach gating).
 3. **Raw CSV retention** — **RESOLVED 2026-07-12 (Tim)**: keep raw CSVs in runs
    (they're the debug/download surface and the reuse source, §3.7) UNTIL the R
    scripts read/write parquet natively (the §2.1 sibling end-state), then drop
    the CSVs. Note the corrected size picture: raw CSVs are multi-GB per module
-   on Nigeria-scale runs, not small — the reuse argument won anyway, and the
-   §3.7 hardlink dedup (ruled 2026-07-29) removes the duplication cost that
-   made this a close call.
+   on Nigeria-scale runs, not small — the reuse argument won anyway. Since
+   dedup is now ruled OUT (§3.7, no links ever), **this question is the ruled
+   remedy for run-dir duplication**: 73.2% of dev run bytes are duplicate
+   content, and dropping the raw CSVs for parquet (~23× smaller) is how that
+   gets paid down without weakening the standalone-package invariant. That
+   makes it a modules-repo workstream worth scheduling, not just an end-state
+   aspiration.
 4. **Scheduled auto-runs** (import → generate → auto-repoint) — **RESOLVED
    2026-07-29 (Tim)**: deferred post-deploy, NOT in the pre-deploy Phase 3
    core (purely additive later). Auto-repoint in particular changes what

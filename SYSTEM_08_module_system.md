@@ -327,14 +327,18 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   `results_objects` / `metrics` catalog, and their pg read wrappers
   (`db/project/results_objects.ts`) — which retires the parity rig's oracle and
   therefore the rig. Full S8 rewrite lands then.
-- **Hardlink dedup for run storage is UNIMPLEMENTED** (ruled by
-  PLAN_RESULTS_RUNS Q-C, amending §3.7's "copy, never link"; no Phase 3 item
-  owned it and nothing depends on it, so it may land before or after the
-  deploy). Today a reused module's raw CSVs are COPIED from the source run into
-  the new run dir (`generate_run/execute_module.ts`), so N runs sharing a
-  module hold N copies of its output. Whoever implements it must keep the
-  immutability invariant: hardlinks are safe only because no run file is ever
-  written twice.
+- **No links in a run dir — ever** (Tim's ironclad rule 2026-07-30, reversing
+  PLAN_RESULTS_RUNS Q-C's hardlink-dedup amendment and restoring §3.7's
+  original "copy, never link"). Every file in a results package is an unlinked
+  copy, so a package is 100% immutable, 100% standalone, and transportable by
+  copying its directory alone. A reused module's raw CSVs are COPIED from the
+  source run (`generate_run/execute_module.ts`), and N packages sharing a
+  module hold N copies on purpose — 73.2% of dev run bytes are duplicate
+  content, accepted. This is not an open item and not a to-do: **do not
+  introduce `Deno.link` or `Deno.symlink` under the runs volume.** The ruled
+  remedy for the duplication is PLAN_RESULTS_RUNS §10 Q3 — once R reads and
+  writes parquet natively, the raw CSVs leave run dirs and parquet is ~23×
+  smaller.
 - **Decoupling — split custody:** `server/server_only_types/mod.ts` (20 lines,
   three systems).
 - **Dead code (zero importers):** `fetchRawScript` in
