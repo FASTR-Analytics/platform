@@ -15,6 +15,10 @@ import { render } from "solid-js/web";
 //   * reconnecting → "connected" → primary-green "Live again" flash for ~3s.
 //   * "connecting" (initial connect) and "idle" (no project) render nothing —
 //     a normal page load must not flash the banner.
+//   * "unauthorized" (the server refused this user the socket; retries stopped)
+//     renders nothing either: live collaboration is simply unavailable, there is
+//     no user action to offer, and a "connection lost" pill would be untrue —
+//     the rest of the project works. Nothing is broken, so say nothing.
 //
 // Mirrors presence_toasts.tsx: module signal + lazily render()-mounted host,
 // imported BY collab.ts (one-way dependency, no cycle).
@@ -23,7 +27,8 @@ export type CollabConnectionState =
   | "idle"
   | "connecting"
   | "connected"
-  | "reconnecting";
+  | "reconnecting"
+  | "unauthorized";
 
 const RECOVERED_FLASH_MS = 3_000;
 
@@ -75,7 +80,10 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
     }, RECOVERED_FLASH_MS);
     return;
   }
-  // idle / connecting / connected-from-connecting: nothing to show.
+  // idle / connecting / connected-from-connecting / unauthorized: nothing to
+  // show. "unauthorized" also arrives FROM "reconnecting" (a refused reconnect
+  // after e.g. losing project access), which clears the pill — correct: retries
+  // have stopped, so a "reconnecting" claim would be false.
   if (recoveredTimer) {
     clearTimeout(recoveredTimer);
   }

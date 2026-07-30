@@ -108,14 +108,24 @@ export function docSaveFailing(
 // outages). The connection banner tells the user while retries run, and the
 // online/visibilitychange listeners below short-circuit the wait as soon as
 // the network or tab plausibly comes back.
+//
+// The ONE exception is an authorization refusal: the server closes with
+// COLLAB_CLOSE_UNAUTHORIZED (4403) — or 1008, the standard policy-violation
+// code — for a condition no amount of retrying can change. Those stop the loop
+// (see `unauthorized`) instead of burning a request every 30s, and on every tab
+// refocus, forever.
 const RETRY_EXPONENT_CAP = 5;
 const BASE_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
+const TERMINAL_CLOSE_CODES = new Set([4403, 1008]);
 
 let ws: WebSocket | undefined;
 let currentProjectId: string | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
+// Latched by a terminal close so nothing re-opens the socket until something
+// that could change the answer happens (forceCollabReconnect / a new project).
+let unauthorized = false;
 // Close-intent is tracked PER SOCKET, not as a module flag: a project switch
 // closes the old socket and immediately opens a new one, and the old socket's
 // onclose fires only later — a shared flag reset by openSocket would then read
@@ -967,16 +977,27 @@ function openSocket(projectId: string): void {
     }
   };
 
-  socket.onclose = () => {
+  socket.onclose = (event) => {
     const intentional = intentionallyClosed.has(socket);
     if (ws === socket) {
       ws = undefined;
       setSocketOpen(false);
     }
-    if (!intentional) {
-      notifyCollabConnection("reconnecting");
-      scheduleReconnect();
+    if (intentional) {
+      return;
     }
+    // A close code the server only sends when this user may never hold this
+    // socket (not approved, no project access). Retrying cannot fix it, and the
+    // "reconnecting" banner would be both permanent and untrue — so stand down
+    // silently. A later grant/removal calls forceCollabReconnect (t1_store),
+    // which clears this and connects again.
+    if (TERMINAL_CLOSE_CODES.has(event.code)) {
+      unauthorized = true;
+      notifyCollabConnection("unauthorized");
+      return;
+    }
+    notifyCollabConnection("reconnecting");
+    scheduleReconnect();
   };
 
   socket.onerror = () => {
@@ -985,7 +1006,7 @@ function openSocket(projectId: string): void {
 }
 
 function scheduleReconnect(): void {
-  if (!currentProjectId) {
+  if (!currentProjectId || unauthorized) {
     return;
   }
   attempts += 1;
@@ -1008,7 +1029,7 @@ function scheduleReconnect(): void {
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
 // when no project wants a connection or the socket is already up/connecting.
 function retryNow(): void {
-  if (!currentProjectId) {
+  if (!currentProjectId || unauthorized) {
     return;
   }
   if (ws && ws.readyState <= WebSocket.OPEN) {
@@ -1196,6 +1217,9 @@ export function forceCollabReconnect(reason: string): void {
     return;
   }
   console.log(`Collab: reconnecting (${reason})`);
+  // Clear a previous authorization refusal: permission/lock changes and
+  // project membership changes are exactly the events that can flip it.
+  unauthorized = false;
   hardClose();
   retryNow();
 }
@@ -1226,6 +1250,7 @@ export function connectCollab(projectId: string): void {
   hardClose();
   currentProjectId = projectId;
   attempts = 0;
+  unauthorized = false;
   setCollabStore({ connectionId: null, peers: [] });
   setSaveFailingKeys(new Set<string>());
   createProjectAwareness();

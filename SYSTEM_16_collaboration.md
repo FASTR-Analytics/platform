@@ -111,9 +111,22 @@ avatar URL is self-reported).
   S1's inventory). Auth mirrors the SSE endpoint and completes **before** the
   upgrade (the auth middleware precedes `upgradeWebSocket` in the same chain,
   so no message can precede the check): origin check → Clerk auth (401) →
-  `globalUser.approved` (403) → `resolveProjectUserAccess` (the same shared
-  core REST/SSE use; 503/403) → admission requires ANY of
-  `can_view_slide_decks` / `can_view_reports` / `can_view_visualizations`.
+  `globalUser.approved` → `resolveProjectUserAccess` (the same shared
+  core REST/SSE use) → **admission is project access itself**: any member that
+  resolve step admits (i.e. ≥1 project permission), exactly the SSE contract.
+  Document permissions are deliberately NOT the admission boundary — presence
+  and page cursors are project-wide, and `PresenceEntry` carries identity plus
+  opaque document ids, never labels or content — so a data-only or
+  modules-only member joins presence and is refused every document family per
+  message. (Until 2026-07-30 admission required ANY of `can_view_slide_decks` /
+  `can_view_reports` / `can_view_visualizations`, which left every
+  narrow-permission member — data-only, metrics-only, module operator, settings
+  admin — in a permanent "Connection lost" retry loop.)
+  Authorization refusals are delivered as a **post-upgrade close** with
+  `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
+  browser cannot read a refused handshake (it surfaces as an unreadable 1006,
+  indistinguishable from a network drop); only the Origin check (403, never
+  upgrade for a foreign origin) and the retryable 503 stay pre-upgrade.
   The Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes
   bypass CORS); same-origin requests are additionally allowed, and requests
   with **no** Origin header pass (non-browser clients). Each message family
@@ -165,7 +178,13 @@ avatar URL is self-reported).
   `online` / tab-refocus events short-circuit the wait; a top-center banner
   ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
   shows "Connection lost — reconnecting…" (+ Reload) and flashes "Live again"
-  on recovery — never on a normal initial connect. Close-intent is tracked
+  on recovery — never on a normal initial connect. The **one** exception to
+  retrying forever is an authorization refusal (close 4403, or the standard
+  policy code 1008): `onclose` reads the code, latches `unauthorized`, and
+  stands down in the silent `"unauthorized"` state — no banner, since nothing
+  is broken and no retry could help. `forceCollabReconnect` (permission change,
+  lock change, project membership change) and connecting to a different project
+  clear the latch, so a later grant reconnects. Close-intent is tracked
   **per socket** (WeakSet) so a project switch can't mistake its own teardown
   for a failure and open a duplicate connection. `socket.onopen` re-sends
   presence, re-subscribes every open doc session, and re-announces project
@@ -576,6 +595,7 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WS can't connect / proxy unpatched               | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence.                                                                                          |
 | Socket drops mid-edit                            | Edits keep accumulating locally; banner + auto-reconnect forever (≤30 s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect → explicit save.|
+| User not allowed on the socket (lost project access, unapproved) | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the project keeps working. A later permission change calls `forceCollabReconnect`, which clears it. |
 | Server restarts mid-edit                         | Room state restored from `crdt_state` on next subscribe — including un-checkpointed edits.                                                                                                     |
 | Two users type in the same field                 | Character-level CRDT merge; both carets visible; per-user undo.                                                                                                                                |
 | Two users restructure the layout concurrently    | Per-key LWW can duplicate a block; `materializeSlide` dedupes deterministically on every client and the next push deletes the shadowed copy — self-healing.                                    |

@@ -1577,6 +1577,13 @@ export function buildDashboardsCreateTour(): TourDefinition {
 
 // --------------------------------------------------------- Dashboard editor
 
+// Mirrors canConfigure() inside dashboard_editor.tsx. Step-level `when` runs
+// once when the tour starts, and the dashboard editor's content is still
+// loading then — so these gates must read state, never the DOM.
+const canConfigureDashboards = () =>
+  projectState.thisUserPermissions.can_configure_slide_decks &&
+  !projectState.isLocked;
+
 export function buildDashboardEditorIntroTour(): TourDefinition {
   return {
     id: "dashboard-editor-intro",
@@ -1596,6 +1603,7 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
           pt: "Os elementos aqui são o que os visitantes vêem na página do painel, nesta ordem. Arraste um para o mover — não há botão de guardar, cada alteração é imediata.",
         }),
         placement: "top",
+        waitForTargetTimeoutMs: 15000,
       },
       {
         id: "add-item",
@@ -1611,7 +1619,7 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
           pt: "Escolha qualquer visualização do projeto. Se estiver replicada por área, pode adicionar apenas a escolhida ou todo o conjunto como um grupo.",
         }),
         placement: "bottom",
-        when: () => document.querySelector("#dashboard-add-item-button") !== null,
+        when: canConfigureDashboards,
       },
       {
         id: "preview",
@@ -1643,7 +1651,7 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
         }),
         placement: "bottom",
         advanceOn: {},
-        when: () => document.querySelector("#dashboard-settings-button") !== null,
+        when: canConfigureDashboards,
       },
       {
         id: "settings-general",
@@ -1659,8 +1667,9 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
           pt: "O slug do URL é o final do endereço web do painel. Deixe «Exigir autenticação» desativada e qualquer pessoa com o link poderá vê-lo; ative-a e será necessária uma conta na plataforma.",
         }),
         placement: "right",
-        waitForTargetTimeoutMs: 4000,
+        waitForTargetTimeoutMs: 6000,
         onTargetTimeout: "skip",
+        when: canConfigureDashboards,
       },
     ],
   };
@@ -1883,20 +1892,18 @@ export function buildVizEditorEditTour(): TourDefinition {
       vizPreviewStep(),
       {
         id: "save",
-        target: "#viz-save-close-button",
+        target: tourTarget("viz-editor-toolbar"),
         title: t3({
-          en: "Saving your changes",
-          fr: "Enregistrer vos modifications",
-          pt: "Guardar as suas alterações",
+          en: "Saving, and everything else",
+          fr: "Enregistrement, et le reste",
+          pt: "Guardar, e tudo o resto",
         }),
         body: t3({
-          en: "Save and close applies the changes and returns you to the list; Save keeps you here; Save as new leaves the original untouched and creates a copy. The toolbar on the right also holds download, duplicate and delete.",
-          fr: "Sauvegarder et quitter applique les modifications et vous ramène à la liste ; Sauvegarder vous maintient ici ; Sauver comme nouvelle laisse l'original intact et crée une copie. La barre d'outils à droite contient aussi télécharger, dupliquer et supprimer.",
-          pt: "Guardar e fechar aplica as alterações e regressa à lista; Guardar mantém-no aqui; Guardar como nova deixa o original intacto e cria uma cópia. A barra de ferramentas à direita tem também descarregar, duplicar e eliminar.",
+          en: "When someone else is editing with you, changes save as you make them. Otherwise Save, Save and close, and Save as new (which keeps the original) appear on the left as soon as you change something. On the right sit download, duplicate, rename and delete.",
+          fr: "Lorsque quelqu'un modifie en même temps que vous, les changements sont enregistrés au fur et à mesure. Sinon, Sauvegarder, Sauvegarder et quitter, et Sauver comme nouvelle (qui conserve l'original) apparaissent à gauche dès que vous modifiez quelque chose. À droite se trouvent télécharger, dupliquer, renommer et supprimer.",
+          pt: "Quando alguém está a editar consigo, as alterações são guardadas à medida que as faz. Caso contrário, Guardar, Guardar e fechar, e Guardar como nova (que mantém o original) aparecem à esquerda assim que altera algo. À direita estão descarregar, duplicar, mudar o nome e eliminar.",
         }),
         placement: "bottom",
-        waitForTargetTimeoutMs: 3000,
-        onTargetTimeout: "skip",
       },
     ],
   };

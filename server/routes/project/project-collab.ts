@@ -96,8 +96,23 @@ type CollabAuth = {
   canEditViz: boolean;
 };
 
+/**
+ * Close code for "you are not allowed on this socket" — a permanent condition
+ * the client must not retry (see collab.ts's onclose). Sent AFTER accepting the
+ * upgrade, because a pre-upgrade HTTP status is invisible to browser JS: the
+ * WebSocket API surfaces a refused handshake as an unreadable 1006, which is
+ * indistinguishable from a network drop and so retried forever.
+ */
+export const COLLAB_CLOSE_UNAUTHORIZED = 4403;
+
 export const routesProjectCollab = new Hono<
-  { Variables: { collabAuth: CollabAuth } }
+  {
+    Variables: {
+      collabAuth: CollabAuth;
+      /** Set instead of collabAuth when the connection must be refused. */
+      collabDenial: string;
+    };
+  }
 >();
 
 // The reports-list re-broadcast (card previews derive from body) runs
@@ -183,14 +198,21 @@ function isAllowedWsOrigin(
  * Carries presence plus the three CRDT document families (slide_* /
  * report_* / po_*). Auth mirrors the SSE endpoint (project-sse-v2.ts) and
  * resolves BEFORE the upgrade so the socket can never become an
- * unauthenticated channel: admission requires ANY of can_view_slide_decks /
- * can_view_reports / can_view_visualizations; each message family re-checks
- * its own view permission per message; and each family's RoomConn carries
- * its own edit permission, enforced per update by the rooms. A LOCKED
- * project admits viewers (presence + live read) but has every edit
- * permission forced off for the connection's lifetime — re-evaluated on the
- * next (re)connect, matching preventAccessToLockedProjects on the REST edit
- * routes.
+ * unauthenticated channel: **admission is project access itself** — any member
+ * resolveProjectUserAccess admits (i.e. ≥1 project permission), matching SSE.
+ * Presence and page cursors are project-wide, and their payload carries no
+ * document content or labels (PresenceEntry: identity + opaque ids), so
+ * document access is NOT the admission boundary: each message family re-checks
+ * its own view permission per message, and each family's RoomConn carries its
+ * own edit permission, enforced per update by the rooms. A LOCKED project
+ * admits viewers (presence + live read) but has every edit permission forced
+ * off for the connection's lifetime — re-evaluated on the next (re)connect,
+ * matching preventAccessToLockedProjects on the REST edit routes.
+ *
+ * Authorization failures are refused with a post-upgrade
+ * COLLAB_CLOSE_UNAUTHORIZED close so the client can tell "never allowed" from
+ * "try again"; only the Origin check (never upgrade for a foreign origin) and
+ * the retryable 503 stay pre-upgrade HTTP responses.
  */
 routesProjectCollab.get(
   "/project_collab/:project_id",
@@ -203,14 +225,17 @@ routesProjectCollab.get(
       return c.json({ success: false, err: "Origin not allowed" });
     }
 
+    // Denials from here on are surfaced as a post-upgrade close, not an HTTP
+    // status: browsers cannot read a refused handshake, so the client would
+    // retry a permanent failure forever.
+    function deny(reason: string) {
+      c.set("collabDenial", reason);
+    }
+
     const globalUser = await getGlobalUser(c);
     if (globalUser === "NOT_AUTHENTICATED") {
-      c.status(401);
-      return c.json({
-        success: false,
-        err: "Authentication required",
-        authError: true,
-      });
+      deny("Authentication required");
+      return await next();
     }
 
     let projectUser: ProjectUser;
@@ -219,8 +244,8 @@ routesProjectCollab.get(
       projectUser = createDevProjectUser();
     } else {
       if (!globalUser.approved) {
-        c.status(403);
-        return c.json({ success: false, err: "User is not approved" });
+        deny("User is not approved");
+        return await next();
       }
       const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
       try {
@@ -230,34 +255,21 @@ routesProjectCollab.get(
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         if (message === "SERVICE_UNAVAILABLE") {
+          // Retryable: stays a pre-upgrade status so the client keeps its
+          // normal reconnect behaviour.
           c.status(503);
           return c.json({
             success: false,
             err: "Service temporarily unavailable",
           });
         }
-        c.status(403);
-        return c.json({
-          success: false,
-          err: message.startsWith("Middleware error: ")
+        deny(
+          message.startsWith("Middleware error: ")
             ? message.replace("Middleware error: ", "")
             : "User does not have access to this project",
-        });
+        );
+        return await next();
       }
-    }
-
-    // The socket carries slide, report AND visualization collaboration; any of
-    // those view permissions admits the connection, and each message family
-    // re-checks its own view/edit permission per operation.
-    if (
-      !projectUser.can_view_slide_decks && !projectUser.can_view_reports &&
-      !projectUser.can_view_visualizations
-    ) {
-      c.status(403);
-      return c.json({
-        success: false,
-        err: "No slide deck, report or visualization access",
-      });
     }
 
     const name = `${globalUser.firstName} ${globalUser.lastName}`.trim() ||
@@ -279,6 +291,17 @@ routesProjectCollab.get(
   },
   upgradeWebSocket((c) => {
     const projectId = c.req.param("project_id");
+    // Refused connections are accepted and then closed with a code the client
+    // can read, so it can stop retrying instead of hammering a permanent
+    // failure. Nothing is registered: no presence, no rooms.
+    const denial = c.get("collabDenial") as string | undefined;
+    if (denial) {
+      return {
+        onOpen: (_evt: Event, ws: { close: (code?: number, reason?: string) => void }) => {
+          ws.close(COLLAB_CLOSE_UNAUTHORIZED, denial);
+        },
+      };
+    }
     const auth = c.get("collabAuth") as CollabAuth;
     const connectionId = crypto.randomUUID();
     // Three RoomConns sharing one connectionId (slide / report / viz): the
