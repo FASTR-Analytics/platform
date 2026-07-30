@@ -113,10 +113,12 @@
 > **The branch is ready for Tim's rollout** (see "Deploy phasing"): trial prod
 > instance → backfill → rig there → fleet, Ethiopia early. **Do not deploy —
 > that is Tim's call and Tim's runbook.** What sits in the pre-deploy checklist
-> is TWO mechanical preconditions (push wb-fastr-modules; add the runs volume to
-> each instance's POSTGRES container) and ONE decision, the package-internals
-> permission above — nothing that needs building. The precondition that is easy
-> to get wrong: wb-fastr-modules is a shared single-HEAD dependency that rides
+> is ONE mechanical precondition (push wb-fastr-modules) — the per-instance
+> runs-volume mount was DISSOLVED on 2026-07-30: the runs paths now default to
+> the SANDBOX paths, which every instance already mounts into both the app and
+> the Postgres containers, so a package needs no new volume, compose change,
+> chmod or env var (see "The runs directory needs no new volume" below). The
+> remaining precondition: wb-fastr-modules is a shared single-HEAD dependency that rides
 > the deploy AND must ride any rollback ("The modules repo rides the deploy",
 > under Deploy phasing). Demolition (Phase 4) stays gated on fleet verification
 > and is NOT part of this build.
@@ -257,9 +259,10 @@ binding smoke for `@duckdb/node-api@1.4.5-r.1`~~ DONE 2026-07-29, PASS (Phase 0
 bullet addendum); push
 wb-fastr-modules (local HEAD `004fdc2` — contains both the pinned-asset and
 showNValues workstreams, 4 unpushed commits ride the deploy — **and read
-"The modules repo rides the deploy" below before pushing**); add
-the runs volume to the POSTGRES container in each instance's compose (item 7
-notes + Dockerfile comment). **No decisions remain**: the package-internals
+"The modules repo rides the deploy" below before pushing**). ~~add the runs
+volume to the POSTGRES container in each instance's compose~~ **DISSOLVED
+2026-07-30 — see "The runs directory needs no new volume" below.** **No
+decisions remain**: the package-internals
 permission — the last one — was ruled and built on 2026-07-30 (per-project
 `can_view_script_code` / `can_view_logs` / `can_view_data` on project-scoped
 routes; see the START HERE note and item 3b's ruling addendum), which also
@@ -273,6 +276,40 @@ cannot run pre-flip — accepted, mitigated by trial-first ordering and volume
 restore). Rollback: hosting-level restore of the pre-deploy instance volume
 (ruling 5, which supersedes model point 4's previous-image rollback) — **plus a
 modules-repo revert, see below**.
+
+### The runs directory needs no new volume (Tim's ruling 2026-07-30)
+
+**The per-instance "mount the runs volume into the POSTGRES container" step is
+GONE.** `RUNS_DIR_PATH`, `RUNS_DIR_PATH_EXTERNAL` and
+`RUNS_DIR_PATH_POSTGRES_INTERNAL` now DEFAULT to their `SANDBOX_DIR_PATH*`
+counterparts (`server/exposed_env_vars.ts`), so results packages live in the
+directory the fleet already mounts into both the app and the Postgres
+containers and already `chmod 0777`s. No new volume, no compose change, no
+chmod, no new env var, and nothing to forget on instance N.
+
+**Why this was urgent, not cosmetic.** `_RUNS_DIR_PATH_EXTERNAL` throws at
+import if unset, and the fleet CLI (`FASTR-Analytics/server-cli`, which is what
+actually launches the containers — there are no hand-written compose files)
+never passed it. So the new image would have **failed to boot on every fleet
+instance**, not merely failed at the first generation. The alternative fix was
+six edits in that CLI plus a rebuild and redeploy of it before the rollout,
+making it a third lockstep repo alongside the app and the modules.
+
+**Flat, not nested** (Tim: "we should NOT nest"). Packages sit as `{runId}`
+dirs beside the legacy `{projectId}` dirs, not under a `runs/` subdir. Verified
+safe: nothing treats that directory's entries as a homogeneous set — every
+consumer addresses a NAMED entry (`{projectId}`, the `.tmp-{runId}` prefix that
+is the boot sweep's only filter, or `.duckdb-spill`), and package dirs are
+freshly minted UUIDs so they cannot collide with a project id. Backups are
+unaffected (they are pg dumps and never archived either directory), and
+`disk_space.ts` measures the filesystem plus named per-project dirs.
+
+**The end state is a rename.** Once Phase 4 removes the legacy per-project
+dirs, that directory holds only packages and gets renamed sandbox → runs. The
+env vars still override the default, so the rename is a config change plus a
+`mv` — never a code change. Dev keeps its own explicit `RUNS_DIR_PATH*` in
+`.env`, which both preserves the local packages and exercises the override
+path.
 
 ### The modules repo rides the deploy — and must ride the rollback too
 
@@ -1022,9 +1059,12 @@ Work items, in order:
    - **Env/mounts**: `RUNS_DIR_PATH_POSTGRES_INTERNAL` added (exposed_env_vars +
      `.env.example` + Dockerfile `ENV /app/runs`); dev `pg_run` mounts
      `_example_instance_dir/runs:/app/runs`; `.env.example`'s stale
-     sandbox-internal path fixed to `/app/sandbox`. **Fleet compose change (the
+     sandbox-internal path fixed to `/app/sandbox`. ~~**Fleet compose change (the
      one manual op per instance)**: the Postgres container must mount the SAME
-     host runs dir at `/app/runs` (noted in the Dockerfile ENV comment).
+     host runs dir at `/app/runs`.~~ **SUPERSEDED 2026-07-30**: the runs paths
+     default to the sandbox paths, so there is no fleet mount to add and the
+     Dockerfile no longer sets `RUNS_DIR_PATH*` — see "The runs directory needs
+     no new volume" in the Status section.
    - **Rollout gate shipped (finding 18)**: `backfill_runs.ts` +
      `validate_results_runs_parity.ts` now COPY into the image. **Deploy runbook
      (finding 3 — serve starts first by construction: boot only sweeps `.tmp-`
