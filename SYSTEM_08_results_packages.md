@@ -1,6 +1,6 @@
 ---
 system: 8
-name: Module System
+name: Results Packages & Module Execution
 globs:
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/instance_results_packages/**
@@ -32,14 +32,23 @@ globs:
 docs_absorbed:
 ---
 
-# S8 — Module System
+# S8 — Results Packages & Module Execution
 
+**This system produces the immutable artifact the rest of the app reads from.**
 Versioned R modules end-to-end: GitHub fetch → validate → wizard-configured
-whole-DAG generation into an immutable run dir → Docker/R execution → finalize
-(parquet + manifest). There is no second write plane: the `ro_*` dual-write was
+whole-DAG generation into an immutable **results package** (a run directory) →
+Docker/R execution → finalize (parquet + manifest) → publish and attach to
+projects. There is no second write plane: the `ro_*` dual-write was
 deleted with PLAN_RESULTS_RUNS Phase 3 item 0, and what survives of Postgres
 results is FROZEN rows nothing writes — read only by the parity rig, dropped in
 Phase 4.
+
+Renamed from "Module System" on 2026-07-30: modules are now an INPUT to this
+system rather than its subject. What it owns, and what the old name hid, is the
+package — its format, its one writer, its catalogue, and which project serves
+from which one. The **run-directory format and manifest contract** are specified
+below ("The results package format") and that section is authoritative: S9 reads
+the manifest but does not define it.
 Original prose reviewed against code 2026-07-16 (first review cycle; absorbs
 DOC_TASK_EXECUTION_DIRTY_STATE + DOC_WORKER_ROUTINES + DOC_MODULE_EXECUTION +
 DOC_MODULE_UPDATES + DOC_POPULATION_CSV) — then the PLAN_RESULTS_RUNS merge
@@ -209,6 +218,88 @@ would pass its selected run and reuse the tools unchanged. The permission
 model for package internals is still open (PLAN_RESULTS_RUNS item 3b); the
 client gates the viewer buttons on one expression per surface so a caller
 without access sees no button rather than one that 403s.
+
+## The results package format (authoritative)
+
+**This section defines the artifact. Every other system reads it and none of
+them may redefine it** — S9 queries the parquet and consults the manifest, but
+the format, the invariants and the schema version live here. Types:
+`lib/types/run_manifest.ts`; paths: `server/runs/run_paths.ts`.
+
+```text
+<instance>/runs/<runId>/            ← runId is a UUID; the dir name IS the id
+  manifest.json                     ← the only thing readers consult for metadata
+  inputs/                           ← EVERYTHING the generation consumed
+    datasets/<type>.csv             ← windowed extracts, written by Postgres
+    datasets/<type>.parquet           COPY TO straight into the run + twins
+    facilities_hmis.parquet         ← the join side of facility-column queries
+    facilities_hfa.parquet
+    indicators.json                 ← dictionary/snapshot content (what used to
+    calculated_indicators_snapshot.json   live in 12 project mirror tables)
+    hfa_*_snapshot.json
+    iceh_indicators_snapshot.json
+    assets/<name>                   ← pinned copies of consumed instance assets
+  outputs/<moduleId>/               ← one execution workspace per module
+    ___script___.R                  ← the exact script that ran
+    ___logs___.txt                  ← its execution log
+    <roId>                          ← raw R output CSV (roId IS the file name)
+    <roId>.parquet                  ← normalized query parquet, a PURE SIBLING
+```
+
+Four invariants, in the order they matter:
+
+1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically
+   renames at finalize, so a crashed generation leaves no readable package and
+   no published file is ever rewritten. Every cache in the app depends on this:
+   the manifest cache parses once per runId with no invalidation path, the
+   virtual-defaults cache keys on runId alone, and the Valkey entries fold runId
+   into their hashes. A published package is only ever read, renamed onto (never
+   over — the target id is freshly minted), or deleted whole.
+2. **Unlinked copies only — no links, ever** (Tim's ruling 2026-07-30). A
+   package is 100% standalone and transportable by copying its directory: no
+   symlink, no hardlink, no shared blob store, no dependency on another package
+   or on the instance that made it. Duplicate bytes across packages are an
+   accepted cost; PLAN_RESULTS_RUNS §10 Q3 (parquet-native R, dropping the raw
+   CSVs) is the ruled way to reduce them. Never introduce `Deno.link` or
+   `Deno.symlink` under the runs volume.
+3. **No instance FKs inside the files.** `manifest.json` carries `runId` but no
+   `projectId` and no other instance id — which is what lets one package serve
+   many projects, and what makes attachment a pointer (`projects.run_id`) rather
+   than ownership. Project-scoped facts (a backfill's source project, the
+   wizard's launch-time attach targets) live in the DB catalog row's `summary`,
+   never in the package.
+4. **Precomputed, never probed.** The manifest is written once at finalize and
+   answers every metadata question at read time. What the old read path
+   discovered with ~20 `SELECT … LIMIT 1` column probes per metric per request is
+   stamped: per results object the post-normalization columns + DuckDB types,
+   `hasFacilityId`, physical time column, available disaggregation options, row
+   count and period bounds; per metric an availability stamp
+   (`available | unavailable` + reason) that readers must not re-derive.
+
+`manifest.json` also carries, and is the only record of: identity and provenance
+(`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
+`appVersion`, `rImageTag`); the **captured data semantics** the query layer must
+read from here rather than from the environment — `calendar`, `countryIso3`, and
+`facilityColumnsConfig`; the dataset version stamps and windowing the generation
+consumed; the module and metric catalogs as the installed definitions verbatim
+(so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
+memoization fields (`inputKey` per module, content hashes per output file).
+
+**`manifestSchemaVersion` is a hard gate**, currently `2`
+(`RUN_MANIFEST_SCHEMA_VERSION`). Packages are immutable, so a schema change
+cannot be migrated in place: either the reader stays compatible with older
+versions or every package must be regenerated. `getRunManifestCached` pins the
+version on read, which turns a mismatch into a loud failure instead of a silent
+misparse.
+
+**Two shapes of package exist, and the difference is visible.** A `wizard`
+package was generated by a real run: it has `inputs/datasets/`, scripts, logs
+and raw CSVs. A `synthetic-backfill` package was synthesized from a project's
+pre-cutover Postgres state by `backfill_runs.ts`: it carries the query parquet,
+the facilities parquet and the snapshot JSONs, but **no script, no log and no
+raw CSVs** — so the viewers answer "no script in this results package for this
+module", which is a typed state and not an error. Backfill packages also carry
+no `inputKey` and are never reuse sources.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

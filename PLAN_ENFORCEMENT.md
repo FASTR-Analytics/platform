@@ -60,7 +60,7 @@ owning doc so the fix and the doc stay in sync.
       [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) for the
       `DO $$ … pg_constraint` pattern). **Files:**
       `server/db/migrations/project/`, `_project_database.sql`. **Doc:**
-      [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md).
+      [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md).
 
 - [ ] **6. One bulk-escape helper; ban hand-built `VALUES`.** Bulk `VALUES`
       escaping is uniform `''`-doubling, but implemented twice: HFA via the

@@ -23,8 +23,8 @@ artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 | [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
 | [S6](SYSTEM_06_ingestion.md)             | Dataset Ingestion                        | stage→integrate for HMIS/HFA/ICEH: wizards, staging workers, attach/snapshot               |
 | [S7](SYSTEM_07_dhis2.md)                 | DHIS2 Connector                          | self-contained typed adapter for external DHIS2 (retry, paging, analytics, geojson)        |
-| [S8](SYSTEM_08_module_system.md)         | Module System                            | versioned R modules: fetch → validate → install → dirty-state → Docker run → ro_*          |
-| [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | PO config → fetch-config → SQL over ro_* → version-hashed cached payloads                  |
+| [S8](SYSTEM_08_results_packages.md)      | Results Packages & Module Execution      | versioned R modules → whole-DAG generation into an immutable package (parquet + manifest)  |
+| [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | PO config → fetch-config → DuckDB over the attached package → run-keyed cached payloads    |
 | [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine         | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX |
 | [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the live PO editor (edit/create/ephemeral) + library + PO CRUD                             |
 | [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | slide decks + reports + dashboards + public viewer + exports                               |
@@ -53,7 +53,7 @@ list.)
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
-| `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | install heart + read API (~540+)                      |
+| `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | definition blob + boot sweep (82 lines)               |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |
 | `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell               |
 | `server/routes/instance/backups.ts`                                     | S15   | S2                | restore body (DROP/CREATE + re-migrate)               |
@@ -63,12 +63,11 @@ list.)
 | `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems — physical-split candidate    |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/projects/disk + dataset versions |
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
-| `server/db/project/results_objects.ts`                                  | S8    | S9                | `ro_*` read = the S8→S9 data spine                    |
-| `client/src/components/project/staleness_checks.ts`                     | S6    | S8                | also exports `checkModulesNeedUpdate`                 |
+| `server/db/project/results_objects.ts`                                  | S8    | S9                | frozen `ro_*` read = the parity rig oracle            |
 | `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
-| `lib/types/project_dirty_states.ts`                                     | S3    | S8                | `DirtyOrRunStatus` drives the dirty machine           |
+| `lib/types/project_dirty_states.ts`                                     | S3    | —                 | now only `LastUpdateTableName` — rename me            |
 | `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
 | `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
 

@@ -45,7 +45,7 @@ version columns is **S2**
 is not the request-scoped NDJSON `StreamWriter` in **S1**
 (SYSTEM_01_api_contract.md). The third BroadcastChannel,
 `RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s
-internal worker plumbing (SYSTEM_08_module_system.md) — it feeds no SSE endpoint
+internal worker plumbing (SYSTEM_08_results_packages.md) — it feeds no SSE endpoint
 and is exempt from the notify-catalog rule. `server/middleware/cache.ts`
 (`cacheMiddleware`) sets HTTP `Cache-Control` headers on static assets — a
 completely different "cache", owned elsewhere. The collaboration WebSocket layer

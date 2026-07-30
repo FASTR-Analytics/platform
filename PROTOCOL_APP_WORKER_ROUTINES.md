@@ -4,7 +4,7 @@
 > `PROTOCOL_*`). This is the _recipe_ — read it when **adding or changing a
 > background worker routine**. The machinery's ownership and architecture belong
 > to the SYSTEM files: the running-tasks map, dirty machine, and `task_ended`
-> semantics are **S8** (`SYSTEM_08_module_system.md`); what the dataset workers
+> semantics are **S8** (`SYSTEM_08_results_packages.md`); what the dataset workers
 > _do_ (stage→integrate) is **S6**; workers reach the main thread's SSE via the
 > in-process BroadcastChannel fan-out documented in **S3**; worker DB
 > connections are S2's `SYSTEM_02_persistence.md`.

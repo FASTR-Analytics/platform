@@ -1,8 +1,8 @@
-// The dirty column vocabulary of the legacy project-DB modules table — kept
-// only for the dual-write plane (upserts write 'ready') and the instance
-// compare-projects surface, until Phase-3 demolition.
-export type DirtyOrRunStatus = "queued" | "ready" | "error" | "running";
-
+// The tables whose `last_updated` stamps drive the S3 notify → cache-version
+// triangle. `DirtyOrRunStatus` used to live here too, as the dirty column
+// vocabulary of the legacy project-DB modules table; it lost its last consumer
+// when PLAN_RESULTS_RUNS Phase 3 item 0 deleted the dual-write, and went with
+// it. The file name is now wider than its contents (see SYSTEMS.md §4.1).
 export type LastUpdateTableName =
   | "dashboards"
   | "dashboard_items"

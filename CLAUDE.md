@@ -116,7 +116,7 @@ wb-fastr/
   `deno task build` there regenerates each `definition.json`)
 - Fetched from GitHub and validated at install via `server/github/` +
   `server/module_loader/` (see
-  [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md))
+  [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md))
 
 **Module Instances**
 
@@ -295,9 +295,10 @@ that area.
   (HMIS/HFA/ICEH dataset families)
 - [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md) — DHIS2 API client: base fetcher,
   retry, goals, connection validation, session caches
-- [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md) — module system
-  end-to-end: load/install/update, dirty state machine + dependency propagation,
-  `task_ended` loop, R execution + `ro_*` ingest, population.csv
+- [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) — results
+  packages & module execution: **the authoritative run-directory + manifest
+  format spec**, the wizard-configured whole-DAG generation pipeline, R
+  execution, the package catalogue and project attachment, population.csv
   ([PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) is the
   write-a-worker recipe)
 - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic
@@ -316,7 +317,7 @@ that area.
 ### Data / domain
 
 - Module updates and the population.csv format are in
-  [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md); period columns,
+  [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md); period columns,
   disaggregation options, and roll-up rows are in
   [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md)
 

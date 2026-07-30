@@ -35,8 +35,12 @@ globs:
 > `po_detail_v5`); calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 
-PO config → fetch-config contract → SQL over `ro_*` tables → version-hashed
-cached payloads, on both tiers. Reviewed against code 2026-07-06 (first review
+PO config → fetch-config contract → DuckDB SQL over the project's attached
+results package → run-keyed cached payloads, on both tiers. **This system does
+not define the package it reads**: the run-directory layout, the manifest
+contract and its schema version are S8's
+([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
+package format"). Reviewed against code 2026-07-06 (first review
 cycle; absorbed and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE,
 DOC_period_column_handling, DOC_DISAGGREGATION_OPTIONS_HANDLING,
 DOC_ROLLUP_ROWS). The adversarial review's fix batch landed 2026-07-06 (commits
@@ -51,9 +55,11 @@ keep it honest are [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
 
 Boundaries: the Valkey `TimCacheC` class, SSE, and the
 `last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs` and
-everything after `FigureInputs` is **S10**; the editor UI is **S11**; the `ro_*`
-tables and metric rows this system reads are produced by **S8**
-(`db/project/results_objects.ts` is S8-owned with S9 a mandatory reader);
+everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
+results package this system queries — parquet, manifest and metric catalog — is
+produced by **S8**, and the frozen `ro_*` tables it still reads as the parity
+rig's baseline are S8-owned too (`db/project/results_objects.ts`, with S9 a
+mandatory reader);
 `facilities_hmis`/`facilities_hfa` and the instance facility-columns config are
 **S5**. Sub-file custody: `routes/project/presentation_objects.ts` and
 `t2_presentation_objects.ts` are S9-owned with S11/S3/S10 as readers (SYSTEMS.md

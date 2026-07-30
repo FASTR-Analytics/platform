@@ -2394,6 +2394,15 @@ instance-level wizard. Projects become pure authoring spaces (S9–S13).
 
 ## 2. Target architecture
 
+> **§2.1 and §2.2 are now a BUILD RECORD.** The shipped format — layout,
+> manifest contract, invariants, schema version, and the wizard-vs-backfill
+> difference — is specified in
+> [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) under "The
+> results package format", which is authoritative and describes the current
+> tree. What follows is the design as decided, kept for the reasoning (the
+> sibling-parquet decision, the three-writer container note, the probe counts
+> it was replacing); where the two differ, S8 wins.
+
 ### 2.1 The run directory
 
 Mirrors today's project-sandbox layout (so the R contract — `../datasets/` and

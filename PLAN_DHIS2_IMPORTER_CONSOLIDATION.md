@@ -26,7 +26,7 @@ untouched on their old machinery.
   (registry-as-contract), SYSTEM_02_persistence.md (SQL-safety rule — no
   parameterized table names), PROTOCOL_APP_MIGRATIONS.md,
   PROTOCOL_APP_WORKER_ROUTINES.md (READY handshake, teardown contract),
-  SYSTEM_08_module_system.md, PROTOCOL_APP_STATE.md (wizard state is
+  SYSTEM_08_results_packages.md, PROTOCOL_APP_STATE.md (wizard state is
   component-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md describes the
   machinery being replaced (its "HMIS DHIS2 import runs" section is the
   authority on the runs plane this plan extends).
