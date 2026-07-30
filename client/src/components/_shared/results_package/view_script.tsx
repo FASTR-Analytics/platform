@@ -9,9 +9,9 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-// The R script this results package generated for one module. Instance-admin
-// surface (PLAN_RESULTS_RUNS Q-F): a run belongs to no project, so its debug
-// viewers live with the catalogue.
+// The R script this results package generated for one module — package
+// contents, so the same viewer serves both the instance catalogue and a
+// project's package tab (PLAN_RESULTS_RUNS item 3b).
 export function ViewScript(
   p: EditorComponentProps<
     { runId: string; moduleId: ModuleId; moduleLabel: string },

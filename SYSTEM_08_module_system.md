@@ -6,6 +6,7 @@ globs:
   - client/src/components/instance_results_packages/**
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_results_package.tsx
+  - client/src/components/project/results_package_compatibility_modal.tsx
   - client/src/components/results_package_wizard/**
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
@@ -21,6 +22,7 @@ globs:
   - server/routes/instance/modules.ts
   - server/routes/instance/run_generation.ts
   - server/routes/project/modules.ts
+  - server/routes/project/results_package.ts
   - server/runs/**
   - server/server_only_funcs/**
   - server/server_only_types/**
@@ -69,11 +71,12 @@ pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
 `routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`
 (the latter now also carries the catalogue listing, the guarded hard delete
-and the per-module script/log/file viewers moved off the project mount);
-lib module + run types + `module_registry.ts`; client:
-`instance_results_packages/**` (the catalogue), `project_results_package.tsx`,
-`results_package_wizard/**`, `compare_projects.tsx`,
-`metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
+and the per-module script/log/file viewers moved off the project mount) +
+`routes/project/results_package.ts` (the project picker); lib module + run
+types + `module_registry.ts`; client: `instance_results_packages/**` (the
+catalogue), `project_results_package.tsx` +
+`results_package_compatibility_modal.tsx`, `results_package_wizard/**`,
+`compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
 what a package CONTAINS, rendered identically wherever a package is explored
 (`package_contents.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). It
 sits under S12's `_shared/**` glob; §4.1 records S8 as its owner. External:
@@ -136,16 +139,41 @@ what a project MEMBER may read from the attached run's manifest:
 `getResultsObjectItems` (raw preview) and `getModuleWithConfigSelections`.
 Instance level: `routes/instance/modules.ts` (`compareProjects`) and
 `routes/instance/run_generation.ts` — the wizard's attempt CRUD +
-defaults/module-options/launch/attached-run listing, plus the catalogue
-listing, the guarded hard delete, and the `(run_id, module_id)` run-dir
-viewers (`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), all
-behind `can_configure_data`. The viewers moved here from the project mount
-with the `runReadableByProject` guard deleted (Q-F: a run belongs to no
-project, so a debug surface over its outputs is instance-admin shaped); the
+defaults/module-options/launch, plus the catalogue listing, the guarded hard
+delete, and the `(run_id, module_id)` run-dir viewers
+(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), all behind
+`can_configure_data`. The viewers moved here from the project mount with the
+`runReadableByProject` guard deleted (Q-F); item 3b then re-opened the
+FRAMING — they are package contents, not an admin-only debug class — so what
+permission should govern them is the plan's one deferred question. The
 raw-file download surface they link to — the `_RUNS_DIR_PATH` static mount in
 `middleware/static.ts` — was narrowed to `/:run_id/outputs/*` under the same
-guard in the same item (Q-G; it previously answered any path under the runs
-volume for any authenticated user).
+guard (Q-G; it previously answered any path under the runs volume for any
+authenticated user) and moves with them when that question is settled.
+
+**A project's relationship with packages** is its own project-scoped mount,
+`routes/project/results_package.ts` (Phase 3 item 4), split by permission
+along §4 Phase 3's "generation instance-admin, attach project editor" line:
+`getAttachedResultsPackage` (the package this project serves from, null =
+the typed no-package state) is `can_view_data`, the project's own data;
+`listAttachableResultsPackages`, `getResultsPackageCompatibility` and
+`attachResultsPackage` are `can_configure_visualizations` — the authoring bit
+the Editor preset is built on, because a repoint changes what every authored
+visualization resolves against — with the attach also refusing a locked
+project. Editor-gating the LISTING is deliberate: a non-editor member sees
+the package in use and is never told what else the instance holds. The
+compatibility report (§2.6, `server/runs/package_compatibility.ts`) resolves
+the project's AUTHORED visualizations against the candidate's manifest —
+metric absent, metric stamped unavailable, or a requested disaggregation the
+candidate's results object does not offer, one issue per visualization in
+that resolution order, no data queries. Virtual defaults are excluded by
+construction: they are projections of whichever package is attached. The
+repoint itself (`server/runs/attach_run.ts`) is `setProjectAttachedRun` — the
+ready gate is IN the UPDATE and the `projects.run_id` FK closes the race with
+a concurrent delete — followed by the same `run_attached` event the publish
+transaction emits, built by the same two helpers. It never blocks on the
+report: an incompatible package is still attachable, and the affected
+visualizations render their typed unavailable states.
 
 **Exploring a package is ONE capability, mounted twice.** The routes are
 RUN-keyed, not project-keyed, and the client renders them through

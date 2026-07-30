@@ -9,7 +9,6 @@ import type {
   RunGenerationAttemptDetail,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
-  RunListingItem,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -21,9 +20,11 @@ import { route } from "../route-utils.ts";
 // projects chosen at launch.
 
 // A run's outputs dir holds one module's generated script, execution log and
-// raw CSVs. These are debug surfaces, so they are instance-admin gated here
-// rather than project-scoped (Q-F ruling: project admins who are not
-// instance admins lose them, accepted).
+// raw CSVs. The routes are run-keyed rather than project-scoped because
+// exploring a package is one capability rendered on both the instance
+// catalogue and a project's package tab (item 3b). What permission governs
+// package internals is the plan's one deferred question; they carry
+// `can_configure_data` until it is settled.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
@@ -92,14 +93,6 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/module_options",
     method: "GET",
     response: {} as RunGenerationModuleOptions,
-  }),
-  // The run this project currently serves from — the project "Results
-  // package" surface. Empty when nothing is attached.
-  listRunsForProject: route({
-    path: "/run_generation/:project_id/runs",
-    method: "GET",
-    params: z.object({ project_id: z.uuid() }),
-    response: {} as RunListingItem[],
   }),
   updateRunGenerationAttemptStep1: route({
     path: "/run_generation/attempt/step1",

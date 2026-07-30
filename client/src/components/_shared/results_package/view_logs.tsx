@@ -9,8 +9,8 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-// One module's execution log from this results package. Instance-admin
-// surface (PLAN_RESULTS_RUNS Q-F).
+// One module's execution log from this results package — package contents,
+// so the same viewer serves both surfaces (PLAN_RESULTS_RUNS item 3b).
 export function ViewLogs(
   p: EditorComponentProps<
     { runId: string; moduleId: ModuleId; moduleLabel: string },

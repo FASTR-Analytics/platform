@@ -13,7 +13,6 @@ import {
   deleteRunGenerationAttempt,
   getRunGenerationAttempt,
   listRunCatalog,
-  listRunsForProject,
   updateRunGenerationAttemptStep1,
   updateRunGenerationAttemptStep2,
 } from "../../db/instance/run_generation.ts";
@@ -162,10 +161,9 @@ defineRoute(
 // Script/logs/files read from runs/{runId}/outputs/{moduleId}. Wizard runs
 // carry the generated script, execution log and raw output CSVs; synthetic
 // backfill runs carry only query parquet — an absent file answers with a
-// typed message, not an error page. Moved here from the project mount by
-// Q-F: a run belongs to no project, so its debug surface is instance-admin
-// gated (the raw-file downloads served by the runs static mount got the same
-// guard — Q-G).
+// typed message, not an error page. Run-keyed rather than project-scoped
+// because both package surfaces render them (item 3b); the guard here (and
+// on the runs static mount — Q-G) is the plan's one deferred question.
 function runModuleOutputsDir(runId: string, moduleId: string): string {
   return join(runDirPath(runId), "outputs", moduleId);
 }
@@ -246,17 +244,6 @@ defineRoute(
     }
     files.sort((a, b) => a.name.localeCompare(b.name));
     return c.json({ success: true, data: { files } });
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "listRunsForProject",
-  requireGlobalPermission("can_configure_data"),
-  log("listRunsForProject"),
-  async (c, { params }) => {
-    const res = await listRunsForProject(c.var.mainDb, params.project_id);
-    return c.json(res);
   },
 );
 

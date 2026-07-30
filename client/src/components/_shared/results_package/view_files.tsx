@@ -14,7 +14,9 @@ import { _SERVER_HOST } from "~/server_actions";
 
 // Lists the actual files in the run's outputs/{moduleId} dir; downloads serve
 // from the runs static mount at /{runId}/outputs/{moduleId}/{file}, which
-// carries the same can_configure_data guard as this listing (Q-F/Q-G).
+// carries the same can_configure_data guard as this listing (Q-G). What
+// permission should govern package internals is the plan's one deferred
+// question; the two guards move together when it is settled.
 export function ViewFiles(
   p: EditorComponentProps<
     { runId: string; moduleId: ModuleId; moduleLabel: string },

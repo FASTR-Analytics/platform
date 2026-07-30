@@ -162,7 +162,10 @@ wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushe
 fans out on BOTH channels and no emitter calls the project wrappers directly:
 `worker_routines/generate_run/notify_run.ts` pairs each instance push with the
 per-attach-target project pushes, because a run launched with no attach
-targets has no project channel at all.
+targets has no project channel at all. `run_attached` has TWO emitters — the
+generation publish and a project's own package picker — and both go through
+`server/runs/attach_run.ts`, so the repoint event carries the same full
+run-derived catalog either way.
 
 **The redundant `last_updated` indirection.**
 `server/task_management/notify_last_updated.ts` is a one-line passthrough:

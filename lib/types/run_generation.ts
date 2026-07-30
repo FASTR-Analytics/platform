@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { datasetHmisWindowingCommonSchema } from "./dataset_hmis.ts";
 import type { DatasetType } from "./datasets.ts";
+import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type { ModuleParameter } from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
@@ -81,7 +82,7 @@ export type RunGenerationModuleOptions = {
 
 export type RunGenerationAttemptStatus = { status: "configuring" };
 
-// Runs-catalog listing row for the project "Results package" surface.
+// Runs-catalog listing row, rendered wherever a package is listed.
 export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
 export type RunListingItem = {
@@ -100,6 +101,37 @@ export type RunListingItem = {
 // projects" column and the reason a run cannot be deleted.
 export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
+};
+
+// The §2.6 compatibility report (Phase 3 item 4): what a project's AUTHORED
+// visualizations would lose if it repointed at a candidate package, shown
+// before the repoint rather than discovered afterwards. Every answer is a
+// manifest lookup — no data queries.
+//
+// Virtual default visualizations are excluded by construction: they are
+// projections of whichever package is attached, so they cannot be
+// incompatible with one.
+//
+// One issue per visualization, in resolution order: a missing metric makes
+// its availability stamp and its dimensions unanswerable, so the first thing
+// that fails is what gets reported.
+export type ResultsPackageCompatibilityIssue = {
+  presentationObjectId: string;
+  label: string;
+} & (
+  | { kind: "metric_not_in_package"; metricId: string }
+  | { kind: "metric_unavailable"; metricId: string; reason: string | null }
+  | {
+    kind: "dimensions_not_in_package";
+    disaggregationOptions: DisaggregationOption[];
+  }
+);
+
+export type ResultsPackageCompatibilityReport = {
+  runId: string;
+  runLabel: string;
+  authoredVisualizationCount: number;
+  issues: ResultsPackageCompatibilityIssue[];
 };
 
 export type RunGenerationAttemptDetail = {

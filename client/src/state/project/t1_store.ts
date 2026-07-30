@@ -217,4 +217,17 @@ export function runVersionKey(pds: ProjectState): string {
   return pds.attachedRunId ?? "no_run_attached";
 }
 
+// The response-side half of that key (item 4's cache guard): a run-keyed
+// payload carries the runId it was actually computed against, so an in-flight
+// response landing after a package repoint can be told apart from one that
+// belongs under the key it was requested with. undefined is the parity rig's
+// Postgres baseline, which must never be cached — hence the explicit false
+// rather than a "no_run_attached" fallback.
+export function responseRunIdMatches(
+  responseRunId: string | undefined,
+  runKey: string,
+): boolean {
+  return responseRunId !== undefined && responseRunId === runKey;
+}
+
 export { projectState };

@@ -18,19 +18,12 @@ import {
   updateRunProgress,
 } from "../../db/instance/run_generation.ts";
 import {
+  buildRunAttachedManifestPayload,
   buildRunPackageIntoTmp,
+  notifyRunAttachedForProject,
   runDirPath,
   runTmpDirPath,
 } from "../../runs/mod.ts";
-import {
-  getAllPresentationObjectsWithVirtualDefaults,
-  getCommonIndicatorsFromManifestInputs,
-  getIcehIndicatorsFromManifestInputs,
-  getMetricsWithStatusFromManifest,
-  getModuleSummariesFromManifest,
-  getProjectDatasetsFromManifest,
-} from "../../run_query/mod.ts";
-import { notifyProjectRunAttached } from "../../task_management/notify_project_v2.ts";
 import {
   executeRunModule,
   ReuseSourceMissingError,
@@ -210,32 +203,18 @@ export async function runGenerationPipeline(
   // targets does none of them).
   notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
 
-  const runCtx = { runId: std.runId, manifest };
-  const projectModules = getModuleSummariesFromManifest(manifest);
-  const metrics = getMetricsWithStatusFromManifest(manifest);
-  const projectDatasets = getProjectDatasetsFromManifest(manifest);
-  const commonIndicators = await getCommonIndicatorsFromManifestInputs(runCtx);
-  const icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
-  for (const projectId of std.attachTargetProjectIds) {
-    const projectDb = createWorkerReadConnection(projectId);
-    try {
-      const visualizationsRes =
-        await getAllPresentationObjectsWithVirtualDefaults(
-          mainDb,
-          projectId,
-          projectDb,
-        );
-      notifyProjectRunAttached(projectId, {
-        attachedRunId: std.runId,
-        projectModules,
-        metrics,
-        projectDatasets,
-        commonIndicators,
-        icehIndicators,
-        visualizations: visualizationsRes.success ? visualizationsRes.data : [],
-      });
-    } finally {
-      await projectDb.end();
+  if (std.attachTargetProjectIds.length > 0) {
+    const payload = await buildRunAttachedManifestPayload({
+      runId: std.runId,
+      manifest,
+    });
+    for (const projectId of std.attachTargetProjectIds) {
+      const projectDb = createWorkerReadConnection(projectId);
+      try {
+        await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
+      } finally {
+        await projectDb.end();
+      }
     }
   }
 }

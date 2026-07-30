@@ -5,7 +5,10 @@ import {
   ReplicantOptionsForPresentationObject,
   hashFetchConfig,
 } from "lib";
-import { runVersionKey } from "~/state/project/t1_store";
+import {
+  responseRunIdMatches,
+  runVersionKey,
+} from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
@@ -27,6 +30,8 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
+  responseMatchesVersion: (data, version) =>
+    responseRunIdMatches(data.runId, version),
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(

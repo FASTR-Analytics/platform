@@ -335,7 +335,7 @@ FROM runs r WHERE r.id = ${runId}
     return {
       success: false,
       err:
-        "This results package is in use — detach it from every project first",
+        "This results package is in use — point every project using it at another package first",
     };
   } catch (e) {
     return {
@@ -346,11 +346,39 @@ FROM runs r WHERE r.id = ${runId}
   }
 }
 
-// The run this project currently serves from, as a listing row for the
-// project "Results package" surface — a run no longer belongs to a project
-// (Q-A), so the attached one is the only run the project surface has
-// business showing. Empty when nothing is attached.
-export async function listRunsForProject(
+// The package this project currently serves from (Phase 3 item 4) — a run
+// belongs to no project (Q-A), so "the attached one" is the only package a
+// member has business reading. null when nothing is attached: the typed
+// no-package state, not an error.
+export async function getAttachedRunForProject(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseWithData<RunListingItem | null>> {
+  try {
+    const row = (
+      await mainDb<RunListingRow[]>`
+SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
+  r.summary, r.progress
+FROM runs r
+JOIN projects p ON p.run_id = r.id
+WHERE p.id = ${projectId}
+`
+    ).at(0);
+    return { success: true, data: row === undefined ? null : toRunListingItem(row) };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem reading this project's results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The picker's candidate list: every ready package this project could repoint
+// at, newest first, minus the one it already serves from. A narrowing of the
+// instance catalogue rather than a different fact — the same rows, without the
+// catalogue's housekeeping columns, for a surface whose only act is a repoint.
+export async function listAttachableRunsForProject(
   mainDb: Sql,
   projectId: string,
 ): Promise<APIResponseWithData<RunListingItem[]>> {
@@ -359,14 +387,62 @@ export async function listRunsForProject(
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress
 FROM runs r
-JOIN projects p ON p.run_id = r.id
-WHERE p.id = ${projectId}
+WHERE r.status = 'ready'
+  AND r.id IS DISTINCT FROM (SELECT p.run_id FROM projects p WHERE p.id = ${projectId})
+ORDER BY r.created_at DESC
 `;
     return { success: true, data: rows.map(toRunListingItem) };
   } catch (e) {
     return {
       success: false,
       err: "Problem listing results packages: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The repoint itself: the publish transaction's pointer UPDATE minus the
+// status flip (§2.6 — swapping packages is an UPDATE plus an SSE notify).
+//
+// The ready gate is IN the UPDATE, so a candidate cannot fail or be deleted
+// between the compatibility report and the write; the `projects.run_id` FK
+// (migration 065, no cascade) closes the other side of that race — a
+// concurrent delete of this run blocks on the FK's row lock and then hits its
+// own not-referenced guard. A refused write re-reads to say which reason.
+export async function setProjectAttachedRun(
+  mainDb: Sql,
+  projectId: string,
+  runId: string,
+): Promise<APIResponseNoData> {
+  try {
+    const updated = await mainDb<{ id: string }[]>`
+UPDATE projects p SET run_id = r.id
+FROM runs r
+WHERE p.id = ${projectId} AND r.id = ${runId} AND r.status = 'ready'
+RETURNING p.id
+`;
+    if (updated.length > 0) {
+      return { success: true };
+    }
+    const row = (
+      await mainDb<{ status: string }[]>`
+SELECT status FROM runs WHERE id = ${runId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Results package not found" };
+    }
+    if (row.status !== "ready") {
+      return {
+        success: false,
+        err: "This results package is not ready to be used",
+      };
+    }
+    return { success: false, err: "Project not found" };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem attaching results package: " +
         (e instanceof Error ? e.message : ""),
     };
   }

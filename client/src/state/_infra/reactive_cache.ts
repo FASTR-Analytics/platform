@@ -52,6 +52,22 @@ export type ReactiveCacheConfig<Params, Data> = {
 
   /** Set to true if this cache doesn't require PDS (e.g., instance-level caches). Default: false */
   pdsNotRequired?: boolean;
+
+  /**
+   * Response-side identity guard (PLAN_RESULTS_RUNS Phase 3 item 4). The
+   * version in the cache key is captured when the request goes OUT; a payload
+   * that lands after the project repointed was computed for a different
+   * version, and storing it under the key we asked for would serve one
+   * package's numbers as another's.
+   *
+   * So a run-keyed cache declares how to read that identity back off the
+   * response, and `setPromise` refuses to store a payload whose identity does
+   * not match the version its key was built from. The caller still gets the
+   * response — it just never becomes a cache entry it does not belong to.
+   * This is the client half of the server caches' `parseData`, which
+   * recomputes both hashes from the response for the same reason.
+   */
+  responseMatchesVersion?: (data: Data, version: string) => boolean;
 };
 
 export interface ReactiveCache<Params, Data> {
@@ -228,6 +244,17 @@ export function createReactiveCache<Params, Data>(
         //   `[ReactiveCache:${config.name}] Response failed - not caching`,
         // );
         // Don't cache errors/failures
+        _unresolved.delete(cacheKey);
+        return;
+      }
+
+      if (
+        config.responseMatchesVersion !== undefined &&
+        !config.responseMatchesVersion(response.data, version)
+      ) {
+        console.warn(
+          `[ReactiveCache:${config.name}] Response was computed for a different version than the key it was requested under — not caching (key: ${cacheKey})`,
+        );
         _unresolved.delete(cacheKey);
         return;
       }

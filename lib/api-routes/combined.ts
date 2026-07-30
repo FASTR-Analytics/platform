@@ -16,6 +16,7 @@ import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
 import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
+import { projectResultsPackageRouteRegistry } from "./project/results-package.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
@@ -51,6 +52,7 @@ export const routeRegistryIndividualCount =
   Object.keys(userRouteRegistry).length +
   Object.keys(projectRouteRegistry).length +
   Object.keys(presentationObjectRouteRegistry).length +
+  Object.keys(projectResultsPackageRouteRegistry).length +
   Object.keys(slideDeckRouteRegistry).length +
   Object.keys(slideDeckFolderRouteRegistry).length +
   Object.keys(reportRouteRegistry).length +
@@ -83,6 +85,7 @@ export const routeRegistry = {
   ...userRouteRegistry,
   ...projectRouteRegistry,
   ...presentationObjectRouteRegistry,
+  ...projectResultsPackageRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
   ...reportRouteRegistry,

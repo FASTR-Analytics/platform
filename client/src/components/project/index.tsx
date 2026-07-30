@@ -99,13 +99,11 @@ function ProjectInner() {
         iconName: "chart",
       });
     }
-    // Instance-admin surface: results-package generation gating
-    // (PLAN_RESULTS_RUNS item 2 — matches the server's can_configure_data
-    // guard, which global admins bypass).
-    if (
-      instanceState.currentUserIsGlobalAdmin ||
-      instanceState.currentUserPermissions.can_configure_data
-    ) {
+    // The package this project serves from is the project's own data, so the
+    // tab opens to any member who can view it (PLAN_RESULTS_RUNS Phase 3
+    // item 4 — matching the server's can_view_data guard). The picker inside
+    // is editor-gated separately; generation lives on the instance shell.
+    if (perms.can_view_data) {
       items.push({
         id: "results_package",
         label: t3({
@@ -258,8 +256,7 @@ function ProjectInner() {
                 <Match
                   when={
                     projectTab() === "results_package" &&
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions.can_configure_data)
+                    projectState.thisUserPermissions.can_view_data
                   }
                 >
                   <ProjectResultsPackage />

@@ -11,15 +11,10 @@
 > is BUILT and green on this branch — what remains is the last of the
 > user-model surface (below), then Tim's rollout.
 >
-> **Your next action is Phase 3 core item 4 (project picker + cache
-> guard).** The work list is "**Phase 3 core — work items**", inside the
-> Status section's "Phase 3 re-cut" subsection: **items 0, 1, 2 and 3 are
-> DONE (plus item 3b, a correction to item 3); items 4 and 5 remain, in
-> order, one per session.** Item 4 turns the
-> project results_package tab into the attach picker (ready-package list +
-> the §2.6 compatibility report + repoint, opened to project
-> editors/members, `listRunsForProject` deleted) and ships the mandatory
-> response-side runId guard in the client reactive caches.
+> **Your next action is Phase 3 core item 5 (rig `foreign_run` + the closing
+> docs sweep + the exit gate) — the LAST item.** The work list is "**Phase 3
+> core — work items**", inside the Status section's "Phase 3 re-cut"
+> subsection: **items 0, 1, 2, 3, 3b and 4 are DONE; only item 5 remains.**
 >
 > **Standing design rule for anything touching a results package (Tim,
 > 2026-07-30).** **If the answer to a question lives inside the run package
@@ -55,7 +50,7 @@
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
 > item 1 = `92cce0ba`, item 2 = `823d6575`, item 3 = `5d7d6b90`, item 3b =
-> `676a83a8`). Still, do not assume the tree is clean: always run
+> `676a83a8`, item 4 = ITEM4_COMMIT). Still, do not assume the tree is clean: always run
 > `git status` first, and expect files outside your scope — parallel
 > workstreams are normal here, and their errors are not yours to fix without
 > asking. Never create a branch.
@@ -80,9 +75,9 @@
 > can be built.** If you hit a real hole the design does not cover, raise it
 > with Tim rather than inventing a ruling.
 >
-> **One open question, deliberately deferred — it does NOT block items 4 or
-> 5.** What permission governs a package's INTERNALS (script, log, raw
-> output files)? Item 3 made them `can_configure_data`; Tim then ruled the
+> **One open question, deliberately deferred — it did NOT block item 4 and
+> does not block item 5.** What permission governs a package's INTERNALS
+> (script, log, raw output files)? Item 3 made them `can_configure_data`; Tim then ruled the
 > governing principle is "**if the answer lives inside the run package
 > directory, a project user attached to that package can see it**", which
 > points at any member of an attached project (§2.6's original wording).
@@ -95,7 +90,7 @@
 > rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
-## Status: Phase 3 core IN PROGRESS — items 0, 1, 2, 3 and 3b DONE (both gates green), item 4 is next
+## Status: Phase 3 core IN PROGRESS — items 0, 1, 2, 3, 3b and 4 DONE (both gates green), item 5 is the last one
 
 The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
 branch (never the reverse — `results-runs` has NOT been merged to `main`); the
@@ -109,8 +104,10 @@ entry + run identity + catalog-wide reuse + createProject cleanup) DONE, item 2
 (attach-at-launch: confirm-step multi-select + launch-time target eligibility)
 DONE, item 3 (catalogue + disk size + guarded hard delete + Q-B/Q-D/Q-F/Q-G)
 DONE, item 3b (shared package explorer + host-agnostic AI tools, Tim's
-correction to item 3's debug-vs-content split) DONE 2026-07-30 — rig PARITY
-GREEN 719 checks after a full dev re-backfill; items 4–5 remain.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
+correction to item 3's debug-vs-content split) DONE 2026-07-30, item 4
+(project picker + compatibility report + repoint + the client cache guard)
+DONE 2026-07-30 — rig PARITY GREEN 719 checks after a full dev re-backfill;
+only item 5 remains.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
 Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
 the build record
 
@@ -1251,10 +1248,10 @@ well as referenced ones.
   control. (This bullet's "no viewers here" is SUPERSEDED by item 3b: the
   per-module viewers are part of what a package contains and render on both
   surfaces from `_shared/results_package/`.) `listRunsForProject` is
-  obsoleted by the catalogue listing and is deleted by this item. **This bullet plus the next one are item 4's full
-  spec, and both are unbuilt — everything else in this design section has
-  shipped.**
-- **Client cache guard (mandatory)**: response-side runId check in the
+  obsoleted by the catalogue listing and is deleted by this item. **BUILT in
+  item 4 — read its build record for what the permission split actually
+  became and why the candidate LISTING ended up editor-gated too.**
+- **Client cache guard (mandatory)** — BUILT in item 4: response-side runId check in the
   reactive caches — a response is stored only under the runId it was
   computed for (the accepted-LOW, now live because attach-old-run exists).
   The caches are the `~/state/_infra/reactive_cache.ts` instances that key
@@ -1854,41 +1851,128 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      is the raw-file download: it is a `serveStatic` mount with no project
      context, so per-project readability there means replacing it with a
      streaming route that does the check.
-4. **Project picker + cache guard — NEXT.** Full spec = the "Attach (project
-   surface)" and "Client cache guard" bullets in "Phase 3 core — design".
-   Two deliverables: `project_results_package.tsx` becomes the attach picker
-   (editor-gated swap with the §2.6 compat report; read-only for members),
-   and the mandatory response-side runId guard lands in the client reactive
-   caches.
-
-   **State of the tree as you start** (items 1, 3 and 3b already moved most
-   of the furniture — check, don't assume):
-   - `client/src/components/project/project_results_package.tsx` shows ONLY
-     the attached package, via `listRunsForProject` (a join on
-     `projects.run_id`), with a typed "no package attached yet" empty state.
-     It has no generate entry. Everything the card shows BELOW its header —
-     provenance line, module list, per-module viewers, progress, failed
-     state — is rendered by `_shared/results_package/`, identical to the
-     instance catalogue (item 3b). **Add picker UI as this surface's own
-     chrome; do not fork the shared components.** If something you need
-     belongs to the package rather than to this surface's relationship with
-     it, it goes in the shared component and the catalogue gets it too.
-   - The tab is still `can_configure_data`-gated in TWO places in
-     `client/src/components/project/index.tsx` — the nav-items builder and
-     the `<Match>` that renders it. Opening the surface to project
-     editors/members per §4 Phase 3 means changing both (and the server
-     guard); a half-done gate change leaves a nav entry that renders
-     nothing.
-   - Live progress for a generation targeting this project still arrives on
-     PROJECT SSE (`run_progress` / `r_script`); item 3 added instance-SSE
-     copies for the catalogue and did not touch these.
-   - The instance catalogue (`listRunCatalog`, `RunCatalogItem`) already
-     returns every run with its attached projects — the picker's
-     ready-package list is a narrowing of that, not a new query.
-
-   **What this item builds:** the ready-package list, the compat report, the
-   repoint, the permission opening, deletion of `listRunsForProject` (and
-   its route + registry entry), and the cache guard.
+4. **Project picker + cache guard — DONE 2026-07-30** (gates green:
+   `deno task typecheck` incl. lint:systems + rig PARITY GREEN `--run`, 719
+   checks, after a full dev re-backfill; live-verified on dev, 41/41 harness
+   checks plus an HTTP/SSE pass with the server up). The project tab is now
+   the picker, and the mandatory cache guard shipped with it. What landed:
+   - **A project's relationship with packages is its own project-scoped
+     mount**: `routes/project/results_package.ts` +
+     `lib/api-routes/project/results-package.ts`, four routes, split by
+     permission along §4 Phase 3's line. `getAttachedResultsPackage`
+     (`RunListingItem | null` — null IS the typed no-package state, not an
+     error) is `can_view_data`: the package a project serves from is the
+     project's own data. `listAttachableResultsPackages`,
+     `getResultsPackageCompatibility` and `attachResultsPackage` are
+     `can_configure_visualizations` — the authoring bit the Editor preset is
+     built on, and already the guard on
+     `routes/project/visualization_folders.ts`, because a repoint changes
+     what every authored visualization resolves against. The attach also
+     carries `preventAccessToLockedProjects`.
+   - **The candidate LISTING is editor-gated, not member-readable** — a
+     decision the design bullet did not make. A non-editor member sees the
+     package in use and is never told what else the instance holds; that is
+     what "read-only for non-editor members" has to mean if the surface is
+     not to enumerate the instance's catalogue to viewers. This is why the
+     attached package and the candidate list are two routes rather than one
+     list with the attached row marked.
+   - **`listRunsForProject` deleted** (db function, route, registry entry),
+     replaced by `getAttachedRunForProject` (singular — the shape was always
+     a 0-or-1 list) and `listAttachableRunsForProject` (ready runs minus the
+     attached one, newest first, sharing the same row mapper as the
+     catalogue).
+   - **The repoint is `setProjectAttachedRun`**: the publish transaction's
+     pointer UPDATE minus the status flip. The ready gate is IN the
+     `UPDATE … FROM runs`, so a candidate cannot fail between the
+     compatibility report and the write; the `projects.run_id` FK
+     (migration 065, no cascade) closes the other side — a concurrent
+     guarded delete blocks on the FK's row lock and then fails its own
+     not-referenced guard, so an attach can never land on a deleted package.
+     A refused write re-reads to say which reason (not found / not ready).
+   - **One repoint EVENT, two emitters.** `server/runs/attach_run.ts` holds
+     `buildRunAttachedManifestPayload` (the manifest-derived half, identical
+     for every project attaching to the same package, so a multi-target
+     publish still builds it once outside its loop) and
+     `notifyRunAttachedForProject` (the per-project half — only the
+     visualizations list needs the project DB, and it needs the NEW manifest
+     to derive the virtual defaults from). `pipeline.ts` now calls both
+     instead of carrying its own copy; a picker attach gets a byte-identical
+     `run_attached`. An unreadable manifest AFTER a successful repoint is
+     logged, not rolled back: the read plane already reports a broken
+     attached package properly, and rolling the pointer back would be a
+     worse lie.
+   - **The §2.6 compatibility report** (`server/runs/package_compatibility.ts`):
+     the project's AUTHORED visualizations resolved against the candidate's
+     manifest — metric absent → `metric_not_in_package`, metric stamped
+     unavailable → `metric_unavailable` with the stamped reason, else any
+     requested disaggregation (groupBy + filter + replicateBy) the
+     candidate's results object does not offer →
+     `dimensions_not_in_package`. ONE issue per visualization in that
+     resolution order, because a missing metric makes the later questions
+     unanswerable. Manifest lookups only, zero data queries. Virtual
+     defaults are excluded by construction — `getAllPresentationObjectsForProject`
+     is the authored table, and migration 038 deleted the legacy default
+     rows. The report never BLOCKS: an incompatible package is still
+     attachable, and the affected visualizations render their typed
+     unavailable states. It exists so the choice is made with the loss in
+     view.
+   - **Client**: `project_results_package.tsx` = the attached-package card
+     (shared `_shared/results_package/` contents, unforked) plus this
+     surface's own chrome — the candidate list and the swap. The report
+     renders in `results_package_compatibility_modal.tsx` via
+     `openComponent`, resolving true/false into the attach action. The tab
+     gate moved from `can_configure_data` (instance) to
+     `perms.can_view_data` (project) in BOTH places in
+     `project/index.tsx`.
+   - **Refetch rule fixed in passing**: the old surface refetched on any
+     `run_progress` tick naming a run it did not list — true on EVERY tick of
+     a generation targeting this project, so a storm. It now refetches at the
+     generation's terminal boundary (`currentModuleId === null`), the same
+     rule the catalogue uses, plus the `attachedRunId` effect dependency that
+     already covers a publish.
+   - **The cache guard** (`state/_infra/reactive_cache.ts`): a new optional
+     `responseMatchesVersion(data, version)` on the cache config; `setPromise`
+     refuses to store a payload that fails it and logs. This is the client
+     half of the server caches' `parseData`, which recomputes both hashes
+     from the response for exactly the same reason. Wired into all four
+     run-keyed caches via `responseRunIdMatches(data.runId, runKey)` in
+     `t1_store.ts` — which returns FALSE for an absent runId, so the parity
+     rig's Postgres-baseline payloads can never be cached either.
+     `po_detail` folds two facts, so its guard reads the run key off the
+     version's trailing segment: the row-revision half cannot be checked,
+     because `pds.lastUpdated.presentation_objects[id]` is `"unknown"` until
+     an SSE `last_updated` for that PO arrives, and comparing it to the
+     payload's own `lastUpdated` would silently refuse every entry. The
+     trailing-segment read is safe because neither a runId (a UUID) nor a
+     PO `last_updated` (an ISO stamp) contains `|` — asserted against every
+     real row in the harness.
+   - **Live-verified on dev** (harness + HTTP, fixtures deleted after):
+     attached/attachable equal to `projects.run_id` on all 7 real projects
+     and correctly ordered; on a disposable project — null before attach,
+     all 14 ready packages offered, attach succeeds, the attached one drops
+     out of the candidate list, an unknown package and a `generating` one
+     are both refused with the pointer untouched. Compatibility: three
+     fixture POs against a real manifest gave exactly one clean, one
+     `metric_not_in_package` and one `dimensions_not_in_package`; over HTTP,
+     a real project's 5 authored POs reported 0 issues against every ICEH
+     package and 5 `metric_not_in_package` against the HFA-only package —
+     the report telling the two apart on real data. Then over HTTP with the
+     server up: create → attach → swap → the guarded delete refusing the
+     newly attached package, and a project-SSE capture showing the
+     `run_attached` event carrying the full catalog (1 module, 2 metrics,
+     6 visualizations, 1 dataset). Every fixture project force-deleted; runs
+     dirs and catalog rows both back to 14.
+   - **Not verifiable in dev, recorded**: the locked-project refusal.
+     `_BYPASS_AUTH` hardcodes `isLocked: false` in `getProjectUser`, so the
+     `preventAccessToLockedProjects` arm cannot fire locally. The call shape
+     is byte-identical to the shipped
+     `routes/project/visualization_folders.ts` one.
+   - **Noticed, fixed in passing**: the guarded delete's refusal message told
+     the user to "detach it from every project first", a control that does
+     not exist — it now names the act that does (point those projects at
+     another package). The three shared viewers still carried item 3's
+     "instance-admin surface (Q-F)" comments, which item 3b reversed; same
+     for the registry and route-file headers.
 5. **Rig `foreign_run` + docs — LAST.** Full spec = the "Rig" bullet in
    "Phase 3 core — design". Rig gates iff a project's attached run is that
    project's own backfill-provenance run, `foreign_run` typed non-gating
@@ -1900,9 +1984,12 @@ on big instances. `addDataset*ToProject` dies with its last caller.
 
    Then the closing sweep: SYSTEM doc prose reconciliation — **prose only,
    never glob catch-up** (each item claims its own globs as it lands, and
-   items 0–4 did). Items 3 and 4 both touch S8's route/client prose and S3's
-   notify catalog; item 3 already reconciled its own, so this sweep is for
-   whatever items 4 and 5 leave behind plus a read-through for drift.
+   items 0–4 did). Items 3 and 4 both reconciled their own S8 route/client
+   prose and S3 notify-catalog prose, so this sweep is for whatever item 5
+   leaves behind plus a read-through for drift. Known drift item 4 did NOT
+   touch, because it is Phase 4's rewrite and not item 4's to correct: S8's
+   "Install & catalog (dual-write plane)" section still describes the
+   dual-write that item 0 deleted.
 
    Then the exit gate: `deno task typecheck` + rig green + a live dev pass
    covering instance generation with multi-attach, a swap with the compat
