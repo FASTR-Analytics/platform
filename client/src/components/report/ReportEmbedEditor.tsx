@@ -88,7 +88,10 @@ export function ReportEmbedEditor(p: Props) {
               </div>
             }
           >
-            <div class="ui-pad ui-spy-sm flex flex-col">
+            <div
+              class="ui-pad ui-spy-sm flex flex-col"
+              data-tour="report-insert-buttons"
+            >
               <Button
                 outline
                 iconName="chart"

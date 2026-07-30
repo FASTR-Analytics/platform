@@ -633,6 +633,86 @@ export function buildDeckEditorPresentTour(): TourDefinition {
   };
 }
 
+// Walks the user into the version-history overlay via the overflow menu, then
+// back out again — the final advanceOn matters, because the overlay covers the
+// toolbar that the settings part needs next.
+export function buildDeckEditorHistoryTour(): TourDefinition {
+  return {
+    id: "deck-editor-history",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "open-menu",
+        target: "#deck-more-button",
+        title: t3({
+          en: "Version history",
+          fr: "Historique des versions",
+          pt: "Histórico de versões",
+        }),
+        body: t3({
+          en: "Every deck keeps a history of earlier versions. Open this menu to find it.",
+          fr: "Chaque présentation conserve un historique des versions précédentes. Ouvrez ce menu pour le trouver.",
+          pt: "Cada apresentação mantém um histórico de versões anteriores. Abra este menu para o encontrar.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
+      {
+        id: "pick-version-history",
+        // The overflow menu is portal-rendered, so its rows can only be
+        // reached positionally: Download, Share, Version history.
+        target: () =>
+          document.querySelectorAll(".ui-popover-menu button")[2] ?? null,
+        title: t3({
+          en: "Open version history",
+          fr: "Ouvrir l'historique des versions",
+          pt: "Abrir o histórico de versões",
+        }),
+        body: t3({
+          en: "Click Version history to carry on.",
+          fr: "Cliquez sur Historique des versions pour continuer.",
+          pt: "Clique em Histórico de versões para continuar.",
+        }),
+        placement: "right",
+        advanceOn: {},
+        waitForTargetTimeoutMs: 4000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "version-list",
+        target: tourTarget("version-history-list"),
+        title: t3({
+          en: "Every earlier version",
+          fr: "Toutes les versions précédentes",
+          pt: "Todas as versões anteriores",
+        }),
+        body: t3({
+          en: "Versions are saved automatically as people edit, grouped by day with the time and who made them. Click one to preview it.",
+          fr: "Les versions sont enregistrées automatiquement au fil des modifications, regroupées par jour avec l'heure et l'auteur. Cliquez sur l'une d'elles pour la prévisualiser.",
+          pt: "As versões são guardadas automaticamente à medida que as pessoas editam, agrupadas por dia com a hora e o autor. Clique numa para a pré-visualizar.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "close-history",
+        target: "#version-history-back-button",
+        title: t3({
+          en: "Compare and restore",
+          fr: "Comparer et restaurer",
+          pt: "Comparar e restaurar",
+        }),
+        body: t3({
+          en: "Selecting a version shows what changed against the one before it, and lets you restore it if you need to go back. Click here to return to your slides.",
+          fr: "Sélectionner une version montre ce qui a changé par rapport à la précédente et permet de la restaurer si besoin. Cliquez ici pour revenir à vos diapositives.",
+          pt: "Selecionar uma versão mostra o que mudou em relação à anterior e permite restaurá-la se precisar de voltar atrás. Clique aqui para regressar aos seus diapositivos.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
+    ],
+  };
+}
+
 // Ordered last so it merges after the intro/slides parts: the deck tour ends
 // by having the user actually open Settings, then explains what's in there.
 export function buildDeckEditorSettingsTour(): TourDefinition {
@@ -888,6 +968,233 @@ export function buildSlideContentTour(): TourDefinition {
         placement: "right",
       },
       slideEditorBackStep(),
+    ],
+  };
+}
+
+// ----------------------------------------------------------- Report editor
+
+export function buildReportEditorIntroTour(): TourDefinition {
+  return {
+    id: "report-editor-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("report-toolbar"),
+        title: t3({
+          en: "Inside a report",
+          fr: "Dans un rapport",
+          pt: "Dentro de um relatório",
+        }),
+        body: t3({
+          en: "A report is a written document: you type the words, and drop in visualizations from your project wherever they belong.",
+          fr: "Un rapport est un document rédigé : vous écrivez le texte et insérez les visualisations de votre projet là où elles doivent apparaître.",
+          pt: "Um relatório é um documento escrito: escreve o texto e insere as visualizações do seu projeto onde elas fazem sentido.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "mode",
+        target: tourTarget("report-mode"),
+        title: t3({
+          en: "Edit, split or view",
+          fr: "Édition, divisé ou aperçu",
+          pt: "Editar, dividido ou ver",
+        }),
+        body: t3({
+          en: "Split shows your text beside the finished page. Edit gives the text all the room, and View shows only the result.",
+          fr: "Divisé affiche votre texte à côté de la page finale. Édition donne toute la place au texte, et Aperçu n'affiche que le résultat.",
+          pt: "Dividido mostra o seu texto ao lado da página final. Editar dá todo o espaço ao texto e Ver mostra apenas o resultado.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "code-pane",
+        target: tourTarget("report-code-pane"),
+        title: t3({
+          en: "Write here",
+          fr: "Écrivez ici",
+          pt: "Escreva aqui",
+        }),
+        body: t3({
+          en: "This is the report's text, written in Markdown — # for a heading, ** ** for bold, - for a list. Visualizations appear as blocks you can click.",
+          fr: "Voici le texte du rapport, écrit en Markdown — # pour un titre, ** ** pour du gras, - pour une liste. Les visualisations apparaissent sous forme de blocs cliquables.",
+          pt: "Este é o texto do relatório, escrito em Markdown — # para um título, ** ** para negrito, - para uma lista. As visualizações aparecem como blocos que pode clicar.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "preview",
+        target: tourTarget("report-preview-pane"),
+        title: t3({
+          en: "The finished page",
+          fr: "La page finale",
+          pt: "A página final",
+        }),
+        body: t3({
+          en: "Exactly what the exported document will look like, updating as you type. Scrolling one side follows the other.",
+          fr: "Exactement l'apparence du document exporté, mis à jour pendant que vous écrivez. Le défilement d'un côté suit l'autre.",
+          pt: "Exatamente como ficará o documento exportado, atualizando enquanto escreve. Ao deslocar um lado, o outro acompanha.",
+        }),
+        placement: "left",
+        when: () =>
+          document.querySelector('[data-tour="report-preview-pane"]') !== null,
+      },
+      {
+        id: "embed-panel",
+        target: tourTarget("report-embed-panel"),
+        title: t3({
+          en: "Visualizations and images",
+          fr: "Visualisations et images",
+          pt: "Visualizações e imagens",
+        }),
+        body: t3({
+          en: "Insert a visualization or an image from this panel. Click one already in the report and this panel switches to editing it — caption, swapping it for another, or removing it.",
+          fr: "Insérez une visualisation ou une image depuis ce panneau. Cliquez sur un élément déjà dans le rapport et ce panneau passe à sa modification — légende, remplacement ou suppression.",
+          pt: "Insira uma visualização ou uma imagem a partir deste painel. Clique num elemento já presente no relatório e este painel passa a editá-lo — legenda, substituição ou remoção.",
+        }),
+        placement: "right",
+        when: () =>
+          document.querySelector('[data-tour="report-embed-panel"]') !== null,
+      },
+      {
+        id: "save-status",
+        target: tourTarget("report-save-status"),
+        title: t3({
+          en: "Saved as you write",
+          fr: "Enregistré au fil de l'écriture",
+          pt: "Guardado enquanto escreve",
+        }),
+        body: t3({
+          en: "There's no save button — this shows when your changes have been stored, and teammates editing the same report see them immediately.",
+          fr: "Il n'y a pas de bouton d'enregistrement — ceci indique quand vos modifications ont été enregistrées, et les collègues qui modifient le même rapport les voient immédiatement.",
+          pt: "Não há botão de guardar — isto mostra quando as suas alterações foram guardadas, e os colegas que editam o mesmo relatório vêem-nas imediatamente.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "download",
+        target: "#report-download-button",
+        title: t3({ en: "Export it", fr: "Exportez-le", pt: "Exporte-o" }),
+        body: t3({
+          en: "Download the report as a Word document or PDF, with the visualizations rendered in place.",
+          fr: "Téléchargez le rapport en document Word ou PDF, avec les visualisations rendues à leur place.",
+          pt: "Descarregue o relatório como documento Word ou PDF, com as visualizações apresentadas no devido lugar.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "ai",
+        target: "#report-ai-button",
+        title: t3({ en: "Write with the AI", fr: "Écrire avec l'IA", pt: "Escrever com a IA" }),
+        body: t3({
+          en: "Open the assistant to draft or rework sections. Select some text first and it works on just that part.",
+          fr: "Ouvrez l'assistant pour rédiger ou retravailler des sections. Sélectionnez d'abord du texte et il ne travaillera que sur cette partie.",
+          pt: "Abra o assistente para redigir ou reformular secções. Selecione primeiro algum texto e ele trabalha apenas nessa parte.",
+        }),
+        placement: "bottom",
+        when: () => document.querySelector("#report-ai-button") !== null,
+      },
+      {
+        id: "back",
+        target: "#report-back-button",
+        title: t3({
+          en: "Back to your reports",
+          fr: "Retour à vos rapports",
+          pt: "Voltar aos seus relatórios",
+        }),
+        body: t3({
+          en: "Everything is already saved, so you can leave whenever you like.",
+          fr: "Tout est déjà enregistré, vous pouvez donc partir quand vous voulez.",
+          pt: "Tudo já está guardado, pode sair quando quiser.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
+// Deferred until the report actually contains a visualization or image.
+export function buildReportEditorFiguresTour(): TourDefinition {
+  return {
+    id: "report-editor-figures",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "embed",
+        target: "[data-embed-id]",
+        title: t3({
+          en: "A visualization in the text",
+          fr: "Une visualisation dans le texte",
+          pt: "Uma visualização no texto",
+        }),
+        body: t3({
+          en: "Each visualization sits in the text as a block. Click it to select it, then use the left panel to edit its caption, swap it, or take it out — it always shows the project's latest data.",
+          fr: "Chaque visualisation se place dans le texte comme un bloc. Cliquez dessus pour la sélectionner, puis utilisez le panneau de gauche pour modifier sa légende, la remplacer ou la retirer — elle affiche toujours les données les plus récentes du projet.",
+          pt: "Cada visualização fica no texto como um bloco. Clique nela para a selecionar e utilize o painel da esquerda para editar a legenda, substituí-la ou removê-la — mostra sempre os dados mais recentes do projeto.",
+        }),
+        placement: "right",
+        waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}
+
+// Same shape as the deck history tour, but the report has a direct History
+// button instead of an overflow menu. Ends by closing itself.
+export function buildReportEditorHistoryTour(): TourDefinition {
+  return {
+    id: "report-editor-history",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "open-history",
+        target: "#report-history-button",
+        title: t3({
+          en: "Version history",
+          fr: "Historique des versions",
+          pt: "Histórico de versões",
+        }),
+        body: t3({
+          en: "Reports keep a history of earlier versions. Click here to open it — the tour continues inside.",
+          fr: "Les rapports conservent un historique des versions précédentes. Cliquez ici pour l'ouvrir — la visite continue à l'intérieur.",
+          pt: "Os relatórios mantêm um histórico de versões anteriores. Clique aqui para o abrir — a visita continua lá dentro.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
+      {
+        id: "version-list",
+        target: tourTarget("version-history-list"),
+        title: t3({
+          en: "Every earlier version",
+          fr: "Toutes les versions précédentes",
+          pt: "Todas as versões anteriores",
+        }),
+        body: t3({
+          en: "Versions are saved automatically as people edit, grouped by day with the time and who made them. Click one to see what changed.",
+          fr: "Les versions sont enregistrées automatiquement au fil des modifications, regroupées par jour avec l'heure et l'auteur. Cliquez sur l'une d'elles pour voir ce qui a changé.",
+          pt: "As versões são guardadas automaticamente à medida que as pessoas editam, agrupadas por dia com a hora e o autor. Clique numa para ver o que mudou.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "close-history",
+        target: "#version-history-back-button",
+        title: t3({
+          en: "Compare and restore",
+          fr: "Comparer et restaurer",
+          pt: "Comparar e restaurar",
+        }),
+        body: t3({
+          en: "A selected version shows its differences from the one before, and can be restored if you need to go back. Click here to return to the report.",
+          fr: "Une version sélectionnée montre ses différences avec la précédente et peut être restaurée si besoin. Cliquez ici pour revenir au rapport.",
+          pt: "Uma versão selecionada mostra as diferenças em relação à anterior e pode ser restaurada se precisar de voltar atrás. Clique aqui para regressar ao relatório.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
     ],
   };
 }

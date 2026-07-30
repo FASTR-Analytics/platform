@@ -1188,6 +1188,10 @@ export function ProjectReport(p: Props) {
             label: resultsValue.label,
             projectId,
             collabBinding,
+            // Without this the viz editor's cleanup falls back to
+            // "viewing_visualizations", leaving the AI (and anything else
+            // keyed on the current view) wrong while the user is still here.
+            returnToContext: projectAIViewController.current(),
             ...snapshotForVizEditor({
               projectState,
               resultsValue,
@@ -1307,6 +1311,7 @@ export function ProjectReport(p: Props) {
         class="min-h-0 flex-1 overflow-auto px-8 py-10"
         classList={{ "border-l": mode() === "split" }}
         data-report-cursor="preview-pane"
+        data-tour="report-preview-pane"
         ref={(el) => (previewEl = el)}
       >
         <div
@@ -1381,6 +1386,7 @@ export function ProjectReport(p: Props) {
             class="min-h-0 flex-1"
             classList={{ hidden: mode() === "view" }}
             data-report-cursor="code-pane"
+            data-tour="report-code-pane"
             style={
               mode() === "split"
                 ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
@@ -1430,16 +1436,22 @@ export function ProjectReport(p: Props) {
     <InnerEditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-cursor-zone="header">
+          <div
+            class="h-full w-full"
+            data-cursor-zone="header"
+            data-tour="report-toolbar"
+          >
             <HeadingBar
               heading={label()}
               leftChildren={
                 <Button
+                  id="report-back-button"
                   iconName="chevronLeft"
                   onClick={() => p.close(undefined)}
                 />
               }
               centerChildren={
+                <div data-tour="report-mode">
                 <ButtonGroup<ReportMode>
                   items={[
                     {
@@ -1458,6 +1470,7 @@ export function ProjectReport(p: Props) {
                   value={mode()}
                   onChange={(v) => v && setMode(v)}
                 />
+                </div>
               }
             >
               <div class="ui-gap-sm flex items-center">
@@ -1466,7 +1479,10 @@ export function ProjectReport(p: Props) {
                   peers={otherPeers().filter((pe) => pe.reportId === p.reportId)}
                   size="sm"
                 />
-                <div class="ui-text-caption mr-2 flex items-center gap-1.5">
+                <div
+                  class="ui-text-caption mr-2 flex items-center gap-1.5"
+                  data-tour="report-save-status"
+                >
                   <div
                     class="h-1.5 w-1.5 flex-none rounded-full"
                     classList={{
@@ -1476,14 +1492,25 @@ export function ProjectReport(p: Props) {
                   />
                   <span>{saveIndicator().text}</span>
                 </div>
-                <Button outline iconName="rotate" onClick={openVersionHistory}>
+                <Button
+                  id="report-history-button"
+                  outline
+                  iconName="rotate"
+                  onClick={openVersionHistory}
+                >
                   {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
                 </Button>
-                <Button outline iconName="download" onClick={download}>
+                <Button
+                  id="report-download-button"
+                  outline
+                  iconName="download"
+                  onClick={download}
+                >
                   {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
                 </Button>
                 <Show when={!showAi()}>
                   <Button
+                    id="report-ai-button"
                     outline
                     iconName="chevronLeft"
                     onClick={() => setShowAi(true)}
@@ -1507,6 +1534,7 @@ export function ProjectReport(p: Props) {
               <div
                 class="flex h-full flex-col border-r"
                 style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
+                data-tour="report-embed-panel"
               >
                 <ReportEmbedEditor
                   embed={selectedEmbedDetail()}

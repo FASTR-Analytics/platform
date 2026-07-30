@@ -131,7 +131,11 @@ export function VersionHistoryEditor(p: Props) {
         <HeadingBar
           heading={`${t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" })} — ${p.currentLabel}`}
           leftChildren={
-            <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
+            <Button
+              id="version-history-back-button"
+              iconName="chevronLeft"
+              onClick={() => p.close(undefined)}
+            />
           }
         >
           <div class="ui-gap-sm flex items-center">
@@ -142,7 +146,10 @@ export function VersionHistoryEditor(p: Props) {
     >
       <FrameLeft
         panelChildren={
-          <div class="flex h-full w-80 flex-col overflow-y-auto border-r">
+          <div
+            class="flex h-full w-80 flex-col overflow-y-auto border-r"
+            data-tour="version-history-list"
+          >
             <button
               type="button"
               class={`${rowClass(selectedVersionId() === undefined)} border-b`}

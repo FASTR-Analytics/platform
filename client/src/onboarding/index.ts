@@ -2,6 +2,7 @@ import { createTourManager } from "@njwse/roadtrip/solid";
 import type { TourManagerController } from "@njwse/roadtrip";
 import { clerkOnboardingStorage } from "./storage";
 import {
+  buildDeckEditorHistoryTour,
   buildDeckEditorIntroTour,
   buildDeckEditorPresentTour,
   buildDeckEditorSettingsTour,
@@ -16,6 +17,9 @@ import {
   buildModulesEnableTour,
   buildModulesIntroTour,
   buildModulesManageTour,
+  buildReportEditorFiguresTour,
+  buildReportEditorHistoryTour,
+  buildReportEditorIntroTour,
   buildReportsEditorTour,
   buildReportsManageTour,
   buildReportsOpenReportTour,
@@ -131,6 +135,13 @@ export function setupDeckTours(): TourManagerController {
         when: () => document.querySelector("#deck-present-button") !== null,
         tour: buildDeckEditorPresentTour(),
       },
+      // Both of these end inside a full-region overlay, so each closes itself
+      // before the next begins: history hands back via its back button, and
+      // settings comes last.
+      {
+        page: "deck-editor",
+        tour: buildDeckEditorHistoryTour(),
+      },
       {
         page: "deck-editor",
         tour: buildDeckEditorSettingsTour(),
@@ -169,11 +180,18 @@ export function setupReportTours(): TourManagerController {
         projectTab() === "reports" &&
         projectState.thisUserPermissions.can_view_reports &&
         !isEditingView(),
+      "report-editor": () => currentView().id === "editing_report",
     },
     watch: [
       () => projectState.reports.length,
       reportSelectedGroup,
       reportGroupingMode,
+      () => {
+        const view = currentView();
+        return view.id === "editing_report"
+          ? Object.keys(view.context.getFigures()).length
+          : 0;
+      },
     ],
     tours: [
       {
@@ -198,6 +216,21 @@ export function setupReportTours(): TourManagerController {
           hasReports() &&
           reportCardOnScreen(),
         tour: buildReportsManageTour(),
+      },
+      // Inside a report: the walkthrough, then the figure step once one is
+      // actually in the document, then history (which closes itself).
+      {
+        page: "report-editor",
+        tour: buildReportEditorIntroTour(),
+      },
+      {
+        page: "report-editor",
+        when: () => document.querySelector("[data-embed-id]") !== null,
+        tour: buildReportEditorFiguresTour(),
+      },
+      {
+        page: "report-editor",
+        tour: buildReportEditorHistoryTour(),
       },
     ],
   });
