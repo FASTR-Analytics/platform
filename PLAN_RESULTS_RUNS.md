@@ -89,28 +89,34 @@
 > entry says so in place. If you hit a real hole the design does not cover,
 > raise it with Tim rather than inventing a ruling.
 >
-> **One open question, deliberately deferred — it blocked no item and does
-> not block the rollout.** What permission governs a package's INTERNALS
-> (script, log, raw output files)? Item 3 made them `can_configure_data`; Tim then ruled the
+> **Exactly two things in this plan are not built, and neither blocks the
+> rollout.** (1) **One open question**: what permission governs a package's
+> INTERNALS (script, log, raw output files)? Item 3 made them
+> `can_configure_data`; Tim then ruled the
 > governing principle is "**if the answer lives inside the run package
 > directory, a project user attached to that package can see it**", which
 > points at any member of an attached project (§2.6's original wording).
 > Item 3b restructured the code so this is a one-expression change when
 > settled, and explicitly left it unsettled — **do not decide it yourself.**
-> Full context in item 3b's build record. **One ruled-but-unbuilt
-> deliverable** sits alongside it: hardlink dedup for run storage (Q-C,
-> amending §3.7's "copy, never link"). No Phase 3 item owned it, nothing
+> Full context in item 3b's build record; its one follow-on (the two copilot
+> tools that call those routes) is spelled out in the pre-deploy checklist.
+> (2) **One ruled-but-unbuilt deliverable**: hardlink dedup for run storage
+> (Q-C, amending §3.7's "copy, never link"). No Phase 3 item owned it, nothing
 > depends on it, and it may land before or after the deploy; it is now a named
 > open item in SYSTEM_08 with a pointer in `reuseRunModule`'s doc comment.
+> Everything else in this document is either built or a deliberate post-deploy
+> deferral (§4 Phase 3's last two bullets; §4 Phase 4's demolition).
 >
 > **The branch is ready for Tim's rollout** (see "Deploy phasing"): trial prod
 > instance → backfill → rig there → fleet, Ethiopia early. **Do not deploy —
-> that is Tim's call and Tim's runbook.** Three preconditions and two Tim-only
-> decisions sit in the pre-deploy checklist, and one of them is easy to get
-> wrong: the wb-fastr-modules repo is a shared single-HEAD dependency that
-> rides the deploy AND must ride any rollback ("The modules repo rides the
-> deploy", under Deploy phasing). Demolition (Phase 4) stays gated on
-> fleet verification and is NOT part of this build.
+> that is Tim's call and Tim's runbook.** What sits in the pre-deploy checklist
+> is TWO mechanical preconditions (push wb-fastr-modules; add the runs volume to
+> each instance's POSTGRES container) and ONE decision, the package-internals
+> permission above — nothing that needs building. The precondition that is easy
+> to get wrong: wb-fastr-modules is a shared single-HEAD dependency that rides
+> the deploy AND must ride any rollback ("The modules repo rides the deploy",
+> under Deploy phasing). Demolition (Phase 4) stays gated on fleet verification
+> and is NOT part of this build.
 
 ## Status: Phase 3 core DONE — items 0, 1, 2, 3, 3b, 4 and 5 all landed; the build is finished and the branch is Tim's to roll out
 
@@ -250,13 +256,19 @@ wb-fastr-modules (local HEAD `004fdc2` — contains both the pinned-asset and
 showNValues workstreams, 4 unpushed commits ride the deploy — **and read
 "The modules repo rides the deploy" below before pushing**); add
 the runs volume to the POSTGRES container in each instance's compose (item 7
-notes + Dockerfile comment). **Two decisions for Tim, neither blocking a
-build:** (1) whether to gate the copilot's `get_module_r_script` /
-`get_module_log` out of a non-admin's toolset — after item 3's permission move
-they answer a non-instance-admin project member with a typed permission
-failure, and the static "Results Package" view instructions still name both
-tools (item 3's build record, "AI tools — flagged, not ruled"); (2) the
-deferred package-internals permission (START HERE). Rollout: deploy to one
+notes + Dockerfile comment). **ONE decision for Tim, with a follow-on — and it
+blocks nothing** (verified 2026-07-30 that these are the same question, not two):
+**what permission governs a package's internals** (script, log, raw output
+files)? They are `can_configure_data` today (item 3), against Tim's later "if
+the answer lives inside the run package directory, an attached project's user
+can see it" principle; item 3b made it a one-expression change. The follow-on:
+the copilot's `get_module_r_script` / `get_module_log` call exactly those
+routes, so a non-instance-admin project member gets a typed permission failure
+from a tool the static "Results Package" view instructions still advertise.
+**Ruling the permission as "any member of an attached project" dissolves the
+follow-on entirely**; keeping `can_configure_data` makes it a real UX choice
+(hide the two tools for such users, or let them fail loudly). Neither state is
+silent or unsafe, which is why this ships either way. Rollout: deploy to one
 trial prod instance → serve
 starts, the backfill synthesizes runs (docker-exec runbook in item 7) → run the
 rig there (pg vs run read path — the pg plane is FROZEN at deploy, so only
@@ -462,7 +474,7 @@ repoints emit no SSE — after `backfill_runs.ts`, clients learn the new
 updating the served run is void since item 5 — the per-module rerun surface no
 longer exists; the wizard and `backfill_runs.ts` are the only generation paths.)
 
-### Next milestone: the wizard deploy (everything below ships in THE deploy)
+### The wizard deploy — BUILD RECORD (items 1–8, all shipped by 2026-07-14)
 
 Rulings landed 2026-07-12 (see §10): generation is **instance-admin only**; the
 choose-data step reuses the **per-project dataset windowing UI verbatim**
@@ -2252,11 +2264,10 @@ instance-level wizard. Projects become pure authoring spaces (S9–S13).
 
 ## 1. Why this is smaller than it looks — verified groundwork
 
-1. **Results are already files.** R writes one CSV per results object into
-   `sandbox/{projectId}/{moduleId}/`; Postgres ingest is a `COPY FROM` of that
-   CSV
-   ([run_module_iterator.ts:383-473](server/worker_routines/run_module/run_module_iterator.ts#L383-L473)).
-   The CSVs persist after ingest.
+1. **Results are already files.** R wrote one CSV per results object into
+   `sandbox/{projectId}/{moduleId}/`, and Postgres ingest was a `COPY FROM` of
+   that CSV (in the since-deleted `run_module_iterator.ts`). The CSVs persisted
+   after ingest.
 2. **Inter-module data flow is already file-based.** Dependent modules read
    `../{upstreamModuleId}/{file}.csv` from the sibling sandbox dir, never `ro_*`
    ([get_script_with_parameters.ts:59-71](server/server_only_funcs/get_script_with_parameters.ts#L59-L71)).
@@ -2355,11 +2366,10 @@ query store):
                              exact siblings like every parquet in this dir
                              tree — DECIDED 2026-07-10: run input data is
                              queryable through the same DuckDB plane, and a
-                             project-UI surface for querying it comes in
-                             Phase 3. Generated scripts read
-                             ../../inputs/datasets/ (item 4, DONE:
-                             app-side injection, per-caller — the legacy
-                             sandbox path keeps ../datasets/ until item 5).
+                             project-UI surface for querying it is deferred
+                             post-deploy. Generated scripts read
+                             ../../inputs/datasets/ — app-side injection,
+                             per-caller, and now the only path there is.
     facilities_hmis.parquet, facilities_hfa.parquet   ← structure subset
     indicators.json, calculated_indicators.json,      ← dictionary/snapshot
     hfa_*.json, iceh_indicators.json                    content (today's 12
@@ -2468,8 +2478,9 @@ then re-hashed — byte-identical, and no file mtime moved.
 
 ### 2.3 Finalize — where the four ingest transforms move
 
-Ingest currently does exactly four semantic normalizations
-([run_module_iterator.ts:383-473](server/worker_routines/run_module/run_module_iterator.ts#L383-L473)):
+The Postgres ingest did exactly four semantic normalizations (in the
+since-deleted `run_module_iterator.ts`, and then in the equally deleted
+`legacy_store_results_object.ts`):
 `NA`→NULL; table = CSV headers ∩ declared columns (undeclared header = error);
 drop redundant period columns and enabled facility columns; normalize 6-digit
 `quarter_id` → 5-digit. The **finalize step** reproduces all four while writing
@@ -2587,9 +2598,9 @@ tables go; its role sharpens into exactly one half of the boundary:
   ([t1_store.ts:200-216](client/src/state/project/t1_store.ts#L200-L216)) are
   replaced by the project's `attachedRunId` from the T1 store. The `"unknown"`
   sentinel ("module hasn't run") becomes a typed "no run attached" state.
-- **Deleted outright**: the dependent-PO `last_updated` sweep on run end
-  ([set_module_clean.ts:132-161](server/task_management/set_module_clean.ts#L132-L161))
-  — it exists only because `po_detail` payloads embed live table probes;
+- **Deleted outright**: the dependent-PO `last_updated` sweep on run end (in
+  the since-deleted `set_module_clean.ts`)
+  — it existed only because `po_detail` payloads embedded live table probes;
   `getDatasetsVersion` per-request reads; the write-only
   `global_last_updated('any_module_last_run')` row (zero readers today —
   deletable independently).
@@ -2935,15 +2946,18 @@ package builder and now becomes the deploy's backfill synthesizer.
 **RE-CUT 2026-07-29 (Tim — see the Status "Phase 3 re-cut" section): the first
 two bullets (the user-model core) ship BEFORE the deploy; the queryable-inputs
 UI and scheduled generation are deferred post-deploy; demolition entry (dual-
-write/pg-read-path deletion) stays gated on fleet verification.**
+write/pg-read-path deletion) stays gated on fleet verification.** The first two
+bullets are **BUILT** (Phase 3 core items 0–5, all closed 2026-07-30 — their
+build records are in the work-item list); only the two deferred bullets below
+remain, and neither is pre-deploy work.
 
-- Move the wizard entry to the instance shell; `runs` catalogue UI (list,
+- ~~Move the wizard entry to the instance shell; `runs` catalogue UI (list,
   disk usage, retire); project settings gets attach/swap with the §2.6
-  compatibility report shown before any repoint. (Removed from this bullet by
-  the 2026-07-29 luxury deferrals: per-run rename, detach control, and "newer
-  run available" surfacing.)
-- Permissions: generation instance-admin; attach = project editor. Multi-
-  project attachment lands here (cache sharing is already run-keyed).
+  compatibility report shown before any repoint.~~ BUILT. (Removed from this
+  bullet by the 2026-07-29 luxury deferrals: per-run rename, detach control,
+  and "newer run available" surfacing.)
+- ~~Permissions: generation instance-admin; attach = project editor. Multi-
+  project attachment lands here (cache sharing is already run-keyed).~~ BUILT.
 - **Queryable run inputs UI**: a project surface for querying the attached run's
   `inputs/datasets/<type>.parquet` (decided 2026-07-10; the parquet itself is
   written from the wizard deploy). Frozen, windowed provenance — "what raw data
@@ -2961,24 +2975,18 @@ write/pg-read-path deletion) stays gated on fleet verification.**
   stamp plumbing, `datasetsVersion`, staleness checkers, ~~the rollback flag~~
   (never built — model point 6 ruled no runtime cutover flag) and
   Postgres read path.
-- **The project-catalog WRITE path is already inert — delete it here** (noted
-  2026-07-30, verified on the branch; left alone deliberately because it lives
-  inside the frozen legacy plane and the rig's oracle is that plane's DATA).
-  Ruling 5 froze the pg READ wrappers as the oracle; these are writers, so
-  nothing preserves them:
-  - `installModule` (`db/project/modules.ts`) — the ONLY writer of project-DB
-    `modules` / `results_objects` / `metrics`, now with **zero callers** (item
-    0 removed the generation dual-write, item 1 removed `createProject`'s
-    call). Its helpers go with it.
-  - `uninstallModule` — one caller left, `cleanupOrphanModules` in
-    `db_startup.ts`, itself marked "TEMPORARY: remove after all ~5 production
-    instances updated / Added 2025-05-20 for hfa001 → m010". Both die with the
-    tables they read and write.
-  - After this, module definitions live in exactly one place: the run
-    manifest's `modules[]` (definition verbatim + script + configSelections +
-    gitRef). That relocation — mutable per-project rows → immutable per-run
-    artifacts — is what makes §2.6's "module evolution is per-run, never
-    silent" true, so it is the end state, not a transitional step.
+- **What is left of the project-catalog write path.** `installModule` — the
+  only writer of project-DB `modules` / `results_objects` / `metrics` — was
+  deleted by item 5, which found it callerless AND destructive (it DROPs the
+  `ro_*` tables the rig reads). What remains for Phase 4 is `uninstallModule`,
+  whose single caller is `cleanupOrphanModules` in `db_startup.ts`, itself
+  marked "TEMPORARY: remove after all ~5 production instances updated / Added
+  2025-05-20 for hfa001 → m010". Both die with the tables they read and write.
+  After that, module definitions live in exactly one place: the run manifest's
+  `modules[]` (definition verbatim + script + configSelections + gitRef). That
+  relocation — mutable per-project rows → immutable per-run artifacts — is what
+  makes §2.6's "module evolution is per-run, never silent" true, so it is the
+  end state, not a transitional step.
 - Figure provenance re-keys to runId (the deferred FigureBundle provenance
   phase, now in SYSTEM_10 Open items, simplifies: stale badge = capturedRunId ≠
   attachedRunId; "Update data" = re-query current run). This is a **stored-JSON
@@ -3025,35 +3033,33 @@ write/pg-read-path deletion) stays gated on fleet verification.**
 
 ---
 
-## 6. Encapsulation gaps to close (today's run inputs that leak)
+## 6. Encapsulation gaps — ALL CLOSED (kept as the record of what leaked)
 
-These break "fully encapsulated" unless fixed during Phase 2 (lockstep with
-wb-fastr-modules where noted). Items 1 and 5 are additionally **hard
-prerequisites for memoized generation** (§3.7): a network fetch inside R is an
-input the node key cannot hash, and an undeclared output is a file copy-on-reuse
-doesn't know to copy.
+These five were the "today's run inputs that leak" list; all were fixed by the
+wizard deploy's item 1 (2026-07-12), and two of them — 1 and 5 — were hard
+prerequisites for memoized generation (§3.7), since a network fetch inside R is
+an input the node key cannot hash and an undeclared output is a file
+copy-on-reuse would not copy. The `run_module/` files the original wording
+pointed at no longer exist; the whole legacy execution machine was deleted with
+the wizard deploy.
 
-1. **m004/m005 fetch GitHub raw CSVs from inside R at run time**
-   (`survey_data_unified.csv`, `population_estimates_only.csv` — hardcoded URLs
-   in script.R; the same files are declared in `assetsToImport` but the local
-   copies are unread, and 6 declared assets are missing on the example instance
-   with the copy failure silently ignored,
-   [run_module_iterator.ts:180](server/worker_routines/run_module/run_module_iterator.ts#L180)).
-   Fix: scripts read the pinned run-input copies; asset-copy failures become
-   hard errors; network access inside module containers can then be dropped.
-   **Modules-repo change** (three-repo lockstep rule). Until fixed, m004/m005
-   are excluded from reuse (always re-run).
-2. **Assets are unversioned and mutable in place** (`population.csv` etc.). Fix:
-   copy into `inputs/assets/` at generation + record name+hash in the manifest.
-3. **Instance config read at run time** (countryIso3 + facility columns,
-   [worker.ts:59-64](server/worker_routines/run_module/worker.ts#L59-L64)) —
-   becomes a wizard-time capture into the manifest, read from there.
-4. **R image tag not recorded per run** — manifest field.
-5. **m001 writes an undeclared output** (`M1_output_consistency_facility.csv`,
-   8.4 MB) — declare it or stop writing it (modules-repo hygiene; matters
-   because finalize should account for every file in the run, and copy-on-reuse
-   copies only declared outputs — an undeclared file would silently vanish from
-   reused nodes).
+1. **m004/m005 fetched GitHub raw CSVs from inside R at run time**
+   (`survey_data_unified.csv`, `population_estimates_only.csv`). CLOSED by
+   def-declared pinned repo assets: the modules-repo build stamps a sha256, the
+   server resolves it into a content-addressed `repo_assets/{sha256}` cache, and
+   asset-copy failure is now a hard module-run error. Module containers need no
+   network. Both modules are back in reuse.
+2. **Assets were unversioned and mutable in place.** CLOSED — consumed instance
+   assets are copied into the run's `inputs/assets/` with name+hash in the
+   manifest.
+3. **Instance config was read at run time** (countryIso3 + facility columns).
+   CLOSED — captured into the manifest at generation and read from there.
+4. **R image tag was not recorded per run.** CLOSED — a manifest field
+   (`rImageTag`).
+5. **m001 wrote an undeclared output** (`M1_output_consistency_facility.csv`).
+   CLOSED in the modules repo — the writes were removed outright, since nothing
+   anywhere consumed the file. That is why finalize can account for every file
+   in a run.
 
 ---
 
@@ -3085,7 +3091,7 @@ doesn't know to copy.
 
 | Item                                      | Disposition here                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SNAP-1 / N1 facility-columns config       | **Dissolved by construction**: captured in the manifest at generation, read from the run, covered by the runId cache key. The live query-time read sites that re-point to the manifest at the read flip (re-verified 2026-07-07; the old plan's "4 sites" list carried a dead one): get_query_context.ts:34, get_results_value_info.ts:32, db/project/presentation_objects.ts:187. db/project/modules.ts:969 (`getAllMetrics`) and modules.ts:993 (`getMetricsWithStatus`) are never re-pointed — the module-card surface they serve dies with the wizard in the same deploy. modules.ts:724 is the dead `getMetricsListForAI` — deleted, not re-pointed (§7). |
+| SNAP-1 / N1 facility-columns config       | **Dissolved by construction, and DONE**: `manifest.facilityColumnsConfig` captured at generation, read from the run, and covered by the runId cache key. The three live query-time read sites were re-pointed at the read flip (get_query_context, get_results_value_info, db/project/presentation_objects); `getAllMetrics` / `getMetricsWithStatus` / the dead `getMetricsListForAI` were deleted, not re-pointed, along with the module-card surface they all served.                                                                                                                                                                                       |
 | Q4b capture-shape fork                    | **Resolved**: a run IS shape (a) — the whole input set captured atomically in one generation act.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | SNAP-2 geojson                            | Run-inputs home (`inputs/geojson/`) replaces PLAN_GEOJSON_SNAPSHOT's WS-SNAPSHOT project-DB table; that plan's WS-DEDUP / WS-COVERAGE / WS-KEY workstreams, settled decisions (one-country invariant, frozen-public-geometry-is-intentional, one-shared-copy-per-level) and DHIS2 API facts carry unchanged. Update that plan's storage-home section when the wizard deploy lands.                                                                                                                                                                                                                                                                             |
 | SNAP-3 admin_area_labels                  | Stays resolved-out-of-scope (verified display-only). Its module-load read happens at wizard time, where a live instance read is architecturally correct.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -3093,7 +3099,7 @@ doesn't know to copy.
 | SNAP-5 image binaries                     | **Not run content** (authored images belong to the project plane) — but explicitly the one remaining live-read hole in the layer rule: slide/deck/report images are fetched by name from the shared instance assets dir at render/export, and FigureBundle stores only the name. A project moved off-instance renders broken images. Parked with a name: needs a project-plane asset capture before the transportability end-state; the vision states this exception honestly.                                                                                                                                                                                 |
 | SNAP-6 ai_context                         | Artifact-layer question; unchanged, parked (only matters if AI artifacts become stored).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | FigureBundle followups Phase 4 provenance | Re-keys to runId (§4 Phase 4); the untraceable import timestamps become manifest metadata.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| PLAN_TODO_TRACKER #6 / reorg line         | This plan is that reorg; scheduled imports land Phase 3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| PLAN_TODO_TRACKER #6 / reorg line         | This plan is that reorg; scheduled imports are deferred post-deploy (§10 Q4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## 9. Hard rules (carried; do not re-litigate)
 
@@ -3118,7 +3124,7 @@ doesn't know to copy.
   in SYSTEM globs (lint gate blocks deploy otherwise).
 - Verify by executing; the golden-diff rig gates every cutover.
 
-## 10. Open questions for Tim
+## 10. Questions that were open for Tim — ALL RESOLVED
 
 1. **Retention/GC** — **RESOLVED 2026-07-29 (Tim, ruling 3)**: retire IS a
    guarded hard delete (row + dir), refused while referenced or generating;
@@ -3156,80 +3162,18 @@ doesn't know to copy.
    per-country presets meaningless); edited via "save as instance defaults" on
    the wizard confirm step. Built in Phase 3 core item 1.
 
-## 11. Execution strategy — how to staff the agentic work
+## 11. Before Phase 4, run an adversarial panel
 
-How to run this plan with coding agents (model tier, effort, orchestration),
-calibrated to its own phases and gates. Analyzed 2026-07-07; the cost ratios are
-for tier selection, not budgeting.
+The rest of this section — a model/effort tier map for staffing the build with
+coding agents — is deleted as spent: the build it planned is finished
+(2026-07-30), and its cost ratios were pinned to 2026 pricing. One judgment in
+it outlives the build and is the reason this heading survives:
 
-**The routing key is error _catchability_, not task difficulty.** Phase 0
-deliberately built machine gates (the golden-diff parity rig, the pre-deploy
-dry-run, typecheck). Work a gate backstops is _cheap to get wrong even when the
-code is hard_ — the gate catches it. Work that is **not** machine-checked (cache
-byte-identity, migration data-loss, Zod strip-mode drops, dual-write races) is
-_expensive to get wrong even when the code is trivial_ — it ships green and
-surfaces weeks later as a wrong number in a country report. **Buy intelligence
-against un-gated correctness; buy cheap where a gate verifies.**
-
-### Tier map
-
-| Work                                                                                                                                              | Model · effort                                                                    | Solo / fleet                                                                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Interactive driving (you reviewing each step — you are the gate)                                                                                  | **Opus 4.8 · xhigh** (the coding/agentic sweet spot; `max` isn't offered on Opus) | Solo                                                                                    |
-| Gated mechanical bulk — scaffold a dir, re-point read sites, rig plumbing, doc sweeps, migration boilerplate (typecheck + parity rig catch slips) | **Sonnet 5**                                                                      | Solo, or **fleet** when it fans out (N read sites, doc sweep, module hermeticity fixes) |
-| Un-gated correctness **design** — cache re-key keying scheme, migration/backfill shape, dual-write window, wide-constraint per-phase architecture | **Fable 5 · max**, one-shot                                                       | Solo design → hand impl down                                                            |
-| Pre-cutover adversarial review (the deploy's backfill/read-flip/wizard; Phase 4 demolition)                                                       | **Fable 5 · max**                                                                 | **Fleet** (panel)                                                                       |
-| Per-instance golden-diff verification                                                                                                             | Opus/Sonnet                                                                       | **Fleet**                                                                               |
-
-Cost picture (output tokens dominate; priced on the output multiplier — Fable 50
-/ Opus 25 / Sonnet 15): **Fable-everything ≈ 2–2.5× the mixed fleet** (plus an
-always-on-thinking token tax — the loser); **Sonnet-everything ≈ 0.6× but a
-false economy** — it puts the irreversible ~40% (cache re-key, migration,
-cutover) on a near-Opus model with no expensive verifier, exactly where a silent
-parity break ships. Inside the mixed fleet, **Fable is ~46% of cost from ~22% of
-tokens** — so the single highest-leverage lever is: **do not use Fable as the
-default verifier; reserve it for the 2–3 irreversible go/no-go gates**
-(Opus-xhigh finder fan-out + one Fable adjudicator per gate). That recovers ~a
-quarter of the cost for negligible quality loss.
-
-**Two traps this corrects:** the `getIndicatorMetadata` SQL→JSON rewrite _feels_
-like a Fable job (gnarly SQL) but is the **most rig-covered work in the plan** —
-spend **down** (Sonnet + rig), Opus xhigh only for the input tail the rig can't
-enumerate (nulls, empty runs, disaggregation corners). Conversely, the
-three-persistence-layer / Zod-strip-mode edits _feel_ mechanical but a strip
-drop is silent data loss — route the edits through Sonnet but keep their
-**design and review on Opus xhigh**, never raw Sonnet.
-
-### Per-phase sequencing
-
-- **Phase kickoff** — one Fable · max design pass (solo, or a small judge-panel
-  of approaches) to hold the interacting constraints at once (cache layers ×
-  dual-write window × migration ordering × cross-repo lockstep). A missed
-  interaction here compounds for months. Reserve Fable design for the cutover
-  deploy and its content-addressed memoization scheme; Phases 3–4 design fine on
-  Opus xhigh.
-- **Implementation — solo, not Ultracode.** Linear impl is a dependency chain
-  (backfill → read-flip → dual-write → demolition); it doesn't fan out, so
-  orchestration only adds coordination tokens and each subagent has _less_
-  context than a driver living in the change. Drive Opus xhigh interactively;
-  drop to Sonnet for the gated mechanical stretches.
-- **Fan-out where it is genuinely parallel** — Ultracode/workflows for (a) the
-  parallel mechanical edits (re-point N sites, doc sweep, module hermeticity
-  fixes) as a Sonnet fleet, each gate-verified; (b) per-instance golden-diff
-  verification. Never the reasoning dependency-chain.
-- **Before each irreversible cutover** — a Fable · max adversarial _panel_. The
-  parity rig checks query-equivalence; it does **not** cover migration data-loss
-  or dual-write races — that un-gated correctness is what the panel exists for,
-  and it is the cheapest insurance in the project relative to blast radius.
-
-### Overspend guardrails
-
-- `max` effort only on the handful of Fable one-shots (design + pre-cutover
-  panels) — never standing; Fable over-deliberates on routine work.
-- Opus **fast mode** scoped to interactive debugging, not batch generation (its
-  premium otherwise erases the Opus-vs-Fable saving).
-- **Haiku ≈ 0** here — almost nothing is Haiku-safe in a byte-identity-cache
-  codebase; don't model savings from it.
-- Sonnet's intro output price ($10/M) **expires 2026-08-31** — only ~7 weeks of
-  a 4–6 month project; front-load Sonnet-heavy mechanical work (doc sweeps, rig
-  plumbing) if timing is flexible, but don't bank the budget on it.
+**Before the irreversible demolition, run an adversarial review panel.** The
+parity rig proves query equivalence; it does NOT cover migration data-loss,
+dropped columns, or a stored-JSON transform that silently strips a field — and
+Phase 4 is exactly that kind of work (dropping the `ro_*` plane, re-keying
+~17k FigureBundles' provenance). That un-gated correctness is what a panel
+exists for, and relative to the blast radius it is the cheapest insurance in
+the project. The same logic applied at every earlier cutover in this plan and
+caught real defects each time.
