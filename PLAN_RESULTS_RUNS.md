@@ -2304,6 +2304,37 @@ construction, not convention. A post-finalize dedup pass (§3.7, ruled
 another run and `chmod 0444` it: the run stays a directory of ordinary files at
 ordinary paths, and only inodes are shared.
 
+**Immutability — audited 2026-07-30, statically and empirically. This is the
+invariant the whole design rests on; anything that would break it is a defect,
+not a trade-off.** Every caching layer assumes it: `manifest_cache.ts` parses a
+manifest at most once per runId with NO invalidation path, `virtual_defaults`'
+`DERIVED_CACHE` is keyed by runId alone, the Valkey caches fold runId into
+their hashes, and §3.7's hardlink dedup is only safe because run files are
+write-once.
+
+Enumerated: every filesystem write in the server that targets the runs volume
+resolves to `runTmpDirPath(runId)` (i.e. `.tmp-{runId}`) — prepare, execute,
+reuse, asset import, parquet build, finalize. A published run dir is only ever
+reached by three things, none of which mutate content: the two
+`Deno.rename(tmpDir → runDirPath(runId))` publishes (`pipeline.ts`,
+`synthesize_run.ts` — both onto a FRESHLY minted `crypto.randomUUID()`, so a
+rename can never land on an existing dir), reads (`run_read.ts`,
+`manifest_cache.ts`, the viewer routes, the static mount), and
+`deleteRun`'s guarded whole-directory `Deno.remove`. Reuse is
+`Deno.copyFile` OUT of a published run into the new tmp dir. The R container
+mounts only `.tmp-{runId}`, never a published run. `sweepAbandonedTmpRunDirs`
+removes only `.tmp-`-prefixed entries.
+
+Two honest qualifications: (1) **immutable ≠ permanent** — a run dir can be
+deleted in one guarded act, just never edited; (2) the runs VOLUME is not
+read-only even though each run dir is — `.duckdb-spill/` is a dot-prefixed
+sibling at the volume root (the executor's `temp_directory`, wiped and
+recreated at boot), and the volume root itself gets an `mkdir` at startup.
+
+Empirical proof, dev instance: SHA-256 over all 372 files across all 14 run
+dirs, then the parity rig's 719 checks driving the full DuckDB read plane,
+then re-hashed — byte-identical, and no file mtime moved.
+
 ### 2.2 The manifest — precomputed, not probed
 
 `manifest.json` (Zod-validated, schema-versioned) carries:
@@ -2837,6 +2868,24 @@ write/pg-read-path deletion) stays gated on fleet verification.**
   stamp plumbing, `datasetsVersion`, staleness checkers, ~~the rollback flag~~
   (never built — model point 6 ruled no runtime cutover flag) and
   Postgres read path.
+- **The project-catalog WRITE path is already inert — delete it here** (noted
+  2026-07-30, verified on the branch; left alone deliberately because it lives
+  inside the frozen legacy plane and the rig's oracle is that plane's DATA).
+  Ruling 5 froze the pg READ wrappers as the oracle; these are writers, so
+  nothing preserves them:
+  - `installModule` (`db/project/modules.ts`) — the ONLY writer of project-DB
+    `modules` / `results_objects` / `metrics`, now with **zero callers** (item
+    0 removed the generation dual-write, item 1 removed `createProject`'s
+    call). Its helpers go with it.
+  - `uninstallModule` — one caller left, `cleanupOrphanModules` in
+    `db_startup.ts`, itself marked "TEMPORARY: remove after all ~5 production
+    instances updated / Added 2025-05-20 for hfa001 → m010". Both die with the
+    tables they read and write.
+  - After this, module definitions live in exactly one place: the run
+    manifest's `modules[]` (definition verbatim + script + configSelections +
+    gitRef). That relocation — mutable per-project rows → immutable per-run
+    artifacts — is what makes §2.6's "module evolution is per-run, never
+    silent" true, so it is the end state, not a transitional step.
 - Figure provenance re-keys to runId (the deferred FigureBundle provenance
   phase, now in SYSTEM_10 Open items, simplifies: stale badge = capturedRunId ≠
   attachedRunId; "Update data" = re-query current run). This is a **stored-JSON
