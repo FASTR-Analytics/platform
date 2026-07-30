@@ -154,9 +154,12 @@ export function DashboardSettings(p: Props) {
         </HeadingBar>
       }
     >
-      <div class="ui-pad ui-gap grid overflow-auto lg:grid-cols-2 lg:items-start">
+      <div
+        class="ui-pad ui-gap grid overflow-auto lg:grid-cols-2 lg:items-start"
+        data-tour="dashboard-settings-body"
+      >
         <SettingsSection header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
-          <div class="ui-spy">
+          <div class="ui-spy" data-tour="dashboard-settings-general">
             <Input
               label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
               value={title()}

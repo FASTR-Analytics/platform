@@ -565,6 +565,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       {
         vizId: p.mode === "edit" ? p.poDetail.id : null,
         vizLabel: p.poDetail.label,
+        mode: p.mode,
       },
       {
         resultsValue: p.poDetail.resultsValue,
@@ -1096,6 +1097,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           <div
             class="ui-pad ui-gap flex items-center border-b"
             data-cursor-zone="header"
+            data-tour="viz-editor-toolbar"
           >
             <div class="ui-gap-sm flex items-center">
               <Switch>
@@ -1158,6 +1160,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   <Switch>
                     <Match when={p.mode === "create"}>
                       <Button
+                        id="viz-save-new-button"
                         intent="success"
                         onClick={saveAsNewVisualization}
                         iconName="save"
@@ -1172,6 +1175,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                     <Match when={true}>
                       <>
                         <Button
+                          id="viz-save-close-button"
                           intent="success"
                           onClick={saveAndClose.click}
                           state={saveAndClose.state()}
@@ -1462,6 +1466,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                               <div
                                 class="ui-pad h-full w-full overflow-auto"
                                 data-cursor-zone="preview-area"
+                                data-tour="viz-preview"
                               >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {

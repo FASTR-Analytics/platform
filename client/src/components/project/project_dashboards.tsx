@@ -146,20 +146,30 @@ export function ProjectDashboards(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="dashboards-header"
+        >
         <HeadingBar
           heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           centerChildren={
-            <SortControl
-              value={dashboardSortMode()}
-              onChange={setDashboardSortMode}
-            />
+            <div data-tour="dashboards-sort">
+              <SortControl
+                value={dashboardSortMode()}
+                onChange={setDashboardSortMode}
+              />
+            </div>
           }
         >
           <Show when={canConfigure()}>
-            <Button onClick={attemptCreate} iconName="plus">
+            <Button
+              id="dashboards-create-button"
+              onClick={attemptCreate}
+              iconName="plus"
+            >
               {t3({ en: "Create dashboard", fr: "Créer un tableau de bord", pt: "Criar painel" })}
             </Button>
           </Show>
@@ -170,6 +180,7 @@ export function ProjectDashboards(p: Props) {
       <div
         class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
         data-page-cursor-surface
+        data-tour="dashboards-grid"
         onClick={() => selection.clear()}
       >
         <For
@@ -195,6 +206,7 @@ export function ProjectDashboards(p: Props) {
             return (
               <div
                 class="group relative cursor-pointer rounded border p-3"
+                data-tour="dashboards-card"
                 classList={{
                   "hover:border-primary": !isSelected(),
                   "border-primary": isSelected(),

@@ -28,7 +28,8 @@ import {
 } from "panther";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
-import { setShowAi, showAi } from "~/state/t4_ui";
+import { setDashboardEditorOpen, setShowAi, showAi } from "~/state/t4_ui";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
 import {
   getPODetailFromCacheorFetch,
@@ -114,6 +115,11 @@ type ReshapeRun = (
 ) => Promise<{ success: true } | { success: false; err: string }>;
 
 export function DashboardEditor(p: Props) {
+  // Lets code outside this overlay (onboarding tours) know it is open; this
+  // editor sets no AI view, unlike the deck/report/viz editors.
+  setDashboardEditorOpen(true);
+  onCleanup(() => setDashboardEditorOpen(false));
+
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   const {
@@ -722,6 +728,9 @@ export function DashboardEditor(p: Props) {
         mode: "ephemeral" as const,
         label: resultsValue.label,
         projectId: p.projectId,
+        // Without this the viz editor's cleanup resets the AI view to
+        // "viewing_visualizations" while the user is still in this dashboard.
+        returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState,
           resultsValue,
@@ -912,6 +921,9 @@ export function DashboardEditor(p: Props) {
         mode: "ephemeral" as const,
         label: resultsValue.label,
         projectId: p.projectId,
+        // Without this the viz editor's cleanup resets the AI view to
+        // "viewing_visualizations" while the user is still in this dashboard.
+        returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState,
           resultsValue,
@@ -979,8 +991,12 @@ export function DashboardEditor(p: Props) {
                     />
                   }
                 >
-                  <div class="ui-gap-sm flex items-center">
+                  <div
+                    class="ui-gap-sm flex items-center"
+                    data-tour="dashboard-toolbar"
+                  >
                     <Button
+                      id="dashboard-preview-button"
                       onClick={() =>
                         window.open(publicUrl(dashboard.slug), "_blank")
                       }
@@ -989,21 +1005,28 @@ export function DashboardEditor(p: Props) {
                     >
                       {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
                     </Button>
-                    <CopyToClipboardButton
-                      text={publicUrl(dashboard.slug)}
-                      outline
-                    >
-                      {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
-                    </CopyToClipboardButton>
+                    <div data-tour="dashboard-copy-link">
+                      <CopyToClipboardButton
+                        text={publicUrl(dashboard.slug)}
+                        outline
+                      >
+                        {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
+                      </CopyToClipboardButton>
+                    </div>
                     <Show when={canConfigure()}>
                       <Button
+                        id="dashboard-settings-button"
                         onClick={() => openSettings(dashboard)}
                         iconName="settings"
                         outline
                       >
                         {t3({ en: "Settings", fr: "Paramètres", pt: "Definições" })}
                       </Button>
-                      <Button onClick={attemptAddItem} iconName="plus">
+                      <Button
+                        id="dashboard-add-item-button"
+                        onClick={attemptAddItem}
+                        iconName="plus"
+                      >
                         {t3({ en: "Add item", fr: "Ajouter un élément", pt: "Adicionar elemento" })}
                       </Button>
                     </Show>
@@ -1026,7 +1049,10 @@ export function DashboardEditor(p: Props) {
                 maxWidth={460}
                 hoverOffset="offset-for-border-1-on-left"
                 panelChildren={
-                  <div class="flex h-full w-full flex-col border-r">
+                  <div
+                    class="flex h-full w-full flex-col border-r"
+                    data-tour="dashboard-panel"
+                  >
                     <Show
                       when={selectedGroup()}
                       fallback={
@@ -1060,7 +1086,7 @@ export function DashboardEditor(p: Props) {
                   </div>
                 }
               >
-                <div class="bg-base-200 h-full w-full">
+                <div class="bg-base-200 h-full w-full" data-tour="dashboard-grid">
                   <DashboardItemGrid
                     entries={gridEntries()}
                     selection={selection}

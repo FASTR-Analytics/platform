@@ -1475,3 +1475,429 @@ export function buildSettingsIntroTour(): TourDefinition {
     ],
   };
 }
+
+// ------------------------------------------------------------ Dashboards tab
+
+export function buildDashboardsIntroTour(): TourDefinition {
+  return {
+    id: "dashboards-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("dashboards-header"),
+        title: t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" }),
+        body: t3({
+          en: "Dashboards are web pages that show a set of your visualizations at a live link — useful for sharing current numbers with people who don't work in the platform.",
+          fr: "Les tableaux de bord sont des pages web qui présentent une sélection de vos visualisations via un lien permanent — pratique pour partager des chiffres à jour avec des personnes qui n'utilisent pas la plateforme.",
+          pt: "Os painéis são páginas web que mostram um conjunto das suas visualizações num link permanente — útil para partilhar números atualizados com pessoas que não trabalham na plataforma.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "sort",
+        target: tourTarget("dashboards-sort"),
+        title: t3({ en: "Search and sort", fr: "Rechercher et trier", pt: "Pesquisar e ordenar" }),
+        body: t3({
+          en: "Sort by name or by when they were last updated, and search by name once you have a few.",
+          fr: "Triez par nom ou par date de dernière mise à jour, et recherchez par nom lorsque vous en avez plusieurs.",
+          pt: "Ordene por nome ou pela data da última atualização e pesquise por nome quando tiver vários.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "grid",
+        target: tourTarget("dashboards-grid"),
+        title: t3({
+          en: "Your dashboards",
+          fr: "Vos tableaux de bord",
+          pt: "Os seus painéis",
+        }),
+        body: t3({
+          en: "Each card shows its web address, how many items it holds, and whether it's public or needs a login.",
+          fr: "Chaque carte indique son adresse web, le nombre d'éléments qu'elle contient, et si elle est publique ou nécessite une connexion.",
+          pt: "Cada cartão mostra o seu endereço web, quantos elementos contém, e se é público ou exige autenticação.",
+        }),
+        placement: "top",
+      },
+    ],
+  };
+}
+
+// Deferred until a dashboard card is on screen.
+export function buildDashboardsCardsTour(): TourDefinition {
+  return {
+    id: "dashboards-cards",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "card",
+        target: tourTarget("dashboards-card"),
+        title: t3({
+          en: "Open a dashboard",
+          fr: "Ouvrir un tableau de bord",
+          pt: "Abrir um painel",
+        }),
+        body: t3({
+          en: "Click one to choose which visualizations it shows and whether the link is public. Public dashboards can be opened by anyone with the address, so check that setting before sharing. Right-click to delete.",
+          fr: "Cliquez sur l'un d'eux pour choisir les visualisations affichées et si le lien est public. Un tableau de bord public est accessible à quiconque possède l'adresse : vérifiez ce réglage avant de partager. Faites un clic droit pour supprimer.",
+          pt: "Clique num deles para escolher as visualizações que mostra e se o link é público. Um painel público pode ser aberto por qualquer pessoa com o endereço, por isso verifique essa definição antes de partilhar. Clique com o botão direito para eliminar.",
+        }),
+        placement: "right",
+        waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}
+
+// Deferred until creating is possible (deck-configure permission, unlocked).
+export function buildDashboardsCreateTour(): TourDefinition {
+  return {
+    id: "dashboards-create",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "create",
+        target: "#dashboards-create-button",
+        title: t3({
+          en: "Create a dashboard",
+          fr: "Créer un tableau de bord",
+          pt: "Criar um painel",
+        }),
+        body: t3({
+          en: "Give it a name and a web address, then add visualizations to it. It always shows the project's latest data, so the link stays current without you republishing.",
+          fr: "Donnez-lui un nom et une adresse web, puis ajoutez-y des visualisations. Il affiche toujours les données les plus récentes du projet : le lien reste à jour sans republication.",
+          pt: "Dê-lhe um nome e um endereço web e adicione-lhe visualizações. Mostra sempre os dados mais recentes do projeto, pelo que o link se mantém atualizado sem republicar.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
+// --------------------------------------------------------- Dashboard editor
+
+export function buildDashboardEditorIntroTour(): TourDefinition {
+  return {
+    id: "dashboard-editor-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("dashboard-grid"),
+        title: t3({
+          en: "Inside a dashboard",
+          fr: "Dans un tableau de bord",
+          pt: "Dentro de um painel",
+        }),
+        body: t3({
+          en: "The items here are what visitors see on the dashboard's page, in this order. Drag one to move it — there's no save button, every change is live immediately.",
+          fr: "Les éléments présents ici sont ce que voient les visiteurs sur la page du tableau de bord, dans cet ordre. Faites-en glisser un pour le déplacer — il n'y a pas de bouton d'enregistrement, chaque modification est immédiate.",
+          pt: "Os elementos aqui são o que os visitantes vêem na página do painel, nesta ordem. Arraste um para o mover — não há botão de guardar, cada alteração é imediata.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "add-item",
+        target: "#dashboard-add-item-button",
+        title: t3({
+          en: "Add a visualization",
+          fr: "Ajouter une visualisation",
+          pt: "Adicionar uma visualização",
+        }),
+        body: t3({
+          en: "Pick any visualization from the project. If it's replicated across areas you can add just the one you chose, or the whole set as a group.",
+          fr: "Choisissez n'importe quelle visualisation du projet. Si elle est répliquée par zone, vous pouvez ajouter uniquement celle choisie ou tout l'ensemble en tant que groupe.",
+          pt: "Escolha qualquer visualização do projeto. Se estiver replicada por área, pode adicionar apenas a escolhida ou todo o conjunto como um grupo.",
+        }),
+        placement: "bottom",
+        when: () => document.querySelector("#dashboard-add-item-button") !== null,
+      },
+      {
+        id: "preview",
+        target: "#dashboard-preview-button",
+        title: t3({
+          en: "See the real page",
+          fr: "Voir la page réelle",
+          pt: "Ver a página real",
+        }),
+        body: t3({
+          en: "Preview opens the dashboard exactly as a visitor sees it, and Copy link beside it gives you the address to send them.",
+          fr: "Aperçu ouvre le tableau de bord tel que le voit un visiteur, et Copier le lien à côté vous donne l'adresse à envoyer.",
+          pt: "Pré-visualização abre o painel exatamente como um visitante o vê, e Copiar ligação ao lado dá-lhe o endereço para enviar.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "settings",
+        target: "#dashboard-settings-button",
+        title: t3({
+          en: "Name, address and access",
+          fr: "Nom, adresse et accès",
+          pt: "Nome, endereço e acesso",
+        }),
+        body: t3({
+          en: "Settings holds the title, the web address, the page layout, logos, and — importantly — whether visitors need to log in. Click it now to look inside.",
+          fr: "Paramètres contient le titre, l'adresse web, la mise en page, les logos et — surtout — si les visiteurs doivent se connecter. Cliquez maintenant pour y jeter un œil.",
+          pt: "Definições contém o título, o endereço web, o layout da página, os logótipos e — sobretudo — se os visitantes precisam de iniciar sessão. Clique agora para ver.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+        when: () => document.querySelector("#dashboard-settings-button") !== null,
+      },
+      {
+        id: "settings-general",
+        target: tourTarget("dashboard-settings-general"),
+        title: t3({
+          en: "Public or private",
+          fr: "Public ou privé",
+          pt: "Público ou privado",
+        }),
+        body: t3({
+          en: "The URL slug is the end of the dashboard's web address. Leave 'Require authentication' off and anyone with the link can view it — tick it and they'll need a platform login.",
+          fr: "Le slug d'URL constitue la fin de l'adresse web du tableau de bord. Laissez « Authentification requise » décochée et quiconque possède le lien pourra le consulter ; cochez-la et une connexion sera nécessaire.",
+          pt: "O slug do URL é o final do endereço web do painel. Deixe «Exigir autenticação» desativada e qualquer pessoa com o link poderá vê-lo; ative-a e será necessária uma conta na plataforma.",
+        }),
+        placement: "right",
+        waitForTargetTimeoutMs: 4000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+// Deferred until the dashboard actually has an item on screen.
+export function buildDashboardEditorItemsTour(): TourDefinition {
+  return {
+    id: "dashboard-editor-items",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "item-card",
+        target: tourTarget("dashboard-item-card"),
+        title: t3({
+          en: "One item on the page",
+          fr: "Un élément de la page",
+          pt: "Um elemento da página",
+        }),
+        body: t3({
+          en: "Click an item to select it. Right-click to remove it from the dashboard — the visualization itself stays in the project.",
+          fr: "Cliquez sur un élément pour le sélectionner. Faites un clic droit pour le retirer du tableau de bord — la visualisation elle-même reste dans le projet.",
+          pt: "Clique num elemento para o selecionar. Clique com o botão direito para o remover do painel — a visualização em si permanece no projeto.",
+        }),
+        placement: "right",
+        waitForTargetTimeoutMs: 2000,
+      },
+      {
+        id: "panel",
+        target: tourTarget("dashboard-panel"),
+        title: t3({
+          en: "The selected item",
+          fr: "L'élément sélectionné",
+          pt: "O elemento selecionado",
+        }),
+        body: t3({
+          en: "With an item selected, this panel renames it, edits the visualization behind it, swaps it for another, or builds a new one. For a replicated group it also sets which area shows by default.",
+          fr: "Lorsqu'un élément est sélectionné, ce panneau permet de le renommer, de modifier la visualisation associée, de la remplacer ou d'en créer une nouvelle. Pour un groupe répliqué, il définit aussi la zone affichée par défaut.",
+          pt: "Com um elemento selecionado, este painel permite mudar-lhe o nome, editar a visualização subjacente, substituí-la ou criar uma nova. Para um grupo replicado, define também a área mostrada por predefinição.",
+        }),
+        placement: "right",
+      },
+    ],
+  };
+}
+
+// ------------------------------------------------------ Visualization editor
+
+function vizPanelStep(): TourStep {
+  return {
+    id: "panel",
+    target: "#VIZ_PANEL_ROOT",
+    title: t3({
+      en: "Three sets of controls",
+      fr: "Trois ensembles de réglages",
+      pt: "Três conjuntos de controlos",
+    }),
+    body: t3({
+      en: "Data decides what the numbers are, Presentation how they look, and Text the captions around them.",
+      fr: "Données définit les chiffres, Présentation leur apparence, et Texte les légendes qui les accompagnent.",
+      pt: "Dados define quais são os números, Apresentação o seu aspeto, e Texto as legendas que os acompanham.",
+    }),
+    placement: "right",
+  };
+}
+
+function vizPreviewStep(): TourStep {
+  return {
+    id: "preview",
+    target: tourTarget("viz-preview"),
+    title: t3({ en: "Live preview", fr: "Aperçu en direct", pt: "Pré-visualização em direto" }),
+    body: t3({
+      en: "The figure redraws with every change, using the project's real data — this is exactly how it will look in decks, reports and dashboards.",
+      fr: "La figure se redessine à chaque modification, avec les données réelles du projet — c'est exactement son apparence dans les présentations, rapports et tableaux de bord.",
+      pt: "A figura é redesenhada a cada alteração, com os dados reais do projeto — é exatamente assim que aparecerá em apresentações, relatórios e painéis.",
+    }),
+    placement: "left",
+  };
+}
+
+export function buildVizEditorCreateTour(): TourDefinition {
+  return {
+    id: "viz-editor-create",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("viz-editor-toolbar"),
+        title: t3({
+          en: "Building a new visualization",
+          fr: "Création d'une nouvelle visualisation",
+          pt: "A criar uma nova visualização",
+        }),
+        body: t3({
+          en: "You've picked a metric — now decide how to show it. Nothing is saved until you choose to save, so experiment freely.",
+          fr: "Vous avez choisi une métrique — décidez maintenant comment l'afficher. Rien n'est enregistré avant que vous ne le décidiez : expérimentez librement.",
+          pt: "Escolheu uma métrica — agora decida como a mostrar. Nada é guardado até que o decida, por isso experimente à vontade.",
+        }),
+        placement: "bottom",
+      },
+      vizPanelStep(),
+      {
+        id: "data",
+        target: tourTarget("viz-panel-data"),
+        title: t3({
+          en: "Start with the chart type",
+          fr: "Commencez par le type de graphique",
+          pt: "Comece pelo tipo de gráfico",
+        }),
+        body: t3({
+          en: "The metric is fixed, but Presentation type switches between a chart, a time series, a table and a map. Below it you can narrow the data down and choose how it's broken out.",
+          fr: "La métrique est fixe, mais Type de présentation permet de basculer entre graphique, série temporelle, tableau et carte. En dessous, vous pouvez restreindre les données et choisir leur ventilation.",
+          pt: "A métrica é fixa, mas Tipo de apresentação alterna entre gráfico, série temporal, tabela e mapa. Abaixo, pode restringir os dados e escolher como são desagregados.",
+        }),
+        placement: "right",
+      },
+      vizPreviewStep(),
+      {
+        id: "save",
+        target: "#viz-save-new-button",
+        title: t3({
+          en: "Save it to the project",
+          fr: "Enregistrez-la dans le projet",
+          pt: "Guarde-a no projeto",
+        }),
+        body: t3({
+          en: "Give it a name and it joins the Visualizations tab, ready to drop into decks, reports and dashboards.",
+          fr: "Donnez-lui un nom et elle rejoint l'onglet Visualisations, prête à être insérée dans les présentations, rapports et tableaux de bord.",
+          pt: "Dê-lhe um nome e passa a constar no separador Visualizações, pronta a inserir em apresentações, relatórios e painéis.",
+        }),
+        placement: "bottom",
+        when: () => document.querySelector("#viz-save-new-button") !== null,
+      },
+    ],
+  };
+}
+
+export function buildVizEditorEditTour(): TourDefinition {
+  return {
+    id: "viz-editor-edit",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("viz-editor-toolbar"),
+        title: t3({
+          en: "Editing a visualization",
+          fr: "Modification d'une visualisation",
+          pt: "A editar uma visualização",
+        }),
+        body: t3({
+          en: "Changes here follow this visualization everywhere it's used — every deck, report and dashboard that includes it.",
+          fr: "Les modifications apportées ici suivent cette visualisation partout où elle est utilisée — chaque présentation, rapport et tableau de bord qui l'inclut.",
+          pt: "As alterações aqui acompanham esta visualização em todos os locais onde é usada — em cada apresentação, relatório e painel que a inclui.",
+        }),
+        placement: "bottom",
+      },
+      vizPanelStep(),
+      {
+        id: "data",
+        target: tourTarget("viz-panel-data"),
+        title: t3({ en: "Data", fr: "Données", pt: "Dados" }),
+        body: t3({
+          en: "Presentation type picks the chart form. 'Filter (subset)' narrows what's included — particular values, a time period, or specific groups — and 'Display (disaggregate)' chooses how the remaining data is broken out into series.",
+          fr: "Type de présentation choisit la forme du graphique. « Filtre (sous-ensemble) » restreint ce qui est inclus — certaines valeurs, une période, des groupes précis — et « Affichage (désagrégation) » choisit la ventilation des données restantes en séries.",
+          pt: "Tipo de apresentação escolhe a forma do gráfico. «Filtro (subconjunto)» restringe o que é incluído — determinados valores, um período, grupos específicos — e «Apresentação (desagregar)» escolhe como os restantes dados são divididos em séries.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "open-style",
+        target: tourTarget("viz-tab-style"),
+        title: t3({
+          en: "Now how it looks",
+          fr: "Passons à l'apparence",
+          pt: "Agora o aspeto",
+        }),
+        body: t3({
+          en: "Click Presentation to carry on.",
+          fr: "Cliquez sur Présentation pour continuer.",
+          pt: "Clique em Apresentação para continuar.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
+      {
+        id: "style",
+        target: tourTarget("viz-panel-style"),
+        title: t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" }),
+        body: t3({
+          en: "Colours, axis limits, labels, decimal places, sorting and legends live here, along with conditional formatting to colour values by how they compare to a target.",
+          fr: "Couleurs, limites d'axes, étiquettes, décimales, tri et légendes se trouvent ici, ainsi que la mise en forme conditionnelle pour colorer les valeurs selon leur écart à une cible.",
+          pt: "Cores, limites dos eixos, etiquetas, casas decimais, ordenação e legendas estão aqui, bem como a formatação condicional para colorir valores conforme se comparam com uma meta.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "open-text",
+        target: tourTarget("viz-tab-text"),
+        title: t3({ en: "And the words", fr: "Et les textes", pt: "E os textos" }),
+        body: t3({
+          en: "Click Text to carry on.",
+          fr: "Cliquez sur Texte pour continuer.",
+          pt: "Clique em Texto para continuar.",
+        }),
+        placement: "bottom",
+        advanceOn: {},
+      },
+      {
+        id: "text",
+        target: tourTarget("viz-panel-text"),
+        title: t3({ en: "Captions", fr: "Légendes", pt: "Legendas" }),
+        body: t3({
+          en: "The caption, sub-caption and footnote travel with the figure wherever it appears. Tokens let you insert the current date range or replicant name automatically.",
+          fr: "La légende, la sous-légende et la note de bas de page accompagnent la figure partout où elle apparaît. Des jetons permettent d'insérer automatiquement la période ou le nom du réplicant.",
+          pt: "A legenda, a sublegenda e a nota de rodapé acompanham a figura onde quer que apareça. Existem marcadores para inserir automaticamente o período atual ou o nome do replicante.",
+        }),
+        placement: "right",
+      },
+      vizPreviewStep(),
+      {
+        id: "save",
+        target: "#viz-save-close-button",
+        title: t3({
+          en: "Saving your changes",
+          fr: "Enregistrer vos modifications",
+          pt: "Guardar as suas alterações",
+        }),
+        body: t3({
+          en: "Save and close applies the changes and returns you to the list; Save keeps you here; Save as new leaves the original untouched and creates a copy. The toolbar on the right also holds download, duplicate and delete.",
+          fr: "Sauvegarder et quitter applique les modifications et vous ramène à la liste ; Sauvegarder vous maintient ici ; Sauver comme nouvelle laisse l'original intact et crée une copie. La barre d'outils à droite contient aussi télécharger, dupliquer et supprimer.",
+          pt: "Guardar e fechar aplica as alterações e regressa à lista; Guardar mantém-no aqui; Guardar como nova deixa o original intacto e cria uma cópia. A barra de ferramentas à direita tem também descarregar, duplicar e eliminar.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 3000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}

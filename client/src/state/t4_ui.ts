@@ -320,3 +320,14 @@ export const [showModules, setShowModules] = createSignal<string | undefined>(
 export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<
   ModuleLatestCommit[] | undefined
 >(undefined);
+
+// ============================================================================
+// Editor-open flags
+// ============================================================================
+
+// The dashboard editor renders as an overlay over the still-mounted project
+// shell and (unlike the deck/report/viz editors) sets no AI view, so nothing
+// outside it can tell it is open. Onboarding tours read this to know which
+// page the user is actually looking at.
+export const [dashboardEditorOpen, setDashboardEditorOpen] =
+  createSignal<boolean>(false);

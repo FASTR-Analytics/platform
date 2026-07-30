@@ -55,6 +55,7 @@ import {
   checkModulesNeedUpdate,
 } from "./staleness_checks";
 import {
+  setupDashboardTours,
   setupDataTours,
   setupDeckTours,
   setupModuleTours,
@@ -107,6 +108,7 @@ function ProjectInner() {
   setupReportTours();
   setupModuleTours();
   setupVisualizationTours();
+  setupDashboardTours();
   setupDataTours();
   setupSettingsTours();
 

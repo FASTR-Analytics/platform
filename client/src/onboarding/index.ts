@@ -30,6 +30,13 @@ import {
   buildVizCardsTour,
   buildVizCreateTour,
   buildVizIntroTour,
+  buildDashboardsCardsTour,
+  buildDashboardsCreateTour,
+  buildDashboardsIntroTour,
+  buildDashboardEditorIntroTour,
+  buildDashboardEditorItemsTour,
+  buildVizEditorCreateTour,
+  buildVizEditorEditTour,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
@@ -43,6 +50,8 @@ import {
   reportSelectedGroup,
   vizGroupingMode,
   vizSelectedGroup,
+  dashboardSortMode,
+  dashboardEditorOpen,
 } from "~/state/t4_ui";
 
 // Call from a component with a reactive owner (the project shell). Each
@@ -63,6 +72,11 @@ import {
 // tour could fire behind the editor.
 const currentView = () => projectAIViewController.current();
 const isEditingView = () => currentView().id.startsWith("editing_");
+
+const editingVizInMode = (mode: "edit" | "create" | "ephemeral") => {
+  const view = currentView();
+  return view.id === "editing_visualization" && view.params.mode === mode;
+};
 
 const editingSlideOfType = (type: SlideType) => {
   const view = currentView();
@@ -305,6 +319,8 @@ export function setupVisualizationTours(): TourManagerController {
         projectTab() === "visualizations" &&
         projectState.thisUserPermissions.can_view_visualizations &&
         !isEditingView(),
+      "viz-editor-create": () => editingVizInMode("create"),
+      "viz-editor-edit": () => editingVizInMode("edit"),
     },
     watch: [
       () => projectState.visualizations.length,
@@ -326,6 +342,14 @@ export function setupVisualizationTours(): TourManagerController {
         page: "visualizations",
         when: canCreate,
         tour: buildVizCreateTour(),
+      },
+      {
+        page: "viz-editor-create",
+        tour: buildVizEditorCreateTour(),
+      },
+      {
+        page: "viz-editor-edit",
+        tour: buildVizEditorEditTour(),
       },
     ],
   });
@@ -375,6 +399,58 @@ export function setupSettingsTours(): TourManagerController {
       {
         page: "settings",
         tour: buildSettingsIntroTour(),
+      },
+    ],
+  });
+}
+
+// The dashboards tab: intro for everyone, then the card and create parts once
+// each is actually possible. Creating uses the slide-deck configure permission.
+export function setupDashboardTours(): TourManagerController {
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      dashboards: () =>
+        projectTab() === "dashboards" &&
+        projectState.thisUserPermissions.can_view_slide_decks &&
+        !isEditingView() &&
+        !dashboardEditorOpen(),
+      "dashboard-editor": () => dashboardEditorOpen() && !isEditingView(),
+    },
+    watch: [
+      () => projectState.dashboards.length,
+      dashboardSortMode,
+      dashboardEditorOpen,
+    ],
+    tours: [
+      {
+        page: "dashboards",
+        tour: buildDashboardsIntroTour(),
+      },
+      {
+        page: "dashboards",
+        when: () =>
+          document.querySelector('[data-tour="dashboards-card"]') !== null,
+        tour: buildDashboardsCardsTour(),
+      },
+      {
+        page: "dashboards",
+        when: () =>
+          projectState.thisUserPermissions.can_configure_slide_decks &&
+          !projectState.isLocked,
+        tour: buildDashboardsCreateTour(),
+      },
+      // Inside a dashboard. The intro ends inside the settings overlay, so the
+      // items part is ordered before it.
+      {
+        page: "dashboard-editor",
+        when: () =>
+          document.querySelector('[data-tour="dashboard-item-card"]') !== null,
+        tour: buildDashboardEditorItemsTour(),
+      },
+      {
+        page: "dashboard-editor",
+        tour: buildDashboardEditorIntroTour(),
       },
     ],
   });
