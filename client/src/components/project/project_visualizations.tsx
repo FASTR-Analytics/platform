@@ -165,13 +165,15 @@ export function ProjectVisualizations(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div class="h-full w-full" data-cursor-zone="header" data-tour="viz-header">
         <HeadingBar
           heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
           searchText={searchText()}
           setSearchText={setSearchText}
           centerChildren={
-            <SortControl value={vizSortMode()} onChange={setVizSortMode} />
+            <div data-tour="viz-sort">
+              <SortControl value={vizSortMode()} onChange={setVizSortMode} />
+            </div>
           }
         >
           <Show
@@ -179,7 +181,7 @@ export function ProjectVisualizations(p: Props) {
               !projectState.isLocked && projectState.projectModules.length > 0
             }
           >
-            <div class="ui-gap-sm flex items-center">
+            <div class="ui-gap-sm flex items-center" data-tour="viz-create">
               {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}

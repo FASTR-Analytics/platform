@@ -213,7 +213,11 @@ export function ProjectSettings(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="settings-header"
+        >
           <HeadingBar
             heading={t3(TC.settings)}
             ensureHeightAsIfButton
@@ -221,7 +225,8 @@ export function ProjectSettings(p: Props) {
         </div>
       }
     >
-      <div class="ui-pad ui-spy" data-page-cursor-surface>
+      <div class="ui-pad ui-spy" data-page-cursor-surface data-tour="settings-body">
+        <div data-tour="settings-name">
         <SettingsSection
           header={t3({
             en: "Project name",
@@ -238,6 +243,8 @@ export function ProjectSettings(p: Props) {
         >
           <div class="">{projectState.label}</div>
         </SettingsSection>
+        </div>
+        <div data-tour="settings-users">
         <SettingsSection
           header={t3({
             en: "Project users",
@@ -252,6 +259,8 @@ export function ProjectSettings(p: Props) {
             onDisplayUserRole={attemptDisplayUserRole}
           />
         </SettingsSection>
+        </div>
+        <div data-tour="settings-ai">
         <SettingsSection
           header={t3({
             en: "Project context for AI interpretation",
@@ -278,6 +287,7 @@ export function ProjectSettings(p: Props) {
               })}
           </div>
         </SettingsSection>
+        </div>
 
         <Show when={H_USERS.includes(projectState.currentUserEmail)}>
           <CentralReportingSection />
@@ -351,6 +361,7 @@ export function ProjectSettings(p: Props) {
           </Match>
         </Switch>
 
+        <div data-tour="settings-backups">
         <SettingsSection
           header={t3({
             en: "Backups",
@@ -360,8 +371,9 @@ export function ProjectSettings(p: Props) {
         >
           <ProjectBackups projectId={projectState.id} />
         </SettingsSection>
+        </div>
 
-        <div class="ui-gap flex">
+        <div class="ui-gap flex" data-tour="settings-actions">
           <Show when={!projectState.isLocked}>
             <Button
               onClick={attemptDeleteProject}

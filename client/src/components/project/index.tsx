@@ -55,9 +55,12 @@ import {
   checkModulesNeedUpdate,
 } from "./staleness_checks";
 import {
+  setupDataTours,
   setupDeckTours,
   setupModuleTours,
   setupReportTours,
+  setupSettingsTours,
+  setupVisualizationTours,
 } from "~/onboarding";
 
 type Props = {
@@ -103,6 +106,9 @@ function ProjectInner() {
   setupDeckTours();
   setupReportTours();
   setupModuleTours();
+  setupVisualizationTours();
+  setupDataTours();
+  setupSettingsTours();
 
   const dataNeedsUpdate = createMemo(() =>
     checkDataNeedsUpdate(projectState, instanceState),

@@ -24,6 +24,12 @@ import {
   buildReportsManageTour,
   buildReportsOpenReportTour,
   buildReportsViewerTour,
+  buildDataAdminTour,
+  buildDataIntroTour,
+  buildSettingsIntroTour,
+  buildVizCardsTour,
+  buildVizCreateTour,
+  buildVizIntroTour,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
@@ -35,6 +41,8 @@ import {
   projectTab,
   reportGroupingMode,
   reportSelectedGroup,
+  vizGroupingMode,
+  vizSelectedGroup,
 } from "~/state/t4_ui";
 
 // Call from a component with a reactive owner (the project shell). Each
@@ -281,4 +289,93 @@ export function setupModuleTours(): TourManagerController {
     ],
   });
   return tours;
+}
+
+// The visualizations tab: an intro for everyone, the card step once a
+// visualization exists, and the create step once creating is possible.
+export function setupVisualizationTours(): TourManagerController {
+  const cardOnScreen = () =>
+    document.querySelector('[data-tour="viz-card"]') !== null;
+  const canCreate = () =>
+    !projectState.isLocked && projectState.projectModules.length > 0;
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      visualizations: () =>
+        projectTab() === "visualizations" &&
+        projectState.thisUserPermissions.can_view_visualizations &&
+        !isEditingView(),
+    },
+    watch: [
+      () => projectState.visualizations.length,
+      () => projectState.projectModules.length,
+      vizSelectedGroup,
+      vizGroupingMode,
+    ],
+    tours: [
+      {
+        page: "visualizations",
+        tour: buildVizIntroTour(),
+      },
+      {
+        page: "visualizations",
+        when: cardOnScreen,
+        tour: buildVizCardsTour(),
+      },
+      {
+        page: "visualizations",
+        when: canCreate,
+        tour: buildVizCreateTour(),
+      },
+    ],
+  });
+}
+
+// The data tab is read-only unless you are a global admin on an unlocked
+// project, so the actions part is gated as a whole.
+export function setupDataTours(): TourManagerController {
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      data: () =>
+        projectTab() === "data" &&
+        projectState.thisUserPermissions.can_view_data &&
+        !isEditingView(),
+    },
+    watch: [() => projectState.projectDatasets.length],
+    tours: [
+      {
+        page: "data",
+        tour: buildDataIntroTour(),
+      },
+      {
+        page: "data",
+        when: () =>
+          !projectState.isLocked &&
+          instanceState.currentUserIsGlobalAdmin &&
+          document.querySelector('[data-tour="data-dataset-actions"]') !== null,
+        tour: buildDataAdminTour(),
+      },
+    ],
+  });
+}
+
+// The settings tab is already permission-gated by the shell (only users with
+// can_configure_settings ever see it), so one part covers the whole page.
+export function setupSettingsTours(): TourManagerController {
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      settings: () =>
+        projectTab() === "settings" &&
+        projectState.thisUserPermissions.can_configure_settings &&
+        !isEditingView(),
+    },
+    tours: [
+      {
+        page: "settings",
+        tour: buildSettingsIntroTour(),
+      },
+    ],
+  });
 }

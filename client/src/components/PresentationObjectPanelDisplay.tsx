@@ -431,6 +431,7 @@ export function PresentationObjectPanelDisplay(p: Props) {
         <div
           class="flex h-full w-full flex-col border-r"
           data-cursor-zone="folders"
+          data-tour="viz-folders"
         >
           <div class="flex flex-col gap-2 border-b p-3">
             <Select
@@ -771,7 +772,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
       fallback={
         <div
           class="ui-pad ui-gap grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-          {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
+          {...(p.pageCursorSurface
+            ? { "data-page-cursor-surface": "", "data-tour": "viz-grid" }
+            : {})}
           onClick={() => selection.clear()}
         >
           <For each={p.visualizations} fallback={emptyMessage()}>
@@ -813,7 +816,9 @@ function VisualizationGrid(p: VisualizationGridProps) {
         return (
           <div
             class="h-full w-full overflow-auto"
-            {...(p.pageCursorSurface ? { "data-page-cursor-surface": "" } : {})}
+            {...(p.pageCursorSurface
+              ? { "data-page-cursor-surface": "", "data-tour": "viz-grid" }
+              : {})}
             onClick={() => selection.clear()}
           >
             <Show
@@ -980,7 +985,10 @@ function VisualizationCard(p: VisualizationCardProps) {
   };
 
   return (
-    <div class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
+    <div
+      class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]"
+      data-tour="viz-card"
+    >
       <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
           {p.po.label}

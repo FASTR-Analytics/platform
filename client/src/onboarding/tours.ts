@@ -1198,3 +1198,280 @@ export function buildReportEditorHistoryTour(): TourDefinition {
     ],
   };
 }
+
+// -------------------------------------------------------------- Visualizations
+
+export function buildVizIntroTour(): TourDefinition {
+  return {
+    id: "viz-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("viz-header"),
+        title: t3({
+          en: "Visualizations",
+          fr: "Visualisations",
+          pt: "Visualizações",
+        }),
+        body: t3({
+          en: "Visualizations are the charts, tables and maps built from your project's results. Everything in your decks and reports draws on what you make here.",
+          fr: "Les visualisations sont les graphiques, tableaux et cartes créés à partir des résultats de votre projet. Tout ce qui figure dans vos présentations et rapports s'appuie sur ce que vous créez ici.",
+          pt: "As visualizações são os gráficos, tabelas e mapas criados a partir dos resultados do seu projeto. Tudo o que está nas suas apresentações e relatórios baseia-se no que criar aqui.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "sort",
+        target: tourTarget("viz-sort"),
+        title: t3({ en: "Search and sort", fr: "Rechercher et trier", pt: "Pesquisar e ordenar" }),
+        body: t3({
+          en: "Sort by name or by when they were last updated, and use the search box to filter by name.",
+          fr: "Triez par nom ou par date de dernière mise à jour, et utilisez la recherche pour filtrer par nom.",
+          pt: "Ordene por nome ou pela data da última atualização e utilize a pesquisa para filtrar por nome.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "folders",
+        target: tourTarget("viz-folders"),
+        title: t3({
+          en: "Group them your way",
+          fr: "Regroupez-les à votre façon",
+          pt: "Agrupe-as como quiser",
+        }),
+        body: t3({
+          en: "Group visualizations by folder, by the module that produced them, by metric, or as one flat list. 'Hide unavailable' filters out any whose data isn't ready.",
+          fr: "Regroupez les visualisations par dossier, par module d'origine, par métrique, ou en une liste simple. « Masquer les indisponibles » filtre celles dont les données ne sont pas prêtes.",
+          pt: "Agrupe as visualizações por pasta, pelo módulo que as produziu, por métrica, ou numa lista simples. «Ocultar indisponíveis» filtra aquelas cujos dados não estão prontos.",
+        }),
+        placement: "right",
+      },
+      {
+        id: "grid",
+        target: tourTarget("viz-grid"),
+        title: t3({
+          en: "Your visualizations",
+          fr: "Vos visualisations",
+          pt: "As suas visualizações",
+        }),
+        body: t3({
+          en: "Each one shows a live preview. Badges mark those that are replicated across areas, filtered, AI-interpreted, or supplied as defaults by a module.",
+          fr: "Chacune affiche un aperçu en direct. Des badges signalent celles qui sont répliquées par zone, filtrées, interprétées par l'IA, ou fournies par défaut par un module.",
+          pt: "Cada uma mostra uma pré-visualização em direto. As etiquetas indicam as que são replicadas por área, filtradas, interpretadas pela IA, ou fornecidas por predefinição por um módulo.",
+        }),
+        placement: "top",
+      },
+    ],
+  };
+}
+
+// Deferred until a visualization card is on screen.
+export function buildVizCardsTour(): TourDefinition {
+  return {
+    id: "viz-cards",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "card",
+        target: tourTarget("viz-card"),
+        title: t3({
+          en: "Working with a visualization",
+          fr: "Travailler sur une visualisation",
+          pt: "Trabalhar com uma visualização",
+        }),
+        body: t3({
+          en: "Click one to open its editor and change what it shows. Right-click for duplicate, move to folder, create slides from it, or delete.",
+          fr: "Cliquez sur l'une d'elles pour ouvrir son éditeur et modifier son contenu. Faites un clic droit pour dupliquer, déplacer vers un dossier, créer des diapositives ou supprimer.",
+          pt: "Clique numa para abrir o editor e alterar o que mostra. Clique com o botão direito para duplicar, mover para uma pasta, criar diapositivos ou eliminar.",
+        }),
+        placement: "right",
+        waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}
+
+// Deferred until creating is actually possible (unlocked project with modules).
+export function buildVizCreateTour(): TourDefinition {
+  return {
+    id: "viz-create",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "create",
+        target: tourTarget("viz-create"),
+        title: t3({
+          en: "Create a visualization",
+          fr: "Créer une visualisation",
+          pt: "Criar uma visualização",
+        }),
+        body: t3({
+          en: "Start from a metric produced by one of your modules, then choose the chart type, periods and disaggregation in the editor.",
+          fr: "Partez d'une métrique produite par l'un de vos modules, puis choisissez le type de graphique, les périodes et la désagrégation dans l'éditeur.",
+          pt: "Comece a partir de uma métrica produzida por um dos seus módulos e escolha o tipo de gráfico, os períodos e a desagregação no editor.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
+// ------------------------------------------------------------------ Data tab
+
+export function buildDataIntroTour(): TourDefinition {
+  return {
+    id: "data-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("data-header"),
+        title: t3({ en: "Project data", fr: "Données du projet", pt: "Dados do projeto" }),
+        body: t3({
+          en: "This tab shows which datasets this project draws on. Data is uploaded once for the whole instance, then exported into individual projects here.",
+          fr: "Cet onglet indique les jeux de données utilisés par ce projet. Les données sont importées une fois pour toute l'instance, puis exportées ici vers chaque projet.",
+          pt: "Este separador mostra os conjuntos de dados que este projeto utiliza. Os dados são carregados uma vez para toda a instância e depois exportados aqui para cada projeto.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "datasets",
+        target: tourTarget("data-dataset-card"),
+        title: t3({
+          en: "One card per dataset",
+          fr: "Une carte par jeu de données",
+          pt: "Um cartão por conjunto de dados",
+        }),
+        body: t3({
+          en: "HMIS, health facility assessment and equity data each get a card. An enabled one lists exactly what came across — time period, indicators, admin areas, facilities and row counts.",
+          fr: "Les données HMIS, d'évaluation des établissements et d'équité ont chacune leur carte. Une carte activée détaille précisément ce qui a été exporté — période, indicateurs, zones administratives, établissements et nombre de lignes.",
+          pt: "Os dados HMIS, de avaliação de unidades de saúde e de equidade têm cada um o seu cartão. Um cartão ativado lista exatamente o que foi exportado — período, indicadores, áreas administrativas, unidades e número de linhas.",
+        }),
+        placement: "top",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+// Every action on this tab needs an unlocked project AND a global admin, so
+// this part is gated as a whole rather than step by step.
+export function buildDataAdminTour(): TourDefinition {
+  return {
+    id: "data-admin",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "actions",
+        target: tourTarget("data-dataset-actions"),
+        title: t3({
+          en: "Keeping data current",
+          fr: "Garder les données à jour",
+          pt: "Manter os dados atualizados",
+        }),
+        body: t3({
+          en: "Settings changes what's exported into this project, and Download takes a CSV copy. When the instance has newer data the card says so, and Update data brings it across — re-running the modules that depend on it.",
+          fr: "Paramètres modifie ce qui est exporté vers ce projet, et Télécharger en récupère une copie CSV. Lorsque l'instance contient des données plus récentes, la carte l'indique, et Mettre à jour les données les importe — en relançant les modules qui en dépendent.",
+          pt: "Definições altera o que é exportado para este projeto e Descarregar obtém uma cópia CSV. Quando a instância tem dados mais recentes, o cartão indica-o, e Atualizar dados importa-os — reexecutando os módulos que deles dependem.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+      },
+    ],
+  };
+}
+
+// -------------------------------------------------------------- Settings tab
+
+export function buildSettingsIntroTour(): TourDefinition {
+  return {
+    id: "settings-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("settings-header"),
+        title: t3({
+          en: "Project settings",
+          fr: "Paramètres du projet",
+          pt: "Definições do projeto",
+        }),
+        body: t3({
+          en: "Everything about the project as a whole lives here. There's no save button — each section saves as you change it.",
+          fr: "Tout ce qui concerne le projet dans son ensemble se trouve ici. Il n'y a pas de bouton d'enregistrement — chaque section s'enregistre au moment où vous la modifiez.",
+          pt: "Tudo o que diz respeito ao projeto no seu conjunto está aqui. Não há botão de guardar — cada secção é guardada quando a altera.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "name",
+        target: tourTarget("settings-name"),
+        title: t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" }),
+        body: t3({
+          en: "Rename the project — this is the name everyone sees in the project list.",
+          fr: "Renommez le projet — c'est le nom que tout le monde voit dans la liste des projets.",
+          pt: "Mude o nome do projeto — é o nome que todos vêem na lista de projetos.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "users",
+        target: tourTarget("settings-users"),
+        title: t3({
+          en: "Who can do what",
+          fr: "Qui peut faire quoi",
+          pt: "Quem pode fazer o quê",
+        }),
+        body: t3({
+          en: "Everyone with access is listed here. Click a person to set their role, or select several to change permissions in bulk — viewers read, editors build, admins configure.",
+          fr: "Toutes les personnes ayant accès sont listées ici. Cliquez sur une personne pour définir son rôle, ou sélectionnez-en plusieurs pour modifier les permissions en lot — les lecteurs consultent, les éditeurs créent, les administrateurs configurent.",
+          pt: "Todas as pessoas com acesso estão listadas aqui. Clique numa pessoa para definir a sua função, ou selecione várias para alterar permissões em bloco — os observadores leem, os editores criam, os administradores configuram.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "ai-context",
+        target: tourTarget("settings-ai"),
+        title: t3({
+          en: "Context for the AI",
+          fr: "Contexte pour l'IA",
+          pt: "Contexto para a IA",
+        }),
+        body: t3({
+          en: "Background about the country, programme or period the project covers. The AI uses it when interpreting charts, so a sentence or two here improves every interpretation.",
+          fr: "Des informations générales sur le pays, le programme ou la période couverts par le projet. L'IA s'en sert pour interpréter les graphiques : une ou deux phrases ici améliorent chaque interprétation.",
+          pt: "Informação de contexto sobre o país, o programa ou o período que o projeto abrange. A IA utiliza-a ao interpretar gráficos, por isso uma ou duas frases aqui melhoram todas as interpretações.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "backups",
+        target: tourTarget("settings-backups"),
+        title: t3({ en: "Backups", fr: "Sauvegardes", pt: "Cópias de segurança" }),
+        body: t3({
+          en: "Snapshots of the whole project, grouped by day. Create one before a big change, download it to keep a copy, or restore to roll the project back.",
+          fr: "Des instantanés de tout le projet, regroupés par jour. Créez-en un avant un changement important, téléchargez-le pour en garder une copie, ou restaurez pour revenir en arrière.",
+          pt: "Instantâneos de todo o projeto, agrupados por dia. Crie um antes de uma alteração importante, descarregue-o para guardar uma cópia, ou restaure para reverter o projeto.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "actions",
+        target: tourTarget("settings-actions"),
+        title: t3({
+          en: "Copying and deleting",
+          fr: "Copier et supprimer",
+          pt: "Copiar e eliminar",
+        }),
+        body: t3({
+          en: "Copy project duplicates everything into a new project — handy for starting a new round from last year's setup. Delete removes the project and its data for good.",
+          fr: "Copier le projet duplique tout dans un nouveau projet — pratique pour démarrer un nouveau cycle à partir de la configuration de l'année précédente. Supprimer efface définitivement le projet et ses données.",
+          pt: "Copiar projeto duplica tudo para um novo projeto — útil para começar uma nova ronda a partir da configuração do ano anterior. Eliminar remove o projeto e os seus dados definitivamente.",
+        }),
+        placement: "top",
+      },
+    ],
+  };
+}

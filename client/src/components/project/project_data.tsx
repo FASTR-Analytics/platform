@@ -32,7 +32,11 @@ export function ProjectData(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-cursor-zone="header">
+          <div
+            class="h-full w-full"
+            data-cursor-zone="header"
+            data-tour="data-header"
+          >
             <HeadingBar
               heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
               ensureHeightAsIfButton
@@ -40,7 +44,7 @@ export function ProjectData(p: Props) {
           </div>
         }
       >
-        <div class="ui-pad ui-spy" data-page-cursor-surface>
+        <div class="ui-pad ui-spy" data-page-cursor-surface data-tour="data-body">
           {/* HMIS Dataset */}
           <Switch>
             <Match
@@ -184,7 +188,7 @@ export function ProjectData(p: Props) {
                 );
 
                 return (
-                  <div class="rounded border">
+                  <div class="rounded border" data-tour="data-dataset-card">
                     <div class="ui-pad flex items-center border-b">
                       <div class="font-700 flex-1 text-lg">
                         {t3({
@@ -208,7 +212,7 @@ export function ProjectData(p: Props) {
                           instanceState.currentUserIsGlobalAdmin
                         }
                       >
-                        <div class="ui-gap-sm flex">
+                        <div class="ui-gap-sm flex" data-tour="data-dataset-actions">
                           <Button
                             href={`${_SERVER_HOST}/${projectState.id}/datasets/hmis.csv?t=${Date.now()}`}
                             download={`hmis.csv`}
