@@ -6,6 +6,7 @@ import {
 } from "lib";
 import { Button, getEditorWrapper } from "panther";
 import { For, Show } from "solid-js";
+import type { PackageInternalsSource } from "./internals_source";
 import { ModuleProgressChip, formatBytes, moduleLabel } from "./status";
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
@@ -33,12 +34,13 @@ export function ResultsPackageContents(p: {
   // run+module because two generations can be visible at once, a project
   // only ever watches its own.
   latestRLine: (moduleId: string) => string | undefined;
-  // Whether to offer the per-module script/log/file viewers. The routes
-  // behind them are permission-guarded server-side; this only decides
-  // whether the surface offers a button, so a caller without access sees no
-  // button rather than one that fails. Permission model is still open — this
-  // is the single expression to change when it is settled.
-  canViewPackageInternals: boolean;
+  // How this surface reaches the package's internals, and which of them it
+  // may offer. The routes are permission-guarded server-side; the source's
+  // flags only decide whether a button appears, so a caller without access
+  // sees no button rather than one that fails. Each kind of content has its
+  // own permission (Tim's ruling 2026-07-30), which is why this is three
+  // flags rather than one.
+  internals: PackageInternalsSource;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
   const progress = () => p.liveProgress ?? p.run.progress;
@@ -50,7 +52,7 @@ export function ResultsPackageContents(p: {
     void p.openEditor({
       element,
       props: {
-        runId: p.run.id,
+        source: p.internals,
         moduleId: getValidatedModuleId(moduleId),
         moduleLabel: moduleLabel(moduleId),
       },
@@ -72,7 +74,7 @@ export function ResultsPackageContents(p: {
               {(moduleId) => (
                 <div class="ui-gap-sm flex items-center text-sm">
                   <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <Show when={p.canViewPackageInternals}>
+                  <Show when={p.internals.canViewScript}>
                     <Button
                       size="sm"
                       outline
@@ -80,6 +82,8 @@ export function ResultsPackageContents(p: {
                     >
                       {t3({ en: "Script", fr: "Script", pt: "Script" })}
                     </Button>
+                  </Show>
+                  <Show when={p.internals.canViewLogs}>
                     <Button
                       size="sm"
                       outline
@@ -87,6 +91,8 @@ export function ResultsPackageContents(p: {
                     >
                       {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
                     </Button>
+                  </Show>
+                  <Show when={p.internals.canViewFiles}>
                     <Button
                       size="sm"
                       outline

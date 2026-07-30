@@ -9,6 +9,7 @@ import type {
   RunGenerationAttemptDetail,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
+  RunModuleFileListing,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -20,11 +21,14 @@ import { route } from "../route-utils.ts";
 // projects chosen at launch.
 
 // A run's outputs dir holds one module's generated script, execution log and
-// raw CSVs. The routes are run-keyed rather than project-scoped because
-// exploring a package is one capability rendered on both the instance
-// catalogue and a project's package tab (item 3b). What permission governs
-// package internals is the plan's one deferred question; they carry
-// `can_configure_data` until it is settled.
+// raw CSVs. These three are the INSTANCE catalogue's copy: run-keyed and
+// `can_configure_data`, because an admin browses packages that may be attached
+// to no project at all. A project reads the same bytes through
+// `projectResultsPackageRouteRegistry`, which takes no runId and gates each
+// kind of content on its own per-project bit (Tim's ruling 2026-07-30). One
+// reader (server/runs/package_internals.ts) serves both; only the guard
+// differs — exploring a package is one capability rendered on both surfaces
+// (item 3b).
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
@@ -62,7 +66,7 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/run/:run_id/module/:module_id/files",
     method: "GET",
     params: runModuleParamsSchema,
-    response: {} as { files: { name: string; sizeBytes: number }[] },
+    response: {} as RunModuleFileListing,
   }),
   createRunGenerationAttempt: route({
     path: "/run_generation/attempt",

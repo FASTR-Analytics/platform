@@ -26,6 +26,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { instancePackageInternalsSource } from "~/components/_shared/results_package/internals_source";
 import {
   ResultsPackageContents,
   ResultsPackageProvenanceLine,
@@ -43,8 +44,9 @@ import {
 // launch wizard is entered — one in-flight configuration per admin,
 // resumable — and the catalogue of every package the instance holds. A
 // package attaches to projects at launch (the wizard's confirm step) or
-// later from a project's Results package tab; this surface owns the debug
-// viewers and the only act that ever reclaims a package's disk.
+// later from a project's Results package tab. This surface owns the only act
+// that ever reclaims a package's disk; exploring a package is shared with the
+// project tab, each with its own permission model.
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -301,11 +303,15 @@ function RunCard(p: {
         </Show>
       </div>
 
+      {/* The internals flags are unconditionally true here: this whole
+          surface only renders behind can_configure_data
+          (instance/index.tsx), so reaching it IS the permission. A project
+          renders the same component with its own per-content bits. */}
       <ResultsPackageContents
         run={p.run}
         liveProgress={p.liveProgress}
         latestRLine={(moduleId) => p.rLogs[`${p.run.id}|${moduleId}`]}
-        canViewPackageInternals
+        internals={instancePackageInternalsSource(p.run.id, true)}
         openEditor={p.openEditor}
       />
     </div>

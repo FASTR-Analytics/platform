@@ -11,10 +11,11 @@ import { log } from "../../middleware/logging.ts";
 
 export const routesModules = new Hono();
 
-// The per-module script/logs/files viewers moved to the instance
-// results-package catalogue in Phase 3 item 3 (Q-F) — see
-// routes/instance/run_generation.ts. What is left here reads the project's
-// ATTACHED run through the manifest, for every project member.
+// Reads of the project's ATTACHED run through the manifest, for every project
+// member. The per-module script/logs/files viewers live in
+// routes/project/results_package.ts (project-side, one permission per kind of
+// content) and routes/instance/run_generation.ts (the catalogue's run-keyed
+// copy).
 
 ///////////////////////////
 //                       //

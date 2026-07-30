@@ -103,6 +103,14 @@ export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
 };
 
+// One module's raw output files inside a package. Named rather than inlined
+// because the same listing is served by two mounts under two permission
+// models — the instance catalogue by runId, a project by its own attached
+// package (see server/runs/package_internals.ts).
+export type RunModuleFileListing = {
+  files: { name: string; sizeBytes: number }[];
+};
+
 // The §2.6 compatibility report (Phase 3 item 4): what a project's AUTHORED
 // visualizations would lose if it repointed at a candidate package, shown
 // before the repoint rather than discovered afterwards. Every answer is a

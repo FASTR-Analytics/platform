@@ -22,6 +22,7 @@ import {
   ResultsPackageContents,
   ResultsPackageProvenanceLine,
 } from "~/components/_shared/results_package/package_contents";
+import { projectPackageInternalsSource } from "~/components/_shared/results_package/internals_source";
 import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageCompatibilityModal } from "./results_package_compatibility_modal";
 import { serverActions } from "~/server_actions";
@@ -258,14 +259,18 @@ function AttachedPackageCard(p: {
   rLogs: Record<string, string>;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
-  // Whether to offer the per-module viewers. The routes behind them are
-  // instance-admin gated today, so offering the buttons to anyone else would
-  // hand out a control that 403s. The permission model for package internals
-  // is an open question (PLAN_RESULTS_RUNS item 3b) — this is the one
-  // expression to change when it is settled.
-  const canViewPackageInternals = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_data;
+  // What this member may explore inside the package they serve from. Tim's
+  // ruling 2026-07-30: what lives inside the run package directory is visible
+  // to a user of an attached project, governed per kind of content by the
+  // per-project bits the app already had — script code, logs, data. A project
+  // admin has all three; the Viewer and Editor presets have only
+  // `can_view_data`. Nothing here names a runId: the server resolves the
+  // package from `projects.run_id`.
+  const internals = () =>
+    projectPackageInternalsSource(
+      projectState.id,
+      projectState.thisUserPermissions,
+    );
 
   return (
     <div class="ui-pad ui-spy-sm border-primary rounded border">
@@ -287,7 +292,7 @@ function AttachedPackageCard(p: {
         run={p.run}
         liveProgress={p.liveProgress}
         latestRLine={(moduleId) => p.rLogs[moduleId]}
-        canViewPackageInternals={canViewPackageInternals()}
+        internals={internals()}
         openEditor={p.openEditor}
       />
     </div>

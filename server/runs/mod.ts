@@ -24,6 +24,12 @@ export {
   readRunInputJsonCached,
 } from "./manifest_cache.ts";
 export {
+  listRunModuleFiles,
+  readRunModuleLogs,
+  readRunModuleScript,
+  resolveRunModuleFileForDownload,
+} from "./package_internals.ts";
+export {
   runDirPath,
   runInputFilePath,
   runManifestPath,

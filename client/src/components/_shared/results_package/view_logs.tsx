@@ -7,22 +7,23 @@ import {
   StateHolderWrapper,
   createQuery,
 } from "panther";
-import { serverActions } from "~/server_actions";
+import type { PackageInternalsSource } from "./internals_source";
 
 // One module's execution log from this results package — package contents,
-// so the same viewer serves both surfaces (PLAN_RESULTS_RUNS item 3b).
+// so the same viewer serves both surfaces (PLAN_RESULTS_RUNS item 3b), each
+// through its own route via the host's source.
 export function ViewLogs(
   p: EditorComponentProps<
-    { runId: string; moduleId: ModuleId; moduleLabel: string },
+    {
+      source: PackageInternalsSource;
+      moduleId: ModuleId;
+      moduleLabel: string;
+    },
     undefined
   >,
 ) {
   const rLogs = createQuery(
-    () =>
-      serverActions.getRunModuleLogs({
-        run_id: p.runId,
-        module_id: p.moduleId,
-      }),
+    () => p.source.getLogs(p.moduleId),
     t3({ en: "Loading logs...", fr: "Chargement des journaux...", pt: "A carregar registos..." }),
   );
 

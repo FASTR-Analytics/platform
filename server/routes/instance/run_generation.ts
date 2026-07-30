@@ -1,9 +1,4 @@
-import { join } from "@std/path";
 import { Hono } from "hono";
-import {
-  _MODULE_LOG_FILE_NAME,
-  _MODULE_SCRIPT_FILE_NAME,
-} from "../../exposed_env_vars.ts";
 import {
   getRunGenerationDefaultsConfig,
   updateRunGenerationDefaultsConfig,
@@ -21,7 +16,9 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import {
   deleteRun,
   getRunGenerationModuleOptions,
-  runDirPath,
+  listRunModuleFiles,
+  readRunModuleLogs,
+  readRunModuleScript,
 } from "../../runs/mod.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -155,18 +152,17 @@ defineRoute(
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-// Per-module debug viewers over a run's outputs dir
+// Per-module viewers over a run's outputs dir — the CATALOGUE's copy
 ///////////////////////////////////////////////////////////////////////////////
 
-// Script/logs/files read from runs/{runId}/outputs/{moduleId}. Wizard runs
-// carry the generated script, execution log and raw output CSVs; synthetic
-// backfill runs carry only query parquet — an absent file answers with a
-// typed message, not an error page. Run-keyed rather than project-scoped
-// because both package surfaces render them (item 3b); the guard here (and
-// on the runs static mount — Q-G) is the plan's one deferred question.
-function runModuleOutputsDir(runId: string, moduleId: string): string {
-  return join(runDirPath(runId), "outputs", moduleId);
-}
+// Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
+// reader in server/runs/package_internals.ts, which also owns path safety.
+// These three are the INSTANCE catalogue's mount: run-keyed, because an admin
+// browses packages that may be attached to no project at all, and
+// `can_configure_data` for the same reason. A project reaching the same bytes
+// goes through routes/project/results_package.ts instead, which never takes a
+// runId and gates on the per-project bit for each kind of content (Tim's
+// ruling 2026-07-30). Both mounts call the same reader; only the guard differs.
 
 defineRoute(
   routesRunGeneration,
@@ -174,24 +170,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("getRunModuleScript"),
   async (c, { params }) => {
-    const dir = runModuleOutputsDir(params.run_id, params.module_id);
-    try {
-      const script = await Deno.readTextFile(
-        join(dir, _MODULE_SCRIPT_FILE_NAME),
-      );
-      return c.json({ success: true, data: { script } });
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        return c.json({
-          success: false,
-          err: "No script in this results package for this module.",
-        });
-      }
-      return c.json({
-        success: false,
-        err: "Error reading script file: " + String(error),
-      });
-    }
+    return c.json(await readRunModuleScript(params.run_id, params.module_id));
   },
 );
 
@@ -201,22 +180,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("getRunModuleLogs"),
   async (c, { params }) => {
-    const dir = runModuleOutputsDir(params.run_id, params.module_id);
-    try {
-      const logs = await Deno.readTextFile(join(dir, _MODULE_LOG_FILE_NAME));
-      return c.json({ success: true, data: { logs } });
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        return c.json({
-          success: false,
-          err: "No execution log in this results package for this module.",
-        });
-      }
-      return c.json({
-        success: false,
-        err: "Error reading log file: " + String(error),
-      });
-    }
+    return c.json(await readRunModuleLogs(params.run_id, params.module_id));
   },
 );
 
@@ -226,24 +190,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("listRunModuleFiles"),
   async (c, { params }) => {
-    const dir = runModuleOutputsDir(params.run_id, params.module_id);
-    const files: { name: string; sizeBytes: number }[] = [];
-    try {
-      for await (const entry of Deno.readDir(dir)) {
-        if (!entry.isFile) continue;
-        const stat = await Deno.stat(join(dir, entry.name));
-        files.push({ name: entry.name, sizeBytes: stat.size });
-      }
-    } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) {
-        return c.json({
-          success: false,
-          err: "Error listing module files: " + String(error),
-        });
-      }
-    }
-    files.sort((a, b) => a.name.localeCompare(b.name));
-    return c.json({ success: true, data: { files } });
+    return c.json(await listRunModuleFiles(params.run_id, params.module_id));
   },
 );
 

@@ -89,19 +89,21 @@
 > entry says so in place. If you hit a real hole the design does not cover,
 > raise it with Tim rather than inventing a ruling.
 >
-> **Exactly two things in this plan are not built, and neither blocks the
-> rollout.** (1) **One open question**: what permission governs a package's
-> INTERNALS (script, log, raw output files)? Item 3 made them
-> `can_configure_data`; Tim then ruled the
-> governing principle is "**if the answer lives inside the run package
-> directory, a project user attached to that package can see it**", which
-> points at any member of an attached project (§2.6's original wording).
-> Item 3b restructured the code so this is a one-expression change when
-> settled, and explicitly left it unsettled — **do not decide it yourself.**
-> Full context in item 3b's build record; its one follow-on (the two copilot
-> tools that call those routes) is spelled out in the pre-deploy checklist.
-> (2) Nothing else. Q-C's hardlink dedup — the one ruled deliverable no item
-> owned — was **KILLED by Tim on 2026-07-30**: no links, ever; every file in a
+> **NOTHING in this plan is unbuilt or undecided any more (2026-07-30).** The
+> last two loose ends were both closed by Tim on that date:
+> (1) **The package-internals permission — RULED AND BUILT.** What governs a
+> package's script, log and raw output files? Answer: the per-project bits the
+> app already had and had never enforced — `can_view_script_code` for the
+> script, `can_view_logs` for the log, `can_view_data` for the raw files — for
+> a member of a project the package is attached to, on new project-scoped
+> routes that take **no runId** (the run comes from `projects.run_id`). The
+> instance catalogue keeps its run-keyed `can_configure_data` copies; both
+> mounts call one reader, `server/runs/package_internals.ts`. This resolved the
+> copilot follow-on too (`get_module_r_script` / `get_module_log` now answer a
+> project admin instead of failing), and it means the deploy takes the viewers
+> away from nobody: the bits are true for exactly the population that reached
+> them before. Details in item 3b's build record and its ruling addendum.
+> (2) **Q-C's hardlink dedup — KILLED**: no links, ever; every file in a
 > package is an unlinked copy and a package is transportable by copying its
 > directory (§3.7's storage bullet is authoritative, and it names the disk cost
 > this accepts plus the ruled remedy, §10 Q3). Everything else in this document
@@ -257,19 +259,11 @@ wb-fastr-modules (local HEAD `004fdc2` — contains both the pinned-asset and
 showNValues workstreams, 4 unpushed commits ride the deploy — **and read
 "The modules repo rides the deploy" below before pushing**); add
 the runs volume to the POSTGRES container in each instance's compose (item 7
-notes + Dockerfile comment). **ONE decision for Tim, with a follow-on — and it
-blocks nothing** (verified 2026-07-30 that these are the same question, not two):
-**what permission governs a package's internals** (script, log, raw output
-files)? They are `can_configure_data` today (item 3), against Tim's later "if
-the answer lives inside the run package directory, an attached project's user
-can see it" principle; item 3b made it a one-expression change. The follow-on:
-the copilot's `get_module_r_script` / `get_module_log` call exactly those
-routes, so a non-instance-admin project member gets a typed permission failure
-from a tool the static "Results Package" view instructions still advertise.
-**Ruling the permission as "any member of an attached project" dissolves the
-follow-on entirely**; keeping `can_configure_data` makes it a real UX choice
-(hide the two tools for such users, or let them fail loudly). Neither state is
-silent or unsafe, which is why this ships either way. Rollout: deploy to one
+notes + Dockerfile comment). **No decisions remain**: the package-internals
+permission — the last one — was ruled and built on 2026-07-30 (per-project
+`can_view_script_code` / `can_view_logs` / `can_view_data` on project-scoped
+routes; see the START HERE note and item 3b's ruling addendum), which also
+resolved the copilot follow-on. Rollout: deploy to one
 trial prod instance → serve
 starts, the backfill synthesizes runs (docker-exec runbook in item 7) → run the
 rig there (pg vs run read path — the pg plane is FROZEN at deploy, so only
@@ -1950,18 +1944,60 @@ on big instances. `addDataset*ToProject` dies with its last caller.
      403s. When the permission model is settled it is that one expression
      plus the route guard — no structural change, which is the point of
      keeping the routes run-keyed.
-   - **Still open, tracked here, not blocking:** what permission actually
-     governs package internals. Under Tim's rule the natural answer is "any
-     member of a project attached to this run", which is §2.6's ORIGINAL
-     wording — item 3 overwrote that sentence with the Q-F/Q-G carve-out and
-     it should be restored when this is settled. Note Q-G rejected
-     per-project readability partly on a wrong premise (that it
-     "re-introduces exactly the project-scoped guard Q-A deletes" — Q-A
-     deleted the `sourceProjectId` arm and explicitly KEPT the attached-run
-     arm as "end-state-correct for the project surface"). The awkward piece
-     is the raw-file download: it is a `serveStatic` mount with no project
-     context, so per-project readability there means replacing it with a
-     streaming route that does the check.
+   - **RULED AND BUILT 2026-07-30 (was the last open question).** What
+     governs package internals is **the per-project permissions the app
+     already had for exactly this and had never enforced**:
+     `can_view_script_code` (migration 009, labelled "View script code" in the
+     project-user editor) for the script, `can_view_logs` for the log,
+     `can_view_data` for the raw output files. Chosen over the more literal
+     reading of Tim's rule ("any member sees everything") because that would
+     hand module R source to Viewers whose preset explicitly says no, and
+     would leave two purpose-built permissions dead in the schema. All three
+     are true for a project Admin — the same population that reached these
+     viewers before the wizard deploy moved them — so the deploy takes the
+     viewers away from nobody, which is what settled the timing.
+     What landed:
+     - **Project-scoped routes that take NO runId**
+       (`routes/project/results_package.ts`): the run is resolved from
+       `projects.run_id`, so knowing another package's id buys nothing. Same
+       principle as the AI tools' run resolver, now enforced by the route
+       shape rather than by convention.
+     - **One reader, two guards** (`server/runs/package_internals.ts`): the
+       catalogue keeps its run-keyed `can_configure_data` copies for packages
+       attached to no project, and both mounts read through the same
+       functions. The three instance routes shed their inline file handling.
+     - **Path safety moved INTO the reader**, which closed a real hole the
+       inline routes had: `run_id` and `module_id` were interpolated into a
+       path unvalidated, so `../..` traversed out of the runs volume
+       (admin-only, hence low severity, but live). Now runId must be a UUID,
+       moduleId must be in the registry, and a download file name may not
+       contain a separator or `..` — all typed refusals.
+     - **The download became a streaming route** with the project in its
+       PATH (`/results_package_file/:project_id/:module_id/:file_name`),
+       because an `<a download>` cannot send the `Project-Id` header. It
+       follows the project-SSE precedent exactly — same authoritative
+       `resolveProjectUserAccess`, different source for the project id — and
+       streams `Deno.open(...).readable` rather than buffering, since the
+       CSVs it serves are multi-GB at Nigeria scale. Q-G's static-mount
+       tightening stays for the catalogue's own downloads.
+     - **The client gained a `PackageInternalsSource`** seam: each surface
+       supplies the routes and the three flags, so the shared viewers stay
+       host-agnostic and each button is gated on its own permission rather
+       than one blanket boolean.
+     - **Live-verified on dev, 24/24** (a generated ICEH package attached to a
+       disposable project; both fixtures deleted): script/log/files served to
+       the project with no runId anywhere, byte-identical to the instance
+       mount and to the files on disk, a 349,945-byte download byte-equal to
+       disk with a correct Content-Length, four traversal shapes refused
+       (including `%2E%2E%2F` encoding) with no bytes ever served, and the
+       typed no-package state on a project with a null pointer. Denial itself
+       is NOT locally verifiable — `_BYPASS_AUTH`'s `createDevProjectUser`
+       grants every project bit — so the guard strings are asserted
+       statically, the same treatment item 4's locked-project refusal got.
+     - Q-G's note that per-project readability "re-introduces exactly the
+       project-scoped guard Q-A deletes" was wrong and is superseded: Q-A
+       deleted the `sourceProjectId` arm and explicitly KEPT the attached-run
+       arm as end-state-correct for the project surface.
 4. **Project picker + cache guard — DONE 2026-07-30** (gates green:
    `deno task typecheck` incl. lint:systems + rig PARITY GREEN `--run`, 719
    checks, after a full dev re-backfill; live-verified on dev, 41/41 harness

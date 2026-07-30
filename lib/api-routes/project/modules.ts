@@ -9,10 +9,10 @@ import { route } from "../route-utils.ts";
 // z.string() is used rather than a Zod enum (don't tighten while migrating).
 const moduleIdParamsSchema = z.object({ module_id: z.string() });
 
-// The per-module script/logs/files viewers used to live here; Phase 3 item 3
-// moved them to the instance results-package catalogue
-// (`runGenerationRouteRegistry`, can_configure_data) — a run belongs to no
-// project, so a debug surface over its outputs is an instance-admin one.
+// The per-module script/logs/files viewers used to live here; they are now
+// split by surface — `projectResultsPackageRouteRegistry` for a project (no
+// runId, one permission per kind of content) and `runGenerationRouteRegistry`
+// for the instance catalogue (run-keyed, can_configure_data).
 
 export const moduleRouteRegistry = {
   getResultsObjectItems: route({
