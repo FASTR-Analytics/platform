@@ -153,6 +153,7 @@ export function SlideDeckSettings(p: Props) {
         >
           <div class="ui-gap-sm flex">
             <Button
+              id="deck-settings-save-button"
               onClick={save.click}
               state={save.state()}
               intent="success"
@@ -171,7 +172,7 @@ export function SlideDeckSettings(p: Props) {
         </HeadingBar>
       }
     >
-      <div class="ui-pad ui-spy">
+      <div class="ui-pad ui-spy" data-tour="deck-settings-body">
         <SettingsSection header={t3({ en: "Style", fr: "Style", pt: "Estilo" })}>
           <div class="ui-spy">
             <StylePreview config={tempConfig} />
