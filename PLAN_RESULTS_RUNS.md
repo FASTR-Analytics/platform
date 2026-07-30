@@ -8,8 +8,9 @@
 > **DuckDB**; caches key on the run id; a project holds a pointer
 > (`projects.run_id`) to the one run it serves from; generation is an
 > instance-level wizard. Projects become pure authoring spaces. All of that
-> is BUILT and green on this branch — what remains is the last of the
-> user-model surface (below), then Tim's rollout.
+> is BUILT and green on this branch, INCLUDING the whole user-model surface.
+> What remains is one item — a rig outcome, a docs sweep and the exit gate —
+> then Tim's rollout, which is his to run, not an agent's.
 >
 > **Your next action is Phase 3 core item 5 (rig `foreign_run` + the closing
 > docs sweep + the exit gate) — the LAST item.** The work list is "**Phase 3
@@ -44,8 +45,13 @@
 > typecheck`, then re-backfill + the parity rig `--run`), live-verified on
 > the dev instance by a throwaway harness, the item's own new files claimed
 > in a `SYSTEM_NN_*.md` `globs:` list, a build record written INTO that
-> item's entry here, and ONE commit. The exact commands are in the operating
-> rules. Then stop — one item per session.
+> item's entry here, and ONE commit — then a SECOND, doc-only commit that
+> writes that commit's own hash into the repo-state note below (a hash cannot
+> record itself; every item so far did exactly this, e.g. `17996969` then
+> `dfc77fe0`). The exact commands are in the operating
+> rules. Then stop — one item per session. **Item 5 adds one thing on top:
+> it closes with the EXIT GATE, a single live pass over the whole user model
+> rather than one item's slice — see its entry.**
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
@@ -61,7 +67,10 @@
 > history, kept deliberately; it describes the code AS OF ITS OWN DATE and
 > is NOT a description of the current tree. Where Phase 3 superseded it, the
 > newer section wins and usually says so. Do not "correct" a build record,
-> and do not treat a closed item's description as a to-do.
+> and do not treat a closed item's description as a to-do. **Two LIVE
+> exceptions sit above that line and are not history — "Deploy phasing" and
+> "The modules repo rides the deploy" are Tim's current rollout runbook, and
+> item 5's entry points back at them.**
 >
 > **The "DESIGN QUESTIONS" block just above the work-item list is CLOSED.**
 > Every question (Q-A run identity, Q-B progress SSE, Q-C reuse base, Q-D
@@ -87,7 +96,12 @@
 >
 > **After item 5** the Phase 3 core is done and the branch is ready for
 > Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
-> rig there → fleet, Ethiopia early. Demolition (Phase 4) stays gated on
+> rig there → fleet, Ethiopia early. **Do not deploy — that is Tim's call
+> and Tim's runbook.** Three preconditions and two Tim-only decisions sit in
+> the pre-deploy checklist, and one of them is easy to get wrong: the
+> wb-fastr-modules repo is a shared single-HEAD dependency that rides the
+> deploy AND must ride any rollback ("The modules repo rides the deploy",
+> under Deploy phasing). Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
 ## Status: Phase 3 core IN PROGRESS — items 0, 1, 2, 3, 3b and 4 DONE (both gates green), item 5 is the last one
@@ -210,22 +224,83 @@ adapter (`server/run_query/`), golden-diff rig
 `{roId}.parquet` beside every raw CSV on every module run.
 
 **THE deploy (= old Phase 2, absorbing the old Deploy 1's read path) — wizard +
-identity + backfill. ALL BUILD ITEMS DONE + exit gate passed 2026-07-14 — this
-rollout is what remains.** Full spec: §4 Phase 2 plus the model above.
+identity + backfill. ALL BUILD ITEMS DONE + its own exit gate passed
+2026-07-14.** Scope note, because this sentence predates the Phase 3 re-cut:
+"the rollout is what remains" was true of THIS list only — the re-cut then put
+the Phase 3 user-model core in front of the deploy, so the build that remains
+is Phase 3 item 5, and item 5 has an exit gate of its own (they are two
+different gates). Full spec: §4 Phase 2 plus the model above.
 Pre-deploy checklist (each recorded where cited): ~~re-run the prod-image
 binding smoke for `@duckdb/node-api@1.4.5-r.1`~~ DONE 2026-07-29, PASS (Phase 0
 bullet addendum); push
 wb-fastr-modules (local HEAD `004fdc2` — contains both the pinned-asset and
-showNValues workstreams, 4 unpushed commits ride the deploy); add
+showNValues workstreams, 4 unpushed commits ride the deploy — **and read
+"The modules repo rides the deploy" below before pushing**); add
 the runs volume to the POSTGRES container in each instance's compose (item 7
-notes + Dockerfile comment). Rollout: deploy to one trial prod instance → serve
+notes + Dockerfile comment). **Two decisions for Tim, neither blocking a
+build:** (1) whether to gate the copilot's `get_module_r_script` /
+`get_module_log` out of a non-admin's toolset — after item 3's permission move
+they answer a non-instance-admin project member with a typed permission
+failure, and the static "Results Package" view instructions still name both
+tools (item 3's build record, "AI tools — flagged, not ruled"); (2) the
+deferred package-internals permission (START HERE). Rollout: deploy to one
+trial prod instance → serve
 starts, the backfill synthesizes runs (docker-exec runbook in item 7) → run the
 rig there (pg vs run read path — the pg plane is FROZEN at deploy, so only
 each project's backfill-provenance run is gateable; rulings 4/5) → green → roll
 the fleet with Ethiopia early (its rig run is the Ethiopian-quarter gate; it
 cannot run pre-flip — accepted, mitigated by trial-first ordering and volume
 restore). Rollback: hosting-level restore of the pre-deploy instance volume
-(ruling 5, which supersedes model point 4's previous-image rollback).
+(ruling 5, which supersedes model point 4's previous-image rollback) — **plus a
+modules-repo revert, see below**.
+
+### The modules repo rides the deploy — and must ride the rollback too
+
+**Authoritative statement of the wb-fastr-modules coupling (Tim, 2026-07-30);
+verified against both images' schemas the same day. Ruling 5's volume restore
+is NOT a complete rollback on its own.**
+
+The modules repo is a **shared, single-HEAD dependency**: both images fetch
+`definition.json` from the same GitHub HEAD, and nothing versions it per
+deploy. `installModule` pins no gitRef (only the wizard's per-generation
+resolve does), so "which definitions does prod see" is simply "whatever HEAD
+is" for both the new image and a rolled-back one.
+
+So **treat every wb-fastr-modules change from here until the results-runs
+image is confirmed keeper-status at prod as provisional, and know its revert
+target**: the last pushed commit before this deploy's batch is
+**`babd30d` ("hfa carry-forward")**. There are no tags in that repo — tag or
+write down `babd30d` before pushing, because a rollback needs it and the
+4-commit batch will bury it.
+
+What actually breaks if you restore the volume and the old image but leave
+the modules repo at the new HEAD:
+
+- **Restored data is fine.** Installed module rows in the restored project DBs
+  are stored blobs read with the INSTALLED schema; nothing re-fetches them, so
+  the old image serves restored projects normally. The coupling is latent, not
+  immediate — which is exactly why it is easy to miss.
+- **It bites on the next act that FETCHES from GitHub.** On main those are
+  `installModule` (which on main also runs at PROJECT CREATION) and the
+  update/reinstall path — both call `getModuleDefinitionDetail` →
+  `load_module.ts`'s `moduleDefinitionGithubSchema.safeParse`.
+- **And for one change already unpushed it is a HARD failure, not a silent
+  degrade.** `assetsToImport` widened from `z.array(z.string())` to
+  `z.array(z.union([z.string(), repoAssetToImportGithub]))` (the pinned-asset
+  workstream), and **m004/m005's `definition.json` now carry object pins**.
+  The old schema rejects those outright — invalid `definition.json` fails at
+  fetch time with a Zod path dump, by design (S8: "no silent normalization").
+  On a rolled-back image, creating a project or touching m004/m005 errors.
+- **`s.showNValues` is the softer, latent case.** It is an OPTIONAL key added
+  to the app's schema; Zod strip mode means an old image would silently DROP
+  it rather than fail — the CLAUDE.md silent-drop trap. No `definition.json`
+  authors it yet, so it costs nothing today and would cost a lost setting
+  later.
+
+**Therefore the rollback runbook is: restore the instance volume + previous
+image AND reset wb-fastr-modules to `babd30d`** (or whatever the pre-deploy
+pushed HEAD is at that time). Rolling back one without the other leaves prod
+in a state neither image was tested against.
 
 **Phase 3 — instance-level factory + catalogue + attach**: RE-CUT 2026-07-29 —
 its user-model core now ships BEFORE this deploy (see "Phase 3 re-cut" below);
@@ -1072,7 +1147,9 @@ finding 24 was decided FOR multi-project attachment), caches run-keyed, `runs`
 table instance-level — this re-cut is UI + routes + a repoint surface, not
 architecture.
 
-**In scope (the core, builds on `results-runs` before the rollout):**
+**In scope (the core, builds on `results-runs` before the rollout). ALL FOUR
+BUILT — items 1–4; kept as the statement of what the core was meant to be,
+with each bullet's build record in its item:**
 
 - Wizard entry moves to the instance shell (generation stays
   `can_configure_data`).
@@ -1156,7 +1233,10 @@ rig baseline, backfill, and the entire rollout runbook are unchanged.
    (Postgres data dir + sandbox + runs + assets restored together as one
    consistent set; work authored in the deploy window is lost — accepted).
    There is no partial rollback: the previous image is never redeployed
-   against a post-deploy database. This supersedes model point 4 and
+   against a post-deploy database. **A rollback must ALSO reset the
+   wb-fastr-modules repo** — it is a shared single-HEAD dependency the volume
+   restore does not touch; see "The modules repo rides the deploy" under
+   Deploy phasing for the revert target and what breaks without it. This supersedes model point 4 and
    dissolves sub-fork (b) — attach is pointer-only everywhere, launch-target
    dual-writes never existed.
 6. **Second design session (Tim, 2026-07-29, after item 0 landed)** — Q-A (run
@@ -1331,7 +1411,7 @@ the rig reports diffs like "duck=Unknown results object" / "Metric not found"
 on that one project. That is not a code bug — re-backfill that project and
 re-run. (This is the same remedy as the Q-E rule above.)
 
-**Where the results-package code lives** (as of item 3 — verify, don't
+**Where the results-package code lives** (as of item 4 — verify, don't
 assume, but this is the map):
 
 | Concern | File |
@@ -1340,22 +1420,26 @@ assume, but this is the map):
 | Shared package builder (both writers) + backfill synthesizer | `server/runs/synthesize_run.ts` |
 | Manifest + input-JSON read cache | `server/runs/manifest_cache.ts` |
 | Guarded hard delete (row → dir → caches) | `server/runs/delete_run.ts` |
+| Repoint + the `run_attached` event (BOTH emitters: publish and picker) | `server/runs/attach_run.ts` |
+| §2.6 compatibility report (authored POs vs a candidate manifest) | `server/runs/package_compatibility.ts` |
 | Generation pipeline, launch, execute/reuse, inputs | `server/worker_routines/generate_run/**` |
 | Dual-channel generation telemetry | `server/worker_routines/generate_run/notify_run.ts` |
 | Catalog rows, attempts, listings, publish tx | `server/db/instance/run_generation.ts` |
 | Wizard + catalogue + viewer routes (all `can_configure_data`) | `server/routes/instance/run_generation.ts` |
+| Project picker routes (`can_view_data` read / `can_configure_visualizations` pick) | `server/routes/project/results_package.ts` |
 | Run-output downloads (`/:run_id/outputs/*`) | `server/middleware/static.ts` |
 | Instance SSE endpoint + the per-user message filter | `server/routes/instance/instance-sse.ts` |
 | Read plane over the attached run (DuckDB) | `server/run_query/**` |
 | PO caches + `PO_CACHE_VERSION` | `server/routes/caches/visualizations.ts` |
 | Run/manifest/summary types | `lib/types/run_manifest.ts`, `lib/types/run_generation.ts` |
-| Route registry | `lib/api-routes/instance/run_generation.ts` |
+| Route registries | `lib/api-routes/instance/run_generation.ts`, `lib/api-routes/project/results-package.ts` |
 | **What a package CONTAINS** — rendered identically on BOTH surfaces (item 3b): module list + per-module script/log/file viewers, generating progress + live R line, failed state, provenance line, status badge | `client/src/components/_shared/results_package/**` |
 | Instance catalogue chrome (run list, generate, guarded delete, disk size, attached projects) | `client/src/components/instance_results_packages/index.tsx` |
-| Project package tab chrome (in-use marker; item 4 turns this into the picker) | `client/src/components/project/project_results_package.tsx` |
+| Project package tab chrome (in-use marker + the attach picker) | `client/src/components/project/project_results_package.tsx`, `results_package_compatibility_modal.tsx` |
 | Launch wizard | `client/src/components/results_package_wizard/**` |
 | AI tools over a package (run RESOLVER, host-agnostic) | `client/src/components/project_ai/ai_tools/tools/modules.ts` |
 | Client SSE listener registries | `client/src/state/instance/t1_sse.tsx`, `client/src/state/project/t1_sse.tsx` |
+| Run-keyed client caches + the response-side runId guard | `client/src/state/_infra/reactive_cache.ts`, `state/project/t2_presentation_objects.ts`, `t2_replicant_options.ts`, `runVersionKey`/`responseRunIdMatches` in `t1_store.ts` |
 | Backfill script / parity rig | `backfill_runs.ts`, `validate_results_runs_parity.ts` |
 
 Owning system docs: **S8** (module system — the pipeline, routes and client
@@ -1991,10 +2075,28 @@ on big instances. `addDataset*ToProject` dies with its last caller.
    "Install & catalog (dual-write plane)" section still describes the
    dual-write that item 0 deleted.
 
-   Then the exit gate: `deno task typecheck` + rig green + a live dev pass
-   covering instance generation with multi-attach, a swap with the compat
-   report, the guarded delete, and defaults save/prefill. When that is green
-   the Phase 3 core is DONE and the branch is Tim's to roll out.
+   **One ruled deliverable belongs to no work item — record it, do not build
+   it.** Q-C also ruled hardlink dedup for run storage (amending §3.7's "copy,
+   never link"), and no Phase 3 item owns it; §3.7 says it may land before or
+   after the deploy and nothing depends on it. It is unimplemented (no
+   `Deno.link` anywhere under `server/runs/` or `generate_run/`). Item 5's
+   sweep should leave it as a named open item somewhere Tim will see it again,
+   rather than letting it fall out of the plan when Phase 3 closes.
+
+   Then the exit gate — **this is what makes item 5 different in SHAPE from
+   items 0–4, which each ended at their own two gates**: `deno task
+   typecheck` + rig green + a live dev pass over the whole user model in one
+   sitting, covering instance generation with multi-attach, a swap with the
+   compat report, the guarded delete, and defaults save/prefill. Item 4's
+   harness (`getAttached`/`listAttachable`/compat/attach + the guarded
+   delete) and item 3's (catalogue, viewers, SSE) are the pieces; the exit
+   gate is running them as one flow against a server that is up, not
+   re-proving each in isolation. When that is green the Phase 3 core is DONE
+   and the branch is Tim's to roll out — **item 5 does NOT deploy**, and
+   Tim's rollout has its own preconditions (Deploy phasing's pre-deploy
+   checklist: the modules-repo push and its rollback coupling, the
+   per-instance Postgres runs-volume mount, and two decisions that are Tim's
+   to make, not an agent's).
 
 ### Binding implementation decisions (do not re-derive)
 
@@ -2732,7 +2834,8 @@ write/pg-read-path deletion) stays gated on fleet verification.**
 
 - Migrations dropping project-DB `ro_*`, mirrors, `modules`, `metrics`,
   `results_objects`, `global_last_updated`; delete ingest code, dirty machine,
-  stamp plumbing, `datasetsVersion`, staleness checkers, the rollback flag and
+  stamp plumbing, `datasetsVersion`, staleness checkers, ~~the rollback flag~~
+  (never built — model point 6 ruled no runtime cutover flag) and
   Postgres read path.
 - Figure provenance re-keys to runId (the deferred FigureBundle provenance
   phase, now in SYSTEM_10 Open items, simplifies: stale badge = capturedRunId ≠
