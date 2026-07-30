@@ -284,11 +284,11 @@ dimension onto the attached run):
    `moduleLastRun` + `datasetsVersion` dimensions — data never changes under a
    run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"9"`, bump history in the adjacent comment) — a manually-bumped semantic
+   `"10"`, bump history in the adjacent comment) — a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.
-3. **Prefix bump** — `po_detail` → `po_detail_v4`: for payload _shape_ changes
+3. **Prefix bump** — `po_detail` → `po_detail_v5`: for payload _shape_ changes
    on the config cache; consumers additionally re-run
    `presentationObjectConfigSchema.parse` on every hit to adapt cross-deploy
    payloads.
@@ -300,7 +300,7 @@ project-scoped: two projects attached to the same run share entries.
 
 | Singleton                        | prefix           | uniquenessHash                                  | versionHash                            |
 | -------------------------------- | ---------------- | ----------------------------------------------- | -------------------------------------- |
-| `_PO_DETAIL_CACHE`               | `po_detail_v4`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
+| `_PO_DETAIL_CACHE`               | `po_detail_v5`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
 | `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
 | `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |
@@ -323,6 +323,16 @@ stale-version entry that will miss (Open items). The client half of that page is
 `components/project/project_cache.tsx`, which shows the same per-viz grid for
 the server (Valkey) and the client (IndexedDB, scanned by key prefix via
 `getClientVizCacheStatuses`).
+
+**Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D)
+— the one place that deliberately deletes entries rather than out-versioning
+them, and it is **disk reclamation, not correctness**: TTLs plus the version
+comparison in `get` already mean a dead run's entries are never served. Because
+`po_items`, `metric_info` and `replicant_opts` fold `runId` into their
+UNIQUENESS hash, they can be swept by prefix (`scanUniquenessHashes(runId…)` →
+`clearByUniquenessHash`). `po_detail` folds runId into its VERSION hash
+instead, so it cannot be prefix-swept and is left to expire on purpose — the
+alternative was a prefix bump for already-dead entries.
 
 **Rules.** Every cache is version-gated on a column bumped by _every_ write path
 to its data. Never `.clear()` on a normal write. `parseData` must derive the

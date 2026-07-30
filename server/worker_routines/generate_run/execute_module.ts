@@ -147,8 +147,10 @@ export async function executeRunModule(args: {
 
 // §3.7 reuse: the module's inputs are byte-identical to the matched run's,
 // so its raw output CSVs are copied from that run's outputs/{moduleId} and R
-// is skipped. Copy, never link — every run stays a self-contained,
-// independently-deletable directory. outputFileHashes come from the source
+// is skipped. It COPIES today, so every run stays a self-contained,
+// independently-deletable directory; hardlink dedup is ruled (PLAN_RESULTS_RUNS
+// Q-C, amending §3.7's original "copy, never link") but unimplemented — see
+// S8's open item before changing this. outputFileHashes come from the source
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
   attachTargetProjectIds: string[];

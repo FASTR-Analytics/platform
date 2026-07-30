@@ -9,13 +9,18 @@
 > (`projects.run_id`) to the one run it serves from; generation is an
 > instance-level wizard. Projects become pure authoring spaces. All of that
 > is BUILT and green on this branch, INCLUDING the whole user-model surface.
-> What remains is one item — a rig outcome, a docs sweep and the exit gate —
-> then Tim's rollout, which is his to run, not an agent's.
 >
-> **Your next action is Phase 3 core item 5 (rig `foreign_run` + the closing
-> docs sweep + the exit gate) — the LAST item.** The work list is "**Phase 3
-> core — work items**", inside the Status section's "Phase 3 re-cut"
-> subsection: **items 0, 1, 2, 3, 3b and 4 are DONE; only item 5 remains.**
+> **THE BUILD IS FINISHED (2026-07-30). There is no next item.** Phase 3 core
+> items 0, 1, 2, 3, 3b, 4 and 5 all landed with both gates green, and item 5's
+> exit gate — typecheck, rig PARITY GREEN 719 checks, and 34/34 live checks in
+> ONE flow over the whole user model against a running server — closed it.
+> **What remains is Tim's rollout, which is his to run, not an agent's**:
+> "Deploy phasing" and "The modules repo rides the deploy" (both in the Status
+> section, both LIVE) are the runbook, and its pre-deploy checklist holds two
+> decisions only Tim makes. **Do not deploy, and do not start Phase 4** —
+> demolition stays gated on fleet verification. If you were sent here to build
+> something, say so and ask: this plan's build queue is empty. The work-item
+> list below is now a record, not a queue.
 >
 > **Standing design rule for anything touching a results package (Tim,
 > 2026-07-30).** **If the answer to a question lives inside the run package
@@ -34,29 +39,28 @@
 > (1) the Status block down through "Phase 3 re-cut" — the decided model,
 > the fork rulings, and the signed-off design, where each item's FULL SPEC
 > is the matching bullet in "Phase 3 core — design"; (2) "**How to work a
-> Phase 3 item**" immediately above the work-item list — operating rules,
-> the two gate commands verbatim, where the code lives, dev setup, known
-> traps; (3) your item's entry in "Phase 3 core — work items"; (4) "Binding
+> Phase 3 item**" immediately above the work-item list — the operating rules
+> every item was held to, the two gate commands verbatim, where the code
+> lives, dev setup, known traps; (3) the item entries in "Phase 3 core — work
+> items", each of which carries its own build record; (4) "Binding
 > implementation decisions" + "Empirical gotchas" (closed — do not
-> re-derive). Everything the design settles is settled: build it, don't
-> re-litigate it.
+> re-derive). Everything the design settles is settled; nothing here is
+> awaiting a decision or a build.
 >
-> **Definition of done for an item:** both gates green (`deno task
-> typecheck`, then re-backfill + the parity rig `--run`), live-verified on
-> the dev instance by a throwaway harness, the item's own new files claimed
-> in a `SYSTEM_NN_*.md` `globs:` list, a build record written INTO that
-> item's entry here, and ONE commit — then a SECOND, doc-only commit that
-> writes that commit's own hash into the repo-state note below (a hash cannot
-> record itself; every item so far did exactly this, e.g. `17996969` then
-> `dfc77fe0`). The exact commands are in the operating
-> rules. Then stop — one item per session. **Item 5 adds one thing on top:
-> it closes with the EXIT GATE, a single live pass over the whole user model
-> rather than one item's slice — see its entry.**
+> **The definition of done every item met** (kept because it is how this
+> branch was built, and how any follow-up work should be): both gates green
+> (`deno task typecheck`, then re-backfill + the parity rig `--run`),
+> live-verified on the dev instance by a throwaway harness, the item's own new
+> files claimed in a `SYSTEM_NN_*.md` `globs:` list, a build record written
+> INTO that item's entry here, and ONE commit — then a SECOND, doc-only commit
+> that writes that commit's own hash into the repo-state note below (a hash
+> cannot record itself). Item 5 added the EXIT GATE on top: a single live pass
+> over the whole user model rather than one item's slice — see its entry.
 >
 > **Repo state.** Branch is `results-runs`; do NOT touch `main` and do NOT
 > merge this branch into it. Each item is one commit (item 0 = `aef409ea`,
 > item 1 = `92cce0ba`, item 2 = `823d6575`, item 3 = `5d7d6b90`, item 3b =
-> `676a83a8`, item 4 = `17996969`). Still, do not assume the tree is clean: always run
+> `676a83a8`, item 4 = `17996969`, item 5 = `PENDING`). Still, do not assume the tree is clean: always run
 > `git status` first, and expect files outside your scope — parallel
 > workstreams are normal here, and their errors are not yours to fix without
 > asking. Never create a branch.
@@ -67,7 +71,8 @@
 > history, kept deliberately; it describes the code AS OF ITS OWN DATE and
 > is NOT a description of the current tree. Where Phase 3 superseded it, the
 > newer section wins and usually says so. Do not "correct" a build record,
-> and do not treat a closed item's description as a to-do. **Two LIVE
+> and do not treat a closed item's description as a to-do — that now applies
+> to the Phase 3 items too, all of which are closed. **Two LIVE
 > exceptions sit above that line and are not history — "Deploy phasing" and
 > "The modules repo rides the deploy" are Tim's current rollout runbook, and
 > item 5's entry points back at them.**
@@ -76,35 +81,37 @@
 > Every question (Q-A run identity, Q-B progress SSE, Q-C reuse base, Q-D
 > cache GC, Q-E rig gating, Q-F viewer permissions, Q-G the under-guarded
 > static mount, and the `createProject` oddity) was ruled by Tim on
-> 2026-07-29; read them as decided and build them. Q-C also amended §3.7's
+> 2026-07-29; all are BUILT. Q-C also amended §3.7's
 > reuse and storage bullets. **One exception: Q-F was partly RE-RULED by
 > item 3b** — its UI half ("the viewers live only on the instance surface")
 > is dead, and its route guard became the deferred question below; the Q-F
-> entry says so in place. **Nothing in this plan needs a decision before it
-> can be built.** If you hit a real hole the design does not cover, raise it
-> with Tim rather than inventing a ruling.
+> entry says so in place. If you hit a real hole the design does not cover,
+> raise it with Tim rather than inventing a ruling.
 >
-> **One open question, deliberately deferred — it did NOT block item 4 and
-> does not block item 5.** What permission governs a package's INTERNALS
+> **One open question, deliberately deferred — it blocked no item and does
+> not block the rollout.** What permission governs a package's INTERNALS
 > (script, log, raw output files)? Item 3 made them `can_configure_data`; Tim then ruled the
 > governing principle is "**if the answer lives inside the run package
 > directory, a project user attached to that package can see it**", which
 > points at any member of an attached project (§2.6's original wording).
 > Item 3b restructured the code so this is a one-expression change when
-> settled, and explicitly left it unsettled — **do not decide it yourself,
-> and do not wait on it.** Full context in item 3b's build record.
+> settled, and explicitly left it unsettled — **do not decide it yourself.**
+> Full context in item 3b's build record. **One ruled-but-unbuilt
+> deliverable** sits alongside it: hardlink dedup for run storage (Q-C,
+> amending §3.7's "copy, never link"). No Phase 3 item owned it, nothing
+> depends on it, and it may land before or after the deploy; it is now a named
+> open item in SYSTEM_08 with a pointer in `reuseRunModule`'s doc comment.
 >
-> **After item 5** the Phase 3 core is done and the branch is ready for
-> Tim's rollout (see "Deploy phasing"): trial prod instance → backfill →
-> rig there → fleet, Ethiopia early. **Do not deploy — that is Tim's call
-> and Tim's runbook.** Three preconditions and two Tim-only decisions sit in
-> the pre-deploy checklist, and one of them is easy to get wrong: the
-> wb-fastr-modules repo is a shared single-HEAD dependency that rides the
-> deploy AND must ride any rollback ("The modules repo rides the deploy",
-> under Deploy phasing). Demolition (Phase 4) stays gated on
+> **The branch is ready for Tim's rollout** (see "Deploy phasing"): trial prod
+> instance → backfill → rig there → fleet, Ethiopia early. **Do not deploy —
+> that is Tim's call and Tim's runbook.** Three preconditions and two Tim-only
+> decisions sit in the pre-deploy checklist, and one of them is easy to get
+> wrong: the wb-fastr-modules repo is a shared single-HEAD dependency that
+> rides the deploy AND must ride any rollback ("The modules repo rides the
+> deploy", under Deploy phasing). Demolition (Phase 4) stays gated on
 > fleet verification and is NOT part of this build.
 
-## Status: Phase 3 core IN PROGRESS — items 0, 1, 2, 3, 3b and 4 DONE (both gates green), item 5 is the last one
+## Status: Phase 3 core DONE — items 0, 1, 2, 3, 3b, 4 and 5 all landed; the build is finished and the branch is Tim's to roll out
 
 The wizard-deploy build is DONE and CLOSED; main has been MERGED INTO this
 branch (never the reverse — `results-runs` has NOT been merged to `main`); the
@@ -112,18 +119,23 @@ post-merge adversarial review is FIXED, with the exit gate PARITY GREEN on the
 merged+reviewed tree 2026-07-28 (719 checks, extended corpus; branch HEAD
 `675b63be` at that date). RE-CUT 2026-07-29 (Tim): the Phase 3 USER-MODEL CORE
 now ships BEFORE the deploy (see "Phase 3 re-cut") so users get ONE big change
-(instance-based packages), not two. Phase 3 core progress: **item 0
-(dual-write deletion) DONE, item 1 (defaults store + instance-shell wizard
-entry + run identity + catalog-wide reuse + createProject cleanup) DONE, item 2
-(attach-at-launch: confirm-step multi-select + launch-time target eligibility)
-DONE, item 3 (catalogue + disk size + guarded hard delete + Q-B/Q-D/Q-F/Q-G)
-DONE, item 3b (shared package explorer + host-agnostic AI tools, Tim's
-correction to item 3's debug-vs-content split) DONE 2026-07-30, item 4
-(project picker + compatibility report + repoint + the client cache guard)
-DONE 2026-07-30 — rig PARITY GREEN 719 checks after a full dev re-backfill;
-only item 5 remains.** After item 5 comes Tim's rollout (trial instance → backfill + rig there → fleet,
-Ethiopia early as the Ethiopian-quarter gate). Everything below this line is
-the build record
+(instance-based packages), not two. **The Phase 3 core is COMPLETE as of
+2026-07-30**: item 0 (dual-write deletion), item 1 (defaults store +
+instance-shell wizard entry + run identity + catalog-wide reuse + createProject
+cleanup), item 2 (attach-at-launch: confirm-step multi-select + launch-time
+target eligibility), item 3 (catalogue + disk size + guarded hard delete +
+Q-B/Q-D/Q-F/Q-G), item 3b (shared package explorer + host-agnostic AI tools,
+Tim's correction to item 3's debug-vs-content split), item 4 (project picker +
+compatibility report + repoint + the client cache guard) and item 5 (rig
+`foreign_run` + the docs sweep + the exit gate) all landed with both gates
+green. **Item 5's exit gate closed the build**: typecheck green, rig PARITY
+GREEN 719 checks after a full dev re-backfill, and 34/34 live checks in one
+flow over the whole user model against a running server. **What remains is
+Tim's rollout, not a build** (trial instance → backfill + rig there → fleet,
+Ethiopia early as the Ethiopian-quarter gate) — read "Deploy phasing" and "The
+modules repo rides the deploy" below, which are the runbook, and note the two
+Tim-only decisions in the pre-deploy checklist. Everything else below this line
+is the build record
 
 **This section is the authoritative statement of what is decided and how it
 deploys.** Re-cut with Tim on 2026-07-12 after the adversarial pre-deploy review
@@ -1352,7 +1364,7 @@ well as referenced ones.
   passes until committed, then orphans). Item 5's "sweep" is prose/doc
   reconciliation only, not glob catch-up.
 
-#### How to work a Phase 3 item (operating rules — these govern every item below)
+#### How a Phase 3 item was worked (operating rules — these governed every item below; all are now closed)
 
 **One item per session, in order.** An item too large for one session stops at
 a clean seam with the gates green and records its stopping point INSIDE that
@@ -1445,7 +1457,7 @@ assume, but this is the map):
 Owning system docs: **S8** (module system — the pipeline, routes and client
 surfaces), **S9** (viz query & cache), **S3** (SSE + cache invalidation).
 
-#### Phase 3 core — work items (execute in order, one per session, each gated by `deno task typecheck` + rig `--run` green)
+#### Phase 3 core — work items (ALL DONE; each was one session gated by `deno task typecheck` + rig `--run` green, and carries its own build record)
 
 Each item below is a checklist; **its full spec is the matching bullet in the
 "Phase 3 core — design" subsection directly above** (item 1 ↔ "Instance
@@ -2097,6 +2109,86 @@ on big instances. `addDataset*ToProject` dies with its last caller.
    checklist: the modules-repo push and its rollback coupling, the
    per-instance Postgres runs-volume mount, and two decisions that are Tim's
    to make, not an agent's).
+
+   **BUILT 2026-07-30 — the Phase 3 core is CLOSED** (`deno task typecheck`
+   green, rig PARITY GREEN 719 checks after a full dev re-backfill, exit gate
+   34/34 live on dev with the server up). What landed:
+   - **`foreign_run` (ruling 4)**, in the rig's project loop: a new
+     `Outcome`, decided by `pgOracleVerdict(projectId, runSummary)` before the
+     manifest is ever opened. Gate iff `backfillSourceProjectId === projectId`;
+     null (wizard) or another project's id → ONE counted, printed
+     `foreign_run` per project and its checks do not run. Running them and
+     re-labelling the diffs was rejected: the pg rows for a foreign attachment
+     describe a different generation act, so every diff would be noise, and
+     the rule is stated as "gate iff", not "report differently".
+   - **A broken catalog summary is NOT a foreign run.** Unreadable or absent
+     summary JSON cannot establish either verdict, so it stays a GATING skip
+     with a distinct message. `foreign_run` therefore means exactly one thing:
+     a run that provably has no pg oracle. Nothing can buy itself an exemption
+     by being corrupt.
+   - **GREEN can no longer be read as "everything was checked."** In `--run`
+     mode the verdict line carries project accounting —
+     `PARITY GREEN (7 of 7 projects gated)`, plus `, N on a foreign run` and a
+     loud `— NOTHING WAS GATED` when the gated count is zero. Related: the
+     extended-corpus gate (`blankfilter`/`multimember`/`nvalues` ran zero
+     times) now only fires when at least one project was gated — with every
+     project foreign, no variant of any kind runs, and a corpus regression is
+     the wrong cause to name.
+   - **Live-verified on dev** (disposable fixtures only — one throwaway
+     project plus two throwaway catalog rows with no run dirs, all deleted):
+     all four verdict branches. Another project's backfill run → `foreign_run`,
+     exit 0. A wizard-shaped summary (null stamp) → `foreign_run`, exit 0.
+     An unparseable summary → gating skip, exit 1, PARITY RED. Own backfill
+     run → gated, which is what the 7/7 gate run itself proves.
+   - **Docs sweep.** S8's dual-write prose was drifted, not merely
+     pre-Phase-4: the header, Scope, Contract, the ingestion block and the
+     Phase-4 open item all described writers item 0 deleted. Reconciled to
+     the tree — "Install & catalog (dual-write plane)" is now "What is left of
+     install & the project-DB catalog", stating plainly that the rows are
+     FROZEN and read only by the rig. Also corrected: the reuse search
+     (catalog-wide, no base run), the concurrency guard (attach targets, not
+     projects), the deleted dataset sandbox mirror-back, and a mangled list
+     that had swallowed "manifest rebuilt fresh every generation". S3 gained
+     the run-deletion cache purge (Q-D) it never documented and had `"9"` /
+     `po_detail_v4` where the code says `"10"` / `po_detail_v5`; S9's banner
+     carried the same two stale values.
+   - **Hardlink dedup now has a home Tim will see** (the ruled deliverable no
+     item owned): a named S8 open item, next to the Phase 4 demolition item,
+     plus a pointer in `reuseRunModule`'s doc comment — which had been stating
+     the superseded "Copy, never link" rule as if it were current.
+   - **Noticed, fixed in passing**: `installModule` had been dead since item 1
+     removed its `createProject` call — 130 lines whose execution would have
+     DROPPED the `ro_*` tables the rig reads, so it was not a harmless orphan.
+     Deleted with its now-unused imports; ruling 5 freezes the pg read
+     wrappers and tables, not a writer nothing calls. Its neighbour comment
+     ("defaults are recreated on install") and
+     `write_results_object_parquet.ts`'s two comments naming the deleted
+     `legacy_store_results_object.ts` as a co-authority were corrected too.
+   - **Exit gate, one flow, server up** (34/34; two disposable projects, the
+     defaults row — which did not exist before — and the generated package,
+     all removed): defaults empty → save → read back verbatim → the wizard's
+     own merge replayed (stored beats definition default, unstored falls back,
+     resume beats stored), with an unknown moduleId in the store tolerated.
+     Then attempt CRUD → step1 (ICEH) → step2 (m009) → launch with TWO attach
+     targets; mid-flight, the delete refusal ("still being generated") and the
+     launch refusal for a target already in a generating run; on ready, wizard
+     provenance with a null backfill stamp, 807,405 bytes stamped, both
+     projects repointed in the publish tx, both listed in the catalogue.
+     Package contents over the run-keyed viewers (script 4,249 chars, log,
+     6 output files incl. both parquets). Then the swap: 28 candidates with
+     the attached one excluded → compatibility report → repoint moving ONE
+     project's pointer, an unknown package refused with the pointer untouched.
+     Then the guarded delete: refused while in use, accepted once
+     unreferenced, run dir gone, catalog row gone, other projects unaffected.
+   - **Compat report on real data** (read-only addendum, because the fixture
+     projects have no authored visualizations so the gate's own report was
+     trivially empty): HFA Test's 2 authored POs against six packages —
+     `metric_not_in_package` ×2 against every ICEH-only package, ×1 against
+     the multi-module "Test" package. The report tells packages apart on real
+     authored content.
+   - **Not verifiable in dev, recorded**: nothing new. The one such gap is
+     still item 4's locked-project refusal (`_BYPASS_AUTH` hardcodes
+     `isLocked: false`).
 
 ### Binding implementation decisions (do not re-derive)
 

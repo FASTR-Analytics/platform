@@ -9,10 +9,12 @@ import {
 } from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
-// raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3, reproducing
-// exactly the four semantic normalizations Postgres ingest applies
-// (storeResultsObject in worker_routines/generate_run/legacy_store_results_object.ts
-// — the two must not drift):
+// raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3. This is now
+// the ONLY ingest: the legacy Postgres COPY it was written to mirror was
+// deleted with the dual-write (Phase 3 item 0), so the four normalizations
+// below are stated here once and nothing shadows them. The frozen `ro_*`
+// tables still carry rows written by that COPY, which is why the parity rig
+// can diff against them:
 //   1. 'NA' → NULL (unquoted only, matching Postgres COPY)
 //   2. schema = CSV headers ∩ declared columns, with DECLARED types (an
 //      undeclared header is a hard error; types are never inferred)
@@ -38,9 +40,8 @@ export function duckDbTypeForDeclaredColumnType(declared: string): string {
   }
 }
 
-// Normalization 3's drop rule, shared by Postgres ingest and the package
-// builder so the two cannot drift: redundant period columns by granularity,
-// plus enabled optional facility columns present in the CSV (the facilities
+// Normalization 3's drop rule: redundant period columns by granularity, plus
+// enabled optional facility columns present in the CSV (the facilities
 // table/parquet carries them instead).
 export function computeResultsObjectColumnsToExclude(
   csvHeaders: string[],

@@ -36,13 +36,17 @@ docs_absorbed:
 
 Versioned R modules end-to-end: GitHub fetch → validate → wizard-configured
 whole-DAG generation into an immutable run dir → Docker/R execution → finalize
-(parquet + manifest) with a legacy `ro_*` dual-write as the rollback plane.
+(parquet + manifest). There is no second write plane: the `ro_*` dual-write was
+deleted with PLAN_RESULTS_RUNS Phase 3 item 0, and what survives of Postgres
+results is FROZEN rows nothing writes — read only by the parity rig, dropped in
+Phase 4.
 Original prose reviewed against code 2026-07-16 (first review cycle; absorbs
 DOC_TASK_EXECUTION_DIRTY_STATE + DOC_WORKER_ROUTINES + DOC_MODULE_EXECUTION +
 DOC_MODULE_UPDATES + DOC_POPULATION_CSV) — then the PLAN_RESULTS_RUNS merge
-(2026-07-28) replaced the execution model; the sections below were reconciled to
-the merged tree at that point, and the full post-runs rewrite of this doc is
-PLAN_RESULTS_RUNS Phase 4.
+(2026-07-28) replaced the execution model, and Phase 3's user-model core
+(items 0–5, closing 2026-07-30) replaced the entry points and deleted the
+dual-write; the sections below were reconciled to that tree, and the full
+post-runs rewrite of this doc is PLAN_RESULTS_RUNS Phase 4.
 
 Boundaries: the write-a-worker **recipe** (folder pairing, READY handshake,
 preamble, spawn-site listeners, teardown rules, report-back mechanisms) is
@@ -65,7 +69,9 @@ together"); that repo is not documented here.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `server/module_loader/**`; `server/github/**`; ALL of `db/project/modules.ts`
-(install heart, now dual-write-only) + `db/project/results_objects.ts`;
+(now just the installed-definition blob helper the manifest builder shares, the
+config-selections parser, and the boot sweep's `uninstallModule`) +
+`db/project/results_objects.ts` (the rig's pg read wrappers);
 `server/runs/**` + `worker_routines/generate_run/**` (the results-package
 pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
@@ -85,11 +91,13 @@ wb-fastr-modules repo, Docker images.
 ## Contract
 
 Definitions zod-validated at every fetch; compute/presentation git-ref split;
-whole-DAG generation into an immutable run dir (PLAN_RESULTS_RUNS) with §3.7
-memoized reuse; per-module legacy dual-write (`ro_*` + project-DB catalog) as
-the rollback plane until Phase-3 demolition. The dirty-state machine, per-module
-rerun, and module-card surfaces were deleted at item 5 — module status is the
-run manifest's availability stamps.
+whole-DAG generation into an immutable run dir (PLAN_RESULTS_RUNS), entered
+ONLY from the instance shell, with §3.7 memoized reuse resolved by a
+catalog-wide inputKey search. The run dir is the only write plane. The
+dirty-state machine, per-module rerun, and module-card surfaces were deleted by
+the wizard deploy — module status is the run manifest's availability stamps.
+Rollback is a hosting-level volume restore (Phase 3 ruling 5), not a second
+data plane.
 
 ## Loading (`server/module_loader/load_module.ts`)
 
@@ -121,18 +129,27 @@ derived or stored here — they are virtual projections of the attached run's
 manifest presets, PLAN_RESULTS_RUNS item 5b,
 `lib/derive_default_visualizations.ts`.)
 
-## Install & catalog (dual-write plane)
+## What is left of install & the project-DB catalog
 
-The per-project install/update/rerun surface is GONE (PLAN_RESULTS_RUNS item 5):
-no install/uninstall/preview/update routes, no `compare_definitions.ts` change
-matrix, no per-module rerun. `db/project/modules.ts` keeps only the catalog
-heart as the **legacy dual-write plane** (rollback path until Phase-3
-demolition): `installModule` (called from project creation,
-`db/project/projects.ts`), `uninstallModule` (boot sweep in `db_startup.ts`),
-and `upsertModuleCatalogForGeneratedRun` (called per generated module from
-`generate_run/execute_module.ts` — NO default-PO create, NO orphan purge).
-Stored module blobs keep an empty `defaultPresentationObjects: []` key for
-previous-image schema compat (delete with the legacy plane).
+The per-project install/update/rerun surface is GONE (deleted by the wizard
+deploy): no install/uninstall/preview/update routes, no `compare_definitions.ts`
+change matrix, no per-module rerun. Phase 3 then deleted the WRITERS of the
+project-DB catalog too — item 0 the per-module dual-write
+(`upsertModuleCatalogForGeneratedRun`, the `ro_*` COPY, the
+`defaultPresentationObjects: []` compat key), item 1 the `installModule` call in
+project creation, which left the function itself an orphan (deleted here, item
+5). What survives in `db/project/modules.ts` is three things, none of them a
+catalog write path: `prepareModuleDefinitionForStorage` (the installed
+monolingual blob, now built straight into the manifest by
+`generate_run/pipeline.ts`), `parseModuleConfigSelections`, and
+`uninstallModule` — reached only by `db_startup.ts`'s temporary orphan-module
+cleanup sweep, which is why the orphaned-PO purge lives with it.
+
+So the `modules` / `results_objects` / `metrics` rows and the `ro_*` tables in
+every project DB are **frozen**: written by images before the cutover, read now
+only by the parity rig's Postgres baseline (`db/project/results_objects.ts`),
+and dropped in Phase 4. Nothing in the serving path consults them — a project
+serves entirely from its attached run's manifest and parquet.
 
 `routes/project/modules.ts` is read-only and, since Phase 3 item 3, holds only
 what a project MEMBER may read from the attached run's manifest:
@@ -204,18 +221,21 @@ the endpoint) with the per-attach-target project pushes — a run with no
 attach targets has only the former. Completion goes via
 `RUN_GENERATION_ENDED_CHANNEL` + `notifyProjectRunAttached`. Stages: prepare
 (dataset extracts COPY'd by Postgres directly into the run tmp dir via
-`RUNS_DIR_PATH_POSTGRES_INTERNAL`, mirrored to sandbox as the dual-write);
+`RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored back to the sandbox);
 resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated
 and Kahn-ordered); execute per module (Docker container
 `fastr-genrun-{runId}-{moduleId}`, §3.7 memoized reuse via content-addressed
-inputKeys against the base run — reused modules copy raw CSVs and skip R);
-finalize (`server/runs/synthesize_run.ts`'s `buildRunPackageIntoTmp`, shared
-with the backfill synthesizer — parquet
-
-- manifest rebuilt fresh every generation). Boot recovery:
-  `markInterruptedGeneratingRuns` + `.tmp-` sweep. One generating run per
-  project; cross-project concurrency OK. Full build narrative + rulings:
-  PLAN_RESULTS_RUNS Status sections.
+inputKeys searched catalog-wide across every ready run, newest first, with no
+base run at all — reused modules copy raw CSVs and skip R); finalize
+(`server/runs/synthesize_run.ts`'s `buildRunPackageIntoTmp`, shared with the
+backfill synthesizer — parquet + manifest rebuilt fresh every generation).
+Boot recovery: `markInterruptedGeneratingRuns` + `.tmp-` sweep.
+Concurrency is keyed on ATTACH TARGETS, not projects: one in-flight wizard
+configuration per admin user (`run_generation_attempts` PK), and a launch is
+refused while any selected target is already a target of a generating run —
+claimed in the same synchronous segment as the check, with the catalog as the
+cross-restart backstop. A generation with no attach targets never collides.
+Full build narrative + rulings: PLAN_RESULTS_RUNS Status sections.
 
 **Parameterization**
 (`server/server_only_funcs/get_script_with_parameters*.ts`). Dispatch on
@@ -228,17 +248,15 @@ generators, and the default/HFA generators wrap values in single quotes
 **without escaping** (only the calculated-indicators path validates identifiers)
 — these strings execute as real R; hardening + factoring is an Open item below.
 
-**Results ingestion (dual-write)**
-(`generate_run/legacy_store_results_object.ts`). Reads the CSV headers;
-`getCreateTableStatementFromCsvHeaders` maps each header to its declared column
-type and **throws if a header isn't in `createTableStatementPossibleColumns`** —
-R output can't smuggle columns; don't relax this. Then in one `projectDb.begin`:
-`CREATE TABLE
-ro_<uuid>`; `COPY … NULL 'NA'`; 6→5-digit `quarter_id`
-normalization; period/facility helper-column drops. The same four normalizations
-are applied independently when finalize writes the run's `{roId}.parquet`
-(`run_query/write_results_object_parquet.ts`) — the parquet is the serving
-plane, the `ro_*` table the rollback plane.
+**Results ingestion** (`run_query/write_results_object_parquet.ts`, called from
+finalize). ONE ingest since item 0 deleted the `ro_*` COPY: the raw R CSV
+becomes the run's `{roId}.parquet` under four semantic normalizations — `'NA'` →
+NULL (unquoted only), schema = CSV headers ∩ declared columns **with the
+DECLARED types and a hard error on any undeclared header** (R output cannot
+smuggle columns; don't relax this), redundant period + enabled facility helper
+columns dropped, and physical `quarter_id` normalized 6-digit → 5-digit. The
+deleted Postgres COPY applied the same four, which is what makes the frozen
+`ro_*` rows a valid parity oracle; the parquet is the only serving plane.
 
 **Path namespaces** — R runs in a container (prod) and Postgres `COPY`
 reads/writes from its own container's filesystem, so both the sandbox and the
@@ -291,7 +309,7 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
 
 - **Tracked in PLAN_ENFORCEMENT:** shared `runWorker()` preamble wrapper (item
   8). (The `CHECK` on `modules.dirty` item died with the dirty machine — the
-  column survives only in the dual-write plane.)
+  column survives only in the frozen project-DB `modules` table.)
 - **Harden the R-source interpolation.** The default and HFA script generators
   wrap config `text`/`select`/`number` values in single quotes with no escaping
   (only the calculated-indicators path validates identifiers), and the
@@ -303,9 +321,20 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   their `console.error` prefix (converges under enforcement item 8).
 - **population.csv has no pre-upload validation** — headers/types are only
   checked by R at run time.
-- **Phase 3/4 demolition (PLAN_RESULTS_RUNS):** delete the dual-write plane
-  (`ro_*` ingest, project-DB catalog, `defaultPresentationObjects: []` compat
-  key) after fleet verification; full S8 rewrite lands then.
+- **Phase 4 demolition (PLAN_RESULTS_RUNS), gated on FLEET VERIFICATION:** the
+  writers are already gone (Phase 3 items 0/1/5); what remains is dropping the
+  frozen plane itself — the `ro_*` tables, the project-DB `modules` /
+  `results_objects` / `metrics` catalog, and their pg read wrappers
+  (`db/project/results_objects.ts`) — which retires the parity rig's oracle and
+  therefore the rig. Full S8 rewrite lands then.
+- **Hardlink dedup for run storage is UNIMPLEMENTED** (ruled by
+  PLAN_RESULTS_RUNS Q-C, amending §3.7's "copy, never link"; no Phase 3 item
+  owned it and nothing depends on it, so it may land before or after the
+  deploy). Today a reused module's raw CSVs are COPIED from the source run into
+  the new run dir (`generate_run/execute_module.ts`), so N runs sharing a
+  module hold N copies of its output. Whoever implements it must keep the
+  immutability invariant: hardlinks are safe only because no run file is ever
+  written twice.
 - **Decoupling — split custody:** `server/server_only_types/mod.ts` (20 lines,
   three systems).
 - **Dead code (zero importers):** `fetchRawScript` in

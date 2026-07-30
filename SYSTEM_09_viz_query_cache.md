@@ -31,8 +31,8 @@ globs:
 > is no runtime flag; the pg wrappers survive solely as the parity rig's
 > baseline until demolition); caches are run-keyed — the
 > `moduleLastRun`/`datasetsVersion` dimensions and key tables below are STALE,
-> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "9",
-> `po_detail_v4`); calendar threads via `QueryContext`, not `getCalendar()` at
+> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "10",
+> `po_detail_v5`); calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 
 PO config → fetch-config contract → SQL over `ro_*` tables → version-hashed

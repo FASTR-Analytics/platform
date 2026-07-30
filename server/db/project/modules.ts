@@ -1,22 +1,12 @@
 import { Sql } from "postgres";
 import {
-  // _ADMIN_SERVER_HOST,
-  _INSTANCE_LANGUAGE,
-} from "../../exposed_env_vars.ts";
-import {
   APIResponseNoData,
-  APIResponseWithData,
   ModuleDefinitionDetail,
   parseInstalledModuleDefinition,
-  getStartingModuleConfigSelections,
   parseJsonOrThrow,
-  throwIfErrWithData,
   moduleDefinitionInstalledSchema,
-  metricStrict,
   type ModuleConfigSelections,
-  type ModuleId,
 } from "lib";
-import { getModuleDefinitionDetail } from "../../module_loader/mod.ts";
 import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
@@ -40,158 +30,14 @@ export function prepareModuleDefinitionForStorage(
   return JSON.stringify(moduleDefinitionInstalledSchema.parse(rest));
 }
 
-// presentation_objects.metric_id has no FK. Any PO whose metric no longer
-// exists in this project is dead (defaults are recreated on install), so purge
-// after every operation that changes the metrics table.
+// presentation_objects.metric_id has no FK, so a PO whose metric no longer
+// exists in this project is dead — purge after any operation that removes
+// metrics rows (today only the boot sweep's uninstall).
 async function purgeOrphanedPresentationObjects(sql: Sql): Promise<void> {
   await sql`
 DELETE FROM presentation_objects
 WHERE metric_id NOT IN (SELECT id FROM metrics)
 `;
-}
-
-//////////////////////////////////////////////////////////////
-//  ______                        __                __  __  //
-// /      |                      /  |              /  |/  | //
-// $$$$$$/  _______    _______  _$$ |_     ______  $$ |$$ | //
-//   $$ |  /       \  /       |/ $$   |   /      \ $$ |$$ | //
-//   $$ |  $$$$$$$  |/$$$$$$$/ $$$$$$/    $$$$$$  |$$ |$$ | //
-//   $$ |  $$ |  $$ |$$      \   $$ | __  /    $$ |$$ |$$ | //
-//  _$$ |_ $$ |  $$ | $$$$$$  |  $$ |/  |/$$$$$$$ |$$ |$$ | //
-// / $$   |$$ |  $$ |/     $$/   $$  $$/ $$    $$ |$$ |$$ | //
-// $$$$$$/ $$/   $$/ $$$$$$$/     $$$$/   $$$$$$$/ $$/ $$/  //
-//                                                          //
-//////////////////////////////////////////////////////////////
-
-export async function installModule(
-  projectDb: Sql,
-  moduleDefinitionId: ModuleId,
-): Promise<
-  APIResponseWithData<{
-    lastUpdated: string;
-    presObjIdsWithNewLastUpdateds: string[];
-  }>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    const modDef = await getModuleDefinitionDetail(
-      moduleDefinitionId,
-      _INSTANCE_LANGUAGE,
-      undefined,
-    );
-    throwIfErrWithData(modDef);
-    const gitRef = modDef.data.gitRef;
-    const lastUpdated = new Date().toISOString();
-
-    // Cross-module metric ID conflict check
-    const incomingMetricIds = modDef.data.metrics.map((m) => m.id);
-    if (incomingMetricIds.length > 0) {
-      const conflicting = await projectDb<{ id: string; module_id: string }[]>`
-        SELECT id, module_id FROM metrics
-        WHERE id = ANY(${incomingMetricIds})
-        AND module_id != ${moduleDefinitionId}
-      `;
-      if (conflicting.length > 0) {
-        const conflicts = conflicting.map((c) => `"${c.id}" (in ${c.module_id})`).join(", ");
-        throw new Error(`Metric ID conflict: ${conflicts}`);
-      }
-    }
-
-    const startingConfigSelections = getStartingModuleConfigSelections(
-      modDef.data.configRequirements,
-    );
-
-    const metricIds = modDef.data.metrics.map((m) => m.id);
-
-    await projectDb.begin(async (sql: Sql) => {
-      // Delete existing module (cascades to results_objects and metrics)
-      await sql`DELETE FROM modules WHERE id = ${modDef.data.id}`;
-
-      // Insert module (blob excludes metrics — they're stored in metrics table)
-      await sql`
-INSERT INTO modules
-  (id, module_definition, config_selections, dirty, compute_def_updated_at, compute_def_git_ref, presentation_def_updated_at, presentation_def_git_ref, config_updated_at, last_run_at)
-VALUES
-  (
-    ${modDef.data.id},
-    ${prepareModuleDefinitionForStorage(modDef.data)},
-    ${JSON.stringify(startingConfigSelections)},
-    'queued',
-    ${lastUpdated},
-    ${gitRef ?? null},
-    ${lastUpdated},
-    ${gitRef ?? null},
-    ${lastUpdated},
-    ${lastUpdated}
-  )
-`;
-
-      // Drop and recreate results object tables, insert into results_objects table
-      for (const resultsObject of modDef.data.resultsObjects) {
-        const roTableName = getResultsObjectTableName(resultsObject.id);
-        await sql`DROP TABLE IF EXISTS ${sql(roTableName)}`;
-        await sql`
-INSERT INTO results_objects (id, module_id, column_definitions)
-VALUES (
-  ${resultsObject.id},
-  ${modDef.data.id},
-  ${resultsObject.createTableStatementPossibleColumns ? JSON.stringify(resultsObject.createTableStatementPossibleColumns) : null}
-)
-`;
-      }
-
-      // Insert metrics (validate before write)
-      for (const metric of modDef.data.metrics) {
-        const validatedMetric = metricStrict.parse(metric);
-        await sql`
-INSERT INTO metrics (
-  id, module_id, label, variant_label, value_func, format_as, value_props,
-  required_disaggregation_options, value_label_replacements, post_aggregation_expression,
-  results_object_id, ai_description, viz_presets, hide, important_notes
-)
-VALUES (
-  ${validatedMetric.id},
-  ${modDef.data.id},
-  ${validatedMetric.label},
-  ${validatedMetric.variantLabel},
-  ${validatedMetric.valueFunc},
-  ${validatedMetric.formatAs},
-  ${JSON.stringify(validatedMetric.valueProps)},
-  ${JSON.stringify(validatedMetric.requiredDisaggregationOptions)},
-  ${validatedMetric.valueLabelReplacements ? JSON.stringify(validatedMetric.valueLabelReplacements) : null},
-  ${validatedMetric.postAggregationExpression ? JSON.stringify(validatedMetric.postAggregationExpression) : null},
-  ${validatedMetric.resultsObjectId},
-  ${validatedMetric.aiDescription ? JSON.stringify(validatedMetric.aiDescription) : null},
-  ${JSON.stringify(validatedMetric.vizPresets)},
-  ${validatedMetric.hide},
-  ${validatedMetric.importantNotes}
-)
-`;
-      }
-
-      // Default visualizations are virtual (PLAN_RESULTS_RUNS item 5b) —
-      // manifest projections of the attached run, never rows.
-      await purgeOrphanedPresentationObjects(sql);
-    });
-
-    // Update last_updated for all presentation objects using this module's metrics
-    if (metricIds.length > 0) {
-      await projectDb`
-UPDATE presentation_objects
-SET last_updated = ${lastUpdated}
-WHERE metric_id = ANY(${metricIds})
-`;
-    }
-
-    const allPresObjs = await projectDb<{ id: string }[]>`
-SELECT id FROM presentation_objects WHERE metric_id = ANY(${metricIds})
-`;
-    const presObjIdsWithNewLastUpdateds = allPresObjs.map((po) => po.id);
-
-    return {
-      success: true,
-      data: { lastUpdated, presObjIdsWithNewLastUpdateds },
-    };
-  });
 }
 
 //////////////////////////////////////////////////////////////////////////////
