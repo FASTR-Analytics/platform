@@ -79,7 +79,9 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   self-poison rather than show wrong names.
 - **Version capture is session-based** (10 min idle / 45 min max / 2 min
   room-empty), hash-deduped, retained newest-100-per-document, restore writes a
-  safety version first.
+  safety version first. Session finalization also writes `user_logs` activity
+  rows (`reportEditSession`/`deckEditSession`) — contract on `onSessionEnd` in
+  `version_tracker.ts`.
 
 ## What users get
 
