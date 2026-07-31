@@ -50,10 +50,10 @@ function getAreaHeadings(): { area: Area; heading: string }[] {
 }
 
 // Catalogue of every onboarding tour: Replay navigates to where the tour runs
-// and starts it; Show again just clears the seen-flag so the tour auto-fires
-// on the next real visit; unavailable tours are greyed out with a reason.
-// The per-area managers come from the project shell as props, so they share
-// its lifecycle and each action is routed to its owner via hasTour().
+// (switching tab and opening a document/slide where needed) and starts it;
+// unavailable tours are greyed out with a reason. The per-area managers come
+// from the project shell as props, so they share its lifecycle and each
+// action is routed to its owner via hasTour().
 export function TourCatalogueModal(
   p: AlertComponentProps<{ managers: TourManagerController[] }, undefined>,
 ) {
@@ -81,23 +81,9 @@ export function TourCatalogueModal(
   function replay(entry: TourCatalogueEntry) {
     const manager = managerFor(entry.id);
     p.close(undefined);
-    entry.navigate?.();
-    if (manager) {
-      manager.reset(entry.id);
-      void manager.start(entry.id);
-    }
-  }
-
-  function showAgain(entry: TourCatalogueEntry) {
-    managerFor(entry.id)?.reset(entry.id);
-    setSeenRev((r) => r + 1);
-  }
-
-  function showAllAgain() {
-    for (const manager of p.managers) {
-      manager.reset();
-    }
-    setSeenRev((r) => r + 1);
+    entry.navigate();
+    // start() runs regardless of seen state, so no reset is needed
+    void manager?.start(entry.id);
   }
 
   return (
@@ -112,18 +98,6 @@ export function TourCatalogueModal(
             pt: "Visitas guiadas",
           })}
         </div>
-      }
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="neutral" outline onClick={showAllAgain}>
-            {t3({
-              en: "Show all tours again",
-              fr: "Réafficher toutes les visites",
-              pt: "Mostrar novamente todas as visitas",
-            })}
-          </Button>,
-        ]
       }
       rightButtons={
         // eslint-disable-next-line jsx-key
@@ -145,7 +119,6 @@ export function TourCatalogueModal(
                 {(entry) => {
                   const isAvailable = () => entry.available();
                   const isSeen = () => seen(entry.id);
-                  const canReplay = () => isAvailable() && entry.startable;
                   return (
                     <div
                       class="flex items-center gap-3 rounded border px-4 py-3"
@@ -173,25 +146,7 @@ export function TourCatalogueModal(
                           </div>
                         </Show>
                       </div>
-                      <Show
-                        when={canReplay()}
-                        fallback={
-                          <Show when={isAvailable() || isSeen()}>
-                            <Button
-                              size="sm"
-                              outline
-                              disabled={!isSeen()}
-                              onClick={() => showAgain(entry)}
-                            >
-                              {t3({
-                                en: "Show again",
-                                fr: "Réafficher",
-                                pt: "Mostrar novamente",
-                              })}
-                            </Button>
-                          </Show>
-                        }
-                      >
+                      <Show when={isAvailable()}>
                         <Button size="sm" onClick={() => replay(entry)}>
                           {t3({ en: "Replay", fr: "Rejouer", pt: "Repetir" })}
                         </Button>

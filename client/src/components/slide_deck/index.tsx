@@ -1,10 +1,12 @@
-import { type ProjectState, type Slide, type SlideDeckConfig, getStartingConfigForSlideDeck, t3 } from "lib";
-import { instanceState } from "~/state/instance/t1_store";
 import {
-  EditorComponentProps,
-  getEditorWrapper,
-  openComponent
-} from "panther";
+  type ProjectState,
+  type Slide,
+  type SlideDeckConfig,
+  getStartingConfigForSlideDeck,
+  t3,
+} from "lib";
+import { instanceState } from "~/state/instance/t1_store";
+import { EditorComponentProps, getEditorWrapper, openComponent } from "panther";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
@@ -15,13 +17,17 @@ import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
 import { SlideList } from "./slide_list";
 import { SlidePresenter } from "./slide_presenter";
-import { SlideDeckSettings, type SlideDeckSettingsProps } from "./slide_deck_settings";
+import {
+  SlideDeckSettings,
+  type SlideDeckSettingsProps,
+} from "./slide_deck_settings";
 import {
   projectAIViewController,
   restoreProjectAIView,
   type ProjectAIViewState,
 } from "../project_ai/ai_views";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
+import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/project/collab";
 import { clerk } from "~/components/LoggedInWrapper";
 import { VersionHistoryEditor } from "../version_history";
@@ -50,7 +56,9 @@ export function ProjectAiSlideDeck(p: Props) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
   const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
-  const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(getStartingConfigForSlideDeck(p.reportLabel));
+  const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(
+    getStartingConfigForSlideDeck(p.reportLabel),
+  );
 
   // The collab socket is owned by ProjectSSEBoundary (project-scoped). Here we
   // only advertise that this user is currently viewing this deck.
@@ -123,11 +131,17 @@ function ProjectAiSlideDeckInner(p: {
   handleClose: () => Promise<void>;
 }) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
-  const { openEditor: openSettingsEditor, EditorWrapper: SettingsEditorWrapper } = getEditorWrapper();
-  const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } = getEditorWrapper();
+  const {
+    openEditor: openSettingsEditor,
+    EditorWrapper: SettingsEditorWrapper,
+  } = getEditorWrapper();
+  const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } =
+    getEditorWrapper();
 
   // Editor state
-  const [editingSlideId, setEditingSlideId] = createSignal<string | undefined>();
+  const [editingSlideId, setEditingSlideId] = createSignal<
+    string | undefined
+  >();
 
   async function handleOpenSettings() {
     await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
@@ -135,9 +149,21 @@ function ProjectAiSlideDeckInner(p: {
       props: {
         projectId: p.projectState.id,
         config: p.deckConfig,
-        heading: t3({ en: "Slide deck settings", fr: "Paramètres de la présentation", pt: "Definições da apresentação" }),
-        nameLabel: t3({ en: "Slide deck name", fr: "Nom de la présentation", pt: "Nome da apresentação" }),
-        showPageNumbersSuffix: t3({ en: "(except on cover and section slides)", fr: "(sauf sur les diapositives de couverture et de section)", pt: "(exceto nos diapositivos de capa e de secção)" }),
+        heading: t3({
+          en: "Slide deck settings",
+          fr: "Paramètres de la présentation",
+          pt: "Definições da apresentação",
+        }),
+        nameLabel: t3({
+          en: "Slide deck name",
+          fr: "Nom de la présentation",
+          pt: "Nome da apresentação",
+        }),
+        showPageNumbersSuffix: t3({
+          en: "(except on cover and section slides)",
+          fr: "(sauf sur les diapositives de couverture et de section)",
+          pt: "(exceto nos diapositivos de capa e de secção)",
+        }),
         saveConfig: (config) =>
           serverActions.updateSlideDeckConfig({
             projectId: p.projectState.id,
@@ -196,12 +222,18 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   async function handleEditSlide(slideId: string) {
-    const cached = await _SLIDE_CACHE.get({ projectId: p.projectState.id, slideId });
+    const cached = await _SLIDE_CACHE.get({
+      projectId: p.projectState.id,
+      slideId,
+    });
     let slide: Slide;
     let lastUpdated: string;
 
     if (!cached.data) {
-      const res = await serverActions.getSlide({ projectId: p.projectState.id, slide_id: slideId });
+      const res = await serverActions.getSlide({
+        projectId: p.projectState.id,
+        slide_id: slideId,
+      });
       if (!res.success) return;
       slide = res.data.slide;
       lastUpdated = res.data.lastUpdated;
@@ -231,6 +263,38 @@ function ProjectAiSlideDeckInner(p: {
 
     setEditingSlideId(undefined);
   }
+
+  // Tour catalogue replay: once the deck has loaded, open its first slide of
+  // the requested type. Cleared before opening (handleEditSlide only resolves
+  // when the slide editor closes); if no slide matches, nothing opens and the
+  // waiting tour times out quietly.
+  createEffect(() => {
+    const wanted = pendingSlideOpen();
+    if (!wanted || p.isLoading) return;
+    const slideIds = [...p.slideIds];
+    setPendingSlideOpen(null);
+    void (async () => {
+      for (const slideId of slideIds) {
+        const cached = await _SLIDE_CACHE.get({
+          projectId: p.projectState.id,
+          slideId,
+        });
+        let slide = cached.data?.slide;
+        if (!slide) {
+          const res = await serverActions.getSlide({
+            projectId: p.projectState.id,
+            slide_id: slideId,
+          });
+          if (!res.success) continue;
+          slide = res.data.slide;
+        }
+        if (slide.type === wanted) {
+          void handleEditSlide(slideId);
+          return;
+        }
+      }
+    })();
+  });
 
   return (
     <HistoryEditorWrapper>

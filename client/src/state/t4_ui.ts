@@ -3,6 +3,7 @@ import type {
   ModuleLatestCommit,
   ReportGroupingMode,
   SlideDeckGroupingMode,
+  SlideType,
   SortMode,
   VisualizationGroupingMode,
 } from "lib";
@@ -356,3 +357,9 @@ export type PendingEditorOpen = {
 };
 export const [pendingEditorOpen, setPendingEditorOpen] =
   createSignal<PendingEditorOpen | null>(null);
+
+// Second level of the same pattern: set alongside a pending "deck" request by
+// the tour catalogue's slide-tour replays, consumed by the deck editor once
+// its slides have loaded — it opens the first slide of this type.
+export const [pendingSlideOpen, setPendingSlideOpen] =
+  createSignal<SlideType | null>(null);

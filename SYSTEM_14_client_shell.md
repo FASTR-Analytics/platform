@@ -37,7 +37,9 @@ tour: the project shell passes its seven per-area managers to the modal as
 props (so they share its lifecycle) and each action is routed to its owning
 manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
 document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
-(persists until the target tab mounts and consumes it). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+(persists until the target tab mounts and consumes it), and the slide tours
+chain a second-level `pendingSlideOpen` request that the deck editor consumes
+to open the first slide of the requested type. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

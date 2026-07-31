@@ -7,8 +7,10 @@ import {
 import {
   hideUnreadyVisualizations,
   setPendingEditorOpen,
+  setPendingSlideOpen,
   updateProjectView,
 } from "~/state/t4_ui";
+import type { SlideType } from "lib";
 
 export type TourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -28,11 +30,8 @@ export type TourCatalogueEntry = {
   available: () => boolean;
   /** Shown in place of the action when `available()` is false. */
   unavailableReason: () => string;
-  /** Tab switch (+ optional editor open). Omit ⇒ re-arm only, never
-   *  auto-started. */
-  navigate?: () => void;
-  /** false for the three slide-*-intro tours (two editors deep). */
-  startable: boolean;
+  /** Tab switch, plus editor/slide open requests for the deeper tours. */
+  navigate: () => void;
 };
 
 const perms = () => projectState.thisUserPermissions;
@@ -193,6 +192,10 @@ const openFirstDeck = () => {
   const deck = projectState.slideDecks[0];
   if (deck) setPendingEditorOpen({ kind: "deck", id: deck.id });
 };
+const openFirstDeckSlide = (type: SlideType) => {
+  openFirstDeck();
+  setPendingSlideOpen(type);
+};
 const openFirstReport = () => {
   goToReports();
   const report = projectState.reports[0];
@@ -227,7 +230,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: () => perms().can_view_slide_decks,
       unavailableReason: reasonNoPageAccess,
       navigate: goToDecks,
-      startable: true,
     },
     {
       id: "decks-open-deck",
@@ -251,7 +253,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedModule()
             : reasonNeedDeck(),
       navigate: goToDecks,
-      startable: true,
     },
     {
       id: "decks-intro-editor",
@@ -273,7 +274,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : reasonNeedDeckPermission(),
       navigate: goToDecks,
-      startable: true,
     },
     {
       id: "decks-manage-decks",
@@ -305,7 +305,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
                 ? reasonNeedModule()
                 : reasonNeedDeck(),
       navigate: goToDecks,
-      startable: true,
     },
     {
       id: "deck-editor-intro",
@@ -324,7 +323,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
       navigate: openFirstDeck,
-      startable: true,
     },
     {
       id: "deck-editor-slides",
@@ -348,7 +346,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDeck()
             : reasonNeedSlides(),
       navigate: openFirstDeck,
-      startable: true,
     },
     {
       id: "deck-editor-present",
@@ -372,7 +369,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDeck()
             : reasonNeedSlides(),
       navigate: openFirstDeck,
-      startable: true,
     },
     {
       id: "deck-editor-history",
@@ -391,7 +387,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
       navigate: openFirstDeck,
-      startable: true,
     },
     {
       id: "deck-editor-settings",
@@ -410,7 +405,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
       navigate: openFirstDeck,
-      startable: true,
     },
     {
       id: "slide-cover-intro",
@@ -421,14 +415,19 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de capa",
       }),
       description: t3({
-        en: "Runs the next time you edit a cover slide.",
-        fr: "Se lance la prochaine fois que vous modifiez une diapositive de couverture.",
-        pt: "É apresentada da próxima vez que editar um diapositivo de capa.",
+        en: "Editing a cover slide. Opens the first cover slide of your first slide deck.",
+        fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture de votre première présentation.",
+        pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa da sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
+      available: () =>
+        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
       unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
-      startable: false,
+        !perms().can_view_slide_decks
+          ? reasonNoPageAccess()
+          : !hasDecks()
+            ? reasonNeedDeck()
+            : reasonNeedSlides(),
+      navigate: () => openFirstDeckSlide("cover"),
     },
     {
       id: "slide-section-intro",
@@ -439,14 +438,19 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de secção",
       }),
       description: t3({
-        en: "Runs the next time you edit a section slide.",
-        fr: "Se lance la prochaine fois que vous modifiez une diapositive de section.",
-        pt: "É apresentada da próxima vez que editar um diapositivo de secção.",
+        en: "Editing a section slide. Opens the first section slide of your first slide deck.",
+        fr: "Modifier une diapositive de section. Ouvre la première diapositive de section de votre première présentation.",
+        pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção da sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
+      available: () =>
+        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
       unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
-      startable: false,
+        !perms().can_view_slide_decks
+          ? reasonNoPageAccess()
+          : !hasDecks()
+            ? reasonNeedDeck()
+            : reasonNeedSlides(),
+      navigate: () => openFirstDeckSlide("section"),
     },
     {
       id: "slide-content-intro",
@@ -457,14 +461,19 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de conteúdo",
       }),
       description: t3({
-        en: "Runs the next time you edit a content slide.",
-        fr: "Se lance la prochaine fois que vous modifiez une diapositive de contenu.",
-        pt: "É apresentada da próxima vez que editar um diapositivo de conteúdo.",
+        en: "Editing a content slide. Opens the first content slide of your first slide deck.",
+        fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu de votre première présentation.",
+        pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo da sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
+      available: () =>
+        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
       unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
-      startable: false,
+        !perms().can_view_slide_decks
+          ? reasonNoPageAccess()
+          : !hasDecks()
+            ? reasonNeedDeck()
+            : reasonNeedSlides(),
+      navigate: () => openFirstDeckSlide("content"),
     },
     // ── Reports ──────────────────────────────────────────────────────────
     {
@@ -483,7 +492,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: () => perms().can_view_reports,
       unavailableReason: reasonNoPageAccess,
       navigate: goToReports,
-      startable: true,
     },
     {
       id: "reports-open-reports",
@@ -502,7 +510,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: goToReports,
-      startable: true,
     },
     {
       id: "reports-intro-editor",
@@ -524,7 +531,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : reasonNeedReportPermission(),
       navigate: goToReports,
-      startable: true,
     },
     {
       id: "reports-manage-reports",
@@ -553,7 +559,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
               ? reasonLocked()
               : reasonNeedReport(),
       navigate: goToReports,
-      startable: true,
     },
     {
       id: "report-editor-intro",
@@ -572,7 +577,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: openFirstReport,
-      startable: true,
     },
     {
       id: "report-editor-figures",
@@ -596,7 +600,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedReport()
             : reasonNeedReportFigure(),
       navigate: openFirstReport,
-      startable: true,
     },
     {
       id: "report-editor-history",
@@ -615,7 +618,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: () =>
         !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: openFirstReport,
-      startable: true,
     },
     // ── Visualizations ───────────────────────────────────────────────────
     {
@@ -637,7 +639,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : reasonNeedModule(),
       navigate: goToVisualizations,
-      startable: true,
     },
     {
       id: "viz-cards",
@@ -661,7 +662,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedModule()
             : reasonVizHidden(),
       navigate: goToVisualizations,
-      startable: true,
     },
     {
       id: "viz-create",
@@ -687,7 +687,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedModule()
             : reasonLocked(),
       navigate: goToVisualizations,
-      startable: true,
     },
     {
       id: "viz-editor-create",
@@ -713,7 +712,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         const po = firstDefaultViz();
         if (po) setPendingEditorOpen({ kind: "visualization", id: po.id });
       },
-      startable: true,
     },
     {
       id: "viz-editor-edit",
@@ -739,7 +737,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         const po = firstCustomViz();
         if (po) setPendingEditorOpen({ kind: "visualization", id: po.id });
       },
-      startable: true,
     },
     // ── Dashboards ───────────────────────────────────────────────────────
     {
@@ -758,7 +755,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: () => perms().can_view_slide_decks,
       unavailableReason: reasonNoPageAccess,
       navigate: goToDashboards,
-      startable: true,
     },
     {
       id: "dashboards-cards",
@@ -779,7 +775,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : reasonNeedDashboard(),
       navigate: goToDashboards,
-      startable: true,
     },
     {
       id: "dashboards-create",
@@ -805,7 +800,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDashboardPermission()
             : reasonLocked(),
       navigate: goToDashboards,
-      startable: true,
     },
     {
       id: "dashboard-editor-intro",
@@ -826,7 +820,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : reasonNeedDashboard(),
       navigate: openFirstDashboard,
-      startable: true,
     },
     {
       id: "dashboard-editor-items",
@@ -852,7 +845,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDashboard()
             : reasonNeedDashboardItem(),
       navigate: openFirstDashboard,
-      startable: true,
     },
     // ── Modules ──────────────────────────────────────────────────────────
     {
@@ -871,7 +863,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: canSeeModulesTab,
       unavailableReason: reasonNoPageAccess,
       navigate: goToModules,
-      startable: true,
     },
     {
       id: "modules-manage",
@@ -895,7 +886,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedModulePermission()
             : reasonNeedModule(),
       navigate: goToModules,
-      startable: true,
     },
     {
       id: "modules-enable",
@@ -919,7 +909,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedModulePermission()
             : reasonAllModulesEnabled(),
       navigate: goToModules,
-      startable: true,
     },
     // ── Data ─────────────────────────────────────────────────────────────
     {
@@ -938,7 +927,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: () => perms().can_view_data,
       unavailableReason: reasonNoPageAccess,
       navigate: goToData,
-      startable: true,
     },
     {
       id: "data-admin",
@@ -964,7 +952,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonGlobalAdminOnly()
             : reasonLocked(),
       navigate: goToData,
-      startable: true,
     },
     // ── Settings ─────────────────────────────────────────────────────────
     {
@@ -983,7 +970,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       available: () => perms().can_configure_settings,
       unavailableReason: reasonSettingsPermission,
       navigate: goToSettings,
-      startable: true,
     },
   ];
 }
