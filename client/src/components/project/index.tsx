@@ -63,6 +63,7 @@ import {
   setupSettingsTours,
   setupVisualizationTours,
 } from "~/onboarding";
+import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
 
 type Props = {
   projectId: string;
@@ -104,13 +105,17 @@ function ProjectInner() {
     }
   });
 
-  setupDeckTours();
-  setupReportTours();
-  setupModuleTours();
-  setupVisualizationTours();
-  setupDashboardTours();
-  setupDataTours();
-  setupSettingsTours();
+  // Destroyed with this component's reactive owner; the tour catalogue modal
+  // gets them as props, so nothing outlives a project switch.
+  const tourManagers = [
+    setupDeckTours(),
+    setupReportTours(),
+    setupModuleTours(),
+    setupVisualizationTours(),
+    setupDashboardTours(),
+    setupDataTours(),
+    setupSettingsTours(),
+  ];
 
   const dataNeedsUpdate = createMemo(() =>
     checkDataNeedsUpdate(projectState, instanceState),
@@ -139,7 +144,11 @@ function ProjectInner() {
     if (perms.can_view_slide_decks) {
       items.push({
         id: "decks",
-        label: t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" }),
+        label: t3({
+          en: "Slide decks",
+          fr: "Présentations",
+          pt: "Apresentações",
+        }),
         iconName: "presentation",
       });
       items.push({
@@ -151,7 +160,11 @@ function ProjectInner() {
     if (perms.can_view_visualizations) {
       items.push({
         id: "visualizations",
-        label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
+        label: t3({
+          en: "Visualizations",
+          fr: "Visualisations",
+          pt: "Visualizações",
+        }),
         iconName: "chart",
       });
     }
@@ -226,6 +239,19 @@ function ProjectInner() {
                   <span class="font-400">{projectState.label}</span>
                 </div>
                 <div class="ui-gap-sm flex items-center">
+                  <Button
+                    onClick={() =>
+                      openComponent({
+                        element: TourCatalogueModal,
+                        props: { managers: tourManagers },
+                      })
+                    }
+                    intent="base-100"
+                    outline
+                    onBackground="base-content"
+                  >
+                    {t3({ en: "Tours", fr: "Visites", pt: "Visitas" })}
+                  </Button>
                   <Button
                     onClick={() =>
                       openComponent({

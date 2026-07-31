@@ -34,6 +34,8 @@ import {
   setDeckSelectedGroup,
   deckSortMode,
   setDeckSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
 } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
@@ -68,7 +70,6 @@ type ExtendedProps = {
 };
 
 export function ProjectDecks(p: ExtendedProps) {
-
   async function openDeck(deckId: string, deckLabel: string) {
     await p.openProjectEditor({
       element: ProjectAiSlideDeck,
@@ -80,6 +81,15 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "deck") return;
+    const deck = projectState.slideDecks.find((d) => d.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!deck) return;
+    void openDeck(deck.id, deck.label);
+  });
 
   const [searchText, setSearchText] = createSignal<string>("");
 
@@ -420,7 +430,11 @@ export function ProjectDecks(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header" data-tour="decks-header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="decks-header"
+        >
           <HeadingBar
             heading={t3({
               en: "Slide decks",
@@ -431,7 +445,10 @@ export function ProjectDecks(p: ExtendedProps) {
             setSearchText={setSearchText}
             centerChildren={
               <div data-tour="decks-sort">
-                <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
+                <SortControl
+                  value={deckSortMode()}
+                  onChange={setDeckSortMode}
+                />
               </div>
             }
           >

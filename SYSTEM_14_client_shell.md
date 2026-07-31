@@ -30,7 +30,14 @@ language/calendar singletons and the app's translation conventions, UI
 preferences, connection monitoring, onboarding modals, the help-button
 system, and the first-visit page tours (`client/src/onboarding/` — the
 `@njwse/roadtrip` tour manager, Clerk-backed seen-flags under
-`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell). The
+same directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` +
+`catalogue.ts`, opened from the project topbar), which replays or re-arms any
+tour: the project shell passes its seven per-area managers to the modal as
+props (so they share its lifecycle) and each action is routed to its owning
+manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
+document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
+(persists until the target tab mounts and consumes it). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

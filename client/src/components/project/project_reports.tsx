@@ -33,6 +33,8 @@ import {
   setReportSelectedGroup,
   reportSortMode,
   setReportSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
 } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
@@ -87,7 +89,6 @@ type ExtendedProps = {
 };
 
 export function ProjectReports(p: ExtendedProps) {
-
   async function openReport(reportId: string, reportLabel: string) {
     await p.openProjectEditor({
       element: ProjectReport,
@@ -99,6 +100,15 @@ export function ProjectReports(p: ExtendedProps) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "report") return;
+    const report = projectState.reports.find((r) => r.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!report) return;
+    void openReport(report.id, report.label);
+  });
 
   const [searchText, setSearchText] = createSignal<string>("");
 
@@ -434,7 +444,11 @@ export function ProjectReports(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header" data-tour="reports-header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="reports-header"
+        >
           <HeadingBar
             heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
             searchText={searchText()}
@@ -545,7 +559,10 @@ export function ProjectReports(p: ExtendedProps) {
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1" data-tour="reports-report-card">
+                <div
+                  class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1"
+                  data-tour="reports-report-card"
+                >
                   <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>

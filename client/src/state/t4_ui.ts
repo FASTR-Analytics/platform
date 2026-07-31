@@ -60,7 +60,9 @@ export function setNavCollapsed(collapsed: boolean) {
 }
 
 // List sort modes (defaults chosen to match each list's current server order)
-const storedProjectsSortMode = localStorage.getItem("projectsSortMode") as SortMode | null;
+const storedProjectsSortMode = localStorage.getItem(
+  "projectsSortMode",
+) as SortMode | null;
 export const [projectsSortMode, setProjectsSortModeInternal] =
   createSignal<SortMode>(storedProjectsSortMode ?? "name");
 export function setProjectsSortMode(mode: SortMode) {
@@ -68,23 +70,31 @@ export function setProjectsSortMode(mode: SortMode) {
   setProjectsSortModeInternal(mode);
 }
 
-const storedVizSortMode = localStorage.getItem("vizSortMode") as SortMode | null;
-export const [vizSortMode, setVizSortModeInternal] =
-  createSignal<SortMode>(storedVizSortMode ?? "name");
+const storedVizSortMode = localStorage.getItem(
+  "vizSortMode",
+) as SortMode | null;
+export const [vizSortMode, setVizSortModeInternal] = createSignal<SortMode>(
+  storedVizSortMode ?? "name",
+);
 export function setVizSortMode(mode: SortMode) {
   localStorage.setItem("vizSortMode", mode);
   setVizSortModeInternal(mode);
 }
 
-const storedDeckSortMode = localStorage.getItem("deckSortMode") as SortMode | null;
-export const [deckSortMode, setDeckSortModeInternal] =
-  createSignal<SortMode>(storedDeckSortMode ?? "recent");
+const storedDeckSortMode = localStorage.getItem(
+  "deckSortMode",
+) as SortMode | null;
+export const [deckSortMode, setDeckSortModeInternal] = createSignal<SortMode>(
+  storedDeckSortMode ?? "recent",
+);
 export function setDeckSortMode(mode: SortMode) {
   localStorage.setItem("deckSortMode", mode);
   setDeckSortModeInternal(mode);
 }
 
-const storedReportSortMode = localStorage.getItem("reportSortMode") as SortMode | null;
+const storedReportSortMode = localStorage.getItem(
+  "reportSortMode",
+) as SortMode | null;
 export const [reportSortMode, setReportSortModeInternal] =
   createSignal<SortMode>(storedReportSortMode ?? "recent");
 export function setReportSortMode(mode: SortMode) {
@@ -92,7 +102,9 @@ export function setReportSortMode(mode: SortMode) {
   setReportSortModeInternal(mode);
 }
 
-const storedDashboardSortMode = localStorage.getItem("dashboardSortMode") as SortMode | null;
+const storedDashboardSortMode = localStorage.getItem(
+  "dashboardSortMode",
+) as SortMode | null;
 export const [dashboardSortMode, setDashboardSortModeInternal] =
   createSignal<SortMode>(storedDashboardSortMode ?? "recent");
 export function setDashboardSortMode(mode: SortMode) {
@@ -331,3 +343,16 @@ export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<
 // page the user is actually looking at.
 export const [dashboardEditorOpen, setDashboardEditorOpen] =
   createSignal<boolean>(false);
+
+// Request signal for opening a document editor from outside the tab
+// components (the tour catalogue modal). The openers live in private closures
+// inside each tab component, and inactive tabs are unmounted, so the request
+// must persist until the matching tab mounts and consumes it. Consumers clear
+// the signal BEFORE calling their opener (openProjectEditor only resolves when
+// the editor closes).
+export type PendingEditorOpen = {
+  kind: "deck" | "report" | "visualization" | "dashboard";
+  id: string;
+};
+export const [pendingEditorOpen, setPendingEditorOpen] =
+  createSignal<PendingEditorOpen | null>(null);

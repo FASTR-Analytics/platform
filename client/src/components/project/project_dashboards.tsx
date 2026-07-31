@@ -11,9 +11,14 @@ import {
   createDeleteAction,
   type MenuItem,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
-import { dashboardSortMode, setDashboardSortMode } from "~/state/t4_ui";
+import {
+  dashboardSortMode,
+  setDashboardSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
+} from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 import { CreateDashboardModal } from "../dashboards/create_dashboard_modal";
@@ -62,6 +67,15 @@ export function ProjectDashboards(p: Props) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "dashboard") return;
+    const dashboard = projectState.dashboards.find((d) => d.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!dashboard) return;
+    void openDashboard(dashboard.id, dashboard.title);
+  });
 
   async function attemptCreate() {
     const res = await openComponent({
@@ -151,29 +165,37 @@ export function ProjectDashboards(p: Props) {
           data-cursor-zone="header"
           data-tour="dashboards-header"
         >
-        <HeadingBar
-          heading={t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" })}
-          searchText={searchText()}
-          setSearchText={setSearchText}
-          centerChildren={
-            <div data-tour="dashboards-sort">
-              <SortControl
-                value={dashboardSortMode()}
-                onChange={setDashboardSortMode}
-              />
-            </div>
-          }
-        >
-          <Show when={canConfigure()}>
-            <Button
-              id="dashboards-create-button"
-              onClick={attemptCreate}
-              iconName="plus"
-            >
-              {t3({ en: "Create dashboard", fr: "Créer un tableau de bord", pt: "Criar painel" })}
-            </Button>
-          </Show>
-        </HeadingBar>
+          <HeadingBar
+            heading={t3({
+              en: "Dashboards",
+              fr: "Tableaux de bord",
+              pt: "Painéis",
+            })}
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            centerChildren={
+              <div data-tour="dashboards-sort">
+                <SortControl
+                  value={dashboardSortMode()}
+                  onChange={setDashboardSortMode}
+                />
+              </div>
+            }
+          >
+            <Show when={canConfigure()}>
+              <Button
+                id="dashboards-create-button"
+                onClick={attemptCreate}
+                iconName="plus"
+              >
+                {t3({
+                  en: "Create dashboard",
+                  fr: "Créer un tableau de bord",
+                  pt: "Criar painel",
+                })}
+              </Button>
+            </Show>
+          </HeadingBar>
         </div>
       }
     >
@@ -229,7 +251,8 @@ export function ProjectDashboards(p: Props) {
                 </div>
                 <div class="ui-text-caption flex items-center justify-between">
                   <span>
-                    {dashboard.itemCount} {t3({ en: "items", fr: "éléments", pt: "elementos" })}
+                    {dashboard.itemCount}{" "}
+                    {t3({ en: "items", fr: "éléments", pt: "elementos" })}
                   </span>
                   <span
                     class={
