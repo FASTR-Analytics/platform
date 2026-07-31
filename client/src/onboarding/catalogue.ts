@@ -11,6 +11,9 @@ import {
   updateProjectView,
 } from "~/state/t4_ui";
 import type { SlideType } from "lib";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
+import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { serverActions } from "~/server_actions";
 
 export type TourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -192,9 +195,47 @@ const openFirstDeck = () => {
   const deck = projectState.slideDecks[0];
   if (deck) setPendingEditorOpen({ kind: "deck", id: deck.id });
 };
+// Slide types live only in the slide documents, so replaying a slide-type
+// tour has to search for a deck that actually contains one: decks in list
+// order, slides in deck order, cache-first (repeat searches are cheap). If no
+// deck has a slide of the type, no editor opens and the started tour times
+// out quietly on the decks tab.
+async function findDeckWithSlideOfType(
+  type: SlideType,
+): Promise<string | null> {
+  for (const deck of projectState.slideDecks) {
+    const detail = await getSlideDeckDetailFromCacheOrFetch(
+      projectState.id,
+      deck.id,
+    );
+    if (!detail.success) continue;
+    for (const slideId of detail.data.slideIds) {
+      const cached = await _SLIDE_CACHE.get({
+        projectId: projectState.id,
+        slideId,
+      });
+      let slide = cached.data?.slide;
+      if (!slide) {
+        const res = await serverActions.getSlide({
+          projectId: projectState.id,
+          slide_id: slideId,
+        });
+        if (!res.success) continue;
+        slide = res.data.slide;
+      }
+      if (slide.type === type) return deck.id;
+    }
+  }
+  return null;
+}
+
 const openFirstDeckSlide = (type: SlideType) => {
-  openFirstDeck();
-  setPendingSlideOpen(type);
+  goToDecks();
+  void findDeckWithSlideOfType(type).then((deckId) => {
+    if (!deckId) return;
+    setPendingEditorOpen({ kind: "deck", id: deckId });
+    setPendingSlideOpen(type);
+  });
 };
 const openFirstReport = () => {
   goToReports();
@@ -415,9 +456,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de capa",
       }),
       description: t3({
-        en: "Editing a cover slide. Opens the first cover slide of your first slide deck.",
-        fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture de votre première présentation.",
-        pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa da sua primeira apresentação.",
+        en: "Editing a cover slide. Opens the first cover slide found in your slide decks.",
+        fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture trouvée dans vos présentations.",
+        pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa encontrado nas suas apresentações.",
       }),
       available: () =>
         perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
@@ -438,9 +479,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de secção",
       }),
       description: t3({
-        en: "Editing a section slide. Opens the first section slide of your first slide deck.",
-        fr: "Modifier une diapositive de section. Ouvre la première diapositive de section de votre première présentation.",
-        pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção da sua primeira apresentação.",
+        en: "Editing a section slide. Opens the first section slide found in your slide decks.",
+        fr: "Modifier une diapositive de section. Ouvre la première diapositive de section trouvée dans vos présentations.",
+        pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção encontrado nas suas apresentações.",
       }),
       available: () =>
         perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
@@ -461,9 +502,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editor de diapositivo de conteúdo",
       }),
       description: t3({
-        en: "Editing a content slide. Opens the first content slide of your first slide deck.",
-        fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu de votre première présentation.",
-        pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo da sua primeira apresentação.",
+        en: "Editing a content slide. Opens the first content slide found in your slide decks.",
+        fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu trouvée dans vos présentations.",
+        pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo encontrado nas suas apresentações.",
       }),
       available: () =>
         perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
