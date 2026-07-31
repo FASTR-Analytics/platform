@@ -1,3 +1,5 @@
+[TBD] [admin] [added] - Editing sessions are now tracked in admin activity logs
+[TBD] [admin] [changed] - Internal staff edits are excluded from usage activity counts
 [1.64.2] [user] [changed] - Consistent heading bar design across all screens
 [1.64.2] [user] [changed] - Cleaner panel borders throughout the application
 [1.64.2] [user] [changed] - Improved visual appearance of side panels and resizable areas
