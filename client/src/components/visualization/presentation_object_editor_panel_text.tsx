@@ -17,6 +17,9 @@ export type VizCaptionCollab = {
   configMap: Y.Map<unknown>;
   awareness: Awareness;
   canEdit: () => boolean;
+  /** The viz editor's per-user undo stack — caption editors join it, so the
+   *  editor's undo buttons cover caption typing too. */
+  undoManager: () => Y.UndoManager | undefined;
 };
 
 type Props = {
@@ -65,6 +68,7 @@ export function PresentationObjectEditorPanelText(p: Props) {
             onTextChange={(v) => p.setTempConfig("t", fp.key, v)}
             height={fp.height}
             plain
+            undoManager={p.captionCollab!.undoManager()}
           />
         </div>
       )}

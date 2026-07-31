@@ -367,7 +367,12 @@ export function VisualizationEditorInner(p: InnerProps) {
   const captionCollab = () => {
     const t = collabTarget();
     if (!t || !collabReady()) return undefined;
-    return { configMap: t.configMap, awareness: t.awareness, canEdit: t.canEdit };
+    return {
+      configMap: t.configMap,
+      awareness: t.awareness,
+      canEdit: t.canEdit,
+      undoManager: () => undoMgr,
+    };
   };
 
   // ── Live cursors ─────────────────────────────────────────────────────────────
@@ -516,9 +521,9 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
   // onKeyDown only fires for keydowns bubbling from a focused descendant — it
   // misses the common case where focus is on the chart preview / page body,
-  // which is why the button worked but the shortcut didn't). Leaves text-editing
-  // contexts to their own undo: CodeMirror captions have a per-user undo keymap;
-  // native inputs keep native undo.
+  // which is why the button worked but the shortcut didn't). CodeMirror
+  // captions handle Ctrl+Z via their own keymap (popping this same shared
+  // stack); native inputs keep native undo.
   function handleEditorKeyDown(e: KeyboardEvent) {
     if (!undoMgr) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -562,9 +567,9 @@ export function VisualizationEditorInner(p: InnerProps) {
       );
       setPoSession(session);
       // Per-user undo: track only THIS client's edits (localOrigin). Remote
-      // applies and other users' relayed ops are never tracked. Caption edits go
-      // through yCollab (a different origin) so they aren't captured here — they
-      // keep their own in-editor undo.
+      // applies and other users' relayed ops are never tracked. Caption CM
+      // editors join this same stack (captionCollab hands them the manager),
+      // so the undo buttons cover caption typing too.
       undoMgr = new Y.UndoManager(session.configMap, {
         trackedOrigins: new Set([session.localOrigin]),
         captureTimeout: 500,

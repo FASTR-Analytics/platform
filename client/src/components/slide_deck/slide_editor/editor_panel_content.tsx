@@ -538,6 +538,7 @@ export function SlideEditorPanelContent(p: Props) {
                                 }))
                               }
                               height="300px"
+                              undoManager={p.session!.undoManager}
                             />
                           </div>
                         )}

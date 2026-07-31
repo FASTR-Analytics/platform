@@ -15,7 +15,6 @@ import {
   findSlideFigureConfigMap,
   getSlideTitle,
   materializeSlide,
-  slideDocRoot,
   t3,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
@@ -58,7 +57,7 @@ import {
   onMount,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import * as Y from "yjs";
+import type * as Y from "yjs";
 import {
   createStore,
   produce,
@@ -217,12 +216,13 @@ export function SlideEditor(p: Props) {
   }
 
   // ── Per-user undo/redo ──────────────────────────────────────────────────────
-  // Mirrors the visualization editor: a Y.UndoManager scoped to the slide doc
-  // that tracks ONLY this client's pushes (session.localOrigin), so undoing
-  // never reverts a collaborator's edit. Text typed in a CodeMirror block/title
-  // carries the yCollab binding's own origin, so it is deliberately NOT tracked
-  // here — those editors keep their own per-user undo keymap.
+  // One unified per-user stack for the whole slide, owned by the session
+  // (see SlideSession.undoManager): structural pushes AND text typed in the
+  // CodeMirror textboxes land in the same history, so the toolbar buttons and
+  // in-textbox Ctrl+Z pop the same stack. Undoing never reverts a
+  // collaborator's edit.
   let undoMgr: Y.UndoManager | undefined;
+  let detachUndoPop: (() => void) | undefined;
   const canUndoRedo = () =>
     !!session() &&
     collabReady() &&
@@ -240,7 +240,8 @@ export function SlideEditor(p: Props) {
   // onKeyDown misses the common case of focus sitting on the canvas or page
   // body). Bails while a sub-editor covers the canvas: the figure modal
   // installs its OWN document handler, and both firing would undo twice, in
-  // two different docs. Text-editing contexts keep their native/CM undo.
+  // two different docs. CM textboxes handle Ctrl+Z via their own keymap
+  // (popping this same shared stack); native inputs keep native undo.
   function handleEditorKeyDown(e: KeyboardEvent) {
     if (!undoMgr || !canUndoRedo() || subEditorOpen() > 0) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -412,17 +413,16 @@ export function SlideEditor(p: Props) {
     );
     setSession(s);
 
-    undoMgr = new Y.UndoManager(slideDocRoot(s.doc), {
-      trackedOrigins: new Set([s.localOrigin]),
-      captureTimeout: 500,
-    });
+    undoMgr = s.undoManager;
     // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
     // result back into the store — the same adopt path a remote change takes.
     // The push the tracking effect then fires is idempotent (the doc already
     // matches), so nothing echoes back.
-    undoMgr.on("stack-item-popped", () => {
+    const onUndoPop = () => {
       manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
-    });
+    };
+    s.undoManager.on("stack-item-popped", onUndoPop);
+    detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
     document.addEventListener("keydown", handleEditorKeyDown);
 
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
@@ -454,11 +454,12 @@ export function SlideEditor(p: Props) {
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
-    // Tear the undo machinery down BEFORE the session closes (closing destroys
-    // the doc it points at), and drop the listener so a late Ctrl+Z can't drive
-    // a destroyed doc.
+    // Detach the undo hooks BEFORE the session closes (the session destroys
+    // its manager and doc on close) — a late Ctrl+Z must not drive a
+    // destroyed doc.
     document.removeEventListener("keydown", handleEditorKeyDown);
-    undoMgr?.destroy();
+    detachUndoPop?.();
+    detachUndoPop = undefined;
     undoMgr = undefined;
     if (p.returnToContext) {
       restoreProjectAIView(p.returnToContext);
