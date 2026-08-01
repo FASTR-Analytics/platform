@@ -304,12 +304,22 @@ freshly minted UUIDs so they cannot collide with a project id. Backups are
 unaffected (they are pg dumps and never archived either directory), and
 `disk_space.ts` measures the filesystem plus named per-project dirs.
 
-**The end state is a rename.** Once Phase 4 removes the legacy per-project
-dirs, that directory holds only packages and gets renamed sandbox → runs. The
-env vars still override the default, so the rename is a config change plus a
-`mv` — never a code change. Dev keeps its own explicit `RUNS_DIR_PATH*` in
-`.env`, which both preserves the local packages and exercises the override
-path.
+**The end state is a rename**, gated on Phase 4: while the directory still
+holds legacy `{projectId}` dirs — which are the BACKFILL'S SOURCE
+(`synthesize_run.ts`) — calling it "runs" would be wrong. Once Phase 4 removes
+them it holds only packages, and renaming is:
+`mv <instanceDir>/sandbox <instanceDir>/runs`, the same four `sandbox` sites in
+the fleet CLI, the Dockerfile's `mkdir`/`ENV`, and — if the variable names are
+to match the directory — renaming `SANDBOX_DIR_PATH*` → `RUNS_DIR_PATH*` across
+its 16 remaining call sites in 6 files (disk space, project delete/copy, a
+legacy dataset-file delete, two temp-file writers, the backfill source). So:
+cheap and mechanical, but a code change, not config alone.
+
+**Moving packages to a DEDICATED directory is the config-only case** — set
+`RUNS_DIR_PATH*` and `mv` the package dirs; no code changes, because the
+override path is already what dev uses. Dev keeps its own explicit
+`RUNS_DIR_PATH*` in `.env`, which both preserves the local packages and
+exercises that path.
 
 **Do not add a boot-time mount check.** It was proposed while the per-instance
 mount still existed and is CLOSED (Tim, 2026-07-30): with the paths defaulting
