@@ -311,6 +311,12 @@ env vars still override the default, so the rename is a config change plus a
 `.env`, which both preserves the local packages and exercises the override
 path.
 
+**Do not add a boot-time mount check.** It was proposed while the per-instance
+mount still existed and is CLOSED (Tim, 2026-07-30): with the paths defaulting
+to the sandbox there is no separate mount to be missing, and a wrong
+`SANDBOX_DIR_PATH_POSTGRES_INTERNAL` breaks everything else first, so a probe
+guards nothing this directory does not already prove on its own.
+
 ### The modules repo rides the deploy — and must ride the rollback too
 
 **Authoritative statement of the wb-fastr-modules coupling (Tim, 2026-07-30);
