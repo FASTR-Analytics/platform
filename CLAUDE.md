@@ -72,8 +72,7 @@ wb-fastr/
 ├── panther/                   # External UI/viz library (DO NOT MODIFY)
 └── _example_instance_dir/     # Instance data (git-ignored)
     ├── databases/             # PostgreSQL data files
-    ├── sandbox/               # Temp files for module execution
-    ├── runs/                  # Results-runs volume
+    ├── sandbox/               # Results packages + module execution workspace
     ├── valkey/                # Valkey data
     └── assets/                # Uploaded files
 ```
@@ -211,7 +210,7 @@ wb-fastr/
 cd client && npm install && cd ..
 
 # Create instance directory (if not exists)
-mkdir -p _example_instance_dir/{databases,sandbox,assets,runs,valkey}
+mkdir -p _example_instance_dir/{databases,sandbox,assets,valkey}
 
 # Configure environment
 cp .env.example .env

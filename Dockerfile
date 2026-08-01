@@ -52,20 +52,18 @@ ENV IS_PRODUCTION=true
 ENV SANDBOX_DIR_PATH=/app/sandbox
 ENV SANDBOX_DIR_PATH_POSTGRES_INTERNAL=/app/sandbox
 ENV ASSETS_DIR_PATH=/app/assets
-# NOTE: RUNS_DIR_PATH* are deliberately NOT set here. They default to the
-# SANDBOX_DIR_PATH* values (server/exposed_env_vars.ts), so results packages
-# live in the directory that is already mounted into BOTH this container and
-# the Postgres container and is already world-writable — no new volume, no
-# compose change, no chmod, no per-instance step. Setting them overrides the
-# default if a dedicated volume is ever wanted; the planned end state is to
-# rename that one directory sandbox → runs once Phase 4 removes the legacy
-# per-project dirs.
+# NOTE: there is no RUNS_DIR_PATH. Results packages live in the sandbox
+# directory (server/exposed_env_vars.ts), which is already mounted into BOTH
+# this container and the Postgres container and already world-writable — so a
+# package needs no new volume, compose change, chmod or env var. Once Phase 4
+# removes the legacy per-project dirs, that directory and its vars get renamed
+# to runs.
 
 # Instance-specific variables passed at runtime (NOT hardcoded here):
 # - PORT
 # - CLIENT_ORIGIN
-# - SANDBOX_DIR_PATH_EXTERNAL (host machine path for volume mount; also the
-#   default for RUNS_DIR_PATH_EXTERNAL, which the R container mount uses)
+# - SANDBOX_DIR_PATH_EXTERNAL (host machine path for volume mount; also what
+#   the R container mount uses for a package's tmp dir)
 # - CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
 # - INSTANCE_NAME, INSTANCE_LANGUAGE, INSTANCE_CALENDAR, INSTANCE_FISCAL_YEAR
 # - PG_HOST, PG_PORT, PG_PASSWORD

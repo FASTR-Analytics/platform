@@ -280,12 +280,15 @@ modules-repo revert, see below**.
 ### The runs directory needs no new volume (Tim's ruling 2026-07-30)
 
 **The per-instance "mount the runs volume into the POSTGRES container" step is
-GONE.** `RUNS_DIR_PATH`, `RUNS_DIR_PATH_EXTERNAL` and
-`RUNS_DIR_PATH_POSTGRES_INTERNAL` now DEFAULT to their `SANDBOX_DIR_PATH*`
-counterparts (`server/exposed_env_vars.ts`), so results packages live in the
-directory the fleet already mounts into both the app and the Postgres
-containers and already `chmod 0777`s. No new volume, no compose change, no
-chmod, no new env var, and nothing to forget on instance N.
+GONE.** Results packages live IN the sandbox directory: `_RUNS_DIR_PATH`,
+`_RUNS_DIR_PATH_EXTERNAL` and `_RUNS_DIR_PATH_POSTGRES_INTERNAL` are plain
+aliases of the `_SANDBOX_DIR_PATH*` constants (`server/exposed_env_vars.ts`),
+so packages land in the directory the fleet already mounts into both the app
+and the Postgres containers and already `chmod 0777`s. **There is no
+`RUNS_DIR_PATH` env var at all** — no new volume, no compose change, no chmod,
+nothing to configure, and no way for two paths to disagree. The alias names
+exist so the code that stores packages says what it stores rather than
+repeating the directory's legacy name.
 
 **Why this was urgent, not cosmetic.** `_RUNS_DIR_PATH_EXTERNAL` throws at
 import if unset, and the fleet CLI (`FASTR-Analytics/server-cli`, which is what
@@ -308,18 +311,17 @@ unaffected (they are pg dumps and never archived either directory), and
 holds legacy `{projectId}` dirs — which are the BACKFILL'S SOURCE
 (`synthesize_run.ts`) — calling it "runs" would be wrong. Once Phase 4 removes
 them it holds only packages, and renaming is:
-`mv <instanceDir>/sandbox <instanceDir>/runs`, the same four `sandbox` sites in
-the fleet CLI, the Dockerfile's `mkdir`/`ENV`, and — if the variable names are
-to match the directory — renaming `SANDBOX_DIR_PATH*` → `RUNS_DIR_PATH*` across
-its 16 remaining call sites in 6 files (disk space, project delete/copy, a
-legacy dataset-file delete, two temp-file writers, the backfill source). So:
-cheap and mechanical, but a code change, not config alone.
+`mv <instanceDir>/sandbox <instanceDir>/runs`, the four `sandbox` sites in the
+fleet CLI, the Dockerfile's `mkdir`/`ENV`, and renaming `SANDBOX_DIR_PATH*` →
+`RUNS_DIR_PATH*` across its 16 remaining call sites in 6 files (disk space,
+project delete/copy, a legacy dataset-file delete, two temp-file writers, the
+backfill source) — at which point the three aliases collapse into them. Cheap
+and mechanical, but a code change.
 
-**Moving packages to a DEDICATED directory is the config-only case** — set
-`RUNS_DIR_PATH*` and `mv` the package dirs; no code changes, because the
-override path is already what dev uses. Dev keeps its own explicit
-`RUNS_DIR_PATH*` in `.env`, which both preserves the local packages and
-exercises that path.
+**Dev runs the identical configuration**, with no `RUNS_DIR_PATH*` in `.env`
+and one sandbox mount in `pg_run`; the dev packages were moved into the sandbox
+dir when this landed. An override kept "so dev can differ" would have been
+config existing only for the dev server — cruft, and rejected as such.
 
 **Do not add a boot-time mount check.** It was proposed while the per-instance
 mount still existed and is CLOSED (Tim, 2026-07-30): with the paths defaulting

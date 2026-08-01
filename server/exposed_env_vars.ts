@@ -116,13 +116,13 @@ if (_ASSETS_DIR_PATH === undefined) {
 // container writes COPY TO dataset extracts directly into that tmp dir via
 // _POSTGRES_INTERNAL, so it must see the same directory.
 //
-// **They DEFAULT TO THE SANDBOX PATHS — the same directory, not a subdir of it**
-// (Tim's ruling 2026-07-30). The sandbox volume is already mounted into BOTH
-// the app and the Postgres containers on every fleet instance and is already
-// world-writable, so defaulting here means a results package needs no new
-// volume, no compose change, no chmod and no new env var — the whole class of
-// "instance N never got the runs mount" disappears, and it cannot half-work:
-// if the sandbox is wrong, nothing works today either.
+// **Packages live IN the sandbox directory** (Tim's ruling 2026-07-30) — the
+// same directory, flat, not a subdir. It is already mounted into BOTH the app
+// and the Postgres containers on every instance and already world-writable, so
+// a results package needs no new volume, compose change, chmod or env var.
+// There is no separate runs path to configure and no way for the two to
+// disagree; these three names exist because the code that stores packages
+// should say what it stores, not repeat the directory's legacy name.
 //
 // Sharing one directory is safe because nothing treats its entries as a
 // homogeneous set: every consumer addresses a NAMED entry — a `{projectId}`
@@ -130,30 +130,13 @@ if (_ASSETS_DIR_PATH === undefined) {
 // `.duckdb-spill`. Package dirs are freshly minted UUIDs, so they can never
 // collide with a project id.
 //
-// The end state (Tim): once Phase 4 removes the legacy per-project dirs, this
-// directory holds only packages and gets RENAMED sandbox → runs. Setting the
-// env vars below overrides the default, so that rename is a config change plus
-// a `mv`, never a code change. Dev sets them explicitly, which keeps the two
-// dirs separate locally and exercises the override path.
-const runsDirDefault = (envVar: string, sandboxPath: string): string => {
-  const explicit = Deno.env.get(envVar);
-  return explicit === undefined || explicit === "" ? sandboxPath : explicit;
-};
-
-export const _RUNS_DIR_PATH = runsDirDefault(
-  "RUNS_DIR_PATH",
-  _SANDBOX_DIR_PATH,
-);
-
-export const _RUNS_DIR_PATH_EXTERNAL = runsDirDefault(
-  "RUNS_DIR_PATH_EXTERNAL",
-  _SANDBOX_DIR_PATH_EXTERNAL,
-);
-
-export const _RUNS_DIR_PATH_POSTGRES_INTERNAL = runsDirDefault(
-  "RUNS_DIR_PATH_POSTGRES_INTERNAL",
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-);
+// End state: once Phase 4 removes the legacy per-project dirs, this directory
+// holds only packages and both it and the `SANDBOX_DIR_PATH*` vars get renamed
+// to runs — at which point these three aliases collapse into them.
+export const _RUNS_DIR_PATH = _SANDBOX_DIR_PATH;
+export const _RUNS_DIR_PATH_EXTERNAL = _SANDBOX_DIR_PATH_EXTERNAL;
+export const _RUNS_DIR_PATH_POSTGRES_INTERNAL =
+  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Database Configuration

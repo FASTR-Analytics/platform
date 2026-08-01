@@ -356,16 +356,17 @@ runs dir have three views each: `_SANDBOX_DIR_PATH` /
 `RUNS_DIR_PATH` / `RUNS_DIR_PATH_EXTERNAL` / `RUNS_DIR_PATH_POSTGRES_INTERNAL`.
 Getting these crossed silently breaks either R execution or the `COPY`.
 
-**The runs paths DEFAULT to the sandbox paths** — the same directory, flat, not
-a subdir (Tim's ruling 2026-07-30, `server/exposed_env_vars.ts`). That
+**The runs paths ARE the sandbox paths** — plain aliases, same directory, flat,
+not a subdir, with no `RUNS_DIR_PATH` env var anywhere (Tim's ruling
+2026-07-30, `server/exposed_env_vars.ts`). That
 directory is already mounted into both the app and the Postgres containers on
 every instance and is already world-writable, so a results package needs no new
 volume, compose change, chmod or env var. Packages therefore sit as `{runId}`
 dirs beside the legacy `{projectId}` sandbox dirs, which is safe because nothing
 enumerates that directory as a homogeneous set: every consumer addresses a named
 entry — a `{projectId}` dir, the `.tmp-{runId}` prefix (`sweepAbandonedTmpRunDirs`'s
-only filter) or `.duckdb-spill`. Setting the env vars overrides the default, and
-the planned end state is to rename that one directory sandbox → runs once Phase 4
+only filter) or `.duckdb-spill`. The planned end state is to rename that one
+directory, and the `SANDBOX_DIR_PATH*` vars with it, to runs once Phase 4
 removes the legacy dirs.
 
 ## population.csv (the M8 scorecard input)
