@@ -531,16 +531,19 @@ const EXPLICIT_CASES: Case[] = [
     entry: "possibleValues",
     disOpt: "source_indicator",
     fetchConfig: { ...base(), groupBys: [] },
-    // Only the LAST position is ours: SQL cannot order the sentinel last under
-    // SELECT DISTINCT, so TS moves it. The order of the named values is
-    // Postgres collation under the pinned postgres:17.4 image — note it sorts
-    // "dhis2" before " x", i.e. the leading space is not a primary difference.
-    // If a base-image bump reshuffles those three, that is a collation change,
-    // not a regression.
+    // The WHOLE order is ours: get_possible_values re-sorts in TS with a
+    // hand-rolled comparator (code point over a case-folded diacritic-stripped
+    // key, numeric digit runs), so neither the DB image's collation nor the
+    // host runtime's ICU version may move these. " x" sorts FIRST — the
+    // leading space (0x20) precedes every letter by code point. (The previous
+    // expectation encoded DB-collation order, and the Intl.Collator that
+    // replaced it flipped this pair across a Deno upgrade — both were
+    // environment-dependent, which is what the comparator now forbids.) The
+    // sentinel is moved last by TS regardless.
     expect: {
       values: [
-        { id: "dhis2", label: "dhis2" },
         { id: " x", label: " x" },
+        { id: "dhis2", label: "dhis2" },
         { id: "x", label: "x" },
         { id: BLANK_SENTINEL, label: BLANK_SENTINEL },
       ],

@@ -45,7 +45,12 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "10": the post-merge semantic batch changed payload semantics AFTER "9"
 // was minted (blank-fold completion via manifest textColumns, trim() SQL) —
 // entries cached in that window hold pre-batch payloads under "9".
-const PO_CACHE_VERSION = "10";
+// "11": the pinned option comparator changed from Intl.Collator (ICU —
+// itself runtime-version-dependent, defeating the pin) to a hand-rolled
+// code-point/numeric comparator in get_possible_values.ts — cached option
+// lists hold the old ICU order where the two disagree (leading
+// space/punctuation, accented values).
+const PO_CACHE_VERSION = "11";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects

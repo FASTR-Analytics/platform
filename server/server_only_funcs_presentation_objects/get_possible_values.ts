@@ -37,7 +37,50 @@ const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 // 3): Postgres orders text by DB collation, DuckDB by binary — so the SQL
 // ORDER BY (kept for a stable LIMIT cutoff) is re-sorted here with ONE
 // defined comparator, making both engines emit identical lists.
-const OPTION_COLLATOR = new Intl.Collator("en", { numeric: true });
+//
+// Hand-rolled, NOT Intl.Collator: ICU tailoring shifts across runtime
+// upgrades (a Deno bump reordered a leading-space value relative to "dhis2"),
+// so an ICU comparator re-introduces exactly the environment-dependence this
+// sort exists to remove — host vs deployed-image Deno versions would emit
+// different orders. Rules: digit runs compare numerically ("anc2" < "anc10");
+// everything else by code point over a case-folded, diacritic-stripped key
+// (French/accented admin-area ids sort with their base letter, not after
+// "z"); full ties break on the raw string so the order is total.
+function normalizeForOptionOrder(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function compareDigitRuns(a: string, b: string): number {
+  const at = a.replace(/^0+/, "");
+  const bt = b.replace(/^0+/, "");
+  if (at.length !== bt.length) return at.length < bt.length ? -1 : 1;
+  if (at !== bt) return at < bt ? -1 : 1;
+  // Equal numeric value; fewer leading zeros first.
+  if (a.length !== b.length) return a.length < b.length ? -1 : 1;
+  return 0;
+}
+
+const OPTION_ORDER_SEGMENTS = /\d+|\D+/g;
+
+function compareOptionIds(a: string, b: string): number {
+  const as = normalizeForOptionOrder(a).match(OPTION_ORDER_SEGMENTS) ?? [];
+  const bs = normalizeForOptionOrder(b).match(OPTION_ORDER_SEGMENTS) ?? [];
+  const n = Math.min(as.length, bs.length);
+  for (let i = 0; i < n; i++) {
+    const x = as[i];
+    const y = bs[i];
+    const xIsDigits = x.charCodeAt(0) >= 48 && x.charCodeAt(0) <= 57;
+    const yIsDigits = y.charCodeAt(0) >= 48 && y.charCodeAt(0) <= 57;
+    if (xIsDigits && yIsDigits) {
+      const d = compareDigitRuns(x, y);
+      if (d !== 0) return d;
+    } else if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  if (as.length !== bs.length) return as.length < bs.length ? -1 : 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 
 export type PossibleValuesDeps = {
   execute: SqlRowsExecutor;
@@ -332,7 +375,7 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
       label: labelMap.get(String(id)) ?? String(id),
     }));
 
-    possibleValues.sort((a, b) => OPTION_COLLATOR.compare(a.id, b.id));
+    possibleValues.sort((a, b) => compareOptionIds(a.id, b.id));
 
     // Sentinel last, regardless of collation. SQL cannot do this under SELECT
     // DISTINCT (ORDER BY may only use expressions that appear in the select
