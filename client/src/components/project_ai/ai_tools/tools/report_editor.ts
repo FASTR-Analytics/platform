@@ -4,24 +4,26 @@ import {
   AiFigureBlockInputSchema,
   AiFigureConfigPatchSchema,
   getReplicateByProp,
+  periodFilterHasBounds,
   type FigureBlock,
   type MetricWithStatus,
+  type PeriodBounds,
+  type ResultsValueInfoForPresentationObject,
 } from "lib";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
+  describeFigureConfigPatchEffect,
   resolveBundleFromMetricAndConfig,
-  validateDisplaySlots,
+  validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { projectAIViews } from "~/components/project_ai/ai_views";
 import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
-import {
-  validateMetricInputs,
-  validateValuesFilter,
-} from "../validators/content_validators";
+import { validateMetricInputs } from "../validators/content_validators";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -365,21 +367,48 @@ export function getToolsForReportEditor(
           );
         }
 
+        // Hoisted conditional fetch: period bounds (open-ended periodFilter)
+        // + possible-values map (pre-write collision check) — see update_figure.
+        const pf = input.patch.periodFilter;
+        const needsBounds = typeof pf === "object" && pf !== null &&
+          (pf.min == null) !== (pf.max == null);
+        const needsPossibleValues = input.patch.disaggregateBy !== undefined ||
+          input.patch.valuesDisDisplayOpt !== undefined;
+        let dataBounds: PeriodBounds | undefined;
+        let disaggregationPossibleValues:
+          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | undefined;
+        if (needsBounds || needsPossibleValues) {
+          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+            projectId,
+            bundle.metricId,
+          );
+          if (infoRes.success) {
+            dataBounds = infoRes.data.periodBounds;
+            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+          }
+          if (needsBounds && !dataBounds) {
+            throw new AIToolFailure(
+              "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
+            );
+          }
+        }
+
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
         const newConfig = applyFigureConfigPatch(
           bundle.config,
           input.patch,
-          metric.mostGranularTimePeriodColumnInResultsFile,
+          metric,
+          dataBounds,
         );
-        validateDisplaySlots(newConfig, metric, input.patch);
-        if (input.patch.valuesFilter !== undefined) {
-          validateValuesFilter(input.patch.valuesFilter, metric);
-        }
+        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
+          disaggregationPossibleValues,
+        });
 
         const filters =
           newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
         const periodFilter =
-          newConfig.d.periodFilter?.filterType === "custom"
+          newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
             ? {
                 min: newConfig.d.periodFilter.min,
                 max: newConfig.d.periodFilter.max,
@@ -390,6 +419,13 @@ export function getToolsForReportEditor(
           bundle.metricId,
           filters,
           periodFilter,
+        );
+
+        const report = describeFigureConfigPatchEffect(
+          bundle.config,
+          input.patch,
+          metric,
+          dataBounds,
         );
 
         const newBundle = await resolveBundleFromMetricAndConfig(
@@ -415,7 +451,7 @@ export function getToolsForReportEditor(
               `check their connection and try again.`,
           );
         }
-        return `Updated figure ${input.figureId}. The preview is updated and saved.`;
+        return `Updated figure ${input.figureId}.\n${report.map((l) => `- ${l}`).join("\n")}\nThe preview is updated and saved.`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",

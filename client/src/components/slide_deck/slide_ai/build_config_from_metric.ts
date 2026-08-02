@@ -7,10 +7,8 @@ import type {
 } from "lib";
 
 import { convertPeriodValue, deriveConfigFromVizPreset } from "lib";
-import {
-  validatePresetOverrides,
-  validateValuesFilter,
-} from "~/components/project_ai/ai_tools/validators/content_validators";
+import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
+import { validateValuesFilter } from "~/generate_visualization/mod";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
 
 type BuildConfigResult = {

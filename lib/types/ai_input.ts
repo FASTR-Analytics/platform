@@ -143,11 +143,11 @@ export const AiFigureFromMetricSchema = z.object({
 
 // ============================================================================
 // Figure config PATCH schema — DERIVED from the storage schema (configDStrict +
-// caption fields). Used to EDIT an existing figure's config (update_figure) and,
-// in a later phase, to author arbitrary figures. The data-shape subset a figure
-// needs; style (`config.s`) is excluded by design. Distinct from
-// vizConfigUpdateSchema (viz editor) — that one's periodFilter is optional; here
-// both min/max are required. Keep them separate.
+// caption fields). ONE base schema for every AI config-edit surface: the
+// figure tools (update_figure / update_report_figure) use it unchanged;
+// the viz editor extends it with `type` + `timeseriesGrouping`
+// (AiVizConfigUpdateSchema below). The data-shape subset a figure needs;
+// style (`config.s`) is excluded by design.
 // ============================================================================
 
 export const AiFigureConfigPatchSchema = z.object({
@@ -187,10 +187,18 @@ export const AiFigureConfigPatchSchema = z.object({
     ),
   rollupPosition: z.enum(["bottom", "top"]).optional()
     .describe("'top' or 'bottom'; defaults to bottom."),
+  // EXCEPTION: simpler abstraction than the full periodFilter union. An
+  // omitted max stores a `from_month` filter ("to present" — the range
+  // extends as new data lands); an omitted min anchors to the data's
+  // earliest period. See applyFigureConfigPatch.
   periodFilter: z.union([
     z.object({
-      min: z.number().describe("Start period (YYYY / YYYYQ / YYYYMM)."),
-      max: z.number().describe("End period (same format)."),
+      min: z.number().optional().describe(
+        "Start period (YYYY / YYYYQ / YYYYMM). Omit to start at the earliest available data.",
+      ),
+      max: z.number().optional().describe(
+        "End period (same format). Omit for 'to present' — the range then extends automatically as new data lands.",
+      ),
     }),
     z.null(),
   ]).optional().describe("Time range filter, or null to clear."),
@@ -205,6 +213,24 @@ export const AiFigureConfigPatchSchema = z.object({
 });
 
 export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
+
+// The viz editor's superset: same base patch plus the two fields only that
+// surface may set. A `type` change runs convertVisualizationType (the same
+// transform as the editor's type dropdown) before the rest of the patch
+// applies — see applyFigureConfigPatch.
+export const AiVizConfigUpdateSchema = AiFigureConfigPatchSchema.extend({
+  type: configDStrict.shape.type.optional().describe(
+    "Presentation type. Changing it converts the config the same way the "
+    + "editor's type dropdown does (slots remapped, style resets applied); "
+    + "fields you supply in the same call win over the conversion's choices.",
+  ),
+  timeseriesGrouping: configDStrict.shape.timeseriesGrouping.describe(
+    "How to group the time axis. Only valid when the (resulting) presentation "
+    + "type is timeseries.",
+  ),
+});
+
+export type AiVizConfigUpdate = z.infer<typeof AiVizConfigUpdateSchema>;
 
 // Union schemas
 

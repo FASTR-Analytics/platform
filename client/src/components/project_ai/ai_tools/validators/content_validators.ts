@@ -155,24 +155,10 @@ function validateDateRange(
   }
 }
 
-// valuesFilter names that don't exist on the metric are NOT inert —
-// getFilteredValueProps is a membership filter, so a bad name yields
-// effectiveValueProps: [] and a figure with no data values. Pure (valueProps
-// are already in hand); called by every AI path that writes valuesFilter,
-// create and edit.
-export function validateValuesFilter(
-  valuesFilter: string[] | null | undefined,
-  metric: { id: string; valueProps: string[] },
-): void {
-  if (!valuesFilter?.length) return;
-  const invalid = valuesFilter.filter((v) => !metric.valueProps.includes(v));
-  if (invalid.length > 0) {
-    throw new AIToolFailure(
-      `Invalid value propert${invalid.length === 1 ? "y" : "ies"} in valuesFilter for metric "${metric.id}": ${invalid.join(", ")}. ` +
-        `Valid value properties: ${metric.valueProps.join(", ")}. No changes were applied.`,
-    );
-  }
-}
+// valuesFilter membership lives in
+// generate_visualization/validate_figure_config_edit.ts (validateValuesFilter)
+// — a pure config check, called by the shared edit validator and the
+// from_metric create path.
 
 export function validatePresetOverrides(
   metricId: string,

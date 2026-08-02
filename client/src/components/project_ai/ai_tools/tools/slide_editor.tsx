@@ -3,19 +3,24 @@ import {
   AiFigureConfigPatchSchema,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
+  periodFilterHasBounds,
   type AiContentBlockInput,
   type ContentBlock,
   type FigureBundle,
   type MetricWithStatus,
+  type PeriodBounds,
+  type ResultsValueInfoForPresentationObject,
   type Slide,
 } from "lib";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { AIToolFailure, createAITool } from "panther";
 import type { LayoutNode } from "panther";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
+  describeFigureConfigPatchEffect,
   resolveBundleFromMetricAndConfig,
-  validateDisplaySlots,
+  validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
@@ -29,7 +34,6 @@ import {
   validateMetricInputs,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
-  validateValuesFilter,
 } from "../validators/content_validators";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
@@ -457,25 +461,52 @@ export function getToolsForSlideEditor(
           );
         }
 
-        // Build + validate the patched config UP FRONT (a throw must mean
-        // "nothing changed"); only re-resolve + commit once it's valid.
-        const newConfig = applyFigureConfigPatch(
-          bundle.config,
-          input.patch,
-          metric.mostGranularTimePeriodColumnInResultsFile,
-        );
-        validateDisplaySlots(newConfig, metric, input.patch);
-        if (input.patch.valuesFilter !== undefined) {
-          validateValuesFilter(input.patch.valuesFilter, metric);
+        // Hoisted conditional fetch: the metric's period bounds (for an
+        // open-ended periodFilter) and the possible-values map (for the
+        // pre-write collision check). One cached response carries both; a
+        // caption-only edit skips it entirely.
+        const pf = input.patch.periodFilter;
+        const needsBounds = typeof pf === "object" && pf !== null &&
+          (pf.min == null) !== (pf.max == null);
+        const needsPossibleValues = input.patch.disaggregateBy !== undefined ||
+          input.patch.valuesDisDisplayOpt !== undefined;
+        let dataBounds: PeriodBounds | undefined;
+        let disaggregationPossibleValues:
+          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | undefined;
+        if (needsBounds || needsPossibleValues) {
+          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+            projectId,
+            bundle.metricId,
+          );
+          if (infoRes.success) {
+            dataBounds = infoRes.data.periodBounds;
+            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+          }
+          if (needsBounds && !dataBounds) {
+            throw new AIToolFailure(
+              "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
+            );
+          }
         }
 
+        // Build + validate the patched config UP FRONT (a throw must mean
+        // "nothing changed"); only re-resolve + commit once it's valid.
+        const newConfig = applyFigureConfigPatch(bundle.config, input.patch, metric, dataBounds);
+        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
+          disaggregationPossibleValues,
+        });
+
         // Same value-validity check the editor + from_metric use: filter values
-        // and the period range must exist in the data.
+        // and the period range must exist in the data. from_month counts too —
+        // its min is a real bound the data must reach.
         const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
-        const periodFilter = newConfig.d.periodFilter?.filterType === "custom"
+        const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
           ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
           : undefined;
         await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+
+        const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 
         const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
 
@@ -485,10 +516,12 @@ export function getToolsForSlideEditor(
 
         const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);
 
+        const reportText = report.map((l) => `- ${l}`).join("\n");
+
         // Save: live preview (Save to persist) in the editor, or directly to the deck.
         if (view.id === "editing_slide") {
           view.context.setTempSlide(reconcile(updatedSlide));
-          return `Updated figure ${input.blockId}. The preview will update automatically. User must click "Save" to persist changes.`;
+          return `Updated figure ${input.blockId}.\n${reportText}\nThe preview will update automatically. User must click "Save" to persist changes.`;
         }
         const saveRes = await serverActions.updateSlide({
           projectId,
@@ -504,7 +537,7 @@ export function getToolsForSlideEditor(
           );
         }
         projectAIViewController.markAIEdit(`slide:${input.slideId}`);
-        return `Updated figure ${input.blockId} in slide ${input.slideId}.`;
+        return `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",
