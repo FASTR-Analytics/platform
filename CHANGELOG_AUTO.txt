@@ -1,3 +1,8 @@
+[1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
+[1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
+[1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading
+[1.64.5] [admin] [fixed] - Version history now correctly shows select-and-rewrite edits by different users
+[1.64.5] [admin] [improved] - Cleaner diff display groups deletions and additions together instead of interleaving
 [1.64.4] [user] [added] - First version now shows a note explaining the entire document was created in that session
 [1.64.4] [user] [fixed] - Version history no longer shows a blank pane for the earliest version
 [1.64.4] [admin] [fixed] - Version history no longer shows blank pane for first version
