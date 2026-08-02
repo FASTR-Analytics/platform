@@ -158,6 +158,29 @@ export function getToolsForSlideEditor(
         }
 
         const currentSlide = unwrap(ctx.getTempSlide());
+
+        // One schema serves three slide types, so Zod cannot reject a field
+        // aimed at the wrong type — and the per-type branches below read only
+        // their own fields, silently dropping the rest. Error instead (same
+        // precedent as update_slide_header's slide-type check).
+        const FIELDS_BY_SLIDE_TYPE: Record<Slide["type"], string[]> = {
+          cover: ["title", "subtitle", "presenter", "date"],
+          section: ["sectionTitle", "sectionSubtitle"],
+          content: ["header", "blockUpdates", "layoutChange"],
+        };
+        const allowedFields = FIELDS_BY_SLIDE_TYPE[currentSlide.type];
+        const wrongTypeFields = Object.keys(input).filter(
+          (k) =>
+            input[k as keyof typeof input] !== undefined &&
+            !allowedFields.includes(k),
+        );
+        if (wrongTypeFields.length > 0) {
+          throw new AIToolFailure(
+            `This is a "${currentSlide.type}" slide — the field(s) ${wrongTypeFields.join(", ")} do not apply to it and were NOT saved. ` +
+              `Editable fields for a ${currentSlide.type} slide: ${allowedFields.join(", ")}. No changes were applied.`,
+          );
+        }
+
         const changes: string[] = [];
 
         if (currentSlide.type === "cover") {

@@ -678,8 +678,7 @@ count is surfaced in the proposal summary). Remaining:
 - **[MED]** `get_metric_data` hard-codes `rollupDim: undefined`, so
   explored data differs from a roll-up-enabled figure — and the disclosure lives
   in a different tool's formatter.
-- **[LOW]** `update_slide_editor` silently ignores fields that don't match the
-  slide type (e.g. `title` on a content slide) — no error. **[LOW]** Complex
+- **[LOW]** Complex
   (non-3×3) layouts read back as `structure: null`, so only `replace_slide`
   (destructive rebuild) can edit them. **[LOW]** `get_available_modules` reduces
   `dirty:"error"` to the bare word "Error" with no message while still showing
