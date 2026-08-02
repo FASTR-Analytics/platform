@@ -74,6 +74,9 @@ export async function formatFigureConfigForAI(
   } else {
     lines.push("Values filter: (showing all)");
   }
+  if (metric) {
+    lines.push(`Available value properties: ${metric.valueProps.join(", ")}`);
+  }
 
   // The value dimension occupies a display slot only when >1 value prop is shown;
   // surface it so the AI doesn't collide a disaggregation with it unknowingly.

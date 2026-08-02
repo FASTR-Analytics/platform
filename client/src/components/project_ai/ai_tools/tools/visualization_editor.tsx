@@ -13,7 +13,10 @@ import { projectAIViews } from "~/components/project_ai/ai_views";
 import { convertPeriodValue } from "lib";
 import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { validateMetricInputs } from "../validators/content_validators";
+import {
+  validateMetricInputs,
+  validateValuesFilter,
+} from "../validators/content_validators";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
@@ -123,6 +126,10 @@ export function getToolsForVizEditor(
         // Runtime validation for data-dependent constraints
         if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
           throw new AIToolFailure(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);
+        }
+
+        if (input.valuesFilter !== undefined) {
+          validateValuesFilter(input.valuesFilter, resultsValue);
         }
 
         if (input.valuesDisDisplayOpt) {

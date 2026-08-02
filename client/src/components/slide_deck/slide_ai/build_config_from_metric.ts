@@ -7,7 +7,10 @@ import type {
 } from "lib";
 
 import { convertPeriodValue, deriveConfigFromVizPreset } from "lib";
-import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
+import {
+  validatePresetOverrides,
+  validateValuesFilter,
+} from "~/components/project_ai/ai_tools/validators/content_validators";
 import { getInstanceLocalization } from "~/state/instance/t1_store";
 
 type BuildConfigResult = {
@@ -85,6 +88,7 @@ export function buildConfigFromPreset(
   }
 
   if (input.valuesFilter) {
+    validateValuesFilter(input.valuesFilter, resultsValue);
     config.d.valuesFilter = input.valuesFilter;
   }
 

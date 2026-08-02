@@ -18,7 +18,10 @@ import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
-import { validateMetricInputs } from "../validators/content_validators";
+import {
+  validateMetricInputs,
+  validateValuesFilter,
+} from "../validators/content_validators";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -358,6 +361,9 @@ export function getToolsForReportEditor(
           metric.mostGranularTimePeriodColumnInResultsFile,
         );
         validateDisplaySlots(newConfig, metric, input.patch);
+        if (input.patch.valuesFilter !== undefined) {
+          validateValuesFilter(input.patch.valuesFilter, metric);
+        }
 
         const filters =
           newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;

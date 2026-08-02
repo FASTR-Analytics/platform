@@ -29,6 +29,7 @@ import {
   validateMetricInputs,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
+  validateValuesFilter,
 } from "../validators/content_validators";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
@@ -414,6 +415,9 @@ export function getToolsForSlideEditor(
           metric.mostGranularTimePeriodColumnInResultsFile,
         );
         validateDisplaySlots(newConfig, metric, input.patch);
+        if (input.patch.valuesFilter !== undefined) {
+          validateValuesFilter(input.patch.valuesFilter, metric);
+        }
 
         // Same value-validity check the editor + from_metric use: filter values
         // and the period range must exist in the data.
