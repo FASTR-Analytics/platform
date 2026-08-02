@@ -1150,14 +1150,16 @@ overflow menu.
 - **The PO/embedded-figure wedge guard rests on client-side widgets, not on
   the server.** `dropStorageInvalidTransients` covers the three states the
   editor is known to produce (all-values-unticked filter chip, emptied
-  `valuesFilter`, unordered/format-mismatched bounded `periodFilter`), but the
-  WS ingress validates nothing, so any *crafted* update can still wedge a
-  checkpoint on a constraint it does not cover — e.g. `nMonths`/`nYears`/
-  `nQuarters` `.min(1)`, or `NaN` in any `z.number()` field. Those are not
-  reachable through the current UI (the N-selectors clamp to ≥ 1). Treat "every
-  constraint reachable from a live doc belongs in that function" as a rule
-  about the editor's *current* widgets — adding a free-text numeric input to
-  the viz editor re-opens the class.
+  `valuesFilter`, and any `periodFilter` that `periodFilterSchema` rejects —
+  the drop delegates to `safeParse`, so the whole filter incl. `nMonths`/
+  `nYears`/`nQuarters` `.min(1)` and `NaN` bounds is schema-covered and cannot
+  drift). But the WS ingress validates nothing, so a _crafted_ update can
+  still wedge a checkpoint on a constraint outside those three fields — e.g.
+  `NaN` in any other `z.number()` field (`t` rel font sizes). Those are not
+  reachable through the current UI. Treat "every constraint reachable from a
+  live doc belongs in that function" as a rule about the editor's _current_
+  widgets — adding a free-text numeric input to the viz editor re-opens the
+  class.
 - **`lib/normalize_po_config.ts` is load-bearing for this system's checkpoints
   but is not in the `globs:` manifest above** (it is S9-adjacent). Changes to
   `dropStorageInvalidTransients*` are S16 changes in everything but the lint.

@@ -150,6 +150,15 @@ export function applyFigureConfigPatch(
             "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
           );
         }
+        // Year-granularity data: the query engine collapses every non-custom
+        // filter to the latest year (getPeriodFilterExactBounds), so a stored
+        // from_month would read back "from X to present" while rendering the
+        // latest year only. Bounded custom is the only faithful form.
+        if (rawMin != null && periodOption === "year") {
+          throw new AIToolFailure(
+            "Cannot set an open-ended periodFilter on an annual metric: 'from X onward' is not supported for year-granularity data and would render only the latest year. Provide both min and max (e.g. {min: 2020, max: 2024}).",
+          );
+        }
         d.periodFilter = rawMin != null
           // Open upper ("from X onward") → from_month: the stored max is
           // schema-mandated but ignored at query time — the range re-anchors

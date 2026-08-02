@@ -20,7 +20,6 @@ import {
   type GenericLongFormFetchConfig,
   type PeriodBounds,
   type PeriodFilter,
-  type ResultsValueInfoForPresentationObject,
 } from "./types/presentation_objects.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import {
@@ -121,6 +120,16 @@ export function getPeriodFilterExactBounds(
   }
   // The live data's format — bounds inherit it; the removed periodOption tag.
   const fmt = inferPeriodFormatFromValue(periodBounds.max);
+  // Year data: every non-custom filter collapses to the latest year. This is
+  // the intended reading of every storable state — the UI offers year data
+  // only "Last year" (stored as last_n_months) and "Custom", module presets
+  // on annual metrics carry last_n_months/last_calendar_year meaning exactly
+  // this, and the AI patch path rejects from_month for year granularity
+  // (applyFigureConfigPatch). Ruled 2026-08-03, pinned by the rig's
+  // hmis_yearly period-filter cases; a drift arrival (a filter authored under
+  // a finer granularity surviving a module re-run to annual) also collapses
+  // here rather than degrading to full bounds like the quarter_id block below
+  // — acceptable because no module has ever changed a metric's granularity.
   if (fmt === "year") {
     const max = periodBounds.max;
     return { min: max, max };

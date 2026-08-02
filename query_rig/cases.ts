@@ -732,6 +732,38 @@ const EXPLICIT_CASES: Case[] = [
       ],
     },
   },
+  {
+    // Year-granularity data collapses every non-custom filter to the latest
+    // year (getPeriodFilterExactBounds). Judged intended 2026-08-03: the UI's
+    // only relative option for year data is "Last year", stored as
+    // last_n_months(12), and {min: max, max} is exactly what it means. Module
+    // presets on annual metrics (m006/m009) rely on the same collapse.
+    name: "year table: last_n_months means 'Last year' — collapses to latest year",
+    fixture: "hmis_yearly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["year"],
+      periodFilter: { filterType: "last_n_months", nMonths: 12 },
+    },
+    expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
+  },
+  {
+    // Same collapse for a bounded from_month: min 2023 is discarded, latest
+    // year only. Judged acceptable 2026-08-03 because the state is
+    // near-unreachable — the AI patch path rejects open-ended filters on year
+    // granularity (applyFigureConfigPatch), the UI never offers from_month
+    // for year data, and no module has ever changed a metric's granularity
+    // (the drift class the quarter_id block degrades for). If the engine is
+    // ever made type-aware, this case must go red and be re-judged.
+    name: "year table: from_month min is discarded — latest year only",
+    fixture: "hmis_yearly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["year"],
+      periodFilter: { filterType: "from_month", min: 2023, max: 2024 },
+    },
+    expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
+  },
 ];
 
 // The one genuinely calendar-dependent derivation. F1 holds 202401 (23),

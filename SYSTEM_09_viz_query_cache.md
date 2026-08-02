@@ -321,8 +321,16 @@ relative types do month-math via panther's period-id time functions.
 the Ethiopian year rolls over at month 10→11 and quarters are 2–4 / 5–7 / 8–10 /
 11–1 (the 11/12-month branch has a confirmed year-off-by-one, F8a).
 Calendar-based filter types are hidden in the UI for `quarter_id` data; the
-defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is
-unreachable (marked TODO in code).
+defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is NOT
+dead — drift arrivals (a filter authored under `period_id` surviving a module
+re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades
+to full bounds (verified by execution 2026-07-26). Year-granularity data takes
+a different, earlier exit: every non-custom filter collapses to the latest
+year — ruled intended 2026-08-03 (the UI's only relative option for year data
+is "Last year", stored as `last_n_months(12)`, and module presets on annual
+metrics mean the same); the AI patch path rejects open-ended filters on year
+granularity so `from_month` cannot be authored onto annual data. Both pinned
+by rig cases (F7).
 
 **`timeseriesGrouping` vs the physical column.** `config.d.timeseriesGrouping`
 is display grouping only (the timeseries X-axis; may be coarser than the data,

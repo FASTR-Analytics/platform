@@ -9,7 +9,7 @@ import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import {
   inferPeriodFormatFromValue,
-  inferPeriodFormatFromValuesIfTheSame,
+  periodFilterSchema,
 } from "./types/_metric_installed.ts";
 import { MULTI_MEMBERSHIP_FILTER_COLUMNS } from "./validate_fetch_config.ts";
 import type { FigureBlock, JsonArrayItem } from "./types/_figure_bundle.ts";
@@ -18,82 +18,62 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 
 /** Drop editor states the storage schema rejects: a filter entry with all
  *  values un-ticked and an emptied valuesFilter are legal mid-edit but fail
- *  the strict parse (both are min(1) in configDStrict); a bounded periodFilter
- *  whose min/max don't self-identify the same period format or aren't ordered
- *  fails periodFilterSchema's refine. Shared by the client save path
+ *  the strict parse (both are min(1) in configDStrict); a periodFilter is
+ *  dropped whenever periodFilterSchema itself rejects it (the bounded-filter
+ *  refine, plus the union's field constraints), so that check cannot drift
+ *  from the schema. Shared by the client save path
  *  (normalizePOConfigForStorage) and the server collab checkpoint, which
  *  persists the otherwise-unnormalized live doc and must never be wedged by a
  *  transient editor state. Every constraint reachable from a live doc belongs
  *  here — the WS ingress applies raw Yjs updates with no content validation, so
  *  this is the only thing standing between a mid-edit state and a permanently
- *  wedged room checkpoint. */
+ *  wedged room checkpoint. Identity-preserving: a config with nothing to drop
+ *  comes back as the same object. */
 export function dropStorageInvalidTransients(
   config: PresentationObjectConfig,
 ): PresentationObjectConfig {
+  const filterBy = config.d.filterBy.filter((f) => f.values.length > 0);
+  const valuesFilter = config.d.valuesFilter?.length
+    ? config.d.valuesFilter
+    : undefined;
+  const periodFilter =
+    periodFilterSchema.safeParse(config.d.periodFilter).success
+      ? config.d.periodFilter
+      : undefined;
+  if (
+    filterBy.length === config.d.filterBy.length &&
+    valuesFilter === config.d.valuesFilter &&
+    periodFilter === config.d.periodFilter
+  ) {
+    return config;
+  }
   return {
     ...config,
-    d: {
-      ...config.d,
-      filterBy: config.d.filterBy.filter((f) => f.values.length > 0),
-      valuesFilter: config.d.valuesFilter?.length
-        ? config.d.valuesFilter
-        : undefined,
-      periodFilter: hasValidPeriodFilter(config.d.periodFilter)
-        ? config.d.periodFilter
-        : undefined,
-    },
+    d: { ...config.d, filterBy, valuesFilter, periodFilter },
   };
-}
-
-/** The refine in periodFilterSchema, asked without throwing. A relative filter
- *  is always fine; a bounded one needs both bounds to self-identify the SAME
- *  period format and to be ordered. */
-function hasValidPeriodFilter(
-  periodFilter: PresentationObjectConfig["d"]["periodFilter"],
-): boolean {
-  if (periodFilter === undefined) {
-    return true;
-  }
-  if (
-    periodFilter.filterType !== "custom" && periodFilter.filterType !== "from_month"
-  ) {
-    return true;
-  }
-  return (
-    inferPeriodFormatFromValuesIfTheSame(periodFilter.min, periodFilter.max) !==
-      undefined && periodFilter.min <= periodFilter.max
-  );
-}
-
-function hasStorageInvalidTransients(config: PresentationObjectConfig): boolean {
-  return config.d.filterBy.some((f) => f.values.length === 0) ||
-    config.d.valuesFilter?.length === 0 ||
-    !hasValidPeriodFilter(config.d.periodFilter);
 }
 
 /** The same drop for a figure EMBEDDED in a slide or report. Their stored
  *  schemas reach the identical configDStrict constraints through
  *  figureBlockSchema.bundle.config, and the embedded figure editor streams the
  *  same unnormalized mid-edit config into the host's shared doc — so a slide or
- *  report room wedges its checkpoint exactly like a PO room did. Below is
- *  identity-preserving: an untouched block/slide/registry comes back as the
- *  same object, so the checkpoint's `trusted` comparison only goes false when
- *  something was really dropped. */
+ *  report room wedges its checkpoint exactly like a PO room did. Identity is
+ *  preserved through every wrapper: an untouched block/slide/registry comes
+ *  back as the same object, so the checkpoint's `trusted` comparison only goes
+ *  false when something was really dropped. */
 export function dropStorageInvalidTransientsInFigureBlock(
   block: FigureBlock,
 ): FigureBlock {
-  if (
-    block.bundle === undefined ||
-    !hasStorageInvalidTransients(block.bundle.config)
-  ) {
+  if (block.bundle === undefined) {
+    return block;
+  }
+  const config = dropStorageInvalidTransients(block.bundle.config);
+  if (config === block.bundle.config) {
     return block;
   }
   return {
     ...block,
-    bundle: {
-      ...block.bundle,
-      config: dropStorageInvalidTransients(block.bundle.config),
-    },
+    bundle: { ...block.bundle, config },
   };
 }
 
