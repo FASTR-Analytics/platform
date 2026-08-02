@@ -388,6 +388,20 @@ export function getToolsForSlideEditor(
       availableIn: ["editing_slide", "editing_slide_deck"],
       kind: "write",
       handler: async (input, view) => {
+        // metricId/type are not in the patch schema (silently stripped), so an
+        // all-unsupported patch arrives empty — reject it instead of
+        // re-resolving the bundle unchanged and falsely reporting success.
+        if (Object.keys(input.patch).length === 0) {
+          throw new AIToolFailure(
+            "No editable fields were provided. update_figure changes a figure's " +
+              "config (replicant, filters, disaggregation, period, captions); it " +
+              "cannot change the metric/indicator or chart type. To show a " +
+              "different indicator or chart, replace the block with a new " +
+              "from_metric/from_visualization figure (blockUpdates in " +
+              "update_slide_editor, or replace_slide).",
+          );
+        }
+
         // Load the target slide: the live editor slide, or a saved deck slide by id.
         let slide: Slide;
         let expectedLastUpdated: string | undefined;
