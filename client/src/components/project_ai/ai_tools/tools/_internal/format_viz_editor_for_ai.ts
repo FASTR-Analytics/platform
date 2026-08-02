@@ -4,7 +4,6 @@ import {
   getRollupPosition,
   inferPeriodFormatFromValue,
   isRollupEligibleResultsValue,
-  periodFilterHasBounds,
   type PresentationObjectConfig,
   type ResultsValue,
 } from "lib";
@@ -58,8 +57,13 @@ export function formatVizEditorForAI(
 
   if (config.d.periodFilter) {
     const pf = config.d.periodFilter;
-    if (periodFilterHasBounds(pf)) {
+    if (pf.filterType === "custom") {
       lines.push(`Period filter: ${inferPeriodFormatFromValue(pf.min) ?? "unknown"} from ${pf.min} to ${pf.max}`);
+    } else if (pf.filterType === "from_month") {
+      // from_month discards its stored max at query time — the range extends
+      // to the latest data. Printing "to <max>" taught the model a fixed
+      // upper bound the renderer ignores.
+      lines.push(`Period filter: from ${pf.min} to present (extends automatically as new data lands)`);
     } else {
       const nPart =
         pf.filterType === "last_n_months" ? `${pf.nMonths} months` :

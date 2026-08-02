@@ -285,7 +285,7 @@ export function getToolsForReportEditor(
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(projectId, metric, bundle.config);
+        return await formatFigureConfigForAI(projectId, metric, bundle.config, bundle.dateRange);
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",

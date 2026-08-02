@@ -79,7 +79,7 @@ export async function simplifySlideForAI(projectId: string, slide: Slide, metric
           const metric = (metrics ?? []).find((m) => m.id === bundle.metricId);
           let cfg: string;
           try {
-            cfg = await formatFigureConfigForAI(projectId, metric, bundle.config);
+            cfg = await formatFigureConfigForAI(projectId, metric, bundle.config, bundle.dateRange);
           } catch (err) {
             cfg = `Figure (metric: ${bundle.metricId}, type: ${bundle.config.d.type}) — config unavailable: ${err}`;
           }

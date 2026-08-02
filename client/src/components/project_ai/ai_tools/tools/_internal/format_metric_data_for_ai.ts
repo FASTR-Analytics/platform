@@ -13,7 +13,6 @@ import {
   getFiltersWithReplicant,
   inferPeriodFormatFromValue,
   isSampleNProp,
-  periodFilterHasBounds,
   sampleNProp,
 } from "lib";
 import { AIToolFailure } from "panther";
@@ -239,9 +238,14 @@ function formatItemsAsMarkdown(
   }
 
   if (periodFilter) {
-    if (periodFilterHasBounds(periodFilter)) {
+    if (periodFilter.filterType === "custom") {
       lines.push(
         `**Period filter:** ${inferPeriodFormatFromValue(periodFilter.min) ?? "unknown"} from ${periodFilter.min} to ${periodFilter.max}`,
+      );
+    } else if (periodFilter.filterType === "from_month") {
+      // from_month's stored max is ignored at query time ("to present").
+      lines.push(
+        `**Period filter:** from ${periodFilter.min} to present (extends automatically as new data lands)`,
       );
     } else if (periodFilter.filterType === "last_n_months") {
       lines.push(`**Period filter:** last ${periodFilter.nMonths} months`);

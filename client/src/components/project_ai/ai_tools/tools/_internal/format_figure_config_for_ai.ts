@@ -4,8 +4,8 @@ import {
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
   inferPeriodFormatFromValue,
-  periodFilterHasBounds,
   type MetricWithStatus,
+  type PeriodBounds,
   type PresentationObjectConfig,
 } from "lib";
 import { VALID_DIS_DISPLAY } from "~/generate_visualization/mod";
@@ -17,10 +17,14 @@ import { instanceState } from "~/state/instance/t1_store";
 // per-dimension display slots) and patch it via update_figure. Reads instance
 // state for dimension labels — not pure, but slide-agnostic (reusable for
 // reports).
+// `shownDateRange` is the FigureBundle's dateRange — the period range of the
+// items the figure actually displays, frozen at the last resolve. Callers hold
+// the bundle; pass bundle.dateRange (undefined when unresolved).
 export async function formatFigureConfigForAI(
   projectId: string,
   metric: MetricWithStatus | undefined,
   config: PresentationObjectConfig,
+  shownDateRange: PeriodBounds | undefined,
 ): Promise<string> {
   const lines: string[] = [];
   lines.push(`Metric: ${metric?.id ?? "(unknown)"} · Type: ${config.d.type}`);
@@ -91,12 +95,27 @@ export async function formatFigureConfigForAI(
 
   if (config.d.periodFilter) {
     const pf = config.d.periodFilter;
-    if (periodFilterHasBounds(pf)) {
+    if (pf.filterType === "custom") {
       lines.push(
         `Period filter: ${inferPeriodFormatFromValue(pf.min) ?? "unknown"} from ${pf.min} to ${pf.max}`,
       );
     } else {
-      lines.push(`Period filter: ${pf.filterType}`);
+      // Non-custom filters resolve against LIVE data at query time —
+      // from_month discards its stored max ("to present"), relative types
+      // re-anchor. A figure's items are frozen at the last resolve, so print
+      // both truths: the filter's meaning and the range actually shown.
+      if (pf.filterType === "from_month") {
+        lines.push(
+          `Period filter: from ${pf.min} to present (the upper bound extends automatically as new data lands; the stored max is ignored)`,
+        );
+      } else {
+        lines.push(`Period filter: ${pf.filterType}`);
+      }
+      if (shownDateRange) {
+        lines.push(
+          `  Data currently shown: ${shownDateRange.min} to ${shownDateRange.max} (frozen at the figure's last refresh; re-anchors on the next edit)`,
+        );
+      }
     }
   }
 
