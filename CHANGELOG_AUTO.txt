@@ -1,9 +1,9 @@
-[TBD] [user] [added] - First version now shows a note explaining the entire document was created in that session
-[TBD] [user] [fixed] - Version history no longer shows a blank pane for the earliest version
-[TBD] [admin] [fixed] - Version history no longer shows blank pane for first version
-[TBD] [admin] [added] - First version now shows explanatory note in session edits view
-[TBD] [user] [changed] - Undo/redo now covers text edits in slide titles, captions, and text fields together with other slide changes
-[TBD] [admin] [changed] - Undo/redo in slide editor now covers all text fields uniformly
+[1.64.4] [user] [added] - First version now shows a note explaining the entire document was created in that session
+[1.64.4] [user] [fixed] - Version history no longer shows a blank pane for the earliest version
+[1.64.4] [admin] [fixed] - Version history no longer shows blank pane for first version
+[1.64.4] [admin] [added] - First version now shows explanatory note in session edits view
+[1.64.4] [user] [changed] - Undo/redo now covers text edits in slide titles, captions, and text fields together with other slide changes
+[1.64.4] [admin] [changed] - Undo/redo in slide editor now covers all text fields uniformly
 [1.64.3] [admin] [added] - Editing sessions are now tracked in admin activity logs
 [1.64.3] [admin] [changed] - Internal staff edits are excluded from usage activity counts
 [1.64.2] [user] [changed] - Consistent heading bar design across all screens
