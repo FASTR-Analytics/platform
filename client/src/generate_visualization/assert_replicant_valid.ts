@@ -1,4 +1,5 @@
 import type { PresentationObjectConfig, ResultsValue } from "lib";
+import { AIToolFailure } from "panther";
 import {
   formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
@@ -28,7 +29,7 @@ export async function assertReplicantValid(
     excludeReplicantFilter: true,
   });
   if (!resOptions.success) {
-    throw new Error(resOptions.err);
+    throw new AIToolFailure(resOptions.err);
   }
   const optRes = await getReplicantOptionsFromCacheOrFetch(
     projectId,
@@ -40,13 +41,13 @@ export async function assertReplicantValid(
     const valid = optRes.data.possibleValues;
     const selected = config.d.selectedReplicantValue;
     if (!selected) {
-      throw new Error(
+      throw new AIToolFailure(
         `This figure replicates by "${replicateBy}" and needs a selected replicant value. `
         + `Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
       );
     }
     if (!valid.some((v) => v.id === selected)) {
-      throw new Error(
+      throw new AIToolFailure(
         `Invalid replicant value "${selected}". Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
       );
     }

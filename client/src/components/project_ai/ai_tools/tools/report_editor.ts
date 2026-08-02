@@ -354,6 +354,17 @@ export function getToolsForReportEditor(
           );
         }
 
+        // Pre-flight for a stored defect this tool cannot repair (the figure
+        // patch schema carries no timeseriesGrouping) — see update_figure.
+        if (
+          bundle.config.d.type === "timeseries" &&
+          !bundle.config.d.timeseriesGrouping
+        ) {
+          throw new AIToolFailure(
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via replace_figure). No changes were applied.",
+          );
+        }
+
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
         const newConfig = applyFigureConfigPatch(
           bundle.config,

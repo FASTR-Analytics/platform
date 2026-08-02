@@ -430,6 +430,19 @@ export function getToolsForSlideEditor(
           throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this project.`);
         }
 
+        // Pre-flight for a stored defect this tool cannot repair (the figure
+        // patch schema carries no timeseriesGrouping): a grouping-less
+        // timeseries config — possible via 9 authored preset configs plus a
+        // human type switch — would otherwise hit lib's plain Error mid-resolve.
+        if (
+          bundle.config.d.type === "timeseries" &&
+          !bundle.config.d.timeseriesGrouping
+        ) {
+          throw new AIToolFailure(
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via a from_metric block). No changes were applied.",
+          );
+        }
+
         // Build + validate the patched config UP FRONT (a throw must mean
         // "nothing changed"); only re-resolve + commit once it's valid.
         const newConfig = applyFigureConfigPatch(

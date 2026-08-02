@@ -5,6 +5,7 @@ import type {
   PeriodBounds,
   PresentationObjectConfig,
 } from "lib";
+import { AIToolFailure } from "panther";
 import {
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getEffectivePOConfig,
@@ -63,17 +64,17 @@ export function validateDisplaySlots(
     const validDisplay = VALID_DIS_DISPLAY[type];
     for (const d of config.d.disaggregateBy) {
       if (!availableDims.includes(d.disOpt)) {
-        throw new Error(
+        throw new AIToolFailure(
           `Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`,
         );
       }
       if (FILTER_ONLY_DISAGGREGATION_OPTIONS.has(d.disOpt)) {
-        throw new Error(
+        throw new AIToolFailure(
           `"${d.disOpt}" is filter-only and cannot be used as a disaggregation dimension.`,
         );
       }
       if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
-        throw new Error(
+        throw new AIToolFailure(
           `Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${type}". Valid: ${validDisplay.join(", ")}`,
         );
       }
@@ -94,7 +95,7 @@ export function validateDisplaySlots(
       if (opt.allowedPresentationOptions && !opt.allowedPresentationOptions.includes(type)) {
         continue;
       }
-      throw new Error(
+      throw new AIToolFailure(
         `Disaggregation "${opt.value}" is required for this metric and must remain in disaggregateBy. No changes were applied.`,
       );
     }
@@ -112,12 +113,12 @@ export function validateDisplaySlots(
   if (patch.valuesDisDisplayOpt !== undefined) {
     const validValues = VALID_VALUES_DISPLAY[type];
     if (validValues && !validValues.includes(patch.valuesDisDisplayOpt)) {
-      throw new Error(
+      throw new AIToolFailure(
         `Invalid valuesDisDisplayOpt "${patch.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}. No changes were applied.`,
       );
     }
     if (!hasMultipleValueProps) {
-      throw new Error(
+      throw new AIToolFailure(
         `valuesDisDisplayOpt has no effect on this figure: it shows a single data `
         + `value, so there is no value dimension to place. It is NOT a label, `
         + `caption or styling control. No changes were applied.`,
@@ -130,7 +131,7 @@ export function validateDisplaySlots(
   if (hasMultipleValueProps && patch.valuesFilter !== undefined) {
     const validValues = VALID_VALUES_DISPLAY[type];
     if (validValues && !validValues.includes(config.d.valuesDisDisplayOpt)) {
-      throw new Error(
+      throw new AIToolFailure(
         `Invalid valuesDisDisplayOpt "${config.d.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}`,
       );
     }
@@ -149,7 +150,7 @@ export function validateDisplaySlots(
     explicitlyFlagged &&
     getEffectiveRollupDimension(metric, config) === undefined
   ) {
-    throw new Error(
+    throw new AIToolFailure(
       "The requested roll-up is not available for this configuration: exactly "
       + "ONE disaggregated dimension may carry it, it must be an admin level "
       + "(admin_area_2/3/4) or facility column, not shown as replicant/map "
@@ -181,7 +182,7 @@ export function assertNoSlotCollision(
     singleValueDims: getSingleValueDimsFromItems(config, items),
   });
   if (hasDuplicateDisaggregatorDisplayOptions(resultsValueForViz, effectiveConfig, effectiveValueProps)) {
-    throw new Error(
+    throw new AIToolFailure(
       `Two display elements share the same slot for a "${config.d.type}" figure (a disaggregation, or the value dimension, collides). The figure would not render correctly. No changes were applied.`,
     );
   }

@@ -4,6 +4,7 @@ import type {
   PresentationObjectConfig,
 } from "lib";
 import { convertPeriodValue } from "lib";
+import { AIToolFailure } from "panther";
 
 // Apply an AI config patch onto an existing figure config, returning a FRESH
 // copy (never mutates the input). Pure — no fetches. Array fields replace whole;
@@ -64,7 +65,7 @@ export function applyFigureConfigPatch(
       d.periodFilter = undefined;
     } else {
       if (!periodOption) {
-        throw new Error("Cannot set periodFilter: metric has no time period column");
+        throw new AIToolFailure("Cannot set periodFilter: metric has no time period column");
       }
       d.periodFilter = {
         filterType: "custom",
