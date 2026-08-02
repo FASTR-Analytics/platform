@@ -123,6 +123,15 @@ export function getToolsForVizEditor(
         // Schema now enforces valid type enum - no runtime check needed
         const effectiveType = input.type || ctx.getTempConfig().d.type;
 
+        // timeseriesGrouping is read ONLY by timeseries configs (every
+        // query/render reader gates on type === "timeseries"); on any other
+        // type it stores a dead field the read-back would confirm.
+        if (input.timeseriesGrouping && effectiveType !== "timeseries") {
+          throw new AIToolFailure(
+            `timeseriesGrouping has no effect on a "${effectiveType}" visualization — it is only read when the presentation type is "timeseries". No changes were applied.`,
+          );
+        }
+
         // Runtime validation for data-dependent constraints
         if (input.timeseriesGrouping && resultsValue.mostGranularTimePeriodColumnInResultsFile !== input.timeseriesGrouping) {
           throw new AIToolFailure(`Invalid timeseriesGrouping "${input.timeseriesGrouping}". Available: ${resultsValue.mostGranularTimePeriodColumnInResultsFile ?? "none"}`);

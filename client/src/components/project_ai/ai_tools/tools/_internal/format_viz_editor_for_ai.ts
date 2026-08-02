@@ -33,7 +33,9 @@ export function formatVizEditorForAI(
   lines.push("=".repeat(50));
   lines.push("");
   lines.push(`Presentation type: ${config.d.type}`);
-  if (config.d.timeseriesGrouping) {
+  // Same gate as every renderer: the field is only live on a timeseries.
+  // Printing it on other types confirmed a dead field back to the model.
+  if (config.d.type === "timeseries" && config.d.timeseriesGrouping) {
     lines.push(`Timeseries grouping: ${config.d.timeseriesGrouping}`);
   }
   lines.push("");
