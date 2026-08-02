@@ -1,3 +1,5 @@
+[TBD] [user] [changed] - Undo/redo now covers text edits in slide titles, captions, and text fields together with other slide changes
+[TBD] [admin] [changed] - Undo/redo in slide editor now covers all text fields uniformly
 [1.64.3] [admin] [added] - Editing sessions are now tracked in admin activity logs
 [1.64.3] [admin] [changed] - Internal staff edits are excluded from usage activity counts
 [1.64.2] [user] [changed] - Consistent heading bar design across all screens
