@@ -318,10 +318,17 @@ reports save failure (`update_report_figure` — no diff, the figure's body
 token doesn't change).
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level),
-`update_report_figure`, and `update_viz_config` build the patched config and
-run the full validation stack — `applyFigureConfigPatch`, display-slot
-checks, `validateMetricInputs` (live data), replicant assertion — *before*
-any store write, so a throw provably means "nothing changed".
+`update_report_figure`, and `update_viz_config` share one pipeline —
+`applyFigureConfigPatch` → `validateFigureConfigEdit` (pure config checks:
+slots, field liveness, roll-up structure, pre-write collision) →
+`validateMetricInputs` (live data) → `describeFigureConfigPatchEffect` (the
+per-field leave-one-out change report in the success message) — *before*
+any store write, so a throw provably means "nothing changed". Pure config
+checks live beside the pipeline in `client/src/generate_visualization/`
+(S10's glob, deliberately — they are S13 machinery); fetched-data checks
+stay in `validators/content_validators.ts`. The accepted-but-inert-patch
+rule (Type 1 / Type 2) is stated once, in
+[PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
 **Tool freshness rests on store aliasing, not reactivity.** The tools array
 is built exactly once at wrapper setup (index.tsx:42-57) — panther registers
@@ -340,15 +347,16 @@ The architecture half of the schema story (the authoring recipe is
 - **AI schemas derive from storage schemas.** `configDStrict`
   ([lib/types/_metric_installed.ts:160](lib/types/_metric_installed.ts#L160)
   — a strip-mode `z.object` despite the name; `filterBy[].values` and
-  `valuesFilter` carry `.min(1)`) is the source of truth. Three derived
-  surfaces exist: `AiMetricQuerySchema`
-  ([ai_input.ts](lib/types/ai_input.ts) — filters/disaggregations/
-  valuesFilter via `.shape.*`), the viz editor's `vizConfigUpdateSchema`
-  ([visualization_editor.tsx:26-70](client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx#L26-L70)),
-  and `AiFigureConfigPatchSchema` + `LayoutSpecSchema`
-  ([ai_input.ts:152-231](lib/types/ai_input.ts#L152-L231)) used by
-  `update_figure`/`update_report_figure`. The documented exception pattern
-  (`startDate`/`endDate` instead of a full `periodFilter`, converted against
+  `valuesFilter` carry `.min(1)`) is the source of truth. Two derived
+  surfaces exist, both in [ai_input.ts](lib/types/ai_input.ts):
+  `AiMetricQuerySchema` (filters/disaggregations/valuesFilter via
+  `.shape.*`) and `AiFigureConfigPatchSchema` + `LayoutSpecSchema`, used by
+  `update_figure`/`update_report_figure`; the viz editor's
+  `AiVizConfigUpdateSchema` is `.extend()` of the base patch schema (adds
+  `type` + `timeseriesGrouping`), not a third copy. The documented exception
+  pattern (`startDate`/`endDate` — and the patch schemas' open-ended
+  `periodFilter {min?, max?}`, where an omitted max stores `from_month` "to
+  present" — instead of the full `periodFilter` union, converted against
   the metric's most-granular time column) is preserved everywhere.
 - **Layer-1 enforcement lives in panther**: `createAITool` re-parses input
   inside `run()` and converts a ZodError to `AIToolFailure`

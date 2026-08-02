@@ -234,9 +234,8 @@ GeoJSON travels in the bundle. Same split the old public-render path had.
 
 Gone: `FigureSource` (the `from_data | custom` union — `custom` was vestigial
 dead code, 0 figures in prod); the `stripFigureInputsForStorage` /
-`hydrateFigureInputsForRendering*` pipeline (one comment-only tombstone
-survives: `generate_visualization/strip_figure_inputs.ts`, zero importers —
-Open item); the stored `figureInputs` field; the `lib/json_slide_serialize.ts`
+`hydrateFigureInputsForRendering*` pipeline (its comment-only tombstone
+`strip_figure_inputs.ts` deleted too); the stored `figureInputs` field; the `lib/json_slide_serialize.ts`
 sentinel layer and the old ambient-localization build path
 (`get_figure_inputs_from_po.ts`) — both files deleted.
 
@@ -510,8 +509,6 @@ label to `pdf.save`/`saveAs` (Open item).
   correct either way, which is why it is not blocking. If it is ever floored
   upstream, `m3-0x-01`/`m3-0x-03`'s entries in
   `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` become belt-and-braces.
-- Delete the `strip_figure_inputs.ts` comment-only tombstone (zero importers;
-  its "kept for the import chain" rationale is void).
 - The three slide-deck exporters triplicate the fetch/convert loop (~150
   duplicated lines; the two PDF variants differ only in their tail) — extract
   one shared iterator.

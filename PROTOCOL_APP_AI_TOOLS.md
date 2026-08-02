@@ -28,9 +28,10 @@ export const AiMetricQuerySchema = z.object({
 ```
 
 Existing derived surfaces to copy from: `AiMetricQuerySchema` and
-`AiFigureConfigPatchSchema`/`LayoutSpecSchema` (lib/types/ai_input.ts), and
-`vizConfigUpdateSchema`
-(client/src/components/project_ai/ai_tools/tools/visualization_editor.tsx).
+`AiFigureConfigPatchSchema`/`LayoutSpecSchema` (lib/types/ai_input.ts). The
+viz editor's `AiVizConfigUpdateSchema` is `.extend()` of the base patch
+schema (adds `type` + `timeseriesGrouping`), not a parallel copy — follow
+that pattern when a surface needs extra fields.
 
 ## The forbidden zone
 
@@ -77,7 +78,39 @@ Rule: if validation needs data, it's Layer 2; if it's types and structure,
 derive it (Layer 1). Every write tool must run its Layer-2 checks **before**
 mutating anything, so a throw provably means "nothing changed"
 (`update_figure` / `update_report_figure` are the reference
-implementations).
+implementations). Placement within Layer 2: checks needing FETCHED data live
+in `content_validators.ts`; PURE config checks (slot legality, field
+liveness) live beside the shared edit validator in
+`client/src/generate_visualization/validate_figure_config_edit.ts`.
+
+## Accepted-but-inert patches: the Type 1 / Type 2 rule
+
+A field can be legal to Zod, legal to store, and still change nothing the
+user sees. A success message then teaches the model the field worked, and it
+repeats the dead edit. Every write tool must close both failure modes:
+
+- **Type 1 — the edit never reached storage.** Happens only for fields the
+  apply function writes through a filter or conditional instead of a plain
+  assignment (`CONDITIONALLY_APPLIED_FIELDS` in
+  `apply_figure_config_patch.ts` is the authority). Each such field gets its
+  own **structural check** in the validator ("is there an entry to receive
+  this write?") — a config diff cannot attribute its no-op. A new
+  conditionally-written field must be added to that list AND given a check.
+- **Type 2 — stored, but nothing reads it for this config's shape.** (e.g.
+  `valuesDisDisplayOpt` on a single-value-prop figure, `selectedReplicantValue`
+  with no active replicant, `timeseriesGrouping` on a non-timeseries.) Each
+  needs a per-field **liveness check**: "is this field live for THIS config +
+  metric?" — asked with the same predicate the renderer uses (e.g.
+  `getReplicateByProp`, not a raw `disDisplayOpt === "replicant"` scan).
+  Never gate a field's validation on the predicate that makes it inert
+  ("only validate it when it matters" is exactly what produces silent
+  no-ops). The read-back formatter must gate on the same predicate, or it
+  confirms the dead field back to the model.
+
+For everything else, a field whose new value equals the stored one is NOT an
+error — the report (`describeFigureConfigPatchEffect`, leave-one-out over
+the pure apply) states "no change" per field and the tool's success message
+includes it. Never report a bare "Updated X".
 
 ## Error handling: throw, don't catch
 

@@ -708,6 +708,27 @@ const EXPLICIT_CASES: Case[] = [
       },
     },
   },
+  {
+    // from_month means "to present": the stored max is schema-mandated but
+    // ignored at query time — the upper bound re-anchors to the live data's
+    // max. Stored figure configs can now carry this filter type (the AI patch
+    // schema's open-ended periodFilter), so pin the semantics: max says
+    // 202402, the data reaches 202403, and 202403 is included.
+    name: "from_month ignores its stored max — range extends to the live data max",
+    fixture: "hmis_monthly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["period_id"],
+      periodFilter: { filterType: "from_month", min: 202402, max: 202402 },
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { period_id: 202402, value: 25 },
+        { period_id: 202403, value: 4 },
+      ],
+    },
+  },
 ];
 
 // The one genuinely calendar-dependent derivation. F1 holds 202401 (23),
