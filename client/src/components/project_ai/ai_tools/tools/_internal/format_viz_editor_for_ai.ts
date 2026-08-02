@@ -2,8 +2,10 @@ import {
   getDisaggregationLabel,
   getEffectiveRollupDimension,
   getRollupPosition,
+  getValidValuesDisplayOptions,
   inferPeriodFormatFromValue,
   isRollupEligibleResultsValue,
+  VIZ_TYPE_CONFIG,
   type PresentationObjectConfig,
   type ResultsValue,
 } from "lib";
@@ -131,23 +133,15 @@ export function formatVizEditorForAI(
   lines.push("");
 
   lines.push("Valid display options for disaggregations:");
-  if (config.d.type === "timeseries") {
-    lines.push(`  For timeseries: series, cell, row, col, replicant`);
-  } else if (config.d.type === "table") {
-    lines.push(`  For table: row, col, rowGroup, colGroup, replicant`);
-  } else if (config.d.type === "chart") {
-    lines.push(`  For chart: indicator, series, cell, row, col, replicant`);
-  }
+  lines.push(
+    `  For ${config.d.type}: ${VIZ_TYPE_CONFIG[config.d.type].disaggregationDisplayOptions.join(", ")}`,
+  );
   lines.push("");
 
   lines.push("Valid display options for values:");
-  if (config.d.type === "timeseries") {
-    lines.push(`  For timeseries: series, cell, row, col`);
-  } else if (config.d.type === "table") {
-    lines.push(`  For table: row, col, rowGroup, colGroup`);
-  } else if (config.d.type === "chart") {
-    lines.push(`  For chart: indicator, series, cell, row, col`);
-  }
+  lines.push(
+    `  For ${config.d.type}: ${getValidValuesDisplayOptions(config.d.type).join(", ")}`,
+  );
   lines.push("");
 
   lines.push("=".repeat(80));

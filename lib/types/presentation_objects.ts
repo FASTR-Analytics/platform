@@ -236,6 +236,20 @@ export const VIZ_TYPE_CONFIG: Record<
   },
 };
 
+// Legal display slots for the VALUE dimension, per type: the disaggregation
+// slots minus `replicant` (a figure replicates by a disaggregation, never by
+// its value props) and `mapArea` (the map's geography is a disaggregation's
+// job — values cannot be the areas). Derived, not a second table, so a new
+// presentation type or display option is a compile error here, not a
+// silently-skipped check.
+export function getValidValuesDisplayOptions(
+  type: PresentationOption,
+): DisaggregationDisplayOption[] {
+  return VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions.filter(
+    (o) => o !== "replicant" && o !== "mapArea",
+  );
+}
+
 export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
   PresentationOption,
   { value: DisaggregationDisplayOption; label: string }[]

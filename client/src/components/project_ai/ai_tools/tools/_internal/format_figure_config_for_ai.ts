@@ -8,7 +8,7 @@ import {
   type PeriodBounds,
   type PresentationObjectConfig,
 } from "lib";
-import { VALID_DIS_DISPLAY } from "~/generate_visualization/mod";
+import { VIZ_TYPE_CONFIG } from "lib";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -133,10 +133,8 @@ export async function formatFigureConfigForAI(
       lines.push(`  - ${opt.value}: ${label}${opt.isRequired ? " (required)" : ""}`);
     }
   }
-  const validSlots = VALID_DIS_DISPLAY[config.d.type];
-  if (validSlots) {
-    lines.push(`Valid display slots for ${config.d.type}: ${validSlots.join(", ")}`);
-  }
+  const validSlots = VIZ_TYPE_CONFIG[config.d.type].disaggregationDisplayOptions;
+  lines.push(`Valid display slots for ${config.d.type}: ${validSlots.join(", ")}`);
 
   return lines.join("\n");
 }

@@ -11,7 +11,7 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import { projectAIViews } from "~/components/project_ai/ai_views";
 import { convertPeriodValue } from "lib";
-import { VALID_DIS_DISPLAY, VALID_VALUES_DISPLAY } from "~/generate_visualization/validate_display_slots";
+import { getValidValuesDisplayOptions, VIZ_TYPE_CONFIG } from "lib";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import {
   validateMetricInputs,
@@ -79,9 +79,6 @@ const vizConfigUpdateSchema = z.object({
   footnote: presentationObjectConfigTStrict.shape.footnote.optional().describe("Footnote text"),
 });
 
-// VALID_DIS_DISPLAY / VALID_VALUES_DISPLAY are imported from the shared
-// validate_display_slots module (single source of truth).
-
 export function getToolsForVizEditor(
   projectId: string,
   metrics: MetricWithStatus[],
@@ -142,20 +139,20 @@ export function getToolsForVizEditor(
         }
 
         if (input.valuesDisDisplayOpt) {
-          const valid = VALID_VALUES_DISPLAY[effectiveType];
-          if (valid && !valid.includes(input.valuesDisDisplayOpt)) {
+          const valid = getValidValuesDisplayOptions(effectiveType);
+          if (!valid.includes(input.valuesDisDisplayOpt)) {
             throw new AIToolFailure(`Invalid valuesDisDisplayOpt "${input.valuesDisDisplayOpt}" for type "${effectiveType}". Valid: ${valid.join(", ")}`);
           }
         }
 
         if (input.disaggregateBy) {
-          const validDisplay = VALID_DIS_DISPLAY[effectiveType];
+          const validDisplay = VIZ_TYPE_CONFIG[effectiveType].disaggregationDisplayOptions;
           const availableDims = resultsValue.disaggregationOptions.map(o => o.value);
           for (const d of input.disaggregateBy) {
             if (!availableDims.includes(d.disOpt)) {
               throw new AIToolFailure(`Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`);
             }
-            if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
+            if (!validDisplay.includes(d.disDisplayOpt)) {
               throw new AIToolFailure(`Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${effectiveType}". Valid: ${validDisplay.join(", ")}`);
             }
           }

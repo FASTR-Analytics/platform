@@ -11,24 +11,14 @@ import {
   getEffectivePOConfig,
   getEffectiveRollupDimension,
   getSingleValueDimsFromItems,
+  getValidValuesDisplayOptions,
   hasDuplicateDisaggregatorDisplayOptions,
+  VIZ_TYPE_CONFIG,
 } from "lib";
 
-// Per-presentation-type display-slot vocabularies. Single source of truth —
-// also consumed by the viz editor's runtime checks.
-export const VALID_DIS_DISPLAY: Record<string, string[]> = {
-  timeseries: ["series", "cell", "row", "col", "replicant"],
-  table: ["row", "col", "rowGroup", "colGroup", "replicant"],
-  chart: ["indicator", "series", "cell", "row", "col", "replicant"],
-  map: ["mapArea", "cell", "row", "col", "replicant"],
-};
-
-export const VALID_VALUES_DISPLAY: Record<string, string[]> = {
-  timeseries: ["series", "cell", "row", "col"],
-  table: ["row", "col", "rowGroup", "colGroup"],
-  chart: ["indicator", "series", "cell", "row", "col"],
-  map: ["cell", "row", "col"],
-};
+// Display-slot vocabularies come from VIZ_TYPE_CONFIG (exhaustively typed) and
+// getValidValuesDisplayOptions — no local copies, no fail-open on an
+// unrecognised type.
 
 // PRE-FETCH validation for an update_figure edit. Throws a clear, "nothing
 // changed" style error so the caller bails BEFORE the expensive re-resolve.
@@ -61,7 +51,7 @@ export function validateDisplaySlots(
   // at render — getDisaggregatorDisplayProp never places it.)
   if (touchesDisagg) {
     const availableDims = metric.disaggregationOptions.map((o) => o.value);
-    const validDisplay = VALID_DIS_DISPLAY[type];
+    const validDisplay = VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions;
     for (const d of config.d.disaggregateBy) {
       if (!availableDims.includes(d.disOpt)) {
         throw new AIToolFailure(
@@ -73,7 +63,7 @@ export function validateDisplaySlots(
           `"${d.disOpt}" is filter-only and cannot be used as a disaggregation dimension.`,
         );
       }
-      if (validDisplay && !validDisplay.includes(d.disDisplayOpt)) {
+      if (!validDisplay.includes(d.disDisplayOpt)) {
         throw new AIToolFailure(
           `Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${type}". Valid: ${validDisplay.join(", ")}`,
         );
@@ -111,8 +101,8 @@ export function validateDisplaySlots(
   // holds — getDisaggregatorDisplayProp only places the value dimension when
   // effectiveValueProps.length > 1.
   if (patch.valuesDisDisplayOpt !== undefined) {
-    const validValues = VALID_VALUES_DISPLAY[type];
-    if (validValues && !validValues.includes(patch.valuesDisDisplayOpt)) {
+    const validValues = getValidValuesDisplayOptions(type);
+    if (!validValues.includes(patch.valuesDisDisplayOpt)) {
       throw new AIToolFailure(
         `Invalid valuesDisDisplayOpt "${patch.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}. No changes were applied.`,
       );
@@ -129,8 +119,8 @@ export function validateDisplaySlots(
   // valuesFilter can flip the figure TO multiple value props, making an
   // INHERITED (unpatched) slot live — validate the resulting config's slot.
   if (hasMultipleValueProps && patch.valuesFilter !== undefined) {
-    const validValues = VALID_VALUES_DISPLAY[type];
-    if (validValues && !validValues.includes(config.d.valuesDisDisplayOpt)) {
+    const validValues = getValidValuesDisplayOptions(type);
+    if (!validValues.includes(config.d.valuesDisDisplayOpt)) {
       throw new AIToolFailure(
         `Invalid valuesDisDisplayOpt "${config.d.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}`,
       );
