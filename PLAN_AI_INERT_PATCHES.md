@@ -15,8 +15,12 @@ claim and the drifted-copy count in place, added ruling F's grouping-default
 sub-ruling, and rejected four other claims (recorded at the end). A fourth pass
 read the required docs above and folded in four things: the `[HIGH]` open item
 this plan does NOT close, the `selectedReplicantValue` predicate asymmetry, the
-validator's placement, and step 7's real doc-drift list. **No fork is open.
-Everything else stands — build it.**
+validator's placement, and step 7's real doc-drift list. A fifth pass read the
+plan as the IMPLEMENTER — writing the signatures and call sites rather than
+checking citations — and split the change report out of the validator, gave the
+figure tools their `dataBounds` fetch, generalized the snapshot read-back, added
+the pre-write collision check, and bounded the grouping default's reach. **No
+fork is open. Everything else stands — build it.**
 
 ## Required reading before touching code
 
@@ -146,7 +150,16 @@ Three is the population that decides ruling B below.
   structural question directly (below).
 - **Leave-one-out over a pure apply produces the change REPORT** (ruling D) — the
   "you asked for X, here is what landed" text that replaces a bare `Updated
-  figure X`. It never errors.
+  figure X`. It never errors, and it lives in **its own function, not the
+  validator**: `describeFigureConfigPatchEffect(config, patch, source,
+  dataBounds) → string[]`, called by all three tools after validation passes.
+  Three reasons it is not folded into `validateFigureConfigEdit`: the
+  validator's whole value is the contract "it threw ⇒ nothing changed", and a
+  function that both throws and returns a payload blurs it; the report's natural
+  inputs are the PRE-patch config plus the patch, not the validator's
+  `(oldConfig, newConfig)`; and leave-one-out re-runs apply, so it needs apply's
+  full argument list including `dataBounds` — which the validator has no reason
+  to take. The N+1 apply cost belongs visible at the call site.
 
 Do not build a diff-driven error branch. The earlier draft specified one
 ("conditional field, no diff ⇒ error") and it is dead as written: its only
@@ -198,6 +211,18 @@ structural check. Without the check its no-diff would be silently reported as
 "value already equal" — this bug class, re-entering through the detector. One
 assertion beside the list, pointing at the apply function as the authority, is
 the guard.
+
+**`selectedReplicantValue` is the documented exception to that rule, and the
+assertion must say so.** Phase 2 step 3 makes apply clear it when the resulting
+config has no `replicant` slot, which by the letter of the rule above would put
+a third field on the list. It stays off, because the clear can never silently
+swallow a patch-supplied value: structural slot absence implies
+`getReplicateByProp` returns `undefined`, so the Type 2 liveness check (step 4)
+has already thrown before any report is computed. The clear therefore only ever
+runs on the not-patch-supplied stale-repair case, where "no change reported" is
+the truth. State that invariant beside the list — without it, the next reader
+adds the field and starts erroring or reporting on a repair the user never asked
+for and never sees.
 
 **The two conditional fields are checked structurally, not by diff.** Diffing
 them produces a false positive: `{rollupDimension: "admin_area_2",
@@ -300,9 +325,11 @@ instead of calling `getFilteredValueProps`, so a `valuesFilter` naming
 non-existent props inflates the count and the line prints where the renderer
 would place nothing. Same read-vs-render divergence class this plan is about.
 
-**D. Report the diff instead of asserting success — FOLDED INTO TYPE 1.** Not
-an independent option: "state what changed" requires a change-set, and
-computing one *is* the Type 1 comparison. The precedent cited from
+**D. Report the diff instead of asserting success — SAME MECHANISM AS TYPE 1,
+SEPARATE FUNCTION.** Not an independent option: "state what changed" requires a
+change-set, and computing one *is* the Type 1 leave-one-out comparison. It does
+not, however, live in the validator — `describeFigureConfigPatchEffect`, for the
+reasons in "How Type 1 is detected". The precedent cited from
 [PLAN_AI_TOOL_IMPROVEMENTS.md](PLAN_AI_TOOL_IMPROVEMENTS.md) is `switch_tab`
 returning `changed: bool` — a fair analogue, narrower than a figure diff.
 
@@ -377,6 +404,33 @@ guesses. Ordering matters and is not negotiable: convert first (it rewrites
 `valuesDisDisplayOpt` and every `disDisplayOpt`), patch second, so an explicit
 slot in the patch wins over the fallback the conversion chose.
 
+**Convert-then-patch opens a slot collision, and it needs a pre-write check.**
+`convertVisualizationType` seeds its de-collision set with the new type's
+`defaultValuesDisDisplayOpt` and de-collides against the PRE-patch dimensions
+([convert_visualization_type.ts:30-47](lib/convert_visualization_type.ts#L30-L47));
+the patch then replaces `disaggregateBy` wholesale on top. So
+`{type: "table", disaggregateBy: [{disOpt: "admin_area_2", disDisplayOpt: "col"}]}`
+on a multi-value-prop metric puts the value dimension (convert chose `col`) and
+the dimension on the same slot — a config the human dropdown cannot produce, and
+one the renderer resolves by silently dropping one of them. `update_viz_config`
+has no collision check at all today, and `assertNoSlotCollision` is post-fetch
+and figure-tools-only.
+
+Fix it with the check, not a special case: **run the same guard the editor UI
+already runs** — [visualization_editor_inner.tsx:1300-1319](client/src/components/visualization/visualization_editor_inner.tsx#L1300)
+computes `getEffectivePOConfig` with `singleValueDims` derived from the
+possible-values map (no `dateRange`) and blocks the preview with "You have two
+disaggregators with the same display option". Pre-write, in
+`validateFigureConfigEdit`, on the possible-values map the same hoisted fetch
+already returns. It catches patch-supplied slots colliding with each other too,
+not just the convert interaction. Re-picking convert's `valuesDisDisplayOpt`
+when a patch slot lands on it would fix one shape and leave the general one.
+
+This also **corrects the "one asymmetry cannot be refactored away" trap below**:
+a weaker collision check IS available to the viz editor pre-write; what stays
+post-fetch and figure-tools-only is the temporal-degeneracy refinement
+`assertNoSlotCollision` gets from the fetched `dateRange`.
+
 This also answers, rather than parks, the question the earlier draft sent to
 [PLAN_PO_CONFIG_TYPE_UNION.md](PLAN_PO_CONFIG_TYPE_UNION.md) — "what should a
 *human* switching type get?" It is already built and shipped; the AI now shares
@@ -434,6 +488,30 @@ own fetched items, so a `from_month` figure does not shift spontaneously — its
 range re-anchors on the next re-resolve (any later edit). That is the same
 "to present" contract the human path has, applied at the moment the figure is
 rebuilt.
+
+**And that snapshot lag is itself a read-vs-render divergence, so defect (1) is
+wider than `from_month`.** On a figure, "to present" is true of the *filter* and
+false of the *pixels* — the items were frozen at the last resolve. That is this
+plan's own class, so it does not get to arrive unhandled. It is **not new**,
+though, which is why it does not reopen ruling G: figures already carry relative
+filters (a `from_visualization` snapshot inherits whatever the human set), and
+the formatter prints a bare `Period filter: last_n_months` over frozen items
+today. The honest fix is the same for every non-`custom` type and it is cheap:
+`FigureBundle.dateRange` exists
+([_figure_bundle.ts:114](lib/types/_figure_bundle.ts#L114)) and **both** call
+sites of the figure formatter already hold the bundle
+([extract_blocks_from_layout.ts:82](client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts#L82),
+[report_editor.ts:285](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L285))
+— thread it in and print the range the figure actually shows alongside the
+filter's own words. Folded into Phase 1 item 5, which is already editing that
+formatter.
+
+Rejected alternative, recorded so it is not re-proposed: keep the figure schema
+at both-bounds-required and let the viz extension override `periodFilter` as a
+documented deliberate difference. Two shapes under one field *name* is worse for
+the model than an extra field of context — it is the "slightly different" row of
+the forbidden-zone table wearing an `.extend()` — and it would leave the
+relative-filter half of the divergence unfixed on figures that already have it.
 
 ## Why the fix lands in one place, not three
 
@@ -505,15 +583,35 @@ in the codebase: `update_slide_header` errors outright on the wrong slide type
 Target shape:
 
 ```text
-applyFigureConfigPatch(config, patch, source, dataBounds)        → new config
-validateFigureConfigEdit(oldConfig, newConfig, patch, source)    → throws
-  // `source: ResultsValue` carries periodOption (for the periodFilter
-  // conversion) AND disaggregationOptions (for convertVisualizationType).
+applyFigureConfigPatch(config, patch, source, dataBounds)            → new config
+validateFigureConfigEdit(oldConfig, newConfig, patch, source, opts)  → throws
+describeFigureConfigPatchEffect(config, patch, source, dataBounds)   → string[]
+  // `source: ResultsValue` carries mostGranularTimePeriodColumnInResultsFile
+  // (the periodFilter conversion AND convert-to-timeseries' grouping default)
+  // and disaggregationOptions (convertVisualizationType + dimension checks).
+  // `dataBounds` is the metric's real period range, fetched by the CALLER and
+  // only when the patch's periodFilter omits a side (below). `opts` carries
+  // the possible-values map for the pre-write collision check (ruling F).
 
-update_figure         read slide bundle  → apply → validate → write temp slide
-update_report_figure  read report figure → apply → validate → save to server
-update_viz_config     read temp config   → apply → validate → write temp store
+update_figure         read slide bundle  → [bounds?] → apply → validate → describe → write temp slide
+update_report_figure  read report figure → [bounds?] → apply → validate → describe → save to server
+update_viz_config     read temp config   → [bounds?] → apply → validate → describe → write temp store
 ```
+
+**`dataBounds` is a real new fetch for the figure tools, not a value already in
+hand.** `ResultsValue`/`MetricWithStatus` carry no period range
+([modules.ts:26-72](lib/types/modules.ts#L26)) — only
+`ResultsValueInfoForPresentationObject` does, via
+`getResultsValueInfoForPresentationObjectFromCacheOrFetch`, which is what the viz
+editor already calls. So unifying `periodFilter` on the open-ended form means
+both figure tools hoist that call above apply, **conditionally** (only when
+`patch.periodFilter` is an object with a side omitted — keeping apply pure and
+avoiding a fetch on every caption edit), and mirror the viz editor's rejection
+when bounds are unavailable ("Cannot set an open-ended periodFilter… Provide both
+min and max"). Cheap in practice — the response is cached and `validateMetricInputs`
+fetches the same object — but it is a structural change to both handlers, and the
+same response carries the `disaggregationPossibleValues` the collision check
+wants, so fetch it once and pass both.
 
 ## What Zod owns, and what it cannot
 
@@ -610,10 +708,14 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
 
    Ship the read-back with it, not later: the figure read-back never lists the
    metric's value props, so the AI cannot discover the legal names and the new
-   error becomes a guess-loop — the same pattern as SYSTEM_13's `[HIGH]`
-   value-discoverability item. It is a few lines in the same formatter
-   (`format_figure_config_for_ai`), and pairing them is what keeps the new
-   rejection teachable rather than merely correct.
+   error becomes a guess-loop — the same *pattern* as SYSTEM_13's `[HIGH]`
+   value-discoverability item, but not that item (see the required-reading note:
+   the HIGH is about filter/disaggregation values and stays open). It is a few
+   lines in the same formatter, and pairing them is what keeps the new rejection
+   teachable rather than merely correct. **Figure tools only** — the viz editor's
+   formatter already prints them
+   ([format_viz_editor_for_ai.ts:108-109](client/src/components/project_ai/ai_tools/tools/_internal/format_viz_editor_for_ai.ts#L108)),
+   so `format_figure_config_for_ai` is the single edit.
 2. **`update_slide_editor`.** Error when a supplied field does not belong to the
    current slide type, per `update_slide_header`'s precedent. Structurally this
    is a per-slide-type allowed-field set (3 types × 9 schema fields) checked
@@ -643,6 +745,24 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    what keeps the AI path from reaching it. **Leave `build_figure_inputs.ts:73` as plain
    `Error`** — that file runs for human renders too, so an AI-specific class
    there is a layering error.
+
+   That grouping default covers AI-initiated conversions only. A figure whose
+   STORED config is already a grouping-less timeseries still reaches the same
+   plain `Error` through `update_figure` on any edit, as a red stack the model
+   cannot act on (`timeseriesGrouping` is not in the figure patch schema). The
+   path is real but narrow, and worth knowing precisely:
+   `getStartingConfigForPresentationObject` always writes `timeseriesGrouping`
+   for every type ([presentation_objects.ts:371](lib/types/presentation_objects.ts#L371)),
+   so app-created configs never lack it — but **9 of 51 authored preset configs
+   do** (5 maps, 3 tables, 1 chart across m001/m005/m006/m010 in
+   `wb-fastr-modules`), and the human type dropdown drops the converted value on
+   the way to timeseries. So it takes a preset-derived viz plus a human saving a
+   type switch whose own preview is already throwing. Add a pre-flight
+   `AIToolFailure` in the two figure tools — "this figure's stored config is a
+   timeseries with no period grouping; fix it in the visualization editor" —
+   rather than touching the `lib/` throw. Those same 9 configs are what make
+   ruling F's grouping sub-ruling reachable rather than hypothetical, since
+   `buildConfigFromPreset` is the AI's own create path.
 4. **`timeseriesGrouping` liveness, check and read-back together.** Reject
    `input.timeseriesGrouping` in `update_viz_config` when the config's effective
    type is not `timeseries` (Type 2 member 3), and gate
@@ -663,6 +783,19 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    on any human-set `from_month` figure — the model reads a fixed range and may
    "correct" a filter that was already right — and a prerequisite for Phase 2
    step 3, which lets the AI create these itself.
+
+   **On the two FIGURE formatters, "to present" is not the whole truth** (ruling
+   G's snapshot paragraph): the items are frozen at the last resolve, so the
+   filter says "to present" while the pixels stop earlier. Print the range the
+   figure actually shows next to the filter's own words, for EVERY non-`custom`
+   filter type — relative types have the same divergence today and print a bare
+   `Period filter: last_n_months` over frozen items. `FigureBundle.dateRange`
+   carries it and both call sites already hold the bundle
+   ([extract_blocks_from_layout.ts:82](client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts#L82),
+   [report_editor.ts:285](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L285)),
+   so this is a threaded parameter, not a fetch. The viz-editor formatter needs
+   no such thing — its preview re-queries, so "to present" is literally true
+   there.
 6. **`update_figure`'s empty patch.** Port `update_report_figure`'s guard
    ([report_editor.ts:336-344](client/src/components/project_ai/ai_tools/tools/report_editor.ts#L336-L344))
    to `update_figure`, with its message adjusted (`replace_slide` / a
@@ -720,13 +853,19 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    existing in the shared function is not an invitation to expose it on
    figures.
 4. **One validator.** `validateFigureConfigEdit(oldConfig, newConfig, patch,
-   source)` in `client/src/generate_visualization/`, absorbing
+   source, opts)` in `client/src/generate_visualization/`, absorbing
    `validateDisplaySlots`, the viz editor's inline loops, and both roll-up
    gates — plus the new checks: the structural checks for the two conditional
    fields (the whole Type 1 error surface), the Type 2 `selectedReplicantValue`
    liveness check (on `getReplicateByProp` — see Type 2 member 2; the OPPOSITE
-   predicate to step 3's clear), and the Type 2 `timeseriesGrouping` check from
-   Phase 1 item 4 moving in with the rest.
+   predicate to step 3's clear), the Type 2 `timeseriesGrouping` check from
+   Phase 1 item 4 moving in with the rest, and the **pre-write slot-collision
+   check** ruling F requires — the editor UI's own guard
+   ([visualization_editor_inner.tsx:1300-1319](client/src/components/visualization/visualization_editor_inner.tsx#L1300)),
+   which needs the possible-values map for `singleValueDims` and so takes it in
+   `opts` from the caller's hoisted fetch. Gate it on the patch touching
+   `type`, `disaggregateBy` or `valuesDisDisplayOpt`, per the delta-awareness
+   rule — a caption edit must not start failing on a drifted stored config.
    **Placement is deliberate and needs one line of docs (step 7).** It goes
    beside `validateDisplaySlots`, i.e. under S10's glob
    (`client/src/generate_visualization/**`), while being S13 machinery —
@@ -736,9 +875,12 @@ plan. Phase 1 first, so the bugs are fixed even if Phase 2 stalls.
    are pure config checks that the S13 doc's own "Validate-before-commit"
    paragraph already describes living here. No `lint_systems.ts` change is
    needed (S10's manifest is glob-based, not per-file), but say it in the docs
-   or the inventory drifts on the next review. The leave-one-out comparison lands here too but as the
-   change REPORT feeding ruling D, not as an error path — see "How Type 1 is
-   detected". It needs a small hand-rolled deep-equal (there is none in `lib/`,
+   or the inventory drifts on the next review.
+
+   **The leave-one-out comparison does NOT land here** — it is
+   `describeFigureConfigPatchEffect`, its own pure function beside this one, for
+   the reasons in "How Type 1 is detected". It never errors, and the three tools
+   call it after validation passes. It needs a small hand-rolled deep-equal (there is none in `lib/`,
    `client/src/` or `panther/_000_utils`; `JSON.stringify` is key-order sensitive
    and an AI-sent `{disDisplayOpt, disOpt}` would compare unequal to a stored
    `{disOpt, disDisplayOpt}`, over-reporting changes). `source` is plain
@@ -861,13 +1003,17 @@ uses. No style field becomes addressable.
   field by field. Ruling F does not weaken this: a `type` change no longer needs
   to re-validate inherited slots, because `convertVisualizationType` has already
   made them legal — only patch-supplied slots are checked.
-- **One asymmetry cannot be refactored away.** Validation has two phases: pure
-  config checks, and `assertNoSlotCollision`, which needs the *fetched* data's
-  real date range (single-period/single-year degeneracy). The two figure tools
-  fetch inside the handler and can run it; `update_viz_config` never fetches —
-  the preview does, downstream — so it cannot. That check stays where it is,
-  outside `validateFigureConfigEdit`. It is one check, and the viz editor lacks
-  it today regardless.
+- **One asymmetry survives, but it is narrower than "the viz editor cannot check
+  collisions".** Collision checking exists at two strengths. The *weaker* one —
+  `getEffectivePOConfig` with `singleValueDims` from the possible-values map, no
+  `dateRange` — is what the editor UI already runs
+  ([visualization_editor_inner.tsx:1300-1319](client/src/components/visualization/visualization_editor_inner.tsx#L1300)),
+  and ruling F puts it inside `validateFigureConfigEdit` for all three tools,
+  pre-write. The *stronger* one is `assertNoSlotCollision`, which needs the
+  fetched data's real date range (single-period/single-year degeneracy) and so
+  stays post-fetch and figure-tools-only — `update_viz_config` never fetches
+  items; the preview does, downstream. So: shared weak check inside the
+  validator, strong check stays where it is for the two figure tools.
 - **The Solid store risk in the apply-function step.** `update_viz_config`'s
   field-by-field writes give fine-grained reactivity to the live preview;
   replacing the whole config object could trigger more re-render or re-fetch
@@ -881,9 +1027,11 @@ uses. No style field becomes addressable.
   `mergeRollupFlags` and the inline loops, still gains the missing checks and
   `convertVisualizationType`, still hoists the bounds fetch above every write —
   while leaving reactivity and the CRDT/await window exactly as they are today.
-  The change-set ruling D needs is the same diff, so it is nearly free. Prefer the
-  whole-object write for cleanliness; fall back to this rather than fighting the
-  preview.
+  Note this variant's diff is old-vs-new PER STORE FIELD, which is not the
+  report's leave-one-out (per PATCH field, full-patch vs patch-minus-one) — the
+  two answer different questions and `describeFigureConfigPatchEffect` is still
+  called either way. Prefer the whole-object write for cleanliness; fall back to
+  this rather than fighting the preview.
 
   On the `config.s` axis: `applyFigureConfigPatch` returns `{...config, d, t}`, so
   a plain patch leaves `s` untouched — but a ruling-F type change rewrites
@@ -1015,3 +1163,29 @@ Recorded so the same wrong leads are not re-followed:
   4. Phase 1 should absorb the viz editor's `valuesDisDisplayOpt` liveness
      hole. Phase 2 step 4 fixes it by construction; hoisting it is only
      insurance against Phase 2 stalling, not a defect.
+- **A fifth pass read the plan as the IMPLEMENTER rather than the auditor** —
+  writing the signatures and call sites instead of checking citations — and that
+  is the pass that found what the previous four did not. All six of its findings
+  are folded in above; recorded here as the method note, because the earlier
+  passes each verified mechanisms in isolation and never crossed them:
+  1. **The target-shape signatures could not do what step 4 asked** — a
+     `→ throws` validator cannot return a change report, and leave-one-out
+     re-runs apply, which needs `dataBounds` the validator has no reason to
+     take. Split into `describeFigureConfigPatchEffect`.
+  2. **`dataBounds` was written as if already in hand.** No `ResultsValue`
+     carries a period range; the figure tools gain a conditional hoisted fetch.
+  3. **"To present" on a snapshot figure is itself a read-vs-render
+     divergence** — this plan's own class. Not NEW (relative filters already
+     print over frozen items), and fixed in the formatter via
+     `FigureBundle.dateRange` rather than by keeping two `periodFilter` shapes.
+  4. **Convert-then-patch can collide slots** in a way the human dropdown
+     cannot produce, and `update_viz_config` had no collision check at all.
+     Fixed by moving the editor UI's own guard pre-write — which also narrowed
+     the "one asymmetry cannot be refactored away" trap.
+  5. Step 3's `selectedReplicantValue` clear makes it conditionally applied;
+     the invariant that keeps it off the list is now stated beside the list.
+  6. Ruling F's grouping default covers AI-initiated conversions only; a
+     stored grouping-less timeseries config still hits a plain `Error` the
+     model cannot correct (9 of 51 authored preset configs lack the field).
+     And the value-props read-back is figure-tools-only — the viz editor's
+     formatter already prints them.
