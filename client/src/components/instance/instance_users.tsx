@@ -129,20 +129,25 @@ export function InstanceUsers(p: Props) {
                           })}
                     </Button>
                   </Show>
-                  <Button onClick={downloadUsersCSV} iconName="download">
-                    {t3({
-                      en: "Download users",
-                      fr: "Télécharger les utilisateurs",
-                      pt: "Transferir utilizadores",
-                    })}
-                  </Button>
-                  <Button onClick={attemptBatchUploadUsers} iconName="upload">
-                    {t3({
-                      en: "Batch import from CSV",
-                      fr: "Importation groupée depuis CSV",
-                      pt: "Importação em lote a partir de CSV",
-                    })}
-                  </Button>
+                  <div
+                    class="ui-gap-sm flex items-center"
+                    data-tour="instance-users-bulk"
+                  >
+                    <Button onClick={downloadUsersCSV} iconName="download">
+                      {t3({
+                        en: "Download users",
+                        fr: "Télécharger les utilisateurs",
+                        pt: "Transferir utilizadores",
+                      })}
+                    </Button>
+                    <Button onClick={attemptBatchUploadUsers} iconName="upload">
+                      {t3({
+                        en: "Batch import from CSV",
+                        fr: "Importation groupée depuis CSV",
+                        pt: "Importação em lote a partir de CSV",
+                      })}
+                    </Button>
+                  </div>
                   <div data-tour="instance-users-add">
                     <Button onClick={attemptAddUser} iconName="plus">
                       {t3({
@@ -158,7 +163,7 @@ export function InstanceUsers(p: Props) {
           }
         >
           <div class="ui-pad flex h-full w-full flex-col gap-4">
-            <div class="min-h-0 flex-1">
+            <div class="min-h-0 flex-1" data-tour="instance-users-table">
               <UserTable
                 users={instanceState.users}
                 logs={(() => {

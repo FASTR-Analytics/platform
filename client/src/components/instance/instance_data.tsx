@@ -103,19 +103,21 @@ export function InstanceData(p: Props) {
                 heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
               >
                 <Show when={canConfigureData()}>
-                  <Button
-                    onClick={openDhis2Credentials}
-                    outline
-                    intent="base-100"
-                    onBackground="base-content"
-                    iconName="settings"
-                  >
-                    {t3({
-                      en: "DHIS2 credentials",
-                      fr: "Identifiants DHIS2",
-                      pt: "Credenciais DHIS2",
-                    })}
-                  </Button>
+                  <div data-tour="instance-data-dhis2">
+                    <Button
+                      onClick={openDhis2Credentials}
+                      outline
+                      intent="base-100"
+                      onBackground="base-content"
+                      iconName="settings"
+                    >
+                      {t3({
+                        en: "DHIS2 credentials",
+                        fr: "Identifiants DHIS2",
+                        pt: "Credenciais DHIS2",
+                      })}
+                    </Button>
+                  </div>
                 </Show>
               </HeadingBarMainRibbon>
             </div>
@@ -124,7 +126,7 @@ export function InstanceData(p: Props) {
           <div class="ui-pad overflow-auto">
             <div class="space-y-14">
               {/* Structure & maps */}
-              <div class="flex gap-6">
+              <div class="flex gap-6" data-tour="instance-data-structure">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
                     {t3({
@@ -137,7 +139,6 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    data-tour="instance-data-card"
                     onClick={() => setSelectedDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">
@@ -228,7 +229,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* HMIS */}
-              <div class="flex gap-6">
+              <div class="flex gap-6" data-tour="instance-data-hmis">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
                     {t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
@@ -408,7 +409,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* HFA */}
-              <div class="flex gap-6">
+              <div class="flex gap-6" data-tour="instance-data-hfa">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
                     {t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}

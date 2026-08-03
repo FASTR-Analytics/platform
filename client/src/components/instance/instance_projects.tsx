@@ -123,24 +123,28 @@ export function InstanceProjects(p: Props) {
               heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
             >
               <div class="ui-gap-sm flex items-center">
-                <SortControl
-                  value={projectsSortMode()}
-                  onChange={setProjectsSortMode}
-                  outlineAndBase100
-                />
+                <div data-tour="instance-projects-sort">
+                  <SortControl
+                    value={projectsSortMode()}
+                    onChange={setProjectsSortMode}
+                    outlineAndBase100
+                  />
+                </div>
                 <Show when={instanceState.currentUserIsGlobalAdmin}>
-                  <Button
-                    onClick={compareProjects}
-                    outline
-                    onBackground="base-content"
-                    intent="base-100"
-                  >
-                    {t3({
-                      en: "Compare projects",
-                      fr: "Comparer les projets",
-                      pt: "Comparar projetos",
-                    })}
-                  </Button>
+                  <div data-tour="instance-projects-compare">
+                    <Button
+                      onClick={compareProjects}
+                      outline
+                      onBackground="base-content"
+                      intent="base-100"
+                    >
+                      {t3({
+                        en: "Compare projects",
+                        fr: "Comparer les projets",
+                        pt: "Comparar projetos",
+                      })}
+                    </Button>
+                  </div>
                 </Show>
                 <Show
                   when={
@@ -182,7 +186,10 @@ export function InstanceProjects(p: Props) {
           </div>
         }
       >
-        <div class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto">
+        <div
+          class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto"
+          data-tour="instance-projects-grid"
+        >
           <For
             each={sortedProjects()}
             fallback={

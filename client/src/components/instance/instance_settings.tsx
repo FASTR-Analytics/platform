@@ -300,58 +300,65 @@ export function InstanceSettings(p: Props) {
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
-        <SettingsSection
-          header={t3({ en: "Country", fr: "Pays", pt: "País" })}
-          rightChildren={
-            <Show when={needsSavingCountryIso3()}>
-              <Button
-                onClick={() => updateCountryIso3.click()}
-                state={updateCountryIso3.state()}
-                intent="success"
-              >
-                {t3({
-                  en: "Update country ISO3 code",
-                  fr: "Mettre à jour le code ISO3 du pays",
-                  pt: "Atualizar o código ISO3 do país",
-                })}
-              </Button>
-            </Show>
-          }
-        >
-          <Input value={countryIso3()} onChange={(v) => handleIso3Change(v)} />
-        </SettingsSection>
+        <div data-tour="instance-settings-country">
+          <SettingsSection
+            header={t3({ en: "Country", fr: "Pays", pt: "País" })}
+            rightChildren={
+              <Show when={needsSavingCountryIso3()}>
+                <Button
+                  onClick={() => updateCountryIso3.click()}
+                  state={updateCountryIso3.state()}
+                  intent="success"
+                >
+                  {t3({
+                    en: "Update country ISO3 code",
+                    fr: "Mettre à jour le code ISO3 du pays",
+                    pt: "Atualizar o código ISO3 do país",
+                  })}
+                </Button>
+              </Show>
+            }
+          >
+            <Input
+              value={countryIso3()}
+              onChange={(v) => handleIso3Change(v)}
+            />
+          </SettingsSection>
+        </div>
 
-        <SettingsSection
-          header={t3({
-            en: "Max admin area level",
-            fr: "Niveau maximal d'unité administrative",
-            pt: "Nível máximo de zona administrativa",
-          })}
-          rightChildren={
-            <Show when={needsSavingMaxAdminArea()}>
-              <Button
-                onClick={() => updateMaxAdminArea.click()}
-                state={updateMaxAdminArea.state()}
-                intent="success"
-              >
-                {t3({
-                  en: "Update max admin area level",
-                  fr: "Mettre à jour le niveau maximal d'unité administrative",
-                  pt: "Atualizar o nível máximo de zona administrativa",
-                })}
-              </Button>
-            </Show>
-          }
-        >
-          <RadioGroup
-            options={getSelectOptions(["2", "3", "4"])}
-            value={String(selectedMaxAdminArea())}
-            onChange={(v) => {
-              setSelectedMaxAdminArea(Number(v));
-              setNeedsSavingMaxAdminArea(true);
-            }}
-          />
-        </SettingsSection>
+        <div data-tour="instance-settings-admin-areas">
+          <SettingsSection
+            header={t3({
+              en: "Max admin area level",
+              fr: "Niveau maximal d'unité administrative",
+              pt: "Nível máximo de zona administrativa",
+            })}
+            rightChildren={
+              <Show when={needsSavingMaxAdminArea()}>
+                <Button
+                  onClick={() => updateMaxAdminArea.click()}
+                  state={updateMaxAdminArea.state()}
+                  intent="success"
+                >
+                  {t3({
+                    en: "Update max admin area level",
+                    fr: "Mettre à jour le niveau maximal d'unité administrative",
+                    pt: "Atualizar o nível máximo de zona administrativa",
+                  })}
+                </Button>
+              </Show>
+            }
+          >
+            <RadioGroup
+              options={getSelectOptions(["2", "3", "4"])}
+              value={String(selectedMaxAdminArea())}
+              onChange={(v) => {
+                setSelectedMaxAdminArea(Number(v));
+                setNeedsSavingMaxAdminArea(true);
+              }}
+            />
+          </SettingsSection>
+        </div>
 
         <SettingsSection
           header={t3({
@@ -438,63 +445,65 @@ export function InstanceSettings(p: Props) {
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          header={t3({
-            en: "Facility columns",
-            fr: "Colonnes des établissements",
-            pt: "Colunas dos estabelecimentos de saúde",
-          })}
-          rightChildren={
-            <Show when={needsSavingFacilityCols()}>
-              <Button
-                onClick={() => updateFacilityColumns.click()}
-                state={updateFacilityColumns.state()}
-                intent="success"
-              >
-                {t3({
-                  en: "Update facility columns",
-                  fr: "Mettre à jour les colonnes des établissements",
-                  pt: "Atualizar as colunas dos estabelecimentos de saúde",
-                })}
-              </Button>
-            </Show>
-          }
-        >
-          <div class="ui-gap ui-spy-sm">
-            <For each={facilityColumnOptions}>
-              {(option) => (
-                <div class="ui-gap flex items-center">
-                  <div class="w-56">
-                    <Checkbox
-                      checked={option.checked()}
-                      onChange={(checked) =>
-                        handleCheckboxChange(option.setChecked, checked)
-                      }
-                      label={option.label}
-                    />
-                  </div>
-
-                  <Show when={option.checked()}>
-                    <div class="w-96">
-                      <Input
-                        value={option.labelValue()}
-                        onChange={(value) =>
-                          handleLabelChange(option.setLabelValue, value)
+        <div data-tour="instance-settings-facility-columns">
+          <SettingsSection
+            header={t3({
+              en: "Facility columns",
+              fr: "Colonnes des établissements",
+              pt: "Colunas dos estabelecimentos de saúde",
+            })}
+            rightChildren={
+              <Show when={needsSavingFacilityCols()}>
+                <Button
+                  onClick={() => updateFacilityColumns.click()}
+                  state={updateFacilityColumns.state()}
+                  intent="success"
+                >
+                  {t3({
+                    en: "Update facility columns",
+                    fr: "Mettre à jour les colonnes des établissements",
+                    pt: "Atualizar as colunas dos estabelecimentos de saúde",
+                  })}
+                </Button>
+              </Show>
+            }
+          >
+            <div class="ui-gap ui-spy-sm">
+              <For each={facilityColumnOptions}>
+                {(option) => (
+                  <div class="ui-gap flex items-center">
+                    <div class="w-56">
+                      <Checkbox
+                        checked={option.checked()}
+                        onChange={(checked) =>
+                          handleCheckboxChange(option.setChecked, checked)
                         }
-                        placeholder={t3({
-                          en: `Custom label for ${option.label.toLowerCase()}`,
-                          fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
-                          pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
-                        })}
-                        fullWidth
+                        label={option.label}
                       />
                     </div>
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
-        </SettingsSection>
+
+                    <Show when={option.checked()}>
+                      <div class="w-96">
+                        <Input
+                          value={option.labelValue()}
+                          onChange={(value) =>
+                            handleLabelChange(option.setLabelValue, value)
+                          }
+                          placeholder={t3({
+                            en: `Custom label for ${option.label.toLowerCase()}`,
+                            fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                            pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
+                          })}
+                          fullWidth
+                        />
+                      </div>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          </SettingsSection>
+        </div>
       </div>
     </FrameTop>
   );

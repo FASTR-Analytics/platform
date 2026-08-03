@@ -1974,6 +1974,7 @@ export function buildVizEditorEditTour(): TourDefinition {
 // instanceState only and their manager lives in the instance shell.
 
 export function buildInstanceProjectsTour(): TourDefinition {
+  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   return {
     id: "instance-projects-intro",
     labels: tourLabels(),
@@ -1983,11 +1984,59 @@ export function buildInstanceProjectsTour(): TourDefinition {
         target: tourTarget("instance-projects-header"),
         title: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
         body: t3({
-          en: "Everything in FASTR happens inside a project: each one gets its own data exports, modules, visualizations and documents. Click a card to open one.",
-          fr: "Tout dans FASTR se passe dans un projet : chacun dispose de ses propres exportations de données, modules, visualisations et documents. Cliquez sur une carte pour en ouvrir un.",
-          pt: "Tudo no FASTR acontece dentro de um projeto: cada um tem as suas próprias exportações de dados, módulos, visualizações e documentos. Clique num cartão para abrir um.",
+          en: "Everything in FASTR happens inside a project: each one gets its own data exports, modules, visualizations and documents.",
+          fr: "Tout dans FASTR se passe dans un projet : chacun dispose de ses propres exportations de données, modules, visualisations et documents.",
+          pt: "Tudo no FASTR acontece dentro de um projeto: cada um tem as suas próprias exportações de dados, módulos, visualizações e documentos.",
         }),
         placement: "bottom",
+      },
+      {
+        id: "grid",
+        target: tourTarget("instance-projects-grid"),
+        title: t3({
+          en: "One card per project",
+          fr: "Une carte par projet",
+          pt: "Um cartão por projeto",
+        }),
+        body: t3({
+          en: "Click a card to open that project. A lock icon means the project is read-only, and the caption shows when it was last worked on.",
+          fr: "Cliquez sur une carte pour ouvrir le projet. Une icône de cadenas signifie que le projet est en lecture seule, et la légende indique la dernière activité.",
+          pt: "Clique num cartão para abrir esse projeto. Um ícone de cadeado significa que o projeto é só de leitura, e a legenda mostra quando foi a última atividade.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "sort",
+        target: tourTarget("instance-projects-sort"),
+        title: t3({
+          en: "Sorting projects",
+          fr: "Trier les projets",
+          pt: "Ordenar projetos",
+        }),
+        body: t3({
+          en: "Order the list by name or by most recent activity.",
+          fr: "Classez la liste par nom ou par activité la plus récente.",
+          pt: "Ordene a lista por nome ou pela atividade mais recente.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "compare",
+        target: tourTarget("instance-projects-compare"),
+        when: isAdmin,
+        title: t3({
+          en: "Compare projects",
+          fr: "Comparer les projets",
+          pt: "Comparar projetos",
+        }),
+        body: t3({
+          en: "See every project's setup side by side — datasets, modules and activity — useful for spotting projects that are out of date.",
+          fr: "Visualisez la configuration de tous les projets côte à côte — jeux de données, modules et activité — pratique pour repérer les projets obsolètes.",
+          pt: "Veja a configuração de todos os projetos lado a lado — conjuntos de dados, módulos e atividade — útil para identificar projetos desatualizados.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
       },
       {
         id: "create",
@@ -2027,24 +2076,68 @@ export function buildInstanceDataTour(): TourDefinition {
           pt: "Dados da instância",
         }),
         body: t3({
-          en: "Data is uploaded once here for the whole instance — facilities, HMIS, health facility assessments and more. Projects then export what they need from this shared pool.",
-          fr: "Les données sont importées ici une seule fois pour toute l'instance — établissements, SNIS, évaluations des établissements de santé, etc. Les projets exportent ensuite ce dont ils ont besoin depuis ce fonds commun.",
-          pt: "Os dados são carregados aqui uma única vez para toda a instância — estabelecimentos de saúde, HMIS, avaliações de unidades de saúde e mais. Os projetos exportam depois o que precisam deste conjunto comum.",
+          en: "Data is uploaded once here for the whole instance. Projects then export what they need from this shared pool — nothing is uploaded per project.",
+          fr: "Les données sont importées ici une seule fois pour toute l'instance. Les projets exportent ensuite ce dont ils ont besoin depuis ce fonds commun — rien n'est importé projet par projet.",
+          pt: "Os dados são carregados aqui uma única vez para toda a instância. Os projetos exportam depois o que precisam deste conjunto comum — nada é carregado projeto a projeto.",
         }),
         placement: "bottom",
       },
       {
-        id: "cards",
-        target: tourTarget("instance-data-card"),
+        id: "structure",
+        target: tourTarget("instance-data-structure"),
         title: t3({
-          en: "One card per datasource",
-          fr: "Une carte par source de données",
-          pt: "Um cartão por fonte de dados",
+          en: "Structure & maps",
+          fr: "Structure et cartes",
+          pt: "Estrutura e mapas",
         }),
         body: t3({
-          en: "Each card shows a datasource and its current status. Click one to inspect what has been uploaded or to import new data.",
-          fr: "Chaque carte présente une source de données et son état actuel. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer de nouvelles données.",
-          pt: "Cada cartão mostra uma fonte de dados e o seu estado atual. Clique num cartão para consultar o que foi carregado ou para importar novos dados.",
+          en: "The geography everything hangs off: administrative areas come from your facility imports, and GeoJSON uploads provide the map boundaries.",
+          fr: "La géographie sur laquelle tout repose : les unités administratives proviennent de vos importations d'établissements, et les fichiers GeoJSON fournissent les contours des cartes.",
+          pt: "A geografia em que tudo assenta: as zonas administrativas provêm das suas importações de estabelecimentos, e os ficheiros GeoJSON fornecem os contornos dos mapas.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "hmis",
+        target: tourTarget("instance-data-hmis"),
+        title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
+        body: t3({
+          en: "The facility list and monthly routine service data. Click a card to inspect what has been uploaded or to import a new dataset.",
+          fr: "La liste des établissements et les données de routine mensuelles. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
+          pt: "A lista de estabelecimentos e os dados de rotina mensais. Clique num cartão para consultar o que foi carregado ou para importar um novo conjunto de dados.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "hfa",
+        target: tourTarget("instance-data-hfa"),
+        title: t3({
+          en: "Surveys",
+          fr: "Enquêtes",
+          pt: "Inquéritos",
+        }),
+        body: t3({
+          en: "Health facility assessment rounds live here, with equity (ICEH) data in the section below — each uploaded once and exported to the projects that use them.",
+          fr: "Les vagues d'enquêtes auprès des établissements de santé se trouvent ici, avec les données d'équité (ICEH) dans la section en dessous — chacune importée une fois puis exportée vers les projets qui les utilisent.",
+          pt: "As rondas de avaliação de unidades de saúde ficam aqui, com os dados de equidade (ICEH) na secção abaixo — cada uma carregada uma vez e exportada para os projetos que as utilizam.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "dhis2",
+        target: tourTarget("instance-data-dhis2"),
+        when: () =>
+          instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_configure_data,
+        title: t3({
+          en: "DHIS2 connection",
+          fr: "Connexion DHIS2",
+          pt: "Ligação DHIS2",
+        }),
+        body: t3({
+          en: "Connect DHIS2 credentials to pull facilities and HMIS data directly from your national system instead of uploading CSVs.",
+          fr: "Renseignez des identifiants DHIS2 pour récupérer les établissements et les données SNIS directement depuis votre système national au lieu d'importer des CSV.",
+          pt: "Configure credenciais DHIS2 para obter estabelecimentos e dados HMIS diretamente do seu sistema nacional em vez de carregar CSV.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
@@ -2079,11 +2172,45 @@ export function buildInstanceAssetsTour(): TourDefinition {
           pt: "Carregar ficheiros",
         }),
         body: t3({
-          en: "Upload once, use anywhere: assets are grouped by file type and available across projects.",
-          fr: "Téléversez une fois, utilisez partout : les ressources sont regroupées par type de fichier et disponibles dans tous les projets.",
-          pt: "Carregue uma vez, utilize em qualquer lugar: os recursos são agrupados por tipo de ficheiro e ficam disponíveis em todos os projetos.",
+          en: "Upload once, use anywhere: an uploaded logo can appear on dashboards, and an uploaded image can be dropped into any slide or report.",
+          fr: "Téléversez une fois, utilisez partout : un logo téléversé peut apparaître sur les tableaux de bord, et une image peut être insérée dans n'importe quelle diapositive ou rapport.",
+          pt: "Carregue uma vez, utilize em qualquer lugar: um logótipo carregado pode aparecer nos painéis, e uma imagem pode ser inserida em qualquer diapositivo ou relatório.",
         }),
         placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "tabs",
+        target: tourTarget("instance-assets-tabs"),
+        title: t3({
+          en: "Grouped by type",
+          fr: "Regroupées par type",
+          pt: "Agrupados por tipo",
+        }),
+        body: t3({
+          en: "Files are organized into tabs by type — images, CSVs, documents and so on — with a count on each.",
+          fr: "Les fichiers sont organisés en onglets par type — images, CSV, documents, etc. — avec un compteur sur chacun.",
+          pt: "Os ficheiros são organizados em separadores por tipo — imagens, CSV, documentos, etc. — com um contador em cada um.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "list",
+        target: tourTarget("instance-assets-list"),
+        title: t3({
+          en: "Managing files",
+          fr: "Gérer les fichiers",
+          pt: "Gerir ficheiros",
+        }),
+        body: t3({
+          en: "Download any file from the table. You can delete your own uploads; admins can manage everyone's.",
+          fr: "Téléchargez n'importe quel fichier depuis le tableau. Vous pouvez supprimer vos propres téléversements ; les administrateurs peuvent gérer ceux de tout le monde.",
+          pt: "Descarregue qualquer ficheiro a partir da tabela. Pode eliminar os seus próprios carregamentos; os administradores podem gerir os de todos.",
+        }),
+        placement: "top",
         waitForTargetTimeoutMs: 2000,
         onTargetTimeout: "skip",
       },
@@ -2101,11 +2228,26 @@ export function buildInstanceUsersTour(): TourDefinition {
         target: tourTarget("instance-users-header"),
         title: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
         body: t3({
-          en: "Everyone with access to this instance, with their global role and permissions. Click a user to view or edit what they can do.",
-          fr: "Toutes les personnes ayant accès à cette instance, avec leur rôle global et leurs permissions. Cliquez sur un utilisateur pour voir ou modifier ce qu'il peut faire.",
-          pt: "Todas as pessoas com acesso a esta instância, com o seu papel global e permissões. Clique num utilizador para ver ou editar o que pode fazer.",
+          en: "Everyone with access to this instance, with their global role and permissions.",
+          fr: "Toutes les personnes ayant accès à cette instance, avec leur rôle global et leurs permissions.",
+          pt: "Todas as pessoas com acesso a esta instância, com o seu papel global e permissões.",
         }),
         placement: "bottom",
+      },
+      {
+        id: "table",
+        target: tourTarget("instance-users-table"),
+        title: t3({
+          en: "One row per user",
+          fr: "Une ligne par utilisateur",
+          pt: "Uma linha por utilizador",
+        }),
+        body: t3({
+          en: "The table shows each user's instance-level permissions and recent activity. Click a row to view their details and edit what they can do.",
+          fr: "Le tableau montre les permissions au niveau de l'instance et l'activité récente de chaque utilisateur. Cliquez sur une ligne pour voir ses détails et modifier ce qu'il peut faire.",
+          pt: "A tabela mostra as permissões ao nível da instância e a atividade recente de cada utilizador. Clique numa linha para ver os detalhes e editar o que pode fazer.",
+        }),
+        placement: "top",
       },
       {
         id: "add",
@@ -2116,9 +2258,26 @@ export function buildInstanceUsersTour(): TourDefinition {
           pt: "Adicionar utilizadores",
         }),
         body: t3({
-          en: "Invite users by email, or batch import many at once from a CSV.",
-          fr: "Invitez des utilisateurs par e-mail, ou importez-en plusieurs à la fois depuis un CSV.",
-          pt: "Convide utilizadores por e-mail ou importe vários de uma vez a partir de um CSV.",
+          en: "Invite users by email address — they get access as soon as they sign in.",
+          fr: "Invitez des utilisateurs par adresse e-mail — ils obtiennent l'accès dès leur connexion.",
+          pt: "Convide utilizadores por endereço de e-mail — obtêm acesso assim que iniciarem sessão.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "bulk",
+        target: tourTarget("instance-users-bulk"),
+        title: t3({
+          en: "Bulk operations",
+          fr: "Opérations groupées",
+          pt: "Operações em lote",
+        }),
+        body: t3({
+          en: "Import many users at once from a CSV, or download the current user list with their permissions.",
+          fr: "Importez plusieurs utilisateurs à la fois depuis un CSV, ou téléchargez la liste actuelle des utilisateurs avec leurs permissions.",
+          pt: "Importe vários utilizadores de uma vez a partir de um CSV, ou descarregue a lista atual de utilizadores com as suas permissões.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
@@ -2142,11 +2301,52 @@ export function buildInstanceSettingsTour(): TourDefinition {
           pt: "Definições da instância",
         }),
         body: t3({
-          en: "Instance-wide configuration: country, administrative area levels and labels, and other settings every project inherits.",
-          fr: "La configuration de toute l'instance : pays, niveaux et libellés des unités administratives, et d'autres paramètres dont héritent tous les projets.",
-          pt: "A configuração de toda a instância: país, níveis e rótulos das zonas administrativas e outras definições que todos os projetos herdam.",
+          en: "Instance-wide configuration that every project inherits.",
+          fr: "La configuration de toute l'instance dont héritent tous les projets.",
+          pt: "A configuração de toda a instância que todos os projetos herdam.",
         }),
         placement: "bottom",
+      },
+      {
+        id: "country",
+        target: tourTarget("instance-settings-country"),
+        title: t3({ en: "Country", fr: "Pays", pt: "País" }),
+        body: t3({
+          en: "The ISO3 country code tailors module content to your country where country-specific versions exist.",
+          fr: "Le code pays ISO3 adapte le contenu des modules à votre pays lorsqu'il en existe des versions spécifiques.",
+          pt: "O código de país ISO3 adapta o conteúdo dos módulos ao seu país quando existem versões específicas.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "admin-areas",
+        target: tourTarget("instance-settings-admin-areas"),
+        title: t3({
+          en: "Administrative areas",
+          fr: "Unités administratives",
+          pt: "Zonas administrativas",
+        }),
+        body: t3({
+          en: "How many administrative levels the instance uses, and (below) what each level is called — those labels appear everywhere data is disaggregated by area.",
+          fr: "Le nombre de niveaux administratifs utilisés par l'instance et (en dessous) le nom de chaque niveau — ces libellés apparaissent partout où les données sont désagrégées par zone.",
+          pt: "Quantos níveis administrativos a instância utiliza e (abaixo) o nome de cada nível — esses rótulos aparecem sempre que os dados são desagregados por zona.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "facility-columns",
+        target: tourTarget("instance-settings-facility-columns"),
+        title: t3({
+          en: "Facility columns",
+          fr: "Colonnes des établissements",
+          pt: "Colunas dos estabelecimentos de saúde",
+        }),
+        body: t3({
+          en: "Choose which extra columns from your facility imports are kept — name, type, ownership and custom fields — and how each is labelled across the app.",
+          fr: "Choisissez les colonnes supplémentaires de vos importations d'établissements à conserver — nom, type, propriété et champs personnalisés — et leur libellé dans l'application.",
+          pt: "Escolha as colunas adicionais das suas importações de estabelecimentos a manter — nome, tipo, propriedade e campos personalizados — e o rótulo de cada uma na aplicação.",
+        }),
+        placement: "top",
       },
     ],
   };

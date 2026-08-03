@@ -161,14 +161,19 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <TabsNavigation
-              items={tabItems()}
-              value={active()}
-              onChange={setSelectedType}
-            />
+            <div class="h-full w-full" data-tour="instance-assets-tabs">
+              <TabsNavigation
+                items={tabItems()}
+                value={active()}
+                onChange={setSelectedType}
+              />
+            </div>
           }
         >
-          <div class="ui-pad h-full w-full overflow-auto">
+          <div
+            class="ui-pad h-full w-full overflow-auto"
+            data-tour="instance-assets-list"
+          >
             <AssetTable
               files={grouped().get(active()) ?? []}
               currentUserEmail={p.currentUserEmail}
