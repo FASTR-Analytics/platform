@@ -22,6 +22,41 @@ const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
 
 export type WhatsNewModalOutcome = "skipped" | "completed";
 
+const PREFETCH_TIMEOUT_MS = 15_000;
+
+// Warms the browser cache so a page's media is already decoded by the time
+// the user reaches it. Images load via Image(); video needs a real <video
+// preload="auto"> because a plain fetch() response isn't reliably reused to
+// satisfy the media element's range requests. Always resolves — a failure
+// just means that page loads normally — and is time-boxed so one stalled
+// file can't block the rest of the queue.
+function prefetchMedia(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(done, PREFETCH_TIMEOUT_MS);
+    if (isWhatsNewVideo(src)) {
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.muted = true;
+      video.oncanplaythrough = done;
+      video.onerror = done;
+      video.src = src;
+      video.load();
+    } else {
+      const img = new Image();
+      img.onload = done;
+      img.onerror = done;
+      img.src = src;
+    }
+  });
+}
+
 // Authored content in the viewer's current app language, English fallback
 function rt(t: WhatsNewText | undefined): string {
   if (!t) {
@@ -63,6 +98,28 @@ export function WhatsNewModal(
   }
   onMount(() => document.addEventListener("keydown", handleKeyDown));
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
+
+  // Prefetch the visible page's media first, then the remaining pages one at
+  // a time — so later pages are ready on arrival without the queue competing
+  // for bandwidth with what's currently on screen (field sites are often on
+  // thin connections).
+  let prefetchCancelled = false;
+  onMount(() => {
+    void (async () => {
+      const all = pages()
+        .map((pg) => pg.imageUrl)
+        .filter((src): src is string => !!src);
+      const ordered = [...new Set([pages()[pageIndex()]?.imageUrl, ...all])]
+        .filter((src): src is string => !!src);
+      for (const src of ordered) {
+        if (prefetchCancelled) return;
+        await prefetchMedia(src);
+      }
+    })();
+  });
+  onCleanup(() => {
+    prefetchCancelled = true;
+  });
 
   return (
     <ModalContainer
@@ -120,9 +177,12 @@ export function WhatsNewModal(
     >
       {/* Fixed height so the modal doesn't resize as pages change; long
           pages scroll inside this region */}
+      {/* keyed: each page gets its own DOM, so a reused <img>/<video> can't
+          keep painting the previous page's media (or inherit its load state)
+          while the new source decodes */}
       <div class="h-[min(600px,60vh)] overflow-y-auto">
-        <Show when={page()}>
-          {(pg) => <WhatsNewPageContent page={pg()} />}
+        <Show when={page()} keyed>
+          {(pg) => <WhatsNewPageContent page={pg} />}
         </Show>
       </div>
     </ModalContainer>
@@ -153,7 +213,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
             <Show when={showImage() && layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
+                wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
               />
@@ -164,7 +224,7 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
             <Show when={showImage() && !layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={layout().row ? "shrink-0 rounded" : "mx-auto rounded"}
+                wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
               />
@@ -202,10 +262,13 @@ function WhatsNewMedia(p: {
   width?: string;
 }) {
   const [failed, setFailed] = createSignal(false);
+  const [loaded, setLoaded] = createSignal(false);
   const [play, setPlay] = createSignal(false);
   const isVideo = () => isWhatsNewVideo(p.src);
   const staticFrame = () =>
     REDUCED_MOTION && !isVideo() && /\.gif(\?|$)/i.test(p.src) && !play();
+  const fadeClass = "transition-opacity duration-200";
+  const fadeState = () => ({ "opacity-0": !loaded(), "opacity-100": loaded() });
   let canvasRef: HTMLCanvasElement | undefined;
 
   createEffect(() => {
@@ -220,6 +283,7 @@ function WhatsNewMedia(p: {
       canvasRef.width = img.naturalWidth || 1;
       canvasRef.height = img.naturalHeight || 1;
       canvasRef.getContext("2d")?.drawImage(img, 0, 0);
+      setLoaded(true);
     };
     img.onerror = () => setFailed(true);
     img.src = p.src;
@@ -227,38 +291,50 @@ function WhatsNewMedia(p: {
 
   return (
     <Show when={!failed()}>
-      <Show when={!isVideo()} fallback={
-        <video
-          src={p.src}
-          class={`${p.wrapClass} ${p.imgClass}`}
-          style={p.width ? { width: p.width } : undefined}
-          autoplay={!REDUCED_MOTION}
-          loop
-          controls={REDUCED_MOTION}
-          ref={(el) => {
-            el.muted = true;
-            el.playsInline = true;
-          }}
-          onError={() => setFailed(true)}
-        />
-      }>
-        <Show
-          when={staticFrame()}
-          fallback={
-            <img
-              src={p.src}
-              alt=""
-              class={`${p.wrapClass} ${p.imgClass}`}
-              style={p.width ? { width: p.width } : undefined}
-              onError={() => setFailed(true)}
-            />
-          }
-        >
-          <div
-            class={`relative ${p.wrapClass}`}
-            style={p.width ? { width: p.width } : undefined}
+      <div
+        class={p.wrapClass}
+        classList={{ "min-h-[10rem]": !loaded() }}
+        style={p.width ? { width: p.width } : undefined}
+      >
+        {/* Quiet placeholder holds the slot so surrounding text never
+            reflows; prefetching means it's usually a blink at most */}
+        <Show when={!loaded()}>
+          <div class="bg-base-200 absolute inset-0 rounded" />
+        </Show>
+        <Show when={!isVideo()} fallback={
+          <video
+            src={p.src}
+            class={`${p.imgClass} ${fadeClass}`}
+            classList={fadeState()}
+            autoplay={!REDUCED_MOTION}
+            loop
+            controls={REDUCED_MOTION}
+            ref={(el) => {
+              el.muted = true;
+              el.playsInline = true;
+            }}
+            onLoadedData={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+          />
+        }>
+          <Show
+            when={staticFrame()}
+            fallback={
+              <img
+                src={p.src}
+                alt=""
+                class={`${p.imgClass} ${fadeClass}`}
+                classList={fadeState()}
+                onLoad={() => setLoaded(true)}
+                onError={() => setFailed(true)}
+              />
+            }
           >
-            <canvas ref={canvasRef} class={p.imgClass} />
+            <canvas
+              ref={canvasRef}
+              class={`${p.imgClass} ${fadeClass}`}
+              classList={fadeState()}
+            />
             <button
               type="button"
               class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"
@@ -267,9 +343,9 @@ function WhatsNewMedia(p: {
             >
               ▶
             </button>
-          </div>
+          </Show>
         </Show>
-      </Show>
+      </div>
     </Show>
   );
 }
