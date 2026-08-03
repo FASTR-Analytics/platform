@@ -3,7 +3,11 @@ import {
   TC,
   compareDottedVersions,
   getLanguage,
+  migrateSeenVersionToReadIds,
+  parseWhatsNewReadIds,
+  pruneWhatsNewReadIds,
   t3,
+  whatsNewUnreadPosts,
   LANGUAGE_STORAGE_KEY,
 } from "lib";
 import {
@@ -307,7 +311,7 @@ export default function Instance(p: Props) {
                         <WhatsNewBellIcon />
                       </Button>
                       <Show when={whatsNewHasUnread()}>
-                        <div class="bg-primary pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+                        <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
                       </Show>
                     </div>
                   </Show>
@@ -428,9 +432,9 @@ const [whatsNewState, setWhatsNewState] = createSignal<{
   userId: string;
   posts: WhatsNewPost[];
 } | null>(null);
-const [whatsNewSeenVersion, setWhatsNewSeenVersion] = createSignal<
-  string | undefined
->(undefined);
+const [whatsNewReadIds, setWhatsNewReadIds] = createSignal<Set<string>>(
+  new Set(),
+);
 let postLoginRanForUserId: string | null = null;
 
 function whatsNewPostsForCurrentUser(): WhatsNewPost[] {
@@ -444,19 +448,32 @@ function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
   );
 }
 
-// unsafeMetadata is client-writable by design — tolerate tampered values
-function seenVersionFromMetadata(): string | undefined {
-  const raw = clerk.user?.unsafeMetadata?.whatsNewSeenVersion;
-  return typeof raw === "string" ? raw : undefined;
+// Read-ids from Clerk metadata, migrating users who still carry the old
+// high-water `whatsNewSeenVersion`. needsWrite flags that migration so the
+// caller persists the converted set once.
+function readIdsFromMetadata(posts: WhatsNewPost[]): {
+  ids: Set<string>;
+  needsWrite: boolean;
+} {
+  const stored = parseWhatsNewReadIds(
+    clerk.user?.unsafeMetadata?.whatsNewReadPostIds,
+  );
+  if (stored) {
+    return { ids: new Set(stored), needsWrite: false };
+  }
+  const legacy = clerk.user?.unsafeMetadata?.whatsNewSeenVersion;
+  if (typeof legacy === "string") {
+    return {
+      ids: new Set(migrateSeenVersionToReadIds(posts, legacy)),
+      needsWrite: true,
+    };
+  }
+  return { ids: new Set(), needsWrite: false };
 }
 
 function whatsNewHasUnread(): boolean {
-  const posts = whatsNewPostsForCurrentUser();
-  if (posts.length === 0) return false;
-  const seen = whatsNewSeenVersion();
-  return (
-    !seen || compareDottedVersions(newestWhatsNewPost(posts).version, seen) > 0
-  );
+  const ids = whatsNewReadIds();
+  return whatsNewPostsForCurrentUser().some((p) => !ids.has(p.id));
 }
 
 function recordWhatsNewEvent(
@@ -466,19 +483,31 @@ function recordWhatsNewEvent(
   serverActions.recordWhatsNewEvent({ postId, event }).catch(() => {});
 }
 
-async function markWhatsNewSeen(version: string) {
+async function persistWhatsNewReadIds(
+  ids: Set<string>,
+  posts: WhatsNewPost[],
+) {
+  const pruned = pruneWhatsNewReadIds(ids, posts);
   try {
     await clerk.user?.update({
       unsafeMetadata: {
         ...clerk.user.unsafeMetadata,
-        whatsNewSeenVersion: version,
+        whatsNewReadPostIds: pruned,
       },
     });
     // Only on success — a failed write leaves the unread dot lit
-    setWhatsNewSeenVersion(version);
+    setWhatsNewReadIds(new Set(pruned));
   } catch (err) {
-    console.error("Failed to record whatsNewSeenVersion", err);
+    console.error("Failed to record whatsNewReadPostIds", err);
   }
+}
+
+async function markWhatsNewRead(postId: string) {
+  const posts = whatsNewPostsForCurrentUser();
+  await persistWhatsNewReadIds(
+    new Set([...whatsNewReadIds(), postId]),
+    posts,
+  );
 }
 
 async function maybeShowWhatsNew(isBrandNewUser: boolean) {
@@ -486,18 +515,34 @@ async function maybeShowWhatsNew(isBrandNewUser: boolean) {
   if (!userId) {
     return;
   }
-  setWhatsNewSeenVersion(seenVersionFromMetadata());
   const res = await serverActions.getWhatsNewPosts({});
   if (!res.success || res.data.length === 0) {
     return;
   }
-  setWhatsNewState({ userId, posts: res.data });
-  const newest = newestWhatsNewPost(res.data);
-  const seen = seenVersionFromMetadata();
-  if (seen && compareDottedVersions(newest.version, seen) <= 0) {
+  const posts = res.data;
+  setWhatsNewState({ userId, posts });
+
+  const { ids, needsWrite } = readIdsFromMetadata(posts);
+  setWhatsNewReadIds(ids);
+
+  // A brand-new user starts current: everything is marked read, so they get
+  // neither a popup nor a dot for releases that predate their account
+  if (isBrandNewUser) {
+    await persistWhatsNewReadIds(new Set(posts.map((p) => p.id)), posts);
     return;
   }
-  if (!isBrandNewUser && (newest.pages?.length ?? 0) > 0) {
+  if (needsWrite) {
+    await persistWhatsNewReadIds(ids, posts);
+  }
+
+  const unread = whatsNewUnreadPosts(posts, ids);
+  if (unread.length === 0) {
+    return;
+  }
+  // Only the newest unread post is pushed at login; the bell's dot carries
+  // the rest until the user catches up
+  const newest = newestWhatsNewPost(unread);
+  if ((newest.pages?.length ?? 0) > 0) {
     recordWhatsNewEvent(newest.id, "seen");
     const outcome = await openComponent({
       element: WhatsNewModal,
@@ -505,25 +550,20 @@ async function maybeShowWhatsNew(isBrandNewUser: boolean) {
     });
     recordWhatsNewEvent(newest.id, outcome ?? "skipped");
   }
-  await markWhatsNewSeen(newest.version);
+  await markWhatsNewRead(newest.id);
 }
 
-// Header-bell feed: opening it acknowledges everything (clears the unread
-// dot), then lets the user browse and re-read any post.
+// Header-bell feed: browse every post; each one opened is marked read
+// individually, so the dot survives until nothing is left unread.
 async function openWhatsNewFeed() {
   const posts = whatsNewPostsForCurrentUser();
   if (posts.length === 0) {
     return;
   }
-  const newest = newestWhatsNewPost(posts);
-  const seen = whatsNewSeenVersion() ?? seenVersionFromMetadata();
-  if (!seen || compareDottedVersions(newest.version, seen) > 0) {
-    await markWhatsNewSeen(newest.version);
-  }
   while (true) {
     const chosen = await openComponent({
       element: WhatsNewFeedModal,
-      props: { posts },
+      props: { posts, readIds: whatsNewReadIds() },
     });
     if (!chosen) {
       return;
@@ -534,5 +574,6 @@ async function openWhatsNewFeed() {
       props: { post: chosen },
     });
     recordWhatsNewEvent(chosen.id, outcome ?? "skipped");
+    await markWhatsNewRead(chosen.id);
   }
 }

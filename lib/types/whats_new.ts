@@ -76,6 +76,47 @@ export type WhatsNewPost = {
 
 export type WhatsNewEvent = "seen" | "skipped" | "completed";
 
+// ─── Bell read-state ────────────────────────────────────────────────────
+// Tracked as a set of post ids (not a high-water version) so the unread dot
+// persists until EVERY missed post has been opened. Stored in Clerk
+// unsafeMetadata, which is client-writable — hence the defensive parsing.
+
+// Returns undefined when nothing valid is stored, which is what distinguishes
+// "never tracked, consider migrating" from "tracked, nothing read yet".
+export function parseWhatsNewReadIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.filter((v): v is string => typeof v === "string");
+}
+
+// Users predating per-post tracking carry a high-water version string;
+// everything at or below it was already acknowledged.
+export function migrateSeenVersionToReadIds(
+  posts: WhatsNewPost[],
+  seenVersion: string,
+): string[] {
+  return posts
+    .filter((p) => compareDottedVersions(p.version, seenVersion) <= 0)
+    .map((p) => p.id);
+}
+
+// Keeps the stored set bounded: only ids still in the eligible list survive
+export function pruneWhatsNewReadIds(
+  readIds: Iterable<string>,
+  posts: WhatsNewPost[],
+): string[] {
+  const eligible = new Set(posts.map((p) => p.id));
+  return [...new Set(readIds)].filter((id) => eligible.has(id));
+}
+
+export function whatsNewUnreadPosts(
+  posts: WhatsNewPost[],
+  readIds: Set<string>,
+): WhatsNewPost[] {
+  return posts.filter((p) => !readIds.has(p.id));
+}
+
 // Page media may be an image/GIF or an mp4 clip; both live in imageUrl
 export function isWhatsNewVideo(url: string | undefined): boolean {
   return !!url && /\.mp4(\?|$)/i.test(url);

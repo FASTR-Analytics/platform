@@ -277,7 +277,10 @@ function WhatsNewMedia(p: {
 // Browsable history of announcements, newest first. Closes with the chosen
 // post (caller opens WhatsNewModal for it) or undefined on Close.
 export function WhatsNewFeedModal(
-  p: AlertComponentProps<{ posts: WhatsNewPost[] }, WhatsNewPost | undefined>,
+  p: AlertComponentProps<
+    { posts: WhatsNewPost[]; readIds: Set<string> },
+    WhatsNewPost | undefined
+  >,
 ) {
   const sorted = () =>
     [...p.posts].sort((a, b) => compareDottedVersions(b.version, a.version));
@@ -325,7 +328,15 @@ export function WhatsNewFeedModal(
               class="ui-hoverable-base-100 block w-full cursor-pointer rounded border px-4 py-3 text-left"
               onClick={() => p.close(post)}
             >
-              <div class="font-700 text-base-content">{rt(post.title)}</div>
+              <div class="flex items-center gap-2">
+                <div class="font-700 text-base-content grow">{rt(post.title)}</div>
+                <Show when={!p.readIds.has(post.id)}>
+                  <div
+                    class="bg-warning h-2 w-2 shrink-0 rounded-full"
+                    title={t3({ en: "Unread", fr: "Non lu", pt: "Não lido" })}
+                  />
+                </Show>
+              </div>
               <div class="text-base-content-muted mt-1 text-sm">{metaLabel(post)}</div>
             </button>
           )}

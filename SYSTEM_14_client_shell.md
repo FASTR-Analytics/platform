@@ -213,13 +213,18 @@ Admin-Website, fetched by `server/routes/instance/whats_new.ts` from status-api
 `published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`
 (the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
 test deploys);
-the client shows only the newest unseen post, keyed on the high-water mark
-`unsafeMetadata.whatsNewSeenVersion` (brand-new users — detected as
-`!emailOptInAsked` before the opt-in modal writes it — are baselined without
-seeing a popup). The fetched posts also power a header bell (between the
+the client pushes only the newest unread post at login. Read-state is a
+per-post id set in `unsafeMetadata.whatsNewReadPostIds` (a post counts as read
+once opened, Skip or Done alike), pruned on write to the currently-eligible
+ids; users still carrying the superseded high-water `whatsNewSeenVersion` are
+migrated once by marking every post at or below it read. Brand-new users —
+detected as `!emailOptInAsked` before the opt-in modal writes it — are
+baselined with everything marked read, so they get neither popup nor dot. The fetched posts also power a header bell (between the
 language switcher and the feedback button; hidden when there are no posts)
-with an unread dot and a `WhatsNewFeedModal` history feed — opening the feed
-acknowledges everything, and any post can be re-read from it. Bell/feed state
+with a warning-coloured unread dot and a `WhatsNewFeedModal` history feed.
+The dot persists until every missed post has been opened — the feed does NOT
+bulk-acknowledge; it marks each post read as it is opened and flags the
+still-unread rows. Bell/feed state
 is keyed to the signed-in user id (module signals survive a same-tab user
 switch). The modal supports arrow-key paging and Escape, shows a GIF's first
 frame under `prefers-reduced-motion` (play button opts back in), and closes
