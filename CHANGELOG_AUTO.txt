@@ -1,3 +1,31 @@
+[TBD] [user] [added] - Results packages tab for generating and managing analysis packages at the instance level
+[TBD] [user] [added] - Results package tab in projects replaces separate Data and Modules tabs
+[TBD] [user] [added] - Wizard for configuring and generating new results packages
+[TBD] [user] [added] - View script, logs, and output files for each module in a results package
+[TBD] [user] [added] - Download individual output files from a results package
+[TBD] [user] [added] - Live progress display while a results package is generating
+[TBD] [user] [added] - Attach results packages to projects from the instance catalogue
+[TBD] [user] [added] - Fiscal year information shown in instance details
+[TBD] [user] [changed] - Creating a project no longer requires choosing datasets or modules upfront
+[TBD] [user] [changed] - Visualizations from default packages can no longer be deleted or batch-edited
+[TBD] [user] [changed] - Project comparison view simplified to show package membership instead of module run status
+[TBD] [user] [changed] - Metric availability tooltips now explain why a metric is unavailable
+[TBD] [user] [fixed] - Visualization thumbnails now refresh correctly when a different results package is attached
+[TBD] [user] [fixed] - Default visualizations no longer cause errors during batch editing or deletion
+[TBD] [admin] [added] - New "Results packages" tab on the instance dashboard
+[TBD] [admin] [added] - Generate, browse, and delete results packages at the instance level
+[TBD] [admin] [added] - Results packages can be attached to one or more projects
+[TBD] [admin] [added] - New results package wizard for configuring data, modules, and parameters before generation
+[TBD] [admin] [added] - Live progress and R output shown during package generation
+[TBD] [admin] [added] - View scripts, logs, and output files for each module in a package
+[TBD] [admin] [changed] - Project "Data" and "Modules" tabs replaced by a single "Results package" tab
+[TBD] [admin] [changed] - Creating a project now only requires a name; data and modules come from an attached results package
+[TBD] [admin] [changed] - Visualisation thumbnails now refresh when a different results package is attached
+[TBD] [admin] [changed] - Project comparison view no longer shows compute/presentation SHA or dirty status columns
+[TBD] [admin] [changed] - Instance metadata now displays the fiscal year setting
+[TBD] [admin] [fixed] - Default visualisations can no longer be batch-edited or deleted, preventing server errors
+[TBD] [admin] [fixed] - Deleting a results package is blocked while it is attached to a project or still generating
+[TBD] [admin] [internal] - Removed per-module dirty/running status indicators from the project header
 [TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
 [TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
 [TBD] [admin] [changed] - Improved audit logging for user setting changes
