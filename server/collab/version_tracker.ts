@@ -57,6 +57,19 @@ export type VersionTrackerDeps = {
     editors: VersionEditor[],
     createdAt: string,
   ) => Promise<boolean>;
+  /** Called exactly once per finalized editing session — including sessions
+   *  dropped by the content-hash dedup (edit-then-revert is still usage),
+   *  sessions whose document was deleted, and sessions absorbed by a restore
+   *  (drainEditors). NOT called when a failed write merges the session back:
+   *  the retried flush reports the merged session instead. Must not throw. */
+  onSessionEnd?: (session: {
+    projectId: string;
+    kind: VersionKind;
+    docId: string;
+    editors: VersionEditor[];
+    /** Epoch ms of the session's first edit. */
+    startedAt: number;
+  }) => void;
 };
 
 export type VersionTrackerOpts = {
@@ -155,6 +168,20 @@ export function createVersionTracker(
     }
   }
 
+  function accEditors(acc: Accumulator): VersionEditor[] {
+    return [...acc.editors.entries()].map(([email, name]) => ({ email, name }));
+  }
+
+  function noteSessionEnd(acc: Accumulator): void {
+    deps.onSessionEnd?.({
+      projectId: acc.projectId,
+      kind: acc.kind,
+      docId: acc.docId,
+      editors: accEditors(acc),
+      startedAt: acc.dirtySince,
+    });
+  }
+
   function drainEditors(
     projectId: string,
     kind: VersionKind,
@@ -166,7 +193,8 @@ export function createVersionTracker(
       return [];
     }
     accumulators.delete(key);
-    return [...acc.editors.entries()].map(([email, name]) => ({ email, name }));
+    noteSessionEnd(acc);
+    return accEditors(acc);
   }
 
   function shouldFlush(acc: Accumulator, now: number): boolean {
@@ -208,15 +236,15 @@ export function createVersionTracker(
     try {
       const payload = await deps.loadPayload(projectId, kind, docId);
       if (payload === null) {
+        noteSessionEnd(acc);
         return; // document deleted — drop the session
       }
       const latest = await deps.latestHash(projectId, kind, docId);
       if (latest !== null && latest === payload.contentHash) {
+        noteSessionEnd(acc);
         return; // no net change
       }
-      const editors: VersionEditor[] = [...acc.editors.entries()].map(
-        ([email, name]) => ({ email, name }),
-      );
+      const editors = accEditors(acc);
       const createdAt = new Date(deps.now()).toISOString();
       const ok = await deps.writeVersion(
         projectId,
@@ -228,7 +256,9 @@ export function createVersionTracker(
       );
       if (!ok) {
         mergeBack(acc);
+        return;
       }
+      noteSessionEnd(acc);
     } catch (error) {
       console.error(
         `Version flush failed (${kind} ${docId}):`,

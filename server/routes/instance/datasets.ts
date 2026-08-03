@@ -62,7 +62,6 @@ defineRoute(
   routesDatasets,
   "getDatasetHmisDetail",
   requireGlobalPermission("can_view_data"),
-  log("getDatasetHmisDetail"),
   async (c) => {
     const res = await getDatasetHmisDetail(c.var.mainDb);
     return c.json(res);
@@ -215,7 +214,6 @@ defineRoute(
   routesDatasets,
   "getDatasetHmisImportRuns",
   requireGlobalPermission("can_view_data"),
-  log("getDatasetHmisImportRuns"),
   async (c) => {
     const res = await getDatasetHmisImportRunSummaries(c.var.mainDb);
     return c.json(res);
@@ -411,7 +409,6 @@ defineRoute(
   routesDatasets,
   "getDatasetUpload",
   requireGlobalPermission("can_configure_data"),
-  log("getDatasetUpload"),
   async (c) => {
     const res = await getDatasetHmisUploadAttemptDetail(c.var.mainDb);
     return c.json(res);
@@ -422,7 +419,6 @@ defineRoute(
   routesDatasets,
   "getDatasetUploadStatus",
   requireGlobalPermission("can_configure_data"),
-  log("getDatasetUploadStatus"),
   async (c) => {
     const res = await getDatasetHmisUploadStatus(c.var.mainDb);
     return c.json(res);
@@ -614,7 +610,6 @@ defineRoute(
   routesDatasets,
   "getDatasetHfaUploadStatus",
   requireGlobalPermission("can_configure_data"),
-  log("getDatasetHfaUploadStatus"),
   async (c) => {
     const res = await getDatasetHfaUploadStatus(c.var.mainDb);
     return c.json(res);

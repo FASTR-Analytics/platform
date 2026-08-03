@@ -472,15 +472,123 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     return pieces;
   }
 
+  // A "same" span of the overall diff can still hide a replace: characters
+  // the ledger PROVES were deleted (tombstoned) with identical text retyped
+  // in their place. Left as "same", a select-and-rewrite renders as a couple
+  // of word tweaks — and when the deleter and the rewriter are different
+  // people, their independent edits interleave into one apparent co-edited
+  // sentence. Walk the region through each transition's ghost alignment;
+  // subranges that land on tombstones become real removed+added spans.
+  // Subranges the ledgers can't prove were retyped stay "same".
+  type SameFate = { off: number; len: number; removed: Attribution };
+
+  function refineSame(baseFrom: number, baseTo: number): SameFate[] {
+    const fates: SameFate[] = [];
+    let open = [{ from: baseFrom, to: baseTo, off: 0 }];
+    for (let k = 0; k < stepDiffs.length && open.length > 0; k++) {
+      const next: typeof open = [];
+      for (const r of open) {
+        const pieces = mapRangeThroughGhost(k, r.from, r.to);
+        if (!pieces) {
+          // No usable ledger for this transition — carry the range forward
+          // when it maps cleanly; anything else stays "same" (never invent a
+          // removal the ledger can't back).
+          const nf = stepDiffs[k].changes.mapPos(r.from, 1);
+          const nt = stepDiffs[k].changes.mapPos(r.to, -1);
+          if (nt - nf === r.to - r.from) {
+            next.push({ from: nf, to: nt, off: r.off });
+          }
+          continue;
+        }
+        const step = steps[k + 1];
+        for (const gp of pieces) {
+          if (gp.kind === "deleted") {
+            fates.push({
+              off: r.off + gp.off,
+              len: gp.len,
+              removed: gp.deletedBy !== null && gp.deletedBy !== undefined
+                ? {
+                  who: step.names?.[gp.deletedBy] ?? gp.deletedBy,
+                  whoExact: true,
+                  whoEmail: gp.deletedBy,
+                }
+                : fallbackAttribution(step),
+            });
+          } else if (gp.kind === "survived" && k < stepDiffs.length - 1) {
+            const f = r.from + gp.off;
+            const t = f + gp.len;
+            const nf = stepDiffs[k].changes.mapPos(f, 1);
+            const nt = stepDiffs[k].changes.mapPos(t, -1);
+            if (nt - nf === t - f) {
+              next.push({ from: nf, to: nt, off: r.off + gp.off });
+            }
+          }
+          // "gap" (ledger didn't record the range) and pieces that don't map
+          // cleanly: unprovable — leave as "same".
+        }
+      }
+      open = next;
+    }
+    return fates.sort((x, y) => x.off - y.off);
+  }
+
   const base = bodies[0];
   const current = bodies[bodies.length - 1];
   const overall = presentableDiff(base, current);
 
   const segments: DiffSegment[] = [];
+
+  // Emit one same region (base [baseFrom, baseTo) ≡ current [curFrom, ...)),
+  // splitting out the subranges the ledgers prove were deleted-and-retyped:
+  // the base text as a removal (attributed to the deleter via the tombstone)
+  // and the identical current text as an addition (attributed by the final
+  // step's author runs — the actual retyper).
+  function emitSame(baseFrom: number, baseTo: number, curFrom: number): void {
+    let off = 0;
+    for (const f of refineSame(baseFrom, baseTo)) {
+      if (f.off > off) {
+        segments.push({
+          text: base.slice(baseFrom + off, baseFrom + f.off),
+          kind: "same",
+        });
+      }
+      segments.push({
+        text: base.slice(baseFrom + f.off, baseFrom + f.off + f.len),
+        kind: "removed",
+        who: f.removed.who,
+        whoExact: f.removed.whoExact,
+        whoEmail: f.removed.whoEmail,
+      });
+      for (
+        const part of splitByAuthors(
+          steps[steps.length - 1],
+          curFrom + f.off,
+          curFrom + f.off + f.len,
+        )
+      ) {
+        segments.push({
+          text: current.slice(part.from, part.to),
+          kind: "added",
+          who: part.who,
+          whoExact: part.whoExact,
+          whoEmail: part.whoEmail,
+        });
+      }
+      off = f.off + f.len;
+    }
+    if (baseTo - baseFrom > off) {
+      segments.push({
+        text: base.slice(baseFrom + off, baseTo),
+        kind: "same",
+      });
+    }
+  }
+
   let pos = 0;
+  let basePos = 0;
   for (const h of overall) {
     if (h.fromB > pos) {
-      segments.push({ text: current.slice(pos, h.fromB), kind: "same" });
+      emitSame(basePos, h.fromA, pos);
     }
     if (h.fromA < h.toA) {
       for (const piece of removedAttribution(h.fromA, h.toA)) {
@@ -544,9 +652,54 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       }
     }
     pos = h.toB;
+    basePos = h.toA;
   }
   if (pos < current.length) {
-    segments.push({ text: current.slice(pos), kind: "same" });
+    emitSame(basePos, base.length, pos);
   }
-  return segments;
+  return regroupClusters(segments);
+}
+
+// Within one contiguous run of changed segments, show every removal first,
+// then every addition — a replace reads as "old block struck out, new block
+// added" instead of an interleave of fragments. Removals keep base order,
+// additions keep current order; adjacent spans with identical attribution
+// merge so long insertions don't split into per-word tooltips.
+function regroupClusters(segments: DiffSegment[]): DiffSegment[] {
+  const out: DiffSegment[] = [];
+  let removedBuf: DiffSegment[] = [];
+  let addedBuf: DiffSegment[] = [];
+  function pushMerged(arr: DiffSegment[], s: DiffSegment): void {
+    const prev = arr[arr.length - 1];
+    if (
+      prev && prev.kind === s.kind && prev.who === s.who &&
+      prev.whoExact === s.whoExact && prev.whoEmail === s.whoEmail
+    ) {
+      prev.text += s.text;
+    } else {
+      arr.push({ ...s });
+    }
+  }
+  function flush(): void {
+    out.push(...removedBuf, ...addedBuf);
+    removedBuf = [];
+    addedBuf = [];
+  }
+  for (const s of segments) {
+    if (s.kind === "same") {
+      flush();
+      const prev = out[out.length - 1];
+      if (prev && prev.kind === "same") {
+        prev.text += s.text;
+      } else {
+        out.push({ ...s });
+      }
+    } else if (s.kind === "removed") {
+      pushMerged(removedBuf, s);
+    } else {
+      pushMerged(addedBuf, s);
+    }
+  }
+  flush();
+  return out;
 }

@@ -1,6 +1,6 @@
 # Systems map — wb-fastr
 
-> Canonical topology: 16 systems (+ a read-but-don't-own kernel). This is the
+> Canonical topology: 17 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the custody table, the kernel rule, the
 > cross-cutting audits, the execution model, and the documentation model.
 > Each system's description — scope, contract, prose — lives in its own
@@ -12,7 +12,8 @@
 ## The map
 
 Platform machinery (1–3), data in (4–7), compute (8), visualization (9–11),
-artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
+artifacts (12), assist (13), frame (14–15), realtime collaboration (16),
+observability (17).
 
 | #                                        | System                                   | One line                                                                                   |
 |------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -32,6 +33,7 @@ artifacts (12), assist (13), frame (14–15), realtime collaboration (16).
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
 | [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one project WS; rooms checkpoint into S12 tables + S3 notifies    |
+| [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website   |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
 
 App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6),
@@ -70,6 +72,8 @@ list.)
 | `lib/types/project_dirty_states.ts`                                     | S3    | —                 | now only `LastUpdateTableName` — rename me            |
 | `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
 | `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
+| `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables   |
+| `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows       |
 
 ## §4.2 Kernel — read but don't own
 

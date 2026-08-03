@@ -24,7 +24,6 @@ globs:
   - client/src/components/project/project_settings.tsx
   - client/src/components/project/restore_from_file_form.tsx
   - lib/types/projects.ts
-  - server/db/instance/user_logs.ts
   - server/db/project/projects.ts
   - server/routes/instance/backups.ts
   - server/routes/instance/health.ts
@@ -49,10 +48,10 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `project_settings.tsx` + copy/backup/restore forms; role/permission
 forms_editors. Server: `routes/project/project.ts` (18 routes — lifecycle +
 roles), `routes/instance/{health,backups}.ts`, `db/project/projects.ts` (the
-4-system custody file — S15 owner; S2/S1/S8 readers),
-`db/instance/user_logs.ts`, `utils/disk_space.ts`; cron jobs in `main.ts`
-(S1-owned, S15 reader); `routes/instance/instance.ts` is S5-owned with S15
-reading its meta/projects/disk slice; the feedback email handler lives in S12's
+4-system custody file — S15 owner; S2/S1/S8 readers), `utils/disk_space.ts`
+(`db/instance/user_logs.ts` → S17); cron jobs in `main.ts` (S1-owned, S15
+reader); `routes/instance/instance.ts` is S5-owned with S15 reading its
+meta/projects/disk slice; the feedback email handler lives in S12's
 `routes/project/emails.ts`. Repo: `./run`, `./deploy`, `Dockerfile`. External:
 status-api, SendGrid, the ~40-instance production topology (below). The operator
 connection recipes live in the **gitignored** `PROTOCOL_ACCESS_DBS.md`.
@@ -192,14 +191,10 @@ was WIP and gated nothing. A future central hub streams run files instead of
 
 ## user_logs
 
-Write path: S1's `log()` middleware is the sole `AddLog` caller — captures body
-(key-redacting `password/secret/token/apikey`), params, headers minus
-auth/cookie, result status, with a 64 KiB truncation ladder; skipped only for
-unapproved users; fire-and-forget. Retention: `DeleteOldLogs` (boot + 24h cron)
-rolls rows older than 7 days into `user_logs_aggregate` by week, **except
-`getCurrentUser` rows, which are retained forever** (they feed last-activity and
-the health endpoints). Readers: `getAllUserLogs` (instance `can_view_logs` — the
-Users tab's "Last active" column), the six unauthenticated health endpoints,
+Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)) — write path,
+retention cron, and the forever-retained `getCurrentUser` exemption live
+there. S15's stake: the health endpoints below read the tables directly,
+`getAllUserLogs` backs the Users tab's log view / "Last active" column,
 per-project `last_activity_at` in the project listing, and the dead
 `getProjectLogs` chain (Open item).
 

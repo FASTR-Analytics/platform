@@ -1,17 +1,33 @@
-[TBD] [user] [changed] - Consistent heading bar design across all screens
-[TBD] [user] [changed] - Cleaner panel borders throughout the application
-[TBD] [user] [changed] - Improved visual appearance of side panels and resizable areas
-[TBD] [user] [changed] - Standardized back button placement in page headers
-[TBD] [admin] [changed] - Standardized header bar appearance across all screens
-[TBD] [admin] [changed] - Removed visible border lines between side panels and main content areas
-[TBD] [user] [added] - Undo and redo buttons added to the report editor toolbar
-[TBD] [user] [added] - Undo and redo buttons added to the slide editor toolbar
-[TBD] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
-[TBD] [user] [changed] - Undo and redo only affect your own edits when collaborating
-[TBD] [admin] [added] - Undo and redo buttons added to report editor toolbar
-[TBD] [admin] [added] - Undo and redo buttons added to slide editor toolbar
-[TBD] [admin] [added] - Keyboard undo/redo support in slide editor canvas
-[TBD] [admin] [changed] - Undo and redo only affect your own edits during collaboration
+[TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[TBD] [admin] [changed] - Improved audit logging for user setting changes
+[1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
+[1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
+[1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading
+[1.64.5] [admin] [fixed] - Version history now correctly shows select-and-rewrite edits by different users
+[1.64.5] [admin] [improved] - Cleaner diff display groups deletions and additions together instead of interleaving
+[1.64.4] [user] [added] - First version now shows a note explaining the entire document was created in that session
+[1.64.4] [user] [fixed] - Version history no longer shows a blank pane for the earliest version
+[1.64.4] [admin] [fixed] - Version history no longer shows blank pane for first version
+[1.64.4] [admin] [added] - First version now shows explanatory note in session edits view
+[1.64.4] [user] [changed] - Undo/redo now covers text edits in slide titles, captions, and text fields together with other slide changes
+[1.64.4] [admin] [changed] - Undo/redo in slide editor now covers all text fields uniformly
+[1.64.3] [admin] [added] - Editing sessions are now tracked in admin activity logs
+[1.64.3] [admin] [changed] - Internal staff edits are excluded from usage activity counts
+[1.64.2] [user] [changed] - Consistent heading bar design across all screens
+[1.64.2] [user] [changed] - Cleaner panel borders throughout the application
+[1.64.2] [user] [changed] - Improved visual appearance of side panels and resizable areas
+[1.64.2] [user] [changed] - Standardized back button placement in page headers
+[1.64.2] [admin] [changed] - Standardized header bar appearance across all screens
+[1.64.2] [admin] [changed] - Removed visible border lines between side panels and main content areas
+[1.64.2] [user] [added] - Undo and redo buttons added to the report editor toolbar
+[1.64.2] [user] [added] - Undo and redo buttons added to the slide editor toolbar
+[1.64.2] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
+[1.64.2] [user] [changed] - Undo and redo only affect your own edits when collaborating
+[1.64.2] [admin] [added] - Undo and redo buttons added to report editor toolbar
+[1.64.2] [admin] [added] - Undo and redo buttons added to slide editor toolbar
+[1.64.2] [admin] [added] - Keyboard undo/redo support in slide editor canvas
+[1.64.2] [admin] [changed] - Undo and redo only affect your own edits during collaboration
 [1.64.1] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
 [1.64.1] [admin] [changed] - Rollup labels no longer vary when filters are applied
 [1.64.0] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen

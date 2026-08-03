@@ -26,6 +26,7 @@ import {
   type DeckVersionSlide,
   type FigureBlock,
   type GlobalUser,
+  H_USERS,
   type ImageBlock,
   listSlideConfigTextElements,
   liveAuthorRunLen,
@@ -33,6 +34,7 @@ import {
   type VersionEditor,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { AddLog } from "../db/instance/user_logs.ts";
 import {
   compactSlideElementTombstones,
   compactTombstones,
@@ -340,6 +342,29 @@ const tracker = createVersionTracker({
   loadPayload,
   latestHash,
   writeVersion,
+  // Usage stats: one user_logs row per (session × editor), rolled up weekly
+  // like any logged route and read by the Admin-Website activity views.
+  // H_USERS are skipped so the counts reflect country usage only.
+  onSessionEnd: ({ projectId, kind, docId, editors }) => {
+    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+    for (const editor of editors) {
+      if (H_USERS.includes(editor.email)) {
+        continue;
+      }
+      AddLog(
+        mainDb,
+        editor.email,
+        kind === "report" ? "reportEditSession" : "deckEditSession",
+        "200",
+        JSON.stringify({ docId }),
+        projectId,
+      ).then((res) => {
+        if (!res.success) {
+          console.error(`Session activity log failed (${kind} ${docId}):`, res.err);
+        }
+      });
+    }
+  },
 });
 
 /** An ISO stamp strictly after `prevIso` — the restore routes write two

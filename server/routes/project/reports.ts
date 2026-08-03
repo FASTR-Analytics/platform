@@ -399,6 +399,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_reports",
   ),
+  log("deleteReport"),
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
     if (res.success) {
@@ -462,6 +463,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_reports",
   ),
+  log("restoreReportVersion"),
   async (c, { params }) => {
     const projectId = c.var.ppk.projectId;
     const projectDb = c.var.ppk.projectDb;
@@ -670,6 +672,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_reports",
   ),
+  log("copyReportVersion"),
   async (c, { params, body }) => {
     const res = await copyReportFromVersion(
       c.var.ppk.projectDb,

@@ -223,26 +223,31 @@ function SessionEdits(p: {
   version: ReportVersionDetail;
   previousVersionId?: string;
 }) {
+  // The body is wrapped in an object because StateHolderWrapper renders
+  // nothing for falsy ready-data — a bare "" (the oldest version's base)
+  // would blank the whole pane.
   const previousBody = createQuery(
     async () => {
       if (!p.previousVersionId) {
-        return { success: true as const, data: "" };
+        return { success: true as const, data: { body: "" } };
       }
       const res = await serverActions.getReportVersion({
         projectId: p.projectId,
         report_id: p.reportId,
         version_id: p.previousVersionId,
       });
-      return res.success ? { success: true as const, data: res.data.body } : res;
+      return res.success
+        ? { success: true as const, data: { body: res.data.body } }
+        : res;
     },
     t3({ en: "Loading session edits...", fr: "Chargement des modifications...", pt: "A carregar as edições..." }),
   );
 
   return (
     <StateHolderWrapper state={previousBody.state()}>
-      {(prevBody) => {
+      {(prev) => {
         const segments = computeAttributedDiff([
-          { body: prevBody, label: "" },
+          { body: prev.body, label: "" },
           {
             body: p.version.body,
             label: editorDisplayNames(p.version.editors),
@@ -257,6 +262,15 @@ function SessionEdits(p: {
         const hasChanges = segments.some((s) => s.kind !== "same");
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
+            <Show when={!p.previousVersionId}>
+              <div class="ui-text-caption mx-auto mb-2 w-full max-w-4xl">
+                {t3({
+                  en: "First version — the whole document was created in this session.",
+                  fr: "Première version — l'ensemble du document a été créé dans cette session.",
+                  pt: "Primeira versão — todo o documento foi criado nesta sessão.",
+                })}
+              </div>
+            </Show>
             <Show
               when={hasChanges}
               fallback={

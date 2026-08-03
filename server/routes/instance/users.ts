@@ -59,6 +59,7 @@ defineRoute(
   routesUsers,
   "setUserUnlimitedAi",
   requireGlobalPermission(),
+  log("setUserUnlimitedAi"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
       return c.json({ success: false, err: "Not authorized" }, 403);
@@ -180,6 +181,7 @@ defineRoute(
   routesUsers,
   "setUserContactPerson",
   requireGlobalPermission(),
+  log("setUserContactPerson"),
   async (c, { body }) => {
     if (!H_USERS.includes(c.var.globalUser.email)) {
       return c.json({ success: false, err: "Not authorized" }, 403);
