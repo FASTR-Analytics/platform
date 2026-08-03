@@ -8,6 +8,7 @@ import { projectTab } from "~/state/t4_ui";
 import {
   SLIDE_TOUR_TYPES,
   findProjectWithSlideOfType,
+  getTourCatalogue,
   type TourCatalogueEntry,
   type TourProjectFacts,
 } from "./catalogue";
@@ -15,8 +16,8 @@ import {
   TourCatalogueFrame,
   TourRow,
   getAreaItems,
-  type TourArea,
 } from "./tour_catalogue_layout";
+import { For } from "solid-js";
 
 // Catalogue of every onboarding tour: Play navigates to where the tour runs
 // (switching tab and opening a document/slide where needed) and starts it;
@@ -77,28 +78,40 @@ export function TourCatalogueModal(
     void manager?.start(entry.id);
   }
 
+  const catalogue = getTourCatalogue();
+  const areas = getAreaItems();
+
   // Preselect the category of the tab the user is on (the tab ids and tour
   // areas share names for every tab that has tours).
-  const areaIds = getAreaItems().map((a) => a.area);
   const currentTab = projectTab();
-  const initialArea = (areaIds as string[]).includes(currentTab)
-    ? (currentTab as TourArea)
+  const initialCategory = areas.some((a) => (a.area as string) === currentTab)
+    ? currentTab
     : undefined;
 
   return (
     <TourCatalogueFrame
-      initialArea={initialArea}
+      categories={areas.map((a) => ({
+        id: a.area,
+        heading: a.heading,
+        iconName: a.iconName,
+      }))}
+      initialCategory={initialCategory}
       loading={slideTypesPresent() === undefined}
       loadingText={t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" })}
       close={() => p.close(undefined)}
-      renderEntry={(entry) => (
-        <TourRow
-          entry={entry}
-          seen={seen(entry.id)}
-          available={entry.available(facts())}
-          reason={entry.unavailableReason(facts())}
-          onPlay={() => play(entry)}
-        />
+      renderCategory={(categoryId) => (
+        <For each={catalogue.filter((e) => (e.area as string) === categoryId)}>
+          {(entry) => (
+            <TourRow
+              label={entry.label}
+              description={entry.description}
+              seen={seen(entry.id)}
+              available={entry.available(facts())}
+              reason={entry.unavailableReason(facts())}
+              onPlay={() => play(entry)}
+            />
+          )}
+        </For>
       )}
     />
   );

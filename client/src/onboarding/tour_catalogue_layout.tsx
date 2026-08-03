@@ -6,10 +6,16 @@ import {
   SelectList,
   type IconName,
 } from "panther";
-import { For, Show, createSignal, type JSX } from "solid-js";
-import { getTourCatalogue, type TourCatalogueEntry } from "./catalogue";
+import { Show, createSignal, type JSX } from "solid-js";
+import { type TourCatalogueEntry } from "./catalogue";
 
 export type TourArea = TourCatalogueEntry["area"];
+
+export type TourCategory = {
+  id: string;
+  heading: string;
+  iconName: IconName;
+};
 
 // App tab order with the tab nav's own icons, so the sidebar reads as the
 // app's areas.
@@ -66,22 +72,20 @@ export function getAreaItems(): {
 }
 
 // Shared shell for the two Tours modals: xl modal, category sidebar on the
-// left, the selected category's tour rows on the right. Row content and
-// actions come from the caller (per-project facts in-project; cross-project
-// qualification at instance level).
+// left, the selected category's tour rows on the right. The category list and
+// each category's content come from the caller (per-project facts in-project;
+// cross-project qualification plus the instance tours at instance level).
 export function TourCatalogueFrame(p: {
-  initialArea?: TourArea;
+  categories: TourCategory[];
+  initialCategory?: string;
   loading: boolean;
   loadingText: string;
   close: () => void;
-  renderEntry: (entry: TourCatalogueEntry) => JSX.Element;
+  renderCategory: (categoryId: string) => JSX.Element;
 }) {
-  const catalogue = getTourCatalogue();
-  const areas = getAreaItems();
-  const [selectedArea, setSelectedArea] = createSignal<TourArea>(
-    p.initialArea ?? "reports",
+  const [selectedCategory, setSelectedCategory] = createSignal<string>(
+    p.initialCategory ?? p.categories[0]?.id ?? "",
   );
-  const entries = () => catalogue.filter((e) => e.area === selectedArea());
   return (
     <ModalContainer
       width="xl"
@@ -107,17 +111,17 @@ export function TourCatalogueFrame(p: {
       <div class="flex h-[min(650px,65vh)] gap-4">
         <div class="w-52 flex-none overflow-y-auto border-r pr-4">
           <SelectList
-            items={areas.map((a) => ({ id: a.area, label: a.heading }))}
-            value={selectedArea()}
-            onChange={(v) => setSelectedArea(v as TourArea)}
+            items={p.categories.map((c) => ({ id: c.id, label: c.heading }))}
+            value={selectedCategory()}
+            onChange={setSelectedCategory}
             renderItem={(item) => {
-              const area = areas.find((a) => a.area === item.id);
+              const category = p.categories.find((c) => c.id === item.id);
               return (
                 <div class="flex items-center gap-2">
                   <span class="inline-block w-5 flex-none">
-                    <Icon iconName={area?.iconName ?? "report"} />
+                    <Icon iconName={category?.iconName ?? "report"} />
                   </span>
-                  <span class="truncate">{area?.heading}</span>
+                  <span class="truncate">{category?.heading}</span>
                 </div>
               );
             }}
@@ -131,9 +135,7 @@ export function TourCatalogueFrame(p: {
               <div class="text-base-content-muted text-sm">{p.loadingText}</div>
             }
           >
-            <div class="ui-spy-sm">
-              <For each={entries()}>{(entry) => p.renderEntry(entry)}</For>
-            </div>
+            <div class="ui-spy-sm">{p.renderCategory(selectedCategory())}</div>
           </Show>
         </div>
       </div>
@@ -145,7 +147,8 @@ export function TourCatalogueFrame(p: {
 // when unavailable, an optional detail line (e.g. which project a play opens),
 // and the Play handler.
 export function TourRow(p: {
-  entry: TourCatalogueEntry;
+  label: string;
+  description: string;
   seen: boolean;
   available: boolean;
   reason: string;
@@ -159,7 +162,7 @@ export function TourRow(p: {
     >
       <div class="min-w-0 flex-1">
         <div class="text-base-content flex items-center gap-2">
-          <span class="font-700">{p.entry.label}</span>
+          <span class="font-700">{p.label}</span>
           <span class="text-base-content-muted rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">
             {p.seen
               ? t3({ en: "Seen", fr: "Vue", pt: "Vista" })
@@ -170,9 +173,7 @@ export function TourRow(p: {
                 })}
           </span>
         </div>
-        <div class="text-base-content-muted mt-1 text-sm">
-          {p.entry.description}
-        </div>
+        <div class="text-base-content-muted mt-1 text-sm">{p.description}</div>
         {p.detail}
         <Show when={!p.available}>
           <div class="text-base-content-muted mt-1 text-sm italic">

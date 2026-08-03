@@ -118,58 +118,68 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon
-            heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
-          >
-            <div class="ui-gap-sm flex items-center">
-              <SortControl
-                value={projectsSortMode()}
-                onChange={setProjectsSortMode}
-                outlineAndBase100
-              />
-              <Show when={instanceState.currentUserIsGlobalAdmin}>
-                <Button onClick={compareProjects} outline onBackground="base-content" intent="base-100">
-                  {t3({
-                    en: "Compare projects",
-                    fr: "Comparer les projets",
-                    pt: "Comparar projetos",
-                  })}
-                </Button>
-              </Show>
-              <Show
-                when={
-                  instanceState.currentUserIsGlobalAdmin &&
-                  pendingDeletionCount() > 0
-                }
-              >
-                <Button
-                  onClick={openPendingDeletions}
-                  outline
-                  onBackground="base-content"
-                  intent="base-100"
+          <div class="h-full w-full" data-tour="instance-projects-header">
+            <HeadingBarMainRibbon
+              heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
+            >
+              <div class="ui-gap-sm flex items-center">
+                <SortControl
+                  value={projectsSortMode()}
+                  onChange={setProjectsSortMode}
+                  outlineAndBase100
+                />
+                <Show when={instanceState.currentUserIsGlobalAdmin}>
+                  <Button
+                    onClick={compareProjects}
+                    outline
+                    onBackground="base-content"
+                    intent="base-100"
+                  >
+                    {t3({
+                      en: "Compare projects",
+                      fr: "Comparer les projets",
+                      pt: "Comparar projetos",
+                    })}
+                  </Button>
+                </Show>
+                <Show
+                  when={
+                    instanceState.currentUserIsGlobalAdmin &&
+                    pendingDeletionCount() > 0
+                  }
                 >
-                  {t3({
-                    en: `Pending deletions (${pendingDeletionCount()})`,
-                    fr: `Suppressions en attente (${pendingDeletionCount()})`,
-                    pt: `Eliminações pendentes (${pendingDeletionCount()})`,
-                  })}
-                </Button>
-              </Show>
-              <Show
-                when={
-                  instanceState.currentUserIsGlobalAdmin || p.canCreateProjects
-                }
-              >
-                <Button onClick={attemptAddProject} iconName="plus">
-                  {t3({
-                    en: "Create project",
-                    fr: "Créer un projet",
-                    pt: "Criar projeto",
-                  })}
-                </Button>
-              </Show>
-            </div>
-          </HeadingBarMainRibbon>
+                  <Button
+                    onClick={openPendingDeletions}
+                    outline
+                    onBackground="base-content"
+                    intent="base-100"
+                  >
+                    {t3({
+                      en: `Pending deletions (${pendingDeletionCount()})`,
+                      fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                      pt: `Eliminações pendentes (${pendingDeletionCount()})`,
+                    })}
+                  </Button>
+                </Show>
+                <Show
+                  when={
+                    instanceState.currentUserIsGlobalAdmin ||
+                    p.canCreateProjects
+                  }
+                >
+                  <div data-tour="instance-projects-create">
+                    <Button onClick={attemptAddProject} iconName="plus">
+                      {t3({
+                        en: "Create project",
+                        fr: "Créer un projet",
+                        pt: "Criar projeto",
+                      })}
+                    </Button>
+                  </div>
+                </Show>
+              </div>
+            </HeadingBarMainRibbon>
+          </div>
         }
       >
         <div class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto">
@@ -224,9 +234,7 @@ export function InstanceProjects(p: Props) {
                   </div>
                   <Show when={project.lastActivityAt}>
                     {(ts) => (
-                      <div class="ui-text-caption">
-                        {formatTimeAgo(ts())}
-                      </div>
+                      <div class="ui-text-caption">{formatTimeAgo(ts())}</div>
                     )}
                   </Show>
                 </a>

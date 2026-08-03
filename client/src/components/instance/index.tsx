@@ -46,6 +46,7 @@ import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
 import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
+import { setupInstanceTours } from "~/onboarding";
 
 type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
 
@@ -166,6 +167,14 @@ export default function Instance(p: Props) {
     return t;
   };
 
+  // First-visit tours for the instance tabs. The predicate keeps them from
+  // firing while a project page covers the instance UI.
+  const instanceTourManager = setupInstanceTours({
+    currentTab: tab,
+    instanceVisible: () =>
+      !getFirstString(searchParams.p) && instanceState.currentUserApproved,
+  });
+
   // post-login modals — wait until user is approved; skip inside a project.
   // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
   // approval store) re-fire it on every return from a project, which would
@@ -217,6 +226,8 @@ export default function Instance(p: Props) {
           .filter((project) => project.status === "ready")
           .map((project) => ({ id: project.id, label: project.label })),
         openProject: (projectId: string) => setSearchParams({ p: projectId }),
+        instanceManager: instanceTourManager,
+        openInstanceTab: setTab,
       },
     });
   }
@@ -324,7 +335,11 @@ export default function Instance(p: Props) {
                     }
                   >
                     <Button onClick={openTours} intent="base-100">
-                      {t3({ en: "Tours", fr: "Visites", pt: "Visitas" })}
+                      {t3({
+                        en: "Guided tours",
+                        fr: "Visites guidées",
+                        pt: "Visitas guiadas",
+                      })}
                     </Button>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
@@ -483,10 +498,7 @@ function recordWhatsNewEvent(
   serverActions.recordWhatsNewEvent({ postId, event }).catch(() => {});
 }
 
-async function persistWhatsNewReadIds(
-  ids: Set<string>,
-  posts: WhatsNewPost[],
-) {
+async function persistWhatsNewReadIds(ids: Set<string>, posts: WhatsNewPost[]) {
   const pruned = pruneWhatsNewReadIds(ids, posts);
   try {
     await clerk.user?.update({
@@ -504,10 +516,7 @@ async function persistWhatsNewReadIds(
 
 async function markWhatsNewRead(postId: string) {
   const posts = whatsNewPostsForCurrentUser();
-  await persistWhatsNewReadIds(
-    new Set([...whatsNewReadIds(), postId]),
-    posts,
-  );
+  await persistWhatsNewReadIds(new Set([...whatsNewReadIds(), postId]), posts);
 }
 
 async function maybeShowWhatsNew(isBrandNewUser: boolean) {

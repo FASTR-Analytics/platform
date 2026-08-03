@@ -1,10 +1,5 @@
 import { t3 } from "lib";
-import {
-  Button,
-  FrameTop,
-  openComponent,
-  toNum0,
-} from "panther";
+import { Button, FrameTop, openComponent, toNum0 } from "panther";
 import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
@@ -103,25 +98,27 @@ export function InstanceData(p: Props) {
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBarMainRibbon
-              heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-            >
-              <Show when={canConfigureData()}>
-                <Button
-                  onClick={openDhis2Credentials}
-                  outline
-                  intent="base-100"
-                  onBackground="base-content"
-                  iconName="settings"
-                >
-                  {t3({
-                    en: "DHIS2 credentials",
-                    fr: "Identifiants DHIS2",
-                    pt: "Credenciais DHIS2",
-                  })}
-                </Button>
-              </Show>
-            </HeadingBarMainRibbon>
+            <div class="h-full w-full" data-tour="instance-data-header">
+              <HeadingBarMainRibbon
+                heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
+              >
+                <Show when={canConfigureData()}>
+                  <Button
+                    onClick={openDhis2Credentials}
+                    outline
+                    intent="base-100"
+                    onBackground="base-content"
+                    iconName="settings"
+                  >
+                    {t3({
+                      en: "DHIS2 credentials",
+                      fr: "Identifiants DHIS2",
+                      pt: "Credenciais DHIS2",
+                    })}
+                  </Button>
+                </Show>
+              </HeadingBarMainRibbon>
+            </div>
           }
         >
           <div class="ui-pad overflow-auto">
@@ -140,6 +137,7 @@ export function InstanceData(p: Props) {
                 <div class="ui-gap flex flex-1 flex-wrap">
                   <div
                     class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                    data-tour="instance-data-card"
                     onClick={() => setSelectedDatasource("admin_areas")}
                   >
                     <div class="font-700 pb-2">

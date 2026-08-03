@@ -267,7 +267,11 @@ function ProjectInner() {
                     outline
                     onBackground="base-content"
                   >
-                    {t3({ en: "Tours", fr: "Visites", pt: "Visitas" })}
+                    {t3({
+                      en: "Guided tours",
+                      fr: "Visites guidées",
+                      pt: "Visitas guiadas",
+                    })}
                   </Button>
                   <Button
                     onClick={() =>

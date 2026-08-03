@@ -37,6 +37,11 @@ import {
   buildDashboardEditorItemsTour,
   buildVizEditorCreateTour,
   buildVizEditorEditTour,
+  buildInstanceAssetsTour,
+  buildInstanceDataTour,
+  buildInstanceProjectsTour,
+  buildInstanceSettingsTour,
+  buildInstanceUsersTour,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
@@ -73,6 +78,36 @@ import {
 const currentView = () => projectAIViewController.current();
 const isEditingView = () => currentView().id.startsWith("editing_");
 
+// Instance-level tabs (Projects / Data / Assets / Users / Settings). Called
+// from the instance shell, which passes its permission-normalized tab
+// accessor plus a visibility gate (approved AND not inside a project) so a
+// tour can never fire behind a project page.
+export function setupInstanceTours(opts: {
+  currentTab: () => "projects" | "data" | "assets" | "users" | "settings";
+  instanceVisible: () => boolean;
+}): TourManagerController {
+  const onTab = (tab: string) => () =>
+    opts.instanceVisible() && opts.currentTab() === tab;
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      "instance-projects": onTab("projects"),
+      "instance-data": onTab("data"),
+      "instance-assets": onTab("assets"),
+      "instance-users": onTab("users"),
+      "instance-settings": onTab("settings"),
+    },
+    watch: [() => instanceState.projects.length],
+    tours: [
+      { page: "instance-projects", tour: buildInstanceProjectsTour() },
+      { page: "instance-data", tour: buildInstanceDataTour() },
+      { page: "instance-assets", tour: buildInstanceAssetsTour() },
+      { page: "instance-users", tour: buildInstanceUsersTour() },
+      { page: "instance-settings", tour: buildInstanceSettingsTour() },
+    ],
+  });
+}
+
 const editingVizInMode = (mode: "edit" | "create" | "ephemeral") => {
   const view = currentView();
   return view.id === "editing_visualization" && view.params.mode === mode;
@@ -80,15 +115,19 @@ const editingVizInMode = (mode: "edit" | "create" | "ephemeral") => {
 
 const editingSlideOfType = (type: SlideType) => {
   const view = currentView();
-  return view.id === "editing_slide" && view.context.getTempSlide().type === type;
+  return (
+    view.id === "editing_slide" && view.context.getTempSlide().type === type
+  );
 };
 
 export function setupDeckTours(): TourManagerController {
   const hasDecks = () =>
-    projectState.projectModules.length > 0 && projectState.slideDecks.length > 0;
+    projectState.projectModules.length > 0 &&
+    projectState.slideDecks.length > 0;
   const deckCardOnScreen = () =>
     document.querySelector('[data-tour="decks-deck-card"]') !== null;
-  const isEditor = () => projectState.thisUserPermissions.can_configure_slide_decks;
+  const isEditor = () =>
+    projectState.thisUserPermissions.can_configure_slide_decks;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
   // The deck list, the deck editor and the per-slide-type tours share ONE
@@ -137,7 +176,10 @@ export function setupDeckTours(): TourManagerController {
       {
         page: "decks",
         when: () =>
-          isEditor() && !projectState.isLocked && hasDecks() && deckCardOnScreen(),
+          isEditor() &&
+          !projectState.isLocked &&
+          hasDecks() &&
+          deckCardOnScreen(),
         tour: buildDecksManageTour(),
       },
       // Inside a deck: toolbar → slides → open Settings. Array order is merge

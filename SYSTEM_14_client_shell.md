@@ -30,7 +30,9 @@ language/calendar singletons and the app's translation conventions, UI
 preferences, connection monitoring, onboarding modals, the help-button
 system, and the first-visit page tours (`client/src/onboarding/` — the
 `@njwse/roadtrip` tour manager, Clerk-backed seen-flags under
-`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell). The
+`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell and,
+for the instance tabs, to the instance shell's tab signal via
+`setupInstanceTours`). The
 same directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` +
 `catalogue.ts`, opened from the project topbar), which replays or re-arms any
 tour: the project shell passes its seven per-area managers to the modal as
@@ -43,10 +45,13 @@ to open the first slide of the requested type. Tour availability is computed
 over a `TourProjectFacts` slice satisfied by both the live `projectState` and
 a fetched `ProjectDetail`, which powers the instance-level variant
 (`tour_catalogue_instance_modal.tsx`, opened from the instance topbar): it
-fetches every accessible project's detail, offers Replay only for tours some
+fetches every accessible project's detail, offers Play only for tours some
 project qualifies for (first qualifying project wins; slide-type presence is
 verified by searching the slide documents), and hands the chosen tour to the
-project shell via the `pendingTourReplay` signal, consumed after hydration. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+project shell via the `pendingTourReplay` signal, consumed after hydration;
+its extra "Instance" category plays the five instance-tab tours in place via
+the instance manager. Both modals share the sidebar shell in
+`tour_catalogue_layout.tsx`. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

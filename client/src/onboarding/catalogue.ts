@@ -330,6 +330,112 @@ const openFirstDashboard = () => {
   }
 };
 
+// ── Instance-level tours ─────────────────────────────────────────────────
+// These play on the instance page itself (no project involved), so their
+// availability reads instanceState only and "navigation" is just an instance
+// tab switch, performed by the instance modal.
+
+export type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
+
+export type InstanceTourCatalogueEntry = {
+  /** Must match the TourDefinition id exactly. */
+  id: string;
+  tab: InstanceTab;
+  label: string;
+  description: string;
+  available: () => boolean;
+  unavailableReason: () => string;
+};
+
+export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
+  const perms = () => instanceState.currentUserPermissions;
+  const admin = () => instanceState.currentUserIsGlobalAdmin;
+  return [
+    {
+      id: "instance-projects-intro",
+      tab: "projects",
+      label: t3({
+        en: "Projects overview",
+        fr: "Aperçu des projets",
+        pt: "Visão geral dos projetos",
+      }),
+      description: t3({
+        en: "The projects page: what projects are and how to open one.",
+        fr: "La page des projets : ce que sont les projets et comment en ouvrir un.",
+        pt: "A página dos projetos: o que são os projetos e como abrir um.",
+      }),
+      available: () => true,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-data-intro",
+      tab: "data",
+      label: t3({
+        en: "Instance data overview",
+        fr: "Aperçu des données de l'instance",
+        pt: "Visão geral dos dados da instância",
+      }),
+      description: t3({
+        en: "Where data is uploaded once for the whole instance.",
+        fr: "Où les données sont importées une seule fois pour toute l'instance.",
+        pt: "Onde os dados são carregados uma única vez para toda a instância.",
+      }),
+      available: () =>
+        admin() || perms().can_view_data || perms().can_configure_data,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-assets-intro",
+      tab: "assets",
+      label: t3({
+        en: "Assets overview",
+        fr: "Aperçu des ressources",
+        pt: "Visão geral dos recursos",
+      }),
+      description: t3({
+        en: "Shared files available to every project.",
+        fr: "Les fichiers partagés disponibles pour tous les projets.",
+        pt: "Ficheiros partilhados disponíveis para todos os projetos.",
+      }),
+      available: () => true,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-users-intro",
+      tab: "users",
+      label: t3({
+        en: "Users overview",
+        fr: "Aperçu des utilisateurs",
+        pt: "Visão geral dos utilizadores",
+      }),
+      description: t3({
+        en: "Managing who has access and what they can do.",
+        fr: "Gérer qui a accès et ce que chacun peut faire.",
+        pt: "Gerir quem tem acesso e o que cada pessoa pode fazer.",
+      }),
+      available: () =>
+        admin() || perms().can_configure_users || perms().can_view_users,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-settings-intro",
+      tab: "settings",
+      label: t3({
+        en: "Instance settings",
+        fr: "Paramètres de l'instance",
+        pt: "Definições da instância",
+      }),
+      description: t3({
+        en: "Instance-wide configuration every project inherits.",
+        fr: "La configuration de l'instance dont héritent tous les projets.",
+        pt: "A configuração da instância que todos os projetos herdam.",
+      }),
+      available: () => admin() || perms().can_configure_settings,
+      unavailableReason: reasonNoPageAccess,
+    },
+  ];
+}
+
 // Built per call (not a module-scope const) so the t3 literals resolve in the
 // user's current language — the app language is set at runtime, after import.
 export function getTourCatalogue(): TourCatalogueEntry[] {

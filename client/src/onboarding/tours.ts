@@ -2,6 +2,7 @@ import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
 import { projectState } from "~/state/project/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -10,7 +11,11 @@ function tourLabels(): TourLabels {
   return {
     next: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
     back: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-    skip: t3({ en: "Skip tour", fr: "Passer la visite", pt: "Ignorar a visita" }),
+    skip: t3({
+      en: "Skip tour",
+      fr: "Passer la visite",
+      pt: "Ignorar a visita",
+    }),
     done: t3({ en: "Done", fr: "Terminé", pt: "Concluído" }),
   };
 }
@@ -81,7 +86,8 @@ export function buildDecksViewerTour(): TourDefinition {
       },
       {
         id: "search",
-        target: () => document.querySelector('[data-tour="decks-header"] input'),
+        target: () =>
+          document.querySelector('[data-tour="decks-header"] input'),
         title: t3({ en: "Search", fr: "Recherche", pt: "Pesquisa" }),
         body: t3({
           en: "Type at least three letters to filter decks by name.",
@@ -754,7 +760,11 @@ export function buildDeckEditorSettingsTour(): TourDefinition {
       {
         id: "settings-save",
         target: "#deck-settings-save-button",
-        title: t3({ en: "Save or cancel", fr: "Enregistrer ou annuler", pt: "Guardar ou cancelar" }),
+        title: t3({
+          en: "Save or cancel",
+          fr: "Enregistrer ou annuler",
+          pt: "Guardar ou cancelar",
+        }),
         body: t3({
           en: "Save applies your changes to every slide at once. Cancel closes without changing anything — either one returns you to the slides.",
           fr: "Enregistrer applique vos modifications à toutes les diapositives d'un coup. Annuler ferme sans rien changer — dans les deux cas vous revenez aux diapositives.",
@@ -804,7 +814,11 @@ function slideTypeStep(): TourStep {
   return {
     id: "type",
     target: tourTarget("slide-type-select"),
-    title: t3({ en: "Slide type", fr: "Type de diapositive", pt: "Tipo de diapositivo" }),
+    title: t3({
+      en: "Slide type",
+      fr: "Type de diapositive",
+      pt: "Tipo de diapositivo",
+    }),
     body: t3({
       en: "Switch this slide between Cover, Section and Content at any time — the editing options on the left change to match.",
       fr: "Basculez cette diapositive entre Couverture, Section et Contenu à tout moment — les options d'édition à gauche s'adaptent.",
@@ -818,7 +832,11 @@ function slideCanvasStep(): TourStep {
   return {
     id: "canvas",
     target: tourTarget("slide-canvas"),
-    title: t3({ en: "Live preview", fr: "Aperçu en direct", pt: "Pré-visualização em direto" }),
+    title: t3({
+      en: "Live preview",
+      fr: "Aperçu en direct",
+      pt: "Pré-visualização em direto",
+    }),
     body: t3({
       en: "This is exactly how the slide will look when presented or exported. It re-renders as you edit.",
       fr: "Voici exactement l'apparence de la diapositive lors de la présentation ou de l'export. Elle se met à jour pendant que vous modifiez.",
@@ -943,7 +961,11 @@ export function buildSlideContentTour(): TourDefinition {
       {
         id: "open-content-tab",
         target: tourTarget("slide-content-tab-block"),
-        title: t3({ en: "Now the content", fr: "Passons au contenu", pt: "Agora o conteúdo" }),
+        title: t3({
+          en: "Now the content",
+          fr: "Passons au contenu",
+          pt: "Agora o conteúdo",
+        }),
         body: t3({
           en: "Click the Content tab to carry on.",
           fr: "Cliquez sur l'onglet Contenu pour continuer.",
@@ -1087,7 +1109,11 @@ export function buildReportEditorIntroTour(): TourDefinition {
       {
         id: "ai",
         target: "#report-ai-button",
-        title: t3({ en: "Write with the AI", fr: "Écrire avec l'IA", pt: "Escrever com a IA" }),
+        title: t3({
+          en: "Write with the AI",
+          fr: "Écrire avec l'IA",
+          pt: "Escrever com a IA",
+        }),
         body: t3({
           en: "Open the assistant to draft or rework sections. Select some text first and it works on just that part.",
           fr: "Ouvrez l'assistant pour rédiger ou retravailler des sections. Sélectionnez d'abord du texte et il ne travaillera que sur cette partie.",
@@ -1224,7 +1250,11 @@ export function buildVizIntroTour(): TourDefinition {
       {
         id: "sort",
         target: tourTarget("viz-sort"),
-        title: t3({ en: "Search and sort", fr: "Rechercher et trier", pt: "Pesquisar e ordenar" }),
+        title: t3({
+          en: "Search and sort",
+          fr: "Rechercher et trier",
+          pt: "Pesquisar e ordenar",
+        }),
         body: t3({
           en: "Sort by name or by when they were last updated, and use the search box to filter by name.",
           fr: "Triez par nom ou par date de dernière mise à jour, et utilisez la recherche pour filtrer par nom.",
@@ -1327,7 +1357,11 @@ export function buildDataIntroTour(): TourDefinition {
       {
         id: "intro",
         target: tourTarget("data-header"),
-        title: t3({ en: "Project data", fr: "Données du projet", pt: "Dados do projeto" }),
+        title: t3({
+          en: "Project data",
+          fr: "Données du projet",
+          pt: "Dados do projeto",
+        }),
         body: t3({
           en: "This tab shows which datasets this project draws on. Data is uploaded once for the whole instance, then exported into individual projects here.",
           fr: "Cet onglet indique les jeux de données utilisés par ce projet. Les données sont importées une fois pour toute l'instance, puis exportées ici vers chaque projet.",
@@ -1408,7 +1442,11 @@ export function buildSettingsIntroTour(): TourDefinition {
       {
         id: "name",
         target: tourTarget("settings-name"),
-        title: t3({ en: "Project name", fr: "Nom du projet", pt: "Nome do projeto" }),
+        title: t3({
+          en: "Project name",
+          fr: "Nom du projet",
+          pt: "Nome do projeto",
+        }),
         body: t3({
           en: "Rename the project — this is the name everyone sees in the project list.",
           fr: "Renommez le projet — c'est le nom que tout le monde voit dans la liste des projets.",
@@ -1449,7 +1487,11 @@ export function buildSettingsIntroTour(): TourDefinition {
       {
         id: "backups",
         target: tourTarget("settings-backups"),
-        title: t3({ en: "Backups", fr: "Sauvegardes", pt: "Cópias de segurança" }),
+        title: t3({
+          en: "Backups",
+          fr: "Sauvegardes",
+          pt: "Cópias de segurança",
+        }),
         body: t3({
           en: "Snapshots of the whole project, grouped by day. Create one before a big change, download it to keep a copy, or restore to roll the project back.",
           fr: "Des instantanés de tout le projet, regroupés par jour. Créez-en un avant un changement important, téléchargez-le pour en garder une copie, ou restaurez pour revenir en arrière.",
@@ -1497,7 +1539,11 @@ export function buildDashboardsIntroTour(): TourDefinition {
       {
         id: "sort",
         target: tourTarget("dashboards-sort"),
-        title: t3({ en: "Search and sort", fr: "Rechercher et trier", pt: "Pesquisar e ordenar" }),
+        title: t3({
+          en: "Search and sort",
+          fr: "Rechercher et trier",
+          pt: "Pesquisar e ordenar",
+        }),
         body: t3({
           en: "Sort by name or by when they were last updated, and search by name once you have a few.",
           fr: "Triez par nom ou par date de dernière mise à jour, et recherchez par nom lorsque vous en avez plusieurs.",
@@ -1740,7 +1786,11 @@ function vizPreviewStep(): TourStep {
   return {
     id: "preview",
     target: tourTarget("viz-preview"),
-    title: t3({ en: "Live preview", fr: "Aperçu en direct", pt: "Pré-visualização em direto" }),
+    title: t3({
+      en: "Live preview",
+      fr: "Aperçu en direct",
+      pt: "Pré-visualização em direto",
+    }),
     body: t3({
       en: "The figure redraws with every change, using the project's real data — this is exactly how it will look in decks, reports and dashboards.",
       fr: "La figure se redessine à chaque modification, avec les données réelles du projet — c'est exactement son apparence dans les présentations, rapports et tableaux de bord.",
@@ -1858,7 +1908,11 @@ export function buildVizEditorEditTour(): TourDefinition {
       {
         id: "style",
         target: tourTarget("viz-panel-style"),
-        title: t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" }),
+        title: t3({
+          en: "Presentation",
+          fr: "Présentation",
+          pt: "Apresentação",
+        }),
         body: t3({
           en: "Colours, axis limits, labels, decimal places, sorting and legends live here, along with conditional formatting to colour values by how they compare to a target.",
           fr: "Couleurs, limites d'axes, étiquettes, décimales, tri et légendes se trouvent ici, ainsi que la mise en forme conditionnelle pour colorer les valeurs selon leur écart à une cible.",
@@ -1869,7 +1923,11 @@ export function buildVizEditorEditTour(): TourDefinition {
       {
         id: "open-text",
         target: tourTarget("viz-tab-text"),
-        title: t3({ en: "And the words", fr: "Et les textes", pt: "E os textos" }),
+        title: t3({
+          en: "And the words",
+          fr: "Et les textes",
+          pt: "E os textos",
+        }),
         body: t3({
           en: "Click Text to carry on.",
           fr: "Cliquez sur Texte pour continuer.",
@@ -1902,6 +1960,191 @@ export function buildVizEditorEditTour(): TourDefinition {
           en: "When someone else is editing with you, changes save as you make them. Otherwise Save, Save and close, and Save as new (which keeps the original) appear on the left as soon as you change something. On the right sit download, duplicate, rename and delete.",
           fr: "Lorsque quelqu'un modifie en même temps que vous, les changements sont enregistrés au fur et à mesure. Sinon, Sauvegarder, Sauvegarder et quitter, et Sauver comme nouvelle (qui conserve l'original) apparaissent à gauche dès que vous modifiez quelque chose. À droite se trouvent télécharger, dupliquer, renommer et supprimer.",
           pt: "Quando alguém está a editar consigo, as alterações são guardadas à medida que as faz. Caso contrário, Guardar, Guardar e fechar, e Guardar como nova (que mantém o original) aparecem à esquerda assim que altera algo. À direita estão descarregar, duplicar, mudar o nome e eliminar.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
+// -------------------------------------------- Instance-level tabs
+
+// First-visit tours for the instance-level tabs (Projects / Data / Assets /
+// Users / Settings). Unlike the project tours above, their availability reads
+// instanceState only and their manager lives in the instance shell.
+
+export function buildInstanceProjectsTour(): TourDefinition {
+  return {
+    id: "instance-projects-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-projects-header"),
+        title: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
+        body: t3({
+          en: "Everything in FASTR happens inside a project: each one gets its own data exports, modules, visualizations and documents. Click a card to open one.",
+          fr: "Tout dans FASTR se passe dans un projet : chacun dispose de ses propres exportations de données, modules, visualisations et documents. Cliquez sur une carte pour en ouvrir un.",
+          pt: "Tudo no FASTR acontece dentro de um projeto: cada um tem as suas próprias exportações de dados, módulos, visualizações e documentos. Clique num cartão para abrir um.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "create",
+        target: tourTarget("instance-projects-create"),
+        when: () =>
+          instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_create_projects,
+        title: t3({
+          en: "Create a project",
+          fr: "Créer un projet",
+          pt: "Criar um projeto",
+        }),
+        body: t3({
+          en: "A new project only needs a name — you choose which datasets to export into it and which modules to enable afterwards.",
+          fr: "Un nouveau projet ne nécessite qu'un nom — vous choisissez ensuite les jeux de données à y exporter et les modules à activer.",
+          pt: "Um novo projeto só precisa de um nome — depois escolhe os conjuntos de dados a exportar e os módulos a ativar.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildInstanceDataTour(): TourDefinition {
+  return {
+    id: "instance-data-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-data-header"),
+        title: t3({
+          en: "Instance data",
+          fr: "Données de l'instance",
+          pt: "Dados da instância",
+        }),
+        body: t3({
+          en: "Data is uploaded once here for the whole instance — facilities, HMIS, health facility assessments and more. Projects then export what they need from this shared pool.",
+          fr: "Les données sont importées ici une seule fois pour toute l'instance — établissements, SNIS, évaluations des établissements de santé, etc. Les projets exportent ensuite ce dont ils ont besoin depuis ce fonds commun.",
+          pt: "Os dados são carregados aqui uma única vez para toda a instância — estabelecimentos de saúde, HMIS, avaliações de unidades de saúde e mais. Os projetos exportam depois o que precisam deste conjunto comum.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "cards",
+        target: tourTarget("instance-data-card"),
+        title: t3({
+          en: "One card per datasource",
+          fr: "Une carte par source de données",
+          pt: "Um cartão por fonte de dados",
+        }),
+        body: t3({
+          en: "Each card shows a datasource and its current status. Click one to inspect what has been uploaded or to import new data.",
+          fr: "Chaque carte présente une source de données et son état actuel. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer de nouvelles données.",
+          pt: "Cada cartão mostra uma fonte de dados e o seu estado atual. Clique num cartão para consultar o que foi carregado ou para importar novos dados.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildInstanceAssetsTour(): TourDefinition {
+  return {
+    id: "instance-assets-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-assets-header"),
+        title: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
+        body: t3({
+          en: "Shared files for the whole instance — logos, images, CSVs and documents that any project can use.",
+          fr: "Des fichiers partagés pour toute l'instance — logos, images, CSV et documents utilisables par tous les projets.",
+          pt: "Ficheiros partilhados para toda a instância — logótipos, imagens, CSV e documentos que qualquer projeto pode utilizar.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "upload",
+        target: "#select-file-button",
+        title: t3({
+          en: "Upload files",
+          fr: "Téléverser des fichiers",
+          pt: "Carregar ficheiros",
+        }),
+        body: t3({
+          en: "Upload once, use anywhere: assets are grouped by file type and available across projects.",
+          fr: "Téléversez une fois, utilisez partout : les ressources sont regroupées par type de fichier et disponibles dans tous les projets.",
+          pt: "Carregue uma vez, utilize em qualquer lugar: os recursos são agrupados por tipo de ficheiro e ficam disponíveis em todos os projetos.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildInstanceUsersTour(): TourDefinition {
+  return {
+    id: "instance-users-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-users-header"),
+        title: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
+        body: t3({
+          en: "Everyone with access to this instance, with their global role and permissions. Click a user to view or edit what they can do.",
+          fr: "Toutes les personnes ayant accès à cette instance, avec leur rôle global et leurs permissions. Cliquez sur un utilisateur pour voir ou modifier ce qu'il peut faire.",
+          pt: "Todas as pessoas com acesso a esta instância, com o seu papel global e permissões. Clique num utilizador para ver ou editar o que pode fazer.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "add",
+        target: tourTarget("instance-users-add"),
+        title: t3({
+          en: "Add users",
+          fr: "Ajouter des utilisateurs",
+          pt: "Adicionar utilizadores",
+        }),
+        body: t3({
+          en: "Invite users by email, or batch import many at once from a CSV.",
+          fr: "Invitez des utilisateurs par e-mail, ou importez-en plusieurs à la fois depuis un CSV.",
+          pt: "Convide utilizadores por e-mail ou importe vários de uma vez a partir de um CSV.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildInstanceSettingsTour(): TourDefinition {
+  return {
+    id: "instance-settings-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-settings-header"),
+        title: t3({
+          en: "Instance settings",
+          fr: "Paramètres de l'instance",
+          pt: "Definições da instância",
+        }),
+        body: t3({
+          en: "Instance-wide configuration: country, administrative area levels and labels, and other settings every project inherits.",
+          fr: "La configuration de toute l'instance : pays, niveaux et libellés des unités administratives, et d'autres paramètres dont héritent tous les projets.",
+          pt: "A configuração de toda a instância: país, níveis e rótulos das zonas administrativas e outras definições que todos os projetos herdam.",
         }),
         placement: "bottom",
       },

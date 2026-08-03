@@ -167,7 +167,11 @@ export function InstanceSettings(p: Props) {
   const facilityColumnOptions = [
     {
       key: "facility_name",
-      label: t3({ en: "Facility Names", fr: "Noms des établissements", pt: "Nomes dos estabelecimentos de saúde" }),
+      label: t3({
+        en: "Facility Names",
+        fr: "Noms des établissements",
+        pt: "Nomes dos estabelecimentos de saúde",
+      }),
       checked: includeNames,
       setChecked: setIncludeNames,
       labelValue: labelNames,
@@ -175,7 +179,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_type",
-      label: t3({ en: "Facility Types", fr: "Types d'établissements", pt: "Tipos de estabelecimentos de saúde" }),
+      label: t3({
+        en: "Facility Types",
+        fr: "Types d'établissements",
+        pt: "Tipos de estabelecimentos de saúde",
+      }),
       checked: includeTypes,
       setChecked: setIncludeTypes,
       labelValue: labelTypes,
@@ -195,7 +203,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_1",
-      label: t3({ en: "Custom Field 1", fr: "Champ personnalisé 1", pt: "Campo personalizado 1" }),
+      label: t3({
+        en: "Custom Field 1",
+        fr: "Champ personnalisé 1",
+        pt: "Campo personalizado 1",
+      }),
       checked: includeCustom1,
       setChecked: setIncludeCustom1,
       labelValue: labelCustom1,
@@ -203,7 +215,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_2",
-      label: t3({ en: "Custom Field 2", fr: "Champ personnalisé 2", pt: "Campo personalizado 2" }),
+      label: t3({
+        en: "Custom Field 2",
+        fr: "Champ personnalisé 2",
+        pt: "Campo personalizado 2",
+      }),
       checked: includeCustom2,
       setChecked: setIncludeCustom2,
       labelValue: labelCustom2,
@@ -211,7 +227,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_3",
-      label: t3({ en: "Custom Field 3", fr: "Champ personnalisé 3", pt: "Campo personalizado 3" }),
+      label: t3({
+        en: "Custom Field 3",
+        fr: "Champ personnalisé 3",
+        pt: "Campo personalizado 3",
+      }),
       checked: includeCustom3,
       setChecked: setIncludeCustom3,
       labelValue: labelCustom3,
@@ -219,7 +239,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_4",
-      label: t3({ en: "Custom Field 4", fr: "Champ personnalisé 4", pt: "Campo personalizado 4" }),
+      label: t3({
+        en: "Custom Field 4",
+        fr: "Champ personnalisé 4",
+        pt: "Campo personalizado 4",
+      }),
       checked: includeCustom4,
       setChecked: setIncludeCustom4,
       labelValue: labelCustom4,
@@ -227,7 +251,11 @@ export function InstanceSettings(p: Props) {
     },
     {
       key: "facility_custom_5",
-      label: t3({ en: "Custom Field 5", fr: "Champ personnalisé 5", pt: "Campo personalizado 5" }),
+      label: t3({
+        en: "Custom Field 5",
+        fr: "Champ personnalisé 5",
+        pt: "Campo personalizado 5",
+      }),
       checked: includeCustom5,
       setChecked: setIncludeCustom5,
       labelValue: labelCustom5,
@@ -264,7 +292,11 @@ export function InstanceSettings(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBarMainRibbon heading={t3(TC.settings)}></HeadingBarMainRibbon>
+        <div class="h-full w-full" data-tour="instance-settings-header">
+          <HeadingBarMainRibbon
+            heading={t3(TC.settings)}
+          ></HeadingBarMainRibbon>
+        </div>
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
@@ -463,7 +495,6 @@ export function InstanceSettings(p: Props) {
             </For>
           </div>
         </SettingsSection>
-
       </div>
     </FrameTop>
   );
