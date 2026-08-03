@@ -56,7 +56,10 @@ export type VersionStep = {
 
 export type DiffSegment = {
   text: string;
-  kind: "same" | "added" | "removed";
+  /** "edited" marks text whose REFERENT changed in place (an embed token
+   *  whose figure/image was restyled) — injected by consumers after the text
+   *  diff; computeAttributedDiff itself never emits it. */
+  kind: "same" | "added" | "removed" | "edited";
   /** Who made this change; undefined when attribution could not be pinned to
    *  a step (the UI shows a generic tooltip). Absent for "same". */
   who?: string;

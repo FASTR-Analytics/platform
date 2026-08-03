@@ -299,11 +299,28 @@ export function DeckVersionPreview(p: {
           if (ch.key === "layout") {
             return t3({ en: "Block arrangement", fr: "Disposition des blocs", pt: "Disposição dos blocos" });
           }
-          return ch.blockType === "figure"
-            ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
-            : ch.blockType === "image"
+          if (ch.blockType === "figure") {
+            const base = t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" });
+            const cap = figureCaption(ch);
+            return cap ? `${base} “${cap}”` : base;
+          }
+          return ch.blockType === "image"
             ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
             : t3({ en: "Text block", fr: "Bloc de texte", pt: "Bloco de texto" });
+        }
+
+        // The figure's caption (from either side's bundle) — with several viz
+        // blocks on one slide it says WHICH chart the row is about.
+        function figureCaption(ch: SlideElementChange): string | undefined {
+          for (const b of [ch.newBlock, ch.oldBlock]) {
+            if (b?.type === "figure") {
+              const cap = b.bundle?.config.t.caption.trim();
+              if (cap) {
+                return cap;
+              }
+            }
+          }
+          return undefined;
         }
 
         function elementRows(

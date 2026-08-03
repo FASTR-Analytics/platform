@@ -27,7 +27,7 @@ import {
   editorDisplayNames,
 } from "./diff_segments";
 import { ReportVersionCompare } from "./report_version_compare";
-import { computeAttributedDiff } from "./version_diff";
+import { computeAttributedDiff, type DiffSegment } from "./version_diff";
 
 type PreviewMode = "edits" | "preview";
 
@@ -277,10 +277,30 @@ function SessionEdits(p: {
             names: buildAuthorNames(p.version.editors, p.version.bodyAuthors),
           },
         ]);
-        const hasChanges = segments.some((s) => s.kind !== "same");
         const figChanges = diffRegistry(prev.figures, p.version.figures);
         const imgChanges = diffRegistry(prev.images, p.version.images);
         const hasVizChanges = figChanges.length > 0 || imgChanges.length > 0;
+        // Embed tokens of in-place-edited figures/images read as unchanged
+        // text — mark them so the body diff highlights WHERE the changed
+        // visualization sits (session-level attribution; registries have no
+        // per-editor ledger).
+        const editedKeys = new Set(
+          [...figChanges, ...imgChanges]
+            .filter((c) => c.kind === "edited")
+            .map((c) => c.key),
+        );
+        const marked = markEditedEmbeds(segments, editedKeys, {
+          who: editorDisplayNames(p.version.editors) || undefined,
+          whoExact: p.version.editors.length === 1,
+          whoEmail: p.version.editors.length === 1
+            ? p.version.editors[0].email
+            : undefined,
+        });
+        const hasChanges = marked.some((s) => s.kind !== "same");
+        // key -> the embed's alt text, so each change card carries the same
+        // name as its highlighted token in the body diff (current body first —
+        // freshest alt; prev body covers removed embeds).
+        const embedLabels = collectEmbedLabels([p.version.body, prev.body]);
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
             <Show when={!p.previousVersionId}>
@@ -294,7 +314,7 @@ function SessionEdits(p: {
             </Show>
             <Show when={hasChanges}>
               <div class="bg-base-100 mx-auto w-full max-w-4xl rounded border p-4">
-                <DiffSegments segments={segments} />
+                <DiffSegments segments={marked} />
               </div>
             </Show>
             <Show when={!hasChanges && !hasVizChanges}>
@@ -323,6 +343,8 @@ function SessionEdits(p: {
                     <VizChangeRow
                       kind={ch.kind}
                       what="figure"
+                      label={embedLabels.get(ch.key) ??
+                        (ch.newVal ?? ch.oldVal)?.bundle?.config.t.caption}
                       old={ch.oldVal && <ReportFigureEmbed figure={ch.oldVal} />}
                       neu={ch.newVal && <ReportFigureEmbed figure={ch.newVal} />}
                     />
@@ -333,6 +355,7 @@ function SessionEdits(p: {
                     <VizChangeRow
                       kind={ch.kind}
                       what="image"
+                      label={embedLabels.get(ch.key)}
                       old={ch.oldVal && (
                         <img
                           class="max-h-64 w-full object-contain"
@@ -390,12 +413,70 @@ function diffRegistry<T>(
   return out;
 }
 
+// key -> alt text of the first embed token referencing it, across the given
+// bodies in priority order.
+function collectEmbedLabels(bodies: string[]): Map<string, string> {
+  const re = /!\[([^\]\n]*)\]\((?:figure|image):([^)\n]+)\)/g;
+  const out = new Map<string, string>();
+  for (const body of bodies) {
+    for (const m of body.matchAll(re)) {
+      if (m[1] && !out.has(m[2])) {
+        out.set(m[2], m[1]);
+      }
+    }
+  }
+  return out;
+}
+
+// Split "same" segments around embed tokens whose figure/image was edited in
+// place, re-tagging the token as an "edited" span — the body diff then shows
+// where the changed visualization sits. Tokens whose surrounding text also
+// changed are already highlighted by the text diff itself.
+function markEditedEmbeds(
+  segments: DiffSegment[],
+  editedKeys: Set<string>,
+  who: { who?: string; whoExact?: boolean; whoEmail?: string },
+): DiffSegment[] {
+  if (editedKeys.size === 0) {
+    return segments;
+  }
+  const re = /!\[[^\]\n]*\]\((?:figure|image):([^)\n]+)\)/g;
+  const out: DiffSegment[] = [];
+  for (const seg of segments) {
+    if (seg.kind !== "same") {
+      out.push(seg);
+      continue;
+    }
+    let pos = 0;
+    for (const m of seg.text.matchAll(re)) {
+      const idx = m.index ?? 0;
+      if (!editedKeys.has(m[1])) {
+        continue;
+      }
+      if (idx > pos) {
+        out.push({ text: seg.text.slice(pos, idx), kind: "same" });
+      }
+      out.push({ text: m[0], kind: "edited", ...who });
+      pos = idx + m[0].length;
+    }
+    if (pos === 0) {
+      out.push(seg);
+    } else if (pos < seg.text.length) {
+      out.push({ text: seg.text.slice(pos), kind: "same" });
+    }
+  }
+  return out;
+}
+
 // One changed figure/image: a labeled card with the before/after snapshots
 // side by side (only the surviving side for adds/removals). Attribution stays
 // session-level — registries have no per-editor ledger.
 function VizChangeRow(p: {
   kind: "added" | "removed" | "edited";
   what: "figure" | "image";
+  /** The embed's alt text (or bundle caption) — ties the card to its
+   *  highlighted token in the body diff. */
+  label?: string;
   old?: JSX.Element;
   neu?: JSX.Element;
 }) {
@@ -410,7 +491,11 @@ function VizChangeRow(p: {
   return (
     <div class="bg-base-100 mb-4 rounded border p-3">
       <div class="ui-text-caption mb-2">
-        {whatLabel} — {kindLabel}
+        {whatLabel}
+        <Show when={p.label}>
+          {" "}<span class="font-semibold">“{p.label}”</span>
+        </Show>
+        {" "}— {kindLabel}
       </div>
       <div classList={{ "grid grid-cols-2 gap-3": p.kind === "edited" }}>
         <Show when={p.old}>
