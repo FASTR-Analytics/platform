@@ -1,3 +1,11 @@
+[TBD] [user] [added] - Before/after visual previews for chart and image changes in slide version history
+[TBD] [user] [added] - Chart captions now shown in version history change descriptions
+[TBD] [user] [added] - Visualization and image changes now displayed in report session edits
+[TBD] [user] [changed] - Edited charts and images are highlighted in the report text diff
+[TBD] [admin] [added] - Version history now shows before/after previews for visualizations and images
+[TBD] [admin] [added] - Report session edits now display visualization and image changes separately
+[TBD] [admin] [added] - Figure captions shown in version history to identify which chart changed
+[TBD] [admin] [added] - Edited visualizations are highlighted in the report text diff
 [TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
 [TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
 [TBD] [admin] [changed] - Improved audit logging for user setting changes
