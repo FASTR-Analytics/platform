@@ -7,7 +7,7 @@ import {
 } from "lib";
 import {
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   TextArea,
   Button,
   StateHolderFormError,
@@ -178,13 +178,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({
             en: "DHIS2 Indicator Selection",
             fr: "Sélection d'indicateurs DHIS2",
             pt: "Seleção de indicadores DHIS2",
           })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
           <Button onClick={changeConnection} outline onBackground="base-200" iconName="settings">
             {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
@@ -199,7 +200,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
             {t3({ en: "Save Selected", fr: "Enregistrer la sélection", pt: "Guardar seleção" })} (
             {tempSelectedElements().length})
           </Button>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <div class="flex h-full w-full">

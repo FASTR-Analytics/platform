@@ -57,6 +57,7 @@ import {
   onMount,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import type * as Y from "yjs";
 import {
   createStore,
   produce,
@@ -214,6 +215,49 @@ export function SlideEditor(p: Props) {
     }
   }
 
+  // ── Per-user undo/redo ──────────────────────────────────────────────────────
+  // One unified per-user stack for the whole slide, owned by the session
+  // (see SlideSession.undoManager): structural pushes AND text typed in the
+  // CodeMirror textboxes land in the same history, so the toolbar buttons and
+  // in-textbox Ctrl+Z pop the same stack. Undoing never reverts a
+  // collaborator's edit.
+  let undoMgr: Y.UndoManager | undefined;
+  let detachUndoPop: (() => void) | undefined;
+  const canUndoRedo = () =>
+    !!session() &&
+    collabReady() &&
+    projectState.thisUserPermissions.can_configure_slide_decks &&
+    !projectState.isLocked;
+
+  function undo() {
+    undoMgr?.undo();
+  }
+  function redo() {
+    undoMgr?.redo();
+  }
+
+  // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
+  // onKeyDown misses the common case of focus sitting on the canvas or page
+  // body). Bails while a sub-editor covers the canvas: the figure modal
+  // installs its OWN document handler, and both firing would undo twice, in
+  // two different docs. CM textboxes handle Ctrl+Z via their own keymap
+  // (popping this same shared stack); native inputs keep native undo.
+  function handleEditorKeyDown(e: KeyboardEvent) {
+    if (!undoMgr || !canUndoRedo() || subEditorOpen() > 0) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || e.key.toLowerCase() !== "z") return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      target.closest(".cm-editor, input, textarea, [contenteditable='true']")
+    ) {
+      return;
+    }
+    e.preventDefault();
+    if (e.shiftKey) redo();
+    else undo();
+  }
+
   // Live cursors: surface glue lives in _shared/cursors/slide_cursors.tsx
   // (mounted in the JSX below). Disabled while a sub-editor modal covers the
   // canvas (the figure modal's own broadcaster takes over the awareness field).
@@ -369,6 +413,18 @@ export function SlideEditor(p: Props) {
     );
     setSession(s);
 
+    undoMgr = s.undoManager;
+    // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
+    // result back into the store — the same adopt path a remote change takes.
+    // The push the tracking effect then fires is idempotent (the doc already
+    // matches), so nothing echoes back.
+    const onUndoPop = () => {
+      manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
+    };
+    s.undoManager.on("stack-item-popped", onUndoPop);
+    detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
+    document.addEventListener("keydown", handleEditorKeyDown);
+
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
     // other users' saves) bump last_updated, so the explicit Save fallback
     // won't raise a spurious conflict while co-editing.
@@ -398,6 +454,13 @@ export function SlideEditor(p: Props) {
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
+    // Detach the undo hooks BEFORE the session closes (the session destroys
+    // its manager and doc on close) — a late Ctrl+Z must not drive a
+    // destroyed doc.
+    document.removeEventListener("keydown", handleEditorKeyDown);
+    detachUndoPop?.();
+    detachUndoPop = undefined;
+    undoMgr = undefined;
     if (p.returnToContext) {
       restoreProjectAIView(p.returnToContext);
     }
@@ -951,6 +1014,11 @@ export function SlideEditor(p: Props) {
                   peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
                   size="sm"
                 />
+                {/* Per-user undo/redo of this client's own slide edits. */}
+                <Show when={canUndoRedo()}>
+                  <Button onClick={undo} iconName="undo" outline />
+                  <Button onClick={redo} iconName="redo" outline />
+                </Show>
                 <div data-tour="slide-type-select">
                   <Select
                     options={[
@@ -995,7 +1063,6 @@ export function SlideEditor(p: Props) {
           startingWidth={400}
           minWidth={300}
           maxWidth={600}
-          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <div
               class="h-full w-full"

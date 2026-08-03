@@ -186,7 +186,6 @@ defineRoute(
   routesGeoJsonMaps,
   "getGeoJsonForLevel",
   requireGlobalPermission(),
-  log("getGeoJsonForLevel"),
   async (c, { params }) => {
     if (![2, 3, 4].includes(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });

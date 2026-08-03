@@ -254,6 +254,7 @@ function buildExtensions(
   height: string,
   plain: boolean,
   canEdit: boolean,
+  undoManager: Y.UndoManager | undefined,
 ) {
   return [
     // yCollab's per-user undo takes precedence over the base keymap.
@@ -277,7 +278,12 @@ function buildExtensions(
       ".cm-scroller": { overflow: "auto", maxHeight: height, fontFamily: "inherit" },
       ".cm-content": { minHeight: height, padding: "8px" },
     }),
-    yCollab(yText, awareness),
+    // With a host-supplied manager the binding registers its sync origin on
+    // it, joining the host's per-user stack; otherwise yCollab creates a
+    // private per-editor stack. Either way yUndoManagerKeymap above pops it.
+    undoManager
+      ? yCollab(yText, awareness, { undoManager })
+      : yCollab(yText, awareness),
   ];
 }
 
@@ -291,6 +297,10 @@ export function CollabMarkdownEditor(p: {
   height?: string;
   /** Plain text (no markdown highlighting) — used for title/header/caption fields. */
   plain?: boolean;
+  /** Join the host editor's per-user undo stack instead of a private
+   *  per-textbox one — the host's undo buttons then cover typing here, and
+   *  in-editor Ctrl+Z pops that same stack. See SlideSession.undoManager. */
+  undoManager?: Y.UndoManager;
 }) {
   let parent!: HTMLDivElement;
   let view: EditorView | undefined;
@@ -304,7 +314,14 @@ export function CollabMarkdownEditor(p: {
     view = new EditorView({
       parent,
       doc: yText.toString(),
-      extensions: buildExtensions(yText, p.awareness, p.height ?? "300px", !!p.plain, canEdit),
+      extensions: buildExtensions(
+        yText,
+        p.awareness,
+        p.height ?? "300px",
+        !!p.plain,
+        canEdit,
+        p.undoManager,
+      ),
     });
     const observer = () => p.onTextChange(yText.toString());
     yText.observe(observer);

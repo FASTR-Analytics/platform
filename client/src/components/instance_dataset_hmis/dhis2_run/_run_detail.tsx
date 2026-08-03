@@ -10,7 +10,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   StateHolderWrapper,
   Table,
   createQuery,
@@ -115,8 +115,9 @@ export function Dhis2RunDetail(
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
-          back={() => p.close(undefined)}
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
           heading={
             <>
               {t3({ en: "Import run", fr: "Importation", pt: "Importação" })}

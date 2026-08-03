@@ -7,6 +7,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   StateHolderWrapper,
   Table,
   createQuery,
@@ -252,19 +253,19 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({
-                en: "Import status by indicator",
-                fr: "État des importations par indicateur",
-                pt: "Estado das importações por indicador",
-              })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={() => p.close(undefined)}
+            heading={t3({
+              en: "Import status by indicator",
+              fr: "État des importations par indicateur",
+              pt: "Estado das importações por indicador",
+            })}
+          >
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={ledger.fetch} />
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <StateHolderWrapper state={ledger.state()}>

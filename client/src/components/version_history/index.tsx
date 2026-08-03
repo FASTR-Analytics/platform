@@ -147,7 +147,7 @@ export function VersionHistoryEditor(p: Props) {
       <FrameLeft
         panelChildren={
           <div
-            class="flex h-full w-80 flex-col overflow-y-auto border-r"
+            class="flex h-full w-80 flex-col overflow-y-auto"
             data-tour="version-history-list"
           >
             <button

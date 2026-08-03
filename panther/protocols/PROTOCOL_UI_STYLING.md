@@ -26,18 +26,24 @@ the full token catalog, and the theming mechanics, see
    on `base-100` must declare the surface token it sits on.
 7. **Never write a border color for the default** — bare `border` already paints
    the border token. A border color class always marks an exception.
-8. **`-subtle` washes are non-interactive** — never a hover target, never a
+8. **Side frames own their divider** — `FrameLeft`, `FrameRight`, `FrameBottom`,
+   `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable`
+   draw the panel/content edge themselves. Never put that edge's border on a
+   side-frame panel (or on the panel component's root) — it double-draws. Inner
+   dividers on other edges are fine. Pass `noBorder` only when the panel is
+   tonal against its content or draws a deliberately non-default border colour.
+9. **`-subtle` washes are non-interactive** — never a hover target, never a
    hover destination, never a click target's rest surface. Only exception: the
    pinned surface of a _selected_ selection control.
-9. **Controls on washes are filled, not outline** — at the wash's own intent.
-10. **Disabled is `opacity-40`** — a treatment, not a color.
-11. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
-12. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
+10. **Controls on washes are filled, not outline** — at the wash's own intent.
+11. **Disabled is `opacity-40`** — a treatment, not a color.
+12. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
+13. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
     variants, not raw `p-4` / `gap-4` / `space-y-6`.
-13. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
-14. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
+14. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
+15. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
     `--color-*` app-side.
-15. **Sentence case** — all UI text, always.
+16. **Sentence case** — all UI text, always.
 
 ## Do / Don't
 
@@ -319,6 +325,24 @@ Usable from app code:
 
 Every other `ui-*` class is internal and may change without notice.
 
+### Public density vars
+
+Retune these in `@theme`; never override a derived one directly.
+
+| Var                                 | Role                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `--ui-form-content-h`               | **Authoring knob.** A control's content height, as a ratio of its own text size. |
+| `--ui-form-content-h-em`            | Derived. The same ratio with the unit attached — what components consume.        |
+| `--ui-form-line-height` / `-sm`     | Derived from the ratio.                                                          |
+| `--ui-form-height` / `-sm`          | Derived. A control's full outer height; what `HeadingBar` floors its row to.     |
+| `--ui-heading-bar-tonal-bg` / `-fg` | **Authoring knob (a pair).** The one tonal header surface.                       |
+
+The ratio is deliberately shared across sizes — `em` rescales it, so there is no
+`--ui-form-content-h-sm`. Overriding `--ui-form-height` or
+`--ui-form-line-height` directly desyncs a heading bar from the controls sitting
+in it; change the ratio instead. Retune the heading-bar pair together: the
+foreground is not derived from the background.
+
 ## Checklist
 
 - [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`) and no
@@ -336,6 +360,8 @@ Every other `ui-*` class is internal and may change without notice.
 - [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover
       destination — except a selected arm's pin
 - [ ] Buttons inside `-subtle` callouts are filled at the callout's intent
+- [ ] No edge border on a side-frame panel — the frame draws it (`noBorder` only
+      for a tonal panel or a deliberate non-default border colour)
 - [ ] No `border-base-300` / `border-border`; bare `border` unless marking an
       exception
 - [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on

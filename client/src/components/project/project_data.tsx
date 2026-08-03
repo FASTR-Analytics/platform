@@ -39,7 +39,6 @@ export function ProjectData(p: Props) {
           >
             <HeadingBar
               heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
-              ensureHeightAsIfButton
             ></HeadingBar>
           </div>
         }

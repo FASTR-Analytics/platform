@@ -380,7 +380,12 @@ export function VisualizationEditorInner(p: InnerProps) {
   const captionCollab = () => {
     const t = collabTarget();
     if (!t || !collabReady()) return undefined;
-    return { configMap: t.configMap, awareness: t.awareness, canEdit: t.canEdit };
+    return {
+      configMap: t.configMap,
+      awareness: t.awareness,
+      canEdit: t.canEdit,
+      undoManager: () => undoMgr,
+    };
   };
 
   // ── Live cursors ─────────────────────────────────────────────────────────────
@@ -582,9 +587,9 @@ export function VisualizationEditorInner(p: InnerProps) {
       );
       setPoSession(session);
       // Per-user undo: track only THIS client's edits (localOrigin). Remote
-      // applies and other users' relayed ops are never tracked. Caption edits go
-      // through yCollab (a different origin) so they aren't captured here — they
-      // keep their own in-editor undo.
+      // applies and other users' relayed ops are never tracked. Caption CM
+      // editors join this same stack (captionCollab hands them the manager),
+      // so the undo buttons cover caption typing too.
       undoMgr = new Y.UndoManager(session.configMap, {
         trackedOrigins: new Set([session.localOrigin]),
         captureTimeout: 500,
@@ -1293,7 +1298,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           startingWidth={384}
           minWidth={300}
           maxWidth={600}
-          hoverOffset="offset-for-border-1-on-left"
           panelChildren={
             <PresentationObjectEditorPanel
               projectStateSnapshot={p.projectStateSnapshot}

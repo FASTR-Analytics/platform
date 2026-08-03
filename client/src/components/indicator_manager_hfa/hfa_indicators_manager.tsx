@@ -13,6 +13,7 @@ import {
   Button,
   FrameLeft,
   FrameTop,
+  HeadingBar,
   getQueryStateFromApiResponse,
   Input,
   StateHolderWrapper,
@@ -888,17 +889,17 @@ export function HfaIndicatorsManager(p: Props) {
       <EditorWrapper hideMode="visibility-hidden">
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
+          >
             <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
               <Button iconName="chevronLeft" outline onBackground="base-200" onClick={openAi}>
                 {t3({ en: "AI", fr: "IA", pt: "IA" })}
               </Button>
             </Show>
-          </div>
+          </HeadingBar>
         }
       >
         <FrameTop

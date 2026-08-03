@@ -211,7 +211,7 @@ function PresentationViewerContent(p: ContentProps) {
         >
           <FrameBottom
             panelChildren={
-              <div class="ui-pad bg-base-100 ui-gap flex select-none items-center justify-end border-t">
+              <div class="ui-pad bg-base-100 ui-gap flex select-none items-center justify-end">
                 <div class="ui-gap flex items-center">
                   <div class="text-base-content-muted text-sm">
                     Slide {currentSlideIndex() + 1} of {totalSlides()}

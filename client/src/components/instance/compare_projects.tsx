@@ -6,7 +6,6 @@ import {
   type CompareProjectsModule,
 } from "lib";
 import {
-  Button,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
@@ -29,15 +28,11 @@ export function CompareProjects(p: EditorComponentProps<{}, undefined>) {
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Compare projects", fr: "Comparer les projets", pt: "Comparar projetos" })}
-          </div>
-          <div class="ui-gap-sm flex items-center">
-            {/* <Button iconName="refresh" onClick={datasetDetail.fetch} /> */}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3({ en: "Compare projects", fr: "Comparer les projets", pt: "Comparar projetos" })}
+        />
       }
     >
       <StateHolderWrapper state={comparisonData.state()}>

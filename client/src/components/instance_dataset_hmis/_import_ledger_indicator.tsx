@@ -8,6 +8,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   Table,
   formatPeriod,
   getEditorWrapper,
@@ -206,16 +207,16 @@ export function ImportLedgerIndicatorDetail(
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({
-                en: "Import status",
-                fr: "État des importations",
-                pt: "Estado das importações",
-              })}
-              <span class="font-400 ml-4">{p.indicatorRawId}</span>
-            </div>
+          <HeadingBar
+            tonal
+            onBack={() => p.close(undefined)}
+            heading={t3({
+              en: "Import status",
+              fr: "État des importations",
+              pt: "Estado das importações",
+            })}
+            subheading={p.indicatorRawId}
+          >
             <div class="ui-gap-sm flex items-center">
               <Button iconName="databaseImport" onClick={reimportIndicator}>
                 {t3({
@@ -225,7 +226,7 @@ export function ImportLedgerIndicatorDetail(
                 })}
               </Button>
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <div class="ui-pad h-full w-full">

@@ -984,12 +984,7 @@ export function DashboardEditor(p: Props) {
               panelChildren={
                 <HeadingBar
                   heading={dashboard.title}
-                  leftChildren={
-                    <Button
-                      iconName="chevronLeft"
-                      onClick={() => p.close(undefined)}
-                    />
-                  }
+                  onBack={() => p.close(undefined)}
                 >
                   <div
                     class="ui-gap-sm flex items-center"
@@ -1047,7 +1042,6 @@ export function DashboardEditor(p: Props) {
                 startingWidth={300}
                 minWidth={240}
                 maxWidth={460}
-                hoverOffset="offset-for-border-1-on-left"
                 panelChildren={
                   <div
                     class="flex h-full w-full flex-col border-r"

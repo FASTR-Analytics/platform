@@ -370,13 +370,6 @@ function rollupCheckboxLabel(
     return "";
   }
   const ctx = getRollupLabelContextForDimension(config, disOpt);
-  if (ctx.kind === "subset") {
-    return t3({
-      en: "Include results for all selected areas",
-      fr: "Inclure les résultats de toutes les zones sélectionnées",
-      pt: "Incluir resultados de todas as zonas selecionadas",
-    });
-  }
   if (ctx.kind === "pinned") {
     const name = t3(getDisplayDisaggregationLabel(ctx.level));
     return t3({
@@ -390,13 +383,6 @@ function rollupCheckboxLabel(
       en: "Include results for all facilities",
       fr: "Inclure les résultats de tous les établissements",
       pt: "Incluir resultados de todos os estabelecimentos",
-    });
-  }
-  if (ctx.kind === "facility_subset") {
-    return t3({
-      en: "Include results for all selected facilities",
-      fr: "Inclure les résultats de tous les établissements sélectionnés",
-      pt: "Incluir resultados de todos os estabelecimentos selecionados",
     });
   }
   return t3({

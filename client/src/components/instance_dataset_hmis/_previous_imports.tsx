@@ -3,6 +3,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   StateHolderWrapper,
   Table,
   getEditorWrapper,
@@ -113,15 +114,15 @@ export function PreviousImports(
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "Previous imports", fr: "Importations précédentes", pt: "Importações anteriores" })}
-            </div>
+          <HeadingBar
+            tonal
+            onBack={() => p.close(undefined)}
+            heading={t3({ en: "Previous imports", fr: "Importations précédentes", pt: "Importações anteriores" })}
+          >
             <div class="ui-gap-sm flex items-center">
               <Button iconName="refresh" onClick={versions.fetch} />
             </div>
-          </div>
+          </HeadingBar>
         }
       >
         <StateHolderWrapper state={versions.state()}>

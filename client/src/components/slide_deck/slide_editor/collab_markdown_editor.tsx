@@ -13,6 +13,7 @@ export function CollabMarkdownEditor(p: {
   onTextChange: (markdown: string) => void;
   height?: string;
   plain?: boolean;
+  undoManager?: Y.UndoManager;
 }) {
   return (
     <SharedCollabMarkdownEditor
@@ -23,6 +24,7 @@ export function CollabMarkdownEditor(p: {
       onTextChange={p.onTextChange}
       height={p.height}
       plain={p.plain}
+      undoManager={p.undoManager}
     />
   );
 }

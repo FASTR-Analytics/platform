@@ -95,21 +95,15 @@ function buildLabelReplacements(
 // The roll-up row's label, from getRollupLabelContext (shared with the editor
 // checkbox). Scope words, not operation words ("Total" would imply SUM, but
 // the row can be an AVG or a recomputed ratio): "National", "{Area} — All
-// areas" for a pinned parent, "All selected areas" when admin filters subset
-// the geography.
+// areas" for a pinned parent, "All facilities" for a facility dimension.
+// Filters never change the label — see getRollupLabelContextForDimension.
 function getRollupRowLabel(config: PresentationObjectConfig, language: Language, countryIso3: string | undefined): string {
   const ctx = getRollupLabelContext(config);
-  if (ctx?.kind === "subset") {
-    return pickLang(language, { en: "All selected areas", fr: "Toutes les zones sélectionnées", pt: "Todas as zonas selecionadas" });
-  }
   if (ctx?.kind === "pinned" && ctx.value) {
     return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   if (ctx?.kind === "all_facilities") {
     return pickLang(language, { en: "All facilities", fr: "Tous les établissements", pt: "Todos os estabelecimentos" });
-  }
-  if (ctx?.kind === "facility_subset") {
-    return pickLang(language, { en: "All selected facilities", fr: "Tous les établissements sélectionnés", pt: "Todos os estabelecimentos selecionados" });
   }
   return pickLang(language, TC.national);
 }

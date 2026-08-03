@@ -107,13 +107,13 @@ export function ButtonGroup<T extends string, M = never>(
                 {/* Icon & Text */}
                 <Show when={hasLabel() && item.iconName}>
                   <IconRenderer iconName={item.iconName} size={p.size} />
-                  <span class="relative inline-flex min-h-[1.25em] items-center">
+                  <span class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center">
                     {item.label}
                   </span>
                 </Show>
                 {/* Only Text */}
                 <Show when={hasLabel() && !item.iconName}>
-                  <span class="relative inline-flex min-h-[1.25em] items-center">
+                  <span class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center">
                     {item.label}
                   </span>
                 </Show>

@@ -10,6 +10,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
+  HeadingBar,
   Input,
   createDeleteAction,
 } from "panther";
@@ -84,12 +85,11 @@ export function DeleteData(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3(TC.delete)}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3(TC.delete)}
+        />
       }
     >
       <div class="ui-pad ui-spy h-full w-full">

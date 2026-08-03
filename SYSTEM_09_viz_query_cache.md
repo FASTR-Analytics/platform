@@ -500,20 +500,19 @@ facility CTE: the sentinel replaces the column reference before the `f.`
 prefix is applied, and the `__n_*` count over the collapsed scope is exactly
 the "all facilities" sample size.
 
-**Labels are scope words, never operation words** ("Total" would imply SUM).
-`getRollupLabelContextForDimension` — admin precedence: **subset** ("All
-selected areas" — an admin filter restricts geography: 2+ values at/coarser
-than the roll-up level, or ANY values on a finer level; replicant-displayed
-levels are skipped) → **pinned** ("{Area} — All areas" — the finest coarser
-level pinned by replicant or single-value filter; the marker distinguishes the
-row from a same-named child area) → **national**. Facility dimensions have no
-hierarchy: **facility_subset** ("All selected facilities" — the rolled column
-itself filtered to 2+ values) → **all_facilities** ("All facilities" — one
-scope word for all seven columns, so no per-column or per-instance naming is
-needed; fr/pt use the app's established "établissement" / "estabelecimento").
-In both families, filters on OTHER dimensions deliberately don't change the
-label. The same context drives the editor checkbox text, so row and checkbox
-can't tell different stories.
+**Labels are scope words, never operation words** ("Total" would imply SUM),
+**and filters never change the label** (ruling 2026-07-28, removing an earlier
+"All selected areas/facilities" subset kind): a filter is the AUTHOR's
+context, not the READER's — the reader of a report filtered to some areas or
+facility types reads the total row as the total of what the figure shows.
+`getRollupLabelContextForDimension` — admin: **pinned** ("{Area} — All
+areas" — the finest coarser level pinned by replicant or single-value filter;
+the marker distinguishes the row from a same-named child area) →
+**national**. Facility dimensions are always **all_facilities** ("All
+facilities" — one scope word for all seven columns, so no per-column or
+per-instance naming is needed; fr/pt use the app's established
+"établissement" / "estabelecimento"). The same context drives the editor
+checkbox text, so row and checkbox can't tell different stories.
 
 **Position is display-only.** The entry's `rollupPosition` ("top"/"bottom",
 read via `getRollupPosition`) drives client-side sort pinning

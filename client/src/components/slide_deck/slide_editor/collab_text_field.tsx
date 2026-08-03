@@ -56,6 +56,7 @@ export function CollabTextField(p: {
             onTextChange={p.onChange}
             height={p.height ?? "60px"}
             plain
+            undoManager={p.session!.undoManager}
           />
         </div>
       )}

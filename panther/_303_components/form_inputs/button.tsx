@@ -131,7 +131,7 @@ export function Button(p: ButtonProps) {
           fallback={
             <>
               <span
-                class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
+                class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
                 data-loading={isLoading()}
               >
                 {p.children}
@@ -150,7 +150,7 @@ export function Button(p: ButtonProps) {
             size={p.size}
           />
           <span
-            class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
+            class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
             data-loading={isLoading()}
           >
             {p.children}
@@ -160,7 +160,7 @@ export function Button(p: ButtonProps) {
       {/* Only Text */}
       <Show when={p.children && !p.iconName}>
         <span
-          class="relative inline-flex min-h-[1.25em] items-center data-[loading=true]:invisible"
+          class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
           data-loading={isLoading()}
         >
           {p.children}

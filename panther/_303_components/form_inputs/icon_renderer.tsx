@@ -29,7 +29,7 @@ export function IconRenderer(p: IconRendererProps) {
           <span
             class={[
               textSizeClass,
-              "relative h-[1.25em] w-[1.25em] flex-none overflow-clip rounded",
+              "relative h-[var(--ui-form-content-h-em)] w-[var(--ui-form-content-h-em)] flex-none overflow-clip rounded",
               p.iconOnly && correctionClass,
               p.invisible && "invisible",
             ].filter(Boolean).join(" ")}

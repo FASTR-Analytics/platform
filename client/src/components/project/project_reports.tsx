@@ -481,10 +481,9 @@ export function ProjectReports(p: ExtendedProps) {
         startingWidth={180}
         minWidth={170}
         maxWidth={300}
-        hoverOffset="offset-for-border-1-on-left"
         panelChildren={
           <div
-            class="flex h-full w-full flex-col border-r"
+            class="flex h-full w-full flex-col"
             data-cursor-zone="folders"
             data-tour="reports-folders"
           >

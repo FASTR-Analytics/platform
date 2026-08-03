@@ -220,7 +220,6 @@ export function ProjectSettings(p: Props) {
         >
           <HeadingBar
             heading={t3(TC.settings)}
-            ensureHeightAsIfButton
           ></HeadingBar>
         </div>
       }

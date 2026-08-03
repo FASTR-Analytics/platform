@@ -182,7 +182,7 @@ function SidebarLayout(p: SidebarLayoutProps) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="ui-pad ui-spy-sm h-full w-56 overflow-auto border-r lg:w-64 xl:w-72">
+        <div class="ui-pad ui-spy-sm h-full w-56 overflow-auto lg:w-64 xl:w-72">
           <For each={p.entries}>
             {(entry) => (
               <Switch>

@@ -1,30 +1,59 @@
-[TBD] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
-[TBD] [user] [fixed] - Permission changes now take effect immediately without page reload
-[TBD] [user] [fixed] - Clear notification when you lack permission to edit reports or slides
-[TBD] [user] [fixed] - Edits made right after receiving edit access are now saved properly
-[TBD] [user] [fixed] - Locking or unlocking a project now applies instantly for active editors
-[TBD] [user] [fixed] - Removed from a project mid-session now properly revokes editing
-[TBD] [user] [fixed] - Visualization settings no longer briefly flicker after opening
-[TBD] [user] [fixed] - Slide layout changes now correctly appear in version history
-[TBD] [user] [fixed] - Split panel edits on slides now sync properly to collaborators
-[TBD] [user] [fixed] - Image updates in reports no longer overwrite open figure editor changes
-[TBD] [user] [fixed] - Connection drops are now detected faster, reducing silent edit loss
-[TBD] [user] [fixed] - Restoring a version now warns if unsaved edits prevent a safety snapshot
-[TBD] [user] [added] - Automatic reconnection when the platform is updated while you are working
-[TBD] [admin] [fixed] - Editors now auto-reconnect when permissions or project lock change mid-session
-[TBD] [admin] [fixed] - Users without edit permission now see a clear alert instead of silent edit loss
-[TBD] [admin] [fixed] - Stale collaborator cursors no longer persist indefinitely for late joiners
-[TBD] [admin] [fixed] - Dead network connections now detected and auto-reconnected within ~35 seconds
-[TBD] [admin] [fixed] - Tabs open during a server update now auto-reload instead of pushing stale data
-[TBD] [admin] [fixed] - Visualization configs with invalid mid-edit values no longer permanently wedge saving
-[TBD] [admin] [fixed] - Save failures no longer flood server logs; logging is now throttled
-[TBD] [admin] [fixed] - Slide layout changes (column wraps, container resizes) now appear in version history
-[TBD] [admin] [fixed] - Removing a user mid-session now immediately revokes their edit access
-[TBD] [admin] [fixed] - Restoring a report or deck version now fails safely if live edits cannot be saved first
-[TBD] [admin] [fixed] - Figure edits from one editor no longer overwrite another editor's open figure modal
-[TBD] [admin] [fixed] - Slide split-panel edits now sync reliably to collaborators
-[TBD] [admin] [changed] - Failed save operations now prevent unsafe fallback writes that could lose data
-[TBD] [admin] [internal] - Improved resilience of real-time collaboration checkpoint and finalization logic
+[1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
+[1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
+[1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading
+[1.64.5] [admin] [fixed] - Version history now correctly shows select-and-rewrite edits by different users
+[1.64.5] [admin] [improved] - Cleaner diff display groups deletions and additions together instead of interleaving
+[1.64.4] [user] [added] - First version now shows a note explaining the entire document was created in that session
+[1.64.4] [user] [fixed] - Version history no longer shows a blank pane for the earliest version
+[1.64.4] [admin] [fixed] - Version history no longer shows blank pane for first version
+[1.64.4] [admin] [added] - First version now shows explanatory note in session edits view
+[1.64.4] [user] [changed] - Undo/redo now covers text edits in slide titles, captions, and text fields together with other slide changes
+[1.64.4] [admin] [changed] - Undo/redo in slide editor now covers all text fields uniformly
+[1.64.3] [admin] [added] - Editing sessions are now tracked in admin activity logs
+[1.64.3] [admin] [changed] - Internal staff edits are excluded from usage activity counts
+[1.64.2] [user] [changed] - Consistent heading bar design across all screens
+[1.64.2] [user] [changed] - Cleaner panel borders throughout the application
+[1.64.2] [user] [changed] - Improved visual appearance of side panels and resizable areas
+[1.64.2] [user] [changed] - Standardized back button placement in page headers
+[1.64.2] [admin] [changed] - Standardized header bar appearance across all screens
+[1.64.2] [admin] [changed] - Removed visible border lines between side panels and main content areas
+[1.64.2] [user] [added] - Undo and redo buttons added to the report editor toolbar
+[1.64.2] [user] [added] - Undo and redo buttons added to the slide editor toolbar
+[1.64.2] [user] [added] - Keyboard shortcut Ctrl+Z and Ctrl+Shift+Z support in the slide editor
+[1.64.2] [user] [changed] - Undo and redo only affect your own edits when collaborating
+[1.64.2] [admin] [added] - Undo and redo buttons added to report editor toolbar
+[1.64.2] [admin] [added] - Undo and redo buttons added to slide editor toolbar
+[1.64.2] [admin] [added] - Keyboard undo/redo support in slide editor canvas
+[1.64.2] [admin] [changed] - Undo and redo only affect your own edits during collaboration
+[1.64.1] [user] [changed] - Simplified rollup labels to no longer say "selected" areas or facilities
+[1.64.1] [admin] [changed] - Rollup labels no longer vary when filters are applied
+[1.64.0] [user] [fixed] - Stale collaborator cursors no longer appear permanently on screen
+[1.64.0] [user] [fixed] - Permission changes now take effect immediately without page reload
+[1.64.0] [user] [fixed] - Clear notification when you lack permission to edit reports or slides
+[1.64.0] [user] [fixed] - Edits made right after receiving edit access are now saved properly
+[1.64.0] [user] [fixed] - Locking or unlocking a project now applies instantly for active editors
+[1.64.0] [user] [fixed] - Removed from a project mid-session now properly revokes editing
+[1.64.0] [user] [fixed] - Visualization settings no longer briefly flicker after opening
+[1.64.0] [user] [fixed] - Slide layout changes now correctly appear in version history
+[1.64.0] [user] [fixed] - Split panel edits on slides now sync properly to collaborators
+[1.64.0] [user] [fixed] - Image updates in reports no longer overwrite open figure editor changes
+[1.64.0] [user] [fixed] - Connection drops are now detected faster, reducing silent edit loss
+[1.64.0] [user] [fixed] - Restoring a version now warns if unsaved edits prevent a safety snapshot
+[1.64.0] [user] [added] - Automatic reconnection when the platform is updated while you are working
+[1.64.0] [admin] [fixed] - Editors now auto-reconnect when permissions or project lock change mid-session
+[1.64.0] [admin] [fixed] - Users without edit permission now see a clear alert instead of silent edit loss
+[1.64.0] [admin] [fixed] - Stale collaborator cursors no longer persist indefinitely for late joiners
+[1.64.0] [admin] [fixed] - Dead network connections now detected and auto-reconnected within ~35 seconds
+[1.64.0] [admin] [fixed] - Tabs open during a server update now auto-reload instead of pushing stale data
+[1.64.0] [admin] [fixed] - Visualization configs with invalid mid-edit values no longer permanently wedge saving
+[1.64.0] [admin] [fixed] - Save failures no longer flood server logs; logging is now throttled
+[1.64.0] [admin] [fixed] - Slide layout changes (column wraps, container resizes) now appear in version history
+[1.64.0] [admin] [fixed] - Removing a user mid-session now immediately revokes their edit access
+[1.64.0] [admin] [fixed] - Restoring a report or deck version now fails safely if live edits cannot be saved first
+[1.64.0] [admin] [fixed] - Figure edits from one editor no longer overwrite another editor's open figure modal
+[1.64.0] [admin] [fixed] - Slide split-panel edits now sync reliably to collaborators
+[1.64.0] [admin] [changed] - Failed save operations now prevent unsafe fallback writes that could lose data
+[1.64.0] [admin] [internal] - Improved resilience of real-time collaboration checkpoint and finalization logic
 [1.63.5] [user] [fixed] - AI assistant now correctly reports invalid filter dimensions instead of silently creating broken charts
 [1.63.5] [admin] [fixed] - AI tools now properly reject filters on non-existent metric dimensions
 [1.63.4] [user] [fixed] - Importing files with duplicate rows now keeps the most complete data

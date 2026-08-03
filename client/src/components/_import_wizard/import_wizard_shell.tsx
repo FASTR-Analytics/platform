@@ -2,7 +2,7 @@ import { t3, type APIResponseNoData } from "lib";
 import {
   Button,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
@@ -157,7 +157,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack back={() => p.close()} heading={p.descriptor.heading()}>
+        <HeadingBar tonal onBack={() => p.close()} heading={p.descriptor.heading()}>
           <div class="ui-gap-sm flex flex-none items-center">
             <StepperNavigationVisual
               stepper={stepper}
@@ -174,7 +174,7 @@ export function ImportWizardShell<TUA extends { step: number }, TStatusLight>(p:
               {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper

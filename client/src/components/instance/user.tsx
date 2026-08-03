@@ -12,7 +12,7 @@ import {
   Button,
   Checkbox,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   SettingsSection,
   openComponent,
   createButtonAction,
@@ -136,8 +136,9 @@ export function User(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
-          back={p.close}
+        <HeadingBar
+          tonal
+          onBack={p.close}
           heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de", pt: "Perfil de utilizador de" })} ${p.user.email}`}
         />
       }

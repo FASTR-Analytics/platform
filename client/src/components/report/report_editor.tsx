@@ -3,13 +3,14 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
+import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
   attachSelectionNameHover,
   darkMarkdownExtensions,
 } from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
-import type * as Y from "yjs";
+import * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
@@ -71,6 +72,10 @@ export type ReportEditorApi = {
   ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
+  // Undo/redo the body — the toolbar's counterpart to the editor's own
+  // Ctrl+Z/Ctrl+Shift+Z (per-user under collab, local history otherwise).
+  undo: () => void;
+  redo: () => void;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
   // Fractional 0-based source line at the viewport top (for scroll sync), or
@@ -119,6 +124,12 @@ export function ReportEditor(p: Props) {
   let lastCenterKey = "";
   let ro: ResizeObserver | undefined;
   let bindKey = "";
+  // The per-user undo manager driving the collab view (set only while bound).
+  // yCollab would create this itself; we pass our own so the toolbar buttons
+  // can pop the SAME stack the Ctrl+Z keymap does. The yUndoManager plugin
+  // registers the sync origin on it, so it tracks this user's typing only.
+  // Without collab the view falls back to basicSetup's local history.
+  let yUndoMgr: Y.UndoManager | undefined;
   const centerCompartment = new Compartment();
 
   // Pad the centered column to the right by the sidebar width so it lines up with
@@ -172,7 +183,12 @@ export function ReportEditor(p: Props) {
     const prevSel = view?.state.selection.main;
     detachSelectionHover?.();
     detachSelectionHover = undefined;
+    // Destroy the view BEFORE its undo manager — the plugin's destroy hook
+    // deregisters itself from the manager it was built with.
     view?.destroy();
+    yUndoMgr?.destroy();
+    const undoMgr = collab ? new Y.UndoManager(collab.yText) : undefined;
+    yUndoMgr = undoMgr;
     view = new EditorView({
       doc: collab ? collab.yText.toString() : p.body,
       parent,
@@ -216,7 +232,9 @@ export function ReportEditor(p: Props) {
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
         }),
-        ...(collab ? [yCollab(collab.yText, collab.awareness)] : []),
+        ...(collab && undoMgr
+          ? [yCollab(collab.yText, collab.awareness, { undoManager: undoMgr })]
+          : []),
       ],
     });
     lastCenterKey = "";
@@ -332,6 +350,25 @@ export function ReportEditor(p: Props) {
     };
   }
 
+  // Pops the same stack as Ctrl+Z — the collab manager when bound (this user's
+  // ops only), basicSetup's local history otherwise. Focus follows so the next
+  // keystroke continues in the editor (the click moved focus to the button).
+  // Covers the body text only: figure/image registry changes aren't in either
+  // history — same as the keyboard.
+  function undo() {
+    if (!view) return;
+    if (yUndoMgr) yUndoMgr.undo();
+    else cmUndo(view);
+    view.focus();
+  }
+
+  function redo() {
+    if (!view) return;
+    if (yUndoMgr) yUndoMgr.redo();
+    else cmRedo(view);
+    view.focus();
+  }
+
   function refresh() {
     view?.requestMeasure();
   }
@@ -406,6 +443,8 @@ export function ReportEditor(p: Props) {
       removeEmbedToken,
       setEmbedCaption,
       getSelection,
+      undo,
+      redo,
       refresh,
       getTopLine,
       scrollToLine,
@@ -440,6 +479,8 @@ export function ReportEditor(p: Props) {
     if (scrollRAF) cancelAnimationFrame(scrollRAF);
     ro?.disconnect();
     view?.destroy(); // removes scrollDOM (and its listener) with it
+    yUndoMgr?.destroy(); // after the view — see buildView
+    yUndoMgr = undefined;
   });
 
   return <div ref={parent} class="bg-base-100 h-full w-full" />;

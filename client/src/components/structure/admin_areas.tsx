@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, FrameTop, createDeleteAction, toNum0 } from "panther";
+import { Button, FrameTop, HeadingBar, createDeleteAction, toNum0 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
@@ -26,12 +26,11 @@ export function AdminAreas(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={p.backToInstance} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Admin areas", fr: "Unités administratives", pt: "Zonas administrativas" })}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={p.backToInstance}
+          heading={t3({ en: "Admin areas", fr: "Unités administratives", pt: "Zonas administrativas" })}
+        />
       }
     >
       <div class="ui-pad ui-spy max-w-xl overflow-auto">

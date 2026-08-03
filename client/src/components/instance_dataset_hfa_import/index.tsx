@@ -6,7 +6,7 @@ import {
   Button,
   EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
@@ -162,8 +162,9 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
-          back={() => p.close(undefined)}
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
           heading={
             <>
               {t3({ en: "IMPORT IN PROGRESS", fr: "IMPORTATION EN COURS", pt: "IMPORTAÇÃO EM CURSO" })}
@@ -185,7 +186,7 @@ export function DatasetHfaUploadAttemptForm(p: Props) {
               {t3({ en: "Discard import", fr: "Annuler l'importation", pt: "Descartar a importação" })}
             </Button>
           </div>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <StateHolderWrapper

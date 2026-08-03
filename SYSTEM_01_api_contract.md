@@ -11,7 +11,12 @@ globs:
   - lib/types/streaming.ts
   - main.ts
   - server/db/instance/users.ts
-  - server/middleware/**
+  - server/middleware/auth.ts
+  - server/middleware/cache.ts
+  - server/middleware/cors.ts
+  - server/middleware/mod.ts
+  - server/middleware/static.ts
+  - server/middleware/userPermission.ts
   - server/project_auth.ts
   - server/routes/instance/users.ts
   - server/routes/route-helpers.ts
@@ -226,15 +231,10 @@ fires `onProgress`. Three routes use it today: one in
 
 ## The `log()` middleware
 
-`server/middleware/logging.ts` exports `log(routeName)`, applied per-route (e.g.
-`log("createProject")`). It reads the JSON body (Content-Type-gated), redacts
-`password`/`secret`/`token`/`apikey` body fields and strips
-`authorization`/`cookie` headers, then after the handler writes a `user_logs`
-row via `AddLog` — skipping users with `approved === false`, capping `details`
-at 64 KB (large bodies become `{ _truncated: true, bytes }`), swallowing its own
-errors so logging never breaks a response, and re-throwing any handler error.
-`log()` is **not** applied to every route — audit coverage is uneven by choice
-of the route author.
+`server/middleware/logging.ts` slots into S1's per-route middleware chain
+(between the permission guard and the handler) but belongs to S17 — see
+[SYSTEM_17_logging.md](SYSTEM_17_logging.md) for the write path, retention,
+and coverage conventions.
 
 ## Startup validation (`route-tracker.ts`)
 

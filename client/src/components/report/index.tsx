@@ -408,6 +408,11 @@ export function ProjectReport(p: Props) {
     projectState.thisUserPermissions.can_configure_reports &&
     !projectState.isLocked;
 
+  /** Whether the body text can be edited: configurable AND the room is alive (a
+   *  fatal collab error locks the editor read-only). Gates the CM editor and
+   *  the header's undo/redo, which drive the same document. */
+  const canEditBody = () => canConfigure() && !collabFatal();
+
   function assetUrl(imgFile: string) {
     return `${_SERVER_HOST}/${imgFile}`;
   }
@@ -1414,11 +1419,7 @@ export function ProjectReport(p: Props) {
                   ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
                   : undefined;
               }}
-              canEdit={() =>
-                projectState.thisUserPermissions.can_configure_reports &&
-                !projectState.isLocked &&
-                !collabFatal()
-              }
+              canEdit={canEditBody}
               ref={(api) => (editorApi = api)}
             />
           </div>
@@ -1492,6 +1493,20 @@ export function ProjectReport(p: Props) {
                   />
                   <span>{saveIndicator().text}</span>
                 </div>
+                {/* Undo/redo the body text. Hidden in View (the editor is
+                    hidden there, so there is nothing to undo into). */}
+                <Show when={mode() !== "view" && canEditBody()}>
+                  <Button
+                    outline
+                    iconName="undo"
+                    onClick={() => editorApi?.undo()}
+                  />
+                  <Button
+                    outline
+                    iconName="redo"
+                    onClick={() => editorApi?.redo()}
+                  />
+                </Show>
                 <Button
                   id="report-history-button"
                   outline
@@ -1532,7 +1547,7 @@ export function ProjectReport(p: Props) {
           panelChildren={
             mode() !== "view" ? (
               <div
-                class="flex h-full flex-col border-r"
+                class="flex h-full flex-col"
                 style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
                 data-tour="report-embed-panel"
               >

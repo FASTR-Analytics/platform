@@ -10,6 +10,7 @@ import {
   type PresenceView,
   type ReportDocContent,
   type Slide,
+  slideDocRoot,
   type SyncReportOpts,
   type SyncSlideOpts,
   syncFigureConfigToMap,
@@ -156,6 +157,8 @@ type InternalSlideSession = {
   slideId: string;
   doc: Y.Doc;
   awareness: Awareness;
+  localOrigin: object;
+  undoManager: Y.UndoManager;
   ready: boolean;
   onRemote: () => void;
   /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found) — the
@@ -170,6 +173,16 @@ export type SlideSession = {
   doc: Y.Doc;
   /** Yjs awareness for this slide — carries local + remote cursor/selection. */
   awareness: Awareness;
+  /** Transaction origin for this client's pushLocal writes — undoManager
+   *  tracks it, so undo/redo only ever affects this user's edits. */
+  localOrigin: object;
+  /** Per-user undo/redo stack for the whole slide doc. Tracks pushLocal
+   *  writes (localOrigin), and every textbox's yCollab binding registers its
+   *  own sync origin here too — so the editor's undo buttons and in-textbox
+   *  Ctrl+Z pop the SAME unified history (text + structural edits). Remote
+   *  peers' updates arrive under the server origin and are never tracked.
+   *  Owned by the session: destroyed with it. */
+  undoManager: Y.UndoManager;
   isReady: () => boolean;
   /**
    * Ready AND the socket is currently open — i.e. collab is actually
@@ -239,6 +252,12 @@ function subscribeSlideOnSocket(s: InternalSlideSession): void {
 function destroySlideSession(s: InternalSlideSession): void {
   slideSessions.delete(s.slideId);
   setDocSaveFailing("slide", s.slideId, false);
+  // Before the doc: destroying detaches its listeners from the doc it scopes.
+  try {
+    s.undoManager.destroy();
+  } catch (err) {
+    console.error("Collab: slide undo manager destroy failed", err);
+  }
   try {
     removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
     s.awareness.destroy();
@@ -265,10 +284,16 @@ export function openSlideSession(
   const doc = new Y.Doc();
   const awareness = new Awareness(doc);
   applySessionUser(awareness);
+  const localOrigin = {};
   const s: InternalSlideSession = {
     slideId,
     doc,
     awareness,
+    localOrigin,
+    undoManager: new Y.UndoManager(slideDocRoot(doc), {
+      trackedOrigins: new Set([localOrigin]),
+      captureTimeout: 500,
+    }),
     ready: false,
     onRemote,
     onError,
@@ -312,13 +337,15 @@ export function openSlideSession(
   return {
     doc,
     awareness,
+    localOrigin: s.localOrigin,
+    undoManager: s.undoManager,
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (slide: Slide, opts?: SyncSlideOpts) => {
       if (!s.ready) {
         return;
       }
-      doc.transact(() => syncSlideToDoc(doc, slide, opts));
+      doc.transact(() => syncSlideToDoc(doc, slide, opts), s.localOrigin);
     },
     close: () => closeSlideSession(slideId),
   };

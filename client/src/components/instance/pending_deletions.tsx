@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, EditorComponentProps, FrameTop, ModalContainer, openComponent, type AlertComponentProps } from "panther";
+import { Button, EditorComponentProps, FrameTop, HeadingBar, ModalContainer, openComponent, type AlertComponentProps } from "panther";
 import { createMemo, createSignal, For } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -81,12 +81,11 @@ export function PendingDeletions(p: EditorComponentProps<{}, undefined>) {
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Pending deletions", fr: "Suppressions en attente", pt: "Eliminações pendentes" })}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3({ en: "Pending deletions", fr: "Suppressions en attente", pt: "Eliminações pendentes" })}
+        />
       }
     >
       <div class="ui-pad ui-spy">

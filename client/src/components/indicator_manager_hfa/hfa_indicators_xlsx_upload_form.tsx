@@ -4,7 +4,7 @@ import {
   Button,
   type EditorComponentProps,
   FrameTop,
-  HeaderBarCanGoBack,
+  HeadingBar,
   Input,
   RadioGroup,
   Select,
@@ -60,20 +60,21 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeaderBarCanGoBack
+        <HeadingBar
+          tonal
           heading={t3({
             en: "Import HFA Indicators from Excel",
             fr: "Importer des indicateurs HFA depuis Excel",
             pt: "Importar indicadores HFA a partir do Excel",
           })}
-          back={() => p.close(undefined)}
+          onBack={() => p.close(undefined)}
         >
           <Show when={!p.showAi()}>
             <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>
-        </HeaderBarCanGoBack>
+        </HeadingBar>
       }
     >
       <div class="ui-pad ui-spy max-w-3xl">

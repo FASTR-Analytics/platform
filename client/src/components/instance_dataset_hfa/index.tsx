@@ -3,6 +3,7 @@ import {
   Button,
   FrameRight,
   FrameTop,
+  HeadingBar,
   getEditorWrapper,
   createButtonAction,
   toPct0,
@@ -98,19 +99,18 @@ export function InstanceDatasetHfa(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-            <Button iconName="chevronLeft" onClick={p.backToInstance} />
-            <div class="font-700 flex-1 truncate text-xl">
-              {t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-              <span class="font-400 ml-4">{t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé", pt: "Dados de avaliação dos estabelecimentos de saúde" })}</span>
-            </div>
-          </div>
+          <HeadingBar
+            tonal
+            onBack={p.backToInstance}
+            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
+            subheading={t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé", pt: "Dados de avaliação dos estabelecimentos de saúde" })}
+          />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto border-l">
+              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">{t3({ en: "Imports", fr: "Importations", pt: "Importações" })}</div>
                 <Switch>
                   <Match when={!uploadAttempt()}>

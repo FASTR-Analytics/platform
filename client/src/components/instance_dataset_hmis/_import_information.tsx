@@ -1,7 +1,7 @@
 import { DatasetHmisVersion,
   DatasetCsvStagingResult,
   DatasetDhis2StagingResult, t3 } from "lib";
-import { Button, EditorComponentProps, FrameTop, toNum0 } from "panther";
+import { Button, EditorComponentProps, FrameTop, HeadingBar, toNum0 } from "panther";
 import { Show, For } from "solid-js";
 import { CollapsibleSection } from "panther";
 
@@ -31,12 +31,11 @@ export function ImportInformation(
   return (
     <FrameTop
       panelChildren={
-        <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
-          <Button iconName="chevronLeft" onClick={() => p.close(undefined)} />
-          <div class="font-700 flex-1 truncate text-xl">
-            {t3({ en: "Import information", fr: "Informations sur l'importation", pt: "Informações sobre a importação" })}
-          </div>
-        </div>
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3({ en: "Import information", fr: "Informations sur l'importation", pt: "Informações sobre a importação" })}
+        />
       }
     >
       <div class="ui-spy ui-pad">
