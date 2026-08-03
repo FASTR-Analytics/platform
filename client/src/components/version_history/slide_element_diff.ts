@@ -21,6 +21,9 @@ export type SlideElementChange = {
   /** Text before/after for text fields and text blocks (drives a mini diff). */
   oldText?: string;
   newText?: string;
+  /** Block snapshots for figure/image blocks (drive a before/after preview). */
+  oldBlock?: ContentBlock;
+  newBlock?: ContentBlock;
 };
 
 type ItemNode = {
@@ -130,7 +133,9 @@ export function diffSlideElements(
           key: `block:${id}`,
           kind: "added",
           blockType: item.data.type,
-          ...(item.data.type === "text" ? { newText: textOf(item.data) } : {}),
+          ...(item.data.type === "text"
+            ? { newText: textOf(item.data) }
+            : { newBlock: item.data }),
         });
       } else if (canonicalJson(old) !== canonicalJson(item)) {
         const bothText = item.data.type === "text" && old.data.type === "text";
@@ -140,7 +145,7 @@ export function diffSlideElements(
           blockType: item.data.type,
           ...(bothText
             ? { oldText: textOf(old.data), newText: textOf(item.data) }
-            : {}),
+            : { oldBlock: old.data, newBlock: item.data }),
         });
       }
     }
@@ -150,7 +155,9 @@ export function diffSlideElements(
           key: `block:${id}`,
           kind: "removed",
           blockType: item.data.type,
-          ...(item.data.type === "text" ? { oldText: textOf(item.data) } : {}),
+          ...(item.data.type === "text"
+            ? { oldText: textOf(item.data) }
+            : { oldBlock: item.data }),
         });
       }
     }

@@ -1,6 +1,7 @@
 import {
   type AuthorRun,
   canonicalJson,
+  type ContentBlock,
   type DeckSlideEditors,
   type DeckVersionDetail,
   PAGE_HEIGHT_DU,
@@ -26,7 +27,8 @@ import {
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { serverActions } from "~/server_actions";
+import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   DiffSegments,
@@ -56,6 +58,9 @@ type ElementRow = {
   color: string;
   oldText?: string;
   newText?: string;
+  /** Figure/image block snapshots — drive a before/after preview. */
+  oldBlock?: ContentBlock;
+  newBlock?: ContentBlock;
   authorLabel: string;
   authorExact: boolean;
   authorEmail?: string;
@@ -344,6 +349,8 @@ export function DeckVersionPreview(p: {
               color: who.color,
               oldText: ch.oldText,
               newText: ch.newText,
+              oldBlock: ch.oldBlock,
+              newBlock: ch.newBlock,
               authorLabel: who.label,
               authorExact: who.exact,
               authorEmail: who.email,
@@ -705,6 +712,36 @@ function ExpandedVersionSlideModal(
                   />
                   <span>{row.heading}</span>
                 </div>
+                <Show when={row.oldBlock || row.newBlock}>
+                  <div
+                    class="mt-1.5"
+                    classList={{
+                      "grid grid-cols-2 gap-2": !!(row.oldBlock && row.newBlock),
+                    }}
+                  >
+                    <Show when={row.oldBlock} keyed>
+                      {(b) => (
+                        <BlockSnapshot
+                          block={b}
+                          caption={row.newBlock
+                            ? t3({ en: "Before", fr: "Avant", pt: "Antes" })
+                            : undefined}
+                          dimmed
+                        />
+                      )}
+                    </Show>
+                    <Show when={row.newBlock} keyed>
+                      {(b) => (
+                        <BlockSnapshot
+                          block={b}
+                          caption={row.oldBlock
+                            ? t3({ en: "After", fr: "Après", pt: "Depois" })
+                            : undefined}
+                        />
+                      )}
+                    </Show>
+                  </div>
+                </Show>
                 <Show when={row.oldText !== undefined || row.newText !== undefined}>
                   <div class="mt-1.5">
                     <DiffSegments
@@ -734,5 +771,44 @@ function ExpandedVersionSlideModal(
         </div>
       </Show>
     </ModalContainer>
+  );
+}
+
+// Rendered snapshot of a figure/image block for a before/after change row.
+// Figures render from their stored bundle (same funnel as the report preview
+// embeds); images resolve against the server's asset route.
+function BlockSnapshot(p: {
+  block: ContentBlock;
+  caption?: string;
+  dimmed?: boolean;
+}) {
+  return (
+    <div classList={{ "opacity-60": p.dimmed }}>
+      <Show when={p.caption}>
+        <div class="ui-text-caption mb-1">{p.caption}</div>
+      </Show>
+      <div class="bg-base-100 rounded border p-2">
+        <Switch
+          fallback={
+            <div class="ui-text-caption">
+              {t3({ en: "No preview", fr: "Aucun aperçu", pt: "Sem pré-visualização" })}
+            </div>
+          }
+        >
+          <Match when={p.block.type === "figure" ? p.block : false} keyed>
+            {(fig) => <ReportFigureEmbed figure={fig} />}
+          </Match>
+          <Match when={p.block.type === "image" ? p.block : false} keyed>
+            {(img) => (
+              <img
+                class="max-h-64 w-full object-contain"
+                src={`${_SERVER_HOST}/${img.imgFile}`}
+                alt=""
+              />
+            )}
+          </Match>
+        </Switch>
+      </div>
+    </div>
   );
 }

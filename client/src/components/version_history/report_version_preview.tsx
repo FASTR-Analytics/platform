@@ -1,4 +1,10 @@
-import { type ReportVersionDetail, t3 } from "lib";
+import {
+  canonicalJson,
+  type FigureBlock,
+  type ImageBlock,
+  type ReportVersionDetail,
+  t3,
+} from "lib";
 import {
   Button,
   ButtonGroup,
@@ -9,7 +15,7 @@ import {
   openConfirm,
   StateHolderWrapper,
 } from "panther";
-import { createSignal, type JSX, Show } from "solid-js";
+import { createSignal, For, type JSX, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
@@ -223,13 +229,18 @@ function SessionEdits(p: {
   version: ReportVersionDetail;
   previousVersionId?: string;
 }) {
-  // The body is wrapped in an object because StateHolderWrapper renders
+  // The snapshot is wrapped in an object because StateHolderWrapper renders
   // nothing for falsy ready-data — a bare "" (the oldest version's base)
-  // would blank the whole pane.
-  const previousBody = createQuery(
+  // would blank the whole pane. Figures/images ride along so the session view
+  // can show visualization changes, not just body text.
+  const previous = createQuery<{
+    body: string;
+    figures: Record<string, FigureBlock>;
+    images: Record<string, ImageBlock>;
+  }>(
     async () => {
       if (!p.previousVersionId) {
-        return { success: true as const, data: { body: "" } };
+        return { success: true as const, data: { body: "", figures: {}, images: {} } };
       }
       const res = await serverActions.getReportVersion({
         projectId: p.projectId,
@@ -237,14 +248,21 @@ function SessionEdits(p: {
         version_id: p.previousVersionId,
       });
       return res.success
-        ? { success: true as const, data: { body: res.data.body } }
+        ? {
+          success: true as const,
+          data: {
+            body: res.data.body,
+            figures: res.data.figures,
+            images: res.data.images,
+          },
+        }
         : res;
     },
     t3({ en: "Loading session edits...", fr: "Chargement des modifications...", pt: "A carregar as edições..." }),
   );
 
   return (
-    <StateHolderWrapper state={previousBody.state()}>
+    <StateHolderWrapper state={previous.state()}>
       {(prev) => {
         const segments = computeAttributedDiff([
           { body: prev.body, label: "" },
@@ -260,6 +278,9 @@ function SessionEdits(p: {
           },
         ]);
         const hasChanges = segments.some((s) => s.kind !== "same");
+        const figChanges = diffRegistry(prev.figures, p.version.figures);
+        const imgChanges = diffRegistry(prev.images, p.version.images);
+        const hasVizChanges = figChanges.length > 0 || imgChanges.length > 0;
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
             <Show when={!p.previousVersionId}>
@@ -271,25 +292,148 @@ function SessionEdits(p: {
                 })}
               </div>
             </Show>
-            <Show
-              when={hasChanges}
-              fallback={
-                <div class="text-neutral py-8 text-center text-sm">
-                  {t3({
-                    en: "No text changes in this session.",
-                    fr: "Aucune modification de texte dans cette session.",
-                    pt: "Sem alterações de texto nesta sessão.",
-                  })}
-                </div>
-              }
-            >
+            <Show when={hasChanges}>
               <div class="bg-base-100 mx-auto w-full max-w-4xl rounded border p-4">
                 <DiffSegments segments={segments} />
+              </div>
+            </Show>
+            <Show when={!hasChanges && !hasVizChanges}>
+              <div class="text-neutral py-8 text-center text-sm">
+                {t3({
+                  en: "No text changes in this session.",
+                  fr: "Aucune modification de texte dans cette session.",
+                  pt: "Sem alterações de texto nesta sessão.",
+                })}
+              </div>
+            </Show>
+            <Show when={hasVizChanges}>
+              <div
+                class="mx-auto w-full max-w-4xl"
+                classList={{ "mt-6": hasChanges }}
+              >
+                <div class="mb-2 text-sm font-semibold">
+                  {t3({
+                    en: "Visualization & image changes",
+                    fr: "Modifications des visualisations et des images",
+                    pt: "Alterações de visualizações e imagens",
+                  })}
+                </div>
+                <For each={figChanges}>
+                  {(ch) => (
+                    <VizChangeRow
+                      kind={ch.kind}
+                      what="figure"
+                      old={ch.oldVal && <ReportFigureEmbed figure={ch.oldVal} />}
+                      neu={ch.newVal && <ReportFigureEmbed figure={ch.newVal} />}
+                    />
+                  )}
+                </For>
+                <For each={imgChanges}>
+                  {(ch) => (
+                    <VizChangeRow
+                      kind={ch.kind}
+                      what="image"
+                      old={ch.oldVal && (
+                        <img
+                          class="max-h-64 w-full object-contain"
+                          src={`${_SERVER_HOST}/${ch.oldVal.imgFile}`}
+                          alt=""
+                        />
+                      )}
+                      neu={ch.newVal && (
+                        <img
+                          class="max-h-64 w-full object-contain"
+                          src={`${_SERVER_HOST}/${ch.newVal.imgFile}`}
+                          alt=""
+                        />
+                      )}
+                    />
+                  )}
+                </For>
               </div>
             </Show>
           </div>
         );
       }}
     </StateHolderWrapper>
+  );
+}
+
+type RegistryChange<T> = {
+  key: string;
+  kind: "added" | "removed" | "edited";
+  oldVal?: T;
+  newVal?: T;
+};
+
+// Key-by-key comparison of a version's figure/image registry against its
+// predecessor's — canonicalJson kills key-order nondeterminism, mirroring the
+// version content hash.
+function diffRegistry<T>(
+  prev: Record<string, T>,
+  next: Record<string, T>,
+): RegistryChange<T>[] {
+  const out: RegistryChange<T>[] = [];
+  for (const [key, val] of Object.entries(next)) {
+    const old = prev[key];
+    if (old === undefined) {
+      out.push({ key, kind: "added", newVal: val });
+    } else if (canonicalJson(old) !== canonicalJson(val)) {
+      out.push({ key, kind: "edited", oldVal: old, newVal: val });
+    }
+  }
+  for (const [key, val] of Object.entries(prev)) {
+    if (!(key in next)) {
+      out.push({ key, kind: "removed", oldVal: val });
+    }
+  }
+  return out;
+}
+
+// One changed figure/image: a labeled card with the before/after snapshots
+// side by side (only the surviving side for adds/removals). Attribution stays
+// session-level — registries have no per-editor ledger.
+function VizChangeRow(p: {
+  kind: "added" | "removed" | "edited";
+  what: "figure" | "image";
+  old?: JSX.Element;
+  neu?: JSX.Element;
+}) {
+  const whatLabel = p.what === "figure"
+    ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
+    : t3({ en: "Image", fr: "Image", pt: "Imagem" });
+  const kindLabel = p.kind === "added"
+    ? t3({ en: "added in this session", fr: "ajoutée dans cette session", pt: "adicionada nesta sessão" })
+    : p.kind === "removed"
+    ? t3({ en: "removed in this session", fr: "supprimée dans cette session", pt: "removida nesta sessão" })
+    : t3({ en: "edited in this session", fr: "modifiée dans cette session", pt: "editada nesta sessão" });
+  return (
+    <div class="bg-base-100 mb-4 rounded border p-3">
+      <div class="ui-text-caption mb-2">
+        {whatLabel} — {kindLabel}
+      </div>
+      <div classList={{ "grid grid-cols-2 gap-3": p.kind === "edited" }}>
+        <Show when={p.old}>
+          <div class="opacity-60">
+            <Show when={p.kind === "edited"}>
+              <div class="ui-text-caption mb-1">
+                {t3({ en: "Before", fr: "Avant", pt: "Antes" })}
+              </div>
+            </Show>
+            {p.old}
+          </div>
+        </Show>
+        <Show when={p.neu}>
+          <div>
+            <Show when={p.kind === "edited"}>
+              <div class="ui-text-caption mb-1">
+                {t3({ en: "After", fr: "Après", pt: "Depois" })}
+              </div>
+            </Show>
+            {p.neu}
+          </div>
+        </Show>
+      </div>
+    </div>
   );
 }
