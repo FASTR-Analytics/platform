@@ -69,8 +69,7 @@ Each routine is a folder under `server/worker_routines/` with two files:
   worker says it's listening, or the post races module load.
 
 - `worker.ts` — the worker entry point, opening with the standard preamble
-  (currently hand-copied into all six routines — the shared `runWorker()`
-  wrapper is PLAN_ENFORCEMENT item 8):
+  (hand-copied into all six routines — copy it verbatim, don't improvise):
 
   ```ts
   (self as unknown as Worker).onmessage = (e) => {

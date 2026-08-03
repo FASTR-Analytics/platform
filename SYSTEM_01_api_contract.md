@@ -401,10 +401,14 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 - **Decoupling — `lib/h_users.ts` ships access-policy emails in the client
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
-- Tracked in PLAN_ENFORCEMENT: startup guard-audit / explicitly-public
-  classification (item 4). (The old health.ts-guards item closed 2026-07-17: the
-  read surface is public-by-design — SYSTEM_15's exposure inventory — and the
-  mutating reset endpoint now requires the status-api key.)
+- **Startup guard-audit — considered and DECLINED (Tim, 2026-08-03).** A
+  boot-time (or type-level) check that every `defineRoute` carries a guard or
+  an explicit public marker was audited and rejected: the full registry has
+  exactly one unguarded route (`getInstanceMeta`, deliberately public), so the
+  rule stays convention + review. Do not re-propose without a new hole. (The
+  old health.ts-guards item closed 2026-07-17: the read surface is
+  public-by-design — SYSTEM_15's exposure inventory — and the mutating reset
+  endpoint now requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401) — either bless that as the contract or
   extend it to 403s deliberately; the two guards' 403 _message formats_ have

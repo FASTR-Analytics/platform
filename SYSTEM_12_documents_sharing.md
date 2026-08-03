@@ -399,9 +399,6 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead** — always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **Decoupling — `server/utils/id_generation.ts` hardcodes 7 tables**
-  (across S11/S12): generalize to `generateUniqueId(db, tableName)` (also
-  [PLAN_ENFORCEMENT.md](PLAN_ENFORCEMENT.md) #16).
 - **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
   S5/S6/S7 surfaces and documented by S7; `sort_control.tsx` is shell
   furniture (SYSTEM_14 flag) — settle via manifest move or a §4.1 exception

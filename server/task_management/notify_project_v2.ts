@@ -1,6 +1,5 @@
 import type {
   DashboardSummary,
-  LastUpdateTableName,
   PresentationObjectSummary,
   ProjectSseMessage,
   ProjectUser,
@@ -114,18 +113,6 @@ export function notifyProjectUsersUpdated(
   notifyProjectV2(projectId, {
     type: "project_users_updated",
     data: { projectUsers },
-  });
-}
-
-export function notifyProjectLastUpdatedV2(
-  projectId: string,
-  tableName: LastUpdateTableName,
-  ids: string[],
-  lastUpdated: string
-): void {
-  notifyProjectV2(projectId, {
-    type: "last_updated",
-    data: { tableName, ids, lastUpdated },
   });
 }
 

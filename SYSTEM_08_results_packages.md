@@ -406,12 +406,6 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
 
 ## Open items
 
-> Code findings from the review cycle are parked here; items already tracked in
-> PLAN_ENFORCEMENT get pointers, not restatements.
-
-- **Tracked in PLAN_ENFORCEMENT:** shared `runWorker()` preamble wrapper (item
-  8). (The `CHECK` on `modules.dirty` item died with the dirty machine — the
-  column survives only in the frozen project-DB `modules` table.)
 - **Harden the R-source interpolation.** The default and HFA script generators
   wrap config `text`/`select`/`number` values in single quotes with no escaping
   (only the calculated-indicators path validates identifiers), and the

@@ -8,6 +8,7 @@ import {
   type InstanceConfigMaxAdminArea,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
+import { escapeSqlString } from "./db/utils.ts";
 import { sweepAbandonedTmpRunDirs } from "./runs/mod.ts";
 import { resetDuckDbSpillDir } from "./run_query/duckdb_executor.ts";
 import { markInterruptedGeneratingRuns } from "./db/instance/run_generation.ts";
@@ -328,9 +329,7 @@ VALUES
 
 function getDefaultIndicatorsInsertStatement(): string {
   const valueRows = _COMMON_INDICATORS.map((ind) => {
-    // Escape single quotes in labels
-    const escapedLabel = ind.label.replace(/'/g, "''");
-    return `('${ind.value}', '${escapedLabel}', TRUE)`;
+    return `('${ind.value}', '${escapeSqlString(ind.label)}', TRUE)`;
   });
 
   return `

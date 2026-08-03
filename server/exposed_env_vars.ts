@@ -157,6 +157,26 @@ if (_PG_PASSWORD === undefined) {
   throw new Error("Could not get PG_PASSWORD env variable");
 }
 
+export const _VALKEY_URL = Deno.env.get("VALKEY_URL");
+
+export const _PORT = parseInt(Deno.env.get("PORT") || "8000");
+if (Number.isNaN(_PORT)) {
+  throw new Error("PORT is set but is not a number");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Client Origins
+///////////////////////////////////////////////////////////////////////////////
+
+/** Browser origins allowed to call this API with credentials (CLIENT_ORIGIN,
+ *  comma-separated). Shared by the HTTP CORS middleware and the collab
+ *  WebSocket's Origin allowlist (project-collab.ts) — WS handshakes are not
+ *  subject to CORS, so the socket enforces this list itself. */
+export const _CLIENT_ORIGINS = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
+  "http://localhost:3000",
+  "http://localhost:3001",
+];
+
 ///////////////////////////////////////////////////////////////////////////////
 // AI / External APIs
 ///////////////////////////////////////////////////////////////////////////////

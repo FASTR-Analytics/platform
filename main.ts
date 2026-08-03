@@ -12,6 +12,7 @@ import {
 } from "./server/collab/version_capture.ts";
 import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
+import { _PORT } from "./server/exposed_env_vars.ts";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -197,10 +198,9 @@ globalThis.addEventListener("error", (e) => {
   e.preventDefault();
 });
 
-const port = parseInt(Deno.env.get("PORT") || "8000");
-console.log(`Starting server on port ${port}...`);
+console.log(`Starting server on port ${_PORT}...`);
 
-const server = Deno.serve({ port }, app.fetch);
+const server = Deno.serve({ port: _PORT }, app.fetch);
 
 const shutdown = async () => {
   console.log("\nShutting down...");

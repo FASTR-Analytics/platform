@@ -20,7 +20,7 @@ import {
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
-import { allowedOrigins } from "../../middleware/cors.ts";
+import { _CLIENT_ORIGINS } from "../../exposed_env_vars.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
 import {
   getSlide,
@@ -172,7 +172,7 @@ function isAllowedWsOrigin(
   origin: string,
   host: string | undefined,
 ): boolean {
-  if (allowedOrigins.includes(origin)) {
+  if (_CLIENT_ORIGINS.includes(origin)) {
     return true;
   }
   try {

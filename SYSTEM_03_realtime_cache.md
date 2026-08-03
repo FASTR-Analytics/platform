@@ -167,13 +167,13 @@ generation publish and a project's own package picker — and both go through
 `server/runs/attach_run.ts`, so the repoint event carries the same full
 run-derived catalog either way.
 
-**The redundant `last_updated` indirection.**
-`server/task_management/notify_last_updated.ts` is a one-line passthrough:
-`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~56 call sites,
-re-exported via `task_management/mod.ts`) → `notifyProjectLastUpdatedV2` (no
-other callers) → `notifyProjectV2({ type: "last_updated", … })`. Three layers
-for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now: **call
-`notifyLastUpdated`** from routes.
+**The `last_updated` entry point.**
+`server/task_management/notify_last_updated.ts` —
+`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~47 call sites,
+re-exported via `task_management/mod.ts`) → `notifyProjectV2({ type:
+"last_updated", … })` directly. (The former `notifyProjectLastUpdatedV2`
+middle layer was collapsed 2026-08-03.) **Call `notifyLastUpdated`** from
+routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)
@@ -221,9 +221,8 @@ clients and caches stale with no error.
 - Channel-name strings are duplicated between producer (`notify_*` files) and
   consumer (SSE endpoints); a one-character drift silently breaks delivery (Open
   items).
-- Vestigial `_v2` on the project route path, channel string, filename, and
-  `notifyProjectLastUpdatedV2` — no v1 survives; the instance side has no
-  suffix. Don't extend the pattern (PLAN_ENFORCEMENT item 21).
+- Vestigial `_v2` on the project route path, channel string, and filename —
+  no v1 survives; the instance side has no suffix. Don't extend the pattern.
 - The two client consumers diverge on reconnect and parsing: instance
   `_MAX_CONNECTION_ATTEMPTS = 5` + raw `JSON.parse`; project
   `MAX_CONNECTION_ATTEMPTS = 3` + `parseJsonOrThrow` (Open items).
@@ -307,8 +306,7 @@ project-scoped: two projects attached to the same run share entries.
 | `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
-replicant_opts); unifying them behind a shared key-builder is PLAN_ENFORCEMENT
-item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
+replicant_opts). A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
 `ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 (tombstone comment in
 `dataset.ts`): once the HMIS display route's vizItems moved to the import
 ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
@@ -394,9 +392,6 @@ bump.
   `last_updated → notify` triangle is enforced by hand in ~26 files. A
   write-helper that does mutate + stamp + notify together (or a dev assertion
   flagging mutations without a notify) would make audit §4.3.1 mechanical.
-- Tracked in PLAN_ENFORCEMENT: collapse the notify indirection (item 12), shared
-  cache key-builder + one separator (item 9), retire vestigial `_v2` naming
-  (item 21 sweep).
 - Factor one canonical SSE connection helper (subscribe-before-build, drain,
   forward, cleanup) — the two endpoints implement the lifecycle two different
   ways.

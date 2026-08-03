@@ -138,8 +138,9 @@ with no options, and `getPgConnection` never reads `options.readonly` — no
 connection can write freely, and the flag merely **doubles** the pooled
 connections per database (a `_READ_ONLY` and a `_READ_AND_WRITE` entry, up to 20
 each — size Postgres `max_connections` accordingly). Treat the parameter as
-cache-namespacing, not a safety boundary (decision tracked as
-PLAN_ENFORCEMENT item 15).
+cache-namespacing, not a safety boundary (ruled 2026-08-03: it stays
+namespacing-only — making it real would break legitimate writes on
+`READ_ONLY`-pooled connections, e.g. `getGlobalUser`'s open-access insert).
 
 ## The canonical DB-function shape
 
@@ -257,10 +258,12 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   parameterized table names** — a table name from config must be validated
   against a closed set before it reaches SQL.
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
-  **only** sanctioned manual escaper, used for hand-built `VALUES` tuples in the
-  bulk paths (the HFA dataset functions and the HFA staging worker). The
-  HMIS/structure staging paths still inline their own `''`-doubling — one shared
-  helper + a ban on manual tuple escaping is PLAN_ENFORCEMENT item 6.
+  **only** sanctioned manual escaper for Postgres-bound SQL, used for
+  hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
+  `db_startup`, S9 filter values). No call site may inline its own
+  `''`-doubling (the last inline sites were consolidated 2026-08-03).
+  `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
+  twin.
 - **`.unsafe()`** runs raw SQL with no parameterization — ~20 call sites, all
   trusted-internal, in four groups: (1) the **bulk ingest paths** (S6-owned:
   `datasets_in_project_{hfa,hmis,iceh}.ts`, `instance/dataset_{hfa,hmis}.ts`,
@@ -387,11 +390,11 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   aggregate and re-export every non-helper sibling so callers never deep-import.
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`) — short nanoid
   (3-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`), retry-until-unique (10
-  attempts) against a specific table. There are **7 near-identical copies**
+  attempts) against a specific table: one internal core over a closed
+  `IdTable` union, seven thin named wrappers
   (deck/slide/report/presentation-object/dashboard/dashboard-item/
-  dashboard-item-group) differing only by table name — consolidation is
-  PLAN_ENFORCEMENT item 16. (Projects/folders/tokens use
-  `crypto.randomUUID()` instead.)
+  dashboard-item-group). (Projects/folders/tokens use `crypto.randomUUID()`
+  instead.)
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
   log/usage families predate it (`AddLog`, `GetLogs`, `SetUserUnlimitedAi`,
   `DeleteOldLogs`, the `ai_usage_logs.ts` set, …) — don't copy them.
@@ -423,9 +426,6 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   dump's stored-JSON shapes stay stale until the next server restart.
 - The restore body's fresh `getPgConnection(projectId)` pool is never `.end()`ed
   — one leaked pool per restore.
-- Tracked in PLAN_ENFORCEMENT: one bulk-escape helper + ban hand-built
-  `VALUES` (item 6), decide the `READ_ONLY` flag (item 15), consolidate
-  `generateUnique*Id` — now 7 copies (item 16).
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for
   trusted-input review; flag DB functions that throw or return non-envelope

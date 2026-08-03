@@ -1,5 +1,5 @@
 import { LastUpdateTableName } from "lib";
-import { notifyProjectLastUpdatedV2 } from "./notify_project_v2.ts";
+import { notifyProjectV2 } from "./notify_project_v2.ts";
 
 export function notifyLastUpdated(
   projectId: string,
@@ -7,5 +7,8 @@ export function notifyLastUpdated(
   ids: string[],
   lastUpdated: string
 ) {
-  notifyProjectLastUpdatedV2(projectId, tableName, ids, lastUpdated);
+  notifyProjectV2(projectId, {
+    type: "last_updated",
+    data: { tableName, ids, lastUpdated },
+  });
 }

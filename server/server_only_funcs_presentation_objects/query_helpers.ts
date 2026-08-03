@@ -17,6 +17,7 @@ import {
   usesBlankSentinel,
 } from "lib";
 import type { QueryContext } from "./types.ts";
+import { escapeSqlString } from "../db/utils.ts";
 
 // ============================================================================
 // Blank Folding
@@ -321,7 +322,7 @@ export function buildWhereClause(
       // Delimiter-joined set column: membership (OR-of-many), not exact match —
       // see MULTI_MEMBERSHIP_FILTER_COLUMNS (lib/validate_fetch_config.ts)
       const quotedValues = filter.values
-        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+        .map((v) => `'${escapeSqlString(String(v).toUpperCase())}'`)
         .join(", ");
       whereStatements.push(
         `string_to_array(UPPER(${columnName}), '${MULTI_MEMBERSHIP_DELIMITER}') && ARRAY[${quotedValues}]`,
@@ -344,7 +345,7 @@ export function buildWhereClause(
       const predicates: string[] = [];
       if (namedValues.length > 0) {
         const quotedValues = namedValues
-          .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+          .map((v) => `'${escapeSqlString(String(v).toUpperCase())}'`)
           .join(", ");
         predicates.push(`UPPER(${columnName}) IN (${quotedValues})`);
       }

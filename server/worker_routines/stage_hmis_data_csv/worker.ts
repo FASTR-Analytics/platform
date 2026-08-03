@@ -1,5 +1,6 @@
 import { Sql } from "postgres";
 import { UPLOADED_HMIS_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
+import { escapeSqlString } from "../../db/utils.ts";
 import {
   DBDatasetHmisUploadAttempt,
   createBulkImportConnection,
@@ -211,10 +212,7 @@ CREATE UNLOGGED TABLE ${tempTableName} (
 
         // Add to buffer as SQL values tuple
         rowBuffer.push(
-          `('${facilityId.replace(/'/g, "''")}','${rawIndicatorId.replace(
-            /'/g,
-            "''"
-          )}','${periodId}',${count})`
+          `('${escapeSqlString(facilityId)}','${escapeSqlString(rawIndicatorId)}','${periodId}',${count})`
         );
         totalRows++;
 
