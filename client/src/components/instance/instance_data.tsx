@@ -621,7 +621,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* ICEH */}
-              <div class="flex gap-6">
+              <div class="flex gap-6" data-tour="instance-data-iceh">
                 <div class="w-44 shrink-0 pt-3">
                   <div class="font-700 text-base">
                     {t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}

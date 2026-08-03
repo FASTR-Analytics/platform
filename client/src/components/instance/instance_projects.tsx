@@ -152,18 +152,20 @@ export function InstanceProjects(p: Props) {
                     pendingDeletionCount() > 0
                   }
                 >
-                  <Button
-                    onClick={openPendingDeletions}
-                    outline
-                    onBackground="base-content"
-                    intent="base-100"
-                  >
-                    {t3({
-                      en: `Pending deletions (${pendingDeletionCount()})`,
-                      fr: `Suppressions en attente (${pendingDeletionCount()})`,
-                      pt: `Eliminações pendentes (${pendingDeletionCount()})`,
-                    })}
-                  </Button>
+                  <div data-tour="instance-projects-pending">
+                    <Button
+                      onClick={openPendingDeletions}
+                      outline
+                      onBackground="base-content"
+                      intent="base-100"
+                    >
+                      {t3({
+                        en: `Pending deletions (${pendingDeletionCount()})`,
+                        fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                        pt: `Eliminações pendentes (${pendingDeletionCount()})`,
+                      })}
+                    </Button>
+                  </div>
                 </Show>
                 <Show
                   when={

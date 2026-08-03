@@ -254,7 +254,10 @@ export default function Instance(p: Props) {
                   </div>
                 </div>
                 <Show when={instanceState.currentUserApproved}>
-                  <div class="flex flex-1 justify-center xl:hidden">
+                  <div
+                    class="flex flex-1 justify-center xl:hidden"
+                    data-tour="instance-nav"
+                  >
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
@@ -262,7 +265,10 @@ export default function Instance(p: Props) {
                       itemWidth="50px"
                     />
                   </div>
-                  <div class="hidden flex-1 justify-center xl:flex">
+                  <div
+                    class="hidden flex-1 justify-center xl:flex"
+                    data-tour="instance-nav"
+                  >
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
@@ -272,52 +278,54 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                  <MenuTriggerWrapper
-                    items={
-                      [
-                        {
-                          label: "English",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                            if (getLanguage() === "en") return;
-                            window.location.reload();
+                  <div data-tour="instance-topbar-language">
+                    <MenuTriggerWrapper
+                      items={
+                        [
+                          {
+                            label: "English",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                              if (getLanguage() === "en") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                        {
-                          label: "Français",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                            if (getLanguage() === "fr") return;
-                            window.location.reload();
+                          {
+                            label: "Français",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                              if (getLanguage() === "fr") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                        {
-                          label: "Português",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                            if (getLanguage() === "pt") return;
-                            window.location.reload();
+                          {
+                            label: "Português",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                              if (getLanguage() === "pt") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                      ] satisfies MenuItem[]
-                    }
-                    position="bottom-end"
-                  >
-                    <Button intent="base-100">
-                      {
-                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
-                          getLanguage()
-                        ]
+                        ] satisfies MenuItem[]
                       }
-                    </Button>
-                  </MenuTriggerWrapper>
+                      position="bottom-end"
+                    >
+                      <Button intent="base-100">
+                        {
+                          ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                            getLanguage()
+                          ]
+                        }
+                      </Button>
+                    </MenuTriggerWrapper>
+                  </div>
                   <Show
                     when={
                       instanceState.currentUserApproved &&
                       whatsNewPostsForCurrentUser().length > 0
                     }
                   >
-                    <div class="relative">
+                    <div class="relative" data-tour="instance-topbar-whats-new">
                       <Button onClick={openWhatsNewFeed} intent="base-100">
                         <WhatsNewBellIcon />
                       </Button>
@@ -334,20 +342,24 @@ export default function Instance(p: Props) {
                       )
                     }
                   >
-                    <Button onClick={openTours} intent="base-100">
-                      {t3({
-                        en: "Guided tours",
-                        fr: "Visites guidées",
-                        pt: "Visitas guiadas",
-                      })}
-                    </Button>
+                    <div data-tour="instance-topbar-tours">
+                      <Button onClick={openTours} intent="base-100">
+                        {t3({
+                          en: "Guided tours",
+                          fr: "Visites guidées",
+                          pt: "Visitas guiadas",
+                        })}
+                      </Button>
+                    </div>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <Button
-                      onClick={openFeedback}
-                      iconName="help"
-                      intent="base-100"
-                    />
+                    <div data-tour="instance-topbar-feedback">
+                      <Button
+                        onClick={openFeedback}
+                        iconName="help"
+                        intent="base-100"
+                      />
+                    </div>
                     <Button
                       onClick={openInstanceMeta}
                       iconName="versions"
@@ -356,6 +368,7 @@ export default function Instance(p: Props) {
                   </Show>
                   <div
                     class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
+                    data-tour="instance-topbar-profile"
                     onClick={openProfile}
                   >
                     <span class="text-primary inline-block w-5">

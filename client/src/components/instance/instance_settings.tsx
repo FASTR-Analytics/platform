@@ -360,90 +360,92 @@ export function InstanceSettings(p: Props) {
           </SettingsSection>
         </div>
 
-        <SettingsSection
-          header={t3({
-            en: "Admin area labels",
-            fr: "Libellés des unités administratives",
-            pt: "Rótulos das zonas administrativas",
-          })}
-          rightChildren={
-            <Show when={needsSavingAdminLabels()}>
-              <Button
-                onClick={() => updateAdminAreaLabels.click()}
-                state={updateAdminAreaLabels.state()}
-                intent="success"
-              >
+        <div data-tour="instance-settings-admin-labels">
+          <SettingsSection
+            header={t3({
+              en: "Admin area labels",
+              fr: "Libellés des unités administratives",
+              pt: "Rótulos das zonas administrativas",
+            })}
+            rightChildren={
+              <Show when={needsSavingAdminLabels()}>
+                <Button
+                  onClick={() => updateAdminAreaLabels.click()}
+                  state={updateAdminAreaLabels.state()}
+                  intent="success"
+                >
+                  {t3({
+                    en: "Update admin area labels",
+                    fr: "Mettre à jour les libellés",
+                    pt: "Atualizar os rótulos das zonas administrativas",
+                  })}
+                </Button>
+              </Show>
+            }
+          >
+            <div class="ui-spy-sm">
+              <div class="ui-text-caption">
                 {t3({
-                  en: "Update admin area labels",
-                  fr: "Mettre à jour les libellés",
-                  pt: "Atualizar os rótulos das zonas administrativas",
+                  en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
+                  fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+                  pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
                 })}
-              </Button>
-            </Show>
-          }
-        >
-          <div class="ui-spy-sm">
-            <div class="ui-text-caption">
-              {t3({
-                en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
-                fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
-                pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
-              })}
-            </div>
-            <For
-              each={[
-                {
-                  level: 2 as const,
-                  value: adminLabel2,
-                  setter: setAdminLabel2,
-                  exampleEn: "Region",
-                  exampleFr: "Région",
-                },
-                {
-                  level: 3 as const,
-                  value: adminLabel3,
-                  setter: setAdminLabel3,
-                  exampleEn: "District",
-                  exampleFr: "District",
-                },
-                {
-                  level: 4 as const,
-                  value: adminLabel4,
-                  setter: setAdminLabel4,
-                  exampleEn: "Catchment",
-                  exampleFr: "Zone",
-                },
-              ].filter((row) => row.level <= instanceState.maxAdminArea)}
-            >
-              {(row) => (
-                <div class="ui-gap flex items-center">
-                  <div class="w-56">
-                    {t3({
-                      en: `Admin area ${row.level}`,
-                      fr: `Unité administrative ${row.level}`,
-                      pt: `Zona administrativa ${row.level}`,
-                    })}
-                  </div>
-                  <div class="w-96">
-                    <Input
-                      value={row.value()}
-                      onChange={(value) => {
-                        row.setter(value);
-                        setNeedsSavingAdminLabels(true);
-                      }}
-                      placeholder={t3({
-                        en: `e.g. ${row.exampleEn}`,
-                        fr: `ex. ${row.exampleFr}`,
-                        pt: `por ex. ${row.exampleEn}`,
+              </div>
+              <For
+                each={[
+                  {
+                    level: 2 as const,
+                    value: adminLabel2,
+                    setter: setAdminLabel2,
+                    exampleEn: "Region",
+                    exampleFr: "Région",
+                  },
+                  {
+                    level: 3 as const,
+                    value: adminLabel3,
+                    setter: setAdminLabel3,
+                    exampleEn: "District",
+                    exampleFr: "District",
+                  },
+                  {
+                    level: 4 as const,
+                    value: adminLabel4,
+                    setter: setAdminLabel4,
+                    exampleEn: "Catchment",
+                    exampleFr: "Zone",
+                  },
+                ].filter((row) => row.level <= instanceState.maxAdminArea)}
+              >
+                {(row) => (
+                  <div class="ui-gap flex items-center">
+                    <div class="w-56">
+                      {t3({
+                        en: `Admin area ${row.level}`,
+                        fr: `Unité administrative ${row.level}`,
+                        pt: `Zona administrativa ${row.level}`,
                       })}
-                      fullWidth
-                    />
+                    </div>
+                    <div class="w-96">
+                      <Input
+                        value={row.value()}
+                        onChange={(value) => {
+                          row.setter(value);
+                          setNeedsSavingAdminLabels(true);
+                        }}
+                        placeholder={t3({
+                          en: `e.g. ${row.exampleEn}`,
+                          fr: `ex. ${row.exampleFr}`,
+                          pt: `por ex. ${row.exampleEn}`,
+                        })}
+                        fullWidth
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
-            </For>
-          </div>
-        </SettingsSection>
+                )}
+              </For>
+            </div>
+          </SettingsSection>
+        </div>
 
         <div data-tour="instance-settings-facility-columns">
           <SettingsSection

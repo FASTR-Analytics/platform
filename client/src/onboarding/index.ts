@@ -42,6 +42,7 @@ import {
   buildInstanceProjectsTour,
   buildInstanceSettingsTour,
   buildInstanceUsersTour,
+  buildInstanceWelcomeTour,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
@@ -99,6 +100,10 @@ export function setupInstanceTours(opts: {
     },
     watch: [() => instanceState.projects.length],
     tours: [
+      // Ordered before the projects tour: on a brand-new user's first visit
+      // both are eligible on the landing tab and merge into one run, shell
+      // first.
+      { page: "instance-projects", tour: buildInstanceWelcomeTour() },
       { page: "instance-projects", tour: buildInstanceProjectsTour() },
       { page: "instance-data", tour: buildInstanceDataTour() },
       { page: "instance-assets", tour: buildInstanceAssetsTour() },

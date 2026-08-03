@@ -1973,6 +1973,119 @@ export function buildVizEditorEditTour(): TourDefinition {
 // Users / Settings). Unlike the project tours above, their availability reads
 // instanceState only and their manager lives in the instance shell.
 
+// The nav renders twice (compact icons below xl, labelled buttons above), so
+// the target picks whichever variant is actually visible.
+const visibleInstanceNav = () => {
+  const els = Array.from(
+    document.querySelectorAll('[data-tour="instance-nav"]'),
+  );
+  return (
+    els.find((el) => el instanceof HTMLElement && el.offsetParent !== null) ??
+    els[0] ??
+    null
+  );
+};
+
+// The instance shell itself: navigation, language, release notes and where to
+// find help. Fires on the projects page (the landing tab), merging seamlessly
+// ahead of the projects tour on a brand-new user's first visit.
+export function buildInstanceWelcomeTour(): TourDefinition {
+  return {
+    id: "instance-welcome",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "nav",
+        target: visibleInstanceNav,
+        title: t3({
+          en: "Welcome to FASTR",
+          fr: "Bienvenue dans FASTR",
+          pt: "Bem-vindo ao FASTR",
+        }),
+        body: t3({
+          en: "This is your instance home. Use these tabs to move between projects, instance-wide data and shared assets — plus users and settings if you have those permissions.",
+          fr: "Voici l'accueil de votre instance. Utilisez ces onglets pour passer des projets aux données de l'instance et aux ressources partagées — ainsi qu'aux utilisateurs et aux paramètres si vous en avez les permissions.",
+          pt: "Esta é a página inicial da sua instância. Use estes separadores para alternar entre projetos, dados da instância e recursos partilhados — além de utilizadores e definições, se tiver essas permissões.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "language",
+        target: tourTarget("instance-topbar-language"),
+        title: t3({ en: "Language", fr: "Langue", pt: "Idioma" }),
+        body: t3({
+          en: "FASTR is available in English, French and Portuguese. Switching reloads the page in your chosen language.",
+          fr: "FASTR est disponible en anglais, français et portugais. Le changement recharge la page dans la langue choisie.",
+          pt: "O FASTR está disponível em inglês, francês e português. Mudar recarrega a página no idioma escolhido.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "whats-new",
+        target: tourTarget("instance-topbar-whats-new"),
+        title: t3({ en: "What's new", fr: "Nouveautés", pt: "Novidades" }),
+        body: t3({
+          en: "Release notes live under the bell — a dot means there's an announcement you haven't read yet.",
+          fr: "Les notes de version se trouvent sous la cloche — un point signale une annonce que vous n'avez pas encore lue.",
+          pt: "As notas de versão estão sob o sino — um ponto indica um anúncio que ainda não leu.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "tours",
+        target: tourTarget("instance-topbar-tours"),
+        title: t3({
+          en: "Guided tours",
+          fr: "Visites guidées",
+          pt: "Visitas guiadas",
+        }),
+        body: t3({
+          en: "Replay any tour whenever you like — including the ones that run inside a project.",
+          fr: "Rejouez n'importe quelle visite quand vous voulez — y compris celles qui se déroulent dans un projet.",
+          pt: "Repita qualquer visita quando quiser — incluindo as que decorrem dentro de um projeto.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "feedback",
+        target: tourTarget("instance-topbar-feedback"),
+        title: t3({
+          en: "Send feedback",
+          fr: "Envoyer un commentaire",
+          pt: "Enviar comentários",
+        }),
+        body: t3({
+          en: "Questions, problems or ideas? Send them straight to the team from here.",
+          fr: "Des questions, des problèmes ou des idées ? Envoyez-les directement à l'équipe depuis ici.",
+          pt: "Perguntas, problemas ou ideias? Envie-os diretamente à equipa a partir daqui.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "profile",
+        target: tourTarget("instance-topbar-profile"),
+        title: t3({
+          en: "Your profile",
+          fr: "Votre profil",
+          pt: "O seu perfil",
+        }),
+        body: t3({
+          en: "Update your details or sign out from here.",
+          fr: "Mettez à jour vos informations ou déconnectez-vous ici.",
+          pt: "Atualize os seus dados ou termine a sessão aqui.",
+        }),
+        placement: "bottom",
+      },
+    ],
+  };
+}
+
 export function buildInstanceProjectsTour(): TourDefinition {
   const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   return {
@@ -2033,6 +2146,28 @@ export function buildInstanceProjectsTour(): TourDefinition {
           en: "See every project's setup side by side — datasets, modules and activity — useful for spotting projects that are out of date.",
           fr: "Visualisez la configuration de tous les projets côte à côte — jeux de données, modules et activité — pratique pour repérer les projets obsolètes.",
           pt: "Veja a configuração de todos os projetos lado a lado — conjuntos de dados, módulos e atividade — útil para identificar projetos desatualizados.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "pending-deletions",
+        target: tourTarget("instance-projects-pending"),
+        when: () =>
+          instanceState.currentUserIsGlobalAdmin &&
+          instanceState.projects.some(
+            (proj) => proj.status === "pending_deletion",
+          ),
+        title: t3({
+          en: "Pending deletions",
+          fr: "Suppressions en attente",
+          pt: "Eliminações pendentes",
+        }),
+        body: t3({
+          en: "Deleting a project schedules it here first, so anything removed by mistake can still be restored before it's gone for good.",
+          fr: "La suppression d'un projet le place d'abord ici, afin que tout ce qui a été supprimé par erreur puisse encore être restauré avant de disparaître définitivement.",
+          pt: "Eliminar um projeto coloca-o primeiro aqui, para que algo removido por engano ainda possa ser restaurado antes de desaparecer definitivamente.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
@@ -2102,9 +2237,9 @@ export function buildInstanceDataTour(): TourDefinition {
         target: tourTarget("instance-data-hmis"),
         title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
         body: t3({
-          en: "The facility list and monthly routine service data. Click a card to inspect what has been uploaded or to import a new dataset.",
-          fr: "La liste des établissements et les données de routine mensuelles. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
-          pt: "A lista de estabelecimentos e os dados de rotina mensais. Clique num cartão para consultar o que foi carregado ou para importar um novo conjunto de dados.",
+          en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a card to inspect what has been uploaded or to import a new dataset.",
+          fr: "La liste des établissements, les données de routine mensuelles et le dictionnaire d'indicateurs qui définit ce qui est mesuré. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
+          pt: "A lista de estabelecimentos, os dados de rotina mensais e o dicionário de indicadores que define o que é medido. Clique num cartão para consultar o que foi carregado ou para importar um novo conjunto de dados.",
         }),
         placement: "top",
       },
@@ -2112,14 +2247,29 @@ export function buildInstanceDataTour(): TourDefinition {
         id: "hfa",
         target: tourTarget("instance-data-hfa"),
         title: t3({
-          en: "Surveys",
-          fr: "Enquêtes",
-          pt: "Inquéritos",
+          en: "Health facility assessments",
+          fr: "Enquêtes auprès des établissements",
+          pt: "Avaliações de unidades de saúde",
         }),
         body: t3({
-          en: "Health facility assessment rounds live here, with equity (ICEH) data in the section below — each uploaded once and exported to the projects that use them.",
-          fr: "Les vagues d'enquêtes auprès des établissements de santé se trouvent ici, avec les données d'équité (ICEH) dans la section en dessous — chacune importée une fois puis exportée vers les projets qui les utilisent.",
-          pt: "As rondas de avaliação de unidades de saúde ficam aqui, com os dados de equidade (ICEH) na secção abaixo — cada uma carregada uma vez e exportada para os projetos que as utilizam.",
+          en: "Survey rounds with their own facilities, indicators, time points and weights — each uploaded once and exported to the projects that use them.",
+          fr: "Les vagues d'enquêtes avec leurs propres établissements, indicateurs, périodes et pondérations — chacune importée une fois puis exportée vers les projets qui les utilisent.",
+          pt: "Rondas de inquérito com os seus próprios estabelecimentos, indicadores, períodos e ponderações — cada uma carregada uma vez e exportada para os projetos que as utilizam.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "iceh",
+        target: tourTarget("instance-data-iceh"),
+        title: t3({
+          en: "Equity data (ICEH)",
+          fr: "Données d'équité (ICEH)",
+          pt: "Dados de equidade (ICEH)",
+        }),
+        body: t3({
+          en: "Household-survey equity data. Like the other datasources: uploaded once here, then exported into the projects that analyse it.",
+          fr: "Les données d'équité issues d'enquêtes auprès des ménages. Comme les autres sources : importées une fois ici, puis exportées vers les projets qui les analysent.",
+          pt: "Dados de equidade provenientes de inquéritos aos agregados familiares. Como as outras fontes: carregados uma vez aqui e depois exportados para os projetos que os analisam.",
         }),
         placement: "top",
       },
@@ -2322,16 +2472,31 @@ export function buildInstanceSettingsTour(): TourDefinition {
         id: "admin-areas",
         target: tourTarget("instance-settings-admin-areas"),
         title: t3({
-          en: "Administrative areas",
-          fr: "Unités administratives",
-          pt: "Zonas administrativas",
+          en: "Administrative levels",
+          fr: "Niveaux administratifs",
+          pt: "Níveis administrativos",
         }),
         body: t3({
-          en: "How many administrative levels the instance uses, and (below) what each level is called — those labels appear everywhere data is disaggregated by area.",
-          fr: "Le nombre de niveaux administratifs utilisés par l'instance et (en dessous) le nom de chaque niveau — ces libellés apparaissent partout où les données sont désagrégées par zone.",
-          pt: "Quantos níveis administrativos a instância utiliza e (abaixo) o nome de cada nível — esses rótulos aparecem sempre que os dados são desagregados por zona.",
+          en: "How many administrative levels the instance uses, from national down to level 4.",
+          fr: "Le nombre de niveaux administratifs utilisés par l'instance, du niveau national jusqu'au niveau 4.",
+          pt: "Quantos níveis administrativos a instância utiliza, do nível nacional até ao nível 4.",
         }),
         placement: "bottom",
+      },
+      {
+        id: "admin-labels",
+        target: tourTarget("instance-settings-admin-labels"),
+        title: t3({
+          en: "Admin area labels",
+          fr: "Libellés des unités administratives",
+          pt: "Rótulos das zonas administrativas",
+        }),
+        body: t3({
+          en: "What each level is called — Region, District, Chiefdom, whatever fits your country. These labels appear everywhere data is disaggregated by area.",
+          fr: "Le nom de chaque niveau — région, district, chefferie, selon votre pays. Ces libellés apparaissent partout où les données sont désagrégées par zone.",
+          pt: "O nome de cada nível — região, distrito, chefia, conforme o seu país. Estes rótulos aparecem sempre que os dados são desagregados por zona.",
+        }),
+        placement: "top",
       },
       {
         id: "facility-columns",

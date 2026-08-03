@@ -352,6 +352,22 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
   const admin = () => instanceState.currentUserIsGlobalAdmin;
   return [
     {
+      id: "instance-welcome",
+      tab: "projects",
+      label: t3({
+        en: "Welcome to FASTR",
+        fr: "Bienvenue dans FASTR",
+        pt: "Bem-vindo ao FASTR",
+      }),
+      description: t3({
+        en: "The instance itself: navigation, language, release notes and where to find help.",
+        fr: "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
+        pt: "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
+      }),
+      available: () => true,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
       id: "instance-projects-intro",
       tab: "projects",
       label: t3({
