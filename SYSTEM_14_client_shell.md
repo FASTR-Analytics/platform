@@ -39,7 +39,14 @@ manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
 document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
 (persists until the target tab mounts and consumes it), and the slide tours
 chain a second-level `pendingSlideOpen` request that the deck editor consumes
-to open the first slide of the requested type. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+to open the first slide of the requested type. Tour availability is computed
+over a `TourProjectFacts` slice satisfied by both the live `projectState` and
+a fetched `ProjectDetail`, which powers the instance-level variant
+(`tour_catalogue_instance_modal.tsx`, opened from the instance topbar): it
+fetches every accessible project's detail, offers Replay only for tours some
+project qualifies for (first qualifying project wins; slide-type presence is
+verified by searching the slide documents), and hands the chosen tour to the
+project shell via the `pendingTourReplay` signal, consumed after hydration. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

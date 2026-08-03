@@ -1,13 +1,23 @@
 import { t3, TC } from "lib";
+import type { SlideType } from "lib";
 import type { TourManagerController } from "@njwse/roadtrip";
 import { Button, ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show, createSignal } from "solid-js";
-import { getTourCatalogue, type TourCatalogueEntry } from "./catalogue";
+import { projectState } from "~/state/project/t1_store";
+import {
+  findProjectWithSlideOfType,
+  getTourCatalogue,
+  type TourCatalogueEntry,
+  type TourProjectFacts,
+} from "./catalogue";
+
+export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
 
 type Area = TourCatalogueEntry["area"];
 
-// App tab order, so the modal reads like the navigation
-function getAreaHeadings(): { area: Area; heading: string }[] {
+// App tab order, so the modal reads like the navigation. Shared with the
+// instance-level catalogue modal.
+export function getAreaHeadings(): { area: Area; heading: string }[] {
   return [
     {
       area: "reports",
@@ -67,6 +77,36 @@ export function TourCatalogueModal(
 
   const managerFor = (id: string) => p.managers.find((m) => m.hasTour(id));
 
+  // Slide types live only in the slide documents, so the three slide-tour
+  // rows need this async search before their availability is trustworthy;
+  // the row list waits for it (cache-first, so usually near-instant).
+  const [slideTypesPresent, setSlideTypesPresent] = createSignal<
+    Partial<Record<SlideType, boolean>> | undefined
+  >(undefined);
+  void (async () => {
+    const candidates = [
+      { projectId: projectState.id, slideDecks: projectState.slideDecks },
+    ];
+    const present: Partial<Record<SlideType, boolean>> = {};
+    for (const type of SLIDE_TOUR_TYPES) {
+      present[type] =
+        (await findProjectWithSlideOfType(candidates, type)) !== null;
+    }
+    setSlideTypesPresent(present);
+  })();
+
+  const facts = (): TourProjectFacts => ({
+    thisUserPermissions: projectState.thisUserPermissions,
+    isLocked: projectState.isLocked,
+    projectModules: projectState.projectModules,
+    metrics: projectState.metrics,
+    visualizations: projectState.visualizations,
+    slideDecks: projectState.slideDecks,
+    reports: projectState.reports,
+    dashboards: projectState.dashboards,
+    slideTypesPresent: slideTypesPresent(),
+  });
+
   // hasSeen() isn't reactive — bump after any reset so the chips re-render,
   // and once hydration settles in case the modal opened before it finished
   const [seenRev, setSeenRev] = createSignal(0);
@@ -108,57 +148,66 @@ export function TourCatalogueModal(
         ]
       }
     >
-      <div class="ui-spy">
-        <For each={groups}>
-          {(group) => (
-            <div class="ui-spy-sm">
-              <div class="font-700 text-base-content-muted text-xs uppercase">
-                {group.heading}
-              </div>
-              <For each={group.entries}>
-                {(entry) => {
-                  const isAvailable = () => entry.available();
-                  const isSeen = () => seen(entry.id);
-                  return (
-                    <div
-                      class="flex items-center gap-3 rounded border px-4 py-3"
-                      classList={{ "opacity-60": !isAvailable() }}
-                    >
-                      <div class="min-w-0 flex-1">
-                        <div class="text-base-content flex items-center gap-2">
-                          <span class="font-700">{entry.label}</span>
-                          <span class="text-base-content-muted rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">
-                            {isSeen()
-                              ? t3({ en: "Seen", fr: "Vue", pt: "Vista" })
-                              : t3({
-                                  en: "Not seen yet",
-                                  fr: "Pas encore vue",
-                                  pt: "Ainda não vista",
-                                })}
-                          </span>
-                        </div>
-                        <div class="text-base-content-muted mt-1 text-sm">
-                          {entry.description}
-                        </div>
-                        <Show when={!isAvailable()}>
-                          <div class="text-base-content-muted mt-1 text-sm italic">
-                            {entry.unavailableReason()}
+      <Show
+        when={slideTypesPresent()}
+        fallback={
+          <div class="text-base-content-muted ui-pad text-sm">
+            {t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" })}
+          </div>
+        }
+      >
+        <div class="ui-spy">
+          <For each={groups}>
+            {(group) => (
+              <div class="ui-spy-sm">
+                <div class="font-700 text-base-content-muted text-xs uppercase">
+                  {group.heading}
+                </div>
+                <For each={group.entries}>
+                  {(entry) => {
+                    const isAvailable = () => entry.available(facts());
+                    const isSeen = () => seen(entry.id);
+                    return (
+                      <div
+                        class="flex items-center gap-3 rounded border px-4 py-3"
+                        classList={{ "opacity-60": !isAvailable() }}
+                      >
+                        <div class="min-w-0 flex-1">
+                          <div class="text-base-content flex items-center gap-2">
+                            <span class="font-700">{entry.label}</span>
+                            <span class="text-base-content-muted rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">
+                              {isSeen()
+                                ? t3({ en: "Seen", fr: "Vue", pt: "Vista" })
+                                : t3({
+                                    en: "Not seen yet",
+                                    fr: "Pas encore vue",
+                                    pt: "Ainda não vista",
+                                  })}
+                            </span>
                           </div>
+                          <div class="text-base-content-muted mt-1 text-sm">
+                            {entry.description}
+                          </div>
+                          <Show when={!isAvailable()}>
+                            <div class="text-base-content-muted mt-1 text-sm italic">
+                              {entry.unavailableReason(facts())}
+                            </div>
+                          </Show>
+                        </div>
+                        <Show when={isAvailable()}>
+                          <Button size="sm" onClick={() => replay(entry)}>
+                            {t3({ en: "Replay", fr: "Rejouer", pt: "Repetir" })}
+                          </Button>
                         </Show>
                       </div>
-                      <Show when={isAvailable()}>
-                        <Button size="sm" onClick={() => replay(entry)}>
-                          {t3({ en: "Replay", fr: "Rejouer", pt: "Repetir" })}
-                        </Button>
-                      </Show>
-                    </div>
-                  );
-                }}
-              </For>
-            </div>
-          )}
-        </For>
-      </div>
+                    );
+                  }}
+                </For>
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
     </ModalContainer>
   );
 }

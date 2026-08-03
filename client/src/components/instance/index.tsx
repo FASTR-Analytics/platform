@@ -1,5 +1,11 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, compareDottedVersions, getLanguage, t3, LANGUAGE_STORAGE_KEY } from "lib";
+import {
+  TC,
+  compareDottedVersions,
+  getLanguage,
+  t3,
+  LANGUAGE_STORAGE_KEY,
+} from "lib";
 import {
   AlertProvider,
   Button,
@@ -35,6 +41,7 @@ import { FeedbackForm } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
+import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
 
 type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
 
@@ -135,7 +142,7 @@ type Props = {
 };
 
 export default function Instance(p: Props) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [_tab, setTab] = createSignal<
     "projects" | "users" | "data" | "assets" | "settings"
   >("projects");
@@ -198,15 +205,23 @@ export default function Instance(p: Props) {
     });
   }
 
+  async function openTours() {
+    await openComponent({
+      element: TourCatalogueInstanceModal,
+      props: {
+        projects: instanceState.projects
+          .filter((project) => project.status === "ready")
+          .map((project) => ({ id: project.id, label: project.label })),
+        openProject: (projectId: string) => setSearchParams({ p: projectId }),
+      },
+    });
+  }
+
   return (
     <>
       <Switch>
         <Match when={getFirstString(searchParams.p)} keyed>
-          {(projectId) => (
-            <Project
-              projectId={projectId}
-            />
-          )}
+          {(projectId) => <Project projectId={projectId} />}
         </Match>
         <Match when={true}>
           <FrameTop
@@ -274,7 +289,11 @@ export default function Instance(p: Props) {
                     position="bottom-end"
                   >
                     <Button intent="base-100">
-                      {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
+                      {
+                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                          getLanguage()
+                        ]
+                      }
                     </Button>
                   </MenuTriggerWrapper>
                   <Show
@@ -291,6 +310,18 @@ export default function Instance(p: Props) {
                         <div class="bg-primary pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
                       </Show>
                     </div>
+                  </Show>
+                  <Show
+                    when={
+                      instanceState.currentUserApproved &&
+                      instanceState.projects.some(
+                        (project) => project.status === "ready",
+                      )
+                    }
+                  >
+                    <Button onClick={openTours} intent="base-100">
+                      {t3({ en: "Tours", fr: "Visites", pt: "Visitas" })}
+                    </Button>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
                     <Button
@@ -337,12 +368,10 @@ export default function Instance(p: Props) {
                       instanceState.currentUserPermissions.can_configure_data)
                   }
                 >
-                  <InstanceData
-                  />
+                  <InstanceData />
                 </Match>
                 <Match when={tab() === "assets"}>
-                  <InstanceAssets
-                  />
+                  <InstanceAssets />
                 </Match>
                 <Match
                   when={
@@ -395,9 +424,10 @@ export default function Instance(p: Props) {
 // bell (unread dot + browsable feed). All module-level state is scoped to the
 // signed-in user's id — these signals outlive a same-tab user switch that
 // happens without a full page reload.
-const [whatsNewState, setWhatsNewState] = createSignal<
-  { userId: string; posts: WhatsNewPost[] } | null
->(null);
+const [whatsNewState, setWhatsNewState] = createSignal<{
+  userId: string;
+  posts: WhatsNewPost[];
+} | null>(null);
 const [whatsNewSeenVersion, setWhatsNewSeenVersion] = createSignal<
   string | undefined
 >(undefined);
@@ -424,8 +454,9 @@ function whatsNewHasUnread(): boolean {
   const posts = whatsNewPostsForCurrentUser();
   if (posts.length === 0) return false;
   const seen = whatsNewSeenVersion();
-  return !seen ||
-    compareDottedVersions(newestWhatsNewPost(posts).version, seen) > 0;
+  return (
+    !seen || compareDottedVersions(newestWhatsNewPost(posts).version, seen) > 0
+  );
 }
 
 function recordWhatsNewEvent(

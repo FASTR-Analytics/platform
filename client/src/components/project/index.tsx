@@ -41,6 +41,8 @@ import {
   setNavCollapsed,
   moduleLatestCommits,
   setModuleLatestCommits,
+  pendingTourReplay,
+  setPendingTourReplay,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper } from "../project_ai";
@@ -64,6 +66,7 @@ import {
   setupVisualizationTours,
 } from "~/onboarding";
 import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
+import { getTourCatalogue } from "~/onboarding/catalogue";
 
 type Props = {
   projectId: string;
@@ -116,6 +119,20 @@ function ProjectInner() {
     setupDataTours(),
     setupSettingsTours(),
   ];
+
+  // A replay requested from the instance-level catalogue. We only mount once
+  // projectState has hydrated (ProjectSSEBoundary gates on isReady), so the
+  // availability re-check is trustworthy; the instance modal already verified
+  // it, making a silent skip on mismatch a race-only safety net.
+  createEffect(() => {
+    const tourId = pendingTourReplay();
+    if (!tourId) return;
+    setPendingTourReplay(null);
+    const entry = getTourCatalogue().find((e) => e.id === tourId);
+    if (!entry || !entry.available(projectState)) return;
+    entry.navigate();
+    void tourManagers.find((m) => m.hasTour(tourId))?.start(tourId);
+  });
 
   const dataNeedsUpdate = createMemo(() =>
     checkDataNeedsUpdate(projectState, instanceState),

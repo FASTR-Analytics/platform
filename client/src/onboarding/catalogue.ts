@@ -1,4 +1,12 @@
 import { getPossibleModules, t3 } from "lib";
+import type {
+  DashboardSummary,
+  PresentationObjectSummary,
+  ProjectUserPermissions,
+  ReportSummary,
+  SlideDeckSummary,
+  SlideType,
+} from "lib";
 import { projectState } from "~/state/project/t1_store";
 import {
   getInstanceCountryIso3,
@@ -10,10 +18,29 @@ import {
   setPendingSlideOpen,
   updateProjectView,
 } from "~/state/t4_ui";
-import type { SlideType } from "lib";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { serverActions } from "~/server_actions";
+
+// The slice of project state that tour availability depends on. Satisfied by
+// the live `projectState` store (in-project modal) and by a fetched
+// `ProjectDetail` (instance-level modal, which evaluates every project the
+// user can access to pick one that qualifies).
+export type TourProjectFacts = {
+  thisUserPermissions: ProjectUserPermissions;
+  isLocked: boolean;
+  projectModules: { id: string }[];
+  metrics: { id: string; status: string }[];
+  visualizations: PresentationObjectSummary[];
+  slideDecks: SlideDeckSummary[];
+  reports: ReportSummary[];
+  dashboards: DashboardSummary[];
+  /** Result of findProjectWithSlideOfType per slide type. When supplied, the
+   *  three slide tours are gated precisely; when absent they fall back to the
+   *  optimistic "first deck has slides" proxy (slide types live only in the
+   *  slide documents, so this is async data the modals fetch). */
+  slideTypesPresent?: Partial<Record<SlideType, boolean>>;
+};
 
 export type TourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -28,49 +55,50 @@ export type TourCatalogueEntry = {
     | "settings";
   label: string;
   description: string;
-  /** State-only. Do NOT probe the DOM here — the target tab is usually
-   *  unmounted when the modal is open. */
-  available: () => boolean;
+  /** State-only over the given facts. Do NOT probe the DOM here — the target
+   *  tab is usually unmounted (or another project entirely) when evaluated. */
+  available: (f: TourProjectFacts) => boolean;
   /** Shown in place of the action when `available()` is false. */
-  unavailableReason: () => string;
-  /** Tab switch, plus editor/slide open requests for the deeper tours. */
+  unavailableReason: (f: TourProjectFacts) => string;
+  /** Tab switch, plus editor/slide open requests for the deeper tours. Runs
+   *  inside the project shell only. */
   navigate: () => void;
 };
 
-const perms = () => projectState.thisUserPermissions;
-const hasModules = () => projectState.projectModules.length > 0;
-const hasDecks = () => projectState.slideDecks.length > 0;
-const hasReports = () => projectState.reports.length > 0;
-const hasDashboards = () => projectState.dashboards.length > 0;
-const firstDeckHasSlides = () =>
-  projectState.slideDecks[0]?.firstSlideId != null;
-const firstReportHasEmbeds = () => {
-  const preview = projectState.reports[0]?.preview;
+const perms = (f: TourProjectFacts) => f.thisUserPermissions;
+const hasModules = (f: TourProjectFacts) => f.projectModules.length > 0;
+const hasDecks = (f: TourProjectFacts) => f.slideDecks.length > 0;
+const hasReports = (f: TourProjectFacts) => f.reports.length > 0;
+const hasDashboards = (f: TourProjectFacts) => f.dashboards.length > 0;
+const firstDeckHasSlides = (f: TourProjectFacts) =>
+  f.slideDecks[0]?.firstSlideId != null;
+const firstReportHasEmbeds = (f: TourProjectFacts) => {
+  const preview = f.reports[0]?.preview;
   return preview !== undefined && preview.figureCount + preview.imageCount > 0;
 };
-const firstDefaultViz = () =>
-  projectState.visualizations.find((v) => v.isDefault);
-const firstCustomViz = () =>
-  projectState.visualizations.find((v) => !v.isDefault);
+const firstDefaultViz = (f: TourProjectFacts) =>
+  f.visualizations.find((v) => v.isDefault);
+const firstCustomViz = (f: TourProjectFacts) =>
+  f.visualizations.find((v) => !v.isDefault);
 // Mirrors PresentationObjectPanelDisplay: the "Hide unavailable" filter drops
 // visualizations whose metric has not produced results yet.
-const vizCardVisible = () => {
-  if (projectState.visualizations.length === 0) return false;
+const vizCardVisible = (f: TourProjectFacts) => {
+  if (f.visualizations.length === 0) return false;
   if (!hideUnreadyVisualizations()) return true;
   const ready = new Set(
-    projectState.metrics.filter((m) => m.status === "ready").map((m) => m.id),
+    f.metrics.filter((m) => m.status === "ready").map((m) => m.id),
   );
-  return projectState.visualizations.some((v) => ready.has(v.metricId));
+  return f.visualizations.some((v) => ready.has(v.metricId));
 };
-const canSeeModulesTab = () =>
-  perms().can_configure_modules ||
-  perms().can_run_modules ||
-  perms().can_view_script_code;
-const canConfigureModules = () =>
-  instanceState.currentUserIsGlobalAdmin || perms().can_configure_modules;
-const hasUninstalledModule = () =>
+const canSeeModulesTab = (f: TourProjectFacts) =>
+  perms(f).can_configure_modules ||
+  perms(f).can_run_modules ||
+  perms(f).can_view_script_code;
+const canConfigureModules = (f: TourProjectFacts) =>
+  instanceState.currentUserIsGlobalAdmin || perms(f).can_configure_modules;
+const hasUninstalledModule = (f: TourProjectFacts) =>
   getPossibleModules(getInstanceCountryIso3()).some(
-    (def) => !projectState.projectModules.some((m) => m.id === def.id),
+    (def) => !f.projectModules.some((m) => m.id === def.id),
   );
 
 const reasonNoPageAccess = () =>
@@ -103,6 +131,28 @@ const reasonNeedSlides = () =>
     fr: "Ajoutez d'abord des diapositives à votre première présentation",
     pt: "Adicione primeiro diapositivos à sua primeira apresentação",
   });
+const reasonNeedSlideOfType = (type: SlideType) => {
+  switch (type) {
+    case "cover":
+      return t3({
+        en: "Add a cover slide to a slide deck first",
+        fr: "Ajoutez d'abord une diapositive de couverture à une présentation",
+        pt: "Adicione primeiro um diapositivo de capa a uma apresentação",
+      });
+    case "section":
+      return t3({
+        en: "Add a section slide to a slide deck first",
+        fr: "Ajoutez d'abord une diapositive de section à une présentation",
+        pt: "Adicione primeiro um diapositivo de secção a uma apresentação",
+      });
+    default:
+      return t3({
+        en: "Add a content slide to a slide deck first",
+        fr: "Ajoutez d'abord une diapositive de contenu à une présentation",
+        pt: "Adicione primeiro um diapositivo de conteúdo a uma apresentação",
+      });
+  }
+};
 const reasonNeedDeckPermission = () =>
   t3({
     en: "You need permission to edit slide decks",
@@ -182,6 +232,21 @@ const reasonSettingsPermission = () =>
     pt: "Apenas os utilizadores que podem configurar as definições podem ver esta página",
   });
 
+const slideTourAvailable = (f: TourProjectFacts, type: SlideType) =>
+  perms(f).can_view_slide_decks &&
+  hasDecks(f) &&
+  (f.slideTypesPresent
+    ? f.slideTypesPresent[type] === true
+    : firstDeckHasSlides(f));
+const slideTourReason = (f: TourProjectFacts, type: SlideType) =>
+  !perms(f).can_view_slide_decks
+    ? reasonNoPageAccess()
+    : !hasDecks(f)
+      ? reasonNeedDeck()
+      : f.slideTypesPresent
+        ? reasonNeedSlideOfType(type)
+        : reasonNeedSlides();
+
 const goToDecks = () => updateProjectView({ tab: "decks" });
 const goToReports = () => updateProjectView({ tab: "reports" });
 const goToVisualizations = () => updateProjectView({ tab: "visualizations" });
@@ -190,50 +255,63 @@ const goToModules = () => updateProjectView({ tab: "modules" });
 const goToData = () => updateProjectView({ tab: "data" });
 const goToSettings = () => updateProjectView({ tab: "settings" });
 
-const openFirstDeck = () => {
-  goToDecks();
-  const deck = projectState.slideDecks[0];
-  if (deck) setPendingEditorOpen({ kind: "deck", id: deck.id });
+export type SlideSearchCandidate = {
+  projectId: string;
+  slideDecks: SlideDeckSummary[];
 };
-// Slide types live only in the slide documents, so replaying a slide-type
-// tour has to search for a deck that actually contains one: decks in list
-// order, slides in deck order, cache-first (repeat searches are cheap). If no
-// deck has a slide of the type, no editor opens and the started tour times
-// out quietly on the decks tab.
-async function findDeckWithSlideOfType(
+
+// Slide types live only in the slide documents, so anything slide-type-aware
+// has to search: candidates in the given order, decks in list order, slides
+// in deck order, cache-first (repeat searches are cheap). Used by the
+// in-project replay (one candidate: the current project) and the instance
+// modal (all accessible projects) alike.
+export async function findProjectWithSlideOfType(
+  candidates: SlideSearchCandidate[],
   type: SlideType,
-): Promise<string | null> {
-  for (const deck of projectState.slideDecks) {
-    const detail = await getSlideDeckDetailFromCacheOrFetch(
-      projectState.id,
-      deck.id,
-    );
-    if (!detail.success) continue;
-    for (const slideId of detail.data.slideIds) {
-      const cached = await _SLIDE_CACHE.get({
-        projectId: projectState.id,
-        slideId,
-      });
-      let slide = cached.data?.slide;
-      if (!slide) {
-        const res = await serverActions.getSlide({
-          projectId: projectState.id,
-          slide_id: slideId,
+): Promise<{ projectId: string; deckId: string } | null> {
+  for (const candidate of candidates) {
+    for (const deck of candidate.slideDecks) {
+      const detail = await getSlideDeckDetailFromCacheOrFetch(
+        candidate.projectId,
+        deck.id,
+      );
+      if (!detail.success) continue;
+      for (const slideId of detail.data.slideIds) {
+        const cached = await _SLIDE_CACHE.get({
+          projectId: candidate.projectId,
+          slideId,
         });
-        if (!res.success) continue;
-        slide = res.data.slide;
+        let slide = cached.data?.slide;
+        if (!slide) {
+          const res = await serverActions.getSlide({
+            projectId: candidate.projectId,
+            slide_id: slideId,
+          });
+          if (!res.success) continue;
+          slide = res.data.slide;
+        }
+        if (slide.type === type) {
+          return { projectId: candidate.projectId, deckId: deck.id };
+        }
       }
-      if (slide.type === type) return deck.id;
     }
   }
   return null;
 }
 
+const openFirstDeck = () => {
+  goToDecks();
+  const deck = projectState.slideDecks[0];
+  if (deck) setPendingEditorOpen({ kind: "deck", id: deck.id });
+};
 const openFirstDeckSlide = (type: SlideType) => {
   goToDecks();
-  void findDeckWithSlideOfType(type).then((deckId) => {
-    if (!deckId) return;
-    setPendingEditorOpen({ kind: "deck", id: deckId });
+  void findProjectWithSlideOfType(
+    [{ projectId: projectState.id, slideDecks: projectState.slideDecks }],
+    type,
+  ).then((found) => {
+    if (!found) return;
+    setPendingEditorOpen({ kind: "deck", id: found.deckId });
     setPendingSlideOpen(type);
   });
 };
@@ -268,7 +346,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des présentations : recherche, tri et dossiers.",
         pt: "A página das apresentações: pesquisa, ordenação e pastas.",
       }),
-      available: () => perms().can_view_slide_decks,
+      available: (f) => perms(f).can_view_slide_decks,
       unavailableReason: reasonNoPageAccess,
       navigate: goToDecks,
     },
@@ -285,12 +363,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Comment ouvrir une présentation depuis sa carte.",
         pt: "Como abrir uma apresentação a partir do seu cartão.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasModules() && hasDecks(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks && hasModules(f) && hasDecks(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasModules()
+          : !hasModules(f)
             ? reasonNeedModule()
             : reasonNeedDeck(),
       navigate: goToDecks,
@@ -308,10 +386,10 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Créer des présentations et les organiser en dossiers.",
         pt: "Criar apresentações e organizá-las em pastas.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && perms().can_configure_slide_decks,
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks && perms(f).can_configure_slide_decks,
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
           : reasonNeedDeckPermission(),
       navigate: goToDecks,
@@ -329,20 +407,20 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Déplacer, dupliquer et supprimer des présentations.",
         pt: "Mover, duplicar e eliminar apresentações.",
       }),
-      available: () =>
-        perms().can_view_slide_decks &&
-        perms().can_configure_slide_decks &&
-        !projectState.isLocked &&
-        hasModules() &&
-        hasDecks(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks &&
+        perms(f).can_configure_slide_decks &&
+        !f.isLocked &&
+        hasModules(f) &&
+        hasDecks(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !perms().can_configure_slide_decks
+          : !perms(f).can_configure_slide_decks
             ? reasonNeedDeckPermission()
-            : projectState.isLocked
+            : f.isLocked
               ? reasonLocked()
-              : !hasModules()
+              : !hasModules(f)
                 ? reasonNeedModule()
                 : reasonNeedDeck(),
       navigate: goToDecks,
@@ -360,9 +438,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Visite de l'éditeur de présentation. Ouvre votre première présentation.",
         pt: "Visita ao editor de apresentações. Abre a sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
+      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
+          ? reasonNoPageAccess()
+          : reasonNeedDeck(),
       navigate: openFirstDeck,
     },
     {
@@ -378,12 +458,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Les cartes de diapositives dans une présentation. Ouvre votre première présentation.",
         pt: "Os cartões de diapositivos numa apresentação. Abre a sua primeira apresentação.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks && hasDecks(f) && firstDeckHasSlides(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasDecks()
+          : !hasDecks(f)
             ? reasonNeedDeck()
             : reasonNeedSlides(),
       navigate: openFirstDeck,
@@ -401,12 +481,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Lancer une présentation. Ouvre votre première présentation.",
         pt: "Iniciar uma apresentação. Abre a sua primeira apresentação.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks && hasDecks(f) && firstDeckHasSlides(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasDecks()
+          : !hasDecks(f)
             ? reasonNeedDeck()
             : reasonNeedSlides(),
       navigate: openFirstDeck,
@@ -424,9 +504,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Parcourir et restaurer des versions antérieures. Ouvre votre première présentation.",
         pt: "Consultar e restaurar versões anteriores. Abre a sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
+      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
+          ? reasonNoPageAccess()
+          : reasonNeedDeck(),
       navigate: openFirstDeck,
     },
     {
@@ -442,9 +524,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Le panneau des paramètres de la présentation. Ouvre votre première présentation.",
         pt: "O painel de definições da apresentação. Abre a sua primeira apresentação.",
       }),
-      available: () => perms().can_view_slide_decks && hasDecks(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks ? reasonNoPageAccess() : reasonNeedDeck(),
+      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
+          ? reasonNoPageAccess()
+          : reasonNeedDeck(),
       navigate: openFirstDeck,
     },
     {
@@ -460,14 +544,8 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture trouvée dans vos présentations.",
         pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa encontrado nas suas apresentações.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasDecks()
-            ? reasonNeedDeck()
-            : reasonNeedSlides(),
+      available: (f) => slideTourAvailable(f, "cover"),
+      unavailableReason: (f) => slideTourReason(f, "cover"),
       navigate: () => openFirstDeckSlide("cover"),
     },
     {
@@ -483,14 +561,8 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Modifier une diapositive de section. Ouvre la première diapositive de section trouvée dans vos présentations.",
         pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção encontrado nas suas apresentações.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasDecks()
-            ? reasonNeedDeck()
-            : reasonNeedSlides(),
+      available: (f) => slideTourAvailable(f, "section"),
+      unavailableReason: (f) => slideTourReason(f, "section"),
       navigate: () => openFirstDeckSlide("section"),
     },
     {
@@ -506,14 +578,8 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu trouvée dans vos présentations.",
         pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo encontrado nas suas apresentações.",
       }),
-      available: () =>
-        perms().can_view_slide_decks && hasDecks() && firstDeckHasSlides(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasDecks()
-            ? reasonNeedDeck()
-            : reasonNeedSlides(),
+      available: (f) => slideTourAvailable(f, "content"),
+      unavailableReason: (f) => slideTourReason(f, "content"),
       navigate: () => openFirstDeckSlide("content"),
     },
     // ── Reports ──────────────────────────────────────────────────────────
@@ -530,7 +596,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des rapports : recherche, tri et dossiers.",
         pt: "A página dos relatórios: pesquisa, ordenação e pastas.",
       }),
-      available: () => perms().can_view_reports,
+      available: (f) => perms(f).can_view_reports,
       unavailableReason: reasonNoPageAccess,
       navigate: goToReports,
     },
@@ -547,9 +613,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Comment ouvrir un rapport depuis sa carte.",
         pt: "Como abrir um relatório a partir do seu cartão.",
       }),
-      available: () => perms().can_view_reports && hasReports(),
-      unavailableReason: () =>
-        !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
+      available: (f) => perms(f).can_view_reports && hasReports(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: goToReports,
     },
     {
@@ -565,10 +631,10 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Créer des rapports et les organiser en dossiers.",
         pt: "Criar relatórios e organizá-los em pastas.",
       }),
-      available: () =>
-        perms().can_view_reports && perms().can_configure_reports,
-      unavailableReason: () =>
-        !perms().can_view_reports
+      available: (f) =>
+        perms(f).can_view_reports && perms(f).can_configure_reports,
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports
           ? reasonNoPageAccess()
           : reasonNeedReportPermission(),
       navigate: goToReports,
@@ -586,17 +652,17 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Déplacer, dupliquer et supprimer des rapports.",
         pt: "Mover, duplicar e eliminar relatórios.",
       }),
-      available: () =>
-        perms().can_view_reports &&
-        perms().can_configure_reports &&
-        !projectState.isLocked &&
-        hasReports(),
-      unavailableReason: () =>
-        !perms().can_view_reports
+      available: (f) =>
+        perms(f).can_view_reports &&
+        perms(f).can_configure_reports &&
+        !f.isLocked &&
+        hasReports(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports
           ? reasonNoPageAccess()
-          : !perms().can_configure_reports
+          : !perms(f).can_configure_reports
             ? reasonNeedReportPermission()
-            : projectState.isLocked
+            : f.isLocked
               ? reasonLocked()
               : reasonNeedReport(),
       navigate: goToReports,
@@ -614,9 +680,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Visite de l'éditeur de rapport. Ouvre votre premier rapport.",
         pt: "Visita ao editor de relatórios. Abre o seu primeiro relatório.",
       }),
-      available: () => perms().can_view_reports && hasReports(),
-      unavailableReason: () =>
-        !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
+      available: (f) => perms(f).can_view_reports && hasReports(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: openFirstReport,
     },
     {
@@ -632,12 +698,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
         pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
       }),
-      available: () =>
-        perms().can_view_reports && hasReports() && firstReportHasEmbeds(),
-      unavailableReason: () =>
-        !perms().can_view_reports
+      available: (f) =>
+        perms(f).can_view_reports && hasReports(f) && firstReportHasEmbeds(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports
           ? reasonNoPageAccess()
-          : !hasReports()
+          : !hasReports(f)
             ? reasonNeedReport()
             : reasonNeedReportFigure(),
       navigate: openFirstReport,
@@ -655,9 +721,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Parcourir et restaurer des versions antérieures. Ouvre votre premier rapport.",
         pt: "Consultar e restaurar versões anteriores. Abre o seu primeiro relatório.",
       }),
-      available: () => perms().can_view_reports && hasReports(),
-      unavailableReason: () =>
-        !perms().can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
+      available: (f) => perms(f).can_view_reports && hasReports(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
       navigate: openFirstReport,
     },
     // ── Visualizations ───────────────────────────────────────────────────
@@ -674,9 +740,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des visualisations : dossiers, recherche et tri.",
         pt: "A página das visualizações: pastas, pesquisa e ordenação.",
       }),
-      available: () => perms().can_view_visualizations && hasModules(),
-      unavailableReason: () =>
-        !perms().can_view_visualizations
+      available: (f) => perms(f).can_view_visualizations && hasModules(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
           : reasonNeedModule(),
       navigate: goToVisualizations,
@@ -694,12 +760,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Ce que montre une carte de visualisation et comment l'ouvrir.",
         pt: "O que mostra um cartão de visualização e como o abrir.",
       }),
-      available: () =>
-        perms().can_view_visualizations && hasModules() && vizCardVisible(),
-      unavailableReason: () =>
-        !perms().can_view_visualizations
+      available: (f) =>
+        perms(f).can_view_visualizations && hasModules(f) && vizCardVisible(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : !hasModules() || projectState.visualizations.length === 0
+          : !hasModules(f) || f.visualizations.length === 0
             ? reasonNeedModule()
             : reasonVizHidden(),
       navigate: goToVisualizations,
@@ -717,14 +783,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Où créer une nouvelle visualisation.",
         pt: "Onde criar uma nova visualização.",
       }),
-      available: () =>
-        perms().can_view_visualizations &&
-        hasModules() &&
-        !projectState.isLocked,
-      unavailableReason: () =>
-        !perms().can_view_visualizations
+      available: (f) =>
+        perms(f).can_view_visualizations && hasModules(f) && !f.isLocked,
+      unavailableReason: (f) =>
+        !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : !hasModules()
+          : !hasModules(f)
             ? reasonNeedModule()
             : reasonLocked(),
       navigate: goToVisualizations,
@@ -742,15 +806,15 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "L'éditeur pour une nouvelle visualisation. Ouvre une copie de votre première visualisation par défaut.",
         pt: "O editor para uma nova visualização. Abre uma cópia da sua primeira visualização predefinida.",
       }),
-      available: () =>
-        perms().can_view_visualizations && firstDefaultViz() !== undefined,
-      unavailableReason: () =>
-        !perms().can_view_visualizations
+      available: (f) =>
+        perms(f).can_view_visualizations && firstDefaultViz(f) !== undefined,
+      unavailableReason: (f) =>
+        !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
           : reasonNeedModule(),
       navigate: () => {
         goToVisualizations();
-        const po = firstDefaultViz();
+        const po = firstDefaultViz(projectState);
         if (po) setPendingEditorOpen({ kind: "visualization", id: po.id });
       },
     },
@@ -767,15 +831,15 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Modifier une visualisation existante. Ouvre votre première visualisation personnalisée.",
         pt: "Editar uma visualização existente. Abre a sua primeira visualização personalizada.",
       }),
-      available: () =>
-        perms().can_view_visualizations && firstCustomViz() !== undefined,
-      unavailableReason: () =>
-        !perms().can_view_visualizations
+      available: (f) =>
+        perms(f).can_view_visualizations && firstCustomViz(f) !== undefined,
+      unavailableReason: (f) =>
+        !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
           : reasonNeedViz(),
       navigate: () => {
         goToVisualizations();
-        const po = firstCustomViz();
+        const po = firstCustomViz(projectState);
         if (po) setPendingEditorOpen({ kind: "visualization", id: po.id });
       },
     },
@@ -793,7 +857,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des tableaux de bord et leur utilité.",
         pt: "A página dos painéis e para que servem.",
       }),
-      available: () => perms().can_view_slide_decks,
+      available: (f) => perms(f).can_view_slide_decks,
       unavailableReason: reasonNoPageAccess,
       navigate: goToDashboards,
     },
@@ -810,9 +874,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Ce que montre une carte de tableau de bord et comment l'ouvrir.",
         pt: "O que mostra um cartão de painel e como o abrir.",
       }),
-      available: () => perms().can_view_slide_decks && hasDashboards(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) => perms(f).can_view_slide_decks && hasDashboards(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
           : reasonNeedDashboard(),
       navigate: goToDashboards,
@@ -830,14 +894,14 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Où créer un nouveau tableau de bord.",
         pt: "Onde criar um novo painel.",
       }),
-      available: () =>
-        perms().can_view_slide_decks &&
-        perms().can_configure_slide_decks &&
-        !projectState.isLocked,
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks &&
+        perms(f).can_configure_slide_decks &&
+        !f.isLocked,
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !perms().can_configure_slide_decks
+          : !perms(f).can_configure_slide_decks
             ? reasonNeedDashboardPermission()
             : reasonLocked(),
       navigate: goToDashboards,
@@ -855,9 +919,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Visite de l'éditeur de tableau de bord. Ouvre votre premier tableau de bord.",
         pt: "Visita ao editor de painéis. Abre o seu primeiro painel.",
       }),
-      available: () => perms().can_view_slide_decks && hasDashboards(),
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) => perms(f).can_view_slide_decks && hasDashboards(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
           : reasonNeedDashboard(),
       navigate: openFirstDashboard,
@@ -875,14 +939,14 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec les éléments d'un tableau de bord. Ouvre votre premier tableau de bord.",
         pt: "Trabalhar com os elementos de um painel. Abre o seu primeiro painel.",
       }),
-      available: () =>
-        perms().can_view_slide_decks &&
-        hasDashboards() &&
-        projectState.dashboards[0].itemCount > 0,
-      unavailableReason: () =>
-        !perms().can_view_slide_decks
+      available: (f) =>
+        perms(f).can_view_slide_decks &&
+        hasDashboards(f) &&
+        f.dashboards[0].itemCount > 0,
+      unavailableReason: (f) =>
+        !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasDashboards()
+          : !hasDashboards(f)
             ? reasonNeedDashboard()
             : reasonNeedDashboardItem(),
       navigate: openFirstDashboard,
@@ -918,12 +982,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Exécuter, configurer et mettre à jour un module activé.",
         pt: "Executar, configurar e atualizar um módulo ativado.",
       }),
-      available: () =>
-        canSeeModulesTab() && canConfigureModules() && hasModules(),
-      unavailableReason: () =>
-        !canSeeModulesTab()
+      available: (f) =>
+        canSeeModulesTab(f) && canConfigureModules(f) && hasModules(f),
+      unavailableReason: (f) =>
+        !canSeeModulesTab(f)
           ? reasonNoPageAccess()
-          : !canConfigureModules()
+          : !canConfigureModules(f)
             ? reasonNeedModulePermission()
             : reasonNeedModule(),
       navigate: goToModules,
@@ -941,12 +1005,14 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Comment activer un module disponible.",
         pt: "Como ativar um módulo disponível.",
       }),
-      available: () =>
-        canSeeModulesTab() && canConfigureModules() && hasUninstalledModule(),
-      unavailableReason: () =>
-        !canSeeModulesTab()
+      available: (f) =>
+        canSeeModulesTab(f) &&
+        canConfigureModules(f) &&
+        hasUninstalledModule(f),
+      unavailableReason: (f) =>
+        !canSeeModulesTab(f)
           ? reasonNoPageAccess()
-          : !canConfigureModules()
+          : !canConfigureModules(f)
             ? reasonNeedModulePermission()
             : reasonAllModulesEnabled(),
       navigate: goToModules,
@@ -965,7 +1031,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des données : les jeux de données disponibles pour ce projet.",
         pt: "A página dos dados: os conjuntos de dados disponíveis para este projeto.",
       }),
-      available: () => perms().can_view_data,
+      available: (f) => perms(f).can_view_data,
       unavailableReason: reasonNoPageAccess,
       navigate: goToData,
     },
@@ -982,12 +1048,12 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Les actions sur les jeux de données pour les administrateurs.",
         pt: "As ações sobre conjuntos de dados para administradores.",
       }),
-      available: () =>
-        perms().can_view_data &&
+      available: (f) =>
+        perms(f).can_view_data &&
         instanceState.currentUserIsGlobalAdmin &&
-        !projectState.isLocked,
-      unavailableReason: () =>
-        !perms().can_view_data
+        !f.isLocked,
+      unavailableReason: (f) =>
+        !perms(f).can_view_data
           ? reasonNoPageAccess()
           : !instanceState.currentUserIsGlobalAdmin
             ? reasonGlobalAdminOnly()
@@ -1008,7 +1074,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "La page des paramètres du projet.",
         pt: "A página das definições do projeto.",
       }),
-      available: () => perms().can_configure_settings,
+      available: (f) => perms(f).can_configure_settings,
       unavailableReason: reasonSettingsPermission,
       navigate: goToSettings,
     },

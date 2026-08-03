@@ -363,3 +363,11 @@ export const [pendingEditorOpen, setPendingEditorOpen] =
 // its slides have loaded — it opens the first slide of this type.
 export const [pendingSlideOpen, setPendingSlideOpen] =
   createSignal<SlideType | null>(null);
+
+// Top level of the chain: a tour replay requested from the instance-level
+// catalogue before any project shell exists. Set together with navigation to
+// `/?p=<projectId>`; the project shell consumes it after hydration and runs
+// the tour's own navigate + start.
+export const [pendingTourReplay, setPendingTourReplay] = createSignal<
+  string | null
+>(null);
