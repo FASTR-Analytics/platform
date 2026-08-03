@@ -9,11 +9,9 @@ import {
 import {
   APIResponseNoData,
   APIResponseWithData,
-  DatasetHmisWindowingCommon,
   getEnabledOptionalFacilityColumns,
   InstanceConfigFacilityColumns,
   isValidPeriodId,
-  parseAa3CompositeKey,
   throwIfErrWithData,
   type CalculatedIndicator,
   type DatasetHmisInfoInProject,
@@ -31,7 +29,7 @@ import {
   getCalculatedIndicatorsVersion,
   getIndicatorMappingsVersion,
 } from "../instance/instance.ts";
-import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
+import { tryCatchDatabaseAsync } from "./../utils.ts";
 
 // Where a dataset attach writes its extract CSV, per caller (the item-4
 // per-caller pattern, extended to the COPY TO by work item 7): the Postgres
@@ -56,14 +54,14 @@ export async function ensureDatasetCsvTargetDir(
   await Deno.chmod(dir, 0o777);
 }
 
-// The HMIS "attach" split under the no-dual-write model (PLAN_RESULTS_RUNS
-// Phase 3 re-cut ruling 5): computeDatasetHmisRunCapture does every
-// instance-DB read, validation, and the COPY TO export — and returns the
-// captured rows the caller needs (run input mirrors, script-generation
-// inputs, manifest datasets info) WITHOUT touching any project DB. The run
-// pipeline consumes the capture directly; addDatasetHmisToProject applies
-// the same capture to a project DB and remains solely for createProject's
-// legacy plane.
+// computeDatasetHmisRunCapture does every instance-DB read, validation, and
+// the COPY TO export — and returns the captured rows the caller needs (run
+// input mirrors, script-generation inputs, manifest datasets info) WITHOUT
+// touching any project DB. Capture is always the FULL dataset — entire
+// period range, all indicators, all admin areas, all facility
+// types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03):
+// the R scripts need the full dataset to compute correctly, and per-project
+// subsetting is an attach-time query filter, never a generation input.
 
 // The facilities_{hmis,hfa} column set, in project-table order — the run's
 // facilities parquet is built from these rows directly (no project table to
@@ -150,7 +148,6 @@ export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
 export async function computeDatasetHmisRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
-  windowing: DatasetHmisWindowingCommon | undefined,
   onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<DatasetHmisRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -212,19 +209,8 @@ export async function computeDatasetHmisRunCapture(
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
-    const startingWindowing: DatasetHmisWindowingCommon = windowing ?? {
-      start: minPeriod,
-      end: maxPeriod,
-      takeAllIndicators: true,
-      takeAllAdminArea2s: true,
-      commonIndicatorsToInclude: [],
-      adminArea2sToInclude: [],
-      indicatorType: "common",
-    };
-
     const exportStatement = await getDatasetHmisExportStatement(
       mainDb,
-      startingWindowing,
       resFacilityConfig.data
     );
 
@@ -257,7 +243,6 @@ export async function computeDatasetHmisRunCapture(
 
     const info: DatasetHmisInfoInProject = {
       version,
-      windowing: startingWindowing,
       totalRows,
       structureLastUpdated,
       indicatorMappingsVersion,
@@ -305,71 +290,8 @@ WHERE EXISTS (
       };
     }
 
-    // Fetch facilities based on the windowing configuration
-    let facilitiesQuery =
-      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`;
-    const facilityWhereConditions: string[] = [];
-
-    // Filter by admin areas — AA3 takes priority over AA2
-    const facAa3Items = startingWindowing.adminArea3sToInclude ?? [];
-    if (
-      !(startingWindowing.takeAllAdminArea3s ?? true) &&
-      facAa3Items.length > 0
-    ) {
-      const pairs = facAa3Items.map((key) => parseAa3CompositeKey(key));
-      facilityWhereConditions.push(
-        `(admin_area_3, admin_area_2) IN (VALUES ${pairs
-          .map(
-            (p) =>
-              `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
-          )
-          .join(", ")})`
-      );
-    } else if (
-      !startingWindowing.takeAllAdminArea2s &&
-      startingWindowing.adminArea2sToInclude.length > 0
-    ) {
-      facilityWhereConditions.push(
-        `admin_area_2 IN (${startingWindowing.adminArea2sToInclude
-          .map((aa) => `'${escapeSqlString(aa)}'`)
-          .join(", ")})`
-      );
-    }
-
-    // Filter by facility ownership if specified and enabled
-    if (
-      resFacilityConfig.data.includeOwnership &&
-      !startingWindowing.takeAllFacilityOwnerships &&
-      startingWindowing.facilityOwnwershipsToInclude &&
-      startingWindowing.facilityOwnwershipsToInclude.length > 0
-    ) {
-      facilityWhereConditions.push(
-        `facility_ownership IN (${startingWindowing.facilityOwnwershipsToInclude
-          .map((fo) => `'${escapeSqlString(fo)}'`)
-          .join(", ")})`
-      );
-    }
-
-    // Filter by facility type if specified and enabled
-    if (
-      resFacilityConfig.data.includeTypes &&
-      !startingWindowing.takeAllFacilityTypes &&
-      startingWindowing.facilityTypesToInclude &&
-      startingWindowing.facilityTypesToInclude.length > 0
-    ) {
-      facilityWhereConditions.push(
-        `facility_type IN (${startingWindowing.facilityTypesToInclude
-          .map((ft) => `'${escapeSqlString(ft)}'`)
-          .join(", ")})`
-      );
-    }
-
-    if (facilityWhereConditions.length > 0) {
-      facilitiesQuery += ` WHERE ${facilityWhereConditions.join(" AND ")}`;
-    }
-
     const facilities = (await mainDb.unsafe(
-      facilitiesQuery,
+      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`,
     )) as ProjectFacilityRow[];
 
     return {
@@ -447,62 +369,8 @@ export function getDatasetFilePath(
 
 async function getDatasetHmisExportStatement(
   mainDb: Sql,
-  windowing: DatasetHmisWindowingCommon,
   facilityConfig: InstanceConfigFacilityColumns
 ): Promise<string> {
-  const w = windowing;
-
-  // Build WHERE conditions array for better query optimization
-  const whereConditions = [];
-
-  // Add admin area filter — AA3 takes priority over AA2
-  const aa3Items = w.adminArea3sToInclude ?? [];
-  if (!(w.takeAllAdminArea3s ?? true) && aa3Items.length > 0) {
-    const pairs = aa3Items.map((key) => parseAa3CompositeKey(key));
-    whereConditions.push(
-      `(f.admin_area_3, f.admin_area_2) IN (VALUES ${pairs
-        .map(
-          (p) =>
-            `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
-        )
-        .join(", ")})`
-    );
-  } else if (!w.takeAllAdminArea2s && w.adminArea2sToInclude.length > 0) {
-    whereConditions.push(
-      `f.admin_area_2 IN (${w.adminArea2sToInclude
-        .map((aa) => `'${escapeSqlString(aa)}'`)
-        .join(", ")})`
-    );
-  }
-
-  // Add facility ownership filter if specified
-  if (
-    facilityConfig.includeOwnership &&
-    !w.takeAllFacilityOwnerships &&
-    w.facilityOwnwershipsToInclude &&
-    w.facilityOwnwershipsToInclude.length > 0
-  ) {
-    whereConditions.push(
-      `f.facility_ownership IN (${w.facilityOwnwershipsToInclude
-        .map((fo) => `'${escapeSqlString(fo)}'`)
-        .join(", ")})`
-    );
-  }
-
-  // Add facility type filter if specified
-  if (
-    facilityConfig.includeTypes &&
-    !w.takeAllFacilityTypes &&
-    w.facilityTypesToInclude &&
-    w.facilityTypesToInclude.length > 0
-  ) {
-    whereConditions.push(
-      `f.facility_type IN (${w.facilityTypesToInclude
-        .map((ft) => `'${escapeSqlString(ft)}'`)
-        .join(", ")})`
-    );
-  }
-
   // Build admin area columns list (we only have admin_area_1 through admin_area_4)
   const maxAdminAreaRes = await getMaxAdminAreaConfig(mainDb);
   throwIfErrWithData(maxAdminAreaRes);
@@ -516,39 +384,21 @@ async function getDatasetHmisExportStatement(
 
   // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
   const statement = `
-WITH raw_data AS (
-  -- Step 1: Get raw indicator data from dataset_hmis
-  SELECT 
-    facility_id,
-    indicator_raw_id,
-    period_id,
-    count
-  FROM dataset_hmis
-  WHERE period_id >= ${w.start} 
-    AND period_id <= ${w.end}
-),
-aggregated AS (
-  -- Step 2: Aggregate raw indicators to common IDs and filter on common indicators
-  SELECT 
-    raw_data.facility_id,
+WITH aggregated AS (
+  -- Step 1: Aggregate raw indicators to common IDs
+  SELECT
+    d.facility_id,
     im.indicator_common_id,
-    raw_data.period_id,
-    SUM(raw_data.count) as count
-  FROM raw_data
-  INNER JOIN indicator_mappings im ON raw_data.indicator_raw_id = im.indicator_raw_id${
-    !w.takeAllIndicators && w.commonIndicatorsToInclude.length > 0
-      ? `
-  WHERE im.indicator_common_id IN (${w.commonIndicatorsToInclude
-    .map((ite) => `'${escapeSqlString(ite)}'`)
-    .join(", ")})`
-      : ""
-  }
-  GROUP BY 
-    raw_data.facility_id,
+    d.period_id,
+    SUM(d.count) as count
+  FROM dataset_hmis d
+  INNER JOIN indicator_mappings im ON d.indicator_raw_id = im.indicator_raw_id
+  GROUP BY
+    d.facility_id,
     im.indicator_common_id,
-    raw_data.period_id
+    d.period_id
 )
--- Step 3: Final output with facility and period details
+-- Step 2: Final output with facility and period details
 SELECT
   aggregated.facility_id,
   ${adminAreaColumns.map((col) => `f.${col}`).join(", ")}${
@@ -560,12 +410,7 @@ SELECT
   aggregated.indicator_common_id,
   aggregated.count
 FROM aggregated
-INNER JOIN facilities_hmis f ON aggregated.facility_id = f.facility_id${
-    whereConditions.length > 0
-      ? `
-WHERE ${whereConditions.join(" AND ")}`
-      : ""
-  }
+INNER JOIN facilities_hmis f ON aggregated.facility_id = f.facility_id
 -- Deterministic row order (the GROUP BY key, so a total order): the extract's
 -- bytes are a module inputKey ingredient (PLAN_RESULTS_RUNS §3.7), and
 -- parallel hash aggregation makes unordered COPY output vary run to run.

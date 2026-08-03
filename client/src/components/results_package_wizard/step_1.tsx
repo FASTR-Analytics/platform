@@ -1,24 +1,17 @@
 import {
-  DEFAULT_PERIOD_END,
-  DEFAULT_PERIOD_START,
   t3,
-  type DatasetHmisWindowingCommon,
   type RunGenerationDefaults,
   type RunGenerationStep1Result,
 } from "lib";
 import {
   Button,
   Checkbox,
-  MultiSelect,
   StateHolderFormError,
   StateHolderWrapper,
   createFormAction,
   createQuery,
 } from "panther";
 import { Show, createSignal } from "solid-js";
-import { createStore, unwrap } from "solid-js/store";
-import { validateAndNormalizeHmisWindowing } from "~/components/_shared/hmis_windowing_validation";
-import { WindowingSelector } from "~/components/WindowingSelector";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -27,11 +20,11 @@ type Props = {
   silentFetch: () => Promise<void>;
 };
 
-// Step 1 — choose data: family checkboxes + per-family scoping, reusing the
-// per-project windowing UI verbatim (§10 ruling 6). Starting values: the
-// attempt's own step1Result (resume) beats the instance defaults store beats
-// definition defaults — there is no anchor run, the wizard is
-// instance-entered.
+// Step 1 — choose data: plain family-inclusion checkboxes. Generation always
+// captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION);
+// per-project subsetting happens at attach time, never here. Starting
+// values: the attempt's own step1Result (resume) beats the instance defaults
+// store — there is no anchor run, the wizard is instance-entered.
 export function Step1(p: Props) {
   const defaults = createQuery(
     () => serverActions.getRunGenerationDefaults({}),
@@ -76,74 +69,17 @@ function Step1Inner(p: {
   }
 
   const [includeHmis, setIncludeHmis] = createSignal(
-    initial?.hmis != null && hmisAvailable(),
+    initial?.hmis === true && hmisAvailable(),
   );
-  const [tempWindowing, setTempWindowing] =
-    createStore<DatasetHmisWindowingCommon>(
-      initial?.hmis
-        ? { ...structuredClone(initial.hmis.windowing), indicatorType: "common" }
-        : {
-          indicatorType: "common",
-          start: DEFAULT_PERIOD_START,
-          end: DEFAULT_PERIOD_END,
-          takeAllIndicators: true,
-          takeAllAdminArea2s: true,
-          adminArea2sToInclude: [],
-          commonIndicatorsToInclude: [],
-          takeAllAdminArea3s: true,
-          adminArea3sToInclude: [],
-        },
-    );
-
   const [includeHfa, setIncludeHfa] = createSignal(
-    initial?.hfa != null && hfaAvailable(),
+    initial?.hfa === true && hfaAvailable(),
   );
-  const initialHfaScope = initial?.hfa?.serviceCategoryScope ?? [];
-  const [hfaIncludeAll, setHfaIncludeAll] = createSignal(
-    initialHfaScope.length === 0,
-  );
-  const [hfaSelected, setHfaSelected] = createSignal<string[]>(initialHfaScope);
-  const serviceCategoriesQuery = createQuery(
-    () => serverActions.getHfaIndicatorServiceCategories({}),
-    t3({
-      en: "Loading service categories...",
-      fr: "Chargement des catégories de service...",
-      pt: "A carregar categorias de serviço...",
-    }),
-  );
-
   const [includeIceh, setIncludeIceh] = createSignal(
     initial?.iceh === true && icehAvailable(),
   );
 
   const save = createFormAction(async () => {
-    let hmis: RunGenerationStep1Result["hmis"] = null;
-    if (includeHmis()) {
-      const validated = validateAndNormalizeHmisWindowing(
-        unwrap(tempWindowing),
-        unwrap(instanceState.facilityColumns),
-      );
-      if (validated.success === false) {
-        return validated;
-      }
-      hmis = { windowing: validated.windowing };
-    }
-    let hfa: RunGenerationStep1Result["hfa"] = null;
-    if (includeHfa()) {
-      const scope = hfaIncludeAll() ? [] : hfaSelected();
-      if (!hfaIncludeAll() && scope.length === 0) {
-        return {
-          success: false,
-          err: t3({
-            en: "Select at least one service category, or choose Include all.",
-            fr: "Sélectionnez au moins une catégorie de service, ou choisissez Tout inclure.",
-            pt: "Selecione pelo menos uma categoria de serviço, ou escolha Incluir tudo.",
-          }),
-        };
-      }
-      hfa = { serviceCategoryScope: scope };
-    }
-    if (hmis === null && hfa === null && !includeIceh()) {
+    if (!includeHmis() && !includeHfa() && !includeIceh()) {
       return {
         success: false,
         err: t3({
@@ -154,7 +90,11 @@ function Step1Inner(p: {
       };
     }
     return await serverActions.updateRunGenerationAttemptStep1({
-      step1Result: { hmis, hfa, iceh: includeIceh() },
+      step1Result: {
+        hmis: includeHmis(),
+        hfa: includeHfa(),
+        iceh: includeIceh(),
+      },
     });
   }, p.silentFetch);
 
@@ -171,9 +111,9 @@ function Step1Inner(p: {
       </h3>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "Choose which data families this results package is generated from, and how each is scoped.",
-          fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré, et leur périmètre.",
-          pt: "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado, e o respetivo âmbito.",
+          en: "Choose which data families this results package is generated from. Each included family is captured in full.",
+          fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré. Chaque famille incluse est capturée dans son intégralité.",
+          pt: "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado. Cada família incluída é capturada na íntegra.",
         })}
       </div>
 
@@ -187,18 +127,6 @@ function Step1Inner(p: {
         <Show when={!hmisAvailable()}>
           <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
         </Show>
-        <Show when={includeHmis() && instanceState.datasetVersions.hmis}>
-          {(keyedVersionId) => (
-            <WindowingSelector
-              hmisVersionId={keyedVersionId()}
-              indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
-              tempWindowing={tempWindowing}
-              setTempWindowing={setTempWindowing}
-              includeOrDelete="include"
-              facilityColumns={instanceState.facilityColumns}
-            />
-          )}
-        </Show>
       </div>
 
       <div class="ui-pad ui-spy rounded border">
@@ -210,33 +138,6 @@ function Step1Inner(p: {
         />
         <Show when={!hfaAvailable()}>
           <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
-        </Show>
-        <Show when={includeHfa()}>
-          <StateHolderWrapper state={serviceCategoriesQuery.state()}>
-            {(serviceCategories) => (
-              <div class="ui-spy max-w-lg">
-                <Checkbox
-                  label={t3({
-                    en: "Include all service categories",
-                    fr: "Inclure toutes les catégories de service",
-                    pt: "Incluir todas as categorias de serviço",
-                  })}
-                  checked={hfaIncludeAll()}
-                  onChange={setHfaIncludeAll}
-                />
-                <Show when={!hfaIncludeAll()}>
-                  <MultiSelect
-                    values={hfaSelected()}
-                    onChange={setHfaSelected}
-                    options={serviceCategories.map((sc) => ({
-                      value: sc.id,
-                      label: sc.label,
-                    }))}
-                  />
-                </Show>
-              </div>
-            )}
-          </StateHolderWrapper>
         </Show>
       </div>
 

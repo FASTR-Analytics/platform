@@ -84,8 +84,8 @@ function Step2Inner(p: {
   silentFetch: () => Promise<void>;
 }) {
   const selectedFamilies = new Set<DatasetType>([
-    ...(p.step1Result.hmis !== null ? (["hmis"] as const) : []),
-    ...(p.step1Result.hfa !== null ? (["hfa"] as const) : []),
+    ...(p.step1Result.hmis ? (["hmis"] as const) : []),
+    ...(p.step1Result.hfa ? (["hfa"] as const) : []),
     ...(p.step1Result.iceh ? (["iceh"] as const) : []),
   ]);
 

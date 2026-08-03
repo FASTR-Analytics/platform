@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { datasetHmisWindowingCommonSchema } from "./dataset_hmis.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type { ModuleParameter } from "./_module_definition_installed.ts";
@@ -15,12 +14,13 @@ import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 // instance-level act, and a run attaches to projects rather than belonging
 // to one.
 
-// Step 1 — choose data: family checkboxes + per-family windowing, reusing
-// the per-project dataset windowing semantics verbatim (§10 ruling 6).
-// null = family not included in the run; ICEH has no scoping options.
+// Step 1 — choose data: plain family-inclusion checkboxes. Generation always
+// captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
+// 2026-08-03) — subsetting is a per-project attach-time concern, never a
+// generation-time one.
 export const runGenerationStep1ResultSchema = z.object({
-  hmis: z.object({ windowing: datasetHmisWindowingCommonSchema }).nullable(),
-  hfa: z.object({ serviceCategoryScope: z.array(z.string()) }).nullable(),
+  hmis: z.boolean(),
+  hfa: z.boolean(),
   iceh: z.boolean(),
 });
 export type RunGenerationStep1Result = z.infer<
@@ -50,8 +50,10 @@ export type RunGenerationStep2Result = z.infer<
 // defaults > definition defaults; there is no manifest tier (the wizard is
 // instance-entered, so there is no anchor run). Unknown moduleIds in the
 // store are tolerated: modules evolve, the store does not have to.
+// step1 is .catch(null): a stored step1 under an older shape degrades to
+// "no step-1 default" without discarding the module/parameter defaults.
 export const runGenerationDefaultsSchema = z.object({
-  step1: runGenerationStep1ResultSchema.nullable(),
+  step1: runGenerationStep1ResultSchema.nullable().catch(null),
   moduleIds: z.array(z.string()),
   parameterSelections: z.record(
     z.string(),

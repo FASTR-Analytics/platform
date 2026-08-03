@@ -22,8 +22,9 @@ export type DatasetHmisVersion = {
 // HMIS Windowing & Configuration Types
 // ============================================================================
 
-// Authoritative windowing schemas — route bodies (project attach, instance
-// delete-data, run generation) and stored JSON all validate against these.
+// Authoritative windowing schemas — the instance delete-data route body
+// validates against these; kept in lib for per-project data subsetting
+// (PLAN_PROJECT_DATA_SUBSETTING). Generation no longer windows.
 const datasetHmisWindowingBaseSchema = z.object({
   start: z.number(),
   end: z.number(),

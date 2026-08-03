@@ -38,11 +38,11 @@ import {
   type ProjectFacilityRow,
 } from "./datasets_in_project_hmis.ts";
 
-// The HFA attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5) — see the
-// HMIS file's header note. computeDatasetHfaRunCapture does the instance
-// reads + COPY export and returns every captured row set;
-// addDatasetHfaToProject applies one to a project DB (createProject's legacy
-// plane only).
+// See the HMIS file's header note. computeDatasetHfaRunCapture does the
+// instance reads + COPY export and returns every captured row set. Capture
+// is always the FULL dataset — every service category's indicator
+// definitions and R code ship in the run (PLAN_FULL_CAPTURE_GENERATION
+// ruling 2026-08-03).
 
 export type DatasetHfaRunCapture = {
   info: DatasetHfaInfoInProject;
@@ -71,8 +71,6 @@ export async function computeDatasetHfaRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
-  // Service-category ids to include. Empty = include all.
-  serviceCategoryScope: string[] = [],
 ): Promise<APIResponseWithData<DatasetHfaRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate and capture staleness metadata BEFORE removing the existing
@@ -98,24 +96,12 @@ export async function computeDatasetHfaRunCapture(
     throwIfErrWithData(resMaxAdminArea);
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
-    // DB for the project-level snapshot. The module runner reads from the
-    // snapshot so indicators and data stay in sync for this project.
-    // Project scoping: when a scope is set, only indicators whose service
-    // categories overlap it are brought into the project.
-    const scopeFilter =
-      serviceCategoryScope.length > 0
-        ? mainDb`WHERE jsonb_exists_any(service_category_ids::jsonb, ${serviceCategoryScope})`
-        : mainDb``;
+    // DB for the run snapshot. The module runner reads from the snapshot so
+    // indicators and data stay in sync for this run.
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ${scopeFilter} ORDER BY sort_order, var_name
+      SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
     `;
-    if (
-      serviceCategoryScope.length > 0 &&
-      hfaIndicatorRowsForSnapshot.length === 0
-    ) {
-      throw new Error("No HFA indicators match the selected service categories.");
-    }
-    const scopedVarNames = new Set(
+    const indicatorVarNames = new Set(
       hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
     );
     const hfaIndicatorCodeRowsForSnapshot = (
@@ -131,7 +117,7 @@ export async function computeDatasetHfaRunCapture(
       FROM hfa_indicator_code
       ORDER BY var_name, time_point
     `
-    ).filter((c) => scopedVarNames.has(c.var_name));
+    ).filter((c) => indicatorVarNames.has(c.var_name));
 
     // Staleness metadata — stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
@@ -211,8 +197,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       hfaIndicatorsVersion,
       structureLastUpdated,
       facilityColumnsHash: hashFacilityColumnsConfig(facilityConfig),
-      serviceCategoryScope:
-        serviceCategoryScope.length > 0 ? serviceCategoryScope : undefined,
     };
 
     // Fetch facilities from main database for the project/run capture

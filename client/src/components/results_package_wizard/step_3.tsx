@@ -151,19 +151,8 @@ export function Step3(p: Props) {
           <Show when={p.step1Result.hmis}>
             <li>{t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}</li>
           </Show>
-          <Show when={p.step1Result.hfa} keyed>
-            {(hfa) => (
-              <li>
-                {t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}
-                {hfa.serviceCategoryScope.length > 0
-                  ? ` (${hfa.serviceCategoryScope.length} ${t3({
-                    en: "service categories",
-                    fr: "catégories de service",
-                    pt: "categorias de serviço",
-                  })})`
-                  : ""}
-              </li>
-            )}
+          <Show when={p.step1Result.hfa}>
+            <li>{t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}</li>
           </Show>
           <Show when={p.step1Result.iceh}>
             <li>

@@ -230,7 +230,7 @@ the format, the invariants and the schema version live here. Types:
 <instance>/runs/<runId>/            ← runId is a UUID; the dir name IS the id
   manifest.json                     ← the only thing readers consult for metadata
   inputs/                           ← EVERYTHING the generation consumed
-    datasets/<type>.csv             ← windowed extracts, written by Postgres
+    datasets/<type>.csv             ← full-dataset extracts, written by Postgres
     datasets/<type>.parquet           COPY TO straight into the run + twins
     facilities_hmis.parquet         ← the join side of facility-column queries
     facilities_hfa.parquet
@@ -280,8 +280,7 @@ Four invariants, in the order they matter:
 (`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
 `appVersion`, `rImageTag`); the **captured data semantics** the query layer must
 read from here rather than from the environment — `calendar`, `countryIso3`, and
-`facilityColumnsConfig`; the dataset version stamps and windowing the generation
-consumed; the module and metric catalogs as the installed definitions verbatim
+`facilityColumnsConfig`; the dataset version stamps the generation consumed; the module and metric catalogs as the installed definitions verbatim
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
@@ -312,7 +311,14 @@ the endpoint) with the per-attach-target project pushes — a run with no
 attach targets has only the former. Completion goes via
 `RUN_GENERATION_ENDED_CHANNEL` + `notifyProjectRunAttached`. Stages: prepare
 (dataset extracts COPY'd by Postgres directly into the run tmp dir via
-`RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored back to the sandbox);
+`RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored back to the sandbox;
+capture is always the FULL dataset per family — entire period range, all
+indicators/admin areas/facility types/ownerships, every HFA service category
+(Tim's ruling 2026-08-03: the R scripts need the full dataset to compute
+correctly, and per-project subsetting is an attach-time query filter —
+PLAN_PROJECT_DATA_SUBSETTING — never a generation input). Legacy manifests
+carry a `windowing`/`serviceCategoryScope` key inside their `z.unknown()`
+datasets info — inert, nothing reads it, no schema-version gate needed);
 resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated
 and Kahn-ordered); execute per module (Docker container
 `fastr-genrun-{runId}-{moduleId}`, §3.7 memoized reuse via content-addressed

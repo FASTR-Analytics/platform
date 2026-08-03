@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Why we made this change</text>
+
+  <!-- card 1: Trust -->
+  <g transform="translate(64,120)">
+    <rect width="552" height="160" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#065f46">Trust your numbers</text>
+    <text x="28" y="84" font-size="18" fill="#065f46">A package never changes after it is created. The chart</text>
+    <text x="28" y="110" font-size="18" fill="#065f46">you present today shows the same numbers next month —</text>
+    <text x="28" y="136" font-size="18" fill="#065f46">no silent re-runs, no stale results.</text>
+  </g>
+
+  <!-- card 2: Speed -->
+  <g transform="translate(664,120)">
+    <rect width="552" height="160" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#1e40af">Much faster</text>
+    <text x="28" y="84" font-size="18" fill="#1e3a8a">Results are stored in a modern columnar format built</text>
+    <text x="28" y="110" font-size="18" fill="#1e3a8a">for analytics. Heavy charts that took many seconds</text>
+    <text x="28" y="136" font-size="18" fill="#1e3a8a">now load in a fraction of a second.</text>
+  </g>
+
+  <!-- card 3: Share -->
+  <g transform="translate(64,300)">
+    <rect width="552" height="160" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#92400e">Run once, use everywhere</text>
+    <text x="28" y="84" font-size="18" fill="#92400e">One analysis serves every project on the instance.</text>
+    <text x="28" y="110" font-size="18" fill="#92400e">Teams stop repeating the same processing and</text>
+    <text x="28" y="136" font-size="18" fill="#92400e">everyone works from the same results.</text>
+  </g>
+
+  <!-- card 4: Transparency -->
+  <g transform="translate(664,300)">
+    <rect width="552" height="160" rx="14" fill="#faf5ff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#5b21b6">Full transparency</text>
+    <text x="28" y="84" font-size="18" fill="#5b21b6">Every package records exactly which data, settings and</text>
+    <text x="28" y="110" font-size="18" fill="#5b21b6">script versions produced it — with the scripts and logs</text>
+    <text x="28" y="136" font-size="18" fill="#5b21b6">viewable in the app. Ideal for audit and publication.</text>
+  </g>
+
+  <!-- card 5: lighter -->
+  <g transform="translate(64,480)">
+    <rect width="1152" height="150" rx="14" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#334155">Lighter, simpler projects</text>
+    <text x="28" y="84" font-size="18" fill="#475569">Projects no longer carry their own data or run their own processing — they are pure workspaces for visualizations,</text>
+    <text x="28" y="110" font-size="18" fill="#475569">slide decks, dashboards and reports. On one large instance, twenty projects each duplicating the same national data</text>
+    <text x="28" y="136" font-size="18" fill="#475569">added up to over a terabyte; shared packages collapse that to a few gigabytes.</text>
+  </g>
+</svg>

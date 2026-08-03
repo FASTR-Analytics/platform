@@ -1,7 +1,4 @@
-import type {
-  DatasetHmisVersion,
-  DatasetHmisWindowingCommon,
-} from "./dataset_hmis.ts";
+import type { DatasetHmisVersion } from "./dataset_hmis.ts";
 import type { InstanceConfigFacilityColumns } from "./instance.ts";
 
 export type DatasetInProject =
@@ -21,9 +18,11 @@ export type DatasetInProject =
       dateExported: string;
     };
 
+// Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Legacy
+// packages may carry an extra `windowing` (HMIS) / `serviceCategoryScope`
+// (HFA) key in their stored info JSON — inert, nothing reads it.
 export type DatasetHmisInfoInProject = {
   version: DatasetHmisVersion;
-  windowing: DatasetHmisWindowingCommon;
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;
@@ -43,8 +42,6 @@ export type DatasetHfaInfoInProject = {
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;
   facilityColumnsHash?: string;
-  // Project scoping: service-category ids to include. Absent/empty = include all.
-  serviceCategoryScope?: string[];
 };
 
 export type DatasetIcehInfoInProject = {

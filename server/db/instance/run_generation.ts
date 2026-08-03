@@ -86,10 +86,15 @@ export async function getRunGenerationAttempt(
     if (raw === undefined) {
       return { success: true, data: null };
     }
+    // safeParse: a stored step 1 written under an older shape degrades to a
+    // fresh step 1 instead of bricking the wizard for that admin.
+    const step1Parsed = raw.step_1_result === null
+      ? null
+      : runGenerationStep1ResultSchema.safeParse(
+        JSON.parse(raw.step_1_result),
+      );
     const step1Result: RunGenerationStep1Result | null =
-      raw.step_1_result === null
-        ? null
-        : runGenerationStep1ResultSchema.parse(JSON.parse(raw.step_1_result));
+      step1Parsed?.success ? step1Parsed.data : null;
     const step2Result: RunGenerationStep2Result | null =
       raw.step_2_result === null
         ? null
@@ -119,11 +124,7 @@ export async function updateRunGenerationAttemptStep1(
   step1Result: RunGenerationStep1Result,
 ): Promise<APIResponseNoData> {
   try {
-    if (
-      step1Result.hmis === null &&
-      step1Result.hfa === null &&
-      step1Result.iceh === false
-    ) {
+    if (!step1Result.hmis && !step1Result.hfa && !step1Result.iceh) {
       return {
         success: false,
         err: "Select at least one data family for the results package",

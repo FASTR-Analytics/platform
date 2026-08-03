@@ -105,12 +105,11 @@ export async function prepareRunInputs(
     calculatedIndicators: [],
   };
 
-  if (step1.hmis !== null) {
+  if (step1.hmis) {
     selectedFamilies.push("hmis");
     const res = await computeDatasetHmisRunCapture(
       mainDb,
       runCsvTarget("hmis"),
-      step1.hmis.windowing,
     );
     throwIfErrWithData(res);
     const capture = res.data;
@@ -136,13 +135,11 @@ export async function prepareRunInputs(
     scriptInputs.calculatedIndicators = capture.calculatedIndicators;
   }
 
-  if (step1.hfa !== null) {
+  if (step1.hfa) {
     selectedFamilies.push("hfa");
     const res = await computeDatasetHfaRunCapture(
       mainDb,
       runCsvTarget("hfa"),
-      undefined,
-      step1.hfa.serviceCategoryScope,
     );
     throwIfErrWithData(res);
     const capture = res.data;

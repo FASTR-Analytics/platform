@@ -35,7 +35,7 @@ export async function getRunManifestCached(runId: string): Promise<RunManifest> 
   // rather than silently served by older code.
   if (manifest.manifestSchemaVersion !== RUN_MANIFEST_SCHEMA_VERSION) {
     throw new Error(
-      `Run ${runId} has manifest schema version ${manifest.manifestSchemaVersion}, this server requires ${RUN_MANIFEST_SCHEMA_VERSION} — regenerate the run (backfill_runs.ts or a new generation)`,
+      `Run ${runId} has manifest schema version ${manifest.manifestSchemaVersion}, this server requires ${RUN_MANIFEST_SCHEMA_VERSION} — regenerate the run (synthesize_run.ts or a new generation)`,
     );
   }
   MANIFEST_CACHE.set(runId, manifest);
