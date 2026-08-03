@@ -1,3 +1,6 @@
+[TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[TBD] [admin] [changed] - Improved audit logging for user setting changes
 [1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
 [1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
 [1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading
