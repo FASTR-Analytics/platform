@@ -30,6 +30,7 @@ export {
   resolveRunModuleFileForDownload,
 } from "./package_internals.ts";
 export {
+  publishFailedRunDirOrSweep,
   runDirPath,
   runInputFilePath,
   runManifestPath,

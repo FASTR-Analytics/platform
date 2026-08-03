@@ -320,16 +320,18 @@ const resultsObjectDefinitionGithub = z.object({
 
 // ── assetsToImport (github) ─────────────────────────────────────────
 
-// Two kinds (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13): a plain string
-// names an instance-uploaded asset; an object pins a modules-repo data file
-// by repo path + full commit SHA. `sha256` is computed by the modules-repo
-// build from the working-tree file (authoring supplies name/repoPath/commit
-// only); the server verifies it after fetching the pinned raw file and
-// caches content-addressed.
+// Two kinds (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut 2026-08-03):
+// a plain string names an instance-uploaded asset; an object pins a
+// modules-repo data file by repo path + sha256. The file is fetched at the
+// SAME gitRef the definition itself was resolved at — definition and data can
+// never disagree, because they are read from one commit — and `sha256`
+// (computed by the modules-repo build from the working-tree file) is the
+// integrity check and content-addressed cache key. There is no per-asset
+// commit field any more; legacy definitions carrying one parse fine (strip)
+// and the field is ignored.
 const repoAssetToImportGithub = z.object({
   name: z.string(),
   repoPath: z.string(),
-  commit: z.string(),
   sha256: z.string(),
 });
 const assetToImportGithub = z.union([z.string(), repoAssetToImportGithub]);

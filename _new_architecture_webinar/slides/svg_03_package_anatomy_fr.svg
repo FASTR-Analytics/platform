@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Que contient un paquet de résultats ?</text>
+
+  <!-- outer sealed box -->
+  <rect x="140" y="120" width="1000" height="470" rx="18" fill="#fffbeb" stroke="#d97706" stroke-width="3"/>
+
+  <!-- padlock -->
+  <g transform="translate(1114,88)">
+    <rect x="0" y="22" width="52" height="40" rx="7" fill="#92400e"/>
+    <path d="M10 22 v-6 a16 16 0 0 1 32 0 v6" fill="none" stroke="#92400e" stroke-width="7"/>
+    <circle cx="26" cy="40" r="5" fill="#fffbeb"/>
+  </g>
+
+  <text x="180" y="170" font-size="24" font-weight="bold" fill="#92400e">Un dossier scellé — tout ce que l'analyse a utilisé et produit</text>
+
+  <!-- Inputs column -->
+  <g transform="translate(180,200)">
+    <rect width="440" height="340" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <text x="220" y="42" font-size="22" font-weight="bold" fill="#1e40af" text-anchor="middle">Entrées (ce qui est entré)</text>
+    <g font-size="18" fill="#1e3a8a">
+      <text x="32" y="88">&#8226;  Les extraits de données analysés</text>
+      <text x="32" y="126">&#8226;  Les modules exécutés, et leur version</text>
+      <text x="32" y="164">&#8226;  Chaque réglage et paramètre choisi</text>
+      <text x="32" y="202">&#8226;  Établissements et zones admin.</text>
+      <text x="32" y="240">&#8226;  Définitions des indicateurs</text>
+      <text x="32" y="278">&#8226;  Pays, calendrier, langue</text>
+    </g>
+  </g>
+
+  <!-- Outputs column -->
+  <g transform="translate(660,200)">
+    <rect width="440" height="340" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+    <text x="220" y="42" font-size="22" font-weight="bold" fill="#065f46" text-anchor="middle">Sorties (ce qui est sorti)</text>
+    <g font-size="18" fill="#065f46">
+      <text x="32" y="88">&#8226;  Toutes les tables de résultats</text>
+      <text x="32" y="126">&#8226;  Le script R exact qui a été exécuté</text>
+      <text x="32" y="164">&#8226;  Les journaux d'exécution complets</text>
+      <text x="32" y="202">&#8226;  Un manifeste décrivant chaque résultat :</text>
+      <text x="56" y="240">ce qui est disponible, sur quelles</text>
+      <text x="56" y="278">périodes, avec quelles désagrégations</text>
+    </g>
+  </g>
+
+  <g transform="translate(64,650)">
+    <text x="0" y="0" font-size="20" fill="#334155">Scellé à la création, jamais modifié ensuite — chacun peut voir exactement d'où vient chaque chiffre.</text>
+  </g>
+</svg>

@@ -5,7 +5,7 @@ import {
   type RunProgress,
 } from "lib";
 import { Button, getEditorWrapper } from "panther";
-import { For, Show } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import type { PackageInternalsSource } from "./internals_source";
 import { ModuleProgressChip, formatBytes, moduleLabel } from "./status";
 import { ViewFiles } from "./view_files";
@@ -59,6 +59,40 @@ export function ResultsPackageContents(p: {
     });
   }
 
+  function viewerButtons(moduleId: string) {
+    return (
+      <>
+        <Show when={p.internals.canViewScript}>
+          <Button
+            size="sm"
+            outline
+            onClick={() => openViewer(ViewScript, moduleId)}
+          >
+            {t3({ en: "Script", fr: "Script", pt: "Script" })}
+          </Button>
+        </Show>
+        <Show when={p.internals.canViewLogs}>
+          <Button
+            size="sm"
+            outline
+            onClick={() => openViewer(ViewLogs, moduleId)}
+          >
+            {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
+          </Button>
+        </Show>
+        <Show when={p.internals.canViewFiles}>
+          <Button
+            size="sm"
+            outline
+            onClick={() => openViewer(ViewFiles, moduleId)}
+          >
+            {t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" })}
+          </Button>
+        </Show>
+      </>
+    );
+  }
+
   return (
     <>
       <Show when={p.run.status === "ready" && p.run.summary} keyed>
@@ -74,33 +108,7 @@ export function ResultsPackageContents(p: {
               {(moduleId) => (
                 <div class="ui-gap-sm flex items-center text-sm">
                   <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <Show when={p.internals.canViewScript}>
-                    <Button
-                      size="sm"
-                      outline
-                      onClick={() => openViewer(ViewScript, moduleId)}
-                    >
-                      {t3({ en: "Script", fr: "Script", pt: "Script" })}
-                    </Button>
-                  </Show>
-                  <Show when={p.internals.canViewLogs}>
-                    <Button
-                      size="sm"
-                      outline
-                      onClick={() => openViewer(ViewLogs, moduleId)}
-                    >
-                      {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
-                    </Button>
-                  </Show>
-                  <Show when={p.internals.canViewFiles}>
-                    <Button
-                      size="sm"
-                      outline
-                      onClick={() => openViewer(ViewFiles, moduleId)}
-                    >
-                      {t3({ en: "Files", fr: "Fichiers", pt: "Ficheiros" })}
-                    </Button>
-                  </Show>
+                  {viewerButtons(moduleId)}
                 </div>
               )}
             </For>
@@ -133,16 +141,75 @@ export function ResultsPackageContents(p: {
       </Show>
 
       <Show when={p.run.status === "failed"}>
-        <div class="text-danger text-sm">
-          {progress()?.errorDetail ??
-            t3({
-              en: "Generation failed",
-              fr: "Échec de la génération",
-              pt: "Falha na geração",
-            })}
+        <div class="ui-spy-sm">
+          <FailedErrorDetail errorDetail={progress()?.errorDetail ?? null} />
+          {/* The failed workspace is published for inspection (no manifest,
+              so there is no summary): the module list comes from the stored
+              progress, and viewers are offered only for modules that
+              started — a pending module never got a workspace. */}
+          <Show when={progress()} keyed>
+            {(keyedProgress) => (
+              <For each={keyedProgress.moduleOrder}>
+                {(moduleId) => {
+                  const status = keyedProgress.moduleStatus[moduleId] ??
+                    "pending";
+                  return (
+                    <div class="ui-gap-sm flex items-center text-sm">
+                      <div class="flex w-64">
+                        <ModuleProgressChip
+                          label={moduleLabel(moduleId)}
+                          status={status}
+                        />
+                      </div>
+                      <Show when={status !== "pending"}>
+                        {viewerButtons(moduleId)}
+                      </Show>
+                    </div>
+                  );
+                }}
+              </For>
+            )}
+          </Show>
         </div>
       </Show>
     </>
+  );
+}
+
+// A failed run's errorDetail can be a wall of text (module-resolution or R
+// errors) — clamp it to a few lines, expandable on demand. Display-only:
+// the stored detail stays intact.
+const ERROR_CLAMP_CHARS = 280;
+
+function FailedErrorDetail(p: { errorDetail: string | null }) {
+  const [expanded, setExpanded] = createSignal(false);
+  const detail = () =>
+    p.errorDetail ??
+      t3({
+        en: "Generation failed",
+        fr: "Échec de la génération",
+        pt: "Falha na geração",
+      });
+  const isLong = () => detail().length > ERROR_CLAMP_CHARS;
+  return (
+    <div class="text-danger text-sm">
+      <div class="whitespace-pre-wrap">
+        {expanded() || !isLong()
+          ? detail()
+          : `${detail().slice(0, ERROR_CLAMP_CHARS)}…`}
+      </div>
+      <Show when={isLong()}>
+        <button
+          type="button"
+          class="cursor-pointer underline"
+          onClick={() => setExpanded(!expanded())}
+        >
+          {expanded()
+            ? t3({ en: "Show less", fr: "Afficher moins", pt: "Mostrar menos" })
+            : t3({ en: "Show more", fr: "Afficher plus", pt: "Mostrar mais" })}
+        </button>
+      </Show>
+    </div>
   );
 }
 

@@ -12,9 +12,10 @@ export async function importAsset(
   asset: AssetToImport,
   dirPath: string,
   moduleId: string,
+  gitRef: string | null,
 ): Promise<void> {
   if (typeof asset !== "string") {
-    const cachePath = await ensureRepoAssetCached(moduleId, asset);
+    const cachePath = await ensureRepoAssetCached(moduleId, asset, gitRef);
     await Deno.copyFile(cachePath, join(dirPath, asset.name));
     return;
   }

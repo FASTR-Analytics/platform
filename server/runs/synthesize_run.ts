@@ -194,6 +194,7 @@ export async function buildRunPackageIntoTmp(
     id: string;
     moduleDefinition: string;
     lastRunAt: string | null;
+    lastRunGitRef: string | null;
   }[];
 
   if (src.kind === "captured") {
@@ -210,6 +211,7 @@ export async function buildRunPackageIntoTmp(
       id: m.id,
       moduleDefinition: m.moduleDefinition,
       lastRunAt: m.lastRunAt,
+      lastRunGitRef: m.lastRunGitRef,
     }));
   } else {
     const { projectDb, moduleIds } = src;
@@ -267,6 +269,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
       id: m.id,
       moduleDefinition: m.module_definition,
       lastRunAt: m.last_run_at,
+      lastRunGitRef: m.last_run_git_ref,
     }));
   }
 
@@ -364,7 +367,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
   // backfill. The wizard finalize inherits this capture with the same layout.
   const declaredAssets = new Map<
     string,
-    { asset: AssetToImport; moduleId: string }
+    { asset: AssetToImport; moduleId: string; gitRef: string | null }
   >();
   for (const mod of moduleDefinitions) {
     const def = JSON.parse(mod.moduleDefinition) as {
@@ -374,6 +377,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
       declaredAssets.set(getAssetToImportName(asset), {
         asset,
         moduleId: mod.id,
+        gitRef: mod.lastRunGitRef,
       });
     }
   }
@@ -382,12 +386,12 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
     await Deno.mkdir(join(tmpDir, "inputs", "assets"), { recursive: true });
   }
   for (const fileName of [...declaredAssets.keys()].sort()) {
-    const { asset, moduleId } = declaredAssets.get(fileName)!;
+    const { asset, moduleId, gitRef } = declaredAssets.get(fileName)!;
     let bytes: Uint8Array<ArrayBuffer>;
     try {
       const sourcePath = typeof asset === "string"
         ? resolveAssetFilePath(asset)
-        : await ensureRepoAssetCached(moduleId, asset);
+        : await ensureRepoAssetCached(moduleId, asset, gitRef);
       bytes = await Deno.readFile(sourcePath);
     } catch (e) {
       console.error(

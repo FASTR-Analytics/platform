@@ -1,7 +1,7 @@
 import type { Sql } from "postgres";
 import { createWorkerReadConnection } from "../../db/mod.ts";
 import { markRunGenerationFailed } from "../../db/instance/run_generation.ts";
-import { runTmpDirPath } from "../../runs/mod.ts";
+import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
 import { notifyRunProgress } from "./notify_run.ts";
 import { runGenerationPipeline } from "./pipeline.ts";
 import {
@@ -57,7 +57,8 @@ async function run(std: GenerateRunStartData) {
   }
 }
 
-// A failed generation never replaces the serving run: remove the tmp dir,
+// A failed generation never replaces the serving run: publish the partial
+// workspace for inspection (no manifest — see publishFailedRunDirOrSweep),
 // mark the catalog row failed (errorDetail into progress), push the final
 // progress over SSE. The attached run — if any — keeps serving untouched.
 async function failGeneration(
@@ -65,8 +66,7 @@ async function failGeneration(
   std: GenerateRunStartData,
   e: unknown,
 ) {
-  await Deno.remove(runTmpDirPath(std.runId), { recursive: true })
-    .catch(() => {});
+  await publishFailedRunDirOrSweep(std.runId);
   const progress = await markRunGenerationFailed(
     mainDb,
     std.runId,

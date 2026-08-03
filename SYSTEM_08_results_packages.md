@@ -131,6 +131,11 @@ are also rejected here) and `stripFrontmatter` on the script.
 `fetchModuleFiles(id, pinnedGitRef)` fetches at an exact commit when the run
 pipeline re-resolves the wizard's pinned refs (undefined = HEAD), and caches
 definition-declared pinned repo assets content-addressed (`repo_assets.ts`).
+Pinned repo assets are `{name, repoPath, sha256}` and are fetched at the SAME
+gitRef the definition was resolved at (re-cut 2026-08-03) — definition and
+data are read from one commit and cannot disagree; there is no per-asset
+commit field (legacy definitions carrying one parse fine, the field is
+ignored). sha256 is the integrity check and the cache key.
 `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
 label/metrics/`configRequirements` via `resolveTS` and returns
 `ModuleDefinitionDetail & { gitRef }`. (Default visualizations are no longer
@@ -250,7 +255,15 @@ Four invariants, in the order they matter:
 
 1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically
    renames at finalize, so a crashed generation leaves no readable package and
-   no published file is ever rewritten. Every cache in the app depends on this:
+   no published file is ever rewritten. A handled FAILURE also renames the
+   partial workspace into `runs/<runId>` — deliberately without a
+   `manifest.json`, so it is never a readable package (Tim's ruling
+   2026-08-03): the catalog row (`failed` + `errorDetail`) is the error
+   record, the ready-only gates (attach picker + its UPDATE, the reuse
+   search) never see it, and the module script/log/file viewers work on it
+   unchanged so failures stay diagnosable. Reclaimed only by the guarded
+   hard delete (no GC yet); only a server-process death still leaves bare
+   `.tmp-` debris, swept at boot. Every cache in the app depends on this:
    the manifest cache parses once per runId with no invalidation path, the
    virtual-defaults cache keys on runId alone, and the Valkey entries fold runId
    into their hashes. A published package is only ever read, renamed onto (never

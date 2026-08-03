@@ -89,7 +89,7 @@ export async function executeRunModule(args: {
       const assetName = getAssetToImportName(asset);
       await writeToLog("Getting asset: " + assetName, "download-file");
       notifyRScript("Getting asset: " + assetName);
-      await importAsset(asset, workspace, moduleId);
+      await importAsset(asset, workspace, moduleId, mod.gitRef);
     }
 
     await writeToLog("Starting R script", "r-output");

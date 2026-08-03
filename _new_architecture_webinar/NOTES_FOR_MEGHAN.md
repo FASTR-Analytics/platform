@@ -19,7 +19,9 @@ working. Say **"results package"** (the UI term), never "run".
 ## Part A — Slides
 
 Each image in `slides/` comes as SVG (drag into PowerPoint, sharp at any
-size) and high-res PNG. All 16:9, white background.
+size) and high-res PNG. All 16:9, white background. French versions carry a
+`_fr` suffix (e.g. `svg_01_before_fr.svg`), using the app's French UI
+terminology ("paquet de résultats", "FOSA").
 
 1. **Title** (text): *A new engine under FASTR: results packages.* Same
    platform, same charts — a rebuilt engine for producing and storing results.

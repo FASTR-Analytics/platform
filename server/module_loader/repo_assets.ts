@@ -8,21 +8,25 @@ import {
 import { MODULE_SOURCE } from "./module_source.ts";
 
 // Content-addressed cache of pinned modules-repo assets (PLAN_RESULTS_RUNS
-// item 2 ruling, 2026-07-13): a definition's {name, repoPath, commit, sha256}
-// entry is fetched from the modules repo at the pinned commit, verified
-// against sha256, and stored at {ASSETS_DIR}/repo_assets/{sha256}. Cache
-// entries are immutable by construction — a hit never refetches. In dev
-// (local module source) the file is read from the modules-repo working tree;
-// a sha mismatch there means the pin wasn't rebuilt after the data file
-// changed, and fails loudly either way. Module containers stay network-free:
-// only the Deno process fetches, at definition resolution and (cache-miss
-// fallback) at module run.
+// item 2 ruling, 2026-07-13; re-cut 2026-08-03): a definition's
+// {name, repoPath, sha256} entry is fetched from the modules repo at the SAME
+// gitRef the definition was resolved at — definition and data are read from
+// one commit and can never disagree — verified against sha256, and stored at
+// {ASSETS_DIR}/repo_assets/{sha256}. Cache entries are immutable by
+// construction — a hit never refetches. In dev (local module source) the file
+// is read from the modules-repo working tree; a sha mismatch there means the
+// definition wasn't rebuilt after the data file changed, and fails loudly
+// either way. Module containers stay network-free: only the Deno process
+// fetches, at definition resolution and (cache-miss fallback) at module run.
 
 const REPO_ASSETS_DIR = join(_ASSETS_DIR_PATH, "repo_assets");
 
 export async function ensureRepoAssetCached(
   moduleId: string,
   pin: RepoAssetToImport,
+  // The ref the module's definition was resolved at; null falls back to
+  // "main", exactly mirroring the definition fetch itself (load_module).
+  gitRef: string | null,
 ): Promise<string> {
   const cachePath = join(REPO_ASSETS_DIR, pin.sha256);
   try {
@@ -31,14 +35,16 @@ export async function ensureRepoAssetCached(
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) throw e;
   }
-  const bytes = await fetchPinnedBytes(moduleId, pin);
+  const bytes = await fetchPinnedBytes(moduleId, pin, gitRef);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const sha256 = [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
   if (sha256 !== pin.sha256) {
     throw new Error(
-      `Pinned repo asset "${pin.name}" (${pin.repoPath} @ ${pin.commit}): sha256 mismatch — expected ${pin.sha256}, got ${sha256}`,
+      `Pinned repo asset "${pin.name}" (${pin.repoPath} @ ${
+        gitRef ?? "main"
+      }): sha256 mismatch — expected ${pin.sha256}, got ${sha256}`,
     );
   }
   await Deno.mkdir(REPO_ASSETS_DIR, { recursive: true });
@@ -51,6 +57,7 @@ export async function ensureRepoAssetCached(
 async function fetchPinnedBytes(
   moduleId: string,
   pin: RepoAssetToImport,
+  gitRef: string | null,
 ): Promise<Uint8Array<ArrayBuffer>> {
   if (MODULE_SOURCE === "local") {
     return await Deno.readFile(join(_MODULES_LOCAL_DIR, pin.repoPath));
@@ -60,8 +67,9 @@ async function fetchPinnedBytes(
     throw new Error(`Module "${moduleId}" not found in registry`);
   }
   const { owner, repo } = registryEntry.github;
-  const url =
-    `https://raw.githubusercontent.com/${owner}/${repo}/${pin.commit}/${pin.repoPath}`;
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${
+    gitRef ?? "main"
+  }/${pin.repoPath}`;
   const headers: Record<string, string> = {};
   if (_GITHUB_TOKEN) {
     headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;

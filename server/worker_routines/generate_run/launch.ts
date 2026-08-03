@@ -15,7 +15,7 @@ import {
   getRunGenerationAttempt,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
-import { runTmpDirPath } from "../../runs/mod.ts";
+import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
 import { checkSpaceForDataset } from "../../utils/disk_space.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
 import { notifyRunProgress } from "./notify_run.ts";
@@ -224,9 +224,10 @@ export async function launchRunGeneration(
   }
 }
 
-// A crashed worker cannot clean up after itself: mark the run failed, sweep
-// its tmp dir, and remove any containers it may have started — terminating
-// the worker only kills the `docker run` CLI client, never the container.
+// A crashed worker cannot clean up after itself: mark the run failed,
+// publish its partial workspace for inspection, and remove any containers it
+// may have started — terminating the worker only kills the `docker run` CLI
+// client, never the container.
 async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
   const entry = GENERATING_BY_RUN.get(runId);
   if (entry === undefined) {
@@ -247,7 +248,7 @@ async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
         });
     }
   }
-  await Deno.remove(runTmpDirPath(runId), { recursive: true }).catch(() => {});
+  await publishFailedRunDirOrSweep(runId);
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const progress = await markRunGenerationFailed(
     mainDb,

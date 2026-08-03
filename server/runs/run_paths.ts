@@ -31,6 +31,24 @@ export function runResultsObjectParquetPath(
   return join(runDir, "outputs", moduleId, `${resultsObjectId}.parquet`);
 }
 
+// A handled generation failure PUBLISHES the partial workspace — the same
+// atomic rename finalize uses — so the module scripts and logs stay
+// inspectable through the existing viewers (Tim's ruling 2026-08-03). No
+// manifest is ever written into a failed dir, so it can never be read as a
+// package; the catalog row (status + errorDetail) is the error record, and
+// the ready-only gates (attach, reuse) never see it. Reclaimed by the same
+// guarded hard delete as any package — there is no GC yet. The fallback
+// removal keeps the no-debris behavior when the rename cannot happen (tmp
+// already gone, or finalize had already renamed before the failure).
+export async function publishFailedRunDirOrSweep(runId: string): Promise<void> {
+  try {
+    await Deno.rename(runTmpDirPath(runId), runDirPath(runId));
+  } catch {
+    await Deno.remove(runTmpDirPath(runId), { recursive: true })
+      .catch(() => {});
+  }
+}
+
 export async function sweepAbandonedTmpRunDirs(): Promise<void> {
   for await (const entry of Deno.readDir(_RUNS_DIR_PATH)) {
     if (entry.isDirectory && entry.name.startsWith(".tmp-")) {

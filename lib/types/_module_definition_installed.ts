@@ -56,15 +56,15 @@ export const configRequirements = z.object({
   parameters: z.array(moduleParameter),
 });
 
-// Two kinds of asset (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13): a plain
-// string names an instance-uploaded asset (resolved from the instance Assets
-// dir); an object pins a modules-repo data file by repo path + full commit
-// SHA, fetched by the server, verified against sha256, and cached
-// content-addressed (repo_assets/{sha256}).
+// Two kinds of asset (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut
+// 2026-08-03): a plain string names an instance-uploaded asset (resolved from
+// the instance Assets dir); an object pins a modules-repo data file by repo
+// path + sha256, fetched at the definition's own gitRef, verified against
+// sha256, and cached content-addressed (repo_assets/{sha256}). Legacy stored
+// definitions carry a now-ignored `commit` field (stripped on parse).
 export const repoAssetToImport = z.object({
   name: z.string(),
   repoPath: z.string(),
-  commit: z.string(),
   sha256: z.string(),
 });
 
