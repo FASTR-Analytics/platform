@@ -110,6 +110,12 @@ function removedTitle(who?: string, exact?: boolean): string {
     : t3({ en: "Removed", fr: "Supprimé", pt: "Removido" });
 }
 
+function editedTitle(who?: string, exact?: boolean): string {
+  return who
+    ? `${t3({ en: "Edited by", fr: "Modifié par", pt: "Editado por" })} ${byLabel(who, exact)}`
+    : t3({ en: "Edited", fr: "Modifié", pt: "Editado" });
+}
+
 /** The unified diff text: every change is tinted with its author's presence
  *  color (additions highlighted, removals additionally struck through), and
  *  hovering shows a caret-style name flag — the same little label the collab
@@ -125,6 +131,8 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
             : UNKNOWN_COLOR;
           const flag = seg.kind === "added"
             ? addedTitle(seg.who, seg.whoExact)
+            : seg.kind === "edited"
+            ? editedTitle(seg.who, seg.whoExact)
             : removedTitle(seg.who, seg.whoExact);
           return (
             <span
