@@ -170,7 +170,11 @@ export const configDStrict = z
         // Roll-up ("National" / "All facilities") on THIS dimension. Schema
         // allows the flag on any entry; the gate (getRollupDimension) only
         // honors exactly one flagged whitelisted entry. Canonical off-state is
-        // both fields absent (normalizePOConfigForStorage strips them).
+        // both fields absent, but only the explicit client save path enforces
+        // it (normalizePOConfigForStorage strips non-gate entries); the collab
+        // checkpoint persists the live doc as-is, so collab-saved rows may
+        // carry latent flags on gated-off entries. Read paths tolerate both
+        // (SYSTEM_16 "canonical roll-up form" open item).
         rollup: z.boolean().optional(),
         rollupPosition: z.enum(["bottom", "top"]).optional(),
       }),

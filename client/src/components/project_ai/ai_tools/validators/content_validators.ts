@@ -111,6 +111,14 @@ function validateDateRange(
   startDate: number | undefined,
   endDate: number | undefined,
 ): void {
+  // One-sided input used to be silently ignored — the tool reported success
+  // while the stored config / query carried no period filter at all (the
+  // schema says "must be used together", but saying it is not enforcing it).
+  if ((startDate != null) !== (endDate != null)) {
+    throw new AIToolFailure(
+      `startDate and endDate must be provided together. Got startDate: ${startDate}, endDate: ${endDate}. Provide both for a bounded range, or omit both for all time.`,
+    );
+  }
   if (startDate != null && endDate != null) {
     if (!Number.isFinite(startDate) || !Number.isFinite(endDate)) {
       throw new AIToolFailure(

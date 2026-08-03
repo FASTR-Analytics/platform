@@ -1123,6 +1123,24 @@ overflow menu.
   d-scalar merged independently. Accepted for now (same class as any two
   concurrent disaggregation edits); fix shape if taken up: per-entry keyed
   merge for `disaggregateBy`.
+- **Canonical roll-up form holds only on the explicit save path** (2026-08-03).
+  `normalizePOConfigForStorage` strips `rollup`/`rollupPosition` from every
+  non-gate-selected `disaggregateBy` entry, but the PO checkpoint applies only
+  `dropStorageInvalidTransients`, so collab-saved rows persist latent flags on
+  gated-off entries. Accepted deliberately — both repair options are worse:
+  an effective-gate strip at checkpoint needs `RollupEligibilityInputs` loaded
+  server-side, where a stale/weaker `hasFacilityLevelRows` would strip an
+  _active_ AVG-over-facility-rows flag (silently turning roll-up off); a
+  config-shape-only strip (`getRollupDimension`) diverges the stored row from
+  the live doc for the whole session whenever a latent flag exists, making
+  `trusted` false on every checkpoint and forcing a re-seed on every open.
+  Consequences are benign: a latent flag can resurrect roll-up across sessions
+  when a later edit reopens the gate (extends the in-session keep-the-flag
+  design), and two latently flagged entries that both become candidates make
+  `getRollupDimension` return `undefined` (roll-up silently off, display
+  gates inert — contrived edit sequence, no bad data). The schema comment on
+  `rollup` in `_metric_installed.ts` points here. Revisit if per-entry keyed
+  merge for `disaggregateBy` (previous item) is taken up.
 - ~~**No heartbeat/ping-pong or idle-connection reaper on the collab WS**~~
   RESOLVED — both halves of dead-peer detection now exist and are described
   under Transport: the server side is Deno's protocol ping with `idleTimeout:

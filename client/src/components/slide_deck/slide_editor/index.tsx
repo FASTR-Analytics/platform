@@ -85,6 +85,8 @@ import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
+  collabSocketOpen,
+  docSaveFailing,
   openSlideSession,
   otherPeers,
   reconnectForStaleEditAuth,
@@ -780,6 +782,7 @@ export function SlideEditor(p: Props) {
         s && s.isLive()
           ? {
               figureId: blockId,
+              hostDoc: { docType: "slide", docId: p.slideId },
               getConfigMap: () => {
                 const ss = session();
                 return ss
@@ -1003,6 +1006,23 @@ export function SlideEditor(p: Props) {
                   peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
                   size="sm"
                 />
+                {/* Room checkpoint health — edits relay live between peers,
+                    but the server can't persist them right now. */}
+                <Show
+                  when={collabReady() && collabSocketOpen() &&
+                    docSaveFailing("slide", p.slideId)}
+                >
+                  <div class="ui-text-caption flex items-center gap-1.5">
+                    <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+                    <span>
+                      {t3({
+                        en: "Not saving — retrying…",
+                        fr: "Non enregistré — nouvel essai…",
+                        pt: "Não está a guardar — a tentar novamente…",
+                      })}
+                    </span>
+                  </div>
+                </Show>
                 {/* Per-user undo/redo of this client's own slide edits. */}
                 <Show when={canUndoRedo()}>
                   <Button onClick={undo} iconName="undo" outline />

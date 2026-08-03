@@ -68,6 +68,7 @@ import {
 import {
   collabSocketOpen,
   collabState,
+  docSaveFailing,
   openPoSession,
   otherPeers,
   reconnectForStaleEditAuth,
@@ -331,6 +332,16 @@ export function VisualizationEditorInner(p: InnerProps) {
   const isCollabLive = () => {
     const t = collabTarget();
     return !!t && collabReady() && collabSocketOpen() && t.isLive();
+  };
+  /** The room whose checkpoints persist these edits is failing: the own PO
+   *  room when standalone, the host slide/report doc when embedded. */
+  const saveFailing = () => {
+    if (poSession()) {
+      return docSaveFailing("po", p.poDetail.id);
+    }
+    const b = p.collabBinding;
+    return b !== undefined &&
+      docSaveFailing(b.hostDoc.docType, b.hostDoc.docId);
   };
   /** A "must save first" guard only applies when NOT live-autosaving. */
   const blockedByUnsaved = () => needsSave() && !isCollabLive();
@@ -1209,16 +1220,32 @@ export function VisualizationEditorInner(p: InnerProps) {
             <div class="ui-gap-sm flex items-center">
               <Show when={isCollabLive()}>
                 <PresenceAvatars peers={poPeers()} size="sm" />
-                <span
-                  class="text-base-content-muted mr-1 text-xs"
-                  title={t3({
-                    en: "Changes are saved automatically and shared live",
-                    fr: "Les modifications sont enregistrées automatiquement et partagées en direct",
-                    pt: "As alterações são guardadas automaticamente e partilhadas em direto",
-                  })}
+                <Show
+                  when={!saveFailing()}
+                  fallback={
+                    <div class="ui-text-caption mr-1 flex items-center gap-1.5">
+                      <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+                      <span>
+                        {t3({
+                          en: "Not saving — retrying…",
+                          fr: "Non enregistré — nouvel essai…",
+                          pt: "Não está a guardar — a tentar novamente…",
+                        })}
+                      </span>
+                    </div>
+                  }
                 >
-                  {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
-                </span>
+                  <span
+                    class="text-base-content-muted mr-1 text-xs"
+                    title={t3({
+                      en: "Changes are saved automatically and shared live",
+                      fr: "Les modifications sont enregistrées automatiquement et partagées en direct",
+                      pt: "As alterações são guardadas automaticamente e partilhadas em direto",
+                    })}
+                  >
+                    {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
+                  </span>
+                </Show>
                 <Button onClick={undo} iconName="undo" outline />
                 <Button onClick={redo} iconName="redo" outline />
               </Show>
