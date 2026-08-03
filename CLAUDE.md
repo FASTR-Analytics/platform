@@ -35,7 +35,7 @@ application with modular R-based data processing pipelines.
 
 ## Architecture
 
-The canonical topology is [SYSTEMS.md](SYSTEMS.md) — 15 systems, each with
+The canonical topology is [SYSTEMS.md](SYSTEMS.md) — 17 systems, each with
 its own `SYSTEM_NN_*.md` (verified prose + lint-enforced file manifest). The
 tree below is orientation only.
 

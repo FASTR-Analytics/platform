@@ -685,7 +685,6 @@ defineRoute(
   routesPresentationObjects,
   "getReplicantOptions",
   requireProjectPermission("can_view_visualizations"),
-  log("getReplicantOptions"),
   async (c, { body }) => {
     // body is attacker-controllable and flows into projectDb.unsafe SQL via
     // getPossibleValues (replicateBy → column ref) and the fetchConfig filters.

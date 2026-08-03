@@ -267,6 +267,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_slide_decks",
   ),
+  log("deleteSlideDeck"),
   async (c, { params }) => {
     // Slide ids must be read BEFORE the delete (CASCADE removes the rows) so
     // their live rooms can be discarded — a room left behind would fail its
@@ -324,6 +325,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_slide_decks",
   ),
+  log("restoreDeckVersion"),
   async (c, { params }) => {
     const projectId = c.var.ppk.projectId;
     const projectDb = c.var.ppk.projectDb;
@@ -601,6 +603,7 @@ defineRoute(
     { preventAccessToLockedProjects: true },
     "can_configure_slide_decks",
   ),
+  log("copyDeckVersion"),
   async (c, { params, body }) => {
     const res = await copyDeckFromVersion(
       c.var.ppk.projectDb,
