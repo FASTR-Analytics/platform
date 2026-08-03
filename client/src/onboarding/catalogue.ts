@@ -255,6 +255,8 @@ const goToModules = () => updateProjectView({ tab: "modules" });
 const goToData = () => updateProjectView({ tab: "data" });
 const goToSettings = () => updateProjectView({ tab: "settings" });
 
+export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
+
 export type SlideSearchCandidate = {
   projectId: string;
   slideDecks: SlideDeckSummary[];

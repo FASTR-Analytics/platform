@@ -1,65 +1,24 @@
-import { t3, TC } from "lib";
+import { t3 } from "lib";
 import type { SlideType } from "lib";
 import type { TourManagerController } from "@njwse/roadtrip";
-import { Button, ModalContainer, type AlertComponentProps } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { type AlertComponentProps } from "panther";
+import { createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
+import { projectTab } from "~/state/t4_ui";
 import {
+  SLIDE_TOUR_TYPES,
   findProjectWithSlideOfType,
-  getTourCatalogue,
   type TourCatalogueEntry,
   type TourProjectFacts,
 } from "./catalogue";
+import {
+  TourCatalogueFrame,
+  TourRow,
+  getAreaItems,
+  type TourArea,
+} from "./tour_catalogue_layout";
 
-export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
-
-type Area = TourCatalogueEntry["area"];
-
-// App tab order, so the modal reads like the navigation. Shared with the
-// instance-level catalogue modal.
-export function getAreaHeadings(): { area: Area; heading: string }[] {
-  return [
-    {
-      area: "reports",
-      heading: t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
-    },
-    {
-      area: "decks",
-      heading: t3({
-        en: "Slide decks",
-        fr: "Présentations",
-        pt: "Apresentações",
-      }),
-    },
-    {
-      area: "dashboards",
-      heading: t3({
-        en: "Dashboards",
-        fr: "Tableaux de bord",
-        pt: "Painéis",
-      }),
-    },
-    {
-      area: "visualizations",
-      heading: t3({
-        en: "Visualizations",
-        fr: "Visualisations",
-        pt: "Visualizações",
-      }),
-    },
-    {
-      area: "modules",
-      heading: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
-    },
-    {
-      area: "data",
-      heading: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-    },
-    { area: "settings", heading: t3(TC.settings) },
-  ];
-}
-
-// Catalogue of every onboarding tour: Replay navigates to where the tour runs
+// Catalogue of every onboarding tour: Play navigates to where the tour runs
 // (switching tab and opening a document/slide where needed) and starts it;
 // unavailable tours are greyed out with a reason. The per-area managers come
 // from the project shell as props, so they share its lifecycle and each
@@ -67,14 +26,6 @@ export function getAreaHeadings(): { area: Area; heading: string }[] {
 export function TourCatalogueModal(
   p: AlertComponentProps<{ managers: TourManagerController[] }, undefined>,
 ) {
-  const catalogue = getTourCatalogue();
-  const groups = getAreaHeadings()
-    .map((g) => ({
-      heading: g.heading,
-      entries: catalogue.filter((e) => e.area === g.area),
-    }))
-    .filter((g) => g.entries.length > 0);
-
   const managerFor = (id: string) => p.managers.find((m) => m.hasTour(id));
 
   // Slide types live only in the slide documents, so the three slide-tour
@@ -107,8 +58,8 @@ export function TourCatalogueModal(
     slideTypesPresent: slideTypesPresent(),
   });
 
-  // hasSeen() isn't reactive — bump after any reset so the chips re-render,
-  // and once hydration settles in case the modal opened before it finished
+  // hasSeen() isn't reactive — bump once hydration settles in case the modal
+  // opened before it finished
   const [seenRev, setSeenRev] = createSignal(0);
   void Promise.all(p.managers.map((m) => m.ready)).then(() =>
     setSeenRev((r) => r + 1),
@@ -118,7 +69,7 @@ export function TourCatalogueModal(
     return managerFor(id)?.hasSeen(id) ?? false;
   };
 
-  function replay(entry: TourCatalogueEntry) {
+  function play(entry: TourCatalogueEntry) {
     const manager = managerFor(entry.id);
     p.close(undefined);
     entry.navigate();
@@ -126,88 +77,29 @@ export function TourCatalogueModal(
     void manager?.start(entry.id);
   }
 
+  // Preselect the category of the tab the user is on (the tab ids and tour
+  // areas share names for every tab that has tours).
+  const areaIds = getAreaItems().map((a) => a.area);
+  const currentTab = projectTab();
+  const initialArea = (areaIds as string[]).includes(currentTab)
+    ? (currentTab as TourArea)
+    : undefined;
+
   return (
-    <ModalContainer
-      width="md"
-      scroll="content"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">
-          {t3({
-            en: "Guided tours",
-            fr: "Visites guidées",
-            pt: "Visitas guiadas",
-          })}
-        </div>
-      }
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
-    >
-      <Show
-        when={slideTypesPresent()}
-        fallback={
-          <div class="text-base-content-muted ui-pad text-sm">
-            {t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" })}
-          </div>
-        }
-      >
-        <div class="ui-spy">
-          <For each={groups}>
-            {(group) => (
-              <div class="ui-spy-sm">
-                <div class="font-700 text-base-content-muted text-xs uppercase">
-                  {group.heading}
-                </div>
-                <For each={group.entries}>
-                  {(entry) => {
-                    const isAvailable = () => entry.available(facts());
-                    const isSeen = () => seen(entry.id);
-                    return (
-                      <div
-                        class="flex items-center gap-3 rounded border px-4 py-3"
-                        classList={{ "opacity-60": !isAvailable() }}
-                      >
-                        <div class="min-w-0 flex-1">
-                          <div class="text-base-content flex items-center gap-2">
-                            <span class="font-700">{entry.label}</span>
-                            <span class="text-base-content-muted rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">
-                              {isSeen()
-                                ? t3({ en: "Seen", fr: "Vue", pt: "Vista" })
-                                : t3({
-                                    en: "Not seen yet",
-                                    fr: "Pas encore vue",
-                                    pt: "Ainda não vista",
-                                  })}
-                            </span>
-                          </div>
-                          <div class="text-base-content-muted mt-1 text-sm">
-                            {entry.description}
-                          </div>
-                          <Show when={!isAvailable()}>
-                            <div class="text-base-content-muted mt-1 text-sm italic">
-                              {entry.unavailableReason(facts())}
-                            </div>
-                          </Show>
-                        </div>
-                        <Show when={isAvailable()}>
-                          <Button size="sm" onClick={() => replay(entry)}>
-                            {t3({ en: "Replay", fr: "Rejouer", pt: "Repetir" })}
-                          </Button>
-                        </Show>
-                      </div>
-                    );
-                  }}
-                </For>
-              </div>
-            )}
-          </For>
-        </div>
-      </Show>
-    </ModalContainer>
+    <TourCatalogueFrame
+      initialArea={initialArea}
+      loading={slideTypesPresent() === undefined}
+      loadingText={t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" })}
+      close={() => p.close(undefined)}
+      renderEntry={(entry) => (
+        <TourRow
+          entry={entry}
+          seen={seen(entry.id)}
+          available={entry.available(facts())}
+          reason={entry.unavailableReason(facts())}
+          onPlay={() => play(entry)}
+        />
+      )}
+    />
   );
 }
