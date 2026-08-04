@@ -307,6 +307,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   recodes={keyedUploadAttempt.recodes}
                   facilityColumns={p.facilityColumns}
                   silentFetch={uploadAttempt.silentFetch}
+                  goNext={stepper.goNext}
                 />
               </Match>
               <Match

@@ -77,6 +77,7 @@ type Props = {
   recodes: StructureRecodes | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
   silentFetch: () => Promise<void>;
+  goNext: () => void;
 };
 
 export function Step4Recode(p: Props) {
@@ -292,6 +293,11 @@ export function Step4Recode(p: Props) {
     return col ? Object.keys(p.ui.assignments[col] ?? {}).length : 0;
   };
 
+  const hasAnyAssignments = () =>
+    Object.values(p.ui.assignments).some(
+      (m) => m && Object.keys(m).length > 0,
+    );
+
   function blankAwareLabel(value: string): string {
     return value === ""
       ? t3({ en: "(blank)", fr: "(vide)", pt: "(em branco)" })
@@ -364,6 +370,7 @@ export function Step4Recode(p: Props) {
     async () => {
       setNeedsSaving(false);
       await p.silentFetch();
+      p.goNext();
     },
   );
 
@@ -590,19 +597,30 @@ export function Step4Recode(p: Props) {
                 disabled={!p.step3Result.stagingNonce}
               >
                 {t3({
-                  en: "Save reassignments",
-                  fr: "Sauvegarder les réassignations",
-                  pt: "Guardar as reatribuições",
+                  en: "Save and continue",
+                  fr: "Sauvegarder et continuer",
+                  pt: "Guardar e continuar",
                 })}
               </Button>
             </Match>
             <Match when={true}>
-              <div class="text-success">
-                {t3({
-                  en: "Reassignments saved",
-                  fr: "Réassignations sauvegardées",
-                  pt: "Reatribuições guardadas",
-                })}
+              <div class="ui-gap-sm flex items-center">
+                <Button intent="primary" onClick={() => p.goNext()}>
+                  {t3({
+                    en: "Continue to import",
+                    fr: "Continuer vers l'importation",
+                    pt: "Continuar para a importação",
+                  })}
+                </Button>
+                <Show when={hasAnyAssignments()}>
+                  <div class="text-success">
+                    {t3({
+                      en: "Reassignments saved",
+                      fr: "Réassignations sauvegardées",
+                      pt: "Reatribuições guardadas",
+                    })}
+                  </div>
+                </Show>
               </div>
             </Match>
           </Switch>
