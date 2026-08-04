@@ -27,6 +27,7 @@ export {
   getIcehIndicatorsFromManifestInputs,
   getIndicatorMetadataFromRun,
   getMetricsWithStatusFromManifest,
+  findMissingRequiredGroupBys,
   getProjectDatasetsFromManifest,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,

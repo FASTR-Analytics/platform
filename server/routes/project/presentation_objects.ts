@@ -37,6 +37,7 @@ import {
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
+  findMissingRequiredGroupBys,
   findVirtualDefault,
   getAllPresentationObjectsWithVirtualDefaults,
   getAttachedManifestOrNull,
@@ -556,6 +557,18 @@ defineRoute(
       return c.json({
         success: false,
         err: "Module not found or has not run yet",
+      });
+    }
+
+    const missingRequired = findMissingRequiredGroupBys(
+      runCtx,
+      body.resultsObjectId,
+      (body.fetchConfig as GenericLongFormFetchConfig).groupBys,
+    );
+    if (missingRequired.length > 0) {
+      return c.json({
+        success: false,
+        err: `Required disaggregation option(s) not grouped: ${missingRequired.join(", ")}`,
       });
     }
 

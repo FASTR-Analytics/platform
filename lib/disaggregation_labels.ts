@@ -105,8 +105,13 @@ export function getDisaggregationAllowedPresentationOptions(
     case "quarter_id":
     case "year":
     case "month":
-    case "time_point":
       return TIME_BASED;
+    // Unlike the period columns (where maps deliberately aggregate over the
+    // period selection), survey rounds are few and discrete and their PAE
+    // percentages must never be pooled: on a map, time_point takes a display
+    // slot like any other dimension.
+    case "time_point":
+      return [...TIME_BASED, "map"];
     default:
       return undefined;
   }

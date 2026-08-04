@@ -20,6 +20,7 @@ import {
   type APIResponseWithData,
   type DatasetInProject,
   type DatasetType,
+  type DisaggregationOption,
   type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
@@ -607,6 +608,37 @@ export function enrichMetricFromManifest(
       : undefined,
     importantNotes: metric.important_notes ?? undefined,
   };
+}
+
+// Server-side requiredness guard for the type-erased items request: the
+// client sends only fetchConfig, so the viz type is unknown here and two
+// gaps are structural. Time-based required dims (restricted
+// allowedPresentationOptions) are exempt — a map legitimately omits
+// time_point under current policy. And metrics sharing an RO may require
+// different dims (m9 strat/level), so only dims required by EVERY metric of
+// the RO are enforceable from the RO id alone. App clients and the AI tools
+// always send required dims grouped; this guards hand-crafted requests,
+// whose pooled aggregates would otherwise be silently wrong.
+export function findMissingRequiredGroupBys(
+  ctx: RunReadContext,
+  resultsObjectId: string,
+  groupBys: string[],
+): DisaggregationOption[] {
+  const requiredSets = ctx.manifest.metrics
+    .filter((m) => m.results_object_id === resultsObjectId)
+    .map((m) =>
+      z
+        .array(disaggregationOption)
+        .parse(JSON.parse(m.required_disaggregation_options)),
+    );
+  if (requiredSets.length === 0) return [];
+  const [first, ...rest] = requiredSets;
+  return first.filter(
+    (d) =>
+      rest.every((s) => s.includes(d)) &&
+      getDisaggregationAllowedPresentationOptions(d) === undefined &&
+      !groupBys.includes(d),
+  );
 }
 
 export function resolveMetricFromRun(
