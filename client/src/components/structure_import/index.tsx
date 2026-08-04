@@ -18,7 +18,7 @@ import {
   createDeleteAction,
   createQuery,
 } from "panther";
-import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js";
+import { Match, Show, Switch, batch, createSignal, onCleanup, onMount } from "solid-js";
 import type {
   StructureCsvStep1Result,
   StructureUploadAttemptStatus,
@@ -80,28 +80,31 @@ export function StructureUploadAttemptForm(p: Props) {
       family: p.family,
     });
     if (res.success === true) {
-      // Fresh staging run = fresh review: reset the hoisted state and hydrate
-      // the working assignments from the attempt's saved recodes.
-      const stagingNonce = res.data.step3Result?.stagingNonce;
-      if (stagingNonce !== recodeUi.stagingNonce) {
-        setRecodeUi({
-          ...emptyRecodeUiState(),
-          stagingNonce,
-          assignments: res.data.recodes ?? {},
-        });
-      }
-      // Landing rule: DB step 4 covers both review (client step 4) and import
-      // (client step 5). A silent refetch never yanks a user on import back
-      // to review; attempts with nothing to recode land straight on import.
-      stepper.setCurrentStep((prev) =>
-        res.data.step === 4
-          ? prev > 4
-            ? prev
-            : reviewApplies(res.data)
-              ? 4
-              : 5
-          : res.data.step,
-      );
+      batch(() => {
+        // Fresh staging run = fresh review: reset the hoisted state and
+        // hydrate the working assignments from the attempt's saved recodes.
+        const stagingNonce = res.data.step3Result?.stagingNonce;
+        if (stagingNonce !== recodeUi.stagingNonce) {
+          setRecodeUi({
+            ...emptyRecodeUiState(),
+            stagingNonce,
+            assignments: res.data.recodes ?? {},
+          });
+        }
+        // Landing rule: DB step 4 covers both review (client step 4) and
+        // import (client step 5). A silent refetch never yanks a user on
+        // import back to review; attempts with nothing to recode land
+        // straight on import.
+        stepper.setCurrentStep((prev) =>
+          res.data.step === 4
+            ? prev > 4
+              ? prev
+              : reviewApplies(res.data)
+                ? 4
+                : 5
+            : res.data.step,
+        );
+      });
     }
     return res;
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));

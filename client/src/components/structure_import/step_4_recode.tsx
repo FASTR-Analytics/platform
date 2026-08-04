@@ -26,7 +26,7 @@ import {
   type StateHolder,
   type TableColumn,
 } from "panther";
-import { For, Match, Show, Switch, createEffect, createMemo, createSignal } from "solid-js";
+import { For, Match, Show, Switch, batch, createEffect, createMemo, createSignal } from "solid-js";
 import { unwrap, type SetStoreFunction } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { getStructureColumnLabel } from "./_column_labels";
@@ -129,20 +129,22 @@ export function Step4Recode(p: Props) {
       setValuesState({ status: "error", err: res.err });
       return;
     }
-    if (!p.ui.autoChecked) {
-      const noSavedRecodes =
-        Object.keys(normalizeRecodes(p.recodes ?? {})).length === 0;
-      if (noSavedRecodes) {
-        const suggested = res.data.values
-          .map((v) => v.value)
-          .filter((v) => OTHER_REGEX.test(v));
-        if (suggested.length > 0) {
-          p.setUi("checkedValues", suggested);
+    batch(() => {
+      if (!p.ui.autoChecked) {
+        const noSavedRecodes =
+          Object.keys(normalizeRecodes(p.recodes ?? {})).length === 0;
+        if (noSavedRecodes) {
+          const suggested = res.data.values
+            .map((v) => v.value)
+            .filter((v) => OTHER_REGEX.test(v));
+          if (suggested.length > 0) {
+            p.setUi("checkedValues", suggested);
+          }
         }
+        p.setUi("autoChecked", true);
       }
-      p.setUi("autoChecked", true);
-    }
-    setValuesState({ status: "ready", data: res.data });
+      setValuesState({ status: "ready", data: res.data });
+    });
   }
 
   createEffect(() => {
@@ -190,8 +192,10 @@ export function Step4Recode(p: Props) {
   });
 
   function onColumnChange(col: StructureRecodableColumn) {
-    p.setUi("column", col);
-    p.setUi("checkedValues", []);
+    batch(() => {
+      p.setUi("column", col);
+      p.setUi("checkedValues", []);
+    });
   }
 
   function toggleValue(value: string, on: boolean) {
@@ -204,20 +208,23 @@ export function Step4Recode(p: Props) {
   const targetValues = createMemo<string[]>(() => {
     const col = column();
     const vs = valuesState();
+    const checkedValues = [...p.ui.checkedValues];
+    const customTargets = [...p.ui.customTargets];
+    const assignedTargets = col
+      ? Object.values(p.ui.assignments[col] ?? {})
+      : [];
     const out = new Set<string>();
     if (vs.status === "ready") {
       for (const v of vs.data.values) {
-        if (v.value === "" || p.ui.checkedValues.includes(v.value)) continue;
+        if (v.value === "" || checkedValues.includes(v.value)) continue;
         out.add(v.value);
       }
     }
-    for (const v of p.ui.customTargets) {
+    for (const v of customTargets) {
       out.add(v);
     }
-    if (col) {
-      for (const v of Object.values(p.ui.assignments[col] ?? {})) {
-        if (v) out.add(v);
-      }
+    for (const v of assignedTargets) {
+      if (v) out.add(v);
     }
     return [...out];
   });
@@ -248,16 +255,19 @@ export function Step4Recode(p: Props) {
 
   // Unmapped file columns offerable as display-only context in the table
   const contextColumnOptions = createMemo(() => {
-    if (!p.csvDetails || !p.columnMappings) return [];
+    const csvDetails = p.csvDetails;
+    const columnMappings = p.columnMappings;
+    const contextColumns = [...p.ui.contextColumns];
+    if (!csvDetails || !columnMappings) return [];
     const mappedRefs = new Set(
-      Object.values(p.columnMappings).filter(
+      Object.values(columnMappings).filter(
         (v): v is string => typeof v === "string",
       ),
     );
-    return p.csvDetails.headers
+    return csvDetails.headers
       .map((header, i) => ({ value: encodeRawCsvHeader(i, header), label: header }))
       .filter(
-        (o) => !mappedRefs.has(o.value) && !p.ui.contextColumns.includes(o.value),
+        (o) => !mappedRefs.has(o.value) && !contextColumns.includes(o.value),
       );
   });
 
@@ -286,10 +296,12 @@ export function Step4Recode(p: Props) {
   function addCustomTarget() {
     const v = newCategory().trim();
     if (!v) return;
-    if (!p.ui.customTargets.includes(v)) {
-      p.setUi("customTargets", [...p.ui.customTargets, v]);
-    }
-    setNewCategory("");
+    batch(() => {
+      if (!p.ui.customTargets.includes(v)) {
+        p.setUi("customTargets", [...p.ui.customTargets, v]);
+      }
+      setNewCategory("");
+    });
   }
 
   // setStore with an object MERGES, so a copy-with-deleted-key would never
@@ -297,14 +309,16 @@ export function Step4Recode(p: Props) {
   function setAssignment(facilityId: string, value: string) {
     const col = column();
     if (!col) return;
-    if (value === "") {
-      if (p.ui.assignments[col]) {
-        p.setUi("assignments", col, facilityId, undefined as never);
+    batch(() => {
+      if (value === "") {
+        if (p.ui.assignments[col]) {
+          p.setUi("assignments", col, facilityId, undefined as never);
+        }
+      } else {
+        p.setUi("assignments", col, { [facilityId]: value });
       }
-    } else {
-      p.setUi("assignments", col, { [facilityId]: value });
-    }
-    setNeedsSaving(true);
+      setNeedsSaving(true);
+    });
   }
 
   const assignedCount = () => {
@@ -580,7 +594,7 @@ export function Step4Recode(p: Props) {
                 })}
               </Button>
             </Match>
-            <Match when={true}>
+            <Match when={!needsSaving()}>
               <div class="ui-gap-sm flex items-center">
                 <Button intent="primary" onClick={() => p.goNext()}>
                   {t3({
