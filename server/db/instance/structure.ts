@@ -11,11 +11,17 @@ import {
   StructureDhis2OrgUnitSelection,
   StructureColumnMappings,
   StructureStagingResult,
+  StructureRecodes,
   parseJsonOrUndefined,
   throwIfErrWithData,
   getEnabledOptionalFacilityColumns,
   Dhis2Credentials,
+  _OPTIONAL_FACILITY_COLUMNS,
   type FacilityFamily,
+  type OptionalFacilityColumn,
+  type StructureRecodableColumn,
+  type StructureStagedColumnValues,
+  type StructureStagedRecodeRows,
   type StructureFacilityMatch,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
@@ -25,10 +31,12 @@ import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
 import {
+  buildDedupOrderClause,
   cleanupUnusedAdminAreas,
+  getStagedColumns,
   integrateStructureFromStaging,
 } from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 import { DBStructureUploadAttempt } from "./_main_database_types.ts";
 import { getMaxAdminAreaConfig, getFacilityColumnsConfig } from "./config.ts";
 import { resolveDhis2Credentials } from "./instance_dhis2_credentials.ts";
@@ -306,6 +314,7 @@ export async function addStructureUploadAttempt(
           step_1_result = NULL,
           step_2_result = NULL,
           step_3_result = NULL,
+          recodes = NULL,
           status = ${JSON.stringify({ status: "configuring" })},
           status_type = 'configuring'
         WHERE dataset_family = ${datasetFamily}
@@ -358,6 +367,7 @@ export async function getStructureUploadAttempt(
           step1Result: undefined,
           step2Result: undefined,
           step3Result: undefined,
+          recodes: undefined,
         },
       };
     }
@@ -378,6 +388,9 @@ export async function getStructureUploadAttempt(
             | StructureDhis2OrgUnitSelection
             | undefined,
           step3Result,
+          recodes: parseJsonOrUndefined(rawUA.recodes) as
+            | StructureRecodes
+            | undefined,
         },
       };
     } else {
@@ -395,6 +408,9 @@ export async function getStructureUploadAttempt(
             | StructureColumnMappings
             | undefined,
           step3Result,
+          recodes: parseJsonOrUndefined(rawUA.recodes) as
+            | StructureRecodes
+            | undefined,
         },
       };
     }
@@ -486,6 +502,7 @@ export async function structureStep0_SetSourceType(
         step_1_result = NULL,
         step_2_result = NULL,
         step_3_result = NULL,
+        recodes = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
       WHERE dataset_family = ${family} AND status_type <> 'importing'
@@ -516,6 +533,7 @@ export async function structureStep1Dhis2_ConfirmConnection(
         step_1_result = ${JSON.stringify(snapshot)},
         step_2_result = NULL,
         step_3_result = NULL,
+        recodes = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
       WHERE dataset_family = ${family} AND status_type <> 'importing'
@@ -545,6 +563,7 @@ export async function structureStep2Dhis2_SetOrgUnitSelection(
         step = 3,
         step_2_result = ${JSON.stringify(selection)},
         step_3_result = NULL,
+        recodes = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
       WHERE dataset_family = ${family} AND status_type <> 'importing'
@@ -595,6 +614,7 @@ export async function structureStep1Csv_UploadFile(
         step_1_result = ${JSON.stringify(step1Result)},
         step_2_result = NULL,
         step_3_result = NULL,
+        recodes = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
       WHERE dataset_family = ${family} AND status_type <> 'importing'
@@ -655,6 +675,7 @@ export async function structureStep2Csv_SetColumnMappings(
         step = 3,
         step_2_result = ${JSON.stringify(columnMappings)},
         step_3_result = NULL,
+        recodes = NULL,
         status = ${JSON.stringify({ status: "configuring" })},
         status_type = 'configuring'
       WHERE dataset_family = ${family} AND status_type <> 'importing'
@@ -759,6 +780,7 @@ async function handleStagingSuccess(
     SET
       step = 4,
       step_3_result = ${JSON.stringify(stagingWithMatch)},
+      recodes = NULL,
       status = ${JSON.stringify({ status: "configuring" })},
       status_type = 'configuring'
     WHERE dataset_family = ${family} AND status_type = 'importing'
@@ -912,6 +934,227 @@ export async function structureStep3Dhis2_StageData(
   }
 }
 
+// The review step's shared read gate: the staged data is only reviewable when
+// the attempt is at step 4, no restage is running (the staging table exists
+// but is half-populated mid-restage), and the staging table is live. Column
+// scope is computed exactly as integrate computes it; raw getStagedColumns
+// output (which contains rowid, unordered) is never exposed to the client.
+type StagedReviewContext = {
+  stagingTableName: string;
+  stagedOptionalColumns: OptionalFacilityColumn[];
+  writeColumns: string[];
+  displayColumns: string[];
+};
+
+async function getStagedReviewContext(
+  mainDb: Sql,
+  family: FacilityFamily
+): Promise<APIResponseWithData<StagedReviewContext>> {
+  const notReady = {
+    success: false as const,
+    err: "Staging is not ready — complete the staging step first.",
+  };
+  const rawUA = await getRawUA(mainDb, family);
+  if (!rawUA || rawUA.step !== 4 || rawUA.status_type === "importing") {
+    return notReady;
+  }
+  const step3Result = parseJsonOrUndefined(rawUA.step_3_result) as
+    | StructureStagingResult
+    | undefined;
+  if (!step3Result?.stagingTableName) {
+    return notReady;
+  }
+  const reg = await mainDb<{ reg: string | null }[]>`
+    SELECT to_regclass(${step3Result.stagingTableName})::text AS reg
+  `;
+  if (!reg[0]?.reg) {
+    return notReady;
+  }
+  const stagedColumns = await getStagedColumns(
+    mainDb,
+    step3Result.stagingTableName
+  );
+  const stagedAdminAreas = stagedColumns.includes("admin_area_1");
+  const stagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter((c) =>
+    stagedColumns.includes(c)
+  );
+  const writeColumns = [
+    ...(stagedAdminAreas
+      ? ["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
+      : []),
+    ...stagedOptionalColumns,
+  ];
+  return {
+    success: true,
+    data: {
+      stagingTableName: step3Result.stagingTableName,
+      stagedOptionalColumns,
+      writeColumns,
+      displayColumns: ["facility_id", ...writeColumns],
+    },
+  };
+}
+
+// Both review reads run over the DEDUPED view — identical to the ROW_NUMBER
+// subquery integrate uses — so the user reviews exactly the rows integration
+// will write. Ranking runs on original staged values (see integrate's overlay).
+function dedupedStagingFromClause(
+  stagingTableName: string,
+  writeColumns: string[]
+): string {
+  return `FROM (
+      SELECT *, ROW_NUMBER() OVER (
+        PARTITION BY facility_id
+        ORDER BY ${buildDedupOrderClause(writeColumns)}
+      ) AS rn
+      FROM ${stagingTableName}
+    ) t
+    WHERE rn = 1`;
+}
+
+export async function getStructureStagedColumnValues(
+  mainDb: Sql,
+  family: FacilityFamily,
+  column: StructureRecodableColumn
+): Promise<APIResponseWithData<StructureStagedColumnValues>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const resCtx = await getStagedReviewContext(mainDb, family);
+    if (!resCtx.success) {
+      return resCtx;
+    }
+    const ctx = resCtx.data;
+    if (!ctx.stagedOptionalColumns.includes(column)) {
+      return { success: false, err: "This column was not staged" };
+    }
+    // COALESCE: staging never writes NULL today, but the columns are nullable.
+    // Table name is trusted-internal from stored step_3_result; column is a
+    // closed union post-Zod.
+    const rows = await mainDb.unsafe<{ value: string; count: number }[]>(`
+      SELECT COALESCE(${column},'') AS value, COUNT(*)::int AS count
+      ${dedupedStagingFromClause(ctx.stagingTableName, ctx.writeColumns)}
+      GROUP BY 1
+      ORDER BY count DESC, value
+      LIMIT 201
+    `);
+    return {
+      success: true,
+      data: {
+        values: rows
+          .slice(0, 200)
+          .map((r) => ({ value: r.value, count: r.count })),
+        truncated: rows.length > 200,
+      },
+    };
+  });
+}
+
+export async function getStructureStagedRecodeRows(
+  mainDb: Sql,
+  family: FacilityFamily,
+  column: StructureRecodableColumn,
+  values: string[],
+  offset: number,
+  limit: number
+): Promise<APIResponseWithData<StructureStagedRecodeRows>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const resCtx = await getStagedReviewContext(mainDb, family);
+    if (!resCtx.success) {
+      return resCtx;
+    }
+    const ctx = resCtx.data;
+    if (!ctx.stagedOptionalColumns.includes(column)) {
+      return { success: false, err: "This column was not staged" };
+    }
+    if (values.length === 0) {
+      return {
+        success: true,
+        data: { columns: ctx.displayColumns, rows: [], total: 0 },
+      };
+    }
+    const inList = values.map((v) => `'${escapeSqlString(v)}'`).join(",");
+    const fromClause = `${dedupedStagingFromClause(
+      ctx.stagingTableName,
+      ctx.writeColumns
+    )} AND COALESCE(${column},'') IN (${inList})`;
+    const countRows = await mainDb.unsafe<{ total: number }[]>(`
+      SELECT COUNT(*)::int AS total
+      ${fromClause}
+    `);
+    const total = countRows[0]?.total ?? 0;
+    const selectList = ctx.displayColumns
+      .map((c) => (c === "facility_id" ? c : `COALESCE(${c},'') AS ${c}`))
+      .join(", ");
+    const rows = await mainDb.unsafe<Record<string, string>[]>(`
+      SELECT ${selectList}
+      ${fromClause}
+      ORDER BY facility_id
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+    return {
+      success: true,
+      data: { columns: ctx.displayColumns, rows, total },
+    };
+  });
+}
+
+export async function setStructureRecodes(
+  mainDb: Sql,
+  family: FacilityFamily,
+  recodes: StructureRecodes,
+  stagingNonce: string
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    // Drop empty per-column maps: { facility_type: {} } must not reach
+    // storage — it would render VALUES () at integrate.
+    const normalized: StructureRecodes = {};
+    let totalAssignments = 0;
+    for (const [col, map] of Object.entries(recodes)) {
+      if (!map || Object.keys(map).length === 0) {
+        continue;
+      }
+      normalized[col as StructureRecodableColumn] = map;
+      totalAssignments += Object.keys(map).length;
+    }
+    if (totalAssignments > 5000) {
+      return { success: false, err: "Too many assignments" };
+    }
+    // Validation-only read; the conditional UPDATE below re-checks state
+    // atomically (a read-then-write guard passes mid-restage and would
+    // attach stale facility_ids to a new row set).
+    const resCtx = await getStagedReviewContext(mainDb, family);
+    if (!resCtx.success) {
+      return resCtx;
+    }
+    const badColumn = Object.keys(normalized).find(
+      (col) =>
+        !resCtx.data.stagedOptionalColumns.includes(
+          col as OptionalFacilityColumn
+        )
+    );
+    if (badColumn) {
+      return {
+        success: false,
+        err: "Staging has changed since this page was loaded — refresh and review again.",
+      };
+    }
+    const updated = await mainDb`
+      UPDATE structure_upload_attempts
+      SET recodes = ${JSON.stringify(normalized)}
+      WHERE dataset_family = ${family}
+        AND step = 4
+        AND status_type <> 'importing'
+        AND (step_3_result::jsonb->>'stagingNonce') = ${stagingNonce}
+    `;
+    if (updated.count === 0) {
+      return {
+        success: false,
+        err: "Staging has changed since this page was loaded — refresh and review again.",
+      };
+    }
+    return { success: true };
+  });
+}
+
 export async function structureStep4_ImportData(
   mainDb: Sql,
   family: FacilityFamily,
@@ -925,14 +1168,14 @@ export async function structureStep4_ImportData(
     return { success: false, err: "Staging step not completed" };
   }
 
-  const stagingResult = JSON.parse(
-    rawUA.step_3_result
-  ) as StructureStagingResult;
-
   // Atomically claim the import slot, exactly like the step-3 stagers. The
   // step = 4 condition re-checks under the row lock that no re-staging or
-  // re-configuration invalidated the staged data since we read it.
-  const claimed = await mainDb`
+  // re-configuration invalidated the staged data since we read it. RETURNING
+  // gives the staging result and recodes as they stand AT CLAIM TIME — the
+  // pre-claim rawUA snapshot could be stale.
+  const claimed = await mainDb<
+    { step_3_result: string | null; recodes: string | null }[]
+  >`
     UPDATE structure_upload_attempts
     SET
       status = ${JSON.stringify({ status: "importing" })},
@@ -941,13 +1184,22 @@ export async function structureStep4_ImportData(
       AND status_type <> 'importing'
       AND step = 4
       AND step_3_result IS NOT NULL
+    RETURNING step_3_result, recodes
   `;
-  if (claimed.count === 0) {
+  const claimedRow = claimed.at(0);
+  if (!claimedRow?.step_3_result) {
     return {
       success: false,
       err: "A structure import for this registry is already in progress.",
     };
   }
+
+  const stagingResult = JSON.parse(
+    claimedRow.step_3_result
+  ) as StructureStagingResult;
+  const recodes =
+    (parseJsonOrUndefined(claimedRow.recodes) as StructureRecodes | undefined) ??
+    {};
 
   try {
     // Integrate the staged data. Column scope is the staging table's own
@@ -956,7 +1208,8 @@ export async function structureStep4_ImportData(
       mainDb,
       stagingResult.stagingTableName,
       strategy,
-      rawUA.dataset_family
+      rawUA.dataset_family,
+      recodes
     );
 
     if (!integrationResult.success) {

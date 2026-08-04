@@ -137,6 +137,7 @@ export type DBStructureUploadAttempt = {
   step_1_result: string | null; // CSV details OR DHIS2 credentials
   step_2_result: string | null; // Column mappings OR DHIS2 org unit selection
   step_3_result: string | null; // Staging result
+  recodes: string | null; // JSON: StructureRecodes
 };
 
 export type DBRunGenerationAttempt = {

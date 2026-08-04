@@ -299,6 +299,7 @@ CREATE TABLE structure_upload_attempts (
   step_1_result text,  -- CSV details OR DHIS2 credentials
   step_2_result text,  -- Column mappings OR DHIS2 org unit selection
   step_3_result text,  -- Staging result (table name, counts, validation info)
+  recodes text,  -- JSON: review-step value recodes (column → facility_id → new value)
   CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
   CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
 );

@@ -499,6 +499,7 @@ export async function stageStructureFromDhis2V2(
       validationWarnings: [],
       stagedOptionalColumns: dhis2OptionalColumns,
       stagedAdminAreas: true,
+      stagingNonce: crypto.randomUUID(),
     };
 
     return { success: true, data: stagingResult };

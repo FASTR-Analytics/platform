@@ -397,6 +397,7 @@ export async function stageStructureFromCsv(
       validationWarnings: [],
       stagedOptionalColumns: optionalIndexes.map((opt) => opt.column),
       stagedAdminAreas: hasAdminMapped,
+      stagingNonce: crypto.randomUUID(),
     };
 
     if (xlsFormFilePath) {

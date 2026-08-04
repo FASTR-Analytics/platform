@@ -1,4 +1,4 @@
-import { CsvDetails } from "./instance.ts";
+import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
 // family has its own facilities table and its own import flow.
@@ -26,6 +26,34 @@ export type StructureFacilityMatch = {
   newCount: number;
 };
 
+export type StructureRecodableColumn = Exclude<
+  OptionalFacilityColumn,
+  "facility_name"
+>;
+export const _RECODABLE_FACILITY_COLUMNS: StructureRecodableColumn[] = [
+  "facility_type",
+  "facility_ownership",
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+];
+// column → facility_id → new value. Sparse: unassigned rows keep their
+// staged value. Scoped to one upload attempt; cleared on restage.
+export type StructureRecodes = Partial<
+  Record<StructureRecodableColumn, Record<string, string>>
+>;
+export type StructureStagedColumnValues = {
+  values: { value: string; count: number }[];
+  truncated: boolean;
+};
+export type StructureStagedRecodeRows = {
+  columns: string[];
+  rows: Record<string, string>[];
+  total: number;
+};
+
 export type StructureStagingResult = {
   stagingTableName: string;
   totalRowsStaged: number;
@@ -42,6 +70,9 @@ export type StructureStagingResult = {
   // "these columns will be written" notice. Optional for pre-existing attempts.
   stagedOptionalColumns?: string[];
   stagedAdminAreas?: boolean;
+  // Minted fresh at every staging run; the recode save echoes it so a save
+  // racing a restage fails loudly. Optional: stored results predate it.
+  stagingNonce?: string;
   facilityMatch?: StructureFacilityMatch;
   // Only present when an ODK questionnaire was supplied at step 1; one entry
   // per mapped column that matched a select_one question. unresolvedValues =
@@ -90,6 +121,7 @@ export type StructureUploadAttemptDetailInitial = {
   step1Result: undefined;
   step2Result: undefined;
   step3Result: undefined;
+  recodes: undefined;
 };
 
 export type StructureCsvStep1Result = {
@@ -110,6 +142,8 @@ export type StructureUploadAttemptDetailCsv = {
   step2Result: StructureColumnMappings | undefined;
   // Step 3: Staging result
   step3Result: StructureStagingResult | undefined;
+  // Review-step value recodes saved for this attempt
+  recodes: StructureRecodes | undefined;
 };
 
 export type StructureUploadAttemptDetailDhis2 = {
@@ -125,6 +159,8 @@ export type StructureUploadAttemptDetailDhis2 = {
   step2Result: StructureDhis2OrgUnitSelection | undefined;
   // Step 3: Staging result
   step3Result: StructureStagingResult | undefined;
+  // Review-step value recodes saved for this attempt
+  recodes: StructureRecodes | undefined;
 };
 
 export type StructureUploadAttemptDetail =

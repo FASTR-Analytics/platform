@@ -1,5 +1,6 @@
 import {
   t3,
+  type StructureRecodes,
   type StructureStagingResult,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
@@ -19,6 +20,7 @@ import { getStructureColumnLabel } from "./_column_labels";
 
 type Props = {
   step3Result: StructureStagingResult;
+  recodes: StructureRecodes | undefined;
   family: FacilityFamily;
   facilityColumns: InstanceConfigFacilityColumns;
   close: () => void;
@@ -28,7 +30,7 @@ type Props = {
 
 type IntentType = StructureIntegrateStrategy["type"];
 
-export function Step4(p: Props) {
+export function Step5Import(p: Props) {
   // No default: the user must explicitly choose. The path of least resistance
   // must not be a destructive insert.
   const [strategyType, setStrategyType] = createSignal<IntentType | undefined>(
@@ -88,6 +90,14 @@ export function Step4(p: Props) {
         });
     }
   }
+
+  const recodeSummary = () =>
+    Object.entries(p.recodes ?? {})
+      .filter(([, map]) => map && Object.keys(map).length > 0)
+      .map(([column, map]) => ({
+        column,
+        count: Object.keys(map as Record<string, string>).length,
+      }));
 
   const isInsertIntent = () => {
     const t = strategyType();
@@ -380,6 +390,32 @@ export function Step4(p: Props) {
                   </div>
                 </div>
               )}
+            </Show>
+
+            {/* Review-step recode summary */}
+            <Show when={recodeSummary().length > 0}>
+              <div class="ui-pad bg-base-200 rounded">
+                <div class="font-700 mb-3">
+                  {t3({
+                    en: "Reassigned values",
+                    fr: "Valeurs réassignées",
+                    pt: "Valores reatribuídos",
+                  })}
+                </div>
+                <div class="ui-spy-sm">
+                  <For each={recodeSummary()}>
+                    {(entry) => (
+                      <div class="text-sm">
+                        {t3({
+                          en: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} facilities will be recoded`,
+                          fr: `${getStructureColumnLabel(entry.column, p.facilityColumns)} : ${toNum0(entry.count)} établissements seront recodés`,
+                          pt: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} estabelecimentos serão recodificados`,
+                        })}
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
             </Show>
 
             {/* Integration Strategy Selection */}
