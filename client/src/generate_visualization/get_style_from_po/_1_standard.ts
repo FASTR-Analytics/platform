@@ -14,6 +14,7 @@ import {
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   getMapRegionsContent,
+  getPieSlicesContent,
   getStandardSeriesColorFunc,
   getTableCellsContent,
   getTableColHeadersContent,
@@ -144,6 +145,7 @@ export function buildStandardStyle(
       ),
       tableColHeaders: getTableColHeadersContent(config),
       mapRegions: getMapRegionsContent(config, formatAs, deckStyle),
+      slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle),
     valuesColorFunc: compileCfToValuesColorFunc(cf),
@@ -157,6 +159,10 @@ export function buildStandardStyle(
                 ? "only-regions-in-data"
                 : undefined,
           }
+        : undefined,
+    pie:
+      config.d.type === "pie"
+        ? { innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0 }
         : undefined,
   };
 }

@@ -3,6 +3,7 @@ import {
   ChartOVJsonDataConfig,
   HeaderSortConfig,
   type Language,
+  PieJsonDataConfig,
   TableJsonDataConfig,
   TimeseriesJsonDataConfig,
 } from "panther";
@@ -374,6 +375,57 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
     ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
     proportional: { bands: true, panes: true },
+  };
+}
+
+// Pie: no indicator axis (slices are the series axis), no roll-up (a total
+// slice inside its own parts would double the whole — the gate in
+// isRollupCandidateDimension keeps rollup off pie, so plain sorts suffice),
+// no date label replacements (time dims are never offered for pie), and no
+// `total` (panther defaults to "sum", normalizing by cell sum). Slot lookups
+// are single-slot: pie's slot set has no group slots and
+// convertVisualizationType remaps rowGroup/colGroup on the way in. No "--v"
+// fallback on seriesProp — with values defaulting to "cell", that would put
+// "--v" on two axes; an empty Slices slot rendering one full circle is the
+// accepted degenerate case.
+export function getPieJsonDataConfigFromPresentationObjectConfig(
+  resultsValue: ResultsValueForVisualization,
+  config: PresentationObjectConfig,
+  effectiveValueProps: string[],
+  indicatorLabelReplacements: Record<string, string>,
+  localization: Pick<FigureLocalization, "language" | "countryIso3">,
+  jsonArray?: any[],
+): PieJsonDataConfig {
+  if (config.d.type !== "pie") {
+    throw new Error("Bad config type");
+  }
+  return {
+    valueProps: effectiveValueProps,
+    seriesProp: getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps),
+    paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps),
+    laneProp: getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps),
+    tierProp: getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps),
+    sort: {
+      series: getChartIndicatorSort(config),
+      pane: "by-label",
+      tier: "by-label",
+      lane: "by-label",
+    },
+    sortSeriesValues: config.s.sortIndicatorValues,
+    groupSmallSlices: config.s.pieGroupSmallSlices
+      ? {
+          threshold: config.s.pieGroupSmallSlices,
+          label: pickLang(localization.language, { en: "Other", fr: "Autre", pt: "Outro" }),
+        }
+      : undefined,
+    labelReplacements: buildLabelReplacements(
+      resultsValue,
+      config,
+      indicatorLabelReplacements,
+      {},
+      localization,
+      jsonArray,
+    ),
   };
 }
 

@@ -3,6 +3,7 @@ import {
   PeriodType,
   formatPeriod,
   getPeriodTypeFromValue,
+  getPieDataTransformed,
   getTimeseriesDataTransformed,
   type GeoJSONFeatureCollection,
   type JsonArrayItem,
@@ -26,6 +27,7 @@ import { getLegendFromConfig } from "./conditional_formatting";
 import {
   getChartOHJsonDataConfigFromPresentationObjectConfig,
   getChartOVJsonDataConfigFromPresentationObjectConfig,
+  getPieJsonDataConfigFromPresentationObjectConfig,
   getTableJsonDataConfigFromPresentationObjectConfig,
   getTimeseriesJsonDataConfigFromPresentationObjectConfig,
 } from "./get_data_config_from_po";
@@ -203,6 +205,36 @@ export function buildFigureInputs(
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
       legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs, localization),
+    };
+  }
+
+  if (effectiveConfig.d.type === "pie") {
+    const j = getPieJsonDataConfigFromPresentationObjectConfig(
+      resultsValue,
+      effectiveConfig,
+      effectiveValueProps,
+      indicatorLabelReplacements,
+      localization,
+      items,
+    );
+    // Transform eagerly (timeseries precedent) so transform-time throws
+    // (negative values, missing "--v" assignment) surface here inside the
+    // caller's catch rather than at measure time inside panther. The
+    // transform coerces string values itself — no numeric parse needed.
+    const d = getPieDataTransformed({ jsonArray: items, jsonDataConfig: j });
+    return {
+      figureType: "pie",
+      data: d,
+      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
+      // Never pass an explicit legend: CF is unwired for slices (they color
+      // via the series sentinel), so a cf* state carried over from a
+      // chart/map conversion would show threshold/scale colors that appear
+      // nowhere on the figure — and an explicit legend would suppress the
+      // categorical slice legend panther derives from series headers.
+      legend: undefined,
     };
   }
 

@@ -55,6 +55,20 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
       COALESCE((
         SELECT string_agg(id || ':' || label || ':' || sort_order, ',' ORDER BY id)
         FROM hfa_indicator_service_categories
+      ), '') || '|' ||
+      -- Variant group/item edits don't touch hfa_indicators.updated_at, so
+      -- they must feed the hash directly (same reason as the label tables
+      -- above). Variant CODE needs no term: every code write rides a write
+      -- that bumps the parent's updated_at (saveHfaIndicatorFull, imports,
+      -- group reassignment) or cascades from an item/group row change that
+      -- alters these aggregates.
+      COALESCE((
+        SELECT string_agg(id || ':' || label || ':' || sort_order, ',' ORDER BY id)
+        FROM hfa_indicator_variant_groups
+      ), '') || '|' ||
+      COALESCE((
+        SELECT string_agg(id || ':' || group_id || ':' || label || ':' || sort_order, ',' ORDER BY id)
+        FROM hfa_indicator_variant_items
       ), '')
     ) as version
   `;

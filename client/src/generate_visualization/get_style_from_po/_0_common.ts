@@ -6,6 +6,7 @@ import {
   type TextInfoOptions,
   type FontInfo,
   MapRegionInfo,
+  PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
   getAdjustedColor,
@@ -300,6 +301,23 @@ export function getMapRegionsContent(
       if (regionText && dataText) return `${regionText}\n${dataText}`;
       return regionText || dataText;
     },
+  };
+}
+
+// Slice labels are always "label share%" regardless of the metric's formatAs —
+// a share is a fraction of the cell total, never a raw value. The custom
+// textFormatter (only when labels are on) exists to honor s.decimalPlaces;
+// panther's built-in formatter auto-picks decimals.
+export function getPieSlicesContent(config: PresentationObjectConfig) {
+  if (config.d.type !== "pie") return undefined;
+  return {
+    func: { dataLabel: { show: config.s.showDataLabels } },
+    textFormatter: config.s.showDataLabels
+      ? (info: PieSliceInfo) =>
+          `${info.seriesHeader.label} ${
+            getFormatterFunc("percent", config.s.decimalPlaces ?? 0)(info.share)
+          }`
+      : undefined,
   };
 }
 

@@ -24,6 +24,7 @@ import {
   TextArea,
   createButtonAction,
   createQuery,
+  openConfirm,
 } from "panther";
 import { createSignal, For, Show, type Accessor } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -50,9 +51,10 @@ type TempState = {
   aggregation: "sum" | "avg";
   variantGroupId: string | null;
   code: TempCodeEntry[];
-  // Per-item numerator code, keyed "timePoint / itemId". Entries for items
-  // outside the currently selected group are kept while editing (so switching
-  // groups back restores them) but never saved.
+  // Per-item numerator code, keyed "timePoint / itemId". The server only
+  // stores rows for the indicator's current group, and a confirmed group
+  // switch clears the old group's entries here too — otherwise switching back
+  // would display deleted code as if it were still persisted.
   variantCode: Record<string, string>;
 };
 
@@ -509,8 +511,58 @@ function EditorInner(p: {
             <Select
               label={t3({ en: "Variant group", fr: "Groupe de variantes", pt: "Grupo de variantes" })}
               value={state.variantGroupId ?? ""}
-              onChange={(v) => {
-                setState("variantGroupId", v || null);
+              onChange={async (v) => {
+                const newGroupId = v || null;
+                if (newGroupId === state.variantGroupId) return;
+                const oldItems = currentGroupItems();
+                const hasOldCode = oldItems.some((item) =>
+                  p.dictionary.timePoints.some(
+                    (tp) =>
+                      (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "")
+                        .trim() !== "",
+                  ),
+                );
+                if (hasOldCode) {
+                  const confirmed = await openConfirm({
+                    title: t3({
+                      en: "Switch variant group?",
+                      fr: "Changer de groupe de variantes ?",
+                      pt: "Mudar de grupo de variantes?",
+                    }),
+                    text: t3({
+                      en: "This indicator has per-item code for the current group. Switching deletes that code when you save.",
+                      fr: "Cet indicateur a du code par élément pour le groupe actuel. Changer de groupe supprime ce code lors de la sauvegarde.",
+                      pt: "Este indicador tem código por item para o grupo atual. Mudar de grupo elimina esse código ao guardar.",
+                    }),
+                    intent: "danger",
+                    confirmButtonLabel: t3({
+                      en: "Switch group",
+                      fr: "Changer de groupe",
+                      pt: "Mudar de grupo",
+                    }),
+                  });
+                  if (!confirmed) {
+                    // The native select already displays the picked option and
+                    // state never changed, so the value binding won't re-fire
+                    // on its own — the control would show the wrong group and
+                    // re-picking the displayed option would be a dead change
+                    // event. A synchronous set-away-and-back re-runs the
+                    // binding and snaps the DOM back (no dirty flag: net state
+                    // is unchanged).
+                    const current = state.variantGroupId;
+                    setState("variantGroupId", newGroupId);
+                    setState("variantGroupId", current);
+                    return;
+                  }
+                  // Clear the old group's entries so switching back never
+                  // shows deleted code as if it were still persisted.
+                  for (const item of oldItems) {
+                    for (const tp of p.dictionary.timePoints) {
+                      setState("variantCode", variantKey(tp.timePoint, item.id), "");
+                    }
+                  }
+                }
+                setState("variantGroupId", newGroupId);
                 markDirty();
               }}
               options={[

@@ -199,10 +199,13 @@ export async function createHfaIndicatorCategory(
   category: HfaIndicatorCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      INSERT INTO hfa_indicator_categories (id, label, sort_order)
-      VALUES (${category.id}, ${category.label}, ${category.sortOrder})
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        INSERT INTO hfa_indicator_categories (id, label, sort_order)
+        VALUES (${category.id}, ${category.label}, ${category.sortOrder})
+      `;
+      await assertVariantIntegrity(sql);
+    });
     return { success: true };
   });
 }
@@ -213,13 +216,16 @@ export async function updateHfaIndicatorCategory(
   category: HfaIndicatorCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      UPDATE hfa_indicator_categories
-      SET id = ${category.id},
-          label = ${category.label},
-          sort_order = ${category.sortOrder}
-      WHERE id = ${oldId}
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        UPDATE hfa_indicator_categories
+        SET id = ${category.id},
+            label = ${category.label},
+            sort_order = ${category.sortOrder}
+        WHERE id = ${oldId}
+      `;
+      await assertVariantIntegrity(sql);
+    });
     return { success: true };
   });
 }
@@ -274,10 +280,13 @@ export async function createHfaIndicatorSubCategory(
   subCategory: HfaIndicatorSubCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      INSERT INTO hfa_indicator_sub_categories (id, category_id, label, sort_order)
-      VALUES (${subCategory.id}, ${subCategory.categoryId}, ${subCategory.label}, ${subCategory.sortOrder})
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        INSERT INTO hfa_indicator_sub_categories (id, category_id, label, sort_order)
+        VALUES (${subCategory.id}, ${subCategory.categoryId}, ${subCategory.label}, ${subCategory.sortOrder})
+      `;
+      await assertVariantIntegrity(sql);
+    });
     return { success: true };
   });
 }
@@ -288,14 +297,17 @@ export async function updateHfaIndicatorSubCategory(
   subCategory: HfaIndicatorSubCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      UPDATE hfa_indicator_sub_categories
-      SET id = ${subCategory.id},
-          category_id = ${subCategory.categoryId},
-          label = ${subCategory.label},
-          sort_order = ${subCategory.sortOrder}
-      WHERE id = ${oldId}
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        UPDATE hfa_indicator_sub_categories
+        SET id = ${subCategory.id},
+            category_id = ${subCategory.categoryId},
+            label = ${subCategory.label},
+            sort_order = ${subCategory.sortOrder}
+        WHERE id = ${oldId}
+      `;
+      await assertVariantIntegrity(sql);
+    });
     return { success: true };
   });
 }
@@ -351,10 +363,13 @@ export async function createHfaIndicatorServiceCategory(
   serviceCategory: HfaIndicatorServiceCategory,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`
-      INSERT INTO hfa_indicator_service_categories (id, label, sort_order)
-      VALUES (${serviceCategory.id}, ${serviceCategory.label}, ${serviceCategory.sortOrder})
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        INSERT INTO hfa_indicator_service_categories (id, label, sort_order)
+        VALUES (${serviceCategory.id}, ${serviceCategory.label}, ${serviceCategory.sortOrder})
+      `;
+      await assertVariantIntegrity(sql);
+    });
     return { success: true };
   });
 }
@@ -388,6 +403,7 @@ export async function updateHfaIndicatorServiceCategory(
           WHERE jsonb_exists(service_category_ids::jsonb, ${oldId})
         `;
       }
+      await assertVariantIntegrity(sql);
     });
     return { success: true };
   });
@@ -437,7 +453,10 @@ export async function reorderHfaIndicatorServiceCategories(
 
 // Variant integrity invariants, rechecked in full inside every mutating
 // transaction that can affect them (data volumes are tiny); throws to roll the
-// triggering write back. This is the single authoritative enforcement of:
+// triggering write back. That includes the category-side CRUD: id-namespace
+// uniqueness is bidirectional, so creating a category whose id collides with
+// an existing variant item must fail at the category write, not poison every
+// later variant write. This is the single authoritative enforcement of:
 //   - item ids globally unique across all HFA id namespaces (labels resolve
 //     through one flat id→label map, so a collision silently mislabels);
 //   - composed per-item column names unique against indicator varNames, survey

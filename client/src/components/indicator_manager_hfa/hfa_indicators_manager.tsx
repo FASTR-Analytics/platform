@@ -532,9 +532,13 @@ export function HfaIndicatorsManager(p: Props) {
     });
   }
 
+  // Both code sources must be loaded before the check means anything: a
+  // half-loaded scan would silently miss references living only in variant
+  // snippets and understate what a deletion breaks.
   function findReferencingIndicators(deletedVarNames: string[]): string[] {
     const codeSt = allCode();
-    if (codeSt.status !== "ready") return [];
+    const variantCodeSt = allVariantCode();
+    if (codeSt.status !== "ready" || variantCodeSt.status !== "ready") return [];
     const deleted = new Set(deletedVarNames);
     const referencing = new Set<string>();
     for (const c of codeSt.data) {
@@ -547,13 +551,10 @@ export function HfaIndicatorsManager(p: Props) {
         referencing.add(c.varName);
       }
     }
-    const variantCodeSt = allVariantCode();
-    if (variantCodeSt.status === "ready") {
-      for (const c of variantCodeSt.data) {
-        if (deleted.has(c.varName)) continue;
-        if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
-          referencing.add(c.varName);
-        }
+    for (const c of variantCodeSt.data) {
+      if (deleted.has(c.varName)) continue;
+      if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+        referencing.add(c.varName);
       }
     }
     return [...referencing].sort();
@@ -670,7 +671,16 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleCheckUnusedVariables() {
     const dictSt = dictionary();
     const codeSt = allCode();
-    if (dictSt.status !== "ready" || codeSt.status !== "ready") return;
+    const variantCodeSt = allVariantCode();
+    // Variant code gates the check like main code does: scanning without it
+    // would report variables used only in variant snippets as unused.
+    if (
+      dictSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready"
+    ) {
+      return;
+    }
     const dict = dictSt.data;
 
     const availableByTimePoint = new Map<string, Set<string>>();
@@ -697,15 +707,12 @@ export function HfaIndicatorsManager(p: Props) {
     }
 
     // Variables referenced only by variant snippets must not report as unused.
-    const variantCodeSt = allVariantCode();
-    if (variantCodeSt.status === "ready") {
-      for (const c of variantCodeSt.data) {
-        const available = availableByTimePoint.get(c.timePoint);
-        const used = usedByTimePoint.get(c.timePoint);
-        if (!available || !used) continue;
-        for (const id of extractRIdentifiers(c.rCode)) {
-          if (available.has(id)) used.add(id);
-        }
+    for (const c of variantCodeSt.data) {
+      const available = availableByTimePoint.get(c.timePoint);
+      const used = usedByTimePoint.get(c.timePoint);
+      if (!available || !used) continue;
+      for (const id of extractRIdentifiers(c.rCode)) {
+        if (available.has(id)) used.add(id);
       }
     }
 

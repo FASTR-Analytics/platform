@@ -40,13 +40,13 @@ results package → run-keyed cached payloads, on both tiers. **This system does
 not define the package it reads**: the run-directory layout, the manifest
 contract and its schema version are S8's
 ([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
-package format"). Reviewed against code 2026-07-06 (first review
-cycle; absorbed and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE,
-DOC_period_column_handling, DOC_DISAGGREGATION_OPTIONS_HANDLING,
-DOC_ROLLUP_ROWS). The adversarial review's fix batch landed 2026-07-06 (commits
-`ce33e3f7…`: period-CTE unification, PAE `=` guard, month/integer filter
-handling, replicant relative-filter resolution, error statuses, cache hash
-hardening, race guards); what remains is in Open items below.
+package format"). Reviewed against code 2026-07-06 (first review cycle; absorbed
+and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE, DOC_period_column_handling,
+DOC_DISAGGREGATION_OPTIONS_HANDLING, DOC_ROLLUP_ROWS). The adversarial review's
+fix batch landed 2026-07-06 (commits `ce33e3f7…`: period-CTE unification, PAE
+`=` guard, month/integer filter handling, replicant relative-filter resolution,
+error statuses, cache hash hardening, race guards); what remains is in Open
+items below.
 
 This system's SQL behaviour is covered by `./validate_queries` — declarative
 fixtures on a throwaway Postgres running the production query functions. Adding
@@ -59,11 +59,10 @@ everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
 results package this system queries — parquet, manifest and metric catalog — is
 produced by **S8**, and the frozen `ro_*` tables it still reads as the parity
 rig's baseline are S8-owned too (`db/project/results_objects.ts`, with S9 a
-mandatory reader);
-`facilities_hmis`/`facilities_hfa` and the instance facility-columns config are
-**S5**. Sub-file custody: `routes/project/presentation_objects.ts` and
-`t2_presentation_objects.ts` are S9-owned with S11/S3/S10 as readers (SYSTEMS.md
-§4.1).
+mandatory reader); `facilities_hmis`/`facilities_hfa` and the instance
+facility-columns config are **S5**. Sub-file custody:
+`routes/project/presentation_objects.ts` and `t2_presentation_objects.ts` are
+S9-owned with S11/S3/S10 as readers (SYSTEMS.md §4.1).
 
 ## The pipeline
 
@@ -323,14 +322,13 @@ the Ethiopian year rolls over at month 10→11 and quarters are 2–4 / 5–7 / 
 Calendar-based filter types are hidden in the UI for `quarter_id` data; the
 defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is NOT
 dead — drift arrivals (a filter authored under `period_id` surviving a module
-re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades
-to full bounds (verified by execution 2026-07-26). Year-granularity data takes
-a different, earlier exit: every non-custom filter collapses to the latest
-year — ruled intended 2026-08-03 (the UI's only relative option for year data
-is "Last year", stored as `last_n_months(12)`, and module presets on annual
-metrics mean the same); the AI patch path rejects open-ended filters on year
-granularity so `from_month` cannot be authored onto annual data. Both pinned
-by rig cases (F7).
+re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades to
+full bounds (verified by execution 2026-07-26). Year-granularity data takes a
+different, earlier exit: every non-custom filter collapses to the latest year —
+ruled intended 2026-08-03 (the UI's only relative option for year data is "Last
+year", stored as `last_n_months(12)`, and module presets on annual metrics mean
+the same); the AI patch path rejects open-ended filters on year granularity so
+`from_month` cannot be authored onto annual data. Both pinned by rig cases (F7).
 
 **`timeseriesGrouping` vs the physical column.** `config.d.timeseriesGrouping`
 is display grouping only (the timeseries X-axis; may be coarser than the data,
@@ -373,9 +371,12 @@ phases:
    else `quarter_id` → `quarter_id` + `year`; else `year` → `year`.
 
 Each option gets `allowedPresentationOptions` from
-`getDisaggregationAllowedPresentationOptions` (time options + `time_point`:
-`["table", "chart"]` — excluded from timeseries and maps). The enricher also
-derives `hasFacilityLevelRows` (= table has `facility_id`; drives AVG roll-up
+`getDisaggregationAllowedPresentationOptions` (time options:
+`["table", "chart"]` — excluded from timeseries, maps and pies, which
+deliberately aggregate over the period selection; `time_point` additionally
+allows `map` and `pie` — survey rounds are few, discrete, and never pooled, so
+they take a display slot like any other dimension). The enricher also derives
+`hasFacilityLevelRows` (= table has `facility_id`; drives AVG roll-up
 eligibility) and `mostGranularTimePeriodColumnInResultsFile` (inferred from the
 options just built, priority period > quarter > year; `undefined` = no time
 dimension, a first-class state handled by guards everywhere — no timeseries
@@ -510,11 +511,13 @@ the AI editor tool:
 - **Config gate** (`getRollupDimension`): the flag lives ON the `disaggregateBy`
   entry (`rollup: true` + `rollupPosition`); EXACTLY ONE flagged entry must pass
   `isRollupCandidateDimension` (whitelisted, grouped, not displayed as
-  replicant/mapArea, not filtered to a single value; maps excluded entirely).
-  More than one flagged candidate ⇒ gate closed — the one-roll-up-per-viz rule
-  is phase-1 policy living ONLY in this derivation and the editor UI; the schema
-  allows multiple flags so a future simultaneous-roll-up (cross-product) needs
-  no storage migration. The authoritative doc comment lives on the function.
+  replicant/mapArea, not filtered to a single value; maps and pies excluded
+  entirely — a "National" total slice inside its own parts would double a pie's
+  whole). More than one flagged candidate ⇒ gate closed — the
+  one-roll-up-per-viz rule is phase-1 policy living ONLY in this derivation and
+  the editor UI; the schema allows multiple flags so a future
+  simultaneous-roll-up (cross-product) needs no storage migration. The
+  authoritative doc comment lives on the function.
 - **Metric gate** (`isRollupEligibleResultsValue`, [rollup.ts](lib/rollup.ts)):
   re-aggregation must be meaningful — SUM/COUNT (additive), identity-with-PAE
   (ingredients re-aggregated, ratio recomputed after the union), or AVG over

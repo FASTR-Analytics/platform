@@ -18,6 +18,7 @@ import { TimeseriesStyleControls } from "./presentation_object_editor_panel_styl
 import { ChartStyleControls } from "./presentation_object_editor_panel_style/_chart";
 import { TableStyleControls } from "./presentation_object_editor_panel_style/_table";
 import { MapStyleControls } from "./presentation_object_editor_panel_style/_map";
+import { PieStyleControls } from "./presentation_object_editor_panel_style/_pie";
 
 type Props = {
   projectId: string;
@@ -105,6 +106,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
+          />
+        </Match>
+        <Match when={p.tempConfig.d.type === "pie"}>
+          <PieStyleControls
+            poDetail={p.poDetail}
+            tempConfig={p.tempConfig}
+            setTempConfig={p.setTempConfig}
+            editCustomSeriesStyles={editCustomSeriesStyles}
           />
         </Match>
       </Switch>

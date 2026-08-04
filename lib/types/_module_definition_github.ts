@@ -104,6 +104,7 @@ const presentationOptionGithub = z.enum([
   "table",
   "chart",
   "map",
+  "pie",
 ]);
 const disaggregationDisplayOptionGithub = z.enum([
   "row",
@@ -246,6 +247,8 @@ const configSGithubStrict = z
     mapShowRegionLabels: z.boolean().optional(),
     mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"])
       .optional(),
+    pieInnerRadiusRatio: z.number(),
+    pieGroupSmallSlices: z.number(),
   })
   .merge(cfStorageSchema)
   .partial();

@@ -12,6 +12,7 @@ const TYPE_LABELS: Record<PresentationOption, { en: string; fr: string; pt: stri
   table: { en: "Table", fr: "Tableau", pt: "Tabela" },
   timeseries: { en: "Time series", fr: "Série temporelle", pt: "Série temporal" },
   chart: { en: "Bar chart", fr: "Graphique en barres", pt: "Gráfico de barras" },
+  pie: { en: "Pie chart", fr: "Graphique circulaire", pt: "Gráfico circular" },
   map: { en: "Map", fr: "Carte", pt: "Mapa" },
 };
 

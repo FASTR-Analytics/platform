@@ -41,6 +41,7 @@ export const presentationOptionSchema = z.enum([
   "table",
   "chart",
   "map",
+  "pie",
 ]);
 export const disaggregationDisplayOptionSchema = z.enum([
   "row",
@@ -255,6 +256,8 @@ export const configSStrict = z
     mapShowRegionLabels: z.boolean().optional(),
     mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"])
       .optional(),
+    pieInnerRadiusRatio: z.number(),
+    pieGroupSmallSlices: z.number(),
   })
   .merge(cfStorageSchema)
   .partial();

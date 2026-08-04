@@ -261,8 +261,8 @@ export function validateFigureConfigEdit(
       "The requested roll-up is not available for this configuration: exactly "
       + "ONE disaggregated dimension may carry it, it must be an admin level "
       + "(admin_area_2/3/4) or facility column, not shown as replicant/map "
-      + "area, not filtered to a single value, not on a map, and the metric "
-      + "must be re-aggregatable. No changes were applied.",
+      + "area, not filtered to a single value, not on a map or pie, and the "
+      + "metric must be re-aggregatable. No changes were applied.",
     );
   }
 

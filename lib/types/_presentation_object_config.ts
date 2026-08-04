@@ -89,6 +89,10 @@ const presentationObjectConfigSStrict = z
     mapDataLabelMode: z
       .enum(["none", "centroid", "callout", "auto"])
       .optional(),
+    // Optional for the same reason as showNValues above. Read as `?? 0`.
+    pieInnerRadiusRatio: z.number().optional(),
+    // Global-share threshold as a fraction (0-1); 0/absent = off.
+    pieGroupSmallSlices: z.number().optional(),
   })
   .merge(cfStorageSchema);
 
