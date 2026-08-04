@@ -229,7 +229,10 @@ language switcher and the feedback button; hidden when there are no posts)
 with a warning-coloured unread dot and a `WhatsNewFeedModal` history feed.
 The dot persists until every missed post has been opened — the feed does NOT
 bulk-acknowledge; it marks each post read as it is opened and flags the
-still-unread rows. Bell/feed state
+still-unread rows. The login popup (`whatsNewAutoShowPost`) only pushes a
+release NEWER than every version already acknowledged, so acknowledging one
+release never drags an older unread backlog into subsequent logins — those
+stay behind the bell. Bell/feed state
 is keyed to the signed-in user id (module signals survive a same-tab user
 switch). The modal supports arrow-key paging and Escape, shows a GIF's first
 frame under `prefers-reduced-motion` (play button opts back in), and closes

@@ -7,7 +7,7 @@ import {
   parseWhatsNewReadIds,
   pruneWhatsNewReadIds,
   t3,
-  whatsNewUnreadPosts,
+  whatsNewAutoShowPost,
   LANGUAGE_STORAGE_KEY,
 } from "lib";
 import {
@@ -557,22 +557,22 @@ async function maybeShowWhatsNew(isBrandNewUser: boolean) {
     await persistWhatsNewReadIds(ids, posts);
   }
 
-  const unread = whatsNewUnreadPosts(posts, ids);
-  if (unread.length === 0) {
+  // Only a release newer than anything already acknowledged is pushed at
+  // login; older unread posts stay behind the bell's dot rather than
+  // resurfacing one at a time on subsequent logins
+  const toShow = whatsNewAutoShowPost(posts, ids);
+  if (!toShow) {
     return;
   }
-  // Only the newest unread post is pushed at login; the bell's dot carries
-  // the rest until the user catches up
-  const newest = newestWhatsNewPost(unread);
-  if ((newest.pages?.length ?? 0) > 0) {
-    recordWhatsNewEvent(newest.id, "seen");
+  if ((toShow.pages?.length ?? 0) > 0) {
+    recordWhatsNewEvent(toShow.id, "seen");
     const outcome = await openComponent({
       element: WhatsNewModal,
-      props: { post: newest },
+      props: { post: toShow },
     });
-    recordWhatsNewEvent(newest.id, outcome ?? "skipped");
+    recordWhatsNewEvent(toShow.id, outcome ?? "skipped");
   }
-  await markWhatsNewRead(newest.id);
+  await markWhatsNewRead(toShow.id);
 }
 
 // Header-bell feed: browse every post; each one opened is marked read

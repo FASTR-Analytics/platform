@@ -117,6 +117,38 @@ export function whatsNewUnreadPosts(
   return posts.filter((p) => !readIds.has(p.id));
 }
 
+// The post to push at login: the newest unread release that is ALSO newer
+// than every release already acknowledged. Once a version has been seen,
+// nothing at or below it auto-opens again — a backlog of older unread posts
+// stays reachable from the bell instead of resurfacing one per login.
+export function whatsNewAutoShowPost(
+  posts: WhatsNewPost[],
+  readIds: Set<string>,
+): WhatsNewPost | undefined {
+  const unread = whatsNewUnreadPosts(posts, readIds);
+  if (unread.length === 0) {
+    return undefined;
+  }
+  const highestRead = posts
+    .filter((p) => readIds.has(p.id))
+    .reduce<string | undefined>(
+      (acc, p) =>
+        acc === undefined || compareDottedVersions(p.version, acc) > 0
+          ? p.version
+          : acc,
+      undefined,
+    );
+  const candidates = highestRead === undefined
+    ? unread
+    : unread.filter((p) => compareDottedVersions(p.version, highestRead) > 0);
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  return candidates.reduce((a, b) =>
+    compareDottedVersions(a.version, b.version) >= 0 ? a : b
+  );
+}
+
 // Page media may be an image/GIF or an mp4 clip; both live in imageUrl
 export function isWhatsNewVideo(url: string | undefined): boolean {
   return !!url && /\.mp4(\?|$)/i.test(url);
