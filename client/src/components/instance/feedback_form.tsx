@@ -10,15 +10,18 @@ import {
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
-type FeedbackType = "bug" | "suggestion";
+export type FeedbackType = "bug" | "suggestion" | "help";
 type ImageAttachment = { content: string; filename: string; mimeType: string };
 
 export function FeedbackForm(
-  p: AlertComponentProps<{ projectLabel?: string }, undefined>,
+  p: AlertComponentProps<
+    { projectLabel?: string; initialType?: FeedbackType },
+    undefined
+  >,
 ) {
   const [feedbackType, setFeedbackType] = createSignal<
     FeedbackType | undefined
-  >(undefined);
+  >(p.initialType);
   const [description, setDescription] = createSignal("");
   const [err, setErr] = createSignal("");
   const [sent, setSent] = createSignal(false);
@@ -49,9 +52,9 @@ export function FeedbackForm(
     if (!feedbackType()) {
       setErr(
         t3({
-          en: "Please select a feedback type",
-          fr: "Veuillez sélectionner un type de retour",
-          pt: "Selecione um tipo de comentário",
+          en: "Please select a type",
+          fr: "Veuillez sélectionner un type",
+          pt: "Selecione um tipo",
         }),
       );
       return;
@@ -84,7 +87,11 @@ export function FeedbackForm(
 
   return (
     <ModalContainer
-      title={t3({ en: "Feedback", fr: "Retour", pt: "Comentários" })}
+      title={t3({
+        en: "Help & feedback",
+        fr: "Aide et commentaires",
+        pt: "Ajuda e comentários",
+      })}
       width="md"
       leftButtons={
         sent()
@@ -121,25 +128,39 @@ export function FeedbackForm(
     >
       <Show when={sent()}>
         <div class="text-success py-4 text-center">
-          {t3({
-            en: "Thank you for your feedback!",
-            fr: "Merci pour votre retour !",
-            pt: "Obrigado pelos seus comentários!",
-          })}
+          {feedbackType() === "help"
+            ? t3({
+                en: "Thank you! We have received your request and will get back to you soon.",
+                fr: "Merci ! Nous avons bien reçu votre demande et vous répondrons bientôt.",
+                pt: "Obrigado! Recebemos o seu pedido e responderemos em breve.",
+              })
+            : t3({
+                en: "Thank you for your feedback!",
+                fr: "Merci pour votre retour !",
+                pt: "Obrigado pelos seus comentários!",
+              })}
         </div>
       </Show>
       <Show when={!sent()}>
         <div class="text-base-content pb-2 text-sm">
           {t3({
-            en: "Let us know about any bugs or suggestions.",
-            fr: "Faites-nous part de vos bugs ou suggestions.",
-            pt: "Comunique-nos quaisquer erros ou sugestões.",
+            en: "Ask for help, report a bug, or send a suggestion.",
+            fr: "Demandez de l'aide, signalez un bug ou envoyez une suggestion.",
+            pt: "Peça ajuda, comunique um erro ou envie uma sugestão.",
           })}
         </div>
         <Select
-          label={t3({ en: "Feedback type", fr: "Type de retour", pt: "Tipo de comentário" })}
+          label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
           value={feedbackType()}
           options={[
+            {
+              value: "help",
+              label: t3({
+                en: "Help request",
+                fr: "Demande d'aide",
+                pt: "Pedido de ajuda",
+              }),
+            },
             { value: "bug", label: t3({ en: "Bug", fr: "Bug", pt: "Erro" }) },
             {
               value: "suggestion",
@@ -159,9 +180,9 @@ export function FeedbackForm(
           value={description()}
           onChange={setDescription}
           placeholder={t3({
-            en: "Describe the bug or suggestion...",
-            fr: "Décrivez le bug ou la suggestion...",
-            pt: "Descreva o erro ou a sugestão...",
+            en: "Describe your question, bug or suggestion...",
+            fr: "Décrivez votre question, bug ou suggestion...",
+            pt: "Descreva a sua questão, erro ou sugestão...",
           })}
           fullWidth
           height="140px"

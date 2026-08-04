@@ -130,21 +130,31 @@ defineRoute(
     const { feedbackType, description, projectLabel, images } = body;
     const userEmail = c.var.globalUser.email;
 
-    const typeLabel = feedbackType === "bug" ? "Bug Report" : "Suggestion";
+    const typeLabel = {
+      bug: "Bug Report",
+      suggestion: "Suggestion",
+      help: "Help Request",
+    }[feedbackType];
     const projectLine = projectLabel ? ` (Project: ${projectLabel})` : "";
     const projectHtmlLine = projectLabel
       ? `<p><strong>Project:</strong> ${escapeHtml(projectLabel)}</p>`
       : "";
 
-    const userPlainText =
-      feedbackType === "bug"
-        ? `Thank you for reporting this bug. We have received your report and will look into it. We will contact you if we have any further questions.\n\nYour report:\n${description}`
-        : `Thank you for your suggestion. We have received it and will take it into consideration. We will contact you if we have any further questions.\n\nYour suggestion:\n${description}`;
+    const ackSentence = {
+      bug: "Thank you for reporting this bug. We have received your report and will look into it. We will contact you if we have any further questions.",
+      suggestion:
+        "Thank you for your suggestion. We have received it and will take it into consideration. We will contact you if we have any further questions.",
+      help: "Thank you for your request. We have received it and will get back to you as soon as we can.",
+    }[feedbackType];
+    const submissionNoun = {
+      bug: "report",
+      suggestion: "suggestion",
+      help: "request",
+    }[feedbackType];
 
-    const userHtmlBody =
-      feedbackType === "bug"
-        ? `<p>Thank you for reporting this bug. We have received your report and will look into it. We will contact you if we have any further questions.</p>`
-        : `<p>Thank you for your suggestion. We have received it and will take it into consideration. We will contact you if we have any further questions.</p>`;
+    const userPlainText = `${ackSentence}\n\nYour ${submissionNoun}:\n${description}`;
+
+    const userHtmlBody = `<p>${ackSentence}</p>`;
 
     const userHtml = `
 <div style="font-family: sans-serif; color: #333;">

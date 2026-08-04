@@ -41,7 +41,7 @@ import { InstanceProjects } from "~/components/instance/instance_projects";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";
-import { FeedbackForm } from "./feedback_form";
+import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
@@ -211,10 +211,10 @@ export default function Instance(p: Props) {
     });
   }
 
-  async function openFeedback() {
+  async function openFeedback(initialType?: FeedbackType) {
     await openComponent({
       element: FeedbackForm,
-      props: {},
+      props: { initialType },
     });
   }
 
@@ -354,6 +354,15 @@ export default function Instance(p: Props) {
                               onClick: () => void openTours(),
                             });
                           }
+                          items.push({
+                            label: t3({
+                              en: "Ask for help",
+                              fr: "Demander de l'aide",
+                              pt: "Pedir ajuda",
+                            }),
+                            icon: "lifebuoy",
+                            onClick: () => void openFeedback("help"),
+                          });
                           items.push({
                             label: t3({
                               en: "Send feedback",

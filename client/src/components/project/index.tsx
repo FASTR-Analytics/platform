@@ -276,6 +276,22 @@ function ProjectInner() {
                         },
                         {
                           label: t3({
+                            en: "Ask for help",
+                            fr: "Demander de l'aide",
+                            pt: "Pedir ajuda",
+                          }),
+                          icon: "lifebuoy",
+                          onClick: () =>
+                            void openComponent({
+                              element: FeedbackForm,
+                              props: {
+                                projectLabel: projectState.label,
+                                initialType: "help",
+                              },
+                            }),
+                        },
+                        {
+                          label: t3({
                             en: "Send feedback",
                             fr: "Envoyer un commentaire",
                             pt: "Enviar comentários",
