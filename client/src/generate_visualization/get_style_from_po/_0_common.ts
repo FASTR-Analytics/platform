@@ -6,6 +6,7 @@ import {
   type TextInfoOptions,
   type FontInfo,
   MapRegionInfo,
+  NO_DISAGGREGATION_HEADER_ID,
   PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
@@ -25,6 +26,7 @@ import {
   type DeckStyleContext,
   type IndicatorMetadata,
   getSlideFontInfo,
+  isPieCompletionMode,
   isRollupActive,
   ROLLUP_PIN_IDS,
 } from "lib";
@@ -305,20 +307,45 @@ export function getMapRegionsContent(
 }
 
 // Slice labels are always "label share%" regardless of the metric's formatAs —
-// a share is a fraction of the cell total, never a raw value. The custom
+// a share is a fraction of the pie's denominator, never a raw value. The custom
 // textFormatter (only when labels are on) exists to honor s.decimalPlaces;
 // panther's built-in formatter auto-picks decimals.
+//
+// The name is dropped when the slice axis carries no disaggregation: panther
+// yields its NO_DISAGGREGATION_HEADER_ID sentinel there, whose label is the
+// literal "default". That is every completion pie (the whole point is one
+// filled arc per indicator, named by the indicator header panther draws beside
+// it) and any pie left with an empty Slices slot.
 export function getPieSlicesContent(config: PresentationObjectConfig) {
   if (config.d.type !== "pie") return undefined;
   return {
     func: { dataLabel: { show: config.s.showDataLabels } },
     textFormatter: config.s.showDataLabels
-      ? (info: PieSliceInfo) =>
-          `${info.seriesHeader.label} ${
-            getFormatterFunc("percent", config.s.decimalPlaces ?? 0)(info.share)
-          }`
+      ? (info: PieSliceInfo) => {
+          const share = getFormatterFunc(
+            "percent",
+            config.s.decimalPlaces ?? 0,
+          )(info.share);
+          return info.seriesHeader.id === NO_DISAGGREGATION_HEADER_ID
+            ? share
+            : `${info.seriesHeader.label} ${share}`;
+        }
       : undefined,
   };
+}
+
+// The doughnut hole's KPI number. "share" reads the value against the
+// completion pie's fixed envelope; "total" sums the slices, which is the only
+// meaningful reading when the denominator IS that sum. Gated on the same
+// isPieCompletionMode as the data config's `total` — disagreeing would report a
+// share against a denominator the geometry never used. Panther suppresses it on
+// a pie with no hole, so no shape check is needed here.
+export function getPieCenterLabel(
+  config: PresentationObjectConfig,
+  formatAs: "percent" | "number",
+): "none" | "total" | "share" {
+  if (config.d.type !== "pie" || !config.s.pieShowCenterValue) return "none";
+  return isPieCompletionMode(config, formatAs) ? "share" : "total";
 }
 
 // The header whose index drives series coloring (see getIndex below) — the

@@ -3,8 +3,8 @@
   <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Après : trois étapes claires, un flux à sens unique</text>
 
   <defs>
-    <marker id="grayarrow" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto">
-      <path d="M0,0 L9,5 L0,10 z" fill="#475569"/>
+    <marker id="grayarrow" markerWidth="6" markerHeight="6" refX="5" refY="2.5" orient="auto">
+      <path d="M0,0 L5,2.5 L0,5 z" fill="#475569"/>
     </marker>
     <marker id="greenarrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
       <path d="M0,0 L8,4 L0,8 z" fill="#059669"/>
@@ -59,28 +59,25 @@
     <rect width="330" height="460" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
     <text x="165" y="46" font-size="24" font-weight="bold" fill="#065f46" text-anchor="middle">3. Projets</text>
     <text x="165" y="74" font-size="17" fill="#065f46" text-anchor="middle">(donner du sens)</text>
-    <g font-size="18" fill="#065f46">
+    <g font-size="20" fill="#065f46">
       <rect x="28" y="100" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
-      <text x="165" y="132" text-anchor="middle" font-weight="bold">Projet A</text>
-      <text x="165" y="158" text-anchor="middle" font-size="15">visualisations · rapports</text>
+      <text x="165" y="145" text-anchor="middle" font-weight="bold">Projet A</text>
       <rect x="28" y="192" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
-      <text x="165" y="224" text-anchor="middle" font-weight="bold">Projet B</text>
-      <text x="165" y="250" text-anchor="middle" font-size="15">diaporamas · tableaux de bord</text>
+      <text x="165" y="237" text-anchor="middle" font-weight="bold">Projet B</text>
       <rect x="28" y="284" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
-      <text x="165" y="316" text-anchor="middle" font-weight="bold">Projet C</text>
-      <text x="165" y="342" text-anchor="middle" font-size="15">interprétation IA</text>
+      <text x="165" y="329" text-anchor="middle" font-weight="bold">Projet C</text>
     </g>
     <text x="165" y="420" font-size="16" fill="#065f46" text-anchor="middle" font-style="italic">Espaces de création légers —</text>
     <text x="165" y="442" font-size="16" fill="#065f46" text-anchor="middle" font-style="italic">sans données, sans traitement</text>
   </g>
 
-  <!-- attach arrows from projects back to one package -->
+  <!-- attach arrows: A and B join the first package, C joins the last -->
   <g stroke="#059669" stroke-width="2.5" fill="none" marker-end="url(#greenarrow)">
-    <path d="M914 268 C 860 280, 840 330, 828 356"/>
-    <path d="M914 360 C 880 362, 860 364, 828 366"/>
-    <path d="M914 452 C 860 440, 840 400, 828 380"/>
+    <path d="M914 268 C 870 266, 840 262, 792 260"/>
+    <path d="M914 360 C 862 352, 830 316, 792 292"/>
+    <path d="M914 452 C 870 456, 840 468, 792 476"/>
   </g>
-  <text x="858" y="300" font-size="15" fill="#059669" font-style="italic" text-anchor="middle">rattacher</text>
+  <text x="868" y="243" font-size="15" fill="#059669" font-style="italic" text-anchor="middle">rattacher</text>
 
-  <text x="64" y="668" font-size="18" fill="#334155">Les trois projets lisent le même paquet partagé — généré une fois, utilisé partout, jamais modifié silencieusement.</text>
+  <text x="64" y="668" font-size="18" fill="#334155">Les projets A et B partagent le même paquet ; le projet C en lit un autre — générés une fois, jamais modifiés en silence.</text>
 </svg>

@@ -258,6 +258,14 @@ export const configSStrict = z
       .optional(),
     pieInnerRadiusRatio: z.number(),
     pieGroupSmallSlices: z.number(),
+    pieCompletionMode: z.boolean(),
+    pieShowCenterValue: z.boolean(),
+    customValueOrder: z.array(
+      z.object({
+        disOpt: disaggregationOption,
+        orderedIds: z.array(z.string()),
+      }),
+    ),
   })
   .merge(cfStorageSchema)
   .partial();

@@ -17,6 +17,7 @@ import {
   getPieSlicesContent,
   getStandardSeriesColorFunc,
   getTableCellsContent,
+  getPieCenterLabel,
   getTableColHeadersContent,
   getTableLayoutStyle,
   getTextStyle,
@@ -162,7 +163,10 @@ export function buildStandardStyle(
         : undefined,
     pie:
       config.d.type === "pie"
-        ? { innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0 }
+        ? {
+            innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0,
+            centerLabel: getPieCenterLabel(config, dataFormat),
+          }
         : undefined,
   };
 }

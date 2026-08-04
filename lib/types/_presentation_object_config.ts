@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { cfStorageSchema } from "./conditional_formatting.ts";
-import { configDStrict } from "./_metric_installed.ts";
+import { configDStrict, disaggregationOption } from "./_metric_installed.ts";
+import { ROLLUP_PIN_IDS } from "../rollup.ts";
 
 // ============================================================================
 // PresentationObjectConfig — stored shape of a visualization config.
@@ -93,6 +94,38 @@ const presentationObjectConfigSStrict = z
     pieInnerRadiusRatio: z.number().optional(),
     // Global-share threshold as a fraction (0-1); 0/absent = off.
     pieGroupSmallSlices: z.number().optional(),
+    // Draw each pie against a fixed 100% envelope instead of its own slice
+    // sum, so the filled arc reads as the value itself. Percent metrics only
+    // — see isPieCompletionMode, which is the gate both the data config and
+    // the style must consult.
+    pieCompletionMode: z.boolean().optional(),
+    // Print the value in the doughnut hole (panther `centerLabel`): the share
+    // against the fixed envelope in completion mode, the summed value
+    // otherwise. A no-op on a pie with no hole.
+    pieShowCenterValue: z.boolean().optional(),
+    // Optional for the same reason as showNValues above. User-defined display
+    // order for a dimension's values, applied to whichever axis the disOpt
+    // occupies at render (style layer — never in the fetch config or cache
+    // hash). Ids absent from the list sink to the end alphabetically.
+    // Roll-up sentinels are rejected: panther's byIdOrder rank map is
+    // last-wins on duplicates, so a sentinel inside orderedIds would defeat
+    // the pin fold in getCustomOrderSort. The editor can't produce one
+    // (sentinels are query-synthesized, never in possible values); this
+    // guards hand-written and future AI-written configs.
+    customValueOrder: z
+      .array(
+        z.object({
+          disOpt: disaggregationOption,
+          orderedIds: z.array(
+            z
+              .string()
+              .refine((id) => !ROLLUP_PIN_IDS.includes(id), {
+                message: "Roll-up sentinel ids are not orderable",
+              }),
+          ),
+        }),
+      )
+      .optional(),
   })
   .merge(cfStorageSchema);
 

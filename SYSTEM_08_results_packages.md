@@ -358,6 +358,38 @@ generators, and the default/HFA generators wrap values in single quotes
 **without escaping** (only the calculated-indicators path validates identifiers)
 — these strings execute as real R; hardening + factoring is an Open item below.
 
+**HFA variant emission** (2026-08-04; authoring plane in S5). Indicators
+assigned a variant group emit one extra wide column per (indicator, item),
+routed to a SEPARATE results object `M10_hfa_results_variants.csv` (+ its
+`_carried` twin) whose `hfa_indicator` carries the PARENT id and whose
+`hfa_variant_item` carries the item — that pairing is what makes the
+indicator × item cross possible while keeping item ids out of every
+viz-land indicator picker. Three rulings hold this together. **The
+definition gate** — emit only when the resolved definition declares the new
+RO (the `resultsObjects.some` pattern `supportsResponseStatus` established)
+— must cover item mutates, item columns AND metadata entries _atomically_:
+a partial gate emits composed varNames as fake indicators into the MAIN
+table, which ingests cleanly and corrupts silently. This is also what keeps
+generation at older pinned gitRefs byte-identical (verify as script **text**;
+inputKeys are unaffected either way, since `computeModuleInputs` folds only
+assets + extracts + upstream outputs, so §3.7 memoized reuse is undisturbed).
+**In R it is a separate pipeline** — own metadata frame, own select/pivot/
+write — never a write-time split of the shared long frame: that keeps the
+existing lines textually untouched and structurally prevents two silent
+failure modes, interleaved pivot columns reordering main rows, and the
+carried loop absorbing parent-remapped variant rows (aggregate inflation no
+ingest check can catch, since no new column appears). The variants carried
+twin runs the same donor rule per (indicator, item) pair. **The zero-variant
+case is first-class**: on day one nearly every instance has no variant groups
+while the definition declares the RO, and `execute_module.ts` hard-errors on
+a missing declared-RO file — so the pipeline writes a header-only CSV and the
+metadata splice must not produce mixed-length vectors. Item snippets are
+computed after every indicator column, so an item may reference its own
+parent (`vacc == 1 & q12 == 2`, a natural authoring pattern) without a
+self-edge entering the dependency graph; under `STOP_IF_INDICATOR_FAILS=FALSE`
+a bad snippet skips THAT ITEM only, and its warning must not be extracted by
+the parent's `^Indicator "` skip regex.
+
 **Results ingestion** (`run_query/write_results_object_parquet.ts`, called from
 finalize). ONE ingest since item 0 deleted the `ro_*` COPY: the raw R CSV
 becomes the run's `{roId}.parquet` under four semantic normalizations — `'NA'` →
@@ -436,6 +468,16 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   their `console.error` prefix (converges under enforcement item 8).
 - **population.csv has no pre-upload validation** — headers/types are only
   checked by R at run time.
+- **HFA variants rollback hazard** (2026-08-04): `availableDisaggregation
+  Options` is a strict `z.enum` in the manifest schema and manifests parse
+  strictly, so once a package stamped with `hfa_variant_item` exists, rolling
+  the app back to a build without the enum value makes that whole manifest
+  unparseable and attached projects' run reads fail loudly. Rolling back past
+  the feature means detaching/deleting packages generated with it. Same shape
+  for any future dimension — the deploy-order rule (app BEFORE the modules
+  repo push, since `requiredDisaggregationOptions` is validated at definition
+  fetch and an unknown value makes m010 fail to load entirely) is its
+  forward-direction twin.
 - **Phase 4 demolition (PLAN_RESULTS_RUNS), gated on FLEET VERIFICATION:** the
   writers are already gone (Phase 3 items 0/1/5); what remains is dropping the
   frozen plane itself — the `ro_*` tables, the project-DB `modules` /

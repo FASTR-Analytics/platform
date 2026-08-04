@@ -353,9 +353,24 @@ phases:
 
 1. **Physical columns** from a fixed probe list: admin areas 2–4, indicator
    columns (`indicator_common_id`, `source_indicator`, `target_population`,
-   `ratio_type`), denominators, HFA columns (`hfa_indicator`, `hfa_category`,
-   `hfa_sub_category`, `hfa_service_category`, `time_point`), ICEH columns
-   (`iceh_indicator`, `strat`, `level`).
+   `ratio_type`), denominators, HFA columns (`hfa_indicator`,
+   `hfa_variant_item`, `hfa_category`, `hfa_sub_category`,
+   `hfa_service_category`, `time_point`), ICEH columns
+   (`iceh_indicator`, `strat`, `level`). `PHYSICAL_DISAGGREGATION_COLUMNS` is
+   shared with `deriveAvailableDisaggregationOptions`
+   ([server/runs/disaggregation_availability.ts](server/runs/disaggregation_availability.ts)),
+   which stamps the manifest at finalize — one edit serves the live probe and
+   the run stamp.
+
+   `hfa_variant_item` (2026-08-04) is a **plain groupable dimension** in no
+   special registry (`FILTER_ONLY_…`, `MULTI_MEMBERSHIP_…`, `INTEGER_…`) —
+   `hfa_category` mechanics, not `hfa_service_category`: the generic physical
+   path gives GROUP BY / filter / replicant / possible-values with zero
+   query-engine code. Its position in `ALL_DISAGGREGATION_OPTIONS` is
+   load-bearing and deliberate — **immediately after `hfa_indicator`**,
+   because starting-config slot assignment follows list order, and appending
+   at the end would default the no-preset table to time_point=col /
+   item=rowGroup instead of the headline indicator-row × item-col cross.
 2. **Facility columns**, double-gated: the table must have `facility_id` AND the
    instance facility config must enable each column (`includeTypes`,
    `includeOwnership`, `includeCustom1..5`). Labels are display-only and not

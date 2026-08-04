@@ -249,6 +249,14 @@ const configSGithubStrict = z
       .optional(),
     pieInnerRadiusRatio: z.number(),
     pieGroupSmallSlices: z.number(),
+    pieCompletionMode: z.boolean(),
+    pieShowCenterValue: z.boolean(),
+    customValueOrder: z.array(
+      z.object({
+        disOpt: disaggregationOptionGithub,
+        orderedIds: z.array(z.string()),
+      }),
+    ),
   })
   .merge(cfStorageSchema)
   .partial();

@@ -250,15 +250,27 @@ export const VIZ_TYPE_CONFIG: Record<
     },
   },
   pie: {
-    // NOT "series": convertVisualizationType seeds usedOpts with this slot
-    // before remapping, so a "series" default would collide with the
-    // indicator/mapArea → series fallbacks below and shunt the converted
-    // dimension to "cell" (a grid of one-slice pies).
+    // NOT "indicator", even though `--v` on the indicator axis tiles pies
+    // without spending a disaggregation axis: getDisaggregatorDisplayProp
+    // returns "--v" for a slot the values claim and never reaches the
+    // disaggregation loop, so a dimension the user then puts on Pies would
+    // land on NO axis and its rows would collapse into panther's "Duplicate
+    // values" throw. Defaulting the values to Grid keeps the Pies slot free
+    // for the dimension the user actually wants repeated. NOT "series"
+    // either: convertVisualizationType seeds usedOpts with this slot before
+    // remapping, so a "series" default would collide with the mapArea →
+    // series fallback below and shunt the converted dimension onward.
     defaultValuesDisDisplayOpt: "cell",
     defaultContent: "bars",
-    disaggregationDisplayOptions: ["series", "cell", "row", "col", "replicant"],
+    disaggregationDisplayOptions: [
+      "series",
+      "indicator",
+      "cell",
+      "row",
+      "col",
+      "replicant",
+    ],
     disDisplayOptFallbacks: {
-      indicator: "series",
       mapArea: "series",
       rowGroup: "row",
       colGroup: "col",
@@ -289,6 +301,32 @@ export function getValidValuesDisplayOptions(
     (o) => o !== "replicant" && o !== "mapArea",
   );
 }
+
+// Whether the pie draws each value against a fixed 100% envelope (panther
+// `total: 1`, unfilled arc drawn as the remainder track) rather than against
+// the sum of its own slices. THE authoritative gate — the data config's `total`
+// and the style's `centerLabel` must agree, or the hole reports a share
+// computed against a denominator the geometry never used.
+//
+// Percent-only, and checked against the EFFECTIVE format rather than the
+// stored flag alone: values are 0-1 fractions only when the figure is showing
+// percentages, so a flag left behind by a metric/indicator format change
+// degrades to a plain pie instead of drawing every count as a sliver of 1.
+export function isPieCompletionMode(
+  config: PresentationObjectConfig,
+  effectiveFormatAs: "percent" | "number",
+): boolean {
+  return (
+    config.d.type === "pie" &&
+    config.s.pieCompletionMode === true &&
+    effectiveFormatAs === "percent"
+  );
+}
+
+// The fixed envelope a completion pie is drawn against. 1, not 100: percent
+// values are stored as 0-1 fractions everywhere in this app (see the `* 100`
+// in the scorecard formatter), so the whole circle is 1.0.
+export const PIE_COMPLETION_TOTAL = 1;
 
 export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
   PresentationOption,
@@ -376,6 +414,7 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     },
     pie: {
       series: t3({ en: "Slices", fr: "Tranches", pt: "Fatias" }),
+      indicator: t3({ en: "Pies", fr: "Camemberts", pt: "Circulares" }),
       cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
       row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
       col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
@@ -384,7 +423,6 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
         fr: "Graphiques multiples (réplicants)",
         pt: "Gráficos diferentes (replicantes)",
       }),
-      indicator: "",
       mapArea: "",
       rowGroup: "",
       colGroup: "",

@@ -134,6 +134,7 @@ export function PresentationObjectEditorPanel(p: Props) {
             <PresentationObjectEditorPanelStyle
               projectId={p.projectStateSnapshot.id}
               poDetail={p.poDetail}
+              resultsValueInfo={p.resultsValueInfo}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               effectiveConfig={effectivePOConfigResult().config}

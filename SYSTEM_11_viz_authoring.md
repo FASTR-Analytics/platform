@@ -280,22 +280,47 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   BEFORE remapping — so a type's default values slot must not be a target of its
   own fallbacks, or the fallback is dead on arrival and the dimension gets
   shunted by the collision escape. This is why pie's values default is `cell`,
-  not `series` (its `indicator`/`mapArea` fallbacks point at `series` so
-  chart→pie and map→pie land the category dimension on Slices).
-- **The pie type**: slices are panther's series axis (slots: `series` = Slices,
-  `cell` = Grid, `row`/`col`, `replicant`; no indicator axis).
-  `s.sortIndicatorValues` is REUSED as pie's slice sort (`sortSeriesValues`),
-  which is why pie's `styleResets` — unlike map's — do not reset it (resets
-  apply on switching TO a type and would wipe the sort on every entry). Two
-  optional `s` fields: `pieInnerRadiusRatio` (0/absent = pie, `0.55` = doughnut;
-  read `?? 0`) and `pieGroupSmallSlices` (global-share fraction; 0/absent = off;
-  maps to panther `groupSmallSlices` with a localized "Other" slice, id
-  `--other`, sorted last). Denominator is always panther's cell-sum default (no
-  `total`). Roll-up is excluded (`isRollupCandidateDimension`), CF is not
-  offered (slices color via the series sentinel, not the values sentinel),
-  calendar time dims are never offered, and `time_point` is allowed (survey
-  rounds take a display slot — one pie per round — never pooled, same exception
-  as map).
+  not `series` (its `mapArea` fallback points at `series`, so a converted map's
+  region dimension lands on Slices). It is also not `indicator`, for a sharper
+  reason: `getDisaggregatorDisplayProp` returns `"--v"` for any slot the VALUE
+  props claim and never reaches the disaggregation loop, so a dimension sharing
+  that slot resolves to no axis at all and its rows collapse into panther's
+  `Duplicate values` throw. Defaulting the values onto a slot the user is
+  likely to want (Pies, Bars) makes that collision the common case rather than
+  a hand-made one. Note chart→pie therefore KEEPS an `indicator` dimension on
+  Pies rather than remapping it to Slices: that is the meaning-preserving
+  conversion, since five coverage indicators repeat a mark, they do not
+  partition a whole.
+- **The pie type**: slices are panther's series axis and `indicator` is
+  panther's repeat dimension — N pies tiled INSIDE each sub-chart, costing no
+  disaggregation axis (slots: `series` = Slices, `indicator` = Pies,
+  `cell` = Grid, `row`/`col`, `replicant`). `s.sortIndicatorValues` is REUSED as
+  pie's slice sort (`sortSeriesValues`), which is why pie's `styleResets` —
+  unlike map's — do not reset it (resets apply on switching TO a type and would
+  wipe the sort on every entry). The `indicator` axis takes the same
+  `getChartIndicatorSort` treatment as `series`, not `getAxisSort`'s by-label:
+  `indicator_common_id` can sit on either and wants the dictionary order on
+  whichever it occupies. Four optional `s` fields: `pieInnerRadiusRatio`
+  (0/absent = pie, `0.55` = doughnut; read `?? 0`), `pieGroupSmallSlices`
+  (global-share fraction; 0/absent = off; maps to panther `groupSmallSlices`
+  with a localized "Other" slice, id `--other`, sorted last),
+  `pieCompletionMode` and `pieShowCenterValue`. Roll-up is excluded
+  (`isRollupCandidateDimension`), CF is not offered (slices color via the series
+  sentinel, not the values sentinel), calendar time dims are never offered, and
+  `time_point` is allowed (survey rounds take a display slot — one pie per round
+  — never pooled, same exception as map).
+- **Completion pies**: `isPieCompletionMode(config, effectiveFormatAs)` in
+  `presentation_objects.ts` is THE gate — the data config's
+  `total: PIE_COMPLETION_TOTAL` and the style's `centerLabel` must both consult
+  it, or the hole reports a share against a denominator the geometry never used.
+  The envelope is `1`, not `100`: percent values are 0-1 fractions app-wide. It
+  is checked against the EFFECTIVE format, so a flag stranded by a format change
+  degrades to a plain cell-sum pie rather than drawing every count as a sliver.
+  Without it panther defaults to `total: "sum"` (each pie normalized by its own
+  slices). The unfilled arc is panther's `remainder` track; slice data labels
+  drop the series name when the slice axis carries the
+  `NO_DISAGGREGATION_HEADER_ID` sentinel (every completion pie, since the
+  indicator header beside the pie already names it).
 - **PO config schema** (`_presentation_object_config.ts`): `d` = `configDStrict`
   (shared with the module-authoring repo), `s` = all-required flat style incl.
   the `cf*` fields, `t` = six plain-string/number fields. Reads are strict-throw

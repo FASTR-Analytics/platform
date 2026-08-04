@@ -1,10 +1,11 @@
 import {
   PresentationObjectConfig,
   PresentationObjectDetail,
+  ResultsValueInfoForPresentationObject,
   getDisaggregatorDisplayProp,
 } from "lib";
 import { openComponent } from "panther";
-import { Match, Switch } from "solid-js";
+import { Match, Show, Switch } from "solid-js";
 import { SetStoreFunction, unwrap } from "solid-js/store";
 import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_styles";
 import {
@@ -19,10 +20,12 @@ import { ChartStyleControls } from "./presentation_object_editor_panel_style/_ch
 import { TableStyleControls } from "./presentation_object_editor_panel_style/_table";
 import { MapStyleControls } from "./presentation_object_editor_panel_style/_map";
 import { PieStyleControls } from "./presentation_object_editor_panel_style/_pie";
+import { CustomValueOrderSection } from "./presentation_object_editor_panel_style/_custom_value_order";
 
 type Props = {
   projectId: string;
   poDetail: PresentationObjectDetail;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   effectiveConfig: PresentationObjectConfig;
@@ -117,6 +120,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
           />
         </Match>
       </Switch>
+      <Show when={p.tempConfig.d.type !== "map"}>
+        <CustomValueOrderSection
+          resultsValueInfo={p.resultsValueInfo}
+          tempConfig={p.tempConfig}
+          setTempConfig={p.setTempConfig}
+          effectiveValueProps={p.effectiveValueProps}
+        />
+      </Show>
     </div>
   );
 }

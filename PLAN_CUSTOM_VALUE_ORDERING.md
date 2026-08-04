@@ -1,87 +1,72 @@
 # PLAN: Custom ordering of indicators & disaggregation values in visualizations
 
-Status: PROPOSED (not started). Sequencing: **after the results-runs merge**
-lands and the parity rig is green (does NOT need to wait for fleet rollout —
-this is an additive style-layer feature, orthogonal to run identity).
+Status: IMPLEMENTED 2026-08-04 on tim-branch (typecheck + execution harnesses
+green), then 3-agent adversarial review + fix batch applied same day.
+Remaining: browser walkthrough of the editor affordance, then delete this
+file.
 
-## Decision
+## Review outcome (2026-08-04)
 
-Custom order lives **per-visualization, in `config.s` (style layer)** — not in
-`config.d`, not instance-level tables, not the run manifest.
+Persistence layer and sort seam held under adversarial review (both verified
+by execution). Fixed same day: orphaned/stale orders now always visible +
+clearable in the style section (with reason notes for too_many_values /
+unavailable / not-displayed); inert states annotated (scorecard, sorted-by-
+value on chart indicator axis + pie slices, no-display-position); single-value
+dims suppressed; rows memoized with values built lazily; clear button
+confirmed + aria-labeled; modal gains search + move-to-top/bottom above 20
+items; file renamed `_custom_value_order.tsx`; sentinel-id schema refine
+(byIdOrder rank map is last-wins, so a sentinel in orderedIds would defeat
+the pin); duplicate-axis comment corrected.
 
-- Order is pure render policy. Per the display-only-preferences rule
-  (SYSTEM_09), it must never enter the fetch config, the SQL, or the cache
-  hash. No refetch, no Valkey prefix bump, no migration (additive optional Zod
-  field).
-- Stored figures carry the bundle with style rebuilt at render (FigureBundle
-  P2), so a custom order applies retroactively to stored slide/report figures.
-- The manifest is NOT the home for this: it is written once and immutable, and
-  enumerates dimensions/columns, not distinct values. User-editable order can't
-  live in an immutable per-run artifact. Data-level indicator `sort_order`
-  already travels via the run's `inputs/*.json` dictionaries.
-- Instance-level *default* ordering (a value catalog + sort_order for facility
-  type/ownership/custom values, moving the hardcoded HMIS list into the DB) is
-  a separate, bigger feature. Defer unless someone asks for cross-viz defaults;
-  alphabetical default + per-viz override covers the need.
+Open rulings for Tim (deliberately NOT fixed):
 
-## How ordering works today (verified 2026-07-28)
+1. AI surface: customValueOrder is invisible to AI projections and `config.s`
+   is unpatchable by policy — first `s` field aliasing something the AI
+   controls (ordering), so AI sort requests can silently lose to a hidden
+   order (the inert-patch class).
+2. Stale entries are kept latent (visible + clearable now, but never pruned
+   on save) — consistent with the latent-rollup-flag policy; prune-on-save
+   would be the alternative.
 
-- The items query has **no ORDER BY** — rows come back in arbitrary
-  HashAggregate order. All ordering policy is applied client-side in
-  `client/src/generate_visualization/get_data_config_from_po.ts` via panther's
-  `HeaderSortConfig`.
-- Panther already supports everything needed:
-  `{ byIdOrder: string[] }` (unranked ids sink to end, label tie-break),
-  `{ base, first, last }` (used for the roll-up pin), and undefined = preserve
-  input order (`panther/_001_render_system/header_types.ts`).
-- Order sources today:
-  - HMIS indicators: hardcoded 14-entry `_COMMON_INDICATORS` list in
-    `lib/table_structures/indicators.ts` (applied to tables; bypassed on
-    charts, see bug below).
-  - HFA/ICEH/calculated indicators: real `sort_order` columns exist and reach
-    `IndicatorMetadata`, but only the scorecard-table path
-    (`buildIndicatorSortOrder` in `build_figure_inputs.ts`) consumes them —
-    everywhere else falls to `"by-label"` alphabetical.
-  - Facility type/ownership/custom: free-text columns on the facilities
-    tables, values discovered by `SELECT DISTINCT`, no lookup table, no order
-    source anywhere. Alphabetical.
-  - Admin areas: alphabetical + roll-up sentinel pinned via `first`/`last`.
-  - Maps: no sort config at all → raw data order.
+## Decision (unchanged)
 
-## Pre-existing bug (fix first)
+Custom order lives **per-visualization, in `config.s` (style layer)** —
+`customValueOrder: { disOpt, orderedIds: string[] }[]`, additive optional Zod
+field (schema + both `.partial()` twins). Pure render policy: no fetch-config
+change, no cache bump, no migration. Stored figures rebuild style at render, so
+the order applies retroactively.
 
-`s.sortIndicatorValues` is a required enum defaulting to `"none"`, and
-`panther/_010_chartov/get_chartov_data.ts:140` (and chartoh twin) checks
-truthiness — `"none"` is truthy, so **`sort.indicator` is never applied to
-charts**. Chart indicator axes render in raw (unstable) SQL order today, and
-any custom order would be silently bypassed on charts. App-side fix: translate
-`"none"` → `undefined` in the data config, the way `pinIndicatorAxis` already
-does.
+## Design rulings that changed at implementation (vs the 2026-07-28 draft)
 
-## Work items
+1. **The "sortIndicatorValues none-truthiness bug" was NOT fixed — it had
+   already been ruled deliberate** by the facility-rollup work: any string
+   (incl. "none") keeps the chart indicator axis in DATA order because "--v"
+   axes carry the module-defined valueProps order. Custom order instead rides
+   the same seam `pinIndicatorAxis` uses: when a custom order targets the
+   indicator-axis disOpt under "none", the app passes
+   `sortIndicatorValues: undefined` + `sort.indicator: { byIdOrder }`.
+   Verified by execution against panther's chartov.
+2. **Roll-up pin composition**: panther has no `{ byIdOrder, first, last }`
+   variant, so when the rolled-up dimension sits on a custom-ordered axis the
+   sentinel ids are folded into the id order at the pinned end
+   (`getCustomOrderSort`). Accepted degradation: with a bottom pin, values the
+   data gained after the user ordered sink below the sentinel (alphabetical
+   unranked sink) until re-ordered. No panther change.
+3. **Pie** (didn't exist at drafting): slices = series axis, plain
+   `{ byIdOrder }`; pie's panther gate already applies `sort.series` under
+   "none". Pane/tier/lane axes also custom-orderable.
+4. **Precedence**: scorecard `customSortHeaders` owns whole-table ordering
+   (custom order inert in scorecard mode); asc/desc value sorting beats custom
+   order on chart/pie (panther bypasses header sorts there); maps untouched
+   (no sort config).
 
-1. Fix the `sortIndicatorValues: "none"` truthiness bypass (app-side).
-2. Add optional `s` field, e.g.
-   `customValueOrder: { disOpt, orderedIds: string[] }[]` — additive, no
-   migration, no cache bump.
-3. Map it in `get_data_config_from_po.ts` to
-   `{ byIdOrder: orderedIds }` (base fallback `"by-label"`) for whichever axis
-   the disOpt occupies; compose with the roll-up `first`/`last` pin. Degrades
-   gracefully when data gains/loses values.
-4. Editor UI: "custom order" affordance per active disaggregation axis in the
-   style panel → drag-to-reorder modal. Item list comes free from the existing
-   possible-values query (deterministic post-merge via the branch's
-   `Intl.Collator` re-sort). Copy the established drag-reorder pattern
-   (`indicator_manager_hmis/sort_calculated_indicators_modal.tsx`, HFA category
-   managers, slide list).
+## Where it lives
 
-Estimated: a few focused days. No migrations, no cache bumps.
-
-## Why after the merge
-
-- Touches exactly the heaviest merge-traffic files: PO config schema,
-  `get_data_config_from_po.ts`, `get_possible_values.ts`, S9 surface.
-- Builds on ordering semantics the branch already changed: TS `Intl.Collator`
-  re-sort of option lists (both engines) and the DuckDB executor's
-  deterministic total order. Designing against main's collation-ordered base
-  would mean re-validating post-merge.
+- Schema: `lib/types/_presentation_object_config.ts` (+ twins in
+  `_metric_installed.ts`, `_module_definition_github.ts`)
+- Render mapping: `client/src/generate_visualization/get_data_config_from_po.ts`
+  (`getCustomOrderForAxis` / `getCustomOrderSort` / `getAxisSort`)
+- Editor UI: style tab "Custom value order" section, one row per displayed
+  non-replicant dim with possible-values status "ok" →
+  `presentation_object_editor_panel_style/custom_value_order.tsx`
+  (SortableList modal, pre-sorted to render semantics)

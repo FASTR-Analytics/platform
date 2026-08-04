@@ -225,6 +225,49 @@ maintained by jsonb rewrites in the service-category mutations).
 `lib/hfa_indicator_labels.ts` is the single label source
 (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
+**HFA variant groups** (2026-08-04) let one indicator carry a per-item
+response-option breakdown — "provides vaccination" × {campaign, routine,
+both} — without the items becoming indicators. Storage is one indicator row
+plus a sibling code table: `hfa_indicator_variant_groups` /
+`_items` (id PK, group FK) and `hfa_indicator_variant_code`
+(`var_name, time_point, item_id` → `r_code`), with a nullable
+`hfa_indicators.variant_group_id`. Real variant *rows* in `hfa_indicators`
+were rejected: their failure mode is a hiding rule at every surface that
+iterates the dictionary (manager, xlsx, `HfaTaxonomyForAI`,
+unused-variables, run capture and every run reader), and one miss leaks
+item ids into user-facing indicator lists. The code table's cost is the
+opposite and better shaped — a missed extension means a variant lacks a
+feature, visible to the author immediately. **The feature is purely
+additive**: the parent keeps its own overall `r_code` and its unchanged rows
+in `M10_hfa_results.csv`; overall is never derived from items (they may
+overlap or be non-exhaustive). `r_filter_code`, type, aggregation and
+sentinel bindings stay the parent's and apply to every item; only the
+numerator is per-item, and `time_point` stays in the key because each round
+has its own questionnaire (an item with no code row for a round simply
+drops out of it, with its own denominator).
+
+Three invariants are enforced by `assertVariantIntegrity`, re-run **in full
+inside every mutating transaction** that can touch them — including the
+category-side CRUD, because id uniqueness is bidirectional and a category
+created onto an existing item id would otherwise be accepted and then block
+every later indicator write: (1) item ids are unique across ALL HFA id
+namespaces (varNames, categories, sub-categories, service-categories, other
+items) — labels resolve through one flat id→label map, so a collision
+silently mislabels; (2) the generated per-item column `<parent>__<item>`
+(`composeHfaVariantColumnName`) must not collide with an indicator varName,
+a survey variable, another composed name, or `isReservedHfaVarName` (its
+`/__status$/` rule especially — `script.R` collects response-status columns
+by that suffix); (3) an indicator with variant code must have overall code,
+else the generator's "no code" skip silently discards it. The composed name
+is **never parsed back apart** — no separator is unambiguous (parent
+`vacc_a` + item `b` vs parent `vacc` + item `a_b`), so parent/item routing
+into R is metadata-driven only. Item ids therefore carry the strict
+`^[a-z][a-z0-9_]{0,63}$` grammar. Group/item edits do not touch any
+`updated_at`, so they are folded directly into `getHfaIndicatorsVersion`'s
+hash the way the category label tables are — without that, variant
+authoring is invisible to the SSE→cache triangle and to the project
+staleness stamp.
+
 **HFA R-code analysis has ONE source of truth**:
 `lib/hfa_r_code_analysis.ts` (function whitelist, escaped-quote-safe
 string/comment stripping, identifier extraction), shared by the client
@@ -449,6 +492,45 @@ Every config mutation re-reads all configs and pushes one consolidated
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards) — part of the batch-by-batch PT
   rollout.
+
+### HFA variant groups — open questions (from the 2026-08-04 review cycle)
+
+Findings judged real but not fixed, and judgment calls left to Tim. All were
+raised by adversarial review of the shipped feature; none blocks it.
+
+- **Decision needed:** the delete-reference and unused-variable scans are
+  **fail-open** — `findReferencingIndicators` returns `[]` when either code
+  query is non-ready, so a failed variant-code fetch suppresses even
+  main-code warnings rather than saying "references could not be checked".
+  Pre-existing convention for main code; the variant union widened the
+  surface.
+- **Decision needed:** `handleRevalidateAll` and the AI validation tools
+  compute `hasSyntaxError` from main code only, while the editor's save
+  includes variant snippets — so revalidate-all can wipe a variant-only
+  syntax flag. The flag is display-only advisory metadata (generation
+  validates independently), so this is a badge-accuracy question, not a
+  correctness one.
+- A survey-dictionary import can introduce a variable equal to an existing
+  composed `<parent>__<item>` column (ODK/Kobo `group__field` exports make
+  `__` common). `hfa_variables` ingestion does not assert, so the collision
+  lands and then blocks subsequent indicator/variant writes with a message
+  naming the collision. The generation-time hard error remains the data
+  backstop; the open question is whether integration should warn or refuse.
+- A time-point **rename** FK-cascades into `hfa_indicator_variant_code`
+  without bumping any `updated_at` or firing the indicators notify, so an
+  open manager holds code keyed to the old label until remount. The
+  identical hole pre-exists for `hfa_indicator_code`; fixing it means either
+  hashing the code tables or firing the indicators notify from the rename
+  route.
+- `deleteHfaTimePoint`'s friendly guard checks only `hfa_indicator_code`, so
+  a time point used solely by variant code surfaces a raw FK error instead.
+- Variant items sort by `sort_order || label` across ALL groups, so a
+  multi-group visualization interleaves items from different groups —
+  harmless in the per-group-scoped views the presets ship, and the reason
+  those presets scope by category.
+- The metric-variant picker's hardcoded "Select geographic level:" caption
+  (`add_visualization/metric_card.tsx`) predates non-geographic variant
+  pairs and is now wrong for both HFA observed/carried pairs.
 
 ### HFA indicator authoring follow-on (from the retired HFA plans)
 

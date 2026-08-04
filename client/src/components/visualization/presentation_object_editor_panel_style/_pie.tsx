@@ -43,7 +43,31 @@ export function PieStyleControls(p: Props) {
               )
             }
           />
+          <Show when={(p.tempConfig.s.pieInnerRadiusRatio ?? 0) > 0}>
+            <StyleRevealGroup>
+              <Checkbox
+                checked={!!p.tempConfig.s.pieShowCenterValue}
+                onChange={(v) => p.setTempConfig("s", "pieShowCenterValue", v)}
+                label={t3({
+                  en: "Show value in centre",
+                  fr: "Afficher la valeur au centre",
+                  pt: "Mostrar o valor no centro",
+                })}
+              />
+            </StyleRevealGroup>
+          </Show>
           <div class="pt-0.5"></div>
+          <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+            <Checkbox
+              checked={!!p.tempConfig.s.pieCompletionMode}
+              onChange={(v) => p.setTempConfig("s", "pieCompletionMode", v)}
+              label={t3({
+                en: "Show each value against 100%",
+                fr: "Afficher chaque valeur sur 100 %",
+                pt: "Mostrar cada valor sobre 100%",
+              })}
+            />
+          </Show>
           <Checkbox
             checked={p.tempConfig.s.hideLegend}
             onChange={(v) => p.setTempConfig("s", "hideLegend", v)}

@@ -215,6 +215,7 @@ export function buildFigureInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
       localization,
+      effectiveFormatAs,
       items,
     );
     // Transform eagerly (timeseries precedent) so transform-time throws

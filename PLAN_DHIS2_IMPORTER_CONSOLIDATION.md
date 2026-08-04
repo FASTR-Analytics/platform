@@ -1,8 +1,11 @@
 # Plan — Import consolidation: config-on-client, run-on-server, for HMIS + HFA + ICEH
 
-**Status (2026-07-16): complete plan, nothing built. All four phases are
+**Status (2026-08-04): complete plan, nothing built. All four phases are
 mechanically specced** (B/C specs verified against a full inventory of the
-HFA/ICEH machinery, 2026-07-16). Supersedes two deleted plans (both in git
+HFA/ICEH machinery 2026-07-16; fully re-verified against the codebase
+2026-08-04 — the 2026-07-23 HFA row-filter/dedup work, the results-runs plane
+(migrations 065–067), and migrations 063–069 generally are folded in below).
+Supersedes two deleted plans (both in git
 history): PLAN_DHIS2_IMPORTER.md's §9 (Phase 5, CSV re-flow — everything it
 ruled: launch-and-observe, the conditional review gate, hold-with-diagnostics,
 survives here as run states instead of attempt states; the gate rationale is
@@ -26,6 +29,7 @@ untouched on their old machinery.
   (registry-as-contract), SYSTEM_02_persistence.md (SQL-safety rule — no
   parameterized table names), PROTOCOL_APP_MIGRATIONS.md,
   PROTOCOL_APP_WORKER_ROUTINES.md (READY handshake, teardown contract),
+  SYSTEM_04_assets_upload.md (the TUS front door A3 extends),
   SYSTEM_08_results_packages.md, PROTOCOL_APP_STATE.md (wizard state is
   component-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md describes the
   machinery being replaced (its "HMIS DHIS2 import runs" section is the
@@ -45,19 +49,29 @@ untouched on their old machinery.
     `server/db/instance/dataset_hfa.ts`; two workers
     (`worker_routines/stage_hfa_data_csv/`, `integrate_hfa_data/`), fixed
     staging-table names in `server/exposed_env_vars.ts`; client wizard
-    `instance_dataset_hfa_import/`, sidebar in `instance_dataset_hfa/`. Outcome
+    `instance_dataset_hfa_import/` (nine files, five steps — the 2026-07-23
+    row-filter/dedup work added a duplicates-review step backed by
+    `server/server_only_funcs_csvs/scan_hfa_rows.ts`), sidebar in
+    `instance_dataset_hfa/`. Outcome
     plane = `hfa_time_points` (imported_at stamp) + `hfa_data`/
     `hfa_variables`/`hfa_variable_values`.
   - ICEH: singleton `iceh_upload_attempts` row; everything in
     `server/db/instance/dataset_iceh.ts`; **no worker** — ingest is a
     fire-and-forget un-awaited promise (`stageAndIntegrateIcehData`, called
     without await from `updateDatasetIcehUploadAttemptStep2`); client wizard
-    `instance_dataset_iceh_import/` (the only consumer of the shared
-    `_import_wizard/import_wizard_shell.tsx`), sidebar in
+    `instance_dataset_iceh_import/` (a consumer — no longer the only one — of
+    the shared `_import_wizard/import_wizard_shell.tsx`; see C7), sidebar in
     `instance_dataset_iceh/`. Outcome plane = `iceh_indicators` + `iceh_data`
     (cumulative upsert, no versions).
+- **Vocabulary: "runs" is overloaded since 2026-07-28.** Migrations 065–067
+  added the results-runs plane (`runs`, `run_generation_attempts`,
+  `server/runs/`, `worker_routines/generate_run/`) — verified disjoint from
+  every import table. In this plan "run" always means an import run in a
+  family's own `*_import_runs` table; keep the planes verbally distinct in
+  code, UI copy, and the Phase D doc rewrite.
 - **Line anchors in this plan drift** (the repo is under active parallel work) —
-  treat every `file:line` as a hint; re-grep the symbol before editing.
+  anchors re-verified 2026-08-04; still treat every `file:line` as a hint and
+  re-grep the symbol before editing.
 - **Verification:** each phase ends with a Verify section (typecheck +
   `./validate_migrations` + a harness + live click-throughs). Live
   click-throughs run against the dev instance (`./run`, or `deno task dev` +
@@ -110,7 +124,19 @@ SYSTEM_06 ingestion doc is SHORTER than today's, or we've failed the brief.
   parameterized table names), and NO config-driven wizard engine — three plain
   wizards sharing parts beat one clever abstraction (variants are bounded at
   four, forever). (The existing `_import_wizard/import_wizard_shell.tsx`
-  descriptor shell — one consumer, ICEH — dies in Phase C with its consumer.)
+  descriptor shell does NOT die: it gained a second consumer on 2026-07-13 —
+  `results_package_wizard/` — so ICEH merely stops consuming it in Phase C and
+  its ownership moves to SYSTEM_08 in Phase D.)
+- **State tiers (fits PROTOCOL_APP_STATE.md unchanged).** Wizards = T5
+  (client-local signals, invariant 3). Run Current/History fetches = T3
+  polling in the dataset components, same as `dhis2_run/` today — no new
+  state files. Completion propagates through the existing triangle:
+  worker finalize → `notifyInstanceDatasetsUpdated` → `datasets_updated` →
+  `hfaCacheHash`/`icehCacheHash` → T2 invalidation. NO new T1 fields: the
+  HMIS `hmisImportRunActive` bypass exists for per-pair DHIS2 integration;
+  HFA/ICEH stay single-transaction, so no run-active flag or cache bypass is
+  needed (and `hmisImportRunActive` automatically covers CSV runs once they
+  share the runs table — harmless-conservative).
 - **Asymmetry by design.** HMIS is the main event (DHIS2 primary source, huge,
   always updating) and gets the full machine: queue, scheduler, needs_review,
   per-pair DHIS2 + single-transaction CSV. HFA and ICEH are small single-file
@@ -147,8 +173,8 @@ SYSTEM_06 ingestion doc is SHORTER than today's, or we've failed the brief.
 - Deleted: `dataset_hmis_upload_attempts`, `hfa_upload_attempts`,
   `iceh_upload_attempts`; every step-resync route; the cross-guard lattice; all
   sidebar draft/staging/integrating attempt cards and their polling; the
-  resumable-wizard client logic; `_import_wizard/import_wizard_shell.tsx`; the
-  fixed staging-table name constants; HMIS "View previous imports" as an entry
+  resumable-wizard client logic; the fixed staging-table name constants; HMIS
+  "View previous imports" as an entry
   point (content reachable from History click-through; versions tables and
   `_import_information.tsx` unchanged).
 - The failure-mode knowledge from the Phase 3/4 reviews (claim races,
@@ -164,12 +190,15 @@ The HMIS attempt machinery is deleted. This is where the shared contract helpers
 and shared wizard components get extracted — against a second concrete consumer,
 not speculatively.
 
-### A1. Migration 063 + base schema (`_main_database.sql`)
+### A1. Migration (next free — 070 as of 2026-08-04) + base schema (`_main_database.sql`)
 
-(061/062 were consumed by the credential-store consolidation on 2026-07-16 — use
-the next free number at build time; B and C add their own migrations after it.)
+(Numbering: 063–069 are all consumed — 063 dropped `shadow_passed` from this
+very table, 064 schedule recurrence, 065–067 results runs, 068 structure
+recodes, 069 HFA variants. Use the next free number at build time; B and C add
+their own migrations after it.)
 
-`dataset_hmis_import_runs` (057/058 shape, verified 2026-07-16):
+`dataset_hmis_import_runs` (057/058 shape minus `shadow_passed`, which 063
+dropped; re-verified 2026-08-04):
 
 - `ADD COLUMN source text NOT NULL DEFAULT 'dhis2' CHECK (source IN
   ('dhis2', 'csv'))`,
@@ -185,9 +214,10 @@ the next free number at build time; B and C add their own migrations after it.)
 - Status CHECK gains `'needs_review'` (the 058 pattern: drop + re-add the
   constraint with the new value).
 - `DROP TABLE IF EXISTS dataset_hmis_upload_attempts` + remove from base schema
-  (base-schema-born at `_main_database.sql:412` — confirm no older migration
-  creates it; if one does, the unconditional `IF EXISTS` drop still leaves
-  fresh-DB and deployed-DB schemas identical, which is what
+  (base-schema-born at `_main_database.sql:449`, plus its two indexes
+  `idx_dataset_hmis_upload_attempts_status_type`/`_date_started`; verified
+  2026-08-04 that no migration creates it, so the unconditional `IF EXISTS`
+  drop leaves fresh-DB and deployed-DB schemas identical, which is what
   `./validate_migrations` checks).
 - Run `./validate_migrations`.
 
@@ -203,22 +233,45 @@ result on the version row, as today.
   (discriminated where the wire shape forks).
 - New `DatasetHmisCsvRunConfig` type (uploadToken/fileName/mappings) — reuse the
   existing step-2 mappings type verbatim; do not redesign the mapping shape.
-- Delete with the routes (A5): `DatasetUploadAttemptDetail`,
-  `DatasetUploadStatusResponse`, `DatasetUploadAttemptSummary`, and the
-  `uploadAttempt` field on `DatasetHmisDetail` (`lib/types/dataset_hmis.ts`).
+- Delete with the routes (A5): `DatasetUploadAttemptDetail` (+ its
+  `Initial`/`Csv` variants), `DatasetUploadStatusResponse`,
+  `DatasetUploadAttemptSummary`, `DatasetUploadAttemptStatusLight` — all in
+  `lib/types/dataset_hmis_import.ts`, NOT `dataset_hmis.ts` — and the
+  `uploadAttempt` field on `DatasetHmisDetail` (`lib/types/dataset_hmis.ts:8`).
+  `DatasetCsvStagingResult` SURVIVES: `DatasetHmisVersion.stagingResult`
+  references it.
 
-### A3. Temp uploads (invariant 3's server half)
+### A3. Temp uploads (invariant 3's server half — net-new mechanism)
 
-- The CSV file lands exactly as today (same upload plumbing/endpoint the step-1
-  wizard uses — **verify the exact keying at build time**), but keyed by a
-  generated upload token instead of the single attempt row.
-- Orphan sweep: on `db_startup` (alongside the existing stale-run sweep), delete
-  temp uploads older than 24 h (builder default) that no run row references.
+Verified 2026-08-04: **no token-keyed temp-upload mechanism exists anywhere in
+the repo.** Today the step-1 CSV rides `FileUploadSelector` → the TUS endpoint
+(`server/routes/instance/upload.ts`) → `Deno.rename` into the assets dir as a
+PERMANENT named instance asset, and the step route receives just the asset file
+name (ICEH zips likewise — nothing ever deletes them). The closest precedent is
+TUS's internal store — `crypto.randomUUID()` id, `.tus-uploads/` dir, 24 h
+`cleanupOldUploads()` sweep — but its keying Map is in-memory: not
+restart-safe, not referenceable from a run row.
+
+Build (keeping SYSTEM_04's one-front-door rule — a mode on the existing TUS
+endpoint, never a parallel upload endpoint):
+
+- TUS creation gains a wizard-temp mode (metadata flag passed by
+  `FileUploadSelector`): on completion the file lands at
+  `{instance dir}/.import-uploads/{uploadToken}__{sanitizedFileName}` with NO
+  asset-metadata row. The token (a fresh UUID) is the durable key — it lives in
+  the filename, so a restart loses nothing. `FileUploadSelector` returns the
+  token directly instead of waiting for the asset to appear over SSE.
+- Orphan sweep on `db_startup` (alongside the existing sweeps): delete
+  `.import-uploads` files older than 24 h whose token appears in no run row
+  with status `running`/`queued`/`needs_review` (across every family's runs
+  table as B/C land). Workers delete the files on complete/discard via
+  finalize.
 - Wizard parse/validate endpoints are **stateless**:
   `parse headers for
   uploadToken` (feeds the mappings step; reuse the existing
   step-2 parsing logic as-is, re-exposed without the attempt row) — nothing is
   persisted by these calls.
+- SYSTEM_04's doc gains the mode (Phase D).
 
 ### A4. The CSV run worker (`server/worker_routines/import_hmis_data_csv/`)
 
@@ -228,7 +281,11 @@ existing `"hmis"` worker key:
 
 - **Stage leg** (run status `running`): stage the file, evaluate the clean
   condition server-side. **HMIS clean condition (the exact §9 rule):** every
-  `validation.*.rowsDropped` = 0 AND `finalStagingRowCount > 0`.
+  `validation.*.rowsDropped` = 0 AND `finalStagingRowCount > 0` (the five
+  counters: invalidPeriods, invalidCounts, missingRequiredFields,
+  invalidFacilities, unmappedIndicators). `validation` is optional on
+  `DatasetCsvStagingResult` — the worker treats a missing `validation` as
+  `error`, never as clean.
   - Clean → proceed straight to the integrate leg (auto-integrate, no human).
   - Dropped rows → write diagnostics to the run, flip to `needs_review`,
     **release the claim** (§2's ruled change), exit worker.
@@ -236,26 +293,35 @@ existing `"hmis"` worker key:
 - **Integrate leg**: the existing single-transaction CSV integration (version
   minted MAX(id)-inline as today, ledger writes unchanged, scoped-delete
   interplay unchanged).
-- **Per-run staging table** (`staging_hmis_csv_run_{runId}` or an equivalent
-  suffix scheme): staging output must survive a `needs_review` hold across other
-  imports running in between, and be dropped on integrate/discard/sweep. This
+- **Per-run staging tables** (`_run_{runId}` suffix scheme): staging output
+  must survive a `needs_review` hold across other imports running in between,
+  and be dropped on integrate/discard/sweep. The stage worker builds FOUR
+  tables (the final `uploaded_hmis_data_staging_ready_for_integration` plus
+  three throwaway UNLOGGED temps, `stage_hmis_data_csv/worker.ts:125,272,376`)
+  — all four get the suffix and all four drop on every exit path. This
   replaces the fixed-name staging table assumption — it is the one piece of new
   mechanism in the whole phase, and what makes releasing the slot safe. Delete
-  the HMIS fixed staging-table-name constants once nothing reads them.
+  the HMIS fixed staging-table-name constant once nothing reads it.
 - Contract compliance throughout: READY handshake, status-guarded progress
   writes (the 2 s throttle helper), finalize on every exit path, boot sweep
   covers `running` CSV runs (flip to `error`, drop the staging table), workers
   never self-close.
 - **This is where the shared helpers get extracted**: pull the
-  throttled-progress writer, finalize-retry shape, error classification, and
-  sweep registration out of `import_hmis_data_dhis2/` into shared
-  worker-contract helpers consumed by both workers (and by B/C's workers later).
-  Extraction with two concrete consumers, no speculation.
+  throttled-progress writer (`import_hmis_data_dhis2/worker.ts:201-223`),
+  finalize-retry shape, error classification (the ad-hoc catch block at
+  `worker.ts:1003-1038`), and sweep registration out of
+  `import_hmis_data_dhis2/` into shared worker-contract helpers consumed by
+  both workers (and by B/C's workers later). Extraction with two concrete
+  consumers, no speculation. Two corrections from the 2026-08-04 verification:
+  the READY handshake is ALREADY shared (`instantiate_worker_generic.ts`, all
+  worker families) — do not re-extract it; and the results-runs work
+  (`generate_run/`) built NO reusable run/worker helpers — it has its own
+  copies, so there is nothing there to reuse.
 
 ### A5. Routes (registry-first, per PROTOCOL_APP_ROUTES)
 
 Deleted (registry + handlers + client callers — the "Upload workflow" block in
-`lib/api-routes/instance/datasets.ts`, names verified 2026-07-16):
+`lib/api-routes/instance/datasets.ts`, names re-verified 2026-08-04):
 `createDatasetUploadAttempt`, `setDatasetUploadSourceType`, `getDatasetUpload`,
 `getDatasetUploadStatus`, `deleteDatasetUploadAttempt`, `uploadDatasetCsv`,
 `updateDatasetMappings`, `updateDatasetStaging`, `finalizeDatasetIntegration`.
@@ -264,12 +330,17 @@ Deleted (registry + handlers + client callers — the "Upload workflow" block in
 Added:
 
 - `launchDatasetHmisCsvRun` — validates config at the boundary (mappings shape,
-  uploadToken exists), then the same launch-or-enqueue fork as DHIS2 (C6:
-  explicit queue, never silent; the wizard's review step carries the fork copy).
-  Queued CSV runs are drained by the existing tick FIFO — **the tick's
-  queued-fire path gains a by-source branch**: CSV fires need no credentials and
-  no unattended gate (the file is already on the server and user-authored
-  consent happened at launch).
+  uploadToken exists), then the same launch-or-enqueue fork as DHIS2 (the
+  ruled queue model: queueing is EXPLICIT — the user confirms "queue behind the
+  running import", never a silent default; the wizard's review step carries the
+  fork copy, same as the DHIS2 wizard's step 5 today).
+  Queued CSV runs are drained by the existing tick FIFO — **`fireQueuedRun`
+  gains a by-source branch** (`scheduler.ts:487-521`): CSV fires skip the two
+  stored-credential checks (existence + URL-match) and the hardcoded
+  `credentialsSource: { kind: "stored" }`
+  (`dataset_hmis_import_runs.ts:434`). That is the whole branch — there is no
+  unattended gate on the queued-fire path (the `shadow_passed` gate died with
+  migration 063; `assertUnattendedReady` guards only schedule create/enable).
 - `resolveDatasetHmisCsvReview` — body
   `{ runId, action:
   "integrate_anyway" | "discard" }`. Integrate-anyway
@@ -279,22 +350,27 @@ Added:
 
 ### A6. Cross-guard deletion
 
-- `countActiveCsvAttempts` (`dataset_hmis_import_runs.ts:176`) and ALL five call
-  sites — deleted: the two scheduler gates (`scheduler.ts:362`, `:531`), the
-  launch read-guard (`dataset_hmis_import_runs.ts:275`), and the two
-  **post-claim re-checks** (launch `:300`, queued-fire `:425`). The re-checks
+- `countActiveCsvAttempts` (`dataset_hmis_import_runs.ts:175`) and ALL five call
+  sites — deleted: the two scheduler gates (`scheduler.ts:432`, `:582`), the
+  launch read-guard (`dataset_hmis_import_runs.ts:274`), and the two
+  **post-claim re-checks** (launch `:299`, queued-fire `:424`). The re-checks
   deserve emphasis: they exist solely to defend against the cross-table race (a
   CSV attempt claiming between the read-guard and the runs-table INSERT). Once
   CSV imports live inside the same partial-unique-index claim, that race is
   structurally impossible — the whole two-phase guard ceremony deletes, not just
   the guard calls. (Zombie states stop being possible rather than being handled
   — invariant 3's argument, applied to concurrency.)
-- The attempt-side guards in `dataset_hmis_import_runs.ts` (the "CSV
-  staging/integration and windowed deletion call this before claiming" comment
-  block) — the CSV halves die; **windowed deletes keep a guard**, now a single
+- The attempt-side guards die too: `assertNoRunningDatasetHmisImportRun`'s CSV
+  consumers in `dataset_hmis.ts` — the step-3 staging claim + post-claim run
+  re-check (`:842`, `:877`) and the step-4 integrate pair (`:961`, `:990`) —
+  go with the machinery; **windowed deletes keep a guard**
+  (`datasets_in_project_hmis.ts:161`, `dataset_hmis.ts:189`), now a single
   runs-table check instead of runs + attempts.
-- `db_startup`'s attempt sweep → deleted (run sweep already exists; temp-upload
-  sweep added per A3).
+- `db_startup`'s attempt sweep: delete only the `dataset_hmis_upload_attempts`
+  line from `resetWedgedUploadAttempts` (`db_startup.ts:132-149`; B and C
+  delete their lines). **The `structure_upload_attempts` arm survives all four
+  phases** — the structure family still runs on attempts (migration 068,
+  2026-08-04). Run sweep already exists; temp-upload sweep added per A3.
 
 ### A7. Client
 
@@ -323,8 +399,9 @@ Added:
   than being rewritten.
 - Wizard-shell/naming note (builder): the imports-surface folder is currently
   `dhis2_run/`; with a CSV wizard moving in, renaming the folder (e.g.
-  `imports/`) is consistent with the ruled source-neutral naming — do it in this
-  phase or not at all (no half-renames).
+  `imports/`) is consistent with the ruled source-neutral naming AND keeps
+  "run" from colliding with the results-runs plane — do it in this phase or not
+  at all (no half-renames).
 
 ### A8. Verify (Phase A)
 
@@ -346,10 +423,13 @@ Added:
 ## Phase B — HFA (the same shape, smaller machine)
 
 HFA import becomes a run in a new `hfa_import_runs` table; the singleton
-`hfa_upload_attempts` machinery is deleted. Facts verified 2026-07-16 against
-`dataset_hfa.ts`, the two HFA workers, and the client wizard.
+`hfa_upload_attempts` machinery is deleted. Facts re-verified 2026-08-04 —
+NOTE: the 2026-07-23 row-filter/dedup work is the largest source of change
+since this plan was drafted (five-field mappings, a duplicates-review wizard
+step, `scan_hfa_rows.ts`); it is folded into B2/B4/B5/B7 below. Migration 069
+(HFA indicator variants) does NOT touch the import pipeline — verified.
 
-### B1. Migration 064 + base schema
+### B1. Migration (next free after A's — 071 as of 2026-08-04) + base schema
 
 New table `hfa_import_runs`:
 
@@ -382,7 +462,7 @@ deleted.
 - `DROP TABLE IF EXISTS hfa_upload_attempts` + remove from base schema. Note:
   migration `023_hfa_schema_redesign.sql` re-creates it with
   `CREATE TABLE IF NOT EXISTS` on a fresh DB (023 stays unrewritten per
-  PROTOCOL_APP_MIGRATIONS) — the unconditional `IF EXISTS` drop in 064 runs
+  PROTOCOL_APP_MIGRATIONS) — the unconditional `IF EXISTS` drop here runs
   after 023 and removes it, so fresh-DB and deployed-DB schemas converge (same
   pattern migration 061 used for the credentials table). No data migration:
   attempt rows are transient wizard state; an in-flight import at deploy time
@@ -395,14 +475,23 @@ deleted.
   diagnostics?, nRowsIntegrated?, error?, startedAt, endedAt, triggeredBy) in
   `lib/types/dataset_hfa_import.ts`; Zod schemas in
   `lib/api-routes/instance/datasets.ts`.
-- `HfaCsvMappingParams` (`{facilityIdColumn, timePoint}`) reused verbatim as the
-  mappings shape — do not redesign.
-- `DatasetHfaCsvStagingResult` reused verbatim as the diagnostics shape, EXCEPT
-  the three staging-table-name fields become the per-run names (B4).
+- `HfaCsvMappingParams` reused verbatim as the mappings shape — do not
+  redesign. It is FIVE fields since 2026-07-23
+  (`lib/types/dataset_hfa_import.ts:94`): `{facilityIdColumn, timePoint,
+  rowFilters, dedupStrategy, dedupOverrides}`; the run's `csv_config` carries
+  all five.
+- `DatasetHfaCsvStagingResult` reused verbatim as the diagnostics shape (it
+  gained `nRowsFilteredOut`/`dedupStrategy`/`nDedupOverridesApplied` on
+  2026-07-23), EXCEPT the three staging-table-name fields become the per-run
+  names (B4).
+- `HfaDuplicatePreview`/`HfaDuplicateGroup` survive (consumed by the stateless
+  preview route, B5); `HfaRowFilter`/`HfaDedupOverride` survive inside the
+  mappings type.
 - Delete with the routes (B5): `DatasetHfaUploadAttemptDetail`,
   `DatasetHfaUploadStatusResponse`, `DatasetHfaUploadAttemptSummary`,
-  `DatasetHfaUploadAttemptStatus`, and the `uploadAttempt` field on
-  `DatasetHfaDetail` (`lib/types/dataset_hfa.ts:21`).
+  `DatasetHfaUploadAttemptStatus`, `DatasetHfaUploadAttemptStatusLight`, and
+  the `uploadAttempt` field on `DatasetHfaDetail`
+  (`lib/types/dataset_hfa.ts:21`).
 
 ### B3. Temp uploads
 
@@ -422,24 +511,32 @@ the integrate internals (the single `mainDb.begin` transaction stamping
 functions the new worker calls; the old worker entry files die.
 
 - **Stage leg**: stage into per-run tables, evaluate the clean condition. **HFA
-  clean condition:**
-  `(nRowsInvalidMissingFacilityId + nRowsInvalidFacilityNotFound +
-  nRowsDuplicated) = 0 AND nRowsTotal > 0`
-  — exactly the counters the old step-4 warning banner summed, now enforced
-  server-side. (Note the units: the three drop counters are facility-row counts;
-  `nRowsTotal` is the long-format value count. That asymmetry is fine for the
-  gate — zero drops is zero drops.)
+  clean condition (re-derived 2026-08-04 — the dedup work changed what the
+  counters mean):**
+  `(nRowsInvalidMissingFacilityId + nRowsInvalidFacilityNotFound) = 0
+  AND nRowsTotal > 0`.
+  `nRowsDuplicated` does NOT gate: duplicates are RESOLVED at wizard time by
+  `dedupStrategy` + `dedupOverrides`, so a nonzero count is normal, not a drop.
+  `nRowsFilteredOut` does not gate either — row filters are user-authored
+  intent. (Units note: the drop counters are facility-row counts; `nRowsTotal`
+  is the long-format value count. That asymmetry is fine for the gate — zero
+  drops is zero drops.)
   - Clean → integrate leg directly (auto-integrate).
   - Drops → diagnostics onto the run, `needs_review`, release claim, exit.
   - `nRowsTotal = 0` → `error`, loud.
 - **Integrate leg**: the existing single transaction, unchanged semantics
-  (time-point stamp, per-time-point delete + insert).
+  (time-point stamp, per-time-point delete + insert), including the
+  pre-transaction re-validation of staged facilities against `facilities_hfa`
+  (`integrate_hfa_data/worker.ts:91-105`).
 - **Per-run staging tables**: replace the three fixed names from
   `exposed_env_vars.ts` (`uploaded_hfa_data_staging_ready_for_integration`,
   `uploaded_hfa_dictionary_vars_staging`,
-  `uploaded_hfa_dictionary_values_staging`) and the two intra-worker temps with
-  `_run_{runId}`-suffixed names recorded in the run's diagnostics JSON. Delete
-  the fixed-name constants. Dropped on integrate/discard/sweep.
+  `uploaded_hfa_dictionary_values_staging`) and the THREE intra-worker temps
+  (`uploaded_data_staging_raw_hfa`, `temp_valid_facilities_hfa`,
+  `temp_keep_rows_hfa`) with `_run_{runId}`-suffixed names recorded in the
+  run's diagnostics JSON. Delete the fixed-name constants. Dropped on
+  integrate/discard/sweep — which incidentally fixes today's leak
+  (`deleteDatasetHfaUploadAttempt` never drops the first two temps).
 - Contract compliance via the Phase A shared helpers: READY handshake, throttled
   status-guarded progress writes, finalize on every exit path, boot sweep flips
   stranded `running` HFA runs → `error` + drops their staging tables, workers
@@ -447,16 +544,20 @@ functions the new worker calls; the old worker entry files die.
 - Launch-time validations (moved from the old step functions, all stateless):
   `facilities_hfa` non-empty (old create-attempt guard), timePoint exists in
   `hfa_time_points` (old step-2 guard), XLSForm sheets present (old step-1
-  guard), reserved var name `weight` rejected (stays inside the stage
-  internals).
+  guard), reserved var names rejected via `isReservedHfaVarName`
+  (`lib/hfa_r_code_analysis.ts` — the full set: R keywords, and/or aliases,
+  `weight`, `time_point`, `facility_*`; no longer just `weight`; stays inside
+  the stage internals).
 
 ### B5. Routes
 
-Deleted (registry + handlers + client callers, names verified 2026-07-16):
+Deleted (registry + handlers + client callers, names re-verified 2026-08-04):
 `createDatasetHfaUploadAttempt`, `getDatasetHfaUpload`,
 `getDatasetHfaUploadStatus`, `deleteDatasetHfaUploadAttempt`,
-`uploadDatasetHfaCsv`, `updateDatasetHfaMappings`, `updateDatasetHfaStaging`,
-`finalizeDatasetHfaIntegration`. `getDatasetHfaDetail` loses its `uploadAttempt`
+`uploadDatasetHfaCsv`, `updateDatasetHfaMappings`,
+`getDatasetHfaDuplicatePreview` (added 2026-07-23; its `scan_hfa_rows.ts`
+internals survive, re-consumed by the stateless preview below),
+`updateDatasetHfaStaging`, `finalizeDatasetHfaIntegration`. `getDatasetHfaDetail` loses its `uploadAttempt`
 field (its cache hash is safe — `computeHfaCacheHash` reads only time-point
 rows, verified).
 
@@ -481,6 +582,12 @@ existing read guard):
   xlsFormUploadToken }`; returns CSV headers (+ XLSForm
   sheet check errors) for the mappings step. Reuses today's step-1 parse
   internals.
+- Stateless `previewDatasetHfaDuplicates` — body
+  `{ csvUploadToken, facilityIdColumn, rowFilters }`; returns
+  `HfaDuplicatePreview` for the duplicates step by streaming the temp upload
+  through the `scan_hfa_rows.ts` internals (today's stateful
+  `getDatasetHfaDuplicatePreview` reads saved step results off the attempt
+  row; this re-exposes the same scan without it).
 
 Completion keeps firing `notifyInstanceDatasetsUpdated` (today's step-4
 onComplete), from the worker's finalize path.
@@ -494,24 +601,30 @@ onComplete), from the worker's finalize path.
 
 ### B7. Client
 
-- Modal wizard (shared components from A7): **Upload** (two
+- Modal wizard (shared components from A7), four steps: **Upload** (two
   `FileUploadSelector`s: CSV + XLSForm — today's step_1 relocated) →
   **Mappings** (today's step_2 UI relocated verbatim: `facilityIdColumn` Select
-  over parsed headers + `timePoint` Select over `instanceState.hfaTimePoints`;
-  time points are created on the time-points page, not here) → **Review &
-  launch** (file names, header count, time point; Start button only — no queue
-  fork; refusal error renders inline).
+  over parsed headers + `timePoint` Select over `instanceState.hfaTimePoints` +
+  the row-filter editor and dedup-strategy control that live there today; time
+  points are created on the time-points page, not here) → **Duplicates**
+  (today's step_3 relocated, fed by the stateless
+  `previewDatasetHfaDuplicates`; auto-skipped when the preview finds none — the
+  attempt row's `reviewConfirmed` threading dies) → **Review & launch** (file
+  names, header count, time point, filter/dedup summary; Start button only — no
+  queue fork; refusal error renders inline).
 - HFA page sidebar (`instance_dataset_hfa/index.tsx`): "Start new import" opens
   the modal; the singleton attempt card + its 5 s `getDatasetHfaDetail` poll
   die. In their place: a Current card (running progress / needs_review with
-  relocated step-4 diagnostics render + Integrate-anyway/Discard) and a History
+  relocated step-5 diagnostics render + Integrate-anyway/Discard) and a History
   list (time point, file, status, rows integrated, date; click-through shows the
   run's diagnostics). No tabs — no Future.
-- Delete `instance_dataset_hfa_import/` (verified file list: index, step_1,
-  step_2, step_3, step_4, progress_staging, progress_integrating,
-  progress_complete); step_2's mapping form and step_4's diagnostics render
-  relocate, the rest dies ("Remove completed upload form" ceases to exist —
-  History holds outcomes).
+- Delete `instance_dataset_hfa_import/` (verified file list 2026-08-04: index,
+  step_1, step_2, step_3, step_4, step_5, progress_staging,
+  progress_integrating, progress_complete — nine files); step_2's
+  mapping/filter form, step_3's duplicates review, and step_5's staging-results
+  render relocate (step_5, not step_4, holds the diagnostics render today), the
+  rest dies ("Remove completed upload form" ceases to exist — History holds
+  outcomes).
 
 ### B8. Verify (Phase B)
 
@@ -522,8 +635,10 @@ onComplete), from the worker's finalize path.
    stranded running row.
 3. Live click-throughs (synthetic HFA CSV + minimal XLSForm): clean file →
    auto-integrates, `hfa_time_points.imported_at` stamped, data tables
-   populated, History row present with diagnostics; dirty file (unknown facility
-   ids) → needs_review with the three drop counters → Integrate anyway
+   populated, History row present with diagnostics; file with duplicate
+   facility rows → Duplicates step shows the groups, chosen strategy/overrides
+   land in the staged output, no needs_review; dirty file (unknown facility
+   ids) → needs_review with the two facility drop counters → Integrate anyway
    completes; delete-data flows unchanged.
 4. SYSTEM_06's HFA sections rewritten to the run model (shorter).
 
@@ -533,13 +648,17 @@ onComplete), from the worker's finalize path.
 
 ICEH import becomes a run in a new `iceh_import_runs` table; the singleton
 `iceh_upload_attempts` machinery is deleted. ICEH gets a real worker for the
-first time — today's ingest is an un-awaited in-process promise, and a server
-restart mid-ingest permanently wedges the singleton row (`status_type` guards
-block create/delete/step2 forever with no recovery path). The run model + boot
-sweep fixes that defect outright. Facts verified 2026-07-16 against
-`dataset_iceh.ts` and the client.
+first time — today's ingest is an un-awaited in-process promise: uncancellable,
+progress frozen at 0% for the whole run (the only progress writes are two
+literal zeros, `dataset_iceh.ts:414`/`:590`), and no durable import history.
+(Correction 2026-08-04: the restart-wedge this plan originally cited is already
+recovered at boot — `resetWedgedUploadAttempts` has flipped stuck ICEH attempts
+to `error` since 2026-06-11, `db_startup.ts:140`; that sweep arm becomes a
+deletion target here. The intra-process wedge — an abandoned promise nothing
+can cancel — remains real and is what the worker model fixes.) Facts
+re-verified 2026-08-04 against `dataset_iceh.ts` and the client.
 
-### C1. Migration 065 + base schema
+### C1. Migration (next free after B's — 072 as of 2026-08-04) + base schema
 
 New table `iceh_import_runs`:
 
@@ -567,13 +686,18 @@ first-ever durable import history.
 
 - `DROP TABLE IF EXISTS iceh_upload_attempts` + remove from base schema.
   Migration `037_iceh_tables.sql` re-creates it on a fresh DB (037 stays
-  unrewritten) — the unconditional drop in 065 runs after and removes it, same
+  unrewritten) — the unconditional drop here runs after and removes it, same
   pattern as B1/061.
 - **Cache-hash re-derivation (required, verified):** `getIcehCacheHash`
   (`dataset_iceh.ts:46`) currently hashes the ATTEMPT row's
-  `date_started:status_type` plus data counts. Re-derive from the latest
-  `iceh_import_runs` row (`id:status`) plus the same data counts — otherwise the
-  client display cache never invalidates after imports.
+  `date_started:status_type` plus indicator/data-row counts and the
+  distinct-years list. Re-derive from the latest `iceh_import_runs` row
+  (`id:status`) plus the same data facts — otherwise the client display cache
+  never invalidates after imports. **It now has TWO consumers** (2026-07-29):
+  the client display cache (`instance.ts:271`) AND the results-run capture
+  staleness hash (`datasets_in_project_iceh.ts:53`, read before CSV export) —
+  the re-derivation must keep "hash changes iff import state changed" for both;
+  C8 verifies the run-capture side.
 - Run `./validate_migrations`.
 
 ### C2. Types + schemas
@@ -582,8 +706,9 @@ first-ever durable import history.
   `lib/api-routes/instance/iceh.ts`.
 - `IcehStep1Result` (zip preview) and `IcehStagingResult` reused verbatim.
 - Delete with the routes (C5): `IcehUploadAttemptDetail`,
-  `IcehUploadAttemptStatus`, and the attempt summary on `getDatasetIcehDetail`'s
-  response type.
+  `IcehUploadAttemptStatus`, `IcehUploadAttemptStatusLight`,
+  `IcehUploadAttemptSummary`, `IcehUploadStatusResponse`, and the attempt
+  summary on `getDatasetIcehDetail`'s response type.
 
 ### C3. Temp uploads
 
@@ -600,9 +725,17 @@ CSV/xlsx parse, per-row validation, and the single `mainDb.begin` transaction
 fire-and-forget call site dies.
 
 - **Stage leg** (in-memory, as today — ICEH is small; no staging tables):
-  parse + validate, then evaluate the clean condition. **ICEH clean condition:**
-  `nRowsSkippedUnknownStrat = 0 AND
-  validDataRows > 0`. Deliberately
+  parse + validate, then evaluate the clean condition. **ICEH clean condition
+  (extended 2026-08-04):**
+  `(nRowsSkippedUnknownStrat + nRowsSkippedInvalidYear +
+  nRowsSkippedUnknownIndicator) = 0 AND validDataRows > 0`. The last two
+  counters are NEW — today `isNaN(year)` rows (`dataset_iceh.ts:546`) and rows
+  whose indicator code is absent from `indicators.xlsx` (an insert-time
+  `continue`, `:616`) drop silently with no counter; both are silent partial
+  merges of exactly the kind the gate exists to prevent, so the stage leg
+  counts them (the indicator check moves from insert time into stage
+  validation — a counted diagnostic, not a change to integration semantics).
+  Deliberately
   family-specific: `nRowsSkippedMissingEstimate` does NOT hold the run — "NA"
   estimates are a normal feature of ICEH Retriever exports, not a mapping error;
   they are reported in the diagnostics but never block. Unknown strats, by
@@ -627,7 +760,7 @@ fire-and-forget call site dies.
 
 ### C5. Routes
 
-Deleted (registry + handlers + client callers, names verified 2026-07-16):
+Deleted (registry + handlers + client callers, names re-verified 2026-08-04):
 `createDatasetIcehUploadAttempt`, `getDatasetIcehUploadAttempt`,
 `getDatasetIcehUploadStatus`, `deleteDatasetIcehUploadAttempt`,
 `updateDatasetIcehUploadAttemptStep1`, `updateDatasetIcehUploadAttemptStep2`.
@@ -669,9 +802,12 @@ concurrency story.
 - Delete `instance_dataset_iceh_import/` (verified file list: index, step_1,
   step_2, progress_staging, progress_integrating, progress_complete) — the
   preview/confirm panels relocate into the modal steps.
-- **Delete `_import_wizard/import_wizard_shell.tsx`** — ICEH's wizard was its
-  only consumer (verified by grep 2026-07-16; the descriptor shell is the last
-  remnant of the superseded toolkit plan).
+- **ICEH stops consuming `_import_wizard/import_wizard_shell.tsx` — the shell
+  is NOT deleted.** It gained a second consumer on 2026-07-13
+  (`results_package_wizard/index.tsx:7` — three days before this plan's
+  original "only consumer" grep, which was wrong when written). The shell
+  survives with that consumer; Phase D moves its `globs` ownership from
+  SYSTEM_06 to SYSTEM_08.
 
 ### C8. Verify (Phase C)
 
@@ -679,13 +815,17 @@ concurrency story.
 2. Harness: refusal while running; needs_review releases the claim;
    integrate_anyway re-ingests from the retained zip and lands identical data to
    a gate-clean run of the same file; discard deletes the temp zip; boot sweep
-   flips a stranded running row (the old wedge scenario, now recoverable); cache
-   hash changes after a completed run.
+   flips a stranded running run row → `error` (replacing the attempt-sweep arm
+   deleted from `resetWedgedUploadAttempts`); cache hash changes after a
+   completed run AND `computeDatasetIcehRunCapture`'s staleness hash tracks it
+   (the second consumer, C1).
 3. Live click-throughs (synthetic Retriever-shaped zip): clean zip →
    auto-integrates, data tabs populate, History row present; zip with unknown
    strats → needs_review showing the strat samples → Integrate anyway completes
-   and skips those rows; zip with only NA estimates → integrates clean
-   (missing-estimate skips reported, not blocking).
+   and skips those rows; zip with a malformed year or an indicator missing from
+   `indicators.xlsx` → needs_review (the two new counters); zip with only NA
+   estimates → integrates clean (missing-estimate skips reported, not
+   blocking).
 4. SYSTEM_06's ICEH sections rewritten to the run model (shorter).
 
 ---
@@ -696,7 +836,9 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
 
 1. Grep-verify zero remaining references to `upload_attempt`, `uploadAttempt`,
    and `UploadAttempt` across `server/`, `lib/`, and `client/src` (types, DB
-   helpers, routes, components, SSE notify payloads). Delete stragglers.
+   helpers, routes, components; SSE notify payloads are already attempt-free —
+   verified 2026-08-04). EXCEPTION: the structure family (`structure_upload_*`)
+   stays on attempts and is out of scope. Delete stragglers.
 2. Delete any shared helper or component orphaned by A–C (including the old
    `stage_hmis_data_csv`/`integrate_hmis_data`/`stage_hfa_data_csv`/
    `integrate_hfa_data` worker entry files if their internals were relocated
@@ -708,9 +850,16 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
    navigation; versions tables and the detail view itself unchanged
    (runs=operations / outcomes=outcomes, never merged).
 4. SYSTEM_06 rewritten around the run model — **must come out shorter than
-   today's, or the consolidation failed its own brief**. Update the SYSTEM docs'
-   `globs` lists for every file added/deleted (`lint:systems` inside
-   `deno task typecheck` enforces exactly-one owner and will list orphans).
+   today's 425 lines, or the consolidation failed its own brief** — and must
+   keep "import runs" verbally distinct from the results-runs plane. Fix
+   SYSTEM_06's stale "adopted only by ICEH" wizard-shell note and move
+   `_import_wizard/**` from SYSTEM_06's `globs` to SYSTEM_08's (C7). SYSTEM_04
+   gains the wizard-temp upload mode (A3). PROTOCOL_APP_STATE.md's T3
+   inventory updated: the HMIS/HFA/ICEH upload-attempt fetchers come out
+   (structure's stays), the HFA/ICEH import-run fetches go in. Update the
+   SYSTEM docs' `globs` lists for every file added/deleted (`lint:systems`
+   inside `deno task typecheck` enforces exactly-one owner and will list
+   orphans).
 5. Final verify: `deno task typecheck` + `./validate_migrations` + one clean
    import per family end-to-end.
 
@@ -718,6 +867,12 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
 
 ## Sequencing + housekeeping
 
+- **Start only after tim-branch has merged to main** (timing is Tim's call; no
+  scheduled date). Verify before writing code: main must contain the
+  results-runs work (e.g. `git log main` shows the Phase 3 commits /
+  `server/runs/` exists on main). If it doesn't, stop and say so. This plan
+  drops tables at deploy time and wants its own deploy window, not entanglement
+  with the results-runs landing.
 - A → B → C → D in one hand-off, each phase's Verify section green before the
   next begins; one commit per phase. Severable at every boundary: if priorities
   shift after any phase, the completed families are coherent and the remaining
