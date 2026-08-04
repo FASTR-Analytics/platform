@@ -8,6 +8,7 @@ globs:
   - client/src/components/email_opt_in_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
+  - client/src/components/whats_new_modal.tsx
   - client/src/components/project/index.tsx
   - client/src/index.tsx
   - client/src/routes/**
@@ -15,6 +16,8 @@ globs:
   - client/src/state/t4_ui.ts
   - lib/help/**
   - lib/types/sort.ts
+  - lib/types/whats_new.ts
+  - server/routes/instance/whats_new.ts
   - lib/translate/**
 docs_absorbed:
 ---
@@ -182,8 +185,43 @@ dead UI** (Open items); the monitor itself is live.
 An effect in `components/instance/index.tsx` (after approval + Clerk user)
 sequentially opens `EmailOptInModal` (writes
 `clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
-`OrganisationModal` (writes `unsafeMetadata.organisation`; skippable). Both
-persist to Clerk `unsafeMetadata` only — no server or localStorage writes.
+`OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
+`WhatsNewModal` — a multi-page release-notes popup. The sequence is guarded to
+run ONCE per signed-in user id (the effect's reactive deps re-fire it on every
+return from a project, which would otherwise re-open the modals). Posts are
+authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
+from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
+fetch) and pre-filtered server-side to
+`published && version <= _SERVER_VERSION && (!adminsOnly || isGlobalAdmin)`
+(the version gate is skipped when `SERVER_VERSION` is non-dotted, i.e. ad-hoc
+test deploys). Read-state is a per-post id set in
+`unsafeMetadata.whatsNewReadPostIds` (a post counts as read once opened, Skip
+or Done alike), pruned on write to the currently-eligible ids; users still
+carrying the superseded high-water `whatsNewSeenVersion` are migrated once by
+marking every post at or below it read. Brand-new users — detected as
+`!emailOptInAsked` before the opt-in modal writes it — are baselined with
+everything marked read, so they get neither popup nor dot. The fetched posts
+also power a header bell (between the language switcher and the feedback
+button; hidden when there are no posts) with a warning-coloured unread dot and
+a `WhatsNewFeedModal` history feed. The dot persists until every missed post
+has been opened — the feed does NOT bulk-acknowledge; it marks each post read
+as it is opened and flags the still-unread rows. The login popup
+(`whatsNewAutoShowPost`) only pushes a release NEWER than every version already
+acknowledged, so acknowledging one release never drags an older unread backlog
+into subsequent logins — those stay behind the bell. Bell/feed state is keyed
+to the signed-in user id (module signals survive a same-tab user switch). The
+modal keeps every page mounted (inactive ones `invisible`) with a staggered
+load queue, so the element that downloaded the media is the one displayed;
+it supports arrow-key paging and Escape, shows a GIF's first frame under
+`prefers-reduced-motion` (play button opts back in), and closes with a
+`"skipped" | "completed"` outcome; open/outcome are recorded via
+`recordWhatsNewEvent` → the user-log pipeline as `whats_new_<event>:<postId>`
+rows (post id in the endpoint name so counts survive the 7-day rollup;
+surfaced per-post in the Admin-Website). Layouts are locked presets
+(`WHATS_NEW_LAYOUTS`, incl. a full-bleed `cover`), each page scaling its media
+via `mediaSize`. Types + `compareDottedVersions` live in
+`lib/types/whats_new.ts`. The three onboarding modals persist to Clerk
+`unsafeMetadata` only — no localStorage writes.
 
 ## Help buttons (`lib/help/**`, `HelpButton.tsx`)
 

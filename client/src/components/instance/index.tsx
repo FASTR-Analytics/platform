@@ -1,5 +1,16 @@
 import { useSearchParams } from "@solidjs/router";
-import { TC, getLanguage, t3, LANGUAGE_STORAGE_KEY } from "lib";
+import {
+  TC,
+  compareDottedVersions,
+  getLanguage,
+  migrateSeenVersionToReadIds,
+  parseWhatsNewReadIds,
+  pruneWhatsNewReadIds,
+  t3,
+  whatsNewAutoShowPost,
+  LANGUAGE_STORAGE_KEY,
+} from "lib";
+import type { WhatsNewPost } from "lib";
 import {
   AlertProvider,
   Button,
@@ -18,6 +29,12 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
+import {
+  WhatsNewBellIcon,
+  WhatsNewFeedModal,
+  WhatsNewModal,
+} from "~/components/whats_new_modal";
+import { serverActions } from "~/server_actions";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -148,18 +165,25 @@ export default function Instance(p: Props) {
     return t;
   };
 
-  // post-login modals — wait until user is approved; skip inside a project
+  // post-login modals — wait until user is approved; skip inside a project.
+  // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
+  // approval store) re-fire it on every return from a project, which would
+  // otherwise re-open the modals and displace whatever the alert slot holds.
   createEffect(() => {
     if (getFirstString(searchParams.p)) return;
     if (!instanceState.currentUserApproved) return;
     if (!clerk.user) return;
+    if (postLoginRanForUserId === clerk.user.id) return;
+    postLoginRanForUserId = clerk.user.id;
     (async () => {
-      if (!clerk.user!.unsafeMetadata?.emailOptInAsked) {
+      const isBrandNewUser = !clerk.user!.unsafeMetadata?.emailOptInAsked;
+      if (isBrandNewUser) {
         await openComponent({ element: EmailOptInModal, props: undefined });
       }
       if (!clerk.user!.unsafeMetadata?.organisation) {
         await openComponent({ element: OrganisationModal, props: undefined });
       }
+      await maybeShowWhatsNew(isBrandNewUser);
     })();
   });
 
@@ -263,6 +287,21 @@ export default function Instance(p: Props) {
                       {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
                     </Button>
                   </MenuTriggerWrapper>
+                  <Show
+                    when={
+                      instanceState.currentUserApproved &&
+                      whatsNewPostsForCurrentUser().length > 0
+                    }
+                  >
+                    <div class="relative">
+                      <Button onClick={openWhatsNewFeed} intent="base-100">
+                        <WhatsNewBellIcon />
+                      </Button>
+                      <Show when={whatsNewHasUnread()}>
+                        <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+                      </Show>
+                    </div>
+                  </Show>
                   <Show when={instanceState.currentUserApproved}>
                     <Button
                       onClick={openFeedback}
@@ -357,4 +396,155 @@ export default function Instance(p: Props) {
       <TooltipProvider />
     </>
   );
+}
+
+// What's New: the server returns only published posts eligible for this
+// instance (version <= server version, adminsOnly pre-filtered). Seen-state is
+// a high-water-mark version string in Clerk unsafeMetadata; brand-new users
+// are baselined without seeing a popup. Fetched posts also power the header
+// bell (unread dot + browsable feed). All module-level state is scoped to the
+// signed-in user's id — these signals outlive a same-tab user switch that
+// happens without a full page reload.
+const [whatsNewState, setWhatsNewState] = createSignal<{
+  userId: string;
+  posts: WhatsNewPost[];
+} | null>(null);
+const [whatsNewReadIds, setWhatsNewReadIds] = createSignal<Set<string>>(
+  new Set(),
+);
+let postLoginRanForUserId: string | null = null;
+
+function whatsNewPostsForCurrentUser(): WhatsNewPost[] {
+  const state = whatsNewState();
+  return state && state.userId === clerk.user?.id ? state.posts : [];
+}
+
+function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
+  return posts.reduce((a, b) =>
+    compareDottedVersions(a.version, b.version) >= 0 ? a : b,
+  );
+}
+
+// Read-ids from Clerk metadata, migrating users who still carry the old
+// high-water `whatsNewSeenVersion`. needsWrite flags that migration so the
+// caller persists the converted set once.
+function readIdsFromMetadata(posts: WhatsNewPost[]): {
+  ids: Set<string>;
+  needsWrite: boolean;
+} {
+  const stored = parseWhatsNewReadIds(
+    clerk.user?.unsafeMetadata?.whatsNewReadPostIds,
+  );
+  if (stored) {
+    return { ids: new Set(stored), needsWrite: false };
+  }
+  const legacy = clerk.user?.unsafeMetadata?.whatsNewSeenVersion;
+  if (typeof legacy === "string") {
+    return {
+      ids: new Set(migrateSeenVersionToReadIds(posts, legacy)),
+      needsWrite: true,
+    };
+  }
+  return { ids: new Set(), needsWrite: false };
+}
+
+function whatsNewHasUnread(): boolean {
+  const ids = whatsNewReadIds();
+  return whatsNewPostsForCurrentUser().some((p) => !ids.has(p.id));
+}
+
+function recordWhatsNewEvent(
+  postId: string,
+  event: "seen" | "skipped" | "completed",
+) {
+  serverActions.recordWhatsNewEvent({ postId, event }).catch(() => {});
+}
+
+async function persistWhatsNewReadIds(ids: Set<string>, posts: WhatsNewPost[]) {
+  const pruned = pruneWhatsNewReadIds(ids, posts);
+  try {
+    await clerk.user?.update({
+      unsafeMetadata: {
+        ...clerk.user.unsafeMetadata,
+        whatsNewReadPostIds: pruned,
+      },
+    });
+    // Only on success — a failed write leaves the unread dot lit
+    setWhatsNewReadIds(new Set(pruned));
+  } catch (err) {
+    console.error("Failed to record whatsNewReadPostIds", err);
+  }
+}
+
+async function markWhatsNewRead(postId: string) {
+  const posts = whatsNewPostsForCurrentUser();
+  await persistWhatsNewReadIds(new Set([...whatsNewReadIds(), postId]), posts);
+}
+
+async function maybeShowWhatsNew(isBrandNewUser: boolean) {
+  const userId = clerk.user?.id;
+  if (!userId) {
+    return;
+  }
+  const res = await serverActions.getWhatsNewPosts({});
+  if (!res.success || res.data.length === 0) {
+    return;
+  }
+  const posts = res.data;
+  setWhatsNewState({ userId, posts });
+
+  const { ids, needsWrite } = readIdsFromMetadata(posts);
+  setWhatsNewReadIds(ids);
+
+  // A brand-new user starts current: everything is marked read, so they get
+  // neither a popup nor a dot for releases that predate their account
+  if (isBrandNewUser) {
+    await persistWhatsNewReadIds(new Set(posts.map((p) => p.id)), posts);
+    return;
+  }
+  if (needsWrite) {
+    await persistWhatsNewReadIds(ids, posts);
+  }
+
+  // Only a release newer than anything already acknowledged is pushed at
+  // login; older unread posts stay behind the bell's dot rather than
+  // resurfacing one at a time on subsequent logins
+  const toShow = whatsNewAutoShowPost(posts, ids);
+  if (!toShow) {
+    return;
+  }
+  if ((toShow.pages?.length ?? 0) > 0) {
+    recordWhatsNewEvent(toShow.id, "seen");
+    const outcome = await openComponent({
+      element: WhatsNewModal,
+      props: { post: toShow },
+    });
+    recordWhatsNewEvent(toShow.id, outcome ?? "skipped");
+  }
+  await markWhatsNewRead(toShow.id);
+}
+
+// Header-bell feed: browse every post; each one opened is marked read
+// individually, so the dot survives until nothing is left unread.
+async function openWhatsNewFeed() {
+  const posts = whatsNewPostsForCurrentUser();
+  if (posts.length === 0) {
+    return;
+  }
+  while (true) {
+    const chosen = await openComponent({
+      element: WhatsNewFeedModal,
+      props: { posts, readIds: whatsNewReadIds() },
+    });
+    if (!chosen) {
+      return;
+    }
+    recordWhatsNewEvent(chosen.id, "seen");
+    const outcome = await openComponent({
+      element: WhatsNewModal,
+      props: { post: chosen },
+    });
+    recordWhatsNewEvent(chosen.id, outcome ?? "skipped");
+    await markWhatsNewRead(chosen.id);
+  }
 }
