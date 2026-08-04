@@ -4,10 +4,12 @@ import {
   Button,
   FrameLeft,
   FrameTop,
+  MenuTriggerWrapper,
   TabsNavigation,
   getEditorWrapper,
   openComponent,
   type ListItem,
+  type MenuItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import {
@@ -256,42 +258,60 @@ function ProjectInner() {
                   <span class="font-400">{projectState.label}</span>
                 </div>
                 <div class="ui-gap-sm flex items-center">
-                  <Button
-                    onClick={() =>
-                      openComponent({
-                        element: TourCatalogueModal,
-                        props: { managers: tourManagers },
-                      })
-                    }
-                    intent="base-100"
-                    outline
-                    onBackground="base-content"
-                  >
-                    {t3({
-                      en: "Guided tours",
-                      fr: "Visites guidées",
-                      pt: "Visitas guiadas",
-                    })}
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      openComponent({
-                        element: FeedbackForm,
-                        props: {
-                          projectLabel: projectState.label,
+                  <MenuTriggerWrapper
+                    items={
+                      [
+                        {
+                          label: t3({
+                            en: "Guided tours",
+                            fr: "Visites guidées",
+                            pt: "Visitas guiadas",
+                          }),
+                          icon: "slideshow",
+                          onClick: () =>
+                            void openComponent({
+                              element: TourCatalogueModal,
+                              props: { managers: tourManagers },
+                            }),
                         },
-                      })
+                        {
+                          label: t3({
+                            en: "Send feedback",
+                            fr: "Envoyer un commentaire",
+                            pt: "Enviar comentários",
+                          }),
+                          icon: "pencil",
+                          onClick: () =>
+                            void openComponent({
+                              element: FeedbackForm,
+                              props: {
+                                projectLabel: projectState.label,
+                              },
+                            }),
+                        },
+                        {
+                          label: t3({
+                            en: "Documentation",
+                            fr: "Documentation",
+                            pt: "Documentação",
+                          }),
+                          icon: "document",
+                          onClick: () =>
+                            window.open("https://fastr-analytics.org", "_blank"),
+                        },
+                      ] satisfies MenuItem[]
                     }
-                    intent="base-100"
-                    outline
-                    onBackground="base-content"
+                    position="bottom-end"
                   >
-                    {t3({
-                      en: "Send feedback",
-                      fr: "Envoyer un commentaire",
-                      pt: "Enviar comentários",
-                    })}
-                  </Button>
+                    <Button
+                      iconName="help"
+                      intent="base-100"
+                      outline
+                      onBackground="base-content"
+                    >
+                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                    </Button>
+                  </MenuTriggerWrapper>
                   <Show when={!showAi()}>
                     <Button
                       onClick={() => setShowAi(true)}

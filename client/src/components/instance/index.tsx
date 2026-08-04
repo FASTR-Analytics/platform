@@ -334,31 +334,56 @@ export default function Instance(p: Props) {
                       </Show>
                     </div>
                   </Show>
-                  <Show
-                    when={
-                      instanceState.currentUserApproved &&
-                      instanceState.projects.some(
-                        (project) => project.status === "ready",
-                      )
-                    }
-                  >
-                    <div data-tour="instance-topbar-tours">
-                      <Button onClick={openTours} intent="base-100">
-                        {t3({
-                          en: "Guided tours",
-                          fr: "Visites guidées",
-                          pt: "Visitas guiadas",
-                        })}
-                      </Button>
-                    </div>
-                  </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <div data-tour="instance-topbar-feedback">
-                      <Button
-                        onClick={openFeedback}
-                        iconName="help"
-                        intent="base-100"
-                      />
+                    <div data-tour="instance-topbar-help">
+                      <MenuTriggerWrapper
+                        items={() => {
+                          const items: MenuItem[] = [];
+                          if (
+                            instanceState.projects.some(
+                              (project) => project.status === "ready",
+                            )
+                          ) {
+                            items.push({
+                              label: t3({
+                                en: "Guided tours",
+                                fr: "Visites guidées",
+                                pt: "Visitas guiadas",
+                              }),
+                              icon: "slideshow",
+                              onClick: () => void openTours(),
+                            });
+                          }
+                          items.push({
+                            label: t3({
+                              en: "Send feedback",
+                              fr: "Envoyer un commentaire",
+                              pt: "Enviar comentários",
+                            }),
+                            icon: "pencil",
+                            onClick: () => void openFeedback(),
+                          });
+                          items.push({
+                            label: t3({
+                              en: "Documentation",
+                              fr: "Documentation",
+                              pt: "Documentação",
+                            }),
+                            icon: "document",
+                            onClick: () =>
+                              window.open(
+                                "https://fastr-analytics.org",
+                                "_blank",
+                              ),
+                          });
+                          return items;
+                        }}
+                        position="bottom-end"
+                      >
+                        <Button iconName="help" intent="base-100">
+                          {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                        </Button>
+                      </MenuTriggerWrapper>
                     </div>
                     <Button
                       onClick={openInstanceMeta}
