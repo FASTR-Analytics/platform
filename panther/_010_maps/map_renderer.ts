@@ -9,6 +9,7 @@ import {
   calculateMinLabelPlotExtent,
   calculatePaneGrid,
   type ChartComponentSizes,
+  computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   type HeightConstraints,
@@ -19,6 +20,7 @@ import {
   type RenderContext,
   type Renderer,
   resolveAutoScaleLegend,
+  resolveFigureAutofitOptions,
 } from "./deps.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "./types.ts";
 import type { MergedMapStyle } from "./deps.ts";
@@ -257,8 +259,27 @@ function getMapIdealHeight(
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
+  // minH is derived from the real floor at the autofit floor scale (plan
+  // D10), exactly as the scale-axis charts derive theirs — never idealH ×
+  // 0.5. getMapComponentSizes' minSubChartHeight IS the legibility floor, so
+  // the shared decomposition at floorScale is the whole derivation. With
+  // autofit off, type cannot shrink and the natural height is the minimum —
+  // the scale-axis convention.
+  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  let minH = idealH;
+  if (autofitOpts) {
+    const floorScale = computeFloorScale({
+      minScale: autofitOpts.minScale,
+      maxScale: autofitOpts.maxScale,
+      baseFontSizeDu: info.customFigureStyle.baseFontSize,
+      minFontSizeDu: autofitOpts.minFontSizeDu,
+    });
+    const infoFloor = getMapComponentSizes(rc, item, floorScale);
+    minH = calculateChartIdealHeight(rc, width, infoFloor, item);
+  }
+
   return {
-    minH: idealH * 0.5,
+    minH: Math.min(minH, idealH),
     idealH,
     maxH: Infinity,
     neededScalingToFitWidth: width >= minComfortableWidth

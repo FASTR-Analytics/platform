@@ -86,7 +86,7 @@ export function resolveMapLabelText(
 export function measureMapLabel(
   rc: RenderContext,
   labelText: string,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   baseTextStyle: TextInfoUnkeyed,
   dlStyle: Parameters<typeof buildDataLabelTextStyle>[1],
   labelWrapFraction: number,
@@ -94,7 +94,7 @@ export function measureMapLabel(
   return rc.mText(
     labelText,
     buildDataLabelTextStyle(baseTextStyle, dlStyle),
-    cellRcd.w() * labelWrapFraction,
+    subChartRcd.w() * labelWrapFraction,
   );
 }
 

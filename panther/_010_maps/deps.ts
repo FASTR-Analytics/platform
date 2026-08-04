@@ -37,6 +37,7 @@ export {
   calculateMinLabelPlotExtent,
   calculatePaneGrid,
   collectHeaders,
+  computeFloorScale,
   estimateMinSurroundsWidth,
   fieldTrack,
   generateResolvedFigureLabelPrimitives,
@@ -49,12 +50,15 @@ export {
   renderFigureBackground,
   renderFigurePrimitives,
   resolveAutoScaleLegend,
+  resolveFigureAutofitOptions,
+  resolveFlooredContentScale,
   resolveLabelPlacement,
   scaledTrack,
   solveContentScale,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
+  ContentScaleResult,
   DirectionalExtents,
   DistanceField,
   FigureInputsBase,

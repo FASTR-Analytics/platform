@@ -182,7 +182,7 @@ const FULL_DISC_SILHOUETTE: SilhouetteExtents = {
 
 // Whether the silhouette's bbox IS the disc's bbox. Callers use this to stay on
 // their pre-gauge code path: the recentring arithmetic is NOT bit-identical to
-// `cellRcd.centerX()` even when it is mathematically equal, so a full pie must
+// `slotRcd.centerX()` even when it is mathematically equal, so a full pie must
 // keep taking the original route.
 //
 // It reads true for some PARTIAL sweeps, and that is correct rather than a false

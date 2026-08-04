@@ -63,10 +63,15 @@ export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;
 export type PieSliceInfo = ChartSeriesInfo & {
   value: number;
   // value / the DECLARED denominator. With an explicit `total` smaller than
-  // the cell's sum this exceeds 1 — geometry still fills the circle, but the
+  // the pie's sum this exceeds 1 — geometry still fills the circle, but the
   // true number is carried here so a formatter can print "103%".
   share: number;
   total: number;
+  // The repeat dimension: which pie in the sub-chart's indicator grid this
+  // slice belongs to (mirrors ChartValueInfo's i_val/indicatorHeader).
+  i_indicator: number;
+  nIndicators: number;
+  indicatorHeader: HeaderItem;
 };
 
 export type PieSliceInfoFunc<T> = (info: PieSliceInfo) => T;

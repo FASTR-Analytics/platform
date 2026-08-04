@@ -140,6 +140,9 @@ export type MergedIdealHeightStyle = {
   // figure's total bar rows. Decays so dense category charts thin their bars.
   // Ignored by ChartOV, Timeseries, and Table.
   idealRowThickness: (nTotalBarRows: number) => number;
+  // Natural pie content diameter (DU) as a function of indicators per
+  // sub-chart. A cap on the width-driven term. Ignored by every other figure.
+  idealPieDiameter: (nIndicators: number) => number;
 };
 
 export type MergedChartStyleBase = {
@@ -230,7 +233,22 @@ export type MergedPieStyle = MergedChartStyleBase & {
     cornerRadius: number;
     labelMode: PieLabelMode;
     calloutMargin: number;
-    centerLabel: "none" | "total";
+    centerLabel: "none" | "total" | "share";
+    // Indicator headers are pie-only, so their text style lives here as a
+    // block-local sub-object (like the axis blocks') rather than on
+    // MergedChartStyleBase["text"], which every chart shares.
+    text: {
+      indicatorHeaders: TextInfoUnkeyed;
+    };
+    indicators: {
+      hideHeaders: boolean;
+      headerAlignH: "left" | "center" | "right";
+      headerGap: number;
+      headerPosition: "top" | "bottom";
+      gapX: number;
+      gapY: number;
+      nCols: number | "auto";
+    };
     labelCollision: LabelCollisionConfig;
     outsideLabelPlacement: OutsideLabelPlacement;
     labelClearanceFloor: number;

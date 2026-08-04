@@ -535,7 +535,16 @@ export type CustomFigureStyleOptions = {
     cornerRadius?: number;
     labelMode?: "none" | "inside" | "outside" | "auto";
     calloutMargin?: number;
-    centerLabel?: "none" | "total";
+    centerLabel?: "none" | "total" | "share";
+    indicators?: {
+      hideHeaders?: boolean;
+      headerAlignH?: "left" | "center" | "right";
+      headerGap?: number;
+      headerPosition?: "top" | "bottom";
+      gapX?: number;
+      gapY?: number;
+      nCols?: number | "auto";
+    };
     labelCollision?: {
       gap?: number;
       maxCentroidDisplacement?: number;
@@ -570,6 +579,12 @@ export type CustomFigureStyleOptions = {
     // Decays so dense category charts thin their bars instead of growing
     // without bound. Ignored by ChartOV, Timeseries, and Table.
     idealRowThickness?: (nTotalBarRows: number) => number;
+
+    // Pie: natural content diameter (DU) as a function of indicators per
+    // sub-chart. A CAP on the width-driven diameter, never a replacement — an
+    // ideal that exceeds the slot is meaningless. Ignored by every other
+    // figure.
+    idealPieDiameter?: (nIndicators: number) => number;
   };
 };
 

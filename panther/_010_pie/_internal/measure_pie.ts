@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  ContentScaleResult,
   FigureLabelPrimitive,
   LabelCandidate,
   MeasuredText,
@@ -21,6 +22,7 @@ import {
   generateResolvedFigureLabelPrimitives,
   measureChart,
   RectCoordsDims,
+  resolveFlooredContentScale,
   resolveLabelPlacement,
   solveContentScale,
   Z_INDEX,
@@ -35,10 +37,10 @@ import {
   toPieLabelMode,
 } from "./generate_pie_label_candidates.ts";
 import {
-  type CellIndices,
   generatePieSlicePrimitives,
-  layOutPieCell,
-  type PieCellGeometry,
+  layOutPie,
+  type PieGeometry,
+  type PieIndices,
 } from "./generate_pie_slice_primitives.ts";
 import {
   clampInnerRadiusRatio,
@@ -46,6 +48,13 @@ import {
   resolvePieSilhouette,
   type SilhouetteExtents,
 } from "./pie_geometry.ts";
+import {
+  bestSlotColsAt,
+  buildSlotObjectiveContext,
+  measureIndicatorHeaderHeight,
+  resolveIdealSlotCols,
+  showsIndicatorHeaders,
+} from "./indicator_slots.ts";
 
 export function measurePie(
   rc: RenderContext,
@@ -82,22 +91,99 @@ export function measurePie(
 
   const chartMeasured = measureChart(rc, bounds, inputs, config, fitScale);
 
-  // Two-phase over the grid (plan D5): solve every cell's content scale
-  // first, then emit every cell at the minimum — small multiples exist to be
-  // compared, so one label-crowded cell governs the whole figure rather than
+  const grids = chartMeasured.primitives.filter(
+    (p): p is Extract<Primitive, { type: "chart-grid" }> =>
+      p.type === "chart-grid",
+  );
+
+  // The slot grid is chosen ONCE for the figure, from the smallest sub-chart,
+  // so every pie in every sub-chart stays the same size and aligned (plan D9
+  // + D6's comparability rule). "auto" maximises the achievable content scale;
+  // ties break toward the ideal pass's self-consistent choice.
+  const nIndicators = transformedData.indicatorHeaders.length;
+  const ind = mergedStyle.pie.indicators;
+  const ctx = buildSlotObjectiveContext(rc, transformedData, mergedStyle);
+  const minPlotW = Math.min(...grids.map((g) => g.plotAreaRcd.w()));
+  const minPlotH = Math.min(...grids.map((g) => g.plotAreaRcd.h()));
+  const contentFloor = calculateMinLabelPlotExtent(
+    rc,
+    mergedStyle.text.dataLabels,
+  );
+  const nSlotCols = ind.nCols !== "auto" ? ind.nCols : bestSlotColsAt(
+    ctx,
+    minPlotW,
+    minPlotH,
+    resolveIdealSlotCols(ctx, minPlotW, contentFloor),
+  );
+  const nSlotRows = Math.ceil(nIndicators / nSlotCols);
+  const showHeaders = showsIndicatorHeaders(transformedData, mergedStyle);
+
+  // Two-phase over the slots (plan D5/D6): solve every pie's content scale
+  // first, then emit every pie at the minimum — small multiples exist to be
+  // compared, so one label-crowded pie governs the whole figure rather than
   // silently diverging from its siblings.
-  const solved: SolvedPieCell[] = [];
-  for (const prim of chartMeasured.primitives) {
-    if (prim.type !== "chart-grid") continue;
-    solved.push(
-      solveOneCell(
-        rc,
-        prim.plotAreaRcd,
-        prim.meta,
-        transformedData,
-        mergedStyle,
-      ),
-    );
+  const solved: SolvedPie[] = [];
+  const headerPrimitives: Primitive[] = [];
+  for (const prim of grids) {
+    const plot = prim.plotAreaRcd;
+    const slotW = (plot.w() - (nSlotCols - 1) * ind.gapX) / nSlotCols;
+    const slotH = (plot.h() - (nSlotRows - 1) * ind.gapY) / nSlotRows;
+    const headerH = showHeaders
+      ? measureIndicatorHeaderHeight(rc, transformedData, mergedStyle, slotW)
+      : 0;
+    const headerAllowance = showHeaders ? ind.headerGap + headerH : 0;
+    for (let k = 0; k < nIndicators; k++) {
+      const col = k % nSlotCols;
+      const row = Math.floor(k / nSlotCols);
+      const slotX = plot.x() + col * (slotW + ind.gapX);
+      const slotY = plot.y() + row * (slotH + ind.gapY);
+      const headerOnTop = ind.headerPosition === "top";
+      const contentRcd = new RectCoordsDims({
+        x: slotX,
+        y: headerOnTop ? slotY + headerAllowance : slotY,
+        w: slotW,
+        h: slotH - headerAllowance,
+      });
+      solved.push(
+        solveOnePie(
+          rc,
+          contentRcd,
+          { ...prim.meta, indicatorIndex: k },
+          transformedData,
+          mergedStyle,
+        ),
+      );
+      if (showHeaders) {
+        headerPrimitives.push({
+          type: "chart-label",
+          key:
+            `indicator-header-${prim.meta.paneIndex}-${prim.meta.tierIndex}-${prim.meta.laneIndex}-${k}`,
+          bounds: new RectCoordsDims({
+            x: slotX,
+            y: headerOnTop ? slotY : slotY + slotH - headerH,
+            w: slotW,
+            h: headerH,
+          }),
+          zIndex: Z_INDEX.LABEL,
+          meta: {
+            labelType: "indicator",
+            paneIndex: prim.meta.paneIndex,
+            tierIndex: prim.meta.tierIndex,
+            laneIndex: prim.meta.laneIndex,
+            indicatorIndex: k,
+          },
+          mText: rc.mText(
+            transformedData.indicatorHeaders[k].label,
+            mergedStyle.pie.text.indicatorHeaders,
+            Math.max(slotW, 1),
+          ),
+          alignment: {
+            h: ind.headerAlignH,
+            v: headerOnTop ? "bottom" : "top",
+          },
+        });
+      }
+    }
   }
   const drawable = solved.filter((c) => !c.empty);
 
@@ -106,83 +192,90 @@ export function measurePie(
     const commonS = Math.min(...drawable.map((c) => c.s));
     for (const c of drawable) {
       piePrimitives.push(
-        ...emitOneCell(rc, c, transformedData, mergedStyle, commonS),
+        ...emitOnePie(rc, c, transformedData, mergedStyle, commonS),
       );
     }
   }
 
-  // Any starved cell (label budget infeasible even at the legibility floor)
+  // Any starved pie (label budget infeasible even at the legibility floor)
   // makes the whole figure cramped; measureChartWithAutofit ORs this into its
   // own decision rather than overwriting it (plan D6).
   const starved = drawable.some((c) => c.starved);
 
   return {
     ...chartMeasured,
-    primitives: [...chartMeasured.primitives, ...piePrimitives],
+    primitives: [
+      ...chartMeasured.primitives,
+      ...headerPrimitives,
+      ...piePrimitives,
+    ],
     cramped: starved || chartMeasured.cramped,
   };
 }
 
-type SolvedPieCell = {
-  indices: CellIndices;
-  cellRcd: RectCoordsDims;
+type SolvedPie = {
+  indices: PieIndices;
+  slotRcd: RectCoordsDims;
   // The frozen s0 placement split (plan D2), carried by id.
   outsideIds: Set<string>;
   outside: PieLabelEntry[];
   // The fit ladder's chosen wrapping, by id: a label rescued onto two lines
   // must be DRAWN on two lines, and emission rebuilds candidates from scratch.
   labelText: Map<string, MeasuredText>;
-  // Which placer this cell solved under. The final choice is re-made at the
-  // harmonised scale in emitOneCell (N10); this is the solve's own answer.
+  // Which placer this pie solved under. The final choice is re-made at the
+  // harmonised scale in emitOnePie (N10); this is the solve's own answer.
   placement: OutsideLabelPlacement;
-  // This cell's own solved content scale; emission uses the grid minimum.
+  // This pie's own solved content scale; emission uses the grid minimum. May
+  // EXCEED the slot (the D7 floor lifted it — legibility beats frame).
   s: number;
-  // The budget was infeasible even at the legibility floor (plan D6).
+  // The label budget was infeasible even at the legibility floor, OR the
+  // floor lifted the pie past what its slot can hold. Either way the overlap
+  // is signalled, never silent (plan D9).
   starved: boolean;
   empty: boolean;
 };
 
-function solveOneCell(
+function solveOnePie(
   rc: RenderContext,
-  cellRcd: RectCoordsDims,
-  indices: CellIndices,
+  slotRcd: RectCoordsDims,
+  indices: PieIndices,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-): SolvedPieCell {
+): SolvedPie {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
 
   const silhouette = resolvePieSilhouette(mergedStyle);
 
-  // s0: the label-free content scale — the largest radius at which the cell can
+  // s0: the label-free content scale — the largest radius at which the slot can
   // hold the declared shape. For a full pie the silhouette is { 1, 1, 1, 1 } and
   // this is min(w, h) / 2 exactly as before (halving is exact in binary).
   // Placement is decided once, at s0, and never re-decided (plan D2).
   //
   // The Math.max(0, ...) is unreachable defence carried over from the previous
   // formula: `left + right` and `top + bottom` are both >= 0 for any sweep (each
-  // pair bounds the same point set from opposite sides), and a cell has no
+  // pair bounds the same point set from opposite sides), and a slot has no
   // negative extent, so s0 is never negative. Removing it is behaviour-
   // preserving.
   const s0 = Math.max(
     0,
     Math.min(
-      cellRcd.w() / (silhouette.left + silhouette.right),
-      cellRcd.h() / (silhouette.top + silhouette.bottom),
+      slotRcd.w() / (silhouette.left + silhouette.right),
+      slotRcd.h() / (silhouette.top + silhouette.bottom),
     ),
   );
 
-  const probeCell = layOutPieCell(
+  const probePie = layOutPie(
     data,
     mergedStyle,
     indices,
-    pieGeometryAt(cellRcd.centerX(), cellRcd.centerY(), s0, ratio),
+    pieGeometryAt(slotRcd.centerX(), slotRcd.centerY(), s0, ratio),
   );
   const outsideIds = new Set<string>();
-  if (probeCell.slices.length === 0) {
+  if (probePie.slices.length === 0) {
     return {
       indices,
-      cellRcd,
+      slotRcd,
       outsideIds,
       outside: [],
       labelText: new Map(),
@@ -198,9 +291,9 @@ function solveOneCell(
   if (mode !== "none") {
     const entries = buildPieLabelCandidates(
       rc,
-      probeCell,
+      probePie,
       mergedStyle,
-      cellRcd,
+      slotRcd,
     );
     for (const e of entries) {
       const { placement, mText } = resolveLabelPlacement(
@@ -228,13 +321,22 @@ function solveOneCell(
       .map((e) => withText(e, labelText));
   }
 
+  // The per-slot legibility floor (plan D7). The gap term is geometry, not a
+  // constant: the outer rim is π·d long and each of the nSlices boundaries
+  // removes a channel of sliceGap, so below this diameter the gaps consume
+  // the whole rim. A necessary bound, not a guarantee — a slice thin enough
+  // is still dropped by resolveSliceInset, and that is the documented
+  // contract. Contributes nothing at the default sliceGap 0.
+  const minSlotDiameter = Math.max(
+    calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels),
+    probePie.slices.length * mergedStyle.pie.sliceGap / Math.PI,
+  );
+  const sFloor = minSlotDiameter / 2;
+
   // Solve for the content scale the frozen label set affords (plan D3).
-  let s = s0;
-  let starved = false;
   let placement = mergedStyle.pie.outsideLabelPlacement;
+  let result: ContentScaleResult | undefined;
   if (outside.length > 0) {
-    const sFloor =
-      calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels) / 2;
     const fitsUnder = (p: OutsideLabelPlacement) => (trialS: number) => {
       const e = pieExtentsAt(
         outside,
@@ -246,9 +348,9 @@ function solveOneCell(
       );
       // Undefined = the track cannot hold these labels at this scale. That is
       // a genuine "does not fit", so the solver keeps scanning down; it is
-      // only when NO scale works that the cell falls back (N10).
+      // only when NO scale works that the pie falls back (N10).
       return e !== undefined &&
-        e.left + e.right <= cellRcd.w() && e.top + e.bottom <= cellRcd.h();
+        e.left + e.right <= slotRcd.w() && e.top + e.bottom <= slotRcd.h();
     };
     // A track that cannot hold these labels at the LARGEST scale cannot hold
     // them at any smaller one — the track only gets shorter while the labels
@@ -259,23 +361,29 @@ function solveOneCell(
     ) {
       placement = "flank";
     }
-    let result = solveContentScale(fitsUnder(placement), sFloor, s0);
+    result = solveContentScale(fitsUnder(placement), sFloor, s0);
     if (result.kind === "infeasible" && placement === "nearest") {
-      // N10: this cell cannot be nearest-point at any scale, so it re-solves on
+      // N10: this pie cannot be nearest-point at any scale, so it re-solves on
       // the flank placer — all shipped machinery — and is NOT cramped for that
       // reason. Flank fitting is a success.
       placement = "flank";
       result = solveContentScale(fitsUnder("flank"), sFloor, s0);
     }
-    // infeasible: even the legibility floor cannot fit. Draw at the floor
-    // anyway (legibility beats frame) and report it as cramped (plan D6).
-    starved = result.kind === "infeasible";
-    s = result.kind === "ok" ? result.s : Math.min(sFloor, s0);
   }
+
+  // BOTH paths — labelled and unlabelled — go through the shared clamp: an
+  // unlabelled pie is still floored (the live bug this fixes), and an
+  // infeasible budget draws at the floor anyway (legibility beats frame).
+  // When the floor lifted s past what fits (s > s0, or above the label
+  // solve's answer), the pie overflows its slot and that is reported as
+  // cramped rather than clipped — a clipped disc reads as a different shape.
+  const resolved = resolveFlooredContentScale({ s0, sFloor, solved: result });
+  const s = resolved.s;
+  const starved = resolved.starved || s > s0;
 
   return {
     indices,
-    cellRcd,
+    slotRcd,
     outsideIds,
     outside,
     labelText,
@@ -287,7 +395,7 @@ function solveOneCell(
 }
 
 // The ladder may have re-wrapped a label's text to earn a verdict, so the entry
-// the budget places must carry what the ladder tested — not the cell-wrap
+// the budget places must carry what the ladder tested — not the slot-wrap
 // measurement it started from.
 function withText(
   e: PieLabelEntry,
@@ -298,23 +406,23 @@ function withText(
   return { ...e, candidate: { ...e.candidate, mText } };
 }
 
-function emitOneCell(
+function emitOnePie(
   rc: RenderContext,
-  solvedCell: SolvedPieCell,
+  solvedPie: SolvedPie,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
   s: number,
 ): Primitive[] {
-  const { indices, cellRcd, outsideIds, outside, labelText } = solvedCell;
+  const { indices, slotRcd, outsideIds, outside, labelText } = solvedPie;
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
   const silhouette = resolvePieSilhouette(mergedStyle);
 
   // N10: the final nearest-vs-flank choice is made ONCE, here, at the
-  // harmonised grid-minimum scale — a track feasible at this cell's own solved
+  // harmonised grid-minimum scale — a track feasible at this pie's own solved
   // s can be infeasible at a smaller one, and the centring extents and the
   // emitted primitives must not disagree about which placer ran.
-  let placement = solvedCell.placement;
+  let placement = solvedPie.placement;
   let extents = outside.length > 0
     ? pieExtentsAt(outside, s, ratio, mergedStyle, placement, silhouette)
     : undefined;
@@ -324,14 +432,14 @@ function emitOneCell(
   }
   // A partial sweep is asymmetric in its OWN right, so it must be recentred even
   // when there are no outside labels to widen the bbox — a 180 degree gauge
-  // centred on the cell centre draws half its arc outside the cell.
+  // centred on the slot centre draws half its arc outside the slot.
   //
   // The full disc deliberately stays on the centreX/centreY path below. That is
   // DEFENSIVE, not observable: `x + (w - 2s)/2 + s` and `x + w/2` are equal, and
-  // for the cell geometries this figure actually produces they are also
+  // for the slot geometries this figure actually produces they are also
   // bit-identical (probed over 900 fractional frame sizes and every
   // surrounds/legend/lane arrangement, zero divergence — because `s` is always
-  // exactly half a cell dimension, which makes the subtraction and both halvings
+  // exactly half a slot dimension, which makes the subtraction and both halvings
   // exact). They are NOT bit-identical for arbitrary offsets and extents, so the
   // guard keeps every pre-gauge pie on its original path rather than resting on
   // an identity that holds for the current inputs. Expect it to survive mutation
@@ -345,18 +453,18 @@ function emitOneCell(
     };
   }
 
-  // Centre the union bbox in the cell — in BOTH dimensions: at s at most one
+  // Centre the union bbox in the slot — in BOTH dimensions: at s at most one
   // dimension is tight, and centring when underfilling is the standing rule.
-  let cx = cellRcd.centerX();
-  let cy = cellRcd.centerY();
+  let cx = slotRcd.centerX();
+  let cy = slotRcd.centerY();
   if (extents) {
-    cx = cellRcd.x() + (cellRcd.w() - (extents.left + extents.right)) / 2 +
+    cx = slotRcd.x() + (slotRcd.w() - (extents.left + extents.right)) / 2 +
       extents.left;
-    cy = cellRcd.y() + (cellRcd.h() - (extents.top + extents.bottom)) / 2 +
+    cy = slotRcd.y() + (slotRcd.h() - (extents.top + extents.bottom)) / 2 +
       extents.top;
   }
 
-  const cell = layOutPieCell(
+  const pie = layOutPie(
     data,
     mergedStyle,
     indices,
@@ -364,7 +472,7 @@ function emitOneCell(
   );
 
   const primitives: Primitive[] = generatePieSlicePrimitives(
-    cell,
+    pie,
     mergedStyle,
     indices,
   );
@@ -372,7 +480,7 @@ function emitOneCell(
   if (mode !== "none") {
     // Rebuild candidates at the solved geometry; the frozen s0 SPLIT is what
     // carries over, matched by id (plan D2).
-    const placed = buildPieLabelCandidates(rc, cell, mergedStyle, cellRcd);
+    const placed = buildPieLabelCandidates(rc, pie, mergedStyle, slotRcd);
     const insideCandidates: LabelCandidate[] = [];
     const outsideCandidates: LabelCandidate[] = [];
     for (const e of placed) {
@@ -387,13 +495,14 @@ function emitOneCell(
         ...generateResolvedFigureLabelPrimitives(
           insideCandidates,
           outsideCandidates,
-          buildPieLabelGeometry(cell, cellRcd, mergedStyle, placement),
+          buildPieLabelGeometry(pie, slotRcd, mergedStyle, placement),
           mergedStyle.pie.labelCollision,
           {
             keyPrefix: "pie-label",
             paneIndex: indices.paneIndex,
             tierIndex: indices.tierIndex,
             laneIndex: indices.laneIndex,
+            indicatorIndex: indices.indicatorIndex,
           },
         ),
       );
@@ -402,7 +511,7 @@ function emitOneCell(
 
   const centerLabel = generateCenterLabel(
     rc,
-    cell,
+    pie,
     mergedStyle,
     indices,
     silhouette,
@@ -419,14 +528,15 @@ function pieGeometryAt(
   cy: number,
   outerR: number,
   clampedRatio: number,
-): PieCellGeometry {
+): PieGeometry {
   return { cx, cy, innerR: outerR * clampedRatio, outerR };
 }
 
-// The doughnut-hole label. "total" is the only form in v1: a per-cell callback
-// would need a whole PieCellInfo type (a cell has no i_series, so it cannot
-// reuse PieSliceInfo) for one structural knob. Widening the union later is
-// non-breaking.
+// The doughnut-hole label. "total" prints the summed values; "share" prints
+// sum/declared-total as a percent (the completion-pie form). A per-pie
+// callback would need a whole PieInfo type (a pie has no i_series, so it
+// cannot reuse PieSliceInfo) for one structural knob; widening the union
+// later is non-breaking.
 //
 // It sits toward the centre of the SILHOUETTE's bounding box, not at the pie
 // centre: on a 180 degree gauge those differ by half a radius, and the pie
@@ -436,20 +546,23 @@ function pieGeometryAt(
 // the hole.
 function generateCenterLabel(
   rc: RenderContext,
-  cell: ReturnType<typeof layOutPieCell>,
+  pie: ReturnType<typeof layOutPie>,
   mergedStyle: MergedPieStyle,
-  indices: CellIndices,
+  indices: PieIndices,
   silhouette: SilhouetteExtents,
 ): FigureLabelPrimitive | undefined {
-  if (mergedStyle.pie.centerLabel !== "total") return undefined;
-  const { cx, cy, innerR, outerR } = cell.geometry;
+  const centerLabel = mergedStyle.pie.centerLabel;
+  if (centerLabel === "none") return undefined;
+  const { cx, cy, innerR, outerR } = pie.geometry;
   // Only a doughnut has a hole to write in — so a semicircle PIE gets no centre
   // label, and a gauge that wants a KPI number sets an innerRadiusRatio.
   if (innerR <= 0) return undefined;
+  if (centerLabel === "share" && pie.declaredTotal <= 0) return undefined;
 
-  const text = buildAutoFormatter([cell.sumOfValues], "number")(
-    cell.sumOfValues,
-  );
+  const share = pie.sumOfValues / pie.declaredTotal;
+  const text = centerLabel === "share"
+    ? buildAutoFormatter([share], "percent")(share)
+    : buildAutoFormatter([pie.sumOfValues], "number")(pie.sumOfValues);
   // Measured at the hole's widest chord — its diameter, which is the room
   // available AT the pie centre and an upper bound anywhere else. The offset
   // solve below only moves the box to a place it still fits.
@@ -468,7 +581,7 @@ function generateCenterLabel(
   return {
     type: "figure-label",
     key:
-      `pie-center-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}`,
+      `pie-center-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}`,
     bounds: new RectCoordsDims({
       x: labelX - innerR,
       y: labelY - mText.dims.h() / 2,
@@ -481,6 +594,7 @@ function generateCenterLabel(
       paneIndex: indices.paneIndex,
       tierIndex: indices.tierIndex,
       laneIndex: indices.laneIndex,
+      indicatorIndex: indices.indicatorIndex,
       placement: "inside",
     },
     mText,

@@ -5,6 +5,7 @@
 
 import {
   calculateMinLabelPlotExtent,
+  type ContentScaleResult,
   CustomFigureStyle,
   isAutoScaleLegendConfig,
   measureChart,
@@ -14,6 +15,7 @@ import {
   type RectCoordsDims,
   type RenderContext,
   resolveAutoScaleLegend,
+  resolveFlooredContentScale,
   resolveLabelPlacement,
   type SimplifiedChartConfig,
   solveContentScale,
@@ -142,7 +144,7 @@ type CellIndices = {
 
 type SolvedMapCell = {
   indices: CellIndices;
-  cellRcd: RectCoordsDims;
+  subChartRcd: RectCoordsDims;
   featuresForFitting: GeoJSONFeature[];
   shown: ShownMapRegion[];
   unitGeom: MapUnitGeometry | undefined;
@@ -179,7 +181,7 @@ export function featuresForFit(
 
 function solveMapCell(
   rc: RenderContext,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   indices: CellIndices,
   data: MapDataTransformed,
   mergedStyle: MergedMapStyle,
@@ -212,7 +214,7 @@ function solveMapCell(
   if (!projBounds || projBounds.w === 0 || projBounds.h === 0) {
     return {
       indices,
-      cellRcd,
+      subChartRcd,
       featuresForFitting,
       shown,
       unitGeom: undefined,
@@ -230,8 +232,8 @@ function solveMapCell(
   // s0: the label-free content scale — the zero-padding projection fit.
   // Placement is decided once, at s0, and never re-decided (plan D2).
   const s0 = Math.min(
-    cellRcd.w() / projBounds.w,
-    cellRcd.h() / projBounds.h,
+    subChartRcd.w() / projBounds.w,
+    subChartRcd.h() / projBounds.h,
   );
 
   const unitFitted = fitProjectionAtScale(
@@ -254,7 +256,7 @@ function solveMapCell(
   if (mode !== "none") {
     entries = buildMapLabelEntries(
       rc,
-      cellRcd,
+      subChartRcd,
       shown,
       mergedStyle,
       unitFitted,
@@ -292,8 +294,6 @@ function solveMapCell(
   // Solve for the content scale the frozen label set affords (plan D3). The
   // floor puts the LARGER drawn dimension at the legibility extent, matching
   // the old 42×42 minimum cell.
-  let s = s0;
-  let starved = false;
   let placement = mergedStyle.map.outsideLabelPlacement;
   const sFloor = calculateMinLabelPlotExtent(rc, mergedStyle.text.dataLabels) /
     Math.max(projBounds.w, projBounds.h);
@@ -303,6 +303,7 @@ function solveMapCell(
     refScale: s0,
     fieldMargin: mapFieldMargin(mergedStyle.map.calloutMargin, s0, sFloor),
   };
+  let result: ContentScaleResult | undefined;
   if (outside.length > 0) {
     const fitsUnder = (p: OutsideLabelPlacement) => (trialS: number) => {
       const e = mapExtentsAt(
@@ -317,7 +318,8 @@ function solveMapCell(
       // a genuine "does not fit"; only when NO scale works does the cell fall
       // back (N10).
       return e !== undefined &&
-        e.left + e.right <= cellRcd.w() && e.top + e.bottom <= cellRcd.h();
+        e.left + e.right <= subChartRcd.w() &&
+        e.top + e.bottom <= subChartRcd.h();
     };
     // A track that cannot hold these labels at the LARGEST scale cannot hold
     // them at any smaller one — the track only gets shorter while the labels
@@ -330,7 +332,7 @@ function solveMapCell(
     ) {
       placement = "flank";
     }
-    let result = solveContentScale(fitsUnder(placement), sFloor, s0);
+    result = solveContentScale(fitsUnder(placement), sFloor, s0);
     if (result.kind === "infeasible" && placement === "nearest") {
       // N10: this cell cannot be nearest-point at any scale, so it re-solves on
       // the flank placer — all shipped machinery — and is NOT cramped for that
@@ -338,15 +340,21 @@ function solveMapCell(
       placement = "flank";
       result = solveContentScale(fitsUnder("flank"), sFloor, s0);
     }
-    // infeasible: even the legibility floor cannot fit. Draw at the floor
-    // anyway (legibility beats frame) and report it as cramped (plan D6).
-    starved = result.kind === "infeasible";
-    s = result.kind === "ok" ? result.s : Math.min(sFloor, s0);
   }
+
+  // BOTH paths — labelled and unlabelled — go through the shared clamp, the
+  // same chokepoint pie uses, so the two figures cannot drift on the rule: an
+  // unlabelled map is still floored, and an infeasible budget draws at the
+  // floor anyway (legibility beats frame). A floor-lifted scale (s > s0)
+  // overflows the sub-chart and is reported as cramped, never clipped
+  // silently.
+  const resolved = resolveFlooredContentScale({ s0, sFloor, solved: result });
+  const s = resolved.s;
+  const starved = resolved.starved || s > s0;
 
   return {
     indices,
-    cellRcd,
+    subChartRcd,
     featuresForFitting,
     shown,
     unitGeom,
@@ -369,7 +377,7 @@ function emitMapCell(
 ): Primitive[] {
   const {
     indices,
-    cellRcd,
+    subChartRcd,
     featuresForFitting,
     shown,
     unitGeom,
@@ -386,11 +394,11 @@ function emitMapCell(
       featuresForFitting,
       projectionFn,
       0,
-      cellRcd.centerX(),
-      cellRcd.centerY(),
+      subChartRcd.centerX(),
+      subChartRcd.centerY(),
     );
     return generateMapRegionPrimitives(
-      cellRcd,
+      subChartRcd,
       shown,
       fitted,
       paneIndex,
@@ -421,12 +429,14 @@ function emitMapCell(
     );
   }
 
-  let cx = cellRcd.centerX();
-  let cy = cellRcd.centerY();
+  let cx = subChartRcd.centerX();
+  let cy = subChartRcd.centerY();
   if (extents) {
-    cx = cellRcd.x() + (cellRcd.w() - (extents.left + extents.right)) / 2 +
+    cx = subChartRcd.x() +
+      (subChartRcd.w() - (extents.left + extents.right)) / 2 +
       extents.left;
-    cy = cellRcd.y() + (cellRcd.h() - (extents.top + extents.bottom)) / 2 +
+    cy = subChartRcd.y() +
+      (subChartRcd.h() - (extents.top + extents.bottom)) / 2 +
       extents.top;
   }
 
@@ -439,7 +449,7 @@ function emitMapCell(
   );
 
   const primitives: Primitive[] = generateMapRegionPrimitives(
-    cellRcd,
+    subChartRcd,
     shown,
     fitted,
     paneIndex,
@@ -452,7 +462,7 @@ function emitMapCell(
       entries,
       outsideIds,
       unitGeom,
-      cellRcd,
+      subChartRcd,
       s,
       cx,
       cy,

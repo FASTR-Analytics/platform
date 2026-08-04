@@ -24,9 +24,9 @@ import {
 } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
-  type CellIndices,
-  layOutPieCell,
-  type PieCell,
+  type LaidOutPie,
+  layOutPie,
+  type PieIndices,
 } from "./generate_pie_slice_primitives.ts";
 import {
   circleEdgeAtY,
@@ -64,19 +64,19 @@ export type PieLabelSpec = {
 };
 
 export function collectPieLabelSpecs(
-  cell: PieCell,
+  pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
 ): PieLabelSpec[] {
   const formatter = mergedStyle.content.slices.textFormatter;
   // The default label is "<series> <percent>", with the decimal count chosen
-  // once across the cell's shares so sibling slices agree.
+  // once across the pie's shares so sibling slices agree.
   const autoPercent = buildAutoFormatter(
-    cell.slices.filter((s) => !s.isRemainder).map((s) => s.share),
+    pie.slices.filter((s) => !s.isRemainder).map((s) => s.share),
     "percent",
   );
 
   const specs: PieLabelSpec[] = [];
-  for (const slice of cell.slices) {
+  for (const slice of pie.slices) {
     if (slice.isRemainder) continue;
     const dl = slice.style.dataLabel;
     if (!slice.style.show || !dl.show) continue;
@@ -99,14 +99,14 @@ export function collectPieLabelSpecs(
 
 export function buildPieLabelCandidates(
   rc: RenderContext,
-  cell: PieCell,
+  pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
-  cellRcd: RectCoordsDims,
+  slotRcd: RectCoordsDims,
 ): PieLabelEntry[] {
-  const { cx, cy, innerR, outerR } = cell.geometry;
+  const { cx, cy, innerR, outerR } = pie.geometry;
 
   const entries: PieLabelEntry[] = [];
-  for (const spec of collectPieLabelSpecs(cell, mergedStyle)) {
+  for (const spec of collectPieLabelSpecs(pie, mergedStyle)) {
     const { id, text, midAngle, sweepRadians, dl } = spec;
     const anchor = polarPoint(cx, cy, (innerR + outerR) / 2, midAngle);
     // The leader starts where THIS slice meets the arc, not where the label's
@@ -124,7 +124,7 @@ export function buildPieLabelCandidates(
         mText: rc.mText(
           text,
           buildDataLabelTextStyle(mergedStyle.text.dataLabels, dl),
-          cellRcd.w() * mergedStyle.pie.labelWrapFraction,
+          slotRcd.w() * mergedStyle.pie.labelWrapFraction,
         ),
         anchor: new Coordinates([anchor.x, anchor.y]),
         leaderOrigin: new Coordinates([leaderOrigin.x, leaderOrigin.y]),
@@ -192,14 +192,14 @@ function pieTrack(
 // exactly on the arc. It is the FLANK path's hook and stays wired either way —
 // `outsideTrack` is what selects the nearest-point placer.
 export function buildPieLabelGeometry(
-  cell: PieCell,
-  cellRcd: RectCoordsDims,
+  pie: LaidOutPie,
+  slotRcd: RectCoordsDims,
   mergedStyle: MergedPieStyle,
   placement: OutsideLabelPlacement,
 ): LabelGeometry {
-  const { cx, cy, outerR } = cell.geometry;
+  const { cx, cy, outerR } = pie.geometry;
   return {
-    cellRcd,
+    hostRcd: slotRcd,
     centerX: cx,
     outsideBand: { minY: cy - outerR, maxY: cy + outerR },
     outsideEdgeAtY: (side, y) => circleEdgeAtY(cx, cy, outerR, side, y),
@@ -317,7 +317,7 @@ export function calculatePieLabelFloorBudget(
   rc: RenderContext,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-  indicesPerCell: CellIndices[],
+  indicesPerPie: PieIndices[],
 ): PieLabelFloorBudget {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   if (mode === "none" || mode === "inside") {
@@ -336,9 +336,9 @@ export function calculatePieLabelFloorBudget(
   // three properties that make a floor sound.
   let maxW = 0;
   let maxH = 0;
-  for (const indices of indicesPerCell) {
+  for (const indices of indicesPerPie) {
     // Angles are geometry-independent; a unit disc is enough to collect specs.
-    const cell = layOutPieCell(data, mergedStyle, indices, {
+    const pie = layOutPie(data, mergedStyle, indices, {
       cx: 0,
       cy: 0,
       innerR: 0,
@@ -348,7 +348,7 @@ export function calculatePieLabelFloorBudget(
     let rightStack = 0;
     let nLeft = 0;
     let nRight = 0;
-    for (const spec of collectPieLabelSpecs(cell, mergedStyle)) {
+    for (const spec of collectPieLabelSpecs(pie, mergedStyle)) {
       const mText = rc.mText(
         spec.text,
         buildDataLabelTextStyle(mergedStyle.text.dataLabels, spec.dl),

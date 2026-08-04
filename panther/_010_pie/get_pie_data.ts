@@ -9,6 +9,7 @@ import {
   createArray,
   createHeaderItems,
   fillValuesWithDuplicateCheck,
+  getHeaderIndex,
   type HeaderItem,
   type ProcessedHeaders,
   sortHeaderItems,
@@ -33,6 +34,7 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
   const {
     valueProps,
     seriesProp,
+    indicatorProp,
     paneProp,
     tierProp,
     laneProp,
@@ -45,6 +47,7 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
   validateDataInput(jsonArray, valueProps);
   checkValuePropsAssignment(valueProps, {
     seriesProp,
+    indicatorProp,
     laneProp,
     tierProp,
     paneProp,
@@ -59,6 +62,13 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
   const seriesHeaders = sortSeriesValues && sortSeriesValues !== "none"
     ? seriesHeadersRaw
     : sortHeaderItems(seriesHeadersRaw, sort?.series);
+  const indicatorHeaders = sortHeaderItems(
+    createHeaderItems(
+      collectHeaders(jsonArray, indicatorProp, valueProps),
+      labelReplacements,
+    ),
+    sort?.indicator,
+  );
   const laneHeaders = sortHeaderItems(
     createHeaderItems(
       collectHeaders(jsonArray, laneProp, valueProps),
@@ -86,6 +96,7 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     tierHeaders.length,
     laneHeaders.length,
     seriesHeaders.length,
+    indicatorHeaders.length,
   );
 
   const headers: ProcessedHeaders = {
@@ -101,8 +112,9 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
     valueProps,
     headers,
     { seriesProp, laneProp, tierProp, paneProp },
-    // One value slot per (pane, tier, lane, series): a pie is one stacked bar.
-    () => 0,
+    // The last axis is the indicator (repeat) dimension: one pie per entry.
+    (obj, valueProp) =>
+      getHeaderIndex(indicatorProp, valueProp, obj, indicatorHeaders),
   );
 
   assertNoNegativeValues(values, seriesHeaders);
@@ -124,6 +136,7 @@ function transformPieData(d: PieDataJson): PieDataTransformed {
   return {
     isTransformed: true,
     seriesHeaders: grouped.seriesHeaders,
+    indicatorHeaders,
     paneHeaders,
     tierHeaders,
     laneHeaders,
@@ -180,16 +193,22 @@ function applyGroupSmallSlices(
   const newValues = values.map((pane) =>
     pane.map((tier) =>
       tier.map((lane) => {
-        // undefined cells stay omitted: the grouped slot is undefined only
-        // when EVERY grouped series is undefined in this cell.
-        let sum: number | undefined;
-        for (const i of groupedIdx) {
-          const v = lane[i][0];
-          if (v !== undefined) {
-            sum = (sum ?? 0) + v;
+        // Summed per indicator: undefined stays omitted — the grouped entry
+        // is undefined only when EVERY grouped series is undefined for that
+        // indicator.
+        const nIndicators = lane[0]?.length ?? 0;
+        const groupedRow: (number | undefined)[] = [];
+        for (let k = 0; k < nIndicators; k++) {
+          let sum: number | undefined;
+          for (const i of groupedIdx) {
+            const v = lane[i][k];
+            if (v !== undefined) {
+              sum = (sum ?? 0) + v;
+            }
           }
+          groupedRow.push(sum);
         }
-        return [...keptIdx.map((i) => lane[i]), [sum]];
+        return [...keptIdx.map((i) => lane[i]), groupedRow];
       })
     )
   );
@@ -202,6 +221,7 @@ function createEmptyValuesArray(
   tierCount: number,
   laneCount: number,
   seriesCount: number,
+  indicatorCount: number,
 ): (number | undefined)[][][][][] {
   return createArray(
     paneCount,
@@ -212,7 +232,10 @@ function createEmptyValuesArray(
           createArray(
             laneCount,
             () =>
-              createArray(seriesCount, () => createArray(1, () => undefined)),
+              createArray(
+                seriesCount,
+                () => createArray(indicatorCount, () => undefined),
+              ),
           ),
       ),
   );

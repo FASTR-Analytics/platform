@@ -485,17 +485,23 @@ function baseLabelPrimitive(
   FigureLabelPrimitive,
   "mText" | "position" | "alignment" | "halo" | "leaderLine"
 > {
+  const indicatorPart = meta.indicatorIndex === undefined
+    ? ""
+    : `-${meta.indicatorIndex}`;
   return {
     type: "figure-label",
     key:
-      `${meta.keyPrefix}-${meta.paneIndex}-${meta.tierIndex}-${meta.laneIndex}-${candidate.id}`,
-    bounds: geometry.cellRcd,
+      `${meta.keyPrefix}-${meta.paneIndex}-${meta.tierIndex}-${meta.laneIndex}${indicatorPart}-${candidate.id}`,
+    bounds: geometry.hostRcd,
     zIndex: Z_INDEX.FIGURE_LABEL,
     meta: {
       id: candidate.id,
       paneIndex: meta.paneIndex,
       tierIndex: meta.tierIndex,
       laneIndex: meta.laneIndex,
+      ...(meta.indicatorIndex === undefined
+        ? {}
+        : { indicatorIndex: meta.indicatorIndex }),
       placement,
     },
   };

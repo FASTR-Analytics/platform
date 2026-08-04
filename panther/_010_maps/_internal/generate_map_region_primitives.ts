@@ -61,7 +61,7 @@ export function resolveShownRegions(
 }
 
 export function generateMapRegionPrimitives(
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   shown: ShownMapRegion[],
   fitted: FittedProjection,
   paneIndex: number,
@@ -77,7 +77,7 @@ export function generateMapRegionPrimitives(
     const prim: MapRegionPrimitive = {
       type: "map-region",
       key: `map-region-${paneIndex}-${tierIndex}-${laneIndex}-${featureId}`,
-      bounds: cellRcd,
+      bounds: subChartRcd,
       zIndex: Z_INDEX.MAP_REGION,
       meta: { featureId, paneIndex, tierIndex, laneIndex, value },
       pathSegments,

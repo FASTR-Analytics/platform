@@ -34,13 +34,49 @@ export type ContentScaleResult =
   // Nothing in [sFloor, sMax] fits; the caller decides (starvation → cramped).
   | { kind: "infeasible" };
 
+// The whole scale decision, owned in one place so pie and map cannot drift on
+// a rule they share. `solved` is the label solve's answer, or undefined when
+// the figure had no outside labels to solve for — owning that path is the
+// point: a clamp that lives inside an `outside.length > 0` branch never
+// reaches an unlabelled figure, which is how a pie with no outside labels was
+// never floored at all.
+//
+// The contract, in full:
+//   solved === undefined         -> s = max(s0, sFloor),       starved = false
+//   solved.kind === "ok"         -> s = max(solved.s, sFloor), starved = false
+//   solved.kind === "infeasible" -> s = sFloor,                starved = true
+//
+// The max on the "ok" line is not redundant: solveContentScale returns sMax
+// un-floored from its degenerate sMax <= sFloor branch below, which is
+// precisely the squeezed case the floor exists for. The returned s may
+// therefore EXCEED what fits the host rect (s > s0, or s above the label
+// solve's answer) — legibility beats frame; the caller reports that overflow
+// as cramped rather than clipping (a clipped disc reads as a different
+// shape).
+export function resolveFlooredContentScale(
+  { s0, sFloor, solved }: {
+    s0: number;
+    sFloor: number;
+    solved: ContentScaleResult | undefined;
+  },
+): { s: number; starved: boolean } {
+  if (solved === undefined) {
+    return { s: Math.max(s0, sFloor), starved: false };
+  }
+  if (solved.kind === "ok") {
+    return { s: Math.max(solved.s, sFloor), starved: false };
+  }
+  return { s: sFloor, starved: true };
+}
+
 export function solveContentScale(
   fits: (s: number) => boolean,
   sFloor: number,
   sMax: number,
 ): ContentScaleResult {
-  // Degenerate domain: the label-free scale is at or below the floor. Content
-  // may never outgrow its label-free size, so sMax is the only candidate.
+  // Degenerate domain: the label-free scale is at or below the floor. The
+  // solver itself never lifts a scale (resolveFlooredContentScale owns the
+  // floor clamp), so sMax is the only candidate here.
   if (sMax <= sFloor) {
     return fits(sMax) ? { kind: "ok", s: sMax } : { kind: "infeasible" };
   }

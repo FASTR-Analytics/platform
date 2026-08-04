@@ -127,7 +127,7 @@ export type MapLabelEntry = {
 
 export function buildMapLabelEntries(
   rc: RenderContext,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   shown: ShownMapRegion[],
   mergedStyle: MergedMapStyle,
   unitFitted: FittedProjection,
@@ -158,7 +158,7 @@ export function buildMapLabelEntries(
       mText: measureMapLabel(
         rc,
         spec.text,
-        cellRcd,
+        subChartRcd,
         mergedStyle.text.dataLabels,
         spec.dl,
         mergedStyle.map.labelWrapFraction,
@@ -348,7 +348,7 @@ const MAP_UNTANGLES_LEADERS = true;
 // the FLANK path's coastline ray-cast, and flank is the fallback.
 export function buildMapLabelGeometry(
   geom: MapUnitGeometry,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   s: number,
   cx: number,
   cy: number,
@@ -361,7 +361,7 @@ export function buildMapLabelGeometry(
     ? mapTrackAt(geom, ctx.refScale, ctx.fieldMargin, s, cx, cy, calloutMargin)
     : undefined;
   return {
-    cellRcd,
+    hostRcd: subChartRcd,
     ...labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
     untangleLeaders: MAP_UNTANGLES_LEADERS,
     outsideTrack: track
@@ -518,7 +518,7 @@ export function generateResolvedMapLabelPrimitives(
   entries: MapLabelEntry[],
   outsideIds: Set<string>,
   geom: MapUnitGeometry,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   s: number,
   cx: number,
   cy: number,
@@ -550,7 +550,7 @@ export function generateResolvedMapLabelPrimitives(
     outside,
     buildMapLabelGeometry(
       geom,
-      cellRcd,
+      subChartRcd,
       s,
       cx,
       cy,
