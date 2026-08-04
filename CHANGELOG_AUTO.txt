@@ -1,15 +1,15 @@
-[TBD] [user] [added] - "What's New" bell icon shows latest platform updates
-[TBD] [user] [added] - Unread dot on bell icon highlights announcements you haven't seen
-[TBD] [user] [added] - New release announcements appear automatically after login
-[TBD] [user] [added] - Browsable feed of all past announcements from the bell icon
-[TBD] [user] [added] - Announcements support multiple pages with images and videos
-[TBD] [user] [added] - Announcements available in English, French, and Portuguese
-[TBD] [admin] [added] - "What's New" announcements appear automatically after login
-[TBD] [admin] [added] - Bell icon in header shows unread release announcements
-[TBD] [admin] [added] - Browsable feed of all past announcements from the bell icon
-[TBD] [admin] [added] - Unread dot on bell icon until all announcements are viewed
-[TBD] [admin] [changed] - New users no longer see announcements that predate their account
-[TBD] [admin] [internal] - Announcement view events are logged for usage tracking
+[1.64.7] [user] [added] - "What's New" bell icon shows latest platform updates
+[1.64.7] [user] [added] - Unread dot on bell icon highlights announcements you haven't seen
+[1.64.7] [user] [added] - New release announcements appear automatically after login
+[1.64.7] [user] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [user] [added] - Announcements support multiple pages with images and videos
+[1.64.7] [user] [added] - Announcements available in English, French, and Portuguese
+[1.64.7] [admin] [added] - "What's New" announcements appear automatically after login
+[1.64.7] [admin] [added] - Bell icon in header shows unread release announcements
+[1.64.7] [admin] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [admin] [added] - Unread dot on bell icon until all announcements are viewed
+[1.64.7] [admin] [changed] - New users no longer see announcements that predate their account
+[1.64.7] [admin] [internal] - Announcement view events are logged for usage tracking
 [1.64.6] [user] [added] - Before/after visual previews for chart and image changes in slide version history
 [1.64.6] [user] [added] - Chart captions now shown in version history change descriptions
 [1.64.6] [user] [added] - Visualization and image changes now displayed in report session edits
