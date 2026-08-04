@@ -23,6 +23,7 @@ import type { MeasuredPie, PieDataTransformed, PieInputs } from "./types.ts";
 import { getPieDataTransformed } from "./get_pie_data.ts";
 import { calculatePieLabelFloorBudget } from "./_internal/generate_pie_label_candidates.ts";
 import type { CellIndices } from "./_internal/generate_pie_slice_primitives.ts";
+import { resolvePieSilhouette } from "./_internal/pie_geometry.ts";
 import { measurePie } from "./_internal/measure_pie.ts";
 import { renderPie } from "./_internal/render_pie.ts";
 
@@ -81,11 +82,16 @@ export function getPieComponentSizes(
   const transformedData = getPieDataTransformed(item.data);
 
   // Measured from the (scaled) data-label style, so the floor shrinks with
-  // the style scale. The content disc is aspect-1, but the CELL floors are no
-  // longer equal (plan D4): outside labels add width (the flank gutters) and
-  // can add height (a flank stack taller than the disc). Both label terms are
-  // unwrapped, so each floor stays proportional to the scale (monotone) and
-  // free of any cell dependence.
+  // the style scale. The CELL floors are not equal (plan D4): outside labels add
+  // width (the flank gutters) and can add height (a flank stack taller than the
+  // content). Both label terms are unwrapped, so each floor stays proportional
+  // to the scale (monotone) and free of any cell dependence.
+  //
+  // The content floor itself is applied to BOTH dimensions regardless of the
+  // silhouette, so a gauge — which needs only half the height its width implies
+  // — gets a slightly generous height floor. Deliberate: a legibility floor that
+  // is too generous only makes autofit cautious, and the ideal-height pass
+  // (which does read the silhouette) is what sets the natural size.
   const minLabelPlotExtent = calculateMinLabelPlotExtent(
     rc,
     mergedStyle.text.dataLabels,
@@ -150,18 +156,23 @@ function allCellIndices(data: PieDataTransformed): CellIndices[] {
   return indices;
 }
 
-// The content DISC is square, so the ideal height is the real decomposition:
-// derive the per-cell width from the same terms calculateChartMinWidth uses,
-// subtract the horizontal label budget to get the disc, make THAT square, add
-// back the vertical label demand, then let the shared helper add tier gaps,
-// pane gaps, tier padding, pane headers and a measured surrounds height.
-// Squaring the whole cell would bake the flank gutters into the height and
-// pad every labelled pie with dead vertical whitespace (plan D4).
+// The ideal height is the real decomposition: derive the per-cell width from
+// the same terms calculateChartMinWidth uses, subtract the horizontal label
+// budget to get the content, give THAT the silhouette's own aspect, add back the
+// vertical label demand, then let the shared helper add tier gaps, pane gaps,
+// tier padding, pane headers and a measured surrounds height. Applying the
+// aspect to the whole cell would bake the flank gutters into the height and pad
+// every labelled pie with dead vertical whitespace (plan D4).
+//
+// The aspect is the declared silhouette's, not 1: a full pie is square, a 180
+// degree gauge is twice as wide as it is tall. It comes from the same
+// `resolvePieSilhouette` the measure pass sizes with, so the natural size and
+// the drawn size cannot disagree.
 //
 // maxH is FINITE (= idealH), unlike map's Infinity. A finite maxH means "I
-// resist stretching"; Infinity means "I fill freely, leave me uncapped". Since
-// radius is min(w, h) / 2, every pixel of height past square is whitespace, so
-// uncapped is actively wrong in a column layout.
+// resist stretching"; Infinity means "I fill freely, leave me uncapped". Every
+// pixel of height past the silhouette aspect is whitespace, so uncapped is
+// actively wrong in a column layout.
 function getPieIdealHeight(
   rc: RenderContext,
   width: number,
@@ -204,14 +215,22 @@ function getPieIdealHeight(
     mergedStyle.text.dataLabels,
   );
 
-  // The disc gets what is left of the cell after the label gutters and is never
-  // squeezed below the legibility floor (calculateChartIdealHeight multiplies
-  // minSubChartHeight through WITHOUT clamping). The height then combines by
-  // placer, exactly as minSubChartHeight does above.
+  // The content gets what is left of the cell after the label gutters and is
+  // never squeezed below the legibility floor (calculateChartIdealHeight
+  // multiplies minSubChartHeight through WITHOUT clamping). The height then
+  // combines by placer, exactly as minSubChartHeight does above.
   const contentD = Math.max(cellW - labelBudget.horizontal, contentFloor);
+  const silhouette = resolvePieSilhouette(mergedStyle);
+  const silhouetteW = silhouette.left + silhouette.right;
+  // A vertical needle (a degenerate epsilon sweep on the vertical axis) has no
+  // width to take the aspect from; square is the sane finite answer. For a full
+  // disc the factor is exactly 2 / 2, so contentH IS contentD.
+  const contentH = silhouetteW > 0
+    ? contentD * (silhouette.top + silhouette.bottom) / silhouetteW
+    : contentD;
   const cellH = mergedStyle.pie.outsideLabelPlacement === "nearest"
-    ? contentD + labelBudget.vertical
-    : Math.max(contentD, labelBudget.vertical);
+    ? contentH + labelBudget.vertical
+    : Math.max(contentH, labelBudget.vertical);
 
   const idealH = calculateChartIdealHeight(
     rc,

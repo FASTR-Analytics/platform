@@ -8,7 +8,9 @@ For detailed explanations, see `DOC_CODING_CONVENTIONS.md`.
 
 1. **Function declarations for exports** — Use `function`, not arrow functions
 2. **Arrow functions for callbacks** — Inline functions, map/filter/etc.
-3. **Type aliases over interfaces** — Use `type`, not `interface`
+3. **Type aliases over interfaces and enums** — Use `type`, not `interface`.
+   **Never `const enum`**, and never plain `enum` either — use a union of string
+   literals, plus an `ALL_*` array when the values need iterating or validating
 4. **No JSDoc** — TypeScript types are sufficient
 5. **No `any`** — Explicit types always
 6. **Const by default** — Use `let` only for loop counters
@@ -46,6 +48,33 @@ interface ButtonProps { ... }
 // ✅ DO
 type ButtonProps = { ... };
 ```
+
+### Enums
+
+```typescript
+// ❌ DON'T — `const enum` is erased by inlining, so every transpile-only
+// toolchain (Deno, esbuild, vite, swc) either breaks on it or needs a special
+// case; plain `enum` emits a runtime object with reverse mappings. Neither is
+// erasable syntax, both are nominal, and neither survives `as const` narrowing.
+const enum FiscalYear {
+  None,
+  July,
+}
+
+enum Calendar {
+  Gregorian = "gregorian",
+}
+
+// ✅ DO — a string-literal union; add an `ALL_*` array when the values must be
+// iterated or validated at runtime, so the type and the list share one source
+export const ALL_FISCAL_YEARS = ["none", "july"] as const;
+
+export type FiscalYear = (typeof ALL_FISCAL_YEARS)[number];
+```
+
+The `ALL_*` array is what an enum's runtime object was for: it feeds `zod`
+enums, env-var validation, and select options, while the type stays a plain
+union that narrows and serializes as its own string value.
 
 ### Comments
 
@@ -146,6 +175,7 @@ logUsage(data).catch((e) => console.error(`logUsage failed: ${e.message}`));
 - [ ] No `any` types
 - [ ] No JSDoc comments
 - [ ] No `interface` declarations
+- [ ] No `enum` or `const enum` — string-literal unions (+ `ALL_*`) instead
 - [ ] Function declarations for exports
 - [ ] Braces on all `if` statements
 - [ ] No magic numbers/strings

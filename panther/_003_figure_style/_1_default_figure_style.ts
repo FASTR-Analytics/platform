@@ -603,9 +603,18 @@ const _DS = {
     innerRadiusRatio: 0,
     // 12 o'clock, matching every mainstream library.
     startAngle: -90,
+    // How far the whole pie runs, in degrees. 360 = a full pie; less makes a
+    // gauge, whose slices are fractions OF THE SWEEP — so an explicit `total`'s
+    // remainder slice becomes the gauge's track for free. Companion to
+    // startAngle: that says where the arc begins, this says how far it goes.
+    // Clamped to (0, 360].
+    sweepAngle: 360,
     direction: typed<"clockwise" | "counterclockwise">("clockwise"),
-    // Angular gap between adjacent slices, in degrees.
-    padAngle: 0,
+    // Space between adjacent slices, as a WIDTH (DU, scaled) rather than an
+    // angle: each slice's radial edges are inset half of it, parallel to the
+    // boundary ray, so the channel stays the same width from hub to rim and a
+    // slice reads as a band rather than a wedge. 0 = slices touch.
+    sliceGap: 0,
     cornerRadius: 0,
     labelMode: typed<"none" | "inside" | "outside" | "auto">("auto"),
     // The silhouette-to-label clearance for outside labels; see map's note.

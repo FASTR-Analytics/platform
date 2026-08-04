@@ -14,6 +14,8 @@ import { computeBoundsForPath, Coordinates, Z_INDEX } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
   buildSlicePath,
+  clampSweepAngleDeg,
+  degreesToRadians,
   layOutSliceAngles,
   pathSegmentPoints,
   resolvePieTotal,
@@ -101,7 +103,9 @@ export function layOutPieCell(
   const laidOut = layOutSliceAngles(sweepFractions, {
     startAngleDeg: mergedStyle.pie.startAngle,
     direction: mergedStyle.pie.direction,
-    padAngleDeg: mergedStyle.pie.padAngle,
+    sweepRadians: degreesToRadians(
+      clampSweepAngleDeg(mergedStyle.pie.sweepAngle),
+    ),
   });
 
   const slices: LaidOutSlice[] = defined.map((d, i) => {
@@ -206,7 +210,7 @@ function buildPieSliceInfo(
 
 export function generatePieSlicePrimitives(
   cell: PieCell,
-  cornerRadius: number,
+  mergedStyle: MergedPieStyle,
   indices: CellIndices,
 ): PieSlicePrimitive[] {
   const { cx, cy, innerR, outerR } = cell.geometry;
@@ -222,7 +226,8 @@ export function generatePieSlicePrimitives(
       outerR,
       startAngle: slice.angles.startAngle,
       endAngle: slice.angles.endAngle,
-      cornerRadius,
+      cornerRadius: mergedStyle.pie.cornerRadius,
+      sliceGap: mergedStyle.pie.sliceGap,
     });
     if (pathSegments.length === 0) continue;
 

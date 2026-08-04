@@ -224,8 +224,9 @@ export type MergedPieStyle = MergedChartStyleBase & {
   pie: {
     innerRadiusRatio: number;
     startAngle: number;
+    sweepAngle: number;
     direction: "clockwise" | "counterclockwise";
-    padAngle: number;
+    sliceGap: number;
     cornerRadius: number;
     labelMode: PieLabelMode;
     calloutMargin: number;

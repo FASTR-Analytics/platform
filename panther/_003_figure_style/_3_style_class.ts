@@ -629,8 +629,9 @@ export class CustomFigureStyle {
           d.pie.innerRadiusRatio,
         ),
         startAngle: m(c.pie?.startAngle, g.pie?.startAngle, d.pie.startAngle),
+        sweepAngle: m(c.pie?.sweepAngle, g.pie?.sweepAngle, d.pie.sweepAngle),
         direction: m(c.pie?.direction, g.pie?.direction, d.pie.direction),
-        padAngle: m(c.pie?.padAngle, g.pie?.padAngle, d.pie.padAngle),
+        sliceGap: ms(sf, c.pie?.sliceGap, g.pie?.sliceGap, d.pie.sliceGap),
         cornerRadius: ms(
           sf,
           c.pie?.cornerRadius,

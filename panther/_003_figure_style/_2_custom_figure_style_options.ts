@@ -529,8 +529,9 @@ export type CustomFigureStyleOptions = {
   pie?: {
     innerRadiusRatio?: number;
     startAngle?: number;
+    sweepAngle?: number;
     direction?: "clockwise" | "counterclockwise";
-    padAngle?: number;
+    sliceGap?: number;
     cornerRadius?: number;
     labelMode?: "none" | "inside" | "outside" | "auto";
     calloutMargin?: number;

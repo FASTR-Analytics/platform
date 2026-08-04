@@ -28,7 +28,12 @@ import {
   layOutPieCell,
   type PieCell,
 } from "./generate_pie_slice_primitives.ts";
-import { circleEdgeAtY, polarPoint, wedgeFitsBox } from "./pie_geometry.ts";
+import {
+  circleEdgeAtY,
+  polarPoint,
+  type SilhouetteExtents,
+  wedgeFitsBox,
+} from "./pie_geometry.ts";
 
 // pie.labelMode already names a REGION, so it maps onto the shared vocabulary
 // one-to-one. The conversion still lives in one place, mirroring map's.
@@ -54,7 +59,7 @@ export type PieLabelSpec = {
   id: string;
   text: string;
   midAngle: number;
-  sweepAngle: number;
+  sweepRadians: number;
   dl: LabelCandidate["dataLabel"];
 };
 
@@ -85,7 +90,7 @@ export function collectPieLabelSpecs(
       id: slice.seriesHeader.id,
       text,
       midAngle: (slice.angles.startAngle + slice.angles.endAngle) / 2,
-      sweepAngle: slice.angles.endAngle - slice.angles.startAngle,
+      sweepRadians: slice.angles.endAngle - slice.angles.startAngle,
       dl,
     });
   }
@@ -102,7 +107,7 @@ export function buildPieLabelCandidates(
 
   const entries: PieLabelEntry[] = [];
   for (const spec of collectPieLabelSpecs(cell, mergedStyle)) {
-    const { id, text, midAngle, sweepAngle, dl } = spec;
+    const { id, text, midAngle, sweepRadians, dl } = spec;
     const anchor = polarPoint(cx, cy, (innerR + outerR) / 2, midAngle);
     // The leader starts where THIS slice meets the arc, not where the label's
     // final row does: a stub at the label's own y would sit on the circle but
@@ -111,7 +116,7 @@ export function buildPieLabelCandidates(
     const leaderOrigin = polarPoint(cx, cy, outerR, midAngle);
     // Derived from the mid-angle rather than the drawn angles so the test is
     // independent of draw direction.
-    const halfSweep = Math.abs(sweepAngle) / 2;
+    const halfSweep = Math.abs(sweepRadians) / 2;
 
     entries.push({
       candidate: {
@@ -132,6 +137,9 @@ export function buildPieLabelCandidates(
             { x: anchor.x - cx, y: anchor.y - cy },
             w,
             h,
+            // The label is judged against the DRAWN slice, so a gap narrows
+            // the room by its own half-width, just as it narrows the fill.
+            mergedStyle.pie.sliceGap / 2,
           ),
         dataLabel: dl,
         // Decided once, from the bearing alone — an anchor-vs-centre test at
@@ -158,6 +166,14 @@ const PIE_UNTANGLES_LEADERS = false;
 // A pie's silhouette is a disc, so its track is analytically a circle of
 // radius outerR + calloutMargin about the disc centre. The circle is a
 // CONSEQUENCE of the shape, never the model (plan N1).
+//
+// A partial sweep (a gauge) keeps the whole circle here, along with
+// `outsideBand` and `circleEdgeAtY` below: the outside-label FRAME stays
+// notionally circular even when the drawn sector is not. That is conservative,
+// not wrong — anchors come from slice mid-angles so they stay inside the sweep,
+// and `pieExtentsAt` measures the boxes the placer actually produced, so sizing
+// and centring stay correct. A gauge's labels simply get marginally more room
+// than they need. Do not narrow it to the sector without a visual target.
 function pieTrack(
   cx: number,
   cy: number,
@@ -376,16 +392,24 @@ export function calculatePieLabelFloorBudget(
   };
 }
 
-// Union bbox of (disc at s) ∪ (outside label boxes at s), outward from the
-// content centre — derived from the placer's own output, never re-derived
-// alongside it. Halo padding is included unconditionally: the placement
-// offset applies it whether or not a halo is drawn.
+// Union bbox of (the DECLARED sector at s) ∪ (outside label boxes at s), outward
+// from the content centre — the label half derived from the placer's own output,
+// never re-derived alongside it. Halo padding is included unconditionally: the
+// placement offset applies it whether or not a halo is drawn.
+//
+// `silhouette` seeds each direction, so a gauge's labels are budgeted against
+// its declared footprint rather than the notional disc. Declared, not drawn: a
+// `remainder.mode: "gap"` cell whose values reach a third of its `total` still
+// reserves the whole sweep, which is what keeps a gauge's frame from moving as
+// its value changes (see `resolvePieSilhouette`). For a full pie every component
+// is 1 and `s * 1` is exactly `s`, so those extents are unchanged.
 export function pieExtentsAt(
   outside: PieLabelEntry[],
   s: number,
   clampedInnerRadiusRatio: number,
   mergedStyle: MergedPieStyle,
   placement: OutsideLabelPlacement,
+  silhouette: SilhouetteExtents,
 ): DirectionalExtents | undefined {
   const boxes = placePieOutsideBoxesAt(
     outside,
@@ -397,10 +421,10 @@ export function pieExtentsAt(
     placement,
   );
   if (!boxes) return undefined;
-  let left = s;
-  let right = s;
-  let top = s;
-  let bottom = s;
+  let left = s * silhouette.left;
+  let right = s * silhouette.right;
+  let top = s * silhouette.top;
+  let bottom = s * silhouette.bottom;
   for (let i = 0; i < outside.length; i++) {
     const { candidate } = outside[i];
     const box = boxes[i];
