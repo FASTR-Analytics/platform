@@ -306,6 +306,17 @@ export function StructureUploadAttemptForm(p: Props) {
                   step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
                   recodes={keyedUploadAttempt.recodes}
                   facilityColumns={p.facilityColumns}
+                  csvDetails={
+                    keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
+                          .csv
+                      : undefined
+                  }
+                  columnMappings={
+                    keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt.step2Result as StructureColumnMappings)
+                      : undefined
+                  }
                   silentFetch={uploadAttempt.silentFetch}
                   goNext={stepper.goNext}
                 />

@@ -337,6 +337,7 @@ defineRoute(
       body.values,
       body.offset,
       body.limit,
+      body.csvContextColumns,
     );
     return c.json(res);
   },

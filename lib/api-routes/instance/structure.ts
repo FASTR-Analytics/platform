@@ -185,6 +185,9 @@ export const structureRouteRegistry = {
       values: z.array(z.string()),
       offset: z.number().int().min(0),
       limit: z.number().int().min(1).max(1000),
+      // Encoded CSV header refs (encodeRawCsvHeader) of unmapped file columns
+      // to join in per facility as display-only context (CSV sources only)
+      csvContextColumns: z.array(z.string()).max(5).optional(),
     }),
     response: {} as StructureStagedRecodeRows,
   }),

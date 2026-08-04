@@ -2,8 +2,11 @@ import {
   t3,
   TC,
   _RECODABLE_FACILITY_COLUMNS,
+  encodeRawCsvHeader,
+  type CsvDetails,
   type FacilityFamily,
   type InstanceConfigFacilityColumns,
+  type StructureColumnMappings,
   type StructureRecodableColumn,
   type StructureRecodes,
   type StructureStagedColumnValues,
@@ -46,6 +49,7 @@ export type RecodeUiState = {
   autoChecked: boolean; // OTHER_REGEX suggestion applied once
   assignments: StructureRecodes; // working copy, incl. unsaved edits
   customTargets: string[]; // user-added "new category" values
+  contextColumns: string[]; // encoded refs of extra file columns to display
 };
 
 export function emptyRecodeUiState(): RecodeUiState {
@@ -56,6 +60,7 @@ export function emptyRecodeUiState(): RecodeUiState {
     autoChecked: false,
     assignments: {},
     customTargets: [],
+    contextColumns: [],
   };
 }
 
@@ -76,6 +81,10 @@ type Props = {
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
   facilityColumns: InstanceConfigFacilityColumns;
+  // CSV sources only (undefined for DHIS2): enables showing extra, unmapped
+  // file columns as display-only context in the rows table
+  csvDetails: CsvDetails | undefined;
+  columnMappings: StructureColumnMappings | undefined;
   silentFetch: () => Promise<void>;
   goNext: () => void;
 };
@@ -152,6 +161,7 @@ export function Step4Recode(p: Props) {
   async function attemptGetRows(
     col: StructureRecodableColumn,
     values: string[],
+    contextColumns: string[],
   ) {
     const runId = ++rowsRunId;
     setRowsState({ status: "loading", msg: t3(TC.fetchingData) });
@@ -161,6 +171,7 @@ export function Step4Recode(p: Props) {
       values,
       offset: 0,
       limit: _ROW_LIMIT,
+      csvContextColumns: contextColumns.length > 0 ? contextColumns : undefined,
     });
     if (runId !== rowsRunId) return;
     if (res.success === false) {
@@ -173,8 +184,9 @@ export function Step4Recode(p: Props) {
   createEffect(() => {
     const col = column();
     const values = [...p.ui.checkedValues];
+    const contextColumns = [...p.ui.contextColumns];
     if (!col || values.length === 0) return;
-    attemptGetRows(col, values);
+    attemptGetRows(col, values, contextColumns);
   });
 
   function onColumnChange(col: StructureRecodableColumn) {
@@ -234,6 +246,43 @@ export function Step4Recode(p: Props) {
     }),
   );
 
+  // Unmapped file columns offerable as display-only context in the table
+  const contextColumnOptions = createMemo(() => {
+    if (!p.csvDetails || !p.columnMappings) return [];
+    const mappedRefs = new Set(
+      Object.values(p.columnMappings).filter(
+        (v): v is string => typeof v === "string",
+      ),
+    );
+    return p.csvDetails.headers
+      .map((header, i) => ({ value: encodeRawCsvHeader(i, header), label: header }))
+      .filter(
+        (o) => !mappedRefs.has(o.value) && !p.ui.contextColumns.includes(o.value),
+      );
+  });
+
+  function contextColumnLabel(ref: string): string {
+    const headers = p.csvDetails?.headers ?? [];
+    for (let i = 0; i < headers.length; i++) {
+      if (encodeRawCsvHeader(i, headers[i]) === ref) {
+        return headers[i];
+      }
+    }
+    return ref;
+  }
+
+  function addContextColumn(ref: string) {
+    if (!ref || p.ui.contextColumns.includes(ref)) return;
+    p.setUi("contextColumns", [...p.ui.contextColumns, ref]);
+  }
+
+  function removeContextColumn(ref: string) {
+    p.setUi(
+      "contextColumns",
+      p.ui.contextColumns.filter((r) => r !== ref),
+    );
+  }
+
   function addCustomTarget() {
     const v = newCategory().trim();
     if (!v) return;
@@ -282,6 +331,13 @@ export function Step4Recode(p: Props) {
         (c): TableColumn<Record<string, string>> => ({
           key: c,
           header: getStructureColumnLabel(c, p.facilityColumns),
+        }),
+      ),
+      ...p.ui.contextColumns.map(
+        (ref): TableColumn<Record<string, string>> => ({
+          key: ref,
+          header: contextColumnLabel(ref),
+          render: (row) => row[ref] ?? "",
         }),
       ),
       {
@@ -336,9 +392,9 @@ export function Step4Recode(p: Props) {
       </div>
       <div class="text-base-content text-sm">
         {t3({
-          en: "Some files classify facilities with values like “Other”. Here you can reassign such values facility by facility before the import writes them. This step is optional — continue to the import if nothing needs reassigning.",
-          fr: "Certains fichiers classent les établissements avec des valeurs comme « Autre ». Vous pouvez ici réassigner ces valeurs établissement par établissement avant que l'importation ne les écrive. Cette étape est facultative — passez à l'importation si rien n'est à réassigner.",
-          pt: "Alguns ficheiros classificam os estabelecimentos com valores como «Outro». Aqui pode reatribuir esses valores estabelecimento a estabelecimento antes de a importação os escrever. Esta etapa é opcional — avance para a importação se nada precisar de reatribuição.",
+          en: "Some files classify facilities with values like “Other”. Here you can reassign such values facility by facility before the import writes them. Counts and rows are shown per facility — duplicate rows in your file are already resolved exactly as the import will resolve them. This step is optional — continue to the import if nothing needs reassigning.",
+          fr: "Certains fichiers classent les établissements avec des valeurs comme « Autre ». Vous pouvez ici réassigner ces valeurs établissement par établissement avant que l'importation ne les écrive. Les décomptes et les lignes sont présentés par établissement — les lignes en double de votre fichier sont déjà résolues exactement comme l'importation les résoudra. Cette étape est facultative — passez à l'importation si rien n'est à réassigner.",
+          pt: "Alguns ficheiros classificam os estabelecimentos com valores como «Outro». Aqui pode reatribuir esses valores estabelecimento a estabelecimento antes de a importação os escrever. As contagens e as linhas são apresentadas por estabelecimento — as linhas duplicadas do seu ficheiro já estão resolvidas exatamente como a importação as resolverá. Esta etapa é opcional — avance para a importação se nada precisar de reatribuição.",
         })}
       </div>
 
@@ -433,6 +489,38 @@ export function Step4Recode(p: Props) {
             </Button>
           </div>
 
+          <Show when={p.csvDetails}>
+            <div class="ui-gap-sm flex items-end">
+              <Select
+                size="sm"
+                value={undefined}
+                options={contextColumnOptions()}
+                onChange={addContextColumn}
+                label={t3({
+                  en: "Show a column from your file",
+                  fr: "Afficher une colonne de votre fichier",
+                  pt: "Mostrar uma coluna do seu ficheiro",
+                })}
+                placeholder={t3({
+                  en: "Choose a column...",
+                  fr: "Choisir une colonne...",
+                  pt: "Escolher uma coluna...",
+                })}
+              />
+              <For each={p.ui.contextColumns}>
+                {(ref) => (
+                  <Button
+                    size="sm"
+                    iconName="x"
+                    onClick={() => removeContextColumn(ref)}
+                  >
+                    {contextColumnLabel(ref)}
+                  </Button>
+                )}
+              </For>
+            </div>
+          </Show>
+
           <StateHolderWrapper state={rowsState()}>
             {(rowsData) => (
               <div class="ui-spy-sm">
@@ -447,17 +535,17 @@ export function Step4Recode(p: Props) {
                 <Show when={rowsData.total > rowsData.rows.length}>
                   <div class="text-danger text-sm">
                     {t3({
-                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${toNum0(rowsData.total)} rows are shown — uncheck some values to narrow the list.`,
-                      fr: `Seules les ${toNum0(rowsData.rows.length)} premières lignes sur ${toNum0(rowsData.total)} sont affichées — décochez des valeurs pour restreindre la liste.`,
-                      pt: `Apenas as primeiras ${toNum0(rowsData.rows.length)} de ${toNum0(rowsData.total)} linhas são mostradas — desmarque alguns valores para restringir a lista.`,
+                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${toNum0(rowsData.total)} facilities are shown — uncheck some values to narrow the list.`,
+                      fr: `Seuls les ${toNum0(rowsData.rows.length)} premiers établissements sur ${toNum0(rowsData.total)} sont affichés — décochez des valeurs pour restreindre la liste.`,
+                      pt: `Apenas os primeiros ${toNum0(rowsData.rows.length)} de ${toNum0(rowsData.total)} estabelecimentos são mostrados — desmarque alguns valores para restringir a lista.`,
                     })}
                   </div>
                 </Show>
                 <div class="text-sm">
                   {t3({
-                    en: `${toNum0(assignedCount())} of ${toNum0(rowsData.total)} rows assigned`,
-                    fr: `${toNum0(assignedCount())} sur ${toNum0(rowsData.total)} lignes assignées`,
-                    pt: `${toNum0(assignedCount())} de ${toNum0(rowsData.total)} linhas atribuídas`,
+                    en: `${toNum0(assignedCount())} of ${toNum0(rowsData.total)} facilities assigned`,
+                    fr: `${toNum0(assignedCount())} sur ${toNum0(rowsData.total)} établissements assignés`,
+                    pt: `${toNum0(assignedCount())} de ${toNum0(rowsData.total)} estabelecimentos atribuídos`,
                   })}
                 </div>
               </div>

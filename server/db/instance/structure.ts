@@ -27,6 +27,7 @@ import {
   type StructureIntegrateSummary,
 } from "lib";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
@@ -940,6 +941,7 @@ export async function structureStep3Dhis2_StageData(
 // scope is computed exactly as integrate computes it; raw getStagedColumns
 // output (which contains rowid, unordered) is never exposed to the client.
 type StagedReviewContext = {
+  rawUA: DBStructureUploadAttempt;
   stagingTableName: string;
   stagedOptionalColumns: OptionalFacilityColumn[];
   writeColumns: string[];
@@ -987,6 +989,7 @@ async function getStagedReviewContext(
   return {
     success: true,
     data: {
+      rawUA,
       stagingTableName: step3Result.stagingTableName,
       stagedOptionalColumns,
       writeColumns,
@@ -1054,7 +1057,8 @@ export async function getStructureStagedRecodeRows(
   column: StructureRecodableColumn,
   values: string[],
   offset: number,
-  limit: number
+  limit: number,
+  csvContextColumns: string[] | undefined
 ): Promise<APIResponseWithData<StructureStagedRecodeRows>> {
   return await tryCatchDatabaseAsync(async () => {
     const resCtx = await getStagedReviewContext(mainDb, family);
@@ -1090,11 +1094,99 @@ export async function getStructureStagedRecodeRows(
       ORDER BY facility_id
       LIMIT ${limit} OFFSET ${offset}
     `);
+    if (csvContextColumns && csvContextColumns.length > 0 && rows.length > 0) {
+      const resContext = await joinCsvContextColumns(
+        ctx.rawUA,
+        rows,
+        csvContextColumns
+      );
+      if (!resContext.success) {
+        return resContext;
+      }
+    }
     return {
       success: true,
       data: { columns: ctx.displayColumns, rows, total },
     };
   });
+}
+
+// Display-only context for the review table: unmapped CSV columns are never
+// staged, so their values are joined in from the stored file at read time,
+// keyed by facility id. Duplicate file rows contribute all their distinct
+// non-empty values ("; "-joined) — richer for decision-making than the one
+// dedup-winner row. Keys on the returned rows are the encoded header refs.
+async function joinCsvContextColumns(
+  rawUA: DBStructureUploadAttempt,
+  rows: Record<string, string>[],
+  csvContextColumns: string[]
+): Promise<APIResponseNoData> {
+  if (rawUA.source_type !== "csv" || !rawUA.step_1_result || !rawUA.step_2_result) {
+    return {
+      success: false,
+      err: "Extra file columns are only available for CSV imports",
+    };
+  }
+  const step1Result = parseCsvStep1Result(rawUA.step_1_result);
+  const columnMappings = JSON.parse(
+    rawUA.step_2_result
+  ) as StructureColumnMappings;
+  const resComponents = await getCsvStreamComponents(step1Result.csv.filePath);
+  if (!resComponents.success) {
+    return resComponents;
+  }
+  const { encodedHeaderToIndexMap, processRows } = resComponents.data;
+  const facilityIdIndex = encodedHeaderToIndexMap.get(
+    columnMappings.facility_id
+  );
+  if (facilityIdIndex === undefined) {
+    return {
+      success: false,
+      err: "The facility ID column was not found in the uploaded file",
+    };
+  }
+  const contextIndexes: { ref: string; index: number }[] = [];
+  for (const ref of csvContextColumns) {
+    const index = encodedHeaderToIndexMap.get(ref);
+    if (index === undefined) {
+      return {
+        success: false,
+        err: `Column not found in the uploaded file: ${ref}`,
+      };
+    }
+    contextIndexes.push({ ref, index });
+  }
+  const valuesByFacility = new Map<string, Map<string, Set<string>>>();
+  for (const row of rows) {
+    valuesByFacility.set(row.facility_id, new Map());
+  }
+  await processRows((csvRow) => {
+    const facilityId = csvRow[facilityIdIndex]?.trim() ?? "";
+    const perFacility = valuesByFacility.get(facilityId);
+    if (!perFacility) {
+      return;
+    }
+    for (const c of contextIndexes) {
+      const value = csvRow[c.index]?.trim() ?? "";
+      if (!value) {
+        continue;
+      }
+      let set = perFacility.get(c.ref);
+      if (!set) {
+        set = new Set<string>();
+        perFacility.set(c.ref, set);
+      }
+      set.add(value);
+    }
+  });
+  for (const row of rows) {
+    const perFacility = valuesByFacility.get(row.facility_id);
+    for (const c of contextIndexes) {
+      const set = perFacility?.get(c.ref);
+      row[c.ref] = set ? [...set].join("; ") : "";
+    }
+  }
+  return { success: true };
 }
 
 export async function setStructureRecodes(
