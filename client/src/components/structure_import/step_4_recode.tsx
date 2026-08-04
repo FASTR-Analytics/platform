@@ -205,7 +205,7 @@ export function Step4Recode(p: Props) {
     setSelectedIds(new Set<string>());
   }
 
-  const targetOptions = createMemo<string[]>(() => {
+  const targetValues = createMemo<string[]>(() => {
     const col = column();
     const vs = valuesState();
     const out = new Set<string>();
@@ -226,6 +226,30 @@ export function Step4Recode(p: Props) {
     return [...out];
   });
 
+  // Option object identity must be stable across recomputes: Select renders
+  // options with a referentially-keyed <For>, so fresh objects for unchanged
+  // values would recreate every <option> element — and removing the selected
+  // option resets the native select back to its first entry.
+  const keepAsIsOption = {
+    value: "",
+    label: t3({
+      en: "— keep as is —",
+      fr: "— conserver tel quel —",
+      pt: "— manter como está —",
+    }),
+  };
+  const targetOptionCache = new Map<string, { value: string; label: string }>();
+  const targetSelectOptions = createMemo(() =>
+    targetValues().map((value) => {
+      let opt = targetOptionCache.get(value);
+      if (!opt) {
+        opt = { value, label: value };
+        targetOptionCache.set(value, opt);
+      }
+      return opt;
+    }),
+  );
+
   function addCustomTarget() {
     const v = newCategory().trim();
     if (!v) return;
@@ -235,16 +259,18 @@ export function Step4Recode(p: Props) {
     setNewCategory("");
   }
 
+  // setStore with an object MERGES, so a copy-with-deleted-key would never
+  // clear anything: deletion must be an explicit undefined write at the leaf.
   function setAssignment(facilityId: string, value: string) {
     const col = column();
     if (!col) return;
-    const next = { ...(unwrap(p.ui.assignments)[col] ?? {}) };
     if (value === "") {
-      delete next[facilityId];
+      if (p.ui.assignments[col]) {
+        p.setUi("assignments", col, facilityId, undefined as never);
+      }
     } else {
-      next[facilityId] = value;
+      p.setUi("assignments", col, { [facilityId]: value });
     }
-    p.setUi("assignments", col, next);
     setNeedsSaving(true);
   }
 
@@ -252,11 +278,11 @@ export function Step4Recode(p: Props) {
     const col = column();
     const target = bulkTarget();
     if (!col || !target) return;
-    const next = { ...(unwrap(p.ui.assignments)[col] ?? {}) };
-    for (const facilityId of selectedIds()) {
-      next[facilityId] = target;
-    }
-    p.setUi("assignments", col, next);
+    p.setUi(
+      "assignments",
+      col,
+      Object.fromEntries([...selectedIds()].map((fid) => [fid, target])),
+    );
     setSelectedIds(new Set<string>());
     setNeedsSaving(true);
   }
@@ -308,17 +334,7 @@ export function Step4Recode(p: Props) {
           <Select
             size="sm"
             value={p.ui.assignments[column()!]?.[row.facility_id] ?? ""}
-            options={[
-              {
-                value: "",
-                label: t3({
-                  en: "— keep as is —",
-                  fr: "— conserver tel quel —",
-                  pt: "— manter como está —",
-                }),
-              },
-              ...targetOptions().map((v) => ({ value: v, label: v })),
-            ]}
+            options={[keepAsIsOption, ...targetSelectOptions()]}
             onChange={(v) => setAssignment(row.facility_id, v)}
           />
         ),
@@ -486,10 +502,7 @@ export function Step4Recode(p: Props) {
                   <Select
                     size="sm"
                     value={bulkTarget()}
-                    options={targetOptions().map((v) => ({
-                      value: v,
-                      label: v,
-                    }))}
+                    options={targetSelectOptions()}
                     onChange={setBulkTarget}
                     placeholder={t3({
                       en: "Choose a value...",
