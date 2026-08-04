@@ -22,6 +22,8 @@ const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
 
 export type WhatsNewModalOutcome = "skipped" | "completed";
 
+const QUEUE_ADVANCE_TIMEOUT_MS = 8_000;
+
 // Authored content in the viewer's current app language, English fallback
 function rt(t: WhatsNewText | undefined): string {
   if (!t) {
@@ -133,11 +135,17 @@ export function WhatsNewModal(
       }
     >
       {/* Fixed height so the modal doesn't resize as pages change; long
-          pages scroll inside this region */}
-      <div class="h-[min(600px,60vh)] overflow-y-auto">
+          pages scroll inside their own layer. Inactive pages are `invisible`
+          rather than `hidden`: visibility:hidden keeps them laid out and
+          rendered, so their media loads normally, whereas display:none lets
+          the browser deprioritise it. */}
+      <div class="relative h-[min(600px,60vh)]">
         <Index each={pages()}>
           {(pg, i) => (
-            <div classList={{ hidden: i !== pageIndex() }}>
+            <div
+              class="absolute inset-0 overflow-y-auto"
+              classList={{ "invisible pointer-events-none": i !== pageIndex() }}
+            >
               <WhatsNewPageContent
                 page={pg()}
                 active={i === pageIndex()}
@@ -261,6 +269,17 @@ function WhatsNewMedia(p: {
     p.onLoaded();
   }
 
+  // The queue advances on this page's load event, so a file that stalls (or
+  // an element that never reports) must not starve the pages behind it —
+  // release the next page after a grace period regardless.
+  createEffect(() => {
+    if (!p.canLoad || loaded()) {
+      return;
+    }
+    const timer = setTimeout(() => p.onLoaded(), QUEUE_ADVANCE_TIMEOUT_MS);
+    onCleanup(() => clearTimeout(timer));
+  });
+
   // Don't burn CPU decoding a looping clip on a hidden page
   createEffect(() => {
     if (!videoRef || !loaded()) {
@@ -318,6 +337,7 @@ function WhatsNewMedia(p: {
           <video
             src={src()}
             class={p.imgClass}
+            preload="auto"
             loop
             controls={REDUCED_MOTION}
             ref={(el) => {
