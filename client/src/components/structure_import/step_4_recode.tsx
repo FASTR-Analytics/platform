@@ -28,7 +28,9 @@ import { unwrap, type SetStoreFunction } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { getStructureColumnLabel } from "./_column_labels";
 
-const _PAGE_SIZE = 100;
+// No pagination: reassignment only makes sense for low-cardinality values, so
+// all affected rows load at once and the table scrolls in a capped container.
+const _ROW_LIMIT = 1000;
 
 // Mirrors lib/hfa_sentinel_classification.ts's "other" heuristic. Deliberately
 // not imported: this is a UI suggestion, not a classification.
@@ -44,7 +46,6 @@ export type RecodeUiState = {
   autoChecked: boolean; // OTHER_REGEX suggestion applied once
   assignments: StructureRecodes; // working copy, incl. unsaved edits
   customTargets: string[]; // user-added "new category" values
-  pageOffset: number;
 };
 
 export function emptyRecodeUiState(): RecodeUiState {
@@ -55,7 +56,6 @@ export function emptyRecodeUiState(): RecodeUiState {
     autoChecked: false,
     assignments: {},
     customTargets: [],
-    pageOffset: 0,
   };
 }
 
@@ -95,8 +95,6 @@ export function Step4Recode(p: Props) {
       : columnOptions().at(0);
   };
 
-  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [bulkTarget, setBulkTarget] = createSignal<string>("");
   const [newCategory, setNewCategory] = createSignal<string>("");
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(
     JSON.stringify(normalizeRecodes(unwrap(p.ui.assignments))) !==
@@ -154,7 +152,6 @@ export function Step4Recode(p: Props) {
   async function attemptGetRows(
     col: StructureRecodableColumn,
     values: string[],
-    offset: number,
   ) {
     const runId = ++rowsRunId;
     setRowsState({ status: "loading", msg: t3(TC.fetchingData) });
@@ -162,16 +159,12 @@ export function Step4Recode(p: Props) {
       family: p.family,
       column: col,
       values,
-      offset,
-      limit: _PAGE_SIZE,
+      offset: 0,
+      limit: _ROW_LIMIT,
     });
     if (runId !== rowsRunId) return;
     if (res.success === false) {
       setRowsState({ status: "error", err: res.err });
-      return;
-    }
-    if (offset > 0 && res.data.total <= offset) {
-      p.setUi("pageOffset", 0);
       return;
     }
     setRowsState({ status: "ready", data: res.data });
@@ -180,16 +173,13 @@ export function Step4Recode(p: Props) {
   createEffect(() => {
     const col = column();
     const values = [...p.ui.checkedValues];
-    const offset = p.ui.pageOffset;
     if (!col || values.length === 0) return;
-    attemptGetRows(col, values, offset);
+    attemptGetRows(col, values);
   });
 
   function onColumnChange(col: StructureRecodableColumn) {
     p.setUi("column", col);
     p.setUi("checkedValues", []);
-    p.setUi("pageOffset", 0);
-    setSelectedIds(new Set<string>());
   }
 
   function toggleValue(value: string, on: boolean) {
@@ -197,13 +187,6 @@ export function Step4Recode(p: Props) {
       ? [...p.ui.checkedValues, value]
       : p.ui.checkedValues.filter((v) => v !== value);
     p.setUi("checkedValues", next);
-    p.setUi("pageOffset", 0);
-    setSelectedIds(new Set<string>());
-  }
-
-  function setPageOffset(offset: number) {
-    p.setUi("pageOffset", offset);
-    setSelectedIds(new Set<string>());
   }
 
   const targetValues = createMemo<string[]>(() => {
@@ -275,19 +258,6 @@ export function Step4Recode(p: Props) {
     setNeedsSaving(true);
   }
 
-  function applyBulkAssignment() {
-    const col = column();
-    const target = bulkTarget();
-    if (!col || !target) return;
-    p.setUi(
-      "assignments",
-      col,
-      Object.fromEntries([...selectedIds()].map((fid) => [fid, target])),
-    );
-    setSelectedIds(new Set<string>());
-    setNeedsSaving(true);
-  }
-
   const assignedCount = () => {
     const col = column();
     return col ? Object.keys(p.ui.assignments[col] ?? {}).length : 0;
@@ -308,25 +278,6 @@ export function Step4Recode(p: Props) {
     responseColumns: string[],
   ): TableColumn<Record<string, string>>[] {
     return [
-      {
-        key: "_select",
-        header: "",
-        render: (row) => (
-          <Checkbox
-            checked={selectedIds().has(row.facility_id)}
-            onChange={(on) => {
-              const next = new Set(selectedIds());
-              if (on) {
-                next.add(row.facility_id);
-              } else {
-                next.delete(row.facility_id);
-              }
-              setSelectedIds(next);
-            }}
-            label=""
-          />
-        ),
-      },
       ...responseColumns.map(
         (c): TableColumn<Record<string, string>> => ({
           key: c,
@@ -485,91 +436,29 @@ export function Step4Recode(p: Props) {
           <StateHolderWrapper state={rowsState()}>
             {(rowsData) => (
               <div class="ui-spy-sm">
-                <div class="ui-gap-sm flex items-center">
-                  <Checkbox
-                    checked={
-                      rowsData.rows.length > 0 &&
-                      rowsData.rows.every((r) =>
-                        selectedIds().has(r.facility_id),
-                      )
-                    }
-                    onChange={(on) => {
-                      setSelectedIds(
-                        on
-                          ? new Set(rowsData.rows.map((r) => r.facility_id))
-                          : new Set<string>(),
-                      );
-                    }}
-                    label={t3({
-                      en: "Select all on this page",
-                      fr: "Tout sélectionner sur cette page",
-                      pt: "Selecionar tudo nesta página",
-                    })}
-                  />
-                  <Select
-                    size="sm"
-                    value={bulkTarget()}
-                    options={targetSelectOptions()}
-                    onChange={setBulkTarget}
-                    placeholder={t3({
-                      en: "Choose a value...",
-                      fr: "Choisir une valeur...",
-                      pt: "Escolher um valor...",
-                    })}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={applyBulkAssignment}
-                    disabled={selectedIds().size === 0 || !bulkTarget()}
-                  >
-                    {t3({
-                      en: "Assign selected",
-                      fr: "Assigner la sélection",
-                      pt: "Atribuir selecionados",
-                    })}
-                  </Button>
-                </div>
-
                 <Table
                   data={rowsData.rows}
                   columns={buildTableColumns(rowsData.columns)}
                   keyField="facility_id"
                   paddingY="compact"
+                  tableContentMaxHeight="60vh"
                 />
 
-                <div class="ui-gap-sm flex items-center">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      setPageOffset(Math.max(0, p.ui.pageOffset - _PAGE_SIZE))
-                    }
-                    disabled={p.ui.pageOffset === 0}
-                  >
-                    {t3({ en: "Previous", fr: "Précédent", pt: "Anterior" })}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setPageOffset(p.ui.pageOffset + _PAGE_SIZE)}
-                    disabled={
-                      p.ui.pageOffset + rowsData.rows.length >= rowsData.total
-                    }
-                  >
-                    {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-                  </Button>
-                  <div class="text-base-content-muted text-sm">
+                <Show when={rowsData.total > rowsData.rows.length}>
+                  <div class="text-danger text-sm">
                     {t3({
-                      en: `Showing ${toNum0(p.ui.pageOffset + 1)}–${toNum0(p.ui.pageOffset + rowsData.rows.length)} of ${toNum0(rowsData.total)}`,
-                      fr: `Affichage de ${toNum0(p.ui.pageOffset + 1)}–${toNum0(p.ui.pageOffset + rowsData.rows.length)} sur ${toNum0(rowsData.total)}`,
-                      pt: `A mostrar ${toNum0(p.ui.pageOffset + 1)}–${toNum0(p.ui.pageOffset + rowsData.rows.length)} de ${toNum0(rowsData.total)}`,
+                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${toNum0(rowsData.total)} rows are shown — uncheck some values to narrow the list.`,
+                      fr: `Seules les ${toNum0(rowsData.rows.length)} premières lignes sur ${toNum0(rowsData.total)} sont affichées — décochez des valeurs pour restreindre la liste.`,
+                      pt: `Apenas as primeiras ${toNum0(rowsData.rows.length)} de ${toNum0(rowsData.total)} linhas são mostradas — desmarque alguns valores para restringir a lista.`,
                     })}
                   </div>
-                  <div class="text-sm">
-                    {t3({
-                      en: `${toNum0(assignedCount())} of ${toNum0(rowsData.total)} rows assigned`,
-                      fr: `${toNum0(assignedCount())} sur ${toNum0(rowsData.total)} lignes assignées`,
-                      pt: `${toNum0(assignedCount())} de ${toNum0(rowsData.total)} linhas atribuídas`,
-                    })}
-                  </div>
+                </Show>
+                <div class="text-sm">
+                  {t3({
+                    en: `${toNum0(assignedCount())} of ${toNum0(rowsData.total)} rows assigned`,
+                    fr: `${toNum0(assignedCount())} sur ${toNum0(rowsData.total)} lignes assignées`,
+                    pt: `${toNum0(assignedCount())} de ${toNum0(rowsData.total)} linhas atribuídas`,
+                  })}
                 </div>
               </div>
             )}

@@ -184,7 +184,7 @@ export const structureRouteRegistry = {
       column: structureRecodableColumnSchema,
       values: z.array(z.string()),
       offset: z.number().int().min(0),
-      limit: z.number().int().min(1).max(200),
+      limit: z.number().int().min(1).max(1000),
     }),
     response: {} as StructureStagedRecodeRows,
   }),
