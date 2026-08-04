@@ -22,41 +22,6 @@ const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
 
 export type WhatsNewModalOutcome = "skipped" | "completed";
 
-const PREFETCH_TIMEOUT_MS = 15_000;
-
-// Warms the browser cache so a page's media is already decoded by the time
-// the user reaches it. Images load via Image(); video needs a real <video
-// preload="auto"> because a plain fetch() response isn't reliably reused to
-// satisfy the media element's range requests. Always resolves — a failure
-// just means that page loads normally — and is time-boxed so one stalled
-// file can't block the rest of the queue.
-function prefetchMedia(src: string): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(done, PREFETCH_TIMEOUT_MS);
-    if (isWhatsNewVideo(src)) {
-      const video = document.createElement("video");
-      video.preload = "auto";
-      video.muted = true;
-      video.oncanplaythrough = done;
-      video.onerror = done;
-      video.src = src;
-      video.load();
-    } else {
-      const img = new Image();
-      img.onload = done;
-      img.onerror = done;
-      img.src = src;
-    }
-  });
-}
-
 // Authored content in the viewer's current app language, English fallback
 function rt(t: WhatsNewText | undefined): string {
   if (!t) {
@@ -71,7 +36,6 @@ export function WhatsNewModal(
 ) {
   const pages = () => p.post.pages ?? [];
   const [pageIndex, setPageIndex] = createSignal(0);
-  const page = () => pages()[pageIndex()];
   const isLast = () => pageIndex() >= pages().length - 1;
   const multiPage = () => pages().length > 1;
 
@@ -99,27 +63,17 @@ export function WhatsNewModal(
   onMount(() => document.addEventListener("keydown", handleKeyDown));
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
-  // Prefetch the visible page's media first, then the remaining pages one at
-  // a time — so later pages are ready on arrival without the queue competing
-  // for bandwidth with what's currently on screen (field sites are often on
-  // thin connections).
-  let prefetchCancelled = false;
-  onMount(() => {
-    void (async () => {
-      const all = pages()
-        .map((pg) => pg.imageUrl)
-        .filter((src): src is string => !!src);
-      const ordered = [...new Set([pages()[pageIndex()]?.imageUrl, ...all])]
-        .filter((src): src is string => !!src);
-      for (const src of ordered) {
-        if (prefetchCancelled) return;
-        await prefetchMedia(src);
-      }
-    })();
-  });
-  onCleanup(() => {
-    prefetchCancelled = true;
-  });
+  // Every page stays mounted (hidden when inactive) so the element that
+  // downloaded the media IS the element displayed — a detached prefetch
+  // can't guarantee that, because browsers deprioritise offscreen media and
+  // a cached 206 isn't reliably reused by a different element.
+  // `loadUpTo` staggers it: a page only gets its src once the previous one
+  // has finished, so the queue never competes with what's on screen.
+  const [loadUpTo, setLoadUpTo] = createSignal(0);
+  const allowLoad = (i: number) => setLoadUpTo((c) => Math.max(c, i));
+
+  // Jumping ahead (dots/keyboard) must not wait behind the queue
+  createEffect(() => allowLoad(pageIndex()));
 
   return (
     <ModalContainer
@@ -165,9 +119,12 @@ export function WhatsNewModal(
           <Show
             when={multiPage() && !isLast()}
             fallback={
-              <Button intent="primary" onClick={() => p.close("completed")}>
-                {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-              </Button>
+              <Button
+                intent="primary"
+                iconName="x"
+                ariaLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+                onClick={() => p.close("completed")}
+              />
             }
           >
             <Button intent="primary" iconName="chevronRight" onClick={next} />
@@ -177,13 +134,19 @@ export function WhatsNewModal(
     >
       {/* Fixed height so the modal doesn't resize as pages change; long
           pages scroll inside this region */}
-      {/* keyed: each page gets its own DOM, so a reused <img>/<video> can't
-          keep painting the previous page's media (or inherit its load state)
-          while the new source decodes */}
       <div class="h-[min(600px,60vh)] overflow-y-auto">
-        <Show when={page()} keyed>
-          {(pg) => <WhatsNewPageContent page={pg} />}
-        </Show>
+        <Index each={pages()}>
+          {(pg, i) => (
+            <div classList={{ hidden: i !== pageIndex() }}>
+              <WhatsNewPageContent
+                page={pg()}
+                active={i === pageIndex()}
+                canLoad={i <= loadUpTo()}
+                onLoaded={() => allowLoad(i + 1)}
+              />
+            </div>
+          )}
+        </Index>
       </div>
     </ModalContainer>
   );
@@ -197,9 +160,21 @@ function layoutOf(page: WhatsNewPage) {
   return page.imageUrl ? WHATS_NEW_LAYOUTS.heroTop : WHATS_NEW_LAYOUTS.textOnly;
 }
 
-function WhatsNewPageContent(p: { page: WhatsNewPage }) {
+function WhatsNewPageContent(p: {
+  page: WhatsNewPage;
+  active: boolean;
+  canLoad: boolean;
+  onLoaded: () => void;
+}) {
   const layout = () => layoutOf(p.page);
   const showImage = () => layout().hasImage && !!p.page.imageUrl;
+
+  // A text-only page has nothing to wait for — release the queue immediately
+  onMount(() => {
+    if (!showImage()) {
+      p.onLoaded();
+    }
+  });
 
   return (
     <Show
@@ -216,6 +191,9 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
                 wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
+                active={p.active}
+                canLoad={p.canLoad}
+                onLoaded={p.onLoaded}
               />
             </Show>
             <div class="min-w-0 grow">
@@ -227,6 +205,9 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
                 wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
+                active={p.active}
+                canLoad={p.canLoad}
+                onLoaded={p.onLoaded}
               />
             </Show>
           </div>
@@ -238,6 +219,9 @@ function WhatsNewPageContent(p: { page: WhatsNewPage }) {
           src={p.page.imageUrl!}
           wrapClass="absolute inset-0 h-full w-full"
           imgClass="h-full w-full object-cover"
+          active={p.active}
+          canLoad={p.canLoad}
+          onLoaded={p.onLoaded}
         />
         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-6 pt-16 text-white">
           <Show when={rt(p.page.title)}>
@@ -260,11 +244,34 @@ function WhatsNewMedia(p: {
   wrapClass: string;
   imgClass: string;
   width?: string;
+  active: boolean;
+  canLoad: boolean;
+  onLoaded: () => void;
 }) {
   const [failed, setFailed] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [play, setPlay] = createSignal(false);
   const isVideo = () => isWhatsNewVideo(p.src);
+  // Held back until this page's turn in the load queue
+  const src = () => (p.canLoad ? p.src : undefined);
+  let videoRef: HTMLVideoElement | undefined;
+
+  function markLoaded() {
+    setLoaded(true);
+    p.onLoaded();
+  }
+
+  // Don't burn CPU decoding a looping clip on a hidden page
+  createEffect(() => {
+    if (!videoRef || !loaded()) {
+      return;
+    }
+    if (p.active && !REDUCED_MOTION) {
+      void videoRef.play().catch(() => {});
+    } else {
+      videoRef.pause();
+    }
+  });
   const staticFrame = () =>
     REDUCED_MOTION && !isVideo() && /\.gif(\?|$)/i.test(p.src) && !play();
   const fadeClass = "transition-opacity duration-200";
@@ -272,7 +279,7 @@ function WhatsNewMedia(p: {
   let canvasRef: HTMLCanvasElement | undefined;
 
   createEffect(() => {
-    if (!staticFrame()) {
+    if (!staticFrame() || !p.canLoad) {
       return;
     }
     const img = new Image();
@@ -283,9 +290,12 @@ function WhatsNewMedia(p: {
       canvasRef.width = img.naturalWidth || 1;
       canvasRef.height = img.naturalHeight || 1;
       canvasRef.getContext("2d")?.drawImage(img, 0, 0);
-      setLoaded(true);
+      markLoaded();
     };
-    img.onerror = () => setFailed(true);
+    img.onerror = () => {
+      setFailed(true);
+      p.onLoaded();
+    };
     img.src = p.src;
   });
 
@@ -301,32 +311,40 @@ function WhatsNewMedia(p: {
         <Show when={!loaded()}>
           <div class="bg-base-200 absolute inset-0 rounded" />
         </Show>
+        {/* Video appears as soon as it has a frame — no opacity ramp; fading
+            in a video's first frame reads as sluggish, and by the time the
+            page is shown the clip is already buffered in this very element */}
         <Show when={!isVideo()} fallback={
           <video
-            src={p.src}
-            class={`${p.imgClass} ${fadeClass}`}
-            classList={fadeState()}
-            autoplay={!REDUCED_MOTION}
+            src={src()}
+            class={p.imgClass}
             loop
             controls={REDUCED_MOTION}
             ref={(el) => {
+              videoRef = el;
               el.muted = true;
               el.playsInline = true;
             }}
-            onLoadedData={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            onLoadedData={markLoaded}
+            onError={() => {
+              setFailed(true);
+              p.onLoaded();
+            }}
           />
         }>
           <Show
             when={staticFrame()}
             fallback={
               <img
-                src={p.src}
+                src={src()}
                 alt=""
                 class={`${p.imgClass} ${fadeClass}`}
                 classList={fadeState()}
-                onLoad={() => setLoaded(true)}
-                onError={() => setFailed(true)}
+                onLoad={markLoaded}
+                onError={() => {
+                  setFailed(true);
+                  p.onLoaded();
+                }}
               />
             }
           >
