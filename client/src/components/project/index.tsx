@@ -304,7 +304,6 @@ function ProjectInner() {
                     position="bottom-end"
                   >
                     <Button
-                      iconName="help"
                       intent="base-100"
                       outline
                       onBackground="base-content"

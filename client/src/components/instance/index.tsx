@@ -380,7 +380,7 @@ export default function Instance(p: Props) {
                         }}
                         position="bottom-end"
                       >
-                        <Button iconName="help" intent="base-100">
+                        <Button intent="base-100">
                           {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
                         </Button>
                       </MenuTriggerWrapper>
