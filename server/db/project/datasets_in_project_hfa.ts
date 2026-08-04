@@ -24,6 +24,8 @@ import {
   DBHfaIndicatorCategory,
   DBHfaIndicatorServiceCategory,
   DBHfaIndicatorSubCategory,
+  DBHfaIndicatorVariantGroup,
+  DBHfaIndicatorVariantItem,
   dbRowToHfaIndicator,
   dbRowToHfaIndicatorCategory,
   dbRowToHfaIndicatorServiceCategory,
@@ -58,12 +60,20 @@ export type DatasetHfaRunCapture = {
   categories: DBHfaIndicatorCategory[];
   subCategories: DBHfaIndicatorSubCategory[];
   serviceCategories: DBHfaIndicatorServiceCategory[];
+  variantGroups: DBHfaIndicatorVariantGroup[];
+  variantItems: DBHfaIndicatorVariantItem[];
   indicators: DBHfaIndicator[];
   indicatorCode: {
     var_name: string;
     time_point: string;
     r_code: string;
     r_filter_code: string | null;
+  }[];
+  variantCode: {
+    var_name: string;
+    time_point: string;
+    item_id: string;
+    r_code: string;
   }[];
 };
 
@@ -192,6 +202,31 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       SELECT id, label, sort_order FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
 
+    // Fetch HFA variant groups/items + per-item code from instance DB for
+    // snapshot. Explicit deterministic ORDER BY throughout: the generated
+    // script text is a module inputKey ingredient, so nondeterministic order
+    // would churn memoized reuse.
+    const hfaVariantGroupsForSnapshot = await mainDb<DBHfaIndicatorVariantGroup[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_variant_groups ORDER BY sort_order, id
+    `;
+    const hfaVariantItemsForSnapshot = await mainDb<DBHfaIndicatorVariantItem[]>`
+      SELECT id, group_id, label, sort_order FROM hfa_indicator_variant_items ORDER BY group_id, sort_order, id
+    `;
+    const hfaVariantCodeRowsForSnapshot = (
+      await mainDb<
+        {
+          var_name: string;
+          time_point: string;
+          item_id: string;
+          r_code: string;
+        }[]
+      >`
+      SELECT var_name, time_point, item_id, r_code
+      FROM hfa_indicator_variant_code
+      ORDER BY var_name, time_point, item_id
+    `
+    ).filter((c) => indicatorVarNames.has(c.var_name));
+
     const info: DatasetHfaInfoInProject = {
       hfaCacheHash,
       hfaIndicatorsVersion,
@@ -268,8 +303,11 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
         categories: hfaCategoriesForSnapshot,
         subCategories: hfaSubCategoriesForSnapshot,
         serviceCategories: hfaServiceCategoriesForSnapshot,
+        variantGroups: hfaVariantGroupsForSnapshot,
+        variantItems: hfaVariantItemsForSnapshot,
         indicators: hfaIndicatorRowsForSnapshot,
         indicatorCode: hfaIndicatorCodeRowsForSnapshot,
+        variantCode: hfaVariantCodeRowsForSnapshot,
       },
     };
   });
@@ -353,7 +391,8 @@ export async function getAllHfaIndicatorsFromSnapshot(
       i.sort_order,
       '' as updated_at,
       false as has_syntax_error,
-      true as code_consistent
+      true as code_consistent,
+      null as variant_group_id
     FROM hfa_indicators_snapshot i
     LEFT JOIN hfa_indicator_categories_snapshot c ON i.category_id = c.id
     LEFT JOIN hfa_indicator_sub_categories_snapshot sc ON i.sub_category_id = sc.id
@@ -390,6 +429,10 @@ export async function getHfaTaxonomyForAI(
       label: s.label,
     })),
     serviceCategories: serviceCategories.map((s) => ({ id: s.id, label: s.label })),
+    // Frozen pg plane: the project snapshot tables predate the variant feature,
+    // so variant data is always empty here.
+    variantGroups: [],
+    variantItems: [],
     timePoints: timePointRows.map((t) => ({
       id: t.label,
       label: t.label,
@@ -402,6 +445,7 @@ export async function getHfaTaxonomyForAI(
       categoryId: i.categoryId,
       subCategoryId: i.subCategoryId,
       serviceCategoryIds: i.serviceCategoryIds,
+      variantGroupId: i.variantGroupId,
     })),
   };
 }

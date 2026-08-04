@@ -28,9 +28,9 @@ import { projectState } from "~/state/project/t1_store";
 
 const RESET_RE = /will reset at ([^".}]+)/i;
 
-function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
-  const isWeekly = () => /weekly|country/i.test(props.item.errorDetails);
-  const resetTime = () => props.item.errorDetails.match(RESET_RE)?.[1] ?? null;
+function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
+  const isWeekly = () => /weekly|country/i.test(p.item.errorDetails);
+  const resetTime = () => p.item.errorDetails.match(RESET_RE)?.[1] ?? null;
   return (
     <div class="bg-base-100 my-1 max-w-sm rounded border p-3">
       <div class="text-warning text-sm">
@@ -49,8 +49,8 @@ function RateLimitErrorBox(props: { item: { errorDetails: string } }) {
   );
 }
 
-function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: string } }) {
-  const isRateLimit = () => /daily AI token limit|weekly AI token limit/i.test(props.item.errorDetails);
+function ToolErrorRenderer(p: { item: { errorMessage: string; errorDetails: string } }) {
+  const isRateLimit = () => /daily AI token limit|weekly AI token limit/i.test(p.item.errorDetails);
   const [expanded, setExpanded] = createSignal(false);
   return (
     <Show when={isRateLimit()} fallback={
@@ -65,14 +65,14 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
               ? <Icon iconName="chevronDown" class="h-3 w-3" />
               : <Icon iconName="chevronRight" class="h-3 w-3" />}
           </div>
-          <span>{props.item.errorMessage}</span>
+          <span>{p.item.errorMessage}</span>
         </button>
         <Show when={expanded()}>
-          <div class="ml-4 mt-1 text-xs">{props.item.errorDetails}</div>
+          <div class="ml-4 mt-1 text-xs">{p.item.errorDetails}</div>
         </Show>
       </div>
     }>
-      <RateLimitErrorBox item={props.item} />
+      <RateLimitErrorBox item={p.item} />
     </Show>
   );
 }
@@ -80,7 +80,7 @@ function ToolErrorRenderer(props: { item: { errorMessage: string; errorDetails: 
 // Non-error turn outcomes (refusal, truncation, context-window exceeded,
 // continuation caps) arrive as system_notice items. Match the collapsible
 // look of ToolErrorRenderer so they read like the rest of the chat.
-function SystemNoticeRenderer(props: { item: { message: string; details: string } }) {
+function SystemNoticeRenderer(p: { item: { message: string; details: string } }) {
   const [expanded, setExpanded] = createSignal(false);
   return (
     <div class="my-1">
@@ -94,10 +94,10 @@ function SystemNoticeRenderer(props: { item: { message: string; details: string 
             ? <Icon iconName="chevronDown" class="h-3 w-3" />
             : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
-        <span>{props.item.message}</span>
+        <span>{p.item.message}</span>
       </button>
       <Show when={expanded()}>
-        <div class="ml-4 mt-1 text-xs">{props.item.details}</div>
+        <div class="ml-4 mt-1 text-xs">{p.item.details}</div>
       </Show>
     </div>
   );

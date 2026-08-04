@@ -2,6 +2,7 @@ import type {
   CalculatedIndicator,
   HfaIndicator,
   HfaIndicatorCode,
+  HfaIndicatorVariantCode,
   ModuleConfigSelections,
   ModuleDefinitionInstalled,
 } from "lib";
@@ -24,6 +25,7 @@ export function getScriptWithParameters(
   knownDatasetVariables?: Set<string>,
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
+  hfaVariantCode?: HfaIndicatorVariantCode[],
   calculatedIndicators?: CalculatedIndicator[],
   hfaSentinelRows?: HfaSentinelRow[],
   hfaTimePointOrder?: string[],
@@ -61,6 +63,7 @@ export function getScriptWithParameters(
       datasetsDirPath,
       hfaIndicators,
       hfaIndicatorCode ?? [],
+      hfaVariantCode ?? [],
       knownDatasetVariables,
       hfaSentinelRows ?? [],
       hfaTimePointOrder ?? [],

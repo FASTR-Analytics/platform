@@ -161,6 +161,7 @@ function generateScript(
     inputs.knownDatasetVariables,
     inputs.hfaIndicators,
     inputs.hfaIndicatorCode,
+    inputs.hfaVariantCode,
     inputs.calculatedIndicators,
     inputs.hfaSentinelRows,
     inputs.hfaTimePointOrder,

@@ -168,7 +168,7 @@ export function disconnectInstanceSSE(): void {
 // Boundary component
 // ============================================================================
 
-export function InstanceSSEBoundary(props: { children: JSX.Element }) {
+export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
   onCleanup(() => disconnectInstanceSSE());
 
@@ -216,7 +216,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
         </Show>
       }
     >
-      {props.children}
+      {p.children}
     </Show>
   );
 }

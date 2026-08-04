@@ -17,6 +17,19 @@ export type HfaIndicatorServiceCategory = {
   sortOrder: number;
 };
 
+export type HfaIndicatorVariantGroup = {
+  id: string;
+  label: string;
+  sortOrder: number;
+};
+
+export type HfaIndicatorVariantItem = {
+  id: string;
+  groupId: string;
+  label: string;
+  sortOrder: number;
+};
+
 export type HfaIndicator = {
   varName: string;
   categoryId: string | null;
@@ -29,6 +42,7 @@ export type HfaIndicator = {
   sortOrder: number;
   hasSyntaxError: boolean;
   codeConsistent: boolean;
+  variantGroupId: string | null;
 };
 
 export type HfaIndicatorCode = {
@@ -38,11 +52,23 @@ export type HfaIndicatorCode = {
   rFilterCode?: string | undefined;
 };
 
+// Per-item numerator code for an indicator's variant group. Filter code has no
+// per-item slot: `rFilterCode` on the parent's HfaIndicatorCode row is shared
+// by all items of that (indicator, time_point).
+export type HfaIndicatorVariantCode = {
+  varName: string;
+  timePoint: string;
+  itemId: string;
+  rCode: string;
+};
+
 // The no-run / unreadable-run state: every taxonomy list empty.
 export const EMPTY_HFA_TAXONOMY: HfaTaxonomyForAI = {
   categories: [],
   subCategories: [],
   serviceCategories: [],
+  variantGroups: [],
+  variantItems: [],
   timePoints: [],
   indicators: [],
 };
@@ -56,6 +82,10 @@ export type HfaTaxonomyForAI = {
   categories: { id: string; label: string }[];
   subCategories: { id: string; categoryId: string; label: string }[];
   serviceCategories: { id: string; label: string }[];
+  // Variant groups/items feed the hfa_variant_item disaggregation: item ids are
+  // the column's values, and indicators reference their group via variantGroupId.
+  variantGroups: { id: string; label: string }[];
+  variantItems: { id: string; groupId: string; label: string }[];
   // Time points are instance-wide (the whole instance shares HFA survey
   // rounds), not project-scoped. `id` is the time_point value used in data /
   // filters (the label PK); `periodId` is the period it maps to.
@@ -69,6 +99,7 @@ export type HfaTaxonomyForAI = {
     categoryId: string | null;
     subCategoryId: string | null;
     serviceCategoryIds: string[];
+    variantGroupId: string | null;
   }[];
 };
 
@@ -78,6 +109,8 @@ export type HfaWorkbookImport = {
   categories: { id: string; label: string }[];
   subCategories: { id: string; categoryId: string; label: string }[];
   serviceCategories: { id: string; label: string }[];
+  variantGroups: { id: string; label: string }[];
+  variantItems: { id: string; groupId: string; label: string }[];
   indicators: {
     varName: string;
     categoryId: string | null;
@@ -87,8 +120,10 @@ export type HfaWorkbookImport = {
     definition: string;
     type: "binary" | "numeric";
     aggregation: "sum" | "avg";
+    variantGroupId: string | null;
   }[];
   code: HfaIndicatorCode[];
+  variantCode: HfaIndicatorVariantCode[];
   replaceAll: boolean;
 };
 

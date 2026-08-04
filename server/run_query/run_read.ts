@@ -274,13 +274,19 @@ const labeledRow = z.object({
 });
 // The taxonomy projection needs the category links the metadata reader
 // doesn't; both read the same captured hfa_indicators_snapshot.json.
+// variant_group_id is optional: packages captured before the variant feature
+// lack the key.
 const hfaTaxonomyIndicatorRow = hfaIndicatorRow.extend({
   category_id: z.string().nullable(),
   sub_category_id: z.string().nullable(),
   service_category_ids: z.unknown(),
+  variant_group_id: z.string().nullable().optional(),
 });
 const hfaSubCategoryRow = labeledRow.extend({
   category_id: z.string(),
+});
+const hfaVariantItemRow = labeledRow.extend({
+  group_id: z.string(),
 });
 const icehIndicatorRow = z.object({
   iceh_indicator: z.string(),
@@ -371,7 +377,7 @@ export async function getHfaTaxonomyFromManifestInputs(
   ctx: RunInputSource,
   timePoints: { id: string; label: string; periodId: string }[],
 ): Promise<HfaTaxonomyForAI> {
-  const [indicators, categories, subCategories, serviceCategories] =
+  const [indicators, categories, subCategories, serviceCategories, variantGroups, variantItems] =
     await Promise.all([
       readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
       readInputRows(ctx, "hfa_indicator_categories_snapshot.json", labeledRow),
@@ -385,6 +391,16 @@ export async function getHfaTaxonomyFromManifestInputs(
         "hfa_indicator_service_categories_snapshot.json",
         labeledRow,
       ),
+      readInputRows(
+        ctx,
+        "hfa_indicator_variant_groups_snapshot.json",
+        labeledRow,
+      ),
+      readInputRows(
+        ctx,
+        "hfa_indicator_variant_items_snapshot.json",
+        hfaVariantItemRow,
+      ),
     ]);
   return {
     categories: categories
@@ -396,6 +412,12 @@ export async function getHfaTaxonomyFromManifestInputs(
     serviceCategories: serviceCategories
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((s) => ({ id: s.id, label: s.label })),
+    variantGroups: variantGroups
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((g) => ({ id: g.id, label: g.label })),
+    variantItems: variantItems
+      .toSorted((a, b) => a.sort_order - b.sort_order)
+      .map((i) => ({ id: i.id, groupId: i.group_id, label: i.label })),
     timePoints,
     indicators: indicators
       .toSorted((a, b) => a.sort_order - b.sort_order)
@@ -412,6 +434,7 @@ export async function getHfaTaxonomyFromManifestInputs(
         categoryId: i.category_id,
         subCategoryId: i.sub_category_id,
         serviceCategoryIds: parseServiceCategoryIds(i.service_category_ids),
+        variantGroupId: i.variant_group_id ?? null,
       })),
   };
 }
@@ -474,6 +497,9 @@ export async function getIndicatorMetadataFromRun(
       "hfa_indicator_categories_snapshot.json",
       "hfa_indicator_sub_categories_snapshot.json",
       "hfa_indicator_service_categories_snapshot.json",
+      // Labels the hfa_variant_item column's values (item ids). Absent from
+      // packages captured before the variant feature → readInputRows returns [].
+      "hfa_indicator_variant_items_snapshot.json",
     ]) {
       const rows = (await readInputRows(ctx, fileName, labeledRow)).sort(
         (a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label),

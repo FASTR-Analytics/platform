@@ -6,6 +6,7 @@ import {
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
+  type HfaIndicatorVariantCode,
   type RunDataset,
   type RunGenerationStep1Result,
 } from "lib";
@@ -59,6 +60,10 @@ export type PreparedRunInputs = {
     knownDatasetVariables: Set<string>;
     hfaIndicators: HfaIndicator[];
     hfaIndicatorCode: HfaIndicatorCode[];
+    // R code is generation-input only, never a package input file (the
+    // executed script is already captured as ___script___.R). Group
+    // assignments ride hfaIndicators' variantGroupId.
+    hfaVariantCode: HfaIndicatorVariantCode[];
     hfaSentinelRows: HfaSentinelRow[];
     calculatedIndicators: CalculatedIndicator[];
   };
@@ -101,6 +106,7 @@ export async function prepareRunInputs(
     knownDatasetVariables: new Set<string>(),
     hfaIndicators: [],
     hfaIndicatorCode: [],
+    hfaVariantCode: [],
     hfaSentinelRows: [],
     calculatedIndicators: [],
   };
@@ -162,6 +168,8 @@ export async function prepareRunInputs(
           "hfa_indicator_service_categories_snapshot.json",
           capture.serviceCategories,
         ],
+        ["hfa_indicator_variant_groups_snapshot.json", capture.variantGroups],
+        ["hfa_indicator_variant_items_snapshot.json", capture.variantItems],
       ] as const
     ) {
       await writeInputJson(tmpDir, fileName, rows);
@@ -202,6 +210,12 @@ export async function prepareRunInputs(
       timePoint: c.time_point,
       rCode: c.r_code,
       rFilterCode: c.r_filter_code ?? undefined,
+    }));
+    scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
+      varName: c.var_name,
+      timePoint: c.time_point,
+      itemId: c.item_id,
+      rCode: c.r_code,
     }));
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
       varName: r.var_name,

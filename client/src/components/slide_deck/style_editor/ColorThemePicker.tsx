@@ -88,22 +88,22 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
     );
   }
 
-  function PresetSwatch(props: { preset: ColorPreset; id: AllPresetId }) {
+  function PresetSwatch(p: { preset: ColorPreset; id: AllPresetId }) {
     return (
       <button
         type="button"
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
         classList={{
-          "border-base-content": isPresetSelected(props.id),
+          "border-base-content": isPresetSelected(p.id),
           "border-transparent hover:border-border": !isPresetSelected(
-            props.id,
+            p.id,
           ),
         }}
-        style={{ background: props.preset.swatch }}
-        onClick={() => selectPreset(props.id)}
-        title={props.preset.name}
+        style={{ background: p.preset.swatch }}
+        onClick={() => selectPreset(p.id)}
+        title={p.preset.name}
       >
-        <Show when={isPresetSelected(props.id)}>
+        <Show when={isPresetSelected(p.id)}>
           <CheckIcon />
         </Show>
       </button>

@@ -20,6 +20,10 @@ export const ALL_DISAGGREGATION_OPTIONS = [
   "facility_custom_4",
   "facility_custom_5",
   "hfa_indicator",
+  // Immediately after hfa_indicator deliberately: starting-config slot
+  // assignment follows list order, so this yields the headline
+  // indicator-row × item-col default for the variants metric.
+  "hfa_variant_item",
   "hfa_category",
   "hfa_sub_category",
   "hfa_service_category",

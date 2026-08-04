@@ -21,7 +21,7 @@ type Props = ParentProps & {
 // chat engine as the project assistant, but with its own conversation register
 // (scope: "hfa-indicators"), its own instance-scoped SDK client, and its own
 // indicator-authoring tool set — fully isolated from project_ai.
-export function HfaIndicatorAiWrapper(props: Props) {
+export function HfaIndicatorAiWrapper(p: Props) {
   const sdkClient = createHfaIndicatorAiSDKClient();
   const system: Accessor<string> = () => buildHfaIndicatorSystemPrompt();
 
@@ -46,13 +46,13 @@ export function HfaIndicatorAiWrapper(props: Props) {
         minWidth={300}
         startingWidth={560}
         maxWidth={1200}
-        isShown={props.show()}
-        onToggleShow={props.onClose}
+        isShown={p.show()}
+        onToggleShow={p.onClose}
         panelChildren={
-          <HfaIndicatorChatPane getSystemPrompt={system} onClose={props.onClose} />
+          <HfaIndicatorChatPane getSystemPrompt={system} onClose={p.onClose} />
         }
       >
-        {props.children}
+        {p.children}
       </FrameRightResizable>
     </AIChatProvider>
   );

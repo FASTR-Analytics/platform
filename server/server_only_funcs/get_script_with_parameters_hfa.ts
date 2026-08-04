@@ -1,10 +1,13 @@
 import type {
   HfaIndicator,
   HfaIndicatorCode,
+  HfaIndicatorVariantCode,
   ModuleConfigSelections,
   ModuleDefinitionInstalled,
 } from "lib";
 import {
+  composeHfaVariantColumnName,
+  isReservedHfaVarName,
   normalizeRLogicalOperators,
   serialiseMultiMembershipValues,
 } from "lib";
@@ -297,6 +300,7 @@ export function getScriptWithParametersHfa(
   datasetsDirPath: string,
   indicators: HfaIndicator[],
   indicatorCode: HfaIndicatorCode[],
+  variantCode: HfaIndicatorVariantCode[],
   knownDatasetVariables: Set<string>,
   sentinelRows: HfaSentinelRow[],
   hfaTimePointOrder: string[],
@@ -419,6 +423,196 @@ export function getScriptWithParametersHfa(
     throw new Error(
       `Circular dependencies detected:\n${formatCycles(cycles)}`,
     );
+  }
+
+  // Variant breakdown (PLAN_HFA_VARIANT_DIMENSION): per-item numerator columns
+  // feeding the separate M10_hfa_results_variants.csv pipeline. Gated on the
+  // resolved definition declaring the RO so generation at older pinned refs
+  // stays byte-identical — the gate covers item mutates, item columns, AND
+  // metadata entries atomically (a partial gate would emit composed varNames
+  // as fake indicators into the main table, which ingests cleanly).
+  //
+  // Variant columns are computed AFTER every indicator column (a separate
+  // pipeline over `results`), so item snippets may reference any indicator —
+  // including their own parent — without entering the dependency graph: no
+  // self-edge, no cycle. In skip mode a failing snippet skips THAT ITEM only;
+  // the parent's overall code and main-CSV rows are never affected.
+  const supportsVariants = moduleDefinition.resultsObjects.some(
+    (ro) => ro.id === "M10_hfa_results_variants.csv",
+  );
+
+  // Parsed (not executed) by R even when no variant columns exist, so the
+  // empty forms must be syntactically valid.
+  let variantMutates = "  identity()";
+  let variantCols = "";
+  let variantMetadata = [
+    "  variant_col = character(0)",
+    "  hfa_indicator = character(0)",
+    "  hfa_variant_item = character(0)",
+    "  hfa_category = character(0)",
+    "  hfa_sub_category = character(0)",
+    "  hfa_service_category = character(0)",
+    "  ind_aggregation = character(0)",
+  ].join(",\n");
+
+  if (supportsVariants && variantCode.length > 0) {
+    const orderedIndex = new Map(ordered.map((ind, i) => [ind.varName, i]));
+    const indicatorByVarName = new Map(indicators.map((i) => [i.varName, i]));
+
+    const byPair = new Map<string, HfaIndicatorVariantCode[]>();
+    for (const vc of variantCode) {
+      if (!vc.rCode.trim()) continue;
+      const key = `${vc.varName} ${vc.itemId}`;
+      if (!byPair.has(key)) {
+        byPair.set(key, []);
+      }
+      byPair.get(key)!.push(vc);
+    }
+
+    type VariantEmit = {
+      parent: HfaIndicator;
+      itemId: string;
+      composed: string;
+      snippets: HfaIndicatorCode[];
+    };
+    const emits: VariantEmit[] = [];
+
+    for (const [key, rows] of byPair) {
+      const [parentName, itemId] = key.split(" ");
+      const parent = indicatorByVarName.get(parentName);
+      if (parent === undefined || !orderedIndex.has(parentName)) {
+        warnings.push(
+          `Dropped variant item "${itemId}" of indicator "${parentName}": the indicator is not part of this run`,
+        );
+        continue;
+      }
+      // The shared filter comes from ALL parent code rows, not activeSnippets
+      // (a parent row with empty rCode and non-empty rFilterCode is excluded
+      // from the latter).
+      const parentRowsByTp = new Map(
+        (codeByIndicator.get(parentName) ?? []).map((r) => [r.timePoint, r]),
+      );
+      const snippets: HfaIndicatorCode[] = [];
+      for (const row of rows.toSorted((a, b) => a.timePoint.localeCompare(b.timePoint))) {
+        const parentRow = parentRowsByTp.get(row.timePoint);
+        if (parentRow === undefined) {
+          warnings.push(
+            `Dropped variant code for indicator "${parentName}", item "${itemId}", time point "${row.timePoint}": the indicator has no code row for that time point`,
+          );
+          continue;
+        }
+        snippets.push({
+          varName: parentName,
+          timePoint: row.timePoint,
+          rCode: row.rCode,
+          rFilterCode: parentRow.rFilterCode,
+        });
+      }
+      let itemSkipped = false;
+      for (const snippet of snippets) {
+        const deps = extractDependenciesFromCode(
+          snippet.rCode,
+          snippet.rFilterCode,
+          allIndicatorVarNames,
+          knownDatasetVariables,
+        );
+        const problems: string[] = [];
+        if (deps.unknownVariables.length > 0) {
+          problems.push(
+            `Unknown variables [${deps.unknownVariables.join(", ")}]`,
+          );
+        }
+        const skippedDeps = deps.dependencies.filter(
+          (d) => !orderedIndex.has(d),
+        );
+        if (skippedDeps.length > 0) {
+          problems.push(
+            `Depends on skipped indicator(s) [${skippedDeps.join(", ")}]`,
+          );
+        }
+        if (problems.length > 0) {
+          const msg =
+            `Variant item "${itemId}" of indicator "${parentName}" (time_point "${snippet.timePoint}"): ${problems.join("; ")}.`;
+          if (stopIfIndicatorFails) {
+            throw new Error(`Invalid variant definitions:\n${msg}`);
+          }
+          warnings.push(`Skipped: ${msg}`);
+          itemSkipped = true;
+          break;
+        }
+      }
+      if (itemSkipped || snippets.length === 0) {
+        continue;
+      }
+      emits.push({
+        parent,
+        itemId,
+        composed: composeHfaVariantColumnName(parentName, itemId),
+        snippets,
+      });
+    }
+
+    emits.sort(
+      (a, b) =>
+        orderedIndex.get(a.parent.varName)! - orderedIndex.get(b.parent.varName)! ||
+        a.itemId.localeCompare(b.itemId),
+    );
+
+    // D8 composed-name validations — hard errors in BOTH modes: a collision
+    // silently corrupts the MAIN results (duplicate metadata keys →
+    // many-to-many join, or an overwritten raw question column), and a
+    // reserved suffix double-routes into the response-status pivot.
+    const composedSeen = new Set<string>();
+    for (const e of emits) {
+      const source = `indicator "${e.parent.varName}" × variant item "${e.itemId}"`;
+      if (isReservedHfaVarName(e.composed)) {
+        throw new Error(
+          `Composed variant column "${e.composed}" (${source}) is a reserved name`,
+        );
+      }
+      if (allIndicatorVarNames.has(e.composed)) {
+        throw new Error(
+          `Composed variant column "${e.composed}" (${source}) collides with an indicator varName`,
+        );
+      }
+      if (knownDatasetVariables.has(e.composed)) {
+        throw new Error(
+          `Composed variant column "${e.composed}" (${source}) collides with a survey variable`,
+        );
+      }
+      if (composedSeen.has(e.composed)) {
+        throw new Error(
+          `Composed variant column "${e.composed}" (${source}) collides with another composed column`,
+        );
+      }
+      composedSeen.add(e.composed);
+    }
+
+    if (emits.length > 0) {
+      variantMutates = emits
+        .map((e) => {
+          const expr = buildPerTimePointMutateExpression(
+            e.parent,
+            e.snippets,
+            allIndicatorVarNames,
+            knownDatasetVariables,
+            dontKnowAsNo,
+            sentinelMap,
+          );
+          return `  mutate(${e.composed} = ${expr})`;
+        })
+        .join(" %>%\n");
+      variantCols = emits.map((e) => `"${e.composed}"`).join(", ");
+      variantMetadata = [
+        `  variant_col = c(${emits.map((e) => `"${e.composed}"`).join(", ")})`,
+        `  hfa_indicator = c(${emits.map((e) => `"${e.parent.varName}"`).join(", ")})`,
+        `  hfa_variant_item = c(${emits.map((e) => `"${e.itemId}"`).join(", ")})`,
+        `  hfa_category = c(${emits.map((e) => `"${e.parent.categoryId ?? ""}"`).join(", ")})`,
+        `  hfa_sub_category = c(${emits.map((e) => `"${e.parent.subCategoryId ?? ""}"`).join(", ")})`,
+        `  hfa_service_category = c(${emits.map((e) => `"${serialiseMultiMembershipValues(e.parent.serviceCategoryIds)}"`).join(", ")})`,
+        `  ind_aggregation = c(${emits.map((e) => `"${e.parent.aggregation}"`).join(", ")})`,
+      ].join(",\n");
+    }
   }
 
   // Build dynamic R fragments
@@ -556,6 +750,13 @@ export function getScriptWithParametersHfa(
   str = str.replaceAll("__INDICATOR_MUTATES__", indicatorMutates);
   str = str.replaceAll("__INDICATOR_COLS__", indicatorCols);
   str = str.replaceAll("__INDICATOR_METADATA__", indicatorMetadata);
+  if (supportsVariants) {
+    // The variant markers exist only in script.R versions whose definition
+    // declares the variants RO, so the gate and the markers move together.
+    str = str.replaceAll("__VARIANT_MUTATES__", variantMutates);
+    str = str.replaceAll("__VARIANT_COLS__", variantCols);
+    str = str.replaceAll("__VARIANT_METADATA__", variantMetadata);
+  }
   str = str.replaceAll(
     "__HFA_TIME_POINT_ORDER__",
     hfaTimePointOrder.map((tp) => `"${tp.replace(/"/g, '\\"')}"`).join(", "),

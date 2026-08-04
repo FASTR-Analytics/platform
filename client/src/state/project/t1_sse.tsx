@@ -184,12 +184,12 @@ type ProjectSSEBoundaryProps = {
   children: JSX.Element;
 };
 
-export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
+export function ProjectSSEBoundary(p: ProjectSSEBoundaryProps) {
   onMount(() => {
-    connectProjectSSE(props.projectId);
+    connectProjectSSE(p.projectId);
     // Project-scoped presence channel: stays connected across the whole
     // project session (deck list + any opened deck), so presence shows in both.
-    connectCollab(props.projectId);
+    connectCollab(p.projectId);
   });
 
   onCleanup(() => {
@@ -221,7 +221,7 @@ export function ProjectSSEBoundary(props: ProjectSSEBoundaryProps) {
           </div>
         }
       >
-        {props.children}
+        {p.children}
       </Show>
     </Show>
   );

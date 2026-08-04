@@ -1,6 +1,7 @@
 import { read, utils, write } from "xlsx";
 import {
   HFA_INDICATOR_NAME_REGEX,
+  HFA_VARIANT_ITEM_ID_REGEX,
   isReservedHfaVarName,
   parseMultiMembershipValues,
   serialiseMultiMembershipValues,
@@ -9,16 +10,24 @@ import {
   type HfaIndicatorCode,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
+  type HfaIndicatorVariantCode,
+  type HfaIndicatorVariantGroup,
+  type HfaIndicatorVariantItem,
   type HfaWorkbookImport,
 } from "lib";
 
 const SHEET_CATEGORIES = "Categories";
 const SHEET_SUB_CATEGORIES = "Sub-categories";
 const SHEET_SERVICE_CATEGORIES = "Service categories";
+const SHEET_VARIANT_GROUPS = "Variant groups";
+const SHEET_VARIANT_ITEMS = "Variant items";
 const SHEET_INDICATORS = "Indicators";
 
 // Export column format: r_code__<timePointLabel>, r_filter_code__<timePointLabel>
 // Import also accepts the old positional format: r_code_1, r_filter_code_1
+// Variant code columns (labeled format only): r_variant_code__<itemId>__<timePointLabel>.
+// itemId legally contains "__", so the header is resolved against the Variant
+// items sheet by longest-matching item id — never by blind splitting.
 
 // ============================================================================
 // Build (export) — all in the browser
@@ -28,11 +37,14 @@ export function buildHfaWorkbookBlob(args: {
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
+  variantGroups: HfaIndicatorVariantGroup[];
+  variantItems: HfaIndicatorVariantItem[];
   indicators: HfaIndicator[];
   code: HfaIndicatorCode[];
+  variantCode: HfaIndicatorVariantCode[];
   timePoints: string[]; // already sorted
 }): Blob {
-  const { categories, subCategories, serviceCategories, indicators, code, timePoints } = args;
+  const { categories, subCategories, serviceCategories, variantGroups, variantItems, indicators, code, variantCode, timePoints } = args;
 
   const categoriesAoa: string[][] = [["id", "label"]];
   for (const cat of categories) categoriesAoa.push([cat.id, cat.label]);
@@ -43,6 +55,15 @@ export function buildHfaWorkbookBlob(args: {
   const serviceCategoriesAoa: string[][] = [["id", "label"]];
   for (const svc of serviceCategories) serviceCategoriesAoa.push([svc.id, svc.label]);
 
+  const variantGroupsAoa: string[][] = [["id", "label"]];
+  for (const vg of variantGroups) variantGroupsAoa.push([vg.id, vg.label]);
+
+  const variantItemsAoa: string[][] = [["id", "groupId", "label"]];
+  const sortedVariantItems = [...variantItems].sort(
+    (a, b) => a.groupId.localeCompare(b.groupId) || a.sortOrder - b.sortOrder,
+  );
+  for (const vi of sortedVariantItems) variantItemsAoa.push([vi.id, vi.groupId, vi.label]);
+
   const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
   for (const c of code) {
     codeByKey.set(`${c.varName}__${c.timePoint}`, {
@@ -50,14 +71,23 @@ export function buildHfaWorkbookBlob(args: {
       rFilterCode: c.rFilterCode ?? "",
     });
   }
+  const variantCodeByKey = new Map<string, string>();
+  for (const c of variantCode) {
+    variantCodeByKey.set(`${c.varName} / ${c.timePoint} / ${c.itemId}`, c.rCode);
+  }
 
   const indicatorHeaders = [
     "varName", "categoryId", "subCategoryId", "serviceCategoryId",
-    "shortLabel", "definition", "type", "aggregation",
+    "shortLabel", "definition", "type", "aggregation", "variantGroupId",
   ];
   // New label-embedded format so the file is self-describing on re-import
   for (const tp of timePoints) {
     indicatorHeaders.push(`r_code__${tp}`, `r_filter_code__${tp}`);
+  }
+  for (const vi of sortedVariantItems) {
+    for (const tp of timePoints) {
+      indicatorHeaders.push(`r_variant_code__${vi.id}__${tp}`);
+    }
   }
 
   const indicatorsAoa: string[][] = [indicatorHeaders];
@@ -65,11 +95,16 @@ export function buildHfaWorkbookBlob(args: {
     const row: string[] = [
       ind.varName, ind.categoryId ?? "", ind.subCategoryId ?? "",
       serialiseMultiMembershipValues(ind.serviceCategoryIds), ind.shortLabel, ind.definition,
-      ind.type, ind.aggregation,
+      ind.type, ind.aggregation, ind.variantGroupId ?? "",
     ];
     for (const tp of timePoints) {
       const entry = codeByKey.get(`${ind.varName}__${tp}`);
       row.push(entry?.rCode ?? "", entry?.rFilterCode ?? "");
+    }
+    for (const vi of sortedVariantItems) {
+      for (const tp of timePoints) {
+        row.push(variantCodeByKey.get(`${ind.varName} / ${tp} / ${vi.id}`) ?? "");
+      }
     }
     indicatorsAoa.push(row);
   }
@@ -78,6 +113,8 @@ export function buildHfaWorkbookBlob(args: {
   utils.book_append_sheet(wb, utils.aoa_to_sheet(categoriesAoa), SHEET_CATEGORIES);
   utils.book_append_sheet(wb, utils.aoa_to_sheet(subCategoriesAoa), SHEET_SUB_CATEGORIES);
   utils.book_append_sheet(wb, utils.aoa_to_sheet(serviceCategoriesAoa), SHEET_SERVICE_CATEGORIES);
+  utils.book_append_sheet(wb, utils.aoa_to_sheet(variantGroupsAoa), SHEET_VARIANT_GROUPS);
+  utils.book_append_sheet(wb, utils.aoa_to_sheet(variantItemsAoa), SHEET_VARIANT_ITEMS);
   utils.book_append_sheet(wb, utils.aoa_to_sheet(indicatorsAoa), SHEET_INDICATORS);
 
   const out = write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
@@ -94,9 +131,15 @@ export type WorkbookShape = {
   categories: HfaWorkbookImport["categories"];
   subCategories: HfaWorkbookImport["subCategories"];
   serviceCategories: HfaWorkbookImport["serviceCategories"];
+  variantGroups: HfaWorkbookImport["variantGroups"];
+  variantItems: HfaWorkbookImport["variantItems"];
   indicators: HfaWorkbookImport["indicators"];
   // [indicatorIdx][xlsxPosition] raw code values
   rawCode: Array<Array<{ rCode: string; rFilterCode: string }>>;
+  // Variant code columns (labeled format only) and their per-indicator values:
+  // [indicatorIdx][variantColumnIdx]
+  variantColumns: Array<{ itemId: string; label: string }>;
+  rawVariantCode: Array<Array<string>>;
   // How many r_code columns are in the XLSX
   xlsxCount: number;
   // For each position: the embedded time point label (new format), or null (old r_code_N format)
@@ -140,12 +183,16 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   let categoriesAoa: string[][] | undefined;
   let subCategoriesAoa: string[][] | undefined;
   let serviceCategoriesAoa: string[][] | undefined;
+  let variantGroupsAoa: string[][] | undefined;
+  let variantItemsAoa: string[][] | undefined;
   let indicatorsAoa: string[][] | undefined;
   for (const name of wb.SheetNames) {
     const aoa = utils.sheet_to_json<string[]>(wb.Sheets[name], { header: 1 });
     const n = normalizeSheetName(name);
     if (n === "subcategories") subCategoriesAoa = aoa;
     else if (n === "servicecategories") serviceCategoriesAoa = aoa;
+    else if (n === "variantgroups") variantGroupsAoa = aoa;
+    else if (n === "variantitems") variantItemsAoa = aoa;
     else if (n === "categories") categoriesAoa = aoa;
     else if (n === "indicators") indicatorsAoa = aoa;
   }
@@ -202,6 +249,42 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
     serviceCategories.push({ id, label });
   }
 
+  // Variant groups (optional sheet)
+  const vgRows = sheetToObjects(variantGroupsAoa ?? []);
+  const variantGroups: WorkbookShape["variantGroups"] = [];
+  const variantGroupIds = new Set<string>();
+  for (let i = 0; i < vgRows.length; i++) {
+    const id = vgRows[i].id ?? "";
+    const label = vgRows[i].label ?? "";
+    if (!id) return { ok: false, err: `Variant groups sheet, row ${i + 2}: missing id.` };
+    if (!label) return { ok: false, err: `Variant groups sheet, row ${i + 2}: missing label.` };
+    if (variantGroupIds.has(id)) return { ok: false, err: `Variant groups sheet, row ${i + 2}: duplicate id "${id}".` };
+    variantGroupIds.add(id);
+    variantGroups.push({ id, label });
+  }
+
+  // Variant items (optional sheet)
+  const viRows = sheetToObjects(variantItemsAoa ?? []);
+  const variantItems: WorkbookShape["variantItems"] = [];
+  const variantItemGroup = new Map<string, string>();
+  for (let i = 0; i < viRows.length; i++) {
+    const id = viRows[i].id ?? "";
+    const groupId = viRows[i].groupId ?? "";
+    const label = viRows[i].label ?? "";
+    if (!id) return { ok: false, err: `Variant items sheet, row ${i + 2}: missing id.` };
+    if (!HFA_VARIANT_ITEM_ID_REGEX.test(id)) {
+      return { ok: false, err: `Variant items sheet, row ${i + 2}: id "${id}" must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 characters).` };
+    }
+    if (!groupId) return { ok: false, err: `Variant items sheet, row ${i + 2}: missing groupId.` };
+    if (!label) return { ok: false, err: `Variant items sheet, row ${i + 2}: missing label.` };
+    if (variantItemGroup.has(id)) return { ok: false, err: `Variant items sheet, row ${i + 2}: duplicate id "${id}".` };
+    if (!variantGroupIds.has(groupId)) {
+      return { ok: false, err: `Variant items sheet, row ${i + 2}: groupId "${groupId}" is not in the Variant groups sheet.` };
+    }
+    variantItemGroup.set(id, groupId);
+    variantItems.push({ id, groupId, label });
+  }
+
   // Indicators sheet — detect r_code columns before parsing rows
   const indHeaders = (indicatorsAoa[0] ?? []).map((h) => String(h ?? "").trim());
 
@@ -243,10 +326,39 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   const xlsxCount = codeColumns.length;
   const xlsxLabels = codeColumns.map((c) => c.label);
 
+  // Variant code columns: r_variant_code__<itemId>__<timePointLabel>, resolved
+  // against the Variant items sheet by longest-matching item id (item ids can
+  // legally contain "__", so blind splitting is ambiguous).
+  const variantColumns: Array<{ itemId: string; label: string; headerIndex: number }> = [];
+  const knownItemIds = [...variantItemGroup.keys()].sort((a, b) => b.length - a.length);
+  for (let c = 0; c < indHeaders.length; c++) {
+    const m = indHeaders[c].match(/^r_variant_code__(.+)$/);
+    if (!m) continue;
+    const rest = m[1];
+    const itemId = knownItemIds.find((id) => rest.startsWith(`${id}__`));
+    if (itemId === undefined) {
+      return { ok: false, err: `Indicators sheet: variant code column "${indHeaders[c]}" does not start with an id from the Variant items sheet.` };
+    }
+    const label = rest.slice(itemId.length + 2);
+    if (!label) {
+      return { ok: false, err: `Indicators sheet: variant code column "${indHeaders[c]}" is missing a time point label after the item id.` };
+    }
+    variantColumns.push({ itemId, label, headerIndex: c });
+  }
+  if (variantColumns.length > 0) {
+    const mainLabels = new Set(xlsxLabels.filter((l): l is string => l !== null));
+    for (const vc of variantColumns) {
+      if (!mainLabels.has(vc.label)) {
+        return { ok: false, err: `Indicators sheet: variant code column for item "${vc.itemId}" uses time point label "${vc.label}", which has no matching r_code__${vc.label} column.` };
+      }
+    }
+  }
+
   // Parse indicator rows
   const indRows = sheetToObjects(indicatorsAoa);
   const indicators: WorkbookShape["indicators"] = [];
   const rawCode: WorkbookShape["rawCode"] = [];
+  const rawVariantCode: WorkbookShape["rawVariantCode"] = [];
   const usedVarNames = new Set<string>();
   let autoVarCounter = 1;
 
@@ -300,7 +412,12 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       if (parent !== categoryId) return { ok: false, err: `Indicators sheet, row ${i + 2}: subCategoryId "${subCategoryId}" belongs to category "${parent}".` };
     }
 
-    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryIds, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation });
+    const variantGroupId = (row.variantGroupId ?? "").trim() || null;
+    if (variantGroupId && !variantGroupIds.has(variantGroupId)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: variantGroupId "${variantGroupId}" is not in the Variant groups sheet.` };
+    }
+
+    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryIds, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation, variantGroupId });
 
     // Collect raw code values per position using column indices directly
     const rowAoa = (indicatorsAoa[i + 1] ?? []).map((v) => String(v ?? "").trim());
@@ -309,9 +426,19 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       rFilterCode: col.filterHeaderIndex >= 0 ? (rowAoa[col.filterHeaderIndex] ?? "") : "",
     }));
     rawCode.push(positionCode);
+
+    const positionVariantCode: string[] = variantColumns.map((col) => rowAoa[col.headerIndex] ?? "");
+    for (let k = 0; k < variantColumns.length; k++) {
+      if (!positionVariantCode[k]) continue;
+      const itemGroup = variantItemGroup.get(variantColumns[k].itemId);
+      if (!variantGroupId || itemGroup !== variantGroupId) {
+        return { ok: false, err: `Indicators sheet, row ${i + 2}: variant code for item "${variantColumns[k].itemId}" but the indicator's variantGroupId is "${variantGroupId ?? ""}" — the item belongs to group "${itemGroup ?? ""}".` };
+      }
+    }
+    rawVariantCode.push(positionVariantCode);
   }
 
-  return { ok: true, shape: { categories, subCategories, serviceCategories, indicators, rawCode, xlsxCount, xlsxLabels } };
+  return { ok: true, shape: { categories, subCategories, serviceCategories, variantGroups, variantItems, indicators, rawCode, variantColumns: variantColumns.map((c) => ({ itemId: c.itemId, label: c.label })), rawVariantCode, xlsxCount, xlsxLabels } };
 }
 
 // ============================================================================
@@ -336,4 +463,38 @@ export function applyTimePointMapping(
     }
   }
   return code;
+}
+
+// Variant columns carry embedded labels (detect rejects any without a matching
+// labeled r_code__ column), so they resolve through the same mapping via
+// label → platform time point. A label mapped to null (skipped) skips its
+// variant cells too.
+export function applyVariantTimePointMapping(
+  shape: WorkbookShape,
+  mapping: Array<string | null>,
+): HfaIndicatorVariantCode[] {
+  const labelToTp = new Map<string, string>();
+  for (let k = 0; k < shape.xlsxCount; k++) {
+    const label = shape.xlsxLabels[k];
+    const tp = mapping[k];
+    if (label !== null && tp) labelToTp.set(label, tp);
+  }
+  const variantCode: HfaIndicatorVariantCode[] = [];
+  for (let i = 0; i < shape.indicators.length; i++) {
+    const ind = shape.indicators[i];
+    const posCode = shape.rawVariantCode[i] ?? [];
+    for (let k = 0; k < shape.variantColumns.length; k++) {
+      const rCode = posCode[k] ?? "";
+      if (!rCode) continue;
+      const tp = labelToTp.get(shape.variantColumns[k].label);
+      if (!tp) continue;
+      variantCode.push({
+        varName: ind.varName,
+        timePoint: tp,
+        itemId: shape.variantColumns[k].itemId,
+        rCode,
+      });
+    }
+  }
+  return variantCode;
 }

@@ -580,6 +580,23 @@ CREATE TABLE hfa_indicator_service_categories (
 );
 
 -- ============================================================================
+-- HFA INDICATOR VARIANT GROUPS
+-- ============================================================================
+
+CREATE TABLE hfa_indicator_variant_groups (
+  id TEXT PRIMARY KEY NOT NULL,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE hfa_indicator_variant_items (
+  id TEXT PRIMARY KEY NOT NULL,
+  group_id TEXT NOT NULL REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- ============================================================================
 -- HFA INDICATORS
 -- ============================================================================
 
@@ -595,6 +612,9 @@ CREATE TABLE hfa_indicators (
   sort_order INTEGER NOT NULL DEFAULT 0,
   has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
   code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Deliberately ON DELETE RESTRICT (default NO ACTION): deleting a group that
+  -- any indicator still references is refused.
+  variant_group_id TEXT REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT hfa_indicators_sub_category_requires_category CHECK ((sub_category_id IS NULL) OR (category_id IS NOT NULL))
 );
@@ -609,6 +629,14 @@ CREATE TABLE hfa_indicator_code (
   r_code TEXT NOT NULL DEFAULT '',
   r_filter_code TEXT,
   PRIMARY KEY (var_name, time_point)
+);
+
+CREATE TABLE hfa_indicator_variant_code (
+  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
+  item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  r_code TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (var_name, time_point, item_id)
 );
 
 -- ============================================================================

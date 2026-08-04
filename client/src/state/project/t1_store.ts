@@ -26,6 +26,8 @@ const EMPTY_PROJECT_STATE: ProjectState = {
     categories: [],
     subCategories: [],
     serviceCategories: [],
+    variantGroups: [],
+    variantItems: [],
     timePoints: [],
     indicators: [],
   },

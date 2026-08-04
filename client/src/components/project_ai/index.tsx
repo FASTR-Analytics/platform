@@ -23,15 +23,15 @@ import { useAIDocuments } from "./ai_documents";
 
 export { useAIProjectContext } from "./context";
 
-export function AIProjectWrapper(props: ParentProps) {
+export function AIProjectWrapper(p: ParentProps) {
   return (
     <AIProjectContextProvider>
-      <AIProjectWrapperInner>{props.children}</AIProjectWrapperInner>
+      <AIProjectWrapperInner>{p.children}</AIProjectWrapperInner>
     </AIProjectContextProvider>
   );
 }
 
-function AIProjectWrapperInner(props: ParentProps) {
+function AIProjectWrapperInner(p: ParentProps) {
   const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
@@ -135,7 +135,7 @@ function AIProjectWrapperInner(props: ParentProps) {
           />
         }
       >
-        {props.children}
+        {p.children}
       </FrameRightResizable>
     </AIChatProvider>
   );

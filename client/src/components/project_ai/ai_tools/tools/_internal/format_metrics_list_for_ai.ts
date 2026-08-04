@@ -137,6 +137,11 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
     "  hfa_service_category → service-category IDs (filter-only, cannot disaggregate; filter matches indicators in ANY selected category)",
   );
   lines.push("  time_point           → time-point IDs (survey rounds)");
+  if (tax.variantItems.length > 0) {
+    lines.push(
+      "  hfa_variant_item     → variant-item IDs (only on the by-variant metric; hfa_indicator there carries the parent indicator)",
+    );
+  }
   lines.push("");
 
   lines.push("Categories (id: label) with their sub-categories:");
@@ -154,6 +159,26 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
     lines.push(`  - ${svc.id}: ${svc.label}`);
   }
   lines.push("");
+
+  if (tax.variantGroups.length > 0) {
+    lines.push(
+      "Variant groups (per-indicator response-option breakdowns) with their items (id: label):",
+    );
+    for (const group of tax.variantGroups) {
+      lines.push(`  - ${group.id}: ${group.label}`);
+      const items = tax.variantItems.filter((i) => i.groupId === group.id);
+      for (const item of items) {
+        lines.push(`      - ${item.id}: ${item.label}`);
+      }
+      const members = tax.indicators
+        .filter((i) => i.variantGroupId === group.id)
+        .map((i) => i.id);
+      if (members.length > 0) {
+        lines.push(`      [indicators in this group: ${members.join(", ")}]`);
+      }
+    }
+    lines.push("");
+  }
 
   lines.push("Time points / survey rounds (time_point value → period):");
   for (const tp of tax.timePoints) {

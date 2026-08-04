@@ -34,6 +34,7 @@ export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
   "target_population",
   "ratio_type",
   "hfa_indicator",
+  "hfa_variant_item",
   "hfa_category",
   "hfa_sub_category",
   "hfa_service_category",

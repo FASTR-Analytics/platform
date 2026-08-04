@@ -569,6 +569,7 @@ export function buildHfaIndicatorTools() {
               sortOrder: 0,
               hasSyntaxError: v.hasSyntaxError,
               codeConsistent: v.codeConsistent,
+              variantGroupId: null,
             });
             for (const c of code) codeToCreate.push({ varName: ind.varName, timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
             changes.push({
@@ -663,10 +664,16 @@ export function buildHfaIndicatorTools() {
                 const other = new Set(allNames);
                 other.delete(vn);
                 const v = computeIndicatorValidation(code, dict, other, indicator.type);
+                // saveHfaIndicatorFull replaces the indicator's whole variant
+                // code set — pass the stored rows back so they survive a
+                // main-code-only edit.
+                const variantRes = await serverActions.getHfaIndicatorVariantCode({ varName: vn });
+                if (!variantRes.success) throw new AIToolFailure(`Failed to load variant code for "${vn}".`);
                 const res = await serverActions.saveHfaIndicatorFull({
                   oldVarName: vn,
                   indicator: { ...indicator, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent },
                   code: code.map((c) => ({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode })),
+                  variantCode: variantRes.data.map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, rCode: c.rCode })),
                   hasSyntaxError: v.hasSyntaxError,
                   codeConsistent: v.codeConsistent,
                 });

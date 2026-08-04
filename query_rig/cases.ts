@@ -524,6 +524,56 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
 
+  // ── HFA variant items (plain physical TEXT column, generic path) ─────────
+  {
+    name: "variant cross: groupBy hfa_indicator × hfa_variant_item",
+    fixture: "hfa_variants",
+    fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
+        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
+        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+      ],
+    },
+  },
+  {
+    name: "variant filter: hfa_variant_item as filter under indicator+round scope",
+    fixture: "hfa_variants",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["hfa_variant_item"],
+      filters: [
+        { disOpt: "hfa_indicator", values: ["vacc"] },
+        { disOpt: "time_point", values: ["baseline"] },
+      ],
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_variant_item: "campaign", value: 30, __n_value: 2 },
+        { hfa_variant_item: "routine", value: 6, __n_value: 2 },
+      ],
+    },
+  },
+  {
+    name: "variant replicant options: possible values for hfa_variant_item",
+    fixture: "hfa_variants",
+    entry: "possibleValues",
+    disOpt: "hfa_variant_item",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The pg plane has no item-label source (labels come from the run
+    // snapshot files in the live plane), so ids label themselves here.
+    expect: {
+      values: [
+        { id: "campaign", label: "campaign" },
+        { id: "piped", label: "piped" },
+        { id: "routine", label: "routine" },
+      ],
+    },
+  },
+
   // ── Option lists ─────────────────────────────────────────────────────────
   {
     name: "possible values: __BLANK offered and sorted LAST",

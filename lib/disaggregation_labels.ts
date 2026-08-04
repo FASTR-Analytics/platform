@@ -76,6 +76,8 @@ export function getDisaggregationLabel(
       return { en: "Ratio type", fr: "Type de ratio", pt: "Tipo de rácio" };
     case "hfa_indicator":
       return { en: "HFA indicator", fr: "Indicateur HFA", pt: "Indicador HFA" };
+    case "hfa_variant_item":
+      return { en: "Variant item", fr: "Élément de variante", pt: "Item de variante" };
     case "hfa_category":
       return { en: "HFA category", fr: "Catégorie HFA", pt: "Categoria HFA" };
     case "hfa_sub_category":
