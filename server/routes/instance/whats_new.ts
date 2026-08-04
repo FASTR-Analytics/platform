@@ -8,7 +8,14 @@ import { defineRoute } from "../route-helpers.ts";
 export const routesWhatsNew = new Hono();
 
 const WHATS_NEW_URL = "https://status-api.fastr-analytics.org/api/whats-new/posts";
-const CACHE_TTL_MS = 5 * 60_000;
+// Short enough that a newly published post appears without waiting (or
+// restarting the server); still absorbs a morning login burst into a single
+// upstream fetch, which is all the cache is for.
+const CACHE_TTL_MS = 60_000;
+// On failure the stale list is re-served for this long instead of retrying
+// on every request — otherwise an unreachable status-api adds the full fetch
+// timeout to every single login.
+const ERROR_BACKOFF_MS = 30_000;
 const FETCH_TIMEOUT_MS = 5_000;
 const MAX_POSTS = 20;
 
@@ -17,7 +24,7 @@ let inflight: Promise<WhatsNewPost[]> | null = null;
 
 // Upstream data is authored on another server — drop anything malformed
 // before it can reach the filter/render path (a bad post must not 500 this
-// route, let alone get cached for the next 5 minutes).
+// route, let alone get cached).
 function sanitizePosts(raw: unknown): WhatsNewPost[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -55,7 +62,9 @@ function getPublishedPosts(): Promise<WhatsNewPost[]> {
       return posts;
     } catch (err) {
       console.error("[whats_new] fetch failed:", err);
-      return cache?.posts ?? [];
+      const posts = cache?.posts ?? [];
+      cache = { posts, expires: Date.now() + ERROR_BACKOFF_MS };
+      return posts;
     } finally {
       inflight = null;
     }
