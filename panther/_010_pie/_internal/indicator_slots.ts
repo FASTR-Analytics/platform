@@ -201,10 +201,13 @@ export function resolveIdealSlotCols(
   cellW: number,
   contentFloor: number,
 ): number {
-  const n = ctx.data.indicatorHeaders.length;
-  if (n <= 1) return 1;
+  // An explicit nCols wins even at n = 1 — the measure pass honours it first
+  // (like panes.nCols with one pane), and the two passes must agree or the
+  // ideal height is computed for a grid the measure pass will not draw.
   const explicit = ctx.mergedStyle.pie.indicators.nCols;
   if (explicit !== "auto") return explicit;
+  const n = ctx.data.indicatorHeaders.length;
+  if (n <= 1) return 1;
   for (let c = 1; c <= n; c++) {
     const impliedH = idealSubChartHeightAt(ctx, c, cellW, contentFloor);
     if (bestSlotColsAt(ctx, cellW, impliedH) === c) {

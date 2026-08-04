@@ -187,9 +187,20 @@ export function measurePie(
   }
   const drawable = solved.filter((c) => !c.empty);
 
+  // The harmonised scale is the minimum across every pie (D6's comparability
+  // rule) — but never below any pie's OWN floor. Floors are heterogeneous
+  // when sliceGap > 0 (the gap term scales with each pie's slice count), so
+  // the min alone could drag a many-sliced pie below the floor its solve held
+  // at, silently reproducing the disappearance D9 exists to prevent. The lift
+  // keeps every radius equal; a pie emitted above its solved scale overflows
+  // instead, and that is flagged.
   const piePrimitives: Primitive[] = [];
+  let floorLifted = false;
   if (drawable.length > 0) {
-    const commonS = Math.min(...drawable.map((c) => c.s));
+    const minS = Math.min(...drawable.map((c) => c.s));
+    const maxFloor = Math.max(...drawable.map((c) => c.sFloor));
+    const commonS = Math.max(minS, maxFloor);
+    floorLifted = commonS > minS;
     for (const c of drawable) {
       piePrimitives.push(
         ...emitOnePie(rc, c, transformedData, mergedStyle, commonS),
@@ -197,10 +208,11 @@ export function measurePie(
     }
   }
 
-  // Any starved pie (label budget infeasible even at the legibility floor)
-  // makes the whole figure cramped; measureChartWithAutofit ORs this into its
-  // own decision rather than overwriting it (plan D6).
-  const starved = drawable.some((c) => c.starved);
+  // Any starved pie (label budget infeasible even at the legibility floor, or
+  // a floor lifted past its slot) makes the whole figure cramped;
+  // measureChartWithAutofit ORs this into its own decision rather than
+  // overwriting it (plan D6).
+  const starved = floorLifted || drawable.some((c) => c.starved);
 
   return {
     ...chartMeasured,
@@ -228,6 +240,9 @@ type SolvedPie = {
   // This pie's own solved content scale; emission uses the grid minimum. May
   // EXCEED the slot (the D7 floor lifted it — legibility beats frame).
   s: number;
+  // This pie's own D7 floor (per-slot, so heterogeneous when sliceGap > 0);
+  // the harmonised emission scale never goes below the largest of these.
+  sFloor: number;
   // The label budget was infeasible even at the legibility floor, OR the
   // floor lifted the pie past what its slot can hold. Either way the overlap
   // is signalled, never silent (plan D9).
@@ -281,6 +296,8 @@ function solveOnePie(
       labelText: new Map(),
       placement: mergedStyle.pie.outsideLabelPlacement,
       s: s0,
+      // An empty slot draws nothing and must not lift its siblings' scale.
+      sFloor: 0,
       starved: false,
       empty: true,
     };
@@ -388,6 +405,7 @@ function solveOnePie(
     outside,
     labelText,
     s,
+    sFloor,
     placement,
     starved,
     empty: false,

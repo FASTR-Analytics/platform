@@ -153,7 +153,7 @@ type SolvedMapCell = {
   outsideIds: Set<string>;
   outside: MapLabelEntry[];
   // Which placer this cell solved under. The final choice is re-made at the
-  // harmonised scale in emitOneCell (N10); this is the solve's own answer.
+  // harmonised scale in emitMapCell (N10); this is the solve's own answer.
   placement: OutsideLabelPlacement;
   // The field's reference scale and validity margin, fixed per cell so one
   // distance field serves every trial content scale.
