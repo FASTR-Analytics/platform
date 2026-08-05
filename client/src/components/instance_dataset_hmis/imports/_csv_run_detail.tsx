@@ -1,22 +1,35 @@
 import { t3, type DatasetHmisImportRunSummary } from "lib";
 import {
+  Button,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
   createQuery,
+  getEditorWrapper,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { ImportInformation } from "../_import_information";
 import { statusLabel } from "./_tab_history";
 import { CsvStagingSummary } from "./_csv_staging_summary";
+import { fetchDatasetHmisVersion } from "./_version_info";
 
 // History click-through for a CSV run: the run facts + the durable staging
-// diagnostics. The version link (where one exists) is the History row's
-// Version column; the versions detail view itself is unchanged.
+// diagnostics. The Version row (where one exists) opens the version's import
+// information; the versions detail view itself is unchanged.
 export function CsvRunDetail(
   p: EditorComponentProps<{ run: DatasetHmisImportRunSummary }, undefined>,
 ) {
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  async function viewVersion(versionId: number) {
+    const version = await fetchDatasetHmisVersion(versionId);
+    if (version) {
+      await openEditor({ element: ImportInformation, props: { version } });
+    }
+  }
+
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
     t3({
@@ -36,6 +49,7 @@ export function CsvRunDetail(
   }
 
   return (
+    <EditorWrapper>
     <FrameTop
       panelChildren={
         <HeadingBar
@@ -81,10 +95,24 @@ export function CsvRunDetail(
             t3({ en: "Triggered by", fr: "Déclenchée par", pt: "Iniciada por" }),
             p.run.triggeredBy ?? "",
           )}
-          {factRow(
-            t3({ en: "Version", fr: "Version", pt: "Versão" }),
-            p.run.versionId !== undefined ? `${p.run.versionId}` : "",
-          )}
+          <div class="flex items-baseline">
+            <div class="w-56 flex-none">
+              {t3({ en: "Version", fr: "Version", pt: "Versão" })}
+            </div>
+            <div class="min-w-0 flex-1">
+              <Show when={p.run.versionId} keyed fallback={""}>
+                {(versionId) => (
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => void viewVersion(versionId)}
+                  >
+                    {`${versionId} — ${t3({ en: "view import information", fr: "voir les informations d'importation", pt: "ver as informações de importação" })}`}
+                  </Button>
+                )}
+              </Show>
+            </div>
+          </div>
         </div>
 
         <Show when={p.run.error}>
@@ -105,5 +133,6 @@ export function CsvRunDetail(
         </StateHolderWrapper>
       </div>
     </FrameTop>
+    </EditorWrapper>
   );
 }

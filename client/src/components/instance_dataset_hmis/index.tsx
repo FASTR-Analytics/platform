@@ -11,7 +11,6 @@ import { DatasetHmisImports } from "./imports";
 import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { ImportLedger } from "./_import_ledger";
-import { PreviousImports } from "./_previous_imports";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
@@ -28,13 +27,6 @@ export function InstanceDatasetHmis(p: Props) {
         silentFetch: async () => {},
         autoOpenCsvWizard,
       },
-    });
-  }
-
-  async function viewPreviousImports() {
-    await openEditor({
-      element: PreviousImports,
-      props: {},
     });
   }
 
@@ -145,20 +137,6 @@ export function InstanceDatasetHmis(p: Props) {
                           en: "Import status by indicator",
                           fr: "État des importations par indicateur",
                           pt: "Estado das importações por indicador",
-                        })}
-                      </Button>
-                    </div>
-                    <div class="">
-                      <Button
-                        onClick={viewPreviousImports}
-                        outline
-                        fullWidth
-                        iconName="folder"
-                      >
-                        {t3({
-                          en: "View previous imports",
-                          fr: "Importations précédentes",
-                          pt: "Ver importações anteriores",
                         })}
                       </Button>
                     </div>

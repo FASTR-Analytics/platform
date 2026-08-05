@@ -15,12 +15,15 @@ import {
   Table,
   createQuery,
   formatPeriod,
+  getEditorWrapper,
   toNum0,
   type TableColumn,
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { ImportInformation } from "../_import_information";
 import { selectionLabel, statusLabel } from "./_tab_history";
+import { fetchDatasetHmisVersion } from "./_version_info";
 
 function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
   if (kind === "permanent") {
@@ -43,6 +46,15 @@ export function Dhis2RunDetail(
     Dhis2RunPair[] | undefined
   >,
 ) {
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  async function viewVersion(versionId: number) {
+    const version = await fetchDatasetHmisVersion(versionId);
+    if (version) {
+      await openEditor({ element: ImportInformation, props: { version } });
+    }
+  }
+
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
     t3({
@@ -113,6 +125,7 @@ export function Dhis2RunDetail(
   }
 
   return (
+    <EditorWrapper>
     <FrameTop
       panelChildren={
         <HeadingBar
@@ -168,10 +181,24 @@ export function Dhis2RunDetail(
             }),
             `${toNum0(p.run.succeededPairs)} / ${toNum0(p.run.failedPairs)} / ${toNum0(p.run.totalPairs)}`,
           )}
-          {factRow(
-            t3({ en: "Version", fr: "Version", pt: "Versão" }),
-            p.run.versionId !== undefined ? `${p.run.versionId}` : "",
-          )}
+          <div class="flex items-baseline">
+            <div class="w-56 flex-none">
+              {t3({ en: "Version", fr: "Version", pt: "Versão" })}
+            </div>
+            <div class="min-w-0 flex-1">
+              <Show when={p.run.versionId} keyed fallback={""}>
+                {(versionId) => (
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => void viewVersion(versionId)}
+                  >
+                    {`${versionId} — ${t3({ en: "view import information", fr: "voir les informations d'importation", pt: "ver as informações de importação" })}`}
+                  </Button>
+                )}
+              </Show>
+            </div>
+          </div>
           {factRow("DHIS2", p.run.dhis2Url ?? "")}
         </div>
 
@@ -263,5 +290,6 @@ export function Dhis2RunDetail(
         </StateHolderWrapper>
       </div>
     </FrameTop>
+    </EditorWrapper>
   );
 }
