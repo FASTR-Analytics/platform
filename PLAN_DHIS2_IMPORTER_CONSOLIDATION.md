@@ -1,21 +1,56 @@
 # Plan — Import consolidation: config-on-client, run-on-server, for HMIS + HFA + ICEH
 
-**Status (2026-08-06): Phases A and B are BUILT, VERIFIED, and adversarially
-reviewed (A also confirmed in the browser by Tim; B's browser walkthrough is
-pending). Phases C and D are not started.** Phase A landed on tim-branch
-(swept into commit `d81a96cb` by a concurrent panther sync — the message says
-"panther sync 4 files" but it contains the whole Phase A change set). Phase B
-= commits `04dfd51f` (the phase) + `bd351629` (the review fix batch).
-Migrations 070 and 071 are applied on the dev instance. Each built phase's
-section is annotated with its as-built deviations; everything a C implementer
-reuses (shared helpers, temp-upload mechanism, client patterns, lessons) is
-listed under the "as-built facts" blocks in §0.
+**Status (2026-08-06): Phases A, B, and C are BUILT and VERIFIED (A and B
+also adversarially reviewed; A confirmed in the browser by Tim; B and C
+browser walkthroughs pending). Phase D remains.** Phase A landed on
+tim-branch (swept into commit `d81a96cb` by a concurrent panther sync — the
+message says "panther sync 4 files" but it contains the whole Phase A change
+set). Phase B = commits `04dfd51f` (the phase) + `bd351629` (the review fix
+batch). Phase C built 2026-08-06 (this commit); verification that passed:
+`deno task typecheck` (incl. lint:systems with everything staged),
+`./validate_migrations`, and a 36-check harness driving the real worker on
+the dev DB (clean zip auto-integrates + cache hash flips; refusal + partial
+unique index; unknown-strat hold retains the zip, releases the slot, merges
+nothing; integrate-anyway re-ingests gate-skipped and lands rows identical to
+a gate-clean run; discard/cancel/error/boot-sweep all delete the temp zip;
+the two new counters gate; orphan sweep spares referenced ICEH tokens).
+Migrations 070–072 are applied on the dev instance. Each built phase's
+section is annotated with its as-built deviations.
 
-**Hand-off: "start work" / "continue work" means implement Phase C, then D,
-in order.** Each phase has its own verification section which must pass before
-the next phase begins. Phases stay severable — if work stops after any phase,
-the completed families are coherent and the remaining families keep working
-untouched on their old machinery.
+**Hand-off: "start work" / "continue work" means implement Phase D.** Phases
+stay severable — if work stops after any phase, the completed families are
+coherent.
+
+**Phase C as-built deviations from the spec below:**
+
+- Added `cancelDatasetIcehRun` (B's as-built precedent, same reasoning: with
+  the delete-attempt route gone, a wedged run needs a kill switch; same shape
+  as the HFA cancel).
+- `IcehStagingResult` was NOT reused verbatim: it gained the two new gating
+  counters + `skippedUnknownIndicatorSamples` (≤5 codes), and all previously
+  optional fields became required (the old optionality existed only for
+  attempt rows predating the fields, which die with the table).
+- The client surface mirrors B's as-built shape, not the C7 sidebar-card
+  spec: `instance_dataset_iceh/imports/` is an editor surface (Current card +
+  History table) opened by two sidebar buttons; the sidebar keeps only the
+  buttons + Delete data (detail refetches on `icehCacheHash` change, no
+  poll).
+- Stage-leg counter ordering preserves old integration semantics exactly:
+  strat → estimate → year → known-indicator, each counter counting only rows
+  that passed the prior checks (verified by the harness equivalence check:
+  gate-skipped ingest ≡ gate-clean ingest of the surviving rows; an
+  indicator whose rows are all skipped keeps its previously imported data,
+  as before).
+- The completion flip lives inside the integrate transaction from birth (the
+  B review fix, per §0), throw-on-zero.
+- SYSTEM_06's ICEH sections are rewritten to the run model (attempt state
+  machine section deleted, two Open items closed); the doc is 472 lines —
+  Phase D owns compressing it below 425. The `_import_wizard/**` glob move to
+  SYSTEM_08 (a D item) was done in C since ICEH stopped consuming the shell
+  here.
+- PROTOCOL_APP_STATE.md's T3 line was updated but is NOT in the Phase C
+  commit — the file carries unrelated parallel working-tree changes (snapshot
+  naming); the edit rides in the working tree.
 
 All four phases were mechanically specced 2026-07-16 and re-verified against
 the codebase 2026-08-04. Supersedes two deleted plans (both in git history):

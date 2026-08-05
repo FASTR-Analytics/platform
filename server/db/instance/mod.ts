@@ -9,6 +9,7 @@ export * from "./dataset_hmis_import_runs.ts";
 export * from "./dataset_hmis_scheduled_imports.ts";
 export * from "./dataset_hfa.ts";
 export * from "./dataset_hfa_import_runs.ts";
+export * from "./dataset_iceh_import_runs.ts";
 export * from "./indicators.ts";
 export * from "./instance.ts";
 export * from "./structure.ts";

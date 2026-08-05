@@ -2,6 +2,7 @@
 system: 8
 name: Results Packages & Module Execution
 globs:
+  - client/src/components/_import_wizard/**
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/instance_results_packages/**
   - client/src/components/project/metric_details_modal.tsx
@@ -91,7 +92,9 @@ and the per-module script/log/file viewers moved off the project mount) +
 `routes/project/results_package.ts` (the project picker); lib module + run
 types + `module_registry.ts`; client: `instance_results_packages/**` (the
 catalogue), `project_results_package.tsx` +
-`results_package_compatibility_modal.tsx`, `results_package_wizard/**`,
+`results_package_compatibility_modal.tsx`, `results_package_wizard/**` (+ its
+descriptor shell `_import_wizard/**` — the results-package wizard is the
+shell's only consumer since ICEH moved to import runs),
 `compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
 what a package CONTAINS, rendered identically wherever a package is explored
 (`package_contents.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). It

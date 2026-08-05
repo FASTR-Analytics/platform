@@ -190,6 +190,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
 | `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
 | `import_hmis_data_dhis2` | `{ runId, credentialsSource, selection }`          | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
 | `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row       | `worker_store` (`hfa`)            |
+| `import_iceh_data`       | `{ runId, config, zipFilePath }`                   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)           |
 
 ## Gotchas
 

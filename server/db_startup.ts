@@ -22,6 +22,7 @@ import {
   getPgConnectionFromCacheOrNew,
   markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
+  markStaleRunningDatasetIcehImportRuns,
 } from "./db/mod.ts";
 import { sweepOrphanImportTempUploads } from "./import_temp_uploads.ts";
 import type { Sql } from "postgres";
@@ -82,6 +83,12 @@ ${userInserts}
       `[startup] Marked ${staleHfaRuns} HFA import run(s) wedged mid-run by a previous shutdown`,
     );
   }
+  const staleIcehRuns = await markStaleRunningDatasetIcehImportRuns(sqlMain);
+  if (staleIcehRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
   await sweepOrphanImportTempUploads(sqlMain);
 
   // Instance data transforms — on main database
@@ -138,19 +145,16 @@ ${userInserts}
   await markInterruptedGeneratingRuns(sqlMain);
 }
 
+// Only the structure family (S5) still runs on upload attempts — every
+// dataset family is import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION).
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =
     "Import interrupted by a server restart. Delete this attempt and start again.";
-  const errStatus = JSON.stringify({ status: "error", err: message });
   const structureErrStatus = JSON.stringify({ status: "error", error: message });
-  const results = await Promise.all([
-    mainDb`UPDATE iceh_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
-    mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`,
-  ]);
-  const total = results.reduce((sum, r) => sum + r.count, 0);
-  if (total > 0) {
+  const reset = await mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`;
+  if (reset.count > 0) {
     console.log(
-      `[startup] Reset ${total} upload attempt(s) wedged mid-import by a previous shutdown`,
+      `[startup] Reset ${reset.count} upload attempt(s) wedged mid-import by a previous shutdown`,
     );
   }
 }

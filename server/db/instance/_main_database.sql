@@ -765,16 +765,34 @@ CREATE INDEX idx_iceh_data_indicator ON iceh_data(iceh_indicator);
 CREATE INDEX idx_iceh_data_year ON iceh_data(year);
 CREATE INDEX idx_iceh_data_strat ON iceh_data(strat);
 
-CREATE TABLE iceh_upload_attempts (
-  id TEXT PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started TEXT NOT NULL,
-  step INTEGER NOT NULL,
-  status TEXT NOT NULL,
-  status_type TEXT NOT NULL,
-  step_1_result TEXT,
-  step_2_result TEXT,
-  step_3_result TEXT
+-- ============================================================================
+-- ICEH IMPORT RUNS
+-- ============================================================================
+
+-- One row per ICEH import (in-memory stage → conditional review gate →
+-- integrate). See server/db/instance/dataset_iceh_import_runs.ts. No queue
+-- (manual-only, no scheduler) and no version_id — ICEH's outcome plane is the
+-- cumulative iceh_indicators/iceh_data store; these run rows are ICEH's only
+-- durable import history. zip_config is the launch payload
+-- ({ zipUploadToken, zipFileName } JSON); diagnostics is the staging result.
+CREATE TABLE iceh_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  triggered_by text,
+  zip_config text NOT NULL,
+  status text NOT NULL CHECK (status IN
+    ('running', 'needs_review', 'complete', 'error', 'cancelled')),
+  error text,
+  progress text,
+  diagnostics text,
+  n_rows_integrated integer,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
 );
+
+-- The single-running claim: the INSERT (or the needs_review re-claim) is the
+-- only arbiter of "at most one ICEH import running, ever".
+CREATE UNIQUE INDEX idx_iceh_import_runs_single_running
+  ON iceh_import_runs ((true)) WHERE status = 'running';
 
 -- ============================================================================
 -- ASSET METADATA

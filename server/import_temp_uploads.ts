@@ -105,6 +105,10 @@ export async function sweepOrphanImportTempUploads(
       SELECT csv_config FROM hfa_import_runs
       WHERE status IN ('running', 'needs_review')
     `),
+    ...(await mainDb<{ csv_config: string | null }[]>`
+      SELECT zip_config AS csv_config FROM iceh_import_runs
+      WHERE status IN ('running', 'needs_review')
+    `),
   ];
   for (const row of configRows) {
     if (!row.csv_config) {
@@ -116,11 +120,13 @@ export async function sweepOrphanImportTempUploads(
         uploadToken?: string;
         csvUploadToken?: string;
         xlsFormUploadToken?: string;
+        zipUploadToken?: string;
       };
       for (const token of [
         config.uploadToken,
         config.csvUploadToken,
         config.xlsFormUploadToken,
+        config.zipUploadToken,
       ]) {
         if (token) {
           activeTokens.add(token);

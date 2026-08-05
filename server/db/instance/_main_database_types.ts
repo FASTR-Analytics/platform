@@ -227,15 +227,17 @@ export type DBHfaImportRun = {
   ended_at: string | Date | null;
 };
 
-export type DBIcehUploadAttempt = {
-  id: string;
-  date_started: string;
-  step: number;
-  status: string;
-  status_type: string;
-  step_1_result: string | null;
-  step_2_result: string | null;
-  step_3_result: string | null;
+export type DBIcehImportRun = {
+  id: number;
+  triggered_by: string | null;
+  zip_config: string;
+  status: "running" | "needs_review" | "complete" | "error" | "cancelled";
+  error: string | null;
+  progress: string | null;
+  diagnostics: string | null;
+  n_rows_integrated: number | null;
+  started_at: string | Date;
+  ended_at: string | Date | null;
 };
 
 // Audit logging
