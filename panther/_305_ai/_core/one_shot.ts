@@ -22,7 +22,10 @@ import {
   supportsDynamicWebTools,
   supportsSamplingParams,
 } from "../deps.ts";
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import {
+  type AIToolWithMetadata,
+  getHeadlessCapability,
+} from "./tool_helpers.ts";
 import {
   type BuiltInToolsConfig,
   resolveBuiltInTools,
@@ -135,29 +138,41 @@ export async function callAI(
   config: CallAIConfig,
   messages: MessageParam[],
 ): Promise<CallAIResult> {
-  // View-typed tools cannot run here: the one-shot path has no
-  // viewController, so there is no live view to inject and the gate that
-  // availableIn promises would be silently skipped. The SDK's tool runner
-  // calls run(input) with no view accessor, so such a handler would read
-  // undefined. Fail loud instead.
+  // Structural eligibility via the shared headless helper (one concept with
+  // the MCP surface, so the rules can never drift). callAI's mapping: every
+  // view-bound tool is rejected (no viewController — the availableIn gate
+  // would be silently skipped, and a view-typed handler would read undefined
+  // from the SDK runner's run(input)); ALL approval tools are rejected (no
+  // user to ask — the tool's run() would throw mid-call, so fail loud at
+  // entry). This is where callAI diverges from createMCPServer, which accepts
+  // plain-shape approval tools under an approval mode. "nav" passes, as it
+  // always has here. Whether callAI should also require the `headless: true`
+  // declaration is deferred — until consumer repos are grepped, the
+  // declaration gates MCP only and callAI stays structural.
   for (const tool of config.tools ?? []) {
-    if (tool.metadata.availableIn) {
-      throw new Error(
-        `callAI: tool "${tool.sdkTool.name}" declares availableIn — view-gated tools are chat-only (callAI has no viewController to gate against). Use a plain createAITool tool here.`,
-      );
-    }
-    if (tool.metadata._viewRegistry !== undefined) {
-      throw new Error(
-        `callAI: tool "${tool.sdkTool.name}" declares a views registry — its handler expects the live view state the chat engine injects, which callAI has no controller to supply. Use a plain createAITool tool here.`,
-      );
-    }
-    // Same class of bypass: the one-shot path has no UI to present an
-    // approval card, so the confirm-before-apply lifecycle cannot run (the
-    // tool's run() would throw mid-call — fail loud at entry instead).
-    if (tool.metadata.approval) {
-      throw new Error(
-        `callAI: tool "${tool.sdkTool.name}" declares approval — confirm-before-apply tools are chat-only (callAI has no user to ask). Use a plain handler tool here.`,
-      );
+    const capability = getHeadlessCapability(tool.metadata);
+    switch (capability.kind) {
+      case "view-bound":
+        throw new Error(
+          capability.via === "availableIn"
+            ? `callAI: tool "${tool.sdkTool.name}" declares availableIn — view-gated tools are chat-only (callAI has no viewController to gate against). Use a plain createAITool tool here.`
+            : `callAI: tool "${tool.sdkTool.name}" declares a views registry — its handler expects the live view state the chat engine injects, which callAI has no controller to supply. Use a plain createAITool tool here.`,
+        );
+      case "approval-plain":
+        throw new Error(
+          `callAI: tool "${tool.sdkTool.name}" declares approval — confirm-before-apply tools are chat-only (callAI has no user to ask). Use a plain handler tool here.`,
+        );
+      case "nav":
+      case "ok":
+        break;
+      default: {
+        // Exhaustiveness backstop: a future capability variant must be
+        // explicitly mapped here, never silently accepted.
+        const unhandled: never = capability;
+        throw new Error(
+          `callAI: unhandled tool capability ${JSON.stringify(unhandled)}`,
+        );
+      }
     }
   }
   const modelConfig = resolveModelConfig(config.modelConfig);

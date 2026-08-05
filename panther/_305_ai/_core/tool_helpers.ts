@@ -160,6 +160,10 @@ export interface ToolUIMetadata<TInput = unknown> {
 
   kind?: AIToolKind;
 
+  // See CreateAIToolConfigCommon.headless. Stored verbatim; read by the
+  // headless-surface eligibility helper (getHeadlessCapability consumers).
+  headless?: boolean;
+
   // Approval lifecycle (Feature 4), erased. Set by createAITool when the
   // tool config declares approval; the chat loop branches on it BEFORE
   // sdkTool.run (an approval tool's run() throws — it can only execute
@@ -235,6 +239,53 @@ export interface AIToolWithMetadata<TInput = unknown> {
   metadata: ToolUIMetadata<TInput>;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// HEADLESS ELIGIBILITY (one concept, two surfaces)
+////////////////////////////////////////////////////////////////////////////////
+//
+// Structural classification of a tool for surfaces with no view and no user
+// (callAI, createMCPServer). ONE helper so the two surfaces can never drift —
+// but the surfaces map the classification differently, and the divergence is
+// deliberate: callAI rejects ALL approval tools (no user to ask), while an
+// MCP server accepts plain-shape approval tools under an approval mode.
+//
+// Classification precedence mirrors callAI's historical per-tool throw order
+// (availableIn → viewRegistry → approval) so swapping callAI onto the helper
+// is behavior-identical; "nav" ranks below approval for the same reason
+// (callAI never rejected nav tools, and an approval tool must classify as
+// approval regardless of its kind).
+
+export type HeadlessCapability =
+  // No structural obstacle. Whether the closure is ACTUALLY browser-free is
+  // the author's `headless` declaration, which the surface checks separately.
+  | { kind: "ok" }
+  // availableIn: the gate can never pass with no view. viewRegistry (without
+  // availableIn): the handler/propose expects the injected live view state.
+  | { kind: "view-bound"; via: "availableIn" | "viewRegistry" }
+  // Confirm-before-apply with the plain propose(input, ctx) shape — usable
+  // headlessly only by a surface that can drive the approval lifecycle.
+  | { kind: "approval-plain" }
+  // kind "nav": navigation needs a surface to navigate.
+  | { kind: "nav" };
+
+export function getHeadlessCapability(
+  metadata: ToolUIMetadata<Any>,
+): HeadlessCapability {
+  if (metadata.availableIn) {
+    return { kind: "view-bound", via: "availableIn" };
+  }
+  if (metadata._viewRegistry !== undefined) {
+    return { kind: "view-bound", via: "viewRegistry" };
+  }
+  if (metadata.approval) {
+    return { kind: "approval-plain" };
+  }
+  if (metadata.kind === "nav") {
+    return { kind: "nav" };
+  }
+  return { kind: "ok" };
+}
+
 export interface CreateAIToolConfigCommon<TInput> {
   name: string;
 
@@ -255,6 +306,16 @@ export interface CreateAIToolConfigCommon<TInput> {
   errorMessage?: string | ((input: TInput) => string);
 
   kind?: AIToolKind;
+
+  // Declares that this tool's closure works with no browser, no view, and no
+  // user present — the eligibility contract for headless surfaces (MCP,
+  // callAI). Opt-in; absent = chat-only. A declaration, not an inference:
+  // whether a handler's transitive graph is browser-free is knowledge only
+  // the tool's author has, and panther cannot verify it — the flag is a
+  // contract at the same trust level as "propose must be read-only".
+  // Construction throws on structurally impossible combinations (availableIn,
+  // kind "nav", view-typed approval); everything else is the author's word.
+  headless?: boolean;
 }
 
 // Exactly one of handler / approval — enforced at the type level (the XOR
@@ -616,6 +677,31 @@ export function buildAITool<TInput>(
       `createAITool("${config.name}"): approval mode "session" requires presentation "inline" — the modal dialog has no "don't ask again" affordance.`,
     );
   }
+  // headless construction invariants: throw on combinations that are
+  // structurally impossible with no view and no user — same philosophy as the
+  // strict-schema / empty-availableIn / session×modal throws (a bad
+  // combination fails boot, never a live call). `viewRegistry` presence alone
+  // is deliberately NOT a disqualifier: aiToolFactory stamps it on every tool
+  // it builds, gated or not, and an ungated view-typed handler may never
+  // touch the view at all — the runtime poison-view guard covers that half of
+  // the contract.
+  if (config.headless) {
+    if (availableIn) {
+      throw new Error(
+        `createAITool("${config.name}"): headless: true cannot combine with availableIn — a view gate can never be satisfied with no view, so the tool would be refused on every headless call. Take explicit ids as input instead of gating on a view, or drop headless.`,
+      );
+    }
+    if (config.kind === "nav") {
+      throw new Error(
+        `createAITool("${config.name}"): headless: true cannot combine with kind "nav" — navigation is meaningless with no surface.`,
+      );
+    }
+    if (approvalMeta && proposeTakesView) {
+      throw new Error(
+        `createAITool("${config.name}"): headless: true cannot combine with view-typed approval — a propose that receives the live view closes over editor state no headless surface can supply. Use the plain createAITool shape (propose(input, ctx)) for a headless approval tool.`,
+      );
+    }
+  }
 
   // Static availability hint: the cheapest cache-stable channel to the model
   // (per-tool, byte-stable across navigation) — it learns the view map from
@@ -632,13 +718,15 @@ export function buildAITool<TInput>(
     input: TInput,
     getView?: () => unknown,
   ): Promise<string> => {
-    // An approval tool never executes here: the chat loop branches on
-    // metadata.approval BEFORE the tool engine, and every other execution
-    // path (processToolUses fallback, direct calls) has no user to ask —
-    // fail loud instead of silently mutating.
+    // An approval tool never executes here: every sanctioned lifecycle
+    // (createAIChat's chat loop, createMCPServer's approval driver) branches
+    // on metadata.approval BEFORE run()/runWithView and drives propose →
+    // decision → commit itself; every other execution path (processToolUses
+    // fallback, direct calls) has no user to ask — fail loud instead of
+    // silently mutating.
     if (approvalMeta) {
       throw new Error(
-        `Tool "${config.name}" requires user approval and can only execute inside the chat approval lifecycle (createAIChat).`,
+        `Tool "${config.name}" requires user approval and can only execute inside an approval lifecycle (createAIChat's chat loop or createMCPServer's approval driver).`,
       );
     }
     // Validate here too — the manual chat loop calls run() directly without
@@ -675,6 +763,7 @@ export function buildAITool<TInput>(
     errorMessage: config.errorMessage,
     availableIn,
     kind: config.kind,
+    headless: config.headless,
     approval: approvalMeta,
     awaitsUserAction: approvalMeta ? true : undefined,
     _viewRegistry: config.viewRegistry,

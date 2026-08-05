@@ -39,6 +39,10 @@ export { createAskUserQuestionsTool } from "./_components/ask_user_questions.tsx
 export { createSDKClient } from "./_core/sdk_client.ts";
 export { callAI, callAIStructured } from "./_core/one_shot.ts";
 export { getBetaHeaders } from "./_core/beta_headers.ts";
+export {
+  createMCPServer,
+  validateMCPServerConfig,
+} from "./_core/mcp_server.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // TYPES
@@ -108,6 +112,15 @@ export type {
   WebFetchToolConfig,
   WebSearchToolConfig,
 } from "./_core/builtin_tools.ts";
+export type {
+  CreateMCPServerConfig,
+  MCPApprovalMode,
+  MCPConnection,
+  MCPPromptConfig,
+  MCPResourceConfig,
+  MCPServer,
+  MCPTransport,
+} from "./_core/mcp_types.ts";
 
 // Re-export commonly used types and consts from _110_ai_types
 export type {
