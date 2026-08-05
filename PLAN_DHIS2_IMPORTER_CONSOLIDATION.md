@@ -523,6 +523,29 @@ exactly the intended rows). Migration 071 is applied on dev.
   section for the shared mechanism and lists only HFA's differences. Phase D
   still owns getting the whole doc under 425.
 
+**Adversarial review 2026-08-06 (1 agent, findings verified before fixing):**
+semantic parity of both relocated legs confirmed line-by-line; all four
+deviations ruled sound. Fixes applied same day: (F1) wizard chips now route
+through `onStepClick` so chip-clicks can never bypass the duplicates scan
+(panther's stepper makes the next chip clickable whenever `canGoNext`, and
+`setCurrentStep` skips the Next button's side effects — remember this for any
+future wizard whose advance has side effects; Phase A's HMIS wizard is
+unaffected, its advances are side-effect-free); (F2/F3) the completion flip
+moved INSIDE the integrate transaction, conditional on `status='running'` with
+throw-on-zero → a cancel racing the commit either rolls the merge back whole or
+no-ops after completion (proven by a dedicated 5-check harness: cancelled run →
+integrate throws, zero rows merged, stamp untouched), and the needs_review flip
+checks its rowcount so a run cancelled before `setWorker` keeps no
+tables/uploads. NOT fixed (accepted): F4 crash-path cleanup could destroy a
+needs_review hold's tables in a narrow window (recoverable via discard; exact
+parity with HMIS Phase A); F6 `LIMIT 50` could hide a needs_review hold older
+than 50 runs (edge; revisit if holds ever linger); F5 was retracted on
+verification (main.ts HAS a global onError — stateless-route throws surface
+inline as "Server error: " + the real message). **The F2/F3 cancel-vs-commit shape also
+exists in Phase A's HMIS CSV worker (inherited, not fixed there — its complete
+flip + version/ledger writes span worker code, so the same in-txn fix is a
+bigger change); candidates for Phase D or a separate pass.**
+
 ### Original Phase B spec
 
 HFA import becomes a run in a new `hfa_import_runs` table; the singleton

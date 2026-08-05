@@ -117,12 +117,19 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
         // Dropped facility rows → hold for review and RELEASE the
         // single-running slot. The per-run staging tables survive the hold;
         // the temp uploads are retained until the run resolves.
-        await mainDb`
+        const held = await mainDb`
           UPDATE hfa_import_runs
           SET status = 'needs_review', progress = NULL,
             diagnostics = ${JSON.stringify(stagingResult)}
           WHERE id = ${runId} AND status = 'running'
         `;
+        if (held.count === 0) {
+          // The run was cancelled under us (a cancel can land before this
+          // worker is registered, so nothing terminated it) — a cancelled
+          // run may keep nothing.
+          await dropHfaStagingTables(importDb, runId, { keepFinal: false });
+          await deleteTempUploads();
+        }
         await importDb.end();
         await mainDb.end();
         self.postMessage("COMPLETED");
@@ -131,6 +138,9 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
     }
 
     // ── Integrate leg ───────────────────────────────────────────────────
+    // The completion flip happens INSIDE the merge transaction (see
+    // integrate_staged.ts) — a cancel racing the commit either rolls the
+    // merge back whole or arrives after the run is already 'complete'.
     await integrateStagedHfaData({
       importDb,
       mainDb,
@@ -140,14 +150,6 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
         await writeProgress({ phase: "integrating", percent }, false);
       },
     });
-
-    await mainDb`
-      UPDATE hfa_import_runs
-      SET status = 'complete', ended_at = now(), progress = NULL,
-        diagnostics = ${JSON.stringify(stagingResult)},
-        n_rows_integrated = ${stagingResult.nRowsTotal}
-      WHERE id = ${runId} AND status = 'running'
-    `;
 
     await deleteTempUploads();
 

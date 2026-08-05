@@ -4,8 +4,9 @@ import { dropHfaStagingTables, hfaStagingTableNames } from "./stage_csv.ts";
 
 // The integration internals relocated from the old integrate_hfa_data worker:
 // one transaction that stamps the time point and replaces its data +
-// dictionary wholesale. Semantics unchanged — only the table names (per-run)
-// and the progress transport differ.
+// dictionary wholesale. Semantics unchanged — only the table names (per-run),
+// the progress transport, and the in-transaction completion flip (see below)
+// differ. On success the run row is 'complete' when this returns.
 export async function integrateStagedHfaData(args: {
   importDb: Sql;
   mainDb: Sql;
@@ -87,6 +88,26 @@ export async function integrateStagedHfaData(args: {
     `);
 
     await onProgress(80);
+
+    // The completion flip lives INSIDE the merge transaction, conditional on
+    // the run still being 'running', and comes LAST (so the run-row lock is
+    // held only for the final instant). This closes the cancel-vs-commit
+    // race in both directions: a cancel that flips the row first makes this
+    // match zero rows and the throw rolls the whole merge back (a run marked
+    // cancelled has truly integrated nothing); a merge that commits has
+    // atomically marked itself complete, so a blocked cancel then no-ops.
+    const flipped = await sql`
+      UPDATE hfa_import_runs
+      SET status = 'complete', ended_at = now(), progress = NULL,
+        diagnostics = ${JSON.stringify(stagingResult)},
+        n_rows_integrated = ${stagingResult.nRowsTotal}
+      WHERE id = ${runId} AND status = 'running'
+    `;
+    if (flipped.count === 0) {
+      throw new Error(
+        "The run was cancelled during integration — nothing was merged.",
+      );
+    }
   });
 
   await onProgress(90);

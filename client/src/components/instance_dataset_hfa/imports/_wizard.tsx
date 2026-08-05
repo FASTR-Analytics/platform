@@ -150,7 +150,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   // duplicates step is skipped entirely when there are none.
   async function goNextFromMappings() {
     const csv = csvUpload();
-    if (!csv) {
+    if (!csv || scanning()) {
       return;
     }
     setScanning(true);
@@ -177,6 +177,37 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     if ((preview()?.groups.length ?? 0) === 0) {
       stepper.goPrev();
     }
+  }
+
+  // Chip clicks must never bypass the duplicates scan: without this handler
+  // the stepper chips call setCurrentStep directly, so clicking the
+  // "Duplicates" chip from the mappings step would skip goNextFromMappings
+  // and launch with unreviewed duplicates. Forward chip navigation goes
+  // through the same advance functions as the Next button; backward
+  // navigation honors the auto-skip of an empty duplicates step.
+  function onStepClick(step: number) {
+    const current = stepper.currentStep();
+    if (step === current) {
+      return;
+    }
+    if (step < current) {
+      if (
+        STEPS[step] === "duplicates" &&
+        (preview()?.groups.length ?? 0) === 0
+      ) {
+        stepper.setCurrentStep(STEPS.indexOf("mappings"));
+        return;
+      }
+      stepper.setCurrentStep(step);
+      return;
+    }
+    // Forward: only current+1 is ever clickable, so this is exactly the
+    // Next button's action for the current step.
+    if (currentStepKind() === "mappings") {
+      void goNextFromMappings();
+      return;
+    }
+    stepper.goNext();
   }
 
   function rulePick(group: HfaDuplicateGroup): number {
@@ -237,7 +268,11 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
           <div class="font-700 text-lg">
             {t3({ en: "New HFA import", fr: "Nouvelle importation HFA", pt: "Nova importação HFA" })}
           </div>
-          <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
+          <StepperChipsWithTitles
+            stepper={stepper}
+            labels={stepLabels}
+            onStepClick={onStepClick}
+          />
         </div>
       }
       leftButtons={
