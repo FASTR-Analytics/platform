@@ -127,6 +127,13 @@ if (_SEND_GRID_API === undefined) {
   throw new Error("Could not get SEND_GRID_API env variable");
 }
 
+// Also read by clerkMiddleware internally; exposed for the server's own Clerk
+// Backend API calls (email-ownership checks in the rename-email flow).
+export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY")!;
+if (_CLERK_SECRET_KEY === undefined) {
+  throw new Error("Could not get CLERK_SECRET_KEY env variable");
+}
+
 export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -114,6 +114,9 @@ export type VersionTracker = {
   sweep: () => Promise<void>;
   /** Flush every open session unconditionally (graceful shutdown). */
   flushAll: () => Promise<void>;
+  /** User email rename: re-key the editor in every open session so later
+   *  flushes attribute the window to the new address. */
+  renameEditorEmail: (oldEmail: string, newEmail: string) => void;
 };
 
 export function createVersionTracker(
@@ -292,5 +295,25 @@ export function createVersionTracker(
     }
   }
 
-  return { recordEdit, noteRoomEmpty, drainEditors, sweep, flushAll };
+  function renameEditorEmail(oldEmail: string, newEmail: string): void {
+    for (const acc of accumulators.values()) {
+      const name = acc.editors.get(oldEmail);
+      if (name === undefined) {
+        continue;
+      }
+      acc.editors.delete(oldEmail);
+      if (!acc.editors.has(newEmail)) {
+        acc.editors.set(newEmail, name);
+      }
+    }
+  }
+
+  return {
+    recordEdit,
+    noteRoomEmpty,
+    drainEditors,
+    sweep,
+    flushAll,
+    renameEditorEmail,
+  };
 }

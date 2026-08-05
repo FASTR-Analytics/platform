@@ -11,6 +11,7 @@ export * from "./dataset_hfa.ts";
 export * from "./indicators.ts";
 export * from "./instance.ts";
 export * from "./structure.ts";
+export * from "./rename_user_email.ts";
 export * from "./users.ts";
 export * from "./geojson_maps.ts";
 export * from "./hfa_facility_weights.ts";

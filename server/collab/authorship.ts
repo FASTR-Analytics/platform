@@ -296,6 +296,30 @@ export function dropLedger(projectId: string, reportId: string): void {
   pendingInit.delete(k);
 }
 
+/** User email rename: rewrite the author in every open ledger (report bodies
+ *  AND slide text elements — they share the map) plus the pendingInit stash,
+ *  so later checkpoints/snapshots persist the new address. */
+export function renameAuthorEmails(oldEmail: string, newEmail: string): void {
+  const renameRuns = (runs: AuthorRun[]): void => {
+    for (const run of runs) {
+      if (run.email === oldEmail) {
+        run.email = newEmail;
+      }
+      if (run.deletedBy === oldEmail) {
+        run.deletedBy = newEmail;
+      }
+    }
+  };
+  for (const ledger of ledgers.values()) {
+    renameRuns(ledger.runs);
+  }
+  for (const runs of pendingInit.values()) {
+    if (runs) {
+      renameRuns(runs);
+    }
+  }
+}
+
 // ── Slide text elements ──────────────────────────────────────────────────────
 //
 // One ledger per (slide, element text), keyed by the same element keys the

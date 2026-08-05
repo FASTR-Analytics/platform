@@ -10,6 +10,8 @@ globs:
   - lib/types/permissions.ts
   - lib/types/streaming.ts
   - main.ts
+  - server/clerk_api.ts
+  - server/db/instance/rename_user_email.ts
   - server/db/instance/users.ts
   - server/middleware/auth.ts
   - server/middleware/cache.ts

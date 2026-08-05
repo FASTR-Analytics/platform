@@ -195,6 +195,35 @@ export function recordDeckReordered(
   ledgerFor(projectId, deckId).reordered.add(email);
 }
 
+function renameInSet(set: Set<string> | undefined, oldEmail: string, newEmail: string): void {
+  if (set?.has(oldEmail)) {
+    set.delete(oldEmail);
+    set.add(newEmail);
+  }
+}
+
+/** User email rename: re-key the email in every open deck/element ledger so
+ *  the next drain freezes attribution under the new address. */
+export function renameDeckLedgerEmails(oldEmail: string, newEmail: string): void {
+  for (const ledger of ledgers.values()) {
+    for (const touch of ledger.slides.values()) {
+      renameInSet(touch.edited, oldEmail, newEmail);
+      renameInSet(touch.added, oldEmail, newEmail);
+      renameInSet(touch.removed, oldEmail, newEmail);
+    }
+    renameInSet(ledger.settings, oldEmail, newEmail);
+    renameInSet(ledger.reordered, oldEmail, newEmail);
+  }
+  for (const elements of elementTouches.values()) {
+    for (const touch of elements.values()) {
+      renameInSet(touch.touched, oldEmail, newEmail);
+      renameInSet(touch.added, oldEmail, newEmail);
+      renameInSet(touch.removed, oldEmail, newEmail);
+      renameInSet(touch.textDeleted, oldEmail, newEmail);
+    }
+  }
+}
+
 /** Freeze + clear the deck's open session ledger — called when a version is
  *  written. Returns null when nothing was recorded. */
 export function drainDeckLedger(

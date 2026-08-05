@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GlobalUser, OtherUser, ProjectUserRole, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
+import type { GlobalUser, OtherUser, ProjectUserRole, RenameEmailInstanceResult, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
 import { USER_PERMISSIONS, PROJECT_PERMISSIONS } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -99,5 +99,24 @@ export const userRouteRegistry = {
     path: "/user/contact-person",
     method: "POST",
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
+  }),
+  // Renames a user on THIS instance only (main DB + project attribution +
+  // live collab state). Fleet-internal: called machine-to-machine by
+  // renameUserEmailEverywhere with the status-api-key header, or by a local
+  // can_configure_users admin as a support fallback.
+  renameUserEmail: route({
+    path: "/user/rename-email",
+    method: "POST",
+    body: z.object({ oldEmail: z.string(), newEmail: z.string() }),
+    response: {} as { changed: boolean; projectsUpdated: number; projectsFailed: string[]; warnings: string[] },
+  }),
+  // Self-service: renames the CALLER's email in every instance that has it.
+  // Authorization is the Clerk ownership check (both addresses on the caller's
+  // account, new one verified), not a permission flag.
+  renameUserEmailEverywhere: route({
+    path: "/user/rename-email-everywhere",
+    method: "POST",
+    body: z.object({ oldEmail: z.string(), newEmail: z.string(), dryRun: z.boolean() }),
+    response: {} as { instances: RenameEmailInstanceResult[]; warnings: string[] },
   }),
 } as const;

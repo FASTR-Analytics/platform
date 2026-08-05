@@ -3,6 +3,7 @@ import { createMiddleware } from "hono/factory";
 import type { GlobalUser, UserPermission } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { _STATUS_API_KEY } from "../exposed_env_vars.ts";
 import { getGlobalUser } from "../project_auth.ts";
 
 type RequireGlobalPermissionOptions = {
@@ -92,5 +93,34 @@ export function requireGlobalPermission(
         err: "Service temporarily unavailable",
       });
     }
+  });
+}
+
+/** Like requireGlobalPermission, but ALSO passes fleet-internal machine calls
+ *  authenticated by the shared status-api-key header (same key
+ *  /health_check/pg_stat_statements_reset checks). Machine calls get mainDb
+ *  but NO globalUser — a handler behind this guard must treat a missing
+ *  globalUser as the machine actor. */
+export function requireGlobalPermissionOrStatusKey(
+  firstArg?: RequireGlobalPermissionOptions | UserPermission,
+  ...restArgs: UserPermission[]
+) {
+  const sessionGuard = requireGlobalPermission(firstArg, ...restArgs);
+  return createMiddleware<{
+    Variables: {
+      globalUser: GlobalUser | undefined;
+      mainDb: Sql;
+    };
+  }>(async (c: Context, next: () => Promise<void>) => {
+    if (
+      c.req.method !== "OPTIONS" &&
+      _STATUS_API_KEY &&
+      c.req.header("status-api-key") === _STATUS_API_KEY
+    ) {
+      c.set("mainDb", getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE"));
+      await next();
+      return;
+    }
+    return await sessionGuard(c, next);
   });
 }

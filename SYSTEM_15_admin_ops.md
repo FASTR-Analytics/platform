@@ -10,6 +10,7 @@ globs:
   - client/src/components/instance/batch_upload_users_form.tsx
   - client/src/components/instance/bulk_edit_default_project_permissions_form.tsx
   - client/src/components/instance/bulk_edit_permissions_form.tsx
+  - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
   - client/src/components/instance/instance_projects.tsx
@@ -263,7 +264,9 @@ user-facing route errors with GB figures.
   exist in the typed registry (Open item) — and soft-delete/copy.
 - **Self-profile** (`profile.tsx`): AI usage bars; organisation +
   `emailOptIn` are written **directly to Clerk `unsafeMetadata`** — a
-  second persistence plane outside serverActions/Postgres.
+  second persistence plane outside serverActions/Postgres. Change-email
+  wizard (`change_email_modal.tsx`): Clerk-side add/verify/set-primary via
+  Clerk's account UI, then S1's `renameUserEmailEverywhere` fleet rename.
 - **Feedback form** → S12's `sendHelpEmail` route
   (`requireGlobalPermission()`): SendGrid confirmation to the user + copies
   to `_FEEDBACK_EMAIL_RECIPIENTS`, `replyTo` the user.

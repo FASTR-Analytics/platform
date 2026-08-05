@@ -1,5 +1,12 @@
+import { getAuth } from "@hono/clerk-auth";
 import { Hono } from "hono";
-import { H_USERS } from "lib";
+import type { Sql } from "postgres";
+import { type APIResponseWithData, H_USERS, type RenameEmailInstanceResult } from "lib";
+import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
+import { renameAuthorEmails } from "../../collab/authorship.ts";
+import { renameDeckLedgerEmails } from "../../collab/deck_session_ledger.ts";
+import { closeConnectionsForEmail } from "../../collab/presence_registry.ts";
+import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
@@ -9,10 +16,14 @@ import {
   deleteUser,
   getInstanceUsers,
   getOtherUser,
+  getProjectUsers,
   getUserDefaultProjectPermissions,
+  getUserEmailPresence,
   getUserPermissions,
   GetInstanceWeeklyTokenUsage,
   GetUserDailyTokenUsage,
+  renameUserEmailInMainDb,
+  renameUserEmailInProjects,
   setUserContactPerson,
   SetUserUnlimitedAi,
   syncUserName,
@@ -20,10 +31,22 @@ import {
   updateUserDefaultProjectPermissions,
   updateUserPermissions,
 } from "../../db/mod.ts";
-import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
+import {
+  _BYPASS_AUTH,
+  _DAILY_TOKEN_LIMIT,
+  _INSTANCE_ID,
+  _OPEN_ACCESS,
+  _STATUS_API_KEY,
+  _WEEKLY_TOKEN_LIMIT,
+} from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import {
+  requireGlobalPermission,
+  requireGlobalPermissionOrStatusKey,
+} from "../../middleware/userPermission.ts";
 import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
+import { notifyProjectUsersUpdated } from "../../task_management/notify_project_v2.ts";
+import { COLLAB_CLOSE_UNAUTHORIZED } from "../project/project-collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
@@ -290,5 +313,334 @@ defineRoute(
       body.permissions,
     );
     return c.json(res);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Email rename
+// ---------------------------------------------------------------------------
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FLEET_DOMAIN = "fastr-analytics.org";
+
+type LocalRenameResult = {
+  changed: boolean;
+  projectsUpdated: number;
+  projectsFailed: string[];
+  warnings: string[];
+};
+
+/** The full single-instance rename: main-DB flip, then the in-memory collab
+ *  sweep, then the project-DB attribution sweep — in that order, so any collab
+ *  checkpoint that flushes mid-rename already writes the new email and the
+ *  sweep only has historical rows to fix. Fires all the notifies. */
+async function renameUserEmailLocally(
+  mainDb: Sql,
+  oldEmail: string,
+  newEmail: string,
+  actor: string,
+): Promise<APIResponseWithData<LocalRenameResult>> {
+  const mainRes = await renameUserEmailInMainDb(mainDb, oldEmail, newEmail, actor);
+  if (!mainRes.success) {
+    return mainRes;
+  }
+  closeConnectionsForEmail(oldEmail, COLLAB_CLOSE_UNAUTHORIZED, "email renamed");
+  renameVersionEditorEmail(oldEmail, newEmail);
+  renameDeckLedgerEmails(oldEmail, newEmail);
+  renameAuthorEmails(oldEmail, newEmail);
+  const proj = await renameUserEmailInProjects(mainDb, oldEmail, newEmail);
+  const warnings: string[] = [];
+  if (H_USERS.includes(oldEmail)) {
+    warnings.push(
+      "The old email is a hardcoded superuser (lib/h_users.ts) — that status is lost until the code is updated",
+    );
+  }
+  if (_OPEN_ACCESS && mainRes.data.changed) {
+    warnings.push(
+      "Open-access instance: logging in under the old email re-creates it until the Clerk account carries the new address",
+    );
+  }
+  notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
+  if (mainRes.data.changed) {
+    notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    for (const projectId of mainRes.data.affectedRoleProjectIds) {
+      const usersRes = await getProjectUsers(mainDb, projectId);
+      if (usersRes.success) {
+        notifyProjectUsersUpdated(projectId, usersRes.data);
+      }
+    }
+  }
+  return {
+    success: true,
+    data: {
+      changed: mainRes.data.changed,
+      projectsUpdated: proj.projectsUpdated,
+      projectsFailed: proj.projectsFailed,
+      warnings,
+    },
+  };
+}
+
+defineRoute(
+  routesUsers,
+  "renameUserEmail",
+  requireGlobalPermissionOrStatusKey("can_configure_users"),
+  log("renameUserEmail"),
+  async (c, { body }) => {
+    const oldEmail = body.oldEmail.trim().toLowerCase();
+    const newEmail = body.newEmail.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
+      return c.json({ success: false, err: "Invalid email address" });
+    }
+    if (oldEmail === newEmail) {
+      return c.json({ success: false, err: "The new email is the same as the old one" });
+    }
+    // No globalUser = fleet-internal machine call (status-api-key path).
+    const actor = c.var.globalUser?.email as string | undefined;
+    if (actor && actor.toLowerCase() === oldEmail) {
+      return c.json({
+        success: false,
+        err: "You cannot rename your own email here. Use Change email in your profile instead.",
+      });
+    }
+    const res = await renameUserEmailLocally(
+      c.var.mainDb,
+      oldEmail,
+      newEmail,
+      actor ?? "fleet-rename",
+    );
+    return c.json(res);
+  },
+);
+
+type PeerPresence = {
+  id: string;
+  reachable: boolean;
+  hasOld: boolean;
+  hasNew: boolean;
+};
+
+/** Every other instance in the fleet and whether it knows either address,
+ *  via servers.json + each instance's public /health_check user list. */
+async function discoverPeers(
+  oldEmail: string,
+  newEmail: string,
+): Promise<{ peers: PeerPresence[] } | { err: string }> {
+  let servers: { id: string }[];
+  try {
+    const response = await fetch(`https://central.${FLEET_DOMAIN}/servers.json`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      throw new Error(`status ${response.status}`);
+    }
+    servers = await response.json();
+  } catch (error) {
+    return {
+      err: `Could not load the server list — try again later (${
+        error instanceof Error ? error.message : error
+      })`,
+    };
+  }
+  const queue = servers.map((s) => s.id).filter((id) => id !== _INSTANCE_ID);
+  const peers: PeerPresence[] = [];
+  await Promise.all(
+    Array.from({ length: Math.min(8, queue.length) }, async () => {
+      let id: string | undefined;
+      while ((id = queue.shift()) !== undefined) {
+        try {
+          const response = await fetch(`https://${id}.${FLEET_DOMAIN}/health_check`, {
+            signal: AbortSignal.timeout(15_000),
+          });
+          if (!response.ok) {
+            throw new Error(`status ${response.status}`);
+          }
+          const health = (await response.json()) as { serverUsers?: string[] };
+          const users = (health.serverUsers ?? []).map((u) => u.toLowerCase());
+          peers.push({
+            id,
+            reachable: true,
+            hasOld: users.includes(oldEmail),
+            hasNew: users.includes(newEmail),
+          });
+        } catch {
+          peers.push({ id, reachable: false, hasOld: false, hasNew: false });
+        }
+      }
+    }),
+  );
+  peers.sort((a, b) => a.id.localeCompare(b.id));
+  return { peers };
+}
+
+async function renameOnPeer(
+  id: string,
+  oldEmail: string,
+  newEmail: string,
+): Promise<RenameEmailInstanceResult> {
+  try {
+    const response = await fetch(
+      `https://${id}.${FLEET_DOMAIN}/user/rename-email`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "status-api-key": _STATUS_API_KEY,
+        },
+        body: JSON.stringify({ oldEmail, newEmail }),
+        signal: AbortSignal.timeout(120_000),
+      },
+    );
+    if (!response.ok) {
+      // 404 = the instance runs an image without this route yet.
+      return { id, status: "failed", error: `HTTP ${response.status}` };
+    }
+    const res = (await response.json()) as APIResponseWithData<LocalRenameResult>;
+    if (!res.success) {
+      return { id, status: "failed", error: res.err };
+    }
+    return {
+      id,
+      status: "updated",
+      projectsUpdated: res.data.projectsUpdated,
+      projectsFailed: res.data.projectsFailed,
+    };
+  } catch (error) {
+    return {
+      id,
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+defineRoute(
+  routesUsers,
+  "renameUserEmailEverywhere",
+  requireGlobalPermission(),
+  log("renameUserEmailEverywhere"),
+  async (c, { body }) => {
+    const oldEmail = body.oldEmail.trim().toLowerCase();
+    const newEmail = body.newEmail.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(oldEmail) || !EMAIL_REGEX.test(newEmail)) {
+      return c.json({ success: false, err: "Invalid email address" });
+    }
+    if (oldEmail === newEmail) {
+      return c.json({ success: false, err: "The new email is the same as the old one" });
+    }
+    if (!c.var.globalUser.approved) {
+      return c.json({ success: false, err: "Not authorized" }, 403);
+    }
+    const sessionEmail = c.var.globalUser.email.toLowerCase();
+    // Either side of the rename may be the session identity: oldEmail before
+    // the Clerk primary flips, newEmail after (which is what keeps a retry of
+    // a partially-failed run possible).
+    if (sessionEmail !== oldEmail && sessionEmail !== newEmail) {
+      return c.json({
+        success: false,
+        err: "You can only change your own email address",
+      });
+    }
+    // The load-bearing authorization: the caller's Clerk account must own BOTH
+    // addresses, the new one verified. The session JWT alone can only vouch
+    // for one of them, and without this check a caller could rename themselves
+    // to an address they don't control — or claim someone else's old account.
+    if (!_BYPASS_AUTH) {
+      // @ts-ignore: Clerk middleware types not fully compatible with Hono
+      const auth = getAuth(c);
+      if (!auth?.userId) {
+        return c.json({ success: false, err: "Not authenticated" }, 401);
+      }
+      const ownership = await verifyClerkEmailOwnership(auth.userId, oldEmail, newEmail);
+      if (!ownership.ok) {
+        return c.json({ success: false, err: ownership.err });
+      }
+    }
+
+    const discovery = await discoverPeers(oldEmail, newEmail);
+    if ("err" in discovery) {
+      return c.json({ success: false, err: discovery.err });
+    }
+    const warnings: string[] = [];
+    const instances: RenameEmailInstanceResult[] = [];
+    const local = await getUserEmailPresence(c.var.mainDb, oldEmail, newEmail);
+
+    if (body.dryRun) {
+      if (local.hasOld && local.hasNew) {
+        instances.push({
+          id: _INSTANCE_ID,
+          status: "conflict",
+          error: "A user with the new email already exists",
+        });
+      } else if (local.hasOld) {
+        instances.push({ id: _INSTANCE_ID, status: "pending" });
+      }
+      for (const peer of discovery.peers) {
+        if (!peer.reachable) {
+          instances.push({ id: peer.id, status: "unreachable" });
+        } else if (peer.hasOld && peer.hasNew) {
+          instances.push({
+            id: peer.id,
+            status: "conflict",
+            error: "A user with the new email already exists",
+          });
+        } else if (peer.hasOld) {
+          instances.push({ id: peer.id, status: "pending" });
+        }
+      }
+      if (instances.some((i) => i.status === "unreachable")) {
+        warnings.push(
+          "Some instances could not be checked — if your account exists there, re-run the rename once they are back",
+        );
+      }
+      return c.json({ success: true, data: { instances, warnings } });
+    }
+
+    // Execute: local instance first (in-process — no hairpin HTTP through
+    // nginx), then each affected peer sequentially. hasNew-only instances are
+    // included so a retried run re-runs their idempotent attribution sweeps.
+    if (local.hasOld || local.hasNew) {
+      const res = await renameUserEmailLocally(
+        c.var.mainDb,
+        oldEmail,
+        newEmail,
+        sessionEmail,
+      );
+      if (res.success) {
+        instances.push({
+          id: _INSTANCE_ID,
+          status: "updated",
+          projectsUpdated: res.data.projectsUpdated,
+          projectsFailed: res.data.projectsFailed,
+        });
+        warnings.push(...res.data.warnings);
+      } else {
+        instances.push({ id: _INSTANCE_ID, status: "failed", error: res.err });
+      }
+    }
+    for (const peer of discovery.peers) {
+      if (!peer.reachable) {
+        instances.push({ id: peer.id, status: "unreachable" });
+        continue;
+      }
+      if (peer.hasOld && peer.hasNew) {
+        instances.push({
+          id: peer.id,
+          status: "conflict",
+          error: "A user with the new email already exists",
+        });
+        continue;
+      }
+      if (!peer.hasOld && !peer.hasNew) {
+        continue;
+      }
+      instances.push(await renameOnPeer(peer.id, oldEmail, newEmail));
+    }
+    if (instances.some((i) => i.status !== "updated")) {
+      warnings.push(
+        "Some instances were not renamed — running the rename again is safe and retries only what is missing",
+      );
+    }
+    return c.json({ success: true, data: { instances, warnings } });
   },
 );

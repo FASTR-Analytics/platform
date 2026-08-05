@@ -4,7 +4,10 @@ import type { CollabServerMessage, PresenceEntry, PresenceView } from "lib";
 // (matches the in-process BroadcastChannel assumption elsewhere); horizontal
 // scaling across instances is a later milestone (Valkey pub/sub).
 
-type Sender = { send: (data: string) => void };
+type Sender = {
+  send: (data: string) => void;
+  close?: (code?: number, reason?: string) => void;
+};
 type Conn = {
   entry: PresenceEntry;
   ws: Sender;
@@ -102,6 +105,44 @@ export function markConnectionEditing(
   if (!conn.entry.isEditing) {
     conn.entry = { ...conn.entry, isEditing: true };
     broadcastPresence(projectId);
+  }
+}
+
+/** Force-close every connection authenticated as `email` (user email rename):
+ *  the socket's authorization — including the email stamped into room-edit
+ *  attribution — was frozen at connect time and cannot be patched in place, so
+ *  the connection is closed and the client reconnects under its refreshed
+ *  identity. Deregisters immediately (the socket's own close handler makes
+ *  removeConnection a no-op later) and broadcasts each affected project. */
+export function closeConnectionsForEmail(
+  email: string,
+  closeCode: number,
+  reason: string,
+): void {
+  for (const [projectId, conns] of projects) {
+    let touched = false;
+    for (const [connectionId, conn] of conns) {
+      if (conn.entry.email !== email) {
+        continue;
+      }
+      touched = true;
+      if (conn.editingTimer !== undefined) {
+        clearTimeout(conn.editingTimer);
+      }
+      conns.delete(connectionId);
+      try {
+        conn.ws.close?.(closeCode, reason);
+      } catch {
+        // A dead socket is cleaned up by its own close/error handler.
+      }
+    }
+    if (touched) {
+      if (conns.size === 0) {
+        projects.delete(projectId);
+      } else {
+        broadcastPresence(projectId);
+      }
+    }
   }
 }
 
