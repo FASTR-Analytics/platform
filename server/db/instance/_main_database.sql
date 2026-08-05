@@ -528,20 +528,34 @@ CREATE TABLE hfa_facility_weights (
 CREATE INDEX idx_hfa_facility_weights_time_point ON hfa_facility_weights(time_point);
 
 -- ============================================================================
--- HFA UPLOAD ATTEMPTS
+-- HFA IMPORT RUNS
 -- ============================================================================
 
-CREATE TABLE hfa_upload_attempts (
-  id TEXT PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started TEXT NOT NULL,
-  step INTEGER NOT NULL,
-  status TEXT NOT NULL,
-  status_type TEXT NOT NULL,
-  source_type TEXT NOT NULL,
-  step_1_result TEXT,
-  step_2_result TEXT,
-  step_3_result TEXT
+-- One row per HFA import (stage → conditional review gate → integrate). See
+-- server/db/instance/dataset_hfa_import_runs.ts. No queue (manual-only, no
+-- scheduler) and no version_id — HFA's outcome plane is the time point
+-- (hfa_time_points.imported_at + the per-time-point data tables). csv_config
+-- is the launch payload ({ csvUploadToken, csvFileName, xlsFormUploadToken,
+-- xlsFormFileName, mappings } JSON); diagnostics is the staging result.
+CREATE TABLE hfa_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  triggered_by text,
+  csv_config text NOT NULL,
+  time_point text NOT NULL,
+  status text NOT NULL CHECK (status IN
+    ('running', 'needs_review', 'complete', 'error', 'cancelled')),
+  error text,
+  progress text,
+  diagnostics text,
+  n_rows_integrated integer,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
 );
+
+-- The single-running claim: the INSERT (or the needs_review re-claim) is the
+-- only arbiter of "at most one HFA import running, ever".
+CREATE UNIQUE INDEX idx_hfa_import_runs_single_running
+  ON hfa_import_runs ((true)) WHERE status = 'running';
 
 -- ============================================================================
 -- HFA INDICATOR CATEGORIES

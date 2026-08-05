@@ -75,7 +75,7 @@ const ORPHAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 // Boot sweep: delete temp uploads older than 24 h whose token appears in no
 // active run row (running/queued/needs_review) — abandoned wizards leave
 // nothing else behind, so this is the whole cleanup story. Extended per
-// family as Phases B/C land their runs tables.
+// family as Phase C lands its runs table.
 export async function sweepOrphanImportTempUploads(
   mainDb: Sql,
 ): Promise<void> {
@@ -95,19 +95,36 @@ export async function sweepOrphanImportTempUploads(
   }
 
   const activeTokens = new Set<string>();
-  const rows = await mainDb<{ csv_config: string | null }[]>`
-    SELECT csv_config FROM dataset_hmis_import_runs
-    WHERE status IN ('running', 'queued', 'needs_review')
-      AND csv_config IS NOT NULL
-  `;
-  for (const row of rows) {
+  const configRows = [
+    ...(await mainDb<{ csv_config: string | null }[]>`
+      SELECT csv_config FROM dataset_hmis_import_runs
+      WHERE status IN ('running', 'queued', 'needs_review')
+        AND csv_config IS NOT NULL
+    `),
+    ...(await mainDb<{ csv_config: string | null }[]>`
+      SELECT csv_config FROM hfa_import_runs
+      WHERE status IN ('running', 'needs_review')
+    `),
+  ];
+  for (const row of configRows) {
     if (!row.csv_config) {
       continue;
     }
     try {
-      const config = JSON.parse(row.csv_config) as { uploadToken?: string };
-      if (config.uploadToken) {
-        activeTokens.add(config.uploadToken);
+      // Each family's config names its own token fields; collect them all.
+      const config = JSON.parse(row.csv_config) as {
+        uploadToken?: string;
+        csvUploadToken?: string;
+        xlsFormUploadToken?: string;
+      };
+      for (const token of [
+        config.uploadToken,
+        config.csvUploadToken,
+        config.xlsFormUploadToken,
+      ]) {
+        if (token) {
+          activeTokens.add(token);
+        }
       }
     } catch {
       // Unparseable config cannot reference a token.

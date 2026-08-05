@@ -1,7 +1,3 @@
-import {
-  DatasetHfaUploadAttemptSummary,
-} from "./dataset_hfa_import.ts";
-
 // ============================================================================
 // Time Point Type
 // ============================================================================
@@ -18,7 +14,6 @@ export type HfaTimePoint = {
 // ============================================================================
 
 export type DatasetHfaDetail = {
-  uploadAttempt: DatasetHfaUploadAttemptSummary | undefined;
   timePoints: HfaTimePoint[];
   cacheHash: string;
 };

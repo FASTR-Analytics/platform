@@ -1,90 +1,6 @@
-import { CsvDetails } from "./instance.ts";
-
 // ============================================================================
-// Step 1 Result Type (combined CSV + XLSForm)
+// Wizard config types
 // ============================================================================
-
-export type DatasetHfaStep1Result = {
-  csv: CsvDetails;
-  xlsForm: {
-    fileName: string;
-    filePath: string;
-  };
-};
-
-// ============================================================================
-// Upload Attempt Status Types
-// ============================================================================
-
-export type DatasetHfaUploadAttemptStatus =
-  | {
-      status: "configuring";
-    }
-  | {
-      status: "staging";
-      progress: number;
-    }
-  | {
-      status: "staged";
-      result?: DatasetHfaCsvStagingResult;
-    }
-  | {
-      status: "integrating";
-      progress: number;
-    }
-  | {
-      status: "complete";
-      nRowsIntegrated?: number;
-    }
-  | {
-      status: "error";
-      err: string;
-    };
-
-export type DatasetHfaUploadAttemptStatusLight =
-  | {
-      status: "configuring";
-    }
-  | {
-      status: "staging";
-      progress: number;
-    }
-  | {
-      status: "staged";
-    }
-  | {
-      status: "integrating";
-      progress: number;
-    }
-  | {
-      status: "complete";
-    }
-  | {
-      status: "error";
-      err: string;
-    };
-
-// ============================================================================
-// Upload Attempt Detail Types
-// ============================================================================
-
-export type DatasetHfaUploadAttemptSummary = {
-  id: string;
-  dateStarted: string;
-  status: DatasetHfaUploadAttemptStatus;
-};
-
-export type DatasetHfaUploadAttemptDetail = {
-  id: string;
-  dateStarted: string;
-  // 1 upload, 2 mappings+filters, 3 duplicates review, 4 stage, 5 integrate
-  step: 1 | 2 | 3 | 4 | 5;
-  status: DatasetHfaUploadAttemptStatus;
-  sourceType: "csv";
-  step1Result: DatasetHfaStep1Result | undefined;
-  step2Result: HfaCsvMappingParams | undefined;
-  step3Result: DatasetHfaCsvStagingResult | undefined;
-};
 
 export type HfaRowFilter = {
   column: string;
@@ -115,14 +31,71 @@ export type HfaDuplicatePreview = {
   nRowsFilteredOut: number;
 };
 
+// What the wizard sends at launch. The file names are NOT part of it — they
+// are re-derived server-side from the temp uploads, which are the authority.
+export type HfaCsvRunLaunchInput = {
+  csvUploadToken: string;
+  xlsFormUploadToken: string;
+  mappings: HfaCsvMappingParams;
+};
+
+// The launch payload stored in hfa_import_runs.csv_config. Two token-keyed
+// temp uploads (the data CSV and the XLSForm questionnaire) plus the wizard's
+// mappings. resumeFromStaging marks a needs_review run resolved with
+// "Integrate anyway": the worker skips the stage leg and integrates the
+// surviving per-run staging tables.
+export type HfaCsvRunConfig = {
+  csvUploadToken: string;
+  csvFileName: string;
+  xlsFormUploadToken: string;
+  xlsFormFileName: string;
+  mappings: HfaCsvMappingParams;
+  resumeFromStaging?: boolean;
+};
+
+// ============================================================================
+// Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B)
+// ============================================================================
+
+// "needs_review" = staging dropped facility rows; the run holds with its
+// diagnostics and RELEASES the single-running slot until the user integrates
+// anyway or discards. No "queued" — HFA refuses a second launch explicitly.
+export type HfaImportRunStatus =
+  | "running"
+  | "needs_review"
+  | "complete"
+  | "error"
+  | "cancelled";
+
+// Small JSON on the run row, rewritten at most every 2 s.
+export type HfaImportRunProgress = {
+  phase: "staging" | "integrating";
+  percent: number;
+};
+
+export type HfaImportRunSummary = {
+  id: number;
+  triggeredBy?: string;
+  timePoint: string;
+  csvFileName: string;
+  status: HfaImportRunStatus;
+  error?: string;
+  progress?: HfaImportRunProgress;
+  // The staging diagnostics, durable for the run's whole life (written at the
+  // needs_review hold AND at complete). Small enough to ride the polled list.
+  diagnostics?: DatasetHfaCsvStagingResult;
+  nRowsIntegrated?: number;
+  startedAt: string;
+  endedAt?: string;
+};
+
 // ============================================================================
 // Staging Result Types
 // ============================================================================
 
+// The staging tables are named per run (see the run worker's
+// hfaStagingTableNames) — never recorded here.
 export type DatasetHfaCsvStagingResult = {
-  stagingTableName: string;
-  dictionaryVarsStagingTableName: string;
-  dictionaryValuesStagingTableName: string;
   dateImported: string;
   assetFileName: string;
   nRowsInFile: number;
@@ -140,15 +113,4 @@ export type DatasetHfaCsvStagingResult = {
   nXlsFormVarsNotInCsv: number;
   nCsvColsNotInXlsForm: number;
   nSelectMultipleExpanded: number;
-};
-
-// ============================================================================
-// API Response Types
-// ============================================================================
-
-export type DatasetHfaUploadStatusResponse = {
-  id: string;
-  step: number;
-  status: DatasetHfaUploadAttemptStatusLight;
-  isActive: boolean; // false = stop polling
 };

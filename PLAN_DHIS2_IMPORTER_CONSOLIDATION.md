@@ -1,50 +1,99 @@
 # Plan — Import consolidation: config-on-client, run-on-server, for HMIS + HFA + ICEH
 
-**Status (2026-08-04): complete plan, nothing built. All four phases are
-mechanically specced** (B/C specs verified against a full inventory of the
-HFA/ICEH machinery 2026-07-16; fully re-verified against the codebase
-2026-08-04 — the 2026-07-23 HFA row-filter/dedup work, the results-runs plane
-(migrations 065–067), and migrations 063–069 generally are folded in below).
-Supersedes two deleted plans (both in git
-history): PLAN_DHIS2_IMPORTER.md's §9 (Phase 5, CSV re-flow — everything it
-ruled: launch-and-observe, the conditional review gate, hold-with-diagnostics,
+**Status (2026-08-06): Phases A and B are BUILT and VERIFIED (A also confirmed
+in the browser by Tim). Phases C and D are not started.** Phase A landed on
+tim-branch (swept into commit `d81a96cb` by a concurrent panther sync — the
+message says "panther sync 4 files" but it contains the whole Phase A change
+set). Migration 070 is applied on the dev instance. The Phase A section below
+is annotated with its as-built deviations; everything a B/C implementer reuses
+from A (shared helpers, temp-upload mechanism, client patterns) is listed
+under "Phase A as-built facts" in §0.
+
+**Hand-off: "start work" means implement Phase C, then D, in order.**
+Each phase has its own verification section which must pass before the next
+phase begins. Phases stay severable — if work stops after any phase, the
+completed families are coherent and the remaining families keep working
+untouched on their old machinery.
+
+All four phases were mechanically specced 2026-07-16 and re-verified against
+the codebase 2026-08-04. Supersedes two deleted plans (both in git history):
+PLAN_DHIS2_IMPORTER.md's §9 (Phase 5, CSV re-flow — everything it ruled:
+launch-and-observe, the conditional review gate, hold-with-diagnostics,
 survives here as run states instead of attempt states; the gate rationale is
 restated in full in §2), and PLAN_IMPORTER_CONSOLIDATION.md (the dormant
 "toolkit" plan — this plan deletes the attempt machinery it abstracted over, and
 absorbs its philosophy: extract shared parts only against concrete consumers,
 never an engine). Designed with Tim 2026-07-15/16.
 
-**Hand-off: "implement this" means implement all four phases, A → B → C → D, in
-order.** Each phase has its own verification section which must pass before the
-next phase begins. Phases stay severable — if work stops after any phase, the
-completed families are coherent and the remaining families keep working
-untouched on their old machinery.
-
 ## 0. For the implementing agent
 
 - **Scope:** this repo only — no panther or wb-fastr-modules changes. Commit to
-  the current branch (one commit per phase is a good shape). Nothing deploys
-  until Tim runs the deploy.
+  the current branch (Tim ruled 2026-08-05: all work lands on **tim-branch**;
+  one commit per phase is a good shape — and beware Tim's panther-sync tool,
+  which auto-commits anything staged: don't leave a phase half-staged). Nothing
+  deploys until Tim runs the deploy.
+- **Phase A as-built facts (what B/C reuse — go read these files first):**
+  - Shared worker-contract helpers = `server/worker_routines/worker_contract.ts`
+    (`createThrottledProgressWriter`, `truncateWorkerError`,
+    `PROGRESS_WRITE_INTERVAL_MS`). The READY handshake was already shared
+    (`instantiate_worker_generic.ts`). The finalize/sweep patterns were NOT
+    extracted as functions — copy the shape from `import_hmis_data_csv/`
+    (worker.ts error path, spawn-site listeners in
+    `dataset_hmis_import_runs.ts`).
+  - Temp uploads = `server/import_temp_uploads.ts`
+    (`resolveImportTempUpload`/`deleteImportTempUpload`/
+    `sweepOrphanImportTempUploads`, dir `.import-uploads/`) + the TUS
+    wizard-temp mode in `server/routes/instance/upload.ts`. **The client
+    GENERATES the uuid token** and sends it in TUS metadata
+    (`wizardTemp`/`uploadToken`) — no token ever travels back in a response.
+    Client widget = `client/src/components/_temp_file_upload.tsx`
+    (`TempFileUpload`, returns `{ token, fileName }` via `onUploaded`). The
+    boot sweep currently reads only `dataset_hmis_import_runs` — **B and C
+    must extend it** to their runs tables (as already noted in A3).
+  - Client model to copy: `instance_dataset_hmis/imports/` (the dhis2_run/
+    folder was renamed; surface component = `DatasetHmisImports`).
+    `_csv_wizard.tsx` = the modal-wizard shape (ModalContainer + getStepper +
+    StepperChipsWithTitles, client-local signals, inline errors only);
+    `_csv_needs_review_card.tsx` + `_csv_staging_summary.tsx` +
+    `_csv_run_view.tsx` + `_csv_run_detail.tsx` = the review-card /
+    diagnostics / progress / detail shapes B7 and C7 mirror.
+  - Integrate-anyway resume mechanism (HMIS): the resolve route rewrites
+    `csv_config` with `resumeFromStaging: true`; the worker payload carries the
+    recorded staging result and the worker skips the stage leg. The queued-fire
+    path (`scheduler.ts` → `launchQueuedDatasetHmisCsvImportRun`) spawns
+    by-source. HFA copies this shape; ICEH re-ingests from the zip instead
+    (C4).
+  - CSV run diagnostics live in `run_stats` as `{ csvStagingResult }` (written
+    at needs_review AND at complete); the detail route serves them as
+    `csvStagingResult` on `DatasetHmisImportRunDetail`.
+  - Two schema deviations from the original A1 spec: `selection` was ALSO made
+    nullable (it is DHIS2-only, same argument as `dhis2_url` — the original
+    spec missed that a CSV insert would violate its NOT NULL), and
+    `DatasetHmisImportRunProgress` became a by-source union (pairs vs
+    `{ phase: "staging"|"integrating", percent }`).
+  - Already done in Phase A (don't redo in D): old `stage_hmis_data_csv/` +
+    `integrate_hmis_data/` worker folders deleted; the
+    `UPLOADED_HMIS_DATA_STAGING_TABLE_NAME` constant deleted; SYSTEM_06
+    rewritten for the HMIS run model; SYSTEM_04 documents the wizard-temp
+    mode; PROTOCOL_APP_WORKER_ROUTINES inventory + PROTOCOL_APP_STATE T3
+    updated; system globs updated (new files claimed by S4/S6/S8).
 - **Read first:** SYSTEM_01_api_contract.md + PROTOCOL_APP_ROUTES.md
   (registry-as-contract), SYSTEM_02_persistence.md (SQL-safety rule — no
   parameterized table names), PROTOCOL_APP_MIGRATIONS.md,
   PROTOCOL_APP_WORKER_ROUTINES.md (READY handshake, teardown contract),
   SYSTEM_04_assets_upload.md (the TUS front door A3 extends),
   SYSTEM_08_results_packages.md, PROTOCOL_APP_STATE.md (wizard state is
-  component-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md describes the
-  machinery being replaced (its "HMIS DHIS2 import runs" section is the
-  authority on the runs plane this plan extends).
-- **Orientation — the three families today:**
-  - HMIS: runs plane = `server/db/instance/dataset_hmis_import_runs.ts` +
-    `server/worker_routines/import_hmis_data_dhis2/` (worker, scheduler,
-    dispatch). Attempts plane (dies in Phase A) = the "Upload workflow" routes
-    in `lib/api-routes/instance/datasets.ts` + their handlers in
-    `server/routes/instance/datasets.ts` + client
-    `instance_dataset_hmis_import/`. Imports surface =
-    `client/src/components/instance_dataset_hmis/dhis2_run/`. CSV
-    staging/integration internals (wrap, never rewrite) =
-    `server/worker_routines/stage_hmis_data_csv/` +
-    `server/worker_routines/integrate_hmis_data/`.
+  component-local), PROTOCOL_UI_STRUCTURE. SYSTEM_06_ingestion.md is current
+  as of Phase A: its "HMIS import runs" section is the authority on the run
+  model B/C replicate, and its HFA/ICEH sections describe the machinery being
+  replaced.
+- **Orientation — the families today:**
+  - HMIS: DONE (Phase A). Everything is the runs plane —
+    `server/db/instance/dataset_hmis_import_runs.ts` +
+    `server/worker_routines/import_hmis_data_dhis2/` (DHIS2) +
+    `server/worker_routines/import_hmis_data_csv/` (CSV); imports surface =
+    `client/src/components/instance_dataset_hmis/imports/`. The attempts
+    plane is deleted.
   - HFA: singleton `hfa_upload_attempts` row; lifecycle in
     `server/db/instance/dataset_hfa.ts`; two workers
     (`worker_routines/stage_hfa_data_csv/`, `integrate_hfa_data/`), fixed
@@ -183,7 +232,18 @@ SYSTEM_06 ingestion doc is SHORTER than today's, or we've failed the brief.
 
 ---
 
-## Phase A — the machine + HMIS CSV (the big one; all design risk lives here)
+## Phase A — the machine + HMIS CSV — ✅ BUILT 2026-08-05 (verified + Tim-confirmed)
+
+**Do not re-implement.** Kept below as the record of what was specced; the
+as-built deviations are in §0's "Phase A as-built facts". Verification that
+passed: `deno task typecheck` (incl. lint:systems), `./validate_migrations`, a
+9-check concurrency harness (claim exclusion both directions, needs_review
+releases the slot, discard drops the staging table + temp upload, orphan sweep
+spares referenced tokens), a 25-check end-to-end harness driving the real
+worker on the dev DB (clean CSV auto-integrates with version+ledger rows;
+dirty CSV → needs_review with correct diagnostics → integrate-anyway merges
+only survivors; zero-valid-row CSV errors loudly; cancel mid-staging keeps
+nothing), and Tim's browser walkthrough. Migration 070 is applied on dev.
 
 HMIS CSV import becomes a run in the existing `dataset_hmis_import_runs` table.
 The HMIS attempt machinery is deleted. This is where the shared contract helpers
@@ -420,7 +480,50 @@ Added:
 
 ---
 
-## Phase B — HFA (the same shape, smaller machine)
+## Phase B — HFA (the same shape, smaller machine) — ✅ BUILT 2026-08-06
+
+**Do not re-implement.** Verification that passed: `deno task typecheck` (incl.
+`lint:systems` with everything staged), `./validate_migrations`, a 21-check
+concurrency harness (index refuses a second running row, explicit refusal on
+launch, needs_review releases the slot, integrate-anyway refused while busy and
+leaves the hold intact, discard drops all three staging tables + both temp
+uploads, boot sweep flips a stranded row, orphan sweep spares referenced HFA
+tokens), and a 33-check end-to-end harness driving the real worker on the dev DB
+(clean file auto-integrates with `imported_at` stamped and the dictionary
+sentinel captured; dirty file → needs_review with both facility counters and its
+staging tables retained → integrate-anyway merges only survivors; zero-staged
+errors loudly without touching integrated data; row filter + "last" dedup land
+exactly the intended rows). Migration 071 is applied on dev.
+
+**As-built deviations from the B spec below:**
+
+- `DatasetHfaCsvStagingResult` **dropped** its three staging-table-name fields
+  rather than carrying per-run names: the names are derived from the run id
+  (`hfaStagingTableNames`), so storing them too would be a second source.
+- Diagnostics ride `HfaImportRunSummary` instead of a detail route — the HFA
+  blob is ~20 scalars (no samples), so one route serves the list, the
+  needs_review card, and the run detail. `getDatasetHfaImportRuns` is the only
+  read route.
+- Added `cancelDatasetHfaRun` (not in the B route list): the deleted
+  `deleteDatasetHfaUploadAttempt` was the only way to kill a wedged HFA worker,
+  and dropping it with no replacement would leave a stuck run blocking every
+  import until a restart. Same shape as the HMIS cancel.
+- The launch body is `HfaCsvRunLaunchInput` (tokens + mappings); file names are
+  re-derived server-side from the temp uploads rather than trusted from the
+  client (HMIS trusts the client's `fileName`).
+- The client surface mirrors HMIS's rather than living in the sidebar:
+  `instance_dataset_hfa/imports/` is an editor surface (Current card + History
+  table, no tabs) opened by two sidebar buttons. A History table does not fit a
+  `w-64` sidebar.
+- Phase D items done early because leaving them would have left known-wrong
+  docs/code: the old `stage_hfa_data_csv`/`integrate_hfa_data` worker folders and
+  the `UPLOADED_HFA_*_STAGING_TABLE_NAME` constants are deleted, and
+  PROTOCOL_APP_WORKER_ROUTINES + PROTOCOL_APP_STATE's T3 inventory are updated.
+- SYSTEM_06 is 464 lines (was 453): the new HFA section points at the HMIS
+  section for the shared mechanism and lists only HFA's differences. Phase D
+  still owns getting the whole doc under 425.
+
+### Original Phase B spec
 
 HFA import becomes a run in a new `hfa_import_runs` table; the singleton
 `hfa_upload_attempts` machinery is deleted. Facts re-verified 2026-08-04 —
@@ -429,7 +532,7 @@ since this plan was drafted (five-field mappings, a duplicates-review wizard
 step, `scan_hfa_rows.ts`); it is folded into B2/B4/B5/B7 below. Migration 069
 (HFA indicator variants) does NOT touch the import pipeline — verified.
 
-### B1. Migration (next free after A's — 071 as of 2026-08-04) + base schema
+### B1. Migration (next free — 071; 070 was Phase A's) + base schema
 
 New table `hfa_import_runs`:
 
@@ -658,7 +761,7 @@ deletion target here. The intra-process wedge — an abandoned promise nothing
 can cancel — remains real and is what the worker model fixes.) Facts
 re-verified 2026-08-04 against `dataset_iceh.ts` and the client.
 
-### C1. Migration (next free after B's — 072 as of 2026-08-04) + base schema
+### C1. Migration (next free after B's — 072) + base schema
 
 New table `iceh_import_runs`:
 
@@ -839,27 +942,29 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
    helpers, routes, components; SSE notify payloads are already attempt-free —
    verified 2026-08-04). EXCEPTION: the structure family (`structure_upload_*`)
    stays on attempts and is out of scope. Delete stragglers.
-2. Delete any shared helper or component orphaned by A–C (including the old
-   `stage_hmis_data_csv`/`integrate_hmis_data`/`stage_hfa_data_csv`/
-   `integrate_hfa_data` worker entry files if their internals were relocated
-   rather than the folders reused, and the fixed staging-table-name constants in
-   `exposed_env_vars.ts`).
+2. Delete any shared helper or component orphaned by A–C (Phase A already
+   deleted the HMIS worker folders and the HMIS staging-table constant; what
+   remains is the `stage_hfa_data_csv`/`integrate_hfa_data` worker entry files
+   if B relocated their internals rather than reusing the folders, and the HFA
+   fixed staging-table-name constants in `exposed_env_vars.ts`).
 3. Retire HMIS "View previous imports" as an entry point
    (`instance_dataset_hmis/_previous_imports.tsx`; verified HFA/ICEH never had
    one): History click-through to `_import_information.tsx` replaces the
    navigation; versions tables and the detail view itself unchanged
    (runs=operations / outcomes=outcomes, never merged).
 4. SYSTEM_06 rewritten around the run model — **must come out shorter than
-   today's 425 lines, or the consolidation failed its own brief** — and must
-   keep "import runs" verbally distinct from the results-runs plane. Fix
-   SYSTEM_06's stale "adopted only by ICEH" wizard-shell note and move
-   `_import_wizard/**` from SYSTEM_06's `globs` to SYSTEM_08's (C7). SYSTEM_04
-   gains the wizard-temp upload mode (A3). PROTOCOL_APP_STATE.md's T3
-   inventory updated: the HMIS/HFA/ICEH upload-attempt fetchers come out
-   (structure's stays), the HFA/ICEH import-run fetches go in. Update the
-   SYSTEM docs' `globs` lists for every file added/deleted (`lint:systems`
-   inside `deno task typecheck` enforces exactly-one owner and will list
-   orphans).
+   the pre-consolidation 425 lines, or the consolidation failed its own
+   brief** (Phase A already rewrote the HMIS sections; B/C/D rewrite
+   HFA/ICEH) — and must keep "import runs" verbally distinct from the
+   results-runs plane. Fix SYSTEM_06's stale "adopted only by ICEH"
+   wizard-shell note and move `_import_wizard/**` from SYSTEM_06's `globs` to
+   SYSTEM_08's (C7). SYSTEM_04 already documents the wizard-temp mode (done
+   in A). PROTOCOL_APP_STATE.md's T3 inventory: the HMIS line came out in A;
+   HFA/ICEH attempt fetchers come out here, the HFA/ICEH import-run fetches
+   go in. Update the SYSTEM docs' `globs` lists for every file added/deleted
+   (`lint:systems` inside `deno task typecheck` enforces exactly-one owner
+   and will list orphans — note it reads `git ls-files`, so deletions/adds
+   must be STAGED before the lint verdict is meaningful).
 5. Final verify: `deno task typecheck` + `./validate_migrations` + one clean
    import per family end-to-end.
 
@@ -867,20 +972,28 @@ Mechanical closeout; every item is a deletion or a doc rewrite.
 
 ## Sequencing + housekeeping
 
-- **Start only after tim-branch has merged to main** (timing is Tim's call; no
-  scheduled date). Verify before writing code: main must contain the
-  results-runs work (e.g. `git log main` shows the Phase 3 commits /
-  `server/runs/` exists on main). If it doesn't, stop and say so. This plan
-  drops tables at deploy time and wants its own deploy window, not entanglement
-  with the results-runs landing.
-- A → B → C → D in one hand-off, each phase's Verify section green before the
-  next begins; one commit per phase. Severable at every boundary: if priorities
+- **Branch ruling (2026-08-05, supersedes the original merge-to-main
+  precondition):** all work lands on **tim-branch**. Phase A was implemented
+  there on that ruling (tim-branch already contains the results-runs work the
+  original precondition was guarding for).
+- B → C → D in order, each phase's Verify section green before the next
+  begins; one commit per phase. Severable at every boundary: if priorities
   shift after any phase, the completed families are coherent and the remaining
   ones keep working untouched on the old machinery indefinitely.
+- Verification machinery that worked for Phase A (rebuild the equivalents per
+  phase — the harness files themselves were session-scratchpad and are gone):
+  direct-DB harnesses via
+  `deno run --allow-all --env-file -c deno.json <file>.ts` with absolute-path
+  imports of the server functions — they can spawn the real workers and drive
+  launch→gate→integrate end-to-end against the dev DB with disposable
+  fixtures (synthetic indicator/rows, deleted in a finally). The dev server
+  must be RESTARTED for server changes (no --watch), and migrations apply at
+  its boot.
 - Deploy reality: none of this is deployed until Tim runs the deploy (the
-  DHIS2-importer Phases 1–4 are deployed as of 2026-07-20 and working OK);
-  leftover mid-wizard attempts at deploy time are discarded by the drop
-  migrations — users relaunch through the new wizards once.
+  DHIS2-importer Phases 1–4 are deployed as of 2026-07-20 and working OK;
+  Phase A is NOT yet deployed); leftover mid-wizard attempts at deploy time
+  are discarded by the drop migrations — users relaunch through the new
+  wizards once.
 
 ## Out of scope (all phases)
 

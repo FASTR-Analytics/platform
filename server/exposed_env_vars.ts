@@ -295,10 +295,3 @@ export const _START_TIME = new Date().toISOString();
 
 export const _MODULE_SCRIPT_FILE_NAME = "___script___.R";
 export const _MODULE_LOG_FILE_NAME = "___logs___.txt";
-
-export const UPLOADED_HFA_DATA_STAGING_TABLE_NAME =
-  "uploaded_hfa_data_staging_ready_for_integration";
-export const UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME =
-  "uploaded_hfa_dictionary_vars_staging";
-export const UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME =
-  "uploaded_hfa_dictionary_values_staging";

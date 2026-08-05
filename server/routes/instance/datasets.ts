@@ -1,22 +1,18 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
-  // HFA imports
-  addDatasetHfaUploadAttempt,
+  cancelDatasetHfaImportRun,
   cancelDatasetHmisImportRun,
   computeHfaCacheHash,
   createDatasetHmisScheduledImport,
   deleteDatasetHfaData,
   deleteAllDatasetHmisData,
-  deleteDatasetHfaUploadAttempt,
   deleteDatasetHmisScheduledImport,
   enqueueDatasetHmisCsvImportRun,
   enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
-  getDatasetHfaDuplicatePreview,
+  getDatasetHfaImportRunSummaries,
   getDatasetHfaItemsForDisplay,
-  getDatasetHfaUploadAttemptDetail,
-  getDatasetHfaUploadStatus,
   getDatasetHmisDetail,
   getDatasetHmisImportLedgerItems,
   getDatasetHmisImportRunDetail,
@@ -26,17 +22,17 @@ import {
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
   isDhis2CredentialsEncryptionKeyConfigured,
+  launchDatasetHfaCsvImportRun,
   launchDatasetHmisCsvImportRun,
   launchDatasetHmisDhis2ImportRun,
+  resolveDatasetHfaReview,
   resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
-  updateDatasetHfaUploadAttempt_Step1CsvUpload,
-  updateDatasetHfaUploadAttempt_Step2Mappings,
-  updateDatasetHfaUploadAttempt_Step3Staging,
-  updateDatasetHfaUploadAttempt_Step4Integrate,
   getInstanceDatasetsSummary,
 } from "../../db/mod.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
+import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import { resolveImportTempUpload } from "../../import_temp_uploads.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -537,132 +533,123 @@ defineRoute(
   },
 );
 
-///////////////////////////////////
-//                               //
-//    HFA Dataset upload attempts    //
-//                               //
-///////////////////////////////////
+/////////////////////////////
+//                         //
+//    HFA import runs      //
+//                         //
+/////////////////////////////
 
+// Stateless: parses the CSV headers from the token-keyed temp upload and
+// checks the XLSForm's sheets, for the wizard's mappings step. Nothing is
+// persisted by this call.
 defineRoute(
   routesDatasets,
-  "createDatasetHfaUploadAttempt",
+  "parseDatasetHfaCsvHeaders",
   requireGlobalPermission("can_configure_data"),
-  log("createDatasetHfaUploadAttempt"),
-  async (c) => {
-    const mainDb = c.var.mainDb;
-    const [{ count }] = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count FROM facilities_hfa
-    `;
-    if (count === 0) {
-      return c.json({ success: false, err: "No HFA facilities found. Import HFA facilities before importing data." });
+  log("parseDatasetHfaCsvHeaders"),
+  async (c, { body }) => {
+    const csvUpload = await resolveImportTempUpload(body.csvUploadToken);
+    const xlsFormUpload = await resolveImportTempUpload(body.xlsFormUploadToken);
+    if (!csvUpload || !xlsFormUpload) {
+      return c.json({
+        success: false,
+        err: "The uploaded files are no longer available. Upload them again.",
+      });
     }
-    const res = await addDatasetHfaUploadAttempt(mainDb);
-    return c.json(res);
+    const sheetNames = getXlsxSheetNamesRaw(xlsFormUpload.filePath);
+    if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
+      return c.json({
+        success: false,
+        err: "The XLSForm file must contain both 'survey' and 'choices' sheets.",
+      });
+    }
+    const res = await getCsvDetails(csvUpload.filePath, csvUpload.fileName);
+    if (!res.success) {
+      return c.json(res);
+    }
+    return c.json({ success: true, data: { headers: res.data.headers } });
   },
 );
 
+// Stateless: streams the temp upload through the wizard's filters and reports
+// the facilities left with several rows (the wizard's duplicates step).
 defineRoute(
   routesDatasets,
-  "getDatasetHfaUpload",
+  "previewDatasetHfaDuplicates",
   requireGlobalPermission("can_configure_data"),
-  log("getDatasetHfaUpload"),
-  async (c) => {
-    const res = await getDatasetHfaUploadAttemptDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDatasetHfaUploadStatus",
-  requireGlobalPermission("can_configure_data"),
-  async (c) => {
-    const res = await getDatasetHfaUploadStatus(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "deleteDatasetHfaUploadAttempt",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteDatasetHfaUploadAttempt"),
-  async (c) => {
-    const res = await deleteDatasetHfaUploadAttempt(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-///////////////////////////////////////////////////////////////////////////////////
-// HFA CSV Upload Steps
-///////////////////////////////////////////////////////////////////////////////////
-
-defineRoute(
-  routesDatasets,
-  "uploadDatasetHfaCsv",
-  requireGlobalPermission("can_configure_data"),
-  log("uploadDatasetHfaCsv"),
+  log("previewDatasetHfaDuplicates"),
   async (c, { body }) => {
-    const res = await updateDatasetHfaUploadAttempt_Step1CsvUpload(
-      c.var.mainDb,
-      body.csvAssetFileName,
-      body.xlsFormAssetFileName,
+    const csvUpload = await resolveImportTempUpload(body.csvUploadToken);
+    if (!csvUpload) {
+      return c.json({
+        success: false,
+        err: "The uploaded file is no longer available. Upload it again.",
+      });
+    }
+    const data = await scanHfaDuplicates(
+      csvUpload.filePath,
+      body.facilityIdColumn,
+      body.rowFilters,
     );
-    return c.json(res);
+    return c.json({ success: true, data });
   },
 );
 
 defineRoute(
   routesDatasets,
-  "updateDatasetHfaMappings",
+  "launchDatasetHfaCsvRun",
   requireGlobalPermission("can_configure_data"),
-  log("updateDatasetHfaMappings"),
+  log("launchDatasetHfaCsvRun"),
   async (c, { body }) => {
-    const res = await updateDatasetHfaUploadAttempt_Step2Mappings(
-      c.var.mainDb,
-      body.mappings,
-      body.reviewConfirmed,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDatasetHfaDuplicatePreview",
-  requireGlobalPermission("can_configure_data"),
-  log("getDatasetHfaDuplicatePreview"),
-  async (c) => {
-    const res = await getDatasetHfaDuplicatePreview(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "updateDatasetHfaStaging",
-  requireGlobalPermission("can_configure_data"),
-  log("updateDatasetHfaStaging"),
-  async (c) => {
-    const res = await updateDatasetHfaUploadAttempt_Step3Staging(
-      c.var.mainDb,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "finalizeDatasetHfaIntegration",
-  requireGlobalPermission("can_configure_data"),
-  log("finalizeDatasetHfaIntegration"),
-  async (c) => {
-    const res = await updateDatasetHfaUploadAttempt_Step4Integrate(
-      c.var.mainDb,
-      async () => {
-        notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    const res = await launchDatasetHfaCsvImportRun(c.var.mainDb, {
+      input: body.config,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
       },
-    );
+    });
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "getDatasetHfaImportRuns",
+  requireGlobalPermission("can_view_data"),
+  async (c) => {
+    const res = await getDatasetHfaImportRunSummaries(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "resolveDatasetHfaReview",
+  requireGlobalPermission("can_configure_data"),
+  log("resolveDatasetHfaReview"),
+  async (c, { body }) => {
+    const res = await resolveDatasetHfaReview(c.var.mainDb, {
+      runId: body.runId,
+      action: body.action,
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
+      },
+    });
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "cancelDatasetHfaRun",
+  requireGlobalPermission("can_configure_data"),
+  log("cancelDatasetHfaRun"),
+  async (c, { body }) => {
+    const res = await cancelDatasetHfaImportRun(c.var.mainDb, body.runId);
     return c.json(res);
   },
 );

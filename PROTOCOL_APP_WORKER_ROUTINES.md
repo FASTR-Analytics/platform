@@ -112,8 +112,9 @@ without it, `reportError` propagates as an unhandled rejection and exits the
 whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records
 the error completion, clears the tracker, and terminates the worker. Spawn sites
 today: `task_management/trigger_runnable_tasks.ts` (module runs),
-`db/instance/dataset_hfa.ts` (HFA CSV staging/integration), and
-`db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker`, DHIS2 import runs).
+`db/instance/dataset_hfa_import_runs.ts` (HFA import runs), and
+`db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker` /
+`spawnCsvRunWorker`, HMIS import runs).
 The dataset shape:
 
 ```ts
@@ -188,8 +189,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
 | `run_module`             | `{ projectId, moduleId, runToken }`                | `task_ended` broadcast (success) / `reportError` (crash) | running-tasks map                 |
 | `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
 | `import_hmis_data_dhis2` | `{ runId, credentialsSource, selection }`          | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
-| `stage_hfa_data_csv`     | `{ rawDUA }`                                       | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hfa`)            |
-| `integrate_hfa_data`     | `{ rawDUA }`                                       | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hfa`)            |
+| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row       | `worker_store` (`hfa`)            |
 
 ## Gotchas
 

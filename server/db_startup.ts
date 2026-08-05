@@ -20,6 +20,7 @@ import {
 } from "./db/migrations/runner.ts";
 import {
   getPgConnectionFromCacheOrNew,
+  markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
 } from "./db/mod.ts";
 import { sweepOrphanImportTempUploads } from "./import_temp_uploads.ts";
@@ -73,6 +74,12 @@ ${userInserts}
   if (staleRuns > 0) {
     console.log(
       `[startup] Marked ${staleRuns} HMIS import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
+  const staleHfaRuns = await markStaleRunningDatasetHfaImportRuns(sqlMain);
+  if (staleHfaRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleHfaRuns} HFA import run(s) wedged mid-run by a previous shutdown`,
     );
   }
   await sweepOrphanImportTempUploads(sqlMain);
@@ -137,7 +144,6 @@ async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const errStatus = JSON.stringify({ status: "error", err: message });
   const structureErrStatus = JSON.stringify({ status: "error", error: message });
   const results = await Promise.all([
-    mainDb`UPDATE hfa_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
     mainDb`UPDATE iceh_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
     mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`,
   ]);
