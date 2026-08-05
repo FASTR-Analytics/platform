@@ -640,7 +640,7 @@ const _DS = {
     indicators: {
       hideHeaders: false,
       headerAlignH: typed<"left" | "center" | "right">("center"),
-      headerGap: 5,
+      headerGap: 10,
       headerPosition: typed<"top" | "bottom">("top"),
       gapX: 15,
       gapY: 15,
