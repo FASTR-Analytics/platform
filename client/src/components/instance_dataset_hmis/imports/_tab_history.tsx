@@ -13,6 +13,9 @@ export function statusLabel(status: DatasetHmisImportRunSummary["status"]): stri
   if (status === "running") {
     return t3({ en: "Running", fr: "En cours", pt: "Em curso" });
   }
+  if (status === "needs_review") {
+    return t3({ en: "Needs review", fr: "À vérifier", pt: "A rever" });
+  }
   if (status === "complete") {
     return t3({ en: "Complete", fr: "Terminée", pt: "Concluída" });
   }
@@ -22,7 +25,17 @@ export function statusLabel(status: DatasetHmisImportRunSummary["status"]): stri
   return t3({ en: "Error", fr: "Erreur", pt: "Erro" });
 }
 
+export function sourceLabel(run: DatasetHmisImportRunSummary): string {
+  return run.source === "csv" ? "CSV" : "DHIS2";
+}
+
 export function selectionLabel(run: DatasetHmisImportRunSummary): string {
+  if (run.source === "csv") {
+    return run.csvFileName ?? "";
+  }
+  if (!run.selection) {
+    return "";
+  }
   if (run.selection.kind === "window") {
     return `${toNum0(run.selection.rawIndicatorIds.length)} ${t3({
       en: "indicators",
@@ -51,6 +64,12 @@ export function Dhis2TabHistory(p: Props) {
           : (run.triggeredBy ?? ""),
     },
     {
+      key: "source",
+      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
+      sortable: true,
+      render: sourceLabel,
+    },
+    {
       key: "selection",
       header: t3({ en: "Selection", fr: "Sélection", pt: "Seleção" }),
       render: selectionLabel,
@@ -59,15 +78,18 @@ export function Dhis2TabHistory(p: Props) {
       key: "succeededPairs",
       header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
       alignH: "right",
-      render: (run) => (
-        <span>
-          {toNum0(run.succeededPairs)} /{" "}
-          <span class={run.failedPairs > 0 ? "text-danger font-700" : ""}>
-            {toNum0(run.failedPairs)}
-          </span>{" "}
-          / {toNum0(run.totalPairs)}
-        </span>
-      ),
+      render: (run) =>
+        run.source === "csv" ? (
+          ""
+        ) : (
+          <span>
+            {toNum0(run.succeededPairs)} /{" "}
+            <span class={run.failedPairs > 0 ? "text-danger font-700" : ""}>
+              {toNum0(run.failedPairs)}
+            </span>{" "}
+            / {toNum0(run.totalPairs)}
+          </span>
+        ),
     },
     {
       key: "status",

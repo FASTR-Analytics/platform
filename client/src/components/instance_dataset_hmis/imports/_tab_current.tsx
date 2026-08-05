@@ -8,28 +8,21 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2RunView } from "./_run_view";
+import { CsvRunView } from "./_csv_run_view";
+import { CsvNeedsReviewCard } from "./_csv_needs_review_card";
+import { selectionLabel } from "./_tab_history";
 
 type Props = {
   runningRun: DatasetHmisImportRunSummary | undefined;
   queuedRuns: DatasetHmisImportRunSummary[];
+  needsReviewRuns: DatasetHmisImportRunSummary[];
   nextSchedule: DatasetHmisScheduledImport | undefined;
   onNewImport: () => Promise<void>;
   onChanged: () => Promise<void>;
 };
-
-function selectionLabel(run: DatasetHmisImportRunSummary): string {
-  if (run.selection.kind === "window") {
-    return `${toNum0(run.selection.rawIndicatorIds.length)} ${t3({
-      en: "indicators",
-      fr: "indicateurs",
-      pt: "indicadores",
-    })} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
-  }
-  return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
-}
 
 export function Dhis2TabCurrent(p: Props) {
   const queuedColumns: TableColumn<DatasetHmisImportRunSummary>[] = [
@@ -79,6 +72,10 @@ export function Dhis2TabCurrent(p: Props) {
 
   return (
     <div class="ui-spy">
+      <For each={p.needsReviewRuns}>
+        {(run) => <CsvNeedsReviewCard run={run} onChanged={p.onChanged} />}
+      </For>
+
       <Show
         when={p.runningRun}
         fallback={
@@ -111,21 +108,34 @@ export function Dhis2TabCurrent(p: Props) {
         }
       >
         {(run) => (
-          <CollapsibleSection
-            defaultOpen
-            boldHeader
-            title={
-              <>
-                {t3({ en: "Import in progress", fr: "Importation en cours", pt: "Importação em curso" })}{" "}
-                <span class="text-sm font-400">
-                  — {toNum0(run().succeededPairs + run().failedPairs)} / {toNum0(run().totalPairs)}{" "}
-                  {t3({ en: "pairs done", fr: "paires traitées", pt: "pares concluídos" })}
-                </span>
-              </>
+          <Show
+            when={run().source === "csv"}
+            fallback={
+              <CollapsibleSection
+                defaultOpen
+                boldHeader
+                title={
+                  <>
+                    {t3({ en: "Import in progress", fr: "Importation en cours", pt: "Importação em curso" })}{" "}
+                    <span class="text-sm font-400">
+                      — {toNum0(run().succeededPairs + run().failedPairs)} / {toNum0(run().totalPairs)}{" "}
+                      {t3({ en: "pairs done", fr: "paires traitées", pt: "pares concluídos" })}
+                    </span>
+                  </>
+                }
+              >
+                <Dhis2RunView run={run()} onChanged={p.onChanged} />
+              </CollapsibleSection>
             }
           >
-            <Dhis2RunView run={run()} onChanged={p.onChanged} />
-          </CollapsibleSection>
+            <CollapsibleSection
+              defaultOpen
+              boldHeader
+              title={t3({ en: "CSV import in progress", fr: "Importation CSV en cours", pt: "Importação CSV em curso" })}
+            >
+              <CsvRunView run={run()} onChanged={p.onChanged} />
+            </CollapsibleSection>
+          </Show>
         )}
       </Show>
 

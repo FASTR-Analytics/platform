@@ -1,69 +1,8 @@
-import { CsvDetails, TableColumn } from "./instance.ts";
 import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 
 // ============================================================================
-// Upload Attempt Status Types
+// CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
-
-export type DatasetUploadAttemptStatus =
-  | {
-      status: "configuring";
-    }
-  | {
-      status: "staging";
-      progress: number;
-    }
-  | {
-      status: "staged";
-    }
-  | {
-      status: "integrating";
-      progress: number;
-    }
-  | {
-      status: "complete";
-    }
-  | {
-      status: "error";
-      err: string;
-    };
-
-export type DatasetUploadAttemptStatusLight = DatasetUploadAttemptStatus;
-
-// ============================================================================
-// Upload Attempt Detail Types
-// ============================================================================
-
-export type DatasetUploadAttemptSummary = {
-  id: string;
-  dateStarted: string;
-  status: DatasetUploadAttemptStatus;
-};
-
-export type DatasetUploadAttemptDetailInitial = {
-  id: string;
-  dateStarted: string;
-  step: 0;
-  status: DatasetUploadAttemptStatus;
-  sourceType: undefined;
-  step1Result: undefined;
-  step2Result: undefined;
-  step3Result: undefined;
-};
-
-export type DatasetUploadAttemptDetailCsv = {
-  id: string;
-  dateStarted: string;
-  step: 1 | 2 | 3 | 4;
-  status: DatasetUploadAttemptStatus;
-  sourceType: "csv";
-  // Step 1: CSV upload details
-  step1Result: CsvDetails | undefined;
-  // Step 2: CSV column mappings
-  step2Result: HmisCsvMappingParams | undefined;
-  // Step 3: CSV staging result
-  step3Result: DatasetCsvStagingResult | undefined;
-};
 
 export type HmisCsvMappingParams = {
   facility_id: string;
@@ -72,9 +11,16 @@ export type HmisCsvMappingParams = {
   count: string;
 };
 
-export type DatasetUploadAttemptDetail =
-  | DatasetUploadAttemptDetailInitial
-  | DatasetUploadAttemptDetailCsv;
+// The CSV launch payload stored in dataset_hmis_import_runs.csv_config.
+// resumeFromStaging marks a needs_review run resolved with "Integrate anyway":
+// the worker skips the stage leg and integrates the surviving per-run
+// staging table.
+export type DatasetHmisCsvRunConfig = {
+  uploadToken: string;
+  fileName: string;
+  mappings: HmisCsvMappingParams;
+  resumeFromStaging?: boolean;
+};
 
 // ============================================================================
 // Staging Result Types
@@ -241,26 +187,35 @@ export type Dhis2RunSelection =
 // analytics engine (computed DHIS2 indicators).
 export type Dhis2RunRoute = "dvs" | "analytics";
 
-// "queued" = waiting behind the running run / CSV phase; the ~60 s scheduler
-// tick drains queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER
-// Phase 4, C6 — queue, not concurrent execution).
+// "queued" = waiting behind the running run; the ~60 s scheduler tick drains
+// queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER Phase 4,
+// C6 — queue, not concurrent execution). "needs_review" = a CSV stage dropped
+// rows; the run holds with diagnostics and RELEASES the single-running slot
+// until the user integrates anyway or discards.
 export type DatasetHmisImportRunStatus =
   | "queued"
   | "running"
+  | "needs_review"
   | "complete"
   | "error"
   | "cancelled";
 
-// Small JSON on the run row, rewritten at most every 2 s while fetching —
-// per-pair outcomes live in the ledger, this is only "what is in flight now".
-export type DatasetHmisImportRunProgress = {
-  phase: "classifying" | "fetching" | "finalizing";
-  activePairs: Array<{
-    indicatorRawId: string;
-    periodId: number;
-    route: Dhis2RunRoute;
-  }>;
-};
+// Small JSON on the run row, rewritten at most every 2 s — DHIS2 runs report
+// in-flight pairs (per-pair outcomes live in the ledger); CSV runs report a
+// staging/integrating percentage.
+export type DatasetHmisImportRunProgress =
+  | {
+      phase: "classifying" | "fetching" | "finalizing";
+      activePairs: Array<{
+        indicatorRawId: string;
+        periodId: number;
+        route: Dhis2RunRoute;
+      }>;
+    }
+  | {
+      phase: "staging" | "integrating";
+      percent: number;
+    };
 
 // The summary projection of a run's selection: explicit pair lists collapse
 // to a count (a retry-failed selection can carry ~1,440 pairs — the runs
@@ -278,8 +233,12 @@ export type DatasetHmisImportRunSummary = {
   id: number;
   trigger: "manual" | "schedule";
   triggeredBy?: string;
-  dhis2Url: string;
-  selection: Dhis2RunSelectionSummary;
+  source: "dhis2" | "csv";
+  // DHIS2 runs only.
+  dhis2Url?: string;
+  selection?: Dhis2RunSelectionSummary;
+  // CSV runs only.
+  csvFileName?: string;
   status: DatasetHmisImportRunStatus;
   // Fatal run-level error (classification failed, credentials died, crash).
   // Per-pair failures are ledger rows + failedPairs, not this.
@@ -302,6 +261,9 @@ export type DatasetHmisImportRunDetail = DatasetHmisImportRunSummary & {
   // host-detected crash / restart sweep) — stats live in worker memory and
   // die with it. run.error explains those cases.
   runStats?: DatasetHmisImportRunStats;
+  // CSV runs only: the staging diagnostics (also stored on the version row
+  // once the run integrates; served here for the needs_review card).
+  csvStagingResult?: DatasetCsvStagingResult;
 };
 
 export type DatasetHmisImportRunStats = {
@@ -423,13 +385,3 @@ export type Dhis2ImportSchedulingInfo = {
   encryptionKeyConfigured: boolean;
 };
 
-// ============================================================================
-// API Response Types
-// ============================================================================
-
-export type DatasetUploadStatusResponse = {
-  id: string;
-  step: number;
-  status: DatasetUploadAttemptStatusLight;
-  isActive: boolean; // false = stop polling
-};

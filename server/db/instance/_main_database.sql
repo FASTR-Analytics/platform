@@ -378,16 +378,22 @@ CREATE TABLE dataset_hmis_import_ledger (
   PRIMARY KEY (indicator_raw_id, period_id)
 );
 
--- DHIS2 import runs: one row per run of the per-pair fetch+integrate worker
--- (see server/db/instance/dataset_hmis_import_runs.ts). Per-pair outcomes live
--- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation.
+-- HMIS import runs: one row per import — DHIS2 (per-pair fetch+integrate) or
+-- CSV (stage → conditional review gate → integrate). See
+-- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
+-- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
+-- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
+-- csv_config ({ uploadToken, fileName, mappings } JSON) is CSV-only — the
+-- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   trigger text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
   triggered_by text,
-  dhis2_url text NOT NULL,
-  selection text NOT NULL,
-  status text NOT NULL CHECK (status IN ('queued', 'running', 'complete', 'error', 'cancelled')),
+  source text NOT NULL CHECK (source IN ('dhis2', 'csv')),
+  dhis2_url text,
+  selection text,
+  csv_config text,
+  status text NOT NULL CHECK (status IN ('queued', 'running', 'needs_review', 'complete', 'error', 'cancelled')),
   error text,
   total_pairs integer NOT NULL DEFAULT 0,
   succeeded_pairs integer NOT NULL DEFAULT 0,
@@ -443,25 +449,6 @@ CREATE TABLE dataset_hmis_scheduled_imports (
   last_error text,
   last_run_id integer REFERENCES dataset_hmis_import_runs(id) ON DELETE SET NULL
 );
-
--- The CSV import wizard's step-config + status state (single row). DHIS2
--- imports do not use this table — they are runs (dataset_hmis_import_runs).
-CREATE TABLE dataset_hmis_upload_attempts (
-  id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started text NOT NULL,
-  step integer NOT NULL,
-  status text NOT NULL,
-  status_type text NOT NULL,  -- Simple status: configuring, staging, staged, integrating, error
-  source_type text,  -- csv (nullable until step 0 is completed)
-  step_1_result text,  -- CSV upload details
-  step_2_result text,  -- Column mappings
-  step_3_result text   -- Staging result
-);
-
--- Removed index on status column because it contains large JSON that can exceed btree index size limits
--- CREATE INDEX idx_dataset_hmis_upload_attempts_status ON dataset_hmis_upload_attempts(status);
-CREATE INDEX idx_dataset_hmis_upload_attempts_status_type ON dataset_hmis_upload_attempts(status_type);
-CREATE INDEX idx_dataset_hmis_upload_attempts_date_started ON dataset_hmis_upload_attempts(date_started);
 
 -- ============================================================================
 -- HFA TIME POINTS

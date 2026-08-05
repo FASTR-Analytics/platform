@@ -580,10 +580,10 @@ export type CustomFigureStyleOptions = {
     // without bound. Ignored by ChartOV, Timeseries, and Table.
     idealRowThickness?: (nTotalBarRows: number) => number;
 
-    // Pie: natural content diameter (DU) as a function of indicators per
-    // sub-chart. A CAP on the width-driven diameter, never a replacement — an
-    // ideal that exceeds the slot is meaningless. Ignored by every other
-    // figure.
+    // Pie: natural DISC diameter (DU) as a function of indicators per
+    // sub-chart. Both the ideal-height cap AND the draw-time maximum: a pie
+    // is never drawn larger than this, whatever frame it is given — raise it
+    // to let a pie fill a big tile. Ignored by every other figure.
     idealPieDiameter?: (nIndicators: number) => number;
   };
 };

@@ -3,10 +3,12 @@ system: 4
 name: Assets & Upload
 globs:
   - client/src/components/_file_upload_selector.tsx
+  - client/src/components/_temp_file_upload.tsx
   - client/src/components/_uppy_file_upload.ts
   - client/src/components/instance/instance_assets.tsx
   - lib/types/assets.ts
   - server/db/instance/assets.ts
+  - server/import_temp_uploads.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
 docs_absorbed:
@@ -73,6 +75,17 @@ rejects separators and `..`).
 ownership is upserted into `asset_metadata`, the map entry is deleted, and
 `notifyInstanceAssetsUpdated` broadcasts the refreshed list (S3). The response
 carries `X-Upload-Complete` / `X-Upload-Filename`.
+
+**Wizard-temp mode** (PLAN_DHIS2_IMPORTER_CONSOLIDATION A3). A completion with
+TUS metadata `wizardTemp=true` + a client-generated UUID `uploadToken` lands at
+`<_ASSETS_DIR_PATH>/.import-uploads/<token>__<sanitizedFileName>` instead — NO
+asset row, no assets notify: it is transient import-wizard input keyed by the
+token (restart-safe, since the token lives in the filename). Helpers + the
+24 h boot orphan sweep (spares tokens referenced by active import-run rows)
+are `server/import_temp_uploads.ts`; the client side is
+`_temp_file_upload.tsx`, which sets the metadata per file and returns the
+token directly — no SSE wait. Import-run workers delete the file on
+complete/discard.
 
 ## The asset store (`db/instance/assets.ts` + `routes/instance/assets.ts`)
 

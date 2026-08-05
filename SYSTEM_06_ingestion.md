@@ -10,7 +10,6 @@ globs:
   - client/src/components/instance_dataset_hfa/**
   - client/src/components/instance_dataset_hfa_import/**
   - client/src/components/instance_dataset_hmis/**
-  - client/src/components/instance_dataset_hmis_import/**
   - client/src/components/instance_dataset_iceh/**
   - client/src/components/instance_dataset_iceh_import/**
   - client/src/state/instance/t2_datasets.ts
@@ -41,9 +40,8 @@ globs:
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
   - server/worker_routines/integrate_hfa_data/**
-  - server/worker_routines/integrate_hmis_data/**
   - server/worker_routines/stage_hfa_data_csv/**
-  - server/worker_routines/stage_hmis_data_csv/**
+  - server/worker_routines/import_hmis_data_csv/**
   - server/worker_routines/import_hmis_data_dhis2/**
   - server/worker_routines/worker_store.ts
 ---
@@ -67,32 +65,50 @@ owned by S8). DHIS2 fetching/retry is S7.
 
 | Family | Source                                  | Model                                                                                                                                                                                         | Progress                               |
 | ------ | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| HMIS   | CSV                                     | background Web Worker per phase (`stage_hmis_data_csv` / `integrate_hmis_data`), attempt wizard                                                                                               | client HTTP-polls status               |
+| HMIS   | CSV                                     | **import run** — one background Web Worker (`import_hmis_data_csv`) stages, gates, and integrates; no attempt row (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)                                 | client HTTP-polls the run row          |
 | HMIS   | DHIS2                                   | **import run** — one background Web Worker (`import_hmis_data_dhis2`) fetches AND integrates per (indicator, month) pair; no attempt row, no staged-review step (PLAN_DHIS2_IMPORTER Phase 3) | client HTTP-polls the run row + ledger |
-| HFA    | CSV + XLSForm                           | background Web Worker per phase (`stage_hfa_data_csv` / `integrate_hfa_data`)                                                                                                                 | client HTTP-polls status               |
+| HFA    | CSV + XLSForm                           | background Web Worker per phase (`stage_hfa_data_csv` / `integrate_hfa_data`), attempt wizard                                                                                                 | client HTTP-polls status               |
 | ICEH   | zip (results_csv.csv + indicators.xlsx) | **no worker** — step 2 fires an un-awaited in-process async function (`stageAndIntegrateIcehData`); uncancellable once started                                                                | client HTTP-polls status               |
 
 There is **no SSE for import progress** — wizards poll every 2 s, dataset side
 panels every 5 s. The only SSE push is `notifyInstanceDatasetsUpdated` after
 integration/run completion (refreshes the datasets summary, not progress).
 
-## HMIS DHIS2 import runs (per-pair fetch+integrate)
+## HMIS import runs (DHIS2 per-pair + CSV stage-gate-integrate)
 
-This section is the authority (PLAN_DHIS2_IMPORTER retired + deleted 2026-07-16
-with Phases 0–4 built; its full as-built record and the lab evidence summaries
-live in git history). Shape:
+This section is the authority. Every HMIS import — DHIS2 or CSV — is a row in
+`dataset_hmis_import_runs`; there is no second lifecycle (the attempt machinery
+died in PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A; PLAN_DHIS2_IMPORTER's
+as-built record lives in git history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
-  selection JSON (window or explicit pairs), status
-  (`queued|running|complete|error|cancelled`), pair counters, throttled
-  `progress` JSON, `run_stats` (classification summary, per-pair fetch stats),
-  `version_id`. A partial unique index allows at most one `running` row — the
-  INSERT (or the queued→running UPDATE) is the launch claim. Inline credentials
-  travel only in the worker message; stored credentials
+  `source` (`dhis2|csv`), selection JSON (DHIS2: window or explicit pairs) or
+  `csv_config` JSON (CSV: `{ uploadToken, fileName, mappings }`; the
+  source→fields pairing is enforced in code), status
+  (`queued|running|needs_review|complete|error|cancelled`), pair counters
+  (DHIS2 only), throttled `progress` JSON (by-source union: in-flight pairs vs
+  a staging/integrating percentage), `run_stats` (DHIS2: classification +
+  per-pair fetch stats; CSV: the staging diagnostics), `version_id`. A partial
+  unique index allows at most one `running` row — the INSERT (or the
+  queued→running UPDATE) is the launch claim, shared by both sources; queued
+  rows of either source drain FIFO through the same scheduler tick. Inline
+  credentials travel only in the worker message; stored credentials
   (`instance_dhis2_credentials` — instance-wide, shared by every DHIS2 flow
   since PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION, password AES-GCM-encrypted
   with the `DHIS2_CREDENTIALS_ENCRYPTION_KEY` env key) are decrypted only inside
-  the worker via `resolveDhis2Credentials`.
+  the worker via `resolveDhis2Credentials`; CSV fires need no credentials.
+- **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the
+  wizard is client-local — the only pre-launch server artifact is a token-keyed
+  temp upload (S4's wizard-temp TUS mode; orphan-swept at boot). The stage leg
+  streams the CSV into **per-run staging tables** (`_run_{runId}` suffix), then
+  evaluates the clean condition: every validation drop counter zero AND >0 rows
+  staged → auto-integrate unattended; dropped rows → `needs_review` with the
+  diagnostics on the run row, **releasing the running slot** (the per-run table
+  survives the hold; "Integrate anyway" re-claims — or queues — and integrates
+  it, "Discard" cancels and drops it); zero staged rows → loud `error`. The
+  integrate leg is the old single-transaction CSV merge unchanged (version
+  minted MAX(id) inline, ledger in-transaction); `version_id` lands inside the
+  transaction so version readers hide it until the status flip.
 - **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot and
   recurring rows, rolling-window selection resolved at fire time) is fired by a
   ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`) — queued runs
@@ -142,19 +158,20 @@ live in git history). Shape:
   real servers, so the gate aborted healthy first runs with no override path.
   dataValueSets is the source of truth; migration 063 dropped the column, and
   older `run_stats` blobs may still carry a `shadow` key.
-- Cross-guards: CSV staging/integration and windowed deletes refuse while a run
-  is `running` and vice versa; db_startup sweeps stale `running` rows to `error`
-  after a restart. Run cancel terminates the worker; completed pairs stay.
+- Concurrency: the partial unique index is the whole story — CSV and DHIS2
+  share the claim, so the old cross-table guard lattice is gone. Windowed
+  deletes refuse while a run is `running`. db_startup sweeps stale `running`
+  rows to `error` after a restart (dropping a CSV run's staging tables and temp
+  upload). Run cancel terminates the worker; completed DHIS2 pairs stay, a CSV
+  run's single transaction rolls back whole.
 
-## The upload-attempt state machine
+## The upload-attempt state machine (HFA + ICEH)
 
-One single-row attempt table per family (`dataset_hmis_upload_attempts` — CSV
-only, `hfa_upload_attempts`, `iceh_upload_attempts`; `CHECK (id='single_row')`),
-holding `step` (HMIS 0–4, HFA 1–5, ICEH 1–3), `step_N_result` JSON blobs,
-`status` JSON, and a denormalized `status_type` — every write site updates
-`status` and `status_type` together. HMIS DHIS2 imports do not use this machine
-(runs, above); the HMIS client sets `source_type = 'csv'` immediately at attempt
-creation.
+One single-row attempt table per remaining family (`hfa_upload_attempts`,
+`iceh_upload_attempts`; `CHECK (id='single_row')`), holding `step` (HFA 1–5,
+ICEH 1–3), `step_N_result` JSON blobs, `status` JSON, and a denormalized
+`status_type` — every write site updates `status` and `status_type` together.
+HMIS imports (both sources) are runs, above.
 
 - `status_type` values: `configuring`, `staging`, `integrating` (the two lock
   states), `staged`, `complete`, `error`. Structure (S5) uses `importing`.
@@ -178,29 +195,31 @@ creation.
   requires steps 1–3 results present.
 - Crash/deploy recovery: `resetWedgedUploadAttempts` (db_startup) flips
   `staging`/`integrating` → `error` at boot. **`staged` survives a restart** —
-  which is why HMIS integration re-verifies the staging table (below). Cancel
-  (`deleteDataset*UploadAttempt`) hard-terminates the HMIS/HFA worker, deletes
+  which is why integration re-verifies the staging table (below). Cancel
+  (`deleteDatasetHfaUploadAttempt`) hard-terminates the HFA worker, deletes
   the row, and drops the staging tables; on worker crash the error status is
   written twice by design (worker catch + parent error listener).
 
 ## Staging (phase 1)
 
-Rows stream into fixed-name UNLOGGED staging tables
-(`UPLOADED_{HMIS,HFA}_DATA_STAGING_TABLE_NAME` — hardcoded constants in
-`exposed_env_vars.ts`, not env vars) via buffered `VALUES` inserts. UNLOGGED =
-no WAL = fast, but **truncated by a Postgres crash** (they survive clean
-restarts). Dropped on integration success/error, on staging worker error, and on
-cancel; staging also pre-drops stale tables at start.
+Rows stream into UNLOGGED staging tables via buffered `VALUES` inserts — HFA
+uses fixed names (`UPLOADED_HFA_*_STAGING_TABLE_NAME` constants in
+`exposed_env_vars.ts`, not env vars); HMIS CSV uses per-run `_run_{runId}`
+names (see the runs section). UNLOGGED = no WAL = fast, but **truncated by a
+Postgres crash** (they survive clean restarts). Dropped on integration
+success/error, on staging worker error, and on cancel/discard/sweep; staging
+also pre-drops stale tables at start.
 
 - Buffer sizes are per-pipeline: HMIS CSV 10 000, HFA CSV 100 000. (HMIS-DHIS2
   no longer stages to a table — the run worker holds each pull in memory and
   integrates per pair.)
 - Escaping is uniform: `''`-doubling only (HFA via the shared `escapeSqlString`
   in `server/db/utils.ts`, HMIS/structure inline).
-- Row-level validation counts and samples drops (persisted in `step_3_result`);
-  reference validation (facility exists) runs at staging AND again at
-  integration (facilities can be deleted between phases;
-  `dataset_hmis.facility_id` / `hfa_data.facility_id` FKs are RESTRICT).
+- Row-level validation counts and samples drops (persisted in `step_3_result`
+  for HFA, on the run row for HMIS CSV); reference validation (facility exists)
+  runs at staging AND again at integration (facilities can be deleted between
+  phases; `dataset_hmis.facility_id` / `hfa_data.facility_id` FKs are
+  RESTRICT).
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`) — streaming, 2 MB chunks, one
   persistent `TextDecoder` in stream mode, quote-parity-aware chunk boundaries
@@ -251,28 +270,29 @@ All HMIS/HFA integration runs in **one transaction** (`mainDb.begin`, tuned
 `SET LOCAL`s; note `synchronous_commit = OFF` trades durability on OS crash for
 speed — atomicity holds).
 
-**HMIS (CSV)** first verifies the staging table exists AND that its `COUNT(*)`
-equals the recorded `finalStagingRowCount` — the table and the recorded scope
-are separate artifacts that desynchronize on crash-truncation or an interrupted
-re-stage. The integrate worker refuses DHIS2-staged results outright (leftovers
-from before the per-pair runs). Then:
+**HMIS (CSV)** first verifies the per-run staging table exists AND that its
+`COUNT(*)` equals the recorded `finalStagingRowCount` — the table and the
+recorded diagnostics are separate artifacts that desynchronize on
+crash-truncation or an interrupted re-stage. Then:
 
 - **Merge**: UPDATE matched rows → DELETE matched from staging → INSERT
   remainder. Absent cells keep their prior value (by design).
-- **DHIS2 scoped delete-then-insert now lives in the run worker, per pair**:
+- **DHIS2 scoped delete-then-insert lives in the run worker, per pair**:
   DELETE the pair's rows for the snapshotted facility scope, INSERT what DHIS2
   returned. DHIS2 is authoritative over the fetched scope — this is what removes
   phantom cells DHIS2 stopped reporting. Caveats unchanged: a CSV-origin
   facility with a UID-shaped id is inside the scope (no per-row source marker
   exists); DHIS2 staleness is trusted as ground truth.
 - Version records (`dataset_hmis_versions`): id = MAX+1 minted **inside** the
-  writing transaction (CSV integration; the run worker's lazy mint; windowed
-  deletes with negative counts). All version-id writers are mutually excluded by
-  the attempt/run guards — they cannot PK-collide. Ids are monotonic and never
-  reset; the id is the client cache key component and the staleness marker.
-  Post-commit: drop staging → mark `complete` → notify. Death between commit and
-  `complete` leaves error-state-with-data-integrated; the count invariant then
-  blocks a blind re-integrate (table dropped).
+  writing transaction (the CSV run's integrate leg; the DHIS2 run worker's lazy
+  mint; windowed deletes with negative counts). All version-id writers are
+  mutually excluded by the single-running claim + delete guard — they cannot
+  PK-collide. Ids are monotonic and never reset; the id is the client cache key
+  component and the staleness marker. Post-commit: drop staging → flip
+  `complete` → notify. Death between commit and the flip leaves
+  error-state-with-data-integrated; the count invariant then blocks a blind
+  re-integrate (table dropped), and the crash path reconciles the version row
+  the same way DHIS2 interruptions do.
 
 **HFA — full replace per time_point**: stamp `hfa_time_points.imported_at` (the
 time point must pre-exist), DELETE `hfa_data` + `hfa_variables` for that time
@@ -293,16 +313,24 @@ content hash causes false staleness).
 
 ## Client
 
-- Wizards render a cascading Switch: status arms (error/complete/
-  staging/integrating) before step arms; steps are server step numbers,
-  `minStep` = the family's first real step. Resume-after-reload = the attempt
-  fetcher sets the stepper to the server `step` column.
-- `ImportWizardShell` (`_import_wizard/`) is the descriptor-driven extraction of
-  the query/stepper/poll/delete machinery — **adopted only by ICEH**; HMIS/HFA
-  still run pre-extraction copies (Open items).
-- Pollers keep the status tag in a closure; on a tag change they `silentFetch`
-  the full attempt, which remounts the step subtree (`StateHolderWrapper` is
-  keyed). `createQuery` is one-shot with requestId superseding.
+- **HMIS** (`instance_dataset_hmis/imports/`): one imports surface — Current /
+  Future / History tabs over the runs + scheduling queries (2 s poll while a
+  run is active, SSE summary fields as the wake-up signal) — plus two modal
+  wizards: the DHIS2 wizard (credentials/indicators/time/config/review) and the
+  CSV wizard (upload → mappings → review; client-local signals, launch-or-queue
+  fork shared with DHIS2). needs_review runs render as Current-tab cards with
+  the staging diagnostics + Integrate-anyway/Discard; History rows click
+  through to a by-source run detail. The sidebar has no attempt cards — the
+  Current tab is the signal surface.
+- **HFA/ICEH attempt wizards** render a cascading Switch: status arms
+  (error/complete/staging/integrating) before step arms; steps are server step
+  numbers, `minStep` = the family's first real step. Resume-after-reload = the
+  attempt fetcher sets the stepper to the server `step` column. Pollers keep
+  the status tag in a closure; on a tag change they `silentFetch` the full
+  attempt, which remounts the step subtree (`StateHolderWrapper` is keyed).
+- `ImportWizardShell` (`_import_wizard/`) is the descriptor-driven extraction
+  of the query/stepper/poll/delete machinery — **adopted only by ICEH**; HFA
+  still runs a pre-extraction copy (Open items).
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed
@@ -336,8 +364,8 @@ route.
 - **`COUNT(*)` returns a string** through the worker/bulk connections (no int8
   parser configured) — always `Number()` it. Older staging results persisted
   `finalStagingRowCount` etc. as JSON strings; comparisons must coerce.
-- The staging-table name constants live in `exposed_env_vars.ts` but are not
-  env-configurable.
+- The HFA staging-table name constants live in `exposed_env_vars.ts` but are
+  not env-configurable. (HMIS CSV names are per-run, derived from the run id.)
 - The DHIS2 URL-length guard measures a URL missing two dimensions (~40–50 chars
   short of the real request).
 - JS row validation is narrower than the staging tables' CHECK constraints (e.g.

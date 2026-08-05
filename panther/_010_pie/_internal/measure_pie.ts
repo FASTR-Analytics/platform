@@ -265,7 +265,6 @@ function solveOnePie(
   // s0: the label-free content scale — the largest radius at which the slot can
   // hold the declared shape. For a full pie the silhouette is { 1, 1, 1, 1 } and
   // this is min(w, h) / 2 exactly as before (halving is exact in binary).
-  // Placement is decided once, at s0, and never re-decided (plan D2).
   //
   // The Math.max(0, ...) is unreachable defence carried over from the previous
   // formula: `left + right` and `top + bottom` are both >= 0 for any sweep (each
@@ -280,11 +279,29 @@ function solveOnePie(
     ),
   );
 
+  // The draw-time ceiling (owner-ruled 2026-08-05): a pie is never drawn
+  // larger than its natural diameter — idealPieDiameter is both what the
+  // ideal pass asks for in height AND the most the measure pass will draw, so
+  // a big fixed frame yields a natural-size disc centred in whitespace rather
+  // than a massive disc beside small type ("scales down, never up", the
+  // maxBarWidth precedent). sMax, not s0, is the largest drawable scale:
+  // placement is decided once, at sMax, and never re-decided (plan D2), and
+  // the label solve runs under it so outside labels are placed for the disc
+  // that actually draws. The policy value is unscaled (merged with `m`), so
+  // the fit scale multiplies here to keep shrunk figures proportional.
+  const capD = mergedStyle.idealHeight.idealPieDiameter(
+    data.indicatorHeaders.length,
+  ) * mergedStyle.alreadyScaledValue;
+  // capD bounds the DISC diameter (2s) — the visual scale of the pie — not
+  // the silhouette's drawn extent, so a half-disc gauge is capped at the same
+  // underlying disc as a full pie whatever its orientation.
+  const sMax = Math.min(s0, capD / 2);
+
   const probePie = layOutPie(
     data,
     mergedStyle,
     indices,
-    pieGeometryAt(slotRcd.centerX(), slotRcd.centerY(), s0, ratio),
+    pieGeometryAt(slotRcd.centerX(), slotRcd.centerY(), sMax, ratio),
   );
   const outsideIds = new Set<string>();
   if (probePie.slices.length === 0) {
@@ -295,7 +312,7 @@ function solveOnePie(
       outside: [],
       labelText: new Map(),
       placement: mergedStyle.pie.outsideLabelPlacement,
-      s: s0,
+      s: sMax,
       // An empty slot draws nothing and must not lift its siblings' scale.
       sFloor: 0,
       starved: false,
@@ -371,30 +388,37 @@ function solveOnePie(
     };
     // A track that cannot hold these labels at the LARGEST scale cannot hold
     // them at any smaller one — the track only gets shorter while the labels
-    // stay the same size — so one attempt at s0 rules out the whole scan.
+    // stay the same size — so one attempt at sMax rules out the whole scan.
     if (
       placement === "nearest" &&
-      !pieExtentsAt(outside, s0, ratio, mergedStyle, "nearest", silhouette)
+      !pieExtentsAt(outside, sMax, ratio, mergedStyle, "nearest", silhouette)
     ) {
       placement = "flank";
     }
-    result = solveContentScale(fitsUnder(placement), sFloor, s0);
+    result = solveContentScale(fitsUnder(placement), sFloor, sMax);
     if (result.kind === "infeasible" && placement === "nearest") {
       // N10: this pie cannot be nearest-point at any scale, so it re-solves on
       // the flank placer — all shipped machinery — and is NOT cramped for that
       // reason. Flank fitting is a success.
       placement = "flank";
-      result = solveContentScale(fitsUnder("flank"), sFloor, s0);
+      result = solveContentScale(fitsUnder("flank"), sFloor, sMax);
     }
   }
 
   // BOTH paths — labelled and unlabelled — go through the shared clamp: an
   // unlabelled pie is still floored (the live bug this fixes), and an
   // infeasible budget draws at the floor anyway (legibility beats frame).
-  // When the floor lifted s past what fits (s > s0, or above the label
-  // solve's answer), the pie overflows its slot and that is reported as
-  // cramped rather than clipped — a clipped disc reads as a different shape.
-  const resolved = resolveFlooredContentScale({ s0, sFloor, solved: result });
+  // The upper bound handed to the clamp is sMax (the capped scale); the
+  // overflow test stays against s0, the scale that physically fits the slot —
+  // a floor above the CAP but below the slot draws fine and is not cramped.
+  // When the floor lifted s past s0 the pie overflows its slot, and that is
+  // reported as cramped rather than clipped — a clipped disc reads as a
+  // different shape.
+  const resolved = resolveFlooredContentScale({
+    s0: sMax,
+    sFloor,
+    solved: result,
+  });
   const s = resolved.s;
   const starved = resolved.starved || s > s0;
 

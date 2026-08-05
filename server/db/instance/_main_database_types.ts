@@ -156,9 +156,17 @@ export type DBDatasetHmisImportRun = {
   id: number;
   trigger: "manual" | "schedule";
   triggered_by: string | null;
-  dhis2_url: string;
-  selection: string;
-  status: "queued" | "running" | "complete" | "error" | "cancelled";
+  source: "dhis2" | "csv";
+  dhis2_url: string | null;
+  selection: string | null;
+  csv_config: string | null;
+  status:
+    | "queued"
+    | "running"
+    | "needs_review"
+    | "complete"
+    | "error"
+    | "cancelled";
   error: string | null;
   total_pairs: number;
   succeeded_pairs: number;
@@ -203,20 +211,6 @@ export type DBDatasetHmisVersion = {
   n_rows_inserted: number | null;
   n_rows_updated: number | null;
   staging_result: string | null;
-};
-
-export type DBDatasetHmisUploadAttempt = {
-  date_started: string;
-  step: number;
-  status: string;
-  status_type: string;
-  source_type: "csv" | "dhis2" | null;
-  // Step 1: CSV upload OR DHIS2 confirmation
-  step_1_result: string | null;
-  // Step 2: Mappings OR DHIS2 selection
-  step_2_result: string | null;
-  // Step 3: Staging result
-  step_3_result: string | null;
 };
 
 export type DBDatasetHfaUploadAttempt = {

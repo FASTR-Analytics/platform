@@ -29,6 +29,7 @@ globs:
   - server/task_management/mod.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
+  - server/worker_routines/worker_contract.ts
 docs_absorbed:
 ---
 

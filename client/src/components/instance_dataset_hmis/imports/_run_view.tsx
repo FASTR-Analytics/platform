@@ -34,8 +34,15 @@ export function Dhis2RunView(p: Props) {
     await cancelAction.click();
   }
 
+  // DHIS2 runs only reach this view, but progress is a by-source union —
+  // narrow to the pairs variant.
+  const dhis2Progress = () => {
+    const progress = p.run.progress;
+    return progress && "activePairs" in progress ? progress : undefined;
+  };
+
   const phaseLabel = () => {
-    const phase = p.run.progress?.phase;
+    const phase = dhis2Progress()?.phase;
     if (phase === "classifying") {
       return t3({
         en: "Classifying indicators against DHIS2 metadata...",
@@ -94,7 +101,7 @@ export function Dhis2RunView(p: Props) {
 
         <div class="text-sm">{phaseLabel()}</div>
 
-        <Show when={(p.run.progress?.activePairs.length ?? 0) > 0}>
+        <Show when={(dhis2Progress()?.activePairs.length ?? 0) > 0}>
           <div class="text-xs">
             <div class="font-700 mb-1">
               {t3({
@@ -104,7 +111,7 @@ export function Dhis2RunView(p: Props) {
               })}
             </div>
             <div class="ui-gap-sm flex flex-wrap">
-              <For each={p.run.progress?.activePairs ?? []}>
+              <For each={dhis2Progress()?.activePairs ?? []}>
                 {(pair) => (
                   <div class="bg-base-200 rounded px-2 py-1">
                     {pair.indicatorRawId} ·{" "}

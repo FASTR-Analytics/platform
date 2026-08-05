@@ -319,9 +319,9 @@ reactive, not cached, no state files. **Upload attempts are always T3
 component-local** — transient per-user workflow state (signal + polling), not
 shared.
 
-Instance-level: structure / HMIS / HFA / ICEH upload attempts (each in its
-dataset component), HMIS DHIS2 import runs + ledger
-(`instance_dataset_hmis/dhis2_run/`), user logs, HMIS version history modal,
+Instance-level: structure / HFA / ICEH upload attempts (each in its dataset
+component), HMIS import runs + ledger
+(`instance_dataset_hmis/imports/`), user logs, HMIS version history modal,
 compare-projects modal, HFA indicator R code
 (`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, and the `LoggedInWrapper.tsx`

@@ -237,10 +237,14 @@ const _DS = {
   // - idealRowThickness (ChartOH bar thickness): anchor 40 DU at one bar row,
   //   asymptote 6 (0.15×), gentle k=0.97 — bar counts run into the hundreds, so
   //   the decay must span a much wider range than the plot-height curve.
-  // - idealPieDiameter (pie content diameter): anchor 320 DU at one indicator
-  //   per sub-chart, asymptote 112 (0.35×), k=0.75 — between its siblings'
-  //   decays (pie counts are single digits). A CAP on the width-driven term,
-  //   never a replacement (see getPieIdealHeight).
+  // - idealPieDiameter (pie DISC diameter, 2s): anchor 320 DU at one
+  //   indicator per sub-chart, asymptote 112 (0.35×), k=0.75 — between its
+  //   siblings' decays (pie counts are single digits). Does double duty: a
+  //   CAP on the ideal pass's width-driven term, and the draw-time MAXIMUM —
+  //   a pie is never drawn larger than this, whatever frame it is given
+  //   (owner-ruled 2026-08-05; the maxBarWidth precedent), so a big fixed
+  //   frame yields a natural-size disc centred in whitespace rather than a
+  //   massive disc beside small type.
   // All are tunable starting points; the anchor is the single tuning knob.
   idealHeight: {
     idealPlotHeight: (n: number) => 300 * (0.4 + 0.6 * 0.5 ** (n - 1)),
@@ -628,16 +632,18 @@ const _DS = {
     // (the completion-pie form: 75 of 100 reads "75%").
     centerLabel: typed<"none" | "total" | "share">("none"),
     // The indicator slot grid: one pie per indicator, tiled inside each
-    // sub-chart. Borrows panes' key names, but the gaps default tighter (8,
-    // not 15) — slots inside one sub-chart must read as subordinate to the
-    // pane grid, or the two grids blur into one.
+    // sub-chart. Borrows panes' key names AND its gap values (15/15, ruled by
+    // the owner 2026-08-05 — adjacent pies should breathe like adjacent
+    // panes); the one departure is the header, which centres rather than
+    // panes' left, because a slot's content is a centred disc, not a wide
+    // rectangular region.
     indicators: {
       hideHeaders: false,
-      headerAlignH: typed<"left" | "center" | "right">("left"),
+      headerAlignH: typed<"left" | "center" | "right">("center"),
       headerGap: 5,
       headerPosition: typed<"top" | "bottom">("top"),
-      gapX: 8,
-      gapY: 8,
+      gapX: 15,
+      gapY: 15,
       nCols: typed<number | "auto">("auto"),
     },
     labelCollision: defaultLabelCollision(),

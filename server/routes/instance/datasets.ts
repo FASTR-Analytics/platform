@@ -3,7 +3,6 @@ import type { Sql } from "postgres";
 import {
   // HFA imports
   addDatasetHfaUploadAttempt,
-  addDatasetHmisUploadAttempt,
   cancelDatasetHmisImportRun,
   computeHfaCacheHash,
   createDatasetHmisScheduledImport,
@@ -11,7 +10,7 @@ import {
   deleteAllDatasetHmisData,
   deleteDatasetHfaUploadAttempt,
   deleteDatasetHmisScheduledImport,
-  deleteDatasetHmisUploadAttempt,
+  enqueueDatasetHmisCsvImportRun,
   enqueueDatasetHmisImportRun,
   getDatasetHfaDetail,
   getDatasetHfaDuplicatePreview,
@@ -24,24 +23,21 @@ import {
   getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisScheduledImports,
-  getDatasetHmisUploadAttemptDetail,
-  getDatasetHmisUploadStatus,
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
   isDhis2CredentialsEncryptionKeyConfigured,
+  launchDatasetHmisCsvImportRun,
   launchDatasetHmisDhis2ImportRun,
+  resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
   updateDatasetHfaUploadAttempt_Step1CsvUpload,
   updateDatasetHfaUploadAttempt_Step2Mappings,
   updateDatasetHfaUploadAttempt_Step3Staging,
   updateDatasetHfaUploadAttempt_Step4Integrate,
-  updateDatasetUploadAttempt_Step0SourceType,
-  updateDatasetUploadAttempt_Step1CsvUpload,
-  updateDatasetUploadAttempt_Step2Mappings,
-  updateDatasetUploadAttempt_Step3Staging,
-  updateDatasetUploadAttempt_Step4Integrate,
   getInstanceDatasetsSummary,
 } from "../../db/mod.ts";
+import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
+import { resolveImportTempUpload } from "../../import_temp_uploads.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -367,130 +363,100 @@ defineRoute(
   },
 );
 
-///////////////////////////////////
-//                               //
-//    Dataset upload attempts    //
-//                               //
-///////////////////////////////////
+/////////////////////////////
+//                         //
+//    CSV import runs      //
+//                         //
+/////////////////////////////
 
+// Stateless: parses headers from the token-keyed temp upload for the
+// wizard's mappings step. Nothing is persisted by this call.
 defineRoute(
   routesDatasets,
-  "createDatasetUploadAttempt",
+  "parseDatasetHmisCsvHeaders",
   requireGlobalPermission("can_configure_data"),
-  log("createDatasetUploadAttempt"),
-  async (c) => {
-    const mainDb = c.var.mainDb;
-    const [{ count }] = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int AS count FROM facilities_hmis
-    `;
-    if (count === 0) {
-      return c.json({ success: false, err: "No HMIS facilities found. Import HMIS facilities before importing data." });
+  log("parseDatasetHmisCsvHeaders"),
+  async (c, { body }) => {
+    const upload = await resolveImportTempUpload(body.uploadToken);
+    if (!upload) {
+      return c.json({
+        success: false,
+        err: "The uploaded file is no longer available. Upload it again.",
+      });
     }
-    const res = await addDatasetHmisUploadAttempt(mainDb);
-    return c.json(res);
+    const res = await getCsvDetails(upload.filePath, upload.fileName);
+    if (!res.success) {
+      return c.json(res);
+    }
+    return c.json({ success: true, data: { headers: res.data.headers } });
   },
 );
 
 defineRoute(
   routesDatasets,
-  "setDatasetUploadSourceType",
+  "launchDatasetHmisCsvRun",
   requireGlobalPermission("can_configure_data"),
-  log("setDatasetUploadSourceType"),
+  log("launchDatasetHmisCsvRun"),
   async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step0SourceType(
-      c.var.mainDb,
-      body.sourceType,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDatasetUpload",
-  requireGlobalPermission("can_configure_data"),
-  async (c) => {
-    const res = await getDatasetHmisUploadAttemptDetail(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "getDatasetUploadStatus",
-  requireGlobalPermission("can_configure_data"),
-  async (c) => {
-    const res = await getDatasetHmisUploadStatus(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "deleteDatasetUploadAttempt",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteDatasetUploadAttempt"),
-  async (c) => {
-    const res = await deleteDatasetHmisUploadAttempt(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-defineRoute(
-  routesDatasets,
-  "uploadDatasetCsv",
-  requireGlobalPermission("can_configure_data"),
-  log("uploadDatasetCsv"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step1CsvUpload(
-      c.var.mainDb,
-      body.assetFileName,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "updateDatasetMappings",
-  requireGlobalPermission("can_configure_data"),
-  log("updateDatasetMappings"),
-  async (c, { body }) => {
-    const res = await updateDatasetUploadAttempt_Step2Mappings(
-      c.var.mainDb,
-      body.mappings,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "updateDatasetStaging",
-  requireGlobalPermission("can_configure_data"),
-  log("updateDatasetStaging"),
-  async (c) => {
-    const res = await updateDatasetUploadAttempt_Step3Staging(c.var.mainDb);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesDatasets,
-  "finalizeDatasetIntegration",
-  requireGlobalPermission("can_configure_data"),
-  log("finalizeDatasetIntegration"),
-  async (c) => {
-    const res = await updateDatasetUploadAttempt_Step4Integrate(
-      c.var.mainDb,
-      async () => {
-        notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+    const res = await launchDatasetHmisCsvImportRun(c.var.mainDb, {
+      config: body.config,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
       },
-    );
+    });
+    if (res.success) {
+      // Flip hmisImportRunActive on every connected client now — their
+      // display caches must be bypassed for the run's duration.
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "enqueueDatasetHmisCsvRun",
+  requireGlobalPermission("can_configure_data"),
+  log("enqueueDatasetHmisCsvRun"),
+  async (c, { body }) => {
+    const res = await enqueueDatasetHmisCsvImportRun(c.var.mainDb, {
+      config: body.config,
+      triggeredBy: c.var.globalUser?.email ?? "unknown",
+    });
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesDatasets,
+  "resolveDatasetHmisCsvReview",
+  requireGlobalPermission("can_configure_data"),
+  log("resolveDatasetHmisCsvReview"),
+  async (c, { body }) => {
+    const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
+      runId: body.runId,
+      action: body.action,
+      onComplete: async () => {
+        notifyInstanceDatasetsUpdated(
+          await getInstanceDatasetsSummary(c.var.mainDb),
+        );
+      },
+    });
+    if (res.success) {
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
+    }
     return c.json(res);
   },
 );

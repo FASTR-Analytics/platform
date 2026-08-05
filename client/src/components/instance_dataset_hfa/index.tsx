@@ -1,4 +1,4 @@
-import { t3, type HfaTimePoint, type DatasetUploadAttemptSummary } from "lib";
+import { t3, type HfaTimePoint, type DatasetHfaUploadAttemptSummary } from "lib";
 import {
   Button,
   FrameRight,
@@ -31,7 +31,7 @@ export function InstanceDatasetHfa(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [uploadAttempt, setUploadAttempt] = createSignal<
-    DatasetUploadAttemptSummary | undefined
+    DatasetHfaUploadAttemptSummary | undefined
   >(undefined);
 
   async function fetchUploadAttempt() {

@@ -172,7 +172,7 @@ export function Dhis2RunDetail(
             t3({ en: "Version", fr: "Version", pt: "Versão" }),
             p.run.versionId !== undefined ? `${p.run.versionId}` : "",
           )}
-          {factRow("DHIS2", p.run.dhis2Url)}
+          {factRow("DHIS2", p.run.dhis2Url ?? "")}
         </div>
 
         <Show when={p.run.error}>

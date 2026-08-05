@@ -20,8 +20,6 @@ import type {
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
-  DatasetUploadAttemptDetail,
-  DatasetUploadStatusResponse,
   Dhis2ImportSchedulingInfo,
   IndicatorType,
   InstanceConfigFacilityColumns,
@@ -102,6 +100,18 @@ const dhis2ScheduleFieldsSchema = z.object({
   selection: dhis2ScheduleSelectionSchema,
   runAt: z.string().optional(),
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
+});
+
+// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams).
+const hmisCsvRunConfigSchema = z.object({
+  uploadToken: z.string(),
+  fileName: z.string(),
+  mappings: z.object({
+    facility_id: z.string(),
+    raw_indicator_id: z.string(),
+    period_id: z.string(),
+    count: z.string(),
+  }),
 });
 
 const hfaCsvMappingParamsSchema = z.object({
@@ -221,47 +231,36 @@ export const datasetRouteRegistry = {
     body: z.object({ id: z.number().int() }),
   }),
 
-  // Upload workflow (CSV — DHIS2 imports are runs, above)
-  createDatasetUploadAttempt: route({
-    path: "/datasets/hmis/uploads",
+  // CSV import runs (config-on-client, run-on-server —
+  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A). The wizard is client-local;
+  // the only pre-launch server artifact is the token-keyed temp upload.
+  parseDatasetHmisCsvHeaders: route({
+    path: "/datasets/hmis/csv-runs/parse-headers",
     method: "POST",
+    body: z.object({ uploadToken: z.string() }),
+    response: {} as { headers: string[] },
   }),
-  setDatasetUploadSourceType: route({
-    path: "/dataset-uploads/hmis/source-type",
+  launchDatasetHmisCsvRun: route({
+    path: "/datasets/hmis/csv-runs",
     method: "POST",
-    body: z.object({ sourceType: z.enum(["csv"]) }),
+    body: z.object({ config: hmisCsvRunConfigSchema }),
+    response: {} as { runId: number },
   }),
-  getDatasetUpload: route({
-    path: "/dataset-uploads/hmis",
-    method: "GET",
-    response: {} as DatasetUploadAttemptDetail,
-  }),
-  getDatasetUploadStatus: route({
-    path: "/dataset-uploads/hmis/status",
-    method: "GET",
-    response: {} as DatasetUploadStatusResponse,
-  }),
-  deleteDatasetUploadAttempt: route({
-    path: "/dataset-uploads/hmis",
-    method: "DELETE",
-  }),
-  uploadDatasetCsv: route({
-    path: "/dataset-uploads/hmis/csv",
+  // Explicit queueing while a run is active (the client always asks the user
+  // first; queueing is never the silent default) — same fork as DHIS2.
+  enqueueDatasetHmisCsvRun: route({
+    path: "/datasets/hmis/csv-runs/enqueue",
     method: "POST",
-    body: z.object({ assetFileName: z.string() }),
+    body: z.object({ config: hmisCsvRunConfigSchema }),
+    response: {} as { runId: number },
   }),
-  updateDatasetMappings: route({
-    path: "/dataset-uploads/hmis/mappings",
+  resolveDatasetHmisCsvReview: route({
+    path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
-    body: z.object({ mappings: z.record(z.string(), z.string()) }),
-  }),
-  updateDatasetStaging: route({
-    path: "/dataset-uploads/hmis/staging",
-    method: "POST",
-  }),
-  finalizeDatasetIntegration: route({
-    path: "/dataset-uploads/hmis/integrate",
-    method: "POST",
+    body: z.object({
+      runId: z.number().int(),
+      action: z.enum(["integrate_anyway", "discard"]),
+    }),
   }),
 
   // HFA Dataset Endpoints

@@ -154,9 +154,14 @@ export function bestSlotColsAt(
 }
 
 // D8: the sub-chart height a candidate column count implies at the natural
-// (capped) diameter. The cap's first term is the SLOT's width, not the
+// (capped) diameter. The cap's width term is the SLOT's width, not the
 // sub-chart's, and the height multiplies by the slot row count — both fall
-// out of the diameter being per-slot.
+// out of the diameter being per-slot. Computed in content-scale (s) terms
+// with idealPieDiameter bounding the DISC diameter (2s), matching the
+// measure pass's draw-time cap — for a full disc and any width-symmetric
+// gauge this is identical to capping the drawn width, and for a
+// width-asymmetric gauge it is the reading that keeps the natural size and
+// the drawn size in agreement.
 export function idealSubChartHeightAt(
   ctx: SlotObjectiveContext,
   c: number,
@@ -171,18 +176,17 @@ export function idealSubChartHeightAt(
   const headerAllowance = showsIndicatorHeaders(data, mergedStyle)
     ? ind.headerGap + measureIndicatorHeaderHeight(rc, data, mergedStyle, slotW)
     : 0;
-  const contentD = Math.max(
-    Math.min(
-      slotW - labelBudget.horizontal,
-      mergedStyle.idealHeight.idealPieDiameter(n),
-    ),
-    contentFloor,
-  );
   const silhouette = resolvePieSilhouette(mergedStyle);
   const silW = silhouette.left + silhouette.right;
-  const contentH = silW > 0
-    ? contentD * (silhouette.top + silhouette.bottom) / silW
-    : contentD;
+  const silH = silhouette.top + silhouette.bottom;
+  const sFromWidth = silW > 0
+    ? (slotW - labelBudget.horizontal) / silW
+    : (slotW - labelBudget.horizontal) / 2;
+  const s = Math.max(
+    Math.min(sFromWidth, mergedStyle.idealHeight.idealPieDiameter(n) / 2),
+    contentFloor / 2,
+  );
+  const contentH = silH > 0 ? s * silH : s * 2;
   const slotContentH = mergedStyle.pie.outsideLabelPlacement === "nearest"
     ? contentH + labelBudget.vertical
     : Math.max(contentH, labelBudget.vertical);

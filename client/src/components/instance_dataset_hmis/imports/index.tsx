@@ -30,6 +30,8 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2ManageConnection } from "~/components/_shared/dhis2_credentials/manage_connection";
+import { CsvRunDetail } from "./_csv_run_detail";
+import { CsvWizard } from "./_csv_wizard";
 import { Dhis2RunDetail } from "./_run_detail";
 import { Dhis2TabCurrent } from "./_tab_current";
 import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
@@ -44,6 +46,9 @@ type Props = EditorComponentProps<
     // wizard for it on mount (PLAN_DHIS2_IMPORTER_UI_REVISION §3).
     presetPairs?: Dhis2RunPair[];
     presetLabel?: string;
+    // The sidebar's "Upload CSV file" button opens this surface with the CSV
+    // wizard already open.
+    autoOpenCsvWizard?: boolean;
   },
   undefined
 >;
@@ -56,6 +61,12 @@ function runningRunOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRu
 
 function queuedRunsOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRunSummary[] {
   return items.filter((r) => r.status === "queued").sort((a, b) => a.id - b.id);
+}
+
+function needsReviewRunsOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRunSummary[] {
+  return items
+    .filter((r) => r.status === "needs_review")
+    .sort((a, b) => a.id - b.id);
 }
 
 function attentionSchedulesOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisScheduledImport[] {
@@ -75,12 +86,11 @@ function nextScheduleOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisSch
   return oneShots[0] ?? enabled.find((s) => s.kind === "recurring");
 }
 
-// The unified imports surface (PLAN_DHIS2_IMPORTER_UI_REVISION): a thin tab
-// shell — Current / Future / History — plus the one wizard for every way an
-// import gets configured. The shell owns all data plumbing (both queries,
-// the poll loop, the SSE wake-up effect) so a run keeps progressing even
-// while the user sits on a different tab.
-export function DatasetHmisDhis2Runs(p: Props) {
+// The unified imports surface: a thin tab shell — Current / Future / History
+// — plus one wizard per source (DHIS2 runs, CSV file runs). The shell owns
+// all data plumbing (both queries, the poll loop, the SSE wake-up effect) so
+// a run keeps progressing even while the user sits on a different tab.
+export function DatasetHmisImports(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const runs = createQuery(
@@ -146,7 +156,22 @@ export function DatasetHmisDhis2Runs(p: Props) {
     }
   }
 
+  async function openCsvWizard() {
+    const res = await openComponent({
+      element: CsvWizard,
+      props: { runsQuery: runs },
+    });
+    if (res) {
+      setTab(res.landedTab);
+      await refresh();
+    }
+  }
+
   async function openRunDetail(run: DatasetHmisImportRunSummary) {
+    if (run.source === "csv") {
+      await openEditor({ element: CsvRunDetail, props: { run } });
+      return;
+    }
     const retryPairs = await openEditor({
       element: Dhis2RunDetail,
       props: { run },
@@ -188,12 +213,27 @@ export function DatasetHmisDhis2Runs(p: Props) {
     void openWizard({ kind: "presetPairs", pairs: preset, label: p.presetLabel ?? "" });
   });
 
+  // The CSV wizard needs the runs query ready (its Start-vs-Queue fork reads
+  // it), so this waits for readiness like the preset auto-open above.
+  let csvAutoOpened = false;
+  createEffect(() => {
+    const ready = runs.state().status === "ready";
+    if (csvAutoOpened || !ready || !p.autoOpenCsvWizard) return;
+    csvAutoOpened = true;
+    void openCsvWizard();
+  });
+
   function tabItems(): ListItem<TabId>[] {
     const runsState = runs.state();
     const schedulingState = scheduling.state();
     const currentCount =
       runsState.status === "ready"
-        ? runsState.data.filter((r) => r.status === "running" || r.status === "queued").length
+        ? runsState.data.filter(
+            (r) =>
+              r.status === "running" ||
+              r.status === "queued" ||
+              r.status === "needs_review",
+          ).length
         : 0;
     const futureCount =
       schedulingState.status === "ready"
@@ -221,7 +261,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
           <HeadingBar
             tonal
             onBack={() => p.close(undefined)}
-            heading={t3({ en: "Import from DHIS2", fr: "Importation depuis DHIS2", pt: "Importação a partir do DHIS2" })}
+            heading={t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
           >
             <div class="ui-gap-sm flex flex-none items-center">
               <Button
@@ -229,7 +269,10 @@ export function DatasetHmisDhis2Runs(p: Props) {
                 iconName="databaseImport"
                 disabled={!schedulingReady()}
               >
-                {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
+                {t3({ en: "New DHIS2 import", fr: "Nouvelle importation DHIS2", pt: "Nova importação DHIS2" })}
+              </Button>
+              <Button onClick={openCsvWizard} iconName="upload" outline onBackground="base-200">
+                {t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
               </Button>
               <Button
                 onClick={openManageConnection}
@@ -296,6 +339,7 @@ export function DatasetHmisDhis2Runs(p: Props) {
                       <Dhis2TabCurrent
                         runningRun={runningRunOf(keyedRuns)}
                         queuedRuns={queuedRunsOf(keyedRuns)}
+                        needsReviewRuns={needsReviewRunsOf(keyedRuns)}
                         nextSchedule={nextScheduleOf(schedulingInfo.schedules)}
                         onNewImport={() => openWizard({ kind: "new" })}
                         onChanged={refresh}
@@ -310,7 +354,10 @@ export function DatasetHmisDhis2Runs(p: Props) {
                     </Match>
                     <Match when={tab() === "history"}>
                       <Dhis2TabHistory
-                        runs={keyedRuns.filter((r) => r.status !== "queued")}
+                        runs={keyedRuns.filter(
+                          (r) =>
+                            r.status !== "queued" && r.status !== "needs_review",
+                        )}
                         onOpenRun={openRunDetail}
                       />
                     </Match>

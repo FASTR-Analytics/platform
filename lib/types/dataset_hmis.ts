@@ -1,11 +1,7 @@
 import { z } from "zod";
-import {
-  DatasetStagingResult,
-  type DatasetUploadAttemptSummary,
-} from "./dataset_hmis_import.ts";
+import { DatasetStagingResult } from "./dataset_hmis_import.ts";
 
 export type DatasetHmisDetail = {
-  uploadAttempt: DatasetUploadAttemptSummary | undefined;
   currentVersionId: number | undefined;
   nVersions: number;
 };
