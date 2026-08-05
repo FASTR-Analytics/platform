@@ -12,7 +12,8 @@ import {
 import type { Language } from "panther";
 import { StateHolderWrapper, createQuery } from "panther";
 import { JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
-import { serverActions } from "~/server_actions";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { setServerActionTransport } from "~/server_actions/transport";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -27,6 +28,29 @@ const bypassAuth =
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 export const clerk = new Clerk(publishableKey);
+
+// The browser transport for the server-action layer: Clerk cookie auth, with
+// a session refresh before each request and a hard reload on persistent 401.
+// Headless hosts register their own transport (personal access token +
+// absolute base URL) instead of loading this module.
+setServerActionTransport({
+  baseUrl: _SERVER_HOST,
+  refreshSession: async () => {
+    await clerk.session?.getToken();
+  },
+  getHeaders: () => ({}),
+  credentials: "include",
+  onPersistentAuthFailure: ({ url, body }) => {
+    console.error("[AUTH] Refreshing browser due to persistent 401", {
+      url,
+      body,
+      clerkSessionStatus: clerk.session?.status,
+      clerkSessionExpiry: clerk.session?.expireAt,
+      clerkSessionLastActive: clerk.session?.lastActiveAt,
+    });
+    window.location.href = "/";
+  },
+});
 
 type Props = {
   children: (

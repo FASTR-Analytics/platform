@@ -12,18 +12,19 @@ import {
 } from "./exposed_env_vars.ts";
 import type { DBProjectUserRole, DBUser } from "./db/mod.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
-import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
+import type { GlobalUser, ProjectPermission, ProjectUser } from "lib";
 import {
+  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  buildProjectPermissionsFromRow,
+  buildUserPermissionsFromRow,
   createDevGlobalUser,
   createDevProjectUser,
   H_USERS,
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  buildUserPermissionsFromRow,
-  buildProjectPermissionsFromRow,
 } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
+import { getPatAuthEmail } from "./middleware/auth.ts";
 
 type RequireProjectPermissionOptions = {
   requireAdmin?: boolean;
@@ -40,8 +41,8 @@ export function requireProjectPermission(
   const perms: ProjectPermission[] = isOptions
     ? restArgs
     : firstArg
-      ? [firstArg as ProjectPermission, ...restArgs]
-      : restArgs;
+    ? [firstArg as ProjectPermission, ...restArgs]
+    : restArgs;
 
   const { requireAdmin = false, preventAccessToLockedProjects = false } =
     options;
@@ -159,15 +160,33 @@ export async function getGlobalUser(
     );
   }
 
+  // Personal-access-token requests (headless clients) carry no Clerk session;
+  // the auth middleware already resolved the token to the user's email.
+  const patEmail = getPatAuthEmail(c);
+  if (patEmail !== undefined) {
+    return await buildGlobalUserFromDb(patEmail, null, null);
+  }
+
   // @ts-ignore: Clerk middleware types not fully compatible with Hono
   const auth = getAuth(c);
   if (!auth?.userId) {
     return "NOT_AUTHENTICATED";
   }
 
+  return await buildGlobalUserFromDb(
+    auth.sessionClaims.email as string,
+    auth.sessionClaims.firstName as string,
+    auth.sessionClaims.lastName as string,
+  );
+}
+
+async function buildGlobalUserFromDb(
+  email: string,
+  claimFirstName: string | null,
+  claimLastName: string | null,
+): Promise<GlobalUser> {
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-    const email = auth.sessionClaims.email as string;
 
     const rawUserResult = await mainDb<
       DBUser[]
@@ -189,8 +208,8 @@ export async function getGlobalUser(
     const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
       ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
       : rawUser
-        ? buildUserPermissionsFromRow(rawUser)
-        : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
+      ? buildUserPermissionsFromRow(rawUser)
+      : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
@@ -199,8 +218,8 @@ export async function getGlobalUser(
       instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
       openAccess: _OPEN_ACCESS,
       email,
-      firstName: auth.sessionClaims.firstName as string,
-      lastName: auth.sessionClaims.lastName as string,
+      firstName: claimFirstName ?? rawUser?.first_name ?? "",
+      lastName: claimLastName ?? rawUser?.last_name ?? "",
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
       thisUserPermissions,
@@ -276,8 +295,12 @@ export async function resolveProjectUserAccess(
       throw new Error("Middleware error: No project listing in main.db");
     }
 
-    if (rawProject.is_central_reporting && !H_USERS.includes(globalUser.email)) {
-      throw new Error("Middleware error: User does not have access to this project");
+    if (
+      rawProject.is_central_reporting && !H_USERS.includes(globalUser.email)
+    ) {
+      throw new Error(
+        "Middleware error: User does not have access to this project",
+      );
     }
 
     if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {

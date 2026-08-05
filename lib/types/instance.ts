@@ -13,7 +13,6 @@ import {
 import { ProjectSummary, ProjectUserRoleType } from "./projects.ts";
 import type { Language } from "@timroberton/panther";
 
-
 // ============================================================================
 // API Response Types
 // ============================================================================
@@ -93,13 +92,13 @@ export type InstanceDetail = {
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   structure:
     | {
-        adminArea1s: number;
-        adminArea2s: number;
-        adminArea3s: number;
-        adminArea4s: number;
-        facilitiesHmis: number;
-        facilitiesHfa: number;
-      }
+      adminArea1s: number;
+      adminArea2s: number;
+      adminArea3s: number;
+      adminArea4s: number;
+      facilitiesHmis: number;
+      facilitiesHfa: number;
+    }
     | undefined;
   structureLastUpdated?: string;
   hfaWeights: HfaWeightsCoverage[];
@@ -213,7 +212,8 @@ export function getEnabledOptionalFacilityColumns(
 export function hashFacilityColumnsConfig(
   config: InstanceConfigFacilityColumns,
 ): string {
-  const keys = Object.keys(config).sort() as (keyof InstanceConfigFacilityColumns)[];
+  const keys = Object.keys(config)
+    .sort() as (keyof InstanceConfigFacilityColumns)[];
   return JSON.stringify(keys.map((k) => [k, config[k] ?? null]));
 }
 
@@ -252,6 +252,13 @@ export type OtherUser = {
   unlimitedAi: boolean;
   isContactPerson: boolean;
 } & UserPermissions;
+
+export type PersonalAccessTokenSummary = {
+  id: number;
+  label: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
 
 export type UserLog = {
   id: number;
@@ -435,39 +442,41 @@ export type ItemsHolderStructure = {
 
 export type ItemsHolderResultsObject =
   | {
-      status: "ok";
-      totalCount: number;
-      items: JsonArrayItem[];
-    }
+    status: "ok";
+    totalCount: number;
+    items: JsonArrayItem[];
+  }
   | {
-      status: "no_data_available";
-    };
+    status: "no_data_available";
+  };
 
-export type ItemsHolderPresentationObject = {
-  projectId: string;
-  resultsObjectId: string;
-  fetchConfig: GenericLongFormFetchConfig;
-  moduleLastRun: string;
-  // Freshness of the dataset(s) feeding this module's indicator metadata.
-  // indicatorMetadata is rewritten on dataset integration (which bumps
-  // datasets.last_updated) independently of moduleLastRun, so the cache must
-  // version on this too. Carried in the holder so parseData can reproduce it.
-  datasetsVersion: string;
-  // The immutable run this payload was served from — the cache identity
-  // (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's Postgres
-  // baseline, which never enters the caches.
-  runId?: string;
-  dateRange: PeriodBounds | undefined;
-} & (
-  | {
+export type ItemsHolderPresentationObject =
+  & {
+    projectId: string;
+    resultsObjectId: string;
+    fetchConfig: GenericLongFormFetchConfig;
+    moduleLastRun: string;
+    // Freshness of the dataset(s) feeding this module's indicator metadata.
+    // indicatorMetadata is rewritten on dataset integration (which bumps
+    // datasets.last_updated) independently of moduleLastRun, so the cache must
+    // version on this too. Carried in the holder so parseData can reproduce it.
+    datasetsVersion: string;
+    // The immutable run this payload was served from — the cache identity
+    // (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's Postgres
+    // baseline, which never enters the caches.
+    runId?: string;
+    dateRange: PeriodBounds | undefined;
+  }
+  & (
+    | {
       status: "ok";
       items: JsonArrayItem[];
       indicatorMetadata: IndicatorMetadata[];
     }
-  | {
+    | {
       status: "too_many_items";
     }
-  | {
+    | {
       status: "no_data_available";
     }
-);
+  );

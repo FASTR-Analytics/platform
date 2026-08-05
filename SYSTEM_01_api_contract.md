@@ -10,6 +10,7 @@ globs:
   - lib/types/permissions.ts
   - lib/types/streaming.ts
   - main.ts
+  - server/db/instance/personal_access_tokens.ts
   - server/db/instance/users.ts
   - server/middleware/auth.ts
   - server/middleware/cache.ts
@@ -267,16 +268,36 @@ here uses the registry.
 
 ## Access control
 
-### `authMiddleware` — Clerk, populate-not-reject
+### `authMiddleware` — Clerk (populate-not-reject) with a PAT branch
 
-`server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough : clerkMiddleware()`.
-Clerk runs as global middleware (`app.use("*", authMiddleware)` in `main.ts`)
-and only **populates** `getAuth(c)` — it never rejects. Rejection is the job of
+`server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough :` a composed
+middleware. Requests whose `Authorization` header carries a **personal access
+token** (`Bearer fastr_pat_…`) are resolved against
+`personal_access_tokens` (SHA-256 hash lookup that also stamps
+`last_used_at`); an unknown token is rejected immediately
+(`401 authError: true`), a valid one sets `c.var.patAuthEmail` and skips Clerk
+entirely. Everything else goes through `clerkMiddleware()`, which only
+**populates** `getAuth(c)` — it never rejects. Rejection is the job of
 a per-route guard, so a route with no guard is reachable by any authenticated
 caller. Mount order matters: the public dashboard routes and the `/d/:slug` SPA
 page are registered before the global middleware (anonymous-reachable);
 `authMiddleware` is additionally mounted on `/api/d/*` first so public dashboard
 routes can still read a session when one exists.
+
+**Personal access tokens** are the headless credential (MCP server, CLI):
+minted per user (self-service routes `createPersonalAccessToken` /
+`listPersonalAccessTokens` / `revokePersonalAccessToken`, always scoped to
+`c.var.globalUser.email`), shown once at mint, stored only as a hash
+(`server/db/instance/personal_access_tokens.ts`, migration 073). In
+`getGlobalUser`, `patAuthEmail` short-circuits the Clerk branch and feeds the
+same DB-backed `GlobalUser` construction, so a PAT request has exactly the
+user's own permissions — every guard downstream is unchanged. Client-side, the
+server-action layer reaches its environment only through the
+**transport seam** (`client/src/server_actions/transport.ts`):
+LoggedInWrapper registers the browser transport (Clerk cookie,
+session refresh, reload on persistent 401) at module scope, and a headless
+host registers a PAT + absolute-base-URL transport instead — the generated
+actions are identical in both.
 
 ### The two guard factories
 

@@ -5,8 +5,7 @@ import type {
   ServerActionsType,
 } from "lib";
 import { routeRegistry } from "lib";
-import { clerk } from "~/components/LoggedInWrapper";
-import { _SERVER_HOST } from "./index";
+import { getServerActionTransport } from "./transport";
 import { tryCatchServer } from "./try_catch_server";
 
 export function createAllServerActions(): ServerActionsType {
@@ -31,6 +30,7 @@ function createServerAction(
   timeoutMs?: number,
 ) {
   return async (args: any, onProgress?: ProgressCallback): Promise<any> => {
+    const transport = getServerActionTransport();
     const { url, hasBody, bodyData, headers } = buildRequestParams(
       path,
       args,
@@ -38,20 +38,22 @@ function createServerAction(
     );
     const methodUpper = method.toUpperCase();
     const canHaveBody = methodUpper !== "GET" && methodUpper !== "HEAD";
+    const mergedHeaders = { ...transport.getHeaders(), ...headers };
     const init: RequestInit = {
       method,
       body: hasBody && canHaveBody ? JSON.stringify(bodyData) : undefined,
-      credentials: "include",
-      headers: Object.keys(headers).length > 0 ? headers : undefined,
+      credentials: transport.credentials,
+      headers:
+        Object.keys(mergedHeaders).length > 0 ? mergedHeaders : undefined,
     };
     if (!isStreaming) {
-      return await tryCatchServer(`${_SERVER_HOST}${url}`, init, timeoutMs);
+      return await tryCatchServer(`${transport.baseUrl}${url}`, init, timeoutMs);
     }
-    // Token refresh before long-running stream — no timeout/retry: an AbortController
+    // Session refresh before long-running stream — no timeout/retry: an AbortController
     // timeout would kill legitimately long streams, and replaying a non-idempotent
     // streaming POST is wrong.
-    await clerk.session?.getToken();
-    const response = await fetch(`${_SERVER_HOST}${url}`, init);
+    await transport.refreshSession();
+    const response = await fetch(`${transport.baseUrl}${url}`, init);
     return await consumeStream(response, onProgress);
   };
 }

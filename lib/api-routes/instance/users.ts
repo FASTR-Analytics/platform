@@ -1,6 +1,14 @@
 import { z } from "zod";
-import type { GlobalUser, OtherUser, ProjectUserRole, UserLog, UserPermission, ProjectPermission } from "../../types/mod.ts";
-import { USER_PERMISSIONS, PROJECT_PERMISSIONS } from "../../types/mod.ts";
+import type {
+  GlobalUser,
+  OtherUser,
+  PersonalAccessTokenSummary,
+  ProjectPermission,
+  ProjectUserRole,
+  UserLog,
+  UserPermission,
+} from "../../types/mod.ts";
+import { PROJECT_PERMISSIONS, USER_PERMISSIONS } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 const emailParamsSchema = z.object({ email: z.string() });
@@ -10,10 +18,19 @@ const emailParamsSchema = z.object({ email: z.string() });
 // (any subset is valid); strip mode drops any non-permission key a client might send, which
 // is what keeps an arbitrary column out of the SET clause.
 const userPermissionsSchema = z
-  .object(Object.fromEntries(USER_PERMISSIONS.map((k) => [k, z.boolean()])) as Record<UserPermission, z.ZodBoolean>)
+  .object(
+    Object.fromEntries(USER_PERMISSIONS.map((k) => [k, z.boolean()])) as Record<
+      UserPermission,
+      z.ZodBoolean
+    >,
+  )
   .partial();
 const projectPermissionsSchema = z
-  .object(Object.fromEntries(PROJECT_PERMISSIONS.map((k) => [k, z.boolean()])) as Record<ProjectPermission, z.ZodBoolean>)
+  .object(
+    Object.fromEntries(
+      PROJECT_PERMISSIONS.map((k) => [k, z.boolean()]),
+    ) as Record<ProjectPermission, z.ZodBoolean>,
+  )
   .partial();
 
 export const userRouteRegistry = {
@@ -46,7 +63,10 @@ export const userRouteRegistry = {
   batchUploadUsers: route({
     path: "/users/batch",
     method: "POST",
-    body: z.object({ asset_file_name: z.string(), replace_all_existing: z.boolean() }),
+    body: z.object({
+      asset_file_name: z.string(),
+      replace_all_existing: z.boolean(),
+    }),
   }),
   getAllUserLogs: route({
     path: "/all-user-logs",
@@ -67,7 +87,10 @@ export const userRouteRegistry = {
   bulkUpdateUserPermissions: route({
     path: "/user/permissions/bulk",
     method: "POST",
-    body: z.object({ emails: z.array(z.string()), permissions: userPermissionsSchema }),
+    body: z.object({
+      emails: z.array(z.string()),
+      permissions: userPermissionsSchema,
+    }),
   }),
   getUserDefaultProjectPermissions: route({
     path: "/user/:email/default-project-permissions",
@@ -78,17 +101,29 @@ export const userRouteRegistry = {
   updateUserDefaultProjectPermissions: route({
     path: "/user/default-project-permissions",
     method: "POST",
-    body: z.object({ email: z.string(), permissions: projectPermissionsSchema }),
+    body: z.object({
+      email: z.string(),
+      permissions: projectPermissionsSchema,
+    }),
   }),
   bulkUpdateUserDefaultProjectPermissions: route({
     path: "/user/default-project-permissions/bulk",
     method: "POST",
-    body: z.object({ emails: z.array(z.string()), permissions: projectPermissionsSchema }),
+    body: z.object({
+      emails: z.array(z.string()),
+      permissions: projectPermissionsSchema,
+    }),
   }),
   getAiUsage: route({
     path: "/user/ai-usage",
     method: "GET",
-    response: {} as { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null },
+    response: {} as {
+      tokensUsedToday: number;
+      dailyTokenLimit: number | null;
+      isUnlimited: boolean;
+      tokensUsedThisWeek: number;
+      weeklyTokenLimit: number | null;
+    },
   }),
   setUserUnlimitedAi: route({
     path: "/user/unlimited-ai",
@@ -99,5 +134,21 @@ export const userRouteRegistry = {
     path: "/user/contact-person",
     method: "POST",
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
+  }),
+  createPersonalAccessToken: route({
+    path: "/user/personal-access-tokens",
+    method: "POST",
+    body: z.object({ label: z.string() }),
+    response: {} as { token: string; pat: PersonalAccessTokenSummary },
+  }),
+  listPersonalAccessTokens: route({
+    path: "/user/personal-access-tokens",
+    method: "GET",
+    response: {} as PersonalAccessTokenSummary[],
+  }),
+  revokePersonalAccessToken: route({
+    path: "/user/personal-access-tokens",
+    method: "DELETE",
+    body: z.object({ id: z.number() }),
   }),
 } as const;

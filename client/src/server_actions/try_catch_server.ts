@@ -1,5 +1,5 @@
 import { APIResponseNoData, APIResponseWithData } from "lib";
-import { clerk } from "~/components/LoggedInWrapper";
+import { getServerActionTransport } from "./transport";
 import {
   reportNetworkFailure,
   reportNetworkSuccess,
@@ -32,7 +32,7 @@ export async function tryCatchServer<
         await new Promise((res) => setTimeout(res, 500));
       }
 
-      await clerk.session?.getToken();
+      await getServerActionTransport().refreshSession();
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
@@ -64,14 +64,10 @@ export async function tryCatchServer<
               await new Promise((r) => setTimeout(r, 500));
               continue;
             }
-            console.error("[AUTH] Refreshing browser due to persistent 401", {
+            getServerActionTransport().onPersistentAuthFailure({
               url: input instanceof Request ? input.url : String(input),
               body,
-              clerkSessionStatus: clerk.session?.status,
-              clerkSessionExpiry: clerk.session?.expireAt,
-              clerkSessionLastActive: clerk.session?.lastActiveAt,
             });
-            window.location.href = "/";
             return { success: false, err: "Not authenticated" } as T;
           }
         } catch {
