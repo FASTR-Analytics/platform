@@ -27,11 +27,17 @@ export {
   RectCoordsDims,
 } from "../_001_geometry/mod.ts";
 export type { PaddingOptions } from "../_001_geometry/mod.ts";
-export { computeBoundsForPath, Z_INDEX } from "../_001_render_system/mod.ts";
+export {
+  computeBoundsForPath,
+  createHeaderItems,
+  sortHeaderItems,
+  Z_INDEX,
+} from "../_001_render_system/mod.ts";
 export type {
   AreaStyle,
   Arrowhead,
   ArrowPrimitive,
+  AxisMembership,
   BoxPrimitive,
   CascadeArrowInfo,
   CascadeArrowPrimitive,
@@ -50,6 +56,7 @@ export type {
   FigureFitReport,
   FigureLabelPrimitive,
   HeaderItem,
+  HeaderSortConfig,
   HeightConstraints,
   LineStyle,
   MeasuredText,

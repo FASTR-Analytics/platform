@@ -3,13 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export { createArray } from "../_000_utils/mod.ts";
-export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
-export {
-  createHeaderItems,
-  sortHeaderItems,
-} from "../_001_render_system/mod.ts";
 export type {
   AxisMembership,
   HeaderItem,
@@ -23,33 +17,20 @@ export type {
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOVStyle } from "../_003_figure_style/mod.ts";
 export {
-  calculateChartScaleLimits,
   calculateMinSubChartHeight,
-  checkValuePropsAssignment,
-  collectHeaders,
-  deriveVisibleIndicatorsByPane,
-  deriveVisibleIndicatorsByPaneBand,
-  deriveVisibleLanesByPane,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
-  fillValuesWithDuplicateCheck,
   getChartHeightConstraintsByMeasure,
-  getHeaderIndex,
-  isRowBasedUncertainty,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
   measureChart,
   measureChartWithAutofit,
   renderFigureBackground,
   renderFigurePrimitives,
-  resolveChartProportional,
   resolveDefaultLegend,
   resolveScaleAxisFloorPlotH,
   resolveScaleAxisPlotHeight,
-  validateChartMembership,
-  validateChartProportional,
-  validateDataInput,
-  validateUncertaintyConfig,
+  transformOneWayChartJson,
 } from "../_007_figure_core/mod.ts";
 export type {
   ChartComponentSizes,
@@ -59,7 +40,6 @@ export type {
   LegendInput,
   MeasuredSurrounds,
   PaneLayout,
-  ProcessedHeaders,
   SimplifiedChartConfig,
   UncertaintyConfig,
 } from "../_007_figure_core/mod.ts";
