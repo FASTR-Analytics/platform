@@ -181,13 +181,18 @@ async function spawnIcehRunWorker(
     clearWorker("iceh", worker);
     worker.terminate();
     try {
-      await mainDb`
+      // The flip gates the zip delete: a crash after the needs_review flip
+      // matches nothing here, and a held run's zip must survive — it is
+      // what "Integrate anyway" re-ingests from.
+      const flipped = await mainDb`
         UPDATE iceh_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
           error = ${`Worker crashed: ${e.message || "Unknown error"}`}
         WHERE id = ${runId} AND status = 'running'
       `;
-      await deleteImportTempUpload(config.zipUploadToken);
+      if (flipped.count > 0) {
+        await deleteImportTempUpload(config.zipUploadToken);
+      }
     } catch (dbError) {
       console.error("Failed to mark ICEH run errored after crash:", dbError);
     }

@@ -11,19 +11,25 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 
 export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
   // Counts/years alone are value-insensitive (a corrected re-import with
-  // identical counts hashes the same), so the latest import run's id:status
-  // is included: every (re-)import flips the hash at completion, and mid-run
-  // values can never collide with the post-completion value. Two consumers
-  // depend on "hash changes iff import state changed": the client display
-  // cache (instance.ts) and the results-run capture staleness hash
-  // (datasets_in_project_iceh.ts).
-  const latestRun = (
-    await mainDb<{ id: number; status: string }[]>`
-      SELECT id, status FROM iceh_import_runs ORDER BY id DESC LIMIT 1
+  // identical counts hashes the same), so the run marker is included: every
+  // (re-)import flips the hash at completion, and mid-run values can never
+  // collide with the post-completion value. The marker needs BOTH facts:
+  // latest id:status alone misses an out-of-order completion (a needs_review
+  // hold releases the slot, so an older run can integrate-anyway AFTER a
+  // newer run completed — only its ended_at moves), and MAX(ended_at) alone
+  // misses launches. Two consumers depend on "hash changes iff import state
+  // changed": the client display cache (instance.ts) and the results-run
+  // capture staleness hash (datasets_in_project_iceh.ts).
+  const runFacts = (
+    await mainDb<{ latest: string | null; last_ended: string | null }[]>`
+      SELECT
+        (SELECT id || ':' || status FROM iceh_import_runs
+         ORDER BY id DESC LIMIT 1) AS latest,
+        (SELECT MAX(ended_at)::text FROM iceh_import_runs) AS last_ended
     `
-  ).at(0);
-  const runMarker = latestRun
-    ? `${latestRun.id}:${latestRun.status}`
+  )[0];
+  const runMarker = runFacts.latest
+    ? `${runFacts.latest}@${runFacts.last_ended ?? ""}`
     : "no_runs";
   const indicatorCount = (await mainDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM iceh_indicators

@@ -132,20 +132,28 @@ async function run(payload: ImportIcehDataWorkerPayload) {
   } catch (e) {
     console.error("ICEH import run failed:", e);
     const errorMessage = truncateWorkerError(e);
+    // The flip comes FIRST and gates the zip delete: a crash after the
+    // needs_review flip leaves the run held (this UPDATE matches nothing),
+    // and a held run's zip must survive — it is what "Integrate anyway"
+    // re-ingests from.
+    let flippedToError = false;
     try {
-      await deleteImportTempUpload(config.zipUploadToken);
-    } catch {
-      // Ignore cleanup errors
-    }
-    try {
-      await mainDb`
+      const flipped = await mainDb`
         UPDATE iceh_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
           error = ${errorMessage}
         WHERE id = ${runId} AND status = 'running'
       `;
+      flippedToError = flipped.count > 0;
     } catch {
       // Ignore status update errors
+    }
+    if (flippedToError) {
+      try {
+        await deleteImportTempUpload(config.zipUploadToken);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
     try {
       await importDb.end();
