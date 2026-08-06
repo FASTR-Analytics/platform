@@ -245,18 +245,10 @@ export function ChangeEmailModal(
     <ModalContainer
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
       width="lg"
-      leftButtons={[
-        phase() === "report"
-          ? (
-            <Button onClick={() => window.location.reload()} outline iconName="x">
-              {t3({ en: "Reload", fr: "Recharger", pt: "Recarregar" })}
-            </Button>
-          )
-          : (
-            <Button onClick={() => p.close(undefined)} outline iconName="x">
-              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-            </Button>
-          ),
+      leftButtons={phase() === "report" ? [] : [
+        <Button onClick={() => p.close(undefined)} outline iconName="x">
+          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+        </Button>,
       ]}
     >
       <Show when={phase() === "enter"}>
