@@ -89,8 +89,11 @@ pre-render (Open items).
 
 ## Routing & page maps
 
-The URL surface is deliberately minimal — two routes in `app.tsx`: `/d/:slug`
-(the public dashboard viewer, S12) and `/*` (the logged-in app). Within the app,
+The URL surface is deliberately minimal — three routes in `app.tsx`: `/d/:slug`
+(the public dashboard viewer, S12), `/access-tokens` (the unlisted Clerk-gated
+PAT panel, `routes/access_tokens.tsx` — reached only by knowing the URL; the
+path is deliberately NOT `/pat`, which is the server's PAT API mount and never
+reaches the SPA), and `/*` (the logged-in app). Within the app,
 exactly one URL parameter matters: **`?p=<projectId>`** selects
 project-vs-instance (`components/instance/index.tsx` switches on
 `searchParams.p`); "back to instance" is `navigate("/")`.

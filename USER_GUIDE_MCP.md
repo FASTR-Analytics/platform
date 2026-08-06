@@ -71,10 +71,19 @@ For a deployed instance, the base URL is that instance's origin (e.g.
 
 The MCP host authenticates with a per-user PAT (a `fastr_pat_…` string). The
 token resolves to **your** user identity server-side, so everything the assistant
-does is scoped to your permissions. There is **no UI for minting yet**, so mint
-one of these two ways.
+does is scoped to your permissions.
 
-### Option A (recommended for local dev): the mint task
+### Option A (works everywhere): the token panel
+
+Log in to the instance in your browser and go to **`/access-tokens`** (e.g.
+`https://your-instance.org/access-tokens`). The page is unlisted — no menu
+links to it — but it is behind the normal login, and only ever shows YOUR
+tokens. Enter a label, click **Create token**, and copy the `fastr_pat_…`
+value: it is shown only once (only its SHA-256 hash is stored). If you lose
+it, revoke it and mint a new one. The panel also shows each token's
+last-used time and has a **Revoke** button.
+
+### Option B (local dev, no browser): the mint task
 
 From the repo root, with your app `.env` present (it carries the DB
 credentials):
@@ -84,35 +93,15 @@ deno task mint-pat you@example.com local-claude
 ```
 
 Use YOUR account email (the one you log into FASTR with) and any label you
-like. Copy the printed `fastr_pat_…` value. Only its SHA-256 hash is stored;
-you cannot read it back later — if you lose it, mint a new one.
+like.
 
 > The email must already exist as a FASTR user. If you normally log in with
 > Clerk, use that same email — the PAT then carries your exact permissions.
 
-### Option B: mint over the API (deployed instance, while logged in)
-
-The mint route is `POST /user/personal-access-tokens` behind normal Clerk auth.
-If you have a valid session, call it with your session credentials and a label
-`{"label":"local-claude"}`; the response contains `{ token, pat }`. (Option A is
-simpler locally because it avoids extracting a browser session cookie.)
-
 ### Revoking
 
-A PAT does **not expire** — it is valid until revoked. To revoke, delete the row
-(or call `DELETE /user/personal-access-tokens` with `{ "id": <n> }` while logged
-in):
-
-```bash
-deno run -A --env-file - <<'EOF'
-import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
-import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
-const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-await db`DELETE FROM personal_access_tokens WHERE user_email = 'you@example.com'`;
-console.log("revoked all PATs for that user");
-await closeAllConnections();
-EOF
-```
+A PAT does **not expire** — it is valid until revoked. Revoke it from the
+`/access-tokens` panel (or delete its row in `personal_access_tokens`).
 
 ---
 
