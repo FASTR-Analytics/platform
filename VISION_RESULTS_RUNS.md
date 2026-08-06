@@ -82,7 +82,7 @@ the transportability end-state — tracked as SNAP-5 in the plan's §8.)
   versioning: cache keys are `runId + query hash`, with no data-version
   dimension left to go stale.
 
-  **Amendment (PLAN_MANIFEST_MIGRATIONS): package outputs are immutable; the
+  **Amendment (2026-08-06): package outputs are immutable; the
   manifest is a derived descriptor and may be transformed forward.** A schema
   change would otherwise orphan every existing package, and "regenerate" stops
   being a real remedy once Phase 4 drops the project-DB tables the synthesizer

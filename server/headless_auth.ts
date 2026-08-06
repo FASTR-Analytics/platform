@@ -68,6 +68,15 @@ export async function resolveHeadlessCredentialEmail(
 // POSITIVE ENTRIES ONLY. Failures are never cached: a bad token must not be
 // able to occupy a cache slot, and re-asking Clerk about a revoked token is
 // exactly the behaviour we want.
+//
+// ACCEPTED, not overlooked: this means a flood of DISTINCT well-shaped tokens
+// (`oat_…` or JWT-shaped) costs one Clerk Backend API call each and can burn
+// the instance's rate limit, degrading OAuth auth to 503s. Unshaped garbage is
+// free — Clerk rejects it on the prefix with no network call — so this needs a
+// deliberate attacker. Negative caching would NOT fix it: the cache is keyed by
+// token, so an attacker who varies the token misses every time. The real
+// mitigation, if this ever matters, is request-rate limiting at the edge or a
+// circuit breaker around the verifier, not a bigger cache.
 const OAUTH_EMAIL_TTL_MS = 30_000;
 const OAUTH_EMAIL_CACHE_CAP = 200;
 
@@ -109,9 +118,31 @@ function oauthEmailSet(token: string, email: string): void {
 const BAD_CREDENTIAL_REASONS: readonly string[] = [
   // Clerk answered 404 — unknown, expired, or revoked token.
   "token-invalid",
-  // A Bearer token that is not an OAuth access token at all.
+  // A Bearer token that is not an OAuth access token at all. Note this costs
+  // NO network call: Clerk short-circuits on the token prefix, so unshaped
+  // garbage is rejected locally.
   "token-type-mismatch",
 ];
+
+// TWO HAZARDS PARKED HERE DELIBERATELY, both resolved by the same unanswered
+// question: does Clerk issue OPAQUE (`oat_…`) or JWT access tokens to a
+// dynamically-registered client? Confirm during live verification.
+//
+// 1. If JWT: `@clerk/backend` verifies locally against JWKS and collapses
+//    expiry, bad signature AND jwks-fetch-failure into the single reason
+//    `token-verification-failed`, which is NOT in the list above and therefore
+//    throws → 503. An EXPIRED token would then make a client retry instead of
+//    refreshing, so every connector session wedges at token expiry. Do not fix
+//    by adding that reason to the list — that would misreport a JWKS outage as
+//    a bad credential. The correct fix is a local `exp` pre-check for
+//    JWT-shaped tokens, mapping only genuine expiry to null.
+// 2. If OPAQUE: the SDK reads `revoked`/`expired` off the verified token record
+//    but never CHECKS them (they are assigned to the resource object and
+//    nothing compares them). That is only safe if Clerk's verify endpoint
+//    answers 4xx for a revoked/expired token rather than 200 with the flags
+//    set. A live 404 was observed for a NONEXISTENT token, which does not
+//    settle the revoked case. If revocation mid-session does not take effect,
+//    this is why, and the fix is to check those flags explicitly.
 
 let clerkClient: ReturnType<typeof createClerkClient> | null = null;
 

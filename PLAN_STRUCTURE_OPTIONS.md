@@ -3,17 +3,12 @@
 Status: planned 2026-08-04 (unified from two earlier plans, Tim's ruling), not
 started.
 
-**Blocked on [PLAN_MANIFEST_MIGRATIONS.md](PLAN_MANIFEST_MIGRATIONS.md) items
-1–4** (Tim's ruling 2026-08-06). Ruling 7 changes the run manifest's shape, and
-today that means bumping `RUN_MANIFEST_SCHEMA_VERSION` — which
-[manifest_cache.ts](server/runs/manifest_cache.ts) turns into a hard throw
-("regenerate the run") for every existing package. The dual-field + read-time
-fallback this plan originally specified existed *solely* to dodge that bump, and
-it is precisely the runtime-adapter pattern PLAN_MANIFEST_MIGRATIONS §10 is
-written to delete. Once manifests can be transformed forward in place, ruling 7
-becomes a transform block and the read path parses one shape. Do not build the
-fallback: manifest migrations is pre-rollout and behavior-neutral, so the
-ordering is cheap, and after the fleet rollout the fallback is permanent debt.
+**Do not build the dual-field + read-time fallback** this plan originally
+specified. Ruling 7 is a manifest transform block
+([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) § "Run Manifest
+Transforms") and the read path parses one shape; a fallback is precisely the
+runtime-adapter pattern SYSTEM_08's "the read path parses the manifest only"
+target state is written to delete.
 
 Also do this after the tim-branch→main merge.
 
@@ -139,16 +134,16 @@ structure_schema_hmis / structure_schema_hfa (instance_config keys):
    shared `adminAreaLabels` (optional, additive) at the same time. Bump
    `RUN_MANIFEST_SCHEMA_VERSION`.
 
-   Existing packages are carried forward by a
-   [PLAN_MANIFEST_MIGRATIONS.md](PLAN_MANIFEST_MIGRATIONS.md) transform block,
-   which is why this plan waits on that one. The two halves of the schema fact
-   are recovered differently, and the difference matters:
+   Existing packages are carried forward by a manifest transform block
+   ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) § "Run Manifest
+   Transforms"). The two halves of the schema fact are recovered differently,
+   and the difference matters:
 
    - **include-flags — recomputed from the package.** Every package carries
      `inputs/facilities_hmis.parquet` + `facilities_hfa.parquet`, so the block
      applies ruling 1's own rule (`EXISTS(value IS NOT NULL AND value <> '')`
-     per optional column) directly over them. Squarely inside
-     PLAN_MANIFEST_MIGRATIONS §3, which already blesses recomputing
+     per optional column) directly over them. Squarely inside the
+     recompute-only invariant, which already blesses recomputing
      `facilitiesTables[].columns`.
    - **adminDepth — read from `instance_config.max_admin_area`, NOT derived
      from the data.** Ruling 1 records depth from the mapping precisely because
@@ -163,16 +158,17 @@ structure_schema_hmis / structure_schema_hfa (instance_config keys):
      tables — and a package can only have been generated from a non-empty
      facilities table. So the live value IS the value in force when every
      package on that instance was generated. It is provably
-     immutable-since-generation, which is the amended §3 rule
-     (PLAN_MANIFEST_MIGRATIONS §3) this depends on.
+     immutable-since-generation, which is the amendment to the
+     recompute-never-invent rule this depends on.
 
    Two consequences to build knowingly, both small:
 
-   - PLAN_MANIFEST_MIGRATIONS §4.3 fixes the transform signature as
-     `(manifest, runDir)` with deliberately no DB. This block needs `mainDb`,
-     so that signature widens — and the transform stops being a pure function
-     of the package, which is what §3's rule was protecting.
-   - That impurity has exactly one live failure mode, §4.4's: a package
+   - The transform signature is `(manifest, runDir)` with deliberately no DB.
+     This block needs `mainDb`, so that signature widens — and the transform
+     stops being a pure function of the package, which is what the
+     recompute-only rule was protecting.
+   - That impurity has exactly one live failure mode, the late-arrival one: a
+     package
      arriving by rsync, backup restore, or copied from another instance would
      take the RECEIVING instance's depth, wrong whenever the two differ. Bound
      it — the block fills `adminDepth` only when it is absent and never
@@ -264,7 +260,6 @@ facilities-parquet column list — unaffected.
 
 ## Phasing
 
-0. (Prerequisite, not this plan) PLAN_MANIFEST_MIGRATIONS items 1–4.
 1. Server: schema fact (types, config accessors, integration
    derivation + lifecycle, migration transform, route add/delete).
 2. Server read paths: query context / disaggregation availability /

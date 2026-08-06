@@ -473,20 +473,33 @@ function pivotToWide(
 
   lines.push(headerCols.join(","));
 
-  // Group items by row dimensions
-  const grouped = new Map<string, JsonArrayItem[]>();
+  // Group items by row dimensions.
+  //
+  // The joined string is ONLY a grouping key — the dimension values are carried
+  // alongside it, never recovered by splitting it back apart. Reconstructing
+  // them with rowKey.split("|") was wrong in two ways, both of which emitted a
+  // row with a different field count from the header, silently shifting every
+  // column for a positional parser:
+  //   - with NO row dimensions the key is "", and "".split("|") is [""], not
+  //     [] — so every row gained a leading empty field (9 headers, 10 values).
+  //   - a dimension VALUE containing "|" (e.g. a region label) split into two
+  //     or more fields.
+  const grouped = new Map<
+    string,
+    { dimValues: string[]; items: JsonArrayItem[] }
+  >();
 
   for (const item of items) {
-    const rowKey = rowDimensions.map((dim) => item[dim] || "").join("|");
+    const dimValues = rowDimensions.map((dim) => String(item[dim] ?? ""));
+    const rowKey = dimValues.join("|");
     if (!grouped.has(rowKey)) {
-      grouped.set(rowKey, []);
+      grouped.set(rowKey, { dimValues, items: [] });
     }
-    grouped.get(rowKey)!.push(item);
+    grouped.get(rowKey)!.items.push(item);
   }
 
   // Build rows
-  for (const [rowKey, rowItems] of grouped) {
-    const rowDimValues = rowKey.split("|");
+  for (const { dimValues: rowDimValues, items: rowItems } of grouped.values()) {
     const pivotedValues: string[] = [];
 
     for (const pivotVal of pivotValues) {

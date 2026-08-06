@@ -152,8 +152,9 @@ ${userInserts}
   await runRunManifestTransforms(sqlMain);
 }
 
-// The manifest data transform (PLAN_MANIFEST_MIGRATIONS) — the same pattern as
-// the JSON transforms below, applied to a file. It enumerates the `runs`
+// The manifest data transform (PROTOCOL_APP_MIGRATIONS § "Run Manifest
+// Transforms") — the same pattern as the JSON transforms below, applied to a
+// file. It enumerates the `runs`
 // CATALOGUE and never the filesystem: the runs volume is shared with legacy
 // {projectId} sandbox dirs, published-failed dirs (deliberately manifest-less)
 // and .duckdb-spill, none of which are packages, and every consumer addresses a

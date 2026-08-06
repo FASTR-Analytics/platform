@@ -1,8 +1,5 @@
 # Plan: One Effective Format (pre-query, 3-way)
 
-**Depends on [PLAN_MANIFEST_MIGRATIONS.md](PLAN_MANIFEST_MIGRATIONS.md)** for
-the manifest field in §4. Everything else is independent of it.
-
 Trigger: "Show each value against 100%" never appears for HFA pies. That is one
 symptom of a value that is derived too late, from the wrong source, in four
 places.
@@ -174,19 +171,19 @@ getIndicatorMetadata", a maintained pair.
 Stamping resolved `IndicatorMetadata[]` per module into the manifest at finalize
 deletes that function, its row schemas, and its sort duplication — and hands
 the format map to every reader as a side effect. It is also the read path's
-first step off the input mirrors (PLAN_MANIFEST_MIGRATIONS §10), and the
-manifest transform's first real block: a pure recompute from `inputs/*.json`,
-so it satisfies that plan's recompute-only invariant (§3) cleanly.
+first step off the input mirrors (SYSTEM_08's "the read path parses the manifest
+only" target state), and the manifest transform's first real block: a pure
+recompute from `inputs/*.json`, so it satisfies the recompute-only invariant
+cleanly.
 
 Two obligations that come with being the first block:
 
 - `RUN_MANIFEST_SCHEMA_VERSION` bumps 2 → 3, so the forced gate transforms every
   existing package on the next boot.
 - The block cannot call `getIndicatorMetadataFromRun` as it stands — it resolves
-  paths by runId, not by the directory the transform is handed
-  (PLAN_MANIFEST_MIGRATIONS §4.3). It needs a runDir-based variant first, which
-  the finalize writer should then share so writer and transform are one code
-  path.
+  paths by runId, not by the directory the transform is handed. It needs a
+  runDir-based variant first, which the finalize writer should then share so
+  writer and transform are one code path.
 
 Post-Phase-4 this is the end-state regardless: `getIndicatorMetadata` dies with
 the snapshot tables.
@@ -248,12 +245,13 @@ ignores, or hiding one it would have honoured.
 6. `_figure_block.ts`'s `inferFormatAs` calls the lib resolver; `_5_scorecard.ts`
    gets a pointer comment saying why it stays per-indicator.
 7. Manifest `indicators[]` catalog as the first transform block (schema version
-   2 → 3) + delete `getIndicatorMetadataFromRun`'s derivation — after
-   PLAN_MANIFEST_MIGRATIONS items 1–4 are in.
+   2 → 3) + delete `getIndicatorMetadataFromRun`'s derivation. Follow
+   PROTOCOL_APP_MIGRATIONS' add-a-block checklist — it carries the cache bumps
+   and the stored-FigureBundle audit.
 8. Bundle field + render authority — with Phase 4.
 
-Steps 1–6 ship independently and fix the reported bug. Step 7 wants the manifest
-transform mechanism. Step 8 wants Phase 4.
+Steps 1–6 ship independently and fix the reported bug. Step 7 uses the manifest
+transform mechanism (already built). Step 8 wants Phase 4.
 
 ## 8. Open items
 

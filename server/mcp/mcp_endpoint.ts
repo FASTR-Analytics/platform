@@ -38,7 +38,24 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
   version: "1.0.0",
   instructions: INSTRUCTIONS,
   tools: (ctx) => buildMcpToolsForPrincipal(ctx.principal),
-  approvalMode: "elicit",
+  // Consent is the CLIENT's tool-permission prompt, not a second in-protocol
+  // one. Every MCP client already asks before running a tool, and for the only
+  // write here the arguments ARE the effect (create_report's {label, markdown}
+  // is the whole report), so an elicitation round trip asked the same question
+  // twice — and failed closed on any client that cannot present it, which made
+  // writes unreachable from claude.ai and Desktop entirely.
+  //
+  // "delegate" still runs propose() in full: skip/invalid validation, the
+  // stillValid staleness re-check, and the preview returned as an audit header
+  // on the result. It gives up exactly one thing — a prompt the client had
+  // already shown. Note the consequence: a user who has "always allow"-ed the
+  // tool gets no prompt at all, which is the same posture as every other MCP
+  // write tool.
+  //
+  // approvalPolicy is unaffected by the mode — it is a CONSTRUCTION-time guard
+  // that refuses to build a server where a kind:"write" tool has no approval
+  // block, so a future write cannot ship unguarded by omission.
+  approvalMode: "delegate",
   approvalPolicy: { requireForKind: "write", requireKind: true },
 }, {
   authenticate: async (req) => {
