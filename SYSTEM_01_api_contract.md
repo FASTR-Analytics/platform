@@ -309,7 +309,13 @@ registration would make the app server issue authenticated loopback HTTP calls
 under some user's identity — a confused-deputy shape with no per-request
 isolation. Server code reaches data through the in-process DB layer, full
 stop. (Convention-enforced today; the "transport not configured" throw makes
-misuse loud at first call.)
+misuse loud at first call.) Note there is NO compiler-enforced browser-free
+boundary in `lib/` either: the server typecheck carries the TypeScript `dom`
+lib (`deno.json` → `"lib": [... "dom" ...]`), so a `document`/`window`
+reference in a `lib/` file passes `deno check main.ts` clean — the boundary
+holds by convention plus runtime guards (`typeof document === "undefined"`
+branches, no browser globals at module scope). Mechanical enforcement, if ever
+wanted, means a separate dom-less `deno check` of `lib/` or a lint rule.
 
 ### The two guard factories
 

@@ -57,9 +57,12 @@ tool semantics. The slide/figure shapes the slide_ai helpers produce are
    Anthropic Messages API; the server forwards to Anthropic, enforces token
    limits, logs usage, and streams the response straight back. All model
    calls traverse a proxy; nothing else server-side talks to Anthropic.
-2. **Tools execute in the browser** through the same serverActions/caches as
-   the human UI, so the AI inherits the user's permissions for free and can
-   never do what the user can't.
+2. **Tools execute client-side** — in the browser SPA or in the
+   out-of-process MCP host (`mcp_host/`, a plain-Deno stdio process over the
+   same shared `lib/ai_tools` factories) — through the same
+   serverActions/caches as the human UI, so the AI inherits the user's
+   permissions for free (Clerk session in the SPA, personal access token on
+   the host — see S1) and can never do what the user can't.
 3. **Editors expose live mutators via the view registry's context** — each
    editing view's live context carries the editor's store getters/setters
    ([ai_views.ts](client/src/components/project_ai/ai_views.ts)), so the AI
