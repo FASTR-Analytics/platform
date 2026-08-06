@@ -1,5 +1,12 @@
-import { Button, Input, Table, type TableColumn } from "panther";
-import { createResource, createSignal, Show } from "solid-js";
+import {
+  Button,
+  createQuery,
+  Input,
+  StateHolderWrapper,
+  Table,
+  type TableColumn,
+} from "panther";
+import { createSignal, Show } from "solid-js";
 import type { PersonalAccessTokenSummary } from "lib";
 import { LoggedInWrapper } from "~/components/LoggedInWrapper";
 import { serverActions } from "~/server_actions";
@@ -25,13 +32,10 @@ function formatDate(iso: string | null): string {
 }
 
 function AccessTokensPanel(p: { email: string }) {
-  const [tokens, { refetch }] = createResource(async () => {
-    const res = await serverActions.listPersonalAccessTokens({});
-    if (!res.success) {
-      throw new Error(res.err);
-    }
-    return res.data;
-  });
+  const tokensQuery = createQuery(
+    () => serverActions.listPersonalAccessTokens({}),
+    "Loading tokens...",
+  );
 
   const [label, setLabel] = createSignal("");
   const [minting, setMinting] = createSignal(false);
@@ -60,7 +64,7 @@ function AccessTokensPanel(p: { email: string }) {
     setFreshToken({ label: trimmed, token: res.data.token });
     setCopied(false);
     setLabel("");
-    refetch();
+    tokensQuery.silentFetch();
   }
 
   async function revoke(pat: PersonalAccessTokenSummary): Promise<void> {
@@ -79,7 +83,7 @@ function AccessTokensPanel(p: { email: string }) {
     if (freshToken()?.label === pat.label) {
       setFreshToken(null);
     }
-    refetch();
+    tokensQuery.silentFetch();
   }
 
   async function copyToken(): Promise<void> {
@@ -170,21 +174,16 @@ function AccessTokensPanel(p: { email: string }) {
         )}
       </Show>
 
-      <Show
-        when={!tokens.error}
-        fallback={
-          <p class="text-danger text-sm">
-            Could not load tokens: {String(tokens.error)}
-          </p>
-        }
-      >
-        <Table
-          data={tokens() ?? []}
-          columns={columns}
-          keyField="id"
-          noRowsMessage="No tokens yet"
-        />
-      </Show>
+      <StateHolderWrapper state={tokensQuery.state()} noPad>
+        {(tokens) => (
+          <Table
+            data={tokens}
+            columns={columns}
+            keyField="id"
+            noRowsMessage="No tokens yet"
+          />
+        )}
+      </StateHolderWrapper>
     </div>
   );
 }
