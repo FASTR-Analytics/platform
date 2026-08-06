@@ -112,6 +112,19 @@ error — the report (`describeFigureConfigPatchEffect`, leave-one-out over
 the pure apply) states "no change" per field and the tool's success message
 includes it. Never report a bare "Updated X".
 
+These runtime checks are permanent, not a stopgap awaiting a stricter
+schema. A schema-level fix (a discriminated union on a stored literal like
+`config.d.type`) can only outlaw what a **literal scalar in the object**
+determines — per-type slot legality qualifies. Liveness that is **derived**
+never can: `valuesDisDisplayOpt` depends on the metric's `valueProps`
+(not in the config at all), an active replicant is a predicate over
+`disaggregateBy` *and* `filterBy` (`getReplicateByProp`), and rollup
+eligibility consults the metric's re-aggregatability. Storing a derived
+discriminant is a denormalisation to keep in sync. (A full union conversion
+of `configDStrict` was evaluated and declined 2026-08-06 — the runtime
+checks above already close the AI path, and the union's cost spans ~60 parse
+sites, the `.shape`-derived AI input schemas, and a storage migration.)
+
 ## Error handling: throw, don't catch
 
 The engine catches handler throws and returns them to the model with

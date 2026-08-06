@@ -23,7 +23,6 @@ import {
 import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import { _PO_ITEMS_CACHE, resolveDefaultReplicant } from "~/state/project/t2_presentation_objects";
-import { getInstanceLocalization } from "~/state/instance/t1_store";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 

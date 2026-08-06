@@ -108,45 +108,60 @@ export function getClientToolsForSlideEditor(
       viewRegistry: projectAIViews,
       name: "update_slide_editor",
       description:
-        "Update the slide content. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
+        "Update the slide content. Provide an `update` object whose `type` matches the slide's type (shown by get_slide_editor), with only the fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
       inputSchema: z.object({
-        title: z.string().optional().describe("Cover slide: main title"),
-        subtitle: z.string().optional().describe("Cover slide: subtitle"),
-        presenter: z
-          .string()
-          .optional()
-          .describe("Cover slide: presenter name"),
-        date: z.string().optional().describe("Cover slide: date text"),
-        sectionTitle: z
-          .string()
-          .optional()
-          .describe("Section slide: section title"),
-        sectionSubtitle: z
-          .string()
-          .optional()
-          .describe("Section slide: section subtitle"),
-        header: z
-          .string()
-          .optional()
-          .describe("Content slide: header text at top of slide"),
-        blockUpdates: z
-          .array(
+        // Mirrors the Slide storage union so a field aimed at the wrong slide
+        // type is unrepresentable in the tool call. The union must sit under a
+        // key: panther's createAITool (and Anthropic's input_schema contract)
+        // requires the top-level schema to be an object.
+        update: z
+          .discriminatedUnion("type", [
             z.object({
-              blockId: z.string().describe("Block ID from get_slide_editor"),
-              newContent: AiContentBlockInputSchema,
+              type: z.literal("cover"),
+              title: z.string().optional().describe("Main title"),
+              subtitle: z.string().optional().describe("Subtitle"),
+              presenter: z.string().optional().describe("Presenter name"),
+              date: z.string().optional().describe("Date text"),
             }),
-          )
-          .optional()
+            z.object({
+              type: z.literal("section"),
+              sectionTitle: z.string().optional().describe("Section title"),
+              sectionSubtitle: z
+                .string()
+                .optional()
+                .describe("Section subtitle"),
+            }),
+            z.object({
+              type: z.literal("content"),
+              header: z
+                .string()
+                .optional()
+                .describe("Header text at top of slide"),
+              blockUpdates: z
+                .array(
+                  z.object({
+                    blockId: z
+                      .string()
+                      .describe("Block ID from get_slide_editor"),
+                    newContent: AiContentBlockInputSchema,
+                  }),
+                )
+                .optional()
+                .describe(
+                  `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
+                ),
+              layoutChange: z
+                .object({
+                  layout: LayoutSpecSchema,
+                })
+                .optional()
+                .describe(
+                  "Restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
+                ),
+            }),
+          ])
           .describe(
-            `Content slide: REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
-          ),
-        layoutChange: z
-          .object({
-            layout: LayoutSpecSchema,
-          })
-          .optional()
-          .describe(
-            "Content slide: restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
+            "Per-type update. `type` must match the slide being edited.",
           ),
       }),
       availableIn: ["editing_slide"],
@@ -155,7 +170,9 @@ export function getClientToolsForSlideEditor(
         const ctx = view.context;
         assertSlidesNotBusy([view.params.slideId]);
 
-        if (input.blockUpdates && input.layoutChange) {
+        const u = input.update;
+
+        if (u.type === "content" && u.blockUpdates && u.layoutChange) {
           throw new AIToolFailure(
             "Cannot use both blockUpdates and layoutChange. Use blockUpdates to change block content, or layoutChange to change layout structure.",
           );
@@ -163,46 +180,33 @@ export function getClientToolsForSlideEditor(
 
         const currentSlide = unwrap(ctx.getTempSlide());
 
-        // One schema serves three slide types, so Zod cannot reject a field
-        // aimed at the wrong type — and the per-type branches below read only
-        // their own fields, silently dropping the rest. Error instead (same
-        // precedent as update_slide_header's slide-type check).
-        const FIELDS_BY_SLIDE_TYPE: Record<Slide["type"], string[]> = {
-          cover: ["title", "subtitle", "presenter", "date"],
-          section: ["sectionTitle", "sectionSubtitle"],
-          content: ["header", "blockUpdates", "layoutChange"],
-        };
-        const allowedFields = FIELDS_BY_SLIDE_TYPE[currentSlide.type];
-        const wrongTypeFields = Object.keys(input).filter(
-          (k) =>
-            input[k as keyof typeof input] !== undefined &&
-            !allowedFields.includes(k),
-        );
-        if (wrongTypeFields.length > 0) {
+        // The input schema mirrors the Slide union, so wrong-type fields are
+        // unrepresentable; the only remaining cross-type error is the stated
+        // type not matching the slide being edited.
+        if (u.type !== currentSlide.type) {
           throw new AIToolFailure(
-            `This is a "${currentSlide.type}" slide — the field(s) ${wrongTypeFields.join(", ")} do not apply to it and were NOT saved. ` +
-              `Editable fields for a ${currentSlide.type} slide: ${allowedFields.join(", ")}. No changes were applied.`,
+            `This is a "${currentSlide.type}" slide, but the update was for a "${u.type}" slide. No changes were applied. Use get_slide_editor to see the slide's type.`,
           );
         }
 
         const changes: string[] = [];
 
-        if (currentSlide.type === "cover") {
+        if (currentSlide.type === "cover" && u.type === "cover") {
           const updated = { ...currentSlide };
-          if (input.title !== undefined) {
-            updated.title = input.title;
+          if (u.title !== undefined) {
+            updated.title = u.title;
             changes.push("title");
           }
-          if (input.subtitle !== undefined) {
-            updated.subtitle = input.subtitle;
+          if (u.subtitle !== undefined) {
+            updated.subtitle = u.subtitle;
             changes.push("subtitle");
           }
-          if (input.presenter !== undefined) {
-            updated.presenter = input.presenter;
+          if (u.presenter !== undefined) {
+            updated.presenter = u.presenter;
             changes.push("presenter");
           }
-          if (input.date !== undefined) {
-            updated.date = input.date;
+          if (u.date !== undefined) {
+            updated.date = u.date;
             changes.push("date");
           }
           if (changes.length > 0) {
@@ -210,14 +214,14 @@ export function getClientToolsForSlideEditor(
           }
         }
 
-        if (currentSlide.type === "section") {
+        if (currentSlide.type === "section" && u.type === "section") {
           const updated = { ...currentSlide };
-          if (input.sectionTitle !== undefined) {
-            updated.sectionTitle = input.sectionTitle;
+          if (u.sectionTitle !== undefined) {
+            updated.sectionTitle = u.sectionTitle;
             changes.push("sectionTitle");
           }
-          if (input.sectionSubtitle !== undefined) {
-            updated.sectionSubtitle = input.sectionSubtitle;
+          if (u.sectionSubtitle !== undefined) {
+            updated.sectionSubtitle = u.sectionSubtitle;
             changes.push("sectionSubtitle");
           }
           if (changes.length > 0) {
@@ -225,14 +229,14 @@ export function getClientToolsForSlideEditor(
           }
         }
 
-        if (currentSlide.type === "content") {
+        if (currentSlide.type === "content" && u.type === "content") {
           let updated = { ...currentSlide };
-          if (input.header !== undefined) {
-            updated.header = input.header;
+          if (u.header !== undefined) {
+            updated.header = u.header;
             changes.push("header");
           }
-          if (input.blockUpdates && input.blockUpdates.length > 0) {
-            for (const bu of input.blockUpdates) {
+          if (u.blockUpdates && u.blockUpdates.length > 0) {
+            for (const bu of u.blockUpdates) {
               if (bu.newContent.type === "text") {
                 validateNoMarkdownTables(bu.newContent.markdown);
               }
@@ -240,7 +244,7 @@ export function getClientToolsForSlideEditor(
             updated = (await getSlideWithUpdatedBlocks(
               projectId,
               updated,
-              input.blockUpdates,
+              u.blockUpdates,
               metrics,
             )) as typeof updated;
 
@@ -251,10 +255,10 @@ export function getClientToolsForSlideEditor(
               .map(b => b.markdown);
             validateSlideTotalWordCount(allTextBlocks);
 
-            changes.push(`${input.blockUpdates.length} block(s)`);
+            changes.push(`${u.blockUpdates.length} block(s)`);
           }
-          if (input.layoutChange) {
-            const layoutSpec = input.layoutChange.layout;
+          if (u.layoutChange) {
+            const layoutSpec = u.layoutChange.layout;
 
             const existingBlocks = extractBlocksFromLayout(updated.layout);
             const blockMap = new Map<string, ContentBlock>();
@@ -371,8 +375,10 @@ export function getClientToolsForSlideEditor(
       },
       inProgressLabel: "Updating slide...",
       completionMessage: (input) => {
-        const changeCount = Object.keys(input).filter(
-          (k) => input[k as keyof typeof input] !== undefined,
+        const changeCount = Object.keys(input.update).filter(
+          (k) =>
+            k !== "type" &&
+            input.update[k as keyof typeof input.update] !== undefined,
         ).length;
         return `Updated ${changeCount} field(s)`;
       },

@@ -9,7 +9,7 @@ import type {
 import { convertPeriodValue, deriveConfigFromVizPreset } from "lib";
 import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
 import { validateValuesFilter } from "~/generate_visualization/mod";
-import { getInstanceLocalization } from "~/state/instance/t1_store";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 type BuildConfigResult = {
   resultsValue: MetricWithStatus;
@@ -59,7 +59,7 @@ export function buildConfigFromPreset(
   // the AI figure keeps only its own caption on top of the derived config.
   const config: PresentationObjectConfig = deriveConfigFromVizPreset(
     preset,
-    getInstanceLocalization().language,
+    getSnapshotInstanceLocalization().language,
   );
   config.t = { ...config.t, caption: input.chartTitle };
 

@@ -1,6 +1,6 @@
 import { del, get, keys, set } from "idb-keyval";
 import type { APIResponseWithData, ProjectState } from "lib";
-import { getProjectStateSnapshot } from "~/state/project/t1_store";
+import { getSnapshotProjectState } from "~/state/project/t1_store";
 
 /**
  * Reactive Cache System - Context-Aware Caching with ProjectState Integration
@@ -142,7 +142,7 @@ export function createReactiveCache<Params, Data>(
     // Non-reactive snapshot (unwrap-based; safe in async contexts). Never
     // undefined — the t1 store is always initialized; "no project open" is
     // just the not-ready EMPTY_PROJECT_STATE.
-    const pds = getProjectStateSnapshot();
+    const pds = getSnapshotProjectState();
 
     if (!pds.isReady) {
       if (!config.pdsNotRequired) {

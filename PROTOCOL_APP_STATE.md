@@ -64,10 +64,12 @@ handler only.
 
 **T1 read mechanics.** Importing the store directly (`instanceState`,
 `projectState`) in JSX / `createEffect` / `createMemo` is a **live read** —
-Solid tracks field-level dependencies. The exported getter functions
-(`getIndicatorMappingsVersion()`, `getProjectStateSnapshot()`, …) call
+Solid tracks field-level dependencies. The exported getter functions call
 `unwrap()` internally and are **snapshot reads** — use them in async code, cache
-version-key callbacks, and event handlers. Generic live/snapshot semantics:
+version-key callbacks, and event handlers. Snapshot-read getters are named
+`getSnapshot*` (`getSnapshotProjectState()`,
+`getSnapshotInstanceLocalization()`, `getSnapshotInstanceCountryIso3()`) so the
+read mode is visible at the call site. Generic live/snapshot semantics:
 PROTOCOL_UI_STATE "Read Modes". (The codebase also uses "snapshot" for _stored_
 snapshots — e.g. `FigureBundle.snapshotAt`, viz data persisted onto a slide.
 Same concept, persisted.)
@@ -129,13 +131,6 @@ other fields are identical across clients.
 
 The table-name list for `lastUpdated` has one source of truth:
 `LastUpdateTableName` in `lib/types/project_dirty_states.ts`.
-
-**Derived lookup maps:** `project/t1_store.ts` maintains internal maps
-(`metricToModule`, `resultsObjectToModule`, `metricToFormatAs`) recomputed
-whenever `projectModules`/`metrics` update, exposed via snapshot getters
-(`getModuleIdForMetric()`, `getModuleIdForResultsObject()`,
-`getFormatAsForMetric()`). T2 caches use them to resolve module-based version
-keys. No separate file.
 
 **`aiContext` quirk:** only the `updateProject` route sends `aiContext` in
 `project_config_updated`; routes that change just `isLocked` /
@@ -319,9 +314,10 @@ reactive, not cached, no state files. **Upload attempts are always T3
 component-local** — transient per-user workflow state (signal + polling), not
 shared.
 
-Instance-level: structure / ICEH upload attempts (each in its dataset
+Instance-level: structure upload attempts (in the structure dataset
 component), HMIS import runs + ledger (`instance_dataset_hmis/imports/`), HFA
-import runs (`instance_dataset_hfa/imports/`), user logs, HMIS version history modal,
+import runs (`instance_dataset_hfa/imports/`), ICEH import runs
+(`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 compare-projects modal, HFA indicator R code
 (`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, and the `LoggedInWrapper.tsx`
@@ -359,5 +355,3 @@ form inputs, AI chat drafts. Dies on unmount; no files.
 - `lib/types/project_sse.ts:30` — `thisUserRole` is deprecated ("kept with
   hardcoding bug intact") but still ships on every `starting` payload. Remove
   the field or fix the derivation.
-- [PLAN_SNAPSHOT_NAMING.md](PLAN_SNAPSHOT_NAMING.md) — deferred `getSnapshot*`
-  rename for the T1 snapshot getters (its F12 ordering blocker has landed).

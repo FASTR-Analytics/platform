@@ -24,7 +24,7 @@ import { FigureInputs, getApiResponseFromGenerator, StateHolder } from "panther"
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
-import { getInstanceLocalization } from "../instance/t1_store";
+import { getSnapshotInstanceLocalization } from "../instance/t1_store";
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
@@ -218,7 +218,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       indicatorMetadata: ih.indicatorMetadata,
       dateRange: ih.dateRange,
       geo: mapLevel ? { kind: "level", level: mapLevel } : undefined,
-      localization: getInstanceLocalization(),
+      localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
       snapshotAt: "",
       provenance: {

@@ -57,26 +57,10 @@ const [projectState, setProjectState] = createStore<ProjectState>(
   structuredClone(EMPTY_PROJECT_STATE)
 );
 
-let metricToModule: Record<string, string> = {};
-let resultsObjectToModule: Record<string, string> = {};
-let metricToFormatAs: Record<string, "percent" | "number"> = {};
-
-function rebuildModuleMaps(state: ProjectState): void {
-  metricToModule = {};
-  resultsObjectToModule = {};
-  metricToFormatAs = {};
-  for (const metric of state.metrics) {
-    metricToModule[metric.id] = metric.moduleId;
-    resultsObjectToModule[metric.resultsObjectId] = metric.moduleId;
-    metricToFormatAs[metric.id] = metric.formatAs;
-  }
-}
-
 export function applyProjectSseMessage(msg: ProjectSseMessage): void {
   switch (msg.type) {
     case "starting":
       setProjectState(reconcile(msg.data));
-      rebuildModuleMaps(msg.data);
       break;
 
     case "project_config_updated":
@@ -107,7 +91,6 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
       setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
       setProjectState("visualizations", reconcile(msg.data.visualizations));
-      rebuildModuleMaps(projectState);
       break;
 
     case "visualizations_updated":
@@ -187,25 +170,10 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
 
 export function resetProjectState(): void {
   setProjectState(reconcile(structuredClone(EMPTY_PROJECT_STATE)));
-  metricToModule = {};
-  resultsObjectToModule = {};
-  metricToFormatAs = {};
 }
 
-export function getProjectStateSnapshot(): ProjectState {
+export function getSnapshotProjectState(): ProjectState {
   return unwrap(projectState);
-}
-
-export function getModuleIdForMetric(metricId: string): string {
-  return metricToModule[metricId] ?? "unknown";
-}
-
-export function getModuleIdForResultsObject(resultsObjectId: string): string {
-  return resultsObjectToModule[resultsObjectId] ?? "unknown";
-}
-
-export function getFormatAsForMetric(metricId: string): "percent" | "number" {
-  return metricToFormatAs[metricId] ?? "number";
 }
 
 // Version for caches keyed on run-derived data (PO items, metric info,
@@ -213,7 +181,7 @@ export function getFormatAsForMetric(metricId: string): "percent" | "number" {
 // version (PLAN_RESULTS_RUNS §2.5); "no_run_attached" is the typed empty
 // state (server reads error until a run is attached). Consumers inside a
 // createEffect must call this with the live `projectState` proxy before
-// their first await — getProjectStateSnapshot is unwrapped, so
+// their first await — getSnapshotProjectState is unwrapped, so
 // cache-internal reads are NOT tracked.
 export function runVersionKey(pds: ProjectState): string {
   return pds.attachedRunId ?? "no_run_attached";

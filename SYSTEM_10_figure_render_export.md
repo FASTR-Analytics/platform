@@ -169,10 +169,10 @@ The elegant consequence the whole design turns on:
 > A snapshot is literally "capture the current build inputs into a bundle." One
 > build function, two item sources: **live query** vs **baked items**.
 
-| Caller                                                                                                                          | Surface                    | Items               | Localization source                                            |
-| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | -------------------------------------------------------------- |
-| `t2_presentation_objects.ts` (the live FigureInputs memo, ~:195)                                                                | **Visualization**          | live query          | `getInstanceLocalization()` — a **transient** bundle each tick |
-| `convert_slide_to_page_inputs.ts`, `dashboard_item_grid.tsx`, `ReportFigureEmbed.tsx`, `exports/**`, public viewer, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                 |
+| Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
+| `t2_presentation_objects.ts` (the live FigureInputs memo, ~:195)                                                                | **Visualization**          | live query          | `getSnapshotInstanceLocalization()` — a **transient** bundle each tick |
+| `convert_slide_to_page_inputs.ts`, `dashboard_item_grid.tsx`, `ReportFigureEmbed.tsx`, `exports/**`, public viewer, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code** — a figure
 renders byte-identically to the visualization it was captured from. `deckStyle?`
@@ -198,7 +198,7 @@ figure text/dates from `bundle.localization` only — it must **never** read or
 write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
 - **What is captured = the INSTANCE locale**, not the per-user UI toggle:
-  `getInstanceLocalization()` (`client/src/state/instance/t1_store.ts`) returns
+  `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`) returns
   `{instanceLanguage, instanceCalendar, countryIso3}`. Figures are
   instance-language artifacts.
 - **The threaded reads** (all app-side; panther unchanged): the ~21

@@ -11,7 +11,7 @@ import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getInstanceLocalization } from "~/state/instance/t1_store";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in slide_deck/slide_ai). No AI types imported here.
@@ -81,7 +81,7 @@ export async function resolveFigureBundleFromMetric(
     indicatorMetadata: itemsHolder.indicatorMetadata,
     dateRange: itemsHolder.dateRange,
     geo,
-    localization: getInstanceLocalization(),
+    localization: getSnapshotInstanceLocalization(),
     metricId,
     snapshotAt: new Date().toISOString(),
     provenance: {
