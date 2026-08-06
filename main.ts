@@ -115,6 +115,12 @@ app.route("/", routesPublicDashboard);
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
   app.get("/d/:slug", (c) => c.html(indexHtml));
+  // The unlisted /access-tokens SPA route (PAT panel) needs the same
+  // pre-auth HTML serve: there is NO general SPA fallback (unknown paths
+  // 302 to "/"), and the Clerk middleware would 401 a logged-out
+  // navigation. The page itself is the public SPA bundle; LoggedInWrapper
+  // gates it client-side and every PAT route stays server-gated.
+  app.get("/access-tokens", (c) => c.html(indexHtml));
 } catch {
   // In development, handled by Vite dev server
 }
