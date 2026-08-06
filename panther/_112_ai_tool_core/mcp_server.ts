@@ -22,6 +22,7 @@ import {
   type CreateMCPServerConfig,
   type MCPCallOutcome,
   type MCPConnection,
+  type MCPElicitDecision,
   MCPRequestError,
   type MCPResourceConfig,
   type MCPServer,
@@ -187,8 +188,69 @@ function buildElicitForm(
   };
 }
 
+// A resume leg that does not commit has FOUR distinguishable causes, and
+// collapsing them into one message asserts a human intent that may never have
+// existed — the failure mode that made a client's silent auto-answer read as
+// "the user declined". buildElicitForm publishes `confirm` as a REQUIRED
+// BOOLEAN, so a missing or non-boolean value is a client contract violation,
+// not a decision, and is the only one of the four that is an ERROR.
+// null = accepted.
+type ResumeRefusal =
+  | { kind: "declined" }
+  | { kind: "cancelled" }
+  | { kind: "malformed"; received: string };
+
+function classifyResume(decision: MCPElicitDecision): ResumeRefusal | null {
+  if (decision.action === "decline") {
+    return { kind: "declined" };
+  }
+  if (decision.action === "cancel") {
+    return { kind: "cancelled" };
+  }
+  const confirm = decision.content?.confirm;
+  if (confirm === true) {
+    return null;
+  }
+  // An explicit false IS the user answering the form — the one case where
+  // "the user declined" is literally true of an accept-shaped decision.
+  if (confirm === false) {
+    return { kind: "declined" };
+  }
+  return { kind: "malformed", received: describeConfirm(confirm) };
+}
+
+// The offending value is CLIENT-supplied and lands in a model-visible string,
+// so it gets the same treatment as every other untrusted value rendered here
+// (see the preview-injection note above): serialized, whitespace-collapsed and
+// capped — never interpolated raw.
+function describeConfirm(value: unknown): string {
+  if (value === undefined) return "absent";
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value) ?? String(value);
+  } catch {
+    serialized = `[unserializable ${typeof value}]`;
+  }
+  return inlineValue(serialized);
+}
+
 function declinedText(preview: ProposalPreview): string {
   return `The user declined the proposed action "${preview.title}". No changes were made.`;
+}
+
+function cancelledText(preview: ProposalPreview): string {
+  return `The approval request for "${preview.title}" was cancelled or timed out before the user decided — no refusal was recorded. No changes were made.`;
+}
+
+// isError, unlike the other three: a fabricated decision must not be handed to
+// the model as a settled outcome. But the retry the isError funnel normally
+// invites would loop against a deterministically broken client, so the text
+// closes that door explicitly.
+function malformedConfirmText(
+  preview: ProposalPreview,
+  received: string,
+): string {
+  return `The client's approval answer for "${preview.title}" was malformed: the elicitation schema requires a boolean "confirm", but the value was ${received}. This is a client protocol violation, not a user decision — no refusal was recorded and no changes were made. Do NOT re-issue this call; the same client will answer the same way. Report the malformed response instead.`;
 }
 
 function staleText(preview: ProposalPreview): string {
@@ -666,21 +728,28 @@ export function buildMCPServerCore(
       } catch (error) {
         return completeFromThrow(error);
       }
-      const accepted = decision.action === "accept" &&
-        decision.content?.confirm === true;
+      const refusal = classifyResume(decision);
       const entry = takeStaged(requestState);
       if (!entry) {
         // Only an ACCEPT needs the staged closure. A decline/cancel/timeout
         // whose handle already expired (the elicit window shares the TTL, so
         // a timeout lands exactly at expiry) is still a valid declined
-        // OUTCOME — an error here would make the model retry.
-        return accepted
-          ? completeError(
+        // OUTCOME — an error here would make the model retry. A MALFORMED
+        // answer is the exception: it is a client protocol violation whether
+        // or not the handle survived, and no preview remains to name.
+        if (refusal === null) {
+          return completeError(
             `Approval handle unknown, already used, or expired. No changes were made. Re-issue the tool call to request approval again.`,
-          )
-          : completeText(
-            "The approval request was declined, cancelled, or timed out before a decision. No changes were made.",
           );
+        }
+        if (refusal.kind === "malformed") {
+          return completeError(
+            `The client's approval answer was malformed: the elicitation schema requires a boolean "confirm", but the value was ${refusal.received}. This is a client protocol violation, not a user decision — no refusal was recorded and no changes were made. Do NOT re-issue this call; the same client will answer the same way.`,
+          );
+        }
+        return completeText(
+          "The approval request was declined, cancelled, or timed out before a decision. No changes were made.",
+        );
       }
       let resumeArgsKey: string;
       try {
@@ -693,10 +762,21 @@ export function buildMCPServerCore(
           `Approval handle does not match this tool call (different tool or arguments). No changes were made. Re-issue the tool call to request approval again.`,
         );
       }
-      if (!accepted) {
-        // Declining is a valid OUTCOME, not an error — is_error would make
-        // the model retry (the chat's outcome doctrine).
-        return completeText(declinedText(entry.preview));
+      if (refusal !== null) {
+        // Declining and cancelling are valid OUTCOMES, not errors — is_error
+        // would make the model retry (the chat's outcome doctrine). A
+        // malformed answer is the one case that IS an error: reporting a
+        // client's protocol violation as a settled human decision is the
+        // fabrication this taxonomy exists to prevent.
+        if (refusal.kind === "declined") {
+          return completeText(declinedText(entry.preview));
+        }
+        if (refusal.kind === "cancelled") {
+          return completeText(cancelledText(entry.preview));
+        }
+        return completeError(
+          malformedConfirmText(entry.preview, refusal.received),
+        );
       }
       return commitProposal(
         entry.preview,
