@@ -36,7 +36,10 @@ export function getSharedToolsForMetrics(
         return formatMetricsListForAI(metrics, icehIndicators, hfaTaxonomy);
       },
       inProgressLabel: "Getting available metrics...",
-      completionMessage: `Retrieved ${metrics.length} metric(s)`,
+      // Thunk, not template: the host builds tools at boot when `metrics` is
+      // still empty (the array is hydrated in place later), so an eager
+      // string would freeze at "0 metric(s)".
+      completionMessage: () => `Retrieved ${metrics.length} metric(s)`,
       kind: "read",
       headless: true,
     }),

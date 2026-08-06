@@ -45,16 +45,10 @@ export function buildToolsForContext(params: BuildToolsParams) {
     // the SPA injects cache-backed getters via clientAIToolEnv, the headless
     // MCP host injects direct fetches)
     ...getSharedToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
-    // The package these tools read is resolved at CALL time, not bound here:
-    // a repoint mid-conversation must move them to the newly attached
-    // package.
-    ...getSharedToolsForModules(
-      clientAIToolEnv,
-      projectId,
-      () => projectState.attachedRunId,
-      modules,
-      metrics,
-    ),
+    // The package the script/log tools read is resolved SERVER-side at call
+    // time (projects.run_id via the attached-package routes), so a repoint
+    // mid-conversation moves them to the newly attached package.
+    ...getSharedToolsForModules(clientAIToolEnv, projectId, modules, metrics),
     ...getSharedToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
     ...getSharedToolsForSlideDecks(slideDecks),
     ...getSharedToolsForReports(clientAIToolEnv, projectId, reports),

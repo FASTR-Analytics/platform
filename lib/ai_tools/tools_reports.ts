@@ -83,6 +83,9 @@ export function getSharedToolsForReports(
                 } words of markdown`,
               },
             ],
+            // The body that would actually commit — consent must be to the
+            // content, not to a word count.
+            diff: { before: "", after: input.markdown },
           },
           commit: async () => {
             const createRes = await env.serverActions.createReport({

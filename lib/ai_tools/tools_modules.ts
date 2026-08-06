@@ -8,32 +8,16 @@ import type { AIToolEnv } from "./env.ts";
 // Tools over ONE results package. Which package is never a model-facing
 // input — inside a project there is exactly one correct answer (whatever is
 // attached), so asking the model to name a run would invite it to get right
-// what it cannot get wrong. The host binds the package instead, and binds it
-// as a RESOLVER, not a value: a mid-conversation repoint must move these
-// tools to the new package, which a value captured at construction would
-// not do.
-//
-// The resolver is also what makes these reusable beyond a project: an
-// instance-level copilot over the results-package catalogue passes its
-// selected run and gets the same tools, no duplication.
-type AttachedRunResolver = () => string | null;
-
-function requireRunId(resolveRunId: AttachedRunResolver): string {
-  const runId = resolveRunId();
-  if (runId === null) {
-    // AIToolFailure, not Error: an unattached project is an anticipated
-    // state the model should be told about, not a crash.
-    throw new AIToolFailure(
-      "No results package is attached to this project yet.",
-    );
-  }
-  return runId;
-}
-
+// what it cannot get wrong. The script/log reads go through the
+// project-scoped attached-package routes, which take no runId at all: the
+// server resolves `projects.run_id` at call time (so a mid-conversation
+// repoint moves these tools to the new package) and gates on the per-project
+// content bits (`can_view_script_code` / `can_view_logs`) instead of the
+// instance-wide catalogue permission — Tim's ruling 2026-07-30, and what
+// keeps a leaked PAT's blast radius to the pinned project's own package.
 export function getSharedToolsForModules(
   env: AIToolEnv,
   projectId: string,
-  resolveRunId: AttachedRunResolver,
   modules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
 ) {
@@ -56,8 +40,8 @@ export function getSharedToolsForModules(
       description: "Get the R script for a specific module",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await env.serverActions.getRunModuleScript({
-          run_id: requireRunId(resolveRunId),
+        const res = await env.serverActions.getAttachedPackageModuleScript({
+          projectId,
           module_id: input.id,
         });
         if (!res.success) throw new AIToolFailure(res.err);
@@ -74,8 +58,8 @@ export function getSharedToolsForModules(
         "Get the log file for a module that has recently run. This is useful for debugging errors or explaining why a module hasn't run.",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await env.serverActions.getRunModuleLogs({
-          run_id: requireRunId(resolveRunId),
+        const res = await env.serverActions.getAttachedPackageModuleLogs({
+          projectId,
           module_id: input.id,
         });
         if (!res.success) throw new AIToolFailure(res.err);

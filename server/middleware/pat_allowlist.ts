@@ -8,15 +8,28 @@ import { routeRegistry } from "lib";
 // docs. A route added next year is PAT-closed until opted in here. Token
 // mint/list/revoke and user/admin routes are deliberately absent: a PAT can
 // never mint or revoke PATs.
+//
+// NEVER allowlist any backups route: server/routes/instance/backups.ts
+// forwards the raw incoming Authorization header off-instance (to
+// status-api.fastr-analytics.org), which would ship the user's PAT to an
+// external service.
 const PAT_ALLOWED_ROUTE_NAMES = [
+  // getCurrentUser: not called by the host or lib tools — it is the parity
+  // test's whoami probe (server/tests/pat_identity_parity_test.ts) and grants
+  // only the caller's own identity.
   "getCurrentUser",
   "getPresentationObjectItems",
   "getResultsValueInfoForPresentationObject",
   "getPresentationObjectDetail",
   "getReplicantOptions",
   "getSlide",
-  "getRunModuleScript",
-  "getRunModuleLogs",
+  // Module script/logs: the PROJECT-scoped attached-package routes (no runId
+  // in the path — the server resolves projects.run_id; per-project
+  // can_view_script_code / can_view_logs gates). The instance-wide run-keyed
+  // routes (getRunModuleScript/getRunModuleLogs) are deliberately NOT
+  // allowlisted: they would give a leaked PAT every run in the instance.
+  "getAttachedPackageModuleScript",
+  "getAttachedPackageModuleLogs",
   "getModuleWithConfigSelections",
   "getReportDetail",
   "createReport",

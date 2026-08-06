@@ -79,13 +79,13 @@ const tools = [
     projectSnapshot.icehIndicators,
     projectSnapshot.hfaTaxonomy,
   ),
-  // The package these tools read is resolved at CALL time via the snapshot,
-  // so a run repoint mid-session moves them to the newly attached package —
-  // same contract as the SPA's build_tools.ts.
+  // The package the script/log tools read is resolved SERVER-side at call
+  // time (projects.run_id via the attached-package routes), so a run repoint
+  // mid-session moves them to the newly attached package — same contract as
+  // the SPA's build_tools.ts.
   ...getSharedToolsForModules(
     env,
     projectId,
-    () => projectSnapshot.attachedRunId,
     projectSnapshot.projectModules,
     projectSnapshot.metrics,
   ),

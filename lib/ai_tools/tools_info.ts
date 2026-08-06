@@ -39,12 +39,20 @@ export function getSharedToolsForInfo() {
         // In the browser the info files come from the SPA origin (Vite in
         // dev); headlessly there is no origin, so the server's base URL from
         // the transport supplies one (the built SPA's /info files are served
-        // by the app server).
-        const base = typeof document === "undefined"
-          ? getServerActionTransport().baseUrl
-          : "";
+        // by the app server) — and the /pat mount 401s any request without
+        // the transport's Bearer header, so a raw fetch must carry it.
+        const transport = typeof document === "undefined"
+          ? getServerActionTransport()
+          : null;
+        const base = transport ? transport.baseUrl : "";
         const response = await fetch(`${base}/info/${match.topic}.md`, {
           cache: "no-cache",
+          ...(transport
+            ? {
+              headers: transport.getHeaders(),
+              credentials: transport.credentials,
+            }
+            : {}),
         });
         if (!response.ok) {
           throw new AIToolFailure(

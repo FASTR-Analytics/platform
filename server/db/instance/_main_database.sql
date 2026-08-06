@@ -805,6 +805,24 @@ CREATE TABLE asset_metadata (
 );
 
 -- ============================================================================
+-- PERSONAL ACCESS TOKENS
+-- ============================================================================
+-- Server-minted per-user credentials for headless clients (MCP host, CLI).
+-- Only the SHA-256 hash is stored; the token itself is shown once at mint.
+
+CREATE TABLE personal_access_tokens (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  label text NOT NULL,
+  token_hash text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz
+);
+
+CREATE INDEX idx_personal_access_tokens_user_email
+  ON personal_access_tokens (user_email);
+
+-- ============================================================================
 -- SCHEMA MIGRATIONS
 -- ============================================================================
 
