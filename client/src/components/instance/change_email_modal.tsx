@@ -48,7 +48,6 @@ export function ChangeEmailModal(
   const [report, setReport] = createSignal<
     { instances: RenameEmailInstanceResult[]; warnings: string[] } | null
   >(null);
-  const [oldRemoved, setOldRemoved] = createSignal(false);
   const [primaryDone, setPrimaryDone] = createSignal(false);
 
   const oldEmail = p.currentEmail.toLowerCase();
@@ -111,11 +110,10 @@ export function ChangeEmailModal(
       const old = clerk.user?.emailAddresses.find(
         (a) => a.emailAddress.toLowerCase() === oldEmail,
       );
-      if (old) {
-        await old.destroy().then(() => setOldRemoved(true)).catch(() => {});
-      } else {
-        setOldRemoved(true);
-      }
+      await old?.destroy().catch(() => {});
+      // The signed-in identity just changed under the SPA's feet — reload
+      // unconditionally rather than leave a stale session on screen.
+      window.location.reload();
     }
     return { success: true };
   }
@@ -248,11 +246,17 @@ export function ChangeEmailModal(
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
       width="lg"
       leftButtons={[
-        <Button onClick={() => p.close(undefined)} outline iconName="x">
-          {phase() === "report"
-            ? t3({ en: "Close without reloading", fr: "Fermer sans recharger", pt: "Fechar sem recarregar" })
-            : t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>,
+        phase() === "report"
+          ? (
+            <Button onClick={() => window.location.reload()} outline iconName="x">
+              {t3({ en: "Reload", fr: "Recharger", pt: "Recarregar" })}
+            </Button>
+          )
+          : (
+            <Button onClick={() => p.close(undefined)} outline iconName="x">
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            </Button>
+          ),
       ]}
     >
       <Show when={phase() === "enter"}>
@@ -359,20 +363,7 @@ export function ChangeEmailModal(
                 }
               >
                 <div class="text-success text-sm">
-                  {t3({ en: "Your email was changed everywhere.", fr: "Votre e-mail a été changé partout.", pt: "O seu e-mail foi alterado em todo o lado." })}
-                  <Show when={!oldRemoved()}>
-                    {" "}
-                    {t3({
-                      en: "The old address could not be removed from your account — you can remove it later in account settings.",
-                      fr: "L'ancienne adresse n'a pas pu être retirée de votre compte — vous pourrez la retirer plus tard dans les paramètres du compte.",
-                      pt: "Não foi possível remover o endereço antigo da sua conta — pode removê-lo mais tarde nas definições da conta.",
-                    })}
-                  </Show>
-                </div>
-                <div>
-                  <Button onClick={() => window.location.reload()} intent="primary">
-                    {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-                  </Button>
+                  {t3({ en: "Your email was changed everywhere. Reloading…", fr: "Votre e-mail a été changé partout. Rechargement…", pt: "O seu e-mail foi alterado em todo o lado. A recarregar…" })}
                 </div>
               </Show>
             </div>
