@@ -36,6 +36,18 @@ import { instanceSnapshot, projectSnapshot } from "./snapshot.ts";
 // tool call executes. /pat facts the transport relies on (step-2/3 review
 // findings): GET only (HEAD 403s), results are judged by the {success}
 // envelope (onError returns HTTP 200 app-wide), deny-by-default allowlist.
+//
+// Standing live-smoke checklist (run against a boot with AUTH ON —
+// `BYPASS_AUTH= deno task dev`; _BYPASS_AUTH also blanks patAuthMiddleware,
+// so a bypassed boot cannot catch missing-auth bugs; that is how the
+// get_info 401 shipped):
+//   1. get_info WITH a topic returns content (raw-fetch auth regression).
+//   2. get_module_r_script / get_module_log answer via the project-scoped
+//      routes; the run-keyed /pat/run_generation/... routes 403.
+//   3. create_report: reads complete while its elicitation is pending;
+//      decline returns a normal (non-error) result and commits nothing.
+//   4. Kill + restart the server mid-session: SSE retries past 3 attempts
+//      (capped backoff) and reconnects; never abandons the stream.
 
 function requireEnv(name: string): string {
   const value = Deno.env.get(name);
