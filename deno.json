@@ -56,6 +56,7 @@
     "compile": "deno compile --allow-all --env-file --output=wb-fastr-server main.ts",
     "start": "deno run --allow-all --env-file main.ts",
     "lint": "deno lint",
-    "fmt": "deno fmt"
+    "fmt": "deno fmt",
+    "mint-pat": "deno run --allow-all --env-file mint_pat.ts"
   }
 }
