@@ -1,4 +1,5 @@
 export * from "./env.ts";
+export * from "./build_system_prompt.ts";
 export * from "./info_catalog.ts";
 export * from "./layout_spec_helpers.ts";
 export * from "./extract_blocks_from_layout.ts";

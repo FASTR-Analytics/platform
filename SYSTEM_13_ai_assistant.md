@@ -13,6 +13,7 @@ globs:
   - client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts
   - client/src/state/project/t4_ai_documents.ts
   - lib/ai_tools/**
+  - mcp_host/**
   - lib/types/ai_input.ts
   - lib/types/custom_prompts.ts
   - server/db/instance/ai_usage_logs.ts
