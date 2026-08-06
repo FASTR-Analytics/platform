@@ -136,18 +136,18 @@ export const userRouteRegistry = {
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
   createPersonalAccessToken: route({
-    path: "/user/personal-access-tokens",
+    path: "/personal-access-tokens",
     method: "POST",
     body: z.object({ label: z.string() }),
     response: {} as { token: string; pat: PersonalAccessTokenSummary },
   }),
   listPersonalAccessTokens: route({
-    path: "/user/personal-access-tokens",
+    path: "/personal-access-tokens",
     method: "GET",
     response: {} as PersonalAccessTokenSummary[],
   }),
   revokePersonalAccessToken: route({
-    path: "/user/personal-access-tokens",
+    path: "/personal-access-tokens",
     method: "DELETE",
     body: z.object({ id: z.number() }),
   }),

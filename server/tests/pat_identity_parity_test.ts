@@ -131,7 +131,7 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
     // Deny-by-default: a route outside the allowlist 403s under PAT even with
     // a valid token (PATs can never reach token mint/list/revoke).
-    const denied = await patApp.request("/user/personal-access-tokens", {
+    const denied = await patApp.request("/personal-access-tokens", {
       headers: { Authorization: `Bearer ${minted.data.token}` },
     });
     assertEquals(denied.status, 403);
