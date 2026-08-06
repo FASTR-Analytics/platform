@@ -49,7 +49,8 @@ step baked into that package was not). Update SYSTEM_08 once this plan lands.
 - That selection becomes `RunGenerationStep1Result` (`lib/types/run_generation.ts:21-25`)
   — `hmis: {windowing} | null`, `hfa: {serviceCategoryScope} | null` — saved
   onto the wizard attempt and, optionally, into the instance defaults store
-  (see [PLAN_MODULE_INSTANCE_DEFAULTS.md](PLAN_MODULE_INSTANCE_DEFAULTS.md)).
+  (see [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
+  "Instance module defaults").
 - At launch, `prepareRunInputs`
   (`server/worker_routines/generate_run/prepare_inputs.ts:108-146`) calls:
   - `computeDatasetHmisRunCapture(mainDb, runCsvTarget("hmis"), step1.hmis.windowing)`
@@ -113,7 +114,8 @@ step baked into that package was not). Update SYSTEM_08 once this plan lands.
    windowed packages (see item 4).
 6. **Instance defaults store migration**: `run_generation_defaults.step1`
    shrinks along with the type change (see
-   [PLAN_MODULE_INSTANCE_DEFAULTS.md](PLAN_MODULE_INSTANCE_DEFAULTS.md)).
+   [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md),
+   "Instance module defaults").
    Since this is a stored JSON blob in `instance_config`, apply the CLAUDE.md
    rule for renaming/deleting a stored JSON field: a transform + forced
    skip-gate is normally required (Zod strip mode silently drops unknown

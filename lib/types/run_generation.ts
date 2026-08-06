@@ -44,7 +44,8 @@ export type RunGenerationStep2Result = z.infer<
 >;
 
 // The instance defaults store (Q8, §3.5): the wizard's starting values,
-// saved from the confirm step by an admin and kept in instance_config under
+// written only by the module-defaults editor (S8 "Instance module defaults")
+// and kept in instance_config under
 // `run_generation_defaults`. Flat — one country per instance makes per-country
 // presets meaningless. Merge order in the wizard is resume > instance
 // defaults > definition defaults; there is no manifest tier (the wizard is

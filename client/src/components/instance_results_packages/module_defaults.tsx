@@ -24,7 +24,7 @@ import {
 } from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 
-// The instance's module-defaults editor (PLAN_MODULE_INSTANCE_DEFAULTS): the
+// The instance's module-defaults editor (S8 "Instance module defaults"): the
 // ONE writer of the `run_generation_defaults` store, which pre-fills the
 // generation wizard (resume beats these defaults beats definition defaults).
 // Definitions are never stored — they are resolved live on open via the same

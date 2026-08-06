@@ -80,7 +80,8 @@ export const runGenerationRouteRegistry = {
     response: {} as RunGenerationAttemptDetail | null,
   }),
   // The instance defaults store (§3.5): the wizard's starting values,
-  // written from the confirm step's "save as instance defaults" action.
+  // written only by the module-defaults editor (S8 "Instance module
+  // defaults").
   getRunGenerationDefaults: route({
     path: "/run_generation/defaults",
     method: "GET",

@@ -317,6 +317,40 @@ raw CSVs** — so the viewers answer "no script in this results package for this
 module", which is a typed state and not an error. Backfill packages also carry
 no `inputKey` and are never reuse sources.
 
+## Instance module defaults (`instance_config.run_generation_defaults`)
+
+The wizard's starting values — default data families, default module set, and
+per-module parameter values — in one `instance_config` row, seeded into the
+wizard as resume > instance defaults > definition defaults (`step_1.tsx`,
+`step_2.tsx` via `getMergedModuleConfigSelections`). Its **sole writer** is the
+module-defaults editor (`instance_results_packages/module_defaults.tsx`, opened
+from the Results packages surface); the wizard only reads it. Step 3's old
+"save as instance defaults" button was deleted with that editor (2026-08-06,
+Tim's ruling): it rebuilt the whole blob from only the modules selected for
+that generation, so saving after a narrow run silently dropped curated
+defaults for every other module. The editor lives on the Results surface
+rather than instance Settings because both routes are `can_configure_data`
+while Settings is `can_configure_settings` — the other placement would render
+UI backed by 403ing routes.
+
+**Definitions are never stored.** The editor resolves them live on open via
+`getRunGenerationModuleOptions`, the same read the wizard uses, so drift is
+absorbed by `getMergedModuleConfigSelections` (values for removed params are
+ignored, new params fall back to definition defaults) and the store needs no
+definition snapshot. Save semantics, authoritative comment in
+`module_defaults.tsx`: already-stored values plus the ones ADJUSTED this
+session (dirty-tracked per field), so a param nobody touched is never stored
+and keeps following future definition defaults, while a stored value stays
+pinned; per-module "Reset to definition defaults" is the unpin act, dropping
+that module's stored entry. Entries for modules not offerable here
+(country-filtered or removed) and stored keys a definition no longer declares
+pass through verbatim — the store tolerates unknowns by design. The editor
+enforces neither DAG closure nor data availability: the wizard's seed already
+sanitizes (step 2 drops non-offerable ids and closure-completes, step 1
+re-masks families by what is uploaded). Both writers gate their save on one
+shared check, `getModuleParameterInvalidMsg`, which also drives the inputs'
+inline invalid messages.
+
 ## Generation (`server/worker_routines/generate_run/`)
 
 Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename →

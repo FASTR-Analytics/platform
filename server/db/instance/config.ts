@@ -280,8 +280,8 @@ export async function updateAdminAreaLabelsConfig(
 }
 
 // The results-package wizard's instance defaults (PLAN_RESULTS_RUNS Phase 3
-// item 1, §3.5): the starting values an admin saved from the wizard's
-// confirm step. Absent — or stored under a shape an older build wrote —
+// item 1, §3.5): the starting values an admin saved in the module-defaults
+// editor (S8). Absent — or stored under a shape an older build wrote —
 // degrades to "no defaults", which is exactly the empty wizard, so a bad
 // blob can never block generation.
 const EMPTY_RUN_GENERATION_DEFAULTS: RunGenerationDefaults = {
