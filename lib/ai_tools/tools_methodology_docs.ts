@@ -4,7 +4,7 @@ import { z } from "zod";
 const GITHUB_API_BASE =
   "https://api.github.com/repos/FASTR-Analytics/fastr-resource-hub/contents/methodology";
 
-export function getToolsForMethodologyDocs() {
+export function getSharedToolsForMethodologyDocs() {
   return [
     createAITool({
       name: "get_methodology_docs_list",

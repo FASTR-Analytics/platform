@@ -202,7 +202,7 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   return `- ${parts.join(" · ")}`;
 }
 
-export function getToolsForReportEditor(
+export function getClientToolsForReportEditor(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {

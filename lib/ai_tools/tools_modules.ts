@@ -30,7 +30,7 @@ function requireRunId(resolveRunId: AttachedRunResolver): string {
   return runId;
 }
 
-export function getToolsForModules(
+export function getSharedToolsForModules(
   env: AIToolEnv,
   projectId: string,
   resolveRunId: AttachedRunResolver,

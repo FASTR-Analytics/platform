@@ -54,7 +54,7 @@ function throwSlideUpdateError(err: string): never {
 const DECK_LEVEL_NOTE =
   " If the user has a single slide open in the slide editor, they must close it first — deck-level changes are only available from the deck view.";
 
-export function getToolsForSlides(
+export function getClientToolsForSlides(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {

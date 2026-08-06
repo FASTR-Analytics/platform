@@ -8,7 +8,7 @@ function formatReportsListForAI(reports: ReportSummary[]): string {
   return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
 }
 
-export function getToolsForReports(
+export function getSharedToolsForReports(
   env: AIToolEnv,
   projectId: string,
   reports: ReportSummary[],

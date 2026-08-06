@@ -19,7 +19,7 @@ import type { AIToolEnv } from "./env.ts";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
-export function getToolsForMetrics(
+export function getSharedToolsForMetrics(
   env: AIToolEnv,
   projectId: string,
   metrics: MetricWithStatus[],

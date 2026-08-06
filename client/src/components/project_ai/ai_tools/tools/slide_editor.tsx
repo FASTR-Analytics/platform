@@ -69,7 +69,7 @@ function replaceFigureBundleInLayout(
   return { ...slide, layout: walk(slide.layout) };
 }
 
-export function getToolsForSlideEditor(
+export function getClientToolsForSlideEditor(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {

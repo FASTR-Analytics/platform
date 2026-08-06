@@ -8,7 +8,7 @@ import { getServerActionTransport } from "../server_actions/transport.ts";
 // the markdown CONTENT is fetched on demand from client/public/info/<topic>.md
 // when a topic is actually requested. Matching against INFO_TOPICS also whitelists
 // the fetch path (no traversal, never serves the SPA fallback).
-export function getToolsForInfo() {
+export function getSharedToolsForInfo() {
   return [
     createAITool({
       name: "get_info",

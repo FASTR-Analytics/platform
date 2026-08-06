@@ -8,7 +8,7 @@ import { getVisualizationDataAsCSV } from "./format_visualization_data_for_ai.ts
 import { formatVisualizationsListForAI } from "./format_visualizations_list_for_ai.ts";
 import type { AIToolEnv } from "./env.ts";
 
-export function getToolsForVisualizations(
+export function getSharedToolsForVisualizations(
   env: AIToolEnv,
   projectId: string,
   visualizations: PresentationObjectSummary[],

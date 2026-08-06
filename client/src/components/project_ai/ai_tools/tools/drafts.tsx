@@ -22,7 +22,7 @@ import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { DraftVisualizationPreview } from "../DraftVisualizationPreview";
 import { DraftSlidePreview } from "../DraftSlidePreview";
 
-export function getToolsForDrafts(
+export function getClientToolsForDrafts(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {

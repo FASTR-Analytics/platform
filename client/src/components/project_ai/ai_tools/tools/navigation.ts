@@ -14,7 +14,7 @@ import { instanceState } from "~/state/instance/t1_store";
 // stamps the resulting setView (the tab effect in project/index.tsx) origin
 // "ai" so it drops from the __navigation digest — the tab switch is
 // synchronous (state/t4_ui.ts), so one mark before the call suffices.
-export function getToolsForNavigation() {
+export function getClientToolsForNavigation() {
   return [
     createAITool({
       name: "switch_tab",

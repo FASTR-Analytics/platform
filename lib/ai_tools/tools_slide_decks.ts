@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SlideDeckSummary } from "../types/mod.ts";
 import { formatSlideDecksListForAI } from "./format_slide_decks_list_for_ai.ts";
 
-export function getToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
+export function getSharedToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
   return [
     createAITool({
       name: "get_available_slide_decks",

@@ -20,7 +20,7 @@ import { validateMetricInputs } from "../validators/content_validators";
 import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
-export function getToolsForVizEditor(
+export function getClientToolsForVizEditor(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {
