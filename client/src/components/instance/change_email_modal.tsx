@@ -202,6 +202,14 @@ export function ChangeEmailModal(
 
   const retry = createButtonAction(() => runRename());
 
+  // Closing the modal cannot stop an in-flight run (the server continues and
+  // the page then auto-reloads without ever showing the report) — so Cancel
+  // locks while anything that can end in a rename is running.
+  const busy = () =>
+    start.state().status === "loading" ||
+    verify.state().status === "loading" ||
+    retry.state().status === "loading";
+
   const statusLabel = (status: RenameEmailInstanceResult["status"]) => {
     switch (status) {
       case "pending":
@@ -246,7 +254,7 @@ export function ChangeEmailModal(
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
       width="lg"
       leftButtons={phase() === "report" ? [] : [
-        <Button onClick={() => p.close(undefined)} outline iconName="x">
+        <Button onClick={() => p.close(undefined)} outline iconName="x" disabled={busy()}>
           {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
         </Button>,
       ]}

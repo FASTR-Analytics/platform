@@ -450,7 +450,7 @@ async function discoverPeers(
       while ((id = queue.shift()) !== undefined) {
         try {
           const response = await fetch(`https://${id}.${FLEET_DOMAIN}/health_check`, {
-            signal: AbortSignal.timeout(15_000),
+            signal: AbortSignal.timeout(10_000),
           });
           if (!response.ok) {
             throw new Error(`status ${response.status}`);
@@ -473,11 +473,14 @@ async function discoverPeers(
   return { peers };
 }
 
+// Timeout is deliberately tight: the whole orchestrator request lives inside
+// nginx's default 60s proxy_read_timeout, so one hung peer must not eat the
+// budget — it becomes a failed row and the idempotent retry picks it up.
 async function renameOnPeer(
   id: string,
   oldEmail: string,
   newEmail: string,
-): Promise<RenameEmailInstanceResult> {
+): Promise<{ row: RenameEmailInstanceResult; warnings: string[] }> {
   try {
     const response = await fetch(
       `https://${id}.${FLEET_DOMAIN}/user/rename-email`,
@@ -488,28 +491,34 @@ async function renameOnPeer(
           "status-api-key": _STATUS_API_KEY,
         },
         body: JSON.stringify({ oldEmail, newEmail }),
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(30_000),
       },
     );
     if (!response.ok) {
       // 404 = the instance runs an image without this route yet.
-      return { id, status: "failed", error: `HTTP ${response.status}` };
+      return { row: { id, status: "failed", error: `HTTP ${response.status}` }, warnings: [] };
     }
     const res = (await response.json()) as APIResponseWithData<LocalRenameResult>;
     if (!res.success) {
-      return { id, status: "failed", error: res.err };
+      return { row: { id, status: "failed", error: res.err }, warnings: [] };
     }
     return {
-      id,
-      status: "updated",
-      projectsUpdated: res.data.projectsUpdated,
-      projectsFailed: res.data.projectsFailed,
+      row: {
+        id,
+        status: "updated",
+        projectsUpdated: res.data.projectsUpdated,
+        projectsFailed: res.data.projectsFailed,
+      },
+      warnings: res.data.warnings.map((w) => `${id}: ${w}`),
     };
   } catch (error) {
     return {
-      id,
-      status: "failed",
-      error: error instanceof Error ? error.message : String(error),
+      row: {
+        id,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      warnings: [],
     };
   }
 }
@@ -602,7 +611,9 @@ defineRoute(
     }
 
     // Execute: local instance first (in-process — no hairpin HTTP through
-    // nginx), then each affected peer sequentially. hasNew-only instances are
+    // nginx), then the affected peers with bounded concurrency — the whole
+    // request must finish inside nginx's default 60s proxy_read_timeout, so
+    // peers cannot be visited one at a time. hasNew-only instances are
     // included so a retried run re-runs their idempotent attribution sweeps.
     if (local.hasOld || local.hasNew) {
       const res = await renameUserEmailLocally(
@@ -623,29 +634,50 @@ defineRoute(
         instances.push({ id: _INSTANCE_ID, status: "failed", error: res.err });
       }
     }
-    for (const peer of discovery.peers) {
-      if (!peer.reachable) {
-        instances.push({ id: peer.id, status: "unreachable" });
-        continue;
-      }
-      if (peer.hasOld && peer.hasNew) {
-        instances.push({
-          id: peer.id,
-          status: "conflict",
-          error: "A user with the new email already exists",
-        });
-        continue;
-      }
-      if (!peer.hasOld && !peer.hasNew) {
-        continue;
-      }
-      instances.push(await renameOnPeer(peer.id, oldEmail, newEmail));
-    }
+    const peerRows: (RenameEmailInstanceResult | null)[] = discovery.peers.map(
+      (peer) => {
+        if (!peer.reachable) {
+          return { id: peer.id, status: "unreachable" };
+        }
+        if (peer.hasOld && peer.hasNew) {
+          return {
+            id: peer.id,
+            status: "conflict",
+            error: "A user with the new email already exists",
+          };
+        }
+        return null;
+      },
+    );
+    const renameQueue = discovery.peers
+      .map((peer, index) => ({ peer, index }))
+      .filter(({ peer, index }) =>
+        peerRows[index] === null && (peer.hasOld || peer.hasNew)
+      );
+    await Promise.all(
+      Array.from({ length: Math.min(4, renameQueue.length) }, async () => {
+        let next: { peer: PeerPresence; index: number } | undefined;
+        while ((next = renameQueue.shift()) !== undefined) {
+          const res = await renameOnPeer(next.peer.id, oldEmail, newEmail);
+          peerRows[next.index] = res.row;
+          warnings.push(...res.warnings);
+        }
+      }),
+    );
+    instances.push(
+      ...peerRows.filter((row): row is RenameEmailInstanceResult => row !== null),
+    );
     if (instances.some((i) => i.status !== "updated")) {
       warnings.push(
         "Some instances were not renamed — running the rename again is safe and retries only what is missing",
       );
     }
+    // The central-reporting app keeps its own user accounts — this rename
+    // never reaches them (central is not in servers.json and runs a separate
+    // users table). Only relevant to the few users with central access.
+    warnings.push(
+      "Central reporting accounts are separate and were not renamed — contact an administrator if you use central reporting",
+    );
     return c.json({ success: true, data: { instances, warnings } });
   },
 );
