@@ -47,6 +47,7 @@ export function getToolsForModules(
       },
       inProgressLabel: "Getting available modules...",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -63,6 +64,7 @@ export function getToolsForModules(
       },
       inProgressLabel: "Getting module script...",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -80,6 +82,7 @@ export function getToolsForModules(
       },
       inProgressLabel: "Getting module log...",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -97,6 +100,7 @@ export function getToolsForModules(
       },
       inProgressLabel: "Getting module settings...",
       kind: "read",
+      headless: true,
     }),
   ];
 }

@@ -93,6 +93,7 @@ export function getToolsForSlides(
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
       }),
       kind: "read",
+      headless: true,
       handler: async (input) => {
         const res = await getSlideFromCacheOrFetch(projectId, input.slideId);
         if (!res.success) throw new AIToolFailure(res.err);

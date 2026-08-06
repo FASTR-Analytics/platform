@@ -25,6 +25,7 @@ export function getToolsForMetrics(
       inProgressLabel: "Getting available metrics...",
       completionMessage: `Retrieved ${metrics.length} metric(s)`,
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -47,6 +48,7 @@ export function getToolsForMetrics(
       inProgressLabel: (input: AiMetricQuery) => `Getting data for metric ${input.metricId}...`,
       completionMessage: (input: AiMetricQuery) => `Retrieved data for metric ${input.metricId}`,
       kind: "read",
+      headless: true,
     }),
   ];
 }

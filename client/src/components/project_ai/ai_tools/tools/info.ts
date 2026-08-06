@@ -1,6 +1,7 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import { INFO_TOPICS } from "../../info_catalog";
+import { getServerActionTransport } from "~/server_actions/transport";
 
 // On-demand reference docs. The catalog (INFO_TOPICS) is a compile-time const so
 // the system prompt and this tool share one source of truth with no fetch; only
@@ -33,7 +34,14 @@ export function getToolsForInfo() {
             ).join(", ")}.`,
           );
         }
-        const response = await fetch(`/info/${match.topic}.md`, {
+        // In the browser the info files come from the SPA origin (Vite in
+        // dev); headlessly there is no origin, so the server's base URL from
+        // the transport supplies one (the built SPA's /info files are served
+        // by the app server).
+        const base = typeof document === "undefined"
+          ? getServerActionTransport().baseUrl
+          : "";
+        const response = await fetch(`${base}/info/${match.topic}.md`, {
           cache: "no-cache",
         });
         if (!response.ok) {
@@ -52,6 +60,7 @@ export function getToolsForInfo() {
           ? `Loaded "${input.topic}" reference`
           : "Listed reference topics",
       kind: "read",
+      headless: true,
     }),
   ];
 }

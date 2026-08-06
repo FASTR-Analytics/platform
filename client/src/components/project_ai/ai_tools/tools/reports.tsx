@@ -21,6 +21,7 @@ export function getToolsForReports(
       inProgressLabel: "Getting available reports...",
       completionMessage: "Retrieved reports list",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -49,6 +50,7 @@ export function getToolsForReports(
       inProgressLabel: "Reading report...",
       completionMessage: "Read report",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -59,30 +61,45 @@ export function getToolsForReports(
         label: z.string(),
         markdown: z.string(),
       }),
-      handler: async (input) => {
-        const createRes = await serverActions.createReport({
-          projectId,
-          label: input.label,
-          folderId: null,
-        });
-        if (!createRes.success) throw new AIToolFailure(createRes.err);
-        const bodyRes = await serverActions.updateReportBody({
-          projectId,
-          report_id: createRes.data.reportId,
-          body: input.markdown,
-          expectedLastUpdated: createRes.data.lastUpdated,
-          overwrite: true,
-        });
-        if (!bodyRes.success) {
-          throw new AIToolFailure(
-            `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`,
-          );
-        }
-        return `Created report "${input.label}" (id: ${createRes.data.reportId}).`;
+      approval: {
+        propose: (input) => ({
+          preview: {
+            title: `Create report "${input.label}"`,
+            changes: [
+              { label: "Label", after: input.label },
+              {
+                label: "Body",
+                after: `${input.markdown.split(/\s+/).filter(Boolean).length} words of markdown`,
+              },
+            ],
+          },
+          commit: async () => {
+            const createRes = await serverActions.createReport({
+              projectId,
+              label: input.label,
+              folderId: null,
+            });
+            if (!createRes.success) throw new AIToolFailure(createRes.err);
+            const bodyRes = await serverActions.updateReportBody({
+              projectId,
+              report_id: createRes.data.reportId,
+              body: input.markdown,
+              expectedLastUpdated: createRes.data.lastUpdated,
+              overwrite: true,
+            });
+            if (!bodyRes.success) {
+              throw new AIToolFailure(
+                `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`,
+              );
+            }
+            return `Created report "${input.label}" (id: ${createRes.data.reportId}).`;
+          },
+        }),
       },
       inProgressLabel: "Creating report...",
       completionMessage: "Created report",
       kind: "write",
+      headless: true,
     }),
   ];
 }

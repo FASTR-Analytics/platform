@@ -24,6 +24,7 @@ export function getToolsForVisualizations(
       inProgressLabel: "Getting available visualizations...",
       completionMessage: "Retrieved visualizations list",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -37,6 +38,7 @@ export function getToolsForVisualizations(
       inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,
       kind: "read",
+      headless: true,
     }),
   ];
 }

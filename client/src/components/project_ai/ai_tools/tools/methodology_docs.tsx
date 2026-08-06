@@ -33,6 +33,7 @@ export function getToolsForMethodologyDocs() {
       inProgressLabel: "Fetching methodology docs index...",
       completionMessage: "Retrieved methodology docs index",
       kind: "read",
+      headless: true,
     }),
 
     createAITool({
@@ -73,6 +74,7 @@ export function getToolsForMethodologyDocs() {
       inProgressLabel: input => `Reading ${input.fileName}...`,
       completionMessage: input => `Read ${input.fileName}`,
       kind: "read",
+      headless: true,
     }),
   ];
 }
