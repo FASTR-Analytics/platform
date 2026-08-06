@@ -281,8 +281,8 @@ there is no session at all, so a private dashboard is hidden from everyone
 in that mode. **All four failure modes return the identical 404** — no
 oracle distinguishing "private" from "doesn't exist". The response is
 `buildPublicDashboardBundle(detail, countryIso3)` — titles/bundles only,
-no emails or project ids; `countryIso3` is fetched best-effort (label
-cleaning must never block serving).
+no emails or project ids; `countryIso3` is the env-sourced
+`_INSTANCE_COUNTRY_ISO3` (label cleaning has no failure mode to guard).
 
 **`buildPublicDashboardBundle`**
 ([lib/types/dashboard.ts:148](lib/types/dashboard.ts#L148)) is the single

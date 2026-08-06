@@ -4,9 +4,9 @@
 // representative route is GET /user (getCurrentUser) — its response IS the
 // resolved GlobalUser.
 //
-// The PAT leg is fully real: real patAuthMiddleware, real allowlist, real
+// The PAT leg is fully real: real headlessAuthMiddleware, real allowlist, real
 // route registration, real DB. The Clerk leg simulates only clerkMiddleware's
-// output contract — c.set("clerkAuth", auth), the seam getAuth() reads —
+// output contract — c.set("clerkAuth", authFn), the seam getAuth() invokes —
 // because verifying Clerk's network handshake belongs to Clerk, not this app.
 // Everything downstream (getGlobalUser → buildGlobalUserFromDb → permission
 // middleware → handler) is the real code on both legs.
@@ -22,8 +22,8 @@ import type { ServerActionTransport } from "../../lib/server_actions/transport.t
 import { setServerActionTransport } from "../../lib/server_actions/transport.ts";
 import { createAllServerActions } from "../../lib/server_actions/create_server_action.ts";
 import { routesUsers } from "../routes/instance/users.ts";
-import { patAuthMiddleware } from "../middleware/auth.ts";
-import { patRouteAllowlist } from "../middleware/pat_allowlist.ts";
+import { headlessAuthMiddleware } from "../middleware/auth.ts";
+import { headlessRouteAllowlist } from "../middleware/headless_allowlist.ts";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   createPersonalAccessToken,
@@ -33,6 +33,28 @@ import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 
 const TEST_EMAIL = "pat-parity-test@example.com";
+
+// clerkMiddleware's output contract, as of @hono/clerk-auth v3: c.var.clerkAuth
+// is the auth FUNCTION getAuth() invokes (v2 stored the auth object itself),
+// and the object it returns is tagged with tokenType — which getClerkSessionAuth
+// checks, because v3 authenticates with acceptsToken:"any" and would otherwise
+// let a machine token through the cookie mount.
+function clerkLegMiddleware(sessionClaims: Record<string, unknown>) {
+  return async (
+    c: { set: (k: never, v: never) => void },
+    next: () => Promise<void>,
+  ) => {
+    c.set(
+      "clerkAuth" as never,
+      (() => ({
+        userId: "user_parity_test",
+        tokenType: "session_token",
+        sessionClaims,
+      })) as never,
+    );
+    await next();
+  };
+}
 
 Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /user)", async () => {
   if (_BYPASS_AUTH) {
@@ -55,11 +77,11 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
   try {
     // PAT leg — the real /pat composition from main.ts.
-    const patApp = new Hono();
-    patApp.use("*", patAuthMiddleware as never);
-    patApp.use("*", patRouteAllowlist);
-    patApp.route("/", routesUsers);
-    const patRes = await patApp.request("/user", {
+    const headlessApp = new Hono();
+    headlessApp.use("*", headlessAuthMiddleware as never);
+    headlessApp.use("*", headlessRouteAllowlist);
+    headlessApp.route("/", routesUsers);
+    const patRes = await headlessApp.request("/user", {
       headers: { Authorization: `Bearer ${minted.data.token}` },
     });
     assertEquals(patRes.status, 200);
@@ -67,16 +89,14 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
     // Clerk leg — the same route registration behind clerkMiddleware's output.
     const clerkApp = new Hono();
-    clerkApp.use("*", async (c, next) => {
-      c.set(
-        "clerkAuth" as never,
-        {
-          userId: "user_parity_test",
-          sessionClaims: { email: TEST_EMAIL, firstName: null, lastName: null },
-        } as never,
-      );
-      await next();
-    });
+    clerkApp.use(
+      "*",
+      clerkLegMiddleware({
+        email: TEST_EMAIL,
+        firstName: null,
+        lastName: null,
+      }) as never,
+    );
     clerkApp.route("/", routesUsers);
     const clerkRes = await clerkApp.request("/user");
     assertEquals(clerkRes.status, 200);
@@ -94,20 +114,14 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     // without being calibrated to the null-claims case where both legs
     // trivially agree.
     const clerkNamedApp = new Hono();
-    clerkNamedApp.use("*", async (c, next) => {
-      c.set(
-        "clerkAuth" as never,
-        {
-          userId: "user_parity_test",
-          sessionClaims: {
-            email: TEST_EMAIL,
-            firstName: "Parity",
-            lastName: "Probe",
-          },
-        } as never,
-      );
-      await next();
-    });
+    clerkNamedApp.use(
+      "*",
+      clerkLegMiddleware({
+        email: TEST_EMAIL,
+        firstName: "Parity",
+        lastName: "Probe",
+      }) as never,
+    );
     clerkNamedApp.route("/", routesUsers);
     const clerkNamedRes = await clerkNamedApp.request("/user");
     assertEquals(clerkNamedRes.status, 200);
@@ -134,8 +148,8 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
     // Explicit-transport leg (PLAN_112 step 2): the same route reached
     // through createAllServerActions over an EXPLICIT transport whose
-    // fetchImpl dispatches in-process into patApp must be byte-identical to
-    // the raw patApp request — this is the /mcp endpoint's dispatch path
+    // fetchImpl dispatches in-process into headlessApp must be byte-identical to
+    // the raw headlessApp request — this is the /mcp endpoint's dispatch path
     // (D4), proven against the real middleware chain.
     const explicitTransport: ServerActionTransport = {
       baseUrl: "",
@@ -143,11 +157,11 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
       getHeaders: () => ({ Authorization: `Bearer ${minted.data.token}` }),
       credentials: "omit",
       onPersistentAuthFailure: () => {},
-      fetchImpl: async (input, init) => await patApp.request(input, init),
+      fetchImpl: async (input, init) => await headlessApp.request(input, init),
     };
     // Fresh raw baseline taken NOW: the named-Clerk leg above already synced
     // first_name into the DB, so the original patBody is stale by design.
-    const freshPatRes = await patApp.request("/user", {
+    const freshPatRes = await headlessApp.request("/user", {
       headers: { Authorization: `Bearer ${minted.data.token}` },
     });
     const freshPatBody = await freshPatRes.json();
@@ -166,19 +180,19 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
 
     // Deny-by-default: a route outside the allowlist 403s under PAT even with
     // a valid token (PATs can never reach token mint/list/revoke).
-    const denied = await patApp.request("/personal-access-tokens", {
+    const denied = await headlessApp.request("/personal-access-tokens", {
       headers: { Authorization: `Bearer ${minted.data.token}` },
     });
     assertEquals(denied.status, 403);
 
     // A bad token never reaches a handler.
-    const badToken = await patApp.request("/user", {
+    const badToken = await headlessApp.request("/user", {
       headers: { Authorization: "Bearer fastr_pat_deadbeef" },
     });
     assertEquals(badToken.status, 401);
 
     // No Authorization header at all → 401, not a Clerk fallback.
-    const noAuth = await patApp.request("/user");
+    const noAuth = await headlessApp.request("/user");
     assertEquals(noAuth.status, 401);
   } finally {
     await revokePersonalAccessToken(mainDb, TEST_EMAIL, minted.data.pat.id);

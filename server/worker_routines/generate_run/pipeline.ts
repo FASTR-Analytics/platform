@@ -8,10 +8,8 @@ import {
   type RunModule,
   type RunProgress,
 } from "lib";
-import {
-  createWorkerReadConnection,
-  getCountryIso3Config,
-} from "../../db/mod.ts";
+import { createWorkerReadConnection } from "../../db/mod.ts";
+import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import { prepareModuleDefinitionForStorage } from "../../db/project/modules.ts";
 import {
   publishReadyRun,
@@ -73,16 +71,13 @@ export async function runGenerationPipeline(
     notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
   };
 
-  const resCountryIso3 = await getCountryIso3Config(mainDb);
-  throwIfErrWithData(resCountryIso3);
-
   const prepared = await prepareRunInputs(mainDb, std.step1Result, std.runId);
 
   const resolved = await resolveRunModules(
     mainDb,
     prepared,
     std.step2Result,
-    resCountryIso3.data.countryIso3,
+    _INSTANCE_COUNTRY_ISO3,
   );
   progress.moduleOrder = resolved.map((m) => m.moduleId);
 

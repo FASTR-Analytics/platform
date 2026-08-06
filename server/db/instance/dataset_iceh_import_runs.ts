@@ -22,7 +22,7 @@ import {
   getWorker,
   setWorker,
 } from "../../worker_routines/worker_store.ts";
-import { getCountryIso3Config } from "./config.ts";
+import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import type { DBIcehImportRun } from "./_main_database_types.ts";
 
 // ICEH import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C): one row per
@@ -107,14 +107,9 @@ export async function validateIcehRunLaunch(
     zipUpload.fileName,
   );
 
-  const countryConfig = await getCountryIso3Config(mainDb);
-  if (countryConfig.success === false) {
-    throw new Error(countryConfig.err);
-  }
-  const instanceIso = countryConfig.data.countryIso3;
-  if (instanceIso && instanceIso !== preview.countryIso) {
+  if (_INSTANCE_COUNTRY_ISO3 !== preview.countryIso) {
     throw new Error(
-      `Country mismatch: zip contains ${preview.countryIso} but instance is configured for ${instanceIso}`,
+      `Country mismatch: zip contains ${preview.countryIso} but instance is configured for ${_INSTANCE_COUNTRY_ISO3}`,
     );
   }
 

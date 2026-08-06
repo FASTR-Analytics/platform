@@ -194,6 +194,141 @@ No explicit cache flush needed.
 
 ---
 
+## Run Manifest Transforms
+
+`server/runs/manifest_transform.ts` is the same pattern applied to a **file** —
+a results package's `manifest.json` — instead of a DB column. Everything above
+holds unchanged: one function per type, numbered blocks appended at the end and
+never reordered, each idempotent and checking its own precondition,
+`structuredClone` → mutate → `.parse`, and the no-op-write guard. It runs at
+boot from `db_startup.ts` and again on the read path (`manifest_cache.ts`) for
+packages that arrive after boot, using the same function.
+
+Packages are immutable, so this is a deliberate amendment recorded in
+`VISION_RESULTS_RUNS.md`: **package outputs are immutable; the manifest is a
+derived descriptor and may be transformed forward.** Without it a schema change
+orphans every existing package, and "regenerate" is not a real remedy — it mints
+a new `runId`, which marks every stored figure in the fleet stale.
+
+Four things differ from a DB transform.
+
+**1. Recompute only — never invent provenance.**
+
+> A block may only RECOMPUTE from files already in the package. It may never
+> invent provenance.
+
+A DB transform only reshuffles fields inside the row it was handed, so it
+*cannot* invent. A manifest block does file I/O, so it can. Therefore:
+
+- **A field knowable only at generation time is nullable forever.** `createdAt`,
+  `appVersion`, `rImageTag`, `label`, `provenance`, `calendar`, `countryIso3`,
+  `facilityColumnsConfig`, `datasets[]`, `modules[]`, `metrics[]`, `inputKey`,
+  `outputFileHashes`. Carry them forward untouched; leave them null where they
+  never existed. Never synthesize a plausible value.
+- Recomputable, therefore fair game: `runId` (the directory name),
+  `assets[].sha256`, `facilitiesTables[].columns`, `resultsObjects[]`,
+  `metricAvailability[]`, `inputFiles[]`.
+- **Whatever a block reads becomes a permanent part of the package format.** An
+  input file a transform recomputes from can never be dropped.
+- A recompute is a pure function of (package files × **app code**), not of the
+  files alone — e.g. `getIndicatorMetadataFromRun` branches on
+  `scriptGenerationType`. That is intended (see 2), but it means recomputed
+  fields are not byte-stable across app versions.
+
+**2. The forced gate is the version integer, and blocks re-evaluate every boot.**
+
+A parse-only gate is wrong here. A manifest from a *newer* server parses under
+the current schema with its additions silently stripped, so parse success cannot
+distinguish "current shape" from "newer shape we would serve wrong". This is the
+same **forced skip-gate** as `configNeedsForcedTransform`, reading a version
+field instead of scanning for legacy keys:
+
+```ts
+if (
+  runManifestSchema.safeParse(manifest).success &&
+  manifest.manifestSchemaVersion === RUN_MANIFEST_SCHEMA_VERSION
+) continue;
+```
+
+`runManifestSchema` deliberately accepts **any** integer version — it has to, so
+a newer manifest is detected rather than rejected as malformed — so the version
+is asserted separately after the blocks run. Still below current means the block
+for that step is missing: a code defect, and boot fails.
+
+Because these are blocks and not version-indexed steps, they re-evaluate every
+boot. **That is the point: fixing a bad derivation takes effect on the next
+deploy.** A version-indexed ladder would run each step exactly once, making
+every derivation bug fix cost a new schema version forever.
+
+**3. The boot sweep enumerates the `runs` catalogue, never the filesystem.**
+
+The runs volume is shared and heterogeneous: legacy `{projectId}` sandbox dirs
+(left entirely alone — Phase 4 owns removing them), published-failed dirs,
+`.tmp-` dirs, `.duckdb-spill`, loose `restore_*.sql.gz`. Catalogue enumeration
+excludes all of them by construction and preserves the ruling that justified
+sharing the directory: *every consumer addresses a NAMED entry.* Statuses
+`generating` and `failed` are excluded too — those definitionally have no
+manifest, so sweeping them would warn on every boot about a state working as
+designed.
+
+**4. Failure policy — operational fault vs code defect.**
+
+| Case | Meaning | Policy |
+| --- | --- | --- |
+| `manifest.json` absent | Directory missing, or a published-failed generation dir | **Operational.** Skip, logged. Read path degrades as today. |
+| Present, not parseable JSON | Truncated write, half-finished rsync | **Operational.** Same. |
+| Parses, fails `runManifestSchema` | Real shape drift | Force the transform. Still invalid after → **fail-stop boot.** |
+| Version **below** current | Same drift, no parse failure | Same as above. |
+| Version **above** current | Data *not for this server* | Refuse that package (unavailable). Boot continues. |
+
+The last two rows are principle 4 unchanged. **Absent or unparseable must not
+fail boot**, and the reason is concrete: backups are pg dumps, so a restore
+brings `runs` catalogue rows back while the package directories are still
+absent. The existing degrade paths are deliberate and stay — `getRunReadContext`
+returns a typed "Results run unavailable", and `projects.ts` degrades the
+project shell to empty lists on purpose so authored decks, reports and
+dashboards stay reachable. Do not "fix" that catch. Consequence to accept: on
+the **load** path a shape-drift defect also lands in that catch, so it is
+visible only in the log.
+
+### Writing to the package
+
+Transform in memory, `.parse`, **then** persist — there is nothing to restore
+from if it fails. Write `.tmp-manifest-{crypto.randomUUID()}.json` in the
+package dir and rename over `manifest.json`; a unique name, never a fixed one,
+so two writers can never share a temp file. `sweepAbandonedTmpRunDirs` matches
+*directories*, so a leftover temp manifest has no sweeper — clean up in a
+`finally`. Retain the pre-transform file as `manifest.v{n}.json`: that is what
+makes both a bad block and an image rollback recoverable.
+
+No lock is needed, on this premise: `await dbStartUp()` is top-level in
+`main.ts` before any serving begins, and every `getRunManifestCached` caller is
+main-realm — no Web Worker reads a manifest. Re-check if one ever does.
+
+`runs.summary` is **not** touched. `RunSummary.manifestSchemaVersion` is
+display-only provenance of how the package was originally written and is read by
+nothing. A naive "refresh" would rebuild the summary from the manifest and wipe
+three fields deliberately not in it — `attachTargetProjectIds` (read
+structurally by the launch concurrency guard), `backfillSourceProjectId`, and
+`diskSizeBytes`.
+
+### Checklist for adding a block
+
+- [ ] Append the block at the end, numbered, idempotent, precondition-checked
+- [ ] Add it to the `TRANSFORM BLOCKS:` list in the file header
+- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema
+- [ ] Recompute only — check every field you touch against the list in 1
+- [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix in
+      `server/routes/caches/visualizations.ts`. The first three PO caches key on
+      `PO_CACHE_VERSION` (a code dimension, which the manifest now is); the
+      detail cache keys on `presentationObjectLastUpdated|runId` with no code
+      dimension, so it needs the prefix bump instead
+- [ ] Audit the **fourth** persistence layer: a manifest field can additionally
+      be snapshotted into stored `FigureBundle`s, which needs its own data
+      transform with a forced skip-gate
+
+---
+
 ## Validation
 
 ### Startup Validation

@@ -69,7 +69,9 @@ a plain JSON route. There is no worker, no Docker, and no SSE for progress.
 family (PK `dataset_family`, hmis|hfa) — HMIS and HFA imports are fully
 independent. Steps: 0 choose source (HMIS only; HFA is created at step 1
 with source pinned to csv) → 1 file/credentials → 2 column mappings /
-org-unit levels → 3 stage → 4 pick strategy + integrate. `status_type`
+org-unit levels → 3 stage → 4 review/recode values → 5 pick strategy +
+integrate. The **stored** `step` still tops out at 4: DB step 4 covers both
+client screens (see **Value recoding** below). `status_type`
 (configuring | importing | error) is the machine-readable discriminator
 used in WHERE clauses; the `status` JSON is the client-facing detail
 (`importing_dhis2` carries org-unit progress). Success at step 4 **deletes
@@ -116,6 +118,41 @@ Unresolved codes stay raw and are surfaced per column in the staging
 result (`labelResolution`: resolvedCount + up to 10 distinct unresolved
 values), rendered in the step-4 summary. No migration, no cache-shape
 change.
+
+**Value recoding (review step).** Facility columns are free text with no
+canonical list, and real HFA files classify many facilities as "Other". The
+review step between staging and integrate lets the user pick a staged column,
+check the values to reassign, and assign a target per facility (or in bulk,
+including a brand-new category). Assignments are per-facility and **sparse** —
+`StructureRecodes = Partial<Record<StructureRecodableColumn, Record<facilityId,
+newValue>>>`, stored as JSON in `structure_upload_attempts.recodes` (migration
+068); unassigned rows keep their file value. Recodable columns are the optional
+facility columns **minus `facility_name`**, whose distinct values ≈ row count
+(renaming is not recoding). Three routes serve it:
+`getStructureStagedColumnValues` (distinct values + facility counts, flagged
+`truncated` above 200 — accepted, real `facility_type` cardinality is tiny),
+`getStructureStagedRecodeRows`, and `setStructureRecodes`.
+
+Recodes are scoped to one attempt and die with the staging they describe:
+`recodes = NULL` rides along at all **seven** writes that null `step_3_result`,
+and the save is a conditional UPDATE requiring `step_3_result->>'stagingNonce'`
+to still match the nonce the client authored against — so a save composed
+before a re-stage is rejected, never silently applied to different rows.
+
+**Application is a projection overlay at integrate, never a staging mutation.**
+`buildRecodeJoins` emits one `LEFT JOIN (VALUES ...) ON facility_id` per recoded
+column and `recodedSelectList` swaps that column for `COALESCE(rc_col.val,
+col)`; all three strategy writers select through it. The dedup ORDER BY keeps
+referencing raw column names and window-clause references resolve to INPUT
+columns rather than select-list aliases, so **ranking runs on original values**
+— the rn=1 winner the review UI showed is exactly the row integrated. This is
+load-bearing: pre-applying the COALESCE in a CTE the ranking reads from would
+change which duplicate wins.
+
+Client-side the stepper runs 0–5 against a stored step that stops at 4, so a
+**landing rule** decides which screen DB step 4 means: a silent refetch never
+yanks a user who is on import (client 5) back to review, and attempts with
+nothing recodable land straight on import.
 
 **Duplicate rows.** Survey exports carry one row per submission attempt, so
 the same `facility_id` recurs with only the consented row's metadata cells
@@ -392,15 +429,21 @@ absent from a push. Consumers read via the deliberately non-reactive
   facility-columns cache hash. Label overrides are column-NAME labels
   (there is no value-label mechanism — values arrive as labels because
   ODK codes are resolved at staging, see Structure ELT).
-- `country_iso3` — validated `^[A-Z]{3}$` (trim/uppercase; empty = unset):
-  it is substituted into R module scripts as `COUNTRY_ISO3` and into
-  caption/localization, so a stray quote would break every generated
-  script.
 - `admin_area_labels` — display-only label overrides carrying an `(AAn)`
   suffix convention (space-prefixed) appended/stripped by
   `instance_settings.tsx`.
 - `structure_last_updated` — see above; written by the structure world,
   not by the settings UI.
+
+**Country is NOT here — it is `ISO_COUNTRY_CODE`**, an env var passed by the
+server-cli Docker run system and read once as `_INSTANCE_COUNTRY_ISO3`
+(`exposed_env_vars.ts`). It is **required**: boot fail-stops without it, because
+country-less is not a legitimate instance state (Tim's ruling 2026-08-06). The
+accepted values are an ISO3 code or `SOMALILAND` — the one territory FASTR
+reports on that has no ISO3 code. The value is substituted into R module scripts
+as `COUNTRY_ISO3` and into caption/localization, which is why it is validated as
+a clean token rather than passed through. It was an editable instance setting
+until 2026-08-06; migration 074 deletes the dead `country_iso3` row.
 
 Every config mutation re-reads all configs and pushes one consolidated
 `config_updated` SSE (`notifyConfigUpdated`). No Valkey at this layer.

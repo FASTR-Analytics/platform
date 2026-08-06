@@ -23,6 +23,7 @@ export {
   getRunManifestCached,
   readRunInputJsonCached,
 } from "./manifest_cache.ts";
+export { transformRunManifestFile } from "./manifest_transform.ts";
 export {
   listRunModuleFiles,
   readRunModuleLogs,

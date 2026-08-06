@@ -19,7 +19,7 @@ import {
 } from "../project_auth.ts";
 import { buildProjectState } from "../task_management/build_project_state.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
-import { patAppFetch } from "../pat_app.ts";
+import { headlessAppFetch } from "../headless_app.ts";
 import { createMcpAIToolEnv } from "./env.ts";
 import {
   _BYPASS_AUTH,
@@ -31,11 +31,12 @@ import {
 
 // The /mcp endpoint is stateless above the wire (PLAN_112 D1): every project
 // tool call carries projectId, authorization runs per call, and this cache is
-// PURELY performance — correctness never depends on it. Keyed by (PAT token,
+// PURELY performance — correctness never depends on it. Keyed by (token,
 // projectId): contexts capture serverActions bound to the building request's
-// PAT, so token-keying makes revocation invalidation exact (a revoked token's
-// context ages out in <=30s and every dispatch through it 401s immediately
-// anyway).
+// credential, so token-keying makes revocation invalidation exact (a revoked
+// token's context ages out in <=30s and every dispatch through it 401s
+// immediately anyway). OAuth tokens rotate (~hourly), so their entries die on
+// rotation rather than by TTL — harmless, since the entry is a pure cache.
 
 const CONTEXT_TTL_MS = 30_000;
 const CONTEXT_LRU_CAP = 50;
@@ -57,7 +58,7 @@ export type McpProjectContext = {
 
 // One key builder for cache writes AND invalidation — the two sites drifted
 // once (a literal NUL in one template, a space in the other) and the
-// invalidation silently missed. The separator cannot occur in a PAT or a
+// invalidation silently missed. The separator cannot occur in a token or a
 // project id.
 function contextKey(principal: McpPrincipal, projectId: string): string {
   return `${principal.token}\u0000${projectId}`;
@@ -91,11 +92,12 @@ function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T) {
 }
 
 // The per-principal transport (PLAN_112 D4): every server action dispatches
-// in-process through patApp's full middleware chain — PAT verify (+last-used
-// stamp), deny-by-default allowlist, zod validation, project permissions
-// incl. locked-project write denial, logging. Revocation reaches staged
-// commits: a commit closure holds actions bound to this token, so if the PAT
-// is revoked during a confirm window the commit's own dispatch 401s.
+// in-process through headlessApp's full middleware chain — credential verify
+// (a PAT also gets its last-used stamp), deny-by-default allowlist, zod
+// validation, project permissions incl. locked-project write denial, logging.
+// Revocation reaches staged commits: a commit closure holds actions bound to
+// this token, so if the credential is revoked during a confirm window the
+// commit's own dispatch 401s.
 export function buildPrincipalTransport(token: string): ServerActionTransport {
   return {
     baseUrl: "",
@@ -104,10 +106,10 @@ export function buildPrincipalTransport(token: string): ServerActionTransport {
     credentials: "omit",
     onPersistentAuthFailure: ({ url }) => {
       console.error(
-        `[mcp] persistent auth failure calling ${url} — the personal access token may be revoked`,
+        `[mcp] persistent auth failure calling ${url} — the credential may be revoked`,
       );
     },
-    fetchImpl: patAppFetch,
+    fetchImpl: headlessAppFetch,
   };
 }
 

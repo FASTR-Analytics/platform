@@ -296,8 +296,7 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    the concurrency guards); stale mid-run DHIS2 import runs are marked likewise.
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
-5. **Per-project pass.** `countryIso3` is read **once** from the main DB, then
-   for each row in `projects`: project SQL migrations (`migrations/project/`,
+5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
    same runner), then the eight project data transforms in fixed order
    (`po_config`, `module_definition`, `metrics_columns`, `slide_deck_config`,
    `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
@@ -355,11 +354,10 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   in-project converts from its own grid exactly like any other — no re-query, no
   `mainDb`, no blank placeholders.
 - **Localization synthesis.** `getTransformLocalization(countryIso3)` builds the
-  frozen `localization`: `language`/`calendar` from the instance env
-  (`_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`), and `countryIso3` read **once**
-  from the main DB at startup ([db_startup.ts](server/db_startup.ts)) and
-  threaded through every project sweep — so backfilled figures carry the real
-  country (drives admin-area relabelling at render). `provenance.moduleLastRun`
+  frozen `localization`, all three fields from the instance env —
+  `_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3` — threaded
+  through every project sweep, so backfilled figures carry the real country
+  (drives admin-area relabelling at render). `provenance.moduleLastRun`
   is best-effort (= `snapshotAt`); the Phase-4 stale-flag is therefore
   approximate for backfilled figures (accepted).
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**

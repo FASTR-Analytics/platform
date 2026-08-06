@@ -79,6 +79,26 @@ if (_INSTANCE_FISCAL_YEAR !== "none" && _INSTANCE_CALENDAR !== "gregorian") {
   );
 }
 
+// Country the instance reports on. Every instance HAS a country (Tim's ruling
+// 2026-08-06) — country-less is not a legitimate state, so this is required and
+// boot fail-stops without it. An ISO3 code, plus SOMALILAND: the one territory
+// FASTR reports on that has no ISO3 code. The value is interpolated into
+// generated R scripts as `${countryIso3}`.
+export const _INSTANCE_COUNTRY_ISO3 = Deno.env
+  .get("ISO_COUNTRY_CODE")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "")
+  .trim()
+  .toUpperCase() ?? "";
+if (
+  !/^[A-Z]{3}$/.test(_INSTANCE_COUNTRY_ISO3) &&
+  _INSTANCE_COUNTRY_ISO3 !== "SOMALILAND"
+) {
+  throw new Error(
+    `ISO_COUNTRY_CODE must be three uppercase letters (e.g. NGA) or SOMALILAND (got "${_INSTANCE_COUNTRY_ISO3}")`,
+  );
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Directory Paths
 ///////////////////////////////////////////////////////////////////////////////
@@ -230,8 +250,8 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
 ///////////////////////////////////////////////////////////////////////////////
 
 export const _DHIS2_FACILITY_BATCH_SIZE: number = Deno.env.get(
-  "DHIS2_FACILITY_BATCH_SIZE",
-)
+    "DHIS2_FACILITY_BATCH_SIZE",
+  )
   ? parseInt(Deno.env.get("DHIS2_FACILITY_BATCH_SIZE")!)
   : 400;
 if (
@@ -244,8 +264,8 @@ if (
 }
 
 export const _DHIS2_CONCURRENT_REQUESTS: number = Deno.env.get(
-  "DHIS2_CONCURRENT_REQUESTS",
-)
+    "DHIS2_CONCURRENT_REQUESTS",
+  )
   ? parseInt(Deno.env.get("DHIS2_CONCURRENT_REQUESTS")!)
   : 5;
 if (
@@ -272,6 +292,15 @@ export const _OPEN_ACCESS = !!Deno.env.get("OPEN_ACCESS");
 
 // Only enabled if BYPASS_AUTH=true AND not in production
 export const _BYPASS_AUTH = !!Deno.env.get("BYPASS_AUTH") && !_IS_PRODUCTION;
+
+// Clerk keys. NOT boot-required: clerkMiddleware reads them from the process
+// env itself and fails per-request, and a BYPASS_AUTH dev instance runs with
+// neither set. They are surfaced here for the headless OAuth resolver
+// (server/headless_auth.ts), which builds its own backend client and throws at
+// USE time — never at boot — if they are missing.
+export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY") ?? "";
+export const _CLERK_PUBLISHABLE_KEY = Deno.env.get("CLERK_PUBLISHABLE_KEY") ??
+  "";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Deployment Metadata

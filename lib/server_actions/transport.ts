@@ -16,7 +16,7 @@ export type ServerActionTransport = {
   onNetworkSuccess?: () => void;
   // In-process dispatch seam (PLAN_112 D4): when set, server actions issue
   // requests through this instead of global fetch. The /mcp endpoint points
-  // it at patApp.request(), so every action still runs the full PAT
+  // it at headlessApp.request(), so every action still runs the full headless
   // middleware chain (verify, allowlist, permissions, logging) without a
   // network hop. Absent = global fetch, zero behavior change.
   fetchImpl?: (

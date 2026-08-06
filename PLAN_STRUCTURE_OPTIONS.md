@@ -1,10 +1,27 @@
 # PLAN: Per-family structure registry schema (replaces maxAdminArea + facilityColumns settings)
 
 Status: planned 2026-08-04 (unified from two earlier plans, Tim's ruling), not
-started. Do after the 2026-08-06 tim-branch→main merge.
+started.
 
-Out of scope: countryIso3 → env var — deliberately the LAST move, done
-together with deleting the instance settings page.
+**Blocked on [PLAN_MANIFEST_MIGRATIONS.md](PLAN_MANIFEST_MIGRATIONS.md) items
+1–4** (Tim's ruling 2026-08-06). Ruling 7 changes the run manifest's shape, and
+today that means bumping `RUN_MANIFEST_SCHEMA_VERSION` — which
+[manifest_cache.ts](server/runs/manifest_cache.ts) turns into a hard throw
+("regenerate the run") for every existing package. The dual-field + read-time
+fallback this plan originally specified existed *solely* to dodge that bump, and
+it is precisely the runtime-adapter pattern PLAN_MANIFEST_MIGRATIONS §10 is
+written to delete. Once manifests can be transformed forward in place, ruling 7
+becomes a transform block and the read path parses one shape. Do not build the
+fallback: manifest migrations is pre-rollout and behavior-neutral, so the
+ordering is cheap, and after the fleet rollout the fallback is permanent debt.
+
+Also do this after the tim-branch→main merge.
+
+Out of scope: countryIso3 → env var. **DONE 2026-08-06** — ahead of this plan
+rather than after it: it is now the required `ISO_COUNTRY_CODE`
+(`_INSTANCE_COUNTRY_ISO3`, see SYSTEM_05 "Instance config"), migration 074
+deleted the dead config row, and the settings page lost its Country section. The
+remaining three settings-page sections are this plan's to delete.
 
 ## The model (the unifying insight)
 
@@ -115,13 +132,51 @@ structure_schema_hmis / structure_schema_hfa (instance_config keys):
    — identical file shapes to today for every existing instance (depths are
    currently equal by construction).
 7. **Run manifest** (`lib/types/run_manifest.ts`, shape spec SYSTEM_08):
-   replace `facilityColumnsConfig` with `structureSchemaHmis` +
-   `structureSchemaHfa` (zod-optional; legacy field kept optional so old
-   immutable runs parse). `synthesize_run.ts` writes both;
-   `run_read.ts buildQueryContextFromManifest` picks by `datasetFamily`,
-   falls back to the legacy field (legacy manifests: adminDepth falls back
-   to 4 / the legacy behavior). Add shared `adminAreaLabels` (optional,
-   additive) at the same time.
+   `facilityColumnsConfig` is REPLACED by `structureSchemaHmis` +
+   `structureSchemaHfa` — not shadowed. `synthesize_run.ts` writes the new
+   fields, `run_read.ts buildQueryContextFromManifest` picks by
+   `datasetFamily`, and **there is no legacy branch on the read path**. Add
+   shared `adminAreaLabels` (optional, additive) at the same time. Bump
+   `RUN_MANIFEST_SCHEMA_VERSION`.
+
+   Existing packages are carried forward by a
+   [PLAN_MANIFEST_MIGRATIONS.md](PLAN_MANIFEST_MIGRATIONS.md) transform block,
+   which is why this plan waits on that one. The two halves of the schema fact
+   are recovered differently, and the difference matters:
+
+   - **include-flags — recomputed from the package.** Every package carries
+     `inputs/facilities_hmis.parquet` + `facilities_hfa.parquet`, so the block
+     applies ruling 1's own rule (`EXISTS(value IS NOT NULL AND value <> '')`
+     per optional column) directly over them. Squarely inside
+     PLAN_MANIFEST_MIGRATIONS §3, which already blesses recomputing
+     `facilitiesTables[].columns`.
+   - **adminDepth — read from `instance_config.max_admin_area`, NOT derived
+     from the data.** Ruling 1 records depth from the mapping precisely because
+     staging mirror-pads levels above it, so a block reading the parquet would
+     see four real-looking levels in every package regardless of true depth.
+     The manifest does not carry `maxAdminArea` either (verified: it carries
+     `calendar`, `countryIso3`, `facilityColumnsConfig`, `facilitiesTables`).
+
+     This is a **lookup, not an imputation** (Tim, 2026-08-06). `updateMaxAdminArea`
+     refuses to change the value while any row exists in `facilities_hmis`,
+     `facilities_hfa` or `admin_areas_1..4` — one transaction over all six
+     tables — and a package can only have been generated from a non-empty
+     facilities table. So the live value IS the value in force when every
+     package on that instance was generated. It is provably
+     immutable-since-generation, which is the amended §3 rule
+     (PLAN_MANIFEST_MIGRATIONS §3) this depends on.
+
+   Two consequences to build knowingly, both small:
+
+   - PLAN_MANIFEST_MIGRATIONS §4.3 fixes the transform signature as
+     `(manifest, runDir)` with deliberately no DB. This block needs `mainDb`,
+     so that signature widens — and the transform stops being a pure function
+     of the package, which is what §3's rule was protecting.
+   - That impurity has exactly one live failure mode, §4.4's: a package
+     arriving by rsync, backup restore, or copied from another instance would
+     take the RECEIVING instance's depth, wrong whenever the two differ. Bound
+     it — the block fills `adminDepth` only when it is absent and never
+     overwrites, so it is write-once and self-heals.
 8. **Cache-hash hygiene in the same pass**: the staleness hash covers
    adminDepth + include-flags ONLY — labels out (fixes label-rename busting
    data caches). `hashFacilityColumnsConfig` → per-family
@@ -209,13 +264,21 @@ facilities-parquet column list — unaffected.
 
 ## Phasing
 
+0. (Prerequisite, not this plan) PLAN_MANIFEST_MIGRATIONS items 1–4.
 1. Server: schema fact (types, config accessors, integration
    derivation + lifecycle, migration transform, route add/delete).
 2. Server read paths: query context / disaggregation availability /
-   manifest + fallback / exports / geojson+delete guards.
+   manifest (single shape, no legacy branch) / exports / geojson+delete
+   guards.
 3. Client: store/SSE split, label-resolver threading, per-family gating,
    wizard un-gating, label editors, settings-page removals.
 4. Hash + cache-key changes.
+5. The manifest transform block (ruling 7) + `RUN_MANIFEST_SCHEMA_VERSION`
+   bump, following PROTOCOL_APP_MIGRATIONS § "Run Manifest Transforms" and its
+   add-a-block checklist. The block must leave a pre-bump package with both
+   families' schemas populated and every provenance field structurally
+   unchanged — that is the recompute-only rule, so verify it by running the
+   transform over a COPY of a dev package, never the instance directory.
 
 Lockstep watch: manifest shape change — verify nothing else reads
 `facilityColumnsConfig` (believed only `buildQueryContextFromManifest`) and
@@ -242,7 +305,12 @@ that no Valkey payload embeds the config (`po_detail` check) before shipping.
 - Optional "clear column data" action (clears + auto-disables) — nice-to-
   have, not required by the model.
 - `datasets_in_project` provenance fields (`maxAdminArea`,
-  `facilityColumnsConfig/Hash`) — zod-optional old + new, read either.
+  `facilityColumnsConfig/Hash`). The original "zod-optional old + new, read
+  either" is the same read-time-fallback shape ruling 7 just dropped, so decide
+  it the same way — these are stored project JSON, and there is no
+  `datasets_in_project` transform today (`migrations/data_transforms/` has ten,
+  none for it), so this is either a new transform or an explicit, written-down
+  exception. Not "read either" by default.
 - `ItemsHolderDatasetHmisDisplay.facilityColumns` travels in a request body
   (`lib/api-routes/instance/datasets.ts` ~L151) — becomes the HMIS schema;
   confirm no stale client caller.

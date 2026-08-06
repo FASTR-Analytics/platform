@@ -43,11 +43,6 @@ export const instanceRouteRegistry = {
     method: "POST",
     body: instanceConfigAdminAreaLabelsSchema,
   }),
-  updateCountryIso3: route({
-    path: "/update_country_iso3",
-    method: "POST",
-    body: z.object({ countryIso3: z.string().optional() }),
-  }),
   getDiskSpace: route({
     path: "/disk_space",
     method: "GET",

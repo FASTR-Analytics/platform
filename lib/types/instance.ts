@@ -125,13 +125,6 @@ export type InstanceConfigMaxAdminArea = z.infer<
   typeof instanceConfigMaxAdminAreaSchema
 >;
 
-export const instanceConfigCountryIso3Schema = z.object({
-  countryIso3: z.string().optional(),
-});
-export type InstanceConfigCountryIso3 = z.infer<
-  typeof instanceConfigCountryIso3Schema
->;
-
 export const instanceConfigAdminAreaLabelsSchema = z.object({
   label1: z.string().optional(),
   label2: z.string().optional(),

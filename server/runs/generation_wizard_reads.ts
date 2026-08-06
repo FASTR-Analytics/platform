@@ -7,8 +7,10 @@ import {
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
 } from "lib";
-import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
-import { getCountryIso3Config } from "../db/instance/config.ts";
+import {
+  _INSTANCE_COUNTRY_ISO3,
+  _INSTANCE_LANGUAGE,
+} from "../exposed_env_vars.ts";
 import { fetchCommits } from "../github/fetch_module.ts";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { MODULE_SOURCE } from "../module_loader/module_source.ts";
@@ -47,15 +49,10 @@ export async function getRunGenerationModuleOptions(
   mainDb: Sql,
 ): Promise<APIResponseWithData<RunGenerationModuleOptions>> {
   try {
-    const resCountry = await getCountryIso3Config(mainDb);
-    if (resCountry.success === false) {
-      return resCountry;
-    }
-    const countryIso3 = resCountry.data.countryIso3;
     const gitRef = await resolveModulesRepoHeadRef();
     const pinnedGitRef = MODULE_SOURCE === "github" ? gitRef : undefined;
     const allowed = MODULE_REGISTRY.filter((m) =>
-      isModuleAllowedForCountry(m, countryIso3)
+      isModuleAllowedForCountry(m, _INSTANCE_COUNTRY_ISO3)
     );
     const modules: RunGenerationModuleOption[] = await Promise.all(
       allowed.map(async (entry) => {

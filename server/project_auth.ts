@@ -1,4 +1,3 @@
-import { getAuth } from "@hono/clerk-auth";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { Sql } from "postgres";
@@ -24,7 +23,10 @@ import {
   H_USERS,
 } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
-import { getPatAuthEmail } from "./middleware/auth.ts";
+import {
+  getClerkSessionAuth,
+  getHeadlessAuthEmail,
+} from "./middleware/auth.ts";
 
 type RequireProjectPermissionOptions = {
   requireAdmin?: boolean;
@@ -160,15 +162,14 @@ export async function getGlobalUser(
     );
   }
 
-  // Personal-access-token requests (headless clients) carry no Clerk session;
-  // the auth middleware already resolved the token to the user's email.
-  const patEmail = getPatAuthEmail(c);
-  if (patEmail !== undefined) {
-    return await buildGlobalUserFromDb(patEmail, null, null);
+  // Headless requests (PAT or OAuth) carry no Clerk session; the headless auth
+  // middleware already resolved the credential to the user's email.
+  const headlessEmail = getHeadlessAuthEmail(c);
+  if (headlessEmail !== undefined) {
+    return await buildGlobalUserFromDb(headlessEmail, null, null);
   }
 
-  // @ts-ignore: Clerk middleware types not fully compatible with Hono
-  const auth = getAuth(c);
+  const auth = getClerkSessionAuth(c);
   if (!auth?.userId) {
     return "NOT_AUTHENTICATED";
   }
@@ -180,9 +181,10 @@ export async function getGlobalUser(
   );
 }
 
-// Exported for the /mcp context cache (PLAN_112): it resolves a PAT email to
-// the same GlobalUser the middleware chain builds. PAT callers carry no name
-// claims — pass null/null, exactly as getGlobalUser's PAT branch does.
+// Exported for the /mcp context cache (PLAN_112): it resolves a headless
+// caller's email to the same GlobalUser the middleware chain builds. Headless
+// callers carry no name claims — pass null/null, exactly as getGlobalUser's
+// headless branch does.
 export async function buildGlobalUserFromDb(
   email: string,
   claimFirstName: string | null,

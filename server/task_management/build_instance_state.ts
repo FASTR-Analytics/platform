@@ -7,6 +7,7 @@ import {
 } from "../db/mod.ts";
 import {
   _INSTANCE_CALENDAR,
+  _INSTANCE_COUNTRY_ISO3,
   _INSTANCE_FISCAL_YEAR,
   _INSTANCE_LANGUAGE,
 } from "../exposed_env_vars.ts";
@@ -41,7 +42,7 @@ export async function buildInstanceState(
     instanceCalendar: _INSTANCE_CALENDAR,
     instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
     maxAdminArea: res.data.maxAdminArea,
-    countryIso3: res.data.countryIso3,
+    countryIso3: _INSTANCE_COUNTRY_ISO3,
     facilityColumns: res.data.facilityColumns,
     adminAreaLabels: res.data.adminAreaLabels,
     projects: res.data.projects,

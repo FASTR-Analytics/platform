@@ -1,9 +1,9 @@
 import { createMCPHttpHandler } from "@timroberton/panther";
-import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
-  PAT_PREFIX,
-  resolvePersonalAccessTokenEmail,
-} from "../db/instance/personal_access_tokens.ts";
+  BEARER_PREFIX,
+  resolveHeadlessCredentialEmail,
+} from "../headless_auth.ts";
+import { mcpResourceMetadataUrl } from "../routes/public/oauth_metadata.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import type { McpPrincipal } from "./context_cache.ts";
 import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
@@ -16,11 +16,13 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // elicitation); the D3 thunk below binds one tool set per authenticated
 // principal.
 //
-// Auth mirrors patOnlyMiddleware semantics: Bearer fastr_pat_… resolved via
-// resolvePersonalAccessTokenEmail (verify + last_used_at stamp); no token or
-// unknown token → 401; DB failure → 503 (the adapter maps an authenticate
-// throw to 503). Under BYPASS_AUTH the hook degrades to the dev identity
-// exactly as /pat does — live PAT smokes are only valid auth-on.
+// Auth is the shared headless-credential seam (server/headless_auth.ts) — the
+// SAME resolver the per-dispatch middleware runs, which is what keeps a
+// connector from listing tools and then failing every real tool call. No token
+// or an unrecognized token → 401; backend failure → 503 (the adapter maps an
+// authenticate throw to 503). Under BYPASS_AUTH the hook degrades to the dev
+// identity exactly as the headless mount does — live smokes are only valid
+// auth-on.
 
 const INSTRUCTIONS = [
   "FASTR Analytics assistant. One connector serves every project you can access.",
@@ -43,19 +45,24 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
     if (_BYPASS_AUTH) {
       return { token: "", email: "dev@offline.local" };
     }
-    const authz = req.headers.get("Authorization");
-    if (!authz?.startsWith(`Bearer ${PAT_PREFIX}`)) {
-      return null;
-    }
-    const token = authz.slice("Bearer ".length);
-    const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-    // A DB failure here throws — the adapter answers 503 (credentials not
+    const authz = req.headers.get("Authorization") ?? "";
+    // A backend failure here throws — the adapter answers 503 (credentials not
     // judged), distinct from the 401 for a bad token.
-    const email = await resolvePersonalAccessTokenEmail(mainDb, token);
+    const email = await resolveHeadlessCredentialEmail(authz);
     if (email === null) {
       return null;
     }
-    return { token, email };
+    // The raw token rides on the principal: every server action this principal
+    // dispatches re-presents it to the headless middleware, so the credential
+    // is re-judged per dispatch rather than trusted from the door.
+    return { token: authz.slice(BEARER_PREFIX.length), email };
   },
   principalKey: (principal) => principal.email,
+  // RFC 9728 discovery: the 401 tells an OAuth-capable client WHERE to read
+  // this server's protected-resource metadata, which is how claude.ai gets
+  // from "Connect" to the Clerk consent screen. Derived per request from the
+  // SAME helper that builds the document itself, so the pointer and its target
+  // can never disagree about the resource identifier. A PAT client never sees
+  // this — it arrives already authenticated.
+  resourceMetadataUrl: (req) => mcpResourceMetadataUrl(req),
 });

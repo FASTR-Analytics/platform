@@ -18,15 +18,18 @@ globs:
   - server/middleware/cache.ts
   - server/middleware/cors.ts
   - server/middleware/mod.ts
-  - server/middleware/pat_allowlist.ts
+  - server/middleware/headless_allowlist.ts
   - server/middleware/static.ts
   - server/middleware/userPermission.ts
-  - server/pat_app.ts
+  - server/headless_app.ts
+  - server/headless_auth.ts
   - server/project_auth.ts
   - server/routes/instance/users.ts
   - server/routes/route-helpers.ts
   - server/routes/route-tracker.ts
   - server/routes/streaming.ts
+  - server/routes/public/oauth_metadata.ts
+  - server/tests/headless_oauth_auth_test.ts
   - server/tests/pat_identity_parity_test.ts
 docs_absorbed:
 ---
@@ -273,34 +276,134 @@ here uses the registry.
 
 ## Access control
 
-### `authMiddleware` — Clerk (populate-not-reject) with a PAT branch
+### `authMiddleware` — Clerk (populate-not-reject); headless auth is a separate mount
 
-`server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough :` a composed
-middleware. Requests whose `Authorization` header carries a **personal access
-token** (`Bearer fastr_pat_…`) are resolved against `personal_access_tokens`
-(SHA-256 hash lookup that also stamps `last_used_at`); an unknown token is
-rejected immediately (`401 authError: true`), a valid one sets
-`c.var.patAuthEmail` and skips Clerk entirely. Everything else goes through
-`clerkMiddleware()`, which only **populates** `getAuth(c)` — it never rejects.
-Rejection is the job of a per-route guard, so a route with no guard is reachable
-by any authenticated caller. Mount order matters: the public dashboard routes
-and the `/d/:slug` SPA page are registered before the global middleware
-(anonymous-reachable); `authMiddleware` is additionally mounted on `/api/d/*`
+`server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough : clerkMiddleware()`,
+which only **populates** `getAuth(c)` — it never rejects. Rejection is the job
+of a per-route guard, so a route with no guard is reachable by any authenticated
+caller. Mount order matters: the public dashboard routes, the `/d/:slug` SPA
+page and the OAuth discovery well-knowns are registered before the global
+middleware (anonymous-reachable — Hono runs handlers registered ahead of an
+`app.use` before it); `authMiddleware` is additionally mounted on `/api/d/*`
 first so public dashboard routes can still read a session when one exists.
 
-**Personal access tokens** are the headless credential (the `/mcp` endpoint,
-CLI): minted per user (self-service routes `createPersonalAccessToken` /
-`listPersonalAccessTokens` / `revokePersonalAccessToken`, always scoped to
-`c.var.globalUser.email`), shown once at mint, stored only as a hash
-(`server/db/instance/personal_access_tokens.ts`, migration 073). In
-`getGlobalUser`, `patAuthEmail` short-circuits the Clerk branch and feeds the
-same DB-backed `GlobalUser` construction, so a PAT request has exactly the
-user's own permissions — every guard downstream is unchanged. The server-action
-layer lives in `lib/server_actions/` (compiled into both tiers) and reaches its
-environment only through the **transport seam**
-(`lib/server_actions/transport.ts`): LoggedInWrapper registers the browser
-transport (Clerk cookie, session refresh, reload on persistent 401) at module
-scope; the generated actions are identical wherever they run.
+**The cookie mount takes session tokens ONLY.** Under `@hono/clerk-auth` v3 this
+is no longer automatic: v3's `clerkMiddleware` calls `authenticateRequest` with
+`acceptsToken: "any"`, so a machine token (API key, M2M, or an OAuth access
+token) presented as a Bearer header to an ordinary `/api` route now produces an
+_authenticated_ machine auth object — one carrying a `userId` but no
+`sessionClaims`. `getClerkSessionAuth()` is the single accessor for this and
+guards on `tokenType === "session_token"`, restoring v2's behaviour exactly.
+Never read `c.var.clerkAuth` directly: in v3 it is the auth **function**
+`getAuth()` invokes, not the auth object (v2 stored the object).
+
+### The headless credential seam
+
+**Two credential types, one resolver.** `server/headless_auth.ts` exports
+`resolveHeadlessCredentialEmail(authorizationHeader)`, and it is the ONLY place
+a headless credential is judged:
+
+- `Bearer fastr_pat_…` → `personal_access_tokens` (SHA-256 hash lookup that also
+  stamps `last_used_at`). Minted per user (self-service
+  `createPersonalAccessToken` / `listPersonalAccessTokens` /
+  `revokePersonalAccessToken`, always scoped to `c.var.globalUser.email`), shown
+  once, stored only as a hash (migration 073).
+- any other `Bearer …` → a Clerk **OAuth access token**, verified with
+  `authenticateRequest(…, { acceptsToken: "oauth_token" })`, then
+  `users.getUser(userId)` for the **primary email** — the OAuth auth object
+  carries `userId`/`clientId`/`scopes` but no email. Matching on primary email
+  is what makes an OAuth caller and a browser login resolve to the same FASTR
+  user.
+
+Contract: `null` = "judged, and bad" → 401; a **throw** = "could not judge" →
+503. This distinction is load-bearing and is the reason the OAuth branch is not
+a straight `isAuthenticated` check: Clerk **never throws**, folding an unknown
+token, a wrong secret key, an HTTP 500 and a DNS failure into one non-throwing
+signed-out state distinguished only by a `reason` string. Mapping all of those
+to `null` would answer 401 during a Clerk outage, and a 401 tells every
+connected client its grant is invalid — dragging every user back through consent
+for a transient fault. So the mapping is allow-listed toward throwing: only
+`token-invalid` and `token-type-mismatch` resolve to `null`. Pinned by
+`server/tests/headless_oauth_auth_test.ts`.
+
+**Two judgment points, both calling that one resolver** — this is the whole
+point of the seam. Verifying only at the `/mcp` door is not enough: every MCP
+tool call dispatches server actions in-process through `headlessApp`, which runs
+`headlessAuthMiddleware` per dispatch. A door-only check would let a connector
+initialize and list tools, then fail on every real tool call.
+
+1. `server/mcp/mcp_endpoint.ts` — the `/mcp` adapter's `authenticate` hook.
+2. `server/middleware/auth.ts` — `headlessAuthMiddleware`, which sets
+   `c.var.headlessAuthEmail`.
+
+In `getGlobalUser`, `headlessAuthEmail` short-circuits the Clerk branch and
+feeds the same DB-backed `GlobalUser` construction, so a headless request has
+exactly the user's own permissions — every guard downstream is unchanged.
+
+**Revocation is asymmetric, permanently.** A PAT is re-verified against the DB
+on every dispatch, so revocation is effectively immediate. A verified OAuth
+token is cached by token for ~30 s (`OAUTH_EMAIL_TTL_MS`, aligned with the
+`/mcp` context cache's `CONTEXT_TTL_MS`), so a revoked grant keeps working for
+up to that long. That cache is **load-bearing, not an optimization**: Clerk's
+OAuth auth object has no email, so each resolve costs a `users.getUser` call
+(plus a verify call for an opaque token), and every tool call dispatches several
+actions. Without it one tool call would burn a handful of rate-limited Clerk
+calls. Only successes are cached — a bad token can never occupy a slot.
+
+> **Caveat, unverified as of 2026-08-06.** The ~30 s window assumes Clerk issues
+> **opaque** (`oat_`) access tokens, which are verified through the Backend API
+> and therefore see revocation. If the OAuth application issues **JWT** access
+> tokens instead, `@clerk/backend` verifies them **locally against JWKS with no
+> Backend API call**, so revocation is not observed at all until the token
+> expires (~1 h) — our cache TTL is irrelevant in that case. Which format a
+> dynamically-registered client receives has not been confirmed against a real
+> grant; confirm during live verification and, if it is JWT, either accept the
+> longer window or configure the application for opaque tokens.
+
+**Naming.** These were all `pat*` before OAuth existed and the names became
+lies: `patOnlyMiddleware`/`patAuthMiddleware` → `headlessAuthMiddleware`,
+`patAuthEmail` → `headlessAuthEmail`, `pat_app.ts`/`patApp`/`patAppFetch` →
+`headless_app.ts`/`headlessApp`/`headlessAppFetch`, `pat_allowlist.ts`/
+`patRouteAllowlist` → `headless_allowlist.ts`/`headlessRouteAllowlist`.
+`PAT_PREFIX`, `resolvePersonalAccessTokenEmail` and mint/revoke keep their names
+— they are genuinely PAT-specific.
+
+### OAuth discovery (`server/routes/public/oauth_metadata.ts`)
+
+FASTR is only the **resource server**; Clerk is the authorization server and
+owns `/authorize`, `/token` and `/oauth/register`. Three unauthenticated routes,
+registered before the global middleware because they are what a client reads
+_before_ it has any credential:
+
+- `/.well-known/oauth-protected-resource/mcp` (RFC 9728) — and the bare
+  `/.well-known/oauth-protected-resource` too, since clients differ on which
+  they probe.
+- `/.well-known/oauth-authorization-server` (RFC 8414) — Clerk's own document,
+  proxied verbatim and cached 10 min, for clients predating RFC 9728. `issuer`
+  therefore names Clerk while the document is served from the instance origin;
+  that mismatch is deliberate, since rewriting `issuer` would break the
+  exchange.
+
+The authorization server URL is derived from `CLERK_PUBLISHABLE_KEY`
+(`pk_(test|live)_<base64(host + "$")>`) rather than a separate env var that
+could drift. The instance origin is derived **per request** (`Host` +
+`X-Forwarded-Proto`, since TLS terminates at the proxy and Deno sees plain http)
+— `CLIENT_ORIGIN` cannot stand in for it: it is a CORS allowlist and on testing2
+is still the localhost default. The `/mcp` 401 emits
+`WWW-Authenticate: Bearer resource_metadata="…"` via panther's
+`resourceMetadataUrl` option, using that **same** derivation helper, because RFC
+9728 ties the pointer to the resource identifier and the two must never
+disagree.
+
+**The OAuth flow requires dynamic client registration to be enabled** on the
+Clerk instance (Dashboard → Configure → OAuth applications). Without it
+`/oauth/register` returns 422 and the connector cannot self-register. Enabling
+it also force-enables Clerk's consent screen. The server-action layer lives in
+`lib/server_actions/` (compiled into both tiers) and reaches its environment
+only through the **transport seam** (`lib/server_actions/transport.ts`):
+LoggedInWrapper registers the browser transport (Clerk cookie, session refresh,
+reload on persistent 401) at module scope; the generated actions are identical
+wherever they run.
 
 **Transport registration doctrine** (amended 2026-08-06, PLAN_112 D4). The
 prohibition that matters stands verbatim: **no server code ever calls

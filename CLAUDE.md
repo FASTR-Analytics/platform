@@ -460,6 +460,8 @@ Key variables (see `.env.example`):
 - `ANTHROPIC_API_KEY` - AI features
 - `SANDBOX_DIR_PATH` - Module execution workspace
 - `ASSETS_DIR_PATH` - File uploads
+- `ISO_COUNTRY_CODE` - REQUIRED: the instance's country, an ISO3 code or
+  `SOMALILAND`; boot fail-stops without it
 - `INSTANCE_LANGUAGE` - Default language (en/fr)
 - `INSTANCE_CALENDAR` - Calendar type (gregorian/ethiopian)
 - `INSTANCE_FISCAL_YEAR` - Fiscal-year reporting (none/july, default none;

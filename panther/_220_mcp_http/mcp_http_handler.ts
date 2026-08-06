@@ -76,7 +76,13 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   // way to start an OAuth flow — it only learns that it needs *some* bearer
   // token. Servers that authenticate with pre-shared tokens only (e.g. PATs in
   // a header) can leave it unset; the header then stays a bare "Bearer".
-  resourceMetadataUrl?: string;
+  //
+  // Accepts a function because one deployment may serve many hostnames, and
+  // RFC 9728 ties the metadata document to the resource identifier the CLIENT
+  // used — so the pointer and the document it points at have to be derived the
+  // same way, from the same request. Returning undefined falls back to a bare
+  // "Bearer" for that request.
+  resourceMetadataUrl?: string | ((req: Request) => string | undefined);
   // Core-cache key. Default: JSON identity of the principal.
   principalKey?: (principal: TPrincipal) => string;
   // Idle eviction for principal cores (staging dies with the core; the next
@@ -173,20 +179,33 @@ export function createMCPHttpHandler<TPrincipal>(
     ((principal: TPrincipal) => JSON.stringify(principal) ?? "");
 
   // RFC 9728 §5.1: the challenge points the client at the metadata document.
-  // Quotes are mandatory, and the value is embedded verbatim — a URL is the
-  // only legal content, so a stray quote would corrupt the header rather than
-  // inject a new parameter. Guarded at construction so a bad value fails at
-  // wiring time, not on the first unauthenticated request.
-  if (opts.resourceMetadataUrl !== undefined) {
-    if (/["\\\r\n]/.test(opts.resourceMetadataUrl)) {
-      throw new Error(
-        "resourceMetadataUrl must not contain quotes, backslashes or newlines",
-      );
-    }
+  // Quotes are mandatory and the value is embedded verbatim, so a value
+  // carrying a quote, backslash or newline would corrupt the header (or splice
+  // in another challenge) rather than be encoded — it is refused outright. A
+  // literal is checked at construction so it fails at wiring time; a function's
+  // return is checked per call, where it is refused rather than thrown so one
+  // bad derivation degrades to a bare "Bearer" instead of 500-ing the 401.
+  const HEADER_UNSAFE = /["\\\r\n]/;
+  const literalMetadataUrl = typeof opts.resourceMetadataUrl === "string"
+    ? opts.resourceMetadataUrl
+    : undefined;
+  if (
+    literalMetadataUrl !== undefined && HEADER_UNSAFE.test(literalMetadataUrl)
+  ) {
+    throw new Error(
+      "resourceMetadataUrl must not contain quotes, backslashes or newlines",
+    );
   }
-  const wwwAuthenticate = opts.resourceMetadataUrl === undefined
-    ? "Bearer"
-    : `Bearer resource_metadata="${opts.resourceMetadataUrl}"`;
+
+  const challengeFor = (req: Request): string => {
+    const url = typeof opts.resourceMetadataUrl === "function"
+      ? opts.resourceMetadataUrl(req)
+      : opts.resourceMetadataUrl;
+    if (url === undefined || HEADER_UNSAFE.test(url)) {
+      return "Bearer";
+    }
+    return `Bearer resource_metadata="${url}"`;
+  };
 
   const cores = new Map<string, CoreEntry<TPrincipal>>();
   // sessionId → owning principal key: the routing index that makes
@@ -544,7 +563,7 @@ export function createMCPHttpHandler<TPrincipal>(
     }
     if (principal === null) {
       return jsonResponse(401, { error: "unauthorized" }, {
-        "WWW-Authenticate": wwwAuthenticate,
+        "WWW-Authenticate": challengeFor(req),
       });
     }
     const key = principalKey(principal);

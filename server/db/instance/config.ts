@@ -5,9 +5,7 @@ import {
   InstanceConfigAdminAreaLabels,
   InstanceConfigMaxAdminArea,
   InstanceConfigFacilityColumns,
-  InstanceConfigCountryIso3,
   instanceConfigAdminAreaLabelsSchema,
-  instanceConfigCountryIso3Schema,
   instanceConfigFacilityColumnsSchema,
   instanceConfigMaxAdminAreaSchema,
   RunGenerationDefaults,
@@ -175,63 +173,6 @@ export async function updateFacilityColumnsConfig(
     await mainDb`
       INSERT INTO instance_config (config_key, config_json_value)
       VALUES ('facility_columns', ${JSON.stringify(validated)})
-      ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
-    `;
-
-    return { success: true };
-  });
-}
-
-export async function getCountryIso3Config(
-  mainDb: Sql
-): Promise<APIResponseWithData<InstanceConfigCountryIso3>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value
-      FROM instance_config
-      WHERE config_key = 'country_iso3'
-    `;
-
-    if (result.length === 0) {
-      return {
-        success: true,
-        data: { countryIso3: undefined },
-      };
-    }
-
-    const config = instanceConfigCountryIso3Schema.parse(
-      JSON.parse(result[0].config_json_value),
-    );
-
-    return {
-      success: true,
-      data: config,
-    };
-  });
-}
-
-export async function updateCountryIso3Config(
-  mainDb: Sql,
-  countryIso3: string | undefined
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Interpolated into generated R scripts as "${countryIso3}" — must be a clean token
-    const normalized = (countryIso3 ?? "").trim().toUpperCase();
-    if (normalized !== "" && !/^[A-Z]{3}$/.test(normalized)) {
-      return {
-        success: false,
-        err: "Country code must be exactly 3 letters (ISO3), e.g. KEN.",
-      };
-    }
-    const configValue: InstanceConfigCountryIso3 = {
-      countryIso3: normalized === "" ? undefined : normalized,
-    };
-    const validated = instanceConfigCountryIso3Schema.parse(configValue);
-
-    await mainDb`
-      INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('country_iso3', ${JSON.stringify(validated)})
       ON CONFLICT (config_key)
       DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
     `;

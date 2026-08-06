@@ -6,15 +6,29 @@ data, read metrics / visualizations / slide decks / reports, and draft new
 reports — from a Claude chat, driving the app the same way you would in the
 browser.
 
-Setup is **two values and nothing else**:
+There are **two ways to connect**, and both end up in exactly the same place —
+the assistant acts as **you**, with your user and your permissions:
 
-- the instance **URL** — `https://<your-instance>/mcp`
-- a **Personal Access Token** — sent as the header
-  `Authorization: Bearer fastr_pat_…`
+|                           | Sign in with FASTR (OAuth)                                | Personal Access Token                      |
+| ------------------------- | --------------------------------------------------------- | ------------------------------------------ |
+| What you enter            | the **URL only** — `https://<your-instance>/mcp`          | the URL **plus** an `Authorization` header |
+| How you authorize         | your normal FASTR login + a consent screen                | mint a token first                         |
+| Works in                  | claude.ai web/mobile, Claude Desktop, **and Claude Code** | anything that can set a header             |
+| Needs a browser to set up | yes, once                                                 | no                                         |
+| Expires                   | yes — refreshes silently in the background                | never, until you revoke it                 |
+
+**Prefer OAuth wherever you can**: there is no secret to copy, paste or leak,
+and access ends when you revoke the connection. Every current Claude client
+supports it, Claude Code included.
+
+**Use a PAT when no browser is available** — `claude -p`, the Agent SDK, CI
+jobs, or any scripted run. Those cannot complete an OAuth sign-in on their own
+(there is no interactive prompt to approve it), so a header is the only option.
+This is why PATs are not going away.
 
 No repo checkout, no local process, no per-project configuration. **One
 connection serves every project you can access**; you pick the project per
-question, and the assistant acts as **you** (your user, your permissions).
+question.
 
 ---
 
@@ -43,13 +57,39 @@ instance-wide and take no project.
 
 ---
 
-## Step 1 — Mint a Personal Access Token
+## Step 1 — Choose how you authenticate
 
-The endpoint authenticates with a per-user PAT (a `fastr_pat_…` string) that
-resolves to **your** user identity server-side, so everything the assistant does
-is scoped to your permissions.
+### Option 1 — Sign in with FASTR (OAuth) — URL only
 
-### Option A (works everywhere): the token panel
+Nothing to mint, nothing to paste. In **Claude Desktop** or **claude.ai**, add a
+custom connector with **only** the URL:
+
+- **URL**: `https://your-instance.org/mcp`
+- Leave the OAuth client ID / secret and the request-headers fields **blank**.
+
+Click **Connect**. Claude discovers that the endpoint is protected, sends you to
+your instance's normal login, and shows a **consent screen** naming what it is
+about to be granted. Approve it and the connector is live.
+
+The connection is tied to the FASTR user you logged in as, matched on your
+**primary email address** — the same account and the same permissions you have
+in the browser. If you have no FASTR user for that email, the connector will
+connect but see nothing, exactly as a first-time browser login would.
+
+Access tokens are short-lived and refresh silently, so you should not have to
+re-approve anything day to day.
+
+> Requires the instance's Clerk instance to have **dynamic client registration**
+> enabled. If Connect spins and fails, see Troubleshooting.
+
+### Option 2 — Mint a Personal Access Token
+
+Use this wherever no browser sign-in is possible — `claude -p`, the Agent SDK,
+CI jobs — or if you simply prefer a static header. A PAT is a `fastr_pat_…`
+string that resolves to **your** user identity server-side, so everything the
+assistant does is scoped to your permissions.
+
+#### Minting it: the token panel (works everywhere)
 
 Log in to the instance in your browser and go to **`/access-tokens`** (e.g.
 `https://your-instance.org/access-tokens`). The page is unlisted — no menu links
@@ -59,7 +99,7 @@ only once (only its SHA-256 hash is stored). If you lose it, revoke it and mint
 a new one. The panel also shows each token's last-used time and has a **Revoke**
 button.
 
-### Option B (local dev, no browser): the mint task
+#### Minting it: the mint task (local dev)
 
 From a checkout of this repo, with your app `.env` present (it carries the DB
 credentials):
@@ -75,10 +115,16 @@ Use YOUR account email (the one you log into FASTR with) and any label you like.
 
 ### Revoking
 
-A PAT does **not expire** — it is valid until revoked. Revoke it from the
+**A PAT** does **not expire** — it is valid until revoked. Revoke it from the
 `/access-tokens` panel (or delete its row in `personal_access_tokens`).
 Revocation is instant: the next call fails, including a report creation you have
 already been asked to confirm but not yet accepted.
+
+**An OAuth connection** is revoked on the Clerk side (your identity provider),
+not in FASTR — removing the connector in Claude stops _that_ client using it,
+and revoking the grant in Clerk ends it everywhere. Revocation is **not
+instant**: expect access to stop within about 30 seconds rather than on the next
+call, because verified tokens are briefly cached (see Security notes).
 
 ---
 
@@ -93,6 +139,23 @@ The connector URL is your instance origin plus `/mcp`:
 
 ### Claude Code CLI
 
+**With OAuth (recommended)** — add the server with no credential at all, then
+sign in once:
+
+```bash
+claude mcp add --transport http fastr https://your-instance.org/mcp
+claude mcp login fastr
+```
+
+`claude mcp login` opens your browser for the FASTR login and consent screen
+(inside a session, `/mcp` → the `fastr` entry does the same). Claude Code stores
+the token and refreshes it automatically; `/mcp` → **Clear authentication**
+signs out. This works because the endpoint advertises its authorization server
+in the `WWW-Authenticate` header, which Claude Code discovers on its own.
+
+**With a PAT** — required for non-interactive use (`claude -p`, the Agent SDK,
+CI), which cannot run a browser sign-in:
+
 ```bash
 claude mcp add --transport http fastr https://your-instance.org/mcp \
   --header "Authorization: Bearer fastr_pat_XXXXXXXX"
@@ -101,15 +164,20 @@ claude mcp add --transport http fastr https://your-instance.org/mcp \
 Then in a `claude` session, `/mcp` shows the `fastr` server and its tools.
 (Remove it later with `claude mcp remove fastr`.)
 
+> Pick one mode per server entry: if an `Authorization` header is set and the
+> server rejects it, Claude Code reports a failed connection rather than falling
+> back to OAuth.
+
 ### Claude Desktop / claude.ai (web, mobile)
 
-Add a **custom connector** in your Claude settings:
+Add a **custom connector** in your Claude settings with **only the URL**
+(`https://your-instance.org/mcp`), leave every other field blank, and click
+**Connect** — that is the OAuth path from step 1, option 1.
 
-- **URL**: `https://your-instance.org/mcp`
-- **Request headers**: `Authorization` = `Bearer fastr_pat_XXXXXXXX`
-
-Custom connectors with request headers are a beta feature; if your account does
-not offer the headers field, use the Claude Code CLI form above.
+If you would rather use a PAT here, fill in **Request headers** instead:
+`Authorization` = `Bearer fastr_pat_XXXXXXXX`. Custom connectors with request
+headers are a beta feature; if your account does not offer the headers field,
+use OAuth or the Claude Code CLI form above.
 
 > **Confirmation flow support varies by client.** Reads work everywhere.
 > `create_report` needs the client to support elicitation (the confirm dialog);
@@ -172,12 +240,32 @@ the editor).
 
 ## Troubleshooting
 
-- **Every call fails with 401 / "unauthorized".** The token is missing, wrong,
-  or revoked. Check the header is exactly `Authorization: Bearer fastr_pat_…`,
-  and re-mint if needed (step 1).
-- **503 / "authentication unavailable".** The instance could not reach its
-  database to verify the token. It is a server-side problem, not your token —
-  retry shortly.
+- **Every call fails with 401 / "unauthorized".** The credential is missing,
+  wrong, or revoked. On a PAT, check the header is exactly
+  `Authorization: Bearer fastr_pat_…` and re-mint if needed (step 1). On OAuth,
+  disconnect and reconnect the connector to re-run the login.
+- **503 / "authentication unavailable".** The instance could not reach the
+  service that verifies your credential — its database for a PAT, Clerk for an
+  OAuth token. It is a server-side problem, **not** your credential: it is
+  deliberately a 503 rather than a 401 so your client retries instead of
+  throwing away a perfectly good login. Retry shortly.
+- **"Connect" spins and then fails, before you ever see a login screen.** The
+  OAuth discovery step failed. Check from a terminal that both of these return
+  JSON without a login:
+
+  ```bash
+  curl -s https://your-instance.org/.well-known/oauth-protected-resource/mcp
+  curl -s https://your-instance.org/.well-known/oauth-authorization-server
+  ```
+
+  If the second is empty or errors, the instance's Clerk instance most likely
+  does not have **dynamic client registration** enabled (Clerk Dashboard →
+  Configure → OAuth applications) — without it Claude cannot register itself and
+  the flow cannot start.
+- **You log in and consent, but every tool then says you have no projects.** The
+  OAuth login matched a Clerk account whose **primary email** is not a FASTR
+  user, or is a different address from the one your FASTR account uses. Check
+  which email you signed in with.
 - **"No access to project …".** The `projectId` is wrong, or you hold no role on
   that project. Call `get_projects` for the ids you can actually use.
 - **403 on `get_module_r_script` / `get_module_log`.** These are gated on the
@@ -197,9 +285,16 @@ the editor).
 
 ## Security notes
 
+- Both credential types act as **you**, and both are checked on **every single
+  call** — not once at connection time.
 - The PAT is a real credential that acts as **you**. Treat it like a password —
   it lives in your Claude client's config in plaintext. Don't commit it or share
-  the config.
+  the config. OAuth avoids this: there is no long-lived secret on your machine.
+- **Revocation is instant for a PAT, but not for OAuth.** A PAT is re-checked
+  against the database on every call. A verified OAuth token is cached briefly
+  (~30 seconds) so that a single request does not hammer the identity provider,
+  so a revoked OAuth grant can keep working for up to that long. Plan for
+  "within a minute", not "immediately".
 - Every tool call runs the same server-side checks as the browser app: token
   verification, a **deny-by-default** route allowlist (a PAT can only reach the
   routes the assistant needs — it can never mint or revoke tokens, or reach

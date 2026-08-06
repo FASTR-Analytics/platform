@@ -17,8 +17,6 @@ import {
   authMiddleware,
   cacheMiddleware,
   corsMiddleware,
-  patAuthMiddleware,
-  patRouteAllowlist,
   setupStaticServing,
 } from "./server/middleware/mod.ts";
 
@@ -65,6 +63,7 @@ import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
 // Public routes (no auth)
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
+import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
 import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
@@ -111,6 +110,11 @@ app.use("/api/d/*", authMiddleware);
 
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicDashboard);
+
+// OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
+// BEFORE it has any credential, so they must sit ahead of the global Clerk
+// middleware — behind it they 401 and the Connect button spins forever.
+app.route("/", routesOAuthMetadata);
 
 // Serve SPA HTML for public dashboard routes (before auth)
 try {
@@ -191,7 +195,36 @@ app.route("/", routesCustomPrompts);
 // The remote MCP endpoint (PLAN_112): URL + PAT header, nothing local. The
 // panther adapter handles auth (401/503), era routing, sessions, and
 // elicitation; Hono just hands it the raw Request.
-app.all("/mcp", (c) => mcpHttpHandler(c.req.raw));
+// CORS headers for browser-origin MCP clients. This endpoint authenticates by
+// bearer token and carries NO ambient cookie credentials, so a wildcard origin
+// is safe — and `Access-Control-Allow-Credentials` is deliberately NOT set (a
+// browser can only read a response it explicitly attached the token to).
+// `Mcp-Session-Id` must be exposed or a browser client cannot read the session
+// the server issues on initialize.
+const MCP_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, Accept, Last-Event-ID, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+  "Access-Control-Expose-Headers": "Mcp-Session-Id",
+  "Access-Control-Max-Age": "86400",
+};
+
+app.all("/mcp", async (c) => {
+  // The preflight MUST be answered BEFORE auth: browsers never send the
+  // Authorization header on an OPTIONS preflight, so letting it reach the
+  // adapter's authenticate hook 401s every browser-origin connector before it
+  // can make its real request. The app's own permission guards skip OPTIONS
+  // for exactly this reason.
+  if (c.req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: MCP_CORS_HEADERS });
+  }
+  const res = await mcpHttpHandler(c.req.raw);
+  for (const [k, v] of Object.entries(MCP_CORS_HEADERS)) {
+    res.headers.set(k, v);
+  }
+  return res;
+});
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

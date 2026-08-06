@@ -25,15 +25,13 @@ import {
   executeSqlOverParquet,
   writeNormalizedResultsObjectParquet,
 } from "../run_query/mod.ts";
-import {
-  getCountryIso3Config,
-  getFacilityColumnsConfig,
-} from "../db/instance/config.ts";
+import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { resolveAssetFilePath } from "../db/instance/assets.ts";
 import { ensureRepoAssetCached } from "../module_loader/repo_assets.ts";
 import { R_DOCKER_IMAGE_TAG } from "../worker_routines/generate_run/r_docker_image.ts";
 import {
   _INSTANCE_CALENDAR,
+  _INSTANCE_COUNTRY_ISO3,
   _SANDBOX_DIR_PATH,
   _SERVER_VERSION,
 } from "../exposed_env_vars.ts";
@@ -178,10 +176,7 @@ export async function buildRunPackageIntoTmp(
     throw new Error(`facility config: ${resFacilityConfig.err}`);
   }
   const facilityConfig = resFacilityConfig.data;
-  const resCountry = await getCountryIso3Config(mainDb);
-  const countryIso3 = resCountry.success
-    ? resCountry.data.countryIso3 ?? null
-    : null;
+  const countryIso3 = _INSTANCE_COUNTRY_ISO3;
 
   await Deno.mkdir(join(tmpDir, "inputs"), { recursive: true });
 

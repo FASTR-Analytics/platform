@@ -14,7 +14,11 @@ import {
   type InstanceIndicatorsSummary,
   type InstanceStructureSummary,
 } from "lib";
-import { _INSTANCE_ID, _INSTANCE_NAME } from "../../exposed_env_vars.ts";
+import {
+  _INSTANCE_COUNTRY_ISO3,
+  _INSTANCE_ID,
+  _INSTANCE_NAME,
+} from "../../exposed_env_vars.ts";
 import { detectHasAnyRows, tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   DBUser,
@@ -26,7 +30,6 @@ import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
 import {
   getMaxAdminAreaConfig,
   getFacilityColumnsConfig,
-  getCountryIso3Config,
   getAdminAreaLabelsConfig,
 } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
@@ -364,11 +367,6 @@ export async function getInstanceDetail(
     throwIfErrWithData(maxAdminAreaRes);
     const maxAdminArea = maxAdminAreaRes.data.maxAdminArea;
 
-    // Get country ISO3 config
-    const countryIso3Res = await getCountryIso3Config(mainDb);
-    throwIfErrWithData(countryIso3Res);
-    const countryIso3 = countryIso3Res.data.countryIso3;
-
     // Get facility columns config
     const facilityColumnsRes = await getFacilityColumnsConfig(mainDb);
     throwIfErrWithData(facilityColumnsRes);
@@ -490,7 +488,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       instanceId: _INSTANCE_ID,
       instanceName: _INSTANCE_NAME,
       maxAdminArea,
-      countryIso3,
+      countryIso3: _INSTANCE_COUNTRY_ISO3,
       facilityColumns,
       adminAreaLabels,
       structure,

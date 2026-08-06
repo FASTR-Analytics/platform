@@ -2,13 +2,11 @@ import { Hono } from "hono";
 import { InstanceMeta, type InstanceConfig } from "lib";
 import {
   getAdminAreaLabelsConfig,
-  getCountryIso3Config,
   getFacilityColumnsConfig,
   getInstanceDetail,
   getMaxAdminAreaConfig,
   getProjectsForUser,
   updateAdminAreaLabelsConfig,
-  updateCountryIso3Config,
   updateFacilityColumnsConfig,
   updateMaxAdminArea,
 } from "../../db/mod.ts";
@@ -16,6 +14,7 @@ import { notifyInstanceConfigUpdated } from "../../task_management/notify_instan
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
+  _INSTANCE_COUNTRY_ISO3,
   _INSTANCE_FISCAL_YEAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
@@ -120,37 +119,22 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesInstance,
-  "updateCountryIso3",
-  requireGlobalPermission("can_configure_settings"),
-  log("updateCountryIso3"),
-  async (c, { body }) => {
-    const res = await updateCountryIso3Config(c.var.mainDb, body.countryIso3);
-    if (res.success) {
-      await notifyConfigUpdated(c.var.mainDb);
-    }
-    return c.json(res);
-  },
-);
-
 defineRoute(routesInstance, "getDiskSpace", requireGlobalPermission(), async (c) => {
   const res = await checkSpaceForNewProject();
   return c.json({ success: true, data: { ok: res.ok, availableGB: res.availableGB } });
 });
 
 async function notifyConfigUpdated(mainDb: Parameters<typeof getMaxAdminAreaConfig>[0]) {
-  const [maxRes, fcRes, isoRes, labelsRes] = await Promise.all([
+  const [maxRes, fcRes, labelsRes] = await Promise.all([
     getMaxAdminAreaConfig(mainDb),
     getFacilityColumnsConfig(mainDb),
-    getCountryIso3Config(mainDb),
     getAdminAreaLabelsConfig(mainDb),
   ]);
-  if (maxRes.success && fcRes.success && isoRes.success && labelsRes.success) {
+  if (maxRes.success && fcRes.success && labelsRes.success) {
     const config: InstanceConfig = {
       maxAdminArea: maxRes.data.maxAdminArea,
       facilityColumns: fcRes.data,
-      countryIso3: isoRes.data.countryIso3,
+      countryIso3: _INSTANCE_COUNTRY_ISO3,
       adminAreaLabels: labelsRes.data,
     };
     notifyInstanceConfigUpdated(config);

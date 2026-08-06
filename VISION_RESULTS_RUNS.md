@@ -81,6 +81,20 @@ the transportability end-state — tracked as SNAP-5 in the plan's §8.)
   data or new config means a new run. Immutability is what collapses cache
   versioning: cache keys are `runId + query hash`, with no data-version
   dimension left to go stale.
+
+  **Amendment (PLAN_MANIFEST_MIGRATIONS): package outputs are immutable; the
+  manifest is a derived descriptor and may be transformed forward.** A schema
+  change would otherwise orphan every existing package, and "regenerate" stops
+  being a real remedy once Phase 4 drops the project-DB tables the synthesizer
+  reads — re-finalizing mints a NEW runId, which under the
+  `capturedRunId ≠ attachedRunId` staleness badge marks every stored figure in
+  the fleet stale. Transforming the manifest in place is the only forward path
+  that preserves run identity. Two costs are accepted rather than glossed:
+  rollback blast radius widens (a sweep that has rewritten every manifest on an
+  instance removes the detach-and-delete remedy, mitigated by the retained
+  pre-transform `manifest.v{n}.json`), and `RunSummary.diskSizeBytes` — stamped
+  once on the grounds that a package dir is immutable — becomes marginally
+  wrong.
 - **Self-contained** — carries every input the query/render layer needs; no
   reach-back into the instance at read time.
 - **Identity-independent** — no instance foreign keys inside run files;
