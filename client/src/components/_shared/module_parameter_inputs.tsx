@@ -10,7 +10,31 @@ type Props = {
 
 // A module definition's parameter selections as inputs (all values are
 // strings keyed by replacementString; booleans round-trip "TRUE"/"FALSE").
-// Used by the module settings editor and the results-package wizard.
+// Used by the module-defaults editor and the results-package wizard; both
+// gate their saves on getModuleParameterInvalidMsg, the same check that
+// drives each input's inline invalid message.
+export function getModuleParameterInvalidMsg(
+  parameter: ModuleParameter,
+  value: string | undefined,
+): string | undefined {
+  if (parameter.input.inputType === "number") {
+    return isNaN(Number(value))
+      ? t3({ en: "Not a number", fr: "Pas un nombre", pt: "Não é um número" })
+      : undefined;
+  }
+  if (parameter.input.inputType === "text") {
+    return !value
+      ? t3({ en: "No text", fr: "Aucun texte", pt: "Sem texto" })
+      : undefined;
+  }
+  if (parameter.input.inputType === "select") {
+    return !value
+      ? t3({ en: "Unselected", fr: "Non sélectionné", pt: "Não selecionado" })
+      : undefined;
+  }
+  return undefined;
+}
+
 export function ModuleParameterInputs(p: Props) {
   return (
     <div class="ui-gap grid grid-cols-12">
@@ -44,17 +68,10 @@ export function ModuleParameterInputs(p: Props) {
                       onChange={(v) =>
                         p.onChange(inputParameter.replacementString, v)
                       }
-                      invalidMsg={
-                        isNaN(
-                          Number(p.values[inputParameter.replacementString]),
-                        )
-                          ? t3({
-                              en: "Not a number",
-                              fr: "Pas un nombre",
-                              pt: "Não é um número",
-                            })
-                          : undefined
-                      }
+                      invalidMsg={getModuleParameterInvalidMsg(
+                        inputParameter,
+                        p.values[inputParameter.replacementString],
+                      )}
                       fullWidth
                     />
                   </Match>
@@ -65,11 +82,10 @@ export function ModuleParameterInputs(p: Props) {
                       onChange={(v) =>
                         p.onChange(inputParameter.replacementString, v)
                       }
-                      invalidMsg={
-                        !p.values[inputParameter.replacementString]
-                          ? t3({ en: "No text", fr: "Aucun texte", pt: "Sem texto" })
-                          : undefined
-                      }
+                      invalidMsg={getModuleParameterInvalidMsg(
+                        inputParameter,
+                        p.values[inputParameter.replacementString],
+                      )}
                       fullWidth
                     />
                   </Match>
@@ -88,15 +104,10 @@ export function ModuleParameterInputs(p: Props) {
                           onChange={(v) =>
                             p.onChange(inputParameter.replacementString, v)
                           }
-                          invalidMsg={
-                            !p.values[inputParameter.replacementString]
-                              ? t3({
-                                  en: "Unselected",
-                                  fr: "Non sélectionné",
-                                  pt: "Não selecionado",
-                                })
-                              : undefined
-                          }
+                          invalidMsg={getModuleParameterInvalidMsg(
+                            inputParameter,
+                            p.values[inputParameter.replacementString],
+                          )}
                           fullWidth
                         />
                       );

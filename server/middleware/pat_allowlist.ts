@@ -1,13 +1,14 @@
 import type { Context } from "hono";
 import { routeRegistry } from "lib";
 
-// Deny-by-default route allowlist for the /pat mount
-// (REVIEW_MCP_HOST_ARCHITECTURE.md §8): a personal access token can reach
-// exactly the routes the headless MCP host needs — the AI-Assistant read
-// tools + create_report, SSE hydration, a whoami, and the /info reference
-// docs. A route added next year is PAT-closed until opted in here. Token
-// mint/list/revoke and user/admin routes are deliberately absent: a PAT can
-// never mint or revoke PATs.
+// Deny-by-default route allowlist for the internal PAT app
+// (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5 —
+// the /mcp endpoint dispatches into patApp in-process): a personal access
+// token can reach exactly the routes the /mcp tools need — the AI-Assistant
+// read tools + create_report, a whoami, the projects listing, and the /info
+// reference docs. A route added next year is PAT-closed until opted in here.
+// Token mint/list/revoke and user/admin routes are deliberately absent: a PAT
+// can never mint or revoke PATs.
 //
 // NEVER allowlist any backups route: server/routes/instance/backups.ts
 // forwards the raw incoming Authorization header off-instance (to
@@ -18,6 +19,9 @@ const PAT_ALLOWED_ROUTE_NAMES = [
   // test's whoami probe (server/tests/pat_identity_parity_test.ts) and grants
   // only the caller's own identity.
   "getCurrentUser",
+  // The /mcp get_projects tool + orientation (PLAN_112): the caller's own
+  // accessible projects only.
+  "getProjectsForUser",
   "getPresentationObjectItems",
   "getResultsValueInfoForPresentationObject",
   "getPresentationObjectDetail",
@@ -36,11 +40,10 @@ const PAT_ALLOWED_ROUTE_NAMES = [
   "updateReportBody",
 ] as const satisfies readonly (keyof typeof routeRegistry)[];
 
-// Non-registry paths the host also needs: the SSE hydration streams and the
-// /info markdown docs (served by the pat app's static handler).
+// Non-registry paths: the /info markdown docs (served by the pat app's
+// static handler). The SSE hydration patterns died with the local MCP host
+// (PLAN_112 D5) — the /mcp endpoint builds state server-side.
 const PAT_ALLOWED_RAW: { method: string; pattern: RegExp }[] = [
-  { method: "GET", pattern: /^\/instance_updates$/ },
-  { method: "GET", pattern: /^\/project_sse_v2\/[^/]+$/ },
   { method: "GET", pattern: /^\/info\/[A-Za-z0-9_-]+\.md$/ },
 ];
 

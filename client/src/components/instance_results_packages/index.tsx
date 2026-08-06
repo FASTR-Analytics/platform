@@ -33,6 +33,7 @@ import {
 } from "~/components/_shared/results_package/package_contents";
 import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
+import { ModuleDefaultsEditor } from "./module_defaults";
 import { serverActions } from "~/server_actions";
 import {
   addInstanceRScriptListener,
@@ -86,6 +87,13 @@ export function InstanceResultsPackages() {
     await refreshAll();
   }
 
+  async function openModuleDefaults(): Promise<void> {
+    await openEditor({
+      element: ModuleDefaultsEditor,
+      props: {},
+    });
+  }
+
   const startConfiguration = createButtonAction(
     () => serverActions.createRunGenerationAttempt({}),
     refreshAll,
@@ -134,30 +142,45 @@ export function InstanceResultsPackages() {
               pt: "Pacotes de resultados",
             })}
           >
-            <Switch>
-              <Match when={attempt() !== null}>
-                <Button onClick={openWizard} iconName="pencil">
-                  {t3({
-                    en: "Resume configuration",
-                    fr: "Reprendre la configuration",
-                    pt: "Retomar a configuração",
-                  })}
-                </Button>
-              </Match>
-              <Match when={true}>
-                <Button
-                  onClick={startConfiguration.click}
-                  state={startConfiguration.state()}
-                  iconName="package"
-                >
-                  {t3({
-                    en: "Generate new results package",
-                    fr: "Générer un nouveau paquet de résultats",
-                    pt: "Gerar novo pacote de resultados",
-                  })}
-                </Button>
-              </Match>
-            </Switch>
+            <div class="ui-gap-sm flex items-center">
+              <Button
+                onClick={openModuleDefaults}
+                outline
+                onBackground="base-content"
+                intent="base-100"
+                iconName="settings"
+              >
+                {t3({
+                  en: "Module defaults",
+                  fr: "Paramètres par défaut des modules",
+                  pt: "Predefinições dos módulos",
+                })}
+              </Button>
+              <Switch>
+                <Match when={attempt() !== null}>
+                  <Button onClick={openWizard} iconName="pencil">
+                    {t3({
+                      en: "Resume configuration",
+                      fr: "Reprendre la configuration",
+                      pt: "Retomar a configuração",
+                    })}
+                  </Button>
+                </Match>
+                <Match when={true}>
+                  <Button
+                    onClick={startConfiguration.click}
+                    state={startConfiguration.state()}
+                    iconName="package"
+                  >
+                    {t3({
+                      en: "Generate new results package",
+                      fr: "Générer un nouveau paquet de résultats",
+                      pt: "Gerar novo pacote de resultados",
+                    })}
+                  </Button>
+                </Match>
+              </Switch>
+            </div>
           </HeadingBarMainRibbon>
         }
       >

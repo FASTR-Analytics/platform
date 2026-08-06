@@ -1,14 +1,19 @@
 import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
 import { INFO_TOPICS } from "./info_catalog.ts";
-import { getServerActionTransport } from "../server_actions/transport.ts";
+import type { ServerActionTransport } from "../server_actions/transport.ts";
 
 // On-demand reference docs. The catalog (INFO_TOPICS) is a compile-time const so
 // the system prompt and this tool share one source of truth with no fetch; only
 // the markdown CONTENT is fetched on demand from client/public/info/<topic>.md
 // when a topic is actually requested. Matching against INFO_TOPICS also whitelists
 // the fetch path (no traversal, never serves the SPA fallback).
-export function getSharedToolsForInfo() {
+//
+// Headless use passes the transport EXPLICITLY (PLAN_112 step 2): reading the
+// process-global transport at call time is the confused-deputy shape a
+// multi-principal server must never touch. The SPA passes nothing and keeps
+// its document branch (same-origin fetch, no transport involved).
+export function getSharedToolsForInfo(transport?: ServerActionTransport) {
   return [
     createAITool({
       name: "get_info",
@@ -37,20 +42,27 @@ export function getSharedToolsForInfo() {
           );
         }
         // In the browser the info files come from the SPA origin (Vite in
-        // dev); headlessly there is no origin, so the server's base URL from
-        // the transport supplies one (the built SPA's /info files are served
-        // by the app server) — and the /pat mount 401s any request without
-        // the transport's Bearer header, so a raw fetch must carry it.
-        const transport = typeof document === "undefined"
-          ? getServerActionTransport()
+        // dev); headlessly there is no origin, so the explicit transport
+        // supplies the base URL, credentials, and (via fetchImpl) the
+        // in-process dispatch path.
+        const headlessTransport = typeof document === "undefined"
+          ? transport ?? null
           : null;
-        const base = transport ? transport.baseUrl : "";
-        const response = await fetch(`${base}/info/${match.topic}.md`, {
+        if (typeof document === "undefined" && headlessTransport === null) {
+          throw new Error(
+            "get_info: headless use requires an explicit transport — pass it to getSharedToolsForInfo().",
+          );
+        }
+        const base = headlessTransport ? headlessTransport.baseUrl : "";
+        const doFetch = headlessTransport?.fetchImpl ??
+          ((input: string | URL | Request, init: RequestInit) =>
+            fetch(input, init));
+        const response = await doFetch(`${base}/info/${match.topic}.md`, {
           cache: "no-cache",
-          ...(transport
+          ...(headlessTransport
             ? {
-              headers: transport.getHeaders(),
-              credentials: transport.credentials,
+              headers: headlessTransport.getHeaders(),
+              credentials: headlessTransport.credentials,
             }
             : {}),
         });

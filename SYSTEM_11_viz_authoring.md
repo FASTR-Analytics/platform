@@ -371,6 +371,15 @@ parent (the slide modal's "All replicants (N)" count).
 - **Duplicate cold fetch of PO detail in edit mode** — two concurrent
   `getPODetailFromCacheorFetch` calls; the reactive-cache inflight dedupe is
   check-then-set, so a cold open can double-fetch.
+- **Custom value orders are never pruned — ruling pending.**
+  `normalizePOConfigForStorage` canonicalizes roll-up flags at save but does not
+  touch `s.customValueOrder`, so entries survive for dimensions that were
+  removed from the display and ids the data no longer returns. Current behavior
+  is deliberate-latent: the style section always lists such an order with its
+  reason and a clear button, and an unranked id is simply not ranked, so nothing
+  renders wrong. The open question is prune-on-save versus keep-latent, and it
+  turns on whether re-adding a dimension later should silently recover its old
+  order (keep) or start clean (prune).
 - **Dead reorder feature**: `reorderPresentationObjects` +
   `reorderVisualizationFolders` (registry + routes + db functions) have zero
   client callers; `sort_order` is only written by folder-create.

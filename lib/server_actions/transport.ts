@@ -14,6 +14,15 @@ export type ServerActionTransport = {
   // (offline banner); a headless host omits them.
   onNetworkFailure?: () => void;
   onNetworkSuccess?: () => void;
+  // In-process dispatch seam (PLAN_112 D4): when set, server actions issue
+  // requests through this instead of global fetch. The /mcp endpoint points
+  // it at patApp.request(), so every action still runs the full PAT
+  // middleware chain (verify, allowlist, permissions, logging) without a
+  // network hop. Absent = global fetch, zero behavior change.
+  fetchImpl?: (
+    input: string | URL | Request,
+    init: RequestInit,
+  ) => Promise<Response>;
 };
 
 let _transport: ServerActionTransport | null = null;

@@ -180,7 +180,10 @@ export async function getGlobalUser(
   );
 }
 
-async function buildGlobalUserFromDb(
+// Exported for the /mcp context cache (PLAN_112): it resolves a PAT email to
+// the same GlobalUser the middleware chain builds. PAT callers carry no name
+// claims — pass null/null, exactly as getGlobalUser's PAT branch does.
+export async function buildGlobalUserFromDb(
   email: string,
   claimFirstName: string | null,
   claimLastName: string | null,

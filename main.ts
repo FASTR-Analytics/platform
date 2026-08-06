@@ -67,6 +67,7 @@ import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
+import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
 
 await dbStartUp();
 
@@ -125,15 +126,15 @@ try {
   // In development, handled by Vite dev server
 }
 
-// The /pat mount below carries its own auth (PAT-only) and no CORS — the
-// global Clerk middleware and CORS headers must not touch it.
-const isPatPath = (path: string) => path === "/pat" || path.startsWith("/pat/");
+// The /mcp endpoint (PLAN_112) authenticates with PATs inside the panther
+// adapter — the global Clerk middleware and CORS headers must not touch it.
+const isMcpPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
 
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
 app.use(
   "*",
-  (c, next) => isPatPath(c.req.path) ? next() : authMiddleware(c, next),
+  (c, next) => isMcpPath(c.req.path) ? next() : authMiddleware(c, next),
 );
 
 app.onError((err: unknown, c) => {
@@ -145,7 +146,7 @@ app.onError((err: unknown, c) => {
 
 app.use(
   "*",
-  (c, next) => isPatPath(c.req.path) ? next() : corsMiddleware(c, next),
+  (c, next) => isMcpPath(c.req.path) ? next() : corsMiddleware(c, next),
 );
 
 app.route("/", routesHealth);
@@ -187,68 +188,10 @@ app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);
 
-// The /pat mount (REVIEW_MCP_HOST_ARCHITECTURE.md §8): the SAME route
-// registrations mounted a second time for headless clients — PAT-only auth,
-// deny-by-default route allowlist, no CORS headers (no browser holds a PAT).
-// Handlers are auth-agnostic (they read context set by getGlobalUser), so
-// identity parity with the cookie mount is structural.
-const patApp = new Hono();
-//@ts-ignore - middleware typed loosely, same as authMiddleware above
-patApp.use("*", patAuthMiddleware);
-patApp.use("*", patRouteAllowlist);
-patApp.route("/", routesHealth);
-patApp.route("/", routesInstance);
-patApp.route("/", routesInstanceSSE);
-patApp.route("/", routesUsers);
-patApp.route("/", routesProject);
-patApp.route("/", routesProjectSSEV2);
-patApp.route("/", routesProjectCollab);
-patApp.route("/", routesStructure);
-patApp.route("/", routesRunGeneration);
-patApp.route("/", routesBackups);
-patApp.route("/", routesAssets);
-patApp.route("/", routesGeoJsonMaps);
-patApp.route("/", routesUpload);
-patApp.route("/", routesDatasets);
-patApp.route("/", routesDhis2Credentials);
-patApp.route("/", routesHfaIndicators);
-patApp.route("/", routesHfaTimePoints);
-patApp.route("/", routesIceh);
-patApp.route("/", routesIndicators);
-patApp.route("/", routesCalculatedIndicators);
-patApp.route("/", routesIndicatorsDhis2);
-patApp.route("/", routesInstanceModules);
-patApp.route("/", routesModules);
-patApp.route("/", routesProjectResultsPackage);
-patApp.route("/", routesSlideDecks);
-patApp.route("/", routesReports);
-patApp.route("/", routesReportFolders);
-patApp.route("/", routesSlides);
-patApp.route("/", routesDashboards);
-patApp.route("/", routesPresentationObjects);
-patApp.route("/", routesVisualizationFolders);
-patApp.route("/", routesSlideDeckFolders);
-patApp.route("/", routesEmails);
-patApp.route("/", routesCacheStatus);
-patApp.route("/ai", routesAiProxy);
-patApp.route("/ai-instance", routesInstanceAiProxy);
-patApp.route("/ai", routesAiFiles);
-patApp.route("/", routesCustomPrompts);
-// The /info reference docs (get_info tool): same files the SPA fetches from
-// its origin, served from the built client (dev fallback: the source dir).
-patApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {
-  const file = c.req.param("file");
-  for (const dir of ["./client_dist/info", "./client/public/info"]) {
-    try {
-      const content = await Deno.readTextFile(`${dir}/${file}`);
-      return c.text(content);
-    } catch {
-      // try the next location
-    }
-  }
-  return c.notFound();
-});
-app.route("/pat", patApp);
+// The remote MCP endpoint (PLAN_112): URL + PAT header, nothing local. The
+// panther adapter handles auth (401/503), era routing, sessions, and
+// elicitation; Hono just hands it the raw Request.
+app.all("/mcp", (c) => mcpHttpHandler(c.req.raw));
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);

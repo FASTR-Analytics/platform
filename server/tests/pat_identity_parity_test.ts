@@ -18,6 +18,9 @@
 
 import { assertEquals } from "@std/assert";
 import { Hono } from "hono";
+import type { ServerActionTransport } from "../../lib/server_actions/transport.ts";
+import { setServerActionTransport } from "../../lib/server_actions/transport.ts";
+import { createAllServerActions } from "../../lib/server_actions/create_server_action.ts";
 import { routesUsers } from "../routes/instance/users.ts";
 import { patAuthMiddleware } from "../middleware/auth.ts";
 import { patRouteAllowlist } from "../middleware/pat_allowlist.ts";
@@ -128,6 +131,38 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
       SELECT first_name FROM users WHERE email = ${TEST_EMAIL}
     `;
     assertEquals(rows[0].first_name, "Parity");
+
+    // Explicit-transport leg (PLAN_112 step 2): the same route reached
+    // through createAllServerActions over an EXPLICIT transport whose
+    // fetchImpl dispatches in-process into patApp must be byte-identical to
+    // the raw patApp request — this is the /mcp endpoint's dispatch path
+    // (D4), proven against the real middleware chain.
+    const explicitTransport: ServerActionTransport = {
+      baseUrl: "",
+      refreshSession: async () => {},
+      getHeaders: () => ({ Authorization: `Bearer ${minted.data.token}` }),
+      credentials: "omit",
+      onPersistentAuthFailure: () => {},
+      fetchImpl: async (input, init) => await patApp.request(input, init),
+    };
+    // Fresh raw baseline taken NOW: the named-Clerk leg above already synced
+    // first_name into the DB, so the original patBody is stale by design.
+    const freshPatRes = await patApp.request("/user", {
+      headers: { Authorization: `Bearer ${minted.data.token}` },
+    });
+    const freshPatBody = await freshPatRes.json();
+    const explicitActions = createAllServerActions(explicitTransport);
+    const viaExplicit = await explicitActions.getCurrentUser({});
+    assertEquals(viaExplicit, freshPatBody);
+
+    // Defaulted-caller leg: the SAME transport registered globally and
+    // reached through a no-arg createAllServerActions() (the SPA's spelling)
+    // must behave identically — the explicit param changes nothing for
+    // defaulted callers.
+    setServerActionTransport(explicitTransport);
+    const defaultedActions = createAllServerActions();
+    const viaDefaulted = await defaultedActions.getCurrentUser({});
+    assertEquals(viaDefaulted, viaExplicit);
 
     // Deny-by-default: a route outside the allowlist 403s under PAT even with
     // a valid token (PATs can never reach token mint/list/revoke).

@@ -5,10 +5,17 @@ import type {
 } from "../types/mod.ts";
 import type { ServerActionsType } from "../api-routes/server-action-types.ts";
 import { routeRegistry } from "../api-routes/combined.ts";
+import type { ServerActionTransport } from "./transport.ts";
 import { getServerActionTransport } from "./transport.ts";
 import { tryCatchServer } from "./try_catch_server.ts";
 
-export function createAllServerActions(): ServerActionsType {
+// The optional explicit transport (PLAN_112 D4) binds this action set to one
+// caller's credentials — the /mcp endpoint builds one per (PAT, project)
+// context. Omitted = the process-global singleton, resolved per call exactly
+// as before (the SPA registers it at boot, after this module initializes).
+export function createAllServerActions(
+  transport?: ServerActionTransport,
+): ServerActionsType {
   const actions: any = {};
   for (const [functionName, route] of Object.entries(routeRegistry)) {
     actions[functionName] = createServerAction(
@@ -17,6 +24,7 @@ export function createAllServerActions(): ServerActionsType {
       (route as any).requiresProject,
       (route as any).isStreaming,
       (route as any).timeoutMs,
+      transport,
     );
   }
   return actions as ServerActionsType;
@@ -28,9 +36,10 @@ function createServerAction(
   requiresProject?: boolean,
   isStreaming?: boolean,
   timeoutMs?: number,
+  explicitTransport?: ServerActionTransport,
 ) {
   return async (args: any, onProgress?: ProgressCallback): Promise<any> => {
-    const transport = getServerActionTransport();
+    const transport = explicitTransport ?? getServerActionTransport();
     const { url, hasBody, bodyData, headers } = buildRequestParams(
       path,
       args,
@@ -52,13 +61,16 @@ function createServerAction(
         `${transport.baseUrl}${url}`,
         init,
         timeoutMs,
+        transport,
       );
     }
     // Session refresh before long-running stream — no timeout/retry: an AbortController
     // timeout would kill legitimately long streams, and replaying a non-idempotent
     // streaming POST is wrong.
     await transport.refreshSession();
-    const response = await fetch(`${transport.baseUrl}${url}`, init);
+    const doFetch = transport.fetchImpl ??
+      ((input: string, i: RequestInit) => fetch(input, i));
+    const response = await doFetch(`${transport.baseUrl}${url}`, init);
     return await consumeStream(response, onProgress);
   };
 }

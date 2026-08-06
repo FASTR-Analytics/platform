@@ -1,14 +1,14 @@
-import type { AIToolEnv, ServerActionsType } from "lib";
-import { instanceSnapshot } from "./snapshot.ts";
+import type { AIToolEnv, InstanceState, ServerActionsType } from "lib";
 
-// The headless injection of the shared AI-tool environment (lib/ai_tools/
-// env.ts): every getter is a direct call to the server action it fronts —
-// the ruling's counterpart to the SPA's cache-backed clientAIToolEnv. All
-// backing routes are on the /pat allowlist. Dimension labels come off the
-// hydrated instance snapshot at call time (the ready gate runs before any
-// tool call, so the snapshot is always hydrated here).
-export function createHostAIToolEnv(
+// The server-side injection of the shared AI-tool environment — the
+// createHostAIToolEnv shape (mcp_host/env.ts), recreated for the /mcp
+// endpoint (PLAN_112 step 4): every getter is a direct call to the server
+// action it fronts, and those actions dispatch in-process through the PAT
+// middleware chain (the transport's fetchImpl). Dimension labels come off the
+// instance state the context cache resolved for this principal.
+export function createMcpAIToolEnv(
   serverActions: ServerActionsType,
+  instanceState: InstanceState,
 ): AIToolEnv {
   return {
     serverActions,
@@ -46,8 +46,8 @@ export function createHostAIToolEnv(
         fetchConfig,
       }),
     getDimensionLabelConfig: () => ({
-      adminAreaLabels: instanceSnapshot.adminAreaLabels,
-      facilityColumns: instanceSnapshot.facilityColumns,
+      adminAreaLabels: instanceState.adminAreaLabels,
+      facilityColumns: instanceState.facilityColumns,
     }),
   };
 }

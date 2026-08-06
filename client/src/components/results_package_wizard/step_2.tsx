@@ -19,7 +19,10 @@ import {
 } from "panther";
 import { For, Show, batch } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { ModuleParameterInputs } from "~/components/_shared/module_parameter_inputs";
+import {
+  ModuleParameterInputs,
+  getModuleParameterInvalidMsg,
+} from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 
 type Props = {
@@ -197,6 +200,27 @@ function Step2Inner(p: {
           fr: "Sélectionnez au moins un module pour le paquet de résultats",
           pt: "Selecione pelo menos um módulo para o pacote de resultados",
         }),
+      };
+    }
+    const values = unwrap(paramValues);
+    const invalidLabels = chosen
+      .filter((o) =>
+        o.parameters.some((param) =>
+          getModuleParameterInvalidMsg(
+            param,
+            values[o.id][param.replacementString],
+          ) !== undefined
+        )
+      )
+      .map((o) => o.label);
+    if (invalidLabels.length > 0) {
+      return {
+        success: false,
+        err: `${t3({
+          en: "Fix the invalid parameter values for",
+          fr: "Corrigez les valeurs de paramètres non valides pour",
+          pt: "Corrija os valores de parâmetros inválidos para",
+        })}: ${invalidLabels.join(", ")}`,
       };
     }
     return await serverActions.updateRunGenerationAttemptStep2({

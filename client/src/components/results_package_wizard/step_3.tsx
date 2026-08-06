@@ -26,10 +26,9 @@ type Props = {
 // Step 3 — confirm: label, selection summary, attach targets, then Launch.
 // Launch consumes the attempt server-side (the run owns its lifecycle from
 // here), so on success the wizard closes and progress shows on the Results
-// packages surface via SSE. "Save as instance defaults" writes this
-// configuration to the instance defaults store (§3.5), which is what the next
-// wizard run starts from — attach targets are deliberately NOT part of it
-// (they are a per-generation act, not a configuration default).
+// packages surface via SSE. The wizard only READS the instance defaults
+// store (§3.5) — its one writer is the module-defaults editor on the
+// Results packages surface.
 //
 // Attach-at-launch: the selected projects are repointed inside the publish
 // transaction when generation succeeds. Selection defaults to none — a
@@ -91,18 +90,6 @@ export function Step3(p: Props) {
       .filter((project) => selected[project.id] === true)
       .map((project) => project.id);
   }
-
-  const saveAsDefaults = createFormAction(async () => {
-    return await serverActions.saveRunGenerationDefaults({
-      defaults: {
-        step1: p.step1Result,
-        moduleIds: p.step2Result.modules.map((m) => m.moduleId),
-        parameterSelections: Object.fromEntries(
-          p.step2Result.modules.map((m) => [m.moduleId, m.parameterSelections]),
-        ),
-      },
-    });
-  }, async () => {});
 
   const launch = createFormAction(async () => {
     const trimmed = label().trim();
@@ -225,7 +212,6 @@ export function Step3(p: Props) {
         })}
       </div>
 
-      <StateHolderFormError state={saveAsDefaults.state()} />
       <StateHolderFormError state={launch.state()} />
 
       <div class="ui-gap-sm flex">
@@ -239,18 +225,6 @@ export function Step3(p: Props) {
             en: "Launch generation",
             fr: "Lancer la génération",
             pt: "Iniciar a geração",
-          })}
-        </Button>
-        <Button
-          onClick={saveAsDefaults.click}
-          outline
-          state={saveAsDefaults.state()}
-          iconName="save"
-        >
-          {t3({
-            en: "Save these selections as instance defaults",
-            fr: "Enregistrer ces sélections comme valeurs par défaut de l'instance",
-            pt: "Guardar estas seleções como predefinições da instância",
           })}
         </Button>
       </div>

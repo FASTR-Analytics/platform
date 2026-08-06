@@ -21,6 +21,7 @@ globs:
   - server/middleware/pat_allowlist.ts
   - server/middleware/static.ts
   - server/middleware/userPermission.ts
+  - server/pat_app.ts
   - server/project_auth.ts
   - server/routes/instance/users.ts
   - server/routes/route-helpers.ts
@@ -80,9 +81,9 @@ must stay deliberate and enumerated (see below).
 Each feature file exports a `*RouteRegistry` object of `route({...})` calls
 (`route-utils.ts`); `combined.ts` spreads all 29 into `routeRegistry`, the one
 object both `server/routes/route-helpers.ts` and
-`lib/server_actions/create_server_action.ts` import. Add an entry → the
-client gets a typed action and the server gets a typed handler signature for
-free; forget to implement it → boot fails.
+`lib/server_actions/create_server_action.ts` import. Add an entry → the client
+gets a typed action and the server gets a typed handler signature for free;
+forget to implement it → boot fails.
 
 Canonical example — `lib/api-routes/project/reports.ts`:
 
@@ -238,8 +239,8 @@ fires `onProgress`. Three routes use it today: one in
 
 `server/middleware/logging.ts` slots into S1's per-route middleware chain
 (between the permission guard and the handler) but belongs to S17 — see
-[SYSTEM_17_logging.md](SYSTEM_17_logging.md) for the write path, retention,
-and coverage conventions.
+[SYSTEM_17_logging.md](SYSTEM_17_logging.md) for the write path, retention, and
+coverage conventions.
 
 ## Startup validation (`route-tracker.ts`)
 
@@ -276,46 +277,56 @@ here uses the registry.
 
 `server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough :` a composed
 middleware. Requests whose `Authorization` header carries a **personal access
-token** (`Bearer fastr_pat_…`) are resolved against
-`personal_access_tokens` (SHA-256 hash lookup that also stamps
-`last_used_at`); an unknown token is rejected immediately
-(`401 authError: true`), a valid one sets `c.var.patAuthEmail` and skips Clerk
-entirely. Everything else goes through `clerkMiddleware()`, which only
-**populates** `getAuth(c)` — it never rejects. Rejection is the job of
-a per-route guard, so a route with no guard is reachable by any authenticated
-caller. Mount order matters: the public dashboard routes and the `/d/:slug` SPA
-page are registered before the global middleware (anonymous-reachable);
-`authMiddleware` is additionally mounted on `/api/d/*` first so public dashboard
-routes can still read a session when one exists.
+token** (`Bearer fastr_pat_…`) are resolved against `personal_access_tokens`
+(SHA-256 hash lookup that also stamps `last_used_at`); an unknown token is
+rejected immediately (`401 authError: true`), a valid one sets
+`c.var.patAuthEmail` and skips Clerk entirely. Everything else goes through
+`clerkMiddleware()`, which only **populates** `getAuth(c)` — it never rejects.
+Rejection is the job of a per-route guard, so a route with no guard is reachable
+by any authenticated caller. Mount order matters: the public dashboard routes
+and the `/d/:slug` SPA page are registered before the global middleware
+(anonymous-reachable); `authMiddleware` is additionally mounted on `/api/d/*`
+first so public dashboard routes can still read a session when one exists.
 
-**Personal access tokens** are the headless credential (MCP server, CLI):
-minted per user (self-service routes `createPersonalAccessToken` /
+**Personal access tokens** are the headless credential (the `/mcp` endpoint,
+CLI): minted per user (self-service routes `createPersonalAccessToken` /
 `listPersonalAccessTokens` / `revokePersonalAccessToken`, always scoped to
 `c.var.globalUser.email`), shown once at mint, stored only as a hash
 (`server/db/instance/personal_access_tokens.ts`, migration 073). In
 `getGlobalUser`, `patAuthEmail` short-circuits the Clerk branch and feeds the
 same DB-backed `GlobalUser` construction, so a PAT request has exactly the
-user's own permissions — every guard downstream is unchanged. The
-server-action layer lives in `lib/server_actions/` (compiled into both tiers)
-and reaches its environment only through the **transport seam**
+user's own permissions — every guard downstream is unchanged. The server-action
+layer lives in `lib/server_actions/` (compiled into both tiers) and reaches its
+environment only through the **transport seam**
 (`lib/server_actions/transport.ts`): LoggedInWrapper registers the browser
 transport (Clerk cookie, session refresh, reload on persistent 401) at module
-scope, and a headless host registers a PAT + absolute-base-URL transport
-instead — the generated actions are identical in both. The transport is a
-process-global singleton, so the registration doctrine is strict: **only the
-SPA shell (LoggedInWrapper) and out-of-process headless hosts ever call
-`setServerActionTransport`; server code never does.** A server-side
-registration would make the app server issue authenticated loopback HTTP calls
-under some user's identity — a confused-deputy shape with no per-request
-isolation. Server code reaches data through the in-process DB layer, full
-stop. (Convention-enforced today; the "transport not configured" throw makes
-misuse loud at first call.) Note there is NO compiler-enforced browser-free
-boundary in `lib/` either: the server typecheck carries the TypeScript `dom`
-lib (`deno.json` → `"lib": [... "dom" ...]`), so a `document`/`window`
-reference in a `lib/` file passes `deno check main.ts` clean — the boundary
-holds by convention plus runtime guards (`typeof document === "undefined"`
-branches, no browser globals at module scope). Mechanical enforcement, if ever
-wanted, means a separate dom-less `deno check` of `lib/` or a lint rule.
+scope; the generated actions are identical wherever they run.
+
+**Transport registration doctrine** (amended 2026-08-06, PLAN_112 D4). The
+prohibition that matters stands verbatim: **no server code ever calls
+`setServerActionTransport`.** A process-global registration would make the app
+server issue authenticated calls under whichever identity was registered last —
+a confused-deputy shape with no per-request isolation. What is now sanctioned is
+the opposite shape: an **explicit per-context transport**, passed as an argument
+and never registered anywhere. `createAllServerActions(transport?)` takes one,
+and `ServerActionTransport.fetchImpl?` lets it dispatch **in-process** rather
+than over the network. The `/mcp` endpoint builds one per (PAT, project) context
+carrying that caller's own token, with `fetchImpl: patAppFetch` — so every
+action runs the real PAT middleware chain (verify + `last_used_at` stamp,
+deny-by-default allowlist, zod validation, `requireProjectPermission` incl.
+locked-project write denial, logging) with no loopback HTTP and no shared state.
+Per-request isolation is exactly what the explicit form restores; both defaults
+are unchanged, so SPA callers (`createAllServerActions()`, global fetch) behave
+byte-identically. Pinned by `server/tests/pat_identity_parity_test.ts`, which
+drives the same route through the raw PAT app, an explicit transport, and a
+defaulted caller and asserts all three agree. Note there is NO compiler-enforced
+browser-free boundary in `lib/` either: the server typecheck carries the
+TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
+`document`/`window` reference in a `lib/` file passes `deno check main.ts` clean
+— the boundary holds by convention plus runtime guards
+(`typeof document === "undefined"` branches, no browser globals at module
+scope). Mechanical enforcement, if ever wanted, means a separate dom-less
+`deno check` of `lib/` or a lint rule.
 
 ### The two guard factories
 
@@ -441,13 +452,13 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
 - **Startup guard-audit — considered and DECLINED (Tim, 2026-08-03).** A
-  boot-time (or type-level) check that every `defineRoute` carries a guard or
-  an explicit public marker was audited and rejected: the full registry has
-  exactly one unguarded route (`getInstanceMeta`, deliberately public), so the
-  rule stays convention + review. Do not re-propose without a new hole. (The
-  old health.ts-guards item closed 2026-07-17: the read surface is
-  public-by-design — SYSTEM_15's exposure inventory — and the mutating reset
-  endpoint now requires the status-api key.)
+  boot-time (or type-level) check that every `defineRoute` carries a guard or an
+  explicit public marker was audited and rejected: the full registry has exactly
+  one unguarded route (`getInstanceMeta`, deliberately public), so the rule
+  stays convention + review. Do not re-propose without a new hole. (The old
+  health.ts-guards item closed 2026-07-17: the read surface is public-by-design
+  — SYSTEM_15's exposure inventory — and the mutating reset endpoint now
+  requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401) — either bless that as the contract or
   extend it to 403s deliberately; the two guards' 403 _message formats_ have

@@ -16,6 +16,7 @@ globs:
   - lib/types/project_sse.ts
   - server/routes/instance/instance-sse.ts
   - server/routes/project/project-sse-v2.ts
+  - server/task_management/build_instance_state.ts
   - server/task_management/build_project_state.ts
   - server/task_management/notify_instance_updated.ts
   - server/task_management/notify_last_updated.ts
@@ -45,11 +46,11 @@ version columns is **S2**
 is not the request-scoped NDJSON `StreamWriter` in **S1**
 (SYSTEM_01_api_contract.md). The third BroadcastChannel,
 `RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s
-internal worker plumbing (SYSTEM_08_results_packages.md) — it feeds no SSE endpoint
-and is exempt from the notify-catalog rule. `server/middleware/cache.ts`
-(`cacheMiddleware`) sets HTTP `Cache-Control` headers on static assets — a
-completely different "cache", owned elsewhere. The collaboration WebSocket layer
-(live Yjs deltas, presence) is **S16**
+internal worker plumbing (SYSTEM_08_results_packages.md) — it feeds no SSE
+endpoint and is exempt from the notify-catalog rule.
+`server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
+headers on static assets — a completely different "cache", owned elsewhere. The
+collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — strictly additive
 inside the same project boundary: its room checkpoints feed this system's
 triangle through the existing notify wrappers and post nothing new to the
@@ -94,13 +95,13 @@ Exactly **two SSE-feeding** broadcast channels, each with one endpoint:
 | `"instance_updates"`   | `GET /instance_updates`           | `routes/instance/instance-sse.ts`  | `requireGlobalPermission()` (hard-deny) + per-message filter† |
 | `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `resolveProjectUserAccess` (hard-deny)      |
 
-† The instance endpoint admits every logged-in user, so the two
-results-package generation messages — `run_progress` and `r_script`, which
-carry run labels, module ids and R error detail — are dropped in the forward
-loop for callers without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The
-permission set is the one captured at connect; a change takes effect on
-reconnect, exactly like `currentUserPermissions` in the starting payload.
-No other message on either channel is filtered per user.
+† The instance endpoint admits every logged-in user, so the two results-package
+generation messages — `run_progress` and `r_script`, which carry run labels,
+module ids and R error detail — are dropped in the forward loop for callers
+without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The permission set is the
+one captured at connect; a change takes effect on reconnect, exactly like
+`currentUserPermissions` in the starting payload. No other message on either
+channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process — which is how a background worker's
@@ -138,8 +139,8 @@ a `queue: []` + `ReadableStream` controller; **project** uses a
 **The notify catalog (normative).** Every broadcast to the two SSE channels goes
 through a typed wrapper — never `postMessage` directly.
 `server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus ten wrappers, one per
-`InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`),
+`notifyInstanceUpdate(message)` plus ten wrappers, one per `InstanceSseMessage`
+type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceProjectsLastUpdated` (`projects_last_updated`),
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
@@ -147,8 +148,7 @@ through a typed wrapper — never `postMessage` directly.
 `notifyInstanceIndicatorsUpdated` (`indicators_updated`),
 `notifyInstanceDatasetsUpdated` (`datasets_updated`),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
-(`r_script`).
-`server/task_management/notify_project_v2.ts` exposes
+(`r_script`). `server/task_management/notify_project_v2.ts` exposes
 `notifyProjectV2(projectId, message)` (spreads `projectId` in) plus thirteen
 wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectVisualizationFoldersUpdated`, `notifyProjectSlideDecksUpdated`,
@@ -161,19 +161,20 @@ wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushe
 `r_script`, `run_progress`, and `run_attached` instead.) Generation telemetry
 fans out on BOTH channels and no emitter calls the project wrappers directly:
 `worker_routines/generate_run/notify_run.ts` pairs each instance push with the
-per-attach-target project pushes, because a run launched with no attach
-targets has no project channel at all. `run_attached` has TWO emitters — the
-generation publish and a project's own package picker — and both go through
+per-attach-target project pushes, because a run launched with no attach targets
+has no project channel at all. `run_attached` has TWO emitters — the generation
+publish and a project's own package picker — and both go through
 `server/runs/attach_run.ts`, so the repoint event carries the same full
 run-derived catalog either way.
 
 **The `last_updated` entry point.**
 `server/task_management/notify_last_updated.ts` —
 `notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~47 call sites,
-re-exported via `task_management/mod.ts`) → `notifyProjectV2({ type:
-"last_updated", … })` directly. (The former `notifyProjectLastUpdatedV2`
-middle layer was collapsed 2026-08-03.) **Call `notifyLastUpdated`** from
-routes.
+re-exported via `task_management/mod.ts`) →
+`notifyProjectV2({ type:
+"last_updated", … })` directly. (The former
+`notifyProjectLastUpdatedV2` middle layer was collapsed 2026-08-03.) **Call
+`notifyLastUpdated`** from routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)
@@ -221,8 +222,8 @@ clients and caches stale with no error.
 - Channel-name strings are duplicated between producer (`notify_*` files) and
   consumer (SSE endpoints); a one-character drift silently breaks delivery (Open
   items).
-- Vestigial `_v2` on the project route path, channel string, and filename —
-  no v1 survives; the instance side has no suffix. Don't extend the pattern.
+- Vestigial `_v2` on the project route path, channel string, and filename — no
+  v1 survives; the instance side has no suffix. Don't extend the pattern.
 - The two client consumers diverge on reconnect and parsing: instance
   `_MAX_CONNECTION_ATTEMPTS = 5` + raw `JSON.parse`; project
   `MAX_CONNECTION_ATTEMPTS = 3` + `parseJsonOrThrow` (Open items).
@@ -322,15 +323,15 @@ stale-version entry that will miss (Open items). The client half of that page is
 the server (Valkey) and the client (IndexedDB, scanned by key prefix via
 `getClientVizCacheStatuses`).
 
-**Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D)
-— the one place that deliberately deletes entries rather than out-versioning
-them, and it is **disk reclamation, not correctness**: TTLs plus the version
+**Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D) —
+the one place that deliberately deletes entries rather than out-versioning them,
+and it is **disk reclamation, not correctness**: TTLs plus the version
 comparison in `get` already mean a dead run's entries are never served. Because
 `po_items`, `metric_info` and `replicant_opts` fold `runId` into their
 UNIQUENESS hash, they can be swept by prefix (`scanUniquenessHashes(runId…)` →
-`clearByUniquenessHash`). `po_detail` folds runId into its VERSION hash
-instead, so it cannot be prefix-swept and is left to expire on purpose — the
-alternative was a prefix bump for already-dead entries.
+`clearByUniquenessHash`). `po_detail` folds runId into its VERSION hash instead,
+so it cannot be prefix-swept and is left to expire on purpose — the alternative
+was a prefix bump for already-dead entries.
 
 **Rules.** Every cache is version-gated on a column bumped by _every_ write path
 to its data. Never `.clear()` on a normal write. `parseData` must derive the

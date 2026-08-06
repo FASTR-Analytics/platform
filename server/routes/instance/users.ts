@@ -56,6 +56,65 @@ defineRoute(
 
 defineRoute(
   routesUsers,
+  "getProjectsForUser",
+  requireGlobalPermission(),
+  log("getProjectsForUser"),
+  async (c) => {
+    const globalUser = c.var.globalUser;
+    const mainDb = c.var.mainDb;
+    type RawProjectRow = {
+      id: string;
+      label: string;
+      is_locked: boolean;
+      is_central_reporting: boolean;
+    };
+    const rawProjects: RawProjectRow[] = await mainDb<
+      RawProjectRow[]
+    >`SELECT id, label, is_locked, is_central_reporting FROM projects ORDER BY label`;
+    const isHUser = H_USERS.includes(globalUser.email);
+    // Same access rules as resolveProjectUserAccess, applied list-wise:
+    // central-reporting projects only for H_USERS; admins/H_USERS get the
+    // rest; everyone else needs a role row with >=1 true can_* flag.
+    if (globalUser.isGlobalAdmin || isHUser) {
+      const data = rawProjects
+        .filter((p) => !p.is_central_reporting || isHUser)
+        .map((p) => ({
+          id: p.id,
+          label: p.label,
+          role: "admin",
+          isLocked: p.is_locked,
+        }));
+      return c.json({ success: true, data });
+    }
+    const roleRows = await mainDb<
+      Record<string, unknown>[]
+    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email}`;
+    const roleByProject = new Map<string, string>();
+    for (const row of roleRows) {
+      const hasAccess = Object.entries(row).some(
+        ([key, value]) => key.startsWith("can_") && value === true,
+      );
+      if (hasAccess) {
+        roleByProject.set(
+          String(row.project_id),
+          row.role === "editor" ? "editor" : "viewer",
+        );
+      }
+    }
+    const data = rawProjects
+      .filter((p) => !p.is_central_reporting && roleByProject.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        label: p.label,
+        role: roleByProject.get(p.id)!,
+        isLocked: p.is_locked,
+      }));
+    return c.json({ success: true, data });
+  },
+);
+
+defineRoute(
+  routesUsers,
   "getAiUsage",
   requireGlobalPermission(),
   async (c) => {

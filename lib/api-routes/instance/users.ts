@@ -39,6 +39,20 @@ export const userRouteRegistry = {
     method: "GET",
     response: {} as GlobalUser,
   }),
+  // The caller's own accessible projects (PLAN_112: the /mcp get_projects
+  // tool) — admins/H_USERS see all (central-reporting gated to H_USERS),
+  // others see projects where they hold >=1 can_* flag. Grants nothing beyond
+  // what resolveProjectUserAccess would allow per project.
+  getProjectsForUser: route({
+    path: "/projects-for-user",
+    method: "GET",
+    response: {} as {
+      id: string;
+      label: string;
+      role: string;
+      isLocked: boolean;
+    }[],
+  }),
   getOtherUser: route({
     path: "/user/:email",
     method: "GET",

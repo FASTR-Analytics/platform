@@ -1,4 +1,5 @@
 import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
+import type { ServerActionTransport } from "./transport.ts";
 import { getServerActionTransport } from "./transport.ts";
 
 // Vite dev only (import.meta.env is absent under Deno and DEV is false in
@@ -12,7 +13,11 @@ export async function tryCatchServer<
   input: string | URL | Request,
   init?: RequestInit | undefined,
   timeoutMs?: number,
+  explicitTransport?: ServerActionTransport,
 ): Promise<T> {
+  const transport = explicitTransport ?? getServerActionTransport();
+  const doFetch = transport.fetchImpl ??
+    ((i: string | URL | Request, r: RequestInit) => fetch(i, r));
   const maxRetries = 2;
   let retries = 0;
   let lastAuthError = false;
@@ -31,14 +36,14 @@ export async function tryCatchServer<
         await new Promise((res) => setTimeout(res, 500));
       }
 
-      await getServerActionTransport().refreshSession();
+      await transport.refreshSession();
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
       const timeout = timeoutMs ?? 300000; // use registry-declared timeout, default 5 minutes
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const res = await fetch(input, {
+      const res = await doFetch(input, {
         ...init,
         signal: controller.signal,
       });
@@ -63,7 +68,7 @@ export async function tryCatchServer<
               await new Promise((r) => setTimeout(r, 500));
               continue;
             }
-            getServerActionTransport().onPersistentAuthFailure({
+            transport.onPersistentAuthFailure({
               url: input instanceof Request ? input.url : String(input),
               body,
             });
@@ -105,7 +110,7 @@ export async function tryCatchServer<
       // Check if we got HTML (nginx maintenance page) instead of JSON
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("text/html")) {
-        getServerActionTransport().onNetworkFailure?.();
+        transport.onNetworkFailure?.();
         return {
           success: false,
           err:
@@ -138,7 +143,7 @@ export async function tryCatchServer<
       try {
         const result = await res.json();
         // Report success if we got a valid response
-        getServerActionTransport().onNetworkSuccess?.();
+        transport.onNetworkSuccess?.();
         return result;
       } catch (_jsonError) {
         return {
@@ -149,7 +154,7 @@ export async function tryCatchServer<
     } catch (e) {
       // Network/timeout errors - only retry safe methods
       if (e instanceof Error && e.name === "AbortError") {
-        getServerActionTransport().onNetworkFailure?.();
+        transport.onNetworkFailure?.();
         if (retries === maxRetries || !isSafeMethod) {
           return {
             success: false,
@@ -164,7 +169,7 @@ export async function tryCatchServer<
       }
 
       if (e instanceof TypeError && e.message.includes("Failed to fetch")) {
-        getServerActionTransport().onNetworkFailure?.();
+        transport.onNetworkFailure?.();
         if (retries === maxRetries || !isSafeMethod) {
           return {
             success: false,
