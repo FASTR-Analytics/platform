@@ -1,5 +1,6 @@
 import { t3 } from "lib";
 import type { RenameEmailInstanceResult } from "lib";
+import type { EmailAddressResource } from "@clerk/types";
 import {
   type AlertComponentProps,
   Button,
@@ -7,90 +8,82 @@ import {
   TextArea,
   createButtonAction,
 } from "panther";
-import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
-import { openClerkUserProfile } from "./profile";
 import { serverActions } from "~/server_actions";
 
-// Self-service email change, everywhere at once. Three steps:
-//   1. enter  — type the new address; a dry run previews which instances the
-//               account exists on (fleet discovery, nothing changes).
-//   2. clerk  — the user adds + verifies the new address and makes it primary
-//               through Clerk's own account window (that is what proves they
-//               own the mailbox); the modal polls Clerk until all three are
-//               done, then refreshes the session token so the JWT already
-//               carries the new email before anything is renamed.
-//   3. report — the rename runs (this instance in-process, every other
-//               instance fleet-internally) and the per-instance outcome is
-//               shown. Retry is safe: every step is idempotent. Finishing
-//               removes the old address from Clerk and reloads the app, since
-//               the SPA's identity state is stale after a self-rename.
+// Self-service email change, everywhere at once. Two deliberate acts, the
+// rest automatic:
+//   1. enter  — type the new address, one button: the fleet preview runs and,
+//               unless it finds a conflict (or the account nowhere), the
+//               address is added to the caller's Clerk account and a
+//               verification code is emailed to it. Already-verified
+//               addresses (a previous half-attempt) skip straight to the
+//               rename.
+//   2. verify — type the code. A correct code runs everything with no
+//               further clicks: primary flips in Clerk, the session token
+//               refreshes so the JWT already carries the new email, every
+//               instance renames (this one in-process, the rest
+//               fleet-internally), and — only on an all-green report — the
+//               old address is removed from Clerk as the very last step.
+//   3. report — per-instance outcome. Partial failure keeps the old address
+//               on the account and offers Retry (idempotent end-to-end);
+//               all-green ends with Done → reload, since the SPA's identity
+//               state is stale after a self-rename.
 
-type ClerkStatus = { added: boolean; verified: boolean; primary: boolean };
-
-const CLERK_POLL_MS = 3_000;
+function clerkErrMessage(error: unknown): string {
+  const e = error as { errors?: { longMessage?: string; message?: string }[] };
+  return e.errors?.[0]?.longMessage ?? e.errors?.[0]?.message ??
+    (error instanceof Error ? error.message : String(error));
+}
 
 export function ChangeEmailModal(
   p: AlertComponentProps<{ currentEmail: string }, undefined>,
 ) {
-  const [phase, setPhase] = createSignal<"enter" | "clerk" | "report">("enter");
+  const [phase, setPhase] = createSignal<"enter" | "verify" | "report">("enter");
   const [newEmail, setNewEmail] = createSignal("");
+  const [code, setCode] = createSignal("");
   const [preview, setPreview] = createSignal<RenameEmailInstanceResult[]>([]);
   const [report, setReport] = createSignal<
     { instances: RenameEmailInstanceResult[]; warnings: string[] } | null
   >(null);
-  const [clerkStatus, setClerkStatus] = createSignal<ClerkStatus>({
-    added: false,
-    verified: false,
-    primary: false,
-  });
+  const [oldRemoved, setOldRemoved] = createSignal(false);
 
   const oldEmail = p.currentEmail.toLowerCase();
   const cleanNewEmail = () => newEmail().trim().toLowerCase();
-  const clerkReady = () => {
-    const s = clerkStatus();
-    return s.added && s.verified && s.primary;
-  };
 
-  async function refreshClerkStatus() {
-    await clerk.user?.reload();
-    const address = clerk.user?.emailAddresses.find(
+  const findNewAddress = (): EmailAddressResource | undefined =>
+    clerk.user?.emailAddresses.find(
       (a) => a.emailAddress.toLowerCase() === cleanNewEmail(),
     );
-    setClerkStatus({
-      added: !!address,
-      verified: address?.verification?.status === "verified",
-      primary: !!address && clerk.user?.primaryEmailAddressId === address.id,
-    });
-  }
 
-  createEffect(() => {
-    if (phase() !== "clerk") {
-      return;
+  const allGreen = (instances: RenameEmailInstanceResult[]) =>
+    instances.length > 0 &&
+    instances.every(
+      (i) => i.status === "updated" && (i.projectsFailed?.length ?? 0) === 0,
+    );
+
+  // Primary flip → token refresh → fleet rename → (all-green only) old-address
+  // removal. Shared by the verify step and the report's Retry; every part is
+  // safe to re-run.
+  async function runRename(): Promise<{ success: true } | { success: false; err: string }> {
+    const address = findNewAddress();
+    if (!address || address.verification?.status !== "verified") {
+      return {
+        success: false,
+        err: t3({ en: "The new address is not verified yet", fr: "La nouvelle adresse n'est pas encore vérifiée", pt: "O novo endereço ainda não está verificado" }),
+      };
     }
-    refreshClerkStatus();
-    const timer = setInterval(refreshClerkStatus, CLERK_POLL_MS);
-    onCleanup(() => clearInterval(timer));
-  });
-
-  const check = createButtonAction(async () => {
-    const res = await serverActions.renameUserEmailEverywhere({
-      oldEmail,
-      newEmail: cleanNewEmail(),
-      dryRun: true,
-    });
-    if (!res.success) {
-      return res;
+    try {
+      if (clerk.user?.primaryEmailAddressId !== address.id) {
+        await clerk.user?.update({ primaryEmailAddressId: address.id });
+      }
+      // The JWT must already carry the new email when the local rename lands,
+      // so the session stays valid throughout.
+      await clerk.session?.getToken({ skipCache: true });
+    } catch (error) {
+      return { success: false, err: clerkErrMessage(error) };
     }
-    setPreview(res.data.instances);
-    setPhase("clerk");
-    return { success: true };
-  });
-
-  const execute = createButtonAction(async () => {
-    // The JWT must already carry the new email when the local rename lands,
-    // so the session stays valid throughout.
-    await clerk.session?.getToken({ skipCache: true });
     const res = await serverActions.renameUserEmailEverywhere({
       oldEmail,
       newEmail: cleanNewEmail(),
@@ -101,21 +94,106 @@ export function ChangeEmailModal(
     }
     setReport(res.data);
     setPhase("report");
-    return { success: true };
-  });
-
-  const finish = createButtonAction(
-    async () => {
+    if (allGreen(res.data.instances)) {
+      // Deliberately the last step, and only when everything renamed: until
+      // then the old address stays on the account as the recovery path. A
+      // failure here is harmless — the address can be removed in account
+      // settings later.
       const old = clerk.user?.emailAddresses.find(
         (a) => a.emailAddress.toLowerCase() === oldEmail,
       );
-      // Best-effort: a failure here just leaves the old address on the Clerk
-      // account, removable later in account settings.
-      await old?.destroy().catch(() => {});
+      if (old) {
+        await old.destroy().then(() => setOldRemoved(true)).catch(() => {});
+      } else {
+        setOldRemoved(true);
+      }
+    }
+    return { success: true };
+  }
+
+  const start = createButtonAction(async () => {
+    const email = cleanNewEmail();
+    if (email.length === 0 || email === oldEmail) {
+      return {
+        success: false,
+        err: t3({ en: "Enter a new email address", fr: "Saisissez une nouvelle adresse e-mail", pt: "Introduza um novo endereço de e-mail" }),
+      };
+    }
+    const res = await serverActions.renameUserEmailEverywhere({
+      oldEmail,
+      newEmail: email,
+      dryRun: true,
+    });
+    if (!res.success) {
+      return res;
+    }
+    setPreview(res.data.instances);
+    if (res.data.instances.length === 0) {
+      return {
+        success: false,
+        err: t3({ en: "Your account was not found on any instance", fr: "Votre compte n'a été trouvé sur aucune instance", pt: "A sua conta não foi encontrada em nenhuma instância" }),
+      };
+    }
+    if (res.data.instances.some((i) => i.status === "conflict")) {
+      return {
+        success: false,
+        err: t3({
+          en: "The new email already belongs to another user on the instances marked below — resolve that first",
+          fr: "Le nouvel e-mail appartient déjà à un autre utilisateur sur les instances indiquées ci-dessous — résolvez cela d'abord",
+          pt: "O novo e-mail já pertence a outro utilizador nas instâncias indicadas abaixo — resolva isso primeiro",
+        }),
+      };
+    }
+    try {
+      let address = findNewAddress();
+      if (!address) {
+        address = await clerk.user!.createEmailAddress({ email });
+      }
+      if (address.verification?.status === "verified") {
+        return await runRename();
+      }
+      await address.prepareVerification({ strategy: "email_code" });
+    } catch (error) {
+      return { success: false, err: clerkErrMessage(error) };
+    }
+    setPhase("verify");
+    return { success: true };
+  });
+
+  const verify = createButtonAction(async () => {
+    const address = findNewAddress();
+    if (!address) {
+      return {
+        success: false,
+        err: t3({ en: "The new address is missing from your account — start again", fr: "La nouvelle adresse manque sur votre compte — recommencez", pt: "O novo endereço não consta da sua conta — recomece" }),
+      };
+    }
+    if (address.verification?.status !== "verified") {
+      if (code().trim().length === 0) {
+        return {
+          success: false,
+          err: t3({ en: "Enter the code from the email", fr: "Saisissez le code reçu par e-mail", pt: "Introduza o código recebido por e-mail" }),
+        };
+      }
+      try {
+        await address.attemptVerification({ code: code().trim() });
+      } catch (error) {
+        return { success: false, err: clerkErrMessage(error) };
+      }
+    }
+    return await runRename();
+  });
+
+  const resend = createButtonAction(async () => {
+    try {
+      await findNewAddress()?.prepareVerification({ strategy: "email_code" });
       return { success: true };
-    },
-    () => window.location.reload(),
-  );
+    } catch (error) {
+      return { success: false, err: clerkErrMessage(error) };
+    }
+  });
+
+  const retry = createButtonAction(() => runRename());
 
   const statusLabel = (status: RenameEmailInstanceResult["status"]) => {
     switch (status) {
@@ -156,15 +234,6 @@ export function ChangeEmailModal(
     </div>
   );
 
-  const CheckItem = (itemProps: { done: boolean; label: string }) => (
-    <div class="flex items-center gap-2 text-sm">
-      <span class={itemProps.done ? "text-success" : "text-base-content-muted"}>
-        {itemProps.done ? "✓" : "○"}
-      </span>
-      <span>{itemProps.label}</span>
-    </div>
-  );
-
   return (
     <ModalContainer
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
@@ -181,9 +250,9 @@ export function ChangeEmailModal(
         <div class="flex flex-col gap-4">
           <div class="text-sm">
             {t3({
-              en: "This changes your email on every FASTR instance you have access to, keeping all your permissions and history. Do this while you can still receive email at the new address.",
-              fr: "Ceci change votre e-mail sur toutes les instances FASTR auxquelles vous avez accès, en conservant vos permissions et votre historique. Faites-le tant que vous pouvez recevoir des e-mails à la nouvelle adresse.",
-              pt: "Isto altera o seu e-mail em todas as instâncias FASTR a que tem acesso, mantendo as suas permissões e o seu histórico. Faça-o enquanto puder receber e-mails no novo endereço.",
+              en: "This changes your email on every FASTR instance you have access to, keeping all your permissions and history. You will need to enter a code sent to the new address.",
+              fr: "Ceci change votre e-mail sur toutes les instances FASTR auxquelles vous avez accès, en conservant vos permissions et votre historique. Vous devrez saisir un code envoyé à la nouvelle adresse.",
+              pt: "Isto altera o seu e-mail em todas as instâncias FASTR a que tem acesso, mantendo as suas permissões e o seu histórico. Terá de introduzir um código enviado para o novo endereço.",
             })}
           </div>
           <div class="text-base-content-muted text-sm">
@@ -197,68 +266,58 @@ export function ChangeEmailModal(
             rows={1}
             autoFocus
           />
+          <Show when={preview().length > 0}>
+            <InstanceList items={preview()} />
+          </Show>
           <div>
             <Button
-              onClick={check.click}
-              state={check.state()}
+              onClick={start.click}
+              state={start.state()}
               intent="primary"
               disabled={cleanNewEmail().length === 0}
             >
-              {t3({ en: "Check", fr: "Vérifier", pt: "Verificar" })}
+              {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
             </Button>
           </div>
         </div>
       </Show>
 
-      <Show when={phase() === "clerk"}>
+      <Show when={phase() === "verify"}>
         <div class="flex flex-col gap-4">
           <div class="text-sm">
             {t3({ en: "Your account was found on these instances:", fr: "Votre compte a été trouvé sur ces instances :", pt: "A sua conta foi encontrada nestas instâncias:" })}
           </div>
           <InstanceList items={preview()} />
           <div class="border-t pt-4 text-sm">
+            {t3({ en: "Enter the code sent to", fr: "Saisissez le code envoyé à", pt: "Introduza o código enviado para" })}{" "}
+            <span class="font-700">{cleanNewEmail()}</span>.{" "}
             {t3({
-              en: "Before renaming, add the new address to your account, verify it with the code sent to it, and set it as your primary address:",
-              fr: "Avant le renommage, ajoutez la nouvelle adresse à votre compte, vérifiez-la avec le code envoyé, puis définissez-la comme adresse principale :",
-              pt: "Antes de renomear, adicione o novo endereço à sua conta, verifique-o com o código enviado e defina-o como endereço principal:",
+              en: "A correct code completes the change everywhere automatically.",
+              fr: "Un code correct effectue le changement partout automatiquement.",
+              pt: "Um código correto conclui a alteração em todo o lado automaticamente.",
             })}
           </div>
-          <div class="flex flex-col gap-1">
-            <CheckItem
-              done={clerkStatus().added}
-              label={t3({ en: "New address added to your account", fr: "Nouvelle adresse ajoutée à votre compte", pt: "Novo endereço adicionado à sua conta" })}
-            />
-            <CheckItem
-              done={clerkStatus().verified}
-              label={t3({ en: "Address verified", fr: "Adresse vérifiée", pt: "Endereço verificado" })}
-            />
-            <CheckItem
-              done={clerkStatus().primary}
-              label={t3({ en: "Set as primary address", fr: "Définie comme adresse principale", pt: "Definido como endereço principal" })}
-            />
-          </div>
+          <TextArea
+            label={t3({ en: "Verification code", fr: "Code de vérification", pt: "Código de verificação" })}
+            value={code()}
+            onChange={setCode}
+            fullWidth
+            rows={1}
+            autoFocus
+          />
           <div class="flex gap-2">
-            <Button onClick={() => openClerkUserProfile()} outline>
-              {t3({ en: "Open account settings", fr: "Ouvrir les paramètres du compte", pt: "Abrir as definições da conta" })}
-            </Button>
             <Button
-              onClick={execute.click}
-              state={execute.state()}
+              onClick={verify.click}
+              state={verify.state()}
               intent="danger"
-              disabled={!clerkReady()}
+              disabled={code().trim().length === 0}
             >
-              {t3({ en: "Rename everywhere", fr: "Renommer partout", pt: "Renomear em todo o lado" })}
+              {t3({ en: "Verify and rename everywhere", fr: "Vérifier et renommer partout", pt: "Verificar e renomear em todo o lado" })}
+            </Button>
+            <Button onClick={resend.click} state={resend.state()} outline>
+              {t3({ en: "Resend code", fr: "Renvoyer le code", pt: "Reenviar o código" })}
             </Button>
           </div>
-          <Show when={!clerkReady()}>
-            <div class="text-base-content-muted text-xs">
-              {t3({
-                en: "The checklist updates automatically once each step is done in account settings.",
-                fr: "La liste se met à jour automatiquement à mesure que chaque étape est effectuée dans les paramètres du compte.",
-                pt: "A lista atualiza-se automaticamente à medida que cada passo é concluído nas definições da conta.",
-              })}
-            </div>
-          </Show>
         </div>
       </Show>
 
@@ -271,23 +330,42 @@ export function ChangeEmailModal(
               <For each={rep()?.warnings ?? []}>
                 {(warning) => <div class="text-warning text-sm">{warning}</div>}
               </For>
-              <div class="flex gap-2">
-                <Show
-                  when={rep()?.instances.every((i) => i.status === "updated" && (i.projectsFailed?.length ?? 0) === 0)}
-                  fallback={
-                    <Button onClick={execute.click} state={execute.state()} intent="primary">
-                      {t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" })}
-                    </Button>
-                  }
-                >
-                  <div class="text-success text-sm">
-                    {t3({ en: "Your email was changed everywhere.", fr: "Votre e-mail a été changé partout.", pt: "O seu e-mail foi alterado em todo o lado." })}
+              <Show
+                when={allGreen(rep()?.instances ?? [])}
+                fallback={
+                  <div class="flex flex-col gap-2">
+                    <div class="text-warning text-sm">
+                      {t3({
+                        en: "Not everything was renamed yet. Your old address stays on your account until it completes — retrying is safe.",
+                        fr: "Tout n'a pas encore été renommé. Votre ancienne adresse reste sur votre compte jusqu'à la fin — réessayer est sans risque.",
+                        pt: "Ainda não foi tudo renomeado. O seu endereço antigo permanece na sua conta até à conclusão — tentar novamente é seguro.",
+                      })}
+                    </div>
+                    <div>
+                      <Button onClick={retry.click} state={retry.state()} intent="primary">
+                        {t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" })}
+                      </Button>
+                    </div>
                   </div>
-                </Show>
-                <Button onClick={finish.click} state={finish.state()} intent="primary">
-                  {t3({ en: "Finish and reload", fr: "Terminer et recharger", pt: "Concluir e recarregar" })}
-                </Button>
-              </div>
+                }
+              >
+                <div class="text-success text-sm">
+                  {t3({ en: "Your email was changed everywhere.", fr: "Votre e-mail a été changé partout.", pt: "O seu e-mail foi alterado em todo o lado." })}
+                  <Show when={!oldRemoved()}>
+                    {" "}
+                    {t3({
+                      en: "The old address could not be removed from your account — you can remove it later in account settings.",
+                      fr: "L'ancienne adresse n'a pas pu être retirée de votre compte — vous pourrez la retirer plus tard dans les paramètres du compte.",
+                      pt: "Não foi possível remover o endereço antigo da sua conta — pode removê-lo mais tarde nas definições da conta.",
+                    })}
+                  </Show>
+                </div>
+                <div>
+                  <Button onClick={() => window.location.reload()} intent="primary">
+                    {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+                  </Button>
+                </div>
+              </Show>
             </div>
           );
         })()}

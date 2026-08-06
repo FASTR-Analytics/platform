@@ -31,7 +31,7 @@ const DARK_PRIMARY_CONTENT = "#052e2b";
 // (sourced from the same neutral-dark theme as app.css) at open time —
 // evaluated per open, so it follows the theme active when the window is
 // launched.
-export function openClerkUserProfile() {
+function openClerkUserProfile() {
   clerk.openUserProfile(
     darkMode()
       ? {
