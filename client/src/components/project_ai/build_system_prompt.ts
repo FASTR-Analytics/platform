@@ -6,7 +6,7 @@ import {
   type InstanceState,
   type ProjectState,
 } from "lib";
-import { INFO_TOPICS } from "./info_catalog";
+import { INFO_TOPICS } from "lib";
 
 // ── Entry point ──
 //

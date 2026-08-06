@@ -1,7 +1,8 @@
-import { AIToolFailure, createAITool } from "panther";
+import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
 
-const GITHUB_API_BASE = "https://api.github.com/repos/FASTR-Analytics/fastr-resource-hub/contents/methodology";
+const GITHUB_API_BASE =
+  "https://api.github.com/repos/FASTR-Analytics/fastr-resource-hub/contents/methodology";
 
 export function getToolsForMethodologyDocs() {
   return [
@@ -14,7 +15,11 @@ export function getToolsForMethodologyDocs() {
         const url = `${GITHUB_API_BASE}/index.md`;
         const response = await fetch(url);
         if (!response.ok) {
-          throw new AIToolFailure(`GitHub API error (${response.status}): ${response.statusText || "Failed to fetch methodology index"}`);
+          throw new AIToolFailure(
+            `GitHub API error (${response.status}): ${
+              response.statusText || "Failed to fetch methodology index"
+            }`,
+          );
         }
         const fileData = (await response.json()) as {
           content: string;
@@ -41,19 +46,29 @@ export function getToolsForMethodologyDocs() {
       description:
         "Read the content of a specific FASTR methodology documentation file. Use the file name from get_methodology_docs_list. For French docs, include 'fr/' prefix (e.g., 'fr/introduction.md').",
       inputSchema: z.object({
-        fileName: z.string().describe("Name of the markdown file to read (e.g., 'introduction.md' or 'fr/introduction.md')"),
+        fileName: z.string().describe(
+          "Name of the markdown file to read (e.g., 'introduction.md' or 'fr/introduction.md')",
+        ),
       }),
       handler: async (input) => {
         if (input.fileName.includes("..")) {
-          throw new AIToolFailure(`Invalid file name: "${input.fileName}". Path traversal is not allowed.`);
+          throw new AIToolFailure(
+            `Invalid file name: "${input.fileName}". Path traversal is not allowed.`,
+          );
         }
         const url = `${GITHUB_API_BASE}/${input.fileName}`;
         const response = await fetch(url);
         if (!response.ok) {
           if (response.status === 404) {
-            throw new AIToolFailure(`File "${input.fileName}" not found. Use get_methodology_docs_list to see available files.`);
+            throw new AIToolFailure(
+              `File "${input.fileName}" not found. Use get_methodology_docs_list to see available files.`,
+            );
           }
-          throw new AIToolFailure(`GitHub API error (${response.status}): ${response.statusText || "Unknown error"}`);
+          throw new AIToolFailure(
+            `GitHub API error (${response.status}): ${
+              response.statusText || "Unknown error"
+            }`,
+          );
         }
         const fileData = (await response.json()) as {
           content: string;
@@ -71,8 +86,8 @@ export function getToolsForMethodologyDocs() {
 
         throw new AIToolFailure("Unexpected encoding from GitHub API");
       },
-      inProgressLabel: input => `Reading ${input.fileName}...`,
-      completionMessage: input => `Read ${input.fileName}`,
+      inProgressLabel: (input) => `Reading ${input.fileName}...`,
+      completionMessage: (input) => `Read ${input.fileName}`,
       kind: "read",
       headless: true,
     }),

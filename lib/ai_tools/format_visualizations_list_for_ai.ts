@@ -1,4 +1,4 @@
-import type { PresentationObjectSummary } from "lib";
+import type { PresentationObjectSummary } from "../types/mod.ts";
 
 export function formatVisualizationsListForAI(
   visualizations: PresentationObjectSummary[],
@@ -26,16 +26,26 @@ export function formatVisualizationsListForAI(
   lines.push("");
 
   for (const viz of visualizations) {
-    const status = viz.createdByAI ? "AI-created, editable" : viz.isDefault ? "default, read-only" : "custom, read-only";
-    const replicateNote = viz.replicateBy ? `, replicate by: ${viz.replicateBy}` : "";
-    lines.push(`${viz.id}: ${viz.label} (${viz.type}, metric: ${viz.metricId}${replicateNote}) [${status}]`);
+    const status = viz.createdByAI
+      ? "AI-created, editable"
+      : viz.isDefault
+      ? "default, read-only"
+      : "custom, read-only";
+    const replicateNote = viz.replicateBy
+      ? `, replicate by: ${viz.replicateBy}`
+      : "";
+    lines.push(
+      `${viz.id}: ${viz.label} (${viz.type}, metric: ${viz.metricId}${replicateNote}) [${status}]`,
+    );
 
     if (viz.disaggregateBy && viz.disaggregateBy.length > 0) {
       lines.push(`  Disaggregated by: ${viz.disaggregateBy.join(", ")}`);
     }
 
     if (viz.filterBy && viz.filterBy.length > 0) {
-      const filterStrs = viz.filterBy.map(f => `${f.disOpt} = ${f.values.join(", ")}`);
+      const filterStrs = viz.filterBy.map((f) =>
+        `${f.disOpt} = ${f.values.join(", ")}`
+      );
       lines.push(`  Filtered by: ${filterStrs.join("; ")}`);
     }
 

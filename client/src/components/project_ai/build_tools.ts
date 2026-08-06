@@ -6,20 +6,23 @@ import type {
   ReportSummary,
   SlideDeckSummary,
 } from "lib";
+import {
+  getToolsForInfo,
+  getToolsForMethodologyDocs,
+  getToolsForMetrics,
+  getToolsForModules,
+  getToolsForReports,
+  getToolsForSlideDecks,
+  getToolsForVisualizations,
+} from "lib";
 import { createAskUserQuestionsTool } from "panther";
+import { clientAIToolEnv } from "./ai_tools/client_env";
 import { getToolsForDrafts } from "./ai_tools/tools/drafts";
-import { getToolsForInfo } from "./ai_tools/tools/info";
-import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
-import { getToolsForMetrics } from "./ai_tools/tools/metrics";
-import { getToolsForModules } from "./ai_tools/tools/modules";
-import { getToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
-import { getToolsForReports } from "./ai_tools/tools/reports";
 import { getToolsForReportEditor } from "./ai_tools/tools/report_editor";
 import { getToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getToolsForSlides } from "./ai_tools/tools/slides";
 import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getToolsForNavigation } from "./ai_tools/tools/navigation";
-import { getToolsForVisualizations } from "./ai_tools/tools/visualizations";
 import { projectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
@@ -38,20 +41,23 @@ export function buildToolsForContext(params: BuildToolsParams) {
     params;
 
   return [
-    // Base data tools - always available
-    ...getToolsForMetrics(projectId, metrics, icehIndicators, hfaTaxonomy),
+    // Base data tools - always available (shared factories in lib/ai_tools;
+    // the SPA injects cache-backed getters via clientAIToolEnv, the headless
+    // MCP host injects direct fetches)
+    ...getToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
     // The package these tools read is resolved at CALL time, not bound here:
     // a repoint mid-conversation must move them to the newly attached
     // package.
     ...getToolsForModules(
+      clientAIToolEnv,
       projectId,
       () => projectState.attachedRunId,
       modules,
       metrics,
     ),
-    ...getToolsForVisualizations(projectId, visualizations, metrics),
+    ...getToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
     ...getToolsForSlideDecks(slideDecks),
-    ...getToolsForReports(projectId, reports),
+    ...getToolsForReports(clientAIToolEnv, projectId, reports),
     ...getToolsForMethodologyDocs(),
     ...getToolsForInfo(),
 

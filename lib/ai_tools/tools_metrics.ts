@@ -1,17 +1,30 @@
-import { createAITool } from "panther";
+import { createAITool } from "@timroberton/panther";
 import { z } from "zod";
-import { AiMetricQuerySchema, type AiMetricQuery, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
-import { getMetricDataForAI, inferPeriodFilter } from "./_internal/format_metric_data_for_ai";
-import { formatMetricsListForAI } from "./_internal/format_metrics_list_for_ai";
-import { validateAiMetricQuery, validateMetricInputs } from "../validators/content_validators";
+import type {
+  AiMetricQuery,
+  HfaTaxonomyForAI,
+  MetricWithStatus,
+} from "../types/mod.ts";
+import { AiMetricQuerySchema } from "../types/ai_input.ts";
+import {
+  getMetricDataForAI,
+  inferPeriodFilter,
+} from "./format_metric_data_for_ai.ts";
+import { formatMetricsListForAI } from "./format_metrics_list_for_ai.ts";
+import {
+  validateAiMetricQuery,
+  validateMetricInputs,
+} from "./content_validators.ts";
+import type { AIToolEnv } from "./env.ts";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
 export function getToolsForMetrics(
+  env: AIToolEnv,
   projectId: string,
   metrics: MetricWithStatus[],
   icehIndicators: IcehIndicator[],
-  hfaTaxonomy: HfaTaxonomyForAI
+  hfaTaxonomy: HfaTaxonomyForAI,
 ) {
   return [
     createAITool({
@@ -34,19 +47,29 @@ export function getToolsForMetrics(
         "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary, plus detailed metric context (methodology, interpretation, typical ranges, caveats). Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) checking available values for filters.",
       inputSchema: AiMetricQuerySchema,
       handler: async (input: AiMetricQuery) => {
-        const metric = metrics.find(m => m.id === input.metricId);
+        const metric = metrics.find((m) => m.id === input.metricId);
         validateAiMetricQuery(input, metric);
         const periodFilter = inferPeriodFilter(input.startDate, input.endDate);
         await validateMetricInputs(
+          env,
           projectId,
           input.metricId,
           input.filters,
           periodFilter,
         );
-        return await getMetricDataForAI(projectId, input, metrics, input.valuesFilter, metric?.aiDescription);
+        return await getMetricDataForAI(
+          env,
+          projectId,
+          input,
+          metrics,
+          input.valuesFilter,
+          metric?.aiDescription,
+        );
       },
-      inProgressLabel: (input: AiMetricQuery) => `Getting data for metric ${input.metricId}...`,
-      completionMessage: (input: AiMetricQuery) => `Retrieved data for metric ${input.metricId}`,
+      inProgressLabel: (input: AiMetricQuery) =>
+        `Getting data for metric ${input.metricId}...`,
+      completionMessage: (input: AiMetricQuery) =>
+        `Retrieved data for metric ${input.metricId}`,
       kind: "read",
       headless: true,
     }),

@@ -2,11 +2,11 @@ import type {
   APIResponseNoData,
   APIResponseWithData,
   ProgressCallback,
-  ServerActionsType,
-} from "lib";
-import { routeRegistry } from "lib";
-import { getServerActionTransport } from "./transport";
-import { tryCatchServer } from "./try_catch_server";
+} from "../types/mod.ts";
+import type { ServerActionsType } from "../api-routes/server-action-types.ts";
+import { routeRegistry } from "../api-routes/combined.ts";
+import { getServerActionTransport } from "./transport.ts";
+import { tryCatchServer } from "./try_catch_server.ts";
 
 export function createAllServerActions(): ServerActionsType {
   const actions: any = {};
@@ -43,11 +43,16 @@ function createServerAction(
       method,
       body: hasBody && canHaveBody ? JSON.stringify(bodyData) : undefined,
       credentials: transport.credentials,
-      headers:
-        Object.keys(mergedHeaders).length > 0 ? mergedHeaders : undefined,
+      headers: Object.keys(mergedHeaders).length > 0
+        ? mergedHeaders
+        : undefined,
     };
     if (!isStreaming) {
-      return await tryCatchServer(`${transport.baseUrl}${url}`, init, timeoutMs);
+      return await tryCatchServer(
+        `${transport.baseUrl}${url}`,
+        init,
+        timeoutMs,
+      );
     }
     // Session refresh before long-running stream — no timeout/retry: an AbortController
     // timeout would kill legitimately long streams, and replaying a non-idempotent
@@ -112,7 +117,9 @@ async function consumeStream<T = void>(
     const errorText = await response.text();
     try {
       const parsed = JSON.parse(errorText);
-      if (parsed && parsed.success === false && typeof parsed.err === "string") {
+      if (
+        parsed && parsed.success === false && typeof parsed.err === "string"
+      ) {
         return parsed as any;
       }
     } catch {

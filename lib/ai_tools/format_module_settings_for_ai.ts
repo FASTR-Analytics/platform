@@ -1,4 +1,4 @@
-import type { InstalledModuleWithConfigSelections } from "lib";
+import type { InstalledModuleWithConfigSelections } from "../types/mod.ts";
 
 export function formatModuleSettingsForAI(
   module: InstalledModuleWithConfigSelections,
@@ -21,9 +21,11 @@ export function formatModuleSettingsForAI(
   } else {
     lines.push("");
     lines.push("Parameters:");
-    for (const [key, value] of Object.entries(configSelections.parameterSelections)) {
+    for (
+      const [key, value] of Object.entries(configSelections.parameterSelections)
+    ) {
       const paramDef = configSelections.parameterDefinitions.find(
-        (p) => p.replacementString === key
+        (p) => p.replacementString === key,
       );
       const desc = paramDef?.description || key;
       lines.push(`  ${desc}: ${value}`);

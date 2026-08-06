@@ -2,7 +2,7 @@
   "workspace": ["panther"],
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
-    "fmt": {
+  "fmt": {
     "exclude": ["client/"]
   },
   "lint": {
@@ -21,6 +21,7 @@
     "@clerk/backend": "npm:@clerk/backend@^1.25.2",
     "@duckdb/node-api": "npm:@duckdb/node-api@1.4.5-r.1",
     "@hono/clerk-auth": "npm:@hono/clerk-auth@^2.0.0",
+    "@std/assert": "jsr:@std/assert@^1.0.0",
     "@std/async": "jsr:@std/async@^1.0.9",
     "@std/fs": "jsr:@std/fs@^1.0.0",
     "@std/path": "jsr:@std/path@^1.0.0",

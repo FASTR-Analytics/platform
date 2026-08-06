@@ -1,9 +1,9 @@
-import { serverActions } from "~/server_actions";
-import { AIToolFailure, createAITool } from "panther";
+import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
-import type { InstalledModuleSummary, MetricWithStatus } from "lib";
-import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
-import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
+import type { InstalledModuleSummary, MetricWithStatus } from "../types/mod.ts";
+import { formatModulesListForAI } from "./format_modules_list_for_ai.ts";
+import { formatModuleSettingsForAI } from "./format_module_settings_for_ai.ts";
+import type { AIToolEnv } from "./env.ts";
 
 // Tools over ONE results package. Which package is never a model-facing
 // input — inside a project there is exactly one correct answer (whatever is
@@ -31,6 +31,7 @@ function requireRunId(resolveRunId: AttachedRunResolver): string {
 }
 
 export function getToolsForModules(
+  env: AIToolEnv,
   projectId: string,
   resolveRunId: AttachedRunResolver,
   modules: InstalledModuleSummary[],
@@ -55,7 +56,7 @@ export function getToolsForModules(
       description: "Get the R script for a specific module",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await serverActions.getRunModuleScript({
+        const res = await env.serverActions.getRunModuleScript({
           run_id: requireRunId(resolveRunId),
           module_id: input.id,
         });
@@ -73,7 +74,7 @@ export function getToolsForModules(
         "Get the log file for a module that has recently run. This is useful for debugging errors or explaining why a module hasn't run.",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await serverActions.getRunModuleLogs({
+        const res = await env.serverActions.getRunModuleLogs({
           run_id: requireRunId(resolveRunId),
           module_id: input.id,
         });
@@ -91,7 +92,7 @@ export function getToolsForModules(
         "Get the configuration settings and parameters for a specific module. This shows what options are selected for the module.",
       inputSchema: z.object({ id: z.string().describe("Module ID") }),
       handler: async (input) => {
-        const res = await serverActions.getModuleWithConfigSelections({
+        const res = await env.serverActions.getModuleWithConfigSelections({
           projectId,
           module_id: input.id,
         });

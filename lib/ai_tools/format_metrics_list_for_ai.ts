@@ -1,11 +1,13 @@
-import { ICEH_STRAT_INFO, getReplicateByProp, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
+import type { HfaTaxonomyForAI, MetricWithStatus } from "../types/mod.ts";
+import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
+import { getReplicateByProp } from "../get_disaggregator_display_prop.ts";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
 export function formatMetricsListForAI(
   metrics: MetricWithStatus[],
   icehIndicators: IcehIndicator[],
-  hfaTaxonomy: HfaTaxonomyForAI
+  hfaTaxonomy: HfaTaxonomyForAI,
 ): string {
   const lines: string[] = [
     "AVAILABLE METRICS",
@@ -24,7 +26,7 @@ export function formatMetricsListForAI(
     lines.push(...formatHfaTaxonomyForAI(hfaTaxonomy));
   }
 
-  const readyMetrics = metrics.filter(m => m.status === "ready");
+  const readyMetrics = metrics.filter((m) => m.status === "ready");
 
   if (readyMetrics.length === 0) {
     lines.push("No metrics available.");
@@ -49,25 +51,39 @@ export function formatMetricsListForAI(
     }
 
     if (metric.valueProps.length > 0) {
-      const propStrs = metric.valueProps.map(prop => {
+      const propStrs = metric.valueProps.map((prop) => {
         const propLabel = metric.valueLabelReplacements?.[prop] || prop;
         return propLabel !== prop ? `${prop} (${propLabel})` : prop;
       });
       lines.push(`  Values: ${propStrs.join(", ")}`);
     }
 
-    const required = metric.disaggregationOptions.filter(opt => opt.isRequired && opt.value !== "quarter_id");
-    const optional = metric.disaggregationOptions.filter(opt => !opt.isRequired && opt.value !== "quarter_id");
+    const required = metric.disaggregationOptions.filter((opt) =>
+      opt.isRequired && opt.value !== "quarter_id"
+    );
+    const optional = metric.disaggregationOptions.filter((opt) =>
+      !opt.isRequired && opt.value !== "quarter_id"
+    );
 
     if (required.length > 0) {
-      lines.push(`  Auto-disaggregated by: ${required.map(opt => opt.value).join(", ")}`);
+      lines.push(
+        `  Auto-disaggregated by: ${
+          required.map((opt) => opt.value).join(", ")
+        }`,
+      );
     }
 
     if (optional.length > 0) {
-      lines.push(`  Optional disaggregations: ${optional.map(opt => opt.value).join(", ")}`);
+      lines.push(
+        `  Optional disaggregations: ${
+          optional.map((opt) => opt.value).join(", ")
+        }`,
+      );
     }
 
-    const isIcehMetric = metric.disaggregationOptions.some(opt => opt.value === "iceh_indicator");
+    const isIcehMetric = metric.disaggregationOptions.some((opt) =>
+      opt.value === "iceh_indicator"
+    );
     if (isIcehMetric && icehIndicators.length > 0) {
       const grouped = new Map<string, IcehIndicator[]>();
       for (const ind of icehIndicators) {
@@ -85,23 +101,36 @@ export function formatMetricsListForAI(
       lines.push(`  ICEH stratifiers (strat column values):`);
       for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
         const levelsStr = info.levels
-          ? ` → levels: ${Object.entries(info.levels).map(([k, v]) => `${k} (${v})`).join(", ")}`
+          ? ` → levels: ${
+            Object.entries(info.levels).map(([k, v]) => `${k} (${v})`).join(
+              ", ",
+            )
+          }`
           : "";
         const equityNote = info.isEquityDimension ? " [equity dimension]" : "";
-        lines.push(`    - ${stratCode}: ${info.label}${equityNote}${levelsStr}`);
+        lines.push(
+          `    - ${stratCode}: ${info.label}${equityNote}${levelsStr}`,
+        );
       }
     }
 
     if (metric.vizPresets && metric.vizPresets.length > 0) {
       lines.push(`  Visualization presets:`);
       for (const preset of metric.vizPresets) {
-        const dateFormat = preset.config.d.timeseriesGrouping === "year" ? "YYYY" : "YYYYMM";
-        const filterNote = preset.allowedFilters && preset.allowedFilters.length > 0
-          ? ` — filters: ${preset.allowedFilters.join(", ")}`
-          : "";
+        const dateFormat = preset.config.d.timeseriesGrouping === "year"
+          ? "YYYY"
+          : "YYYYMM";
+        const filterNote =
+          preset.allowedFilters && preset.allowedFilters.length > 0
+            ? ` — filters: ${preset.allowedFilters.join(", ")}`
+            : "";
         const hasReplicant = getReplicateByProp(preset.config) !== undefined;
-        const replicantNote = hasReplicant ? " ** REQUIRES selectedReplicant **" : "";
-        lines.push(`    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`);
+        const replicantNote = hasReplicant
+          ? " ** REQUIRES selectedReplicant **"
+          : "";
+        lines.push(
+          `    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`,
+        );
         if (preset.importantNotes) {
           lines.push(`      NOTE: ${getAIStr(preset.importantNotes)}`);
         }
@@ -129,7 +158,9 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   lines.push(
     "The HFA module is active. Query HFA data with get_metric_data using the HFA",
   );
-  lines.push("metric(s) below. Filter / disaggregate with these columns + IDs:");
+  lines.push(
+    "metric(s) below. Filter / disaggregate with these columns + IDs:",
+  );
   lines.push("  hfa_indicator        → indicator IDs (var names)");
   lines.push("  hfa_category         → category IDs");
   lines.push("  hfa_sub_category     → sub-category IDs");
@@ -211,10 +242,9 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
         : "";
       lines.push(`    [${label}]${idStr}`);
     }
-    const svcStr =
-      ind.serviceCategoryIds.length > 0
-        ? `  [service categories: ${ind.serviceCategoryIds.join(", ")}]`
-        : "";
+    const svcStr = ind.serviceCategoryIds.length > 0
+      ? `  [service categories: ${ind.serviceCategoryIds.join(", ")}]`
+      : "";
     lines.push(`      - ${ind.id}: ${ind.label} [${ind.measure}]${svcStr}`);
   }
   lines.push("");

@@ -1,11 +1,10 @@
-import { APIResponseNoData, APIResponseWithData } from "lib";
-import { getServerActionTransport } from "./transport";
-import {
-  reportNetworkFailure,
-  reportNetworkSuccess,
-} from "~/state/t4_connection_monitor";
+import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
+import { getServerActionTransport } from "./transport.ts";
 
-const _EXTRA_TIME = process.env.NODE_ENV === "development";
+// Vite dev only (import.meta.env is absent under Deno and DEV is false in
+// production builds): a small artificial latency so loading states are visible.
+const _EXTRA_TIME =
+  (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
 
 export async function tryCatchServer<
   T extends APIResponseNoData | APIResponseWithData<unknown>,
@@ -106,10 +105,11 @@ export async function tryCatchServer<
       // Check if we got HTML (nginx maintenance page) instead of JSON
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("text/html")) {
-        reportNetworkFailure();
+        getServerActionTransport().onNetworkFailure?.();
         return {
           success: false,
-          err: "Server is temporarily unavailable - please try again in a few minutes",
+          err:
+            "Server is temporarily unavailable - please try again in a few minutes",
         } as T;
       }
 
@@ -138,9 +138,9 @@ export async function tryCatchServer<
       try {
         const result = await res.json();
         // Report success if we got a valid response
-        reportNetworkSuccess();
+        getServerActionTransport().onNetworkSuccess?.();
         return result;
-      } catch (jsonError) {
+      } catch (_jsonError) {
         return {
           success: false,
           err: "Invalid response format from server",
@@ -149,7 +149,7 @@ export async function tryCatchServer<
     } catch (e) {
       // Network/timeout errors - only retry safe methods
       if (e instanceof Error && e.name === "AbortError") {
-        reportNetworkFailure();
+        getServerActionTransport().onNetworkFailure?.();
         if (retries === maxRetries || !isSafeMethod) {
           return {
             success: false,
@@ -164,7 +164,7 @@ export async function tryCatchServer<
       }
 
       if (e instanceof TypeError && e.message.includes("Failed to fetch")) {
-        reportNetworkFailure();
+        getServerActionTransport().onNetworkFailure?.();
         if (retries === maxRetries || !isSafeMethod) {
           return {
             success: false,

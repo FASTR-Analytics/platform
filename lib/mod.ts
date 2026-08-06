@@ -1,5 +1,7 @@
 export * from "./rollup.ts";
 export * from "./api-routes/mod.ts";
+export * from "./server_actions/mod.ts";
+export * from "./ai_tools/mod.ts";
 export * from "./consts.ts";
 export * from "./convert_period_value.ts";
 export * from "./derive_default_visualizations.ts";

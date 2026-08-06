@@ -1,24 +1,23 @@
-import type { MetricWithStatus } from "lib";
-import { AIToolFailure } from "panther";
-import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { getDataFromConfig } from "./format_metric_data_for_ai";
+import type { MetricWithStatus } from "../types/mod.ts";
+import { AIToolFailure } from "@timroberton/panther";
+import { getDataFromConfig } from "./format_metric_data_for_ai.ts";
+import type { AIToolEnv } from "./env.ts";
 
 export async function getVisualizationDataAsCSV(
+  env: AIToolEnv,
   projectId: string,
   presentationObjectId: string,
   metrics: MetricWithStatus[],
 ): Promise<string> {
-  const resPoDetail = await getPODetailFromCacheorFetch(
-    projectId,
-    presentationObjectId,
-  );
+  const resPoDetail = await env.getPODetail(projectId, presentationObjectId);
   if (!resPoDetail.success) throw new AIToolFailure(resPoDetail.err);
 
   const poDetail = resPoDetail.data;
   const config = poDetail.config;
-  const metric = metrics.find(m => m.id === poDetail.resultsValue.id);
+  const metric = metrics.find((m) => m.id === poDetail.resultsValue.id);
 
   const dataOutput = await getDataFromConfig(
+    env,
     projectId,
     poDetail.resultsValue.id,
     metrics,

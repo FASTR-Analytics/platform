@@ -1,13 +1,15 @@
+import { createAITool } from "@timroberton/panther";
+import { z } from "zod";
 import type {
   MetricWithStatus,
   PresentationObjectSummary,
-} from "lib";
-import { createAITool } from "panther";
-import { z } from "zod";
-import { getVisualizationDataAsCSV } from "./_internal/format_visualization_data_for_ai";
-import { formatVisualizationsListForAI } from "./_internal/format_visualizations_list_for_ai";
+} from "../types/mod.ts";
+import { getVisualizationDataAsCSV } from "./format_visualization_data_for_ai.ts";
+import { formatVisualizationsListForAI } from "./format_visualizations_list_for_ai.ts";
+import type { AIToolEnv } from "./env.ts";
 
 export function getToolsForVisualizations(
+  env: AIToolEnv,
   projectId: string,
   visualizations: PresentationObjectSummary[],
   metrics: MetricWithStatus[],
@@ -33,7 +35,12 @@ export function getToolsForVisualizations(
         "Get the underlying data for a specific saved visualization by its ID. Use get_available_visualizations to find IDs. For the current visualization being edited, use get_viz_editor instead.",
       inputSchema: z.object({ id: z.string().describe("Visualization ID") }),
       handler: async (input) => {
-        return await getVisualizationDataAsCSV(projectId, input.id, metrics);
+        return await getVisualizationDataAsCSV(
+          env,
+          projectId,
+          input.id,
+          metrics,
+        );
       },
       inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,

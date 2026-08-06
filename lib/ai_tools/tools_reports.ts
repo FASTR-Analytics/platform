@@ -1,7 +1,7 @@
-import type { ReportSummary } from "lib";
-import { AIToolFailure, createAITool } from "panther";
+import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
-import { serverActions } from "~/server_actions";
+import type { ReportSummary } from "../types/mod.ts";
+import type { AIToolEnv } from "./env.ts";
 
 function formatReportsListForAI(reports: ReportSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
@@ -9,6 +9,7 @@ function formatReportsListForAI(reports: ReportSummary[]): string {
 }
 
 export function getToolsForReports(
+  env: AIToolEnv,
   projectId: string,
   reports: ReportSummary[],
 ) {
@@ -30,7 +31,7 @@ export function getToolsForReports(
         "Get the full markdown body and the embedded figure/image ids of a report. Call this before discussing or editing an existing report.",
       inputSchema: z.object({ reportId: z.string() }),
       handler: async (input) => {
-        const res = await serverActions.getReportDetail({
+        const res = await env.serverActions.getReportDetail({
           projectId,
           report_id: input.reportId,
         });
@@ -43,8 +44,16 @@ export function getToolsForReports(
           `## Body (markdown)`,
           res.data.body,
           ``,
-          `## Figures: ${figureIds.length ? figureIds.map((id) => `figure:${id}`).join(", ") : "none"}`,
-          `## Images: ${imageIds.length ? imageIds.map((id) => `image:${id}`).join(", ") : "none"}`,
+          `## Figures: ${
+            figureIds.length
+              ? figureIds.map((id) => `figure:${id}`).join(", ")
+              : "none"
+          }`,
+          `## Images: ${
+            imageIds.length
+              ? imageIds.map((id) => `image:${id}`).join(", ")
+              : "none"
+          }`,
         ].join("\n");
       },
       inProgressLabel: "Reading report...",
@@ -69,18 +78,20 @@ export function getToolsForReports(
               { label: "Label", after: input.label },
               {
                 label: "Body",
-                after: `${input.markdown.split(/\s+/).filter(Boolean).length} words of markdown`,
+                after: `${
+                  input.markdown.split(/\s+/).filter(Boolean).length
+                } words of markdown`,
               },
             ],
           },
           commit: async () => {
-            const createRes = await serverActions.createReport({
+            const createRes = await env.serverActions.createReport({
               projectId,
               label: input.label,
               folderId: null,
             });
             if (!createRes.success) throw new AIToolFailure(createRes.err);
-            const bodyRes = await serverActions.updateReportBody({
+            const bodyRes = await env.serverActions.updateReportBody({
               projectId,
               report_id: createRes.data.reportId,
               body: input.markdown,

@@ -1,7 +1,7 @@
-import { AIToolFailure, createAITool } from "panther";
+import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
-import { INFO_TOPICS } from "../../info_catalog";
-import { getServerActionTransport } from "~/server_actions/transport";
+import { INFO_TOPICS } from "./info_catalog.ts";
+import { getServerActionTransport } from "../server_actions/transport.ts";
 
 // On-demand reference docs. The catalog (INFO_TOPICS) is a compile-time const so
 // the system prompt and this tool share one source of truth with no fetch; only
@@ -29,9 +29,11 @@ export function getToolsForInfo() {
         const match = INFO_TOPICS.find((t) => t.topic === input.topic);
         if (!match) {
           throw new AIToolFailure(
-            `Unknown info topic "${input.topic}". Available: ${INFO_TOPICS.map(
-              (t) => t.topic,
-            ).join(", ")}.`,
+            `Unknown info topic "${input.topic}". Available: ${
+              INFO_TOPICS.map(
+                (t) => t.topic,
+              ).join(", ")
+            }.`,
           );
         }
         // In the browser the info files come from the SPA origin (Vite in

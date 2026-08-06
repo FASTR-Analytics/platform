@@ -14,6 +14,10 @@ import { StateHolderWrapper, createQuery } from "panther";
 import { JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { setServerActionTransport } from "~/server_actions/transport";
+import {
+  reportNetworkFailure,
+  reportNetworkSuccess,
+} from "~/state/t4_connection_monitor";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -50,6 +54,8 @@ setServerActionTransport({
     });
     window.location.href = "/";
   },
+  onNetworkFailure: reportNetworkFailure,
+  onNetworkSuccess: reportNetworkSuccess,
 });
 
 type Props = {

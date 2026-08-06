@@ -1,4 +1,5 @@
-export { authMiddleware } from "./auth.ts";
+export { authMiddleware, patAuthMiddleware } from "./auth.ts";
+export { patRouteAllowlist } from "./pat_allowlist.ts";
 export { cacheMiddleware } from "./cache.ts";
 export { corsMiddleware } from "./cors.ts";
 export { setupStaticServing } from "./static.ts";
