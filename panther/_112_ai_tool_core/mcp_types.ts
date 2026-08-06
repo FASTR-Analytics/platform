@@ -3,17 +3,18 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// MCP server capability (PLAN_305_MCP_SERVER.md). Protocol era: 2025-11-25,
-// selected by the Phase 0 wire spike against Claude Code 2.1.219 — the client
-// speaks the legacy initialize handshake (it never probes server/discover)
-// and answers server-initiated elicitation/create on stdio. The core is
-// era-agnostic and RESUME-FIRST: a tool call that needs approval returns an
-// input_required outcome with an opaque requestState, and the decision comes
-// back through one resume entry point. The legacy adapter drives the elicit
-// round trip inline (send elicitation/create, await, resume); a future
-// 2026-07-28 adapter would reach the same resume entry via MRTR
-// (InputRequiredResult / client re-issue with inputResponses). CacheableResult
-// fields (ttlMs/cacheScope) belong to that future adapter, not this era.
+// MCP server capability (PLAN_305_MCP_SERVER.md; remote HTTP added by
+// PLAN_112). The core is era-agnostic and RESUME-FIRST: a tool call that
+// needs approval returns an input_required outcome with an opaque
+// requestState, and the decision comes back through one resume entry point.
+// Two adapters drive it: the stdio adapter here (2025-11-25, hand-rolled,
+// grandfathered — see mcp_protocol.ts) runs the elicit round trip inline;
+// the HTTP adapter (_220_mcp_http, official SDK v2 wire) serves BOTH eras —
+// on 2025-era connections the SDK's legacy shim runs the real elicitation
+// and re-enters the handler, on 2026-07-28 the client itself retries with
+// inputResponses + requestState (MRTR). Both legs land in resumeToolCall;
+// the staged proposal (single-use, TTL, args-bound, principal-scoped core)
+// is the security boundary.
 
 import type { AIToolWithMetadata, ApprovalPolicy } from "./tool_helpers.ts";
 
@@ -35,7 +36,15 @@ export type MCPResourceConfig = {
   read: () => string | Promise<string>;
 };
 
-export type CreateMCPServerConfig = {
+// The thunk form's construction context: the authenticated principal an HTTP
+// adapter resolved for the request (D3, PLAN_112). Typed loosely here so the
+// config type stays non-generic for the stdio path; the HTTP adapter's
+// createMCPHttpHandler<TPrincipal> narrows it at its own boundary.
+export type MCPToolsContext<TPrincipal = unknown> = {
+  principal: TPrincipal;
+};
+
+export type CreateMCPServerConfig<TPrincipal = unknown> = {
   name: string;
   version: string;
   // ≤2KB pointer text riding the initialize result — critical rules first,
@@ -51,9 +60,16 @@ export type CreateMCPServerConfig = {
   groundingResource?: string | (() => string | Promise<string>);
   // The same AIToolWithMetadata[] createAIChat takes. Only tools declaring
   // headless: true are exposed; the rest are dropped with a per-tool reason
-  // reported to stderr on connect.
-  // deno-lint-ignore no-explicit-any
-  tools: AIToolWithMetadata<any>[];
+  // reported to stderr on connect. The thunk form binds the tool set to an
+  // authenticated principal (one call per principal core, HTTP adapter only);
+  // the array form is validated eagerly and behaves exactly as before. stdio
+  // serving has no principal, so a thunk-form config is rejected there at
+  // construction.
+  tools:
+    // deno-lint-ignore no-explicit-any
+    | AIToolWithMetadata<any>[]
+    // deno-lint-ignore no-explicit-any
+    | ((ctx: MCPToolsContext<TPrincipal>) => AIToolWithMetadata<any>[]);
   // Required for plain-shape approval tools to be exposed at all; absent =
   // approval tools are dropped (reported). "elicit" presents the computed
   // preview to the user via elicitation/create and commits only on an

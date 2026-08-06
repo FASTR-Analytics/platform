@@ -26,7 +26,14 @@ export {
 } from "./tool_helpers.ts";
 export { defineAIViews, resolveViewLabel, view } from "./view_types.ts";
 export { buildToolCatalog } from "./tool_catalog.ts";
-export { createMCPServer, validateMCPServerConfig } from "./mcp_server.ts";
+export {
+  buildMCPServerCore,
+  createMCPServer,
+  validateMCPServerConfig,
+} from "./mcp_server.ts";
+export { MCPRequestError } from "./mcp_types.ts";
+export { scopeAITool } from "./scope_ai_tool.ts";
+export type { ScopeAIToolOptions } from "./scope_ai_tool.ts";
 
 export type {
   AIToolApprovalConfig,
@@ -57,9 +64,14 @@ export type {
 export type {
   CreateMCPServerConfig,
   MCPApprovalMode,
+  MCPCallOutcome,
   MCPConnection,
+  MCPElicitDecision,
   MCPPromptConfig,
   MCPResourceConfig,
   MCPServer,
+  MCPServerCore,
+  MCPToolDef,
+  MCPToolsContext,
   MCPTransport,
 } from "./mcp_types.ts";

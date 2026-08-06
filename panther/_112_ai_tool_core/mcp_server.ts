@@ -27,6 +27,7 @@ import {
   type MCPServer,
   type MCPServerCore,
   type MCPToolDef,
+  type MCPToolsContext,
   type MCPTransport,
 } from "./mcp_types.ts";
 import { createMCPConnection, serveCoreOnStdio } from "./mcp_protocol.ts";
@@ -49,12 +50,13 @@ type AnyTool = AIToolWithMetadata<any>;
 
 type DroppedTool = { name: string; reason: string };
 
-// NOTE for the future MRTR adapter: the plan's staged-entry spec also lists a
-// `principal` binding. Today requestState never crosses the wire inbound (the
-// legacy adapter resumes its own round trip in-process) and one connection
-// owns one core, so there is no principal to bind. The moment a client can
-// supply requestState (MRTR) or two connections share a core, add the
-// principal field and reject cross-principal resumes.
+// NOTE on principal binding (resolved 2026-08-06, PLAN_112 D3): the staged
+// entry carries no principal field ON PURPOSE. On stdio one connection owns
+// one core. Over HTTP, where a modern (MRTR) client CAN supply requestState,
+// the adapter generalizes the invariant instead of relaxing it: ONE core per
+// authenticated principal (createMCPHttpHandler's core cache), so staged ids
+// never leave the principal's own core and a cross-principal resume looks up
+// a handle that structurally cannot exist there. Rig-pinned in mcp_3_http.
 type StagedProposal = {
   toolName: string;
   argsKey: string;
@@ -217,17 +219,33 @@ function poisonView(toolName: string): () => unknown {
 
 export function buildMCPServerCore(
   config: CreateMCPServerConfig,
+  toolsCtx?: MCPToolsContext,
 ): MCPServerCore {
   if (!config.name || !config.version) {
     throw new Error(
       "createMCPServer: name and version are required (they identify the server to clients).",
     );
   }
+  // Thunk-form tools bind the exposed set to an authenticated principal (D3):
+  // the HTTP adapter resolves one core per principal and passes the context.
+  // stdio serving has no principal, so a thunk there is a construction error,
+  // never a silently-unbound tool set.
+  let resolvedTools: AnyTool[];
+  if (typeof config.tools === "function") {
+    if (!toolsCtx) {
+      throw new Error(
+        "createMCPServer: tools is a thunk but no principal context is available — the thunk form is for per-principal HTTP serving (createMCPHttpHandler). Use the array form here, or pass a sample principal to validateMCPServerConfig.",
+      );
+    }
+    resolvedTools = config.tools(toolsCtx);
+  } else {
+    resolvedTools = config.tools;
+  }
 
   // ---- Filter: headless declaration via the shared eligibility helper ----
   const exposed = new Map<string, AnyTool>();
   const dropped: DroppedTool[] = [];
-  for (const tool of config.tools) {
+  for (const tool of resolvedTools) {
     const name = tool.sdkTool.name;
     const metadata = tool.metadata;
     if (metadata.headless !== true) {
@@ -762,8 +780,12 @@ export function buildMCPServerCore(
 // Runs every construction check without serving — mirror of
 // validateAIChatConfig. Browser-safe (no Deno reach), so a consumer's SPA
 // smoke test catches headless-contract violations without the Deno graph.
-export function validateMCPServerConfig(config: CreateMCPServerConfig): void {
-  buildMCPServerCore(config);
+// Thunk-form tools need a sample principal to construct against.
+export function validateMCPServerConfig(
+  config: CreateMCPServerConfig,
+  sampleToolsCtx?: MCPToolsContext,
+): void {
+  buildMCPServerCore(config, sampleToolsCtx);
 }
 
 export function createMCPServer(config: CreateMCPServerConfig): MCPServer {

@@ -100,6 +100,7 @@ export * from "./_150_figure_schema/mod.ts";
 //                    //
 ////////////////////////
 
+export * from "./_220_mcp_http/mod.ts";
 export * from "./_230_file_utils/mod.ts";
 export * from "./_231_font_paths/mod.ts";
 export * from "./_231_temp/mod.ts";
