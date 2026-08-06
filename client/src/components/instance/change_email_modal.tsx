@@ -278,6 +278,14 @@ export function ChangeEmailModal(
             fullWidth
             rows={1}
             autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (cleanNewEmail().length > 0 && !busy()) {
+                  start.click();
+                }
+              }
+            }}
           />
           <Show when={preview().length > 0}>
             <InstanceList items={preview()} />
@@ -317,6 +325,14 @@ export function ChangeEmailModal(
             fullWidth
             rows={1}
             autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (code().trim().length > 0 && !busy()) {
+                  verify.click();
+                }
+              }
+            }}
           />
           <div class="flex gap-2">
             <Button
