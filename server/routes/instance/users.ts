@@ -528,9 +528,11 @@ defineRoute(
     if (oldEmail === newEmail) {
       return c.json({ success: false, err: "The new email is the same as the old one" });
     }
-    if (!c.var.globalUser.approved) {
-      return c.json({ success: false, err: "Not authorized" }, 403);
-    }
+    // Deliberately NO approved check: approval is keyed to the session's
+    // current email, and mid-rename the JWT can legitimately carry either
+    // address while only the other has a users row. The Clerk ownership check
+    // below is the real authorization; a caller with no rows anywhere just
+    // gets an empty preview and renames nothing.
     const sessionEmail = c.var.globalUser.email.toLowerCase();
     // Either side of the rename may be the session identity: oldEmail before
     // the Clerk primary flips, newEmail after (which is what keeps a retry of

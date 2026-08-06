@@ -21,11 +21,12 @@ import { serverActions } from "~/server_actions";
 //               addresses (a previous half-attempt) skip straight to the
 //               rename.
 //   2. verify — type the code. A correct code runs everything with no
-//               further clicks: primary flips in Clerk, the session token
-//               refreshes so the JWT already carries the new email, every
-//               instance renames (this one in-process, the rest
-//               fleet-internally), and — only on an all-green report — the
-//               old address is removed from Clerk as the very last step.
+//               further clicks, in this exact order: every instance renames
+//               FIRST (the route must authorize while the session JWT still
+//               matches the old users rows), THEN the Clerk primary flips and
+//               the token refreshes to the new identity, and — only on an
+//               all-green report — the old address is removed from Clerk as
+//               the very last step.
 //   3. report — per-instance outcome. Partial failure keeps the old address
 //               on the account and offers Retry (idempotent end-to-end);
 //               all-green ends with Done → reload, since the SPA's identity
@@ -48,6 +49,7 @@ export function ChangeEmailModal(
     { instances: RenameEmailInstanceResult[]; warnings: string[] } | null
   >(null);
   const [oldRemoved, setOldRemoved] = createSignal(false);
+  const [primaryDone, setPrimaryDone] = createSignal(false);
 
   const oldEmail = p.currentEmail.toLowerCase();
   const cleanNewEmail = () => newEmail().trim().toLowerCase();
@@ -63,9 +65,12 @@ export function ChangeEmailModal(
       (i) => i.status === "updated" && (i.projectsFailed?.length ?? 0) === 0,
     );
 
-  // Primary flip → token refresh → fleet rename → (all-green only) old-address
-  // removal. Shared by the verify step and the report's Retry; every part is
-  // safe to re-run.
+  // Fleet rename → primary flip + token refresh → (all-green only)
+  // old-address removal. The rename MUST come first: the route authorizes
+  // against the users rows, which still carry the old email — flipping the
+  // Clerk primary before the call would make the session resolve to an email
+  // with no row and get rejected. Shared by the verify step and the report's
+  // Retry; every part is safe to re-run.
   async function runRename(): Promise<{ success: true } | { success: false; err: string }> {
     const address = findNewAddress();
     if (!address || address.verification?.status !== "verified") {
@@ -73,16 +78,6 @@ export function ChangeEmailModal(
         success: false,
         err: t3({ en: "The new address is not verified yet", fr: "La nouvelle adresse n'est pas encore vérifiée", pt: "O novo endereço ainda não está verificado" }),
       };
-    }
-    try {
-      if (clerk.user?.primaryEmailAddressId !== address.id) {
-        await clerk.user?.update({ primaryEmailAddressId: address.id });
-      }
-      // The JWT must already carry the new email when the local rename lands,
-      // so the session stays valid throughout.
-      await clerk.session?.getToken({ skipCache: true });
-    } catch (error) {
-      return { success: false, err: clerkErrMessage(error) };
     }
     const res = await serverActions.renameUserEmailEverywhere({
       oldEmail,
@@ -94,7 +89,21 @@ export function ChangeEmailModal(
     }
     setReport(res.data);
     setPhase("report");
-    if (allGreen(res.data.instances)) {
+    let primaryFlipped = false;
+    if (res.data.instances.some((i) => i.status === "updated")) {
+      try {
+        if (clerk.user?.primaryEmailAddressId !== address.id) {
+          await clerk.user?.update({ primaryEmailAddressId: address.id });
+        }
+        await clerk.session?.getToken({ skipCache: true });
+        primaryFlipped = true;
+        setPrimaryDone(true);
+      } catch {
+        // Rows are renamed but the Clerk primary still points at the old
+        // address — Retry re-runs this flip (the rename side no-ops).
+      }
+    }
+    if (primaryFlipped && allGreen(res.data.instances)) {
       // Deliberately the last step, and only when everything renamed: until
       // then the old address stays on the account as the recovery path. A
       // failure here is harmless — the address can be removed in account
@@ -331,7 +340,7 @@ export function ChangeEmailModal(
                 {(warning) => <div class="text-warning text-sm">{warning}</div>}
               </For>
               <Show
-                when={allGreen(rep()?.instances ?? [])}
+                when={allGreen(rep()?.instances ?? []) && primaryDone()}
                 fallback={
                   <div class="flex flex-col gap-2">
                     <div class="text-warning text-sm">
