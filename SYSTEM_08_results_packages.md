@@ -219,7 +219,7 @@ the same view for everyone who can see that package.** What a package
 contains does not depend on who is asking; only the chrome around it does
 (the catalogue adds the run list, generate, guarded delete, disk size and
 attached projects; the project tab adds the in-use marker and the attach
-picker). The same rule governs the AI tools: `getToolsForModules` takes a
+picker). The same rule governs the AI tools: `getSharedToolsForModules` takes a
 run RESOLVER, never a runId from the model — inside a project there is
 exactly one correct package, and resolving at call time means a
 mid-conversation repoint moves the tools with it. An instance-level copilot

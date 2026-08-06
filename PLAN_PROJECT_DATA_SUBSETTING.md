@@ -156,7 +156,7 @@ add indicators/time later.
 6. **Non-PO consumers of run data**: anything that reads a run's data without
    going through the standard PO query path risks bypassing the subset
    entirely. **Needs investigation**: the AI copilot's tool layer
-   (`getToolsForModules`, SYSTEM_13_ai_assistant.md), exports (PDF/PPTX/DOCX),
+   (`getSharedToolsForModules`, SYSTEM_13_ai_assistant.md), exports (PDF/PPTX/DOCX),
    and the "queryable run-inputs UI" deferred item in
    PLAN_RESULTS_RUNS.md — each needs to either intersect with the project's
    subset or be an explicit, documented exception. Check against phase 1
