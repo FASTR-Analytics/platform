@@ -545,7 +545,10 @@ defineRoute(
     // addresses, the new one verified. The session JWT alone can only vouch
     // for one of them, and without this check a caller could rename themselves
     // to an address they don't control — or claim someone else's old account.
-    if (!_BYPASS_AUTH) {
+    // Dry runs are exempt: the wizard previews BEFORE the user adds the new
+    // address in Clerk, and the preview only reads user lists that
+    // /health_check already exposes publicly.
+    if (!_BYPASS_AUTH && !body.dryRun) {
       // @ts-ignore: Clerk middleware types not fully compatible with Hono
       const auth = getAuth(c);
       if (!auth?.userId) {
