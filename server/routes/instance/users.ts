@@ -44,8 +44,11 @@ defineRoute(
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
-    // Sync name from Clerk on first login only — syncUserName is a no-op once the name is set.
-    syncUserName(c.var.mainDb, email, firstName ?? null, lastName ?? null)
+    // Sync name from Clerk on first login only — syncUserName is a no-op once
+    // the name is set. `|| null`, not `?? null`: GlobalUser coerces absent
+    // names to "" (the PAT branch always does), and writing "" would defeat
+    // the first_name IS NULL guard forever.
+    syncUserName(c.var.mainDb, email, firstName || null, lastName || null)
       .catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
   },

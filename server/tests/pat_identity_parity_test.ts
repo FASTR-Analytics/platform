@@ -84,6 +84,47 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     assertEquals(patBody.success, true);
     assertEquals(patBody.data.email, TEST_EMAIL);
 
+    // Clerk leg with REAL name claims. Names are the one intrinsic divergence
+    // (claims take precedence over the DB in buildGlobalUserFromDb; a PAT has
+    // no claims), so assert field-wise parity on everything EXCEPT the names —
+    // this is what catches permission-set drift between the two branches
+    // without being calibrated to the null-claims case where both legs
+    // trivially agree.
+    const clerkNamedApp = new Hono();
+    clerkNamedApp.use("*", async (c, next) => {
+      c.set(
+        "clerkAuth" as never,
+        {
+          userId: "user_parity_test",
+          sessionClaims: {
+            email: TEST_EMAIL,
+            firstName: "Parity",
+            lastName: "Probe",
+          },
+        } as never,
+      );
+      await next();
+    });
+    clerkNamedApp.route("/", routesUsers);
+    const clerkNamedRes = await clerkNamedApp.request("/user");
+    assertEquals(clerkNamedRes.status, 200);
+    const clerkNamedBody = await clerkNamedRes.json();
+    const { firstName: _cf, lastName: _cl, ...clerkNamedRest } =
+      clerkNamedBody.data;
+    const { firstName: _pf, lastName: _pl, ...patRest } = patBody.data;
+    assertEquals(patRest, clerkNamedRest);
+    assertEquals(clerkNamedBody.data.firstName, "Parity");
+
+    // Poison net: getCurrentUser fires syncUserName as a side effect. The PAT
+    // leg carries no name claims, and GlobalUser coerces them to "" — writing
+    // "" would defeat the first_name IS NULL guard forever, killing the real
+    // Clerk name sync. The write is fire-and-forget, so give it a beat.
+    await new Promise((r) => setTimeout(r, 300));
+    const rows = await mainDb<{ first_name: string | null }[]>`
+      SELECT first_name FROM users WHERE email = ${TEST_EMAIL}
+    `;
+    assertEquals(rows[0].first_name, "Parity");
+
     // Deny-by-default: a route outside the allowlist 403s under PAT even with
     // a valid token (PATs can never reach token mint/list/revoke).
     const denied = await patApp.request("/user/personal-access-tokens", {

@@ -6,6 +6,7 @@ globs:
   - client/src/server_actions/**
   - lib/api-routes/**
   - lib/h_users.ts
+  - lib/server_actions/**
   - lib/types/permission_labels.ts
   - lib/types/permissions.ts
   - lib/types/streaming.ts
@@ -16,6 +17,7 @@ globs:
   - server/middleware/cache.ts
   - server/middleware/cors.ts
   - server/middleware/mod.ts
+  - server/middleware/pat_allowlist.ts
   - server/middleware/static.ts
   - server/middleware/userPermission.ts
   - server/project_auth.ts
@@ -23,6 +25,7 @@ globs:
   - server/routes/route-helpers.ts
   - server/routes/route-tracker.ts
   - server/routes/streaming.ts
+  - server/tests/pat_identity_parity_test.ts
 docs_absorbed:
 ---
 
@@ -76,7 +79,7 @@ must stay deliberate and enumerated (see below).
 Each feature file exports a `*RouteRegistry` object of `route({...})` calls
 (`route-utils.ts`); `combined.ts` spreads all 29 into `routeRegistry`, the one
 object both `server/routes/route-helpers.ts` and
-`client/src/server_actions/create_server_action.ts` import. Add an entry → the
+`lib/server_actions/create_server_action.ts` import. Add an entry → the
 client gets a typed action and the server gets a typed handler signature for
 free; forget to implement it → boot fails.
 
@@ -291,13 +294,21 @@ minted per user (self-service routes `createPersonalAccessToken` /
 (`server/db/instance/personal_access_tokens.ts`, migration 073). In
 `getGlobalUser`, `patAuthEmail` short-circuits the Clerk branch and feeds the
 same DB-backed `GlobalUser` construction, so a PAT request has exactly the
-user's own permissions — every guard downstream is unchanged. Client-side, the
-server-action layer reaches its environment only through the
-**transport seam** (`client/src/server_actions/transport.ts`):
-LoggedInWrapper registers the browser transport (Clerk cookie,
-session refresh, reload on persistent 401) at module scope, and a headless
-host registers a PAT + absolute-base-URL transport instead — the generated
-actions are identical in both.
+user's own permissions — every guard downstream is unchanged. The
+server-action layer lives in `lib/server_actions/` (compiled into both tiers)
+and reaches its environment only through the **transport seam**
+(`lib/server_actions/transport.ts`): LoggedInWrapper registers the browser
+transport (Clerk cookie, session refresh, reload on persistent 401) at module
+scope, and a headless host registers a PAT + absolute-base-URL transport
+instead — the generated actions are identical in both. The transport is a
+process-global singleton, so the registration doctrine is strict: **only the
+SPA shell (LoggedInWrapper) and out-of-process headless hosts ever call
+`setServerActionTransport`; server code never does.** A server-side
+registration would make the app server issue authenticated loopback HTTP calls
+under some user's identity — a confused-deputy shape with no per-request
+isolation. Server code reaches data through the in-process DB layer, full
+stop. (Convention-enforced today; the "transport not configured" throw makes
+misuse loud at first call.)
 
 ### The two guard factories
 
