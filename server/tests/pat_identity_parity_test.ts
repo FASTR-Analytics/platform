@@ -119,6 +119,10 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     // leg carries no name claims, and GlobalUser coerces them to "" — writing
     // "" would defeat the first_name IS NULL guard forever, killing the real
     // Clerk name sync. The write is fire-and-forget, so give it a beat.
+    // ORDER CONSTRAINT: the PAT leg must run BEFORE the named Clerk leg. This
+    // assert is the only one that pins the ""-poisoning regression, and it
+    // only sees the bug if the PAT whoami had a chance to write "" first —
+    // reordering the legs makes it pass vacuously.
     await new Promise((r) => setTimeout(r, 300));
     const rows = await mainDb<{ first_name: string | null }[]>`
       SELECT first_name FROM users WHERE email = ${TEST_EMAIL}
