@@ -175,8 +175,9 @@ export function createMCPConnection(
 
   // The timeout shares the staged-proposal TTL (core.approvalTtlMs) so the
   // elicitation window and the handle's lifetime cannot drift apart under
-  // configuration. A client that never answers frees the serialized queue
-  // when it fires, resolved as cancel (a declined outcome, not an error).
+  // configuration. A client that never answers gets resolved as cancel when
+  // it fires (a declined outcome, not an error). The serialized queue is NOT
+  // held during this wait — see awaitDecisionOffQueue.
   const requestElicitation = (
     clientRequestId: number | string,
     elicitation: { message: string; requestedSchema: Record<string, unknown> },
@@ -203,6 +204,58 @@ export function createMCPConnection(
         params: elicitation,
       });
     });
+  };
+
+  const sendCallOutcome = (id: number | string, outcome: MCPCallOutcome) => {
+    if (outcome.type === "input_required") {
+      // resume never re-requests input; treat a second round as a bug
+      // surfaced honestly rather than looping.
+      sendError(id, -32603, "Unexpected second input_required outcome");
+      return;
+    }
+    sendResult(id, {
+      content: [{ type: "text", text: outcome.text }],
+      isError: outcome.isError,
+    });
+  };
+
+  // The elicit-await tail of an approval call, run OFF the serialized queue
+  // (tracked for idle()/EOF-drain, so a pending approval still holds the
+  // bounded shutdown drain). When the decision arrives, the resume re-enters
+  // the queue as a fresh unit — commit runs serialized with other handlers,
+  // never concurrently.
+  const awaitDecisionOffQueue = (
+    id: number | string,
+    name: string,
+    args: Record<string, unknown>,
+    outcome: Extract<MCPCallOutcome, { type: "input_required" }>,
+  ) => {
+    track();
+    requestElicitation(id, outcome.elicitation)
+      .then((decision) => {
+        // A cancellation that raced the decision must WIN — commit never
+        // runs for a cancelled request (the chat engine's Stop doctrine).
+        // The staged proposal is abandoned and expires by TTL. (This is the
+        // terminal site for a mid-elicit cancel, so the flag is consumed
+        // here; a cancel arriving AFTER this check is consumed by the
+        // enqueued unit's own cancelled-while-queued guard.)
+        if (cancelled.has(id)) {
+          cancelled.delete(id);
+          return;
+        }
+        enqueueToolCall(id, async () => {
+          sendCallOutcome(
+            id,
+            await core.resumeToolCall(
+              name,
+              args,
+              decision,
+              outcome.requestState,
+            ),
+          );
+        });
+      })
+      .finally(untrack);
   };
 
   const handleServerRequestResponse = (frame: Frame) => {
@@ -304,35 +357,22 @@ export function createMCPConnection(
         const name = String(params.name ?? "");
         const args = (params.arguments ?? {}) as Record<string, unknown>;
         enqueueToolCall(id, async () => {
-          let outcome: MCPCallOutcome = await core.callTool(name, args, {
+          const outcome: MCPCallOutcome = await core.callTool(name, args, {
             clientCanElicit,
           });
           if (outcome.type === "input_required") {
-            const decision = await requestElicitation(id, outcome.elicitation);
-            // A cancellation that raced the decision must WIN — commit never
-            // runs for a cancelled request (the chat engine's Stop doctrine).
-            // The staged proposal is abandoned and expires by TTL.
-            if (cancelled.has(id)) {
-              cancelled.delete(id);
-              return;
-            }
-            outcome = await core.resumeToolCall(
-              name,
-              args,
-              decision,
-              outcome.requestState,
-            );
-          }
-          if (outcome.type === "input_required") {
-            // resume never re-requests input; treat a second round as a bug
-            // surfaced honestly rather than looping.
-            sendError(id, -32603, "Unexpected second input_required outcome");
+            // Release the serial slot for the human approval window: propose
+            // is done and commit has not started, so NO handler runs while
+            // the decision is pending — holding the queue would block every
+            // parallel read for up to approvalTtlMs protecting nothing
+            // (stillValid is the staleness guard). The decision re-enters
+            // the queue below, so commit stays serialized with other
+            // handlers; the staged proposal's single-use + TTL + args
+            // binding make the resume single-flight.
+            awaitDecisionOffQueue(id, name, args, outcome);
             return;
           }
-          sendResult(id, {
-            content: [{ type: "text", text: outcome.text }],
-            isError: outcome.isError,
-          });
+          sendCallOutcome(id, outcome);
         });
         return;
       }

@@ -105,32 +105,66 @@ function completeFromThrow(error: unknown): MCPCallOutcome {
   return completeError(toolThrowToResultParts(error).content);
 }
 
+// Preview values routinely embed MODEL-SUPPLIED text (a report label, a body
+// diff). Rendered verbatim into the elicitation message, injected newlines
+// could fabricate server-authored framing ("\n\nThis is read-only, nothing is
+// written."). So: single-line slots collapse all whitespace runs (newline
+// injection dead), multi-line diff bodies are quoted line-by-line under an
+// explicit as-supplied marker, and everything is capped.
+const PREVIEW_VALUE_CAP = 2_000;
+const PREVIEW_MESSAGE_CAP = 10_000;
+
+function truncateValue(value: string, cap: number): string {
+  return value.length <= cap
+    ? value
+    : `${value.slice(0, cap)} … [truncated ${value.length - cap} chars]`;
+}
+
+function inlineValue(value: string): string {
+  return truncateValue(value.replace(/\s+/g, " ").trim(), PREVIEW_VALUE_CAP);
+}
+
+function quoteBlock(value: string): string {
+  return truncateValue(value, PREVIEW_VALUE_CAP)
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+}
+
 function renderPreviewMessage(preview: ProposalPreview): string {
-  const lines: string[] = [preview.title];
+  const lines: string[] = [inlineValue(preview.title)];
   if (preview.description) {
-    lines.push(preview.description);
+    lines.push(inlineValue(preview.description));
   }
   for (const change of preview.changes ?? []) {
     lines.push(
-      `${change.label}: ${change.before ?? "—"} → ${change.after ?? "—"}`,
+      `${inlineValue(change.label)}: ${inlineValue(change.before ?? "—")} → ${
+        inlineValue(change.after ?? "—")
+      }`,
     );
   }
   if (preview.diff) {
     lines.push(
-      "--- before ---",
-      preview.diff.before,
-      "--- after ---",
-      preview.diff.after,
+      "--- before (quoted verbatim) ---",
+      quoteBlock(preview.diff.before),
+      "--- after (quoted verbatim) ---",
+      quoteBlock(preview.diff.after),
     );
   }
-  return lines.join("\n");
+  return truncateValue(lines.join("\n"), PREVIEW_MESSAGE_CAP);
 }
 
 function renderAuditHeader(preview: ProposalPreview): string {
   const changes = (preview.changes ?? [])
-    .map((c) => `${c.label}: ${c.before ?? "—"} → ${c.after ?? "—"}`)
+    .map((c) =>
+      `${inlineValue(c.label)}: ${inlineValue(c.before ?? "—")} → ${
+        inlineValue(c.after ?? "—")
+      }`
+    )
     .join("\n");
-  return `Applied: ${preview.title}${changes ? `\n${changes}` : ""}\n\n`;
+  return `Applied: ${inlineValue(preview.title)}${
+    changes ? `\n${changes}` : ""
+  }\n\n`;
 }
 
 function buildElicitForm(
