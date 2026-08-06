@@ -19,7 +19,7 @@ import type {
   AIToolWithMetadata,
   ApprovalPolicy,
   ProposalPreview,
-} from "./tool_helpers.ts";
+} from "../deps.ts";
 import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////

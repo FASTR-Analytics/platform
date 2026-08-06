@@ -11,7 +11,7 @@ import type {
   AnyAIInteraction,
   NotifyArgs,
 } from "./interactions.ts";
-import { resolveViewLabel } from "./view_types.ts";
+import { resolveViewLabel } from "../deps.ts";
 import type {
   AIViewDefinition,
   AIViewRegistry,
@@ -19,7 +19,7 @@ import type {
   AIViewVoidKeys,
   AnyAIView,
   SetViewArgs,
-} from "./view_types.ts";
+} from "../deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // AI VIEW CONTROLLER

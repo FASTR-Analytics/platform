@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { zType } from "../deps.ts";
+import type { zType } from "./deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // AI VIEW TYPES (the inert layer)

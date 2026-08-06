@@ -60,15 +60,12 @@ import {
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
-import {
-  AIToolFailure,
-  toolThrowToResultParts,
-} from "../_core/tool_failure.ts";
+import { AIToolFailure, toolThrowToResultParts } from "../deps.ts";
 import type {
   AIToolWithMetadata,
   ProposalResult,
   ToolUIMetadata,
-} from "../_core/tool_helpers.ts";
+} from "../deps.ts";
 import { ProposalPreviewBody } from "./_renderers/approval_renderer.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";

@@ -9,12 +9,12 @@ import {
   SERVER_TOOL_LABELS,
 } from "../deps.ts";
 import type { DisplayItem } from "./types.ts";
-import { toolThrowToResultParts } from "./tool_failure.ts";
+import { toolThrowToResultParts } from "../deps.ts";
 import type {
   AIToolWithMetadata,
   ApprovalPolicy,
   ToolUIMetadata,
-} from "./tool_helpers.ts";
+} from "../deps.ts";
 
 export type ToolResult = {
   type: "tool_result";

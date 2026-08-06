@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { buildAvailabilityHint, z } from "../deps.ts";
-import type { Component, zType } from "../deps.ts";
+import { buildAvailabilityHint, z } from "./deps.ts";
+import type { Component, zType } from "./deps.ts";
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
   AIViewRegistry,

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { Button, createSignal, For, Show, t3 } from "../../deps.ts";
-import type { ProposalPreview } from "../../_core/tool_helpers.ts";
+import type { ProposalPreview } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { md } from "./_markdown_utils.ts";
 

@@ -22,10 +22,7 @@ import {
   supportsDynamicWebTools,
   supportsSamplingParams,
 } from "../deps.ts";
-import {
-  type AIToolWithMetadata,
-  getHeadlessCapability,
-} from "./tool_helpers.ts";
+import { type AIToolWithMetadata, getHeadlessCapability } from "../deps.ts";
 import {
   type BuiltInToolsConfig,
   resolveBuiltInTools,
