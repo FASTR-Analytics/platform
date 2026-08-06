@@ -68,6 +68,15 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   authenticate: (
     req: Request,
   ) => Promise<TPrincipal | null> | TPrincipal | null;
+  // Absolute URL of this server's RFC 9728 protected-resource metadata
+  // document. When set, the 401 carries
+  //   WWW-Authenticate: Bearer resource_metadata="<url>"
+  // which is how an OAuth-capable MCP client discovers WHICH authorization
+  // server to send the user to. Without it a client that hits the 401 has no
+  // way to start an OAuth flow — it only learns that it needs *some* bearer
+  // token. Servers that authenticate with pre-shared tokens only (e.g. PATs in
+  // a header) can leave it unset; the header then stays a bare "Bearer".
+  resourceMetadataUrl?: string;
   // Core-cache key. Default: JSON identity of the principal.
   principalKey?: (principal: TPrincipal) => string;
   // Idle eviction for principal cores (staging dies with the core; the next
@@ -162,6 +171,22 @@ export function createMCPHttpHandler<TPrincipal>(
     DEFAULT_MAX_SESSIONS_PER_PRINCIPAL;
   const principalKey = opts.principalKey ??
     ((principal: TPrincipal) => JSON.stringify(principal) ?? "");
+
+  // RFC 9728 §5.1: the challenge points the client at the metadata document.
+  // Quotes are mandatory, and the value is embedded verbatim — a URL is the
+  // only legal content, so a stray quote would corrupt the header rather than
+  // inject a new parameter. Guarded at construction so a bad value fails at
+  // wiring time, not on the first unauthenticated request.
+  if (opts.resourceMetadataUrl !== undefined) {
+    if (/["\\\r\n]/.test(opts.resourceMetadataUrl)) {
+      throw new Error(
+        "resourceMetadataUrl must not contain quotes, backslashes or newlines",
+      );
+    }
+  }
+  const wwwAuthenticate = opts.resourceMetadataUrl === undefined
+    ? "Bearer"
+    : `Bearer resource_metadata="${opts.resourceMetadataUrl}"`;
 
   const cores = new Map<string, CoreEntry<TPrincipal>>();
   // sessionId → owning principal key: the routing index that makes
@@ -519,7 +544,7 @@ export function createMCPHttpHandler<TPrincipal>(
     }
     if (principal === null) {
       return jsonResponse(401, { error: "unauthorized" }, {
-        "WWW-Authenticate": "Bearer",
+        "WWW-Authenticate": wwwAuthenticate,
       });
     }
     const key = principalKey(principal);
