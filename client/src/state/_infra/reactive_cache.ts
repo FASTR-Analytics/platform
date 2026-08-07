@@ -68,6 +68,14 @@ export type ReactiveCacheConfig<Params, Data> = {
    * recomputes both hashes from the response for the same reason.
    */
   responseMatchesVersion?: (data: Data, version: string) => boolean;
+
+  /**
+   * Payload-side storability guard. A SUCCESSFUL response can still embed a
+   * transient failure (e.g. metric_info's per-dimension `error` status);
+   * returning false serves the payload to the caller without freezing it into
+   * memory/IndexedDB, so the next request retries.
+   */
+  shouldStore?: (data: Data) => boolean;
 };
 
 export interface ReactiveCache<Params, Data> {
@@ -255,6 +263,11 @@ export function createReactiveCache<Params, Data>(
         console.warn(
           `[ReactiveCache:${config.name}] Response was computed for a different version than the key it was requested under — not caching (key: ${cacheKey})`,
         );
+        _unresolved.delete(cacheKey);
+        return;
+      }
+
+      if (config.shouldStore !== undefined && !config.shouldStore(response.data)) {
         _unresolved.delete(cacheKey);
         return;
       }

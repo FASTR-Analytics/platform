@@ -343,7 +343,7 @@ export const metricStrict = z.object({
   label: z.string(),
   variantLabel: z.string().nullable(),
   valueFunc: valueFuncStrict,
-  formatAs: z.enum(["percent", "number"]),
+  formatAs: z.enum(["percent", "number", "indicator"]),
   valueProps: z.array(z.string()),
   requiredDisaggregationOptions: z.array(disaggregationOption),
   valueLabelReplacements: z.record(z.string(), z.string()).nullable(),

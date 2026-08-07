@@ -5,6 +5,7 @@ import {
   ProjectState,
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
+  resolveEffectiveFormat,
   getPeriodFilterExactBounds,
   getSingleValueDimsFromPossibleValues,
   t3,
@@ -86,6 +87,21 @@ export function PresentationObjectEditorPanel(p: Props) {
     });
   };
 
+  // Resolved against tempConfig — the DRAFT, not the saved config — so the
+  // percent-only controls react to the filter edit in progress. Config-based,
+  // so no refetch is involved: a control appearing the instant a filter pins a
+  // percent indicator is the intended behavior.
+  const effectiveFormat = () =>
+    resolveEffectiveFormat({
+      metricFormatAs: p.poDetail.resultsValue.formatAs,
+      config: p.tempConfig,
+      // `?? {}`: a stale IndexedDB metric_info payload from before the field
+      // existed must degrade (numeric fallback), not throw. Dev has no deploy
+      // purge, so such payloads linger there.
+      indicatorFormats: p.resultsValueInfo.indicatorFormats ?? {},
+      possibleValues: p.resultsValueInfo.disaggregationPossibleValues,
+    });
+
   return (
     <div
       id="VIZ_PANEL_ROOT"
@@ -139,6 +155,7 @@ export function PresentationObjectEditorPanel(p: Props) {
               setTempConfig={p.setTempConfig}
               effectiveConfig={effectivePOConfigResult().config}
               effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
+              effectiveFormatAs={effectiveFormat().formatAs}
             />
           </Match>
           <Match when={tab() === "text"}>

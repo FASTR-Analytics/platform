@@ -383,7 +383,7 @@ CREATE TABLE dataset_hmis_import_ledger (
 -- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
 -- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
 -- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
--- csv_config ({ uploadToken, fileName, mappings } JSON) is CSV-only — the
+-- csv_config ({ fileName, filePin, mappings } JSON) is CSV-only — the
 -- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -535,8 +535,8 @@ CREATE INDEX idx_hfa_facility_weights_time_point ON hfa_facility_weights(time_po
 -- server/db/instance/dataset_hfa_import_runs.ts. No queue (manual-only, no
 -- scheduler) and no version_id — HFA's outcome plane is the time point
 -- (hfa_time_points.imported_at + the per-time-point data tables). csv_config
--- is the launch payload ({ csvUploadToken, csvFileName, xlsFormUploadToken,
--- xlsFormFileName, mappings } JSON); diagnostics is the staging result.
+-- is the launch payload ({ csvFileName, csvFilePin, xlsFormFileName,
+-- xlsFormFilePin, mappings } JSON); diagnostics is the staging result.
 CREATE TABLE hfa_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   triggered_by text,
@@ -774,7 +774,7 @@ CREATE INDEX idx_iceh_data_strat ON iceh_data(strat);
 -- (manual-only, no scheduler) and no version_id — ICEH's outcome plane is the
 -- cumulative iceh_indicators/iceh_data store; these run rows are ICEH's only
 -- durable import history. zip_config is the launch payload
--- ({ zipUploadToken, zipFileName } JSON); diagnostics is the staging result.
+-- ({ zipFileName, zipFilePin } JSON); diagnostics is the staging result.
 CREATE TABLE iceh_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   triggered_by text,

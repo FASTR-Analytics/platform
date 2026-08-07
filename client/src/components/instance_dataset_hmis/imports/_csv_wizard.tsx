@@ -1,7 +1,7 @@
 import {
   encodeRawCsvHeader,
   t3,
-  type DatasetHmisCsvRunConfig,
+  type DatasetHmisCsvRunLaunchInput,
   type DatasetHmisImportRunSummary,
   type HmisCsvMappingParams,
 } from "lib";
@@ -20,7 +20,7 @@ import {
 import { Show, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { TempFileUpload, type TempUpload } from "~/components/_temp_file_upload";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 export type CsvWizardProps = {
   runsQuery: Query<DatasetHmisImportRunSummary[]>;
@@ -40,13 +40,13 @@ const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
 ];
 
 // The CSV import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION A7): a modal with
-// client-local state — nothing persists server-side before launch except the
-// token-keyed temp upload. Launch inserts a run row; abandoning this wizard
-// is a no-op by construction.
+// client-local state — the file input is an ordinary instance asset (uploaded
+// or picked), so nothing persists server-side before launch. Launch inserts a
+// run row; abandoning this wizard is a no-op by construction.
 export function CsvWizard(
   p: AlertComponentProps<CsvWizardProps, CsvWizardResult>,
 ) {
-  const [upload, setUpload] = createSignal<TempUpload | undefined>(undefined);
+  const [fileName, setFileName] = createSignal<string>("");
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [headersError, setHeadersError] = createSignal<string>("");
   const [mappings, setMappings] = createStore<HmisCsvMappingParams>({
@@ -56,8 +56,11 @@ export function CsvWizard(
     count: "",
   });
 
-  async function onUploaded(next: TempUpload) {
-    setUpload(next);
+  // Direct callback, not an effect on the signal: re-uploading the same name
+  // leaves the signal value unchanged, and only the callback re-parses the
+  // new bytes.
+  async function onFileSelected(next: string) {
+    setFileName(next);
     setHeaders([]);
     setHeadersError("");
     setMappings({
@@ -67,7 +70,7 @@ export function CsvWizard(
       count: "",
     });
     const res = await serverActions.parseDatasetHmisCsvHeaders({
-      uploadToken: next.token,
+      fileName: next,
     });
     if (res.success) {
       setHeaders(res.data.headers.map((v, i) => encodeRawCsvHeader(i, v)));
@@ -80,7 +83,7 @@ export function CsvWizard(
     _HMIS_SQL_COL_NAMES.every((key) => mappings[key] !== "");
 
   const stepperData = createMemo(() => ({
-    uploadValid: upload() !== undefined && headers().length > 0,
+    uploadValid: fileName() !== "" && headers().length > 0,
     mappingsValid: mappingsComplete(),
   }));
 
@@ -132,16 +135,15 @@ export function CsvWizard(
 
   const submit = createFormAction(
     async () => {
-      const uploaded = upload();
-      if (!uploaded) {
+      const selected = fileName();
+      if (!selected) {
         return {
           success: false,
           err: t3({ en: "You must upload a file", fr: "Vous devez téléverser un fichier", pt: "Tem de carregar um ficheiro" }),
         };
       }
-      const config: DatasetHmisCsvRunConfig = {
-        uploadToken: uploaded.token,
-        fileName: uploaded.fileName,
+      const config: DatasetHmisCsvRunLaunchInput = {
+        fileName: selected,
         mappings: structuredClone(unwrap(mappings)),
       };
       if (runActive()) {
@@ -200,10 +202,12 @@ export function CsvWizard(
     >
       <div class="ui-pad ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
-          <TempFileUpload
+          <FileUploadSelector
             buttonLabel={t3({ en: "Upload csv file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
-            value={upload()}
-            onUploaded={(next) => void onUploaded(next)}
+            selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+            filter={(a) => a.isCsv}
+            value={fileName()}
+            onChange={(next) => void onFileSelected(next)}
             allowedFileTypes={[".csv"]}
           />
           <Show when={headersError()}>
@@ -233,7 +237,7 @@ export function CsvWizard(
           <div class="ui-spy-sm text-sm">
             <div class="flex items-baseline">
               <div class="w-56 flex-none">{t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}</div>
-              <div class="flex-1 font-mono">{upload()?.fileName ?? ""}</div>
+              <div class="flex-1 font-mono">{fileName()}</div>
             </div>
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-baseline">

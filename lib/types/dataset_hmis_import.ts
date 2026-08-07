@@ -1,3 +1,4 @@
+import type { AssetFilePin } from "./assets.ts";
 import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 
 // ============================================================================
@@ -11,13 +12,21 @@ export type HmisCsvMappingParams = {
   count: string;
 };
 
-// The CSV launch payload stored in dataset_hmis_import_runs.csv_config.
-// resumeFromStaging marks a needs_review run resolved with "Integrate anyway":
-// the worker skips the stage leg and integrates the surviving per-run
-// staging table.
-export type DatasetHmisCsvRunConfig = {
-  uploadToken: string;
+// What the wizard sends at launch: the input asset's fileName plus the
+// mappings. The server validates the asset exists and stamps the pin.
+export type DatasetHmisCsvRunLaunchInput = {
   fileName: string;
+  mappings: HmisCsvMappingParams;
+};
+
+// The CSV launch payload stored in dataset_hmis_import_runs.csv_config. The
+// file is an instance asset named by fileName, byte-pinned at launch
+// validation (see AssetFilePin). resumeFromStaging marks a needs_review run
+// resolved with "Integrate anyway": the worker skips the stage leg and
+// integrates the surviving per-run staging table.
+export type DatasetHmisCsvRunConfig = {
+  fileName: string;
+  filePin: AssetFilePin;
   mappings: HmisCsvMappingParams;
   resumeFromStaging?: boolean;
 };

@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import { serveStatic } from "hono/deno";
 import { _ASSETS_DIR_PATH, _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
+import { getGlobalUser } from "../project_auth.ts";
 import { requireGlobalPermission } from "./userPermission.ts";
 
 // Uploaded IMAGE assets (e.g. logos shown on public dashboards / share links)
@@ -10,6 +11,14 @@ import { requireGlobalPermission } from "./userPermission.ts";
 // consistent. Mounted AFTER the client_dist serve (bundled assets win, no
 // shadowing) and BEFORE the protected serves.
 const PUBLIC_IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i;
+
+// Data-file assets (import-wizard inputs live here now — raw facility-level
+// health data) require can_view_data OR can_configure_data, the same OR gate
+// as the assets page, so its download buttons keep working for everyone who
+// can see the page. requireGlobalPermission(a, b) is AND, hence the inline
+// check. Asset NAMES stay visible to all authenticated users (the SSE
+// starting payload) — only the bytes are gated.
+const DATA_FILE_RE = /\.(csv|xlsx?|zip)$/i;
 
 export function setupStaticServing(app: Hono) {
   // Public static files (no auth required)
@@ -37,6 +46,30 @@ export function setupStaticServing(app: Hono) {
     requireGlobalPermission("can_configure_data"),
     serveStatic({ root: _RUNS_DIR_PATH }),
   );
+
+  // Third tier: data-file bytes for data-permitted users only (admins pass).
+  app.use("*", async (c, next) => {
+    // CORS preflight passes through, same as requireGlobalPermission.
+    if (!DATA_FILE_RE.test(c.req.path) || c.req.method === "OPTIONS") {
+      await next();
+      return;
+    }
+    const globalUser = await getGlobalUser(c);
+    if (globalUser === "NOT_AUTHENTICATED") {
+      c.status(401);
+      return c.text("Authentication required");
+    }
+    const allowed =
+      globalUser.isGlobalAdmin ||
+      globalUser.thisUserPermissions.can_view_data ||
+      globalUser.thisUserPermissions.can_configure_data;
+    if (!allowed) {
+      c.status(403);
+      return c.text("You do not have permission to download data files");
+    }
+    return serveStatic({ root: _ASSETS_DIR_PATH })(c, next);
+  });
+
   app.use(
     "*",
     requireGlobalPermission(),

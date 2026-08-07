@@ -316,6 +316,10 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   The envelope is `1`, not `100`: percent values are 0-1 fractions app-wide. It
   is checked against the EFFECTIVE format, so a flag stranded by a format change
   degrades to a plain cell-sum pie rather than drawing every count as a sliver.
+  The editor's "Show each value against 100%" checkbox is gated on that same
+  effective format, not on the metric's stored `formatAs` — gating on the stored
+  value is what made the toggle unreachable for every HFA pie, since HFA metrics
+  all declare `"number"`.
   Without it panther defaults to `total: "sum"` (each pie normalized by its own
   slices). The unfilled arc is panther's `remainder` track; slice data labels
   drop the series name when the slice axis carries the

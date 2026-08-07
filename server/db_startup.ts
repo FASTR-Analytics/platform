@@ -30,7 +30,6 @@ import {
   markStaleRunningDatasetHmisImportRuns,
   markStaleRunningDatasetIcehImportRuns,
 } from "./db/mod.ts";
-import { sweepOrphanImportTempUploads } from "./import_temp_uploads.ts";
 import type { Sql } from "postgres";
 import {
   migratePOConfigs,
@@ -95,8 +94,6 @@ ${userInserts}
       `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
     );
   }
-  await sweepOrphanImportTempUploads(sqlMain);
-
   // Instance data transforms — on main database
   await runInstanceDataTransforms(sqlMain);
 

@@ -486,7 +486,7 @@ async function fireQueuedRun(
   mainDb: Sql,
   queued: QueuedDatasetHmisImportRun,
 ): Promise<void> {
-  // CSV fires need no stored-credential checks — the temp upload (or the
+  // CSV fires need no stored-credential checks — the pinned asset (or the
   // surviving per-run staging table, for an integrate-anyway resume) is the
   // whole input.
   if (queued.source === "csv") {

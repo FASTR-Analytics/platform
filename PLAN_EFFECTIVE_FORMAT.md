@@ -1,271 +1,237 @@
-# Plan: One Effective Format (pre-query, 3-way)
+# Plan: Declared format source — one truth, no inference
 
-Trigger: "Show each value against 100%" never appears for HFA pies. That is one
-symptom of a value that is derived too late, from the wrong source, in four
-places.
+## The design
 
-## 1. What is actually broken
-
-### 1.1 The reported bug
-
-The render path is correct — `isPieCompletionMode`
-([presentation_objects.ts:315](lib/types/presentation_objects.ts#L315)) checks
-the **effective** format, so an HFA pie with `pieCompletionMode: true` draws
-right. The flag can never be set, because the toggle is gated on the **stored
-metric** format ([_pie.tsx:60](client/src/components/visualization/presentation_object_editor_panel_style/_pie.tsx#L60)):
-
-```tsx
-<Show when={p.poDetail.resultsValue.formatAs === "percent"}>
-```
-
-`m10-01-01` / `m10-01-02` declare `formatAs: "number"` in the modules repo, and
-correctly so — HFA indicator format is per-indicator via
-`getHfaIndicatorMeasure(type, aggregation).kind`. The derivation that makes the
-figure percent lives two layers downstream, where the editor cannot see it.
-
-### 1.2 The deeper bug: filtering resolves the format backwards
-
-[build_figure_inputs.ts:327](client/src/generate_visualization/build_figure_inputs.ts#L327):
+Every metric's `formatAs` becomes a three-way declaration, authored in
+`wb-fastr-modules`:
 
 ```ts
-const cols = config.d.disaggregateBy.map((d) => d.disOpt);
+formatAs: "percent" | "number" | "indicator"
 ```
 
-Only **disaggregated** columns are inspected, plus `selectedReplicantValue`.
-`config.d.filterBy` is never consulted. So a chart filtered down to a single
-percent indicator, not disaggregated by it, has no indicator column in its rows
-at all → `sawIndicator` stays false → falls back to the metric format,
-`"number"`. **Filtering to percent-only indicators makes the format go
-backwards today.** Same for any chart that pins the indicator in `filterBy` and
-disaggregates by something else.
+- **`"percent"` / `"number"`** — the metric's values are the metric's own
+  quantity. The format is a constant. Nothing is inferred, nowhere, ever: the
+  editor's percent-only controls, the axis, the legend, the table cells, the
+  AI text all use the declared format unconditionally.
+- **`"indicator"`** — the metric's values ARE the displayed indicator's own
+  quantity, so format is a per-value fact carried by the indicator catalog
+  (`indicatorMetadata.format_as`). Every surface that formats a value (table
+  cell, tooltip, data label) formats it by that value's indicator. A shared
+  axis uses the displayed indicators' format when they all agree; when they
+  mix, it is numeric (and the percent-only controls don't apply). That's the
+  whole rule.
 
-This is why the post-query signal is the wrong signal, not merely a late one.
+This replaces the previous design (metric format + displayed-indicator
+inference + `ALWAYS_OBEY_METRIC_FORMAT_METRICS` escape list). That design
+existed only because `"number"` was overloaded to mean both "number" and "my
+format is per-indicator, go look". Every defect the adversarial review found
+in the inference layer (old plan's F1, F2, F6, F8, and the R1/R2 rulings)
+was compensation for that missing declaration. With the declaration:
 
-### 1.3 Four implementations
+- F1 (percent metric demoted to number) is impossible — m10-02 declares
+  `percent`, that's the answer.
+- R1 (floor vs bidirectional) dissolves — there is never a competition
+  between metric and indicators; exactly one of them owns the format.
+- `ALWAYS_OBEY_METRIC_FORMAT_METRICS` is deleted — m9-02-01 declares
+  `number`, that's the answer.
+- Editor/render divergence (F2) shrinks to `"indicator"` metrics only, where
+  the render side has per-row truth anyway.
+- Per-cell table formatting becomes principled: per-cell iff
+  `formatAs === "indicator"`. (This also fixes a latent pre-existing bug:
+  m10-02 don't-know-rate tables per-cell-formatted count-question cells as
+  numbers even though every value is a rate.)
 
-| Where | Basis | Problem |
+## Metric classification (modules repo)
+
+`"indicator"` — the value is the indicator's own quantity:
+
+| metric | today | why |
 | --- | --- | --- |
-| [build_figure_inputs.ts:57](client/src/generate_visualization/build_figure_inputs.ts#L57) | items + indicatorMetadata | §1.2; post-query |
-| editor components (8 sites) | stored metric `formatAs` | §1.1 |
-| [_5_scorecard.ts:34](client/src/generate_visualization/get_style_from_po/_5_scorecard.ts#L34) | per-indicator, 3-way | legitimately different (a scorecard mixes formats per row) |
-| [_figure_block.ts:763](server/db/migrations/data_transforms/_figure_block.ts#L763) | all metadata, displayed-set-blind | no `ALWAYS_OBEY` escape hatch; can resolve a format the renderer disagrees with |
+| m10-01-01, m10-01-02 | `number` | HFA indicator values (percent for binary, number for counts — `getHfaIndicatorMeasure`) |
+| m10-03-01, m10-03-02 | `number` | same values, by variant item |
+| m8-01-01 | `percent` | scorecard over calculated indicators, which carry required 3-way `format_as` |
+| m7-01-01/02/03 | `percent` | NHSS scorecard, same shape as m8 — **confirm with Tim, docs are placeholders** |
 
-The 8 editor sites: `forceYMax1` visibility in
-[_timeseries.tsx:132](client/src/components/visualization/presentation_object_editor_panel_style/_timeseries.tsx#L132),
-[:245](client/src/components/visualization/presentation_object_editor_panel_style/_timeseries.tsx#L245),
-[:335](client/src/components/visualization/presentation_object_editor_panel_style/_timeseries.tsx#L335),
-[_chart_like_controls.tsx:261](client/src/components/visualization/presentation_object_editor_panel_style/_chart_like_controls.tsx#L261),
-`pieCompletionMode` visibility in `_pie.tsx:60`, and the conditional-formatting
-`formatAs` prop in
-[_table.tsx:119](client/src/components/visualization/presentation_object_editor_panel_style/_table.tsx#L119),
-[_map.tsx:73](client/src/components/visualization/presentation_object_editor_panel_style/_map.tsx#L73),
-[_chart_like_controls.tsx:187](client/src/components/visualization/presentation_object_editor_panel_style/_chart_like_controls.tsx#L187).
+Everything else keeps its current declaration unchanged, notably:
 
-The CF ones are worse than a hidden control: the editor hands HFA users a raw
-`NumberInput` capped at 1 instead of `PercentSelect`
-([conditional_formatting_editor.tsx:247](client/src/components/visualization/conditional_formatting_editor.tsx#L247),
-[:422](client/src/components/visualization/conditional_formatting_editor.tsx#L422))
-while the rendered axis is in percent.
+- m10-02-01/02 stay `percent` (don't-know/missingness *rates* attributed to
+  indicators — derived, not the indicator's quantity).
+- m9-02-01 stays `number` (CIX/SII derived over percent indicators).
+- m9-01-01 stays `percent` — ICEH catalog rows carry no `format_as` today
+  (`icehIndicatorRow`), so `"indicator"` has nothing to read. If the derived-
+  indices plan later adds formats to ICEH indicators, flip it then.
+- m1/m2/m3/m4/m4a/m6 stay as declared: utilization counts are counts,
+  coverage of any indicator is a percent. (`m4a-01-01`'s `source_indicator`
+  dim holds raw HMIS ids with no formats — nothing to infer even in theory.)
 
-## 2. Target: one resolver, pre-query, config-based
+Modules repo work: flip the 8 metrics, `deno task build` regenerates
+`definition.json`. Push in lockstep AFTER the app deploy (old app schema
+rejects `"indicator"` at install).
 
-```ts
-resolveEffectiveFormat(args: {
-  metricId: string;
-  metricFormatAs: "percent" | "number";
-  config: PresentationObjectConfig;
-  indicatorFormats: Record<string, "percent" | "number" | "rate_per_10k">;
-  possibleValues: { [K in DisaggregationOption]?: DisaggregationPossibleValuesStatus };
-}): { formatAs: "percent" | "number" | "rate_per_10k"; source: "metric" | "displayed-indicators" }
-```
+## Resolution rules (app)
 
-Lives in `lib/`, beside `isPieCompletionMode` (already its main consumer).
+`lib/resolve_effective_format.ts` collapses to:
 
-**Displayed indicator set, from config alone:**
+- `formatAs !== "indicator"` → `{ formatAs, perCell: false }`. No inputs
+  beyond the metric.
+- `formatAs === "indicator"` → enumerate displayed indicator-dimension values
+  (replicant selection, filter pins, else possible-values), map through
+  `indicatorFormats`; unanimous → that format, otherwise `"number"`. Always
+  `perCell: true` for tables.
 
-- for each `disaggregateBy` entry: if `disDisplayOpt === "replicant"` →
-  `d.selectedReplicantValue` (single value); else → the `filterBy` entry for
-  that `disOpt` if present, otherwise **all** possible values for it
-- **plus** every `filterBy` entry whose `disOpt` is not in `disaggregateBy` —
-  the §1.2 fix
-- map values through `indicatorFormats`, ignore unknowns, resolve a non-metric
-  format only if at least one known indicator was seen and all agree
+Fixes that survive from the review, now scoped to `"indicator"` metrics:
 
-No rows needed, so it updates the instant a filter changes, with no refetch.
+- **F8**: collect candidate values ONLY from indicator dimensions
+  (`INDICATOR_DISAGGREGATION_OPTIONS`), symmetric with the bail rule — a
+  calculated indicator named `anc1` must not collide with a `source_indicator`
+  value. Fix the "harmless noise" comment (F-DOC-4).
+- **F7**: `indicatorFormats ?? {}` at the read boundary — a stale IndexedDB
+  `metric_info` payload without the field must degrade, not throw. (Dev has
+  no deploy purge; documented trap.)
+- **F6**: a transient `status: "error"` options query must not be frozen into
+  Valkey/IndexedDB — skip caching payloads that contain an `error` status.
+  The resolver treating error as "cannot enumerate → number fallback" is
+  correct; the caching is the bug.
 
-Returning `source` collapses two things that travel side by side today:
-`effectiveFormatAs` and `obeyMetricFormat` are separate arguments into
-`buildStandardStyle` ([get_style_from_po.ts:44-53](client/src/generate_visualization/get_style_from_po.ts#L44-L53)) —
-exactly the shape that invites one being forgotten.
+Render side (`build_figure_inputs.ts`): `resolveEffectiveFormatFromItems` is
+replaced by the same rule. For `"indicator"` metrics it reads pins from
+`bundle.config` (replicant, filterBy) and enumerates disaggregated dims from
+items; formats come from `bundle.indicatorMetadata`, which is the FULL module
+catalog (`getIndicatorMetadataFromRun`), so filter-pinned indicators are
+visible — the old plan's F2 shape 1 is fixed with no migration. Residual
+editor/render divergence is confined to `"indicator"` metrics where the
+editor's possible-values status (`too_many_values`/`error`/possible-but-empty)
+disagrees with actual rows; document exactly that in SYSTEM_10 (F-DOC-1
+rewrite), nothing stronger.
 
-`ALWAYS_OBEY_METRIC_FORMAT_METRICS` ([special_chart_checks.ts:26](client/src/generate_visualization/special_chart_checks.ts#L26))
-keeps its meaning: m9-02-01's CIX/SII are derived measures over percent
-indicators, and without the escape hatch 50 renders as "5000%".
+**F3 (stranded `forceYMax1`)**: still real for `"indicator"` metrics (the
+resolved format is filter-sensitive). Fix at application, not just gating:
+style builders apply `max: 1` only when the resolved format is `percent`
+(`_1_standard.ts` ×2, `_2_coverage.ts`, `_3_percent_change.ts`,
+`_4_disruptions.ts`) — same pattern as `isPieCompletionMode`'s render-side
+re-check. The editor checkbox gating stays.
 
-## 3. The 3-way widening
+Deletions: `ALWAYS_OBEY_METRIC_FORMAT_METRICS`, `metricAlwaysObeysFormatAs`,
+`obeysMetricFormatPerCell` (per-cell = `formatAs === "indicator"`),
+`EffectiveFormatSource`.
 
-`"percent" | "number" | "rate_per_10k"`. Metrics are authored 2-way
-(`_metric_installed.ts:346`, `_module_definition_github.ts:308`); only
-indicator-derived formats can be `rate_per_10k`. One type, three values,
-applied at both ends.
+AI path (`lib/ai_tools/format_metric_data_for_ai.ts:151,394`): the type change
+forces handling. Minimum honest behavior: for `"indicator"` metrics print
+"Format: varies by indicator" and use per-indicator formats where available;
+do not print raw fractions as "number". (The full fifth-derivation cleanup
+stays a separate item, but lying to the model is not acceptable interim.)
 
-- **Tick labels need no panther change.** `TickLabelFormatterOption` is
-  `((v: number) => string) | "auto-number" | "auto-percent"`
-  ([number_formatters.ts:340](panther/_000_utils/number_formatters.ts#L340)), and
-  [_5_scorecard.ts:34-43](client/src/generate_visualization/get_style_from_po/_5_scorecard.ts#L34-L43)
-  already has the reference implementation:
-  `getFormatterFunc("number", dp)(v * 10000)`. Apply it in `_1_standard`,
-  `_2_coverage`, `_3_percent_change`, `_4_disruptions`.
-- **Legend format is the exception — decide before building.** It is a 2-way zod
-  enum with no function escape
-  ([figure_inputs.ts:91,99](panther/_150_figure_schema/figure_inputs.ts#L91)),
-  used by `getLegendFromConfig` and `buildMapAutoLegend`. Either a
-  `rate_per_10k` figure gets a legend that silently drops the ×10000 (real and
-  visible), or panther's legend format widens to accept a formatter function —
-  symmetric with `tickLabelFormatter`, so a legitimate library-capability
-  change, not app policy leaking in. **Recommendation: widen panther.** An axis
-  and its legend disagreeing by a factor of 10,000 is not an acceptable
-  end-state, and the asymmetry between the two format fields is a library wart
-  independent of this work.
-  - Panther edit + `./sync` from the panther repo, which copies its **working
-    tree** wholesale: confirm panther typechecks first, and stage/commit the app
-    changes BEFORE syncing so the sync diff stays isolated.
-- Type `runMetricSchema.format_as` — currently bare `z.string()`
-  ([run_manifest.ts:74](lib/types/run_manifest.ts#L74)).
+## Type/schema sites (complete inventory)
 
-## 4. Where `indicatorFormats` comes from
+- `lib/types/_module_definition_github.ts:308` — add `"indicator"` (install
+  validation; deploy-order gate).
+- `lib/types/_metric_installed.ts:346` — add `"indicator"` (stored in project
+  DBs).
+- `lib/types/_figure_bundle.ts:60` — add `"indicator"` (stored bundles).
+- `lib/types/run_manifest.ts:77` — bare `z.string()` becomes the 3-way enum
+  (this also closes the old plan's dropped §3 item; the unchecked cast at
+  `run_read.ts:498` and `metric_enricher.ts:108` goes away).
+- `lib/types/modules.ts:46,58`, `resolve_effective_format.ts`,
+  `format_metric_data_for_ai.ts:394`,
+  `data_transforms/_figure_block.ts:787` — TS unions follow.
+- Modules repo `.validation/_module_definition_github.ts:297` — synced copy.
 
-Pre-query, so not from the items payload. Two steps, one now and one that pays
-for itself:
+## Persistence layers (all five, per CLAUDE.md discipline)
 
-**4.1 Now — `resultsValueInfo` gains the field.**
-[get_results_value_info.ts:60-61](server/server_only_funcs_presentation_objects/get_results_value_info.ts#L60-L61)
-already loads the **full** `IndicatorMetadata[]` server-side and throws away
-everything but `label` to build `labelMap`. Exposing formats costs one payload
-field, no new query, no new join. Same at the run-backed twin
-([run_read.ts:957](server/run_query/run_read.ts#L957)).
+Old data says `"number"` for m10-01/m10-03 and `"percent"` for m7/m8; without
+transforms, metric-owned semantics would regress every stored HFA figure to
+raw numbers. List-based rewrites (the 8 metric ids frozen into the transform,
+recompute-never-invent):
 
-A **flat** `indicatorFormats: Record<string, …>` on
-`ResultsValueInfoForPresentationObject`, not `format_as` added to the
-`{ id, label }` entries in `disaggregationPossibleValues`. Those entries look
-like the natural home but are absent whenever a dimension came back
-`too_many_values`, and a `filterBy` can still name specific indicators on such
-a dimension. A flat map has no such hole.
+1. **Project DB installed definitions** — data transform over stored metric
+   JSON: for the 8 ids, `formatAs → "indicator"`. Forced skip-gate per
+   PROTOCOL_APP_MIGRATIONS (the value parses under the old schema, so a
+   parse-only gate would skip it).
+2. **Run manifests** — transform block 2 + `RUN_MANIFEST_SCHEMA_VERSION` 3→4:
+   rewrite `metrics[].format_as` for the 8 ids. The v4 bump also re-runs
+   block 1, which is the F4 resolution (below).
+3. **Stored FigureBundles** (~17k) — figure-block sweep with force gate:
+   `resultsValue.formatAs → "indicator"` where `metricId` is in the list.
+   `inferFormatAs` in `_figure_block.ts` (legacy backfill) updates to the new
+   rule.
+4. **Valkey** — the uncommitted change already bumps `PO_CACHE_VERSION` 11→12
+   and `po_detail_v5→v6`; nothing deployed since, so those bumps cover this
+   design too. Verify no other cached payload carries a metric `formatAs`.
+5. **Client IndexedDB** — deploy purge covers prod; dev trap noted (F7's
+   `?? {}` is the guard).
 
-Cost: `resultsValueInfo` is Valkey-cached as `_METRIC_INFO_CACHE`, whose version
-hash is `PO_CACHE_VERSION` — so the remedy is a **`PO_CACHE_VERSION` bump**, not
-a cache-prefix bump. That constant exists for exactly this case ("a code change
-alters the MEANING of a cached results payload") and invalidates the stale
-entries once, where a prefix bump would orphan every key until TTL.
+## Server findings (unchanged by the redesign — fix as reviewed)
 
-**4.2 With the manifest data transform — the catalog moves into the manifest.**
-`run_manifest.ts`'s header states the doctrine: *"Precomputed, never probed:
-every fact the read path used to discover via per-request column probes is
-stamped here."*
-[getIndicatorMetadataFromRun](server/run_query/run_read.ts#L457) violates it —
-per request it reads 5–8 input-mirror JSONs, re-sorts them in TS to replicate
-the DB `ORDER BY`s, re-composes HFA labels, and re-derives format through
-`getHfaIndicatorMeasure`. Its own comment admits it "mirrors
-getIndicatorMetadata", a maintained pair.
+- **F4** — keep the version gate; blocks do NOT re-evaluate every boot.
+  Rewrite the block comment and PROTOCOL_APP_MIGRATIONS § "Run Manifest
+  Transforms": *a derivation fix requires a `RUN_MANIFEST_SCHEMA_VERSION`
+  bump*. Each block stamps the version it produces (stamp moves inside the
+  block), which makes the missing-block assertion live again instead of dead
+  code. The v3→v4 bump this plan needs is the worked example.
+- **F5** — `runDirInputRowsReader`: a listed input file that is missing or
+  unparseable must funnel into the `unreadable` outcome (package unavailable,
+  boot proceeds), not throw through to `Deno.exit(1)`. Throw only on genuine
+  code defects. Matches the protocol failure table; a half-restored package
+  must not down the instance.
+- **F9** (`rate_per_10k` display, unreachable today) — fix the two formatter
+  defects while in the area (legend decimals from the resolved tick list, not
+  domain endpoints; rate axis tick formatter); park the CF-editor unit
+  convention as an open item in SYSTEM_11.
 
-Stamping resolved `IndicatorMetadata[]` per module into the manifest at finalize
-deletes that function, its row schemas, and its sort duplication — and hands
-the format map to every reader as a side effect. It is also the read path's
-first step off the input mirrors (SYSTEM_08's "the read path parses the manifest
-only" target state), and the manifest transform's first real block: a pure
-recompute from `inputs/*.json`, so it satisfies the recompute-only invariant
-cleanly.
+## Doc corrections
 
-Two obligations that come with being the first block:
+- **F-DOC-1** — rewrite SYSTEM_10 § "Effective format" for the new design;
+  state the residual `"indicator"`-metric divergence precisely.
+- **F-DOC-2** — restore the SYSTEM_08 open item, correctly scoped:
+  `readInputRows` (`run_read.ts`) still tolerates a mirror absent from
+  `manifest.inputFiles` for the two HFA variant snapshots
+  (`getHfaTaxonomyFromManifestInputs`).
+- **F-DOC-3** — folded into F4.
+- Record the two audit answers the old plan noted as unrecorded: the §5
+  "pending refetch" judgment (resultsValueInfo does not refetch on filter
+  edit — confirm once, note in SYSTEM_10) and the fourth-layer
+  `bundle.indicatorMetadata` audit (derivation moved verbatim, no repair).
 
-- `RUN_MANIFEST_SCHEMA_VERSION` bumps 2 → 3, so the forced gate transforms every
-  existing package on the next boot.
-- The block cannot call `getIndicatorMetadataFromRun` as it stands — it resolves
-  paths by runId, not by the directory the transform is handed. It needs a
-  runDir-based variant first, which the finalize writer should then share so
-  writer and transform are one code path.
+## What survives from the uncommitted implementation
 
-Post-Phase-4 this is the end-state regardless: `getIndicatorMetadata` dies with
-the snapshot tables.
+Keep (verified by two independent reviewers): the manifest indicator catalog
+(`server/runs/indicator_catalog.ts`, faithful move), the manifest transform
+machinery, the editor conversion of all 8 stored-format reads, the Valkey
+coverage, the `resolve_effective_format.ts` file structure and its editor
+call site. The redesign REPLACES the resolution rule inside the resolver and
+the render twin; it deletes the inference machinery rather than adding to it.
 
-## 5. Editor threading
+## Deploy order
 
-`visualization_editor_inner.tsx` already holds `itemsHolder`; the resolver needs
-only config + `resultsValueInfo`, both of which the panel already receives. So
-the memo can live in `presentation_object_editor_panel.tsx` next to
-`effectivePOConfigResult()`, and flow into the style and data panels as one
-prop — replacing all 8 reads in §1.3.
+1. App: typecheck + rigs + deploy (accepts old AND new definitions; runs all
+   three transforms at boot).
+2. Modules repo: push the 8 flipped metrics (old app would reject
+   `"indicator"` — DEPLOY APP BEFORE PUSHING MODULES).
+3. Rollback note: manifests become v4; a rolled-back image reports packages
+   from a newer server (same recovery story as v3, `manifest.v3.json`
+   backups).
 
-- Resolve against `tempConfig` (the draft), not the saved config, so controls
-  react to the edit in progress.
-- Percent-only controls appearing and disappearing as filters change is correct
-  behavior; keep the last resolved value across a pending refetch rather than
-  falling back to the metric format, or they flicker.
-- CF editors switch from `NumberInput`(max 1) to `PercentSelect` for HFA percent
-  figures. **Display-only: the stored value is unchanged** (0.5 was typed as
-  0.5, now shows as 50%). No migration.
+## Verification bar
 
-## 6. Render authority — rides Phase 4
+Unchanged from the review — the old session's harnesses were shaped to pass;
+do not reuse them.
 
-Config-based and items-based derivation can disagree: an indicator that is
-possible-and-unfiltered but has no rows. Config sees it (→ number), items do not
-(→ percent).
+- Cases in BOTH directions: percent-declaring metric over number indicators
+  (m10-02 filtered to count questions → must stay percent) and
+  `"indicator"` metric over each unanimous/mixed shape.
+- Use the render-path oracle for render gates: `buildFigureInputs` output,
+  not the config-based value, for `forceYMax1` / pie mode / tick formatters.
+- Mechanically assert editor format === render format per shape for
+  `"indicator"` metrics (the residual divergence cases are the documented
+  exceptions — assert those too).
+- Exercise the real m10-01/m10-02 metrics against a real HFA package copied
+  to a scratch dir (`SANDBOX_DIR_PATH` override; never write to
+  `_example_instance_dir`).
+- All three transforms round-trip on copies: installed-metric JSON, a v2 AND
+  a v3 manifest → v4, a stored bundle for each of the 8 metrics.
+- `deno task typecheck`, `./validate_queries`, `./validate_migrations`.
 
-Make config-based authoritative **everywhere, render included**:
+## Open items for Tim
 
-- format is an authoring fact, not a data fact — an axis should not flip to raw
-  counts because this month's extract came back empty for one indicator
-- stable across data refreshes, so a saved slide cannot silently re-format
-- editor and render agree by construction
-
-Cost: a stored `FigureBundle` has no `resultsValueInfo`, so the resolved format
-must travel **on the bundle** → migration + forced skip-gate + cache prefix,
-across ~17k bundles.
-
-**Phase 4 already schedules exactly that migration** (figure provenance re-keys
-to runId, same three layers, same bundle count). Ride it and the bill is paid
-once. Until then, `buildFigureInputs` keeps deriving from items — the one
-knowingly-retained duplicate, with a pointer comment to this section.
-
-Rejected alternative: config-based for editor gates only, items-based at render.
-That re-creates §1.1 in a new place — the editor offering a toggle the renderer
-ignores, or hiding one it would have honoured.
-
-## 7. Build order
-
-1. `resolveEffectiveFormat` in `lib/`, 3-way, with the `filterBy` fix. Unit-verify
-   by executing (`deno run --allow-all -c deno.json`), including: filtered-to-one
-   percent indicator; mixed formats; `ALWAYS_OBEY` metric; all-`rate_per_10k`;
-   `too_many_values`.
-2. Panther legend decision → panther edit → `./sync` (staging discipline in §3).
-3. 3-way through the four style builders + legend builders.
-4. `indicatorFormats` on `resultsValueInfo` (both engines) + `PO_CACHE_VERSION`
-   bump.
-5. Editor threading; delete all 8 stored-format reads.
-6. `_figure_block.ts`'s `inferFormatAs` calls the lib resolver; `_5_scorecard.ts`
-   gets a pointer comment saying why it stays per-indicator.
-7. Manifest `indicators[]` catalog as the first transform block (schema version
-   2 → 3) + delete `getIndicatorMetadataFromRun`'s derivation. Follow
-   PROTOCOL_APP_MIGRATIONS' add-a-block checklist — it carries the cache bumps
-   and the stored-FigureBundle audit.
-8. Bundle field + render authority — with Phase 4.
-
-Steps 1–6 ship independently and fix the reported bug. Step 7 uses the manifest
-transform mechanism (already built). Step 8 wants Phase 4.
-
-## 8. Open items
-
-- **`too_many_values` / `error` on an unfiltered indicator dimension** — cannot
-  enumerate, so fall back to the metric format. The cap is 500 named values
-  (`MAX_REPLICANT_OPTIONS`, `server/server_only_funcs_presentation_objects/consts.ts`);
-  HFA indicator counts are well under it and the dimensions that do exceed it
-  (facilities) carry no indicator ids, so this should be theoretical. Confirm
-  against the largest real HFA package before relying on that.
-- **Divergence on possible-but-empty indicators** (§6) — the deliberate
-  behavior change is that the format stops depending on data presence. Worth one
-  live comparison on a real HFA project before step 8 makes it authoritative.
-- **Mixed-format figures below the scorecard** — a chart mixing percent and
-  count indicators resolves to the metric format and renders both on one axis.
-  Out of scope here; the scorecard is the only surface that formats per row
-  today. Noting it because §2's "all agree" rule is where a future fix would
-  hook in.
+1. Confirm m7-01-01/02/03 are `"indicator"` (their metric docs are
+   placeholder text; classified by analogy with m8).

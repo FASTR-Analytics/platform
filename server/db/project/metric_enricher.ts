@@ -105,7 +105,9 @@ export async function enrichMetric(
       : undefined,
     label: dbMetric.label,
     variantLabel: dbMetric.variant_label ?? undefined,
-    formatAs: dbMetric.format_as as "percent" | "number",
+    formatAs: z.enum(["percent", "number", "indicator"]).parse(
+      dbMetric.format_as,
+    ),
     disaggregationOptions,
     mostGranularTimePeriodColumnInResultsFile:
       inferMostGranularTimePeriodColumn(disaggregationOptions),

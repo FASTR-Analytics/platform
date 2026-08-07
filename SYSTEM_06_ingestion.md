@@ -81,7 +81,7 @@ history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run — trigger/user,
   `source` (`dhis2|csv`), selection JSON (DHIS2: window or explicit pairs) or
-  `csv_config` JSON (CSV: `{ uploadToken, fileName, mappings }`; the
+  `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
   source→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
   (DHIS2 only), throttled `progress` JSON (by-source union: in-flight pairs vs
@@ -95,8 +95,12 @@ history). Shape:
   with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`) are decrypted only inside the
   worker via `resolveDhis2Credentials`; CSV fires need no credentials.
 - **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the
-  wizard is client-local — the only pre-launch server artifact is a
-  token-keyed temp upload (S4's wizard-temp TUS mode; orphan-swept at boot).
+  wizard is client-local — its file input is an ordinary instance asset
+  (uploaded or picked, S4), named by `fileName` in the launch payload and
+  byte-pinned at launch validation (S4's `AssetFilePin` +
+  `resolveAssetFileOrThrow`; every deferred read re-checks the pin, so an
+  overwrite while a run queues or holds fails loudly). Inputs persist after
+  the run.
   The stage leg streams the CSV into **per-run staging tables**
   (`_run_{runId}` suffix), then gates: every validation drop counter zero AND
   >0 rows staged → auto-integrate unattended; dropped rows → `needs_review`
@@ -149,9 +153,9 @@ history). Shape:
 - Concurrency: the partial unique index is the whole story — CSV and DHIS2
   share the claim, so the old cross-table guard lattice is gone. Windowed
   deletes refuse while a run is `running`. db_startup sweeps stale `running`
-  rows to `error` after a restart (dropping a CSV run's staging tables and temp
-  upload). Run cancel terminates the worker; completed DHIS2 pairs stay, a CSV
-  run's single transaction rolls back whole.
+  rows to `error` after a restart (dropping a CSV run's staging tables). Run
+  cancel terminates the worker; completed DHIS2 pairs stay, a CSV run's
+  single transaction rolls back whole.
 
 ## HFA import runs
 
@@ -162,8 +166,8 @@ the shared mechanism; HFA differs only here:
 
 - **Smaller machine, by design**: no queue, no scheduler, no versions plane. A
   second launch while one runs is **refused explicitly**, not queued.
-- Row shape: `csv_config` JSON (`{ csvUploadToken, csvFileName,
-  xlsFormUploadToken, xlsFormFileName, mappings }` — two temp uploads),
+- Row shape: `csv_config` JSON (`{ csvFileName, csvFilePin, xlsFormFileName,
+  xlsFormFilePin, mappings }` — two pinned assets),
   `time_point` denormalized from the mappings as the outcome link (HFA
   outcomes live in the time-point plane, not a versions table), `diagnostics`
   (the staging result, written at the hold AND at complete; rides the polled
@@ -173,9 +177,10 @@ the shared mechanism; HFA differs only here:
   filtered-out rows never gate — both are resolved by user intent at wizard
   time. Nothing staged → loud `error`.
 - Launch re-validates statelessly (all relocated from the deleted step
-  functions): facilities exist, the time point exists, both uploads resolve, the
-  XLSForm has `survey`+`choices`, and the mappings clean up (trimmed time point,
-  non-blank filter values, no duplicate override facility).
+  functions): facilities exist, the time point exists, both assets resolve
+  (stamping the pins), the XLSForm has `survey`+`choices`, and the mappings
+  clean up (trimmed time point, non-blank filter values, no duplicate
+  override facility).
 
 ## ICEH import runs
 
@@ -187,8 +192,8 @@ shape (`import_iceh_data/` worker, `"iceh"` worker key); the singleton
   tables — the zip is parsed and validated **in memory** (ICEH is small). A
   second launch while one runs is refused explicitly. The run rows are ICEH's
   first-ever durable import history.
-- Row shape: `zip_config` JSON (`{ zipUploadToken, zipFileName }` — one temp
-  upload), `diagnostics` (the staging result, written at the hold AND at
+- Row shape: `zip_config` JSON (`{ zipFileName, zipFilePin }` — one pinned
+  asset), `diagnostics` (the staging result, written at the hold AND at
   complete; rides the polled list, no detail route), no outcome-link column
   (the outcome plane is the cumulative `iceh_indicators`/`iceh_data` store).
 - **Clean condition**: `nRowsSkippedUnknownStrat + nRowsSkippedInvalidYear +
@@ -198,10 +203,10 @@ shape (`import_iceh_data/` worker, `"iceh"` worker key); the singleton
   `nRowsSkippedMissingEstimate` never gates — "NA" estimates are a normal
   feature of Retriever exports. Zero valid rows → loud `error`.
 - **needs_review holds re-ingest**: staging is in-memory, so nothing survives
-  the hold except the RETAINED temp zip — "Integrate anyway" re-claims and
-  re-runs the full ingest from it with the gate skipped (`skipReviewGate` on
-  `zip_config`); deterministic, seconds at ICEH scale. Discard deletes the
-  zip.
+  the hold — "Integrate anyway" re-claims and re-runs the full ingest from
+  the zip asset with the gate skipped (`skipReviewGate` on `zip_config`);
+  deterministic, seconds at ICEH scale. The spawn re-checks the pin, so a
+  zip deleted or overwritten during the hold errors the run loudly.
 - Launch re-validates statelessly: zip parseable (preview parse) and the
   country-ISO match against instance config (the old step-2 check).
 - The completion flip lives inside the merge transaction (the Phase B
@@ -309,11 +314,18 @@ the client display cache and the results-run capture staleness hash).
 
 ## Client
 
-One imports surface per family, opened from sidebar buttons (no attempt cards
-anywhere): the runs query polls every 2 s while a run is active, needs_review
-runs render as Current cards with the staging diagnostics +
-Integrate-anyway/Discard, History rows click through to a run detail, and the
-wizard is a client-local modal (nothing persists before launch).
+One imports surface per family, opened from a single sidebar button (the
+surface's toolbar owns the actions — no shortcut buttons replaying toolbar
+clicks, no attempt cards anywhere): the runs query polls every 2 s while a run
+is active, needs_review runs render as Current cards with the staging
+diagnostics + Integrate-anyway/Discard, History rows click through to a run
+detail, and the wizard is a client-local modal (nothing persists before
+launch). Every wizard file slot is S4's `FileUploadSelector` — upload a new
+file or pick an existing instance asset; either way the wizard holds an asset
+`fileName`, which is what launch/parse payloads name. Selection re-parses via
+the slot's direct `onChange` callback (never an effect on the fileName
+signal: re-uploading the same name leaves the signal unchanged, and only the
+callback re-parses the new bytes).
 
 - **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History
   tabs (SSE summary fields as the wake-up signal); two wizards — DHIS2

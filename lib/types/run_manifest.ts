@@ -2,6 +2,7 @@ import { z } from "zod";
 import { instanceConfigFacilityColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
 import type { DatasetType } from "./datasets.ts";
+import type { IndicatorMetadata } from "./indicators.ts";
 
 // The run manifest (PLAN_RESULTS_RUNS §2.2) — written once by the finalize
 // step of a generation (wizard, or the backfill synthesizer), the ONLY thing
@@ -10,7 +11,12 @@ import type { DatasetType } from "./datasets.ts";
 // Identity is in the artifact: runId required, and no projectId or any other
 // instance FK inside run files (§9 layer rule).
 
-export const RUN_MANIFEST_SCHEMA_VERSION = 2;
+// 3: gained `indicators` — the per-module resolved indicator catalog, so the
+// read path stops re-deriving it from the input mirrors on every request.
+// 4: metrics[].format_as became the three-way declaration ("indicator" =
+// values carry the displayed indicator's own format) — the 8 pre-declaration
+// metric rows are rewritten in place (manifest_transform block 2).
+export const RUN_MANIFEST_SCHEMA_VERSION = 4;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -71,7 +77,7 @@ export const runMetricSchema = z.object({
   label: z.string(),
   variant_label: z.string().nullable(),
   value_func: z.string(),
-  format_as: z.string(),
+  format_as: z.enum(["percent", "number", "indicator"]),
   value_props: z.string(),
   required_disaggregation_options: z.string(),
   value_label_replacements: z.string().nullable(),
@@ -120,6 +126,34 @@ export const runFacilitiesTableSchema = z.object({
 });
 export type RunFacilitiesTable = z.infer<typeof runFacilitiesTableSchema>;
 
+// Resolved indicator metadata per module — labels, formats, thresholds and
+// sort order, composed at finalize from the input mirrors the module's dataset
+// family uses. Typed against IndicatorMetadata so the two cannot drift.
+//
+// This is the manifest's own doctrine applied to the last per-request
+// derivation on the read path: before this, every metric-info, items and
+// replicant-options request re-read 5–8 input JSONs, re-sorted them in TS to
+// replicate the old DB ORDER BYs, re-composed HFA labels and re-derived format
+// through getHfaIndicatorMeasure.
+export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
+    threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
+      .optional(),
+    threshold_green: z.number().optional(),
+    threshold_yellow: z.number().optional(),
+    group_label: z.string().optional(),
+    sort_order: z.number().optional(),
+  });
+
+export const runModuleIndicatorsSchema = z.object({
+  moduleId: z.string(),
+  indicators: z.array(runIndicatorMetadataSchema),
+});
+export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
+
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
@@ -146,6 +180,7 @@ export const runManifestSchema = z.object({
   metrics: z.array(runMetricSchema),
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
+  indicators: z.array(runModuleIndicatorsSchema),
 
   // Relative paths (from the run dir root) of every input file the run
   // carries — facilities parquet, dictionary/snapshot JSONs.

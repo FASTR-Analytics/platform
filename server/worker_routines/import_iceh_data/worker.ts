@@ -13,7 +13,6 @@
 
 import { createBulkImportConnection, createWorkerReadConnection } from "../../db/mod.ts";
 import type { IcehImportRunProgress, IcehStagingResult } from "lib";
-import { deleteImportTempUpload } from "../../import_temp_uploads.ts";
 import {
   PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
@@ -91,20 +90,13 @@ async function run(payload: ImportIcehDataWorkerPayload) {
 
     if (!config.skipReviewGate && !isCleanStaging(staged.stagingResult)) {
       // Unexplained skips → hold for review and RELEASE the single-running
-      // slot. The temp zip is RETAINED across the hold — it is what
-      // "Integrate anyway" re-ingests from.
-      const held = await mainDb`
+      // slot. The zip asset is what "Integrate anyway" re-ingests from.
+      await mainDb`
         UPDATE iceh_import_runs
         SET status = 'needs_review', progress = NULL,
           diagnostics = ${JSON.stringify(staged.stagingResult)}
         WHERE id = ${runId} AND status = 'running'
       `;
-      if (held.count === 0) {
-        // The run was cancelled under us (a cancel can land before this
-        // worker is registered, so nothing terminated it) — a cancelled run
-        // may keep nothing.
-        await deleteImportTempUpload(config.zipUploadToken);
-      }
       await importDb.end();
       await mainDb.end();
       self.postMessage("COMPLETED");
@@ -124,36 +116,21 @@ async function run(payload: ImportIcehDataWorkerPayload) {
       },
     });
 
-    await deleteImportTempUpload(config.zipUploadToken);
-
     await importDb.end();
     await mainDb.end();
     self.postMessage("COMPLETED");
   } catch (e) {
     console.error("ICEH import run failed:", e);
     const errorMessage = truncateWorkerError(e);
-    // The flip comes FIRST and gates the zip delete: a crash after the
-    // needs_review flip leaves the run held (this UPDATE matches nothing),
-    // and a held run's zip must survive — it is what "Integrate anyway"
-    // re-ingests from.
-    let flippedToError = false;
     try {
-      const flipped = await mainDb`
+      await mainDb`
         UPDATE iceh_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
           error = ${errorMessage}
         WHERE id = ${runId} AND status = 'running'
       `;
-      flippedToError = flipped.count > 0;
     } catch {
       // Ignore status update errors
-    }
-    if (flippedToError) {
-      try {
-        await deleteImportTempUpload(config.zipUploadToken);
-      } catch {
-        // Ignore cleanup errors
-      }
     }
     try {
       await importDb.end();

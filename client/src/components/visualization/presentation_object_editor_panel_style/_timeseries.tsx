@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -25,6 +26,9 @@ type Props = {
   showCoverageMode: boolean;
   showPercentChangeMode: boolean;
   showDisruptionsMode: boolean;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 type TimeseriesMode =
@@ -129,7 +133,7 @@ export function TimeseriesStyleControls(p: Props) {
         <Match when={mode() === "coverage"}>
           <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
-              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+              <Show when={p.effectiveFormatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
@@ -242,7 +246,7 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
           <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
-              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+              <Show when={p.effectiveFormatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
@@ -332,7 +336,7 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
           <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
             <>
-              <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+              <Show when={p.effectiveFormatAs === "percent"}>
                 <Checkbox
                   label={t3({
                     en: "Force y-axis max of 100%",
@@ -465,6 +469,7 @@ export function TimeseriesStyleControls(p: Props) {
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={p.editCustomSeriesStyles}
             isColorOverridden={() => false}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
       </Switch>

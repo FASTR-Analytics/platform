@@ -3,12 +3,10 @@ system: 4
 name: Assets & Upload
 globs:
   - client/src/components/_file_upload_selector.tsx
-  - client/src/components/_temp_file_upload.tsx
   - client/src/components/_uppy_file_upload.ts
   - client/src/components/instance/instance_assets.tsx
   - lib/types/assets.ts
   - server/db/instance/assets.ts
-  - server/import_temp_uploads.ts
   - server/routes/instance/assets.ts
   - server/routes/instance/upload.ts
 docs_absorbed:
@@ -22,9 +20,14 @@ shared by every feature that ingests a file. Written fresh from code 2026-07-17
 (first review cycle, review-only — no DOC_* absorbed).
 
 Boundaries: **serving** the stored bytes back out is S1's static middleware
-(`server/middleware/static.ts` — public unauthenticated carve-out for image
-extensions, everything else behind `requireGlobalPermission()`; downloads hit
-`GET /<fileName>` at root). What consumers **do** with an uploaded file is
+(`server/middleware/static.ts`, three extension-scoped tiers; downloads hit
+`GET /<fileName>` at root): image extensions are public unauthenticated
+(dashboard logos), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip` —
+import-wizard inputs live here, raw facility-level health data) require
+`can_view_data` OR `can_configure_data` (the assets page's own gate; admins
+pass), and everything else is behind bare `requireGlobalPermission()`. Asset
+*names* stay visible to all authenticated users (the SSE starting payload) —
+only the bytes are gated. What consumers **do** with an uploaded file is
 theirs: the dataset import wizards are S6; structure/geojson/HFA-weights/
 indicator batch uploads are S5; report images and embeds are S12; batch user
 upload is S15; module runs read `assetsToImport` (e.g. `population.csv`) out of
@@ -76,16 +79,25 @@ ownership is upserted into `asset_metadata`, the map entry is deleted, and
 `notifyInstanceAssetsUpdated` broadcasts the refreshed list (S3). The response
 carries `X-Upload-Complete` / `X-Upload-Filename`.
 
-**Wizard-temp mode** (PLAN_DHIS2_IMPORTER_CONSOLIDATION A3). A completion with
-TUS metadata `wizardTemp=true` + a client-generated UUID `uploadToken` lands at
-`<_ASSETS_DIR_PATH>/.import-uploads/<token>__<sanitizedFileName>` instead — NO
-asset row, no assets notify: it is transient import-wizard input keyed by the
-token (restart-safe, since the token lives in the filename). Helpers + the
-24 h boot orphan sweep (spares tokens referenced by active import-run rows)
-are `server/import_temp_uploads.ts`; the client side is
-`_temp_file_upload.tsx`, which sets the metadata per file and returns the
-token directly — no SSE wait. Import-run workers delete the file on
-complete/discard.
+**Import wizards are ordinary asset consumers**
+(PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode:
+every upload takes the asset path above, and the S6 wizards name their
+inputs by asset `fileName` (upload a new file or pick an existing one via
+`_file_upload_selector.tsx`). Import inputs persist after the run — nothing
+deletes them at finalize — and are managed on the assets page like any other
+asset.
+
+**Deferred-read integrity (`AssetFilePin` + `resolveAssetFileOrThrow`).** An
+asset name is a *mutable* reference, so a launched import run pins its input
+bytes: `resolveAssetFileOrThrow(fileName, expectedPin)` in
+`db/instance/assets.ts` resolves + stats and is the one home of the two
+canonical error messages ("no longer in assets" / "has changed since this run
+was launched"). Launch validations call it with `null` and store the returned
+pin (`{size, mtimeMs}`, `lib/types/assets.ts`) on the run config; every
+deferred read (spawn sites, including across queue waits and review holds)
+re-checks the stored pin, so an overwrite-after-launch fails loudly instead
+of silently ingesting unpreviewed bytes. Stateless wizard-step reads pass
+`null` — they always want current bytes.
 
 ## The asset store (`db/instance/assets.ts` + `routes/instance/assets.ts`)
 
@@ -142,11 +154,13 @@ ownership annotation, not a registry.
   and only on a new POST; temp files from crashed/restarted servers have no map
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
-- **Any user can overwrite any asset.** Completion `rename`s over an existing
-  same-named file and the ownership upsert transfers it to the new uploader — so
-  a non-admin who cannot _delete_ someone else's asset can still _replace_ it,
-  including files that feed module runs (`population.csv`). Decide: reject
-  same-name uploads by non-owners, or version the target name.
+- **Any user can overwrite any asset** — RULED accepted
+  (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion
+  `rename`s over an existing same-named file, last write wins, and the
+  ownership upsert transfers delete rights to the overwriter. Launched import
+  runs are protected by the byte pin; pre-launch, wizards re-parse on every
+  upload. Files that feed module runs (`population.csv`) remain the known
+  sharp corner.
 - **Zero-key guards throughout** — upload, list, and the delete route all use
   bare `requireGlobalPermission()` ("any authenticated user"); S1's rule is to
   be deliberate about that. A `can_configure_data`-style key may fit.

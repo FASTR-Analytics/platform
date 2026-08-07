@@ -25,6 +25,7 @@ import {
 } from "./po_config.ts";
 import {
   type FigureBlockMut,
+  rawJsonNeedsIndicatorFormatFlip,
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
@@ -58,7 +59,8 @@ export async function migrateReports(
       reportConfigSchema.safeParse(config).success &&
       reportFiguresSchema.safeParse(figures).success &&
       reportImagesSchema.safeParse(images).success &&
-      !rawJsonNeedsForcedTransform(row.figures)
+      !rawJsonNeedsForcedTransform(row.figures) &&
+      !rawJsonNeedsIndicatorFormatFlip(row.figures)
     ) {
       continue;
     }

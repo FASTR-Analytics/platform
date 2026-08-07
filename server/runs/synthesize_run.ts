@@ -36,6 +36,10 @@ import {
   _SERVER_VERSION,
 } from "../exposed_env_vars.ts";
 import { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
+import {
+  buildRunIndicatorCatalog,
+  runDirInputRowsReader,
+} from "./indicator_catalog.ts";
 import { exportPgTableToParquet } from "./pg_export.ts";
 import {
   runDirPath,
@@ -455,6 +459,14 @@ SELECT dataset_type, info, last_updated FROM datasets
     }));
   }
 
+  // Stamped here, at finalize, from the mirrors just written into tmpDir —
+  // the same function the manifest transform recomputes with, so a package
+  // built now and a package transformed forward carry an identical catalog.
+  const indicators = await buildRunIndicatorCatalog(
+    runModules,
+    runDirInputRowsReader(tmpDir, inputFiles),
+  );
+
   const manifest: RunManifest = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     runId,
@@ -473,6 +485,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     metrics: runMetrics,
     resultsObjects: runResultsObjects,
     metricAvailability,
+    indicators,
     inputFiles,
   };
   runManifestSchema.parse(manifest);

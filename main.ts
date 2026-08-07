@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
@@ -119,13 +119,21 @@ app.route("/", routesOAuthMetadata);
 // Serve SPA HTML for public dashboard routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  app.get("/d/:slug", (c) => c.html(indexHtml));
+  // These two shell serves are registered ahead of cacheMiddleware, so they
+  // never reach its no-cache branch for HTML — they set it themselves. Same
+  // reason as there: a heuristically cached shell pins the browser to the
+  // previous build's immutable bundles.
+  const serveShell = (c: Context) => {
+    c.header("Cache-Control", "no-cache, must-revalidate");
+    return c.html(indexHtml);
+  };
+  app.get("/d/:slug", serveShell);
   // The unlisted /access-tokens SPA route (PAT panel) needs the same
   // pre-auth HTML serve: there is NO general SPA fallback (unknown paths
   // 302 to "/"), and the Clerk middleware would 401 a logged-out
   // navigation. The page itself is the public SPA bundle; LoggedInWrapper
   // gates it client-side and every PAT route stays server-gated.
-  app.get("/access-tokens", (c) => c.html(indexHtml));
+  app.get("/access-tokens", serveShell);
 } catch {
   // In development, handled by Vite dev server
 }
@@ -146,6 +154,23 @@ app.onError((err: unknown, c) => {
     success: false,
     err: "Server error: " + (err instanceof Error ? err.message : ""),
   });
+});
+
+// Unmatched GETs 302 to "/" (the SPA fallback below), so only non-GET
+// requests reach this — in practice a client calling a route this server
+// build no longer has, i.e. a tab running pre-deploy JS. Return the
+// APIResponse envelope with the actual cause instead of Hono's bare
+// "404 Not Found", so the failure is diagnosable from the error modal.
+app.notFound((c) => {
+  return c.json(
+    {
+      success: false,
+      err:
+        `Unknown route: ${c.req.method} ${c.req.path}. ` +
+        "The app may have been updated since this page was loaded — reload the page and try again.",
+    },
+    404,
+  );
 });
 
 app.use(

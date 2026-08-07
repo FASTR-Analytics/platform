@@ -274,6 +274,14 @@ Prescriptive protocols for how this app is built (distinct from the
 `panther/protocols/` library protocols). Read the relevant one before working in
 that area.
 
+### Working method
+
+- [PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md) — the
+  verification loop, built MCP-first: the Clerk-OAuth end-to-end chain, the
+  rungs below it and which link each one skips (execute locally → local `/mcp`
+  → `./deploy_testing` → read-only DB), the JSON-RPC probe recipe, and the
+  standing checks for any MCP change
+
 ### Server / architecture
 
 - [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md) — registry-as-contract,

@@ -14,10 +14,7 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHfaDataCsvWorker } from "../../worker_routines/import_hfa_data_csv/instantiate_worker.ts";
 import { dropHfaStagingTables } from "../../worker_routines/import_hfa_data_csv/stage_csv.ts";
-import {
-  deleteImportTempUpload,
-  resolveImportTempUpload,
-} from "../../import_temp_uploads.ts";
+import { resolveAssetFileOrThrow } from "./assets.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import {
   clearWorker,
@@ -147,14 +144,12 @@ export async function validateHfaCsvRunConfig(
     );
   }
 
-  const csvUpload = await resolveImportTempUpload(input.csvUploadToken);
-  const xlsFormUpload = await resolveImportTempUpload(input.xlsFormUploadToken);
-  if (!csvUpload || !xlsFormUpload) {
-    throw new Error(
-      "The uploaded files are no longer available. Upload them again and relaunch.",
-    );
-  }
-  const sheetNames = getXlsxSheetNamesRaw(xlsFormUpload.filePath);
+  const csvFile = await resolveAssetFileOrThrow(input.csvFileName, null);
+  const xlsFormFile = await resolveAssetFileOrThrow(
+    input.xlsFormFileName,
+    null,
+  );
+  const sheetNames = getXlsxSheetNamesRaw(xlsFormFile.filePath);
   if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
     throw new Error(
       "The XLSForm file must contain both 'survey' and 'choices' sheets.",
@@ -171,10 +166,10 @@ export async function validateHfaCsvRunConfig(
     dedupOverrides: mappings.dedupOverrides,
   };
   return {
-    csvUploadToken: input.csvUploadToken,
-    csvFileName: csvUpload.fileName,
-    xlsFormUploadToken: input.xlsFormUploadToken,
-    xlsFormFileName: xlsFormUpload.fileName,
+    csvFileName: input.csvFileName,
+    csvFilePin: csvFile.pin,
+    xlsFormFileName: input.xlsFormFileName,
+    xlsFormFilePin: xlsFormFile.pin,
     mappings: cleanedMappings,
   };
 }
@@ -209,18 +204,30 @@ async function spawnHfaRunWorker(
   let csvFilePath = "";
   let xlsFormFilePath = "";
   if (!config.resumeFromStaging) {
-    const csvUpload = await resolveImportTempUpload(config.csvUploadToken);
-    const xlsFormUpload = await resolveImportTempUpload(
-      config.xlsFormUploadToken,
-    );
-    if (!csvUpload || !xlsFormUpload) {
-      await failClaim(
-        "The uploaded files are no longer available. Upload them again and relaunch.",
-      );
-      throw new Error("The uploaded files are no longer available.");
+    // A missing pin (a pre-pin row) fails like a changed file: any such run
+    // that still needs its files names bytes nobody validated.
+    if (!config.csvFilePin || !config.xlsFormFilePin) {
+      const message =
+        "The file has changed since this run was launched. Start the import again.";
+      await failClaim(message);
+      throw new Error(message);
     }
-    csvFilePath = csvUpload.filePath;
-    xlsFormFilePath = xlsFormUpload.filePath;
+    try {
+      const csvFile = await resolveAssetFileOrThrow(
+        config.csvFileName,
+        config.csvFilePin,
+      );
+      const xlsFormFile = await resolveAssetFileOrThrow(
+        config.xlsFormFileName,
+        config.xlsFormFilePin,
+      );
+      csvFilePath = csvFile.filePath;
+      xlsFormFilePath = xlsFormFile.filePath;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await failClaim(message);
+      throw e;
+    }
   }
 
   let stagingResult: DatasetHfaCsvStagingResult | undefined;
@@ -266,8 +273,6 @@ async function spawnHfaRunWorker(
         WHERE id = ${runId} AND status = 'running'
       `;
       await dropHfaStagingTables(mainDb, runId, { keepFinal: false });
-      await deleteImportTempUpload(config.csvUploadToken);
-      await deleteImportTempUpload(config.xlsFormUploadToken);
     } catch (dbError) {
       console.error("Failed to mark HFA run errored after crash:", dbError);
     }
@@ -324,8 +329,8 @@ export async function launchDatasetHfaCsvImportRun(
 }
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (refused if
-// another import is running — HFA has no queue); "Discard" cancels, drops the
-// surviving staging tables, and deletes the temp uploads.
+// another import is running — HFA has no queue); "Discard" cancels and drops
+// the surviving staging tables.
 export async function resolveDatasetHfaReview(
   mainDb: Sql,
   args: {
@@ -359,8 +364,6 @@ export async function resolveDatasetHfaReview(
         throw new Error("This run is not waiting for review.");
       }
       await dropHfaStagingTables(mainDb, args.runId, { keepFinal: false });
-      await deleteImportTempUpload(config.csvUploadToken);
-      await deleteImportTempUpload(config.xlsFormUploadToken);
       return { success: true };
     }
 
@@ -392,8 +395,8 @@ export async function cancelDatasetHfaImportRun(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<{ csv_config: string }[]>`
-        SELECT csv_config FROM hfa_import_runs WHERE id = ${runId}
+      await mainDb<{ id: number }[]>`
+        SELECT id FROM hfa_import_runs WHERE id = ${runId}
       `
     ).at(0);
     if (!row) {
@@ -419,9 +422,6 @@ export async function cancelDatasetHfaImportRun(
       clearWorker("hfa", worker);
     }
     await dropHfaStagingTables(mainDb, runId, { keepFinal: false });
-    const config = parseJsonOrThrow<HfaCsvRunConfig>(row.csv_config);
-    await deleteImportTempUpload(config.csvUploadToken);
-    await deleteImportTempUpload(config.xlsFormUploadToken);
     return { success: true };
   });
 }
@@ -431,20 +431,15 @@ export async function cancelDatasetHfaImportRun(
 export async function markStaleRunningDatasetHfaImportRuns(
   mainDb: Sql,
 ): Promise<number> {
-  const swept = await mainDb<{ id: number; csv_config: string }[]>`
+  const swept = await mainDb<{ id: number }[]>`
     UPDATE hfa_import_runs
     SET status = 'error', ended_at = now(), progress = NULL,
       error = 'Import run interrupted by a server restart. Nothing was integrated — start the import again.'
     WHERE status = 'running'
-    RETURNING id, csv_config
+    RETURNING id
   `;
   for (const row of swept) {
     await dropHfaStagingTables(mainDb, row.id, { keepFinal: false });
-    const config = parseJsonOrUndefined<HfaCsvRunConfig>(row.csv_config);
-    if (config) {
-      await deleteImportTempUpload(config.csvUploadToken);
-      await deleteImportTempUpload(config.xlsFormUploadToken);
-    }
   }
   return swept.length;
 }

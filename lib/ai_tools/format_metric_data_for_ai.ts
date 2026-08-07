@@ -6,6 +6,7 @@ import type {
   ItemsHolderPresentationObject,
   JsonArrayItem,
   MetricAIDescription,
+  MetricFormatAs,
   MetricWithStatus,
   PresentationObjectConfig,
 } from "../types/mod.ts";
@@ -148,7 +149,13 @@ function formatItemsAsMarkdown(
       metric.variantLabel ? ` [${metric.variantLabel}]` : ""
     }`,
   );
-  lines.push(`**Format:** ${metric.formatAs}`);
+  if (metric.formatAs === "indicator") {
+    lines.push(
+      "**Format:** varies by indicator — each value is in its own indicator's format (percent values are 0-1 fractions; per-indicator formats are listed in the Dimension Summary below)",
+    );
+  } else {
+    lines.push(`**Format:** ${metric.formatAs}`);
+  }
 
   if (metric.valueProps.length > 0) {
     lines.push("");
@@ -291,8 +298,18 @@ function formatItemsAsMarkdown(
         if (stats.uniqueCount <= 20) {
           const valuesWithLabels = stats.uniqueValues.map((val) => {
             const meta = metadataById.get(val);
+            // "indicator" metric: the value's format is a per-indicator fact
+            // the model needs to read the CSV honestly.
+            const format = metric.formatAs === "indicator"
+              ? meta?.format_as
+              : undefined;
             if (meta?.label && meta.label !== val) {
-              return `${val} (${meta.label})`;
+              return format
+                ? `${val} (${meta.label} — ${format})`
+                : `${val} (${meta.label})`;
+            }
+            if (format) {
+              return `${val} (${format})`;
             }
             if (col === "strat") {
               const stratInfo =
@@ -391,11 +408,13 @@ function pivotAndFormatAsCSV(
   items: JsonArrayItem[],
   columns: string[],
   disaggregations: DisaggregationOption[],
-  formatAs: "percent" | "number",
+  formatAs: MetricFormatAs,
 ): string {
   if (items.length === 0) return "";
 
-  const decimalPlaces = formatAs === "percent" ? 3 : 2;
+  // "indicator" gets percent's precision: its values can be 0-1 fractions,
+  // and 2 decimals would crush them.
+  const decimalPlaces = formatAs === "number" ? 2 : 3;
 
   // Identify value columns (everything not in disaggregations)
   const valueColumns = columns.filter(

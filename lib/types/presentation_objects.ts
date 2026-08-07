@@ -14,6 +14,7 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "./disaggregation_options.ts";
+import type { IndicatorFormat } from "./indicators.ts";
 import type { ResultsValue } from "./modules.ts";
 import {
   DEFAULT_S_CONFIG,
@@ -116,6 +117,16 @@ export type ResultsValueInfoForPresentationObject = {
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
   };
+  // Indicator id → its own value format, for every indicator the metric's
+  // module knows about. The input resolveEffectiveFormat needs, delivered
+  // pre-query so the editor can resolve a figure's format from its config
+  // alone.
+  //
+  // FLAT, not `format_as` added to the `{ id, label }` entries in
+  // disaggregationPossibleValues: those entries are absent whenever a
+  // dimension came back `too_many_values`, and a filterBy can still name
+  // specific indicators on such a dimension. A flat map has no such hole.
+  indicatorFormats: Record<string, IndicatorFormat>;
 };
 
 // Discriminated union for replicant option states
@@ -314,7 +325,7 @@ export function getValidValuesDisplayOptions(
 // degrades to a plain pie instead of drawing every count as a sliver of 1.
 export function isPieCompletionMode(
   config: PresentationObjectConfig,
-  effectiveFormatAs: "percent" | "number",
+  effectiveFormatAs: IndicatorFormat,
 ): boolean {
   return (
     config.d.type === "pie" &&

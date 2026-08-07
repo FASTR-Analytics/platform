@@ -22,6 +22,7 @@ import {
   getRollupLabelContext,
   getRollupPosition,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
+  type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
   PIE_COMPLETION_TOTAL,
@@ -480,7 +481,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
-  effectiveFormatAs: "percent" | "number",
+  effectiveFormatAs: IndicatorFormat,
   jsonArray?: any[],
 ): PieJsonDataConfig {
   if (config.d.type !== "pie") {

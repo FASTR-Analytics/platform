@@ -3,10 +3,6 @@ import { basename, join } from "@std/path";
 import { Hono } from "hono";
 import { createAssetMetadata, getAssetsForInstance } from "../../db/mod.ts";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
-import {
-  isValidUploadToken,
-  storeImportTempUpload,
-} from "../../import_temp_uploads.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceAssetsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -281,40 +277,6 @@ routesUpload.patch(
 
       // Check if upload is complete
       if (upload.offset >= upload.size) {
-        // Wizard-temp mode (PLAN_DHIS2_IMPORTER_CONSOLIDATION A3): the file
-        // lands token-keyed in .import-uploads with NO asset-metadata row and
-        // no assets notify — it is transient wizard input, not an instance
-        // asset. The client passes the token in the TUS metadata; the token
-        // in the filename is the durable key.
-        const wizardTempToken =
-          upload.metadata?.wizardTemp === "true"
-            ? (upload.metadata?.uploadToken ?? "")
-            : "";
-        if (wizardTempToken !== "") {
-          if (!isValidUploadToken(wizardTempToken)) {
-            uploads.delete(uploadId);
-            try {
-              await Deno.remove(filePath);
-            } catch {
-              // File might already be gone
-            }
-            c.status(400);
-            return c.text("Invalid upload token");
-          }
-          await storeImportTempUpload(
-            filePath,
-            wizardTempToken,
-            upload.filename,
-          );
-          uploads.delete(uploadId);
-          c.status(204);
-          c.header("Upload-Offset", upload.size.toString());
-          c.header("Tus-Resumable", "1.0.0");
-          c.header("X-Upload-Complete", "true");
-          c.header("X-Upload-Filename", upload.filename);
-          return c.body(null);
-        }
-
         // Move file to final location
         const finalPath = join(_ASSETS_DIR_PATH, upload.filename);
         await Deno.rename(filePath, finalPath);

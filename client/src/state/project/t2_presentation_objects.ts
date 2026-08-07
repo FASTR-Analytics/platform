@@ -41,6 +41,13 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
     responseRunIdMatches(data.runId, version),
+  // A transient possible-values failure arrives as a per-dimension `error`
+  // status inside a successful payload; freezing it would pin the effective-
+  // format resolver's "cannot enumerate" fallback until the next run.
+  shouldStore: (data) =>
+    !Object.values(data.disaggregationPossibleValues).some(
+      (s) => s.status === "error",
+    ),
 });
 
 export const _PO_DETAIL_CACHE = createReactiveCache<

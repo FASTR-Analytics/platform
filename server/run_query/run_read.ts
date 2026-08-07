@@ -4,13 +4,11 @@ import {
   composeHfaIndicatorLabel,
   disaggregationOption,
   getDatasetFamily,
-  getDatasetTypes,
   getDisaggregationAllowedPresentationOptions,
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
   getStartingModuleConfigSelections,
   getValidatedModuleId,
-  ICEH_STRAT_INFO,
   metricAIDescriptionInstalled,
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
@@ -63,7 +61,10 @@ import {
   getPossibleValuesCore,
 } from "../server_only_funcs_presentation_objects/get_possible_values.ts";
 import { getPresentationObjectItemsCore } from "../server_only_funcs_presentation_objects/get_presentation_object_items.ts";
-import { buildResultsValueInfo } from "../server_only_funcs_presentation_objects/get_results_value_info.ts";
+import {
+  buildResultsValueInfo,
+  indicatorFormatsFrom,
+} from "../server_only_funcs_presentation_objects/get_results_value_info.ts";
 import {
   detectNeededPeriodColumns,
   needsPeriodCTEFor,
@@ -298,17 +299,6 @@ const indicatorRow = z.object({
   indicator_common_id: z.string().nullable(),
   indicator_common_label: z.string().nullable(),
 });
-const calculatedIndicatorRow = z.object({
-  calculated_indicator_id: z.string(),
-  label: z.string(),
-  group_label: z.string(),
-  sort_order: z.number(),
-  format_as: z.enum(["percent", "number", "rate_per_10k"]),
-  threshold_direction: z.enum(["higher_is_better", "lower_is_better"]),
-  threshold_green: z.number(),
-  threshold_yellow: z.number(),
-});
-
 // The input-mirror readers need only identity + manifest, so the wizard can
 // call them on a run it just built (before any read context exists).
 export type RunInputSource = { runId: string; manifest: RunManifest };
@@ -452,139 +442,19 @@ function parseServiceCategoryIds(raw: unknown): string[] {
   return [];
 }
 
-// Mirrors getIndicatorMetadata (get_indicator_metadata.ts) over the run's
-// input files, including its per-branch ORDER BYs (re-sorted in TS).
-export async function getIndicatorMetadataFromRun(
-  ctx: RunInputSource,
+// A manifest lookup, not a derivation: the catalog is stamped at finalize by
+// buildRunIndicatorCatalog (server/runs/indicator_catalog.ts) and recomputed
+// forward by manifest transform block 1. Nothing here re-reads the input
+// mirrors — the manifest's "precomputed, never probed" doctrine.
+//
+// An empty array for an unknown module is the same answer the derivation gave
+// (it returned early on a module missing from the catalog).
+export function getIndicatorMetadataFromRun(
+  ctx: { manifest: RunManifest },
   moduleId: string,
-): Promise<IndicatorMetadata[]> {
-  const metadata: IndicatorMetadata[] = [];
-  const mod = findModule(ctx.manifest, moduleId);
-  if (!mod) return metadata;
-
-  const datasetTypes = getDatasetTypes(mod.moduleDefinition);
-  const isHfaModule = (() => {
-    try {
-      return JSON.parse(mod.moduleDefinition).scriptGenerationType === "hfa";
-    } catch {
-      return false;
-    }
-  })();
-  const isIcehModule = datasetTypes.includes("iceh");
-
-  if (isHfaModule) {
-    const hfaIndicators = (
-      await readInputRows(ctx, "hfa_indicators_snapshot.json", hfaIndicatorRow)
-    ).sort(
-      (a, b) =>
-        a.sort_order - b.sort_order || a.var_name.localeCompare(b.var_name),
-    );
-    for (const row of hfaIndicators) {
-      metadata.push({
-        id: row.var_name,
-        label: composeHfaIndicatorLabel(
-          { shortLabel: row.short_label, definition: row.definition },
-          "compact",
-        ),
-        format_as: getHfaIndicatorMeasure(
-          row.type as HfaIndicatorType,
-          row.aggregation as HfaIndicatorAggregation,
-        ).kind,
-        sort_order: row.sort_order,
-      });
-    }
-    for (const fileName of [
-      "hfa_indicator_categories_snapshot.json",
-      "hfa_indicator_sub_categories_snapshot.json",
-      "hfa_indicator_service_categories_snapshot.json",
-      // Labels the hfa_variant_item column's values (item ids). Absent from
-      // packages captured before the variant feature → readInputRows returns [].
-      "hfa_indicator_variant_items_snapshot.json",
-    ]) {
-      const rows = (await readInputRows(ctx, fileName, labeledRow)).sort(
-        (a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label),
-      );
-      for (const row of rows) {
-        metadata.push({
-          id: row.id,
-          label: row.label,
-          sort_order: row.sort_order,
-        });
-      }
-    }
-    return metadata;
-  }
-
-  if (isIcehModule) {
-    const icehIndicators = (
-      await readInputRows(ctx, "iceh_indicators_snapshot.json", icehIndicatorRow)
-    ).sort(
-      (a, b) =>
-        a.sort_order - b.sort_order ||
-        a.iceh_indicator.localeCompare(b.iceh_indicator),
-    );
-    for (const ind of icehIndicators) {
-      metadata.push({
-        id: ind.iceh_indicator,
-        label: ind.indicator_name,
-        format_as: "percent",
-        group_label: ind.category,
-        sort_order: ind.sort_order,
-      });
-    }
-    for (const [stratCode, info] of Object.entries(ICEH_STRAT_INFO)) {
-      metadata.push({
-        id: stratCode,
-        label: info.label,
-        sort_order: info.sortOrder,
-      });
-      if (info.levels) {
-        for (const [levelCode, levelLabel] of Object.entries(info.levels)) {
-          metadata.push({
-            id: levelCode,
-            label: levelLabel,
-          });
-        }
-      }
-    }
-    return metadata;
-  }
-
-  const rawIndicators = await readInputRows(ctx, "indicators.json", indicatorRow);
-  for (const ind of rawIndicators) {
-    if (ind.indicator_common_id && ind.indicator_common_label) {
-      metadata.push({
-        id: ind.indicator_common_id,
-        label: ind.indicator_common_label,
-      });
-    }
-  }
-
-  const snapshot = (
-    await readInputRows(
-      ctx,
-      "calculated_indicators_snapshot.json",
-      calculatedIndicatorRow,
-    )
-  ).sort(
-    (a, b) =>
-      a.sort_order - b.sort_order ||
-      a.calculated_indicator_id.localeCompare(b.calculated_indicator_id),
-  );
-  const metadataById = new Map(metadata.map((m) => [m.id, m]));
-  for (const ci of snapshot) {
-    metadataById.set(ci.calculated_indicator_id, {
-      id: ci.calculated_indicator_id,
-      label: ci.label,
-      format_as: ci.format_as,
-      threshold_direction: ci.threshold_direction,
-      threshold_green: ci.threshold_green,
-      threshold_yellow: ci.threshold_yellow,
-      group_label: ci.group_label,
-      sort_order: ci.sort_order,
-    });
-  }
-  return Array.from(metadataById.values());
+): IndicatorMetadata[] {
+  return ctx.manifest.indicators.find((e) => e.moduleId === moduleId)
+    ?.indicators ?? [];
 }
 
 // ── Metric resolution from the manifest ──────────────────────────────────────
@@ -625,7 +495,7 @@ export function enrichMetricFromManifest(
       : undefined,
     label: metric.label,
     variantLabel: metric.variant_label ?? undefined,
-    formatAs: metric.format_as as "percent" | "number",
+    formatAs: metric.format_as,
     disaggregationOptions,
     mostGranularTimePeriodColumnInResultsFile:
       inferMostGranularTimePeriodColumn(disaggregationOptions),
@@ -888,7 +758,8 @@ export async function getPresentationObjectItemsFromRun(
     {
       execute: executorFor(ctx, resultsObjectId),
       columnExists: columnExistsFor(ctx, resultsObjectId),
-      getIndicatorMetadata: () => getIndicatorMetadataFromRun(ctx, ro.moduleId),
+      getIndicatorMetadata: () =>
+        Promise.resolve(getIndicatorMetadataFromRun(ctx, ro.moduleId)),
     },
     projectId,
     resultsObjectId,
@@ -954,7 +825,7 @@ export async function getResultsValueInfoFromRun(
   const resultsObjectId = resultsValue.resultsObjectId;
   const ro = findResultsObject(ctx.manifest, resultsObjectId);
 
-  const indicatorMetadata = await getIndicatorMetadataFromRun(ctx, moduleId);
+  const indicatorMetadata = getIndicatorMetadataFromRun(ctx, moduleId);
   const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
   return await buildResultsValueInfo(
@@ -964,6 +835,7 @@ export async function getResultsValueInfoFromRun(
     versionInfoFor(ctx, moduleId),
     ro?.periodBounds ?? undefined,
     resultsValue.disaggregationOptions.map((d) => d.value),
+    indicatorFormatsFrom(indicatorMetadata),
     (disOpt) => getPossibleValuesFromRun(ctx, resultsObjectId, disOpt, labelMap, []),
   );
 }

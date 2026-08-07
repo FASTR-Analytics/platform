@@ -23,18 +23,18 @@ export const icehRouteRegistry = {
 
   // ICEH import runs (config-on-client, run-on-server —
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C). The wizard is client-local;
-  // the only pre-launch server artifact is the token-keyed temp zip upload.
+  // its zip input is an ordinary instance asset (uploaded or picked).
   // No queue and no scheduler: a second launch while one runs is refused.
   parseDatasetIcehZipPreview: route({
     method: "POST",
     path: "/iceh/runs/parse-zip",
-    body: z.object({ zipUploadToken: z.string() }),
+    body: z.object({ zipFileName: z.string() }),
     response: {} as IcehStep1Result,
   }),
   launchDatasetIcehRun: route({
     method: "POST",
     path: "/iceh/runs",
-    body: z.object({ zipUploadToken: z.string() }),
+    body: z.object({ zipFileName: z.string() }),
     response: {} as { runId: number },
   }),
   getDatasetIcehImportRuns: route({

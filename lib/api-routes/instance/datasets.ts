@@ -101,9 +101,10 @@ const dhis2ScheduleFieldsSchema = z.object({
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
-// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams).
+// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams). The file
+// is an instance asset named by fileName; the server stamps the byte pin at
+// launch validation (pins never travel in client bodies).
 const hmisCsvRunConfigSchema = z.object({
-  uploadToken: z.string(),
   fileName: z.string(),
   mappings: z.object({
     facility_id: z.string(),
@@ -132,11 +133,11 @@ const hfaCsvMappingParamsSchema = z.object({
   ),
 });
 
-// The HFA launch payload: two token-keyed temp uploads plus the wizard's
-// mappings. File names are re-derived server-side from the temp uploads.
+// The HFA launch payload: two instance assets named by fileName plus the
+// wizard's mappings. The server stamps the byte pins at launch validation.
 const hfaCsvRunConfigSchema = z.object({
-  csvUploadToken: z.string(),
-  xlsFormUploadToken: z.string(),
+  csvFileName: z.string(),
+  xlsFormFileName: z.string(),
   mappings: hfaCsvMappingParamsSchema,
 });
 
@@ -240,11 +241,12 @@ export const datasetRouteRegistry = {
 
   // CSV import runs (config-on-client, run-on-server —
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A). The wizard is client-local;
-  // the only pre-launch server artifact is the token-keyed temp upload.
+  // its file input is an ordinary instance asset (uploaded or picked), so
+  // nothing persists server-side before launch.
   parseDatasetHmisCsvHeaders: route({
     path: "/datasets/hmis/csv-runs/parse-headers",
     method: "POST",
-    body: z.object({ uploadToken: z.string() }),
+    body: z.object({ fileName: z.string() }),
     response: {} as { headers: string[] },
   }),
   launchDatasetHmisCsvRun: route({
@@ -289,14 +291,14 @@ export const datasetRouteRegistry = {
 
   // HFA import runs (config-on-client, run-on-server —
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B). The wizard is client-local;
-  // the only pre-launch server artifacts are the token-keyed temp uploads.
+  // its file inputs are ordinary instance assets (uploaded or picked).
   // No queue and no scheduler: a second launch while one runs is refused.
   parseDatasetHfaCsvHeaders: route({
     path: "/datasets/hfa/runs/parse-headers",
     method: "POST",
     body: z.object({
-      csvUploadToken: z.string(),
-      xlsFormUploadToken: z.string(),
+      csvFileName: z.string(),
+      xlsFormFileName: z.string(),
     }),
     response: {} as { headers: string[] },
   }),
@@ -304,7 +306,7 @@ export const datasetRouteRegistry = {
     path: "/datasets/hfa/runs/duplicate-preview",
     method: "POST",
     body: z.object({
-      csvUploadToken: z.string(),
+      csvFileName: z.string(),
       facilityIdColumn: z.string(),
       rowFilters: z.array(hfaRowFilterSchema),
     }),

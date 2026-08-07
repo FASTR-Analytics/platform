@@ -34,3 +34,13 @@ export const ALL_DISAGGREGATION_OPTIONS = [
 ] as const;
 
 export type DisaggregationOption = (typeof ALL_DISAGGREGATION_OPTIONS)[number];
+
+// The dimensions whose values are indicator ids — the ids IndicatorMetadata
+// keys on, and so the only ones that can carry a per-indicator `format_as`.
+// Every other dimension (areas, facility attributes, HFA categories, periods)
+// names something the format never varies by.
+export const INDICATOR_DISAGGREGATION_OPTIONS = [
+  "indicator_common_id",
+  "hfa_indicator",
+  "iceh_indicator",
+] as const satisfies readonly DisaggregationOption[];

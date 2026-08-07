@@ -291,7 +291,15 @@ Four invariants, in the order they matter:
    stamped: per results object the post-normalization columns + DuckDB types,
    `hasFacilityId`, physical time column, available disaggregation options, row
    count and period bounds; per metric an availability stamp
-   (`available | unavailable` + reason) that readers must not re-derive.
+   (`available | unavailable` + reason) that readers must not re-derive; and per
+   module the resolved **indicator catalog** (`indicators[]` — id, label,
+   format, thresholds, sort order), composed at finalize by
+   [indicator_catalog.ts](server/runs/indicator_catalog.ts) from the input
+   mirrors its dataset family uses. `getIndicatorMetadataFromRun` is a lookup
+   over that array, not a derivation — the read path no longer opens a mirror
+   to answer "what indicators does this module have?", and the tolerance for a
+   mirror absent from an older package now lives at transform time, where a
+   migration belongs, instead of in a per-request read.
 
 `manifest.json` also carries, and is the only record of: identity and provenance
 (`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
@@ -301,7 +309,7 @@ read from here rather than from the environment — `calendar`, `countryIso3`, a
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `2`
+**`manifestSchemaVersion` gates every read**, currently `3`
 (`RUN_MANIFEST_SCHEMA_VERSION`). Invariant 1's immutability covers package
 **outputs**; the manifest is a derived descriptor and **is transformed forward
 in place** (`server/runs/manifest_transform.ts`), because a schema change would
@@ -521,13 +529,6 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   their `console.error` prefix (converges under enforcement item 8).
 - **population.csv has no pre-upload validation** — headers/types are only
   checked by R at run time.
-- **A runtime tolerance branch still stands in for a transform.**
-  [run_read.ts:498-501](server/run_query/run_read.ts#L498-L501) tolerates a
-  mirror file absent from packages captured before the variant feature
-  (`readInputRows` returns `[]`), which PROTOCOL_APP_MIGRATIONS' "What NOT to
-  Do" forbids — no runtime adapters, no permissive fallbacks. It is deletable
-  once the indicator catalog moves into the manifest as a transform block
-  (PLAN_EFFECTIVE_FORMAT).
 - **HFA variants rollback hazard** (2026-08-04): `availableDisaggregation
   Options` is a strict `z.enum` in the manifest schema and manifests parse
   strictly, so once a package stamped with `hfa_variant_item` exists, rolling

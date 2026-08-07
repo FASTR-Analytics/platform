@@ -847,7 +847,7 @@ defineRoute(
 
       const newPromise = (async () => {
         // Fetch indicator metadata for label lookup
-        const indicatorMetadata = await getIndicatorMetadataFromRun(
+        const indicatorMetadata = getIndicatorMetadataFromRun(
           runCtx,
           moduleId,
         );

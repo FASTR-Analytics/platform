@@ -10,7 +10,7 @@ import {
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { TempFileUpload, type TempUpload } from "~/components/_temp_file_upload";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 
 export type IcehWizardResult = { launched: true };
 
@@ -19,24 +19,25 @@ type StepKind = "upload" | "review";
 const STEPS: StepKind[] = ["upload", "review"];
 
 // The ICEH import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION C7): a modal
-// with client-local state — nothing persists server-side before launch except
-// the token-keyed temp zip upload. Launch inserts a run row; abandoning this
-// wizard is a no-op by construction.
+// with client-local state — the zip input is an ordinary instance asset
+// (uploaded or picked), so nothing persists server-side before launch. Launch
+// inserts a run row; abandoning this wizard is a no-op by construction.
 export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
-  const [zipUpload, setZipUpload] = createSignal<TempUpload | undefined>(
-    undefined,
-  );
+  const [zipFileName, setZipFileName] = createSignal<string>("");
   const [preview, setPreview] = createSignal<IcehStep1Result | undefined>(
     undefined,
   );
   const [parseError, setParseError] = createSignal<string>("");
 
-  async function parseUploaded(next: TempUpload) {
-    setZipUpload(next);
+  // Direct callback, not an effect on the signal: re-uploading the same name
+  // leaves the signal value unchanged, and only the callback re-parses the
+  // new bytes.
+  async function onFileSelected(next: string) {
+    setZipFileName(next);
     setPreview(undefined);
     setParseError("");
     const res = await serverActions.parseDatasetIcehZipPreview({
-      zipUploadToken: next.token,
+      zipFileName: next,
     });
     if (res.success) {
       setPreview(res.data);
@@ -46,7 +47,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
   }
 
   const stepperData = createMemo(() => ({
-    uploadValid: zipUpload() !== undefined && preview() !== undefined,
+    uploadValid: zipFileName() !== "" && preview() !== undefined,
   }));
 
   const stepper = getStepper(stepperData, {
@@ -72,7 +73,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
 
   const submit = createFormAction(
     async () => {
-      const zip = zipUpload();
+      const zip = zipFileName();
       if (!zip) {
         return {
           success: false,
@@ -84,7 +85,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
         };
       }
       return await serverActions.launchDatasetIcehRun({
-        zipUploadToken: zip.token,
+        zipFileName: zip,
       });
     },
     async () => {
@@ -184,15 +185,17 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
                 pt: "Carregue um ficheiro zip transferido do Retriever ICEH (equidade.org/retriever). O zip deve conter results_csv.csv e indicators.xlsx.",
               })}
             </p>
-            <TempFileUpload
+            <FileUploadSelector
               buttonLabel={t3({
                 en: "Upload zip file",
                 fr: "Téléverser un fichier zip",
                 pt: "Carregar um ficheiro zip",
               })}
-              value={zipUpload()}
-              onUploaded={(next) => {
-                void parseUploaded(next);
+              selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+              filter={(a) => a.isZip}
+              value={zipFileName()}
+              onChange={(next) => {
+                void onFileSelected(next);
               }}
               allowedFileTypes={[".zip"]}
             />

@@ -1,4 +1,9 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import {
+  type IndicatorFormat,
+  PresentationObjectConfig,
+  PresentationObjectDetail,
+  t3,
+} from "lib";
 import {
   Button,
   Checkbox,
@@ -18,6 +23,9 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 const DOUGHNUT_INNER_RADIUS_RATIO = 0.55;
@@ -57,7 +65,7 @@ export function PieStyleControls(p: Props) {
             </StyleRevealGroup>
           </Show>
           <div class="pt-0.5"></div>
-          <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+          <Show when={p.effectiveFormatAs === "percent"}>
             <Checkbox
               checked={!!p.tempConfig.s.pieCompletionMode}
               onChange={(v) => p.setTempConfig("s", "pieCompletionMode", v)}

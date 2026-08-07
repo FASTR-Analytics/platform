@@ -57,7 +57,7 @@ const _im: Required<IndicatorMetadata> = {
 indicatorMetadataSchema.parse(_im);
 
 export const resultsValueForVisualizationSchema = z.strictObject({
-  formatAs: z.enum(["percent", "number"]),
+  formatAs: z.enum(["percent", "number", "indicator"]),
   valueProps: z.array(z.string()),
   valueLabelReplacements: z.record(z.string(), z.string()).optional(),
 });

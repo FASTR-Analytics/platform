@@ -1,3 +1,5 @@
+import type { AssetFilePin } from "./assets.ts";
+
 // ============================================================================
 // ICEH Import Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C)
 // ============================================================================
@@ -32,14 +34,15 @@ export type IcehStagingResult = {
   years: number[];
 };
 
-// The launch payload stored in iceh_import_runs.zip_config. One token-keyed
-// temp upload (the Retriever zip). skipReviewGate marks a needs_review run
+// The launch payload stored in iceh_import_runs.zip_config. One instance
+// asset (the Retriever zip) named by fileName and byte-pinned at launch
+// validation (see AssetFilePin). skipReviewGate marks a needs_review run
 // resolved with "Integrate anyway": staging is in-memory, so the worker
-// re-runs the full ingest from the retained zip with the gate skipped —
+// re-runs the full ingest from the zip with the gate skipped —
 // deterministic, and seconds at ICEH scale.
 export type IcehRunConfig = {
-  zipUploadToken: string;
   zipFileName: string;
+  zipFilePin: AssetFilePin;
   skipReviewGate?: boolean;
 };
 

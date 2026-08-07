@@ -1,3 +1,5 @@
+import type { AssetFilePin } from "./assets.ts";
+
 // ============================================================================
 // Wizard config types
 // ============================================================================
@@ -31,24 +33,25 @@ export type HfaDuplicatePreview = {
   nRowsFilteredOut: number;
 };
 
-// What the wizard sends at launch. The file names are NOT part of it — they
-// are re-derived server-side from the temp uploads, which are the authority.
+// What the wizard sends at launch: the two input assets' fileNames plus the
+// mappings. The server validates the assets exist and stamps the pins.
 export type HfaCsvRunLaunchInput = {
-  csvUploadToken: string;
-  xlsFormUploadToken: string;
+  csvFileName: string;
+  xlsFormFileName: string;
   mappings: HfaCsvMappingParams;
 };
 
-// The launch payload stored in hfa_import_runs.csv_config. Two token-keyed
-// temp uploads (the data CSV and the XLSForm questionnaire) plus the wizard's
+// The launch payload stored in hfa_import_runs.csv_config. Two instance
+// assets (the data CSV and the XLSForm questionnaire) named by fileName and
+// byte-pinned at launch validation (see AssetFilePin), plus the wizard's
 // mappings. resumeFromStaging marks a needs_review run resolved with
 // "Integrate anyway": the worker skips the stage leg and integrates the
 // surviving per-run staging tables.
 export type HfaCsvRunConfig = {
-  csvUploadToken: string;
   csvFileName: string;
-  xlsFormUploadToken: string;
+  csvFilePin: AssetFilePin;
   xlsFormFileName: string;
+  xlsFormFilePin: AssetFilePin;
   mappings: HfaCsvMappingParams;
   resumeFromStaging?: boolean;
 };

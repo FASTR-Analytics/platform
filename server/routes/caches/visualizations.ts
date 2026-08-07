@@ -50,7 +50,18 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // code-point/numeric comparator in get_possible_values.ts — cached option
 // lists hold the old ICU order where the two disagree (leading
 // space/punctuation, accented values).
-const PO_CACHE_VERSION = "11";
+// "12": two changes shipping together. resultsValueInfo gained
+// `indicatorFormats` (indicator id → its own value format), the pre-query
+// input resolveEffectiveFormat needs — the payload SHAPE changed for
+// unmodified rows, which version hashes don't track, and a metric_info entry
+// cached under "11" has no such field. And manifest schema v3 stamped the
+// indicator catalog, making the manifest a code dimension these three caches
+// key on.
+// "13": the declared-format design (PLAN_EFFECTIVE_FORMAT). Manifest schema
+// v4 rewrites metrics[].format_as in place under the SAME runId, and "12"
+// entries (briefly live on testing deploys) hold payloads computed under the
+// deleted inference design.
+const PO_CACHE_VERSION = "13";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -79,8 +90,13 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
   // the merge takes v4: both of those at once. v5: the post-merge semantic
   // batch populated datasetFamily on the RUN path after v4 was minted —
-  // v4 entries from that window lack the field.
->("po_detail_v5", {
+  // v4 entries from that window lack the field. v6: manifest schema v3 — this
+  // cache carries no code dimension, and a transform rewrites a manifest in
+  // place under the SAME runId, so the prefix is the only thing that can
+  // retire entries sourced from the pre-transform manifest. v7: manifest
+  // schema v4 (declared format) — payloads embed resultsValue.formatAs, which
+  // the v4 rewrite flips for the 8 pre-declaration metrics.
+>("po_detail_v7", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>
@@ -149,7 +165,16 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     [params.runId, params.metricId].join("::"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    // A transient possible-values failure is folded into a SUCCESSFUL payload
+    // as a per-dimension `error` status; freezing it would pin the resolver's
+    // "cannot enumerate" fallback until the next run. Serve it, never store it.
+    if (
+      res.success === false ||
+      res.data.runId === undefined ||
+      Object.values(res.data.disaggregationPossibleValues).some(
+        (s) => s.status === "error",
+      )
+    ) {
       return {
         shouldStore: false,
         uniquenessHash: "",

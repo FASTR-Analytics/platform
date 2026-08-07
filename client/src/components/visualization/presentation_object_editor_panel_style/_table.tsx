@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
   selectCf,
@@ -18,6 +19,9 @@ type Props = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   showScorecardMode: boolean;
   showNValuesToggle: boolean;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 type TableMode = "standard" | "scorecard";
@@ -116,7 +120,7 @@ export function TableStyleControls(p: Props) {
           <ConditionalFormattingEditor
             value={selectCf(p.tempConfig.s)}
             onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-            formatAs={p.poDetail.resultsValue.formatAs}
+            formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
             allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
           />

@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
   selectCf,
@@ -16,6 +17,9 @@ type Props = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function MapStyleControls(p: Props) {
@@ -70,7 +74,7 @@ export function MapStyleControls(p: Props) {
         <ConditionalFormattingEditor
           value={selectCf(p.tempConfig.s)}
           onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-          formatAs={p.poDetail.resultsValue.formatAs}
+          formatAs={p.effectiveFormatAs}
           decimalPlaces={p.tempConfig.s.decimalPlaces}
           allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
         />

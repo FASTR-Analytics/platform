@@ -43,7 +43,7 @@ export type ResultsValue = {
   valueLabelReplacements?: Record<string, string>;
   label: string;
   variantLabel?: string;
-  formatAs: "percent" | "number";
+  formatAs: MetricFormatAs;
   disaggregationOptions: {
     value: DisaggregationOption;
     isRequired: boolean;
@@ -54,8 +54,15 @@ export type ResultsValue = {
   importantNotes?: string;
 };
 
+// The metric's declared format source. "percent"/"number": the values are the
+// metric's own quantity and the format is a constant. "indicator": the values
+// ARE the displayed indicator's own quantity, so format is a per-value fact
+// carried by the indicator catalog (IndicatorMetadata.format_as) — see
+// lib/resolve_effective_format.ts.
+export type MetricFormatAs = "percent" | "number" | "indicator";
+
 export type ResultsValueForVisualization = {
-  formatAs: "percent" | "number";
+  formatAs: MetricFormatAs;
   valueProps: string[];
   valueLabelReplacements?: Record<string, string>;
 };

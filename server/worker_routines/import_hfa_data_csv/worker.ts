@@ -15,7 +15,6 @@ import {
   createWorkerReadConnection,
 } from "../../db/mod.ts";
 import type { DatasetHfaCsvStagingResult, HfaImportRunProgress } from "lib";
-import { deleteImportTempUpload } from "../../import_temp_uploads.ts";
 import {
   PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
@@ -73,11 +72,6 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
     },
   );
 
-  const deleteTempUploads = async () => {
-    await deleteImportTempUpload(config.csvUploadToken);
-    await deleteImportTempUpload(config.xlsFormUploadToken);
-  };
-
   try {
     let stagingResult: DatasetHfaCsvStagingResult;
 
@@ -115,8 +109,7 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
 
       if (!isCleanStaging(stagingResult)) {
         // Dropped facility rows → hold for review and RELEASE the
-        // single-running slot. The per-run staging tables survive the hold;
-        // the temp uploads are retained until the run resolves.
+        // single-running slot. The per-run staging tables survive the hold.
         const held = await mainDb`
           UPDATE hfa_import_runs
           SET status = 'needs_review', progress = NULL,
@@ -128,7 +121,6 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
           // worker is registered, so nothing terminated it) — a cancelled
           // run may keep nothing.
           await dropHfaStagingTables(importDb, runId, { keepFinal: false });
-          await deleteTempUploads();
         }
         await importDb.end();
         await mainDb.end();
@@ -151,8 +143,6 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
       },
     });
 
-    await deleteTempUploads();
-
     await importDb.end();
     await mainDb.end();
     self.postMessage("COMPLETED");
@@ -161,11 +151,6 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
     const errorMessage = truncateWorkerError(e);
     try {
       await dropHfaStagingTables(importDb, runId, { keepFinal: false });
-    } catch {
-      // Ignore cleanup errors
-    }
-    try {
-      await deleteTempUploads();
     } catch {
       // Ignore cleanup errors
     }

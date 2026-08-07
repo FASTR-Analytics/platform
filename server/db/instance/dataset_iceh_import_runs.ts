@@ -13,10 +13,7 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportIcehDataWorker } from "../../worker_routines/import_iceh_data/instantiate_worker.ts";
 import { parseIcehZipPreview } from "../../worker_routines/import_iceh_data/ingest.ts";
-import {
-  deleteImportTempUpload,
-  resolveImportTempUpload,
-} from "../../import_temp_uploads.ts";
+import { resolveAssetFileOrThrow } from "./assets.ts";
 import {
   clearWorker,
   getWorker,
@@ -94,18 +91,10 @@ async function assertIcehImportSlotFree(mainDb: Sql): Promise<void> {
 // the config that gets stored on the run row plus the preview facts.
 export async function validateIcehRunLaunch(
   mainDb: Sql,
-  zipUploadToken: string,
+  zipFileName: string,
 ): Promise<{ config: IcehRunConfig; preview: IcehStep1Result }> {
-  const zipUpload = await resolveImportTempUpload(zipUploadToken);
-  if (!zipUpload) {
-    throw new Error(
-      "The uploaded file is no longer available. Upload it again and relaunch.",
-    );
-  }
-  const preview = await parseIcehZipPreview(
-    zipUpload.filePath,
-    zipUpload.fileName,
-  );
+  const { filePath, pin } = await resolveAssetFileOrThrow(zipFileName, null);
+  const preview = await parseIcehZipPreview(filePath, zipFileName);
 
   if (_INSTANCE_COUNTRY_ISO3 !== preview.countryIso) {
     throw new Error(
@@ -114,7 +103,7 @@ export async function validateIcehRunLaunch(
   }
 
   return {
-    config: { zipUploadToken, zipFileName: zipUpload.fileName },
+    config: { zipFileName, zipFilePin: pin },
     preview,
   };
 }
@@ -147,12 +136,25 @@ async function spawnIcehRunWorker(
     `;
   };
 
-  const zipUpload = await resolveImportTempUpload(config.zipUploadToken);
-  if (!zipUpload) {
-    await failClaim(
-      "The uploaded file is no longer available. Upload it again and relaunch.",
+  // A missing pin (a pre-pin row) fails like a changed file: any such run
+  // that still needs its file names bytes nobody validated.
+  if (!config.zipFilePin) {
+    const message =
+      "The file has changed since this run was launched. Start the import again.";
+    await failClaim(message);
+    throw new Error(message);
+  }
+  let zipFilePath: string;
+  try {
+    const zipFile = await resolveAssetFileOrThrow(
+      config.zipFileName,
+      config.zipFilePin,
     );
-    throw new Error("The uploaded file is no longer available.");
+    zipFilePath = zipFile.filePath;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await failClaim(message);
+    throw e;
   }
 
   let worker: Worker;
@@ -160,7 +162,7 @@ async function spawnIcehRunWorker(
     worker = instantiateImportIcehDataWorker({
       runId,
       config,
-      zipFilePath: zipUpload.filePath,
+      zipFilePath,
     });
     setWorker("iceh", worker);
   } catch (spawnError) {
@@ -176,18 +178,12 @@ async function spawnIcehRunWorker(
     clearWorker("iceh", worker);
     worker.terminate();
     try {
-      // The flip gates the zip delete: a crash after the needs_review flip
-      // matches nothing here, and a held run's zip must survive — it is
-      // what "Integrate anyway" re-ingests from.
-      const flipped = await mainDb`
+      await mainDb`
         UPDATE iceh_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
           error = ${`Worker crashed: ${e.message || "Unknown error"}`}
         WHERE id = ${runId} AND status = 'running'
       `;
-      if (flipped.count > 0) {
-        await deleteImportTempUpload(config.zipUploadToken);
-      }
     } catch (dbError) {
       console.error("Failed to mark ICEH run errored after crash:", dbError);
     }
@@ -214,13 +210,13 @@ async function spawnIcehRunWorker(
 export async function launchDatasetIcehImportRun(
   mainDb: Sql,
   args: {
-    zipUploadToken: string;
+    zipFileName: string;
     triggeredBy: string;
     onComplete?: () => void;
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { config } = await validateIcehRunLaunch(mainDb, args.zipUploadToken);
+    const { config } = await validateIcehRunLaunch(mainDb, args.zipFileName);
 
     // Read-guard for a friendly error; the atomic claim is the INSERT below
     // (partial unique index: at most one status='running' row).
@@ -278,7 +274,6 @@ export async function resolveDatasetIcehReview(
       if (updated.count === 0) {
         throw new Error("This run is not waiting for review.");
       }
-      await deleteImportTempUpload(config.zipUploadToken);
       return { success: true };
     }
 
@@ -310,8 +305,8 @@ export async function cancelDatasetIcehImportRun(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await mainDb<{ zip_config: string }[]>`
-        SELECT zip_config FROM iceh_import_runs WHERE id = ${runId}
+      await mainDb<{ id: number }[]>`
+        SELECT id FROM iceh_import_runs WHERE id = ${runId}
       `
     ).at(0);
     if (!row) {
@@ -336,8 +331,6 @@ export async function cancelDatasetIcehImportRun(
       worker.terminate();
       clearWorker("iceh", worker);
     }
-    const config = parseJsonOrThrow<IcehRunConfig>(row.zip_config);
-    await deleteImportTempUpload(config.zipUploadToken);
     return { success: true };
   });
 }
@@ -350,18 +343,12 @@ export async function cancelDatasetIcehImportRun(
 export async function markStaleRunningDatasetIcehImportRuns(
   mainDb: Sql,
 ): Promise<number> {
-  const swept = await mainDb<{ id: number; zip_config: string }[]>`
+  const swept = await mainDb<{ id: number }[]>`
     UPDATE iceh_import_runs
     SET status = 'error', ended_at = now(), progress = NULL,
       error = 'Import run interrupted by a server restart. Nothing was integrated — start the import again.'
     WHERE status = 'running'
-    RETURNING id, zip_config
+    RETURNING id
   `;
-  for (const row of swept) {
-    const config = parseJsonOrUndefined<IcehRunConfig>(row.zip_config);
-    if (config) {
-      await deleteImportTempUpload(config.zipUploadToken);
-    }
-  }
   return swept.length;
 }

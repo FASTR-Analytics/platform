@@ -1,0 +1,207 @@
+#!/bin/bash
+
+# Probe an instance's /mcp endpoint over raw JSON-RPC — no connector, no client,
+# no session restart. This is the in-session instrument for MCP work: a
+# connector added with `claude mcp add` is not callable until the NEXT session,
+# so an agent verifying an MCP change uses this instead.
+#
+# See PROTOCOL_APP_DEVELOPMENT.md for where this sits in the verification loop
+# (rungs 1a and 2a — it proves the tool surface, never the OAuth chain).
+#
+# Usage:
+#   ./mcp_probe <origin> --list                 list tools (name + summary)
+#   ./mcp_probe <origin> --schema <tool>        that tool's full input schema
+#   ./mcp_probe <origin> <tool> [json-args]     call a tool
+#   ./mcp_probe <origin> --discovery            OAuth discovery + 401 challenge
+#
+#   origin      local | testing-tim | any http(s) origin
+#   json-args   JSON object of arguments (default {})
+#
+# Auth: set FASTR_PAT to send `Authorization: Bearer $FASTR_PAT`.
+#       Local dev booted with BYPASS_AUTH needs no credential.
+#       Mint one with: deno task mint-pat you@example.com claude
+#
+# Examples:
+#   ./mcp_probe local --list
+#   ./mcp_probe local get_projects
+#   ./mcp_probe local get_orientation '{"projectId":"39b790d8-…"}'
+#   FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim get_projects
+#   ./mcp_probe testing-tim --discovery
+
+set -e
+
+PROTOCOL_VERSION="2025-06-18"
+
+usage() {
+    sed -n '3,28p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+}
+
+[ $# -lt 2 ] && usage
+
+case "$1" in
+    local) ORIGIN="http://localhost:8000" ;;
+    testing-tim) ORIGIN="https://testing-tim.fastr-analytics.org" ;;
+    http://*|https://*) ORIGIN="${1%/}" ;;
+    *) echo "ERROR: unrecognized origin '$1' (use local, testing-tim, or an http(s) URL)"; exit 1 ;;
+esac
+TOOL="$2"
+ARGS="$3"
+[ -z "$ARGS" ] && ARGS='{}'
+
+command -v jq >/dev/null 2>&1 || { echo "ERROR: jq not found"; exit 1; }
+
+AUTH=()
+if [ -n "$FASTR_PAT" ]; then
+    AUTH=(-H "Authorization: Bearer $FASTR_PAT")
+fi
+
+########################################################################
+# --discovery: the OAuth chain's curl-able links. No credential needed.
+########################################################################
+
+if [ "$TOOL" = "--discovery" ]; then
+    echo "== $ORIGIN/.well-known/oauth-protected-resource/mcp"
+    curl -sf -m 15 "$ORIGIN/.well-known/oauth-protected-resource/mcp" | jq . \
+        || echo "  (failed — an OAuth client cannot start the flow without this)"
+    echo
+    echo "== $ORIGIN/.well-known/oauth-authorization-server"
+    AS=$(curl -sf -m 15 "$ORIGIN/.well-known/oauth-authorization-server" || true)
+    if [ -z "$AS" ]; then
+        echo "  (empty — the Clerk instance is most likely unreachable)"
+    else
+        echo "$AS" | jq '{issuer, registration_endpoint, authorization_endpoint}'
+        if [ "$(echo "$AS" | jq -r '.registration_endpoint // empty')" = "" ]; then
+            echo "  WARNING: no registration_endpoint — dynamic client registration is OFF."
+            echo "  Claude cannot register itself, so 'Connect' will spin and fail."
+        fi
+    fi
+    echo
+    echo "== unauthenticated POST $ORIGIN/mcp (expect 401 + WWW-Authenticate)"
+    CHALLENGE=$(curl -s -i -m 15 -X POST "$ORIGIN/mcp" \
+        -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"'"$PROTOCOL_VERSION"'","capabilities":{},"clientInfo":{"name":"mcp_probe","version":"1"}}}')
+    echo "$CHALLENGE" | grep -iE '^HTTP/|^www-authenticate:' || true
+    if ! echo "$CHALLENGE" | head -1 | grep -q ' 401'; then
+        echo "  NOTE: not a 401 — this endpoint accepted an unauthenticated call."
+        echo "  Expected on local dev with BYPASS_AUTH; a real finding anywhere else."
+    fi
+    exit 0
+fi
+
+########################################################################
+# initialize — capture the session id
+########################################################################
+
+HDRS=$(mktemp)
+cleanup_tmp() { rm -f "$HDRS"; }
+trap cleanup_tmp EXIT
+
+RESP=$(curl -s -m 30 -D "$HDRS" -w '\n%{http_code}' -X POST "$ORIGIN/mcp" "${AUTH[@]}" \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"'"$PROTOCOL_VERSION"'","capabilities":{},"clientInfo":{"name":"mcp_probe","version":"1"}}}')
+
+CODE=$(echo "$RESP" | tail -1)
+if [ "$CODE" != "200" ]; then
+    echo "ERROR: initialize returned HTTP $CODE"
+    echo "$RESP" | sed '$d' | head -5
+    case "$CODE" in
+        401) echo ""
+             echo "Set FASTR_PAT, or boot local dev with BYPASS_AUTH."
+             echo "Run './mcp_probe $1 --discovery' to check the OAuth chain." ;;
+        503) echo ""
+             echo "The instance could not JUDGE the credential (DB for a PAT, Clerk for OAuth)."
+             echo "Server-side — retry shortly; the credential is probably fine." ;;
+    esac
+    exit 1
+fi
+
+SID=$(grep -i '^mcp-session-id:' "$HDRS" | tr -d '\r' | awk '{print $2}')
+if [ -z "$SID" ]; then
+    echo "ERROR: no Mcp-Session-Id header on the initialize response."
+    exit 1
+fi
+
+call() {
+    curl -s -m 120 -X POST "$ORIGIN/mcp" "${AUTH[@]}" \
+        -H 'Content-Type: application/json' \
+        -H 'Accept: application/json, text/event-stream' \
+        -H "Mcp-Session-Id: $SID" \
+        -H "Mcp-Protocol-Version: $PROTOCOL_VERSION" \
+        -d "$1" | sed -n 's/^data: //p'
+}
+
+end_session() {
+    curl -s -m 10 -X DELETE "$ORIGIN/mcp" "${AUTH[@]}" \
+        -H "Mcp-Session-Id: $SID" \
+        -H "Mcp-Protocol-Version: $PROTOCOL_VERSION" >/dev/null 2>&1 || true
+    cleanup_tmp
+}
+trap end_session EXIT
+
+call '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null
+
+########################################################################
+# --list / tools/call
+########################################################################
+
+if [ "$TOOL" = "--schema" ]; then
+    OUT=$(call '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')
+    WANTED="$ARGS"
+    if [ "$WANTED" = "{}" ]; then
+        echo "ERROR: --schema needs a tool name: ./mcp_probe $1 --schema get_metric_data"
+        exit 1
+    fi
+    FOUND=$(echo "$OUT" | jq --arg n "$WANTED" '.result.tools[] | select(.name==$n)')
+    if [ -z "$FOUND" ]; then
+        echo "ERROR: no tool named '$WANTED' — see './mcp_probe $1 --list'"
+        exit 1
+    fi
+    echo "$FOUND" | jq '{name, description, inputSchema}'
+    exit 0
+fi
+
+if [ "$TOOL" = "--list" ]; then
+    OUT=$(call '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')
+    if echo "$OUT" | jq -e 'has("error")' >/dev/null 2>&1; then
+        echo "JSON-RPC ERROR: $(echo "$OUT" | jq -r '.error.message')"
+        exit 1
+    fi
+    echo "$OUT" | jq -r '.result.tools[] | "\(.name)\t\(.description // "" | split(". ")[0])"' \
+        | column -t -s $'\t'
+    echo ""
+    echo "$(echo "$OUT" | jq -r '.result.tools | length') tools"
+    exit 0
+fi
+
+if ! echo "$ARGS" | jq -e . >/dev/null 2>&1; then
+    echo "ERROR: json-args is not valid JSON: $ARGS"
+    exit 1
+fi
+
+REQ=$(jq -cn --arg name "$TOOL" --argjson args "$ARGS" \
+    '{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:$name,arguments:$args}}')
+OUT=$(call "$REQ")
+
+if [ -z "$OUT" ]; then
+    echo "ERROR: empty response from tools/call"
+    exit 1
+fi
+
+# JSON-RPC-level failure (unknown tool, bad schema) — distinct from a tool that
+# ran and returned isError.
+if echo "$OUT" | jq -e '.error' >/dev/null 2>&1; then
+    echo "JSON-RPC ERROR: $(echo "$OUT" | jq -r '.error.message')"
+    echo "$OUT" | jq -r '.error.data // empty'
+    echo ""
+    echo "Tool names come from './mcp_probe $1 --list' — never invent them."
+    exit 1
+fi
+
+echo "$OUT" | jq -r '.result.content[]? | select(.type=="text") | .text'
+
+if [ "$(echo "$OUT" | jq -r '.result.isError // false')" = "true" ]; then
+    exit 1
+fi

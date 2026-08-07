@@ -18,7 +18,6 @@ import type {
   DatasetCsvStagingResult,
   DatasetHmisImportRunProgress,
 } from "lib";
-import { deleteImportTempUpload } from "../../import_temp_uploads.ts";
 import {
   PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
@@ -118,8 +117,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
 
       if (!isCleanStaging(stagingResult)) {
         // Dirty staging → hold for review and RELEASE the single-running
-        // slot. The per-run staging table survives the hold; the temp upload
-        // is retained until the run resolves.
+        // slot. The per-run staging table survives the hold.
         await dropHmisCsvStagingTables(importDb, runId, { keepFinal: true });
         await mainDb`
           UPDATE dataset_hmis_import_runs
@@ -152,8 +150,6 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
       WHERE id = ${runId} AND status = 'running'
     `;
 
-    await deleteImportTempUpload(config.uploadToken);
-
     await importDb.end();
     await mainDb.end();
     self.postMessage("COMPLETED");
@@ -162,11 +158,6 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
     const errorMessage = truncateWorkerError(e);
     try {
       await dropHmisCsvStagingTables(importDb, runId, { keepFinal: false });
-    } catch {
-      // Ignore cleanup errors
-    }
-    try {
-      await deleteImportTempUpload(config.uploadToken);
     } catch {
       // Ignore cleanup errors
     }

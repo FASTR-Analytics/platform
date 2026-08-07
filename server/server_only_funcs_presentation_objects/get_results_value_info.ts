@@ -4,6 +4,8 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   DisaggregationPossibleValuesStatus,
+  type IndicatorFormat,
+  type IndicatorMetadata,
   PeriodBounds,
   ResultsValueInfoForPresentationObject,
   throwIfErrWithData,
@@ -56,7 +58,7 @@ export async function getResultsValueInfoForPresentationObject(
       undefined, // no filters → no CTE ever needed; columns detected on demand
     );
 
-    // Fetch indicator metadata once for label lookup
+    // Fetch indicator metadata once, for label lookup and the format map
     const indicatorMetadata = await getIndicatorMetadata(projectDb, moduleId);
     const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
@@ -69,6 +71,7 @@ export async function getResultsValueInfoForPresentationObject(
       { moduleLastRun, datasetsVersion },
       periodBounds,
       disaggregationOptions,
+      indicatorFormatsFrom(indicatorMetadata),
       (disOpt) =>
         getPossibleValues(
           projectDb,
@@ -91,6 +94,7 @@ export async function buildResultsValueInfo(
   versionInfo: ItemsVersionInfo,
   periodBounds: PeriodBounds | undefined,
   disaggregationOptions: DisaggregationOption[],
+  indicatorFormats: Record<string, IndicatorFormat>,
   getValuesForOption: (
     disOpt: DisaggregationOption,
   ) => Promise<APIResponseWithData<{ id: string; label: string }[]>>,
@@ -143,7 +147,24 @@ export async function buildResultsValueInfo(
         ...versionInfo,
         periodBounds,
         disaggregationPossibleValues,
+        indicatorFormats,
       },
     };
   });
+}
+
+// The subset of IndicatorMetadata that declares a format. Entries without one
+// (HFA categories, raw HMIS indicators) are omitted rather than defaulted —
+// resolveEffectiveFormat treats an absent id as "says nothing", which is not
+// the same as "says number".
+export function indicatorFormatsFrom(
+  metadata: IndicatorMetadata[],
+): Record<string, IndicatorFormat> {
+  const formats: Record<string, IndicatorFormat> = {};
+  for (const m of metadata) {
+    if (m.format_as !== undefined) {
+      formats[m.id] = m.format_as;
+    }
+  }
+  return formats;
 }

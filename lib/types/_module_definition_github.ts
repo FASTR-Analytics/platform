@@ -305,7 +305,7 @@ const metricDefinitionGithub = z.object({
   variantLabel: translatableStringGithub.nullable(),
   valueProps: z.array(z.string()),
   valueFunc: valueFuncGithub,
-  formatAs: z.enum(["percent", "number"]),
+  formatAs: z.enum(["percent", "number", "indicator"]),
   requiredDisaggregationOptions: z.array(disaggregationOptionGithub),
   valueLabelReplacements: z.record(z.string(), z.string()),
   postAggregationExpression: postAggregationExpressionGithub.nullable(),

@@ -23,12 +23,16 @@
 // =============================================================================
 
 import {
-  figureBlockSchema,
-  figureBundleSchema,
   getRollupPosition,
+  INDICATOR_DISAGGREGATION_OPTIONS,
   isRollupActive,
   presentationObjectConfigSchema,
+  resolveEffectiveFormat,
   ROLLUP_PIN_IDS,
+  type DisaggregationOption,
+  type DisaggregationPossibleValuesStatus,
+  type IndicatorFormat,
+  type PresentationObjectConfig,
 } from "lib";
 import {
   getPeriodIdFromTime,
@@ -195,6 +199,35 @@ const _INDICATOR_METADATA_KEYS = new Set([
 ]);
 
 // Pre-P2 figure-block normalisation — run before bundle conversion.
+// The 8 metrics whose stored two-way formatAs predates the declared-format
+// design (metric values ARE the displayed indicator's own quantity). Frozen
+// history: this list rewrites data written BEFORE the declaration existed and
+// never grows — a future "indicator" metric installs as one from day one.
+// The same frozen list appears in project migration 039 (metrics table) and
+// manifest_transform block 2 (run manifests); each is an independent
+// migration artifact by design.
+const INDICATOR_FORMAT_METRIC_IDS = [
+  "m7-01-01",
+  "m7-01-02",
+  "m7-01-03",
+  "m8-01-01",
+  "m10-01-01",
+  "m10-01-02",
+  "m10-03-01",
+  "m10-03-02",
+];
+
+// Forced skip-gate for the formatAs flip: a bundle whose resultsValue still
+// says "number"/"percent" for a listed metric parses cleanly under the 3-way
+// schema, so a parse-only gate would skip it forever. String-scans the raw
+// row like rawJsonNeedsForcedTransform; keeps firing for rows that contain a
+// listed metric after the flip, which the no-op write guard absorbs.
+export function rawJsonNeedsIndicatorFormatFlip(raw: string): boolean {
+  return INDICATOR_FORMAT_METRIC_IDS.some((id) =>
+    raw.includes(`"metricId":"${id}"`)
+  );
+}
+
 export function transformFigureBlock(block: FigureBlockMut): void {
   if (block.type !== "figure") return;
 
@@ -223,6 +256,21 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     bundle.config = transformPOConfigData(
       bundle.config as Record<string, unknown>,
     );
+  }
+
+  // Block: declared-format migration — bundles stored before the three-way
+  // formatAs carry "number"/"percent" for the 8 listed metrics; flip them so
+  // the render twin resolves per-indicator instead of treating the stored
+  // two-way value as the metric's own constant.
+  if (
+    bundle &&
+    typeof bundle === "object" &&
+    typeof bundle.metricId === "string" &&
+    INDICATOR_FORMAT_METRIC_IDS.includes(bundle.metricId) &&
+    bundle.resultsValue &&
+    typeof bundle.resultsValue === "object"
+  ) {
+    (bundle.resultsValue as Record<string, unknown>).formatAs = "indicator";
   }
 
   // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
@@ -375,7 +423,10 @@ function buildBundleFromFigureInputs(
     return {
       ...base,
       items: stringItems,
-      resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
+      resultsValue: {
+        formatAs: inferFormatAs(indicatorMetadata, config, metricId),
+        valueProps,
+      },
       dateRange: deriveDateRangeFromItems(jsonArray),
       geo,
     };
@@ -412,7 +463,7 @@ function buildBundleFromFigureInputs(
         ...base,
         items,
         resultsValue: {
-          formatAs: inferFormatAs(indicatorMetadata),
+          formatAs: inferFormatAs(indicatorMetadata, config, metricId),
           valueProps,
         },
         dateRange: tsDateRange,
@@ -760,14 +811,57 @@ function deriveDateRangeFromItems(
   return undefined;
 }
 
+// The metric-level format for a bundle rebuilt from legacy figureInputs, which
+// recorded no such field. The 8 pre-declaration metrics are "indicator" by
+// the same frozen ruling the sweep flip applies. m9-02-01 is frozen "number":
+// its values are DERIVED measures (CIX/SII) over percent indicators — the
+// historical ALWAYS_OBEY fact, kept so a legacy bundle cannot regress to
+// percent now that the escape list is gone.
+//
+// Every other metric keeps the historical guess, run through the ONE
+// resolver's indicator rule: the unanimous displayed-indicator format if one
+// exists, else "number". possibleValues is synthesized from the stored
+// metadata itself — for a legacy figure that metadata IS the module's
+// indicator catalog, which is exactly the enumeration resultsValueInfo
+// supplies at runtime. Clamped two-way for the guess: rate_per_10k is an
+// indicator-level fact, never a metric declaration, and the render path
+// re-derives it per cell from indicatorMetadata.
 function inferFormatAs(
   indicatorMetadata: Record<string, unknown>[],
-): "percent" | "number" {
-  if (indicatorMetadata.length === 0) return "number";
-  const allPercent = indicatorMetadata.every(
-    (m) => m.format_as === "percent",
-  );
-  return allPercent ? "percent" : "number";
+  config: PresentationObjectConfig,
+  metricId: string,
+): "percent" | "number" | "indicator" {
+  if (INDICATOR_FORMAT_METRIC_IDS.includes(metricId)) return "indicator";
+  if (metricId === "m9-02-01") return "number";
+
+  const indicatorFormats: Record<string, IndicatorFormat> = {};
+  for (const m of indicatorMetadata) {
+    if (
+      typeof m.id === "string" &&
+      (m.format_as === "percent" || m.format_as === "number" ||
+        m.format_as === "rate_per_10k")
+    ) {
+      indicatorFormats[m.id] = m.format_as;
+    }
+  }
+  const catalog: DisaggregationPossibleValuesStatus = {
+    status: "ok",
+    values: Object.keys(indicatorFormats).map((id) => ({ id, label: id })),
+  };
+  const possibleValues: {
+    [K in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
+  } = {};
+  for (const disOpt of INDICATOR_DISAGGREGATION_OPTIONS) {
+    possibleValues[disOpt] = catalog;
+  }
+
+  const { formatAs } = resolveEffectiveFormat({
+    metricFormatAs: "indicator",
+    config,
+    indicatorFormats,
+    possibleValues,
+  });
+  return formatAs === "percent" ? "percent" : "number";
 }
 
 function resolveGeo(

@@ -1,6 +1,7 @@
 import { CustomFigureStyleOptions, type CalendarType } from "panther";
 import {
   type DeckStyleContext,
+  type EffectiveFormat,
   type FigureLocalization,
   type IndicatorMetadata,
   PresentationObjectConfig,
@@ -20,18 +21,18 @@ import {
 
 export function getStyleFromPresentationObject(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  effectiveFormat: EffectiveFormat,
   localization: FigureLocalization,
   deckStyle: DeckStyleContext | undefined,
   indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
-  obeyMetricFormat: boolean,
   effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
   const calendar = resolveFigureCalendar(config, localization);
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
     return buildScorecardStyle(config, indicatorMetadata, effectiveValueProps, deckStyle);
   }
+  const formatAs = effectiveFormat.formatAs;
   if (isSpecialCoverageChartActive(config)) {
     return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
   }
@@ -43,12 +44,11 @@ export function getStyleFromPresentationObject(
   }
   return buildStandardStyle(
     config,
-    formatAs,
+    effectiveFormat,
     calendar,
     deckStyle,
     indicatorMetadata,
     allowNegativeScale,
-    obeyMetricFormat,
     effectiveValueProps,
   );
 }

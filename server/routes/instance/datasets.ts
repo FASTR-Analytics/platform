@@ -33,7 +33,7 @@ import {
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
-import { resolveImportTempUpload } from "../../import_temp_uploads.ts";
+import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
@@ -365,22 +365,25 @@ defineRoute(
 //                         //
 /////////////////////////////
 
-// Stateless: parses headers from the token-keyed temp upload for the
-// wizard's mappings step. Nothing is persisted by this call.
+// Stateless: parses headers from the named asset for the wizard's mappings
+// step — no pin check, the wizard always wants current bytes. Nothing is
+// persisted by this call.
 defineRoute(
   routesDatasets,
   "parseDatasetHmisCsvHeaders",
   requireGlobalPermission("can_configure_data"),
   log("parseDatasetHmisCsvHeaders"),
   async (c, { body }) => {
-    const upload = await resolveImportTempUpload(body.uploadToken);
-    if (!upload) {
+    let filePath: string;
+    try {
+      ({ filePath } = await resolveAssetFileOrThrow(body.fileName, null));
+    } catch (e) {
       return c.json({
         success: false,
-        err: "The uploaded file is no longer available. Upload it again.",
+        err: e instanceof Error ? e.message : String(e),
       });
     }
-    const res = await getCsvDetails(upload.filePath, upload.fileName);
+    const res = await getCsvDetails(filePath, body.fileName);
     if (!res.success) {
       return c.json(res);
     }
@@ -539,31 +542,40 @@ defineRoute(
 //                         //
 /////////////////////////////
 
-// Stateless: parses the CSV headers from the token-keyed temp upload and
-// checks the XLSForm's sheets, for the wizard's mappings step. Nothing is
-// persisted by this call.
+// Stateless: parses the CSV headers from the named assets and checks the
+// XLSForm's sheets, for the wizard's mappings step — no pin check, the
+// wizard always wants current bytes. Nothing is persisted by this call.
 defineRoute(
   routesDatasets,
   "parseDatasetHfaCsvHeaders",
   requireGlobalPermission("can_configure_data"),
   log("parseDatasetHfaCsvHeaders"),
   async (c, { body }) => {
-    const csvUpload = await resolveImportTempUpload(body.csvUploadToken);
-    const xlsFormUpload = await resolveImportTempUpload(body.xlsFormUploadToken);
-    if (!csvUpload || !xlsFormUpload) {
+    let csvFilePath: string;
+    let xlsFormFilePath: string;
+    try {
+      ({ filePath: csvFilePath } = await resolveAssetFileOrThrow(
+        body.csvFileName,
+        null,
+      ));
+      ({ filePath: xlsFormFilePath } = await resolveAssetFileOrThrow(
+        body.xlsFormFileName,
+        null,
+      ));
+    } catch (e) {
       return c.json({
         success: false,
-        err: "The uploaded files are no longer available. Upload them again.",
+        err: e instanceof Error ? e.message : String(e),
       });
     }
-    const sheetNames = getXlsxSheetNamesRaw(xlsFormUpload.filePath);
+    const sheetNames = getXlsxSheetNamesRaw(xlsFormFilePath);
     if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
       return c.json({
         success: false,
         err: "The XLSForm file must contain both 'survey' and 'choices' sheets.",
       });
     }
-    const res = await getCsvDetails(csvUpload.filePath, csvUpload.fileName);
+    const res = await getCsvDetails(csvFilePath, body.csvFileName);
     if (!res.success) {
       return c.json(res);
     }
@@ -571,7 +583,7 @@ defineRoute(
   },
 );
 
-// Stateless: streams the temp upload through the wizard's filters and reports
+// Stateless: streams the named asset through the wizard's filters and reports
 // the facilities left with several rows (the wizard's duplicates step).
 defineRoute(
   routesDatasets,
@@ -579,15 +591,17 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("previewDatasetHfaDuplicates"),
   async (c, { body }) => {
-    const csvUpload = await resolveImportTempUpload(body.csvUploadToken);
-    if (!csvUpload) {
+    let filePath: string;
+    try {
+      ({ filePath } = await resolveAssetFileOrThrow(body.csvFileName, null));
+    } catch (e) {
       return c.json({
         success: false,
-        err: "The uploaded file is no longer available. Upload it again.",
+        err: e instanceof Error ? e.message : String(e),
       });
     }
     const data = await scanHfaDuplicates(
-      csvUpload.filePath,
+      filePath,
       body.facilityIdColumn,
       body.rowFilters,
     );

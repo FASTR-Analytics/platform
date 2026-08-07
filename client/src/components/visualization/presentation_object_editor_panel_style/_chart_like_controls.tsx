@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
   selectCf,
@@ -18,6 +19,9 @@ type Props = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
   isColorOverridden: () => boolean;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function ChartLikeControls(p: Props) {
@@ -184,7 +188,7 @@ export function ChartLikeControls(p: Props) {
           <ConditionalFormattingEditor
             value={selectCf(p.tempConfig.s)}
             onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-            formatAs={p.poDetail.resultsValue.formatAs}
+            formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
             allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
           />
@@ -258,7 +262,7 @@ export function ChartLikeControls(p: Props) {
       </StyleSection>
       <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
         <>
-          <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+          <Show when={p.effectiveFormatAs === "percent"}>
             <Checkbox
               label={t3({
                 en: "Force y-axis max of 100%",

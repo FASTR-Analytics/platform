@@ -22,7 +22,7 @@ import {
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { TempFileUpload, type TempUpload } from "~/components/_temp_file_upload";
+import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { instanceState } from "~/state/instance/t1_store";
 
 export type HfaWizardResult = { launched: true };
@@ -32,16 +32,12 @@ type StepKind = "upload" | "mappings" | "duplicates" | "review";
 const STEPS: StepKind[] = ["upload", "mappings", "duplicates", "review"];
 
 // The HFA import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION B7): a modal with
-// client-local state — nothing persists server-side before launch except the
-// two token-keyed temp uploads. Launch inserts a run row; abandoning this
-// wizard is a no-op by construction.
+// client-local state — the file inputs are ordinary instance assets (uploaded
+// or picked), so nothing persists server-side before launch. Launch inserts a
+// run row; abandoning this wizard is a no-op by construction.
 export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
-  const [csvUpload, setCsvUpload] = createSignal<TempUpload | undefined>(
-    undefined,
-  );
-  const [xlsFormUpload, setXlsFormUpload] = createSignal<
-    TempUpload | undefined
-  >(undefined);
+  const [csvFileName, setCsvFileName] = createSignal<string>("");
+  const [xlsFormFileName, setXlsFormFileName] = createSignal<string>("");
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [parseError, setParseError] = createSignal<string>("");
   const [preview, setPreview] = createSignal<HfaDuplicatePreview | undefined>(
@@ -61,16 +57,16 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   // Both files must be present before the headers can be parsed (the parse
   // call also validates the XLSForm's sheets).
   async function parseIfReady() {
-    const csv = csvUpload();
-    const xlsForm = xlsFormUpload();
+    const csv = csvFileName();
+    const xlsForm = xlsFormFileName();
     setHeaders([]);
     setParseError("");
     if (!csv || !xlsForm) {
       return;
     }
     const res = await serverActions.parseDatasetHfaCsvHeaders({
-      csvUploadToken: csv.token,
-      xlsFormUploadToken: xlsForm.token,
+      csvFileName: csv,
+      xlsFormFileName: xlsForm,
     });
     if (res.success) {
       setHeaders(res.data.headers.map((v, i) => encodeRawCsvHeader(i, v)));
@@ -111,8 +107,8 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
 
   const stepperData = createMemo(() => ({
     uploadValid:
-      csvUpload() !== undefined &&
-      xlsFormUpload() !== undefined &&
+      csvFileName() !== "" &&
+      xlsFormFileName() !== "" &&
       headers().length > 0,
     mappingsValid: mappingsComplete(),
   }));
@@ -149,14 +145,14 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   // Leaving the mappings step scans the file for duplicate facilities; the
   // duplicates step is skipped entirely when there are none.
   async function goNextFromMappings() {
-    const csv = csvUpload();
+    const csv = csvFileName();
     if (!csv || scanning()) {
       return;
     }
     setScanning(true);
     setPreviewError("");
     const res = await serverActions.previewDatasetHfaDuplicates({
-      csvUploadToken: csv.token,
+      csvFileName: csv,
       facilityIdColumn: mappings.facilityIdColumn,
       rowFilters: structuredClone(unwrap(mappings.rowFilters)),
     });
@@ -234,8 +230,8 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
 
   const submit = createFormAction(
     async () => {
-      const csv = csvUpload();
-      const xlsForm = xlsFormUpload();
+      const csv = csvFileName();
+      const xlsForm = xlsFormFileName();
       if (!csv || !xlsForm) {
         return {
           success: false,
@@ -248,8 +244,8 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       }
       return await serverActions.launchDatasetHfaCsvRun({
         config: {
-          csvUploadToken: csv.token,
-          xlsFormUploadToken: xlsForm.token,
+          csvFileName: csv,
+          xlsFormFileName: xlsForm,
           mappings: structuredClone(unwrap(mappings)),
         },
       });
@@ -322,11 +318,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             <h3 class="font-700 text-lg">
               {t3({ en: "CSV Data File", fr: "Fichier de données CSV", pt: "Ficheiro de dados CSV" })}
             </h3>
-            <TempFileUpload
+            <FileUploadSelector
               buttonLabel={t3({ en: "Upload csv file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
-              value={csvUpload()}
-              onUploaded={(next) => {
-                setCsvUpload(next);
+              selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+              filter={(a) => a.isCsv}
+              value={csvFileName()}
+              onChange={(next) => {
+                setCsvFileName(next);
                 resetColumnChoices();
                 void parseIfReady();
               }}
@@ -335,11 +333,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             <h3 class="font-700 text-lg">
               {t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm", pt: "Ficheiro de questionário XLSForm" })}
             </h3>
-            <TempFileUpload
+            <FileUploadSelector
               buttonLabel={t3({ en: "Upload XLSForm file", fr: "Téléverser un fichier XLSForm", pt: "Carregar um ficheiro XLSForm" })}
-              value={xlsFormUpload()}
-              onUploaded={(next) => {
-                setXlsFormUpload(next);
+              selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+              filter={(a) => a.isXlsx}
+              value={xlsFormFileName()}
+              onChange={(next) => {
+                setXlsFormFileName(next);
                 resetDownstream();
                 void parseIfReady();
               }}
@@ -525,15 +525,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               <div class="w-56 flex-none">
                 {t3({ en: "Data file", fr: "Fichier de données", pt: "Ficheiro de dados" })}
               </div>
-              <div class="flex-1 font-mono">{csvUpload()?.fileName ?? ""}</div>
+              <div class="flex-1 font-mono">{csvFileName()}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
                 {t3({ en: "XLSForm file", fr: "Fichier XLSForm", pt: "Ficheiro XLSForm" })}
               </div>
-              <div class="flex-1 font-mono">
-                {xlsFormUpload()?.fileName ?? ""}
-              </div>
+              <div class="flex-1 font-mono">{xlsFormFileName()}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">

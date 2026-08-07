@@ -1,0 +1,242 @@
+#!/bin/bash
+
+# Non-interactive ad-hoc deploy to the testing-tim instance, safe for AI use.
+# Builds client + docker image, pushes to the FIXED tag
+# wb-fastr-server-vtesting-tim (so Docker Hub never accumulates tags), points
+# testing-tim at it (wb c update / wb pull / wb restart over ssh), then
+# verifies the deploy by (1) polling /health_check until the server boots and
+# (2) comparing the running container's RepoDigest against the pushed manifest
+# digest. Before each push the previous manifest is preserved registry-side as
+# wb-fastr-server-vtesting-tim-prev for rollback. No git operations, no
+# VERSION file changes.
+#
+# Usage: ./deploy_testing [--validate-migrations] [--validate-queries]
+
+set -e
+
+INSTANCE="testing-tim"
+SSH_HOST="wb-server"
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-300}"
+
+TAG="testing-tim"
+PREV_TAG="testing-tim-prev"
+IMAGE_TAG="timroberton/comb:wb-fastr-server-v$TAG"
+PREV_IMAGE_TAG="timroberton/comb:wb-fastr-server-v$PREV_TAG"
+
+if [ "$INSTANCE" != "testing-tim" ]; then
+    echo "ERROR: deploy_testing only targets 'testing-tim' (got '$INSTANCE')"
+    exit 1
+fi
+
+VALIDATE_MIGRATIONS=false
+VALIDATE_QUERIES=false
+for arg in "$@"; do
+    case "$arg" in
+        --validate-migrations) VALIDATE_MIGRATIONS=true ;;
+        --validate-queries) VALIDATE_QUERIES=true ;;
+        *) echo "ERROR: Unknown argument: $arg"; echo "Usage: ./deploy_testing [--validate-migrations] [--validate-queries]"; exit 1 ;;
+    esac
+done
+
+START_TIME=$(date +%s)
+ORIGINAL_DIR=$(pwd)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLIENT_DIR="$SCRIPT_DIR/client"
+SERVER_DIR="$SCRIPT_DIR"
+cd "$SCRIPT_DIR"
+
+echo "Deploying $IMAGE_TAG to instance '$INSTANCE'"
+
+echo "Checking prerequisites..."
+command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found!"; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not found!"; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "ERROR: jq not found!"; exit 1; }
+
+if ! docker info >/dev/null 2>&1; then
+    echo "ERROR: Docker is not running!"
+    exit 1
+fi
+
+CRANE=$(command -v crane 2>/dev/null || true)
+if [ -z "$CRANE" ] && [ -x "$HOME/.local/bin/crane" ]; then
+    CRANE="$HOME/.local/bin/crane"
+fi
+
+# Verify ssh + instance exist BEFORE the expensive build.
+echo "Checking instance '$INSTANCE' on $SSH_HOST..."
+if ! SHOW_JSON=$(ssh -o ConnectTimeout=10 "$SSH_HOST" "wb c show $INSTANCE --json"); then
+    echo "ERROR: Could not read instance '$INSTANCE' on $SSH_HOST."
+    echo "Does the instance exist? (wb c list)"
+    exit 1
+fi
+PORT=$(echo "$SHOW_JSON" | jq -r '.port')
+if [ -z "$PORT" ] || [ "$PORT" = "null" ]; then
+    echo "ERROR: Could not determine port for '$INSTANCE' from: $SHOW_JSON"
+    exit 1
+fi
+echo "Instance found: port $PORT"
+
+cleanup() {
+    echo "ERROR: Deploy failed!"
+    if [ -d "$SERVER_DIR/client_dist.backup" ]; then
+        echo "Restoring client_dist backup..."
+        rm -rf "$SERVER_DIR/client_dist"
+        mv "$SERVER_DIR/client_dist.backup" "$SERVER_DIR/client_dist"
+    fi
+    cd "$ORIGINAL_DIR"
+    exit 1
+}
+trap cleanup ERR
+
+echo "Running typecheck..."
+deno task typecheck
+
+echo "Running protocol validation..."
+"$SCRIPT_DIR/validate_protocols"
+
+if [ "$VALIDATE_MIGRATIONS" = "true" ]; then
+    echo "Running migration validation..."
+    "$SCRIPT_DIR/validate_migrations"
+fi
+
+if [ "$VALIDATE_QUERIES" = "true" ]; then
+    echo "Running query validation..."
+    "$SCRIPT_DIR/validate_queries"
+fi
+
+echo "Building client..."
+cd "$CLIENT_DIR"
+npm run build
+if [ ! -d "$CLIENT_DIR/dist" ] || [ ! "$(ls -A "$CLIENT_DIR/dist")" ]; then
+    echo "ERROR: Client build output missing or empty at $CLIENT_DIR/dist"
+    exit 1
+fi
+cd "$SERVER_DIR"
+
+if [ -d "$SERVER_DIR/client_dist" ]; then
+    rm -rf "$SERVER_DIR/client_dist.backup"
+    cp -r "$SERVER_DIR/client_dist" "$SERVER_DIR/client_dist.backup"
+fi
+rm -rf "$SERVER_DIR/client_dist"
+cp -r "$CLIENT_DIR/dist" "$SERVER_DIR/client_dist"
+
+LOCAL_OLD_IMAGE_ID=$(docker images -q "$IMAGE_TAG" 2>/dev/null || true)
+
+echo "Building Docker image: $IMAGE_TAG"
+docker build --platform linux/amd64 -t "$IMAGE_TAG" .
+
+# Preserve the currently-deployed manifest registry-side for rollback
+# (server-side copy, nothing is downloaded). Skipped if the tag doesn't
+# exist yet or crane is unavailable.
+ROLLBACK_AVAILABLE=false
+if [ -n "$CRANE" ] && "$CRANE" digest "$IMAGE_TAG" >/dev/null 2>&1; then
+    echo "Preserving current manifest as $PREV_IMAGE_TAG..."
+    if "$CRANE" copy "$IMAGE_TAG" "$PREV_IMAGE_TAG"; then
+        ROLLBACK_AVAILABLE=true
+    else
+        echo "WARNING: crane copy to $PREV_IMAGE_TAG failed — no rollback tag this deploy."
+    fi
+fi
+
+if [ -n "$CRANE" ]; then
+    # Push via crane from the host network — Docker Desktop's VM upload path
+    # is throttled (see ./deploy). crane skips layers already on the registry.
+    SAVE_TAR=$(mktemp /tmp/wb-fastr-deploy-testing-XXXXXX.tar)
+    echo "Exporting image from Docker daemon..."
+    if ! docker save -o "$SAVE_TAR" "$IMAGE_TAG"; then
+        rm -f "$SAVE_TAR"
+        echo "ERROR: docker save failed for $IMAGE_TAG"
+        exit 1
+    fi
+    echo "Pushing $IMAGE_TAG with crane..."
+    if ! "$CRANE" push "$SAVE_TAR" "$IMAGE_TAG"; then
+        rm -f "$SAVE_TAR"
+        echo "ERROR: Failed to push $IMAGE_TAG"
+        exit 1
+    fi
+    rm -f "$SAVE_TAR"
+    PUSHED_DIGEST=$("$CRANE" digest "$IMAGE_TAG")
+else
+    echo "Pushing $IMAGE_TAG with docker push..."
+    PUSH_OUTPUT=$(docker push "$IMAGE_TAG" | tee /dev/stderr)
+    PUSHED_DIGEST=$(echo "$PUSH_OUTPUT" | grep -o 'sha256:[a-f0-9]\{64\}' | tail -1)
+fi
+
+if [ -z "$PUSHED_DIGEST" ]; then
+    echo "ERROR: Could not determine pushed manifest digest."
+    exit 1
+fi
+echo "Pushed digest: $PUSHED_DIGEST"
+
+ROLLBACK_CMD="ssh $SSH_HOST \"wb c update $INSTANCE --server $PREV_TAG && wb pull && wb restart $INSTANCE\""
+
+echo "Updating instance '$INSTANCE'..."
+REMOTE_OLD_IMAGE_ID=$(ssh "$SSH_HOST" "docker inspect --format '{{.Image}}' $INSTANCE 2>/dev/null" || true)
+ssh "$SSH_HOST" "wb c update $INSTANCE --server $TAG && wb pull && wb restart $INSTANCE"
+
+echo "Polling health (timeout ${HEALTH_TIMEOUT_SECONDS}s), then verifying digest..."
+if ! ssh "$SSH_HOST" "INSTANCE='$INSTANCE' PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' PUSHED_DIGEST='$PUSHED_DIGEST' bash -s" <<'REMOTE'
+deadline=$((SECONDS + TIMEOUT))
+healthy=false
+while [ "$SECONDS" -lt "$deadline" ]; do
+    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    case "$body" in
+        *'"running":true'*)
+            healthy=true
+            break
+            ;;
+    esac
+    sleep 5
+done
+if [ "$healthy" != "true" ]; then
+    echo "Timed out after ${TIMEOUT}s waiting for a healthy /health_check on port $PORT"
+    exit 1
+fi
+echo "Health check passed."
+image_id=$(docker inspect --format '{{.Image}}' "$INSTANCE")
+repo_digest=$(docker inspect --format '{{join .RepoDigests " "}}' "$image_id")
+case "$repo_digest" in
+    *"$PUSHED_DIGEST"*)
+        echo "Digest verified: running container is $PUSHED_DIGEST"
+        exit 0
+        ;;
+esac
+echo "DIGEST MISMATCH: running container has [$repo_digest], expected $PUSHED_DIGEST"
+exit 1
+REMOTE
+then
+    echo ""
+    echo "Deploy verification FAILED. Last 100 container log lines:"
+    ssh "$SSH_HOST" "docker logs --tail 100 $INSTANCE" || true
+    echo ""
+    if [ "$ROLLBACK_AVAILABLE" = "true" ]; then
+        echo "Rollback with:"
+        echo "  $ROLLBACK_CMD"
+    fi
+    exit 1
+fi
+
+trap - ERR
+rm -rf "$SERVER_DIR/client_dist.backup"
+
+# Remove the superseded (now-untagged) images by exact ID — no blanket prune.
+if [ -n "$REMOTE_OLD_IMAGE_ID" ]; then
+    ssh "$SSH_HOST" "docker rmi $REMOTE_OLD_IMAGE_ID >/dev/null 2>&1" || true
+fi
+if [ -n "$LOCAL_OLD_IMAGE_ID" ]; then
+    docker rmi "$LOCAL_OLD_IMAGE_ID" >/dev/null 2>&1 || true
+fi
+
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+
+echo ""
+echo "TESTING DEPLOY SUCCESSFUL"
+echo "  Instance:  $INSTANCE (port $PORT)"
+echo "  Image:     $IMAGE_TAG"
+echo "  Digest:    $PUSHED_DIGEST"
+if [ "$ROLLBACK_AVAILABLE" = "true" ]; then
+    echo "  Rollback:  $ROLLBACK_CMD"
+fi
+echo "  Duration:  $((DURATION / 60))m $((DURATION % 60))s"
+cd "$ORIGINAL_DIR"

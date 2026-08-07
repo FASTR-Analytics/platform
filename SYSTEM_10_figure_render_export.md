@@ -8,6 +8,7 @@ globs:
   - client/src/state/project/t2_images.ts
   - lib/brand_presets.ts
   - lib/key_colors.ts
+  - lib/resolve_effective_format.ts
   - lib/resolve_figure_calendar.ts
   - lib/types/_figure_bundle.ts
   - lib/types/_slide_fonts.ts
@@ -342,13 +343,44 @@ from the figure's `FigureLocalization` — EN/FR/PT), and otherwise falls throug
 to the user-facing conditional-formatting compile path (`selectCf` +
 `compileCfToLegend` in `conditional_formatting/compile.ts`).
 
-**Metric-gated knobs that are not modes.** `special_chart_checks.ts` also
-carries `metricAlwaysObeysFormatAs` (`["m9-02-01"]`, whose CIX/SII values are
-derived measures) and `metricAllowsNegativeScale`, both threaded through
-`buildFigureInputs`. The first forces the metric's own `formatAs` to win over
-the displayed indicators' format.
+**Effective format.** A figure's values are written in the METRIC's declared
+`formatAs` unless the indicators actually on display all declare a format of
+their own — HFA metrics all declare `"number"` because HFA format is
+per-indicator (`getHfaIndicatorMeasure`), so the indicator layer is the only
+place the truth lives. `resolveEffectiveFormat`
+([resolve_effective_format.ts](lib/resolve_effective_format.ts)) is THE
+resolver: config-based and pre-query, three-way
+(`percent | number | rate_per_10k`), returning `{formatAs, source}` as one
+object so the format and the reason for it cannot be threaded apart. It reads
+the displayed set from `disaggregateBy` (filtered subset, else all possible
+values; a `replicant` entry contributes its one selected value) **plus** every
+`filterBy` entry not also disaggregated — the last is what an items-based
+derivation structurally cannot see, since a pinned dimension returns no column
+at all. `ALWAYS_OBEY_METRIC_FORMAT_METRICS` (`["m9-02-01"]`, whose CIX/SII
+values are derived measures over percent indicators) is the escape hatch and
+yields `source: "metric-always-obey"`, the only source under which per-cell
+indicator formatting is suppressed. Mixed formats resolve to the metric — the
+scorecard (`_5_scorecard.ts`) is the one surface that formats per row and takes
+no effective format at all.
 
-The second is the app's whole answer to negative values on a value axis.
+`rate_per_10k` is stored as a bare rate and written as a per-10,000 count, so
+every writer scales by 10,000: `formatIndicatorValue` for values,
+`getScaleTickLabelFormatter` for axis ticks, and `scaleLegendFormat` for
+legends, which routes through panther's `labelFormatter` escape because
+panther's `format` field is two-way. Axis and legend therefore cannot drift by a
+factor of 10,000.
+
+`buildFigureInputs` is the ONE knowing exception: it resolves from the returned
+items, not the config, because a stored `FigureBundle` carries no
+`resultsValueInfo`. Making the config-based answer authoritative at render needs
+the resolved format to travel on the bundle — a migration plus forced skip-gate
+plus cache prefix across every stored figure, scheduled to ride the Phase 4
+provenance migration (PLAN_EFFECTIVE_FORMAT.md). The two can disagree only on an
+indicator that is possible-and-unfiltered but has no rows.
+
+**Metric-gated knobs that are not modes.** `special_chart_checks.ts` carries
+`metricAllowsNegativeScale`, threaded through `buildFigureInputs`. It is the
+app's whole answer to negative values on a value axis.
 `ALLOW_NEGATIVE_SCALE_VALUES_METRICS` is the single list of metrics whose
 displayed values can go below zero — signed-by-construction (m9-02-01,
 m2-01-01..03, m3-0x-02) plus the volume metrics whose expected-value model can

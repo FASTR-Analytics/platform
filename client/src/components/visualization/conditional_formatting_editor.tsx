@@ -6,10 +6,10 @@ import {
   LEGACY_CF_PRESETS,
   type LegacyCfPresetId,
   deriveBucketLabels,
+  type IndicatorFormat,
   t3,
 } from "lib";
 import {
-  buildAutoFormatter,
   Button,
   ButtonGroup,
   Checkbox,
@@ -24,12 +24,13 @@ import {
   Slider,
 } from "panther";
 import { For, Show } from "solid-js";
+import { buildAutoValueFormatter } from "~/generate_visualization/conditional_formatting/compile";
 import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
 type Props = {
   value: ConditionalFormatting | undefined;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
 };
@@ -115,7 +116,7 @@ const CUSTOM_PALETTE = "__custom__";
 function ScalePanel(p: {
   cf: ConditionalFormattingScale;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   allowNegative?: boolean;
 }) {
   const state = () => parseScale(p.cf.scale);
@@ -296,7 +297,7 @@ const CUSTOM_PRESET_VALUE = "__custom__";
 function ThresholdsPanel(p: {
   cf: ConditionalFormattingThresholds;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
 }) {
@@ -374,7 +375,7 @@ function ThresholdsPanel(p: {
   const labels = () =>
     deriveBucketLabels(
       p.cf.cutoffs,
-      buildAutoFormatter(p.cf.cutoffs, p.formatAs),
+      buildAutoValueFormatter(p.cf.cutoffs, p.formatAs),
       direction(),
     );
 

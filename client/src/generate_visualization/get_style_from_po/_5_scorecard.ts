@@ -1,4 +1,4 @@
-import { CustomFigureStyleOptions, TableCellInfo, getFormatterFunc } from "panther";
+import { CustomFigureStyleOptions, TableCellInfo } from "panther";
 import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
@@ -7,7 +7,17 @@ import {
   type IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
-import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
+import {
+  formatIndicatorValue,
+  getTextStyle,
+  getTableLayoutStyle,
+  getIndicatorMetaForCell,
+} from "./_0_common";
+
+// The scorecard deliberately does NOT take an effective format. It is the one
+// surface that formats PER ROW — a scorecard mixes percent, count and rate
+// indicators by design, and collapsing them to a single figure-wide format is
+// exactly what would break it. See SYSTEM_10 "Effective format".
 
 function scaleValueForFormat(rawValue: number, formatAs: string): number {
   if (formatAs === "percent") return rawValue * 100;
@@ -30,17 +40,6 @@ function getScorecardCutoffColor(
     if (scaledValue <= yellow) return _CF_LIGHTER_YELLOW;
     return _CF_LIGHTER_RED;
   }
-}
-
-function formatScorecardValue(
-  rawValue: number,
-  formatAs: "percent" | "number" | "rate_per_10k",
-  decimalPlaces: number,
-): string {
-  if (formatAs === "rate_per_10k") {
-    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
-  }
-  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
 }
 
 export function buildScorecardStyle(
@@ -90,7 +89,7 @@ export function buildScorecardStyle(
         textFormatter: (info: TableCellInfo) => {
           const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
           if (meta?.format_as && info.valueAsNumber !== undefined) {
-            return formatScorecardValue(
+            return formatIndicatorValue(
               info.valueAsNumber,
               meta.format_as,
               config.s.decimalPlaces ?? 0,

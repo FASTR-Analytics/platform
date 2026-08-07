@@ -12,7 +12,7 @@ import {
   resolveDatasetIcehReview,
 } from "../../db/instance/dataset_iceh_import_runs.ts";
 import { parseIcehZipPreview } from "../../worker_routines/import_iceh_data/ingest.ts";
-import { resolveImportTempUpload } from "../../import_temp_uploads.ts";
+import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { getInstanceDatasetsSummary } from "../../db/instance/instance.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -43,26 +43,21 @@ defineRoute(
   }
 );
 
-// Stateless: parses the zip from the token-keyed temp upload for the
-// wizard's upload-step preview. Nothing is persisted by this call.
+// Stateless: parses the zip from the named asset for the wizard's
+// upload-step preview — no pin check, the wizard always wants current bytes.
+// Nothing is persisted by this call.
 defineRoute(
   routesIceh,
   "parseDatasetIcehZipPreview",
   requireGlobalPermission("can_configure_data"),
   log("parseDatasetIcehZipPreview"),
   async (c, { body }) => {
-    const zipUpload = await resolveImportTempUpload(body.zipUploadToken);
-    if (!zipUpload) {
-      return c.json({
-        success: false,
-        err: "The uploaded file is no longer available. Upload it again.",
-      });
-    }
     try {
-      const data = await parseIcehZipPreview(
-        zipUpload.filePath,
-        zipUpload.fileName,
+      const { filePath } = await resolveAssetFileOrThrow(
+        body.zipFileName,
+        null,
       );
+      const data = await parseIcehZipPreview(filePath, body.zipFileName);
       return c.json({ success: true, data });
     } catch (e) {
       return c.json({
@@ -80,7 +75,7 @@ defineRoute(
   log("launchDatasetIcehRun"),
   async (c, { body }) => {
     const res = await launchDatasetIcehImportRun(c.var.mainDb, {
-      zipUploadToken: body.zipUploadToken,
+      zipFileName: body.zipFileName,
       triggeredBy: c.var.globalUser?.email ?? "unknown",
       onComplete: async () => {
         notifyInstanceDatasetsUpdated(

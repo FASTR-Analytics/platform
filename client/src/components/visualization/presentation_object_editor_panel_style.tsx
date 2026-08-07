@@ -3,6 +3,7 @@ import {
   PresentationObjectDetail,
   ResultsValueInfoForPresentationObject,
   getDisaggregatorDisplayProp,
+  type IndicatorFormat,
 } from "lib";
 import { openComponent } from "panther";
 import { Match, Show, Switch } from "solid-js";
@@ -30,6 +31,10 @@ type Props = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   effectiveConfig: PresentationObjectConfig;
   effectiveValueProps: string[];
+  /** The format the figure's values will actually be written in — resolved
+   *  from the draft config, not the metric's stored formatAs, which is
+   *  "number" for every HFA metric regardless of what it displays. */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function PresentationObjectEditorPanelStyle(p: Props) {
@@ -85,6 +90,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             showCoverageMode={showCoverageMode()}
             showPercentChangeMode={showPercentChangeMode()}
             showDisruptionsMode={showDisruptionsMode()}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "chart"}>
@@ -93,6 +99,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "table"}>
@@ -102,6 +109,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             setTempConfig={p.setTempConfig}
             showScorecardMode={showScorecardMode()}
             showNValuesToggle={showNValuesToggle()}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>
@@ -109,6 +117,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "pie"}>
@@ -117,6 +126,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
+            effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>
       </Switch>

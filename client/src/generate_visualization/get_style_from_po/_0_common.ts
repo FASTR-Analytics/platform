@@ -14,6 +14,7 @@ import {
   getFormatterFunc,
   toNum0,
   type CustomFigureStyleOptions,
+  type TickLabelFormatterOption,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -24,6 +25,8 @@ import {
   getAbcQualScale,
   getAbcQualScale2,
   type DeckStyleContext,
+  type EffectiveFormat,
+  type IndicatorFormat,
   type IndicatorMetadata,
   getSlideFontInfo,
   isPieCompletionMode,
@@ -181,9 +184,8 @@ export function getIndicatorMetaForCell(
 
 export function getTableCellsContent(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  effectiveFormat: EffectiveFormat,
   indicatorMetadata: IndicatorMetadata[] | undefined,
-  obeyMetricFormat: boolean,
   effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {
@@ -203,8 +205,12 @@ export function getTableCellsContent(
         }
       : undefined,
     textFormatter: (info: TableCellInfo) => {
+      // Per-cell formatting — exactly the "indicator" metrics, whose table
+      // rows legitimately mix percent and count indicators. Each cell formats
+      // by its own indicator; the shared effectiveFormat only covers cells
+      // whose indicator declares no format.
       if (
-        !obeyMetricFormat &&
+        effectiveFormat.perCell &&
         metadataById &&
         info.valueAsNumber !== undefined
       ) {
@@ -217,10 +223,11 @@ export function getTableCellsContent(
           );
         }
       }
-      return getFormatterFunc(
-        formatAs,
+      return formatIndicatorValue(
+        info.value,
+        effectiveFormat.formatAs,
         config.s.decimalPlaces ?? 0,
-      )(info.value);
+      );
     },
   };
 }
@@ -260,20 +267,55 @@ export function getTableColHeadersContent(config: PresentationObjectConfig) {
   };
 }
 
-function formatIndicatorValue(
-  rawValue: number,
-  formatAs: "percent" | "number" | "rate_per_10k",
-  decimalPlaces: number,
+// THE 3-way value formatter. "rate_per_10k" is stored as a bare rate and
+// written as a per-10,000 count, so it formats as a number after scaling —
+// panther has no percent-like format for it, which is exactly why the scaling
+// lives on this side.
+export function formatIndicatorValue(
+  value: number | string | null | undefined,
+  formatAs: IndicatorFormat,
+  decimalPlaces: 0 | 1 | 2 | 3,
 ): string {
-  if (formatAs === "rate_per_10k") {
-    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
+  if (formatAs !== "rate_per_10k") {
+    return getFormatterFunc(formatAs, decimalPlaces)(value);
   }
-  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
+  const n = typeof value === "string" ? Number(value) : value;
+  const scaled =
+    n === null || n === undefined || isNaN(n) ? value : n * 10000;
+  return getFormatterFunc("number", decimalPlaces)(scaled);
+}
+
+// Scale-axis tick labels for the same three formats. percent/number keep
+// panther's auto-decimal modes (sized from the resolved tick list);
+// rate_per_10k has no auto mode, so it goes through the formatter function
+// escape. The escape sees one tick at a time, never the list, so it emulates
+// auto per value: the fewest decimals (≤3) that print the scaled tick
+// exactly. The data-label decimals knob deliberately does not apply — it
+// defaulted to 0 and collapsed sub-unit ticks onto identical labels.
+export function getScaleTickLabelFormatter(
+  formatAs: IndicatorFormat,
+): TickLabelFormatterOption {
+  if (formatAs === "rate_per_10k") {
+    return formatRateTick;
+  }
+  return formatAs === "percent" ? "auto-percent" : "auto-number";
+}
+
+function formatRateTick(v: number): string {
+  const scaled = v * 10000;
+  for (const dp of [0, 1, 2, 3] as const) {
+    const factor = Math.pow(10, dp);
+    const rounded = Math.round(scaled * factor) / factor;
+    if (Math.abs(rounded - scaled) <= Math.abs(scaled) * 1e-9) {
+      return getFormatterFunc("number", dp)(scaled);
+    }
+  }
+  return getFormatterFunc("number", 3)(scaled);
 }
 
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   deckStyle: DeckStyleContext | undefined,
 ) {
   if (config.d.type !== "map") return undefined;
@@ -298,7 +340,11 @@ export function getMapRegionsContent(
       const regionText = showRegion ? info.featureId : "";
       const dataText =
         showData && info.value !== undefined
-          ? getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value)
+          ? formatIndicatorValue(
+              info.value,
+              formatAs,
+              config.s.decimalPlaces ?? 0,
+            )
           : "";
       if (regionText && dataText) return `${regionText}\n${dataText}`;
       return regionText || dataText;
@@ -342,7 +388,7 @@ export function getPieSlicesContent(config: PresentationObjectConfig) {
 // a pie with no hole, so no shape check is needed here.
 export function getPieCenterLabel(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
 ): "none" | "total" | "share" {
   if (config.d.type !== "pie" || !config.s.pieShowCenterValue) return "none";
   return isPieCompletionMode(config, formatAs) ? "share" : "total";
