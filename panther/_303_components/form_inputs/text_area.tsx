@@ -32,6 +32,9 @@ function getTextAreaClasses(
     "block",
     "w-full",
     resizable ? "" : "resize-none",
+
+    // Invalid state (while invalidMsg is set)
+    "data-[invalid=true]:border-danger",
   ]
     .filter(Boolean)
     .join(" ");
@@ -75,6 +78,7 @@ export function TextArea(p: TextAreaProps) {
         ref={(el) => useAutoFocus(el, p.autoFocus)}
         class={getTextAreaClasses(p.size, p.mono, p.resizable)}
         data-intent={p.intent}
+        data-invalid={!!p.invalidMsg}
         autofocus={p.autoFocus}
         onInput={(v) => p.onChange?.(v.currentTarget.value)}
         onKeyDown={p.onKeyDown}

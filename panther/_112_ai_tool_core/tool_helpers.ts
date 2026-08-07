@@ -516,6 +516,15 @@ function assertSchemaAcceptsUnknownKeys(
   }
 }
 
+// The return-type cast below ASSERTS `additionalProperties: false` without
+// verifying it — z.toJSONSchema does not emit that key for plain z.object.
+// Harmless today (nothing reads it), but it becomes a live lie the day
+// `strict: true` tool use is adopted: strict mode REQUIRES a real
+// `additionalProperties: false` in the wire schema, which itself conflicts
+// with the accept-unknown-keys invariant enforced above. Resolve both
+// together before adopting strict mode — and note these schemas now also
+// serve the remote MCP endpoint's tools/list (_220), so any change ripples
+// to MCP clients and must re-run the mcp rigs.
 function zodToJsonSchema(zodSchema: zType.ZodType): {
   type: "object";
   properties?: Record<string, unknown>;

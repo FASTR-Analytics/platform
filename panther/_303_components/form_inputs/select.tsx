@@ -43,6 +43,7 @@ export function Select<T extends string>(p: Props<T>) {
             p.onChange(e.currentTarget.value as T)}
           class={getSelectClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
+          data-invalid={!!p.invalidMsg}
           data-placeholder={p.placeholder && !p.value}
           autofocus={p.autoFocus}
           disabled={p.disabled}

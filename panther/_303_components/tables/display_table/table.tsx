@@ -244,10 +244,26 @@ export function Table<
                           column.alignH,
                         )
                       } font-700 text-base-content text-xs uppercase tracking-wider ${
-                        column.sortable ? "ui-hoverable-base-200" : ""
+                        column.sortable
+                          ? "ui-hoverable-base-200 ui-focusable"
+                          : ""
                       }`}
                       style={{ width: column.width }}
+                      tabindex={column.sortable ? "0" : undefined}
+                      aria-sort={column.sortable
+                        ? (sortConfig()?.key === column.key
+                          ? (sortConfig()?.direction === "asc"
+                            ? "ascending"
+                            : "descending")
+                          : "none")
+                        : undefined}
                       onClick={() => handleSort(column)}
+                      onKeyDown={(evt) => {
+                        if (evt.key === "Enter" || evt.key === " ") {
+                          evt.preventDefault();
+                          handleSort(column);
+                        }
+                      }}
                     >
                       <span class="inline-flex items-center gap-1">
                         {column.header}
