@@ -149,9 +149,33 @@ export function whatsNewAutoShowPost(
   );
 }
 
-// Page media may be an image/GIF or an mp4 clip; both live in imageUrl
+// Page media may be an uploaded image/GIF/mp4 or an embedded YouTube video;
+// all live in imageUrl. Uploaded files are served from status-api, YouTube is
+// an external embed — so the deletion/sweep logic (which keys off the
+// /api/whats-new/images/ path) naturally ignores YouTube links.
 export function isWhatsNewVideo(url: string | undefined): boolean {
   return !!url && /\.mp4(\?|$)/i.test(url);
+}
+
+// Accepts watch, youtu.be, embed, shorts and live URL forms
+export function whatsNewYouTubeId(url: string | undefined): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+  const m = url.match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/,
+  );
+  return m?.[1];
+}
+
+export function isWhatsNewYouTube(url: string | undefined): boolean {
+  return whatsNewYouTubeId(url) !== undefined;
+}
+
+// Privacy-enhanced host; no autoplay (a popup that starts talking is hostile)
+export function whatsNewYouTubeEmbedUrl(url: string): string | undefined {
+  const id = whatsNewYouTubeId(url);
+  return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0` : undefined;
 }
 
 // Numeric dotted-version compare ("1.9.0" < "1.10.0"); missing or non-numeric

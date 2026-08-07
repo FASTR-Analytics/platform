@@ -2,7 +2,9 @@ import {
   compareDottedVersions,
   getLanguage,
   isWhatsNewVideo,
+  isWhatsNewYouTube,
   t3,
+  whatsNewYouTubeEmbedUrl,
   WHATS_NEW_LAYOUTS,
   whatsNewMediaWidthPct,
   type WhatsNewPage,
@@ -260,9 +262,19 @@ function WhatsNewMedia(p: {
   const [loaded, setLoaded] = createSignal(false);
   const [play, setPlay] = createSignal(false);
   const isVideo = () => isWhatsNewVideo(p.src);
+  const youTubeUrl = () => whatsNewYouTubeEmbedUrl(p.src);
   // Held back until this page's turn in the load queue
   const src = () => (p.canLoad ? p.src : undefined);
   let videoRef: HTMLVideoElement | undefined;
+
+  // Nothing of ours to download for an embed — release the queue at once so
+  // later pages aren't held up waiting on a third-party player
+  onMount(() => {
+    if (isWhatsNewYouTube(p.src)) {
+      setLoaded(true);
+      p.onLoaded();
+    }
+  });
 
   function markLoaded() {
     setLoaded(true);
@@ -330,6 +342,23 @@ function WhatsNewMedia(p: {
         <Show when={!loaded()}>
           <div class="bg-base-200 absolute inset-0 rounded" />
         </Show>
+        {/* The player is mounted only while its page is visible — every page
+            stays in the DOM, and N background YouTube iframes would be a
+            heavy, pointless load */}
+        <Show when={!youTubeUrl()} fallback={
+          <Show
+            when={p.active}
+            fallback={<div class="bg-base-200 aspect-video w-full rounded" />}
+          >
+            <iframe
+              src={youTubeUrl()}
+              class="aspect-video w-full rounded"
+              title={t3({ en: "Video", fr: "Vidéo", pt: "Vídeo" })}
+              allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+              allowfullscreen
+            />
+          </Show>
+        }>
         {/* Video appears as soon as it has a frame — no opacity ramp; fading
             in a video's first frame reads as sluggish, and by the time the
             page is shown the clip is already buffered in this very element */}
@@ -382,6 +411,7 @@ function WhatsNewMedia(p: {
               ▶
             </button>
           </Show>
+        </Show>
         </Show>
       </div>
     </Show>
