@@ -346,6 +346,13 @@ how they're processed.
 
 ## 9. Verification
 
+> **RULED (Tim, 2026-08-07): steps 2–7 are NOT project work and NOT
+> blockers.** Tim continually uses the app in dev and production — that
+> usage IS the runtime verification and is his responsibility alone. User
+> testing never appears in plans or keeps a plan file alive (see
+> CLAUDE.md "User testing is NOT project work"). Step 1 is the only gate;
+> it is green. This plan is COMPLETE and deletable.
+
 1. `deno task typecheck` (includes `lint:systems`), `./validate_protocols`.
 2. **Per-family end-to-end with disposable fixtures** (create → import →
    delete; never touch existing named rows): upload via wizard → asset row

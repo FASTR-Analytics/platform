@@ -309,8 +309,10 @@ read from here rather than from the environment — `calendar`, `countryIso3`, a
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `3`
-(`RUN_MANIFEST_SCHEMA_VERSION`). Invariant 1's immutability covers package
+**`manifestSchemaVersion` gates every read**, currently `4`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v4 = `metrics[].format_as` became the
+three-way declared format and the 8 pre-declaration metric rows were
+rewritten to `"indicator"`). Invariant 1's immutability covers package
 **outputs**; the manifest is a derived descriptor and **is transformed forward
 in place** (`server/runs/manifest_transform.ts`), because a schema change would
 otherwise orphan every existing package and regenerating mints a new `runId`.
@@ -322,6 +324,11 @@ Transforms". Consequences for this format: whatever a block reads can never be
 dropped from the package, a transformed package additionally carries its
 pre-transform `manifest.v{n}.json`, and a package written by a _newer_ server is
 refused as unavailable rather than served with its additions silently stripped.
+A LISTED input mirror that is missing or unparseable on disk during a forced
+transform is the same operational class as a missing manifest
+(`RunInputReadError` → the `unreadable` outcome): that package degrades to
+unavailable and boot proceeds — a half-restored package must not down the
+instance.
 
 The transform is also what lets the read path shrink. Target state:
 
@@ -529,6 +536,14 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   their `console.error` prefix (converges under enforcement item 8).
 - **population.csv has no pre-upload validation** — headers/types are only
   checked by R at run time.
+- **Read-path mirror tolerance, two files** — `readInputRows` (`run_read.ts`)
+  yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
+  two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,
+  `hfa_indicator_variant_items_snapshot.json` in
+  `getHfaTaxonomyFromManifestInputs`) is a live compat shim for pre-variant
+  packages, not just defensive coding. Per the target state above, that
+  tolerance belongs at transform time; until a transform stamps the taxonomy
+  into the manifest, these two absences stay silently tolerated per request.
 - **HFA variants rollback hazard** (2026-08-04): `availableDisaggregation
   Options` is a strict `z.enum` in the manifest schema and manifests parse
   strictly, so once a package stamped with `hfa_variant_item` exists, rolling

@@ -235,7 +235,7 @@ A DB transform only reshuffles fields inside the row it was handed, so it
   `scriptGenerationType`. That is intended (see 2), but it means recomputed
   fields are not byte-stable across app versions.
 
-**2. The forced gate is the version integer, and blocks re-evaluate every boot.**
+**2. The forced gate is the version integer, and blocks run only behind it.**
 
 A parse-only gate is wrong here. A manifest from a *newer* server parses under
 the current schema with its additions silently stripped, so parse success cannot
@@ -250,15 +250,22 @@ if (
 ) continue;
 ```
 
-`runManifestSchema` deliberately accepts **any** integer version — it has to, so
-a newer manifest is detected rather than rejected as malformed — so the version
-is asserted separately after the blocks run. Still below current means the block
-for that step is missing: a code defect, and boot fails.
+The corollary the gate imposes: a manifest already stamped current is
+**skipped whole** — blocks do NOT re-evaluate on every boot. **A derivation
+fix therefore requires a `RUN_MANIFEST_SCHEMA_VERSION` bump**, or it reaches
+only packages that arrive after the deploy. The v3→v4 bump is the worked
+example: block 2 rewrites `metrics[].format_as` for the 8 pre-declaration
+metrics, and block 1's catalog recompute re-runs on the same forced pass for
+free.
 
-Because these are blocks and not version-indexed steps, they re-evaluate every
-boot. **That is the point: fixing a bad derivation takes effect on the next
-deploy.** A version-indexed ladder would run each step exactly once, making
-every derivation bug fix cost a new schema version forever.
+**Each block stamps the version it produces, inside the block** (block 1
+stamps 3, block 2 stamps 4). `runManifestSchema` deliberately accepts **any**
+integer version — it has to, so a newer manifest is detected rather than
+rejected as malformed — so the version is asserted separately after the
+blocks run. Because the stamps live inside the blocks, a manifest still below
+current after every block ran means the block for that step is genuinely
+missing: a code defect, and boot fails. (A single trailing stamp would mask
+exactly that.)
 
 **3. The boot sweep enumerates the `runs` catalogue, never the filesystem.**
 

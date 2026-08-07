@@ -396,6 +396,17 @@ UI-only symbols belong in `client/` code.
 - **Never create a `scripts/` folder** - put build/utility scripts at the repo
   root
 
+### User testing is NOT project work (ruled 2026-08-07, emphatic)
+
+Tim continually uses the app in dev and production. That usage IS the
+browser/runtime verification, it is HIS responsibility, and it NEVER counts
+as project work. Never list his verification in a plan, a todo, or a
+"remaining" line; never treat it as a blocker for closing work or deleting a
+plan file. The only exception is a specific manual check that has been
+EXPLICITLY AGREED as a gate. When implementation and the automated gates
+(typecheck, harnesses, rigs) are green, the work is done — close and delete
+the plan.
+
 ### Cross-Cutting Changes & Refactors (hard-won rules)
 
 - **Three repos move together.** Features often span this app, the authored
