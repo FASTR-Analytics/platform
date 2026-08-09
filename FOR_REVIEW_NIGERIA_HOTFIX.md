@@ -20,7 +20,7 @@
 
 **Status 2026-08-09: all open questions adjudicated and committed.** Q1
 (narrow), Q2, Q3, Q6 plus a type-reuse consolidation landed as `287769dd`; all
-gates re-run green. The branch is renamed `FOR_REVIEW_NIGERIA_HOTFIX` pending
+gates re-run green. This file is renamed `FOR_REVIEW_NIGERIA_HOTFIX.md` pending
 an independent check. **Nothing remains to implement on this branch** — what's
 left is the review, then deploy (timing is Tim's call, deploy preconditions at
 the bottom of this file). Everything in "Already ruled — do not reopen" was
@@ -39,9 +39,8 @@ decided deliberately and re-litigating it wastes the pass.
 ## Why this work is on `main`
 
 Nigeria runs **1.64.7**, which is exactly `origin/main` (deploy commit
-`d7be89e7`, 2026-08-04, plus one `[skip ci]` changelog commit). This branch —
-local `main`, renamed `FOR_REVIEW_NIGERIA_HOTFIX` for the independent check —
-is `origin/main` plus the hotfix commits catalogued above and nothing else.
+`d7be89e7`, 2026-08-04, plus one `[skip ci]` changelog commit). Local `main` is
+`origin/main` plus the hotfix commits catalogued above and nothing else.
 `tim-branch` is 157 commits ahead of the old base and carries the results-runs,
 effective-format and custom-value-ordering work — none of it deployable
 mid-training.

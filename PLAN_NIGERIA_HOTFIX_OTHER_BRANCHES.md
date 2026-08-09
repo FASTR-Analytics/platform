@@ -15,7 +15,7 @@
 >
 > **What does NOT belong here.** The immediate `main` work and the decisions
 > gating its deploy: that is
-> [PLAN_NIGERIA_HOTFIX_THIS_BRANCH.md](PLAN_NIGERIA_HOTFIX_THIS_BRANCH.md).
+> [FOR_REVIEW_NIGERIA_HOTFIX.md](FOR_REVIEW_NIGERIA_HOTFIX.md).
 >
 > **Keep this file in sync.** Whenever anything is decided or implemented on
 > `main`, add the corresponding port-back entry here in the same pass. A `main`
