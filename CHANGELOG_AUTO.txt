@@ -1,3 +1,10 @@
+[TBD] [user] [fixed] - Time periods now sort chronologically instead of alphabetically in charts and tables
+[TBD] [user] [fixed] - Months, quarters, and years display in correct order on all axes
+[TBD] [admin] [fixed] - Period dimensions now sort chronologically instead of alphabetically
+[TBD] [admin] [fixed] - Module installs no longer falsely report asset changes
+[TBD] [admin] [fixed] - Asset import errors during module runs are now surfaced clearly
+[TBD] [admin] [added] - Support for pinned-repo-asset format in module definitions
+[TBD] [admin] [fixed] - Clearer error messages when module definitions fail validation
 [1.64.7] [user] [added] - "What's New" bell icon shows latest platform updates
 [1.64.7] [user] [added] - Unread dot on bell icon highlights announcements you haven't seen
 [1.64.7] [user] [added] - New release announcements appear automatically after login
