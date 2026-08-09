@@ -268,17 +268,19 @@ multi-hundred-MB spill files to `/app/.tmp` inside the container
 layer). Any fix for the memory ceiling should set `temp_directory`
 deliberately rather than inherit this default.
 
-### 12. Nondeterministic chart order under the shipped default sort — CONFIRMED
+### 12. Nondeterministic chart order under the shipped default sort — MITIGATED (was CONFIRMED)
 
-Charts with `sortIndicatorValues: "none"` (a shipped default) render in raw
-item order, and DuckDB group-by output order is nondeterministic run-to-run:
-7 distinct row orders in 8 identical runs through the real executor vs. 1
-stable order from Postgres. Bars reshuffle on every cache miss/invalidation;
-stored figure snapshots freeze whichever order that fetch produced. The
-comment at `server/run_query/duckdb_executor.ts:12` ("row-set consumers are
-order-insensitive already") asserts an invariant that is false
-(`client/src/generate_visualization/get_data_config_from_po.ts:279-283`,
-`lib/types/presentation_object_defaults.ts:33`).
+Original finding: charts with `sortIndicatorValues: "none"` (a shipped
+default) rendered in raw item order, and DuckDB group-by output order is
+nondeterministic run-to-run (7 distinct row orders in 8 identical runs vs. 1
+stable order from Postgres), so bars reshuffled on every cache miss.
+
+Mitigated by the axis-sort dispatcher (commit `71690725`): under `"none"`
+every chart axis now gets a total, dimension-keyed sort at render
+(`getAxisSort`, `get_data_config_from_po.ts`) — no figure surface renders
+raw row order anymore. The executor's deterministic total-order pin is still
+wanted (stable row sets for LIMIT and stored-figure grids), but display
+ordering no longer depends on it.
 
 ### 13. No working code-version invalidation knob for the package layer — CONFIRMED
 

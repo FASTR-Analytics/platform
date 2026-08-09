@@ -16,11 +16,13 @@ import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 //     resolves them to number (or throws outside the safe-integer range).
 //   - Text ORDER BY is binary, not collation — option-list callers must
 //     re-sort in TS.
-//   - DuckDB group-by output order is nondeterministic run-to-run, and charts
-//     with `sortIndicatorValues: "none"` render raw row order — the executor
-//     pins a deterministic total order over every result set. Meaningful
-//     ordering is the caller's job (as the option-list TS re-sort already is);
-//     an ORDER BY inside the SQL still controls WHICH rows a LIMIT keeps.
+//   - DuckDB group-by output order is nondeterministic run-to-run — the
+//     executor pins a deterministic total order over every result set so
+//     identical queries yield identical row sets (stable-sort tie-breaks,
+//     stored-figure grids, LIMIT). Meaningful ordering is the caller's job:
+//     every figure axis gets a dispatcher sort at render (getAxisSort,
+//     get_data_config_from_po.ts) and option-list callers re-sort in TS; an
+//     ORDER BY inside the SQL still controls WHICH rows a LIMIT keeps.
 
 // Sized empirically (review finding 11): the worst ordinary serving shape —
 // a facility_name disaggregation over a 59.5M-row parquet, 1.92M groups —
