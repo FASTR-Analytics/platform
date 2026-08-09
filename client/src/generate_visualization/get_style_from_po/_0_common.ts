@@ -187,8 +187,12 @@ export function getTableLayoutStyle(
 // assigns display options in order, so a three-dimension table lands its
 // indicator dimension on rowGroup.
 //
-// The list is shared with the scorecard so a cell resolves the same indicator
-// for its format and for its threshold colouring.
+// The LIST is shared with the scorecard; the stopping rule is not.
+// formatForValue stops at the first id declaring `format_as`,
+// getThresholdMetaForCell at the first declaring `threshold_direction`, so the
+// two could in principle resolve different indicators for the same cell. No
+// per-module catalog mixes entries where the two declarations diverge, so this
+// is unreachable today.
 export function getIndicatorIdsForCell(
   effectiveValueProps: string[],
   info: Pick<
@@ -359,17 +363,20 @@ export function getScaleTickLabelFormatter(
 }
 
 // The ids that could identify a plotted value's indicator, most specific
-// first. Category charts carry the indicator at i_val; timeseries leave
-// indicatorHeader undefined and identify by series; a pie slice always has
-// one. Any of the four layout axes can carry the indicator dimension instead,
-// and none of them is ever an admin area on a chart.
+// first. A wide-format metric carries the indicator as the sole value prop
+// (same rule as getIndicatorIdsForCell). Category charts carry it at i_val;
+// timeseries leave indicatorHeader undefined and identify by series; a pie
+// slice always has one. Any of the four layout axes can carry the indicator
+// dimension instead, and none of them is ever an admin area on a chart.
 export function getIndicatorIdsForChartValue(
+  effectiveValueProps: string[],
   info: Pick<
     ChartSeriesInfo,
     "seriesHeader" | "laneHeader" | "tierHeader" | "paneHeader"
   > & { indicatorHeader: HeaderItem | undefined },
 ): (string | undefined)[] {
   return [
+    effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
     info.indicatorHeader?.id,
     info.seriesHeader.id,
     info.laneHeader.id,
@@ -379,17 +386,25 @@ export function getIndicatorIdsForChartValue(
 }
 
 // A map region's own key is an admin area, never an indicator, so only the
-// three layout axes (or a filter pin, which formatForValue falls back to) can
-// say which indicator the value belongs to.
+// sole value prop (wide-format metrics) or the three layout axes (or a filter
+// pin, which formatForValue falls back to) can say which indicator the value
+// belongs to.
 export function getIndicatorIdsForMapRegion(
+  effectiveValueProps: string[],
   info: MapRegionInfo,
 ): (string | undefined)[] {
-  return [info.paneHeader.id, info.tierHeader.id, info.laneHeader.id];
+  return [
+    effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
+    info.paneHeader.id,
+    info.tierHeader.id,
+    info.laneHeader.id,
+  ];
 }
 
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
   effectiveFormat: EffectiveFormat,
+  effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {
   if (config.d.type !== "map") return undefined;
@@ -416,7 +431,9 @@ export function getMapRegionsContent(
         showData && info.value !== undefined
           ? formatIndicatorValue(
               info.value,
-              effectiveFormat.formatForValue(getIndicatorIdsForMapRegion(info)),
+              effectiveFormat.formatForValue(
+                getIndicatorIdsForMapRegion(effectiveValueProps, info),
+              ),
               config.s.decimalPlaces ?? 0,
             )
           : "";

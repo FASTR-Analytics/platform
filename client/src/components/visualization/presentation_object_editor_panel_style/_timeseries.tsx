@@ -206,7 +206,12 @@ export function TimeseriesStyleControls(p: Props) {
                   pt: "Mostrar rótulos de dados",
                 })}
               />
-              <Show when={p.tempConfig.s.showDataLabels}>
+              <Show
+                when={
+                  p.tempConfig.s.showDataLabels &&
+                  p.effectiveFormatAs !== "rate_per_10k"
+                }
+              >
                 <StyleRevealGroup>
                   <RadioGroup
                     label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -315,7 +320,12 @@ export function TimeseriesStyleControls(p: Props) {
                   pt: "Mostrar rótulos de dados",
                 })}
               />
-              <Show when={p.tempConfig.s.showDataLabelsLineCharts}>
+              <Show
+                when={
+                  p.tempConfig.s.showDataLabelsLineCharts &&
+                  p.effectiveFormatAs !== "rate_per_10k"
+                }
+              >
                 <StyleRevealGroup>
                   <RadioGroup
                     label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -441,20 +451,22 @@ export function TimeseriesStyleControls(p: Props) {
                   />
                 </StyleRevealGroup>
               </Show>
-              <div class="pt-0.5"></div>
-              <RadioGroup
-                label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
-                options={getSelectOptions(["0", "1", "2", "3"])}
-                value={String(p.tempConfig.s.decimalPlaces)}
-                onChange={(v) =>
-                  p.setTempConfig(
-                    "s",
-                    "decimalPlaces",
-                    Number(v) as 0 | 1 | 2 | 3,
-                  )
-                }
-                horizontal
-              />
+              <Show when={p.effectiveFormatAs !== "rate_per_10k"}>
+                <div class="pt-0.5"></div>
+                <RadioGroup
+                  label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                  options={getSelectOptions(["0", "1", "2", "3"])}
+                  value={String(p.tempConfig.s.decimalPlaces)}
+                  onChange={(v) =>
+                    p.setTempConfig(
+                      "s",
+                      "decimalPlaces",
+                      Number(v) as 0 | 1 | 2 | 3,
+                    )
+                  }
+                  horizontal
+                />
+              </Show>
               <div class="pt-0.5"></div>
               <Checkbox
                 checked={p.tempConfig.s.hideLegend}

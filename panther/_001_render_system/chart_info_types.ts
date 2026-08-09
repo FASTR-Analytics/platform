@@ -161,9 +161,9 @@ export type TableHeaderSampleN = {
 
 // Label semantics: the header textFormatter receives the RAW (pre-format)
 // label and returns the final display string; every other consumer — getStyle
-// funcs, TableCellInfo.rowHeader/colHeader, primitive metadata,
-// MeasuredTable.transformedData, resolveTableHeaders output — sees the
-// RESOLVED label. `id` is the raw match key everywhere.
+// funcs, TableCellInfo.rowHeader/colHeader/rowGroupHeader/colGroupHeader,
+// primitive metadata, MeasuredTable.transformedData, resolveTableHeaders
+// output — sees the RESOLVED label. `id` is the raw match key everywhere.
 export type TableHeaderInfo = {
   id: string | undefined;
   label: string;

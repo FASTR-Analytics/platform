@@ -1,7 +1,9 @@
-// The eight metrics whose values ARE the displayed indicator's own quantity
-// (PLAN_EFFECTIVE_FORMAT) and whose authored declaration predates the three-way
-// `formatAs`. Frozen: it never grows — a metric authored after the declaration
-// existed says "indicator" itself, so nothing new can ever belong here.
+// Every metric that must read `formatAs: "indicator"` — the metrics whose
+// values ARE the displayed indicator's own quantity. Most predate the three-way
+// `formatAs` and have stored data to repair; m10-03-01/02 were authored
+// "indicator" from day one and are here defensively, for the normalization job
+// only. Frozen: it never grows — a metric authored now says "indicator" itself,
+// so nothing new can ever belong here.
 //
 // It has two distinct jobs, and both need the same list:
 //
@@ -16,7 +18,7 @@
 //     carrying the current schema version, which no migration can then reach.
 //     Normalizing at the fetch boundary means no definition version can put a
 //     stale declaration into the app.
-export const INDICATOR_FORMAT_METRIC_IDS = [
+export const INDICATOR_FORMAT_METRIC_IDS: readonly string[] = [
   "m7-01-01",
   "m7-01-02",
   "m7-01-03",

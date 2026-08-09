@@ -59,7 +59,9 @@ export function buildStandardStyle(
   const formatChartValue = (info: ChartValueInfo) =>
     formatIndicatorValue(
       info.val,
-      effectiveFormat.formatForValue(getIndicatorIdsForChartValue(info)),
+      effectiveFormat.formatForValue(
+        getIndicatorIdsForChartValue(effectiveValueProps, info),
+      ),
       config.s.decimalPlaces ?? 0,
     );
   const cf = selectCf(config.s);
@@ -153,7 +155,12 @@ export function buildStandardStyle(
         deckStyle,
       ),
       tableColHeaders: getTableColHeadersContent(config),
-      mapRegions: getMapRegionsContent(config, effectiveFormat, deckStyle),
+      mapRegions: getMapRegionsContent(
+        config,
+        effectiveFormat,
+        effectiveValueProps,
+        deckStyle,
+      ),
       slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle, cfOn),

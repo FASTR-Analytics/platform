@@ -5,7 +5,7 @@ import {
   selectCf,
   t3,
 } from "lib";
-import { METRICS_WITH_NEGATIVE_PCT_VALUES } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
+import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
 import { Checkbox, RadioGroup, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -83,7 +83,12 @@ export function TableStyleControls(p: Props) {
               onChange={(v) => p.setTempConfig("s", "showNValues", v)}
             />
           </Show>
-          <Show when={!p.tempConfig.s.specialScorecardTable}>
+          <Show
+            when={
+              !p.tempConfig.s.specialScorecardTable &&
+              p.effectiveFormatAs !== "rate_per_10k"
+            }
+          >
             <div class="pt-0.5"></div>
             <RadioGroup
               label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -122,7 +127,7 @@ export function TableStyleControls(p: Props) {
             onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
             formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
-            allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
+            allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
           />
         </StyleSection>
       </Show>

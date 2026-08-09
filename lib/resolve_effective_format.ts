@@ -200,7 +200,16 @@ function getDisplayedIndicatorDimensionValues(
 
     if (dis.disDisplayOpt === "replicant") {
       // A replicated figure shows exactly one value of the replicant dimension.
-      // The stored default is an empty string, not undefined.
+      // A PO config stores no-selection as undefined (the field is optional and
+      // the starting config leaves it unset), but "" also reaches here: the
+      // deck config's default is "", and ReplicateByOptions feeds
+      // `selectedReplicantValue || ""` into tempConfig. Both mean "nothing
+      // selected".
+      //
+      // Returning undefined here (rather than falling through to enumeration)
+      // is a latent behaviour change from the pre-per-value code, reachable
+      // only with a metric carrying TWO indicator dimensions where the second
+      // is pinned in filterBy — no such metric exists. Recorded, deliberate.
       const selected = config.d.selectedReplicantValue;
       if (selected === undefined || selected === "") return undefined;
       displayed.push(selected);

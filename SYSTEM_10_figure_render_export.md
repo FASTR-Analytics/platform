@@ -420,24 +420,49 @@ does NOT refetch on a filter edit — its cache keys on `(projectId, metricId,
 run)` only — which is exactly why the resolver is config-based and reacts to
 the draft config with no fetch.)
 
+RULED (2026-08-09): the CF editor's scaling factor stays `axisFormat`-driven —
+cutoffs are figure-wide, so there is no per-value answer — even though the
+factor is therefore filter-sensitive on an `"indicator"` metric (add a percent
+indicator to a rate figure and the same stored `0.0005` box switches from
+"5 per 10k" to raw). Cutoffs are stored and compared raw, so colouring never
+moves; the mitigation is that the active unit is VISIBLE on the control
+(PercentSelect shows `%`, the number input shows a "per 10k" marker when the
+axis is a rate, bare otherwise), so a unit switch is something the user sees
+rather than discovers by mis-typing. `scaleForInput` also rounds the displayed
+value to 6 decimals — ×10,000 on a stored fraction otherwise redisplays the
+"3" the user just typed as `2.9999999999999996`.
+
 **`rate_per_10k`** is stored as a bare rate and written as a per-10,000 count.
 Two rules, each with one implementation: `scaleValueForFormat` owns the
 scaling (×100 for percent, ×10,000 for rate — `formatIndicatorValue` and the
 scorecard's threshold comparison both go through it), and `formatRateAuto` owns
 the decimals — the fewest (≤3) that print the scaled value EXACTLY, decided per
-value. Every rate label follows `formatRateAuto`: the scale axis (via panther's
+value. Every rate LABEL follows `formatRateAuto`: the scale axis (via panther's
 `tickLabelFormatter` escape, since panther's `format` field is two-way), data
-labels, the scale legend (`scaleLegendFormat`), the threshold legend and the CF
-editor preview (`buildAutoValueFormatter`). The `s.decimalPlaces` knob does NOT
-apply to rates — it defaults to 0 and would print `1` beside an axis tick
-reading `1.2` — and no list-wide auto count applies either, since sizing for a
-DISTINCT list rounds a 0.25 boundary to "0.3" while the axis prints "0.25".
+labels, the scale legend (`scaleLegendFormat`), the threshold legend, the CF
+editor preview (`buildAutoValueFormatter`) and the calculated-indicator
+editor's live preview. The one deliberate non-label exception: the AI CSV
+(`format_metric_data_for_ai.ts`) emits rates at a fixed `toFixed(2)` — a CSV
+column wants a stable width, not per-value decimals. The `s.decimalPlaces` knob
+does NOT apply to rates — it defaults to 0 and would print `1` beside an axis
+tick reading `1.2` — and no list-wide auto count applies either, since sizing
+for a DISTINCT list rounds a 0.25 boundary to "0.3" while the axis prints
+"0.25". Because the knob is inert on a pure-rate figure, the style panels hide
+the decimal-places control when `axisFormat === "rate_per_10k"`; on a MIXED
+"indicator" table it stays visible, since it genuinely works on the percent
+cells (the pie panel also keeps it — slice labels are percent shares whatever
+the metric's format). A related acceptance: the scale legend's boundary
+decimals are now per-value, so a rate boundary list prints `0 / 0.25 / 0.5 /
+0.75 / 1` rather than a shared decimal count (`0.00 / 0.25 / 0.50 / …`) — the
+direct consequence of the one-rule decision that fixed the duplicated-label
+bug; do not "fix" it back.
 
 **Repair and normalization.** `INDICATOR_FORMAT_METRIC_IDS`
 ([indicator_format_metrics.ts](lib/indicator_format_metrics.ts)) is the frozen
-list of the eight metrics whose authored declaration predates the three-way
-`formatAs`. It never grows — a metric authored after the declaration existed
-says `"indicator"` itself. It has two jobs: REPAIR of data written before the
+list of every metric that must read `"indicator"` — most predate the three-way
+`formatAs` and have stored data to repair; m10-03-01/02 were authored
+`"indicator"` from day one and sit there defensively, for normalization only.
+It never grows — a metric authored now says `"indicator"` itself. It has two jobs: REPAIR of data written before the
 declaration (project migration 039 for the metrics table — a SQL literal, the
 one copy that cannot import it; `manifest_transform` block 2 for run manifests;
 the figure-block sweep for stored bundles — see
@@ -481,9 +506,12 @@ Known residue, same class: `forceYMax1` pins the axis at `1`, so a coverage
 value above 100% is drawn _above_ the plot box. Unaddressed by `"auto-zero"`,
 because a user who forces a max has asked for a fixed axis.
 
-`_0_conditional_consts.ts` separately holds `METRICS_WITH_NEGATIVE_PCT_VALUES`
-(`m3-0x-02`) — a distinct concern despite the similar name: it lets the
-style-panel UI accept negative conditional-formatting thresholds.
+The same list drives the style-panel UI's `allowNegative`
+(`metricAllowsNegativeScale` at the three CF-editor call sites), so a metric
+whose axis fits below zero also accepts negative conditional-formatting
+thresholds. The CF editor's cutoff bounds are format-driven: only a percent has
+a natural floor (0, or -1 when signed) and ceiling (100%); counts and rates are
+unbounded in both directions.
 
 ## Slide→page rendering (generate_slide_deck)
 
@@ -680,9 +708,6 @@ the in-app dashboard editor builds the same bundle type but has no export entry
   map", and only dashboard PDF friendly-cases that error.
 - The viz editor's multi-replicant download is disabled (`allReplicants`
   hard-coded false, `downloadMultiple` commented out) — revive or delete.
-- `_0_conditional_consts.ts` is a single-const file whose three importers are
-  all style-panel UI files — merge into `special_chart_checks.ts` or move to the
-  UI side.
 - Two transparency mechanisms for the same user option: the editor PNG honors
   transparency only in the no-padding branch (`getFigureAsCanvas` fills white);
   the dashboard PNG bakes `backgroundColor:"none"` — unify (blocked on a panther

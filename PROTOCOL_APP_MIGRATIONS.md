@@ -290,16 +290,17 @@ designed.
 | A LISTED **input mirror** absent, unreadable, or not parseable JSON | Half-restored backup, truncated write | **Operational.** `RunInputReadError` → the `unreadable` outcome: that package degrades to unavailable, boot proceeds. |
 | Input mirror parses as JSON but fails its **row schema** | Real shape drift — a row schema changed without a migration | `RunInputRowSchemaError`. Nothing catches it → **fail-stop boot.** |
 
-The last two rows are the input-mirror twin of rows 2 and 3, and they must stay
-apart. Wrapping both in `RunInputReadError` (as the first cut did) meant a code
-defect silently marked every affected package unavailable fleet-wide with the
-deploy looking green — the exact outcome rows 3 and 4 exist to prevent. Both
-classes are raised in `runDirInputRowsReader`
-(`server/runs/indicator_catalog.ts`) and discriminated in
-`transformRunManifestFile`.
+The two **input-mirror** rows are the twin of the manifest not-parseable and
+schema-drift rows, and they must stay apart. Wrapping both in
+`RunInputReadError` (as the first cut did) meant a code defect silently marked
+every affected package unavailable fleet-wide with the deploy looking green —
+the exact outcome the fail-stop rows exist to prevent. Both classes are raised
+in `runDirInputRowsReader` (`server/runs/indicator_catalog.ts`) and
+discriminated in `transformRunManifestFile`.
 
-The last two rows are principle 4 unchanged. **Absent or unparseable must not
-fail boot**, and the reason is concrete: backups are pg dumps, so a restore
+The two **version** rows are principle 4 unchanged. The **absent / unreadable**
+rows — manifest or input mirror — must not fail boot, and the reason is
+concrete: backups are pg dumps, so a restore
 brings `runs` catalogue rows back while the package directories are still
 absent. The existing degrade paths are deliberate and stay — `getRunReadContext`
 returns a typed "Results run unavailable", and `projects.ts` degrades the

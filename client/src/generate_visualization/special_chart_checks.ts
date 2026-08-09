@@ -37,6 +37,10 @@ export const SPECIAL_SCORECARD_TABLE_METRICS = ["m8-01-01"];
 //
 // "auto-zero" is a no-op on data that never crosses zero, so listing a metric
 // here cannot change how its existing non-negative charts render.
+//
+// The list also drives the CF editor's `allowNegative` (via
+// metricAllowsNegativeScale): a metric whose axis fits below zero must also
+// accept negative conditional-formatting thresholds.
 export const ALLOW_NEGATIVE_SCALE_VALUES_METRICS = [
   "m9-02-01",
   "m2-01-01",

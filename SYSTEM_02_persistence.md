@@ -370,13 +370,16 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   bundle carries no metric definition, so `inferFormatAs` supplies the field:
   `"indicator"` for the eight ids in `INDICATOR_FORMAT_METRIC_IDS`
   ([lib/indicator_format_metrics.ts](lib/indicator_format_metrics.ts)),
-  otherwise the original backfill heuristic — percent iff every stored
-  indicator that declares a format declares percent. It deliberately does NOT
+  `"number"` for m9-02-01 (frozen: its CIX/SII values are derived measures over
+  percent indicators), otherwise the original backfill heuristic — percent iff
+  **every** stored indicator entry declares `format_as: "percent"`, so a
+  label-only entry counts as disagreement. That strictness is the point: the
+  function repairs history and must not improve on it. It deliberately does NOT
   run the live resolution rule, which counts only values on an indicator
   DIMENSION: a legacy figure displaying no indicator dimension would resolve
   `"number"` and freeze a percent metric's values as raw fractions, and this
   write is permanent. The flip needs a **forced** skip-gate
-  (`rawJsonNeedsForcedTransform`), because a bundle whose stored `formatAs`
+  (`rawJsonNeedsIndicatorFormatFlip`), because a bundle whose stored `formatAs`
   still says `"number"` for a listed metric parses cleanly under the three-way
   schema and a parse-only gate would skip it forever
   ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate

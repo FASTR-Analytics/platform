@@ -28,7 +28,6 @@ import {
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
-  type PresentationObjectConfig,
 } from "lib";
 import {
   getPeriodIdFromTime,

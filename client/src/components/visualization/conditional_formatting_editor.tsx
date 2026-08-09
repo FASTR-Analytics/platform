@@ -395,9 +395,16 @@ function ThresholdsPanel(p: {
             // origI maps display index back to the stored bucket index.
             const origI = () => p.cf.buckets.length - 1 - j();
             const cutoffIdx = () => origI() - 1;
-            const minVal = () => cutoffIdx() > 0 ? p.cf.cutoffs[cutoffIdx() - 1] : (p.allowNegative ? -1 : 0);
-            // The top cutoff's ceiling is the format's, not 1: only a percent
-            // tops out at 100%. A count or rate is unbounded.
+            // Both bounds are the format's, not universal: only a percent has
+            // a natural floor (0, or -1 when the metric is signed) and a
+            // natural ceiling (100%). A count or rate is unbounded either way
+            // — m9-02-01's SII values are negative by construction.
+            const minVal = () =>
+              cutoffIdx() > 0
+                ? p.cf.cutoffs[cutoffIdx() - 1]
+                : p.formatAs === "percent"
+                  ? (p.allowNegative ? -1 : 0)
+                  : undefined;
             const maxVal = () =>
               cutoffIdx() < p.cf.cutoffs.length - 1
                 ? p.cf.cutoffs[cutoffIdx() + 1]
@@ -481,13 +488,25 @@ function ValueInput(p: {
     <Show
       when={p.formatAs === "percent"}
       fallback={
-        <NumberInput
-          label={p.label}
-          value={scaleForInput(p.value, p.formatAs)}
-          onChange={(v) => p.onChange(unscaleFromInput(v, p.formatAs))}
-          min={p.min === undefined ? undefined : scaleForInput(p.min, p.formatAs)}
-          max={p.max === undefined ? undefined : scaleForInput(p.max, p.formatAs)}
-        />
+        <div class="flex flex-col">
+          <NumberInput
+            label={p.label}
+            value={scaleForInput(p.value, p.formatAs)}
+            onChange={(v) => p.onChange(unscaleFromInput(v, p.formatAs))}
+            min={p.min === undefined ? undefined : scaleForInput(p.min, p.formatAs)}
+            max={p.max === undefined ? undefined : scaleForInput(p.max, p.formatAs)}
+          />
+          {/* The active unit must be VISIBLE: an "indicator" metric's
+              axisFormat is filter-sensitive, so this control can silently
+              switch between per-10k and raw units when the displayed
+              indicators change. The marker (or its disappearance) is how the
+              user sees that switch. */}
+          <Show when={p.formatAs === "rate_per_10k"}>
+            <span class="text-base-content-muted text-[10px] leading-tight">
+              {t3({ en: "per 10k", fr: "pour 10k", pt: "por 10k" })}
+            </span>
+          </Show>
+        </div>
       }
     >
       <PercentSelect
@@ -505,9 +524,11 @@ function ValueInput(p: {
 
 // Mirrors formatRateAuto's scaling on the way in and out — the control shows
 // per-10,000 counts because that is what the axis, the labels and the legend
-// all show.
+// all show. Rounded to 6 decimals: ×10000 on a stored fraction accumulates
+// float error (0.0003 → 2.9999999999999996) that NumberInput's String() would
+// otherwise display verbatim in the box the user just typed "3" into.
 function scaleForInput(v: number, formatAs: IndicatorFormat): number {
-  return formatAs === "rate_per_10k" ? v * 10000 : v;
+  return formatAs === "rate_per_10k" ? Math.round(v * 10000 * 1e6) / 1e6 : v;
 }
 
 function unscaleFromInput(v: number, formatAs: IndicatorFormat): number {

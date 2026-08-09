@@ -662,6 +662,8 @@ export type TableCellPrimitive = BasePrimitive & {
     i_col: number;
     rowHeader: HeaderItem | undefined;
     colHeader: HeaderItem | undefined;
+    rowGroupHeader: HeaderItem | undefined;
+    colGroupHeader: HeaderItem | undefined;
   };
   backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;
