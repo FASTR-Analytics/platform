@@ -26,6 +26,10 @@ import {
 // that declares a direction carries the cutoffs to compare against.
 // See SYSTEM_10 "Effective format".
 
+// Deliberately NOT panther's thresholdColorFunc: these boundaries are
+// inclusive toward green in BOTH directions (>= green / <= green), while
+// thresholdColorFunc is strict-< upward — unifying would flip exact-boundary
+// lower_is_better values (e.g. exactly 90.0) from green to yellow.
 function getScorecardCutoffColor(
   direction: "higher_is_better" | "lower_is_better",
   green: number,

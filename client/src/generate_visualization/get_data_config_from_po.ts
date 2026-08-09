@@ -232,8 +232,8 @@ function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefin
 }
 
 // Axis sort: the user's custom order when one exists for the axis's disOpt
-// (an explicit choice beats every rule, chronology included — merge ruling,
-// PLAN_NIGERIA_HOTFIX_OTHER_BRANCHES.md), else chronological for period dims,
+// (an explicit choice beats every rule, chronology included — 2026-08-09
+// ruling, PLAN_AXIS_SORT_DISPATCHER.md), else chronological for period dims,
 // else alphabetical with the roll-up sentinel pinned.
 function getAxisSort(
   config: PresentationObjectConfig,

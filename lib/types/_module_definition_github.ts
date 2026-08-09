@@ -344,8 +344,8 @@ const resultsObjectDefinitionGithub = z.object({
 // The 1.65.0 hotfix declared repoPath/sha256 OPTIONAL and collapsed pins to
 // names via getAssetName (main consumed assets by name only). On this branch
 // the pin is honoured — repo_assets.ts fetches by repoPath and verifies
-// sha256 — so both fields are required and no collapse exists (merge ruling,
-// PLAN_NIGERIA_HOTFIX_OTHER_BRANCHES.md).
+// sha256 — so both fields are required and no collapse exists (2026-08-09
+// merge ruling).
 const repoAssetToImportGithub = z.object({
   name: z.string(),
   repoPath: z.string(),
