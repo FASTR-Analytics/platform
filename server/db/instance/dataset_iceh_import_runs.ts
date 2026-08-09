@@ -240,8 +240,7 @@ export async function launchDatasetIcehImportRun(
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (refused if
 // another import is running — ICEH has no queue) and re-runs the full ingest
-// from the retained zip with the gate skipped; "Discard" cancels and deletes
-// the temp zip.
+// from the zip asset with the gate skipped; "Discard" cancels.
 export async function resolveDatasetIcehReview(
   mainDb: Sql,
   args: {

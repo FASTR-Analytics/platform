@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import { serveStatic } from "hono/deno";
+import { normalize } from "@std/path/posix";
 import { _ASSETS_DIR_PATH, _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 import { getGlobalUser } from "../project_auth.ts";
 import { requireGlobalPermission } from "./userPermission.ts";
@@ -13,11 +14,11 @@ import { requireGlobalPermission } from "./userPermission.ts";
 const PUBLIC_IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i;
 
 // Data-file assets (import-wizard inputs live here now — raw facility-level
-// health data) require can_view_data OR can_configure_data, the same OR gate
-// as the assets page, so its download buttons keep working for everyone who
-// can see the page. requireGlobalPermission(a, b) is AND, hence the inline
-// check. Asset NAMES stay visible to all authenticated users (the SSE
-// starting payload) — only the bytes are gated.
+// health data) require can_view_data OR can_configure_data (admins pass).
+// requireGlobalPermission(a, b) is AND, hence the inline check. The assets
+// PAGE itself is visible to all authenticated users — asset NAMES are public
+// (the SSE starting payload); only the bytes are gated, and the page hides
+// the data-file download button from users this tier would 403.
 const DATA_FILE_RE = /\.(csv|xlsx?|zip)$/i;
 
 export function setupStaticServing(app: Hono) {
@@ -48,13 +49,35 @@ export function setupStaticServing(app: Hono) {
   );
 
   // Third tier: data-file bytes for data-permitted users only (admins pass).
+  // The extension test runs on the DECODED, NORMALIZED path with trailing
+  // slashes stripped — serveStatic resolves `/x.csv/`, `/x.csv/.`, and
+  // `/x.csv/y/..` to the same file on some hono versions, and this tier
+  // fails OPEN (falls through to the any-authenticated serve below), so the
+  // gate must see every spelling of a data-file path.
   app.use("*", async (c, next) => {
+    // decodeURI throws on malformed escapes (a bare % survives
+    // sanitizeUploadFilename, so "coverage_100%.csv" is a real asset name);
+    // serveStatic cannot decode such a path either, so gating on the raw
+    // path is equivalent there — never let the throw escape to onError.
+    let decoded = c.req.path;
+    try {
+      decoded = decodeURI(c.req.path);
+    } catch {
+      // Keep the raw path.
+    }
+    const path = normalize(decoded).replace(/\/+$/, "");
     // CORS preflight passes through, same as requireGlobalPermission.
-    if (!DATA_FILE_RE.test(c.req.path) || c.req.method === "OPTIONS") {
+    if (!DATA_FILE_RE.test(path) || c.req.method === "OPTIONS") {
       await next();
       return;
     }
-    const globalUser = await getGlobalUser(c);
+    let globalUser: Awaited<ReturnType<typeof getGlobalUser>>;
+    try {
+      globalUser = await getGlobalUser(c);
+    } catch {
+      c.status(503);
+      return c.text("Service temporarily unavailable");
+    }
     if (globalUser === "NOT_AUTHENTICATED") {
       c.status(401);
       return c.text("Authentication required");

@@ -161,6 +161,11 @@ ownership annotation, not a registry.
   runs are protected by the byte pin; pre-launch, wizards re-parse on every
   upload. Files that feed module runs (`population.csv`) remain the known
   sharp corner.
+- **Same-name-overwrite residual windows — RULED accepted (Tim,
+  2026-08-07).** The byte pin covers launch→spawn only; the wizard-session
+  window, the spawn→worker-open window, and bare-auth upload overwriting a
+  read-gated file are all accepted residual risk (small trusted teams; worst
+  case is a discardable bad import). Do not raise again.
 - **Zero-key guards throughout** — upload, list, and the delete route all use
   bare `requireGlobalPermission()` ("any authenticated user"); S1's rule is to
   be deliberate about that. A `can_configure_data`-style key may fit.

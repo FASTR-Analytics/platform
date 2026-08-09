@@ -54,8 +54,13 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
   else if (/\.(jpg|jpeg|png|gif|svg|webp|ico)$/i.test(path)) {
     c.header("Cache-Control", "public, max-age=86400");
   }
-  // Cache JSON/data files for 5 minutes
-  else if (/\.(json|csv|xml)$/i.test(path)) {
+  // Data files are permission-gated (S1's static tier + run outputs), so the
+  // response depends on who asked — shared caches must never store it.
+  else if (/\.(csv|xlsx?|zip)$/i.test(path)) {
+    c.header("Cache-Control", "private, no-store");
+  }
+  // Cache JSON/XML files for 5 minutes
+  else if (/\.(json|xml)$/i.test(path)) {
     c.header("Cache-Control", "public, max-age=300");
   }
 };

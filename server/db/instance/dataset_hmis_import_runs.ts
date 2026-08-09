@@ -709,10 +709,20 @@ export async function launchQueuedDatasetHmisCsvImportRun(
   if (claimed === 0) {
     return false;
   }
-  await spawnCsvRunWorker(mainDb, {
-    runId: args.runId,
-    onComplete: args.onComplete,
-  });
+  try {
+    await spawnCsvRunWorker(mainDb, {
+      runId: args.runId,
+      onComplete: args.onComplete,
+    });
+  } catch (e) {
+    // The claim WAS taken and spawnCsvRunWorker already failed it (pin
+    // mismatch, missing file) — report true so the caller's notify fires and
+    // clients drop the stale "queued" badge.
+    console.error(
+      `Queued CSV run ${args.runId} failed at spawn:`,
+      e instanceof Error ? e.message : e,
+    );
+  }
   return true;
 }
 

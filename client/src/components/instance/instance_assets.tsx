@@ -232,14 +232,24 @@ function AssetTable(p: {
       render: (asset) => {
         const canDelete =
           p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
+        // Data-file bytes are served only to data-permitted users (S1's
+        // static tier) — hide the button rather than let the browser save a
+        // 403 body to disk.
+        const canDownload =
+          !(asset.isCsv || asset.isXlsx || asset.isZip) ||
+          instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_view_data ||
+          instanceState.currentUserPermissions.can_configure_data;
         return (
           <div class="ui-gap-sm flex items-center justify-end">
-            <Button
-              intent="base-100"
-              iconName="download"
-              href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
-              download={asset.fileName}
-            />
+            <Show when={canDownload}>
+              <Button
+                intent="base-100"
+                iconName="download"
+                href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
+                download={asset.fileName}
+              />
+            </Show>
             <Show when={canDelete}>
               <Button
                 iconName="trash"
