@@ -395,7 +395,7 @@ capture is always the FULL dataset per family — entire period range, all
 indicators/admin areas/facility types/ownerships, every HFA service category
 (Tim's ruling 2026-08-03: the R scripts need the full dataset to compute
 correctly, and per-project subsetting is an attach-time query filter —
-PLAN_PROJECT_DATA_SUBSETTING — never a generation input). Legacy manifests
+PLAN_DATA_SUBSETTING_PROJECT_SPECIFIED — never a generation input). Legacy manifests
 carry a `windowing`/`serviceCategoryScope` key inside their `z.unknown()`
 datasets info — inert, nothing reads it, no schema-version gate needed);
 resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated

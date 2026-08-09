@@ -1,181 +1,450 @@
-# Plan: Project-level data subsetting
+# Plan: Project-level data subsetting (SUPERSEDED — reference only)
 
-**Status: not started, depends on
-[PLAN_FULL_CAPTURE_GENERATION.md](PLAN_FULL_CAPTURE_GENERATION.md).** Written
-2026-08-03.
+**Status: SECONDARY to
+[PLAN_DATA_SUBSETTING_PROJECT_SPECIFIED.md](PLAN_DATA_SUBSETTING_PROJECT_SPECIFIED.md)
+— do not implement from this file.** Tim's 2026-08-09 reframing (the AA2
+scope is project IDENTITY, set at creation and branded, not a subset
+setting on the attachment) replaced this plan's framing, and its phases
+2/3 were dropped as likely never needed. This file is kept as the
+research/evidence base: the verified-current-state citations, the cache
+enumeration, and the level-mismatch findings below remain accurate and
+are what the live plan builds on.
 
-**Ruling (Tim, 2026-08-03):** once packages always carry full data (period
-range, indicators, admin areas, facility types/ownerships, HFA service
-categories — see the companion plan), a project should be able to subset
-what it queries from its attached package, without needing a
-differently-windowed package generated for it. This is the second half of
-replacing generation-time windowing.
+Original context: written 2026-08-03; verified, fleshed out and pinned
+2026-08-09. The prerequisite (PLAN_FULL_CAPTURE_GENERATION, always-full
+package generation) shipped 2026-08-03 and its plan file is deleted —
+packages now always carry the full HMIS/HFA capture.
 
-This plan is explicitly a UX/scope nicety layered on top of the
-correctness-critical full-capture change, not a precondition for it — it can
-ship as a fast-follow. Every project can keep working unmodified (seeing the
-whole package) until this lands.
+**Ruling (Tim, 2026-08-03):** a project can subset what it queries from its
+attached package, without needing a differently-windowed package generated
+for it. This is a UX/scope nicety, **not a security boundary** — project
+members can already reach the whole package through internals surfaces; the
+subset scopes the analytical view.
 
 ## Priority (Tim, 2026-08-03)
 
-The subsettable dimensions, in order:
+1. **Admin Area 2 vs National** — build end to end first (storage → UI →
+   query enforcement → caching).
+2. **Indicators** — second.
+3. **Time (period)** — third, fine to defer.
 
-1. **Admin Area 2 vs National — the main issue.** A project needs to scope
-   its view of the package to a single Admin Area 2 (a sub-national region)
-   or to the national/all-areas view. This is the dimension that actually
-   matters; build and ship this first, end to end (storage → UI → query
-   enforcement → caching), before touching the others.
-2. **Indicators — second priority.** Restricting which indicators a project
-   sees out of the full package.
-3. **Time (period) — third priority, "may also be good to have."** Lower
-   urgency than the above two; fine to defer to a later pass once 1 and 2 are
-   working.
+**Out of scope**: facility type/ownership and HFA service-category
+subsetting. The mechanism below supports them as filter columns if ever
+asked; no UI or storage for them now.
 
-**Out of scope for this plan**: facility type/ownership subsetting and HFA
-service-category subsetting. The query layer already supports both as
-filter columns (see below) so nothing is precluded, but neither was
-requested — don't build UI or storage for them unless asked.
+## Verified current state (re-verified 2026-08-09)
 
-## Current state (verified 2026-08-03) — there is no existing prior art
-
-- `projects.run_id` is a plain nullable `text` FK, no accompanying
-  settings/filter/JSON column anywhere (`server/db/instance/_main_database.sql:57-67`;
-  confirmed against every `ALTER TABLE projects ADD COLUMN` migration — only
-  `status`, `deletion_scheduled_at`, `is_central_reporting`, `run_id` exist).
-- Attach route (`attachResultsPackage`,
-  `server/routes/project/results_package.ts:86-103` →
-  `attachRunToProject`, `server/runs/attach_run.ts:79-102` →
-  `setProjectAttachedRun`) does a bare `UPDATE projects SET run_id = ...`.
-  No filter/scope object is read, written, or threaded anywhere in this path.
-- Client attach picker (`client/src/components/project/project_results_package.tsx`)
-  is a flat list with a single "Use this package" action — no subset UI.
-- **Conclusion: this is genuinely new territory**, not an extension of
-  something half-built. The one directly reusable asset is
-  `WindowingSelector.tsx` (`client/src/components/WindowingSelector.tsx`),
-  already parameterized over exactly the shape needed
-  (`DatasetHmisWindowingCommon`, `lib/types/dataset_hmis.ts:27-59`) — though
-  it may need renaming/generalizing since it stops being about "windowing a
-  dataset" and becomes "subsetting a project's view of a package."
-
-## The query layer already speaks the vocabulary this needs
-
-This is the strongest finding from investigation, and the reason this is
-tractable without inventing a new query mechanism:
-
-- Every project read resolves `projects.run_id` → `getRunManifestCached(runId)`
-  → a `RunReadContext` (`server/run_query/run_read.ts:97-127`), then executes
-  DuckDB SQL directly over `outputs/<moduleId>/<roId>.parquet` and
-  `inputs/facilities_hmis|hfa.parquet` — never a live Postgres probe.
+- `projects` has no settings/filter/JSON column — only `id`, `label`,
+  `ai_context`, `is_locked`, `is_central_reporting`, `status`,
+  `deletion_scheduled_at`, `run_id`
+  (`server/db/instance/_main_database.sql:57-67`; migrations 007, 021, 041,
+  065 are the complete ALTER set; next free migration number is 075).
+- Attach is a bare `UPDATE projects SET run_id`
+  (`server/routes/project/results_package.ts:86-103` →
+  `server/runs/attach_run.ts:79-102` → `setProjectAttachedRun`,
+  `server/db/instance/run_generation.ts:413-450`). A second attach path
+  exists: `publishReadyRun` (`run_generation.ts:544-568`) from the
+  generation pipeline. **There is no detach** anywhere.
+- Every project read resolves `projects.run_id` via
+  `getRunReadContext(mainDb, projectId)`
+  (`server/run_query/run_read.ts:99-129`) → `RunReadContext {runId, runDir,
+  manifest}`, then DuckDB SQL over parquet. `getRunReadContext` is called
+  per-route (presentation_objects.ts, modules.ts, results_package.ts) — it
+  is the single choke point where a per-project subset naturally loads
+  (same `projects` row it already SELECTs).
 - `GenericLongFormFetchConfig.filters` (`{disOpt, values}[]`,
-  `lib/types/presentation_objects.ts:399`) already compiles to SQL via
-  `buildWhereClause` (`server/server_only_funcs_presentation_objects/query_helpers.ts`),
-  shared identically by the pg-parity path and the run/DuckDB path through
-  `getPresentationObjectItemsCore`
-  (`server/server_only_funcs_presentation_objects/get_presentation_object_items.ts:91-238`).
-  `admin_area_2` and `indicator_common_id` — the two priority dimensions —
-  are both already valid `disOpt` filter columns, same as
-  `facility_type`/`facility_ownership`/`admin_area_3..4`/`hfa_service_category`
-  (out of scope here, but available the same way if priorities change later).
-  Admin-area filters are split out via `computeFacilityContext`
-  (`get_query_context.ts:35-83`) and joined through the `facility_subset` CTE
-  (`cte_manager.ts:82-92`).
-- There's existing precedent for silently injecting an extra filter into
-  every fetch config: `getFiltersWithReplicant`
-  (`lib/get_fetch_config_from_po.ts:446-453`) appends a pinned replicant
-  filter onto the caller's own `filterBy`, deliberately excluded
-  (`excludeReplicantFilter`) for options/possible-values queries. A
-  project-level subset filter is the same shape of problem.
-- Period scoping has a parallel two-tier mechanism: `PeriodFilter`
-  (`RelativePeriodFilter | BoundedPeriodFilter`) resolved server-side by
-  `getPeriodFilterExactBounds` (`lib/get_fetch_config_from_po.ts:112`) against
-  live data bounds (`getPeriodBoundsCore`,
-  `server/server_only_funcs_presentation_objects/get_period_bounds.ts`). A
-  project-level default period window would AND into the same bounds
-  resolution inside `getPresentationObjectItemsCore`
-  (`get_presentation_object_items.ts:126-163`).
+  `lib/types/presentation_objects.ts:613`) compiles to WHERE via
+  `buildWhereClause` (`query_helpers.ts:303`), shared by the pg-parity and
+  run paths through `getPresentationObjectItemsCore`
+  (`get_presentation_object_items.ts:91-238`). `admin_area_2` and
+  `indicator_common_id` are ordinary `DisaggregationOption` filter columns.
+  Precedent for silently appending a filter: `getFiltersWithReplicant`
+  (`lib/get_fetch_config_from_po.ts:483-499`).
+- **Correction to the 2026-08-03 draft**: admin-area filters do NOT go
+  through the `facility_subset` CTE. `computeFacilityContext`
+  (`get_query_context.ts:35-83`) routes only `facility_*` optional columns
+  through the facilities join; admin-area filters are `nonFacilityFilters`
+  applied **directly against results-object columns**. So the injected
+  filter only bites where the RO parquet physically carries the column —
+  see "Level mismatch" below.
+- The facilities parquets carry `facility_id` + all four admin areas +
+  facility attributes (`PROJECT_FACILITY_COLUMN_NAMES`,
+  `server/db/project/datasets_in_project_hmis.ts:69-83`) — the run-local
+  source for both the AA2 picker list and the AA2→AA3 mapping.
+- `WindowingSelector.tsx` is generic over the `DatasetHmisWindowing` union
+  (`lib/types/dataset_hmis.ts:24-60`); its only live caller is the instance
+  delete-data tool, passing the Raw variant. **Ruled: do not repurpose it**
+  — phase 1 needs a radio (National) + one AA2 select, not a five-dimension
+  windowing form.
 
-## Proposed shape (not yet ruled — needs investigation/decision)
+### Level mismatch: module outputs are split per admin level
 
-Build in priority order — Admin Area 2 end-to-end first, then extend the same
-plumbing to indicators, then to time. The storage/caching/query-injection
-mechanism below is shared across all three dimensions, so phase 1 should
-design the shape generally (a small set of optional filter dimensions) even
-though only `adminArea2` is populated at first — avoids a schema change to
-add indicators/time later.
+Modules emit separate ROs per level (`*_national.csv`, `*_admin_area.csv`,
+`*_admin2.csv`, `*_admin3.csv`). Verified in wb-fastr-modules:
 
-1. **Storage**: most likely a new column on `projects` (e.g. `data_subset
-   jsonb`, nullable = "no subset, see everything"; shape roughly
-   `{adminArea2Id?: string, indicatorIds?: string[], periodBounds?: {...}}`,
-   all optional so phase 1 only ever populates `adminArea2Id`), since attach
-   is already a `projects`-row concept and the "no instance FKs inside run
-   files" invariant means this can never live in the package itself. Confirm
-   this is right before building — alternative locations (a separate table
-   keyed by projectId) are worth a quick comparison if the subset needs its
-   own audit/history.
-2. **UI — phase 1 (Admin Area 2 vs National)**: a picker for "National" vs a
-   single Admin Area 2. **Needs investigation/decision**: is this part of the
-   attach flow (set once, at picker time) or a persistent, independently
-   editable setting on the project's Results package tab
-   (`client/src/components/project/project_results_package.tsx`), editable
-   without re-attaching? Tim's framing ("the option to subset data taken into
-   projects") leans toward the latter — confirm before building. Whether
-   `WindowingSelector.tsx` is worth repurposing for just this one dimension,
-   or whether a simple dedicated Admin Area 2 picker is less UI debt than
-   adapting a component built for five dimensions — decide once phase 1 scope
-   is fixed.
-3. **Query-layer enforcement — phase 1**: inject the project's `adminArea2Id`
-   (when set) as an extra `filters` entry at the run-read layer —
-   `getPresentationObjectItemsFromRun` / `getPossibleValuesFromRun` /
-   `getResultsValueInfoFromRun` in `run_read.ts` — before calling into
-   `*Core`, following the `getFiltersWithReplicant` precedent. **Needs
-   investigation**: whether possible-values/filter-option queries need the
-   same `exclude`-style treatment replicant filters get, so a user picking
-   filter values still sees the full package's option list or only the
-   subset's — this is a real UX decision, not just plumbing (see open items).
-   Phase 2/3 extend this same injection point with `indicator_common_id` and
-   a period bound respectively.
-4. **Caching**: a project's subset changes query results per project, so two
-   projects attached to the SAME runId with different subsets must not
-   collide in cache. SYSTEM_08 invariant 1 states caches currently fold only
-   `runId` into their keys ("the manifest cache parses once per runId with no
-   invalidation path... Valkey entries fold runId into their hashes").
-   **Needs investigation**: enumerate every runId-keyed cache (manifest
-   cache, virtual-defaults cache, Valkey PO caches per SYSTEM_03/SYSTEM_09)
-   and add the subset as a second key dimension (e.g. hash of the subset
-   config) everywhere runId alone is currently assumed sufficient. Design
-   this dimension generally in phase 1 (hash the whole subset object, not
-   just `adminArea2Id`) so phases 2/3 don't need a second cache-key change.
-5. **Period bounds semantics (phase 3)**: `manifest.datasets[].info` /
-   results-object `periodBounds` currently reflect the captured (soon: full)
-   data. A project's *effective* bounds under its own subset need to be
-   computed at query time, not read verbatim off the manifest. **Needs
-   investigation**: whether `getPeriodBoundsCore` / `getRawPeriodBoundsFromRun`
-   already support intersecting with an extra filter, or need extending. This
-   is the lowest-priority dimension — defer investigation until phases 1/2
-   are shipped.
-6. **Non-PO consumers of run data**: anything that reads a run's data without
-   going through the standard PO query path risks bypassing the subset
-   entirely. **Needs investigation**: the AI copilot's tool layer
-   (`getSharedToolsForModules`, SYSTEM_13_ai_assistant.md), exports (PDF/PPTX/DOCX),
-   and the "queryable run-inputs UI" deferred item in
-   PLAN_RESULTS_RUNS.md — each needs to either intersect with the project's
-   subset or be an explicit, documented exception. Check against phase 1
-   scope (Admin Area 2 only) first; re-check when indicators/time are added.
+- Admin-2-level ROs carry `admin_area_2` → direct filter works.
+- **Admin-3-level ROs drop `admin_area_2`** (M6 `script.R:585-588` deletes
+  it explicitly; M5 similar) → filtering needs the run's AA3 values for the
+  chosen AA2, derived from the facilities parquet.
+- National ROs have no admin columns → cannot be scoped.
+- M9/ICEH has no admin columns at all (survey data: `strat`/`level`).
 
-## Open items (explicitly left for investigation, not yet ruled)
+**Rulings (2026-08-09, per the make-the-call rule):**
 
-- Exact storage shape/column for a project's subset (design generally across
-  all three dimensions even though phase 1 only populates `adminArea2Id`).
-- Whether the subset is set once at attach time only, or persistently
-  editable afterward independent of re-attaching (this changes the UI
-  significantly — confirm with Tim before building).
-- Full enumeration of runId-only cache keys that need the subset folded in.
-- Whether filter-option/possible-values pickers in the project UI should
-  offer only the subset's values or the full package's values.
-- Whether currently-windowed legacy packages (pre this-plan) need any
-  reconciliation once attach-time subsetting exists, or simply become moot as
-  projects regenerate/re-attach to full packages over time.
-- Whether facility type/ownership or HFA service-category subsetting get
-  added later — out of scope for now (see Priority), but the storage shape
-  and query-injection point chosen in phase 1 should not preclude adding them
-  the same way if priorities change.
+- Where the RO has `admin_area_2`: inject `admin_area_2 = X`.
+- Where it has only `admin_area_3`/`admin_area_4`: inject
+  `IN (run's child values under X)`, derived per `(runId, family, X)` from
+  the family's facilities parquet and memoized (runs are immutable, the
+  memo never invalidates). Bare-AA3 name collisions across AA2s are a
+  pre-existing property of AA3 filtering today; inherited, not worsened.
+- National ROs (and ICEH): **shown unfiltered.** A subset project still
+  sees national metrics — inevitable (there is no per-area row to keep) and
+  consistent with "the R scripts need full data" from the full-capture
+  ruling. Document in SYSTEM_08/09 when landing.
+
+## Phase 1 specification
+
+### 1. Types (lib)
+
+In `lib/types/projects.ts`:
+
+```ts
+export const projectDataSubsetSchema = z.object({
+  adminArea2: z.string().min(1),
+});
+export type ProjectDataSubset = z.infer<typeof projectDataSubsetSchema>;
+
+export function hashProjectDataSubset(s: ProjectDataSubset | null): string;
+// sorted-keys JSON (hashFacilityColumnsConfig pattern,
+// lib/types/instance.ts:205-211); "none" for null. The ONE hash used by
+// server cache keys, holder stamps, and the client version key.
+```
+
+Phases 2/3 add optional keys (`indicatorCommonIds?`, `periodBounds?`) —
+additive Zod extensions, no migration/transform (the stored-JSON
+rename/delete hazard covers renames and deletes, not additions).
+
+Threading: `DBProject` (`server/db/instance/_main_database_types.ts:73-82`)
+gains `data_subset: string | null`; `ProjectDetail`
+(`lib/types/projects.ts:27-52`) and `ProjectState`
+(`lib/types/project_sse.ts:20-54`, plus `EMPTY_PROJECT_STATE`) gain
+`dataSubset: ProjectDataSubset | null`. `getProjectDetail`
+(`server/db/project/projects.ts:54+`) parses the column with
+`safeParse` → null on invalid. `build_project_state.ts` copies it into the
+SSE `starting` payload (the `starting` reconcile then needs no store work).
+
+The subset is a **persistent, independently editable project setting** —
+survives re-attach (an area team stays an area team across package
+updates), editable without re-attaching. Attach-time-only was the rejected
+alternative.
+
+### 2. Storage
+
+Migration `075_add_project_data_subset.sql`:
+`ALTER TABLE projects ADD COLUMN data_subset text;` — same column added to
+`_main_database.sql` base schema. Nullable text holding Zod-validated JSON
+(the `presentation_objects.config` text-column pattern). NULL = no subset.
+No separate table — no audit/history requirement, and attach is already a
+projects-row concept.
+
+### 3. Routes
+
+Registry `lib/api-routes/project/projects.ts` (mirror `updateProject` at
+:29-35):
+
+```ts
+updateProjectDataSubset: route({
+  path: "/project/:project_id/data-subset",
+  method: "POST",
+  params: projectIdParamsSchema,
+  body: z.object({ dataSubset: projectDataSubsetSchema.nullable() }),
+  requiresProject: true,
+}),
+```
+
+Server `server/routes/project/project.ts`: guard
+`requireProjectPermission({preventAccessToLockedProjects: true},
+"can_configure_visualizations")` — the attach guard, **not**
+`updateProject`'s `requireAdmin` (the subset is attach-class: it changes
+what everyone sees). DB function `updateProjectDataSubset(mainDb,
+projectId, subset)` beside `updateProject` in
+`server/db/project/projects.ts` — bare UPDATE of the JSON (or NULL). On
+success: `notifyProjectDataSubsetChanged(projectId, subset)` (below).
+Write-time validation is schema-only — no membership check against the
+current run's AA2 list (the subset must survive re-attach to a package
+whose list differs; the picker constrains normal entry).
+
+Registry `lib/api-routes/project/results-package.ts`:
+
+```ts
+listResultsPackageAdminArea2s: route({
+  path: "/project/:project_id/results_package/admin-area-2s",
+  method: "GET",
+  params: projectIdParamsSchema,
+  requiresProject: true,
+}),  // response: APIResponseWithData<string[]>
+```
+
+Server `server/routes/project/results_package.ts`, guard
+`can_configure_visualizations`: `getRunReadContext`, then for each of
+`facilities_hmis`/`facilities_hfa` present in `manifest.inputFiles`,
+`SELECT DISTINCT admin_area_2 FROM <t> WHERE admin_area_2 IS NOT NULL` via
+`executeSqlOverParquet` with a single-view spec
+(`runInputFilePath(ctx.runDir, ...)`); union, dedupe on UPPER, sort by
+LOWER (matching `dataset_hmis.ts:300-304`). Run-local on purpose — the
+instance's live `admin_areas_2` table may have drifted from the attached
+immutable package. **Not subset-filtered** (it feeds the picker).
+
+### 4. RunReadContext + injection (server/run_query/run_read.ts)
+
+- `getRunReadContext` extends its SELECT to `run_id, data_subset`;
+  `RunReadContext` gains `subset: ProjectDataSubset | null` and
+  `subsetHash: string` (from `hashProjectDataSubset`). Every consumer —
+  routes, and MCP/AI which dispatch in-process through the same routes —
+  inherits from this one load point.
+- New helper (co-located in `run_read.ts`, its only consumer):
+
+```ts
+async function computeSubsetFilters(
+  ctx: RunReadContext,
+  ro: RunResultsObject,
+): Promise<GenericLongFormFetchConfig["filters"]>
+```
+
+Logic: `ctx.subset === null` → `[]`. Else check `ro.columns` names
+(manifest stamp, `lib/types/run_manifest.ts:43`):
+
+- has `admin_area_2` → `[{disOpt: "admin_area_2", values: [adminArea2]}]`
+- else has `admin_area_3` (then `admin_area_4` analogously) → derive the
+  child values: `SELECT DISTINCT admin_area_3 FROM <family facilities
+  table> WHERE UPPER(admin_area_2) = UPPER('<escapeSqlString(X)>') AND
+  admin_area_3 IS NOT NULL`, family via
+  `getDatasetFamilyFromRun(ctx, ro.moduleId)`; no facilities parquet for
+  the family (ICEH) → `[]`. **Empty derivation must inject a
+  never-matching sentinel value** (e.g. `["__SUBSET_EMPTY__"]`) — an
+  empty `values` array is skipped by `buildWhereClause` and would show
+  ALL data instead of none.
+- else → `[]`.
+
+Memo beside it: `Map<string, string[]>` keyed
+  `${runId}|${family}|${UPPER(aa2)}`, FIFO cap ~50 (the
+  `manifest_cache.ts:11-43` pattern); export an evict-by-runId called from
+  `server/runs/delete_run.ts` beside `evictRunFromManifestCache` (memory
+  hygiene, not correctness — runs are immutable).
+
+- Injection sites (all in the FromRun wrappers; the shared Cores and the
+  pg-parity path are untouched):
+  - `getPresentationObjectItemsFromRun` (:736): compute `subsetFilters`;
+    when non-empty, build `effectiveFetchConfig = {...fetchConfig,
+    filters: [...fetchConfig.filters, ...subsetFilters]}` and pass it to
+    **both** `buildQueryContextFromManifest` (the facility/non-facility
+    split happens there) and the Core. After the Core returns a successful
+    holder, set `res.data.fetchConfig = fetchConfig` (the caller's
+    original) — the echo is the request; the subset rides as `subsetHash`
+    (§5). No other holder-`fetchConfig` consumers exist (verified: the two
+    client `.fetchConfig` reads are on resolved-replicant objects, not
+    holders; the only echo consumer is cache `parseData`).
+  - `getPossibleValuesFromRun` (:774): append `subsetFilters` to the
+    `filters` param before `buildMinimalFetchConfig`. This automatically
+    scopes `getResultsValueInfoFromRun`'s per-dimension possible values
+    (:839) and the replicant-options route. **Ruled: option lists are
+    subset-scoped** — the project sees the package as if it only contained
+    the subset. The `excludeReplicantFilter` mechanism is orthogonal (it
+    excludes the PO's own pinned replicant filter, never the subset).
+  - `getResultsObjectItemsFromRun` (:854, raw-rows preview in the viz
+    editor): build a WHERE via `buildWhereClause({...minimal, filters:
+    subsetFilters}, false, undefined, {textColumns: new Set()})` and
+    append to the `SELECT *`.
+- A PO whose own `filterBy` names a different AA2 ANDs to empty — correct.
+  Subset values compare case-insensitively and are escaped like any filter
+  value (`buildWhereClause` UPPER + `escapeSqlString`).
+
+### 5. Server caches (server/routes/caches/visualizations.ts)
+
+The three data caches key on runId with **no project dimension** (comment
+at :65-68 says so outright) — two projects on one run with different
+subsets would serve each other's rows and option lists. And the injection
+in §4 happens downstream of the route-level key computation, so without
+key changes it would silently poison shared entries.
+
+- Thread `subsetHash` into the holders: add `subsetHash?: string` beside
+  `runId` in `ItemsVersionInfo`
+  (`get_presentation_object_items.ts:33-39`) and supply it from
+  `versionInfoFor(ctx, ...)` (`run_read.ts:725-733`) / `getRunVersionInfo`
+  — it then spreads into the items, metric-info, and replicant-options
+  holders wherever `...versionInfo` already lands. Add it explicitly to
+  `PresentationObjectDetail` (set from `ctx.subsetHash` in
+  `getPresentationObjectDetailFromRun`, both real and virtual branches).
+  Optional like `runId` (the pg-parity baseline leaves both undefined and
+  is never cached).
+- Key changes (subset segment **trailing** — `delete_run.ts:61-63` purge
+  and `cache_status.ts:61-74` prefix-scan on `${runId}|`/`${runId}::` and
+  reverse-parse segment index 1; trailing preserves both):
+  - `_PO_ITEMS_CACHE` (:120): uniqueness
+    `[runId, roId, hashFetchConfig, subsetHash].join("|")`; route passes
+    `runCtx.subsetHash`; `parseData` appends `res.data.subsetHash` and
+    refuses to store when it is undefined (same rule as `runId`).
+  - `_METRIC_INFO_CACHE` (:156): `[runId, metricId, subsetHash].join("::")`.
+  - `_REPLICANT_OPTIONS_CACHE` (:192): append `::subsetHash`.
+  - `_PO_DETAIL_CACHE` (:75): uniqueness already projectId-keyed; append
+    `|${subsetHash ?? "none"}` to the **version** hash (both compute and
+    `parseData` sides) — free insurance for phase 2.
+- Bump `PO_CACHE_VERSION` `"13"` → `"14"` (:64) — belt and braces on top
+  of the key-shape change (old-shape keys are already unreachable).
+- In-process caches: manifest + input-JSON caches are per-run — safe;
+  **never mutate the shared manifest object per project**. Virtual-defaults
+  cache (runId-keyed) safe in phase 1; revisit at phase 2. DuckDB creates a
+  fresh instance per query — nothing to do.
+- MCP context cache: `invalidateProjectContext` requires the principal
+  token, so no projectId-only sweep exists — **ruled: accept the 30s TTL**
+  (`context_cache.ts:41`, "purely performance — correctness never depends
+  on it"; SPA attach doesn't invalidate it either, same precedent). Data
+  tools dispatch through routes per-call and get the subset immediately;
+  only the cached catalog can be ≤30s stale, and phase 1 doesn't change
+  the catalog.
+
+### 6. SSE + client caches
+
+- Notify (mirror `notifyProjectRunAttached`,
+  `server/task_management/notify_project_v2.ts:141-146`):
+  `notifyProjectDataSubsetChanged(projectId, dataSubset)` sending
+  `{type: "data_subset_changed", data: {dataSubset}}`; add the union
+  member in `lib/types/project_sse.ts` and a `t1_store.ts` case:
+  `setProjectState("dataSubset", msg.data.dataSubset)`.
+- `runVersionKey` (`t1_store.ts:186-188`) becomes:
+
+```ts
+return `${pds.attachedRunId ?? "no_run_attached"}~${hashProjectDataSubset(pds.dataSubset)}`;
+```
+
+  **`~` separator, not `|`** — the client `po_detail` version guard slices
+  at `version.lastIndexOf("|") + 1` (`t2_presentation_objects.ts:71`) and
+  must keep receiving the whole run+subset token as one trailing segment.
+- **Guard trap (verified):** `responseRunIdMatches` (`t1_store.ts:196-201`)
+  compares the holder's bare `runId` against the full version-key string —
+  with the composite key it would reject every response and nothing would
+  ever be cached. Replace with:
+
+```ts
+export function responseRunVersionMatches(
+  data: { runId?: string; subsetHash?: string },
+  runKey: string,
+): boolean {
+  return data.runId !== undefined && data.subsetHash !== undefined &&
+    `${data.runId}~${data.subsetHash}` === runKey;
+}
+```
+
+Update all four call sites (`t2_presentation_objects.ts:42-43, 70-71,
+89-90`; `t2_replicant_options.ts:33-34`). The undefined checks keep the
+parity-baseline never-cache rule. This also closes the in-flight race a
+subset change opens (same race attach has today). Old IndexedDB entries
+become unreachable via the version flip and age out — no purge, the
+mechanism attach already relies on. `clear_caches.ts` prefix strings are
+uniqueness-based and unaffected.
+
+### 7. UI (client/src/components/project/project_results_package.tsx)
+
+New `DataScopeSection` component in the same file, rendered inside
+`AttachedPackageCard` (:275-299) between `ResultsPackageProvenanceLine`
+and `ResultsPackageContents`; parent passes `canEdit` = the existing
+`canAttach()` gate.
+
+- Current value read live from `projectState.dataSubset` (arrives via
+  `starting` and `data_subset_changed`).
+- Editors: radio **National (all areas)** / **Single Admin Area 2** with a
+  select fed by `serverActions.listResultsPackageAdminArea2s`
+  (StateHolder-wrapped fetch on mount), save via `createButtonAction` →
+  `serverActions.updateProjectDataSubset` (send `null` for National);
+  disabled while `projectState.isLocked`. No optimistic write — the SSE
+  round-trip updates the store, as attach does.
+- Non-editors: the active scope as a read-only line.
+- Stale-scope flag: if `projectState.dataSubset?.adminArea2` is not in the
+  fetched list (UPPER compare), show a warning line ("this area is not in
+  the attached package") — never silently clear.
+- All strings `t3` with en/fr/pt.
+
+### 8. Docs + cleanup
+
+- SYSTEM_08: the subset concept; rulings — internals exception,
+  national/ICEH ROs unfiltered, frozen-bundle behavior, run-local picker
+  list, 30s MCP catalog staleness.
+- SYSTEM_09: the injection point (wrapper-level, above the Cores), the
+  AA2→AA3 derivation, cache-key shape + `PO_CACHE_VERSION` bump.
+- SYSTEM_03: `data_subset_changed` in the notify catalog; the composite
+  `runVersionKey`.
+- Delete in passing: `server/db/project/results_objects.ts:9-23`, the
+  legacy unrouted Postgres raw-rows reader (dead code that could be
+  re-wired around the subset).
+
+### Surfaces that bypass the injection (enumerated 2026-08-09, ruled)
+
+- **Package internals** — module script, logs, file list, raw CSV download
+  (`server/routes/project/results_package.ts:111-236`,
+  `server/runs/package_internals.ts`): **documented exception.** They show
+  the package as-is, are separately permission-gated
+  (`can_view_script_code`/`can_view_logs`/`can_view_data`), and raw R
+  outputs are not query-filterable. Consistent with "not a security
+  boundary".
+- **Stored FigureBundles** (slides/dashboards/reports,
+  `lib/types/_figure_bundle.ts:109-124`) and the **public dashboard**
+  route that serves them (`server/routes/public/dashboard.ts`): **no
+  sweep.** Bundles are deliberately frozen (FigureBundle P2 design) and
+  already go stale across re-attach the same way; the subset takes effect
+  when a figure is re-resolved at authoring time. Same model, documented.
+- **Manifest catalogs** (module summaries, metrics list, datasets tab,
+  indicator/taxonomy lists, `run_read.ts:320-451`): unaffected by an AA2
+  subset (they enumerate metrics/indicators, not areas). Becomes the real
+  work of **phase 2**.
+- **Relative period anchoring** (`getRawPeriodBoundsFromRun` manifest
+  stamp, used by the replicant-options route and
+  `ResultsValueInfo.periodBounds`): anchors to package-wide bounds, not
+  subset bounds. Accepted for phase 1 (an area subset rarely changes time
+  coverage); becomes real in **phase 3**.
+- **AI/MCP**: `get_metric_data`/`get_visualization_data` dispatch through
+  the standard routes → inherit the subset. `get_module_log`/
+  `get_module_r_script` hit the internals exception above.
+  `compareProjects` (instance admin route) reads manifests cross-project by
+  design — exempt.
+
+### Phase 1 work order + verification
+
+1. §1 types + §2 migration; threading through DBProject/ProjectDetail/
+   ProjectState/build_project_state.
+2. §4 context load + `computeSubsetFilters` + memo + three injections.
+3. §5 holder `subsetHash` + cache keys + version bump.
+4. §3 routes + §6 SSE/notify/store/version-key/guard.
+5. §7 UI.
+6. §8 docs + dead-code deletion.
+
+Verification: `deno task typecheck`; a `deno run --allow-all -c deno.json`
+harness exercising `computeSubsetFilters` against a real run dir (AA2 RO,
+AA3-only RO, national RO, ICEH RO; empty-AA3 sentinel; memo hit) and one
+end-to-end items query with/without subset; `./validate_queries` (should
+be untouched — injection sits above the Cores); the MCP probe rung
+(PROTOCOL_APP_DEVELOPMENT) for `get_metric_data` under a subsetted
+project. Deploy is app-only (no modules lockstep); migration is additive.
+
+## Phase 2 (indicators) — sketch, do after phase 1 ships
+
+- Schema: add `indicatorCommonIds?: string[]` (additive). Injection:
+  `indicator_common_id IN (...)` where the RO carries the column (same
+  helper). UI: multi-select fed from the run's `indicators.json`.
+- The distinct work is **catalogs**: intersect
+  `getCommonIndicatorsFromManifestInputs`, the AI metrics list, and
+  decide whether virtual-default visualizations for out-of-subset
+  indicators are hidden (then the virtual-defaults cache needs the subset
+  key) — investigate then.
+- Open: `source_indicator`/denominator dimensions reference indicators a
+  subset might exclude — decide whether the subset filters only the
+  primary `indicator_common_id` dimension (recommended) or those too.
+
+## Phase 3 (period) — sketch, lowest priority
+
+- Schema: add `periodBounds?: {min, max}` (additive). Mechanism: intersect
+  at bounds resolution — clamp `rawDateRange`/`periodFilterExactBounds`
+  inside the run path (likely a wrapper-supplied bound ANDed in
+  `getPeriodBoundsCore`'s WHERE and intersected with
+  `getPeriodFilterExactBounds`), and intersect the two manifest-stamp
+  sites (`getRawPeriodBoundsFromRun`, `ResultsValueInfo.periodBounds`).
+  Details investigated when picked up.
