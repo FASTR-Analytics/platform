@@ -23,8 +23,9 @@
 
 ## Changes landed on `main` — all must be reconciled
 
-Commits `1e3d47c3`, `6f43326f`, and `287769dd` (the 2026-08-09 adjudication
-batch, Q1–Q6 of the this-branch plan). Complete file list, so nothing is lost:
+Commits `1e3d47c3`, `6f43326f`, `287769dd` (the 2026-08-09 adjudication batch,
+Q1–Q6 of the this-branch plan), and `86929f84` (2026-08-09, post-review:
+scorecard tables get the full CF look). Complete file list, so nothing is lost:
 
 | file | change | reconciliation |
 | --- | --- | --- |
@@ -40,6 +41,9 @@ batch, Q1–Q6 of the this-branch plan). Complete file list, so nothing is lost:
 | `client/src/generate_visualization/get_data_config_from_po.ts` | period axis sort rule; group-only axis fix; Q1 narrow slice (period dim on chart bars axis → `"by-id"` under `"none"`); set imported from lib | **keep** — re-verify `month` |
 | `client/src/generate_visualization/get_date_label_replacements.ts` | corrected month-id comment | **keep** — the comment is wrong on every branch |
 | `PROTOCOL_APP_MIGRATIONS.md` | "no silent normalization" clarification | **keep** — branch-independent |
+| `client/src/generate_visualization/get_style_from_po/_0_common.ts` | `86929f84`: `getTableLayoutStyle` takes `cfOn` explicitly (CF look = white gridlines, `borderWidth: 0`, tightened header padding); new shared `getCfCellTextColorStrategy` | **keep** — the CF look is one contract for both colour sources |
+| `client/src/generate_visualization/get_style_from_po/_1_standard.ts` | `86929f84`: passes its `cfOn` to `getTableLayoutStyle`; cell text colour via the shared helper | **keep** |
+| `client/src/generate_visualization/get_style_from_po/_5_scorecard.ts` | `86929f84`: scorecard always gets the CF look (`cfOn: true`) and the deck-aware cell text colour (was hardcoded palette keys, ignored deck presets) | **keep** — scorecard colouring IS conditional formatting, per-indicator; do NOT unify its threshold evaluation into panther's `thresholdColorFunc` (strict-`<` upward would flip exact-boundary `lower_is_better` values, e.g. 90.0, from green to yellow) |
 
 ## panther — nothing to do
 

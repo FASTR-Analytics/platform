@@ -35,6 +35,7 @@ decided deliberately and re-litigating it wastes the pass.
 | `6f43326f` | fixes from the adversarial review of `1e3d47c3`: `month` by-id (zero-padded ids), group-only axis sort, two false comments |
 | `287769dd` | 2026-08-09 adjudication batch: Q1 narrow (period dim on chart bars axis → `"by-id"` under `"none"`), Q2 (`importAsset` failure fatal), Q3 (union error flattening), Q6 (dead import), `PERIOD_DISAGGREGATION_OPTIONS` consolidated into `lib/types/disaggregation_options.ts`; plus the plan split into THIS_BRANCH/OTHER_BRANCHES files |
 | (this commit) | plan catalogue + adjudication records in both plan files |
+| `86929f84` | post-review (Tim): scorecard tables get the full CF look — `getTableLayoutStyle` takes `cfOn` explicitly, scorecard passes `true` (white gridlines, no border, tightened header padding), shared deck-aware `getCfCellTextColorStrategy` |
 
 ## Why this work is on `main`
 
