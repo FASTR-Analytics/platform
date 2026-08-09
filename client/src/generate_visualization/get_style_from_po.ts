@@ -30,9 +30,17 @@ export function getStyleFromPresentationObject(
 ): CustomFigureStyleOptions {
   const calendar = resolveFigureCalendar(config, localization);
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
-    return buildScorecardStyle(config, indicatorMetadata, effectiveValueProps, deckStyle);
+    return buildScorecardStyle(
+      config,
+      effectiveFormat,
+      indicatorMetadata,
+      effectiveValueProps,
+      deckStyle,
+    );
   }
-  const formatAs = effectiveFormat.formatAs;
+  // The special chart modes are all constant-format metrics (m3/m4/m6), so
+  // their declaration IS the axis format and nothing they draw is per-value.
+  const formatAs = effectiveFormat.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
     return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
   }
@@ -47,7 +55,6 @@ export function getStyleFromPresentationObject(
     effectiveFormat,
     calendar,
     deckStyle,
-    indicatorMetadata,
     allowNegativeScale,
     effectiveValueProps,
   );

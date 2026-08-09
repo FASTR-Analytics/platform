@@ -287,6 +287,16 @@ designed.
 | Parses, fails `runManifestSchema` | Real shape drift | Force the transform. Still invalid after → **fail-stop boot.** |
 | Version **below** current | Same drift, no parse failure | Same as above. |
 | Version **above** current | Data *not for this server* | Refuse that package (unavailable). Boot continues. |
+| A LISTED **input mirror** absent, unreadable, or not parseable JSON | Half-restored backup, truncated write | **Operational.** `RunInputReadError` → the `unreadable` outcome: that package degrades to unavailable, boot proceeds. |
+| Input mirror parses as JSON but fails its **row schema** | Real shape drift — a row schema changed without a migration | `RunInputRowSchemaError`. Nothing catches it → **fail-stop boot.** |
+
+The last two rows are the input-mirror twin of rows 2 and 3, and they must stay
+apart. Wrapping both in `RunInputReadError` (as the first cut did) meant a code
+defect silently marked every affected package unavailable fleet-wide with the
+deploy looking green — the exact outcome rows 3 and 4 exist to prevent. Both
+classes are raised in `runDirInputRowsReader`
+(`server/runs/indicator_catalog.ts`) and discriminated in
+`transformRunManifestFile`.
 
 The last two rows are principle 4 unchanged. **Absent or unparseable must not
 fail boot**, and the reason is concrete: backups are pg dumps, so a restore

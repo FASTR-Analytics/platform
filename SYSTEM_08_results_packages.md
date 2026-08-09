@@ -324,11 +324,9 @@ Transforms". Consequences for this format: whatever a block reads can never be
 dropped from the package, a transformed package additionally carries its
 pre-transform `manifest.v{n}.json`, and a package written by a _newer_ server is
 refused as unavailable rather than served with its additions silently stripped.
-A LISTED input mirror that is missing or unparseable on disk during a forced
-transform is the same operational class as a missing manifest
-(`RunInputReadError` → the `unreadable` outcome): that package degrades to
-unavailable and boot proceeds — a half-restored package must not down the
-instance.
+Input mirrors sit in that same failure table (two rows of their own, owned by
+PROTOCOL_APP_MIGRATIONS): unavailable BYTES are operational and degrade the
+package, a row-schema mismatch is drift and fail-stops.
 
 The transform is also what lets the read path shrink. Target state:
 

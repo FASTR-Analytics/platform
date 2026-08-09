@@ -130,6 +130,12 @@ export type TableCellInfo = {
   nCols: number;
   rowHeader: HeaderItem | undefined;
   colHeader: HeaderItem | undefined;
+  // The group headers spanning this cell, undefined when that axis carries no
+  // groups. A cell knows all four of its headers: which dimension a consumer
+  // maps onto a group axis is its choice, so a formatter that must identify
+  // the cell by a dimension value cannot be blind to half the layout.
+  rowGroupHeader: HeaderItem | undefined;
+  colGroupHeader: HeaderItem | undefined;
   // Sample size (n) for this cell, from TableDataTransformed.nMatrix.
   sampleN?: number;
 };

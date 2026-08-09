@@ -224,16 +224,44 @@ function isHfaScriptGeneration(moduleDefinition: string): boolean {
   }
 }
 
-// A LISTED input mirror that is missing or unparseable on disk is an
-// operational fault of the package (half-restored backup, truncated write),
-// not invalid data and not a code defect. The boot/read path catches this and
-// funnels it into the `unreadable` outcome — package unavailable, boot
-// proceeds — per the protocol failure table; a plain throw would ride the Zod
-// path to fail-stop and down the instance.
+// The two failure classes of an input mirror, kept apart on purpose — they sit
+// on opposite sides of the PROTOCOL_APP_MIGRATIONS failure table.
+//
+// RunInputReadError: the BYTES are unavailable — the listed file is missing or
+// unreadable, or what is there is not valid JSON. That is an operational fault
+// of the package (half-restored backup, truncated write), not invalid data and
+// not a code defect. The boot/read path catches it and funnels it into the
+// `unreadable` outcome — package unavailable, boot proceeds.
+//
+// RunInputRowSchemaError: the bytes ARE valid JSON but do not match the row
+// schema this file's rows are read with. That is shape drift — a row schema in
+// this file changed without a migration — so it is a code defect and must
+// fail-stop boot exactly as a manifest Zod failure does. Nothing catches it.
 export class RunInputReadError extends Error {
   constructor(fileName: string, cause: string) {
     super(`input mirror ${fileName} could not be read (${cause})`);
   }
+}
+
+export class RunInputRowSchemaError extends Error {
+  constructor(fileName: string, issues: z.ZodIssue[]) {
+    super(
+      `input mirror ${fileName} does not match its row schema — ${
+        describeIssues(issues)
+      }`,
+    );
+  }
+}
+
+// Named paths, bounded: a drifted mirror can carry an issue per row, and the
+// first few name the offending field just as well as ten thousand do.
+function describeIssues(issues: z.ZodIssue[]): string {
+  const shown = issues
+    .slice(0, 3)
+    .map((i) => `${i.path.join(".")}: ${i.message}`)
+    .join("; ");
+  const rest = issues.length - 3;
+  return rest > 0 ? `${shown} (+${rest} more)` : shown;
 }
 
 // A reader over a package directory on disk — the writer's tmp dir or an
@@ -253,11 +281,17 @@ export function runDirInputRowsReader(
     } catch (e) {
       throw new RunInputReadError(fileName, errorText(e));
     }
+    let json: unknown;
     try {
-      return z.array(rowSchema).parse(JSON.parse(raw));
+      json = JSON.parse(raw);
     } catch (e) {
-      throw new RunInputReadError(fileName, errorText(e));
+      throw new RunInputReadError(fileName, `not valid JSON: ${errorText(e)}`);
     }
+    const rows = z.array(rowSchema).safeParse(json);
+    if (!rows.success) {
+      throw new RunInputRowSchemaError(fileName, rows.error.issues);
+    }
+    return rows.data;
   };
 }
 

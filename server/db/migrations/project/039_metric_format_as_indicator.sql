@@ -5,8 +5,9 @@
 -- 1. Relax the CHECK to admit 'indicator'.
 -- 2. Flip the 8 installed metrics whose stored two-way value predates the
 --    declaration. Frozen history — this list never grows (a future
---    "indicator" metric installs as one from day one); the same frozen list
---    appears in manifest_transform block 2 and the figure-block sweep.
+--    "indicator" metric installs as one from day one). This SQL literal is
+--    the one copy that cannot import INDICATOR_FORMAT_METRIC_IDS (lib), which
+--    is authoritative for every other site.
 
 DO $$
 BEGIN

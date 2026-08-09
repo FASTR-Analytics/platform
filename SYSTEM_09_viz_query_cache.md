@@ -31,8 +31,9 @@ globs:
 > is no runtime flag; the pg wrappers survive solely as the parity rig's
 > baseline until demolition); caches are run-keyed — the
 > `moduleLastRun`/`datasetsVersion` dimensions and key tables below are STALE,
-> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "10",
-> `po_detail_v5`); calendar threads via `QueryContext`, not `getCalendar()` at
+> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "13",
+> `po_detail_v7`), which is also authoritative for the stale `po_detail_v2` /
+> `PO_CACHE_VERSION "5"` table and paragraph further down this file; calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the project's attached
@@ -244,8 +245,14 @@ through `CTEManager`.
   runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows
   (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` →
   `too_many_items`; `0` rows or unresolvable bounds on a time-carrying metric →
-  `no_data_available`; else `ok` with `items` + `indicatorMetadata`. All three
-  are `{success: true}` payloads — size states are data, not errors. The
+  `no_data_available`; else `ok` with `items` + `indicatorMetadata`. That
+  metadata is a MANIFEST LOOKUP, not a derivation or a dictionary read:
+  `getIndicatorMetadataFromRun` (`server/run_query/run_read.ts`) returns the
+  catalog stamped at finalize by `buildRunIndicatorCatalog` and recomputed
+  forward by manifest transform block 1 — the "precomputed, never probed"
+  doctrine (SYSTEM_08). It is the full module catalog, which is what lets a
+  filter-pinned indicator still resolve its own `format_as` (SYSTEM_10). All
+  three are `{success: true}` payloads — size states are data, not errors. The
   `dateRange` in the payload is the resolved _filter_ bounds when a period
   filter is active, else the raw data bounds.
 

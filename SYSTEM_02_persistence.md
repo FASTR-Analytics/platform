@@ -366,6 +366,26 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 - **Shared traversal.** `walkSlideLayoutNodes` (exported from
   `_figure_block.ts`) is used by both the `slide_config` boot sweep and the
   dry-run, so the two cannot drift in how they walk a slide layout.
+- **`resultsValue.formatAs` is INFERRED here, and nowhere else.** A stored
+  bundle carries no metric definition, so `inferFormatAs` supplies the field:
+  `"indicator"` for the eight ids in `INDICATOR_FORMAT_METRIC_IDS`
+  ([lib/indicator_format_metrics.ts](lib/indicator_format_metrics.ts)),
+  otherwise the original backfill heuristic — percent iff every stored
+  indicator that declares a format declares percent. It deliberately does NOT
+  run the live resolution rule, which counts only values on an indicator
+  DIMENSION: a legacy figure displaying no indicator dimension would resolve
+  `"number"` and freeze a percent metric's values as raw fractions, and this
+  write is permanent. The flip needs a **forced** skip-gate
+  (`rawJsonNeedsForcedTransform`), because a bundle whose stored `formatAs`
+  still says `"number"` for a listed metric parses cleanly under the three-way
+  schema and a parse-only gate would skip it forever
+  ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate
+  Gotcha"). The same frozen list drives project migration **039**
+  (`039_metric_format_as_indicator.sql` — relaxes the `metrics.format_as` CHECK
+  to admit `'indicator'`, then flips the eight installed rows; a SQL literal,
+  the one copy that cannot import the lib constant) and `manifest_transform`
+  block 2 for run manifests. The declaration itself is
+  [SYSTEM_10](SYSTEM_10_figure_render_export.md)'s.
 
 ### The mandatory pre-deploy dry-run gate
 

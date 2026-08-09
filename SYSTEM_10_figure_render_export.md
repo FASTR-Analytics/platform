@@ -7,6 +7,7 @@ globs:
   - client/src/generate_visualization/**
   - client/src/state/project/t2_images.ts
   - lib/brand_presets.ts
+  - lib/indicator_format_metrics.ts
   - lib/key_colors.ts
   - lib/resolve_effective_format.ts
   - lib/resolve_figure_calendar.ts
@@ -347,68 +348,115 @@ from the figure's `FigureLocalization` — EN/FR/PT), and otherwise falls throug
 to the user-facing conditional-formatting compile path (`selectCf` +
 `compileCfToLegend` in `conditional_formatting/compile.ts`).
 
-**Effective format.** Every metric DECLARES its format source
-(`formatAs: "percent" | "number" | "indicator"`, authored in
-`wb-fastr-modules`); nothing is inferred, anywhere. `"percent"`/`"number"`
-mean the values are the metric's own quantity and the format is a constant —
-the editor's percent-only controls, axes, legends, table cells and the AI text
-all use it unconditionally, whatever indicators are on display (m10-02
-don't-know RATES on count questions stay percent; m9-02-01 CIX/SII stays
-number with no escape list needed). `"indicator"` means the values ARE the
-displayed indicator's own quantity, so format is a per-value fact carried by
-the indicator catalog (`IndicatorMetadata.format_as` — HFA per
-`getHfaIndicatorMeasure`, calculated indicators per their required three-way
-field): value-formatting surfaces format each value by its indicator
-(`perCell: true` drives per-cell table formatting in `getTableCellsContent`),
-and a shared axis/legend uses the displayed indicators' format when they all
-agree, else `"number"` — also the fallback when the displayed set cannot be
-enumerated (unselected replicant, `too_many_values`/`error` status). The
-declared metrics today: m7-01-01/02/03, m8-01-01, m10-01-01/02, m10-03-01/02.
+**Effective format.** Split on purpose, one authoritative site each: THE
+resolution RULE is the file header of
+[resolve_effective_format.ts](lib/resolve_effective_format.ts); what follows is
+the WIRING map — which surface takes which of the two answers, and why.
 
-`resolveEffectiveFormat`
-([resolve_effective_format.ts](lib/resolve_effective_format.ts)) is THE
-resolver: config-based and pre-query, returning `{formatAs, perCell}`
-(`formatAs` is the indicator three-way, `percent | number | rate_per_10k`).
-For an `"indicator"` metric it enumerates values from INDICATOR dimensions
-only (`INDICATOR_DISAGGREGATION_OPTIONS` — a calculated indicator named
-`anc1` must not collide with a `source_indicator` value): `disaggregateBy`
-(filter pins, else possible values; a `replicant` entry contributes its one
-selected value) **plus** every indicator-dimension `filterBy` entry not also
-disaggregated — the last is what an items-based derivation structurally
-cannot see, since a pinned dimension returns no column at all.
-`resolveEffectiveFormatFromItems`, in the same file so the rule cannot fork,
-is the render twin over a stored `FigureBundle`: pins from the frozen config,
-disaggregated dimensions enumerated from the returned rows, formats from
-`bundle.indicatorMetadata` — the FULL module catalog
-(`getIndicatorMetadataFromRun`), so filter-pinned indicators are visible.
+Every metric DECLARES its format source (`formatAs: "percent" | "number" |
+"indicator"`, authored in `wb-fastr-modules`). `"percent"`/`"number"` mean the
+values are the metric's own quantity and the format is a constant everywhere
+(m10-02 don't-know RATES stay percent on count questions; m9-02-01 CIX/SII
+stays number). `"indicator"` means the values ARE the displayed indicator's own
+quantity, so format is a per-value fact carried by `IndicatorMetadata.format_as`
+— HFA per `getHfaIndicatorMeasure`, calculated indicators per their required
+three-way field, ICEH alike. The declared metrics today: m7-01-01/02/03,
+m8-01-01, m10-01-01/02, m10-03-01/02, frozen in `INDICATOR_FORMAT_METRIC_IDS`
+(lib) — see "Repair and normalization" below.
 
-Residual editor/render divergence is confined to `"indicator"` metrics where
-the editor's possible-values status disagrees with the actual rows: the
-editor resolves `"number"` on `too_many_values`/`error` while the renderer
-sees the rows' unanimous format, and a possible-but-rowless indicator value
-counts for the editor but not the renderer. Nothing stronger holds, and
-nothing else diverges. (Also confirmed: `resultsValueInfo` does NOT refetch
-on a filter edit — its cache keys on `(projectId, metricId, run)` only —
-which is exactly why the resolver is config-based and reacts to the draft
-config with no fetch.)
+`resolveEffectiveFormat` (config-based, pre-query, for the editor) and
+`resolveEffectiveFormatFromItems` (render twin over a stored `FigureBundle`)
+both return `{ axisFormat, formatForValue(ids) }`. Which one a consumer wants is
+decided by WHAT it is formatting, never by a flag:
 
-Consumers re-check the RESOLVED format, not stored flags: `forceYMax1`
-applies `max: 1` only when the resolved format is percent (`_1_standard.ts`
-×2, `_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`), the same
+- `formatForValue(ids)` — THE source for any individual value. Every surface
+  that writes one number calls it: table cells (`getTableCellsContent`),
+  chart/timeseries data labels (`_1_standard.ts`), map regions
+  (`getMapRegionsContent`), scorecard cells (`_5_scorecard.ts`). The caller
+  passes the ids that identify the value, most specific first, through the two
+  shared helpers `getIndicatorIdsForCell` / `getIndicatorIdsForChartValue`, and
+  the first id that DECLARES a format wins — not the first id found, because
+  the catalog deliberately carries label-only entries (HFA categories and
+  variant items, ICEH strat codes, raw common indicators) that would otherwise
+  mask the formatted indicator beside them. A cell's id list includes all FOUR
+  table headers: `getStartingConfigForPresentationObject` assigns display
+  options in order, so an indicator dimension routinely lands on `rowGroup` or
+  `colGroup` (panther's `TableCellInfo` carries both group headers for exactly
+  this reason).
+- `axisFormat` — the collapsed answer (the format every displayed indicator
+  agrees on, else `"number"`), and ONLY for figure-wide decisions that cannot
+  be per-value: the shared scale axis and its tick labels, the `forceYMax1`
+  clamp, the pie completion envelope, the scale legend. The collapse is lossy
+  by nature and must never reach an individual value.
+
+Surfaces that legitimately take `axisFormat` alone: the four special chart
+modes (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`, and the
+percent-change bars), because every metric gated into them (m3/m4/m6) is
+constant-format, so `axisFormat` equals the declaration. Pie slice labels are
+also not per-value — a slice label is `label share%`, a fraction of the pie's
+denominator, never a raw value — and the doughnut centre label is formatted
+inside panther from the slice sum.
+
+Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies
+`max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2,
+`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`), the same
 pattern as `isPieCompletionMode` — an `"indicator"` metric's format is
 filter-sensitive, so a stranded flag degrades to auto instead of clamping
-counts at 1. The scorecard (`_5_scorecard.ts`) is the one surface that
-formats per row and takes no effective format at all.
+counts at 1.
 
-`rate_per_10k` is stored as a bare rate and written as a per-10,000 count, so
-every writer scales by 10,000: `formatIndicatorValue` for values,
-`getScaleTickLabelFormatter` for axis ticks (auto-sizing decimals per tick —
-the fewest that print the scaled value exactly, mirroring panther's auto
-modes), and `scaleLegendFormat` for legends, which routes through panther's
-`labelFormatter` escape because panther's `format` field is two-way. Fixed-
-domain legends size decimals from `fixedDomainLegendBoundaries` — the same
-tick/step list panther resolves — never from the domain endpoints alone. Axis
-and legend therefore cannot drift by a factor of 10,000.
+**Editor/render divergence** is confined to `"indicator"` metrics whose
+possible-values status disagrees with the actual rows, and only ever in
+`axisFormat` (`formatForValue` reads the same catalog on both sides). The
+editor resolves `"number"` on `too_many_values`, `error` AND
+`no_values_available` — all three are "cannot enumerate" — while the renderer
+sees the rows' unanimous format; and a possible-but-rowless indicator value
+counts for the editor but not the renderer. The consequence is not cosmetic:
+the CF editor picks a percent control vs a number input off `axisFormat`, so on
+a diverging figure the user types a threshold in the wrong units. That is why
+the CF editor's `ValueInput` scales BOTH percent and `rate_per_10k` between
+stored and displayed units rather than trusting a raw number input, and why its
+top cutoff has no hardcoded ceiling of 1. (Also confirmed: `resultsValueInfo`
+does NOT refetch on a filter edit — its cache keys on `(projectId, metricId,
+run)` only — which is exactly why the resolver is config-based and reacts to
+the draft config with no fetch.)
+
+**`rate_per_10k`** is stored as a bare rate and written as a per-10,000 count.
+Two rules, each with one implementation: `scaleValueForFormat` owns the
+scaling (×100 for percent, ×10,000 for rate — `formatIndicatorValue` and the
+scorecard's threshold comparison both go through it), and `formatRateAuto` owns
+the decimals — the fewest (≤3) that print the scaled value EXACTLY, decided per
+value. Every rate label follows `formatRateAuto`: the scale axis (via panther's
+`tickLabelFormatter` escape, since panther's `format` field is two-way), data
+labels, the scale legend (`scaleLegendFormat`), the threshold legend and the CF
+editor preview (`buildAutoValueFormatter`). The `s.decimalPlaces` knob does NOT
+apply to rates — it defaults to 0 and would print `1` beside an axis tick
+reading `1.2` — and no list-wide auto count applies either, since sizing for a
+DISTINCT list rounds a 0.25 boundary to "0.3" while the axis prints "0.25".
+
+**Repair and normalization.** `INDICATOR_FORMAT_METRIC_IDS`
+([indicator_format_metrics.ts](lib/indicator_format_metrics.ts)) is the frozen
+list of the eight metrics whose authored declaration predates the three-way
+`formatAs`. It never grows — a metric authored after the declaration existed
+says `"indicator"` itself. It has two jobs: REPAIR of data written before the
+declaration (project migration 039 for the metrics table — a SQL literal, the
+one copy that cannot import it; `manifest_transform` block 2 for run manifests;
+the figure-block sweep for stored bundles — see
+[SYSTEM_02](SYSTEM_02_persistence.md) and
+[PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)), and NORMALIZATION at
+the fetch boundary in `validateDefinition`
+([load_module.ts](server/module_loader/load_module.ts)), which is what keeps a
+definition resolved at an older gitRef from stamping a stale declaration into a
+manifest that already carries the current schema version — a state no migration
+could then reach.
+
+The figure-block sweep is the one place that INFERS rather than reads a
+declaration: a stored bundle carries no metric definition, so `inferFormatAs`
+returns `"indicator"` for the eight listed ids and otherwise keeps the original
+backfill heuristic (percent iff every stored indicator that declares a format
+declares percent). It deliberately does NOT run the live resolution rule: that
+one counts only values on an indicator DIMENSION, so a legacy figure displaying
+no indicator dimension would resolve `"number"` and freeze a percent metric's
+values as raw fractions, permanently.
 
 **Metric-gated knobs that are not modes.** `special_chart_checks.ts` carries
 `metricAllowsNegativeScale`, threaded through `buildFigureInputs`. It is the

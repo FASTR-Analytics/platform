@@ -20,6 +20,7 @@
 // =============================================================================
 
 import {
+  INDICATOR_FORMAT_METRIC_IDS,
   RUN_MANIFEST_SCHEMA_VERSION,
   runManifestSchema,
   runModuleSchema,
@@ -33,18 +34,6 @@ import {
   RunInputReadError,
 } from "./indicator_catalog.ts";
 import { runManifestPath } from "./run_paths.ts";
-
-// Block 2's frozen id list — see the block comment. Never grows.
-const INDICATOR_FORMAT_METRIC_IDS = [
-  "m7-01-01",
-  "m7-01-02",
-  "m7-01-03",
-  "m8-01-01",
-  "m10-01-01",
-  "m10-01-02",
-  "m10-03-01",
-  "m10-03-02",
-];
 
 // A package directory can be missing, half-written, or written by a newer
 // server, and none of those are "invalid data" — only the last two rows of
@@ -99,10 +88,10 @@ async function transformRunManifest(
 
   // 2. metrics[].format_as → "indicator" for the 8 metrics whose two-way
   //    declaration predates the declared-format design (values ARE the
-  //    displayed indicator's own quantity). Frozen history — this list
-  //    rewrites data written before the declaration existed and never grows;
-  //    the same frozen list appears in project migration 039 and the
-  //    figure-block sweep. metrics[] is generation-only provenance, but a
+  //    displayed indicator's own quantity). The id list is
+  //    INDICATOR_FORMAT_METRIC_IDS (lib), which is authoritative for both this
+  //    repair and the fetch-boundary normalization that keeps new manifests
+  //    from needing it. metrics[] is generation-only provenance, but a
   //    targeted value rewrite is not invention: the ids and their new value
   //    are facts of the migration itself, not synthesized provenance.
   if (Array.isArray(m.metrics)) {
@@ -179,9 +168,11 @@ export async function transformRunManifestFile(
   try {
     transformed = await transformRunManifest(stored, runDir);
   } catch (e) {
-    // F5: a listed input mirror missing or unparseable on disk is the same
+    // F5: a listed input mirror whose bytes are unavailable is the same
     // operational class as a missing manifest — degrade this package, keep
-    // booting. Anything else (schema drift, a missing block) still throws.
+    // booting. Everything else throws: a mirror that parses as JSON but not as
+    // its row schema is drift (RunInputRowSchemaError), same as manifest
+    // drift or a missing block. See RunInputReadError in indicator_catalog.ts.
     if (e instanceof RunInputReadError) {
       return { kind: "unreadable", reason: e.message };
     }

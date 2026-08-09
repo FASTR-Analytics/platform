@@ -12,10 +12,14 @@ import {
   deriveBucketLabels,
   type IndicatorFormat,
 } from "lib";
+import { formatRateAuto } from "../get_style_from_po/_0_common";
 
-// Auto-decimal formatter over a known set of values, 3-way. rate_per_10k is
-// stored as a bare rate and written as a per-10,000 count, so both the decimal
-// choice and the printed label see the scaled magnitude.
+// Auto-decimal formatter over a known set of values, 3-way. percent/number
+// size their decimals from the list (the fewest that keep it distinct);
+// rate_per_10k does NOT — it follows formatRateAuto, the same per-value exact
+// rule the scale axis uses, so a cutoff of 0.25 per 10k reads "0.25" in the
+// legend and "0.25" on the axis instead of being rounded to "0.3" by a
+// list-wide count.
 export function buildAutoValueFormatter(
   values: number[],
   formatAs: IndicatorFormat,
@@ -23,49 +27,29 @@ export function buildAutoValueFormatter(
   if (formatAs !== "rate_per_10k") {
     return buildAutoFormatter(values, formatAs);
   }
-  const auto = buildAutoFormatter(values.map((v) => v * 10000), "number");
-  return (v: number) => auto(v * 10000);
+  return formatRateAuto;
 }
 
 // Scale legends take EITHER panther's two-way `format` (which builds an
 // auto-decimal formatter) or an explicit `labelFormatter` function, which wins.
 // rate_per_10k has no `format` value, so it goes through the function escape —
 // the same escape the scale axis's tick labels use, which is why the legend and
-// the axis cannot drift apart by a factor of 10,000.
+// the axis cannot drift apart by a factor of 10,000 OR by a decimal.
 //
-// `boundaries` must be the RESOLVED tick/step list, not the domain endpoints:
-// the auto-decimal choice sizes to the values it is given, and endpoints alone
-// under-size intermediate ticks (0..10 needs 0 decimals; its ticks 2.5/7.5
-// need 1). Use fixedDomainLegendBoundaries to reproduce panther's fixed-domain
-// list.
+// It takes no boundary list because formatRateAuto needs none: a boundary list
+// was only ever there to size a shared decimal count, and a legend whose domain
+// is `auto` (the DEFAULT) has no boundaries to give — the [0, 1] stand-in it
+// used to get collapsed every rate tick to zero decimals, so 0 / 0.5 / 1 / 1.5
+// per 10k all labelled as "0", "1", "1", "2".
 export function scaleLegendFormat(
   formatAs: IndicatorFormat,
-  boundaries: number[],
 ):
   | { format: "number" | "percent" }
   | { labelFormatter: (v: number) => string } {
   if (formatAs === "rate_per_10k") {
-    return { labelFormatter: buildAutoValueFormatter(boundaries, formatAs) };
+    return { labelFormatter: formatRateAuto };
   }
   return { format: formatAs };
-}
-
-// The boundary values panther resolves for a FIXED-domain auto scale legend —
-// exact linear interpolation (resolve_auto_scale_legend: stepped uses
-// nSteps+1 step edges, gradient uses nTicks=5 evenly spaced ticks) — so a
-// labelFormatter built from this list sizes decimals from the same values
-// panther will label. Auto (data-fitted) domains resolve inside panther and
-// are not reproducible here.
-export function fixedDomainLegendBoundaries(
-  domain: { min: number; max: number },
-  steps: number | undefined,
-): number[] {
-  const n = steps !== undefined && steps >= 2 ? steps + 1 : 5;
-  const out: number[] = [];
-  for (let i = 0; i < n; i++) {
-    out.push(domain.min + (i / (n - 1)) * (domain.max - domain.min));
-  }
-  return out;
 }
 
 export function compileCfToValuesColorFunc(
@@ -109,10 +93,7 @@ export function compileCfToLegend(
       });
 
       const isDiscrete = (cf.steps ?? 0) >= 2;
-      const format = scaleLegendFormat(
-        formatAs,
-        fixedDomainLegendBoundaries(domain, isDiscrete ? cf.steps : undefined),
-      );
+      const format = scaleLegendFormat(formatAs);
       const autoConfig = isDiscrete
         ? {
             type: "stepped-auto" as const,

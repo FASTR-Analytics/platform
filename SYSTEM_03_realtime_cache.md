@@ -284,11 +284,11 @@ dimension onto the attached run):
    `moduleLastRun` + `datasetsVersion` dimensions — data never changes under a
    run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"10"`, bump history in the adjacent comment) — a manually-bumped semantic
+   `"13"`, bump history in the adjacent comment) — a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.
-3. **Prefix bump** — `po_detail` → `po_detail_v5`: for payload _shape_ changes
+3. **Prefix bump** — `po_detail` → `po_detail_v7`: for payload _shape_ changes
    on the config cache; consumers additionally re-run
    `presentationObjectConfigSchema.parse` on every hit to adapt cross-deploy
    payloads.
@@ -300,7 +300,7 @@ project-scoped: two projects attached to the same run share entries.
 
 | Singleton                        | prefix           | uniquenessHash                                  | versionHash                            |
 | -------------------------------- | ---------------- | ----------------------------------------------- | -------------------------------------- |
-| `_PO_DETAIL_CACHE`               | `po_detail_v5`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
+| `_PO_DETAIL_CACHE`               | `po_detail_v7`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
 | `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
 | `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |

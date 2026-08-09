@@ -24,14 +24,10 @@
 
 import {
   getRollupPosition,
-  INDICATOR_DISAGGREGATION_OPTIONS,
+  INDICATOR_FORMAT_METRIC_IDS,
   isRollupActive,
   presentationObjectConfigSchema,
-  resolveEffectiveFormat,
   ROLLUP_PIN_IDS,
-  type DisaggregationOption,
-  type DisaggregationPossibleValuesStatus,
-  type IndicatorFormat,
   type PresentationObjectConfig,
 } from "lib";
 import {
@@ -197,25 +193,6 @@ const _INDICATOR_METADATA_KEYS = new Set([
   "group_label",
   "sort_order",
 ]);
-
-// Pre-P2 figure-block normalisation — run before bundle conversion.
-// The 8 metrics whose stored two-way formatAs predates the declared-format
-// design (metric values ARE the displayed indicator's own quantity). Frozen
-// history: this list rewrites data written BEFORE the declaration existed and
-// never grows — a future "indicator" metric installs as one from day one.
-// The same frozen list appears in project migration 039 (metrics table) and
-// manifest_transform block 2 (run manifests); each is an independent
-// migration artifact by design.
-const INDICATOR_FORMAT_METRIC_IDS = [
-  "m7-01-01",
-  "m7-01-02",
-  "m7-01-03",
-  "m8-01-01",
-  "m10-01-01",
-  "m10-01-02",
-  "m10-03-01",
-  "m10-03-02",
-];
 
 // Forced skip-gate for the formatAs flip: a bundle whose resultsValue still
 // says "number"/"percent" for a listed metric parses cleanly under the 3-way
@@ -424,7 +401,7 @@ function buildBundleFromFigureInputs(
       ...base,
       items: stringItems,
       resultsValue: {
-        formatAs: inferFormatAs(indicatorMetadata, config, metricId),
+        formatAs: inferFormatAs(indicatorMetadata, metricId),
         valueProps,
       },
       dateRange: deriveDateRangeFromItems(jsonArray),
@@ -463,7 +440,7 @@ function buildBundleFromFigureInputs(
         ...base,
         items,
         resultsValue: {
-          formatAs: inferFormatAs(indicatorMetadata, config, metricId),
+          formatAs: inferFormatAs(indicatorMetadata, metricId),
           valueProps,
         },
         dateRange: tsDateRange,
@@ -812,56 +789,38 @@ function deriveDateRangeFromItems(
 }
 
 // The metric-level format for a bundle rebuilt from legacy figureInputs, which
-// recorded no such field. The 8 pre-declaration metrics are "indicator" by
-// the same frozen ruling the sweep flip applies. m9-02-01 is frozen "number":
-// its values are DERIVED measures (CIX/SII) over percent indicators — the
-// historical ALWAYS_OBEY fact, kept so a legacy bundle cannot regress to
-// percent now that the escape list is gone.
+// recorded no such field. This is the ONE place in the app that infers a format
+// instead of reading a declaration, because a stored bundle carries no metric
+// definition and the transform has no honest way to reach one. The write is
+// permanent, so every branch here reproduces exactly what the pre-declaration
+// code would have written for that figure — this function repairs history, it
+// does not improve on it.
 //
-// Every other metric keeps the historical guess, run through the ONE
-// resolver's indicator rule: the unanimous displayed-indicator format if one
-// exists, else "number". possibleValues is synthesized from the stored
-// metadata itself — for a legacy figure that metadata IS the module's
-// indicator catalog, which is exactly the enumeration resultsValueInfo
-// supplies at runtime. Clamped two-way for the guess: rate_per_10k is an
-// indicator-level fact, never a metric declaration, and the render path
-// re-derives it per cell from indicatorMetadata.
+// The 8 pre-declaration metrics are "indicator" by the same frozen ruling the
+// sweep flip applies. m9-02-01 is frozen "number": its values are DERIVED
+// measures (CIX/SII) over percent indicators, so the all-percent heuristic
+// below would call it percent and render them ×100 with a `%`.
+//
+// Everything else keeps the ORIGINAL all-percent heuristic verbatim. Note it
+// counts an entry with NO format_as as disagreement: the catalog carries
+// label-only entries for every family (HFA categories, ICEH strat codes and
+// levels, raw common indicators), and skipping them instead — which reads as
+// the more "correct" rule — flips those metrics from number to percent, which
+// is precisely the regression this restores. It is also deliberately NOT the
+// live resolution rule, which only counts values on an indicator DIMENSION: a
+// legacy figure displaying no indicator dimension (an admin-area breakdown,
+// say) would resolve "number" and freeze a percent metric's values as raw
+// fractions.
 function inferFormatAs(
   indicatorMetadata: Record<string, unknown>[],
-  config: PresentationObjectConfig,
   metricId: string,
 ): "percent" | "number" | "indicator" {
   if (INDICATOR_FORMAT_METRIC_IDS.includes(metricId)) return "indicator";
   if (metricId === "m9-02-01") return "number";
 
-  const indicatorFormats: Record<string, IndicatorFormat> = {};
-  for (const m of indicatorMetadata) {
-    if (
-      typeof m.id === "string" &&
-      (m.format_as === "percent" || m.format_as === "number" ||
-        m.format_as === "rate_per_10k")
-    ) {
-      indicatorFormats[m.id] = m.format_as;
-    }
-  }
-  const catalog: DisaggregationPossibleValuesStatus = {
-    status: "ok",
-    values: Object.keys(indicatorFormats).map((id) => ({ id, label: id })),
-  };
-  const possibleValues: {
-    [K in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
-  } = {};
-  for (const disOpt of INDICATOR_DISAGGREGATION_OPTIONS) {
-    possibleValues[disOpt] = catalog;
-  }
-
-  const { formatAs } = resolveEffectiveFormat({
-    metricFormatAs: "indicator",
-    config,
-    indicatorFormats,
-    possibleValues,
-  });
-  return formatAs === "percent" ? "percent" : "number";
+  if (indicatorMetadata.length === 0) return "number";
+  const allPercent = indicatorMetadata.every((m) => m.format_as === "percent");
+  return allPercent ? "percent" : "number";
 }
 
 function resolveGeo(

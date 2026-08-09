@@ -29,8 +29,13 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
     inputs.style,
   ).data;
 
-  // Columns flattened in render order (by col.index).
-  const cols = colGroups.flatMap((g) => g.cols);
+  // Columns flattened in render order (by col.index). The enclosing group
+  // travels with each column: a cell's formatter may identify its indicator by
+  // the group header, so dropping it here would export a different number than
+  // the screen shows.
+  const cols = colGroups.flatMap((g) =>
+    g.cols.map((c) => ({ col: c, group: g })),
+  );
   const nCols = cols.length;
   // Data rows only (group-header rows carry no cells, matching measure).
   const nRows = rowGroups.reduce((sum, g) => sum + g.rows.length, 0);
@@ -53,7 +58,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
     }
     out.push(row);
   }
-  out.push(["", ...cols.map((c) => c.label ?? "")]);
+  out.push(["", ...cols.map(({ col }) => col.label ?? "")]);
 
   // Body — iterate row groups in order, mirroring the renderer: a labelled group
   // emits a full-width group-header row, then its member rows.
@@ -65,7 +70,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
     }
     for (const r of g.rows) {
       const row: string[] = [r.label ?? ""];
-      for (const c of cols) {
+      for (const { col: c, group: cg } of cols) {
         const val = aoa[r.index][c.index];
         const valAsNum = Number(val);
         const valueAsNumber = Number.isNaN(valAsNum) ? undefined : valAsNum;
@@ -86,6 +91,8 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
             nCols,
             rowHeader: toHeaderItem(r.id, r.label),
             colHeader: toHeaderItem(c.id, c.label),
+            rowGroupHeader: toHeaderItem(g.id, g.label),
+            colGroupHeader: toHeaderItem(cg.id, cg.label),
           };
           row.push(fmt(info) ?? "");
         }

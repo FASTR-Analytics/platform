@@ -4,26 +4,26 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   type DeckStyleContext,
+  type EffectiveFormat,
   type IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
 import {
   formatIndicatorValue,
+  getIndicatorIdsForCell,
   getTextStyle,
   getTableLayoutStyle,
-  getIndicatorMetaForCell,
+  getThresholdMetaForCell,
+  scaleValueForFormat,
 } from "./_0_common";
 
-// The scorecard deliberately does NOT take an effective format. It is the one
-// surface that formats PER ROW — a scorecard mixes percent, count and rate
-// indicators by design, and collapsing them to a single figure-wide format is
-// exactly what would break it. See SYSTEM_10 "Effective format".
-
-function scaleValueForFormat(rawValue: number, formatAs: string): number {
-  if (formatAs === "percent") return rawValue * 100;
-  if (formatAs === "rate_per_10k") return rawValue * 10000;
-  return rawValue;
-}
+// A scorecard mixes percent, count and rate indicators by design, so every
+// cell formats as its own indicator — which is exactly what the shared
+// `EffectiveFormat.formatForValue` does, and the reason the scorecard no
+// longer carries a second implementation of it. Threshold colouring stays on
+// its own metadata lookup: a threshold is not a format, and only the entry
+// that declares a direction carries the cutoffs to compare against.
+// See SYSTEM_10 "Effective format".
 
 function getScorecardCutoffColor(
   direction: "higher_is_better" | "lower_is_better",
@@ -44,6 +44,7 @@ function getScorecardCutoffColor(
 
 export function buildScorecardStyle(
   config: PresentationObjectConfig,
+  effectiveFormat: EffectiveFormat,
   indicatorMetadata: IndicatorMetadata[],
   effectiveValueProps: string[],
   deckStyle?: DeckStyleContext,
@@ -55,17 +56,13 @@ export function buildScorecardStyle(
     surrounds: { legendPosition: config.s.hideLegend ? "none" : undefined },
     grid: { showGrid: false },
     content: {
-      // tableRowHeaders: {
-      //   func: (info) => {
-      //     return {
-      //       backgroundColor:  "black",
-      //       textColorStrategy: "#ffffff",
-      //     };
-      //   },
-      // },
       tableCells: {
         func: (info: TableCellInfo) => {
-          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
+          const meta = getThresholdMetaForCell(
+            metadataById,
+            effectiveValueProps,
+            info,
+          );
           if (meta?.threshold_direction && info.valueAsNumber !== undefined) {
             const scaled = scaleValueForFormat(
               info.valueAsNumber,
@@ -86,16 +83,22 @@ export function buildScorecardStyle(
           }
           return { backgroundColor: "none" };
         },
+        // declaredFormatForValue, not formatForValue: when nothing along the
+        // cell's id chain declares a format the scorecard prints the RAW value.
+        // Falling through to axisFormat would render a 0.42 coverage as "0" at
+        // the default 0 decimals — and a scorecard whose package carries no
+        // calculated_indicators_snapshot.json has a label-only catalog entry
+        // for every row, so that is the whole table, not an edge case.
         textFormatter: (info: TableCellInfo) => {
-          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
-          if (meta?.format_as && info.valueAsNumber !== undefined) {
-            return formatIndicatorValue(
-              info.valueAsNumber,
-              meta.format_as,
-              config.s.decimalPlaces ?? 0,
-            );
-          }
-          return String(info.value);
+          const formatAs = effectiveFormat.declaredFormatForValue(
+            getIndicatorIdsForCell(effectiveValueProps, info),
+          );
+          if (formatAs === undefined) return String(info.value);
+          return formatIndicatorValue(
+            info.value,
+            formatAs,
+            config.s.decimalPlaces ?? 0,
+          );
         },
       },
     },

@@ -1,5 +1,6 @@
 import {
   type APIResponseWithData,
+  INDICATOR_FORMAT_METRIC_IDS,
   isSampleNProp,
   type Language,
   type Metric,
@@ -149,6 +150,20 @@ function validateDefinition(
     throw new Error(
       `Invalid definition for module "${moduleId}": value props may not start with "${SAMPLE_N_PREFIX}" (reserved for sample sizes): ${reservedProps.join(", ")}`,
     );
+  }
+
+  // Every definition the app ever sees passes through here — install, update,
+  // wizard preview, and the run pipeline's re-fetch at a pinned gitRef — so
+  // this is the one place that can guarantee no definition VERSION produces a
+  // stale declaration. Without it the version-gated manifest repair is
+  // unreachable for the packages that need it most: a run generated from an
+  // un-flipped definition (the mandated deploy order, or a project pinned to
+  // an older gitRef) stamps the CURRENT schema version onto a manifest
+  // carrying the old value, and block 2 never runs again.
+  for (const metric of result.data.metrics) {
+    if (INDICATOR_FORMAT_METRIC_IDS.includes(metric.id)) {
+      metric.formatAs = "indicator";
+    }
   }
 
   return result.data as ModuleDefinitionGithub;

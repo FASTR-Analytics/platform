@@ -26,10 +26,7 @@ import {
   type IndicatorMetadata,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
-import {
-  fixedDomainLegendBoundaries,
-  scaleLegendFormat,
-} from "./conditional_formatting/compile";
+import { scaleLegendFormat } from "./conditional_formatting/compile";
 import {
   getChartOHJsonDataConfigFromPresentationObjectConfig,
   getChartOVJsonDataConfigFromPresentationObjectConfig,
@@ -103,7 +100,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.formatAs, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
   }
 
@@ -129,7 +126,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.formatAs, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
   }
 
@@ -139,7 +136,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.formatAs, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
     if (effectiveConfig.s.horizontal) {
       return {
@@ -209,7 +206,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.formatAs, localization),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization),
     };
   }
 
@@ -220,7 +217,7 @@ export function buildFigureInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
       localization,
-      effectiveFormat.formatAs,
+      effectiveFormat.axisFormat,
       items,
     );
     // Transform eagerly (timeseries precedent) so transform-time throws
@@ -279,14 +276,7 @@ function buildMapAutoLegend(
       ? { min: cf.domain.min, max: cf.domain.max }
       : undefined;
   const steps = cf.type === "scale" ? cf.steps : undefined;
-  // Fixed domains size decimals from the same tick/step list panther will
-  // label. Domain-less auto legends have no boundaries to size from until
-  // panther resolves ticks from the data — the rate formatter stays
-  // decimal-stable enough over the [0,1] stand-in.
-  const format = scaleLegendFormat(
-    formatAs,
-    domain ? fixedDomainLegendBoundaries(domain, steps) : [0, 1],
-  );
+  const format = scaleLegendFormat(formatAs);
   if (steps !== undefined && steps >= 2) {
     return { type: "stepped-auto" as const, nSteps: steps, domain, ...format, noData };
   }

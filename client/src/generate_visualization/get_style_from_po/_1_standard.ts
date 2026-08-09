@@ -6,13 +6,13 @@ import {
 import {
   type DeckStyleContext,
   type EffectiveFormat,
-  type IndicatorMetadata,
   PresentationObjectConfig,
   selectCf,
 } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
   formatIndicatorValue,
+  getIndicatorIdsForChartValue,
   getMapRegionsContent,
   getPieSlicesContent,
   getScaleTickLabelFormatter,
@@ -30,7 +30,6 @@ export function buildStandardStyle(
   effectiveFormat: EffectiveFormat,
   calendar: CalendarType,
   deckStyle: DeckStyleContext | undefined,
-  indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
@@ -44,15 +43,25 @@ export function buildStandardStyle(
     : allowNegativeScale
     ? "auto-zero"
     : undefined;
-  const dataFormat = effectiveFormat.formatAs;
+  // The shared scale axis and everything derived from it — tick labels, the
+  // forceYMax1 clamp, the pie completion envelope. These are the ONLY
+  // legitimate uses of the collapsed format; every individual value below goes
+  // through formatForValue instead.
+  const axisFormat = effectiveFormat.axisFormat;
   // Re-checked against the RESOLVED format, not the stored flag alone (the
   // isPieCompletionMode pattern): an "indicator" metric's format is
   // filter-sensitive, so a stranded forceYMax1 on a now-numeric figure must
   // degrade to auto rather than clamp counts at 1.
-  const scaleMax = config.s.forceYMax1 && dataFormat === "percent"
+  const scaleMax = config.s.forceYMax1 && axisFormat === "percent"
     ? 1
     : undefined;
-  const tickLabelFormatter = getScaleTickLabelFormatter(dataFormat);
+  const tickLabelFormatter = getScaleTickLabelFormatter(axisFormat);
+  const formatChartValue = (info: ChartValueInfo) =>
+    formatIndicatorValue(
+      info.val,
+      effectiveFormat.formatForValue(getIndicatorIdsForChartValue(info)),
+      config.s.decimalPlaces ?? 0,
+    );
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
@@ -108,8 +117,7 @@ export function buildStandardStyle(
           show: showPoints,
           dataLabel: { show: config.s.showDataLabels },
         },
-        textFormatter: (info: ChartValueInfo) =>
-          formatIndicatorValue(info.val, dataFormat, config.s.decimalPlaces ?? 0),
+        textFormatter: formatChartValue,
       },
       bars: {
         func:
@@ -122,8 +130,7 @@ export function buildStandardStyle(
                   dataLabel: { show: config.s.showDataLabels },
                 }
               : { show: true, dataLabel: { show: config.s.showDataLabels } },
-        textFormatter: (info: ChartValueInfo) =>
-          formatIndicatorValue(info.val, dataFormat, config.s.decimalPlaces ?? 0),
+        textFormatter: formatChartValue,
         stacking: c === "bars" && config.s.barsStacked ? "stacked" : "none",
       },
       lines: {
@@ -131,8 +138,7 @@ export function buildStandardStyle(
           show: showLines,
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         },
-        textFormatter: (info: ChartValueInfo) =>
-          formatIndicatorValue(info.val, dataFormat, config.s.decimalPlaces ?? 0),
+        textFormatter: formatChartValue,
       },
       areas: {
         func: { show: showAreas },
@@ -143,12 +149,11 @@ export function buildStandardStyle(
       tableCells: getTableCellsContent(
         config,
         effectiveFormat,
-        indicatorMetadata,
         effectiveValueProps,
         deckStyle,
       ),
       tableColHeaders: getTableColHeadersContent(config),
-      mapRegions: getMapRegionsContent(config, dataFormat, deckStyle),
+      mapRegions: getMapRegionsContent(config, effectiveFormat, deckStyle),
       slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle),
@@ -168,7 +173,7 @@ export function buildStandardStyle(
       config.d.type === "pie"
         ? {
             innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0,
-            centerLabel: getPieCenterLabel(config, dataFormat),
+            centerLabel: getPieCenterLabel(config, axisFormat),
           }
         : undefined,
   };

@@ -6,12 +6,14 @@ import type {
   ItemsHolderPresentationObject,
   JsonArrayItem,
   MetricAIDescription,
+  IndicatorFormat,
   MetricFormatAs,
   MetricWithStatus,
   PresentationObjectConfig,
 } from "../types/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
+import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
@@ -113,10 +115,16 @@ export async function getMetricDataForAI(
     ? itemsHolder.indicatorMetadata
     : [];
 
+  // uniqueDisaggregations, not the model's own list: the required options were
+  // merged into the QUERY, so they are real columns of the rows below. Passing
+  // the shorter list left the indicator dimension out of the Dimension Summary
+  // — the very place the "Format: varies by indicator" line promises the
+  // per-indicator formats are listed — and made the CSV treat it as a value
+  // column instead of pivoting on it.
   return formatItemsAsMarkdown(
     itemsHolder,
     metric,
-    disaggregations,
+    uniqueDisaggregations,
     filters,
     periodFilter,
     aiDescription,
@@ -151,7 +159,7 @@ function formatItemsAsMarkdown(
   );
   if (metric.formatAs === "indicator") {
     lines.push(
-      "**Format:** varies by indicator — each value is in its own indicator's format (percent values are 0-1 fractions; per-indicator formats are listed in the Dimension Summary below)",
+      "**Format:** varies by indicator — each value is in its own indicator's format (percent values are 0-1 fractions; rate_per_10k values are written in the CSV already scaled to counts per 10,000; per-indicator formats are listed in the Dimension Summary below)",
     );
   } else {
     lines.push(`**Format:** ${metric.formatAs}`);
@@ -319,6 +327,23 @@ function formatItemsAsMarkdown(
             return val;
           });
           lines.push(`  ${valuesWithLabels.join(", ")}`);
+        } else {
+          // Over the cap the labels are dropped as noise, but on an "indicator"
+          // metric the FORMATS cannot be: the header above tells the model that
+          // percent values are 0-1 fractions and rates are pre-scaled, and
+          // without this the two are indistinguishable in the CSV — 0.853
+          // (85.3%) sits beside 4.20 (per 10,000) with nothing to tell them
+          // apart. Grouped by format so the cost is O(formats), not O(values).
+          if (metric.formatAs === "indicator") {
+            for (
+              const [format, ids] of groupIdsByFormat(
+                stats.uniqueValues,
+                metadataById,
+              )
+            ) {
+              lines.push(`  ${format}: ${ids.join(", ")}`);
+            }
+          }
         }
       }
     }
@@ -338,7 +363,7 @@ function formatItemsAsMarkdown(
     items,
     columns,
     disaggregations,
-    metric.formatAs,
+    resolveItemFormat(metric.formatAs, metadataById),
   );
   lines.push(csvData);
   lines.push("");
@@ -380,6 +405,29 @@ function formatItemsAsMarkdown(
   return lines.join("\n");
 }
 
+// Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids
+// with no declared format are omitted rather than bucketed as "unknown": on a
+// dimension whose values are not indicators at all (an admin area, an HFA
+// category) that would print the entire value list under a meaningless
+// heading, which is exactly the noise the 20-value cap exists to prevent.
+function groupIdsByFormat(
+  values: string[],
+  metadataById: Map<string, IndicatorMetadata>,
+): Map<IndicatorFormat, string[]> {
+  const byFormat = new Map<IndicatorFormat, string[]>();
+  for (const val of values) {
+    const format = metadataById.get(val)?.format_as;
+    if (format === undefined) continue;
+    const bucket = byFormat.get(format);
+    if (bucket) {
+      bucket.push(val);
+    } else {
+      byFormat.set(format, [val]);
+    }
+  }
+  return byFormat;
+}
+
 function getDimensionStats(
   items: JsonArrayItem[],
   columns: string[],
@@ -404,17 +452,54 @@ function getDimensionStats(
   return stats;
 }
 
+// The format of ONE row's value. A "percent"/"number" metric owns its format
+// and every row shares it; an "indicator" metric's rows are each in their own
+// indicator's format, read off the row's indicator dimension. Rows whose
+// indicator declares nothing fall back to "number" — the same honest answer
+// the renderer's collapse gives.
+function resolveItemFormat(
+  metricFormatAs: MetricFormatAs,
+  metadataById: Map<string, IndicatorMetadata>,
+): (item: JsonArrayItem) => IndicatorFormat {
+  if (metricFormatAs !== "indicator") {
+    return () => metricFormatAs;
+  }
+  return (item) => {
+    for (const disOpt of INDICATOR_DISAGGREGATION_OPTIONS) {
+      const val = item[disOpt];
+      if (typeof val !== "string") continue;
+      const format = metadataById.get(val)?.format_as;
+      if (format !== undefined) return format;
+    }
+    return "number";
+  };
+}
+
+// A CSV cell, in the units the model is told to read. percent stays a 0-1
+// fraction (3 decimals, so a sub-1% value survives); rate_per_10k is scaled to
+// its per-10,000 count, because a bare rate at ANY shared decimal count rounds
+// to 0.000 — the whole column read as zeros.
+function formatIndicatorValueForCsv(
+  val: unknown,
+  formatAs: IndicatorFormat,
+): string {
+  if (val === undefined || val === null || val === "") return "";
+  const num = parseFloat(String(val));
+  if (isNaN(num)) {
+    const strVal = String(val);
+    return strVal.includes(",") ? `"${strVal}"` : strVal;
+  }
+  if (formatAs === "rate_per_10k") return (num * 10000).toFixed(2);
+  return num.toFixed(formatAs === "number" ? 2 : 3);
+}
+
 function pivotAndFormatAsCSV(
   items: JsonArrayItem[],
   columns: string[],
   disaggregations: DisaggregationOption[],
-  formatAs: MetricFormatAs,
+  formatFor: (item: JsonArrayItem) => IndicatorFormat,
 ): string {
   if (items.length === 0) return "";
-
-  // "indicator" gets percent's precision: its values can be 0-1 fractions,
-  // and 2 decimals would crush them.
-  const decimalPlaces = formatAs === "number" ? 2 : 3;
 
   // Identify value columns (everything not in disaggregations)
   const valueColumns = columns.filter(
@@ -436,7 +521,7 @@ function pivotAndFormatAsCSV(
       "indicator_common_id",
       indicators,
       valueColumns,
-      decimalPlaces,
+      formatFor,
     );
   }
 
@@ -457,12 +542,12 @@ function pivotAndFormatAsCSV(
       timeDimension,
       timePeriods,
       valueColumns,
-      decimalPlaces,
+      formatFor,
     );
   }
 
   // Case 3: No pivot - return long format
-  return formatLongCSV(items, columns, decimalPlaces);
+  return formatLongCSV(items, columns, formatFor);
 }
 
 function pivotToWide(
@@ -471,7 +556,7 @@ function pivotToWide(
   pivotDimension: string,
   pivotValues: string[],
   valueColumns: string[],
-  decimalPlaces: number,
+  formatFor: (item: JsonArrayItem) => IndicatorFormat,
 ): string {
   const lines: string[] = [];
 
@@ -531,7 +616,7 @@ function pivotToWide(
         // Add all value columns for this pivot value
         for (const valueCol of valueColumns) {
           pivotedValues.push(
-            formatValueWithN(matchingItem, valueCol, decimalPlaces),
+            formatValueWithN(matchingItem, valueCol, formatFor(matchingItem)),
           );
         }
       } else {
@@ -552,7 +637,7 @@ function pivotToWide(
 function formatLongCSV(
   items: JsonArrayItem[],
   columns: string[],
-  decimalPlaces: number,
+  formatFor: (item: JsonArrayItem) => IndicatorFormat,
 ): string {
   const lines: string[] = [];
 
@@ -562,7 +647,7 @@ function formatLongCSV(
   // Rows
   for (const item of items) {
     const values = columns.map((col) =>
-      formatValueWithN(item, col, decimalPlaces)
+      formatValueWithN(item, col, formatFor(item))
     );
     lines.push(values.join(","));
   }
@@ -577,9 +662,9 @@ function formatLongCSV(
 function formatValueWithN(
   item: JsonArrayItem,
   col: string,
-  decimalPlaces: number,
+  formatAs: IndicatorFormat,
 ): string {
-  const formatted = formatValue(item[col], decimalPlaces);
+  const formatted = formatIndicatorValueForCsv(item[col], formatAs);
   if (formatted === "") {
     return formatted;
   }
@@ -593,26 +678,6 @@ function formatValueWithN(
     return formatted;
   }
   return `${formatted} (n=${n})`;
-}
-
-function formatValue(val: any, decimalPlaces: number): string {
-  if (val === undefined || val === null || val === "") {
-    return "";
-  }
-
-  // Round numeric values
-  const num = parseFloat(val);
-  if (!isNaN(num)) {
-    return num.toFixed(decimalPlaces);
-  }
-
-  // Escape commas in text values
-  const strVal = String(val);
-  if (strVal.includes(",")) {
-    return `"${strVal}"`;
-  }
-
-  return strVal;
 }
 
 export async function getDataFromConfig(

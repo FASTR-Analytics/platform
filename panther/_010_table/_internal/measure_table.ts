@@ -184,6 +184,8 @@ export function measureTable(
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
   // Measure all cell content for each row and compute row heights
+  const rowGroupHeadersByRowIndex = buildRowGroupHeadersByRowIndex(d.rowGroups);
+
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
     const cells: MeasuredCellInfo[] = [];
     let maxCellHeight = rhi.mText?.dims.h() ?? 0;
@@ -201,6 +203,8 @@ export function measureTable(
             nCols,
             toHeaderItem(rhi.id, rhi.label),
             toHeaderItem(col.id, col.label),
+            rowGroupHeadersByRowIndex[rowIndex],
+            toHeaderItem(colGroup.id, colGroup.label),
             columnMinMax,
             d.nMatrix,
           );
@@ -322,6 +326,8 @@ export function buildTableCellInfo(
   nCols: number,
   rowHeader: HeaderItem | undefined,
   colHeader: HeaderItem | undefined,
+  rowGroupHeader: HeaderItem | undefined,
+  colGroupHeader: HeaderItem | undefined,
   columnMinMax: Map<number, { min: number; max: number }>,
   nMatrix: (number | undefined)[][] | undefined,
 ): TableCellInfo {
@@ -338,8 +344,26 @@ export function buildTableCellInfo(
     nCols,
     rowHeader,
     colHeader,
+    rowGroupHeader,
+    colGroupHeader,
     sampleN: normalizeN(nMatrix?.[i_row]?.[i_col]),
   };
+}
+
+// Group header per row/column INDEX. The three cell-measuring passes address
+// rows by index and columns by their enclosing group, so both lookups are
+// built once from the same source the headers themselves come from.
+export function buildRowGroupHeadersByRowIndex(
+  rowGroups: TableDataTransformed["rowGroups"],
+): (HeaderItem | undefined)[] {
+  const byRow: (HeaderItem | undefined)[] = [];
+  for (const rowGroup of rowGroups) {
+    const header = toHeaderItem(rowGroup.id, rowGroup.label);
+    for (const row of rowGroup.rows) {
+      byRow[row.index] = header;
+    }
+  }
+  return byRow;
 }
 
 export function computeColumnMinMax(
@@ -538,6 +562,7 @@ export function computePerColumnMinWordWidths(
       rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
     }
   }
+  const rowGroupHeaderItems = buildRowGroupHeadersByRowIndex(d.rowGroups);
 
   let colGroupHeaderMaxWidth = 0;
   const groupLabelWidestWordByGroup: number[] = [];
@@ -574,6 +599,8 @@ export function computePerColumnMinWordWidths(
           nCols,
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
+          rowGroupHeaderItems[rowIndex],
+          toHeaderItem(colGroup.id, colGroup.label),
           columnMinMax,
           d.nMatrix,
         );
@@ -874,6 +901,7 @@ function measureNaturalColumnWidths(
       rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
     }
   }
+  const rowGroupHeaderItems = buildRowGroupHeadersByRowIndex(d.rowGroups);
 
   const textFormatter = s.tableCells.textFormatter;
   const naturalWidths = new Array<number>(nCols).fill(0);
@@ -898,6 +926,8 @@ function measureNaturalColumnWidths(
           nCols,
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
+          rowGroupHeaderItems[rowIndex],
+          toHeaderItem(colGroup.id, colGroup.label),
           columnMinMax,
           d.nMatrix,
         );
