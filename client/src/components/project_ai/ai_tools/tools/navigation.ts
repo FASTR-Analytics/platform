@@ -1,7 +1,10 @@
 import { createAITool } from "panther";
 import { z } from "zod";
 import { updateProjectView } from "~/state/t4_ui";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
+import {
+  PROJECT_TAB_TO_VIEW,
+  projectAIViewController,
+} from "~/components/project_ai/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 
 // Kept as a PLAIN tool (PLAN_FUTURE_AI_ADOPTIONS.md feature 8, option 2): the
@@ -19,7 +22,7 @@ export function getClientToolsForNavigation() {
     createAITool({
       name: "switch_tab",
       description:
-        "Switch the main project tab. Available tabs: reports, decks, visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
+        'Switch the main project tab. Available tabs: reports, decks (shown as "Slide decks" in the UI), visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.',
       inputSchema: z.object({
         tab: z
           .enum([
@@ -46,6 +49,11 @@ export function getClientToolsForNavigation() {
           !instanceState.currentUserPermissions.can_configure_data
         ) {
           return "Cannot switch to results_package - this user does not have permission to see that tab.";
+        }
+        if (
+          projectAIViewController.current().id === PROJECT_TAB_TO_VIEW[input.tab]
+        ) {
+          return `Already on the ${input.tab} tab`;
         }
         projectAIViewController.markAINavigation();
         updateProjectView({ tab: input.tab });
