@@ -13,9 +13,10 @@
 > 2. Work deliberately deferred off `main` — the design debt, and any open
 >    question adjudicated as "do it on tim-branch".
 >
-> **What does NOT belong here.** The immediate `main` work and the decisions
-> gating its deploy: that is
-> [FOR_REVIEW_NIGERIA_HOTFIX.md](FOR_REVIEW_NIGERIA_HOTFIX.md).
+> **What does NOT belong here.** The immediate `main` work — that was
+> FOR_REVIEW_NIGERIA_HOTFIX.md, deleted after the independent review passed
+> (2026-08-09). Its still-live remnants (deploy-day notes) are at the bottom
+> of this file; everything else lives in git history.
 >
 > **Keep this file in sync.** Whenever anything is decided or implemented on
 > `main`, add the corresponding port-back entry here in the same pass. A `main`
@@ -168,6 +169,27 @@ three-week training, on the deploy branch, and would conflict badly with
       with `name: "survey.csv", repoPath: "data/survey_v3.csv"` is valid under the
       modules repo's own schema and build, and would make `main` look for
       `survey.csv` in the instance assets dir.
+
+## Deploy-day notes for the `main` hotfix
+
+Moved here when FOR_REVIEW_NIGERIA_HOTFIX.md was deleted (review complete
+2026-08-09, no defects). The standing don'ts (keep `e758c69` unpushed, no
+`./sync`, no `./vendor_schema` on `main`) are already itemised above.
+
+- Deploy when nobody is editing — `maybeReloadOnServerVersionChange`
+  (`state/project/collab.ts:872`) force-reloads collab tabs and its own comment
+  says edits in the disconnection window are discarded.
+- Post-deploy: anyone with a tab open should reload once. Tabs not in a collab
+  session do not auto-reload and will keep showing the old sort order.
+- Post-deploy: install m004/m005 and actually **run** one, before anyone uses
+  "Update all modules". (A missing asset now fails loudly at the import step,
+  but the reinstall path is still destructive-before-run by design.)
+- Expected visible effect: stored figures **reorder and recolour** (series
+  palette is assigned by axis index), and scorecards gain white gridlines —
+  pre-training handouts will not match. Worth warning Angélica.
+- Rollback is re-pointing at `timroberton/comb:wb-fastr-server-v1.64.7`;
+  everything the new build writes is valid for 1.64.7's boot sweep. Only
+  consequence is that the two bugs return.
 
 ## Ordering
 
