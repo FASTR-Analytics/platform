@@ -156,7 +156,7 @@ export function buildStandardStyle(
       mapRegions: getMapRegionsContent(config, effectiveFormat, deckStyle),
       slices: getPieSlicesContent(config),
     },
-    table: getTableLayoutStyle(config, deckStyle),
+    table: getTableLayoutStyle(config, deckStyle, cfOn),
     valuesColorFunc: compileCfToValuesColorFunc(cf),
     map:
       config.d.type === "map"

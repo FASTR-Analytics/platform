@@ -340,6 +340,12 @@ const resultsObjectDefinitionGithub = z.object({
 // integrity check and content-addressed cache key. There is no per-asset
 // commit field any more; legacy definitions carrying one parse fine (strip)
 // and the field is ignored.
+//
+// The 1.65.0 hotfix declared repoPath/sha256 OPTIONAL and collapsed pins to
+// names via getAssetName (main consumed assets by name only). On this branch
+// the pin is honoured — repo_assets.ts fetches by repoPath and verifies
+// sha256 — so both fields are required and no collapse exists (merge ruling,
+// PLAN_NIGERIA_HOTFIX_OTHER_BRANCHES.md).
 const repoAssetToImportGithub = z.object({
   name: z.string(),
   repoPath: z.string(),

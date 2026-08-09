@@ -143,11 +143,27 @@ function structuralColor(
   return deckStyle ? deckStyle.colorPreset[slot] : { key: slot };
 }
 
+// Text colour for CF-coloured cells, shared by standard CF and the scorecard
+// so both respect a deck's colour preset.
+export function getCfCellTextColorStrategy(
+  deckStyle: DeckStyleContext | undefined,
+) {
+  return {
+    ifLight: structuralColor("baseContent", deckStyle),
+    ifDark: structuralColor("base100", deckStyle),
+  };
+}
+
+// The CF table look — white gridlines, no outer border, tightened header
+// padding — applies whenever cells carry conditional-formatting backgrounds.
+// `cfOn` is passed in because config.s alone cannot answer that: standard
+// tables colour cells via user CF (selectCf), scorecards via per-indicator
+// metadata thresholds. The two are the same look and must not drift apart.
 export function getTableLayoutStyle(
   config: PresentationObjectConfig,
   deckStyle: DeckStyleContext | undefined,
+  cfOn: boolean,
 ) {
-  const cfOn = selectCf(config.s).type !== "none";
   return {
     gridLineColor: cfOn ? structuralColor("base100", deckStyle) : undefined,
     rowHeaderPadding: cfOn
@@ -222,10 +238,7 @@ export function getTableCellsContent(
     func: cfOn
       ? {
           backgroundColor: 777 as const,
-          textColorStrategy: {
-            ifLight: structuralColor("baseContent", deckStyle),
-            ifDark: structuralColor("base100", deckStyle),
-          },
+          textColorStrategy: getCfCellTextColorStrategy(deckStyle),
         }
       : undefined,
     // Unconditional per-value resolution. A "percent"/"number" metric owns its

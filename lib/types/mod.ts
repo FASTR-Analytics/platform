@@ -49,5 +49,6 @@ export * from "./permissions.ts";
 export * from "./permission_labels.ts";
 export * from "./calculated_indicator_id.ts";
 export * from "./custom_prompts.ts";
+export * from "./whats_new.ts";
 export * from "./collab.ts";
 export * from "./versions.ts";

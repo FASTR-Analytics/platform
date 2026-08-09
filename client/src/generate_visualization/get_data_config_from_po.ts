@@ -25,6 +25,7 @@ import {
   type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
+  PERIOD_DISAGGREGATION_OPTIONS,
   PIE_COMPLETION_TOTAL,
   periodOptionToPeriodType,
   ROLLUP_PIN_IDS,
@@ -189,7 +190,50 @@ function getCustomOrderSort(
   return { byIdOrder: customOrder };
 }
 
-// Axis sort: the user's custom order when one exists for the axis's disOpt,
+// Period axes are ordered chronologically, always — never by display label, and
+// never by an indicator `byIdOrder`. Both of the sorts this overrides get a
+// period axis wrong:
+//   - "by-label" compares the text getDateLabelReplacements produced, so a
+//     month axis reads Apr, Feb, Jan, Jun.
+//   - { byIdOrder: indicatorIds } (the scorecard order, applied to every axis)
+//     matches no period id, so every header ties at POSITIVE_INFINITY and falls
+//     through to sortByIdOrder's localeCompare(label) tie-break — identically
+//     alphabetical.
+//
+// The order is a RULE, not an id list derived from the rows. Stored figures are
+// FigureBundles rebuilt through buildFigureInputs at every render (nothing
+// persists a sort config any more — the legacy stored figureInputs were
+// converted away by data_transforms/_figure_block.ts), so a derived order would
+// not go stale. It is simply worse: it rescans every row on each build, and it
+// is only correct for the periods that happened to be present. A rule is
+// total — and declarative, so it survives the structuredClone in the export
+// path, same as getRollupAwareSort.
+//
+// Every period id is FIXED-WIDTH, so panther's "by-id" string compare is
+// already chronological and no per-dimension order list is needed:
+//
+//   period_id   6-digit YYYYMM     quarter_id  5-digit YYYYQ
+//   year        4-digit YYYY       month       2-digit, ZERO-PADDED "01".."12"
+//
+// `month` is zero-padded because it is derived, not stored:
+// PERIOD_COLUMN_EXPRESSIONS.month is `LPAD((period_id % 100)::text, 2, '0')`
+// (server_only_funcs_presentation_objects/period_helpers.ts — the single
+// source; computeResultsObjectColumnsToExclude drops any physical `month`
+// column from results tables). Do
+// not "fix" this to an explicit 1..12 order list: those ids do not exist, and
+// such a list matches only "10".."12", pinning Q4 to the front and dropping
+// "01".."09" onto the very label tie-break this code exists to avoid. The
+// comment in get_date_label_replacements.ts claiming values are 1-12 is wrong;
+// it is harmless only because that path uses parseInt.
+function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefined {
+  return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
+    ? "by-id"
+    : undefined;
+}
+
+// Axis sort: the user's custom order when one exists for the axis's disOpt
+// (an explicit choice beats every rule, chronology included — merge ruling,
+// PLAN_NIGERIA_HOTFIX_OTHER_BRANCHES.md), else chronological for period dims,
 // else alphabetical with the roll-up sentinel pinned.
 function getAxisSort(
   config: PresentationObjectConfig,
@@ -198,7 +242,7 @@ function getAxisSort(
   const customOrder = getCustomOrderForAxis(config, axisProp);
   return customOrder
     ? getCustomOrderSort(config, customOrder, axisProp)
-    : getRollupAwareSort(config);
+    : getPeriodAxisSort(axisProp) ?? getRollupAwareSort(config);
 }
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
@@ -293,22 +337,27 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   // except in scorecard mode, whose `customSortHeaders` owns whole-table
   // ordering.
   const rollupAxis = getTableRollupAxis(config);
-  const axisProps = {
-    row: rowProp,
-    rowGroup: rowGroupProp,
-    col: colProp,
-    colGroup: colGroupProp,
-  };
+  // An axis with no prop does not exist, so it gets NO sort — not a default
+  // one. This is load-bearing, not tidiness: panther's
+  // promoteGroupPropIfNoItemProp collapses a group axis that has no item axis
+  // and carries `itemSort ?? groupSort`, so supplying a sort for the absent
+  // item axis would discard the group's own sort. That is exactly how a period
+  // dimension placed on rowGroup/colGroup alone kept sorting alphabetically.
   const axisSort = (
     axis: "row" | "rowGroup" | "col" | "colGroup",
-  ): HeaderSortConfig => {
+    prop: DisaggregationOption | "--v" | undefined,
+  ): HeaderSortConfig | undefined => {
+    if (prop === undefined) {
+      return undefined;
+    }
     const customOrder = customSortHeaders
       ? undefined
-      : getCustomOrderForAxis(config, axisProps[axis]);
+      : getCustomOrderForAxis(config, prop);
     if (customOrder) {
-      return getCustomOrderSort(config, customOrder, axisProps[axis]);
+      return getCustomOrderSort(config, customOrder, prop);
     }
-    return axis === rollupAxis ? getRollupAwareSort(config) : tableSort;
+    return getPeriodAxisSort(prop) ??
+      (axis === rollupAxis ? getRollupAwareSort(config) : tableSort);
   };
 
   // No eligibility check: the server only emits __n_* for HFA facility-level
@@ -328,10 +377,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: axisSort("colGroup"),
-      col: axisSort("col"),
-      rowGroup: axisSort("rowGroup"),
-      row: axisSort("row"),
+      colGroup: axisSort("colGroup", colGroupProp),
+      col: axisSort("col", colProp),
+      rowGroup: axisSort("rowGroup", rowGroupProp),
+      row: axisSort("row", rowProp),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
@@ -414,6 +463,22 @@ function getChartJsonDataConfig(
       ? getCustomOrderForAxis(config, indicatorPropRaw)
       : undefined;
 
+  // A PERIOD dimension on the bars axis is the one case where data order is not
+  // acceptable under "none": the chronological rule is total (see
+  // getPeriodAxisSort), and the items query has no ORDER BY, so data order is
+  // arbitrary Postgres aggregate output. Pass sortIndicatorValues: undefined so
+  // panther honours sort.indicator, and sort "by-id". Mutually exclusive with
+  // pinIndicatorAxis: roll-up dimensions are admin levels + facility columns,
+  // never a period dim. "ascending"/"descending" (an explicit user choice of
+  // value ranking) still override chronology — the guard applies under "none"
+  // only, and a user customValueOrder for the axis beats it. Non-period dims
+  // keep data order under "none" for now; their natural order is the
+  // getAxisSort-dispatcher work (Q1 remainder, other-branches plan).
+  const periodIndicatorSort =
+    config.s.sortIndicatorValues === "none"
+      ? getPeriodAxisSort(indicatorProp)
+      : undefined;
+
   return {
     valueProps: effectiveValueProps,
     indicatorProp,
@@ -426,13 +491,14 @@ function getChartJsonDataConfig(
         ? getCustomOrderSort(config, customIndicatorOrder, indicatorPropRaw)
         : pinIndicatorAxis
           ? getRollupPinOnlySort(config)
-          : getChartIndicatorSort(config),
+          : periodIndicatorSort ?? getChartIndicatorSort(config),
       series: getAxisSort(config, seriesProp),
       lane: getAxisSort(config, laneProp),
       tier: getAxisSort(config, tierProp),
       pane: getAxisSort(config, paneProp),
     },
-    sortIndicatorValues: pinIndicatorAxis || customIndicatorOrder
+    sortIndicatorValues:
+      pinIndicatorAxis || customIndicatorOrder || periodIndicatorSort
       ? undefined
       : config.s.sortIndicatorValues,
     labelReplacements: buildLabelReplacements(

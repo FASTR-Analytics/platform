@@ -29,6 +29,36 @@
 [TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
 [TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
 [TBD] [admin] [changed] - Improved audit logging for user setting changes
+[TBD] [user] [fixed] - Time periods now sort chronologically instead of alphabetically in charts and tables
+[TBD] [user] [fixed] - Months, quarters, and years display in correct order on all axes
+[TBD] [admin] [fixed] - Period dimensions now sort chronologically instead of alphabetically
+[TBD] [admin] [fixed] - Module installs no longer falsely report asset changes
+[TBD] [admin] [fixed] - Asset import errors during module runs are now surfaced clearly
+[TBD] [admin] [added] - Support for pinned-repo-asset format in module definitions
+[TBD] [admin] [fixed] - Clearer error messages when module definitions fail validation
+[1.64.7] [user] [added] - "What's New" bell icon shows latest platform updates
+[1.64.7] [user] [added] - Unread dot on bell icon highlights announcements you haven't seen
+[1.64.7] [user] [added] - New release announcements appear automatically after login
+[1.64.7] [user] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [user] [added] - Announcements support multiple pages with images and videos
+[1.64.7] [user] [added] - Announcements available in English, French, and Portuguese
+[1.64.7] [admin] [added] - "What's New" announcements appear automatically after login
+[1.64.7] [admin] [added] - Bell icon in header shows unread release announcements
+[1.64.7] [admin] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [admin] [added] - Unread dot on bell icon until all announcements are viewed
+[1.64.7] [admin] [changed] - New users no longer see announcements that predate their account
+[1.64.7] [admin] [internal] - Announcement view events are logged for usage tracking
+[1.64.6] [user] [added] - Before/after visual previews for chart and image changes in slide version history
+[1.64.6] [user] [added] - Chart captions now shown in version history change descriptions
+[1.64.6] [user] [added] - Visualization and image changes now displayed in report session edits
+[1.64.6] [user] [changed] - Edited charts and images are highlighted in the report text diff
+[1.64.6] [admin] [added] - Version history now shows before/after previews for visualizations and images
+[1.64.6] [admin] [added] - Report session edits now display visualization and image changes separately
+[1.64.6] [admin] [added] - Figure captions shown in version history to identify which chart changed
+[1.64.6] [admin] [added] - Edited visualizations are highlighted in the report text diff
+[1.64.6] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[1.64.6] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[1.64.6] [admin] [changed] - Improved audit logging for user setting changes
 [1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
 [1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
 [1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading
