@@ -5,7 +5,10 @@ import {
   getFilteredValueProps,
 } from "./get_fetch_config_from_po.ts";
 import { hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
-import type { DisaggregationOption } from "./types/disaggregation_options.ts";
+import {
+  type DisaggregationOption,
+  PERIOD_DISAGGREGATION_OPTIONS,
+} from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import {
   inferPeriodFormatFromValue,
@@ -183,8 +186,6 @@ export type EffectivePOConfigResult = {
   ineffectiveDisaggregators: IneffectiveDisaggregator[];
 };
 
-const TIME_COLUMNS = new Set<string>(["period_id", "quarter_id", "year", "month"]);
-
 export function getEffectivePOConfig(
   config: PresentationObjectConfig,
   context?: {
@@ -232,7 +233,7 @@ export function getEffectivePOConfig(
       return false;
     }
 
-    if (singlePeriod && TIME_COLUMNS.has(d.disOpt)) {
+    if (singlePeriod && PERIOD_DISAGGREGATION_OPTIONS.has(d.disOpt)) {
       ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_period" });
       return false;
     }

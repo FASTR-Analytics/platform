@@ -21,6 +21,7 @@ import {
   getRollupPosition,
   get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
   isRollupActive,
+  PERIOD_DISAGGREGATION_OPTIONS,
   periodOptionToPeriodType,
   ROLLUP_PIN_IDS,
   sampleNProp,
@@ -182,13 +183,6 @@ function getRollupPinOnlySort(config: PresentationObjectConfig): HeaderSortConfi
 // "01".."09" onto the very label tie-break this code exists to avoid. The
 // comment in get_date_label_replacements.ts claiming values are 1-12 is wrong;
 // it is harmless only because that path uses parseInt.
-const PERIOD_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set([
-  "year",
-  "month",
-  "quarter_id",
-  "period_id",
-]);
-
 function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefined {
   return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
     ? "by-id"
@@ -395,9 +389,21 @@ function getChartJsonDataConfig(
   const pinIndicatorAxis =
     rollupOnIndicatorAxis && config.s.sortIndicatorValues === "none";
 
-  // The indicator axis is deliberately excluded: panther keeps it in DATA order
-  // whenever sortIndicatorValues is a string (see above), so it never hits the
-  // alphabetical-label path that getPeriodAxisSort exists to correct.
+  // A PERIOD dimension on the bars axis is the one case where data order is not
+  // acceptable under "none": the chronological rule is total (see
+  // getPeriodAxisSort), and the items query has no ORDER BY, so data order is
+  // arbitrary Postgres aggregate output. Pass sortIndicatorValues: undefined so
+  // panther honours sort.indicator, and sort "by-id". Mutually exclusive with
+  // pinIndicatorAxis: roll-up dimensions are admin levels + facility columns,
+  // never a period dim. "ascending"/"descending" (an explicit user choice of
+  // value ranking) still override chronology — the guard applies under "none"
+  // only. Non-period dims keep data order under "none" as before; a defined
+  // natural order for those axes is tim-branch work (Q1 in the hotfix plan).
+  const periodIndicatorSort =
+    config.s.sortIndicatorValues === "none"
+      ? getPeriodAxisSort(indicatorProp)
+      : undefined;
+
   const axisSort = (prop: string | undefined): HeaderSortConfig =>
     getPeriodAxisSort(prop) ?? getRollupAwareSort(config);
 
@@ -411,13 +417,13 @@ function getChartJsonDataConfig(
     sort: {
       indicator: pinIndicatorAxis
         ? getRollupPinOnlySort(config)
-        : getChartIndicatorSort(config),
+        : periodIndicatorSort ?? getChartIndicatorSort(config),
       series: axisSort(seriesProp),
       lane: axisSort(laneProp),
       tier: axisSort(tierProp),
       pane: axisSort(paneProp),
     },
-    sortIndicatorValues: pinIndicatorAxis
+    sortIndicatorValues: pinIndicatorAxis || periodIndicatorSort
       ? undefined
       : config.s.sortIndicatorValues,
     labelReplacements: buildLabelReplacements(

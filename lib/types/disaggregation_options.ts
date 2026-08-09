@@ -30,3 +30,13 @@ export const ALL_DISAGGREGATION_OPTIONS = [
 ] as const;
 
 export type DisaggregationOption = (typeof ALL_DISAGGREGATION_OPTIONS)[number];
+
+// The period-VALUED display columns. Distinct from `periodOption`
+// (_metric_installed.ts), the queryable period formats: `month` is not a
+// format — it is a derived, zero-padded text column (see
+// PERIOD_COLUMN_EXPRESSIONS). Typed ReadonlySet<string> because consumers test
+// arbitrary display props ("--v", facility columns), but the literals are
+// compiler-checked against the enum above.
+export const PERIOD_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set(
+  ["year", "month", "quarter_id", "period_id"] satisfies DisaggregationOption[],
+);

@@ -33,7 +33,7 @@ import {
   type ModuleId,
   type ResultsValue,
 } from "lib";
-import { getModuleDefinitionDetail, fetchModuleFiles, hasComputeAffectingChanges } from "../../module_loader/mod.ts";
+import { getModuleDefinitionDetail, hasComputeAffectingChanges } from "../../module_loader/mod.ts";
 import {
   detectHasAnyRows,
   getResultsObjectTableName,

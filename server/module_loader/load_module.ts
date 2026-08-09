@@ -18,6 +18,7 @@ import {
   type ResultsObjectDefinitionGithub,
   SAMPLE_N_PREFIX,
 } from "lib";
+import { z } from "zod";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 
 import {
@@ -155,9 +156,7 @@ function validateDefinition(
 ): ModuleDefinitionGithub {
   const result = moduleDefinitionGithubSchema.safeParse(definition);
   if (!result.success) {
-    const issues = result.error.issues.map((i) =>
-      `${i.path.join(".")}: ${i.message}`
-    ).join("; ");
+    const issues = formatValidationIssues(result.error.issues, []).join("; ");
     throw new Error(`Invalid definition for module "${moduleId}": ${issues}`);
   }
 
@@ -178,6 +177,21 @@ function validateDefinition(
   }
 
   return result.data as ModuleDefinitionGithub;
+}
+
+// Zod reports a union failure as a bare "Invalid input" at the union's path and
+// buries the per-branch detail on issue.errors. This boundary exists to fail
+// loudly, so flatten every branch's issues with the union's path prefixed.
+function formatValidationIssues(
+  issues: z.core.$ZodIssue[],
+  prefix: PropertyKey[],
+): string[] {
+  return issues.flatMap((issue) => {
+    const path = [...prefix, ...issue.path];
+    return issue.code === "invalid_union"
+      ? issue.errors.flatMap((branch) => formatValidationIssues(branch, path))
+      : [`${path.join(".")}: ${issue.message}`];
+  });
 }
 
 function translateMetrics(

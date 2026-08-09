@@ -188,7 +188,7 @@ export async function* runModuleIterator(
         text: assetMsg,
         type: "download-file",
       };
-      await importAsset(asset, moduleDirPath);
+      throwIfErrNoData(await importAsset(asset, moduleDirPath));
     }
 
     await writeToLog("Starting R script", "r-output");
