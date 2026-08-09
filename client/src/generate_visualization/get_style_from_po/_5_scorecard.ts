@@ -7,7 +7,12 @@ import {
   type IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
-import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
+import {
+  getCfCellTextColorStrategy,
+  getIndicatorMetaForCell,
+  getTableLayoutStyle,
+  getTextStyle,
+} from "./_0_common";
 
 function scaleValueForFormat(rawValue: number, formatAs: string): number {
   if (formatAs === "percent") return rawValue * 100;
@@ -79,10 +84,7 @@ export function buildScorecardStyle(
                 meta.threshold_yellow ?? 0,
                 scaled,
               ),
-              textColorStrategy: {
-                ifLight: { key: "baseContent" as const },
-                ifDark: { key: "base100" as const },
-              },
+              textColorStrategy: getCfCellTextColorStrategy(deckStyle),
             };
           }
           return { backgroundColor: "none" };
@@ -100,6 +102,8 @@ export function buildScorecardStyle(
         },
       },
     },
-    table: getTableLayoutStyle(config, deckStyle),
+    // Scorecard colouring IS conditional formatting (per-indicator thresholds
+    // instead of user CF), so it always gets the CF table look.
+    table: getTableLayoutStyle(config, deckStyle, true),
   };
 }

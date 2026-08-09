@@ -145,7 +145,7 @@ export function buildStandardStyle(
       tableColHeaders: getTableColHeadersContent(config),
       mapRegions: getMapRegionsContent(config, formatAs, deckStyle),
     },
-    table: getTableLayoutStyle(config, deckStyle),
+    table: getTableLayoutStyle(config, deckStyle, cfOn),
     valuesColorFunc: compileCfToValuesColorFunc(cf),
     map:
       config.d.type === "map"
