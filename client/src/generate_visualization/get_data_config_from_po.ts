@@ -148,6 +148,42 @@ function getRollupPinOnlySort(config: PresentationObjectConfig): HeaderSortConfi
     : { last: ROLLUP_PIN_IDS };
 }
 
+// Period axes are ordered chronologically, always — never by display label, and
+// never by an indicator `byIdOrder`. Both of the sorts this overrides get a
+// period axis wrong:
+//   - "by-label" compares the text getDateLabelReplacements produced, so a
+//     month axis reads Apr, Feb, Jan, Jun.
+//   - { byIdOrder: indicatorIds } (the scorecard order, applied to every axis)
+//     matches no period id, so every header ties at POSITIVE_INFINITY and falls
+//     through to sortByIdOrder's localeCompare(label) tie-break — identically
+//     alphabetical.
+//
+// The order is a RULE, not data. An order derived from the rows would be baked
+// into stored FigureInputs and go stale the moment a figure is re-rendered
+// against a period it did not contain when saved — that new id would miss the
+// frozen list and fall back to the alphabetical tie-break, reviving the bug.
+//
+// Ids are numeric and, except for `month`, fixed-width (period_id YYYYMM,
+// quarter_id YYYYQ, year YYYY — see panther's decodePeriod), so panther's
+// "by-id" string compare is already chronological for those three. `month` is
+// the sole variable-width case ("1".."12", where a string compare gives
+// 1, 10, 11, 12, 2) and its domain is closed, so it gets an explicit constant.
+//
+// Roll-up never collides here: ROLLUP_DIMENSIONS is admin levels + facility
+// columns, so a period dimension is never the rolled axis.
+const MONTH_ID_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+
+const PERIOD_AXIS_SORTS: Readonly<Record<string, HeaderSortConfig>> = {
+  year: "by-id",
+  quarter_id: "by-id",
+  period_id: "by-id",
+  month: { byIdOrder: MONTH_ID_ORDER },
+};
+
+function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefined {
+  return prop === undefined ? undefined : PERIOD_AXIS_SORTS[prop];
+}
+
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
@@ -165,20 +201,28 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
 
   const periodType = periodOptionToPeriodType(config.d.timeseriesGrouping);
 
+  const seriesProp =
+    getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps) ?? "--v";
+  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
+  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps);
+  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps);
+
+  const axisSort = (prop: string | undefined): HeaderSortConfig =>
+    getPeriodAxisSort(prop) ?? getRollupAwareSort(config);
+
   return {
     valueProps: effectiveValueProps,
     periodProp: config.d.timeseriesGrouping,
     periodType,
-    seriesProp:
-      getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps) ?? "--v",
-    paneProp: getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps),
-    laneProp: getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps),
-    tierProp: getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps),
+    seriesProp,
+    paneProp,
+    laneProp,
+    tierProp,
     sort: {
-      series: getRollupAwareSort(config),
-      lane: getRollupAwareSort(config),
-      tier: getRollupAwareSort(config),
-      pane: getRollupAwareSort(config),
+      series: axisSort(seriesProp),
+      lane: axisSort(laneProp),
+      tier: axisSort(tierProp),
+      pane: axisSort(paneProp),
     },
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -233,8 +277,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   const rollupAxis = getTableRollupAxis(config);
   const axisSort = (
     axis: "row" | "rowGroup" | "col" | "colGroup",
+    prop: string | undefined,
   ): HeaderSortConfig =>
-    axis === rollupAxis ? getRollupAwareSort(config) : tableSort;
+    getPeriodAxisSort(prop) ??
+    (axis === rollupAxis ? getRollupAwareSort(config) : tableSort);
 
   // No eligibility check: the server only emits __n_* for HFA facility-level
   // fetches, and panther drops the matrix when nothing resolves. Stored figures
@@ -253,10 +299,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: axisSort("colGroup"),
-      col: axisSort("col"),
-      rowGroup: axisSort("rowGroup"),
-      row: axisSort("row"),
+      colGroup: axisSort("colGroup", colGroupProp),
+      col: axisSort("col", colProp),
+      rowGroup: axisSort("rowGroup", rowGroupProp),
+      row: axisSort("row", rowProp),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
@@ -332,6 +378,12 @@ function getChartJsonDataConfig(
   const pinIndicatorAxis =
     rollupOnIndicatorAxis && config.s.sortIndicatorValues === "none";
 
+  // The indicator axis is deliberately excluded: panther keeps it in DATA order
+  // whenever sortIndicatorValues is a string (see above), so it never hits the
+  // alphabetical-label path that getPeriodAxisSort exists to correct.
+  const axisSort = (prop: string | undefined): HeaderSortConfig =>
+    getPeriodAxisSort(prop) ?? getRollupAwareSort(config);
+
   return {
     valueProps: effectiveValueProps,
     indicatorProp,
@@ -343,10 +395,10 @@ function getChartJsonDataConfig(
       indicator: pinIndicatorAxis
         ? getRollupPinOnlySort(config)
         : getChartIndicatorSort(config),
-      series: getRollupAwareSort(config),
-      lane: getRollupAwareSort(config),
-      tier: getRollupAwareSort(config),
-      pane: getRollupAwareSort(config),
+      series: axisSort(seriesProp),
+      lane: axisSort(laneProp),
+      tier: axisSort(tierProp),
+      pane: axisSort(paneProp),
     },
     sortIndicatorValues: pinIndicatorAxis
       ? undefined

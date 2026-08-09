@@ -5,6 +5,7 @@ import {
   type DefaultPresentationObject,
   isSampleNProp,
   type Language,
+  getAssetName,
   type Metric,
   type MetricDefinitionGithub,
   MODULE_REGISTRY,
@@ -239,7 +240,7 @@ export async function getModuleDefinitionDetail(
         language,
       ),
       script,
-      assetsToImport: definition.assetsToImport,
+      assetsToImport: definition.assetsToImport.map(getAssetName),
       resultsObjects: resultsObjectsWithModuleId,
       defaultPresentationObjects: deriveDefaultPresentationObjects(
         translatedMetrics,

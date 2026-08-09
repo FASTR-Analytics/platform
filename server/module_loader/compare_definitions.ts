@@ -1,5 +1,6 @@
 import type { ModuleDefinitionGithub, DefinitionChanges, Metric } from "lib";
 import type { ModuleDefinitionInstalled } from "lib";
+import { getAssetName } from "lib";
 
 /**
  * Compare an incoming GitHub definition against an installed definition.
@@ -83,8 +84,10 @@ export function compareDefinitions(
     JSON.stringify(incomingDef.dataSources) !==
     JSON.stringify(storedDef.dataSources);
 
+  // Incoming may carry pinned-repo-asset objects; stored is always names. Both
+  // sides must be names or every pinned module reports a permanent change.
   const assetsChanged =
-    JSON.stringify(incomingDef.assetsToImport) !==
+    JSON.stringify(incomingDef.assetsToImport.map(getAssetName)) !==
     JSON.stringify(storedDef.assetsToImport);
 
   return {

@@ -21,6 +21,8 @@ export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";
 export {
+  type AssetToImportGithub,
+  getAssetName,
   type MetricDefinitionGithub,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,

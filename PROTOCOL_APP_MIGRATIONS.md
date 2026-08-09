@@ -360,6 +360,8 @@ Location: `lib/types/_module_definition_github.ts`
 
 Authored `definition.json` files must match the current shape exactly. Invalid files fail at fetch time with clear error paths. No silent normalization.
 
+**"No silent normalization" bans coercion, not breadth.** The rule is about the schema quietly changing what it parsed — `.transform()`, `z.preprocess()`, defaulting a missing field — so that the value a caller receives is not the value the file contained. Declaring a union because the boundary genuinely accepts two shapes is not a violation: the schema still states exactly what is valid, and nothing is rewritten behind the caller's back. When two accepted shapes must converge on one internal form, the narrowing belongs in a named, exported function that consumers call explicitly (see `getAssetName` for `assetsToImport`), never inside the schema.
+
 ---
 
 ## Adding a New Stored Schema

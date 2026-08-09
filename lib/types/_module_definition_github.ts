@@ -318,6 +318,37 @@ const resultsObjectDefinitionGithub = z.object({
   ]),
 });
 
+// ── assetsToImport (github) ─────────────────────────────────────────
+
+// An asset is named by a plain string. The modules repo ALSO emits a
+// pinned-repo-asset object for the data files it version-pins ({name, repoPath,
+// sha256}, plus a `commit` field on definitions cut before 2026-08-03, stripped
+// by zod). Both shapes are declared valid input here — this is not drift
+// tolerance, it is the boundary stating what it accepts. Nothing is coerced:
+// per PROTOCOL_APP_MIGRATIONS.md ("GitHub-Authored Schemas") this schema never
+// silently normalizes, so callers narrow explicitly via getAssetName below.
+//
+// This branch consumes assets by NAME only — run_module_iterator copies each
+// name out of the instance's uploaded assets dir — so `repoPath`/`sha256` are
+// declared for documentation but optional: they are unused here, and requiring
+// them would let an unrelated modules-repo change break module installs again.
+const repoAssetPinGithub = z.object({
+  name: z.string(),
+  repoPath: z.string().optional(),
+  sha256: z.string().optional(),
+});
+const assetToImportGithub = z.union([z.string(), repoAssetPinGithub]);
+
+// The one place the two accepted shapes collapse to the name this branch uses.
+// Every consumer of a github definition's assetsToImport goes through this —
+// `assetsToImport` is `string[]` in the INSTALLED schema, so a consumer that
+// forgot would either store the wrong shape or, in compareDefinitions, report a
+// permanent spurious "assets changed". Mirrors at ingest the collapse the
+// persistence layer does at rest (data_transforms/module_definition.ts Block 1b).
+export function getAssetName(asset: AssetToImportGithub): string {
+  return typeof asset === "string" ? asset : asset.name;
+}
+
 // ── moduleDefinition (github — full file) ───────────────────────────
 
 export const moduleDefinitionGithubSchema = z
@@ -327,7 +358,7 @@ export const moduleDefinitionGithubSchema = z
     scriptGenerationType: scriptGenerationTypeGithub,
     dataSources: z.array(dataSourceGithub),
     configRequirements: configRequirementsGithub,
-    assetsToImport: z.array(z.string()),
+    assetsToImport: z.array(assetToImportGithub),
     resultsObjects: z.array(resultsObjectDefinitionGithub),
     metrics: z.array(metricDefinitionGithub),
   })
@@ -393,6 +424,7 @@ export type ModuleDefinitionGithub = z.infer<
   typeof moduleDefinitionGithubSchema
 >;
 export type MetricDefinitionGithub = z.infer<typeof metricDefinitionGithub>;
+export type AssetToImportGithub = z.infer<typeof assetToImportGithub>;
 export type ResultsObjectDefinitionGithub = z.infer<
   typeof resultsObjectDefinitionGithub
 >;
