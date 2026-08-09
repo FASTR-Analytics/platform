@@ -1,47 +1,44 @@
 # Plan: fix the defects found in the per-value format work
 
-**Status: Phase A DONE and committed (2026-08-08). Phases B, C, D not started —
-18 of 22 boxes open. Start at B4, then B1.**
+**Status: Phase A done (`4a89a29a`). Phases B, C, D not started — 18 of 22
+boxes open. Start at B4, then B1.**
 
 Self-contained — an agent pointed at it with "continue work" needs no prior
 conversation.
 
-Line numbers for the OPEN items (B, C, D) were re-checked against the working
-tree after the Phase A commit and are accurate as of `4a89a29a` — including the
-anchors in the three files Phase A edited, which shifted and have been
-corrected. Every behavioural claim marked **VERIFIED** was reproduced by
-executing code, with the output quoted. Claims not personally reproduced are
-marked **REPORTED**.
+Line numbers for the OPEN items (B, C, D) are accurate as of **2026-08-09**
+(re-verified, and the `_0_common.ts` anchors re-pinned — see §0). Every
+behavioural claim marked **VERIFIED** was reproduced by executing code, with the
+output quoted. Claims not personally reproduced are marked **REPORTED**.
 
 ---
 
 ## 0. Where this stands — read first
 
-**Everything is committed. All three repos are clean. Nothing is pushed.**
+Phase A is done (`4a89a29a`). **18 of 22 items remain: B, C, D.**
+Start at B4, then B1.
 
-| Repo | Branch | Commit | What |
-| --- | --- | --- | --- |
-| `wb-fastr` | `tim-branch` | `4a89a29a` | the whole per-value effective-format workstream + Phase A fixes + the panther sync |
-| `wb-fastr` | `tim-branch` | `5eac2791` | unrelated data-file asset hardening, committed separately on purpose |
-| `timroberton-panther` | `main` | `f78b619` | `TableCellInfo` gains both group headers |
-| `timroberton-panther` | `main` | `51f17e5` | unrelated `wacra-ai-talk` sync target |
-| `wb-fastr-modules` | `main` | `e758c69` | `formatAs: "indicator"` ×8 + m10-03 variant metrics + vizPreset fixes |
+**One gate is red:** `deno lint` on
+`server/db/migrations/data_transforms/_figure_block.ts`, exactly one
+unused-import problem. That is B4, one line. `deno task typecheck` and
+`lint:systems` are green.
 
-**Do NOT push `wb-fastr-modules` until the app is deployed.** An older app
-rejects `"indicator"` at module install. Both repos sit local and ahead of
-origin.
+**Anchor drift.** Anchors were pinned when Phase A landed. Since then
+`client/src/generate_visualization/get_style_from_po/_0_common.ts` gained ~13-16
+lines, so the C4/C5/C6/C7 anchors into it have been **re-pinned** to current
+lines (`getIndicatorIdsForCell` :192, `getIndicatorIdsForChartValue` :366,
+`getIndicatorIdsForMapRegion` :384, `formatIndicatorValue` :309, `formatRateAuto`
+:336, `scaleValueForFormat` :299, the shared-list comment :190).
+`PROTOCOL_APP_MIGRATIONS.md` also changed, but after B2's anchors, so `:293` and
+`:301` still hold. Every other cited file is untouched.
 
-**Known-red right now:** `deno lint` fails on
-`server/db/migrations/data_transforms/_figure_block.ts` (one unused import —
-that is B4, a one-line fix). `deno task typecheck` and `lint:systems` are green;
-`deno lint` is NOT part of the `./deploy` gate, so this does not block a deploy,
-but do not leave it.
+That file family is actively worked on. Prefer `grep -n "export function <name>"`
+over a pinned line — the anchors are a convenience, not a contract.
 
-**Suggested order for the remaining work:** B4 (one line, clears the red lint) →
-B1 (the dry-run gate — same file family as the Phase A work, still fresh) → B2,
-B3, B5 (doc/consistency, cheap) → C1, C3 (concrete user-facing bugs) → C4, C5,
-C6, C7, C8 (smaller) → C2 (needs a UI decision) → D1–D5 (panther, needs its own
-sync + 303-test run at the end).
+**Suggested order:** B4 (clears the red lint) → B1 (the dry-run gate) → B2, B3,
+B5 (doc/consistency, cheap) → C1, C3 (concrete user-facing bugs) → C4, C5, C6,
+C7, C8 → C2 (needs a UI decision) → D1-D5 (panther; one sync + 303-test run at
+the end).
 
 ---
 
@@ -68,17 +65,7 @@ Scope is **everything, including the panther repo**.
 **Never edit `wb-fastr/panther/` directly.** Edit the panther repo, confirm
 `deno task typecheck` + `deno task test` (303) there, then
 `./sync wb-fastr --force --no-commit` from the panther repo. Phase D is the only
-remaining work that needs this; do the sync once, at the end of Phase D, not per
-item.
-
-**Deploy the app BEFORE pushing the modules repo.** An old app rejects
-`"indicator"` at module install. See §0 for the current push state.
-
-The unrelated file-uploads workstream that used to sit in this tree is now
-committed as `5eac2791` — if you see those files (`SYSTEM_04_assets_upload.md`,
-`instance_assets.tsx`, `dataset_*_import_runs.ts`, `middleware/cache.ts`,
-`middleware/static.ts`) change again, that is someone else's work, not this
-plan's.
+remaining work that needs this; sync once at the end of Phase D, not per item.
 
 ---
 
@@ -446,8 +433,8 @@ disagree.
 
 ### [ ] C4. Close the id-chain asymmetry
 
-`_0_common.ts:176` (`getIndicatorIdsForCell`) leads with the sole value prop;
-`:353` (`getIndicatorIdsForChartValue`) and `:371`
+`_0_common.ts:192` (`getIndicatorIdsForCell`) leads with the sole value prop;
+`:366` (`getIndicatorIdsForChartValue`) and `:384`
 (`getIndicatorIdsForMapRegion`) have no equivalent, and
 `getDisplayedIndicatorDimensionValues` enumerates indicator *dimensions* only,
 so `axisFormat` cannot cover for them.
@@ -461,8 +448,8 @@ format correctly in tables and fall back to `"number"` on charts and maps.
 
 ### [ ] C5. `s.decimalPlaces` is silently inert on rate figures
 
-`_0_common.ts:296` (`formatIndicatorValue`) routes every rate through
-`formatRateAuto` (`:323`), which ignores `decimalPlaces`. **VERIFIED:**
+`_0_common.ts:309` (`formatIndicatorValue`) routes every rate through
+`formatRateAuto` (`:336`), which ignores `decimalPlaces`. **VERIFIED:**
 
 ```
 dp=0  pct=86%      num=1,235      rate=4.2
@@ -486,7 +473,7 @@ would be a new lie.
 
 ### [ ] C6. Comments asserting invariants the code does not hold
 
-- `_0_common.ts:174` — "The list is shared with the scorecard so a cell resolves
+- `_0_common.ts:190` — "The list is shared with the scorecard so a cell resolves
   the same indicator for its format and for its threshold colouring." The *list*
   is shared; the *stopping rule* is not. `formatForValue` stops at the first id
   declaring `format_as`; `getThresholdMetaForCell` at the first declaring
@@ -519,7 +506,7 @@ SYSTEM_10 now claims "every rate label follows `formatRateAuto`". Two do not:
 
 - `client/src/components/indicator_manager_hmis/calculated_indicator_editor.tsx:136`
   — `(previewRawValue * 10000).toLocaleString(...)`. This one **is** a label;
-  route it through `scaleValueForFormat` (`_0_common.ts:286`) / `formatRateAuto`.
+  route it through `scaleValueForFormat` (`_0_common.ts:299`) / `formatRateAuto`.
 - `lib/ai_tools/format_metric_data_for_ai.ts:492` — `(num * 10000).toFixed(2)`.
   Defensible: a CSV column wants a stable width, not per-value decimals.
   **Keep**, and narrow the SYSTEM_10 claim to labels so it stops being false.
@@ -710,10 +697,3 @@ not executed.
   Bounded: the flip gate is a sticky raw scan that fires again on the next boot.
   **Accepted**, named because it is the last store that can re-introduce the old
   value.
-
-## 9. Deploy order
-
-Unchanged: **deploy the app BEFORE pushing the modules repo.** Manifests move to
-schema v4 with `manifest.v3.json` backups retained; a rolled-back image reports
-v4 packages as "from a newer server" and degrades affected projects to empty
-lists.
