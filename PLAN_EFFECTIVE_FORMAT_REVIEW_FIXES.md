@@ -1,12 +1,47 @@
 # Plan: fix the defects found in the per-value format work
 
-**Status: PHASE A DONE (2026-08-08), verified. Phases B/C/D not started.**
+**Status: Phase A DONE and committed (2026-08-08). Phases B, C, D not started —
+18 of 22 boxes open. Start at B4, then B1.**
+
 Self-contained — an agent pointed at it with "continue work" needs no prior
 conversation.
 
-Every line number below was checked against the working tree. Every behavioural
-claim marked **VERIFIED** was reproduced by executing code, and the command
-output is quoted. Claims I did not personally reproduce are marked **REPORTED**.
+Line numbers for the OPEN items (B, C, D) were re-checked against the working
+tree after the Phase A commit and are accurate as of `4a89a29a` — including the
+anchors in the three files Phase A edited, which shifted and have been
+corrected. Every behavioural claim marked **VERIFIED** was reproduced by
+executing code, with the output quoted. Claims not personally reproduced are
+marked **REPORTED**.
+
+---
+
+## 0. Where this stands — read first
+
+**Everything is committed. All three repos are clean. Nothing is pushed.**
+
+| Repo | Branch | Commit | What |
+| --- | --- | --- | --- |
+| `wb-fastr` | `tim-branch` | `4a89a29a` | the whole per-value effective-format workstream + Phase A fixes + the panther sync |
+| `wb-fastr` | `tim-branch` | `5eac2791` | unrelated data-file asset hardening, committed separately on purpose |
+| `timroberton-panther` | `main` | `f78b619` | `TableCellInfo` gains both group headers |
+| `timroberton-panther` | `main` | `51f17e5` | unrelated `wacra-ai-talk` sync target |
+| `wb-fastr-modules` | `main` | `e758c69` | `formatAs: "indicator"` ×8 + m10-03 variant metrics + vizPreset fixes |
+
+**Do NOT push `wb-fastr-modules` until the app is deployed.** An older app
+rejects `"indicator"` at module install. Both repos sit local and ahead of
+origin.
+
+**Known-red right now:** `deno lint` fails on
+`server/db/migrations/data_transforms/_figure_block.ts` (one unused import —
+that is B4, a one-line fix). `deno task typecheck` and `lint:systems` are green;
+`deno lint` is NOT part of the `./deploy` gate, so this does not block a deploy,
+but do not leave it.
+
+**Suggested order for the remaining work:** B4 (one line, clears the red lint) →
+B1 (the dry-run gate — same file family as the Phase A work, still fresh) → B2,
+B3, B5 (doc/consistency, cheap) → C1, C3 (concrete user-facing bugs) → C4, C5,
+C6, C7, C8 (smaller) → C2 (needs a UI decision) → D1–D5 (panther, needs its own
+sync + 303-test run at the end).
 
 ---
 
@@ -26,30 +61,34 @@ Scope is **everything, including the panther repo**.
 
 ## 2. The three repos
 
-All three are **uncommitted** right now (37 / 2 / 37 changed paths — VERIFIED
-via `git status --short | wc -l`):
-
 - `wb-fastr` — app + the vendored `panther/` mirror
 - `/Users/timroberton/projects/panther/timroberton-panther` — library source
 - `/Users/timroberton/projects/apps/wb-fastr-modules` — the eight metrics
 
 **Never edit `wb-fastr/panther/` directly.** Edit the panther repo, confirm
 `deno task typecheck` + `deno task test` (303) there, then
-`./sync wb-fastr --force --no-commit` from the panther repo.
-
-`wb-fastr`'s tree also carries an **unrelated file-uploads workstream**
-(`SYSTEM_04_assets_upload.md`, `client/src/components/instance/instance_assets.tsx`,
-`server/db/instance/dataset_hmis_import_runs.ts`,
-`server/db/instance/dataset_iceh_import_runs.ts`, `server/middleware/cache.ts`,
-`server/middleware/static.ts`, the `PLAN_IMPORT_FILE_INPUT_UNIFICATION.md`
-deletion). Do not touch, do not fix, do not commit.
+`./sync wb-fastr --force --no-commit` from the panther repo. Phase D is the only
+remaining work that needs this; do the sync once, at the end of Phase D, not per
+item.
 
 **Deploy the app BEFORE pushing the modules repo.** An old app rejects
-`"indicator"` at module install.
+`"indicator"` at module install. See §0 for the current push state.
+
+The unrelated file-uploads workstream that used to sit in this tree is now
+committed as `5eac2791` — if you see those files (`SYSTEM_04_assets_upload.md`,
+`instance_assets.tsx`, `dataset_*_import_runs.ts`, `middleware/cache.ts`,
+`middleware/static.ts`) change again, that is someone else's work, not this
+plan's.
 
 ---
 
 ## 3. Phase A — defects I introduced
+
+**All four are DONE and committed in `4a89a29a`.** Kept in full because the
+reasoning is the reason the fixes are what they are — several of these had an
+obvious-looking wrong answer. Each item's line references describe the code as
+it was BEFORE the fix; the **DONE** block at the end of each says what is there
+now. Do not re-derive these; read them and move to Phase B.
 
 ### [x] A1. `inferFormatAs` writes wrong data, permanently
 
@@ -119,6 +158,29 @@ already repairs) — not this table. Out of scope.
 It only ever decides the format of figures belonging to OTHER metrics, which is
 why the small faithful restoration is the right size of fix.*
 
+**DONE** (`4a89a29a`). `inferFormatAs` now reads, in full:
+
+```ts
+if (INDICATOR_FORMAT_METRIC_IDS.includes(metricId)) return "indicator";
+if (metricId === "m9-02-01") return "number";
+if (indicatorMetadata.length === 0) return "number";
+return indicatorMetadata.every((m) => m.format_as === "percent") ? "percent" : "number";
+```
+
+The comment above it now says outright that this function repairs history and
+does not improve on it, and spells out WHY the `every` counts a missing
+`format_as` as disagreement — the "more correct"-looking rule is the regression.
+
+Verified by transcribing `0cef208b`'s behaviour as an oracle and driving the
+real `transformFigureBlockToBundle` over the metadata shapes
+`deriveIndicatorMetadata` actually emits — 9/9 match, including
+`m9-02-01` over an all-percent catalog and all three label-only family shapes.
+
+Fixture trap worth knowing: the transform reads `source.indicatorMetadata`, NOT
+`figureInputs.indicatorMetadata`. Getting that wrong makes every case return
+`"number"`, which silently agrees with the oracle everywhere except the single
+all-percent case — a harness that looks green while testing nothing.
+
 ### [x] A2. The scorecard lost its raw fallback and prints `0` for `0.42`
 
 `client/src/generate_visualization/get_style_from_po/_5_scorecard.ts:86-93`
@@ -159,6 +221,21 @@ Scorecard uses `declaredFormatForValue`, falls back to `String(info.value)`.
 One source, two questions. Constant-format metrics answer both from the
 declaration.
 
+**DONE** (`4a89a29a`). `EffectiveFormat` gained
+`declaredFormatForValue(ids) => IndicatorFormat | undefined`, and
+`formatForValue` is now defined as `declaredFormatForValue(ids) ?? axisFormat`,
+so there is still exactly ONE chain walk. The scorecard takes the miss branch
+and prints `String(info.value)`. Constant-format metrics answer both readers
+from the declaration, so a `"percent"`/`"number"` metric never takes the miss
+branch.
+
+Verified, same fixture through both surfaces:
+
+```
+STANDARD table, label-only meta : [["",""],["","0"]]      <- unchanged, as required
+SCORECARD,      label-only meta : [["",""],["","0.42"]]   <- was "0"
+```
+
 ### [x] A3. `./deploy`'s gate goes red the moment the new file is committed
 
 `lib/indicator_format_metrics.ts`
@@ -167,13 +244,19 @@ declaration.
 `./deploy` gate. It enumerates via `git ls-files`, so the file is invisible only
 because it is **untracked**. No `SYSTEM_NN_*.md` frontmatter `globs:` claims it →
 orphan → `Deno.exit(1)` at `lint_systems.ts:154`. Prose links at
-`SYSTEM_02_persistence.md:372` and `SYSTEM_10_figure_render_export.md:436` are
+`SYSTEM_02_persistence.md:372` and `SYSTEM_10_figure_render_export.md:437` are
 not claims.
 
 **Fix.** Add it to SYSTEM_10's `globs:`, which already owns
-`lib/resolve_effective_format.ts` (`SYSTEM_10_figure_render_export.md:11`). Then
+`lib/resolve_effective_format.ts` (`SYSTEM_10_figure_render_export.md:12`). Then
 `git add -N` the file and re-run `deno task lint:systems` — running the linter
 while the file is untracked proves nothing.
+
+**DONE** (`4a89a29a`). `lib/indicator_format_metrics.ts` added to SYSTEM_10's
+`globs:`. Proven with the file TRACKED (`git add -N`, then re-run): tracked-file
+count went 831 → 832 and `lint:systems` reported "every tracked file is claimed
+by exactly one system". It is now committed, so the gate is genuinely exercised
+on every run.
 
 ### [x] A4. The AI CSV's format key vanishes above 20 indicators
 
@@ -213,6 +296,21 @@ case above; that case is the finding.
 ---
 
 ## 4. Phase B — gate and doc integrity
+
+**DONE** (`4a89a29a`). Above the cap the labels are still dropped, but the
+formats are not — emitted grouped by format, so the cost is O(formats) not
+O(indicators):
+
+```
+**indicator_common_id:** 21 unique values
+  percent: ind_00, ind_03, ind_06, ...
+  number: ind_01, ind_04, ind_07, ...
+  rate_per_10k: ind_02, ind_05, ind_08, ...
+```
+
+New helper `groupIdsByFormat`, gated on `metric.formatAs === "indicator"` AND on
+ids that actually declare a format — so a 100-value admin-area dimension prints
+nothing extra. The ≤20 path is untouched (`harness_ai_csv.ts` still green).
 
 ### [ ] B1. The pre-deploy dry-run gate is blind to this change
 
@@ -394,7 +492,7 @@ would be a new lie.
   declaring `format_as`; `getThresholdMetaForCell` at the first declaring
   `threshold_direction`. Not reachable today (per-module catalogs never mix the
   families). State what is true.
-- `lib/resolve_effective_format.ts:186` — "The stored default is an empty
+- `lib/resolve_effective_format.ts:203` — "The stored default is an empty
   string, not undefined." Not for a PO config: VERIFIED, the field is declared
   `z.string().optional()` at `lib/types/_metric_installed.ts:190`, and the
   starting config sets it `undefined`
@@ -422,7 +520,7 @@ SYSTEM_10 now claims "every rate label follows `formatRateAuto`". Two do not:
 - `client/src/components/indicator_manager_hmis/calculated_indicator_editor.tsx:136`
   — `(previewRawValue * 10000).toLocaleString(...)`. This one **is** a label;
   route it through `scaleValueForFormat` (`_0_common.ts:286`) / `formatRateAuto`.
-- `lib/ai_tools/format_metric_data_for_ai.ts:452` — `(num * 10000).toFixed(2)`.
+- `lib/ai_tools/format_metric_data_for_ai.ts:492` — `(num * 10000).toFixed(2)`.
   Defensible: a CSV column wants a stable width, not per-value decimals.
   **Keep**, and narrow the SYSTEM_10 claim to labels so it stops being false.
 
@@ -529,6 +627,28 @@ intermediate. Additionally:
   `./validate_queries`, `./validate_migrations`, `deno lint`.
 - Re-run in panther after any Phase D change: `deno task typecheck`,
   `deno task test` (303).
+
+### Gate results at the Phase A commit (`4a89a29a`)
+
+All green, so any red after this point is yours: `deno task typecheck` (server +
+client + `lint:systems`); the per-value harness 27/27; `harness_ai_csv.ts`;
+`./validate_migrations`; `./validate_queries` 52/52. The one exception is
+`deno lint`, red on `_figure_block.ts` — that is B4.
+
+### The harnesses do not live in the repo
+
+They were written to the session scratchpad, which does not survive. Rebuild
+them from the recipe below; they are ~60 lines each and worth it before touching
+anything in B/C. The four that mattered:
+
+- **per-value harness** — real starting configs across HFA / calculated / ICEH,
+  every surface, both directions. The regression net for anything in C.
+- **`harness_ai_csv.ts`** — drives `getMetricDataForAI` with a fake `AIToolEnv`
+  (`getItems` returning canned items + `indicatorMetadata`). Needs `--env-file`.
+- **`inferFormatAs` oracle** — transcribes `0cef208b`'s behaviour and diffs the
+  live transform against it. Rebuild this before touching A1's function again.
+- **scorecard vs standard table** — same fixture through both, proving they
+  differ on purpose.
 
 ### What I re-confirmed of the parent work (so it is not re-litigated)
 
