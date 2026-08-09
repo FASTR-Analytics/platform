@@ -297,10 +297,9 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   `cell` = Grid, `row`/`col`, `replicant`). `s.sortIndicatorValues` is REUSED as
   pie's slice sort (`sortSeriesValues`), which is why pie's `styleResets` —
   unlike map's — do not reset it (resets apply on switching TO a type and would
-  wipe the sort on every entry). The `indicator` axis takes the same
-  `getChartIndicatorSort` treatment as `series`, not `getAxisSort`'s by-label:
-  `indicator_common_id` can sit on either and wants the dictionary order on
-  whichever it occupies. Four optional `s` fields: `pieInnerRadiusRatio`
+  wipe the sort on every entry). Both the `series` and
+  `indicator` axes route through the `getAxisSort` dispatcher, which gives
+  `indicator_common_id` the dictionary order on whichever axis it occupies. Four optional `s` fields: `pieInnerRadiusRatio`
   (0/absent = pie, `0.55` = doughnut; read `?? 0`), `pieGroupSmallSlices`
   (global-share fraction; 0/absent = off; maps to panther `groupSmallSlices`
   with a localized "Other" slice, id `--other`, sorted last),
