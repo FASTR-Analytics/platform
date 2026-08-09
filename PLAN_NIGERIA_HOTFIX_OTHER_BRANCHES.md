@@ -71,38 +71,25 @@ commits, including `Add What's New release-notes popup` (`c44474b2`) and the
 version-history viz/image diff work. A `main` → `tim-branch` merge is needed
 regardless of this hotfix; both fixes come across with it.
 
-### Merge resolution
+### Merge resolution — DONE 2026-08-09 (`f56d48e3`)
 
-- [ ] **Module schema — resolve in favour of `tim-branch`.** Fix 1 is redundant
-      there: `tim-branch` already has the full `repoAssetToImportGithub` union
-      (`{name, repoPath, sha256}` with both **required**) and actually fetches
-      pinned assets via `module_loader/repo_assets.ts`. Do **not** let `main`'s
-      deliberately-lenient optional `repoPath?`/`sha256?` overwrite it, and do
-      **not** carry across `getAssetName`'s collapse-to-name — on `tim-branch`
-      the pin is honoured, not discarded.
-- [ ] Note the structural divergence when resolving: `main` has
-      `module_loader/compare_definitions.ts`; `tim-branch` has
-      `module_loader/module_source.ts` + `repo_assets.ts` and no
-      `compare_definitions.ts`. The `getAssetName` call site in
-      `compare_definitions.ts` may not exist there at all.
-- [ ] **Sort fix — keep it, but re-verify `month`.** The rule (all four period
-      dims → `"by-id"`) should carry over unchanged. Confirm `tim-branch` has not
-      introduced its own period ordering, and specifically that nothing there
-      assumes unpadded `"1".."12"` month ids — that assumption is what produced
-      the regression fixed in `6f43326f`. The authoritative fact:
-      `PERIOD_COLUMN_EXPRESSIONS.month` is
-      `LPAD((period_id % 100)::text, 2, '0')`.
-- [ ] **Check the `customValueOrder` interaction.** `tim-branch` has the
-      custom-value-ordering work (closed 2026-08-06, `e489cbc6`). An explicit
-      user-chosen order on a period axis should win over `getPeriodAxisSort`;
-      on `main` there is no such feature, so the precedence question does not
-      arise and was not designed for.
-- [ ] **`formatAs: "indicator"`** already exists on `tim-branch`. It was
-      deliberately **not** back-ported to `main` — it is a real rendering
-      capability, not a leniency question.
-- [ ] Carry across the `PROTOCOL_APP_MIGRATIONS.md` clarification ("no silent
-      normalization" bans coercion, not breadth; narrowing belongs in a named
-      function). It is branch-independent guidance.
+All items resolved as planned; gates green (typecheck + lint:systems,
+validate_migrations, validate_queries 52/52, client build). Record:
+
+- Module schema resolved in favour of `tim-branch` (`repoPath`/`sha256`
+  required, pin honoured); `getAssetName` dropped everywhere — the collapse was
+  a `main`-only concept. `compare_definitions.ts` and the old
+  `run_module_iterator.ts` stay deleted; Q2's fatal asset import is already
+  native (and stricter) in `generate_run/import_asset.ts`. Q3's
+  `formatValidationIssues` kept in `load_module.ts`.
+- Sort rule carried over, integrated into `getAxisSort`: custom user order
+  wins (the `customValueOrder` precedence ruling), then chronological
+  `"by-id"` for period dims, then rollup-aware/`tableSort`. Table axes with no
+  prop get no sort. Chart bars axis under `"none"`: `customIndicatorOrder` →
+  rollup pin → period `"by-id"`. `month` re-verified: no unpadded-id
+  assumption anywhere on this branch (the remaining `month` usages are
+  availability lists, not orderings).
+- `export_central` stays retired; `routesWhatsNew` registered in `main.ts`.
 
 ### The design debt this hotfix deliberately did not pay
 
@@ -170,20 +157,12 @@ three-week training, on the deploy branch, and would conflict badly with
       modules repo's own schema and build, and would make `main` look for
       `survey.csv` in the instance assets dir.
 
-## Deploy-day notes for the `main` hotfix
+## `main` hotfix — DEPLOYED as 1.65.0, 2026-08-09
 
-Moved here when FOR_REVIEW_NIGERIA_HOTFIX.md was deleted (review complete
-2026-08-09, no defects). The standing don'ts (keep `e758c69` unpushed, no
-`./sync`, no `./vendor_schema` on `main`) are already itemised above.
+Still relevant while 1.65.0 is live:
 
-- Deploy when nobody is editing — `maybeReloadOnServerVersionChange`
-  (`state/project/collab.ts:872`) force-reloads collab tabs and its own comment
-  says edits in the disconnection window are discarded.
-- Post-deploy: anyone with a tab open should reload once. Tabs not in a collab
-  session do not auto-reload and will keep showing the old sort order.
-- Post-deploy: install m004/m005 and actually **run** one, before anyone uses
-  "Update all modules". (A missing asset now fails loudly at the import step,
-  but the reinstall path is still destructive-before-run by design.)
+- Tabs not in a collab session do not auto-reload and keep showing the old
+  sort order until reloaded once.
 - Expected visible effect: stored figures **reorder and recolour** (series
   palette is assigned by axis index), and scorecards gain white gridlines —
   pre-training handouts will not match. Worth warning Angélica.
@@ -193,9 +172,12 @@ Moved here when FOR_REVIEW_NIGERIA_HOTFIX.md was deleted (review complete
 
 ## Ordering
 
-1. Land/deploy on `main` (timing is Tim's call — Angélica asked for a freeze
-   during the three-week training).
-2. Merge `main` → `tim-branch`, resolving as above.
-3. Then, and only then, push `wb-fastr-modules` `e758c69`.
+1. ~~Land/deploy on `main`~~ — DONE, 1.65.0, 2026-08-09.
+2. ~~Merge `main` → `tim-branch`~~ — DONE, `f56d48e3`, 2026-08-09. `main` stays
+   parked at 1.65.0 for emergency hotfixes during the training; do NOT
+   fast-forward it until the merged app is ready to deploy.
+3. Deploy the merged app (post-training). Then, and only then, push
+   `wb-fastr-modules` `e758c69` — against 1.65.0's live schema it still fails
+   m007, m008, m010.
 4. `getAxisSort` dispatcher + Q1/Q4 on `tim-branch`.
 5. Re-vendor the modules schema from `tim-branch`.
