@@ -158,30 +158,41 @@ function getRollupPinOnlySort(config: PresentationObjectConfig): HeaderSortConfi
 //     through to sortByIdOrder's localeCompare(label) tie-break — identically
 //     alphabetical.
 //
-// The order is a RULE, not data. An order derived from the rows would be baked
-// into stored FigureInputs and go stale the moment a figure is re-rendered
-// against a period it did not contain when saved — that new id would miss the
-// frozen list and fall back to the alphabetical tie-break, reviving the bug.
+// The order is a RULE, not an id list derived from the rows. Stored figures are
+// FigureBundles rebuilt through buildFigureInputs at every render (nothing
+// persists a sort config any more — the legacy stored figureInputs were
+// converted away by data_transforms/_figure_block.ts), so a derived order would
+// not go stale. It is simply worse: it rescans every row on each build, and it
+// is only correct for the periods that happened to be present. A rule is
+// total — and declarative, so it survives the structuredClone in the export
+// path, same as getRollupAwareSort.
 //
-// Ids are numeric and, except for `month`, fixed-width (period_id YYYYMM,
-// quarter_id YYYYQ, year YYYY — see panther's decodePeriod), so panther's
-// "by-id" string compare is already chronological for those three. `month` is
-// the sole variable-width case ("1".."12", where a string compare gives
-// 1, 10, 11, 12, 2) and its domain is closed, so it gets an explicit constant.
+// Every period id is FIXED-WIDTH, so panther's "by-id" string compare is
+// already chronological and no per-dimension order list is needed:
 //
-// Roll-up never collides here: ROLLUP_DIMENSIONS is admin levels + facility
-// columns, so a period dimension is never the rolled axis.
-const MONTH_ID_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-
-const PERIOD_AXIS_SORTS: Readonly<Record<string, HeaderSortConfig>> = {
-  year: "by-id",
-  quarter_id: "by-id",
-  period_id: "by-id",
-  month: { byIdOrder: MONTH_ID_ORDER },
-};
+//   period_id   6-digit YYYYMM     quarter_id  5-digit YYYYQ
+//   year        4-digit YYYY       month       2-digit, ZERO-PADDED "01".."12"
+//
+// `month` is zero-padded because it is derived, not stored:
+// PERIOD_COLUMN_EXPRESSIONS.month is `LPAD((period_id % 100)::text, 2, '0')`
+// (server_only_funcs_presentation_objects/period_helpers.ts — the single source;
+// run_module_iterator excludes any physical `month` column from RO tables). Do
+// not "fix" this to an explicit 1..12 order list: those ids do not exist, and
+// such a list matches only "10".."12", pinning Q4 to the front and dropping
+// "01".."09" onto the very label tie-break this code exists to avoid. The
+// comment in get_date_label_replacements.ts claiming values are 1-12 is wrong;
+// it is harmless only because that path uses parseInt.
+const PERIOD_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set([
+  "year",
+  "month",
+  "quarter_id",
+  "period_id",
+]);
 
 function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefined {
-  return prop === undefined ? undefined : PERIOD_AXIS_SORTS[prop];
+  return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
+    ? "by-id"
+    : undefined;
 }
 
 export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
@@ -275,12 +286,18 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   // clobbering an indicator axis's `byIdOrder`. The rolled axis is never the
   // indicator axis (indicator dims are not roll-up dimensions).
   const rollupAxis = getTableRollupAxis(config);
+  // An axis with no prop does not exist, so it gets NO sort — not a default
+  // one. This is load-bearing, not tidiness: panther's
+  // promoteGroupPropIfNoItemProp collapses a group axis that has no item axis
+  // and carries `itemSort ?? groupSort`, so supplying a sort for the absent
+  // item axis would discard the group's own sort. That is exactly how a period
+  // dimension placed on rowGroup/colGroup alone kept sorting alphabetically.
   const axisSort = (
     axis: "row" | "rowGroup" | "col" | "colGroup",
     prop: string | undefined,
-  ): HeaderSortConfig =>
-    getPeriodAxisSort(prop) ??
-    (axis === rollupAxis ? getRollupAwareSort(config) : tableSort);
+  ): HeaderSortConfig | undefined =>
+    prop === undefined ? undefined : getPeriodAxisSort(prop) ??
+      (axis === rollupAxis ? getRollupAwareSort(config) : tableSort);
 
   // No eligibility check: the server only emits __n_* for HFA facility-level
   // fetches, and panther drops the matrix when nothing resolves. Stored figures
