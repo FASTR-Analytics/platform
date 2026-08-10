@@ -42,6 +42,8 @@
 //     includeAdminAreaRollup/adminAreaRollupPosition
 // 25. Move includeAdminAreaRollup/adminAreaRollupPosition onto the
 //     disaggregateBy entry (rollup/rollupPosition), delete the d-level fields
+// 26. Fill missing timeseriesGrouping for timeseries configs from the
+//     bounded periodFilter's periodOption (hint-only; see block comment)
 //
 // =============================================================================
 
@@ -280,6 +282,25 @@ export function transformConfigD(d: Record<string, unknown>): void {
     delete d.includeAdminAreaRollup;
     delete d.adminAreaRollupPosition;
   }
+
+  // Block 26: Fill missing timeseriesGrouping for timeseries configs — the
+  // schema has it optional but the fetch-config builder throws without it
+  // (lib/get_fetch_config_from_po.ts), so such a config has been unrenderable
+  // since 2026-04. Fill ONLY from the config's own bounded-filter granularity
+  // hint: a blind default could contradict the metric's period granularity
+  // (RO-granularity is hard-enforced), and the transform has no metric
+  // context. Hint absent → leave as-is (still schema-valid, still broken —
+  // fleet sweep 2026-08-10 found zero such rows).
+  if (
+    d.type === "timeseries" &&
+    (d.timeseriesGrouping === undefined || d.timeseriesGrouping === null)
+  ) {
+    const hint = (d.periodFilter as Record<string, unknown> | undefined)
+      ?.periodOption;
+    if (hint === "period_id" || hint === "quarter_id" || hint === "year") {
+      d.timeseriesGrouping = hint;
+    }
+  }
 }
 
 // fillDefaults: full PO configs require every s field, so missing fields are
@@ -405,7 +426,17 @@ export function configNeedsForcedTransform(
   config: Record<string, unknown>,
 ): boolean {
   const d = (config.d ?? {}) as Record<string, unknown>;
+  // Block 26's target also passes safeParse (timeseriesGrouping is optional in
+  // the schema); force only when the fill would actually apply (hint present),
+  // so an unfixable row doesn't trigger a rewrite every boot.
+  const pfPeriodOption = (d.periodFilter as Record<string, unknown> | undefined)
+    ?.periodOption;
+  const needsTimeseriesGroupingFill = d.type === "timeseries" &&
+    (d.timeseriesGrouping === undefined || d.timeseriesGrouping === null) &&
+    (pfPeriodOption === "period_id" || pfPeriodOption === "quarter_id" ||
+      pfPeriodOption === "year");
   return (
+    needsTimeseriesGroupingFill ||
     "includeNationalForAdminArea2" in d ||
     "includeNationalPosition" in d ||
     "includeAdminAreaRollup" in d ||

@@ -44,7 +44,19 @@
 // kind (unattached project, detail/fetch-config failure, rig exception) all
 // turn the verdict RED. Nothing is advisory.
 //
-// ONE exception, and only in --run mode: `foreign_run` (Phase 3 ruling 4).
+// TWO exceptions, both only in --run mode.
+//
+// `legacy_gap` (rollout adjudication, 2026-08-10): a raw_preview divergence
+// where the LEGACY plane is provably the deficient side — the pg table is
+// missing/empty while the package serves data, or pg rows disagree with the
+// package AND the package matches the module's own source CSV (read
+// independently by the rig, not through finalize) while pg does not. The
+// frozen pg oracle inherited the old dirty-machine's fail-open drift, so
+// these are pre-cutover ingest gaps, not package defects: counted, printed,
+// non-gating. Any divergence where the package side cannot be tied back to
+// the source CSV stays a gating diff.
+//
+// `foreign_run` (Phase 3 ruling 4).
 // Parity is defined only where the Postgres baseline describes the same
 // generation act as the attached package, and once the dual-write is gone
 // that is true of exactly one kind of run — a project's OWN backfill run
@@ -58,6 +70,7 @@
 // =============================================================================
 
 import { join } from "@std/path";
+import { parse as parseCsv } from "csv";
 import { _SANDBOX_DIR_PATH } from "./server/exposed_env_vars.ts";
 import {
   BLANK_SENTINEL,
@@ -144,7 +157,13 @@ type CheckName =
   | "replicant_options"
   | "raw_preview"
   | "metric_availability";
-type Outcome = "ok" | "diff" | "both_error" | "skip" | "foreign_run";
+type Outcome =
+  | "ok"
+  | "diff"
+  | "both_error"
+  | "skip"
+  | "foreign_run"
+  | "legacy_gap";
 
 type CheckResult = {
   projectId: string;
@@ -993,6 +1012,25 @@ async function checkRawPreviews(
       continue;
     }
     if (pgRes.success === false || duckRes.success === false) {
+      // Legacy-gap exception (header): pg cannot serve an RO the package
+      // serves fine, and the pg table provably does not exist — the legacy
+      // plane never ingested this RO (pre-cutover fail-open drift). Probed
+      // via to_regclass, never by matching error strings, so a transient pg
+      // failure still gates.
+      if (duckRes.success === true && pgRes.success === false) {
+        const tableName = getResultsObjectTableName(ro.id);
+        const reg = await projectDb<{ reg: string | null }[]>`
+          SELECT to_regclass(${"public." + tableName})::text AS reg
+        `;
+        if (reg[0]?.reg === null) {
+          record({
+            outcome: "legacy_gap",
+            detail:
+              `legacy plane has no ${tableName} (pg: ${pgRes.err}); package serves ${ro.rowCount} rows`,
+          });
+          continue;
+        }
+      }
       record({
         outcome: "diff",
         detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
@@ -1002,6 +1040,36 @@ async function checkRawPreviews(
     const pg = pgRes.data;
     const duck = duckRes.data;
     if (pg.status !== duck.status) {
+      // pg table exists but is empty while the package serves rows: a legacy
+      // gap ONLY if the package's full content matches the module's own
+      // source CSV (independent read). Capped objects can't be verified that
+      // way — they stay gating.
+      if (
+        pg.status === "no_data_available" && duck.status === "ok" && !capped
+      ) {
+        const src = await loadLegacySourceCsvMultiset(
+          projectId,
+          ro.moduleId,
+          ro.id,
+          Object.keys(
+            (duck.items[0] ?? {}) as Record<string, unknown>,
+          ).sort(),
+        );
+        if (
+          src &&
+          duckMatchesSource(
+            duck.items as Record<string, unknown>[],
+            src,
+          )
+        ) {
+          record({
+            outcome: "legacy_gap",
+            detail:
+              `pg table empty; package matches the module source CSV (${src.rowCount} rows)`,
+          });
+          continue;
+        }
+      }
       record({ outcome: "diff", detail: `status: pg=${pg.status} duck=${duck.status}` });
       continue;
     }
@@ -1012,25 +1080,120 @@ async function checkRawPreviews(
     // pg count(*) arrives as a bigint-string via postgres.js; duck's is the
     // manifest rowCount number — compare numerically.
     if (Number(pg.totalCount) !== Number(duck.totalCount)) {
+      if (!capped) {
+        const src = await loadLegacySourceCsvMultiset(
+          projectId,
+          ro.moduleId,
+          ro.id,
+          Object.keys(
+            (duck.items[0] ?? {}) as Record<string, unknown>,
+          ).sort(),
+        );
+        if (
+          src &&
+          duckMatchesSource(duck.items as Record<string, unknown>[], src)
+        ) {
+          record({
+            outcome: "legacy_gap",
+            detail:
+              `pg has ${pg.totalCount} rows, package ${duck.totalCount} — package matches the module source CSV exactly`,
+          });
+          continue;
+        }
+      }
       record({ outcome: "diff", detail: `totalCount: pg=${pg.totalCount} duck=${duck.totalCount}` });
+      continue;
+    }
+    if (capped) {
+      // The LIMIT-1 rows are arbitrary on both engines (no ORDER BY), so
+      // content must not be compared — schema only.
+      const pgCols = Object.keys(pg.items[0] ?? {}).sort().join(",");
+      const duckCols = Object.keys(duck.items[0] ?? {}).sort().join(",");
+      if (pgCols !== duckCols) {
+        record({ outcome: "diff", detail: `columns: pg=[${pgCols}] duck=[${duckCols}]` });
+        continue;
+      }
+      console.log(
+        `   raw_preview ${ro.id}: content diff capped (${ro.rowCount} rows > ${RAW_PREVIEW_FULL_DIFF_MAX_ROWS}) — totalCount + schema only`,
+      );
+      record({ outcome: "ok", detail: `content capped at ${ro.rowCount} rows: count+schema only` });
       continue;
     }
     const contentDiff = diffRawRowMultisets(
       pg.items as Record<string, unknown>[],
       duck.items as Record<string, unknown>[],
     );
-    if (contentDiff) {
-      record({ outcome: "diff", detail: contentDiff });
+    if (contentDiff === undefined) {
+      record({ outcome: "ok" });
       continue;
     }
-    if (capped) {
-      console.log(
-        `   raw_preview ${ro.id}: content diff capped (${ro.rowCount} rows > ${RAW_PREVIEW_FULL_DIFF_MAX_ROWS}) — totalCount + schema only`,
-      );
-      record({ outcome: "ok", detail: `content capped at ${ro.rowCount} rows: count+schema only` });
-    } else {
-      record({ outcome: "ok" });
+    if (contentDiff.kind === "mismatch") {
+      record({ outcome: "diff", detail: contentDiff.message });
+      continue;
     }
+    // Row-level divergence: legacy gap ONLY when the package side is fully
+    // vouched for by the module's own source CSV — every disputed package row
+    // present in it, every disputed pg row absent from it (pg stale).
+    const src = await loadLegacySourceCsvMultiset(
+      projectId,
+      ro.moduleId,
+      ro.id,
+      contentDiff.cols,
+    );
+    const fmtKey = (k: string) =>
+      k.replaceAll(RAW_ROW_KEY_SEP, " | ").slice(0, 200);
+    if (
+      src &&
+      contentDiff.duckOnly.every((k) => (src.counts.get(k) ?? 0) > 0) &&
+      contentDiff.pgOnly.every((k) => (src.counts.get(k) ?? 0) === 0)
+    ) {
+      record({
+        outcome: "legacy_gap",
+        detail: `pg stale vs module source CSV: ${contentDiff.pgOnly.length} pg-only row(s) absent from the CSV, ${contentDiff.duckOnly.length} package row(s) present in it (pg e.g. ${
+          fmtKey(contentDiff.pgOnly[0] ?? "")
+        } | package e.g. ${fmtKey(contentDiff.duckOnly[0] ?? "")})`,
+      });
+      continue;
+    }
+    // RO id collision (found at sierraleone m004/m005): two modules emit the
+    // SAME results-object filename with different content. Both planes then
+    // arbitrate arbitrarily — legacy pg has one table (last ingest wins), the
+    // run read layer resolves the id to one manifest entry — so cross-plane
+    // comparison is ill-defined. Non-gating ONLY when the served content
+    // exactly matches a colliding sibling module's own CSV; the collision
+    // itself is a modules-repo defect to fix (rename one output).
+    const siblings = runCtx.manifest.resultsObjects.filter(
+      (other) => other.id === ro.id && other.moduleId !== ro.moduleId,
+    );
+    let collisionMatch: string | undefined;
+    for (const sibling of siblings) {
+      const siblingSrc = await loadLegacySourceCsvMultiset(
+        projectId,
+        sibling.moduleId,
+        sibling.id,
+        contentDiff.cols,
+      );
+      if (
+        siblingSrc &&
+        duckMatchesSource(duck.items as Record<string, unknown>[], siblingSrc)
+      ) {
+        collisionMatch = sibling.moduleId;
+        break;
+      }
+    }
+    if (collisionMatch !== undefined) {
+      record({
+        outcome: "legacy_gap",
+        detail: `RO id collision: ${ro.id} is emitted by both ${ro.moduleId} and ${collisionMatch}; the package serves ${collisionMatch}'s copy (matches its CSV exactly) while legacy pg resolved the collision differently. FIX THE MODULES REPO (duplicate output filename).`,
+      });
+      continue;
+    }
+    record({
+      outcome: "diff",
+      detail: `rows diverge (pg-only=${contentDiff.pgOnly.length}, duck-only=${contentDiff.duckOnly.length}; duck e.g. ${
+        fmtKey(contentDiff.duckOnly[0] ?? contentDiff.pgOnly[0] ?? "")
+      })`,
+    });
   }
 }
 
@@ -1047,40 +1210,151 @@ function canonicalizeRawCell(v: unknown): string {
   return s;
 }
 
+const RAW_ROW_KEY_SEP = "\u0001";
+
+type RawRowMultisetDiff =
+  | { kind: "mismatch"; message: string }
+  | { kind: "rows"; cols: string[]; duckOnly: string[]; pgOnly: string[] };
+
 function diffRawRowMultisets(
   pgItems: Record<string, unknown>[],
   duckItems: Record<string, unknown>[],
-): string | undefined {
+): RawRowMultisetDiff | undefined {
   if (pgItems.length !== duckItems.length) {
-    return `row count: pg=${pgItems.length} duck=${duckItems.length}`;
+    return {
+      kind: "mismatch",
+      message: `row count: pg=${pgItems.length} duck=${duckItems.length}`,
+    };
   }
-  if (pgItems.length === 0) return undefined;
+  if (pgItems.length === 0) {
+    return undefined;
+  }
   const pgCols = Object.keys(pgItems[0]).sort();
   const duckCols = Object.keys(duckItems[0]).sort();
   if (pgCols.join(",") !== duckCols.join(",")) {
-    return `columns: pg=[${pgCols}] duck=[${duckCols}]`;
+    return {
+      kind: "mismatch",
+      message: `columns: pg=[${pgCols}] duck=[${duckCols}]`,
+    };
   }
   const rowKey = (row: Record<string, unknown>) =>
-    pgCols.map((c) => canonicalizeRawCell(row[c])).join("");
+    pgCols.map((c) => canonicalizeRawCell(row[c])).join(RAW_ROW_KEY_SEP);
   const counts = new Map<string, number>();
   for (const row of pgItems) {
     const key = rowKey(row);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
+  const duckOnly: string[] = [];
   for (const row of duckItems) {
     const key = rowKey(row);
     const n = counts.get(key);
     if (n === undefined) {
-      return `row in duck not in pg: ${key.replaceAll("", " | ").slice(0, 200)}`;
+      duckOnly.push(key);
+      continue;
     }
-    if (n === 1) counts.delete(key);
-    else counts.set(key, n - 1);
+    if (n === 1) {
+      counts.delete(key);
+    } else {
+      counts.set(key, n - 1);
+    }
   }
-  if (counts.size > 0) {
-    const [key] = counts.keys();
-    return `row in pg not in duck: ${key.replaceAll("", " | ").slice(0, 200)}`;
+  const pgOnly: string[] = [];
+  for (const [key, n] of counts) {
+    for (let i = 0; i < n; i++) {
+      pgOnly.push(key);
+    }
   }
-  return undefined;
+  if (duckOnly.length === 0 && pgOnly.length === 0) {
+    return undefined;
+  }
+  return { kind: "rows", cols: pgCols, duckOnly, pgOnly };
+}
+
+// ── Legacy-gap tiebreak: the module's source CSV, read independently ────────
+//
+// The package parquet was produced FROM this CSV by finalize, so package≡CSV
+// is only evidence when established by an INDEPENDENT read — the rig parses
+// the raw CSV itself and re-applies the ingest/finalize value contract
+// (SYSTEM_08): "NA" and "" are NULL; 6-digit quarter_id → 5-digit; helper
+// columns dropped (projection to the compared column set). A finalize bug
+// therefore cannot vouch for itself and stays a gating diff. An unreadable
+// or column-mismatched CSV returns undefined, which every caller records as
+// a GATING outcome — degradation is loud, never a pass.
+function canonicalizeCsvCell(col: string, v: string | undefined): string {
+  if (v === undefined || v === "" || v === "NA") {
+    return " NULL";
+  }
+  if (col === "quarter_id") {
+    const n = Number(v);
+    if (!Number.isNaN(n) && n >= 100000) {
+      return String(Math.floor(n / 100) * 10 + (n % 100));
+    }
+  }
+  return canonicalizeRawCell(v);
+}
+
+type SourceCsvMultiset = { rowCount: number; counts: Map<string, number> };
+
+async function loadLegacySourceCsvMultiset(
+  projectId: string,
+  moduleId: string,
+  fileName: string,
+  cols: string[],
+): Promise<SourceCsvMultiset | undefined> {
+  const path = join(_SANDBOX_DIR_PATH, projectId, moduleId, fileName);
+  let records: Record<string, string | undefined>[];
+  try {
+    const text = await Deno.readTextFile(path);
+    records = parseCsv(text, { skipFirstRow: true }) as Record<
+      string,
+      string | undefined
+    >[];
+  } catch {
+    // Missing/unparseable source CSV — callers keep the gating diff.
+    return undefined;
+  }
+  if (records.length > 0 && cols.some((c) => !(c in records[0]))) {
+    return undefined;
+  }
+  const counts = new Map<string, number>();
+  for (const row of records) {
+    const key = cols.map((c) => canonicalizeCsvCell(c, row[c])).join(
+      RAW_ROW_KEY_SEP,
+    );
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return { rowCount: records.length, counts };
+}
+
+// Full-content match: the package's rows are exactly the source CSV's rows
+// (multiset equality over the package's column set).
+function duckMatchesSource(
+  duckItems: Record<string, unknown>[],
+  src: SourceCsvMultiset,
+): boolean {
+  if (duckItems.length !== src.rowCount) {
+    return false;
+  }
+  if (duckItems.length === 0) {
+    return true;
+  }
+  const cols = Object.keys(duckItems[0]).sort();
+  const remaining = new Map(src.counts);
+  for (const row of duckItems) {
+    const key = cols.map((c) => canonicalizeRawCell(row[c])).join(
+      RAW_ROW_KEY_SEP,
+    );
+    const n = remaining.get(key);
+    if (n === undefined) {
+      return false;
+    }
+    if (n === 1) {
+      remaining.delete(key);
+    } else {
+      remaining.set(key, n - 1);
+    }
+  }
+  return remaining.size === 0;
 }
 
 // Finding 25: the manifest availability stamps became authoritative (item 5)
@@ -1439,6 +1713,15 @@ SELECT id, label FROM presentation_objects ORDER BY label
       console.log(`  [${s.projectId.slice(0, 8)}] "${s.poLabel}" (${s.poId}): ${s.detail}`);
     }
   }
+  const legacyGaps = allResults.filter((r) => r.outcome === "legacy_gap");
+  if (legacyGaps.length > 0) {
+    console.log(
+      `\nLEGACY GAPS (${legacyGaps.length} — pre-cutover pg drift, package vouched by table probe or source CSV; non-gating):`,
+    );
+    for (const g of legacyGaps) {
+      console.log(`  [${g.projectId.slice(0, 8)}] ${g.check} "${g.poLabel}" (${g.poId}): ${g.detail}`);
+    }
+  }
   const foreignRuns = allResults.filter((r) => r.outcome === "foreign_run");
   if (foreignRuns.length > 0) {
     console.log(
@@ -1465,6 +1748,8 @@ SELECT id, label FROM presentation_objects ORDER BY label
   const accounting = useRun
     ? ` (${gatedProjectCount} of ${targets.length} projects gated${
       foreignRuns.length > 0 ? `, ${foreignRuns.length} on a foreign run` : ""
+    }${
+      legacyGaps.length > 0 ? `, ${legacyGaps.length} legacy gap(s)` : ""
     })${gatedProjectCount === 0 ? " — NOTHING WAS GATED" : ""}`
     : "";
   console.log(
@@ -1497,6 +1782,7 @@ function summarize(results: CheckResult[], indent: string) {
     };
     console.log(
       `${indent}${check}: ok=${count("ok")} diff=${count("diff")} both_error=${count("both_error")} skip=${count("skip")}` +
+        (count("legacy_gap") > 0 ? ` legacy_gap=${count("legacy_gap")}` : "") +
         (count("foreign_run") > 0 ? ` foreign_run=${count("foreign_run")}` : "") +
         ` | median pg=${med(timed.map((r) => r.pgMs!)).toFixed(0)}ms duck=${med(timed.map((r) => r.duckMs!)).toFixed(0)}ms`,
     );

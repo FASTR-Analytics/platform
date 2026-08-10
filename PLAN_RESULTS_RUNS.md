@@ -25,10 +25,10 @@ query/cache semantics are [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cac
 ## Branch state (2026-08-03)
 
 Built on `results-runs`, since RENAMED `tim-branch` (which now also carries
-other workstreams). Landing plan Thursday 2026-08-06: merge main → tim-branch
-(rerere replays the SYSTEM_15 resolution; watch delete/modify conflicts on
-`project_data.tsx` / `project_modules.tsx`), typecheck, fast-forward main.
-NOT deployed anywhere.
+other workstreams). LANDED on main 2026-08-10 (merge commit `6b514a1d`,
+typecheck green, pushed). Deployed as 1.66.0 to testing-tim and sierraleone
+2026-08-10; sierraleone backfill ran clean (17/17 projects, module-4 asset
+warnings noted below). Fleet rollout pending.
 
 ## Rollout runbook
 
@@ -51,13 +51,42 @@ accepted, mitigated by trial-first ordering and volume restore):
 1. Deploy the image → boot serves immediately (boot only sweeps `.tmp-`
    debris and marks interrupted runs, never synthesizes); projects without
    runs show the typed no-run state.
-2. `docker exec <server> deno run -A -c deno.json backfill_runs.ts` —
+2. `docker exec <server> deno run -A --unstable-broadcast-channel --unstable-raw-imports -c deno.json backfill_runs.ts` —
    synthesizes each project's initial run from its frozen sandbox + project-DB
    catalog; per-project isolation, re-runnable, `--project <id>` for one.
-3. `docker exec <server> deno run -A -c deno.json validate_results_runs_parity.ts --run`
+3. `docker exec <server> deno run -A --unstable-broadcast-channel --unstable-raw-imports -c deno.json validate_results_runs_parity.ts --run`
    → green → next instance.
 4. The pg oracle is FROZEN at deploy (no dual-write): only backfill-provenance
    runs are rig-gateable, so run the rig BEFORE anyone regenerates or swaps.
+
+Observed at sierraleone (2026-08-10): every backfilled run logged 4
+non-fatal "asset not captured" warnings (`chmis_admin_area_for_module4.csv`,
+`chmis_national_for_module4.csv`, `ng_national_denominators_corrected.csv`,
+`ng_province_denominators_corrected.csv` missing from `/app/assets`) — module
+definitions reference assets the instance never uploaded. Frozen sandbox
+results are unaffected; those assets are simply absent from the package
+snapshot. Expect the same on other instances.
+
+Also observed at sierraleone, RULED 2026-08-10 (the `legacy_gap` outcome —
+authoritative contract is the rig header): the frozen pg oracle carries the
+old dirty-machine's fail-open drift, so a rig divergence where the LEGACY
+side is provably deficient (pg table missing while the package serves data,
+or pg rows stale versus the module's own source CSV, which the rig re-reads
+independently) is a typed, counted, printed, NON-GATING `legacy_gap` — the
+packages are the correction, not the defect. Sierraleone's five: three
+`M3_disruptions_analysis_admin_area_4` ROs never ingested to pg, and one
+m004/m005 anc4 denominator row (June R output never reached pg). Anything
+the source CSV cannot vouch for stays a gating diff. Use the fleet script
+(`./rollout_fleet <instance>...`, pinned to 1.66.1) — deploy/backfill/verify
+failures halt the whole run; a rig RED records that instance as
+NEEDS-ADJUDICATION and continues (instances are independent; don't
+regenerate/swap on a red instance until adjudicated). The runbook commands
+below remain the manual form. RULED 2026-08-10: no server lock during the
+deploy→rig window — swap has no targets right after backfill (each project
+has only its own package), generation is instance-admin-gated, and a miss
+costs one printed non-gating foreign_run, not corruption. If a hard
+guarantee is ever wanted: stop the app container and run backfill+rig in a
+throwaway sibling container from the same image/env/volumes.
 
 **Rollback = all three, together:** previous image + hosting-level restore of
 the pre-deploy instance volume (deploy-window authored work is lost —
