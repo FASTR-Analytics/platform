@@ -87,7 +87,7 @@ python3 << 'PYEOF'
 import json, glob, os, sys, re, urllib.request, urllib.error
 
 CHUNK_BYTES = 300000   # diff bytes per call; + ~200KB of pages stays within 200K-token context
-MAX_CHUNKS = 6         # guardrail against runaway diffs
+MAX_CHUNKS = 10         # guardrail against runaway diffs
 ALLOWED_PREFIXES = ('admin-guide/', 'user-guide/', 'fr/admin-guide/', 'fr/user-guide/')
 
 doc_dir = '_site_repo/src/content/docs'
