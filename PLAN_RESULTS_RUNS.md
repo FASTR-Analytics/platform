@@ -76,7 +76,11 @@ independently) is a typed, counted, printed, NON-GATING `legacy_gap` — the
 packages are the correction, not the defect. Sierraleone's five: three
 `M3_disruptions_analysis_admin_area_4` ROs never ingested to pg, and one
 m004/m005 anc4 denominator row (June R output never reached pg). Anything
-the source CSV cannot vouch for stays a gating diff. Use the fleet script
+the source CSV cannot vouch for stays a gating diff. Same ruling, second
+class: `broken_config` — a PO whose fetch config fails does so identically
+on BOTH planes (computed before either engine), so broken user-authored
+visualizations are normal production data, typed + printed + NON-GATING,
+and never something to clean per-instance. Use the fleet script
 (`./rollout_fleet <instance>...`, pinned to 1.66.1) — deploy/backfill/verify
 failures halt the whole run; a rig RED records that instance as
 NEEDS-ADJUDICATION and continues (instances are independent; don't

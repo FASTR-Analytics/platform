@@ -44,7 +44,17 @@
 // kind (unattached project, detail/fetch-config failure, rig exception) all
 // turn the verdict RED. Nothing is advisory.
 //
-// TWO exceptions, both only in --run mode.
+// THREE exceptions.
+//
+// `broken_config` (any mode, ruled 2026-08-10): the PO's fetch config fails
+// (typed or thrown) — computed once from stored config + metric BEFORE
+// either engine runs, so the breakage is plane-independent: the app shows
+// the same typed error before and after the cutover and there is nothing
+// for parity to compare. Broken user-authored configs are normal production
+// data, never a rollout gate and never something to clean per-instance.
+// Counted, printed, non-gating.
+//
+// The remaining two are --run mode only.
 //
 // `legacy_gap` (rollout adjudication, 2026-08-10): a raw_preview divergence
 // where the LEGACY plane is provably the deficient side — the pg table is
@@ -163,7 +173,8 @@ type Outcome =
   | "both_error"
   | "skip"
   | "foreign_run"
-  | "legacy_gap";
+  | "legacy_gap"
+  | "broken_config";
 
 type CheckResult = {
   projectId: string;
@@ -581,16 +592,22 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     }
   }
 
+  // A fetch-config failure is plane-INDEPENDENT: it is computed once from the
+  // stored config + metric before either engine runs, so a config broken here
+  // is broken identically on both planes — the app shows the same typed error
+  // before and after the cutover, and there is nothing for parity to compare.
+  // Broken user-authored configs are normal production data (ruled
+  // 2026-08-10): typed `broken_config`, counted, printed, NON-GATING.
   let fetchConfig: GenericLongFormFetchConfig;
   try {
     const resFetchConfig = getFetchConfigFromPresentationObjectConfig(resultsValue, config);
     if (resFetchConfig.success === false) {
-      record({ check: "items", outcome: "skip", detail: `fetch config: ${resFetchConfig.err}` });
+      record({ check: "items", outcome: "broken_config", detail: `fetch config: ${resFetchConfig.err}` });
       return;
     }
     fetchConfig = resFetchConfig.data;
   } catch (e) {
-    record({ check: "items", outcome: "skip", detail: `fetch config threw: ${(e as Error).message}` });
+    record({ check: "items", outcome: "broken_config", detail: `fetch config threw: ${(e as Error).message}` });
     return;
   }
   const firstPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
@@ -1713,6 +1730,15 @@ SELECT id, label FROM presentation_objects ORDER BY label
       console.log(`  [${s.projectId.slice(0, 8)}] "${s.poLabel}" (${s.poId}): ${s.detail}`);
     }
   }
+  const brokenConfigs = allResults.filter((r) => r.outcome === "broken_config");
+  if (brokenConfigs.length > 0) {
+    console.log(
+      `\nBROKEN CONFIGS (${brokenConfigs.length} — plane-independent user data, same typed error on both planes; non-gating):`,
+    );
+    for (const b of brokenConfigs) {
+      console.log(`  [${b.projectId.slice(0, 8)}] "${b.poLabel}" (${b.poId}): ${b.detail}`);
+    }
+  }
   const legacyGaps = allResults.filter((r) => r.outcome === "legacy_gap");
   if (legacyGaps.length > 0) {
     console.log(
@@ -1750,6 +1776,10 @@ SELECT id, label FROM presentation_objects ORDER BY label
       foreignRuns.length > 0 ? `, ${foreignRuns.length} on a foreign run` : ""
     }${
       legacyGaps.length > 0 ? `, ${legacyGaps.length} legacy gap(s)` : ""
+    }${
+      brokenConfigs.length > 0
+        ? `, ${brokenConfigs.length} broken config(s)`
+        : ""
     })${gatedProjectCount === 0 ? " — NOTHING WAS GATED" : ""}`
     : "";
   console.log(
@@ -1783,6 +1813,7 @@ function summarize(results: CheckResult[], indent: string) {
     console.log(
       `${indent}${check}: ok=${count("ok")} diff=${count("diff")} both_error=${count("both_error")} skip=${count("skip")}` +
         (count("legacy_gap") > 0 ? ` legacy_gap=${count("legacy_gap")}` : "") +
+        (count("broken_config") > 0 ? ` broken_config=${count("broken_config")}` : "") +
         (count("foreign_run") > 0 ? ` foreign_run=${count("foreign_run")}` : "") +
         ` | median pg=${med(timed.map((r) => r.pgMs!)).toFixed(0)}ms duck=${med(timed.map((r) => r.duckMs!)).toFixed(0)}ms`,
     );
