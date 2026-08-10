@@ -16,11 +16,12 @@ globs:
   - lib/types/project_sse.ts
   - server/routes/instance/instance-sse.ts
   - server/routes/project/project-sse-v2.ts
+  - server/task_management/build_instance_state.ts
   - server/task_management/build_project_state.ts
-  - server/task_management/get_project_dirty_states.ts
   - server/task_management/notify_instance_updated.ts
   - server/task_management/notify_last_updated.ts
   - server/task_management/notify_project_v2.ts
+  - server/task_management/project_last_updated.ts
   - server/utils/request_queue.ts
   - server/valkey/**
 docs_absorbed:
@@ -43,17 +44,17 @@ never-refetch-after-mutation) are [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md)
 version columns is **S2**
 ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). SSE is server _push_; it
 is not the request-scoped NDJSON `StreamWriter` in **S1**
-(SYSTEM_01_api_contract.md). The third BroadcastChannel, `"task_ended"`, is
-**S8**'s internal worker plumbing (SYSTEM_08_module_system.md) — it feeds no SSE
+(SYSTEM_01_api_contract.md). The third BroadcastChannel,
+`RUN_GENERATION_ENDED_CHANNEL` (`worker_routines/generate_run/`), is **S8**'s
+internal worker plumbing (SYSTEM_08_results_packages.md) — it feeds no SSE
 endpoint and is exempt from the notify-catalog rule.
 `server/middleware/cache.ts` (`cacheMiddleware`) sets HTTP `Cache-Control`
-headers on static assets — a completely different "cache", owned elsewhere.
-The collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
+headers on static assets — a completely different "cache", owned elsewhere. The
+collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)) — strictly additive
 inside the same project boundary: its room checkpoints feed this system's
 triangle through the existing notify wrappers and post nothing new to the
-BroadcastChannels.
-Sub-file custody exceptions are in SYSTEMS.md §4.1
+BroadcastChannels. Sub-file custody exceptions are in SYSTEMS.md §4.1
 (`lib/types/project_dirty_states.ts` is owned here, S8 mandatory reader;
 `t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
 `task_management/mod.ts` is S8's barrel and re-exports the notify hub).
@@ -89,10 +90,18 @@ Client EventSource (t1_sse.tsx) → T1 store → version keys flip → caches mi
 
 Exactly **two SSE-feeding** broadcast channels, each with one endpoint:
 
-| Channel                | Endpoint                          | File                               | Guard                                                    |
-| ---------------------- | --------------------------------- | ---------------------------------- | -------------------------------------------------------- |
-| `"instance_updates"`   | `GET /instance_updates`           | `routes/instance/instance-sse.ts`  | `requireGlobalPermission()` (hard-deny)                  |
-| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `resolveProjectUserAccess` (hard-deny) |
+| Channel                | Endpoint                          | File                               | Guard                                                         |
+| ---------------------- | --------------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| `"instance_updates"`   | `GET /instance_updates`           | `routes/instance/instance-sse.ts`  | `requireGlobalPermission()` (hard-deny) + per-message filter† |
+| `"project_updates_v2"` | `GET /project_sse_v2/:project_id` | `routes/project/project-sse-v2.ts` | `getGlobalUser` + `resolveProjectUserAccess` (hard-deny)      |
+
+† The instance endpoint admits every logged-in user, so the two results-package
+generation messages — `run_progress` and `r_script`, which carry run labels,
+module ids and R error detail — are dropped in the forward loop for callers
+without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The permission set is the
+one captured at connect; a change takes effect on reconnect, exactly like
+`currentUserPermissions` in the starting payload. No other message on either
+channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process — which is how a background worker's
@@ -130,32 +139,42 @@ a `queue: []` + `ReadableStream` controller; **project** uses a
 **The notify catalog (normative).** Every broadcast to the two SSE channels goes
 through a typed wrapper — never `postMessage` directly.
 `server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus eight wrappers, one per
-`InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`),
+`notifyInstanceUpdate(message)` plus ten wrappers, one per `InstanceSseMessage`
+type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceProjectsLastUpdated` (`projects_last_updated`),
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
 `notifyInstanceStructureUpdated` (`structure_updated`),
 `notifyInstanceIndicatorsUpdated` (`indicators_updated`),
-`notifyInstanceDatasetsUpdated` (`datasets_updated`).
-`server/task_management/notify_project_v2.ts` exposes
-`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus fifteen
-wrappers: `notifyProjectConfigUpdated`, `notifyProjectModulesUpdated`,
-`notifyProjectDatasetsUpdated`, `notifyProjectVisualizationsUpdated`,
+`notifyInstanceDatasetsUpdated` (`datasets_updated`),
+`notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
+(`r_script`). `server/task_management/notify_project_v2.ts` exposes
+`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus thirteen
+wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectVisualizationFoldersUpdated`, `notifyProjectSlideDecksUpdated`,
 `notifyProjectSlideDeckFoldersUpdated`, `notifyProjectReportsUpdated`,
 `notifyProjectReportFoldersUpdated`, `notifyProjectDashboardsUpdated`,
 `notifyProjectUsersUpdated`, `notifyProjectLastUpdatedV2`,
-`notifyProjectModuleDirtyState`, `notifyProjectAnyRunning`,
-`notifyProjectRScript`.
+`notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`.
+(The module-dirty-state / any-running / modules-updated / datasets-updated
+wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushes
+`r_script`, `run_progress`, and `run_attached` instead.) Generation telemetry
+fans out on BOTH channels and no emitter calls the project wrappers directly:
+`worker_routines/generate_run/notify_run.ts` pairs each instance push with the
+per-attach-target project pushes, because a run launched with no attach targets
+has no project channel at all. `run_attached` has TWO emitters — the generation
+publish and a project's own package picker — and both go through
+`server/runs/attach_run.ts`, so the repoint event carries the same full
+run-derived catalog either way.
 
-**The redundant `last_updated` indirection.**
-`server/task_management/notify_last_updated.ts` is a one-line passthrough:
-`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~56 call sites,
-re-exported via `task_management/mod.ts`) → `notifyProjectLastUpdatedV2` (no
-other callers) → `notifyProjectV2({ type: "last_updated", … })`. Three layers
-for one event — collapse tracked as PLAN_ENFORCEMENT item 12. For now:
-**call `notifyLastUpdated`** from routes.
+**The `last_updated` entry point.**
+`server/task_management/notify_last_updated.ts` —
+`notifyLastUpdated(projectId, tableName, ids, lastUpdated)` (~47 call sites,
+re-exported via `task_management/mod.ts`) →
+`notifyProjectV2({ type:
+"last_updated", … })` directly. (The former
+`notifyProjectLastUpdatedV2` middle layer was collapsed 2026-08-03.) **Call
+`notifyLastUpdated`** from routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)
@@ -165,18 +184,18 @@ list and broadcast it whole via `notify<Thing>Updated`, guarded by
 `if (list.success)` (but see the stale-on-failure gotcha). The mutation response
 itself is just `success`/`err` — clients never install state from it.
 
-**One deliberate exception — collab checkpoint rebroadcasts.** S16's collab
-room checkpoints (debounced 1.5 s while users co-edit) fire the row-level
-`notifyLastUpdated` on every checkpoint but debounce the list-level
-rebroadcast to 5 s per project (`scheduleReportsListRebroadcast` /
+**One deliberate exception — collab checkpoint rebroadcasts.** S16's collab room
+checkpoints (debounced 1.5 s while users co-edit) fire the row-level
+`notifyLastUpdated` on every checkpoint but debounce the list-level rebroadcast
+to 5 s per project (`scheduleReportsListRebroadcast` /
 `scheduleVizListRebroadcast` in `server/routes/project/project-collab.ts`,
 calling the existing `notifyProjectReportsUpdated` /
 `notifyProjectVisualizationsUpdated`) — the reports list refetch loads every
 report's body, far too heavy per checkpoint while someone is typing. (Slide
-checkpoints skip the list rebroadcast entirely; they row-notify both the
-slide and its deck.) Net effect during active co-editing: an SSE message and
-list refetch roughly every 1.5 s / 5 s — the contract working as designed,
-worth knowing if broadcast volume ever becomes a concern.
+checkpoints skip the list rebroadcast entirely; they row-notify both the slide
+and its deck.) Net effect during active co-editing: an SSE message and list
+refetch roughly every 1.5 s / 5 s — the contract working as designed, worth
+knowing if broadcast volume ever becomes a concern.
 
 **The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same
 timestamp is (a) broadcast via `notifyLastUpdated` → client T1 store → client
@@ -203,9 +222,8 @@ clients and caches stale with no error.
 - Channel-name strings are duplicated between producer (`notify_*` files) and
   consumer (SSE endpoints); a one-character drift silently breaks delivery (Open
   items).
-- Vestigial `_v2` on the project route path, channel string, filename, and
-  `notifyProjectLastUpdatedV2` — no v1 survives; the instance side has no
-  suffix. Don't extend the pattern (PLAN_ENFORCEMENT item 21).
+- Vestigial `_v2` on the project route path, channel string, and filename — no
+  v1 survives; the instance side has no suffix. Don't extend the pattern.
 - The two client consumers diverge on reconnect and parsing: instance
   `_MAX_CONNECTION_ATTEMPTS = 5` + raw `JSON.parse`; project
   `MAX_CONNECTION_ATTEMPTS = 3` + `parseJsonOrThrow` (Open items).
@@ -258,36 +276,38 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
   cache-broken.
 
 **Three version layers on the PO family.** Invalidation ingredients are layered,
-and each layer has a distinct job:
+and each layer has a distinct job (PLAN_RESULTS_RUNS §2.5 re-keyed the data
+dimension onto the attached run):
 
-1. **Row version** — `presentationObjectLastUpdated` (PO edits) or
-   `moduleLastRun` + `datasetsVersion` (module re-runs, dataset changes): bumped
-   by normal writes, invalidates per entity/module.
+1. **Run/row version** — `presentationObjectLastUpdated` (PO edits) plus the
+   immutable `runId` (which run the data came from): the runId replaces the old
+   `moduleLastRun` + `datasetsVersion` dimensions — data never changes under a
+   run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"5"`, bump history in the adjacent comment) — a manually-bumped semantic
+   `"13"`, bump history in the adjacent comment) — a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.
-3. **Prefix bump** — `po_detail` → `po_detail_v2`: for payload _shape_ changes
+3. **Prefix bump** — `po_detail` → `po_detail_v7`: for payload _shape_ changes
    on the config cache; consumers additionally re-run
    `presentationObjectConfigSchema.parse` on every hit to adapt cross-deploy
    payloads.
 
 **The cache catalog** — five `_UPPER_SNAKE` module-level singletons (four in
 `server/routes/caches/visualizations.ts`, one in
-`server/routes/caches/dataset.ts`):
+`server/routes/caches/dataset.ts`). The three data caches are run-scoped, not
+project-scoped: two projects attached to the same run share entries.
 
-| Singleton                        | prefix           | uniquenessHash                                      | versionHash                                        |
-| -------------------------------- | ---------------- | --------------------------------------------------- | -------------------------------------------------- |
-| `_PO_DETAIL_CACHE`               | `po_detail_v2`   | `projectId\|poId`                                   | `presentationObjectLastUpdated`                    |
-| `_PO_ITEMS_CACHE`                | `po_items`       | `projectId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_METRIC_INFO_CACHE`             | `metric_info`    | `projectId::metricId`                               | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `projectId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton entry)    | `computeHfaCacheHash(hfa_time_points)`             |
+| Singleton                        | prefix           | uniquenessHash                                  | versionHash                            |
+| -------------------------------- | ---------------- | ----------------------------------------------- | -------------------------------------- |
+| `_PO_DETAIL_CACHE`               | `po_detail_v7`   | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
+| `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
+| `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
+| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |
+| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
-replicant_opts); unifying them behind a shared key-builder is
-PLAN_ENFORCEMENT item 9. A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
+replicant_opts). A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
 `ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 (tombstone comment in
 `dataset.ts`): once the HMIS display route's vizItems moved to the import
 ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
@@ -302,6 +322,16 @@ stale-version entry that will miss (Open items). The client half of that page is
 `components/project/project_cache.tsx`, which shows the same per-viz grid for
 the server (Valkey) and the client (IndexedDB, scanned by key prefix via
 `getClientVizCacheStatuses`).
+
+**Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D) —
+the one place that deliberately deletes entries rather than out-versioning them,
+and it is **disk reclamation, not correctness**: TTLs plus the version
+comparison in `get` already mean a dead run's entries are never served. Because
+`po_items`, `metric_info` and `replicant_opts` fold `runId` into their
+UNIQUENESS hash, they can be swept by prefix (`scanUniquenessHashes(runId…)` →
+`clearByUniquenessHash`). `po_detail` folds runId into its VERSION hash instead,
+so it cannot be prefix-swept and is left to expire on purpose — the alternative
+was a prefix bump for already-dead entries.
 
 **Rules.** Every cache is version-gated on a column bumped by _every_ write path
 to its data. Never `.clear()` on a normal write. `parseData` must derive the
@@ -363,9 +393,6 @@ bump.
   `last_updated → notify` triangle is enforced by hand in ~26 files. A
   write-helper that does mutate + stamp + notify together (or a dev assertion
   flagging mutations without a notify) would make audit §4.3.1 mechanical.
-- Tracked in PLAN_ENFORCEMENT: collapse the notify indirection (item 12),
-  shared cache key-builder + one separator (item 9), retire vestigial `_v2`
-  naming (item 21 sweep).
 - Factor one canonical SSE connection helper (subscribe-before-build, drain,
   forward, cleanup) — the two endpoints implement the lifecycle two different
   ways.
@@ -375,7 +402,8 @@ bump.
 - Failed post-write list refetch strands clients: define the handling (log it,
   or always emit `last_updated` so clients self-invalidate).
 - Lint for raw `postMessage` / inline SSE messages outside the `notify_*` files
-  (scoped to the two SSE channels; `"task_ended"` is S8's and exempt).
+  (scoped to the two SSE channels; `RUN_GENERATION_ENDED_CHANNEL` is S8's and
+  exempt).
 - Align the two client SSE consumers (reconnect attempts 5 vs 3; `JSON.parse` vs
   `parseJsonOrThrow`) behind one connection contract.
 - `projectsLastUpdated` server-stamped in `starting` → redundant `/my_projects`

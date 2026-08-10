@@ -52,6 +52,25 @@ is the rulebook a consumer app must follow.
 14. **AI-driven navigation must keep the attribution window open** —
     `onAiNavigation` awaits routing to genuine completion, or the code that
     performs the late `setView` calls `viewController.markAINavigation()` itself
+15. **Declare `headless: true` on tools that operate on persisted data** — such
+    tools take explicit ids as input; view `context` is reserved for tools that
+    genuinely operate on live unsaved state (chat-only, correctly). Absent flag
+    = chat-only. Never combine `headless` with `availableIn`, `kind: "nav"`, or
+    view-typed approval (construction throws); plain-shape approval is allowed
+    and drives the MCP approval flow
+16. **The MCP surface is `createMCPServer` over the same tools array** — declare
+    the same `approvalPolicy` as the chat (an unapproved write in the exposed
+    subset fails boot, not the allowlist's problem); grounding is a ≤2KB
+    `instructions` pointer plus a `groundingResource` thunk (served as a
+    resource AND the `get_orientation` tool); slow hydration goes behind
+    `ready`, never blocks serving. Run `validateMCPServerConfig(config)` in the
+    consumer's browser smoke test — it needs no Deno graph
+17. **Keep the headless subset's module graph browser-free at source** — the
+    typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and
+    only `window`/`document`/`indexedDB` crash at import; `localStorage` and
+    `navigator` run silently under Deno with wrong semantics. Guard those at
+    source (`typeof` checks or injection) and probe the built host by
+    constructing every factory under plain Deno
 
 ## Do / Don't
 
@@ -260,6 +279,35 @@ The tool never calls `setView` — the app's own sync sites do. Refusals throw
 immediately before triggering the view change, or the move misreports as a user
 action in the next digest.
 
+### Sharing tools between the SPA chat and an MCP host
+
+Tool definitions that both surfaces consume live in the app's shared `lib/`
+(compiled into the Deno server and the Vite client) as factories over an
+injected environment — one definition AND one handler for both:
+
+```ts
+// lib: the env seam + a factory
+export type AppAIToolEnv = {
+  serverActions: ServerActionsType;
+  getItems: (…) => Promise<…>; // each getter fronts one server action
+};
+export function getSharedToolsForMetrics(env: AppAIToolEnv, projectId: string, …) {
+  return [createAITool({ name: "get_metric_data", headless: true, kind: "read",
+    /* handler calls env.getItems / env.serverActions.* only */ })];
+}
+
+// SPA: injects cache-backed getters (reactive caches + request queues)
+// Host: injects direct server-action fetches
+```
+
+The host itself is a plain-Deno stdio entry with zero protocol code and zero
+client-src imports: register a token transport (`setServerActionTransport`),
+hydrate a plain snapshot (mutate captured arrays IN PLACE so boot-time factory
+captures stay live), build the shared factories, and call
+`createMCPServer({ instructions, groundingResource, tools, approvalMode:
+"elicit", approvalPolicy, ready }).serveStdio()`.
+UI-purpose and view-gated tools stay client-resident and off the MCP surface.
+
 ## Checklist
 
 - [ ] No hand-built `SDKTool` objects; every tool is `createAITool` /
@@ -286,3 +334,9 @@ action in the next digest.
 - [ ] `validateAIChatConfig(config)` runs on the real assembled config under
       `import.meta.env.DEV` for every surface
 - [ ] No `mode: "session"` combined with `presentation: "modal"`
+- [ ] Tools on persisted data declare `headless: true` with explicit-id inputs;
+      no `headless` + `availableIn`/`nav`/view-typed approval
+- [ ] If an MCP surface exists: `createMCPServer` declares the chat's
+      `approvalPolicy`; `validateMCPServerConfig` runs in a browser smoke test;
+      the headless subset's graph has no unguarded
+      `localStorage`/`navigator`/`window`/`document`

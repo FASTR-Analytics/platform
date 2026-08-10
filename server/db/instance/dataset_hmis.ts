@@ -3,8 +3,6 @@ import {
   _GLOBAL_MIN_YEAR_FOR_PERIODS,
 } from "@timroberton/panther";
 import { Sql } from "postgres";
-import { UPLOADED_HMIS_DATA_STAGING_TABLE_NAME } from "../../exposed_env_vars.ts";
-import { resolveAssetFilePath } from "./assets.ts";
 import type {
   DatasetHmisWindowingRaw,
   InstanceConfigFacilityColumns,
@@ -13,14 +11,8 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   DatasetHmisDetail,
-  DatasetUploadAttemptDetail,
-  DatasetUploadAttemptStatus,
-  DatasetUploadAttemptStatusLight,
-  DatasetUploadAttemptSummary,
-  DatasetUploadStatusResponse,
   parseAa3CompositeKey,
   PeriodBounds,
-  parseJsonOrThrow,
   parseJsonOrUndefined,
   throwIfErrWithData,
   type DatasetHmisVersion,
@@ -28,53 +20,11 @@ import {
   type IndicatorType,
   type ItemsHolderDatasetHmisDisplay,
 } from "lib";
-import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
-import { instantiateIntegrateUploadedDataWorker } from "../../worker_routines/integrate_hmis_data/instantiate_worker.ts";
-import { instantiateStageHmisDataCsvWorker } from "../../worker_routines/stage_hmis_data_csv/instantiate_worker.ts";
-import {
-  clearWorker,
-  getWorker,
-  setWorker,
-} from "../../worker_routines/worker_store.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
-import {
-  assertNoRunningDatasetHmisImportRun,
-  hasRunningDatasetHmisImportRun,
-} from "./dataset_hmis_import_runs.ts";
-import type {
-  DBDatasetHmisUploadAttempt,
-  DBDatasetHmisVersion,
-} from "./_main_database_types.ts";
-import { getFacilityColumnsConfig, getMaxAdminAreaConfig } from "./config.ts";
-
-async function getRawUA(
-  mainDb: Sql
-): Promise<DBDatasetHmisUploadAttempt | undefined> {
-  return (
-    await mainDb<DBDatasetHmisUploadAttempt[]>`
-SELECT * FROM dataset_hmis_upload_attempts
-`
-  ).at(0);
-}
-
-async function getRawUAOrThrow(
-  mainDb: Sql
-): Promise<DBDatasetHmisUploadAttempt> {
-  const rawUA = await getRawUA(mainDb);
-  if (!rawUA) {
-    throw new Error("No upload attempt with this id");
-  }
-  return rawUA;
-}
-
-function throwIfNoRowsUpdatedBecauseActive(count: number) {
-  if (count === 0) {
-    throw new Error(
-      "An operation is currently running on this upload attempt. Please wait for it to complete."
-    );
-  }
-}
+import { assertNoRunningDatasetHmisImportRun } from "./dataset_hmis_import_runs.ts";
+import type { DBDatasetHmisVersion } from "./_main_database_types.ts";
+import { getMaxAdminAreaConfig } from "./config.ts";
 
 //////////////////////////////////////////////////////
 //  _______               __                __  __  //
@@ -93,16 +43,11 @@ export async function getDatasetHmisDetail(
   mainDb: Sql
 ): Promise<APIResponseWithData<DatasetHmisDetail>> {
   return await tryCatchDatabaseAsync(async () => {
-    const resUploadAttempt = await getUploadAttemptForDatasetHmis(mainDb);
-    if (resUploadAttempt.success === false) {
-      return resUploadAttempt;
-    }
     const resVersions = await getVersionsForDatasetHmis(mainDb);
     if (resVersions.success === false) {
       return resVersions;
     }
     const dataset: DatasetHmisDetail = {
-      uploadAttempt: resUploadAttempt.data,
       currentVersionId: resVersions.data.at(0)?.id,
       nVersions: resVersions.data.length,
     };
@@ -171,21 +116,12 @@ export async function deleteAllDatasetHmisData(
   return await tryCatchDatabaseAsync(async () => {
     // A delete minting a version id while an integration is mid-transaction
     // can collide with the integration's MAX(id)+1 and roll back the whole
-    // merge at the end — refuse while an import operation is running.
+    // merge at the end — refuse while an import run is running (CSV imports
+    // are runs too, so the single runs-table check covers every import).
     // The reverse direction (a run LAUNCHING mid-delete) is deliberately not
     // claimed against: a mint collision aborts exactly one side's transaction
     // loudly, and the ledger reconcile/recompute reads dataset_hmis in-txn,
     // so both outcomes stay consistent.
-    const activeOperations = await mainDb<{ count: string | number }[]>`
-      SELECT COUNT(*) as count
-      FROM dataset_hmis_upload_attempts
-      WHERE status_type IN ('staging', 'integrating')
-    `;
-    if (Number(activeOperations[0].count) > 0) {
-      throw new Error(
-        "An import operation is in progress. Please wait for it to complete before deleting data."
-      );
-    }
     await assertNoRunningDatasetHmisImportRun(mainDb);
 
     // Build WHERE conditions based on windowing
@@ -595,473 +531,6 @@ async function getDatasetHmisItemsForDisplayCommon(
   });
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  __    __            __                            __                    __      __                                          __               //
-// /  |  /  |          /  |                          /  |                  /  |    /  |                                        /  |              //
-// $$ |  $$ |  ______  $$ |  ______    ______    ____$$ |        ______   _$$ |_  _$$ |_     ______   _____  ____    ______   _$$ |_    _______  //
-// $$ |  $$ | /      \ $$ | /      \  /      \  /    $$ |       /      \ / $$   |/ $$   |   /      \ /     \/    \  /      \ / $$   |  /       | //
-// $$ |  $$ |/$$$$$$  |$$ |/$$$$$$  | $$$$$$  |/$$$$$$$ |       $$$$$$  |$$$$$$/ $$$$$$/   /$$$$$$  |$$$$$$ $$$$  |/$$$$$$  |$$$$$$/  /$$$$$$$/  //
-// $$ |  $$ |$$ |  $$ |$$ |$$ |  $$ | /    $$ |$$ |  $$ |       /    $$ |  $$ | __ $$ | __ $$    $$ |$$ | $$ | $$ |$$ |  $$ |  $$ | __$$      \  //
-// $$ \__$$ |$$ |__$$ |$$ |$$ \__$$ |/$$$$$$$ |$$ \__$$ |      /$$$$$$$ |  $$ |/  |$$ |/  |$$$$$$$$/ $$ | $$ | $$ |$$ |__$$ |  $$ |/  |$$$$$$  | //
-// $$    $$/ $$    $$/ $$ |$$    $$/ $$    $$ |$$    $$ |      $$    $$ |  $$  $$/ $$  $$/ $$       |$$ | $$ | $$ |$$    $$/   $$  $$//     $$/  //
-//  $$$$$$/  $$$$$$$/  $$/  $$$$$$/   $$$$$$$/  $$$$$$$/        $$$$$$$/    $$$$/   $$$$/   $$$$$$$/ $$/  $$/  $$/ $$$$$$$/     $$$$/ $$$$$$$/   //
-//           $$ |                                                                                                  $$ |                          //
-//           $$ |                                                                                                  $$ |                          //
-//           $$/                                                                                                   $$/                           //
-//                                                                                                                                               //
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-export async function addDatasetHmisUploadAttempt(
-  mainDb: Sql
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const dateStarted = new Date().toISOString();
-    // HMIS dataset is always the same structure, no need to look up definition
-    const startingStatus: DatasetUploadAttemptStatus = {
-      status: "configuring",
-    };
-    await mainDb`
-INSERT INTO dataset_hmis_upload_attempts
-  (date_started, step, status, status_type)
-VALUES
-  (${dateStarted}, 0, ${JSON.stringify(startingStatus)}, 'configuring')
-`;
-    return { success: true };
-  });
-}
-
-export async function getUploadAttemptForDatasetHmis(
-  mainDb: Sql
-): Promise<APIResponseWithData<DatasetUploadAttemptSummary | undefined>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUA(mainDb);
-    if (!rawDUA) {
-      return { success: true, data: undefined };
-    }
-    const uploadAttempt: DatasetUploadAttemptSummary = {
-      id: "hmis",
-      dateStarted: rawDUA.date_started,
-      status: parseJsonOrThrow(rawDUA.status),
-    };
-    return { success: true, data: uploadAttempt };
-  });
-}
-
-export async function getDatasetHmisUploadAttemptDetail(
-  mainDb: Sql
-): Promise<APIResponseWithData<DatasetUploadAttemptDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-
-    const baseDetails = {
-      id: "hmis",
-      dateStarted: rawDUA.date_started,
-      status: parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status),
-    };
-
-    const sourceType = (rawDUA.source_type as "csv" | null) ?? undefined;
-
-    const step1Result = parseJsonOrUndefined<unknown>(rawDUA.step_1_result);
-
-    const uaDetail = {
-      ...baseDetails,
-      step: rawDUA.step as 0 | 1 | 2 | 3 | 4,
-      sourceType,
-      step1Result,
-      step2Result: parseJsonOrUndefined<unknown>(rawDUA.step_2_result),
-      step3Result: parseJsonOrUndefined<unknown>(rawDUA.step_3_result),
-    } as DatasetUploadAttemptDetail;
-
-    return { success: true, data: uaDetail };
-  });
-}
-
-export async function getDatasetHmisUploadStatus(
-  mainDb: Sql
-): Promise<APIResponseWithData<DatasetUploadStatusResponse>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-
-    const status = parseJsonOrThrow<DatasetUploadAttemptStatus>(rawDUA.status);
-    const step = rawDUA.step as 0 | 1 | 2 | 3 | 4;
-
-    const statusLight: DatasetUploadAttemptStatusLight = status;
-
-    // Determine if polling should continue
-    const isActive =
-      status.status === "staging" || status.status === "integrating";
-
-    return {
-      success: true,
-      data: {
-        id: "hmis",
-        step,
-        status: statusLight,
-        isActive,
-      },
-    };
-  });
-}
-
-export async function deleteDatasetHmisUploadAttempt(
-  mainDb: Sql
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const existing = await getRawUA(mainDb);
-    if (existing === undefined) {
-      return { success: true };
-    }
-
-    // Terminate any running HMIS worker
-    const hmisWorker = getWorker("hmis");
-
-    if (hmisWorker) {
-      hmisWorker.terminate();
-      clearWorker("hmis", hmisWorker);
-    }
-
-    await mainDb`DELETE FROM dataset_hmis_upload_attempts`;
-    // A terminated worker never reaches its own cleanup, and a staged
-    // attempt's table would otherwise outlive the attempt row.
-    await mainDb.unsafe(
-      `DROP TABLE IF EXISTS ${UPLOADED_HMIS_DATA_STAGING_TABLE_NAME}`
-    );
-    return { success: true };
-  });
-}
-
-///////////////////////////////////////////////////////
-//   ______    __                                    //
-//  /      \  /  |                                   //
-// /$$$$$$  |_$$ |_     ______    ______    _______  //
-// $$ \__$$// $$   |   /      \  /      \  /       | //
-// $$      \$$$$$$/   /$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-//  $$$$$$  | $$ | __ $$    $$ |$$ |  $$ |$$      \  //
-// /  \__$$ | $$ |/  |$$$$$$$$/ $$ |__$$ | $$$$$$  | //
-// $$    $$/  $$  $$/ $$       |$$    $$/ /     $$/  //
-//  $$$$$$/    $$$$/   $$$$$$$/ $$$$$$$/  $$$$$$$/   //
-//                              $$ |                 //
-//                              $$ |                 //
-//                              $$/                  //
-//                                                   //
-///////////////////////////////////////////////////////
-
-export async function updateDatasetUploadAttempt_Step0SourceType(
-  mainDb: Sql,
-  sourceType: "csv"
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    await getRawUAOrThrow(mainDb); // Verify exists
-    // All step-config writes are conditional on no worker phase being active:
-    // an unconditional write racing a running worker would let the worker's
-    // completion mark data staged under a config it wasn't staged from.
-    const updated = await mainDb`
-  UPDATE dataset_hmis_upload_attempts
-  SET
-    step = 1,
-    source_type = ${sourceType},
-    step_1_result = NULL,
-    step_2_result = NULL,
-    step_3_result = NULL
-  WHERE status_type NOT IN ('staging', 'integrating')
-    `;
-    throwIfNoRowsUpdatedBecauseActive(updated.count);
-    return { success: true };
-  });
-}
-
-export async function updateDatasetUploadAttempt_Step1CsvUpload(
-  mainDb: Sql,
-  assetFileName: string
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb); // Verify exists
-    if (!rawDUA.source_type) {
-      throw new Error("Not yet ready for this step");
-    }
-    const assetFilePath = resolveAssetFilePath(assetFileName);
-    const resCsvDetails = await getCsvDetails(assetFilePath, assetFileName);
-    throwIfErrWithData(resCsvDetails);
-    const updated = await mainDb`
-  UPDATE dataset_hmis_upload_attempts
-  SET
-    step = 2,
-    step_1_result = ${JSON.stringify(resCsvDetails.data)},
-    step_2_result = NULL,
-    step_3_result = NULL
-  WHERE status_type NOT IN ('staging', 'integrating')
-    `;
-    throwIfNoRowsUpdatedBecauseActive(updated.count);
-    return { success: true };
-  });
-}
-
-export async function updateDatasetUploadAttempt_Step2Mappings(
-  mainDb: Sql,
-  mappings: Record<string, string>
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    if (!rawDUA.source_type || !rawDUA.step_1_result) {
-      throw new Error("Not yet ready for this step");
-    }
-    const updated = await mainDb`
-UPDATE dataset_hmis_upload_attempts
-SET
-  step = 3,
-  step_2_result = ${JSON.stringify(mappings)},
-  step_3_result = NULL
-WHERE status_type NOT IN ('staging', 'integrating')
-`;
-    throwIfNoRowsUpdatedBecauseActive(updated.count);
-    return { success: true };
-  });
-}
-
-export async function updateDatasetUploadAttempt_Step3Staging(
-  mainDb: Sql
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    if (!rawDUA.source_type || !rawDUA.step_1_result || !rawDUA.step_2_result) {
-      throw new Error("Not yet ready for this step");
-    }
-
-    // Check if this upload is already being processed
-    const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int as count
-      FROM dataset_hmis_upload_attempts
-      WHERE status_type IN ('staging', 'integrating')
-    `;
-
-    if (activeOperations[0].count > 0) {
-      throw new Error(
-        "This operation is already in progress. Please wait for it to complete."
-      );
-    }
-    await assertNoRunningDatasetHmisImportRun(mainDb);
-
-    // Check if an HMIS worker is already running
-    const existingWorker = getWorker("hmis");
-    if (existingWorker) {
-      throw new Error(
-        "An HMIS operation is already in progress. Please wait for it to complete."
-      );
-    }
-
-    // Atomically claim the staging slot: the conditional UPDATE + rowcount
-    // check is race-free, unlike the read-then-write guards above (which stay
-    // for friendlier errors). Nulling step_3_result here means a staging run
-    // that dies mid-flight can never leave a previous run's result armed
-    // against a staging table it doesn't describe — integration requires
-    // step_3_result, so it stays blocked until staging succeeds again.
-    const claimed = await mainDb`
-      UPDATE dataset_hmis_upload_attempts
-      SET
-        status = ${JSON.stringify({ status: "staging", progress: 0 })},
-        status_type = 'staging',
-        step = 3,
-        step_3_result = NULL
-      WHERE status_type NOT IN ('staging', 'integrating')
-    `;
-    if (claimed.count === 0) {
-      throw new Error(
-        "This operation is already in progress. Please wait for it to complete."
-      );
-    }
-
-    // Re-check the run guard AFTER the claim: a run's INSERT claim can land
-    // between the assert above and our UPDATE. The run launcher re-checks
-    // attempts after its claim — both directions must, or both sides pass
-    // their pre-claim reads and proceed concurrently.
-    if (await hasRunningDatasetHmisImportRun(mainDb)) {
-      await mainDb`
-        UPDATE dataset_hmis_upload_attempts
-        SET status = ${JSON.stringify({
-          status: "error",
-          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
-        })},
-          status_type = 'error'
-      `;
-      throw new Error(
-        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
-      );
-    }
-
-    // Re-read after the claim: a concurrent step-2 config write can land
-    // between the initial read and the claim, and the worker must stage from
-    // the row the claim actually locked in — not the pre-claim snapshot.
-    const claimedDUA = await getRawUAOrThrow(mainDb);
-
-    const worker = instantiateStageHmisDataCsvWorker(claimedDUA);
-
-    // Store the worker reference globally
-    setWorker("hmis", worker);
-
-    // Handle worker crash - clear reference when done
-    worker.addEventListener("error", async (e) => {
-      console.error("Staging worker crashed:", e);
-      e.preventDefault(); // Prevent the error from propagating and crashing the server
-      try {
-        await mainDb`
-          UPDATE dataset_hmis_upload_attempts 
-          SET 
-            status = ${JSON.stringify({
-              status: "error",
-              err: `Worker crashed: ${e.message || "Unknown error"}`,
-            })},
-            status_type = 'error'
-        `;
-      } catch (dbError) {
-        console.error("Failed to update database after worker crash:", dbError);
-      }
-      clearWorker("hmis", worker);
-      worker.terminate();
-    });
-
-    // Handle successful completion
-    worker.addEventListener("message", (e) => {
-      if (e.data === "COMPLETED") {
-        clearWorker("hmis", worker);
-        worker.terminate();
-      }
-    });
-
-    return { success: true };
-  });
-}
-
-export async function updateDatasetUploadAttempt_Step4Integrate(
-  mainDb: Sql,
-  onComplete?: () => void,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawDUA = await getRawUAOrThrow(mainDb);
-    if (
-      !rawDUA.source_type ||
-      !rawDUA.step_1_result ||
-      !rawDUA.step_2_result ||
-      !rawDUA.step_3_result
-    ) {
-      throw new Error("Not yet ready for this step");
-    }
-
-    // Check if this upload is already being processed
-    const activeOperations = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*)::int as count
-      FROM dataset_hmis_upload_attempts
-      WHERE status_type IN ('staging', 'integrating')
-    `;
-
-    if (activeOperations[0].count > 0) {
-      throw new Error(
-        "This operation is already in progress. Please wait for it to complete."
-      );
-    }
-    await assertNoRunningDatasetHmisImportRun(mainDb);
-
-    // Check if an HMIS worker is already running
-    const existingWorker = getWorker("hmis");
-    if (existingWorker) {
-      throw new Error(
-        "An HMIS operation is already in progress. Please wait for it to complete."
-      );
-    }
-
-    // Atomically claim the integration slot (race-free conditional UPDATE;
-    // the read-then-write guards above stay for friendlier errors). Excluding
-    // 'complete' blocks re-integrating a finished attempt — the staging table
-    // is already dropped, so a second run could only fail and flip a
-    // successful attempt to 'error'.
-    const claimed = await mainDb`
-      UPDATE dataset_hmis_upload_attempts
-      SET
-        status = ${JSON.stringify({ status: "integrating", progress: 0 })},
-        status_type = 'integrating'
-      WHERE status_type NOT IN ('staging', 'integrating', 'complete')
-    `;
-    if (claimed.count === 0) {
-      throw new Error(
-        "This operation is already in progress or already complete."
-      );
-    }
-
-    // Re-check the run guard AFTER the claim — see the staging claim above.
-    if (await hasRunningDatasetHmisImportRun(mainDb)) {
-      await mainDb`
-        UPDATE dataset_hmis_upload_attempts
-        SET status = ${JSON.stringify({
-          status: "error",
-          err: "A DHIS2 import run claimed the import slot concurrently. Try again once it completes.",
-        })},
-          status_type = 'error'
-      `;
-      throw new Error(
-        "A DHIS2 import run is in progress. Please wait for it to complete or cancel it."
-      );
-    }
-
-    // Re-read after the claim: a concurrent config write can land between the
-    // initial read and the claim; the worker must run from the claimed row.
-    const claimedDUA = await getRawUAOrThrow(mainDb);
-
-    const worker = instantiateIntegrateUploadedDataWorker(claimedDUA);
-
-    // Store the worker reference globally
-    setWorker("hmis", worker);
-
-    // Handle worker crash
-    worker.addEventListener("error", async (e) => {
-      console.error("Integration worker crashed:", e);
-      e.preventDefault(); // Prevent the error from propagating and crashing the server
-      try {
-        await mainDb`
-          UPDATE dataset_hmis_upload_attempts 
-          SET 
-            status = ${JSON.stringify({
-              status: "error",
-              err: `Worker crashed: ${e.message || "Unknown error"}`,
-            })},
-            status_type = 'error'
-        `;
-      } catch (dbError) {
-        console.error("Failed to update database after worker crash:", dbError);
-      }
-      clearWorker("hmis", worker);
-      worker.terminate();
-    });
-
-    // Handle successful completion
-    worker.addEventListener("message", async (e) => {
-      if (e.data === "COMPLETED") {
-        clearWorker("hmis", worker);
-        worker.terminate();
-        try {
-          await onComplete?.();
-        } catch (err) {
-          console.error("HMIS integration onComplete callback failed:", err);
-        }
-      }
-    });
-
-    return { success: true };
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
 
 // Reader — running-run versions excluded; see getVersionsForDatasetHmis.
 // Never use for minting a version id.

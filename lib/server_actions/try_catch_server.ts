@@ -1,0 +1,200 @@
+import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
+import type { ServerActionTransport } from "./transport.ts";
+import { getServerActionTransport } from "./transport.ts";
+
+// Vite dev only (import.meta.env is absent under Deno and DEV is false in
+// production builds): a small artificial latency so loading states are visible.
+const _EXTRA_TIME =
+  (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+
+export async function tryCatchServer<
+  T extends APIResponseNoData | APIResponseWithData<unknown>,
+>(
+  input: string | URL | Request,
+  init?: RequestInit | undefined,
+  timeoutMs?: number,
+  explicitTransport?: ServerActionTransport,
+): Promise<T> {
+  const transport = explicitTransport ?? getServerActionTransport();
+  const doFetch = transport.fetchImpl ??
+    ((i: string | URL | Request, r: RequestInit) => fetch(i, r));
+  const maxRetries = 2;
+  let retries = 0;
+  let lastAuthError = false;
+  const maxAuthRetries = 2;
+  let authRetries = 0;
+
+  // Determine if this is a safe method that can be retried
+  const method = init?.method || "GET";
+  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(
+    method.toUpperCase(),
+  );
+
+  while (retries <= maxRetries) {
+    try {
+      if (_EXTRA_TIME && retries === 0) {
+        await new Promise((res) => setTimeout(res, 500));
+      }
+
+      await transport.refreshSession();
+
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeout = timeoutMs ?? 300000; // use registry-declared timeout, default 5 minutes
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      const res = await doFetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Handle 401 - but with retry logic for network issues
+      if (res.status === 401) {
+        // Try to parse the response to see if it's a real auth error
+        try {
+          const body = await res.json();
+          // If server explicitly says it's an auth error, retry with a fresh
+          // token before signing out — the token may have expired during a
+          // connection stall (browser HTTP/1.1 limit of 6 concurrent connections)
+          if (
+            body.authError === true ||
+            body.err?.includes("not authorized") ||
+            body.err?.includes("not authenticated")
+          ) {
+            if (authRetries < maxAuthRetries) {
+              authRetries++;
+              await new Promise((r) => setTimeout(r, 500));
+              continue;
+            }
+            transport.onPersistentAuthFailure({
+              url: input instanceof Request ? input.url : String(input),
+              body,
+            });
+            return { success: false, err: "Not authenticated" } as T;
+          }
+        } catch {
+          // If we can't parse the body, it might be a network issue
+        }
+
+        // For other 401s, retry in case it's a temporary issue (only for safe methods)
+        lastAuthError = true;
+        if (retries === maxRetries || !isSafeMethod) {
+          // Only sign out after multiple failed auth attempts or for unsafe methods
+          // await clerk.signOut();
+          // window.location.href = "/";
+          return {
+            success: false,
+            err: "401 status error",
+          } as T;
+        }
+        retries++;
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries)));
+        continue;
+      }
+
+      // Handle 503 Service Unavailable (server having issues) - only retry safe methods
+      if (res.status === 503) {
+        if (retries === maxRetries || !isSafeMethod) {
+          return {
+            success: false,
+            err: "Service temporarily unavailable - please try again",
+          } as T;
+        }
+        retries++;
+        await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, retries)));
+        continue;
+      }
+
+      // Check if we got HTML (nginx maintenance page) instead of JSON
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        transport.onNetworkFailure?.();
+        return {
+          success: false,
+          err:
+            "Server is temporarily unavailable - please try again in a few minutes",
+        } as T;
+      }
+
+      // Handle other non-OK responses
+      if (!res.ok) {
+        const text = await res.text();
+        try {
+          const parsed = JSON.parse(text);
+          if (
+            parsed &&
+            parsed.success === false &&
+            typeof parsed.err === "string"
+          ) {
+            return parsed as T;
+          }
+        } catch {
+          // not a JSON envelope — fall through to raw text
+        }
+        return {
+          success: false,
+          err: text || `Server error: ${res.status}`,
+        } as T;
+      }
+
+      // Parse JSON response
+      try {
+        const result = await res.json();
+        // Report success if we got a valid response
+        transport.onNetworkSuccess?.();
+        return result;
+      } catch (_jsonError) {
+        return {
+          success: false,
+          err: "Invalid response format from server",
+        } as T;
+      }
+    } catch (e) {
+      // Network/timeout errors - only retry safe methods
+      if (e instanceof Error && e.name === "AbortError") {
+        transport.onNetworkFailure?.();
+        if (retries === maxRetries || !isSafeMethod) {
+          return {
+            success: false,
+            err: lastAuthError
+              ? "Connection timeout during authentication - please check your connection and try again"
+              : "Request timed out - please check your connection",
+          } as T;
+        }
+        retries++;
+        await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, retries)));
+        continue;
+      }
+
+      if (e instanceof TypeError && e.message.includes("Failed to fetch")) {
+        transport.onNetworkFailure?.();
+        if (retries === maxRetries || !isSafeMethod) {
+          return {
+            success: false,
+            err: lastAuthError
+              ? "Network error during authentication - please check your connection"
+              : "Network error - please check your connection",
+          } as T;
+        }
+        retries++;
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries)));
+        continue;
+      }
+
+      // Unknown errors - only retry safe methods
+      if (retries === maxRetries || !isSafeMethod) {
+        console.error(e);
+        return { success: false, err: "Could not connect to server" } as T;
+      }
+
+      // Retry with exponential backoff
+      retries++;
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries)));
+    }
+  }
+
+  // This should never be reached, but TypeScript needs it
+  return { success: false, err: "Unexpected error" } as T;
+}

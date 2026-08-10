@@ -190,6 +190,7 @@ function NativePickerInput(p: NativePickerInputProps) {
             getInputClasses(p.size, false)
           }`}
           data-intent={p.intent}
+          data-invalid={!!p.invalidMsg}
           type={p.type}
           value={p.value}
           onInput={(e) => p.onChange(e.currentTarget.value)}

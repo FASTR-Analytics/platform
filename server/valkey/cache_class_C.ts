@@ -184,8 +184,15 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
   }
 
   clear(uniquenessParams: UniquenessParams) {
-    const uniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+    this.clearByUniquenessHash(
+      this._hashFuncs.uniquenessHashFromParams(uniquenessParams),
+    );
+  }
+
+  // For hashes obtained from scanUniquenessHashes: the params that produced
+  // them are not recoverable from the hash, so bulk purges (results-package
+  // deletion, PLAN_RESULTS_RUNS Q-D) clear by hash directly.
+  clearByUniquenessHash(uniquenessHash: string) {
     this._unresolved.delete(uniquenessHash);
 
     const client = getValkeyClient();

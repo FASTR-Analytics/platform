@@ -2,7 +2,6 @@ import {
   ChartValueInfo,
   CustomFigureStyleOptions,
   getFormatterFunc,
-  type TickLabelFormatterOption,
 } from "panther";
 import { type CalendarType } from "panther";
 import {
@@ -10,13 +9,18 @@ import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
+  type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
-import { getStandardSeriesColorFunc, getTextStyle } from "./_0_common";
+import {
+  getScaleTickLabelFormatter,
+  getStandardSeriesColorFunc,
+  getTextStyle,
+} from "./_0_common";
 
 export function buildPercentChangeChartStyle(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
@@ -30,13 +34,11 @@ export function buildPercentChangeChartStyle(
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
-      max: config.s.forceYMax1 ? 1 : undefined,
+      max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       // No "auto-zero" here: the bars plot raw volumes (the percent change only
       // drives their color and label), so this axis never carries a negative.
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: (formatAs === "percent"
-        ? "auto-percent"
-        : "auto-number") as TickLabelFormatterOption,
+      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
     },
     content: {
       points: { func: { show: false } },

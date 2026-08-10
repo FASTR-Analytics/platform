@@ -92,11 +92,14 @@ pre-render (Open items).
 
 ## Routing & page maps
 
-The URL surface is deliberately minimal — two routes in `app.tsx`: `/d/:slug`
-(the public dashboard viewer, S12) and `/*` (the logged-in app). Within the app,
-exactly one URL parameter matters: **`?p=<projectId>`** selects
-project-vs-instance (`components/instance/index.tsx` switches on
-`searchParams.p`); "back to instance" is `navigate("/")`.
+The URL surface is deliberately minimal — three routes in `app.tsx`: `/d/:slug`
+(the public dashboard viewer, S12), `/access-tokens` (the unlisted Clerk-gated
+PAT panel, `routes/access_tokens.tsx` — reached only by knowing the URL), and
+`/*` (the logged-in app). Note `/mcp` is the server's headless MCP endpoint and
+never reaches the SPA. Within the app, exactly one URL parameter matters:
+**`?p=<projectId>`** selects project-vs-instance
+(`components/instance/index.tsx` switches on `searchParams.p`); "back to
+instance" is `navigate("/")`.
 
 Everything else is a **signal-driven switchboard**, never the URL:
 

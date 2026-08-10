@@ -14,36 +14,41 @@ the full token catalog, and the theming mechanics, see
    `-subtle-content`), `border`, `focus`, `scrim`. Nothing else.
 2. **No arbitrary values** — never `bg-[#ff0000]`, `p-[23px]`, or an inline
    `style` for anything a token covers.
-3. **Cursor change ⇒ background change** — no cursor-only hovers. Sole
+3. **Only declared scale values exist** — the color, radius, shadow and
+   font-weight scales are wiped, so an off-scale class is never generated and
+   fails silently rather than visibly. `bg-gray-100`, `rounded-lg`, `shadow-md`,
+   `font-normal`, `font-medium` and `font-semibold` are all no-ops. Weights are
+   `font-400` and `font-700`, plus any the app declares.
+4. **Cursor change ⇒ background change** — no cursor-only hovers. Sole
    exception: text-only interactives (inline links, tab labels) may hover on
    text color.
-4. **`ui-hoverable-{token}` is the state pattern** — every interactive opaque
+5. **`ui-hoverable-{token}` is the state pattern** — every interactive opaque
    surface uses it. Explicit `hover:`/`active:` pairs only for selectable text
    or a transparent rest.
-5. **Never stack `bg-*` on a family-classed element** — the utility wins and
+6. **Never stack `bg-*` on a family-classed element** — the utility wins and
    kills the states. Scope the family per `classList` arm instead.
-6. **Declare `onBackground`** — any outline `Button` / `ButtonGroup` not sitting
+7. **Declare `onBackground`** — any outline `Button` / `ButtonGroup` not sitting
    on `base-100` must declare the surface token it sits on.
-7. **Never write a border color for the default** — bare `border` already paints
+8. **Never write a border color for the default** — bare `border` already paints
    the border token. A border color class always marks an exception.
-8. **Side frames own their divider** — `FrameLeft`, `FrameRight`, `FrameBottom`,
+9. **Side frames own their divider** — `FrameLeft`, `FrameRight`, `FrameBottom`,
    `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable`
    draw the panel/content edge themselves. Never put that edge's border on a
    side-frame panel (or on the panel component's root) — it double-draws. Inner
    dividers on other edges are fine. Pass `noBorder` only when the panel is
    tonal against its content or draws a deliberately non-default border colour.
-9. **`-subtle` washes are non-interactive** — never a hover target, never a
-   hover destination, never a click target's rest surface. Only exception: the
-   pinned surface of a _selected_ selection control.
-10. **Controls on washes are filled, not outline** — at the wash's own intent.
-11. **Disabled is `opacity-40`** — a treatment, not a color.
-12. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
-13. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
+10. **`-subtle` washes are non-interactive** — never a hover target, never a
+    hover destination, never a click target's rest surface. Only exception: the
+    pinned surface of a _selected_ selection control.
+11. **Controls on washes are filled, not outline** — at the wash's own intent.
+12. **Disabled is `opacity-40`** — a treatment, not a color.
+13. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
+14. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
     variants, not raw `p-4` / `gap-4` / `space-y-6`.
-14. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
-15. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
+15. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
+16. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
     `--color-*` app-side.
-16. **Sentence case** — all UI text, always.
+17. **Sentence case** — all UI text, always.
 
 ## Do / Don't
 
@@ -366,6 +371,9 @@ foreground is not derived from the background.
       exception
 - [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on
       floating surfaces
+- [ ] No named font-weight aliases (`font-normal`, `font-medium`,
+      `font-semibold`, `font-bold`) — they are wiped no-ops; use `font-400` /
+      `font-700` or an app-declared weight
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case

@@ -4,15 +4,18 @@ import {
   ColorKeyOrString,
   CustomFigureStyleOptions,
   toPct0,
-  type TickLabelFormatterOption,
 } from "panther";
 import { type CalendarType } from "panther";
-import { type DeckStyleContext, PresentationObjectConfig } from "lib";
-import { getTextStyle } from "./_0_common";
+import {
+  type DeckStyleContext,
+  type IndicatorFormat,
+  PresentationObjectConfig,
+} from "lib";
+import { getScaleTickLabelFormatter, getTextStyle } from "./_0_common";
 
 export function buildCoverageChartStyle(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
 ): CustomFigureStyleOptions {
@@ -22,11 +25,9 @@ export function buildCoverageChartStyle(
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { calendar },
     yScaleAxis: {
-      max: config.s.forceYMax1 ? 1 : undefined,
+      max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       min: config.s.forceYMinAuto ? "auto" : undefined,
-      tickLabelFormatter: (formatAs === "percent"
-        ? "auto-percent"
-        : "auto-number") as TickLabelFormatterOption,
+      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
     },
     content: {
       points: {

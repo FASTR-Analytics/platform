@@ -3,7 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AnthropicModel, EffortLevel } from "./types.ts";
+import type {
+  AnthropicModel,
+  AnthropicModelConfig,
+  EffortLevel,
+} from "./types.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // BETA HEADERS
@@ -50,6 +54,12 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
     outputPer1M: 50.00,
     cacheWritePer1M: 12.50,
     cacheReadPer1M: 1.00,
+  },
+  "claude-opus-5": {
+    inputPer1M: 5.00,
+    outputPer1M: 25.00,
+    cacheWritePer1M: 6.25,
+    cacheReadPer1M: 0.50,
   },
   // Sonnet 5 is at introductory pricing ($2 / $10) through 2026-08-31.
   // Standard pricing is recorded here so displayed costs are a conservative
@@ -201,6 +211,7 @@ export const RETIRED_MODEL_IDS: string[] = [
 
 export const MODEL_OPTIONS: { value: AnthropicModel; label: string }[] = [
   { value: "claude-fable-5", label: "Claude Fable 5" },
+  { value: "claude-opus-5", label: "Claude Opus 5" },
   { value: "claude-opus-4-8", label: "Claude Opus 4.8" },
   { value: "claude-sonnet-5", label: "Claude Sonnet 5" },
   { value: "claude-opus-4-7", label: "Claude Opus 4.7" },
@@ -210,6 +221,34 @@ export const MODEL_OPTIONS: { value: AnthropicModel; label: string }[] = [
   { value: "claude-opus-4-5-20251101", label: "Claude Opus 4.5" },
   { value: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
 ];
+
+////////////////////////////////////////////////////////////////////////////////
+// DEFAULT MODEL CONFIG
+////////////////////////////////////////////////////////////////////////////////
+//
+// THE single place model defaults are decided. Consumer apps never name a
+// model: they omit modelConfig entirely (or pass a partial override for a
+// genuinely app-specific need, e.g. a max_tokens cap) and pick up changes
+// here on their next sync. Update this block — together with MODEL_PRICING,
+// MODEL_OPTIONS, and the capability lists — on every model bump.
+
+export const DEFAULT_MODEL_CONFIG: AnthropicModelConfig = {
+  model: "claude-sonnet-5",
+  max_tokens: 32_000,
+  output_config: { effort: "high" },
+};
+
+export function resolveModelConfig(
+  partial: Partial<AnthropicModelConfig> | undefined,
+): AnthropicModelConfig {
+  return {
+    ...DEFAULT_MODEL_CONFIG,
+    // Fresh nested object so per-instance state never aliases the shared
+    // default (callers mutate their resolved copy via updateConfig).
+    output_config: { ...DEFAULT_MODEL_CONFIG.output_config },
+    ...partial,
+  };
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // OUTPUT TOKEN LIMITS
@@ -253,6 +292,7 @@ export function getMaxOutputTokens(model: AnthropicModel): number {
 const ADAPTIVE_ONLY_MODEL_PREFIXES = [
   "claude-opus-4-7",
   "claude-opus-4-8",
+  "claude-opus-5",
   "claude-sonnet-5",
   "claude-fable-5",
   "claude-mythos-5",
@@ -282,6 +322,20 @@ export function supportsDisabledThinking(model: AnthropicModel): boolean {
   return !ALWAYS_ON_THINKING_MODEL_PREFIXES.some((p) => model.startsWith(p));
 }
 
+// Opus 5 accepts thinking: {type: "disabled"} only at effort "high" or
+// below — pairing it with "xhigh" or "max" is rejected with a 400,
+// validated per request. (Fable 5 / Mythos 5 reject disabled entirely, see
+// above; earlier adaptive-only models accept disabled at any effort.)
+const DISABLED_THINKING_EFFORT_CAPPED_MODEL_PREFIXES = [
+  "claude-opus-5",
+];
+
+export function capsEffortWhenThinkingDisabled(model: AnthropicModel): boolean {
+  return DISABLED_THINKING_EFFORT_CAPPED_MODEL_PREFIXES.some((p) =>
+    model.startsWith(p)
+  );
+}
+
 // Adaptive thinking ({type: "adaptive"}) launched with the 4.6 family and is
 // the only thinking mode on 4.7+; pre-4.6 models reject it.
 const ADAPTIVE_CAPABLE_MODEL_PREFIXES = [
@@ -307,8 +361,8 @@ export function supportsDynamicWebTools(model: AnthropicModel): boolean {
 //
 // output_config.effort support varies per model (unsupported models return a
 // 400): Opus 4.5 accepts low/medium/high; the 4.6 family adds max; 4.7+
-// (Opus 4.7/4.8, Sonnet 5, Fable 5 / Mythos 5) adds xhigh. Sonnet 4.5,
-// Haiku 4.5, and older models reject the parameter entirely.
+// (Opus 4.7/4.8, Opus 5, Sonnet 5, Fable 5 / Mythos 5) adds xhigh. Sonnet
+// 4.5, Haiku 4.5, and older models reject the parameter entirely.
 
 const EFFORT_BASE: EffortLevel[] = ["low", "medium", "high"];
 const EFFORT_WITH_MAX: EffortLevel[] = [...EFFORT_BASE, "max"];

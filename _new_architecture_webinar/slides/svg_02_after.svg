@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">After: three clear stages, one direction of flow</text>
+
+  <defs>
+    <marker id="grayarrow" markerWidth="6" markerHeight="6" refX="5" refY="2.5" orient="auto">
+      <path d="M0,0 L5,2.5 L0,5 z" fill="#475569"/>
+    </marker>
+    <marker id="greenarrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#059669"/>
+    </marker>
+  </defs>
+
+  <!-- Stage 1: Instance -->
+  <g transform="translate(64,130)">
+    <rect width="330" height="460" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+    <text x="165" y="46" font-size="24" font-weight="bold" fill="#1e40af" text-anchor="middle">1. Data in</text>
+    <text x="165" y="74" font-size="17" fill="#1e40af" text-anchor="middle">(instance level)</text>
+    <g font-size="18" fill="#1e3a8a">
+      <rect x="28" y="100" width="274" height="54" rx="8" fill="#ffffff" stroke="#93c5fd"/>
+      <text x="165" y="133" text-anchor="middle">HMIS uploads &amp; DHIS2</text>
+      <rect x="28" y="168" width="274" height="54" rx="8" fill="#ffffff" stroke="#93c5fd"/>
+      <text x="165" y="201" text-anchor="middle">HFA surveys</text>
+      <rect x="28" y="236" width="274" height="54" rx="8" fill="#ffffff" stroke="#93c5fd"/>
+      <text x="165" y="269" text-anchor="middle">Facilities &amp; admin areas</text>
+      <rect x="28" y="304" width="274" height="54" rx="8" fill="#ffffff" stroke="#93c5fd"/>
+      <text x="165" y="337" text-anchor="middle">Indicator definitions</text>
+    </g>
+    <text x="165" y="420" font-size="16" fill="#1e40af" text-anchor="middle" font-style="italic">Live and always</text>
+    <text x="165" y="442" font-size="16" fill="#1e40af" text-anchor="middle" font-style="italic">up to date</text>
+  </g>
+
+  <path d="M400 360 H 452" stroke="#475569" stroke-width="4" fill="none" marker-end="url(#grayarrow)"/>
+  <text x="428" y="340" font-size="15" fill="#475569" text-anchor="middle">generate</text>
+
+  <!-- Stage 2: Results packages -->
+  <g transform="translate(464,130)">
+    <rect width="360" height="460" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+    <text x="180" y="46" font-size="24" font-weight="bold" fill="#92400e" text-anchor="middle">2. Results packages</text>
+    <text x="180" y="74" font-size="17" fill="#92400e" text-anchor="middle">(run the analysis once)</text>
+    <!-- package cards -->
+    <g>
+      <rect x="36" y="100" width="288" height="88" rx="10" fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+      <text x="52" y="136" font-size="18" font-weight="bold" fill="#92400e">Package: Jan 2026</text>
+      <text x="52" y="162" font-size="15" fill="#a16207">data + settings + results, sealed</text>
+      <rect x="36" y="204" width="288" height="88" rx="10" fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+      <text x="52" y="240" font-size="18" font-weight="bold" fill="#92400e">Package: Apr 2026</text>
+      <text x="52" y="266" font-size="15" fill="#a16207">data + settings + results, sealed</text>
+      <rect x="36" y="308" width="288" height="88" rx="10" fill="#ffffff" stroke="#d97706" stroke-width="2.5"/>
+      <text x="52" y="344" font-size="18" font-weight="bold" fill="#92400e">Package: Jul 2026</text>
+      <text x="52" y="370" font-size="15" fill="#a16207">data + settings + results, sealed</text>
+    </g>
+    <text x="180" y="430" font-size="16" fill="#92400e" text-anchor="middle" font-style="italic">A catalogue of frozen,</text>
+    <text x="180" y="452" font-size="16" fill="#92400e" text-anchor="middle" font-style="italic">reusable analysis snapshots</text>
+  </g>
+
+  <!-- Stage 3: Projects -->
+  <g transform="translate(886,130)">
+    <rect width="330" height="460" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+    <text x="165" y="46" font-size="24" font-weight="bold" fill="#065f46" text-anchor="middle">3. Projects</text>
+    <text x="165" y="74" font-size="17" fill="#065f46" text-anchor="middle">(make meaning)</text>
+    <g font-size="20" fill="#065f46">
+      <rect x="28" y="100" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
+      <text x="165" y="145" text-anchor="middle" font-weight="bold">Project A</text>
+      <rect x="28" y="192" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
+      <text x="165" y="237" text-anchor="middle" font-weight="bold">Project B</text>
+      <rect x="28" y="284" width="274" height="76" rx="8" fill="#ffffff" stroke="#6ee7b7"/>
+      <text x="165" y="329" text-anchor="middle" font-weight="bold">Project C</text>
+    </g>
+    <text x="165" y="420" font-size="16" fill="#065f46" text-anchor="middle" font-style="italic">Light authoring spaces —</text>
+    <text x="165" y="442" font-size="16" fill="#065f46" text-anchor="middle" font-style="italic">no data, no processing</text>
+  </g>
+
+  <!-- attach arrows: A and B join the first package, C joins the last -->
+  <g stroke="#059669" stroke-width="2.5" fill="none" marker-end="url(#greenarrow)">
+    <path d="M914 268 C 870 266, 840 262, 792 260"/>
+    <path d="M914 360 C 862 352, 830 316, 792 292"/>
+    <path d="M914 452 C 870 456, 840 468, 792 476"/>
+  </g>
+  <text x="868" y="243" font-size="15" fill="#059669" font-style="italic" text-anchor="middle">attach</text>
+
+  <text x="64" y="668" font-size="19" fill="#334155">Projects A and B share one package; Project C reads another — each generated once, never silently changed.</text>
+</svg>

@@ -33,6 +33,7 @@ export const DEFAULT_S_CONFIG: PresentationObjectConfig["s"] = {
   seriesColorFuncPropToUse: "series",
   sortIndicatorValues: "none",
   mapProjection: "equirectangular",
+  pieInnerRadiusRatio: 0,
 };
 
 export const DEFAULT_T_CONFIG: PresentationObjectConfig["t"] = {

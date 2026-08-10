@@ -14,7 +14,7 @@ import { Z_INDEX } from "../deps.ts";
 import type { GeoJSONFeature } from "./geojson_types.ts";
 import type { FittedProjection } from "./fit_projection.ts";
 import { geoToPathSegments } from "./geo_to_path_segments.ts";
-import { getFeatureMatchKey } from "./label_shared.ts";
+import { getFeatureMatchKey, type MapCellHeaders } from "./label_shared.ts";
 
 // A feature the cell will actually draw, with its style resolved ONCE (with
 // the real value range) — the same resolution the label pass reads, so the
@@ -35,6 +35,7 @@ export function resolveShownRegions(
   paneIndex: number,
   tierIndex: number,
   laneIndex: number,
+  headers: MapCellHeaders,
 ): ShownMapRegion[] {
   const shown: ShownMapRegion[] = [];
   for (const feature of geoFeatures) {
@@ -50,6 +51,7 @@ export function resolveShownRegions(
       paneIndex,
       tierIndex,
       laneIndex,
+      ...headers,
     });
 
     if (!style.show) continue;
@@ -59,7 +61,7 @@ export function resolveShownRegions(
 }
 
 export function generateMapRegionPrimitives(
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   shown: ShownMapRegion[],
   fitted: FittedProjection,
   paneIndex: number,
@@ -75,7 +77,7 @@ export function generateMapRegionPrimitives(
     const prim: MapRegionPrimitive = {
       type: "map-region",
       key: `map-region-${paneIndex}-${tierIndex}-${laneIndex}-${featureId}`,
-      bounds: cellRcd,
+      bounds: subChartRcd,
       zIndex: Z_INDEX.MAP_REGION,
       meta: { featureId, paneIndex, tierIndex, laneIndex, value },
       pathSegments,

@@ -281,8 +281,8 @@ there is no session at all, so a private dashboard is hidden from everyone
 in that mode. **All four failure modes return the identical 404** — no
 oracle distinguishing "private" from "doesn't exist". The response is
 `buildPublicDashboardBundle(detail, countryIso3)` — titles/bundles only,
-no emails or project ids; `countryIso3` is fetched best-effort (label
-cleaning must never block serving).
+no emails or project ids; `countryIso3` is the env-sourced
+`_INSTANCE_COUNTRY_ISO3` (label cleaning has no failure mode to guard).
 
 **`buildPublicDashboardBundle`**
 ([lib/types/dashboard.ts:148](lib/types/dashboard.ts#L148)) is the single
@@ -399,9 +399,6 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead** — always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **Decoupling — `server/utils/id_generation.ts` hardcodes 7 tables**
-  (across S11/S12): generalize to `generateUniqueId(db, tableName)` (also
-  [PLAN_ENFORCEMENT.md](PLAN_ENFORCEMENT.md) #16).
 - **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
   S5/S6/S7 surfaces and documented by S7; `sort_control.tsx` is shell
   furniture (SYSTEM_14 flag) — settle via manifest move or a §4.1 exception

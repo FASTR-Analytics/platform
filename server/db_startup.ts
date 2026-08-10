@@ -3,19 +3,32 @@ import {
   H_USERS,
   MODULE_REGISTRY,
   type InstanceConfigAdminAreaLabels,
-  type InstanceConfigCountryIso3,
   type InstanceConfigFacilityColumns,
   type InstanceConfigMaxAdminArea,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
-import { getCountryIso3Config } from "./db/instance/config.ts";
+import { escapeSqlString } from "./db/utils.ts";
+import {
+  evictRunFromManifestCache,
+  runDirPath,
+  sweepAbandonedTmpRunDirs,
+  transformRunManifestFile,
+} from "./runs/mod.ts";
+import { resetDuckDbSpillDir } from "./run_query/duckdb_executor.ts";
+import { markInterruptedGeneratingRuns } from "./db/instance/run_generation.ts";
+import {
+  _INSTANCE_COUNTRY_ISO3,
+  _RUNS_DIR_PATH,
+} from "./exposed_env_vars.ts";
 import {
   runInstanceMigrations,
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
 import {
   getPgConnectionFromCacheOrNew,
+  markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
+  markStaleRunningDatasetIcehImportRuns,
 } from "./db/mod.ts";
 import type { Sql } from "postgres";
 import {
@@ -66,23 +79,33 @@ ${userInserts}
   const staleRuns = await markStaleRunningDatasetHmisImportRuns(sqlMain);
   if (staleRuns > 0) {
     console.log(
-      `[startup] Marked ${staleRuns} DHIS2 import run(s) wedged mid-run by a previous shutdown`,
+      `[startup] Marked ${staleRuns} HMIS import run(s) wedged mid-run by a previous shutdown`,
     );
   }
-
+  const staleHfaRuns = await markStaleRunningDatasetHfaImportRuns(sqlMain);
+  if (staleHfaRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleHfaRuns} HFA import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
+  const staleIcehRuns = await markStaleRunningDatasetIcehImportRuns(sqlMain);
+  if (staleIcehRuns > 0) {
+    console.log(
+      `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
+    );
+  }
   // Instance data transforms — on main database
   await runInstanceDataTransforms(sqlMain);
 
-  // Instance-level country, read once from the main DB. Threaded into the figure
-  // backfill so backfilled bundles carry the real countryIso3 (drives Nigeria
-  // admin-area relabelling + admin replicant labels). New captures read it from
-  // the live instance store; the backfill cannot, so it gets it here.
-  const countryRes = await getCountryIso3Config(sqlMain);
-  const instanceCountryIso3 = countryRes.success
-    ? (countryRes.data.countryIso3 ?? "")
-    : "";
+  // Instance-level country, threaded into the figure backfill so backfilled
+  // bundles carry the real countryIso3 (drives Nigeria admin-area relabelling +
+  // admin replicant labels). New captures read it from the live instance store;
+  // the backfill cannot, so it gets it here.
+  const instanceCountryIso3 = _INSTANCE_COUNTRY_ISO3;
 
-  const projects = await sqlMain<{ id: string }[]>`SELECT id FROM projects`;
+  const projects = await sqlMain<
+    { id: string; label: string }[]
+  >`SELECT id, label FROM projects`;
   for (const project of projects) {
     const projectDb = getPgConnectionFromCacheOrNew(
       project.id,
@@ -109,23 +132,105 @@ ${userInserts}
     // =========================================================================
     await cleanupOrphanedPresentationObjects(projectDb);
   }
+
+  // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
+  // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
+  // 'generating' catalog rows failed (their worker died with the previous
+  // process). Projects without a run serve the typed "no run attached" state
+  // until the backfill synthesizer (synthesize_run.ts) or a wizard generation
+  // attaches one.
+  await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
+  await sweepAbandonedTmpRunDirs();
+  await resetDuckDbSpillDir();
+  await markInterruptedGeneratingRuns(sqlMain);
+
+  // Last, so the manifest sweep never sees debris the three lines above
+  // remove.
+  await runRunManifestTransforms(sqlMain);
 }
 
+// The manifest data transform (PROTOCOL_APP_MIGRATIONS § "Run Manifest
+// Transforms") — the same pattern as the JSON transforms below, applied to a
+// file. It enumerates the `runs`
+// CATALOGUE and never the filesystem: the runs volume is shared with legacy
+// {projectId} sandbox dirs, published-failed dirs (deliberately manifest-less)
+// and .duckdb-spill, none of which are packages, and every consumer addresses a
+// NAMED entry.
+//
+// A missing or unparseable manifest is OPERATIONAL, not a code defect, and must
+// not fail boot: backups are pg dumps, so a restore brings catalogue rows back
+// while the package directories are still absent. Those degrade loudly through
+// the typed "run unavailable" states instead. Invalid AFTER the transform ran
+// is a code defect and fails boot, exactly as a DB transform does.
+async function runRunManifestTransforms(mainDb: Sql): Promise<void> {
+  // 'failed' and 'generating' are excluded because they definitionally have no
+  // manifest, not as a heuristic: a handled failure publishes its workspace
+  // deliberately WITHOUT one so the logs stay inspectable, and a generating run
+  // has only a .tmp- dir (markInterruptedGeneratingRuns, above, has already
+  // flipped any left over by a previous process). Sweeping them would warn on
+  // every boot, forever, about a state that is working as designed. Excluding
+  // by what a status IS NOT, so a status added later gets swept rather than
+  // silently skipped — a missed transform fails at read time, a spurious
+  // warning does not.
+  const rows = await mainDb<{ id: string }[]>`
+SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
+`;
+  let transformed = 0;
+  let unreadable = 0;
+  let future = 0;
+  const failures: { runId: string; error: Error }[] = [];
+
+  for (const { id } of rows) {
+    try {
+      const outcome = await transformRunManifestFile(runDirPath(id));
+      if (outcome.kind === "unreadable") {
+        unreadable++;
+        console.warn(
+          `  ! run ${id}: ${outcome.reason} — package unavailable until restored`,
+        );
+      } else if (outcome.kind === "future") {
+        future++;
+        console.warn(
+          `  ! run ${id}: manifest schema version ${outcome.version} was written by a newer server — package unavailable here`,
+        );
+      } else if (outcome.transformed) {
+        transformed++;
+        evictRunFromManifestCache(id);
+      }
+    } catch (err) {
+      failures.push({
+        runId: id,
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+    }
+  }
+
+  console.log(
+    `[migration] Run manifests ${rows.length} checked, ${transformed} transformed, ${unreadable} unreadable, ${future} from a newer server`,
+  );
+
+  if (failures.length > 0) {
+    for (const f of failures) {
+      console.error(`  ✗ run_manifest ${f.runId}`);
+      console.error(`    Error: ${f.error.message}`);
+    }
+    console.error(
+      `\n[migration] FAILED — Server will not start. Fix the issues above and redeploy.\n`,
+    );
+    Deno.exit(1);
+  }
+}
+
+// Only the structure family (S5) still runs on upload attempts — every
+// dataset family is import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION).
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =
     "Import interrupted by a server restart. Delete this attempt and start again.";
-  const errStatus = JSON.stringify({ status: "error", err: message });
   const structureErrStatus = JSON.stringify({ status: "error", error: message });
-  const results = await Promise.all([
-    mainDb`UPDATE dataset_hmis_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
-    mainDb`UPDATE hfa_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
-    mainDb`UPDATE iceh_upload_attempts SET status = ${errStatus}, status_type = 'error' WHERE status_type IN ('staging', 'integrating')`,
-    mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`,
-  ]);
-  const total = results.reduce((sum, r) => sum + r.count, 0);
-  if (total > 0) {
+  const reset = await mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`;
+  if (reset.count > 0) {
     console.log(
-      `[startup] Reset ${total} upload attempt(s) wedged mid-import by a previous shutdown`,
+      `[startup] Reset ${reset.count} upload attempt(s) wedged mid-import by a previous shutdown`,
     );
   }
 }
@@ -293,10 +398,6 @@ function getDefaultInstanceConfigInsertStatement(): string {
     includeCustom5: false,
   };
 
-  const countryIso3Value: InstanceConfigCountryIso3 = {
-    countryIso3: undefined,
-  };
-
   const adminAreaLabelsValue: InstanceConfigAdminAreaLabels = {};
 
   return `
@@ -304,16 +405,13 @@ INSERT INTO instance_config (config_key, config_json_value)
 VALUES
   ('max_admin_area', '${JSON.stringify(adminAreaValue)}'),
   ('facility_columns', '${JSON.stringify(facilityColumnsValue)}'),
-  ('country_iso3', '${JSON.stringify(countryIso3Value)}'),
   ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
 `;
 }
 
 function getDefaultIndicatorsInsertStatement(): string {
   const valueRows = _COMMON_INDICATORS.map((ind) => {
-    // Escape single quotes in labels
-    const escapedLabel = ind.label.replace(/'/g, "''");
-    return `('${ind.value}', '${escapedLabel}', TRUE)`;
+    return `('${ind.value}', '${escapeSqlString(ind.label)}', TRUE)`;
   });
 
   return `

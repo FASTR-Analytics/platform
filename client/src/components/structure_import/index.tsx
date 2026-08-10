@@ -1,8 +1,11 @@
 import {
   t3,
+  _RECODABLE_FACILITY_COLUMNS,
   type FacilityFamily,
   type InstanceConfigFacilityColumns,
+  type StructureUploadAttemptDetail,
 } from "lib";
+import { createStore } from "solid-js/store";
 import {
   Button,
   EditorComponentProps,
@@ -15,7 +18,7 @@ import {
   createDeleteAction,
   createQuery,
 } from "panther";
-import { Match, Show, Switch, createSignal, onCleanup, onMount } from "solid-js";
+import { Match, Show, Switch, batch, createSignal, onCleanup, onMount } from "solid-js";
 import type {
   StructureCsvStep1Result,
   StructureUploadAttemptStatus,
@@ -32,9 +35,25 @@ import { Step1_Dhis2 } from "./step_1_dhis2";
 import { Step2_Dhis2 } from "./step_2_dhis2";
 import { Step3_Dhis2 } from "./step_3_dhis2";
 import { serverActions } from "~/server_actions";
-import { Step4 } from "./step_4";
+import {
+  Step4Recode,
+  emptyRecodeUiState,
+  type RecodeUiState,
+} from "./step_4_recode";
+import { Step5Import } from "./step_5_import";
 
 const _STATUS_POLL_INTERVAL_MS = 2000;
+
+// The review step only applies to a staged, configuring attempt with at least
+// one recodable column staged (DHIS2 stages only facility_name, so it lands
+// straight on import).
+function reviewApplies(sua: StructureUploadAttemptDetail): boolean {
+  if (sua.step !== 4 || sua.status.status !== "configuring") {
+    return false;
+  }
+  const staged = sua.step3Result?.stagedOptionalColumns ?? [];
+  return _RECODABLE_FACILITY_COLUMNS.some((c) => staged.includes(c));
+}
 
 type Props = EditorComponentProps<
   {
@@ -47,13 +66,45 @@ type Props = EditorComponentProps<
 >;
 
 export function StructureUploadAttemptForm(p: Props) {
+  // Review-step working state, hoisted above the keyed StateHolderWrapper:
+  // every attempt refetch (including the one the review step's own save
+  // triggers) remounts the whole step subtree, which would otherwise wipe the
+  // user's column choice, checkboxes, page, and unsaved assignments.
+  const [recodeUi, setRecodeUi] = createStore<RecodeUiState>(
+    emptyRecodeUiState(),
+  );
+
   // Query state
   const uploadAttempt = createQuery(async () => {
     const res = await serverActions.getStructureUploadAttempt({
       family: p.family,
     });
     if (res.success === true) {
-      stepper.setCurrentStep(res.data.step);
+      batch(() => {
+        // Fresh staging run = fresh review: reset the hoisted state and
+        // hydrate the working assignments from the attempt's saved recodes.
+        const stagingNonce = res.data.step3Result?.stagingNonce;
+        if (stagingNonce !== recodeUi.stagingNonce) {
+          setRecodeUi({
+            ...emptyRecodeUiState(),
+            stagingNonce,
+            assignments: res.data.recodes ?? {},
+          });
+        }
+        // Landing rule: DB step 4 covers both review (client step 4) and
+        // import (client step 5). A silent refetch never yanks a user on
+        // import back to review; attempts with nothing to recode land
+        // straight on import.
+        stepper.setCurrentStep((prev) =>
+          res.data.step === 4
+            ? prev > 4
+              ? prev
+              : reviewApplies(res.data)
+                ? 4
+                : 5
+            : res.data.step,
+        );
+      });
     }
     return res;
   }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));
@@ -69,7 +120,7 @@ export function StructureUploadAttemptForm(p: Props) {
   const stepper = getStepper(() => uploadAttempt.state(), {
     initialStep: minStep,
     minStep,
-    maxStep: 3,
+    maxStep: 5,
     getValidation: (currentStep, state) => {
       if (state.status !== "ready") {
         return { canGoPrev: false, canGoNext: false };
@@ -95,7 +146,19 @@ export function StructureUploadAttemptForm(p: Props) {
         return { canGoPrev: true, canGoNext: false };
       }
       if (currentStep === 3) {
-        return { canGoPrev: true, canGoNext: false };
+        // step3Result is only defined at DB step 4 (staged, ready), so this
+        // opens the path forward without letting a mid-staging attempt through.
+        return { canGoPrev: true, canGoNext: !!sua.step3Result };
+      }
+      if (currentStep === 4) {
+        // Review is skippable
+        return { canGoPrev: true, canGoNext: true };
+      }
+      if (currentStep === 5) {
+        return {
+          canGoPrev: sua.status.status === "configuring",
+          canGoNext: false,
+        };
       }
       return { canGoPrev: false, canGoNext: false };
     },
@@ -213,6 +276,25 @@ export function StructureUploadAttemptForm(p: Props) {
               </Match>
               <Match
                 when={
+                  stepper.currentStep() === 5 &&
+                  keyedUploadAttempt.sourceType &&
+                  keyedUploadAttempt.step1Result &&
+                  keyedUploadAttempt.step2Result &&
+                  keyedUploadAttempt.step3Result
+                }
+              >
+                <Step5Import
+                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
+                  recodes={keyedUploadAttempt.recodes}
+                  family={p.family}
+                  facilityColumns={p.facilityColumns}
+                  close={() => p.close({ needsReload: true })}
+                  silentRefresUploadAttempt={uploadAttempt.silentFetch}
+                  silentRefreshInstance={p.silentRefreshInstance}
+                />
+              </Match>
+              <Match
+                when={
                   stepper.currentStep() === 4 &&
                   keyedUploadAttempt.sourceType &&
                   keyedUploadAttempt.step1Result &&
@@ -220,13 +302,26 @@ export function StructureUploadAttemptForm(p: Props) {
                   keyedUploadAttempt.step3Result
                 }
               >
-                <Step4
-                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
+                <Step4Recode
+                  ui={recodeUi}
+                  setUi={setRecodeUi}
                   family={p.family}
+                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
+                  recodes={keyedUploadAttempt.recodes}
                   facilityColumns={p.facilityColumns}
-                  close={() => p.close({ needsReload: true })}
-                  silentRefresUploadAttempt={uploadAttempt.silentFetch}
-                  silentRefreshInstance={p.silentRefreshInstance}
+                  csvDetails={
+                    keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
+                          .csv
+                      : undefined
+                  }
+                  columnMappings={
+                    keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt.step2Result as StructureColumnMappings)
+                      : undefined
+                  }
+                  silentFetch={uploadAttempt.silentFetch}
+                  goNext={stepper.goNext}
                 />
               </Match>
               <Match

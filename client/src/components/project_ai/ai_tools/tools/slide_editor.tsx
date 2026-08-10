@@ -3,19 +3,24 @@ import {
   AiFigureConfigPatchSchema,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
+  periodFilterHasBounds,
   type AiContentBlockInput,
   type ContentBlock,
   type FigureBundle,
   type MetricWithStatus,
+  type PeriodBounds,
+  type ResultsValueInfoForPresentationObject,
   type Slide,
 } from "lib";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { AIToolFailure, createAITool } from "panther";
 import type { LayoutNode } from "panther";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
+  describeFigureConfigPatchEffect,
   resolveBundleFromMetricAndConfig,
-  validateDisplaySlots,
+  validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
@@ -64,7 +69,7 @@ function replaceFigureBundleInLayout(
   return { ...slide, layout: walk(slide.layout) };
 }
 
-export function getToolsForSlideEditor(
+export function getClientToolsForSlideEditor(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {
@@ -103,45 +108,60 @@ export function getToolsForSlideEditor(
       viewRegistry: projectAIViews,
       name: "update_slide_editor",
       description:
-        "Update the slide content. Only provide fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
+        "Update the slide content. Provide an `update` object whose `type` matches the slide's type (shown by get_slide_editor), with only the fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
       inputSchema: z.object({
-        title: z.string().optional().describe("Cover slide: main title"),
-        subtitle: z.string().optional().describe("Cover slide: subtitle"),
-        presenter: z
-          .string()
-          .optional()
-          .describe("Cover slide: presenter name"),
-        date: z.string().optional().describe("Cover slide: date text"),
-        sectionTitle: z
-          .string()
-          .optional()
-          .describe("Section slide: section title"),
-        sectionSubtitle: z
-          .string()
-          .optional()
-          .describe("Section slide: section subtitle"),
-        header: z
-          .string()
-          .optional()
-          .describe("Content slide: header text at top of slide"),
-        blockUpdates: z
-          .array(
+        // Mirrors the Slide storage union so a field aimed at the wrong slide
+        // type is unrepresentable in the tool call. The union must sit under a
+        // key: panther's createAITool (and Anthropic's input_schema contract)
+        // requires the top-level schema to be an object.
+        update: z
+          .discriminatedUnion("type", [
             z.object({
-              blockId: z.string().describe("Block ID from get_slide_editor"),
-              newContent: AiContentBlockInputSchema,
+              type: z.literal("cover"),
+              title: z.string().optional().describe("Main title"),
+              subtitle: z.string().optional().describe("Subtitle"),
+              presenter: z.string().optional().describe("Presenter name"),
+              date: z.string().optional().describe("Date text"),
             }),
-          )
-          .optional()
+            z.object({
+              type: z.literal("section"),
+              sectionTitle: z.string().optional().describe("Section title"),
+              sectionSubtitle: z
+                .string()
+                .optional()
+                .describe("Section subtitle"),
+            }),
+            z.object({
+              type: z.literal("content"),
+              header: z
+                .string()
+                .optional()
+                .describe("Header text at top of slide"),
+              blockUpdates: z
+                .array(
+                  z.object({
+                    blockId: z
+                      .string()
+                      .describe("Block ID from get_slide_editor"),
+                    newContent: AiContentBlockInputSchema,
+                  }),
+                )
+                .optional()
+                .describe(
+                  `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
+                ),
+              layoutChange: z
+                .object({
+                  layout: LayoutSpecSchema,
+                })
+                .optional()
+                .describe(
+                  "Restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
+                ),
+            }),
+          ])
           .describe(
-            `Content slide: REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
-          ),
-        layoutChange: z
-          .object({
-            layout: LayoutSpecSchema,
-          })
-          .optional()
-          .describe(
-            "Content slide: restructure the layout — add/remove blocks, rearrange, change spans. Mutually exclusive with blockUpdates.",
+            "Per-type update. `type` must match the slide being edited.",
           ),
       }),
       availableIn: ["editing_slide"],
@@ -150,31 +170,43 @@ export function getToolsForSlideEditor(
         const ctx = view.context;
         assertSlidesNotBusy([view.params.slideId]);
 
-        if (input.blockUpdates && input.layoutChange) {
+        const u = input.update;
+
+        if (u.type === "content" && u.blockUpdates && u.layoutChange) {
           throw new AIToolFailure(
             "Cannot use both blockUpdates and layoutChange. Use blockUpdates to change block content, or layoutChange to change layout structure.",
           );
         }
 
         const currentSlide = unwrap(ctx.getTempSlide());
+
+        // The input schema mirrors the Slide union, so wrong-type fields are
+        // unrepresentable; the only remaining cross-type error is the stated
+        // type not matching the slide being edited.
+        if (u.type !== currentSlide.type) {
+          throw new AIToolFailure(
+            `This is a "${currentSlide.type}" slide, but the update was for a "${u.type}" slide. No changes were applied. Use get_slide_editor to see the slide's type.`,
+          );
+        }
+
         const changes: string[] = [];
 
-        if (currentSlide.type === "cover") {
+        if (currentSlide.type === "cover" && u.type === "cover") {
           const updated = { ...currentSlide };
-          if (input.title !== undefined) {
-            updated.title = input.title;
+          if (u.title !== undefined) {
+            updated.title = u.title;
             changes.push("title");
           }
-          if (input.subtitle !== undefined) {
-            updated.subtitle = input.subtitle;
+          if (u.subtitle !== undefined) {
+            updated.subtitle = u.subtitle;
             changes.push("subtitle");
           }
-          if (input.presenter !== undefined) {
-            updated.presenter = input.presenter;
+          if (u.presenter !== undefined) {
+            updated.presenter = u.presenter;
             changes.push("presenter");
           }
-          if (input.date !== undefined) {
-            updated.date = input.date;
+          if (u.date !== undefined) {
+            updated.date = u.date;
             changes.push("date");
           }
           if (changes.length > 0) {
@@ -182,14 +214,14 @@ export function getToolsForSlideEditor(
           }
         }
 
-        if (currentSlide.type === "section") {
+        if (currentSlide.type === "section" && u.type === "section") {
           const updated = { ...currentSlide };
-          if (input.sectionTitle !== undefined) {
-            updated.sectionTitle = input.sectionTitle;
+          if (u.sectionTitle !== undefined) {
+            updated.sectionTitle = u.sectionTitle;
             changes.push("sectionTitle");
           }
-          if (input.sectionSubtitle !== undefined) {
-            updated.sectionSubtitle = input.sectionSubtitle;
+          if (u.sectionSubtitle !== undefined) {
+            updated.sectionSubtitle = u.sectionSubtitle;
             changes.push("sectionSubtitle");
           }
           if (changes.length > 0) {
@@ -197,14 +229,14 @@ export function getToolsForSlideEditor(
           }
         }
 
-        if (currentSlide.type === "content") {
+        if (currentSlide.type === "content" && u.type === "content") {
           let updated = { ...currentSlide };
-          if (input.header !== undefined) {
-            updated.header = input.header;
+          if (u.header !== undefined) {
+            updated.header = u.header;
             changes.push("header");
           }
-          if (input.blockUpdates && input.blockUpdates.length > 0) {
-            for (const bu of input.blockUpdates) {
+          if (u.blockUpdates && u.blockUpdates.length > 0) {
+            for (const bu of u.blockUpdates) {
               if (bu.newContent.type === "text") {
                 validateNoMarkdownTables(bu.newContent.markdown);
               }
@@ -212,7 +244,7 @@ export function getToolsForSlideEditor(
             updated = (await getSlideWithUpdatedBlocks(
               projectId,
               updated,
-              input.blockUpdates,
+              u.blockUpdates,
               metrics,
             )) as typeof updated;
 
@@ -223,10 +255,10 @@ export function getToolsForSlideEditor(
               .map(b => b.markdown);
             validateSlideTotalWordCount(allTextBlocks);
 
-            changes.push(`${input.blockUpdates.length} block(s)`);
+            changes.push(`${u.blockUpdates.length} block(s)`);
           }
-          if (input.layoutChange) {
-            const layoutSpec = input.layoutChange.layout;
+          if (u.layoutChange) {
+            const layoutSpec = u.layoutChange.layout;
 
             const existingBlocks = extractBlocksFromLayout(updated.layout);
             const blockMap = new Map<string, ContentBlock>();
@@ -343,8 +375,10 @@ export function getToolsForSlideEditor(
       },
       inProgressLabel: "Updating slide...",
       completionMessage: (input) => {
-        const changeCount = Object.keys(input).filter(
-          (k) => input[k as keyof typeof input] !== undefined,
+        const changeCount = Object.keys(input.update).filter(
+          (k) =>
+            k !== "type" &&
+            input.update[k as keyof typeof input.update] !== undefined,
         ).length;
         return `Updated ${changeCount} field(s)`;
       },
@@ -364,6 +398,20 @@ export function getToolsForSlideEditor(
       availableIn: ["editing_slide", "editing_slide_deck"],
       kind: "write",
       handler: async (input, view) => {
+        // metricId/type are not in the patch schema (silently stripped), so an
+        // all-unsupported patch arrives empty — reject it instead of
+        // re-resolving the bundle unchanged and falsely reporting success.
+        if (Object.keys(input.patch).length === 0) {
+          throw new AIToolFailure(
+            "No editable fields were provided. update_figure changes a figure's " +
+              "config (replicant, filters, disaggregation, period, captions); it " +
+              "cannot change the metric/indicator or chart type. To show a " +
+              "different indicator or chart, replace the block with a new " +
+              "from_metric/from_visualization figure (blockUpdates in " +
+              "update_slide_editor, or replace_slide).",
+          );
+        }
+
         // Load the target slide: the live editor slide, or a saved deck slide by id.
         let slide: Slide;
         let expectedLastUpdated: string | undefined;
@@ -406,22 +454,65 @@ export function getToolsForSlideEditor(
           throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this project.`);
         }
 
+        // Pre-flight for a stored defect this tool cannot repair (the figure
+        // patch schema carries no timeseriesGrouping): a grouping-less
+        // timeseries config — possible via 9 authored preset configs plus a
+        // human type switch — would otherwise hit lib's plain Error mid-resolve.
+        if (
+          bundle.config.d.type === "timeseries" &&
+          !bundle.config.d.timeseriesGrouping
+        ) {
+          throw new AIToolFailure(
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via a from_metric block). No changes were applied.",
+          );
+        }
+
+        // Hoisted conditional fetch: the metric's period bounds (for an
+        // open-ended periodFilter) and the possible-values map (for the
+        // pre-write collision check). One cached response carries both; a
+        // caption-only edit skips it entirely.
+        const pf = input.patch.periodFilter;
+        const needsBounds = typeof pf === "object" && pf !== null &&
+          (pf.min == null) !== (pf.max == null);
+        const needsPossibleValues = input.patch.disaggregateBy !== undefined ||
+          input.patch.valuesDisDisplayOpt !== undefined;
+        let dataBounds: PeriodBounds | undefined;
+        let disaggregationPossibleValues:
+          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | undefined;
+        if (needsBounds || needsPossibleValues) {
+          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+            projectId,
+            bundle.metricId,
+          );
+          if (infoRes.success) {
+            dataBounds = infoRes.data.periodBounds;
+            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+          }
+          if (needsBounds && !dataBounds) {
+            throw new AIToolFailure(
+              "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
+            );
+          }
+        }
+
         // Build + validate the patched config UP FRONT (a throw must mean
         // "nothing changed"); only re-resolve + commit once it's valid.
-        const newConfig = applyFigureConfigPatch(
-          bundle.config,
-          input.patch,
-          metric.mostGranularTimePeriodColumnInResultsFile,
-        );
-        validateDisplaySlots(newConfig, metric, input.patch);
+        const newConfig = applyFigureConfigPatch(bundle.config, input.patch, metric, dataBounds);
+        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
+          disaggregationPossibleValues,
+        });
 
         // Same value-validity check the editor + from_metric use: filter values
-        // and the period range must exist in the data.
+        // and the period range must exist in the data. from_month counts too —
+        // its min is a real bound the data must reach.
         const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
-        const periodFilter = newConfig.d.periodFilter?.filterType === "custom"
+        const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
           ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
           : undefined;
         await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+
+        const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 
         const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
 
@@ -431,10 +522,12 @@ export function getToolsForSlideEditor(
 
         const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);
 
+        const reportText = report.map((l) => `- ${l}`).join("\n");
+
         // Save: live preview (Save to persist) in the editor, or directly to the deck.
         if (view.id === "editing_slide") {
           view.context.setTempSlide(reconcile(updatedSlide));
-          return `Updated figure ${input.blockId}. The preview will update automatically. User must click "Save" to persist changes.`;
+          return `Updated figure ${input.blockId}.\n${reportText}\nThe preview will update automatically. User must click "Save" to persist changes.`;
         }
         const saveRes = await serverActions.updateSlide({
           projectId,
@@ -450,7 +543,7 @@ export function getToolsForSlideEditor(
           );
         }
         projectAIViewController.markAIEdit(`slide:${input.slideId}`);
-        return `Updated figure ${input.blockId} in slide ${input.slideId}.`;
+        return `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",

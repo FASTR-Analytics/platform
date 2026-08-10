@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Protocol compliance sweep — companion to ./validate_queries and
+# ./validate_migrations. Logic lives in validate_protocols.ts.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+deno run --allow-read "$SCRIPT_DIR/validate_protocols.ts" "$@"

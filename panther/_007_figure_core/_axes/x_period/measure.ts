@@ -10,7 +10,12 @@ import type {
   RenderContext,
 } from "../../deps.ts";
 import type { YAxisWidthInfoBase } from "../../types.ts";
-import { calculateYearSkipInterval, getPeriodAxisInfo } from "./helpers.ts";
+import {
+  calculateYearSkipInterval,
+  getLargeLabelExemplar,
+  getLargeLabelForms,
+  getPeriodAxisInfo,
+} from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
 export function measureXPeriodAxis(
@@ -67,9 +72,18 @@ export function measureXPeriodAxis(
     h: heightIncludingXAxisStrokeWidth,
   }));
 
-  const fourDigitYearW = rc
-    .mText("2022", sx.text.xPeriodAxisTickLabels, Number.POSITIVE_INFINITY)
-    .dims.w();
+  const largeLabelForms = getLargeLabelForms(periodType, sx.calendar).map((
+    form,
+  ) => ({
+    form,
+    w: rc
+      .mText(
+        getLargeLabelExemplar(form),
+        sx.text.xPeriodAxisTickLabels,
+        Number.POSITIVE_INFINITY,
+      )
+      .dims.w(),
+  }));
 
   return {
     subChartAreaWidth,
@@ -77,7 +91,7 @@ export function measureXPeriodAxis(
     xAxisRcd,
     periodAxisType,
     periodAxisSmallTickH,
-    fourDigitYearW,
+    largeLabelForms,
     yearSkipInterval,
   };
 }

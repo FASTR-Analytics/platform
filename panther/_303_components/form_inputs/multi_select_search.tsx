@@ -238,6 +238,7 @@ export function MultiSelectSearch<T extends string>(
             getSelectClasses(p.size, false, undefined)
           } data-[open=true]:cursor-text data-[panel-side=bottom]:rounded-b-none data-[panel-side=top]:rounded-t-none`}
           data-mono={p.mono}
+          data-invalid={!!p.invalidMsg}
           data-open={open()}
           data-panel-side={open() ? side() : undefined}
           readonly={!open()}

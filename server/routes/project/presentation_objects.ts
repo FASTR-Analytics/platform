@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { Sql } from "postgres";
+import type { Sql } from "postgres";
 import {
   getPeriodFilterExactBounds,
   isValidDisaggregationOption,
@@ -7,22 +7,13 @@ import {
   syncFigureConfigToMap,
   validateFetchConfig,
   type PeriodBounds,
-  type PeriodOption,
 } from "lib";
 import { applyPoToLiveRoom, closePoRoom } from "../../collab/po_rooms.ts";
-import {
-  detectColumnExists,
-  detectHasPeriodId,
-  getResultsObjectTableName,
-} from "../../db/utils.ts";
-import { getPeriodBounds } from "../../server_only_funcs_presentation_objects/get_period_bounds.ts";
 import {
   addPresentationObject,
   batchUpdatePresentationObjectsPeriodFilter,
   deletePresentationObject,
   duplicatePresentationObject,
-  getAllPresentationObjectsForProject,
-  getPresentationObjectDetail,
   updatePresentationObjectConfig,
   updatePresentationObjectLabel,
 } from "../../db/mod.ts";
@@ -35,13 +26,6 @@ import {
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { exceedsMaxReplicantOptions } from "../../server_only_funcs_presentation_objects/consts.ts";
-import {
-  getDatasetFamilyForModule,
-  getIndicatorMetadata,
-  getPossibleValues,
-  getPresentationObjectItems,
-  getResultsValueInfoForPresentationObject,
-} from "../../server_only_funcs_presentation_objects/mod.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
 import { RequestQueue } from "../../utils/request_queue.ts";
@@ -52,6 +36,30 @@ import {
   _REPLICANT_OPTIONS_CACHE,
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
+import {
+  findMissingRequiredGroupBys,
+  findVirtualDefault,
+  getAllPresentationObjectsWithVirtualDefaults,
+  getAttachedManifestOrNull,
+  getIndicatorMetadataFromRun,
+  getModuleIdForMetricFromRun,
+  getModuleIdForResultsObjectFromRun,
+  getPossibleValuesFromRun,
+  getPresentationObjectDetailFromRun,
+  getPresentationObjectItemsFromRun,
+  getRawPeriodBoundsFromRun,
+  getResultsValueInfoFromRun,
+  getRunReadContext,
+  getRunVersionInfo,
+  VIRTUAL_DEFAULT_LAST_UPDATED,
+} from "../../run_query/mod.ts";
+
+// Every data read in this file serves from the project's attached immutable
+// run (PLAN_RESULTS_RUNS): manifest for all metadata, DuckDB over the run's
+// parquet for all data queries, caches keyed on the runId. A project with no
+// run attached errors loudly until its backfill synthesis / first generation
+// completes. The Postgres read functions stay in-tree solely as the parity
+// rig's baseline.
 
 export const routesPresentationObjects = new Hono();
 
@@ -64,23 +72,17 @@ const poItemsQueue = new RequestQueue(10);
 // These are lighter queries, but still need limiting during burst loads
 const resultsValueInfoQueue = new RequestQueue(15);
 
-// Version string for the datasets feeding a project's indicator metadata.
-// indicatorMetadata — baked into items holders (getPresentationObjectItems) and
-// metric info (getResultsValueInfoForPresentationObject) — is rewritten on
-// dataset integration, which bumps datasets.last_updated independently of
-// moduleLastRun. Both caches version on this so re-integration invalidates them.
-async function getDatasetsVersion(projectDb: Sql): Promise<string> {
-  const rows = await projectDb<
-    { dataset_type: string; last_updated: string }[]
-  >`
-SELECT dataset_type, last_updated FROM datasets ORDER BY dataset_type
-`;
-  return rows
-    .map(
-      (d: { dataset_type: string; last_updated: string }) =>
-        `${d.dataset_type}:${d.last_updated}`,
-    )
-    .join(",");
+// Virtual defaults (PLAN_RESULTS_RUNS item 5b) have no row: writes against
+// them are refused with the same messages the row guards used, and the
+// listing/detail surfaces resolve them from the attached run's manifest.
+async function isVirtualDefaultId(
+  mainDb: Sql,
+  projectId: string,
+  presentationObjectId: string,
+): Promise<boolean> {
+  const manifest = await getAttachedManifestOrNull(mainDb, projectId);
+  return manifest !== null &&
+    findVirtualDefault(manifest, presentationObjectId) !== undefined;
 }
 
 defineRoute(
@@ -98,7 +100,6 @@ defineRoute(
       label: body.label,
       resultsValue: body.resultsValue as ResultsValue,
       config: body.config as PresentationObjectConfig,
-      makeDefault: body.makeDefault,
       folderId: body.folderId,
     });
     if (res.success === false) {
@@ -110,7 +111,9 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
       c.var.ppk.projectDb,
     );
     if (vizRes.success) {
@@ -129,11 +132,21 @@ defineRoute(
   ),
   log("duplicatePresentationObject"),
   async (c, { params, body }) => {
+    // Duplicating a virtual default (item 5b) IS the customize path — resolve
+    // the manifest projection so the copy materializes as a user row.
+    const manifest = await getAttachedManifestOrNull(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    const virtualSource = manifest
+      ? findVirtualDefault(manifest, params.po_id)
+      : undefined;
     const res = await duplicatePresentationObject(
       c.var.ppk.projectDb,
       params.po_id,
       body.label,
       body.folderId,
+      virtualSource ?? null,
     );
     if (res.success === false) {
       return c.json(res);
@@ -144,7 +157,9 @@ defineRoute(
       [res.data.newPresentationObjectId],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
       c.var.ppk.projectDb,
     );
     if (vizRes.success) {
@@ -159,7 +174,11 @@ defineRoute(
   "getAllPresentationObjects",
   requireProjectPermission("can_view_visualizations"),
   async (c) => {
-    const res = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+    const res = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+      c.var.ppk.projectDb,
+    );
     return c.json(res);
   },
 );
@@ -171,16 +190,23 @@ defineRoute(
   async (c, { params }) => {
     const t0 = performance.now();
 
-    // Get last updated to use as version key
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const runCtx = ctxRes.data;
+
+    // Version key: the row's last_updated, or the constant sentinel for a
+    // virtual default (item 5b — no row exists; the run is immutable so the
+    // runId in the version is the whole identity).
     const poData = (
       await c.var.ppk.projectDb<{ last_updated: string }[]>`
         SELECT last_updated FROM presentation_objects WHERE id = ${params.po_id}
       `
     ).at(0);
 
-    if (!poData) {
+    if (!poData && findVirtualDefault(runCtx.manifest, params.po_id) === undefined) {
       return c.json({ success: false, err: "Presentation object not found" });
     }
+    const poLastUpdated = poData?.last_updated ?? VIRTUAL_DEFAULT_LAST_UPDATED;
 
     // Check cache
     const existing = await _PO_DETAIL_CACHE.get(
@@ -188,7 +214,10 @@ defineRoute(
         projectId: c.var.ppk.projectId,
         presentationObjectId: params.po_id,
       },
-      { presentationObjectLastUpdated: poData.last_updated },
+      {
+        presentationObjectLastUpdated: poLastUpdated,
+        runId: runCtx.runId,
+      },
     );
 
     if (existing) {
@@ -217,11 +246,11 @@ defineRoute(
     }
 
     // Cache miss - fetch and store
-    const newPromise = getPresentationObjectDetail(
+    const newPromise = getPresentationObjectDetailFromRun(
+      runCtx,
       c.var.ppk.projectId,
       c.var.ppk.projectDb,
       params.po_id,
-      c.var.mainDb,
     );
 
     _PO_DETAIL_CACHE.setPromise(
@@ -230,7 +259,10 @@ defineRoute(
         projectId: c.var.ppk.projectId,
         presentationObjectId: params.po_id,
       },
-      { presentationObjectLastUpdated: poData.last_updated },
+      {
+        presentationObjectLastUpdated: poLastUpdated,
+        runId: runCtx.runId,
+      },
     );
 
     const res = await newPromise;
@@ -253,6 +285,12 @@ defineRoute(
   ),
   log("updatePresentationObjectLabel"),
   async (c, { params, body }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const res = await updatePresentationObjectLabel(
       c.var.ppk.projectDb,
       params.po_id,
@@ -267,7 +305,9 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
       c.var.ppk.projectDb,
     );
     if (vizRes.success) {
@@ -286,6 +326,12 @@ defineRoute(
   ),
   log("updatePresentationObjectConfig"),
   async (c, { params, body }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const config = body.config as PresentationObjectConfig;
     // Chokepoint: if a live collab room holds this visualization, merge the
     // write into it (collab is authoritative → the field-level merge IS the
@@ -329,7 +375,9 @@ defineRoute(
       [params.po_id],
       res.data.lastUpdated,
     );
-    const vizRes = await getAllPresentationObjectsForProject(
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
       c.var.ppk.projectDb,
     );
     if (vizRes.success) {
@@ -347,6 +395,26 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { body }) => {
+    // Virtual defaults have no row and must be refused BEFORE any live-room
+    // application, so the room merges and the DB write always operate on the
+    // same id set (the pre-runs version of this route partially applied a
+    // mixed batch to rooms and then errored — see PLAN_RESULTS_RUNS
+    // "Inherited defect").
+    const manifest = await getAttachedManifestOrNull(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    if (
+      manifest &&
+      body.presentationObjectIds.some(
+        (id) => findVirtualDefault(manifest, id) !== undefined,
+      )
+    ) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const projectId = c.var.ppk.projectId;
     const ids: string[] = body.presentationObjectIds;
     const periodFilter = body.periodFilter;
@@ -391,7 +459,9 @@ defineRoute(
         remaining,
         res.data.lastUpdated,
       );
-      const vizRes = await getAllPresentationObjectsForProject(
+      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+        c.var.mainDb,
+        projectId,
         c.var.ppk.projectDb,
       );
       if (vizRes.success) {
@@ -429,6 +499,12 @@ defineRoute(
   ),
   log("deletePresentationObject"),
   async (c, { params }) => {
+    if (await isVirtualDefaultId(c.var.mainDb, c.var.ppk.projectId, params.po_id)) {
+      return c.json({
+        success: false,
+        err: "You cannot delete a default visualization",
+      });
+    }
     const res = await deletePresentationObject(
       c.var.ppk.projectDb,
       params.po_id,
@@ -439,7 +515,9 @@ defineRoute(
     // Discard any live room for the now-deleted PO (its checkpoints would fail
     // against the gone row); connected editors get a po_error and fall back.
     closePoRoom(c.var.ppk.projectId, params.po_id, "Visualization deleted");
-    const vizRes = await getAllPresentationObjectsForProject(
+    const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+      c.var.mainDb,
+      c.var.ppk.projectId,
       c.var.ppk.projectDb,
     );
     if (vizRes.success) {
@@ -460,43 +538,48 @@ defineRoute(
     );
     validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
 
-    // Derive moduleId from resultsObjectId via DB lookup
-    const roRow = (
-      await c.var.ppk.projectDb<{ module_id: string }[]>`
-SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
-`
-    ).at(0);
-    if (!roRow) {
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const runCtx = ctxRes.data;
+
+    const moduleId = getModuleIdForResultsObjectFromRun(
+      runCtx,
+      body.resultsObjectId,
+    );
+    if (moduleId === undefined) {
       return c.json({
         success: false,
         err: `Unknown results object: ${body.resultsObjectId}`,
       });
     }
-    const moduleId = roRow.module_id;
-
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
-SELECT last_run_at FROM modules WHERE id = ${moduleId}
-`
-    ).at(0)?.last_run_at;
-
-    if (!moduleLastRun) {
+    const versionParams = getRunVersionInfo(runCtx, moduleId);
+    if (versionParams.moduleLastRun === "unknown") {
       return c.json({
         success: false,
         err: "Module not found or has not run yet",
       });
     }
 
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
+    const missingRequired = findMissingRequiredGroupBys(
+      runCtx,
+      body.resultsObjectId,
+      (body.fetchConfig as GenericLongFormFetchConfig).groupBys,
+    );
+    if (missingRequired.length > 0) {
+      return c.json({
+        success: false,
+        err: `Required disaggregation option(s) not grouped: ${missingRequired.join(", ")}`,
+      });
+    }
 
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _PO_ITEMS_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
       },
-      { moduleLastRun, datasetsVersion },
+      versionParams,
     );
     if (existing && existing.success === true) {
       const t1 = performance.now();
@@ -527,24 +610,31 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           8,
         )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
-      const newPromise = getPresentationObjectItems(
-        c.var.mainDb,
+      // Derived from the manifest, never from the client: the value shapes
+      // period-bound resolution but is absent from the cache hash, so a stale
+      // client detail (from a previously attached run) would poison this
+      // run's shared cache entry. physicalTimeColumn IS the most granular
+      // period column (the derivation inferMostGranularTimePeriodColumn
+      // reduces to it on the run plane).
+      const firstPeriodOption =
+        runCtx.manifest.resultsObjects.find(
+          (ro) => ro.id === body.resultsObjectId,
+        )?.physicalTimeColumn ?? undefined;
+      const newPromise = getPresentationObjectItemsFromRun(
+        runCtx,
         c.var.ppk.projectId,
-        c.var.ppk.projectDb,
         body.resultsObjectId,
         body.fetchConfig as GenericLongFormFetchConfig,
-        body.firstPeriodOption,
-        moduleLastRun,
-        datasetsVersion,
+        firstPeriodOption,
       );
       _PO_ITEMS_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           resultsObjectId: body.resultsObjectId,
           fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
         },
-        { moduleLastRun, datasetsVersion },
+        versionParams,
       );
       const res = await newPromise;
       const t1 = performance.now();
@@ -570,27 +660,16 @@ defineRoute(
   async (c, { body }) => {
     const t0 = performance.now();
 
-    // Derive moduleId from metricId via DB lookup
-    const metricRow = (
-      await c.var.ppk.projectDb<{ module_id: string }[]>`
-SELECT module_id FROM metrics WHERE id = ${body.metricId}
-`
-    ).at(0);
-    if (!metricRow) {
-      return c.json({
-        success: false,
-        err: `Unknown metric: ${body.metricId}`,
-      });
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const runCtx = ctxRes.data;
+
+    const moduleId = getModuleIdForMetricFromRun(runCtx, body.metricId);
+    if (moduleId === undefined) {
+      return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
     }
-    const moduleId = metricRow.module_id;
-
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
-SELECT last_run_at FROM modules WHERE id = ${moduleId}
-`
-    ).at(0)?.last_run_at;
-
-    if (!moduleLastRun) {
+    const versionParams = getRunVersionInfo(runCtx, moduleId);
+    if (versionParams.moduleLastRun === "unknown") {
       return c.json({
         success: false,
         err: "Module not found or has not run yet",
@@ -598,21 +677,16 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
     }
 
     console.log(
-      `[SERVER] Results Value Info ${body.metricId.slice(
-        0,
-        8,
-      )}: REQUEST received (moduleLastRun: ${moduleLastRun})`,
+      `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: REQUEST received`,
     );
-
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
 
     // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
     const existing = await _METRIC_INFO_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         metricId: body.metricId,
       },
-      { moduleLastRun, datasetsVersion },
+      versionParams,
     );
 
     if (existing && existing.success === true) {
@@ -646,22 +720,19 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
         )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
       );
 
-      const newPromise = getResultsValueInfoForPresentationObject(
-        c.var.mainDb,
-        c.var.ppk.projectDb,
+      const newPromise = getResultsValueInfoFromRun(
+        runCtx,
         c.var.ppk.projectId,
         body.metricId,
-        moduleLastRun,
-        datasetsVersion,
       );
 
       _METRIC_INFO_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           metricId: body.metricId,
         },
-        { moduleLastRun, datasetsVersion },
+        versionParams,
       );
 
       const res = await newPromise;
@@ -686,7 +757,7 @@ defineRoute(
   "getReplicantOptions",
   requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
-    // body is attacker-controllable and flows into projectDb.unsafe SQL via
+    // body is attacker-controllable and flows into generated SQL via
     // getPossibleValues (replicateBy → column ref) and the fetchConfig filters.
     const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
     validateFetchConfig(fetchConfig);
@@ -703,27 +774,22 @@ defineRoute(
         ? `${fetchConfig.filters.length} filters`
         : "no filters";
 
-    // Derive moduleId from resultsObjectId via DB lookup
-    const roRow2 = (
-      await c.var.ppk.projectDb<{ module_id: string }[]>`
-SELECT module_id FROM results_objects WHERE id = ${body.resultsObjectId}
-`
-    ).at(0);
-    if (!roRow2) {
+    const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const runCtx = ctxRes.data;
+
+    const moduleId = getModuleIdForResultsObjectFromRun(
+      runCtx,
+      body.resultsObjectId,
+    );
+    if (moduleId === undefined) {
       return c.json({
         success: false,
         err: `Unknown results object: ${body.resultsObjectId}`,
       });
     }
-    const moduleId = roRow2.module_id;
-
-    const moduleLastRun = (
-      await c.var.ppk.projectDb<{ last_run_at: string }[]>`
-SELECT last_run_at FROM modules WHERE id = ${moduleId}
-`
-    ).at(0)?.last_run_at;
-
-    if (!moduleLastRun) {
+    const versionInfo = getRunVersionInfo(runCtx, moduleId);
+    if (versionInfo.moduleLastRun === "unknown") {
       return c.json({
         success: false,
         err: "Module not found or has not run yet",
@@ -734,20 +800,18 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       `[SERVER] Replicant Options ${body.resultsObjectId.slice(
         0,
         8,
-      )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy}, moduleLastRun: ${moduleLastRun})`,
+      )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy})`,
     );
-
-    const datasetsVersion = await getDatasetsVersion(c.var.ppk.projectDb);
 
     // Check cache BEFORE queueing
     const existing = await _REPLICANT_OPTIONS_CACHE.get(
       {
-        projectId: c.var.ppk.projectId,
+        runId: runCtx.runId,
         resultsObjectId: body.resultsObjectId,
         replicateBy: body.replicateBy,
         fetchConfig: fetchConfig,
       },
-      { moduleLastRun, datasetsVersion },
+      versionInfo,
     );
 
     if (existing && existing.success === true) {
@@ -783,59 +847,23 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
 
       const newPromise = (async () => {
         // Fetch indicator metadata for label lookup
-        const indicatorMetadata = await getIndicatorMetadata(
-          c.var.ppk.projectDb,
+        const indicatorMetadata = getIndicatorMetadataFromRun(
+          runCtx,
           moduleId,
         );
         const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
-        const datasetFamily = await getDatasetFamilyForModule(
-          c.var.ppk.projectDb,
-          moduleId,
-        );
-
         // Resolve the period filter to exact bounds the same way the items
         // query does, so relative filters ("last N months") narrow the option
         // list too and from_month re-anchors to the live data — a bounded-only
-        // read here would list values the filtered figure can never show.
-        // Physical time column inferred like the enricher: period_id >
-        // quarter_id > year.
+        // read here would list values the filtered figure can never show. The
+        // manifest stamp IS the no-filter bounds of the physical time column.
         let periodFilterExactBounds: PeriodBounds | undefined;
         if (fetchConfig.periodFilter) {
           try {
-            const tableName = getResultsObjectTableName(body.resultsObjectId);
-            const hasPeriodId = await detectHasPeriodId(
-              c.var.ppk.projectDb,
-              tableName,
-            );
-            const hasQuarterId =
-              !hasPeriodId &&
-              (await detectColumnExists(
-                c.var.ppk.projectDb,
-                tableName,
-                "quarter_id",
-              ));
-            const hasYear =
-              !hasPeriodId &&
-              !hasQuarterId &&
-              (await detectColumnExists(
-                c.var.ppk.projectDb,
-                tableName,
-                "year",
-              ));
-            const firstPeriodOption: PeriodOption | undefined = hasPeriodId
-              ? "period_id"
-              : hasQuarterId
-                ? "quarter_id"
-                : hasYear
-                  ? "year"
-                  : undefined;
-            const rawBounds = await getPeriodBounds(
-              c.var.ppk.projectDb,
-              tableName,
-              [],
-              firstPeriodOption,
-              undefined,
+            const rawBounds = getRawPeriodBoundsFromRun(
+              runCtx,
+              body.resultsObjectId,
             );
             periodFilterExactBounds = getPeriodFilterExactBounds(
               fetchConfig.periodFilter,
@@ -849,8 +877,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
                 resultsObjectId: body.resultsObjectId,
                 replicateBy: body.replicateBy,
                 fetchConfig: fetchConfig,
-                moduleLastRun,
-                datasetsVersion,
+                ...versionInfo,
                 status: "error" as const,
                 message: e instanceof Error ? e.message : String(e),
               },
@@ -858,12 +885,10 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
           }
         }
 
-        const resDisPossibleVals = await getPossibleValues(
-          c.var.ppk.projectDb,
+        const resDisPossibleVals = await getPossibleValuesFromRun(
+          runCtx,
           body.resultsObjectId,
-          datasetFamily,
           body.replicateBy,
-          c.var.mainDb,
           labelMap,
           fetchConfig.filters,
           periodFilterExactBounds,
@@ -877,8 +902,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               // Surfaced as its own status (matching the metric-info path)
               // instead of masquerading as no_values_available.
               status: "error" as const,
@@ -897,8 +921,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               status: "too_many_values" as const,
             },
           };
@@ -912,8 +935,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
               resultsObjectId: body.resultsObjectId,
               replicateBy: body.replicateBy,
               fetchConfig: fetchConfig,
-              moduleLastRun,
-              datasetsVersion,
+              ...versionInfo,
               status: "no_values_available" as const,
             },
           };
@@ -926,8 +948,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
             resultsObjectId: body.resultsObjectId,
             replicateBy: body.replicateBy,
             fetchConfig: fetchConfig,
-            moduleLastRun,
-            datasetsVersion,
+            ...versionInfo,
             status: "ok" as const,
             possibleValues: vals,
           },
@@ -937,12 +958,12 @@ SELECT last_run_at FROM modules WHERE id = ${moduleId}
       _REPLICANT_OPTIONS_CACHE.setPromise(
         newPromise,
         {
-          projectId: c.var.ppk.projectId,
+          runId: runCtx.runId,
           resultsObjectId: body.resultsObjectId,
           replicateBy: body.replicateBy,
           fetchConfig: fetchConfig,
         },
-        { moduleLastRun, datasetsVersion },
+        versionInfo,
       );
 
       const res = await newPromise;

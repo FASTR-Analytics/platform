@@ -492,6 +492,11 @@ export class CustomFigureStyle {
         this._g.idealHeight?.idealRowThickness,
         this._d.idealHeight.idealRowThickness,
       ),
+      idealPieDiameter: m(
+        this._c.idealHeight?.idealPieDiameter,
+        this._g.idealHeight?.idealPieDiameter,
+        this._d.idealHeight.idealPieDiameter,
+      ),
     };
   }
 
@@ -619,9 +624,57 @@ export class CustomFigureStyle {
     const g = this._g;
     const d = this._d;
     const sf = this._sf;
+    const baseText = this._baseText;
     return {
       ...this.getMergedChartStyleBase(),
       pie: {
+        text: {
+          indicatorHeaders: getTextInfo(
+            c.text?.indicatorHeaders,
+            g.text?.indicatorHeaders,
+            baseText,
+          ),
+        },
+        indicators: {
+          hideHeaders: m(
+            c.pie?.indicators?.hideHeaders,
+            g.pie?.indicators?.hideHeaders,
+            d.pie.indicators.hideHeaders,
+          ),
+          headerAlignH: m(
+            c.pie?.indicators?.headerAlignH,
+            g.pie?.indicators?.headerAlignH,
+            d.pie.indicators.headerAlignH,
+          ),
+          headerGap: ms(
+            sf,
+            c.pie?.indicators?.headerGap,
+            g.pie?.indicators?.headerGap,
+            d.pie.indicators.headerGap,
+          ),
+          headerPosition: m(
+            c.pie?.indicators?.headerPosition,
+            g.pie?.indicators?.headerPosition,
+            d.pie.indicators.headerPosition,
+          ),
+          gapX: ms(
+            sf,
+            c.pie?.indicators?.gapX,
+            g.pie?.indicators?.gapX,
+            d.pie.indicators.gapX,
+          ),
+          gapY: ms(
+            sf,
+            c.pie?.indicators?.gapY,
+            g.pie?.indicators?.gapY,
+            d.pie.indicators.gapY,
+          ),
+          nCols: m(
+            c.pie?.indicators?.nCols,
+            g.pie?.indicators?.nCols,
+            d.pie.indicators.nCols,
+          ),
+        },
         // Ratios and angles are scale-invariant — only lengths take sf.
         innerRadiusRatio: m(
           c.pie?.innerRadiusRatio,
@@ -629,8 +682,9 @@ export class CustomFigureStyle {
           d.pie.innerRadiusRatio,
         ),
         startAngle: m(c.pie?.startAngle, g.pie?.startAngle, d.pie.startAngle),
+        sweepAngle: m(c.pie?.sweepAngle, g.pie?.sweepAngle, d.pie.sweepAngle),
         direction: m(c.pie?.direction, g.pie?.direction, d.pie.direction),
-        padAngle: m(c.pie?.padAngle, g.pie?.padAngle, d.pie.padAngle),
+        sliceGap: ms(sf, c.pie?.sliceGap, g.pie?.sliceGap, d.pie.sliceGap),
         cornerRadius: ms(
           sf,
           c.pie?.cornerRadius,

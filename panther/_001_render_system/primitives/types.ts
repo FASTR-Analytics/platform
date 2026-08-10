@@ -343,10 +343,11 @@ export type ChartCaptionPrimitive = BasePrimitive & {
 export type ChartLabelPrimitive = BasePrimitive & {
   type: "chart-label";
   meta: {
-    labelType: "pane" | "tier" | "lane";
+    labelType: "pane" | "tier" | "lane" | "indicator";
     paneIndex: number;
-    tierIndex?: number; // Only for tier labels
-    laneIndex?: number; // Only for lane labels
+    tierIndex?: number; // Only for tier and indicator labels
+    laneIndex?: number; // Only for lane and indicator labels
+    indicatorIndex?: number; // Only for indicator labels
   };
   mText: MeasuredText;
   alignment: {
@@ -556,6 +557,7 @@ export type PieSlicePrimitive = BasePrimitive & {
     paneIndex: number;
     tierIndex: number;
     laneIndex: number;
+    indicatorIndex: number;
     value: number;
     share: number;
     isRemainder: boolean;
@@ -583,6 +585,8 @@ export type FigureLabelPrimitive = BasePrimitive & {
     paneIndex: number;
     tierIndex: number;
     laneIndex: number;
+    // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
+    indicatorIndex?: number;
     placement: "inside" | "outside";
   };
   mText: MeasuredText;
@@ -658,6 +662,8 @@ export type TableCellPrimitive = BasePrimitive & {
     i_col: number;
     rowHeader: HeaderItem | undefined;
     colHeader: HeaderItem | undefined;
+    rowGroupHeader: HeaderItem | undefined;
+    colGroupHeader: HeaderItem | undefined;
   };
   backgroundColor: ColorKeyOrString | "none";
   mText: MeasuredText;

@@ -7,6 +7,7 @@ import {
 } from "../db/mod.ts";
 import {
   GenericLongFormFetchConfig,
+  getCalendar,
   getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
   type DatasetType,
@@ -28,22 +29,20 @@ export function facilitiesTableForFamily(
   );
 }
 
-export async function buildQueryContext(
-  mainDb: Sql,
-  projectDb: Sql,
-  tableName: string,
+// The facility-column slice of the query context, shared by the Postgres
+// builder below and the manifest-based builder in server/run_query/ so the
+// two cannot drift.
+export function computeFacilityContext(
   fetchConfig: GenericLongFormFetchConfig,
-  datasetFamily: DatasetType | undefined,
-): Promise<QueryContext> {
-  // Get facility config first (always, to know what's enabled)
-  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-  throwIfErrWithData(resFacilityConfig);
-  const facilityConfig = resFacilityConfig.data;
-
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityConfig);
-
-  // NOW filter requested columns against enabled columns.
+  enabledFacilityColumns: OptionalFacilityColumn[],
+): Pick<
+  QueryContext,
+  | "requestedOptionalFacilityColumns"
+  | "needsFacilityJoin"
+  | "facilityFilters"
+  | "nonFacilityFilters"
+> {
+  // Filter requested columns against enabled columns.
   // Sources (groupBys, filters[].disOpt) are DisaggregationOption, which does
   // not include "facility_name" — that column is import/display metadata
   // (toggled by includeNames, supplied by DHIS2), never a grouping dimension.
@@ -66,23 +65,6 @@ export async function buildQueryContext(
     ])
   ];
 
-  const needsFacilityJoin = requestedOptionalFacilityColumns.length > 0;
-
-  // Check which time column exists in the table
-  const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
-  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
-  const hasFacilityId = await detectColumnExists(
-    projectDb,
-    tableName,
-    "facility_id",
-  );
-  const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
-  const needsPeriodCTE = needsPeriodCTEFor({
-    hasPeriodId,
-    hasQuarterId,
-    neededPeriodColumns,
-  });
-
   const facilityFilters = fetchConfig.filters.filter((filter) =>
     enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
@@ -92,10 +74,55 @@ export async function buildQueryContext(
       !enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
   );
 
+  return {
+    requestedOptionalFacilityColumns,
+    needsFacilityJoin: requestedOptionalFacilityColumns.length > 0,
+    facilityFilters,
+    nonFacilityFilters,
+  };
+}
+
+export async function buildQueryContext(
+  mainDb: Sql,
+  projectDb: Sql,
+  tableName: string,
+  fetchConfig: GenericLongFormFetchConfig,
+  datasetFamily: DatasetType | undefined,
+): Promise<QueryContext> {
+  // Get facility config first (always, to know what's enabled)
+  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
+  throwIfErrWithData(resFacilityConfig);
+  const facilityConfig = resFacilityConfig.data;
+
+  const enabledFacilityColumns =
+    getEnabledOptionalFacilityColumns(facilityConfig);
+
+  const facilityContext = computeFacilityContext(
+    fetchConfig,
+    enabledFacilityColumns,
+  );
+
+  // Check which time column exists in the table
+  const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
+  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
+  const hasFacilityId = await detectColumnExists(
+    projectDb,
+    tableName,
+    "facility_id",
+  );
+  const calendar = getCalendar();
+  const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
+  const needsPeriodCTE = needsPeriodCTEFor({
+    hasPeriodId,
+    hasQuarterId,
+    neededPeriodColumns,
+    calendar,
+  });
+
   // Both sides of the join: a facility column reaches the query as `f.<col>`,
   // and its type lives in the facilities table, not the results table.
   const textColumns = await getTextColumnNames(projectDb, tableName);
-  if (needsFacilityJoin) {
+  if (facilityContext.needsFacilityJoin) {
     const facilityTextColumns = await getTextColumnNames(
       projectDb,
       facilitiesTableForFamily(datasetFamily),
@@ -111,13 +138,11 @@ export async function buildQueryContext(
     hasPeriodId,
     hasQuarterId,
     hasFacilityId,
+    calendar,
     facilityConfig,
     enabledFacilityColumns,
-    requestedOptionalFacilityColumns,
-    needsFacilityJoin,
-    neededPeriodColumns,
+    ...facilityContext,
     needsPeriodCTE,
-    nonFacilityFilters,
-    facilityFilters,
+    neededPeriodColumns,
   };
 }

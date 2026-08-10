@@ -17,6 +17,7 @@ import type { Sql } from "postgres";
 import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
 import {
   type FigureBlockMut,
+  rawJsonNeedsIndicatorFormatFlip,
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
@@ -42,7 +43,8 @@ export async function migrateDashboardItems(
     // strips from the embedded bundle.config) still need the rename.
     if (
       dashboardFigureBlockSchema.safeParse(figureBlock).success &&
-      !rawJsonNeedsForcedTransform(row.figure_block)
+      !rawJsonNeedsForcedTransform(row.figure_block) &&
+      !rawJsonNeedsIndicatorFormatFlip(row.figure_block)
     ) {
       continue;
     }

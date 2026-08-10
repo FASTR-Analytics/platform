@@ -1,21 +1,24 @@
 import {
   ChartValueInfo,
   CustomFigureStyleOptions,
-  getFormatterFunc,
   type CalendarType,
-  type TickLabelFormatterOption,
 } from "panther";
 import {
   type DeckStyleContext,
-  type IndicatorMetadata,
+  type EffectiveFormat,
   PresentationObjectConfig,
   selectCf,
 } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
+  formatIndicatorValue,
+  getIndicatorIdsForChartValue,
   getMapRegionsContent,
+  getPieSlicesContent,
+  getScaleTickLabelFormatter,
   getStandardSeriesColorFunc,
   getTableCellsContent,
+  getPieCenterLabel,
   getTableColHeadersContent,
   getTableLayoutStyle,
   getTextStyle,
@@ -24,12 +27,10 @@ import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_con
 
 export function buildStandardStyle(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  effectiveFormat: EffectiveFormat,
   calendar: CalendarType,
   deckStyle: DeckStyleContext | undefined,
-  indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
-  obeyMetricFormat: boolean,
   effectiveValueProps: string[],
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
@@ -42,7 +43,27 @@ export function buildStandardStyle(
     : allowNegativeScale
     ? "auto-zero"
     : undefined;
-  const dataFormat = formatAs;
+  // The shared scale axis and everything derived from it — tick labels, the
+  // forceYMax1 clamp, the pie completion envelope. These are the ONLY
+  // legitimate uses of the collapsed format; every individual value below goes
+  // through formatForValue instead.
+  const axisFormat = effectiveFormat.axisFormat;
+  // Re-checked against the RESOLVED format, not the stored flag alone (the
+  // isPieCompletionMode pattern): an "indicator" metric's format is
+  // filter-sensitive, so a stranded forceYMax1 on a now-numeric figure must
+  // degrade to auto rather than clamp counts at 1.
+  const scaleMax = config.s.forceYMax1 && axisFormat === "percent"
+    ? 1
+    : undefined;
+  const tickLabelFormatter = getScaleTickLabelFormatter(axisFormat);
+  const formatChartValue = (info: ChartValueInfo) =>
+    formatIndicatorValue(
+      info.val,
+      effectiveFormat.formatForValue(
+        getIndicatorIdsForChartValue(effectiveValueProps, info),
+      ),
+      config.s.decimalPlaces ?? 0,
+    );
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
@@ -82,19 +103,15 @@ export function buildStandardStyle(
     },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
-      max: config.s.forceYMax1 ? 1 : undefined,
+      max: scaleMax,
       min: scaleMin,
-      tickLabelFormatter: (dataFormat === "percent"
-        ? "auto-percent"
-        : "auto-number") as TickLabelFormatterOption,
+      tickLabelFormatter,
     },
     xScaleAxis: {
       allowIndividualLaneLimits: config.s.allowIndividualRowLimits,
-      max: config.s.forceYMax1 ? 1 : undefined,
+      max: scaleMax,
       min: scaleMin,
-      tickLabelFormatter: (dataFormat === "percent"
-        ? "auto-percent"
-        : "auto-number") as TickLabelFormatterOption,
+      tickLabelFormatter,
     },
     content: {
       points: {
@@ -102,8 +119,7 @@ export function buildStandardStyle(
           show: showPoints,
           dataLabel: { show: config.s.showDataLabels },
         },
-        textFormatter: (info: ChartValueInfo) =>
-          getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
+        textFormatter: formatChartValue,
       },
       bars: {
         func:
@@ -116,8 +132,7 @@ export function buildStandardStyle(
                   dataLabel: { show: config.s.showDataLabels },
                 }
               : { show: true, dataLabel: { show: config.s.showDataLabels } },
-        textFormatter: (info: ChartValueInfo) =>
-          getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
+        textFormatter: formatChartValue,
         stacking: c === "bars" && config.s.barsStacked ? "stacked" : "none",
       },
       lines: {
@@ -125,8 +140,7 @@ export function buildStandardStyle(
           show: showLines,
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         },
-        textFormatter: (info: ChartValueInfo) =>
-          getFormatterFunc(dataFormat, config.s.decimalPlaces ?? 0)(info.val),
+        textFormatter: formatChartValue,
       },
       areas: {
         func: { show: showAreas },
@@ -136,14 +150,18 @@ export function buildStandardStyle(
       },
       tableCells: getTableCellsContent(
         config,
-        formatAs,
-        indicatorMetadata,
-        obeyMetricFormat,
+        effectiveFormat,
         effectiveValueProps,
         deckStyle,
       ),
       tableColHeaders: getTableColHeadersContent(config),
-      mapRegions: getMapRegionsContent(config, formatAs, deckStyle),
+      mapRegions: getMapRegionsContent(
+        config,
+        effectiveFormat,
+        effectiveValueProps,
+        deckStyle,
+      ),
+      slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle, cfOn),
     valuesColorFunc: compileCfToValuesColorFunc(cf),
@@ -156,6 +174,13 @@ export function buildStandardStyle(
               (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
                 ? "only-regions-in-data"
                 : undefined,
+          }
+        : undefined,
+    pie:
+      config.d.type === "pie"
+        ? {
+            innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0,
+            centerLabel: getPieCenterLabel(config, axisFormat),
           }
         : undefined,
   };

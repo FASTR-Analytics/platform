@@ -445,6 +445,43 @@ export const F10_HFA_AREA_ONLY: Fixture = {
   firstPeriodOption: undefined,
 };
 
+// F11 — the HFA variants RO shape: hfa_variant_item is a plain TEXT NOT NULL
+// physical column (never in the special registries), hfa_indicator carries the
+// PARENT indicator, and each parent's rows span only its own group's items.
+// Exercises the generic physical-column path for group-by / filter / option
+// lists on the new column.
+export const F11_HFA_VARIANTS: Fixture = {
+  name: "hfa_variants",
+  family: "hfa",
+  moduleId: "m_hfa_var",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "22222222-3333-4444-5555-666666666666",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: HFA_FACILITIES,
+  roColumns: [
+    { name: "facility_id", type: "text" },
+    { name: "time_point", type: "text" },
+    { name: "hfa_indicator", type: "text" },
+    { name: "hfa_variant_item", type: "text" },
+    { name: "hfa_category", type: "text" },
+    { name: "value", type: "double precision" },
+  ],
+  roRows: [
+    { facility_id: "h1", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "campaign", hfa_category: "cat_1", value: 10 },
+    { facility_id: "h2", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "campaign", hfa_category: "cat_1", value: 20 },
+    { facility_id: "h1", time_point: "midline", hfa_indicator: "vacc", hfa_variant_item: "campaign", hfa_category: "cat_1", value: 8 },
+    { facility_id: "h1", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "routine", hfa_category: "cat_1", value: 5 },
+    { facility_id: "h2", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "routine", hfa_category: "cat_1", value: 1 },
+    { facility_id: "h3", time_point: "baseline", hfa_indicator: "water", hfa_variant_item: "piped", hfa_category: "cat_2", value: 2 },
+  ],
+  indicators: [],
+  hfaSnapshots: HFA_SNAPSHOTS,
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -456,4 +493,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F8_HFA_FACILITY_BLANKS,
   F9_HMIS_OPTION_CAP,
   F10_HFA_AREA_ONLY,
+  F11_HFA_VARIANTS,
 ];

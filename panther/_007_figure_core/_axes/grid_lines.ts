@@ -52,6 +52,7 @@ export function calculateXAxisGridLines(
         xAxisConfig.nTimePoints,
         gridStrokeWidth,
         xAxisConfig.axisStyle.showEveryNthTick,
+        xAxisConfig.axisStyle.calendar,
       );
     case "scale": {
       const mx = xAxisMeasuredInfo as XScaleAxisMeasuredInfo;

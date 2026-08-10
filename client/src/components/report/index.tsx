@@ -1166,6 +1166,7 @@ export function ProjectReport(p: Props) {
       s0 && s0.isLive()
         ? {
             figureId: sel.id,
+            hostDoc: { docType: "report", docId: p.reportId },
             getConfigMap: () => {
               const ss = session();
               return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
@@ -1683,7 +1684,7 @@ function ReportPeerSelectionOverlay(p: {
                 <For each={b.editors}>
                   {(e) => (
                     <div
-                      class="rounded px-1 text-[10px] font-semibold whitespace-nowrap text-white"
+                      class="rounded px-1 text-[10px] font-700 whitespace-nowrap text-white"
                       style={{ "background-color": e.color }}
                     >
                       {e.name}

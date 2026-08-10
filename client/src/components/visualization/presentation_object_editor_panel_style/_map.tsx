@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
   selectCf,
@@ -7,7 +8,7 @@ import {
 import { Checkbox, RadioGroup, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { METRICS_WITH_NEGATIVE_PCT_VALUES } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
+import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
 import { applyCfToTempConfig } from "../cf_store_helper";
 import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
@@ -16,6 +17,9 @@ type Props = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function MapStyleControls(p: Props) {
@@ -70,9 +74,9 @@ export function MapStyleControls(p: Props) {
         <ConditionalFormattingEditor
           value={selectCf(p.tempConfig.s)}
           onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-          formatAs={p.poDetail.resultsValue.formatAs}
+          formatAs={p.effectiveFormatAs}
           decimalPlaces={p.tempConfig.s.decimalPlaces}
-          allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
+          allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
         />
       </StyleSection>
       <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
@@ -132,7 +136,12 @@ export function MapStyleControls(p: Props) {
               />
             </StyleRevealGroup>
           </Show>
-          <Show when={p.tempConfig.s.showDataLabels}>
+          <Show
+            when={
+              p.tempConfig.s.showDataLabels &&
+              p.effectiveFormatAs !== "rate_per_10k"
+            }
+          >
             <StyleRevealGroup>
               <RadioGroup
                 label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}

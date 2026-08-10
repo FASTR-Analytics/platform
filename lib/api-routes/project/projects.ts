@@ -1,21 +1,13 @@
 import { z } from "zod";
-import {
-  PROJECT_PERMISSIONS,
-} from "../../types/mod.ts";
+import { PROJECT_PERMISSIONS } from "../../types/mod.ts";
 import type {
   ProjectPermission,
-  ProjectUserRoleType,
   UserLog,
   ProjectDetail,
-  DatasetHmisWindowingCommon,
-  DatasetType,
-  ModuleId,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 const projectIdParamsSchema = z.object({ project_id: z.uuid() });
-
-const datasetTypeSchema = z.enum(["hmis", "hfa", "iceh"]);
 
 // Same security rationale as users.ts permissionsSchema: these keys flow into SQL SET clauses
 // via sql(permissions), so only known ProjectPermission column names must pass.
@@ -24,43 +16,14 @@ const projectPermissionsRequiredSchema = z.object(
 );
 const projectPermissionsPartialSchema = projectPermissionsRequiredSchema.partial();
 
-const datasetHmisWindowingBaseSchema = z.object({
-  start: z.number(),
-  end: z.number(),
-  takeAllIndicators: z.boolean(),
-  takeAllAdminArea2s: z.boolean(),
-  adminArea2sToInclude: z.array(z.string()),
-  takeAllAdminArea3s: z.boolean().optional(),
-  adminArea3sToInclude: z.array(z.string()).optional(),
-  takeAllFacilityOwnerships: z.boolean().optional(),
-  takeAllFacilityTypes: z.boolean().optional(),
-  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
-  facilityTypesToInclude: z.array(z.string()).optional(),
-});
-
-const datasetHmisWindowingCommonSchema = datasetHmisWindowingBaseSchema.extend({
-  indicatorType: z.literal("common"),
-  commonIndicatorsToInclude: z.array(z.string()),
-});
-
 export const projectRouteRegistry = {
+  // A new project starts empty — datasets and modules arrive with the
+  // results package an admin attaches to it (Phase 3 item 1).
   createProject: route({
     path: "/projects",
     method: "POST",
-    body: z.object({
-      label: z.string(),
-      datasetsToEnable: z.array(datasetTypeSchema),
-      modulesToEnable: z.array(z.string()),
-      projectEditors: z.array(z.string()),
-      projectViewers: z.array(z.string()),
-    }),
-    response: {} as {
-      newProjectId: string;
-      datasetLastUpdateds: Array<{
-        datasetType: DatasetType;
-        lastUpdated: string;
-      }>;
-    },
+    body: z.object({ label: z.string() }),
+    response: {} as { newProjectId: string },
   }),
 
   updateProject: route({
@@ -112,33 +75,6 @@ export const projectRouteRegistry = {
     path: "/project_detail",
     method: "GET",
     response: {} as ProjectDetail,
-    requiresProject: true,
-  }),
-
-  addDatasetToProject: route({
-    path: "/project_datasets",
-    method: "POST",
-    body: z.object({
-      datasetType: datasetTypeSchema,
-      windowing: datasetHmisWindowingCommonSchema.optional(),
-      serviceCategoryScope: z.array(z.string()).optional(),
-      skipModuleRerun: z.boolean().optional(),
-    }),
-    response: {} as { lastUpdated: string },
-    requiresProject: true,
-    isStreaming: true,
-  }),
-
-  removeDatasetFromProject: route({
-    path: "/project_datasets/:dataset_type",
-    method: "DELETE",
-    params: z.object({ dataset_type: datasetTypeSchema }),
-    requiresProject: true,
-  }),
-
-  setAllModulesDirty: route({
-    path: "/project/dirty-all",
-    method: "POST",
     requiresProject: true,
   }),
 

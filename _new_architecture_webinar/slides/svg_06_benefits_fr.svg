@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Pourquoi ce changement</text>
+
+  <!-- card 1: Trust -->
+  <g transform="translate(64,120)">
+    <rect width="552" height="160" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#065f46">Des chiffres fiables</text>
+    <text x="28" y="84" font-size="17" fill="#065f46">Un paquet ne change jamais après sa création. Le</text>
+    <text x="28" y="110" font-size="17" fill="#065f46">graphique présenté aujourd'hui affichera les mêmes</text>
+    <text x="28" y="136" font-size="17" fill="#065f46">chiffres le mois prochain — rien ne bouge en silence.</text>
+  </g>
+
+  <!-- card 2: Speed -->
+  <g transform="translate(664,120)">
+    <rect width="552" height="160" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#1e40af">Beaucoup plus rapide</text>
+    <text x="28" y="84" font-size="17" fill="#1e3a8a">Les résultats sont stockés dans un format colonnaire</text>
+    <text x="28" y="110" font-size="17" fill="#1e3a8a">moderne conçu pour l'analytique. Les graphiques lourds</text>
+    <text x="28" y="136" font-size="17" fill="#1e3a8a">se chargent désormais en une fraction de seconde.</text>
+  </g>
+
+  <!-- card 3: Share -->
+  <g transform="translate(64,300)">
+    <rect width="552" height="160" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#92400e">Exécuter une fois, utiliser partout</text>
+    <text x="28" y="84" font-size="17" fill="#92400e">Une seule analyse sert tous les projets de l'instance.</text>
+    <text x="28" y="110" font-size="17" fill="#92400e">Les équipes cessent de répéter le même traitement et</text>
+    <text x="28" y="136" font-size="17" fill="#92400e">tout le monde travaille sur les mêmes résultats.</text>
+  </g>
+
+  <!-- card 4: Transparency -->
+  <g transform="translate(664,300)">
+    <rect width="552" height="160" rx="14" fill="#faf5ff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#5b21b6">Transparence totale</text>
+    <text x="28" y="84" font-size="17" fill="#5b21b6">Chaque paquet consigne les données, réglages et</text>
+    <text x="28" y="110" font-size="17" fill="#5b21b6">versions de scripts exacts qui l'ont produit — scripts et</text>
+    <text x="28" y="136" font-size="17" fill="#5b21b6">journaux consultables dans l'application.</text>
+  </g>
+
+  <!-- card 5: lighter -->
+  <g transform="translate(64,480)">
+    <rect width="1152" height="150" rx="14" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+    <text x="28" y="46" font-size="24" font-weight="bold" fill="#334155">Des projets plus légers et plus simples</text>
+    <text x="28" y="84" font-size="17" fill="#475569">Les projets ne portent plus leurs propres données ni leur propre traitement — ce sont de purs espaces de création pour</text>
+    <text x="28" y="110" font-size="17" fill="#475569">visualisations, diaporamas, tableaux de bord et rapports. Sur une grande instance, vingt projets dupliquant les mêmes</text>
+    <text x="28" y="136" font-size="17" fill="#475569">données nationales dépassaient le téraoctet ; les paquets partagés ramènent cela à quelques gigaoctets.</text>
+  </g>
+</svg>

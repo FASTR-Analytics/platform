@@ -1,19 +1,11 @@
-import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
-import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import { type HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
-import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
 import {
   APIResponseWithData,
   composeHfaIndicatorLabel,
   DatasetHfaInfoInProject,
   getHfaIndicatorMeasure,
   hashFacilityColumnsConfig,
-  throwIfErrNoData,
   throwIfErrWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -32,23 +24,64 @@ import {
   DBHfaIndicatorCategory,
   DBHfaIndicatorServiceCategory,
   DBHfaIndicatorSubCategory,
+  DBHfaIndicatorVariantGroup,
+  DBHfaIndicatorVariantItem,
   dbRowToHfaIndicator,
   dbRowToHfaIndicatorCategory,
   dbRowToHfaIndicatorServiceCategory,
   dbRowToHfaIndicatorSubCategory,
 } from "../instance/hfa_indicators.ts";
 import { getHfaIndicatorsVersion } from "../instance/instance.ts";
-import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
-import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
+import { tryCatchDatabaseAsync } from "./../utils.ts";
+import {
+  ensureDatasetCsvTargetDir,
+  PROJECT_FACILITY_COLUMN_NAMES,
+  type DatasetCsvTarget,
+  type ProjectFacilityRow,
+} from "./datasets_in_project_hmis.ts";
 
-export async function addDatasetHfaToProject(
+// See the HMIS file's header note. computeDatasetHfaRunCapture does the
+// instance reads + COPY export and returns every captured row set. Capture
+// is always the FULL dataset — every service category's indicator
+// definitions and R code ship in the run (PLAN_FULL_CAPTURE_GENERATION
+// ruling 2026-08-03).
+
+export type DatasetHfaRunCapture = {
+  info: DatasetHfaInfoInProject;
+  lastUpdated: string;
+  facilities: ProjectFacilityRow[];
+  indicatorsHfa: { var_name: string; example_values: string }[];
+  sentinelValues: {
+    var_name: string;
+    value: string;
+    sentinel_class: string;
+    is_numeric: boolean;
+  }[];
+  categories: DBHfaIndicatorCategory[];
+  subCategories: DBHfaIndicatorSubCategory[];
+  serviceCategories: DBHfaIndicatorServiceCategory[];
+  variantGroups: DBHfaIndicatorVariantGroup[];
+  variantItems: DBHfaIndicatorVariantItem[];
+  indicators: DBHfaIndicator[];
+  indicatorCode: {
+    var_name: string;
+    time_point: string;
+    r_code: string;
+    r_filter_code: string | null;
+  }[];
+  variantCode: {
+    var_name: string;
+    time_point: string;
+    item_id: string;
+    r_code: string;
+  }[];
+};
+
+export async function computeDatasetHfaRunCapture(
   mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
+  csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
-  // Service-category ids to include. Empty = include all.
-  serviceCategoryScope: string[] = [],
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<APIResponseWithData<DatasetHfaRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate and capture staleness metadata BEFORE removing the existing
     // attachment: a failure after the remove leaves the project detached
@@ -73,24 +106,12 @@ export async function addDatasetHfaToProject(
     throwIfErrWithData(resMaxAdminArea);
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
-    // DB for the project-level snapshot. The module runner reads from the
-    // snapshot so indicators and data stay in sync for this project.
-    // Project scoping: when a scope is set, only indicators whose service
-    // categories overlap it are brought into the project.
-    const scopeFilter =
-      serviceCategoryScope.length > 0
-        ? mainDb`WHERE jsonb_exists_any(service_category_ids::jsonb, ${serviceCategoryScope})`
-        : mainDb``;
+    // DB for the run snapshot. The module runner reads from the snapshot so
+    // indicators and data stay in sync for this run.
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ${scopeFilter} ORDER BY sort_order, var_name
+      SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
     `;
-    if (
-      serviceCategoryScope.length > 0 &&
-      hfaIndicatorRowsForSnapshot.length === 0
-    ) {
-      throw new Error("No HFA indicators match the selected service categories.");
-    }
-    const scopedVarNames = new Set(
+    const indicatorVarNames = new Set(
       hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
     );
     const hfaIndicatorCodeRowsForSnapshot = (
@@ -106,7 +127,7 @@ export async function addDatasetHfaToProject(
       FROM hfa_indicator_code
       ORDER BY var_name, time_point
     `
-    ).filter((c) => scopedVarNames.has(c.var_name));
+    ).filter((c) => indicatorVarNames.has(c.var_name));
 
     // Staleness metadata — stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
@@ -130,18 +151,7 @@ export async function addDatasetHfaToProject(
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    if (onProgress) await onProgress(0.3, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "hfa");
-    throwIfErrNoData(res);
-
-    const datasetDirPath = getDatasetDirPath(projectId);
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = getDatasetFilePathForPostgres(
-      projectId,
-      "hfa",
-    );
+    await ensureDatasetCsvTargetDir(csvTarget);
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
@@ -167,15 +177,15 @@ SELECT
   h.value
 FROM hfa_data h
 INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id
-LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point`;
+LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point
+-- Deterministic row order: the extract's bytes are a module inputKey
+-- ingredient (PLAN_RESULTS_RUNS §3.7); unordered COPY output varies run to run.
+ORDER BY h.facility_id, h.time_point, h.var_name, h.value`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
-COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true, FREEZE false)
+COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
-
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
 
     // Fetch HFA categories from instance DB for snapshot
     const hfaCategoriesForSnapshot = await mainDb<DBHfaIndicatorCategory[]>`
@@ -192,33 +202,42 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
       SELECT id, label, sort_order FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
 
+    // Fetch HFA variant groups/items + per-item code from instance DB for
+    // snapshot. Explicit deterministic ORDER BY throughout: the generated
+    // script text is a module inputKey ingredient, so nondeterministic order
+    // would churn memoized reuse.
+    const hfaVariantGroupsForSnapshot = await mainDb<DBHfaIndicatorVariantGroup[]>`
+      SELECT id, label, sort_order FROM hfa_indicator_variant_groups ORDER BY sort_order, id
+    `;
+    const hfaVariantItemsForSnapshot = await mainDb<DBHfaIndicatorVariantItem[]>`
+      SELECT id, group_id, label, sort_order FROM hfa_indicator_variant_items ORDER BY group_id, sort_order, id
+    `;
+    const hfaVariantCodeRowsForSnapshot = (
+      await mainDb<
+        {
+          var_name: string;
+          time_point: string;
+          item_id: string;
+          r_code: string;
+        }[]
+      >`
+      SELECT var_name, time_point, item_id, r_code
+      FROM hfa_indicator_variant_code
+      ORDER BY var_name, time_point, item_id
+    `
+    ).filter((c) => indicatorVarNames.has(c.var_name));
+
     const info: DatasetHfaInfoInProject = {
       hfaCacheHash,
       hfaIndicatorsVersion,
       structureLastUpdated,
       facilityColumnsHash: hashFacilityColumnsConfig(facilityConfig),
-      serviceCategoryScope:
-        serviceCategoryScope.length > 0 ? serviceCategoryScope : undefined,
     };
 
-    // Fetch facilities from main database to populate project database
+    // Fetch facilities from main database for the project/run capture
     const facilities = (await mainDb.unsafe(
-      `SELECT * FROM facilities_hfa`,
-    )) as Array<{
-      facility_id: string;
-      admin_area_4: string;
-      admin_area_3: string;
-      admin_area_2: string;
-      admin_area_1: string;
-      facility_name: string | null;
-      facility_type: string | null;
-      facility_ownership: string | null;
-      facility_custom_1: string | null;
-      facility_custom_2: string | null;
-      facility_custom_3: string | null;
-      facility_custom_4: string | null;
-      facility_custom_5: string | null;
-    }>;
+      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
+    )) as ProjectFacilityRow[];
 
     // Fetch unique HFA indicators (var_name) from main database with sample values
     const hfaIndicators = (await mainDb.unsafe(`
@@ -270,99 +289,27 @@ COPY (${exportStatement}) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, H
       is_numeric: boolean;
     }>;
 
-    // Clear existing data and populate with HFA data. Snapshot-code rows FK
-    // into snapshot-indicator rows, so the DELETE order matters (code first).
-    await projectDb.begin((sql) => [
-      sql`
-INSERT INTO datasets (dataset_type, info, last_updated)
-VALUES (
-  'hfa',
-  ${JSON.stringify(info)},
-  ${lastUpdated}
-)
-ON CONFLICT (dataset_type) DO UPDATE SET
-  info = EXCLUDED.info,
-  last_updated = EXCLUDED.last_updated
-`,
-      sql`DELETE FROM hfa_indicator_code_snapshot`,
-      sql`DELETE FROM hfa_indicators_snapshot`,
-      sql`DELETE FROM hfa_variable_values_snapshot`,
-      sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_categories_snapshot`,
-      sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-      sql`DELETE FROM facilities_hfa`,
-      sql`DELETE FROM indicators_hfa`,
-      ...(facilities.length > 0
-        ? facilities.map(
-            (fac) =>
-              sql`INSERT INTO facilities_hfa (facility_id, admin_area_4, admin_area_3, admin_area_2, admin_area_1, facility_name, facility_type, facility_ownership, facility_custom_1, facility_custom_2, facility_custom_3, facility_custom_4, facility_custom_5)
-        VALUES (${fac.facility_id}, ${fac.admin_area_4}, ${fac.admin_area_3}, ${fac.admin_area_2}, ${fac.admin_area_1}, ${fac.facility_name}, ${fac.facility_type}, ${fac.facility_ownership}, ${fac.facility_custom_1}, ${fac.facility_custom_2}, ${fac.facility_custom_3}, ${fac.facility_custom_4}, ${fac.facility_custom_5})`,
-          )
-        : []),
-      ...(hfaIndicators.length > 0
-        ? [
-          sql.unsafe(`
-        INSERT INTO indicators_hfa (var_name, example_values)
-        VALUES ${
-            hfaIndicators
-              .map((ind) =>
-                `('${escapeSqlString(ind.var_name)}', '${
-                  escapeSqlString(ind.sample_values || "")
-                }')`
-              )
-              .join(",\n")
-          }
-      `),
-        ]
-        : []),
-      ...(hfaSentinelValuesForSnapshot.length > 0
-        ? [
-          sql.unsafe(`
-        INSERT INTO hfa_variable_values_snapshot (var_name, value, sentinel_class, is_numeric)
-        VALUES ${
-            hfaSentinelValuesForSnapshot
-              .map((r) =>
-                `('${escapeSqlString(r.var_name)}', '${
-                  escapeSqlString(r.value)
-                }', '${escapeSqlString(r.sentinel_class)}', ${
-                  r.is_numeric ? "TRUE" : "FALSE"
-                })`
-              )
-              .join(",\n")
-          }
-      `),
-        ]
-        : []),
-      ...hfaCategoriesForSnapshot.map(
-        (cat) =>
-          sql`INSERT INTO hfa_indicator_categories_snapshot (id, label, sort_order)
-            VALUES (${cat.id}, ${cat.label}, ${cat.sort_order})`,
-      ),
-      ...hfaSubCategoriesForSnapshot.map(
-        (subCat) =>
-          sql`INSERT INTO hfa_indicator_sub_categories_snapshot (id, category_id, label, sort_order)
-            VALUES (${subCat.id}, ${subCat.category_id}, ${subCat.label}, ${subCat.sort_order})`,
-      ),
-      ...hfaServiceCategoriesForSnapshot.map(
-        (svcCat) =>
-          sql`INSERT INTO hfa_indicator_service_categories_snapshot (id, label, sort_order)
-            VALUES (${svcCat.id}, ${svcCat.label}, ${svcCat.sort_order})`,
-      ),
-      ...hfaIndicatorRowsForSnapshot.map(
-        (ind) =>
-          sql`INSERT INTO hfa_indicators_snapshot
-            (var_name, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order)
-            VALUES (${ind.var_name}, ${ind.category_id}, ${ind.sub_category_id}, ${ind.service_category_ids}, ${ind.short_label}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${ind.sort_order})`,
-      ),
-      ...hfaIndicatorCodeRowsForSnapshot.map(
-        (c) =>
-          sql`INSERT INTO hfa_indicator_code_snapshot
-            (var_name, time_point, r_code, r_filter_code)
-            VALUES (${c.var_name}, ${c.time_point}, ${c.r_code}, ${c.r_filter_code})`,
-      ),
-    ]);
-
-    return { success: true, data: { lastUpdated } };
+    return {
+      success: true,
+      data: {
+        info,
+        lastUpdated: new Date().toISOString(),
+        facilities,
+        indicatorsHfa: hfaIndicators.map((ind) => ({
+          var_name: ind.var_name,
+          example_values: ind.sample_values || "",
+        })),
+        sentinelValues: hfaSentinelValuesForSnapshot,
+        categories: hfaCategoriesForSnapshot,
+        subCategories: hfaSubCategoriesForSnapshot,
+        serviceCategories: hfaServiceCategoriesForSnapshot,
+        variantGroups: hfaVariantGroupsForSnapshot,
+        variantItems: hfaVariantItemsForSnapshot,
+        indicators: hfaIndicatorRowsForSnapshot,
+        indicatorCode: hfaIndicatorCodeRowsForSnapshot,
+        variantCode: hfaVariantCodeRowsForSnapshot,
+      },
+    };
   });
 }
 
@@ -444,7 +391,8 @@ export async function getAllHfaIndicatorsFromSnapshot(
       i.sort_order,
       '' as updated_at,
       false as has_syntax_error,
-      true as code_consistent
+      true as code_consistent,
+      null as variant_group_id
     FROM hfa_indicators_snapshot i
     LEFT JOIN hfa_indicator_categories_snapshot c ON i.category_id = c.id
     LEFT JOIN hfa_indicator_sub_categories_snapshot sc ON i.sub_category_id = sc.id
@@ -481,6 +429,10 @@ export async function getHfaTaxonomyForAI(
       label: s.label,
     })),
     serviceCategories: serviceCategories.map((s) => ({ id: s.id, label: s.label })),
+    // Frozen pg plane: the project snapshot tables predate the variant feature,
+    // so variant data is always empty here.
+    variantGroups: [],
+    variantItems: [],
     timePoints: timePointRows.map((t) => ({
       id: t.label,
       label: t.label,
@@ -493,6 +445,7 @@ export async function getHfaTaxonomyForAI(
       categoryId: i.categoryId,
       subCategoryId: i.subCategoryId,
       serviceCategoryIds: i.serviceCategoryIds,
+      variantGroupId: i.variantGroupId,
     })),
   };
 }
@@ -513,18 +466,3 @@ export async function getAllHfaIndicatorCodeFromSnapshot(
   }));
 }
 
-function getDatasetDirPath(projectId: string): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets");
-}
-
-function getDatasetFilePathForPostgres(
-  projectId: string,
-  datasetType: string,
-): string {
-  return join(
-    _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-    projectId,
-    "datasets",
-    `${datasetType}.csv`,
-  );
-}

@@ -6,7 +6,7 @@
 import type { MessageParam, Usage } from "../deps.ts";
 import { createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
-import type { ProposalPreview } from "./tool_helpers.ts";
+import type { ProposalPreview } from "../deps.ts";
 import {
   clearConversationPersistence,
   loadConversation,

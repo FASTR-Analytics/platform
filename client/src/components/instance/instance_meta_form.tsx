@@ -95,6 +95,17 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
                     <div class="flex">
                       <div class="w-36 flex-none">
                         {t3({
+                          en: "Fiscal year",
+                          fr: "Exercice fiscal",
+                          pt: "Ano fiscal",
+                        })}
+                        :
+                      </div>
+                      <div class="flex-1">{keyedMeta.instanceFiscalYear}</div>
+                    </div>
+                    <div class="flex">
+                      <div class="w-36 flex-none">
+                        {t3({
                           en: "Open Access",
                           fr: "Accès libre",
                           pt: "Acesso livre",

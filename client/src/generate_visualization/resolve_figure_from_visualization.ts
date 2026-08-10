@@ -2,7 +2,7 @@ import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentat
 import { getReplicateByProp } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getInstanceLocalization } from "~/state/instance/t1_store";
+import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
@@ -82,7 +82,7 @@ export async function resolveFigureBundleFromVizConfig(
     indicatorMetadata: ih.indicatorMetadata,
     dateRange: ih.dateRange,
     geo,
-    localization: getInstanceLocalization(),
+    localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
     provenance: {
@@ -127,7 +127,7 @@ export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBund
     indicatorMetadata: ih.indicatorMetadata,
     dateRange: ih.dateRange,
     geo: mapLevel ? (geoJson ? { kind: "data" as const, data: geoJson } : { kind: "level" as const, level: mapLevel }) : undefined,
-    localization: getInstanceLocalization(),
+    localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
     provenance: { moduleLastRun: ih.moduleLastRun, datasetsVersion: ih.datasetsVersion },

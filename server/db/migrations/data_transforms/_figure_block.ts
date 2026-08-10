@@ -23,9 +23,8 @@
 // =============================================================================
 
 import {
-  figureBlockSchema,
-  figureBundleSchema,
   getRollupPosition,
+  INDICATOR_FORMAT_METRIC_IDS,
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
@@ -194,7 +193,17 @@ const _INDICATOR_METADATA_KEYS = new Set([
   "sort_order",
 ]);
 
-// Pre-P2 figure-block normalisation — run before bundle conversion.
+// Forced skip-gate for the formatAs flip: a bundle whose resultsValue still
+// says "number"/"percent" for a listed metric parses cleanly under the 3-way
+// schema, so a parse-only gate would skip it forever. String-scans the raw
+// row like rawJsonNeedsForcedTransform; keeps firing for rows that contain a
+// listed metric after the flip, which the no-op write guard absorbs.
+export function rawJsonNeedsIndicatorFormatFlip(raw: string): boolean {
+  return INDICATOR_FORMAT_METRIC_IDS.some((id) =>
+    raw.includes(`"metricId":"${id}"`)
+  );
+}
+
 export function transformFigureBlock(block: FigureBlockMut): void {
   if (block.type !== "figure") return;
 
@@ -223,6 +232,21 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     bundle.config = transformPOConfigData(
       bundle.config as Record<string, unknown>,
     );
+  }
+
+  // Block: declared-format migration — bundles stored before the three-way
+  // formatAs carry "number"/"percent" for the 8 listed metrics; flip them so
+  // the render twin resolves per-indicator instead of treating the stored
+  // two-way value as the metric's own constant.
+  if (
+    bundle &&
+    typeof bundle === "object" &&
+    typeof bundle.metricId === "string" &&
+    INDICATOR_FORMAT_METRIC_IDS.includes(bundle.metricId) &&
+    bundle.resultsValue &&
+    typeof bundle.resultsValue === "object"
+  ) {
+    (bundle.resultsValue as Record<string, unknown>).formatAs = "indicator";
   }
 
   // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
@@ -375,7 +399,10 @@ function buildBundleFromFigureInputs(
     return {
       ...base,
       items: stringItems,
-      resultsValue: { formatAs: inferFormatAs(indicatorMetadata), valueProps },
+      resultsValue: {
+        formatAs: inferFormatAs(indicatorMetadata, metricId),
+        valueProps,
+      },
       dateRange: deriveDateRangeFromItems(jsonArray),
       geo,
     };
@@ -412,7 +439,7 @@ function buildBundleFromFigureInputs(
         ...base,
         items,
         resultsValue: {
-          formatAs: inferFormatAs(indicatorMetadata),
+          formatAs: inferFormatAs(indicatorMetadata, metricId),
           valueProps,
         },
         dateRange: tsDateRange,
@@ -760,13 +787,38 @@ function deriveDateRangeFromItems(
   return undefined;
 }
 
+// The metric-level format for a bundle rebuilt from legacy figureInputs, which
+// recorded no such field. This is the ONE place in the app that infers a format
+// instead of reading a declaration, because a stored bundle carries no metric
+// definition and the transform has no honest way to reach one. The write is
+// permanent, so every branch here reproduces exactly what the pre-declaration
+// code would have written for that figure — this function repairs history, it
+// does not improve on it.
+//
+// The 8 pre-declaration metrics are "indicator" by the same frozen ruling the
+// sweep flip applies. m9-02-01 is frozen "number": its values are DERIVED
+// measures (CIX/SII) over percent indicators, so the all-percent heuristic
+// below would call it percent and render them ×100 with a `%`.
+//
+// Everything else keeps the ORIGINAL all-percent heuristic verbatim. Note it
+// counts an entry with NO format_as as disagreement: the catalog carries
+// label-only entries for every family (HFA categories, ICEH strat codes and
+// levels, raw common indicators), and skipping them instead — which reads as
+// the more "correct" rule — flips those metrics from number to percent, which
+// is precisely the regression this restores. It is also deliberately NOT the
+// live resolution rule, which only counts values on an indicator DIMENSION: a
+// legacy figure displaying no indicator dimension (an admin-area breakdown,
+// say) would resolve "number" and freeze a percent metric's values as raw
+// fractions.
 function inferFormatAs(
   indicatorMetadata: Record<string, unknown>[],
-): "percent" | "number" {
+  metricId: string,
+): "percent" | "number" | "indicator" {
+  if (INDICATOR_FORMAT_METRIC_IDS.includes(metricId)) return "indicator";
+  if (metricId === "m9-02-01") return "number";
+
   if (indicatorMetadata.length === 0) return "number";
-  const allPercent = indicatorMetadata.every(
-    (m) => m.format_as === "percent",
-  );
+  const allPercent = indicatorMetadata.every((m) => m.format_as === "percent");
   return allPercent ? "percent" : "number";
 }
 

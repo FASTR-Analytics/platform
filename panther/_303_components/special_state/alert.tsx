@@ -3,7 +3,17 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, type JSX, Match, Show, Switch, untrack } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  Match,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
@@ -233,12 +243,92 @@ export function openComponent<TProps, TReturn>(
   );
 }
 
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
+
 export default function AlertProvider() {
-  // deno-lint-ignore no-unused-vars -- staged for F1 modal a11y (Escape-to-dismiss); see PLAN_303_HTML_A11Y.md
+  let dialogEl: HTMLDivElement | undefined;
+  let previouslyFocused: Element | null = null;
+
   function cancelAny() {
     resolveAsCancelled(alertState());
     setAlertState(undefined);
   }
+
+  function getFocusables(): HTMLElement[] {
+    if (!dialogEl) {
+      return [];
+    }
+    return Array.from(
+      dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    );
+  }
+
+  function handleKeyDown(evt: KeyboardEvent) {
+    if (!untrack(alertState)) {
+      return;
+    }
+    if (evt.key === "Escape") {
+      evt.preventDefault();
+      cancelAny();
+      return;
+    }
+    if (evt.key === "Tab") {
+      const focusables = getFocusables();
+      if (focusables.length === 0) {
+        evt.preventDefault();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (!dialogEl?.contains(active)) {
+        evt.preventDefault();
+        first.focus();
+        return;
+      }
+      if (evt.shiftKey && active === first) {
+        evt.preventDefault();
+        last.focus();
+      } else if (!evt.shiftKey && active === last) {
+        evt.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener("keydown", handleKeyDown);
+  });
+  onCleanup(() => {
+    document.removeEventListener("keydown", handleKeyDown);
+  });
+
+  createEffect(() => {
+    if (alertState()) {
+      // Runs on open and on displacement (keyed swap); only the first open
+      // of the run records the restore target.
+      if (!previouslyFocused) {
+        previouslyFocused = document.activeElement;
+      }
+      // autofocus props (confirm's Cancel, prompt's Input) may already have
+      // claimed focus — only place initial focus if it is still outside.
+      if (dialogEl && !dialogEl.contains(document.activeElement)) {
+        (getFocusables()[0] ?? dialogEl).focus();
+      }
+    } else if (previouslyFocused) {
+      if (previouslyFocused instanceof HTMLElement) {
+        previouslyFocused.focus();
+      }
+      previouslyFocused = null;
+    }
+  });
 
   return (
     <Show when={alertState()} keyed>
@@ -246,7 +336,16 @@ export default function AlertProvider() {
         return (
           <>
             <div class="bg-scrim fixed inset-0 z-50" />
-            <div class="fixed inset-0 z-50 overflow-y-auto py-12">
+            <div
+              ref={dialogEl}
+              class="fixed inset-0 z-50 overflow-y-auto py-12 outline-none"
+              role="dialog"
+              aria-modal="true"
+              aria-label={isACPState(keyedAlertState)
+                ? keyedAlertState.title
+                : undefined}
+              tabindex="-1"
+            >
               <div class="flex min-h-full items-center justify-center">
                 <Switch>
                   <Match

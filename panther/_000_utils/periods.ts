@@ -15,7 +15,11 @@ import type { Language } from "./translate.ts";
 
 export type PeriodType = "year-month" | "year-quarter" | "year";
 
-export type CalendarType = "gregorian" | "ethiopian" | "ethiopian-to-gregorian";
+export type CalendarType =
+  | "gregorian"
+  | "ethiopian"
+  | "ethiopian-to-gregorian"
+  | "gregorian-fy-july";
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //

@@ -3,7 +3,9 @@ import {
   StructureIntegrateStrategy,
   _OPTIONAL_FACILITY_COLUMNS,
   type FacilityFamily,
+  type StructureRecodes,
 } from "lib";
+import { escapeSqlString } from "../db/utils.ts";
 
 export interface IntegrateStructureResult {
   success: boolean;
@@ -32,7 +34,8 @@ export async function integrateStructureFromStaging(
   mainDb: Sql,
   stagingTableName: string,
   strategy: StructureIntegrateStrategy,
-  family: FacilityFamily
+  family: FacilityFamily,
+  recodes: StructureRecodes
 ): Promise<IntegrateStructureResult> {
   const facilitiesTable =
     family === "hmis" ? "facilities_hmis" : "facilities_hfa";
@@ -43,6 +46,15 @@ export async function integrateStructureFromStaging(
     const stagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter((col) =>
       stagedColumns.includes(col)
     );
+
+    // Should be unreachable: recodes are cleared on every reconfiguration and
+    // the save is nonce-guarded. Fail loudly if it ever isn't.
+    const recodeJoins = buildRecodeJoins(recodes);
+    for (const rc of recodeJoins) {
+      if (!stagedColumns.includes(rc.col)) {
+        throw new Error("Recoded column not staged — re-stage and review again");
+      }
+    }
 
     // Insert-capable intents need admin areas to place new facilities (the
     // facilities table requires them NOT NULL). The UI blocks this; guard anyway.
@@ -91,7 +103,8 @@ export async function integrateStructureFromStaging(
             sql,
             facilitiesTable,
             stagingTableName,
-            writeColumns
+            writeColumns,
+            recodeJoins
           );
           await cleanupUnusedAdminAreas(sql);
           break;
@@ -103,7 +116,8 @@ export async function integrateStructureFromStaging(
             sql,
             facilitiesTable,
             stagingTableName,
-            writeColumns
+            writeColumns,
+            recodeJoins
           );
           inserted = result.inserted;
           updated = result.updated;
@@ -123,7 +137,8 @@ export async function integrateStructureFromStaging(
               sql,
               facilitiesTable,
               stagingTableName,
-              writeColumns
+              writeColumns,
+              recodeJoins
             );
           }
           if (stagedAdminAreas) {
@@ -175,7 +190,7 @@ export async function integrateStructureFromStaging(
  * supplies (DHIS2). This is the authoritative source — not the enabled-columns
  * config, which staging may not have materialized.
  */
-async function getStagedColumns(
+export async function getStagedColumns(
   sql: Sql,
   stagingTableName: string
 ): Promise<string[]> {
@@ -271,7 +286,7 @@ async function assertNoBlockingReferencesForReplace(
  * names come from the fixed admin list plus `_OPTIONAL_FACILITY_COLUMNS`, never
  * from user input.
  */
-function buildDedupOrderClause(writeColumns: string[]): string {
+export function buildDedupOrderClause(writeColumns: string[]): string {
   if (writeColumns.length === 0) {
     return "rowid";
   }
@@ -284,6 +299,57 @@ function buildDedupOrderClause(writeColumns: string[]): string {
 }
 
 /**
+ * Review-step recodes are applied as a projection overlay: each recoded column
+ * becomes `COALESCE(rc_col.val, col)` fed by a `LEFT JOIN (VALUES ...)` on
+ * facility_id — the staging table is never mutated. The dedup ORDER BY keeps
+ * referencing the raw column names, and window-clause references resolve to
+ * INPUT columns (not select-list aliases), so ranking runs on ORIGINAL values:
+ * the rn=1 winner the review UI showed is exactly the row integrated. Do not
+ * "simplify" by pre-applying the COALESCE in a CTE the ranking reads from.
+ */
+type RecodeJoin = {
+  col: string;
+  alias: string;
+  valuesSql: string;
+};
+
+function buildRecodeJoins(recodes: StructureRecodes): RecodeJoin[] {
+  return Object.entries(recodes)
+    .filter(([, map]) => map && Object.keys(map).length > 0)
+    .map(([col, map]) => ({
+      col,
+      alias: `rc_${col}`,
+      valuesSql: Object.entries(map as Record<string, string>)
+        .map(
+          ([fid, val]) =>
+            `('${escapeSqlString(fid)}','${escapeSqlString(val)}')`
+        )
+        .join(","),
+    }));
+}
+
+function recodedSelectList(cols: string[], recodeJoins: RecodeJoin[]): string {
+  return cols
+    .map((c) => {
+      const rc = recodeJoins.find((r) => r.col === c);
+      return rc ? `COALESCE(${rc.alias}.val, ${c}) AS ${c}` : c;
+    })
+    .join(", ");
+}
+
+function recodeJoinClauses(
+  stagingTableName: string,
+  recodeJoins: RecodeJoin[]
+): string {
+  return recodeJoins
+    .map(
+      (r) =>
+        `LEFT JOIN (VALUES ${r.valuesSql}) AS ${r.alias}(fid, val) ON ${r.alias}.fid = ${stagingTableName}.facility_id`
+    )
+    .join("\n      ");
+}
+
+/**
  * Insert all staged facilities (one row per facility_id, see
  * buildDedupOrderClause). Used by replace_all after the wipe. Returns rows
  * inserted.
@@ -292,19 +358,21 @@ async function insertAllFacilities(
   sql: Sql,
   facilitiesTable: string,
   stagingTableName: string,
-  writeColumns: string[]
+  writeColumns: string[],
+  recodeJoins: RecodeJoin[]
 ): Promise<number> {
   const cols = ["facility_id", ...writeColumns];
   const result = await sql.unsafe(`
     INSERT INTO ${facilitiesTable} (${cols.join(", ")})
     SELECT ${cols.join(", ")}
     FROM (
-      SELECT ${cols.join(", ")},
+      SELECT ${recodedSelectList(cols, recodeJoins)},
              ROW_NUMBER() OVER (
                PARTITION BY facility_id
                ORDER BY ${buildDedupOrderClause(writeColumns)}
              ) as rn
       FROM ${stagingTableName}
+      ${recodeJoinClauses(stagingTableName, recodeJoins)}
     ) t
     WHERE rn = 1
   `);
@@ -320,7 +388,8 @@ async function upsertFacilities(
   sql: Sql,
   facilitiesTable: string,
   stagingTableName: string,
-  writeColumns: string[]
+  writeColumns: string[],
+  recodeJoins: RecodeJoin[]
 ): Promise<{ inserted: number; updated: number }> {
   const cols = ["facility_id", ...writeColumns];
   const beforeRows = await sql.unsafe(`
@@ -336,12 +405,13 @@ async function upsertFacilities(
     INSERT INTO ${facilitiesTable} (${cols.join(", ")})
     SELECT ${cols.join(", ")}
     FROM (
-      SELECT ${cols.join(", ")},
+      SELECT ${recodedSelectList(cols, recodeJoins)},
              ROW_NUMBER() OVER (
                PARTITION BY facility_id
                ORDER BY ${buildDedupOrderClause(writeColumns)}
              ) as rn
       FROM ${stagingTableName}
+      ${recodeJoinClauses(stagingTableName, recodeJoins)}
     ) t
     WHERE rn = 1
     ON CONFLICT (facility_id) DO UPDATE SET
@@ -359,7 +429,8 @@ async function updateExistingFacilities(
   sql: Sql,
   facilitiesTable: string,
   stagingTableName: string,
-  writeColumns: string[]
+  writeColumns: string[],
+  recodeJoins: RecodeJoin[]
 ): Promise<number> {
   const setClause = writeColumns
     .map((col) => `${col} = s.${col}`)
@@ -368,12 +439,13 @@ async function updateExistingFacilities(
     UPDATE ${facilitiesTable}
     SET ${setClause}
     FROM (
-      SELECT facility_id, ${writeColumns.join(", ")},
+      SELECT ${recodedSelectList(["facility_id", ...writeColumns], recodeJoins)},
              ROW_NUMBER() OVER (
                PARTITION BY facility_id
                ORDER BY ${buildDedupOrderClause(writeColumns)}
              ) as rn
       FROM ${stagingTableName}
+      ${recodeJoinClauses(stagingTableName, recodeJoins)}
     ) s
     WHERE ${facilitiesTable}.facility_id = s.facility_id
       AND s.rn = 1

@@ -3,14 +3,12 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   DatasetInProject,
-  getPossibleModules,
-  getValidatedModuleId,
-  parseJsonOrThrow,
+  EMPTY_HFA_TAXONOMY,
   ProjectDetail,
   throwIfErrWithData,
-  type DatasetType,
   type GlobalUser,
-  type ModuleId,
+  type InstalledModuleSummary,
+  type MetricWithStatus,
   type ProjectPermission,
   type ProjectUser,
   type ProjectUserRoleType,
@@ -22,7 +20,6 @@ import {
   DBUser,
   type DBProjectUserRole,
 } from "../instance/_main_database_types.ts";
-import { getCountryIso3Config } from "../instance/config.ts";
 import { runProjectMigrations } from "../migrations/runner.ts";
 import {
   closePgConnection,
@@ -30,61 +27,23 @@ import {
   getPgConnectionFromCacheOrNew,
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { DBDataset_IN_PROJECT } from "./_project_database_types.ts";
 import {
-  addDatasetHfaToProject,
-  getHfaTaxonomyForAI,
-} from "./datasets_in_project_hfa.ts";
-import { addDatasetHmisToProject } from "./datasets_in_project_hmis.ts";
-import {
-  getAllModulesForProject,
-  getMetricsWithStatus,
-  installModule,
-} from "./modules.ts";
-import { getAllPresentationObjectsForProject } from "./presentation_objects.ts";
+  getCommonIndicatorsFromManifestInputs,
+  getHfaTaxonomyFromManifestInputs,
+  getIcehIndicatorsFromManifestInputs,
+  getMetricsWithStatusFromManifest,
+  getModuleSummariesFromManifest,
+  getProjectDatasetsFromManifest,
+} from "../../run_query/run_read.ts";
+import { getHfaTimePointsForAI } from "../instance/dataset_hfa.ts";
+import { getRunManifestCached } from "../../runs/manifest_cache.ts";
+import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/virtual_defaults.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
 import { getAllReports } from "./reports.ts";
 import { getAllReportFolders } from "./report_folders.ts";
 import { getAllDashboards } from "./dashboards.ts";
 import { getAllVisualizationFolders } from "./visualization_folders.ts";
-
-/////////////////////////
-//                     //
-//    Datasets list    //
-//                     //
-/////////////////////////
-
-export async function getAllDatasetsForProject(
-  projectDb: Sql,
-): Promise<APIResponseWithData<DatasetInProject[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const datasets = (
-      await projectDb<DBDataset_IN_PROJECT[]>`SELECT * FROM datasets`
-    ).map<DatasetInProject>((row) => {
-      if (row.dataset_type === "hmis") {
-        return {
-          datasetType: "hmis",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
-      }
-      if (row.dataset_type === "iceh") {
-        return {
-          datasetType: "iceh",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
-      }
-      return {
-        datasetType: "hfa",
-        info: parseJsonOrThrow(row.info),
-        dateExported: row.last_updated,
-      };
-    });
-    return { success: true, data: datasets };
-  });
-}
 
 //////////////////////////
 //                      //
@@ -106,47 +65,40 @@ export async function getProjectDetail(
     if (!rawProject) {
       throw new Error("Project not found");
     }
-    const datasetsInProject = (
-      await projectDb<DBDataset_IN_PROJECT[]>`SELECT * FROM datasets`
-    ).map<DatasetInProject>((row) => {
-      if (row.dataset_type === "hmis") {
-        return {
-          datasetType: "hmis",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
+    // EVERYTHING run-derived comes from the attached run's manifest and its
+    // captured inputs (PLAN_RESULTS_RUNS item 5 / binding decision 5, extended
+    // by the Phase 3 re-cut ruling 5 — the project mirror/dataset tables are
+    // no longer written by generation, so they are never read): no run
+    // attached → typed empty lists. An attached-but-unreadable run degrades to
+    // empty here (loudly logged) so authored content stays reachable; the
+    // query routes surface the run error properly.
+    let projectModules: InstalledModuleSummary[] = [];
+    let metrics: MetricWithStatus[] = [];
+    let datasetsInProject: DatasetInProject[] = [];
+    let commonIndicators: { id: string; label: string }[] = [];
+    let icehIndicators: { id: string; label: string; category: string }[] = [];
+    let hfaTaxonomy = EMPTY_HFA_TAXONOMY;
+    if (rawProject.run_id !== null) {
+      try {
+        const manifest = await getRunManifestCached(rawProject.run_id);
+        const runCtx = { runId: rawProject.run_id, manifest };
+        projectModules = getModuleSummariesFromManifest(manifest);
+        metrics = getMetricsWithStatusFromManifest(manifest);
+        datasetsInProject = getProjectDatasetsFromManifest(manifest);
+        commonIndicators = await getCommonIndicatorsFromManifestInputs(runCtx);
+        icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
+        hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
+          runCtx,
+          await getHfaTimePointsForAI(mainDb),
+        );
+      } catch (e) {
+        console.error(
+          `[runs] attached run ${rawProject.run_id} unreadable for project ${projectId}: ${
+            e instanceof Error ? e.message : e
+          }`,
+        );
       }
-      if (row.dataset_type === "iceh") {
-        return {
-          datasetType: "iceh",
-          info: parseJsonOrThrow(row.info),
-          dateExported: row.last_updated,
-        };
-      }
-      return {
-        datasetType: "hfa",
-        info: parseJsonOrThrow(row.info),
-        dateExported: row.last_updated,
-      };
-    });
-
-    const resModules = await getAllModulesForProject(projectDb);
-    throwIfErrWithData(resModules);
-
-    const resMetrics = await getMetricsWithStatus(mainDb, projectDb);
-    throwIfErrWithData(resMetrics);
-
-    const sortedModules = resModules.data.toSorted((a, b) => {
-      const a1 = a.id.toLowerCase().trim();
-      const b1 = b.id.toLowerCase().trim();
-      if (a1 < b1) {
-        return -1;
-      }
-      if (a1 > b1) {
-        return 1;
-      }
-      return 0;
-    });
+    }
 
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
@@ -163,8 +115,11 @@ export async function getProjectDetail(
     const resDashboards = await getAllDashboards(projectDb, mainDb, projectId);
     throwIfErrWithData(resDashboards);
 
-    const resVisualizations =
-      await getAllPresentationObjectsForProject(projectDb);
+    const resVisualizations = await getAllPresentationObjectsWithVirtualDefaults(
+      mainDb,
+      projectId,
+      projectDb,
+    );
     throwIfErrWithData(resVisualizations);
 
     const resFolders = await getAllVisualizationFolders(projectDb);
@@ -240,27 +195,6 @@ export async function getProjectDetail(
       };
     });
 
-    const commonIndicators = (
-      await projectDb<
-        { indicator_common_id: string; indicator_common_label: string }[]
-      >`SELECT indicator_common_id, indicator_common_label FROM indicators ORDER BY indicator_common_label`
-    ).map((row) => ({
-      id: row.indicator_common_id,
-      label: row.indicator_common_label,
-    }));
-
-    const icehIndicators = (
-      await projectDb<
-        { iceh_indicator: string; indicator_name: string; category: string }[]
-      >`SELECT iceh_indicator, indicator_name, category FROM iceh_indicators_snapshot ORDER BY sort_order, iceh_indicator`
-    ).map((row) => ({
-      id: row.iceh_indicator,
-      label: row.indicator_name,
-      category: row.category,
-    }));
-
-    const hfaTaxonomy = await getHfaTaxonomyForAI(mainDb, projectDb);
-
     const projectDetail: ProjectDetail = {
       id: projectId,
       label: rawProject.label,
@@ -268,9 +202,10 @@ export async function getProjectDetail(
       thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
       isCentralReporting: rawProject.is_central_reporting,
+      attachedRunId: rawProject.run_id,
       projectDatasets: datasetsInProject,
-      projectModules: sortedModules,
-      metrics: resMetrics.data,
+      projectModules,
+      metrics,
       commonIndicators,
       icehIndicators,
       hfaTaxonomy,
@@ -315,21 +250,17 @@ export async function getProjectDetail(
 //                    //
 ////////////////////////
 
+// A new project starts empty: no datasets, no modules, no results package
+// attached (the typed no-run state) — an admin generates a package from the
+// instance shell and attaches it here. The old dataset export + installModule
+// writes are gone with the legacy plane (Phase 3 item 1): nothing read them
+// any more, and on a big instance they cost a multi-GB extract per project
+// creation.
 export async function addProject(
   mainDb: Sql,
   globalUser: GlobalUser,
   projectLabel: string,
-  datasetsToEnable: DatasetType[],
-  modulesToEnable: ModuleId[],
-  _projectEditors: string[],
-  _projectViewers: string[],
-): Promise<
-  APIResponseWithData<{
-    newProjectId: string;
-    projectDb: Sql;
-    datasetLastUpdateds: { datasetType: DatasetType; lastUpdated: string }[];
-  }>
-> {
+): Promise<APIResponseWithData<{ newProjectId: string; projectDb: Sql }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newProjectId = crypto.randomUUID();
     const matchingDatabases = await mainDb<
@@ -413,61 +344,9 @@ export async function addProject(
         },
       ),
     ]);
-    const datasetLastUpdateds: {
-      datasetType: DatasetType;
-      lastUpdated: string;
-    }[] = [];
-    if (datasetsToEnable.includes("hmis")) {
-      const res = await addDatasetHmisToProject(
-        mainDb,
-        projectDb,
-        newProjectId,
-        undefined,
-      );
-      throwIfErrWithData(res);
-      datasetLastUpdateds.push({
-        datasetType: "hmis",
-        lastUpdated: res.data.lastUpdated,
-      });
-    }
-    if (datasetsToEnable.includes("hfa")) {
-      const res = await addDatasetHfaToProject(
-        mainDb,
-        projectDb,
-        newProjectId,
-        undefined,
-      );
-      throwIfErrWithData(res);
-      datasetLastUpdateds.push({
-        datasetType: "hfa",
-        lastUpdated: res.data.lastUpdated,
-      });
-    }
-
-    // Dynamically add prerequisite modules based on getPossibleModules()
-    const countryIso3Res = await getCountryIso3Config(mainDb);
-    const countryIso3 = countryIso3Res.success
-      ? countryIso3Res.data.countryIso3
-      : undefined;
-    const modulesWithPrereqs = new Set<ModuleId>(modulesToEnable);
-    for (const moduleId of modulesToEnable) {
-      const moduleDefinition = getPossibleModules(countryIso3).find(
-        (m) => m.id === moduleId,
-      );
-      if (moduleDefinition?.prerequisiteModules) {
-        for (const prereq of moduleDefinition.prerequisiteModules) {
-          modulesWithPrereqs.add(getValidatedModuleId(prereq));
-        }
-      }
-    }
-    const uniqueModulesToEnable = Array.from(modulesWithPrereqs);
-    for (const moduleId of uniqueModulesToEnable) {
-      const res = await installModule(projectDb, moduleId);
-      throwIfErrWithData(res);
-    }
     return {
       success: true,
-      data: { newProjectId, projectDb, datasetLastUpdateds },
+      data: { newProjectId, projectDb },
     };
   });
 }
@@ -1035,6 +914,16 @@ export async function copyProjectInBackground(
         throw e;
       }
     }
+
+    // Project copy = authored-content clone + same run pointer
+    // (PLAN_RESULTS_RUNS §2.8): runs are immutable instance-level artifacts,
+    // so the copy attaches to the source's run (cache sharing is run-keyed
+    // and free).
+    await dedicatedDb`
+      UPDATE projects SET run_id = (
+        SELECT run_id FROM projects WHERE id = ${sourceProjectId}
+      ) WHERE id = ${newProjectId}
+    `;
 
     await dedicatedDb`UPDATE projects SET status = 'ready' WHERE id = ${newProjectId}`;
     console.log(`Copy project completed: ${newProjectId}`);

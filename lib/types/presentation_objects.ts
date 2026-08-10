@@ -2,18 +2,19 @@ import { ADMIN_LEVELS, type RollupDimension } from "../rollup.ts";
 import { getNextAvailableDisaggregationDisplayOption } from "../get_disaggregator_display_prop.ts";
 import { t3 } from "../translate/mod.ts";
 import {
+  type BoundedPeriodFilter,
+  type DisaggregationDisplayOption,
+  type PeriodFilter,
   type PeriodOption,
   type PresentationOption,
-  type DisaggregationDisplayOption,
   type RelativePeriodFilter,
-  type BoundedPeriodFilter,
-  type PeriodFilter,
 } from "./_metric_installed.ts";
 import type { PresentationObjectConfig } from "./_presentation_object_config.ts";
 import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "./disaggregation_options.ts";
+import type { IndicatorFormat } from "./indicators.ts";
 import type { ResultsValue } from "./modules.ts";
 import {
   DEFAULT_S_CONFIG,
@@ -21,7 +22,13 @@ import {
 } from "./presentation_object_defaults.ts";
 
 export { ALL_DISAGGREGATION_OPTIONS, type DisaggregationOption };
-export type { PresentationOption, DisaggregationDisplayOption, RelativePeriodFilter, BoundedPeriodFilter, PeriodFilter };
+export type {
+  BoundedPeriodFilter,
+  DisaggregationDisplayOption,
+  PeriodFilter,
+  PresentationOption,
+  RelativePeriodFilter,
+};
 
 export function isDisaggregationOption(s: string): s is DisaggregationOption {
   return (ALL_DISAGGREGATION_OPTIONS as readonly string[]).includes(s);
@@ -60,13 +67,16 @@ export type PresentationObjectDetail = {
   config: PresentationObjectConfig;
   isDefault: boolean;
   folderId: string | null;
+  // The run resultsValue was resolved from — folded into the po_detail cache
+  // version (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's
+  // Postgres baseline, which never enters the caches.
+  runId?: string;
 };
 
 export type PeriodBounds = {
   min: number;
   max: number;
 };
-
 
 export function periodFilterHasBounds(
   filter: RelativePeriodFilter | BoundedPeriodFilter,
@@ -77,19 +87,19 @@ export function periodFilterHasBounds(
 // Status for disaggregation possible values (used in filter dropdowns)
 export type DisaggregationPossibleValuesStatus =
   | {
-      status: "ok";
-      values: { id: string; label: string }[];
-    }
+    status: "ok";
+    values: { id: string; label: string }[];
+  }
   | {
-      status: "too_many_values";
-    }
+    status: "too_many_values";
+  }
   | {
-      status: "no_values_available";
-    }
+    status: "no_values_available";
+  }
   | {
-      status: "error";
-      message: string;
-    };
+    status: "error";
+    message: string;
+  };
 
 export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
@@ -101,40 +111,55 @@ export type ResultsValueInfoForPresentationObject = {
   // datasets.last_updated) independently of moduleLastRun, so the cache versions
   // on it too. Carried here so parseData can reproduce the version hash.
   datasetsVersion: string;
+  // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
+  runId?: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
   };
+  // Indicator id → its own value format, for every indicator the metric's
+  // module knows about. The input resolveEffectiveFormat needs, delivered
+  // pre-query so the editor can resolve a figure's format from its config
+  // alone.
+  //
+  // FLAT, not `format_as` added to the `{ id, label }` entries in
+  // disaggregationPossibleValues: those entries are absent whenever a
+  // dimension came back `too_many_values`, and a filterBy can still name
+  // specific indicators on such a dimension. A flat map has no such hole.
+  indicatorFormats: Record<string, IndicatorFormat>;
 };
 
 // Discriminated union for replicant option states
-export type ReplicantOptionsForPresentationObject = {
-  projectId: string;
-  resultsObjectId: string;
-  replicateBy: DisaggregationOption;
-  fetchConfig: GenericLongFormFetchConfig;
-  moduleLastRun: string;
-  // Replicant value labels come from indicator metadata, rewritten on dataset
-  // integration (bumps datasets.last_updated) independently of moduleLastRun, so
-  // the cache versions on it too. Carried here so parseData can reproduce it.
-  datasetsVersion: string;
-} & (
-  | {
+export type ReplicantOptionsForPresentationObject =
+  & {
+    projectId: string;
+    resultsObjectId: string;
+    replicateBy: DisaggregationOption;
+    fetchConfig: GenericLongFormFetchConfig;
+    moduleLastRun: string;
+    // Replicant value labels come from indicator metadata, rewritten on dataset
+    // integration (bumps datasets.last_updated) independently of moduleLastRun, so
+    // the cache versions on it too. Carried here so parseData can reproduce it.
+    datasetsVersion: string;
+    // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
+    runId?: string;
+  }
+  & (
+    | {
       status: "ok";
       possibleValues: { id: string; label: string }[];
     }
-  | {
+    | {
       status: "too_many_values";
     }
-  | {
+    | {
       status: "no_values_available";
     }
-  | {
+    | {
       status: "error";
       message: string;
     }
-);
-
+  );
 
 export const VIZ_TYPE_CONFIG: Record<
   PresentationOption,
@@ -173,7 +198,12 @@ export const VIZ_TYPE_CONFIG: Record<
       "colGroup",
       "replicant",
     ],
-    disDisplayOptFallbacks: { series: "row", cell: "row", indicator: "col", mapArea: "row" },
+    disDisplayOptFallbacks: {
+      series: "row",
+      cell: "row",
+      indicator: "col",
+      mapArea: "row",
+    },
     styleResets: {
       specialBarChart: false,
       specialCoverageChart: false,
@@ -193,7 +223,11 @@ export const VIZ_TYPE_CONFIG: Record<
       "col",
       "replicant",
     ],
-    disDisplayOptFallbacks: { rowGroup: "row", colGroup: "col", mapArea: "cell" },
+    disDisplayOptFallbacks: {
+      rowGroup: "row",
+      colGroup: "col",
+      mapArea: "cell",
+    },
     styleResets: {
       specialCoverageChart: false,
       specialDisruptionsChart: false,
@@ -226,7 +260,84 @@ export const VIZ_TYPE_CONFIG: Record<
       sortIndicatorValues: "none",
     },
   },
+  pie: {
+    // NOT "indicator", even though `--v` on the indicator axis tiles pies
+    // without spending a disaggregation axis: getDisaggregatorDisplayProp
+    // returns "--v" for a slot the values claim and never reaches the
+    // disaggregation loop, so a dimension the user then puts on Pies would
+    // land on NO axis and its rows would collapse into panther's "Duplicate
+    // values" throw. Defaulting the values to Grid keeps the Pies slot free
+    // for the dimension the user actually wants repeated. NOT "series"
+    // either: convertVisualizationType seeds usedOpts with this slot before
+    // remapping, so a "series" default would collide with the mapArea →
+    // series fallback below and shunt the converted dimension onward.
+    defaultValuesDisDisplayOpt: "cell",
+    defaultContent: "bars",
+    disaggregationDisplayOptions: [
+      "series",
+      "indicator",
+      "cell",
+      "row",
+      "col",
+      "replicant",
+    ],
+    disDisplayOptFallbacks: {
+      mapArea: "series",
+      rowGroup: "row",
+      colGroup: "col",
+    },
+    styleResets: {
+      // No sortIndicatorValues reset: pie reuses that field as its slice
+      // sort, and resets apply on switching TO a type.
+      specialBarChart: false,
+      specialCoverageChart: false,
+      specialDisruptionsChart: false,
+      specialBarChartInverted: false,
+      barsStacked: false,
+      verticalTickLabels: false,
+    },
+  },
 };
+
+// Legal display slots for the VALUE dimension, per type: the disaggregation
+// slots minus `replicant` (a figure replicates by a disaggregation, never by
+// its value props) and `mapArea` (the map's geography is a disaggregation's
+// job — values cannot be the areas). Derived, not a second table, so a new
+// presentation type or display option is a compile error here, not a
+// silently-skipped check.
+export function getValidValuesDisplayOptions(
+  type: PresentationOption,
+): DisaggregationDisplayOption[] {
+  return VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions.filter(
+    (o) => o !== "replicant" && o !== "mapArea",
+  );
+}
+
+// Whether the pie draws each value against a fixed 100% envelope (panther
+// `total: 1`, unfilled arc drawn as the remainder track) rather than against
+// the sum of its own slices. THE authoritative gate — the data config's `total`
+// and the style's `centerLabel` must agree, or the hole reports a share
+// computed against a denominator the geometry never used.
+//
+// Percent-only, and checked against the EFFECTIVE format rather than the
+// stored flag alone: values are 0-1 fractions only when the figure is showing
+// percentages, so a flag left behind by a metric/indicator format change
+// degrades to a plain pie instead of drawing every count as a sliver of 1.
+export function isPieCompletionMode(
+  config: PresentationObjectConfig,
+  effectiveFormatAs: IndicatorFormat,
+): boolean {
+  return (
+    config.d.type === "pie" &&
+    config.s.pieCompletionMode === true &&
+    effectiveFormatAs === "percent"
+  );
+}
+
+// The fixed envelope a completion pie is drawn against. 1, not 100: percent
+// values are stored as 0-1 fractions everywhere in this app (see the `* 100`
+// in the scorecard formatter), so the whole circle is 1.0.
+export const PIE_COMPLETION_TOTAL = 1;
 
 export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
   PresentationOption,
@@ -241,7 +352,11 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
       cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
       row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
       col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
+      replicant: t3({
+        en: "Different charts (replicants)",
+        fr: "Graphiques multiples (réplicants)",
+        pt: "Gráficos diferentes (replicantes)",
+      }),
       rowGroup: "",
       colGroup: "",
       indicator: "",
@@ -250,9 +365,21 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     table: {
       row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
       col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-      rowGroup: t3({ en: "Row groups", fr: "Catégories de rangées", pt: "Grupos de linhas" }),
-      colGroup: t3({ en: "Column groups", fr: "Groupes de colonnes", pt: "Grupos de colunas" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
+      rowGroup: t3({
+        en: "Row groups",
+        fr: "Catégories de rangées",
+        pt: "Grupos de linhas",
+      }),
+      colGroup: t3({
+        en: "Column groups",
+        fr: "Groupes de colonnes",
+        pt: "Grupos de colunas",
+      }),
+      replicant: t3({
+        en: "Different charts (replicants)",
+        fr: "Graphiques multiples (réplicants)",
+        pt: "Gráficos diferentes (replicantes)",
+      }),
       series: "",
       cell: "",
       indicator: "",
@@ -260,23 +387,54 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     },
     chart: {
       indicator: t3({ en: "Bars", fr: "Barres", pt: "Barras" }),
-      series: t3({ en: "Series (sub-bars)", fr: "Series (sub-bars)", pt: "Séries (sub-barras)" }),
+      series: t3({
+        en: "Series (sub-bars)",
+        fr: "Series (sub-bars)",
+        pt: "Séries (sub-barras)",
+      }),
       cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
       row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
       col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
+      replicant: t3({
+        en: "Different charts (replicants)",
+        fr: "Graphiques multiples (réplicants)",
+        pt: "Gráficos diferentes (replicantes)",
+      }),
       rowGroup: "",
       colGroup: "",
       mapArea: "",
     },
     map: {
-      mapArea: t3({ en: "Map regions", fr: "Régions de la carte", pt: "Regiões do mapa" }),
+      mapArea: t3({
+        en: "Map regions",
+        fr: "Régions de la carte",
+        pt: "Regiões do mapa",
+      }),
       cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
       row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
       col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-      replicant: t3({ en: "Different charts (replicants)", fr: "Graphiques multiples (réplicants)", pt: "Gráficos diferentes (replicantes)" }),
+      replicant: t3({
+        en: "Different charts (replicants)",
+        fr: "Graphiques multiples (réplicants)",
+        pt: "Gráficos diferentes (replicantes)",
+      }),
       series: "",
       indicator: "",
+      rowGroup: "",
+      colGroup: "",
+    },
+    pie: {
+      series: t3({ en: "Slices", fr: "Tranches", pt: "Fatias" }),
+      indicator: t3({ en: "Pies", fr: "Camemberts", pt: "Circulares" }),
+      cell: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
+      row: t3({ en: "Rows", fr: "Rangées", pt: "Linhas" }),
+      col: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+      replicant: t3({
+        en: "Different charts (replicants)",
+        fr: "Graphiques multiples (réplicants)",
+        pt: "Gráficos diferentes (replicantes)",
+      }),
+      mapArea: "",
       rowGroup: "",
       colGroup: "",
     },
@@ -285,7 +443,7 @@ export function get_DISAGGREGATION_DISPLAY_OPTIONS(): Record<
     PresentationOption,
     { value: DisaggregationDisplayOption; label: string }[]
   >;
-  for (const type of ["timeseries", "table", "chart", "map"] as PresentationOption[]) {
+  for (const type of Object.keys(VIZ_TYPE_CONFIG) as PresentationOption[]) {
     result[type] = VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions.map(
       (v) => ({
         value: v,
@@ -305,8 +463,10 @@ export type ReplicantValueOverride = {
 
 // PresentationObjectConfig type + schema live in ./presentation_object_config.ts
 // and are re-exported through the barrel. CustomSeriesStyle too.
-export type { PresentationObjectConfig, CustomSeriesStyle } from "./_presentation_object_config.ts";
-
+export type {
+  CustomSeriesStyle,
+  PresentationObjectConfig,
+} from "./_presentation_object_config.ts";
 
 export type CreateModeVisualizationData = {
   label: string;
@@ -314,7 +474,11 @@ export type CreateModeVisualizationData = {
   config: PresentationObjectConfig;
 };
 
-const TIME_DISAGGREGATIONS: DisaggregationOption[] = ["period_id", "quarter_id", "year"];
+const TIME_DISAGGREGATIONS: DisaggregationOption[] = [
+  "period_id",
+  "quarter_id",
+  "year",
+];
 const AREA_DISAGGREGATIONS: DisaggregationOption[] = [...ADMIN_LEVELS];
 
 export function get_PRESENTATION_SELECT_OPTIONS(
@@ -324,10 +488,38 @@ export function get_PRESENTATION_SELECT_OPTIONS(
   label: string;
 }[] {
   const all = [
-    { value: "table" as const, label: t3({ en: "Table", fr: "Tableau", pt: "Tabela" }) },
-    { value: "timeseries" as const, label: t3({ en: "Timeseries", fr: "Série chronologique", pt: "Série temporal" }) },
-    { value: "chart" as const, label: t3({ en: "Bar chart", fr: "Graphique à barres", pt: "Gráfico de barras" }) },
-    { value: "map" as const, label: t3({ en: "Map", fr: "Carte", pt: "Mapa" }) },
+    {
+      value: "table" as const,
+      label: t3({ en: "Table", fr: "Tableau", pt: "Tabela" }),
+    },
+    {
+      value: "timeseries" as const,
+      label: t3({
+        en: "Timeseries",
+        fr: "Série chronologique",
+        pt: "Série temporal",
+      }),
+    },
+    {
+      value: "chart" as const,
+      label: t3({
+        en: "Bar chart",
+        fr: "Graphique à barres",
+        pt: "Gráfico de barras",
+      }),
+    },
+    {
+      value: "pie" as const,
+      label: t3({
+        en: "Pie chart",
+        fr: "Graphique circulaire",
+        pt: "Gráfico circular",
+      }),
+    },
+    {
+      value: "map" as const,
+      label: t3({ en: "Map", fr: "Carte", pt: "Mapa" }),
+    },
   ];
   if (!disaggregationOptions) return all;
   const disOpts = disaggregationOptions.map((d) => d.value);
@@ -346,8 +538,21 @@ export function get_PRESENTATION_OPTIONS_MAP(): Record<
 > {
   return {
     table: t3({ en: "Table", fr: "Tableau", pt: "Tabela" }),
-    timeseries: t3({ en: "Timeseries", fr: "Série chronologique", pt: "Série temporal" }),
-    chart: t3({ en: "Bar chart", fr: "Graphique à barres", pt: "Gráfico de barras" }),
+    timeseries: t3({
+      en: "Timeseries",
+      fr: "Série chronologique",
+      pt: "Série temporal",
+    }),
+    chart: t3({
+      en: "Bar chart",
+      fr: "Graphique à barres",
+      pt: "Gráfico de barras",
+    }),
+    pie: t3({
+      en: "Pie chart",
+      fr: "Graphique circulaire",
+      pt: "Gráfico circular",
+    }),
     map: t3({ en: "Map", fr: "Carte", pt: "Mapa" }),
   };
 }
@@ -360,7 +565,8 @@ export function getStartingConfigForPresentationObject(
   const startingConfig: PresentationObjectConfig = {
     d: {
       type: presentationOption,
-      timeseriesGrouping: resultsValue.mostGranularTimePeriodColumnInResultsFile,
+      timeseriesGrouping:
+        resultsValue.mostGranularTimePeriodColumnInResultsFile,
       valuesDisDisplayOpt:
         VIZ_TYPE_CONFIG[presentationOption].defaultValuesDisDisplayOpt,
       valuesFilter: undefined,

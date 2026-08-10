@@ -6,10 +6,14 @@ import type {
   HfaIndicatorCategory,
   HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
+  HfaIndicatorVariantCode,
+  HfaIndicatorVariantGroup,
+  HfaIndicatorVariantItem,
   HfaWorkbookImportResult,
 } from "../../types/mod.ts";
 import {
   HFA_INDICATOR_NAME_REGEX,
+  HFA_VARIANT_ITEM_ID_REGEX,
   isReservedHfaVarName,
 } from "../../hfa_r_code_analysis.ts";
 import { route } from "../route-utils.ts";
@@ -31,6 +35,33 @@ const hfaIndicatorServiceCategorySchema = z.object({
   id: z.string(),
   label: z.string(),
   sortOrder: z.number(),
+});
+
+const hfaIndicatorVariantGroupSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  sortOrder: z.number(),
+});
+
+const hfaVariantItemIdSchema = z
+  .string()
+  .regex(
+    HFA_VARIANT_ITEM_ID_REGEX,
+    "item id must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 characters)",
+  );
+
+const hfaIndicatorVariantItemSchema = z.object({
+  id: hfaVariantItemIdSchema,
+  groupId: z.string(),
+  label: z.string(),
+  sortOrder: z.number(),
+});
+
+const hfaIndicatorVariantCodeSchema = z.object({
+  varName: z.string(),
+  timePoint: z.string(),
+  itemId: z.string(),
+  rCode: z.string(),
 });
 
 const RESERVED_VAR_NAME_MESSAGE =
@@ -66,6 +97,7 @@ const hfaIndicatorEditSchema = z.object({
   sortOrder: z.number(),
   hasSyntaxError: z.boolean(),
   codeConsistent: z.boolean(),
+  variantGroupId: z.string().nullable(),
 });
 
 // Creation paths: a name entering the dictionary must also clear the reserved set.
@@ -95,6 +127,8 @@ const hfaWorkbookImportSchema = z.object({
   categories: z.array(z.object({ id: z.string(), label: z.string() })),
   subCategories: z.array(z.object({ id: z.string(), categoryId: z.string(), label: z.string() })),
   serviceCategories: z.array(z.object({ id: z.string(), label: z.string() })),
+  variantGroups: z.array(z.object({ id: z.string(), label: z.string() })),
+  variantItems: z.array(z.object({ id: hfaVariantItemIdSchema, groupId: z.string(), label: z.string() })),
   indicators: z.array(z.object({
     varName: hfaVarNameSchema,
     categoryId: z.string().nullable(),
@@ -104,8 +138,10 @@ const hfaWorkbookImportSchema = z.object({
     definition: z.string(),
     type: z.enum(["binary", "numeric"]),
     aggregation: z.enum(["sum", "avg"]),
+    variantGroupId: z.string().nullable(),
   })),
   code: z.array(hfaIndicatorCodeSchema),
+  variantCode: z.array(hfaIndicatorVariantCodeSchema),
   replaceAll: z.boolean(),
 });
 
@@ -191,6 +227,58 @@ export const hfaIndicatorRouteRegistry = {
     method: "POST",
     body: orderedIdsBodySchema,
   }),
+  // Variant groups
+  getHfaIndicatorVariantGroups: route({
+    path: "/hfa-indicator-variant-groups",
+    method: "GET",
+    response: {} as HfaIndicatorVariantGroup[],
+  }),
+  createHfaIndicatorVariantGroup: route({
+    path: "/hfa-indicator-variant-groups",
+    method: "POST",
+    body: z.object({ group: hfaIndicatorVariantGroupSchema }),
+  }),
+  updateHfaIndicatorVariantGroup: route({
+    path: "/hfa-indicator-variant-groups/update",
+    method: "POST",
+    body: z.object({ oldId: z.string(), group: hfaIndicatorVariantGroupSchema }),
+  }),
+  deleteHfaIndicatorVariantGroup: route({
+    path: "/hfa-indicator-variant-groups/delete",
+    method: "POST",
+    body: idBodySchema,
+  }),
+  reorderHfaIndicatorVariantGroups: route({
+    path: "/hfa-indicator-variant-groups/reorder",
+    method: "POST",
+    body: orderedIdsBodySchema,
+  }),
+  // Variant items
+  getHfaIndicatorVariantItems: route({
+    path: "/hfa-indicator-variant-items",
+    method: "GET",
+    response: {} as HfaIndicatorVariantItem[],
+  }),
+  createHfaIndicatorVariantItem: route({
+    path: "/hfa-indicator-variant-items",
+    method: "POST",
+    body: z.object({ item: hfaIndicatorVariantItemSchema }),
+  }),
+  updateHfaIndicatorVariantItem: route({
+    path: "/hfa-indicator-variant-items/update",
+    method: "POST",
+    body: z.object({ oldId: z.string(), item: hfaIndicatorVariantItemSchema }),
+  }),
+  deleteHfaIndicatorVariantItem: route({
+    path: "/hfa-indicator-variant-items/delete",
+    method: "POST",
+    body: idBodySchema,
+  }),
+  reorderHfaIndicatorVariantItems: route({
+    path: "/hfa-indicator-variant-items/reorder",
+    method: "POST",
+    body: z.object({ groupId: z.string(), orderedIds: z.array(z.string()) }),
+  }),
   // Indicators
   getHfaIndicators: route({
     path: "/hfa-indicators",
@@ -251,6 +339,17 @@ export const hfaIndicatorRouteRegistry = {
     method: "GET",
     response: {} as HfaIndicatorCode[],
   }),
+  getHfaIndicatorVariantCode: route({
+    path: "/hfa-indicators/variant-code",
+    method: "POST",
+    body: z.object({ varName: z.string() }),
+    response: {} as HfaIndicatorVariantCode[],
+  }),
+  getAllHfaIndicatorVariantCode: route({
+    path: "/hfa-indicators/variant-code/all",
+    method: "GET",
+    response: {} as HfaIndicatorVariantCode[],
+  }),
   saveHfaIndicatorFull: route({
     path: "/hfa-indicators/save-full",
     method: "POST",
@@ -262,6 +361,11 @@ export const hfaIndicatorRouteRegistry = {
           timePoint: z.string(),
           rCode: z.string(),
           rFilterCode: z.string().optional(),
+        })),
+        variantCode: z.array(z.object({
+          timePoint: z.string(),
+          itemId: z.string(),
+          rCode: z.string(),
         })),
         hasSyntaxError: z.boolean(),
         codeConsistent: z.boolean(),

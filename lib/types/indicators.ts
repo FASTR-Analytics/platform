@@ -230,10 +230,16 @@ export interface DHIS2PagedResponse {
 // Indicator Metadata (for presentation objects)
 // ============================================================================
 
+// How an indicator's values are written. Wider than a metric's own `formatAs`,
+// whose value branch is percent/number (the third value, "indicator", DEFERS to
+// this type rather than naming a format) — a rate is only ever an
+// indicator-level fact.
+export type IndicatorFormat = "percent" | "number" | "rate_per_10k";
+
 export type IndicatorMetadata = {
   id: string;
   label: string;
-  format_as?: "percent" | "number" | "rate_per_10k";
+  format_as?: IndicatorFormat;
   threshold_direction?: "higher_is_better" | "lower_is_better";
   threshold_green?: number;
   threshold_yellow?: number;

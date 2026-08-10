@@ -1,18 +1,14 @@
-import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
 import { Sql } from "postgres";
-import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
 import {
   APIResponseWithData,
   DatasetIcehInfoInProject,
-  throwIfErrNoData,
   type IcehIndicator,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { removeDatasetFromProject } from "./datasets_in_project_hmis.ts";
+import {
+  ensureDatasetCsvTargetDir,
+  type DatasetCsvTarget,
+} from "./datasets_in_project_hmis.ts";
 import { getIcehCacheHash } from "../instance/dataset_iceh.ts";
 
 type DBIcehIndicator = {
@@ -24,12 +20,20 @@ type DBIcehIndicator = {
   sort_order: number;
 };
 
-export async function addDatasetIcehToProject(
+// The ICEH attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5) — see
+// the HMIS file's header note.
+
+export type DatasetIcehRunCapture = {
+  info: DatasetIcehInfoInProject;
+  lastUpdated: string;
+  indicators: DBIcehIndicator[];
+};
+
+export async function computeDatasetIcehRunCapture(
   mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
+  csvTarget: DatasetCsvTarget,
   onProgress?: (progress: number, message: string) => Promise<void>,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<APIResponseWithData<DatasetIcehRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate BEFORE removing the existing attachment — a validation
     // failure after the remove would leave the project detached with
@@ -48,20 +52,7 @@ export async function addDatasetIcehToProject(
     // commits in between, masking the staleness forever.
     const icehCacheHash = await getIcehCacheHash(mainDb);
 
-    if (onProgress) await onProgress(0.2, "Removing existing dataset...");
-    const res = await removeDatasetFromProject(projectDb, projectId, "iceh");
-    throwIfErrNoData(res);
-
-    const datasetDirPath = join(_SANDBOX_DIR_PATH, projectId, "datasets");
-    await ensureDir(datasetDirPath);
-    await Deno.chmod(datasetDirPath, 0o777);
-
-    const datasetFilePathForPostgres = join(
-      _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-      projectId,
-      "datasets",
-      "iceh.csv",
-    );
+    await ensureDatasetCsvTargetDir(csvTarget);
 
     if (onProgress) await onProgress(0.5, "Exporting ICEH data to CSV...");
 
@@ -77,12 +68,9 @@ export async function addDatasetIcehToProject(
           standard_error,
           sample_size
         FROM iceh_data
-        ORDER BY iceh_indicator, year, strat, level
-      ) TO '${datasetFilePathForPostgres}' WITH (FORMAT CSV, HEADER true)
+        ORDER BY iceh_indicator, year, strat, level, source
+      ) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true)
     `);
-
-    if (onProgress) await onProgress(0.8, "Updating project database...");
-    const lastUpdated = new Date().toISOString();
 
     const indicators = await mainDb<DBIcehIndicator[]>`
       SELECT iceh_indicator, indicator_name, category, numerator, denominator, sort_order
@@ -90,28 +78,14 @@ export async function addDatasetIcehToProject(
       ORDER BY sort_order, iceh_indicator
     `;
 
-    const info: DatasetIcehInfoInProject = {
-      icehCacheHash,
+    return {
+      success: true,
+      data: {
+        info: { icehCacheHash },
+        lastUpdated: new Date().toISOString(),
+        indicators,
+      },
     };
-
-    await projectDb.begin((sql) => [
-      sql`
-        INSERT INTO datasets (dataset_type, info, last_updated)
-        VALUES ('iceh', ${JSON.stringify(info)}, ${lastUpdated})
-        ON CONFLICT (dataset_type) DO UPDATE SET
-          info = EXCLUDED.info,
-          last_updated = EXCLUDED.last_updated
-      `,
-      sql`DELETE FROM iceh_indicators_snapshot`,
-      ...indicators.map(
-        (ind) =>
-          sql`INSERT INTO iceh_indicators_snapshot
-            (iceh_indicator, indicator_name, category, numerator, denominator, sort_order)
-            VALUES (${ind.iceh_indicator}, ${ind.indicator_name}, ${ind.category}, ${ind.numerator}, ${ind.denominator}, ${ind.sort_order})`,
-      ),
-    ]);
-
-    return { success: true, data: { lastUpdated } };
   });
 }
 

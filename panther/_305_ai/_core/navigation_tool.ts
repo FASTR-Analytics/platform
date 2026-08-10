@@ -9,15 +9,15 @@ import {
   z,
 } from "../deps.ts";
 import type { zType } from "../deps.ts";
-import { buildAITool } from "./tool_helpers.ts";
-import type { AIToolKind, AIToolWithMetadata } from "./tool_helpers.ts";
-import { resolveViewLabel } from "./view_types.ts";
+import { buildAITool } from "../deps.ts";
+import type { AIToolKind, AIToolWithMetadata } from "../deps.ts";
+import { resolveViewLabel } from "../deps.ts";
 import type {
   AIViewParams,
   AIViewRegistry,
   AIViewState,
   AnyAIView,
-} from "./view_types.ts";
+} from "../deps.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // BUILT-IN NAVIGATION TOOL

@@ -4,7 +4,7 @@
 > `PROTOCOL_*`). This is the _recipe_ — read it when **adding or changing a
 > background worker routine**. The machinery's ownership and architecture belong
 > to the SYSTEM files: the running-tasks map, dirty machine, and `task_ended`
-> semantics are **S8** (`SYSTEM_08_module_system.md`); what the dataset workers
+> semantics are **S8** (`SYSTEM_08_results_packages.md`); what the dataset workers
 > _do_ (stage→integrate) is **S6**; workers reach the main thread's SSE via the
 > in-process BroadcastChannel fan-out documented in **S3**; worker DB
 > connections are S2's `SYSTEM_02_persistence.md`.
@@ -69,8 +69,7 @@ Each routine is a folder under `server/worker_routines/` with two files:
   worker says it's listening, or the post races module load.
 
 - `worker.ts` — the worker entry point, opening with the standard preamble
-  (currently hand-copied into all six routines — the shared `runWorker()`
-  wrapper is PLAN_ENFORCEMENT item 8):
+  (hand-copied into every routine — copy it verbatim, don't improvise):
 
   ```ts
   (self as unknown as Worker).onmessage = (e) => {
@@ -113,8 +112,9 @@ without it, `reportError` propagates as an unhandled rejection and exits the
 whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records
 the error completion, clears the tracker, and terminates the worker. Spawn sites
 today: `task_management/trigger_runnable_tasks.ts` (module runs),
-`db/instance/dataset_{hmis,hfa}.ts` (CSV staging/integration), and
-`db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker`, DHIS2 import runs).
+`db/instance/dataset_hfa_import_runs.ts` (HFA import runs), and
+`db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker` /
+`spawnCsvRunWorker`, HMIS import runs).
 The dataset shape:
 
 ```ts
@@ -184,14 +184,13 @@ the process; a worker that dies without clearing its tracker blocks future work.
 
 ## The routine inventory
 
-| Folder                   | Payload                                   | Report-back                                              | Tracker                           |
-| ------------------------ | ----------------------------------------- | -------------------------------------------------------- | --------------------------------- |
-| `run_module`             | `{ projectId, moduleId, runToken }`       | `task_ended` broadcast (success) / `reportError` (crash) | running-tasks map                 |
-| `stage_hmis_data_csv`    | `{ rawDUA }`                              | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hmis`)           |
-| `import_hmis_data_dhis2` | `{ runId, credentialsSource, selection }` | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
-| `stage_hfa_data_csv`     | `{ rawDUA }`                              | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hfa`)            |
-| `integrate_hmis_data`    | `{ rawDUA }`                              | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hmis`)           |
-| `integrate_hfa_data`     | `{ rawDUA }`                              | `postMessage("COMPLETED")` + status row                  | `worker_store` (`hfa`)            |
+| Folder                   | Payload                                            | Report-back                                              | Tracker                           |
+| ------------------------ | -------------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
+| `run_module`             | `{ projectId, moduleId, runToken }`                | `task_ended` broadcast (success) / `reportError` (crash) | running-tasks map                 |
+| `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
+| `import_hmis_data_dhis2` | `{ runId, credentialsSource, selection }`          | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
+| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row       | `worker_store` (`hfa`)            |
+| `import_iceh_data`       | `{ runId, config, zipFilePath }`                   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)           |
 
 ## Gotchas
 
@@ -199,7 +198,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
   miss its payload; one that posts READY late races the host.
 - **`alreadyRunning` guards re-delivery.** If the host posts twice, the second
   `run` self-closes. Don't rely on one worker handling multiple payloads.
-- **Don't diverge the preamble.** It's copy-pasted six times; subtle drift
+- **Don't diverge the preamble.** It's copy-pasted per routine; subtle drift
   (READY string, error semantics) is a latent bug. Today only the
   `console.error` prefix varies — keep it that way until item 8 factors it.
 

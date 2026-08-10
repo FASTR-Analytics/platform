@@ -6,13 +6,16 @@ import {
   batchUploadUsers,
   bulkUpdateUserDefaultProjectPermissions,
   bulkUpdateUserPermissions,
+  createPersonalAccessToken,
   deleteUser,
   getInstanceUsers,
+  GetInstanceWeeklyTokenUsage,
   getOtherUser,
+  GetUserDailyTokenUsage,
   getUserDefaultProjectPermissions,
   getUserPermissions,
-  GetInstanceWeeklyTokenUsage,
-  GetUserDailyTokenUsage,
+  listPersonalAccessTokens,
+  revokePersonalAccessToken,
   setUserContactPerson,
   SetUserUnlimitedAi,
   syncUserName,
@@ -20,10 +23,16 @@ import {
   updateUserDefaultProjectPermissions,
   updateUserPermissions,
 } from "../../db/mod.ts";
-import { _DAILY_TOKEN_LIMIT, _WEEKLY_TOKEN_LIMIT } from "../../exposed_env_vars.ts";
+import {
+  _DAILY_TOKEN_LIMIT,
+  _WEEKLY_TOKEN_LIMIT,
+} from "../../exposed_env_vars.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceUsersUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
@@ -35,12 +44,74 @@ defineRoute(
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
-    // Sync name from Clerk on first login only — syncUserName is a no-op once the name is set.
-    syncUserName(c.var.mainDb, email, firstName ?? null, lastName ?? null).catch(() => {});
+    // Sync name from Clerk on first login only — syncUserName is a no-op once
+    // the name is set. `|| null`, not `?? null`: GlobalUser coerces absent
+    // names to "" (the PAT branch always does), and writing "" would defeat
+    // the first_name IS NULL guard forever.
+    syncUserName(c.var.mainDb, email, firstName || null, lastName || null)
+      .catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
   },
 );
 
+defineRoute(
+  routesUsers,
+  "getProjectsForUser",
+  requireGlobalPermission(),
+  log("getProjectsForUser"),
+  async (c) => {
+    const globalUser = c.var.globalUser;
+    const mainDb = c.var.mainDb;
+    type RawProjectRow = {
+      id: string;
+      label: string;
+      is_locked: boolean;
+      is_central_reporting: boolean;
+    };
+    const rawProjects: RawProjectRow[] = await mainDb<
+      RawProjectRow[]
+    >`SELECT id, label, is_locked, is_central_reporting FROM projects ORDER BY label`;
+    const isHUser = H_USERS.includes(globalUser.email);
+    // Same access rules as resolveProjectUserAccess, applied list-wise:
+    // central-reporting projects only for H_USERS; admins/H_USERS get the
+    // rest; everyone else needs a role row with >=1 true can_* flag.
+    if (globalUser.isGlobalAdmin || isHUser) {
+      const data = rawProjects
+        .filter((p) => !p.is_central_reporting || isHUser)
+        .map((p) => ({
+          id: p.id,
+          label: p.label,
+          role: "admin",
+          isLocked: p.is_locked,
+        }));
+      return c.json({ success: true, data });
+    }
+    const roleRows = await mainDb<
+      Record<string, unknown>[]
+    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email}`;
+    const roleByProject = new Map<string, string>();
+    for (const row of roleRows) {
+      const hasAccess = Object.entries(row).some(
+        ([key, value]) => key.startsWith("can_") && value === true,
+      );
+      if (hasAccess) {
+        roleByProject.set(
+          String(row.project_id),
+          row.role === "editor" ? "editor" : "viewer",
+        );
+      }
+    }
+    const data = rawProjects
+      .filter((p) => !p.is_central_reporting && roleByProject.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        label: p.label,
+        role: roleByProject.get(p.id)!,
+        isLocked: p.is_locked,
+      }));
+    return c.json({ success: true, data });
+  },
+);
 
 defineRoute(
   routesUsers,
@@ -51,7 +122,16 @@ defineRoute(
       GetUserDailyTokenUsage(c.var.mainDb, c.var.globalUser.email),
       GetInstanceWeeklyTokenUsage(c.var.mainDb),
     ]);
-    return c.json({ success: true, data: { tokensUsedToday, dailyTokenLimit: _DAILY_TOKEN_LIMIT, isUnlimited: c.var.globalUser.unlimitedAi, tokensUsedThisWeek, weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT } });
+    return c.json({
+      success: true,
+      data: {
+        tokensUsedToday,
+        dailyTokenLimit: _DAILY_TOKEN_LIMIT,
+        isUnlimited: c.var.globalUser.unlimitedAi,
+        tokensUsedThisWeek,
+        weeklyTokenLimit: _WEEKLY_TOKEN_LIMIT,
+      },
+    });
   },
 );
 
@@ -64,7 +144,11 @@ defineRoute(
     if (!H_USERS.includes(c.var.globalUser.email)) {
       return c.json({ success: false, err: "Not authorized" }, 403);
     }
-    const res = await SetUserUnlimitedAi(c.var.mainDb, body.email, body.unlimited);
+    const res = await SetUserUnlimitedAi(
+      c.var.mainDb,
+      body.email,
+      body.unlimited,
+    );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
@@ -186,7 +270,11 @@ defineRoute(
     if (!H_USERS.includes(c.var.globalUser.email)) {
       return c.json({ success: false, err: "Not authorized" }, 403);
     }
-    const res = await setUserContactPerson(c.var.mainDb, body.email, body.isContactPerson);
+    const res = await setUserContactPerson(
+      c.var.mainDb,
+      body.email,
+      body.isContactPerson,
+    );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
@@ -240,7 +328,10 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("getUserDefaultProjectPermissions"),
   async (c, { params }) => {
-    const res = await getUserDefaultProjectPermissions(c.var.mainDb, params.email);
+    const res = await getUserDefaultProjectPermissions(
+      c.var.mainDb,
+      params.email,
+    );
     return c.json(res);
   },
 );
@@ -288,6 +379,52 @@ defineRoute(
       c.var.mainDb,
       body.emails,
       body.permissions,
+    );
+    return c.json(res);
+  },
+);
+
+// Personal access tokens are strictly self-service: every route operates on
+// the authenticated user's own tokens (c.var.globalUser.email), never an
+// email from the body.
+defineRoute(
+  routesUsers,
+  "createPersonalAccessToken",
+  requireGlobalPermission(),
+  log("createPersonalAccessToken"),
+  async (c, { body }) => {
+    const res = await createPersonalAccessToken(
+      c.var.mainDb,
+      c.var.globalUser.email,
+      body.label,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "listPersonalAccessTokens",
+  requireGlobalPermission(),
+  async (c) => {
+    const res = await listPersonalAccessTokens(
+      c.var.mainDb,
+      c.var.globalUser.email,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesUsers,
+  "revokePersonalAccessToken",
+  requireGlobalPermission(),
+  log("revokePersonalAccessToken"),
+  async (c, { body }) => {
+    const res = await revokePersonalAccessToken(
+      c.var.mainDb,
+      c.var.globalUser.email,
+      body.id,
     );
     return c.json(res);
   },

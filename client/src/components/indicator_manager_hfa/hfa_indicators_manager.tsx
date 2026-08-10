@@ -8,6 +8,9 @@ import {
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
+  type HfaIndicatorVariantCode,
+  type HfaIndicatorVariantGroup,
+  type HfaIndicatorVariantItem,
 } from "lib";
 import {
   Button,
@@ -38,6 +41,7 @@ import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
 import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
+import { HfaVariantGroupsManager } from "./hfa_variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
 import { hasRCodeErrors, validateRCode } from "./hfa_r_code_validator";
 import {
@@ -93,17 +97,34 @@ export function HfaIndicatorsManager(p: Props) {
   const [allCode, setAllCode] = createSignal<StateHolder<HfaIndicatorCode[]>>({
     status: "loading",
   });
+  const [variantGroups, setVariantGroups] = createSignal<
+    StateHolder<HfaIndicatorVariantGroup[]>
+  >({
+    status: "loading",
+  });
+  const [variantItems, setVariantItems] = createSignal<
+    StateHolder<HfaIndicatorVariantItem[]>
+  >({
+    status: "loading",
+  });
+  const [allVariantCode, setAllVariantCode] = createSignal<
+    StateHolder<HfaIndicatorVariantCode[]>
+  >({
+    status: "loading",
+  });
 
   // Hoisted here (not inside HfaCategoriesManager) so the selection survives the
   // StateHolderWrapper remount that happens on every SSE refetch/mutation.
   const [selectedCategoryId, setSelectedCategoryId] = createSignal<
     string | null
   >(null);
+  const [selectedVariantGroupId, setSelectedVariantGroupId] = createSignal<
+    string | null
+  >(null);
 
-  const [tab, setTab] = createSignal<
-    "indicators" | "categories" | "service_categories"
-  >("indicators");
-  const tabItems: ListItem<"indicators" | "categories" | "service_categories">[] = [
+  type Tab = "indicators" | "categories" | "service_categories" | "variant_groups";
+  const [tab, setTab] = createSignal<Tab>("indicators");
+  const tabItems: ListItem<Tab>[] = [
     {
       id: "indicators",
       label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
@@ -115,6 +136,10 @@ export function HfaIndicatorsManager(p: Props) {
     {
       id: "service_categories",
       label: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
+    },
+    {
+      id: "variant_groups",
+      label: t3({ en: "Variant groups", fr: "Groupes de variantes", pt: "Grupos de variantes" }),
     },
   ];
 
@@ -176,6 +201,36 @@ export function HfaIndicatorsManager(p: Props) {
     const res = await serverActions.getAllHfaIndicatorCode({});
     if (runId !== allCodeRunId) return;
     setAllCode(getQueryStateFromApiResponse(res));
+  });
+
+  let variantGroupsRunId = 0;
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const runId = ++variantGroupsRunId;
+    const res = await serverActions.getHfaIndicatorVariantGroups({});
+    if (runId !== variantGroupsRunId) return;
+    setVariantGroups(getQueryStateFromApiResponse(res));
+  });
+
+  let variantItemsRunId = 0;
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const runId = ++variantItemsRunId;
+    const res = await serverActions.getHfaIndicatorVariantItems({});
+    if (runId !== variantItemsRunId) return;
+    setVariantItems(getQueryStateFromApiResponse(res));
+  });
+
+  let allVariantCodeRunId = 0;
+  createEffect(async () => {
+    const version = instanceState.hfaIndicatorsVersion;
+    if (!version) return;
+    const runId = ++allVariantCodeRunId;
+    const res = await serverActions.getAllHfaIndicatorVariantCode({});
+    if (runId !== allVariantCodeRunId) return;
+    setAllVariantCode(getQueryStateFromApiResponse(res));
   });
 
   const hfaDataAvailable = () => !!instanceState.hfaCacheHash;
@@ -448,11 +503,15 @@ export function HfaIndicatorsManager(p: Props) {
     const catSt = categories();
     const subCatSt = subCategories();
     const svcCatSt = serviceCategories();
+    const vgSt = variantGroups();
+    const viSt = variantItems();
     if (
       dictState.status !== "ready" ||
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
-      svcCatSt.status !== "ready"
+      svcCatSt.status !== "ready" ||
+      vgSt.status !== "ready" ||
+      viSt.status !== "ready"
     )
       return;
     const dict = dictState.data;
@@ -465,15 +524,21 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
+        variantGroups: vgSt.data,
+        variantItems: viSt.data,
         showAi,
         openAi,
       },
     });
   }
 
+  // Both code sources must be loaded before the check means anything: a
+  // half-loaded scan would silently miss references living only in variant
+  // snippets and understate what a deletion breaks.
   function findReferencingIndicators(deletedVarNames: string[]): string[] {
     const codeSt = allCode();
-    if (codeSt.status !== "ready") return [];
+    const variantCodeSt = allVariantCode();
+    if (codeSt.status !== "ready" || variantCodeSt.status !== "ready") return [];
     const deleted = new Set(deletedVarNames);
     const referencing = new Set<string>();
     for (const c of codeSt.data) {
@@ -483,6 +548,12 @@ export function HfaIndicatorsManager(p: Props) {
         ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
+        referencing.add(c.varName);
+      }
+    }
+    for (const c of variantCodeSt.data) {
+      if (deleted.has(c.varName)) continue;
+      if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
         referencing.add(c.varName);
       }
     }
@@ -557,6 +628,9 @@ export function HfaIndicatorsManager(p: Props) {
     const subCatSt = subCategories();
     const svcCatSt = serviceCategories();
     const codeSt = allCode();
+    const vgSt = variantGroups();
+    const viSt = variantItems();
+    const variantCodeSt = allVariantCode();
     const timePoints = sortedTimePointLabels();
     if (
       indSt.status !== "ready" ||
@@ -564,6 +638,9 @@ export function HfaIndicatorsManager(p: Props) {
       subCatSt.status !== "ready" ||
       svcCatSt.status !== "ready" ||
       codeSt.status !== "ready" ||
+      vgSt.status !== "ready" ||
+      viSt.status !== "ready" ||
+      variantCodeSt.status !== "ready" ||
       timePoints === undefined
     ) {
       return;
@@ -572,8 +649,11 @@ export function HfaIndicatorsManager(p: Props) {
       categories: catSt.data,
       subCategories: subCatSt.data,
       serviceCategories: svcCatSt.data,
+      variantGroups: vgSt.data,
+      variantItems: viSt.data,
       indicators: indSt.data,
       code: codeSt.data,
+      variantCode: variantCodeSt.data,
       timePoints,
     });
     saveAs(blob, "hfa_indicators.xlsx");
@@ -591,7 +671,16 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleCheckUnusedVariables() {
     const dictSt = dictionary();
     const codeSt = allCode();
-    if (dictSt.status !== "ready" || codeSt.status !== "ready") return;
+    const variantCodeSt = allVariantCode();
+    // Variant code gates the check like main code does: scanning without it
+    // would report variables used only in variant snippets as unused.
+    if (
+      dictSt.status !== "ready" ||
+      codeSt.status !== "ready" ||
+      variantCodeSt.status !== "ready"
+    ) {
+      return;
+    }
     const dict = dictSt.data;
 
     const availableByTimePoint = new Map<string, Set<string>>();
@@ -613,6 +702,16 @@ export function HfaIndicatorsManager(p: Props) {
         ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
       ];
       for (const id of identifiers) {
+        if (available.has(id)) used.add(id);
+      }
+    }
+
+    // Variables referenced only by variant snippets must not report as unused.
+    for (const c of variantCodeSt.data) {
+      const available = availableByTimePoint.get(c.timePoint);
+      const used = usedByTimePoint.get(c.timePoint);
+      if (!available || !used) continue;
+      for (const id of extractRIdentifiers(c.rCode)) {
         if (available.has(id)) used.add(id);
       }
     }
@@ -1061,6 +1160,26 @@ export function HfaIndicatorsManager(p: Props) {
                   <HfaServiceCategoriesManager
                     serviceCategories={keyedServiceCategories}
                   />
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === "variant_groups"}>
+              <StateHolderWrapper state={variantGroups()} noPad>
+                {(keyedVariantGroups) => (
+                  <StateHolderWrapper state={variantItems()} noPad>
+                    {(keyedVariantItems) => (
+                      <HfaVariantGroupsManager
+                        variantGroups={keyedVariantGroups}
+                        variantItems={keyedVariantItems}
+                        indicators={(() => {
+                          const st = indicators();
+                          return st.status === "ready" ? st.data : [];
+                        })()}
+                        selectedGroupId={selectedVariantGroupId()}
+                        onSelectGroup={setSelectedVariantGroupId}
+                      />
+                    )}
+                  </StateHolderWrapper>
                 )}
               </StateHolderWrapper>
             </Show>

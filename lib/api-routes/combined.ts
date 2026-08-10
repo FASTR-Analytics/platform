@@ -11,11 +11,12 @@ import { calculatedIndicatorRouteRegistry } from "./instance/calculated_indicato
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { instanceModuleRouteRegistry } from "./instance/modules.ts";
+import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
-import { aiToolsRouteRegistry } from "./project/ai-tools.ts";
 import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
+import { projectResultsPackageRouteRegistry } from "./project/results-package.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
 import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
 import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
@@ -47,11 +48,12 @@ export const routeRegistryIndividualCount =
   Object.keys(instanceRouteRegistry).length +
   Object.keys(instanceModuleRouteRegistry).length +
   Object.keys(moduleRouteRegistry).length +
+  Object.keys(runGenerationRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
   Object.keys(projectRouteRegistry).length +
-  Object.keys(aiToolsRouteRegistry).length +
   Object.keys(presentationObjectRouteRegistry).length +
+  Object.keys(projectResultsPackageRouteRegistry).length +
   Object.keys(slideDeckRouteRegistry).length +
   Object.keys(slideDeckFolderRouteRegistry).length +
   Object.keys(reportRouteRegistry).length +
@@ -80,11 +82,12 @@ export const routeRegistry = {
   ...instanceRouteRegistry,
   ...instanceModuleRouteRegistry,
   ...moduleRouteRegistry,
+  ...runGenerationRouteRegistry,
   ...structureRouteRegistry,
   ...userRouteRegistry,
   ...projectRouteRegistry,
-  ...aiToolsRouteRegistry,
   ...presentationObjectRouteRegistry,
+  ...projectResultsPackageRouteRegistry,
   ...slideDeckRouteRegistry,
   ...slideDeckFolderRouteRegistry,
   ...reportRouteRegistry,

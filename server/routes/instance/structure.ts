@@ -12,8 +12,11 @@ import {
   deleteStructureUploadAttempt,
   getStructureDhis2ResolvedCredentials,
   getStructureItems,
+  getStructureStagedColumnValues,
+  getStructureStagedRecodeRows,
   getStructureUploadAttempt,
   getStructureUploadStatus,
+  setStructureRecodes,
   resolveDhis2Credentials,
   structureStep0_SetSourceType,
   structureStep1Csv_UploadFile,
@@ -303,6 +306,56 @@ defineRoute(
         await writer.error(res.err);
       }
     });
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "getStructureStagedColumnValues",
+  requireGlobalPermission("can_configure_data"),
+  log("getStructureStagedColumnValues"),
+  async (c, { params }) => {
+    const res = await getStructureStagedColumnValues(
+      c.var.mainDb,
+      params.family,
+      params.column,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "getStructureStagedRecodeRows",
+  requireGlobalPermission("can_configure_data"),
+  log("getStructureStagedRecodeRows"),
+  async (c, { params, body }) => {
+    const res = await getStructureStagedRecodeRows(
+      c.var.mainDb,
+      params.family,
+      body.column,
+      body.values,
+      body.offset,
+      body.limit,
+      body.csvContextColumns,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesStructure,
+  "setStructureRecodes",
+  requireGlobalPermission("can_configure_data"),
+  log("setStructureRecodes"),
+  async (c, { params, body }) => {
+    const res = await setStructureRecodes(
+      c.var.mainDb,
+      params.family,
+      body.recodes,
+      body.stagingNonce,
+    );
+    return c.json(res);
   },
 );
 

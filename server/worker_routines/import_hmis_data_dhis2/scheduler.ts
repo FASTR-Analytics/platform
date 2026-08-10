@@ -14,7 +14,6 @@ import { _INSTANCE_CALENDAR } from "../../exposed_env_vars.ts";
 import type { Sql } from "postgres";
 import {
   claimScheduledImportOccurrence,
-  countActiveCsvAttempts,
   getEnabledScheduledImportRows,
   getInstanceDatasetsSummary,
   getOldestQueuedDatasetHmisImportRun,
@@ -22,12 +21,14 @@ import {
   getStoredDhis2CredentialsInfo,
   hasRunningDatasetHmisImportRun,
   launchDatasetHmisDhis2ImportRun,
+  launchQueuedDatasetHmisCsvImportRun,
   launchQueuedDatasetHmisImportRun,
   recordScheduledImportOutcome,
   refuseQueuedDatasetHmisImportRun,
   revertScheduledImportClaim,
   sweepSpentOneShotScheduledImports,
   type EnabledScheduledImportRow,
+  type QueuedDatasetHmisImportRun,
 } from "../../db/mod.ts";
 import type {
   Dhis2RunSelection,
@@ -429,9 +430,6 @@ export async function tickDhis2ImportScheduler(): Promise<void> {
     if (await hasRunningDatasetHmisImportRun(mainDb)) {
       return;
     }
-    if ((await countActiveCsvAttempts(mainDb)) > 0) {
-      return;
-    }
 
     // 1. Queued runs, FIFO.
     const queued = await getOldestQueuedDatasetHmisImportRun(mainDb);
@@ -486,8 +484,25 @@ async function notifyDatasets(mainDb: Sql): Promise<void> {
 
 async function fireQueuedRun(
   mainDb: Sql,
-  queued: { id: number; dhis2Url: string; selection: Dhis2RunSelection },
+  queued: QueuedDatasetHmisImportRun,
 ): Promise<void> {
+  // CSV fires need no stored-credential checks — the pinned asset (or the
+  // surviving per-run staging table, for an integrate-anyway resume) is the
+  // whole input.
+  if (queued.source === "csv") {
+    const launchedCsv = await launchQueuedDatasetHmisCsvImportRun(mainDb, {
+      runId: queued.id,
+      onComplete: async () => {
+        await notifyDatasets(mainDb);
+      },
+    });
+    if (launchedCsv) {
+      console.log(`Scheduler: launched queued CSV import run ${queued.id}`);
+      await notifyDatasets(mainDb);
+    }
+    return;
+  }
+
   const stored = await getStoredDhis2CredentialsInfo(mainDb);
   if (!stored) {
     await refuseQueuedDatasetHmisImportRun(
@@ -570,17 +585,14 @@ async function fireSchedule(
     await notifyDatasets(mainDb);
     return;
   }
-  // A launch that lost only the import-slot race — a run OR a CSV attempt
-  // claiming it between the tick's idle check and the launch guards — stays
-  // due: release the occurrence so the next tick retries (within grace; past
-  // grace it becomes a truthful 'missed'). Anything else is deterministic
-  // and records a loud refusal. The revert is conditional on the row still
-  // holding this tick's claim, so it can never clobber a concurrent edit's
-  // re-arm (review finding 4 + CAS-revert low).
-  if (
-    (await hasRunningDatasetHmisImportRun(mainDb)) ||
-    (await countActiveCsvAttempts(mainDb)) > 0
-  ) {
+  // A launch that lost only the import-slot race — another run claiming it
+  // between the tick's idle check and the launch guards — stays due: release
+  // the occurrence so the next tick retries (within grace; past grace it
+  // becomes a truthful 'missed'). Anything else is deterministic and records
+  // a loud refusal. The revert is conditional on the row still holding this
+  // tick's claim, so it can never clobber a concurrent edit's re-arm (review
+  // finding 4 + CAS-revert low).
+  if (await hasRunningDatasetHmisImportRun(mainDb)) {
     await revertScheduledImportClaim(
       mainDb,
       schedule.id,

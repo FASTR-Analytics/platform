@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { getPeriodIdFromTime } from "../../deps.ts";
-import type { PeriodType, RectCoordsDims } from "../../deps.ts";
+import type { CalendarType, PeriodType, RectCoordsDims } from "../../deps.ts";
 import { isLargePeriod } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
@@ -19,6 +19,7 @@ export function calculateVerticalGridLinesForLaneXPeriod(
   nTimePoints: number,
   gridStrokeWidth: number,
   showEveryNthTick: number,
+  calendar: CalendarType,
 ): { x: number; tickValue?: number }[] {
   const mx = xPeriodAxisMeasuredInfo;
   const verticalGridLines: { x: number; tickValue?: number }[] = [];
@@ -31,7 +32,7 @@ export function calculateVerticalGridLinesForLaneXPeriod(
     const time = timeMin + i_val;
     const period = getPeriodIdFromTime(time, periodType);
     const isLargeTick = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 || isLargePeriod(period, periodType));
+      (i_val === 0 || isLargePeriod(period, periodType, calendar));
 
     if (isLargeTick) {
       verticalGridLines.push({ x: currentX, tickValue: period });

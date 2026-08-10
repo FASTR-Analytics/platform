@@ -39,6 +39,21 @@ CREATE TABLE users (
   is_contact_person boolean NOT NULL DEFAULT false
 );
 
+-- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
+-- status: generating | ready | failed | retired. A referenced run is
+-- undeletable via the projects.run_id FK (no cascade). progress is the run
+-- pipeline's worker-updated JSON (RunProgress), pushed over project SSE.
+CREATE TABLE runs (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  status text NOT NULL DEFAULT 'generating',
+  provenance text NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by text,
+  summary text,
+  progress text
+);
+
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
@@ -46,7 +61,9 @@ CREATE TABLE projects (
   is_locked boolean NOT NULL DEFAULT FALSE,
   is_central_reporting boolean NOT NULL DEFAULT FALSE,
   status text NOT NULL DEFAULT 'ready',
-  deletion_scheduled_at TIMESTAMPTZ
+  deletion_scheduled_at TIMESTAMPTZ,
+  run_id text,
+  FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 
 CREATE TABLE user_logs (
@@ -282,8 +299,31 @@ CREATE TABLE structure_upload_attempts (
   step_1_result text,  -- CSV details OR DHIS2 credentials
   step_2_result text,  -- Column mappings OR DHIS2 org unit selection
   step_3_result text,  -- Staging result (table name, counts, validation info)
+  recodes text,  -- JSON: review-step value recodes (column → facility_id → new value)
   CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
   CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
+);
+
+-- ============================================================================
+-- RESULTS-PACKAGE GENERATION (PLAN_RESULTS_RUNS item 2)
+-- ============================================================================
+
+-- The launch wizard's attempt record: one configuring attempt per admin user
+-- (structure_upload_attempts pattern; the wizard is entered from the
+-- instance shell, so there is no source project). status_type is only ever
+-- 'configuring' — execution state never touches the attempt; the row is
+-- deleted at launch (and by discard).
+CREATE TABLE run_generation_attempts (
+  created_by_user_email text NOT NULL,
+  date_started text NOT NULL,
+  step integer NOT NULL,
+  status text NOT NULL,  -- JSON: RunGenerationAttemptStatus
+  status_type text NOT NULL,  -- only ever 'configuring'
+  step_1_result text,  -- JSON: RunGenerationStep1Result (data selection)
+  step_2_result text,  -- JSON: RunGenerationStep2Result (module selection)
+  CONSTRAINT run_generation_attempts_pkey PRIMARY KEY (created_by_user_email),
+  CONSTRAINT run_generation_attempts_user_fkey
+    FOREIGN KEY (created_by_user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -338,16 +378,22 @@ CREATE TABLE dataset_hmis_import_ledger (
   PRIMARY KEY (indicator_raw_id, period_id)
 );
 
--- DHIS2 import runs: one row per run of the per-pair fetch+integrate worker
--- (see server/db/instance/dataset_hmis_import_runs.ts). Per-pair outcomes live
--- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation.
+-- HMIS import runs: one row per import — DHIS2 (per-pair fetch+integrate) or
+-- CSV (stage → conditional review gate → integrate). See
+-- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
+-- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
+-- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
+-- csv_config ({ fileName, filePin, mappings } JSON) is CSV-only — the
+-- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   trigger text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
   triggered_by text,
-  dhis2_url text NOT NULL,
-  selection text NOT NULL,
-  status text NOT NULL CHECK (status IN ('queued', 'running', 'complete', 'error', 'cancelled')),
+  source text NOT NULL CHECK (source IN ('dhis2', 'csv')),
+  dhis2_url text,
+  selection text,
+  csv_config text,
+  status text NOT NULL CHECK (status IN ('queued', 'running', 'needs_review', 'complete', 'error', 'cancelled')),
   error text,
   total_pairs integer NOT NULL DEFAULT 0,
   succeeded_pairs integer NOT NULL DEFAULT 0,
@@ -403,25 +449,6 @@ CREATE TABLE dataset_hmis_scheduled_imports (
   last_error text,
   last_run_id integer REFERENCES dataset_hmis_import_runs(id) ON DELETE SET NULL
 );
-
--- The CSV import wizard's step-config + status state (single row). DHIS2
--- imports do not use this table — they are runs (dataset_hmis_import_runs).
-CREATE TABLE dataset_hmis_upload_attempts (
-  id text PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started text NOT NULL,
-  step integer NOT NULL,
-  status text NOT NULL,
-  status_type text NOT NULL,  -- Simple status: configuring, staging, staged, integrating, error
-  source_type text,  -- csv (nullable until step 0 is completed)
-  step_1_result text,  -- CSV upload details
-  step_2_result text,  -- Column mappings
-  step_3_result text   -- Staging result
-);
-
--- Removed index on status column because it contains large JSON that can exceed btree index size limits
--- CREATE INDEX idx_dataset_hmis_upload_attempts_status ON dataset_hmis_upload_attempts(status);
-CREATE INDEX idx_dataset_hmis_upload_attempts_status_type ON dataset_hmis_upload_attempts(status_type);
-CREATE INDEX idx_dataset_hmis_upload_attempts_date_started ON dataset_hmis_upload_attempts(date_started);
 
 -- ============================================================================
 -- HFA TIME POINTS
@@ -501,20 +528,34 @@ CREATE TABLE hfa_facility_weights (
 CREATE INDEX idx_hfa_facility_weights_time_point ON hfa_facility_weights(time_point);
 
 -- ============================================================================
--- HFA UPLOAD ATTEMPTS
+-- HFA IMPORT RUNS
 -- ============================================================================
 
-CREATE TABLE hfa_upload_attempts (
-  id TEXT PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started TEXT NOT NULL,
-  step INTEGER NOT NULL,
-  status TEXT NOT NULL,
-  status_type TEXT NOT NULL,
-  source_type TEXT NOT NULL,
-  step_1_result TEXT,
-  step_2_result TEXT,
-  step_3_result TEXT
+-- One row per HFA import (stage → conditional review gate → integrate). See
+-- server/db/instance/dataset_hfa_import_runs.ts. No queue (manual-only, no
+-- scheduler) and no version_id — HFA's outcome plane is the time point
+-- (hfa_time_points.imported_at + the per-time-point data tables). csv_config
+-- is the launch payload ({ csvFileName, csvFilePin, xlsFormFileName,
+-- xlsFormFilePin, mappings } JSON); diagnostics is the staging result.
+CREATE TABLE hfa_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  triggered_by text,
+  csv_config text NOT NULL,
+  time_point text NOT NULL,
+  status text NOT NULL CHECK (status IN
+    ('running', 'needs_review', 'complete', 'error', 'cancelled')),
+  error text,
+  progress text,
+  diagnostics text,
+  n_rows_integrated integer,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
 );
+
+-- The single-running claim: the INSERT (or the needs_review re-claim) is the
+-- only arbiter of "at most one HFA import running, ever".
+CREATE UNIQUE INDEX idx_hfa_import_runs_single_running
+  ON hfa_import_runs ((true)) WHERE status = 'running';
 
 -- ============================================================================
 -- HFA INDICATOR CATEGORIES
@@ -540,6 +581,23 @@ CREATE TABLE hfa_indicator_service_categories (
 );
 
 -- ============================================================================
+-- HFA INDICATOR VARIANT GROUPS
+-- ============================================================================
+
+CREATE TABLE hfa_indicator_variant_groups (
+  id TEXT PRIMARY KEY NOT NULL,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE hfa_indicator_variant_items (
+  id TEXT PRIMARY KEY NOT NULL,
+  group_id TEXT NOT NULL REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- ============================================================================
 -- HFA INDICATORS
 -- ============================================================================
 
@@ -555,6 +613,9 @@ CREATE TABLE hfa_indicators (
   sort_order INTEGER NOT NULL DEFAULT 0,
   has_syntax_error BOOLEAN NOT NULL DEFAULT FALSE,
   code_consistent BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Deliberately ON DELETE RESTRICT (default NO ACTION): deleting a group that
+  -- any indicator still references is refused.
+  variant_group_id TEXT REFERENCES hfa_indicator_variant_groups(id) ON UPDATE CASCADE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT hfa_indicators_sub_category_requires_category CHECK ((sub_category_id IS NULL) OR (category_id IS NOT NULL))
 );
@@ -569,6 +630,14 @@ CREATE TABLE hfa_indicator_code (
   r_code TEXT NOT NULL DEFAULT '',
   r_filter_code TEXT,
   PRIMARY KEY (var_name, time_point)
+);
+
+CREATE TABLE hfa_indicator_variant_code (
+  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
+  item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  r_code TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (var_name, time_point, item_id)
 );
 
 -- ============================================================================
@@ -696,16 +765,34 @@ CREATE INDEX idx_iceh_data_indicator ON iceh_data(iceh_indicator);
 CREATE INDEX idx_iceh_data_year ON iceh_data(year);
 CREATE INDEX idx_iceh_data_strat ON iceh_data(strat);
 
-CREATE TABLE iceh_upload_attempts (
-  id TEXT PRIMARY KEY NOT NULL DEFAULT 'single_row' CHECK (id = 'single_row'),
-  date_started TEXT NOT NULL,
-  step INTEGER NOT NULL,
-  status TEXT NOT NULL,
-  status_type TEXT NOT NULL,
-  step_1_result TEXT,
-  step_2_result TEXT,
-  step_3_result TEXT
+-- ============================================================================
+-- ICEH IMPORT RUNS
+-- ============================================================================
+
+-- One row per ICEH import (in-memory stage → conditional review gate →
+-- integrate). See server/db/instance/dataset_iceh_import_runs.ts. No queue
+-- (manual-only, no scheduler) and no version_id — ICEH's outcome plane is the
+-- cumulative iceh_indicators/iceh_data store; these run rows are ICEH's only
+-- durable import history. zip_config is the launch payload
+-- ({ zipFileName, zipFilePin } JSON); diagnostics is the staging result.
+CREATE TABLE iceh_import_runs (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  triggered_by text,
+  zip_config text NOT NULL,
+  status text NOT NULL CHECK (status IN
+    ('running', 'needs_review', 'complete', 'error', 'cancelled')),
+  error text,
+  progress text,
+  diagnostics text,
+  n_rows_integrated integer,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz
 );
+
+-- The single-running claim: the INSERT (or the needs_review re-claim) is the
+-- only arbiter of "at most one ICEH import running, ever".
+CREATE UNIQUE INDEX idx_iceh_import_runs_single_running
+  ON iceh_import_runs ((true)) WHERE status = 'running';
 
 -- ============================================================================
 -- ASSET METADATA
@@ -716,6 +803,24 @@ CREATE TABLE asset_metadata (
   uploader_email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- PERSONAL ACCESS TOKENS
+-- ============================================================================
+-- Server-minted per-user credentials for headless clients (MCP host, CLI).
+-- Only the SHA-256 hash is stored; the token itself is shown once at mint.
+
+CREATE TABLE personal_access_tokens (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  label text NOT NULL,
+  token_hash text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz
+);
+
+CREATE INDEX idx_personal_access_tokens_user_email
+  ON personal_access_tokens (user_email);
 
 -- ============================================================================
 -- SCHEMA MIGRATIONS

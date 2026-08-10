@@ -46,6 +46,11 @@ import type {
   PeriodIndicatorRawStat,
 } from "lib";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
+import {
+  PROGRESS_WRITE_INTERVAL_MS,
+  createThrottledProgressWriter,
+  truncateWorkerError,
+} from "../worker_contract.ts";
 import { getAnalyticsFromDHIS2 } from "../../dhis2/goal3_analytics/mod.ts";
 import type { DHIS2AnalyticsResponse } from "../../dhis2/goal3_analytics/mod.ts";
 import {
@@ -81,8 +86,6 @@ const FACILITY_BATCH_SIZE = _DHIS2_FACILITY_BATCH_SIZE;
 const CONCURRENT_REQUESTS = _DHIS2_CONCURRENT_REQUESTS;
 // Nigeria's nginx returns 414 above ~8 KB (lab E3); ou:400 measured-safe.
 const MAX_URL_LENGTH = 7000;
-// The client polls the run row every 2 s — writing more often is pure waste.
-const PROGRESS_WRITE_INTERVAL_MS = 2000;
 // dataValueSets pulls: a dense Nigeria element-month is ~10-12 MB; the cap
 // exists so a pathological response can't balloon worker memory. On cap or
 // timeout the pull splits by level-2 subtree (state) — never fail a pair on
@@ -197,29 +200,28 @@ async function run(std: RunWorkerMessage) {
     string,
     { indicatorRawId: string; periodId: number; route: Dhis2RunRoute }
   >();
-  let progressPhase: DatasetHmisImportRunProgress["phase"] = "classifying";
-  let lastProgressWriteMs = 0;
+  let progressPhase: "classifying" | "fetching" | "finalizing" = "classifying";
 
-  const updateProgress = async (force: boolean) => {
-    const now = Date.now();
-    if (!force && now - lastProgressWriteMs < PROGRESS_WRITE_INTERVAL_MS) {
-      return;
-    }
-    lastProgressWriteMs = now;
-    const progress: DatasetHmisImportRunProgress = {
-      phase: progressPhase,
-      activePairs: Array.from(activePairs.values()).slice(0, 20),
-    };
-    try {
+  const writeProgress = createThrottledProgressWriter<DatasetHmisImportRunProgress>(
+    PROGRESS_WRITE_INTERVAL_MS,
+    async (progress) => {
       // status guard: never resurrect progress on a cancelled/errored run.
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET progress = ${JSON.stringify(progress)}
         WHERE id = ${runId} AND status = 'running'
       `;
-    } catch (e) {
-      console.error("Failed to write run progress:", e);
-    }
+    },
+  );
+
+  const updateProgress = async (force: boolean) => {
+    await writeProgress(
+      {
+        phase: progressPhase,
+        activePairs: Array.from(activePairs.values()).slice(0, 20),
+      },
+      force,
+    );
   };
 
   // Lazy version mint: dataset_hmis.version_id is a NOT NULL FK, so the
@@ -1002,10 +1004,7 @@ async function run(std: RunWorkerMessage) {
     self.postMessage("COMPLETED");
   } catch (e) {
     console.error("DHIS2 import run failed:", e);
-    const errorMessage = (e instanceof Error ? e.message : String(e)).slice(
-      0,
-      1000,
-    );
+    const errorMessage = truncateWorkerError(e);
     // Drop the scope table BEFORE the status flip releases the claim (a
     // successor run creates the same fixed-name table).
     try {

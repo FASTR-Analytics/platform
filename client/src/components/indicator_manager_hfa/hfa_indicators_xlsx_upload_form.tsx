@@ -19,6 +19,7 @@ import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
   applyTimePointMapping,
+  applyVariantTimePointMapping,
   detectHfaWorkbookShape,
   type WorkbookShape,
 } from "./_xlsx_workbook";
@@ -350,12 +351,17 @@ function ReconcileStep(p: {
         };
       }
 
+      const variantCode = applyVariantTimePointMapping(p.shape, finalMapping);
+
       return await serverActions.importHfaIndicatorsWorkbook({
         categories: p.shape.categories,
         subCategories: p.shape.subCategories,
         serviceCategories: p.shape.serviceCategories,
+        variantGroups: p.shape.variantGroups,
+        variantItems: p.shape.variantItems,
         indicators: p.shape.indicators,
         code,
+        variantCode,
         replaceAll: p.uploadMode === "replace",
       });
     },

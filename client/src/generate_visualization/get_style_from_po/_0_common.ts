@@ -5,13 +5,17 @@ import {
   type GlobalStyleOptions,
   type TextInfoOptions,
   type FontInfo,
+  type HeaderItem,
   MapRegionInfo,
+  NO_DISAGGREGATION_HEADER_ID,
+  PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
   getAdjustedColor,
   getFormatterFunc,
   toNum0,
   type CustomFigureStyleOptions,
+  type TickLabelFormatterOption,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -22,8 +26,11 @@ import {
   getAbcQualScale,
   getAbcQualScale2,
   type DeckStyleContext,
+  type EffectiveFormat,
+  type IndicatorFormat,
   type IndicatorMetadata,
   getSlideFontInfo,
+  isPieCompletionMode,
   isRollupActive,
   ROLLUP_PIN_IDS,
 } from "lib";
@@ -172,38 +179,64 @@ export function getTableLayoutStyle(
   };
 }
 
-// Resolves which indicator a table cell belongs to. Metadata is keyed by
-// indicator id, which reaches the cell either as the value prop (wide-format
-// metrics) or as the col/row header (long-format metrics, where the indicator
-// sits on a disaggregation axis and the lone value prop is "value").
-export function getIndicatorMetaForCell(
+// The ids that could identify a table cell's indicator, most specific first.
+// An indicator reaches a cell either as the value prop (wide-format metrics)
+// or as one of its four headers (long-format metrics, where the indicator sits
+// on a disaggregation axis and the lone value prop is "value"). All four are
+// required, not just the item headers: getStartingConfigForPresentationObject
+// assigns display options in order, so a three-dimension table lands its
+// indicator dimension on rowGroup.
+//
+// The LIST is shared with the scorecard; the stopping rule is not.
+// formatForValue stops at the first id declaring `format_as`,
+// getThresholdMetaForCell at the first declaring `threshold_direction`, so the
+// two could in principle resolve different indicators for the same cell. No
+// per-module catalog mixes entries where the two declarations diverge, so this
+// is unreachable today.
+export function getIndicatorIdsForCell(
+  effectiveValueProps: string[],
+  info: Pick<
+    TableCellInfo,
+    "colHeader" | "rowHeader" | "colGroupHeader" | "rowGroupHeader"
+  >,
+): (string | undefined)[] {
+  return [
+    effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
+    info.colHeader?.id,
+    info.rowHeader?.id,
+    info.colGroupHeader?.id,
+    info.rowGroupHeader?.id,
+  ];
+}
+
+// The metadata entry a cell takes its threshold colouring from: the first id
+// along the chain whose entry actually DECLARES a threshold direction. Not the
+// first entry found — the catalog deliberately carries label-only entries (HFA
+// categories and variant items, ICEH strat codes, raw common indicators), so a
+// bare column header would otherwise mask the row indicator beside it.
+export function getThresholdMetaForCell(
   metadataById: Map<string, IndicatorMetadata>,
   effectiveValueProps: string[],
-  info: Pick<TableCellInfo, "colHeader" | "rowHeader">,
+  info: Pick<
+    TableCellInfo,
+    "colHeader" | "rowHeader" | "colGroupHeader" | "rowGroupHeader"
+  >,
 ): IndicatorMetadata | undefined {
-  const soleValueProp =
-    effectiveValueProps.length === 1 ? effectiveValueProps[0]! : undefined;
-  return (
-    (soleValueProp === undefined
-      ? undefined
-      : metadataById.get(soleValueProp)) ??
-    metadataById.get(info.colHeader?.id ?? "") ??
-    metadataById.get(info.rowHeader?.id ?? "")
-  );
+  for (const id of getIndicatorIdsForCell(effectiveValueProps, info)) {
+    if (id === undefined) continue;
+    const meta = metadataById.get(id);
+    if (meta?.threshold_direction !== undefined) return meta;
+  }
+  return undefined;
 }
 
 export function getTableCellsContent(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
-  indicatorMetadata: IndicatorMetadata[] | undefined,
-  obeyMetricFormat: boolean,
+  effectiveFormat: EffectiveFormat,
   effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {
   const cfOn = selectCf(config.s).type !== "none";
-  const metadataById = indicatorMetadata
-    ? new Map(indicatorMetadata.map((m) => [m.id, m]))
-    : undefined;
 
   return {
     func: cfOn
@@ -212,26 +245,18 @@ export function getTableCellsContent(
           textColorStrategy: getCfCellTextColorStrategy(deckStyle),
         }
       : undefined,
-    textFormatter: (info: TableCellInfo) => {
-      if (
-        !obeyMetricFormat &&
-        metadataById &&
-        info.valueAsNumber !== undefined
-      ) {
-        const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
-        if (meta?.format_as) {
-          return formatIndicatorValue(
-            info.valueAsNumber,
-            meta.format_as,
-            config.s.decimalPlaces ?? 0,
-          );
-        }
-      }
-      return getFormatterFunc(
-        formatAs,
+    // Unconditional per-value resolution. A "percent"/"number" metric owns its
+    // format and formatForValue returns the declaration whatever the ids say;
+    // an "indicator" metric's table legitimately mixes percent and count
+    // indicators, and each cell must print in its own.
+    textFormatter: (info: TableCellInfo) =>
+      formatIndicatorValue(
+        info.value,
+        effectiveFormat.formatForValue(
+          getIndicatorIdsForCell(effectiveValueProps, info),
+        ),
         config.s.decimalPlaces ?? 0,
-      )(info.value);
-    },
+      ),
   };
 }
 
@@ -270,20 +295,116 @@ export function getTableColHeadersContent(config: PresentationObjectConfig) {
   };
 }
 
-function formatIndicatorValue(
-  rawValue: number,
-  formatAs: "percent" | "number" | "rate_per_10k",
-  decimalPlaces: number,
+// THE displayed magnitude of a stored value. Percent values are stored as
+// fractions and rates as bare rates, but everything a reader sees — and every
+// threshold a user types — is in the scaled units. Panther's percent formatter
+// applies the ×100 itself; it has no per-10,000 format at all, which is why
+// the rate scaling lives on this side. One site for both conventions.
+export function scaleValueForFormat(
+  value: number,
+  formatAs: IndicatorFormat,
+): number {
+  if (formatAs === "percent") return value * 100;
+  if (formatAs === "rate_per_10k") return value * 10000;
+  return value;
+}
+
+// THE 3-way value formatter. "rate_per_10k" formats as a number after scaling.
+export function formatIndicatorValue(
+  value: number | string | null | undefined,
+  formatAs: IndicatorFormat,
+  decimalPlaces: 0 | 1 | 2 | 3,
 ): string {
-  if (formatAs === "rate_per_10k") {
-    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
+  if (formatAs !== "rate_per_10k") {
+    return getFormatterFunc(formatAs, decimalPlaces)(value);
   }
-  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n === null || n === undefined || isNaN(n)) {
+    return getFormatterFunc("number", decimalPlaces)(value);
+  }
+  return formatRateAuto(n);
+}
+
+// THE rate_per_10k label rule, for every rate label anywhere: the fewest
+// decimals (≤3) that print the scaled value EXACTLY, decided per value.
+//
+// One rule because a rate carries three properties none of the alternatives
+// respect together. The decimals knob cannot apply: it defaults to 0, and a
+// bare rate of 0.00012 is 1.2 per 10,000 — printing "1" beside an axis tick
+// reading 1.2 is the same number twice with different answers. A list-wide
+// auto count cannot apply either: it sizes to keep a list DISTINCT, so a
+// boundary of 0.25 rounds to "0.3" while the axis prints "0.25". Per value and
+// exact is the only rule the axis, the data labels, the scale legend, the
+// threshold legend and the CF editor preview can all follow, so they cannot
+// disagree about the same number.
+export function formatRateAuto(v: number): string {
+  const scaled = scaleValueForFormat(v, "rate_per_10k");
+  for (const dp of [0, 1, 2] as const) {
+    const factor = Math.pow(10, dp);
+    const rounded = Math.round(scaled * factor) / factor;
+    if (Math.abs(rounded - scaled) <= Math.abs(scaled) * 1e-9) {
+      return getFormatterFunc("number", dp)(scaled);
+    }
+  }
+  return getFormatterFunc("number", 3)(scaled);
+}
+
+// Scale-axis tick labels for the same three formats. percent/number keep
+// panther's auto-decimal modes (sized from the resolved tick list);
+// rate_per_10k has no auto mode, so it goes through the formatter function
+// escape — which sees one tick at a time, exactly what formatRateAuto wants.
+export function getScaleTickLabelFormatter(
+  formatAs: IndicatorFormat,
+): TickLabelFormatterOption {
+  if (formatAs === "rate_per_10k") {
+    return formatRateAuto;
+  }
+  return formatAs === "percent" ? "auto-percent" : "auto-number";
+}
+
+// The ids that could identify a plotted value's indicator, most specific
+// first. A wide-format metric carries the indicator as the sole value prop
+// (same rule as getIndicatorIdsForCell). Category charts carry it at i_val;
+// timeseries leave indicatorHeader undefined and identify by series; a pie
+// slice always has one. Any of the four layout axes can carry the indicator
+// dimension instead, and none of them is ever an admin area on a chart.
+export function getIndicatorIdsForChartValue(
+  effectiveValueProps: string[],
+  info: Pick<
+    ChartSeriesInfo,
+    "seriesHeader" | "laneHeader" | "tierHeader" | "paneHeader"
+  > & { indicatorHeader: HeaderItem | undefined },
+): (string | undefined)[] {
+  return [
+    effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
+    info.indicatorHeader?.id,
+    info.seriesHeader.id,
+    info.laneHeader.id,
+    info.tierHeader.id,
+    info.paneHeader.id,
+  ];
+}
+
+// A map region's own key is an admin area, never an indicator, so only the
+// sole value prop (wide-format metrics) or the three layout axes (or a filter
+// pin, which formatForValue falls back to) can say which indicator the value
+// belongs to.
+export function getIndicatorIdsForMapRegion(
+  effectiveValueProps: string[],
+  info: MapRegionInfo,
+): (string | undefined)[] {
+  return [
+    effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
+    info.paneHeader.id,
+    info.tierHeader.id,
+    info.laneHeader.id,
+  ];
 }
 
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  effectiveFormat: EffectiveFormat,
+  effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {
   if (config.d.type !== "map") return undefined;
@@ -308,12 +429,60 @@ export function getMapRegionsContent(
       const regionText = showRegion ? info.featureId : "";
       const dataText =
         showData && info.value !== undefined
-          ? getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.value)
+          ? formatIndicatorValue(
+              info.value,
+              effectiveFormat.formatForValue(
+                getIndicatorIdsForMapRegion(effectiveValueProps, info),
+              ),
+              config.s.decimalPlaces ?? 0,
+            )
           : "";
       if (regionText && dataText) return `${regionText}\n${dataText}`;
       return regionText || dataText;
     },
   };
+}
+
+// Slice labels are always "label share%" regardless of the metric's formatAs —
+// a share is a fraction of the pie's denominator, never a raw value. The custom
+// textFormatter (only when labels are on) exists to honor s.decimalPlaces;
+// panther's built-in formatter auto-picks decimals.
+//
+// The name is dropped when the slice axis carries no disaggregation: panther
+// yields its NO_DISAGGREGATION_HEADER_ID sentinel there, whose label is the
+// literal "default". That is every completion pie (the whole point is one
+// filled arc per indicator, named by the indicator header panther draws beside
+// it) and any pie left with an empty Slices slot.
+export function getPieSlicesContent(config: PresentationObjectConfig) {
+  if (config.d.type !== "pie") return undefined;
+  return {
+    func: { dataLabel: { show: config.s.showDataLabels } },
+    textFormatter: config.s.showDataLabels
+      ? (info: PieSliceInfo) => {
+          const share = getFormatterFunc(
+            "percent",
+            config.s.decimalPlaces ?? 0,
+          )(info.share);
+          return info.seriesHeader.id === NO_DISAGGREGATION_HEADER_ID
+            ? share
+            : `${info.seriesHeader.label} ${share}`;
+        }
+      : undefined,
+  };
+}
+
+// The doughnut hole's KPI number. "share" reads the value against the
+// completion pie's fixed envelope; "total" sums the slices, which is the only
+// meaningful reading when the denominator IS that sum. Gated on the same
+// isPieCompletionMode as the data config's `total` — disagreeing would report a
+// share against a denominator the geometry never used. Panther suppresses it on
+// a pie with no hole, so no shape check is needed here.
+export function getPieCenterLabel(
+  config: PresentationObjectConfig,
+  formatAs: IndicatorFormat,
+): "none" | "total" | "share" {
+  if (config.d.type !== "pie" || !config.s.pieShowCenterValue) return "none";
+  return isPieCompletionMode(config, formatAs) ? "share" : "total";
 }
 
 // The header whose index drives series coloring (see getIndex below) — the

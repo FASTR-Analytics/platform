@@ -10,6 +10,7 @@ import {
 } from "lib";
 import { type DHIS2OrgUnit } from "../dhis2/goal1_org_units_v2/mod.ts";
 import { getDHIS2 } from "../dhis2/common/base_fetcher.ts";
+import { escapeSqlString } from "../db/utils.ts";
 import {
   getFacilityColumnsConfig,
   getMaxAdminAreaConfig,
@@ -129,12 +130,12 @@ async function processBatch(
     }
 
     // Build VALUES tuple for staging insert
-    const escapedFacilityId = facilityId.replace(/'/g, "''");
+    const escapedFacilityId = escapeSqlString(facilityId);
     const escapedAdminValues = allAdminValues.map(
-      (v) => `'${v.replace(/'/g, "''")}'`
+      (v) => `'${escapeSqlString(v)}'`
     );
     const escapedOptionalValues = optionalValues.map(
-      (v) => `'${v.replace(/'/g, "''")}'`
+      (v) => `'${escapeSqlString(v)}'`
     );
 
     const allValues = [
@@ -498,6 +499,7 @@ export async function stageStructureFromDhis2V2(
       validationWarnings: [],
       stagedOptionalColumns: dhis2OptionalColumns,
       stagedAdminAreas: true,
+      stagingNonce: crypto.randomUUID(),
     };
 
     return { success: true, data: stagingResult };

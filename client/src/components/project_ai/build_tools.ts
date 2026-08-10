@@ -6,20 +6,24 @@ import type {
   ReportSummary,
   SlideDeckSummary,
 } from "lib";
+import {
+  getSharedToolsForInfo,
+  getSharedToolsForMethodologyDocs,
+  getSharedToolsForMetrics,
+  getSharedToolsForModules,
+  getSharedToolsForReports,
+  getSharedToolsForSlideDecks,
+  getSharedToolsForVisualizations,
+} from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import { getToolsForDrafts } from "./ai_tools/tools/drafts";
-import { getToolsForInfo } from "./ai_tools/tools/info";
-import { getToolsForMethodologyDocs } from "./ai_tools/tools/methodology_docs";
-import { getToolsForMetrics } from "./ai_tools/tools/metrics";
-import { getToolsForModules } from "./ai_tools/tools/modules";
-import { getToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
-import { getToolsForReports } from "./ai_tools/tools/reports";
-import { getToolsForReportEditor } from "./ai_tools/tools/report_editor";
-import { getToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
-import { getToolsForSlides } from "./ai_tools/tools/slides";
-import { getToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
-import { getToolsForNavigation } from "./ai_tools/tools/navigation";
-import { getToolsForVisualizations } from "./ai_tools/tools/visualizations";
+import { clientAIToolEnv } from "./ai_tools/client_env";
+import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
+import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
+import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
+import { getClientToolsForSlides } from "./ai_tools/tools/slides";
+import { getClientToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
+import { getClientToolsForNavigation } from "./ai_tools/tools/navigation";
+import { projectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
   projectId: string;
@@ -37,26 +41,31 @@ export function buildToolsForContext(params: BuildToolsParams) {
     params;
 
   return [
-    // Base data tools - always available
-    ...getToolsForMetrics(projectId, metrics, icehIndicators, hfaTaxonomy),
-    ...getToolsForModules(projectId, modules, metrics),
-    ...getToolsForVisualizations(projectId, visualizations, metrics),
-    ...getToolsForSlideDecks(slideDecks),
-    ...getToolsForReports(projectId, reports),
-    ...getToolsForMethodologyDocs(),
-    ...getToolsForInfo(),
+    // Base data tools - always available (shared factories in lib/ai_tools;
+    // the SPA injects cache-backed getters via clientAIToolEnv, the headless
+    // MCP host injects direct fetches)
+    ...getSharedToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
+    // The package the script/log tools read is resolved SERVER-side at call
+    // time (projects.run_id via the attached-package routes), so a repoint
+    // mid-conversation moves them to the newly attached package.
+    ...getSharedToolsForModules(clientAIToolEnv, projectId, modules, metrics),
+    ...getSharedToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
+    ...getSharedToolsForSlideDecks(slideDecks),
+    ...getSharedToolsForReports(clientAIToolEnv, projectId, reports),
+    ...getSharedToolsForMethodologyDocs(),
+    ...getSharedToolsForInfo(),
 
     // View-gated tools (createAITool with viewRegistry + availableIn)
-    ...getToolsForSlides(projectId, metrics),
-    ...getToolsForSlideEditor(projectId, metrics),
-    ...getToolsForReportEditor(projectId, metrics),
-    ...getToolsForVizEditor(projectId, metrics),
+    ...getClientToolsForSlides(projectId, metrics),
+    ...getClientToolsForSlideEditor(projectId, metrics),
+    ...getClientToolsForReportEditor(projectId, metrics),
+    ...getClientToolsForVizEditor(projectId, metrics),
 
     // Navigation tools - always available
-    ...getToolsForNavigation(),
+    ...getClientToolsForNavigation(),
 
     // Draft preview tools - always available
-    ...getToolsForDrafts(projectId, metrics),
+    ...getClientToolsForDrafts(projectId, metrics),
 
     // Interactive tools
     createAskUserQuestionsTool(),

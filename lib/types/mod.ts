@@ -21,8 +21,6 @@ export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";
 export {
-  type AssetToImportGithub,
-  getAssetName,
   type MetricDefinitionGithub,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
@@ -39,6 +37,8 @@ export * from "./project_dirty_states.ts";
 export * from "./project_sse.ts";
 export * from "./projects.ts";
 export * from "./reports.ts";
+export * from "./run_generation.ts";
+export * from "./run_manifest.ts";
 export * from "./slides.ts";
 export * from "./sort.ts";
 export * from "./ai_input.ts";

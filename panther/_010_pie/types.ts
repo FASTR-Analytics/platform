@@ -37,6 +37,9 @@ export type PieJsonDataConfig = {
   // coordinates — so slices are series, and get the categorical legend and
   // id-stable swatch colors for free.
   seriesProp?: string | "--v";
+  // The repeat dimension: one pie per indicator, tiled inside each sub-chart.
+  // Costs no disaggregation axis — panes/tiers/lanes stay free.
+  indicatorProp?: string | "--v";
   paneProp?: string | "--v";
   tierProp?: string | "--v";
   laneProp?: string | "--v";
@@ -44,6 +47,7 @@ export type PieJsonDataConfig = {
   labelReplacements?: Record<string, string>;
   sort?: {
     series?: HeaderSortConfig;
+    indicator?: HeaderSortConfig;
     pane?: HeaderSortConfig;
     tier?: HeaderSortConfig;
     lane?: HeaderSortConfig;
@@ -66,15 +70,15 @@ export type PieJsonDataConfig = {
 export type PieDataTransformed = {
   isTransformed: true;
   seriesHeaders: HeaderItem[];
+  indicatorHeaders: HeaderItem[];
   paneHeaders: HeaderItem[];
   tierHeaders: HeaderItem[];
   laneHeaders: HeaderItem[];
-  // [pane][tier][lane][series][value] — the last axis is the library-wide
-  // value dimension, length 1 for v1 (a pie is one stacked bar). Keeping it
-  // is what lets fillValuesWithDuplicateCheck be reused verbatim, makes
-  // values[pane][tier][lane] literally the seriesValArrays ChartSeriesInfo
-  // wants, and keeps concentric rings / sunburst a non-breaking change to
-  // this stored, schema-validated shape.
+  // [pane][tier][lane][series][indicator] — literally ChartOV's shape. The
+  // last axis is the repeat dimension (one pie per indicator, length 1 with no
+  // indicatorProp), which keeps fillValuesWithDuplicateCheck reused verbatim
+  // and values[pane][tier][lane] literally the seriesValArrays
+  // ChartSeriesInfo wants.
   values: (number | undefined)[][][][][];
   total: PieTotal;
 };

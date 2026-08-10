@@ -1,140 +1,251 @@
-# PLAN: GeoJSON as a Project Snapshot (S2) — the durable architecture
+# PLAN: GeoJSON into the Run Package — the last artifact-render leak
 
-Status: DRAFT for review. No implementation yet. Report-only until per-step go-ahead.
+Status: DRAFT for review. No implementation yet. Report-only until per-step
+go-ahead.
 
-This is now the **only** geojson plan. Its former companion (the near-term
-layer-1 plan) shipped and was retired 2026-07-06: the import-freeze fix,
-save-side coverage counts, export resilience, and upload hardening are live
-(commits `805f6b15`, `e3cac93d`, `14790e39`, earlier `a36121e2`/`d3743456`);
-its two remainders were absorbed here (WS-COVERAGE below) and into
-SYSTEM_04/SYSTEM_05 Open items (upload-cap policy items).
-
-It builds on the self-containment docs — now [VISION_RESULTS_RUNS.md](VISION_RESULTS_RUNS.md) (the why/end-state) and [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) (which superseded VISION/PLAN_PROJECT_SNAPSHOT; geojson is carried there as SNAP-2 in §8). **Storage-home note (2026-07-07):** under the results-runs plan the snapshot home becomes the run's `inputs/geojson/` files rather than a project-DB table; this plan's correctness workstreams (WS-DEDUP, WS-COVERAGE, WS-KEY) and settled decisions carry unchanged, and §2's `geojson_by_level` table stands only if this plan executes before runs Phase 1.
-
----
-
-## 0. The vision a reviewer needs (condensed from VISION_RESULTS_RUNS.md)
-
-A project should be a **fully self-contained, transportable unit** — a frozen snapshot that can be detached from the instance that produced it and attached elsewhere. **The one hard rule:** artifacts (layer 3 — visualizations, slide-decks, reports, dashboards) read **only** from the project snapshot (layer 2); the snapshot depends on **nothing** in instance data (layer 1) at read time. *No viz / report / deck / dashboard reads instance data, period.*
-
-The codebase already does this for **datasets** (snapshotted into the project DB with a project-local `last_updated` that every project cache versions off) and for **stored artifacts** via **FigureBundle** (localization + map `geo.data` baked in at capture). The remaining work is to bring the **stragglers** under the same pattern — and the snapshot plan's own diagnosis is blunt: *"the remaining artifact-render leak is essentially just geojson (S2)."* **GeoJSON is the headline straggler.**
+**Rewritten 2026-08-06** around the landed results-runs model
+([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md), built 2026-07-30; format spec =
+[SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md)). The pre-runs
+version of this plan — project-DB `geojson_by_level` table, cache-fold
+workstream, full WS-LIFECYCLE — is in git history (pre-2026-08-06). What
+changed: the snapshot home is now the run package's `inputs/geojson/` files;
+cache coherence and portability come free from runId keying and package
+immutability; versioning/propagation dissolve into "generate a new run"; and
+the implementation order flips (key fix BEFORE capture, because packages are
+immutable and must be born with the correct key).
 
 ---
 
-## 1. Why geojson is the leak (grounded in code)
+## 1. Why (the leak, grounded in code — re-verified 2026-08-06)
 
-- **Already self-contained:** FigureBundle bakes `geo.data` into stored bundles; dashboards snapshot `geo_data` per item/group. Stored dashboards are at parity.
-- **The leak:** non-dashboard **viz / deck / report** figures resolve geometry **live** at figure build — `build_figure_inputs.ts` reads `geo.kind:'level'` from client `instanceState` `t2_geojson` (the instance-level store). And a stored bundle can be frozen as `kind:'level'` (a live pointer, not a snapshot) when capture outran the geojson preload. Consequence: an admin re-importing or editing the instance boundary file **silently changes or breaks** existing project figures, with no version bump and no cache invalidation.
-- **The match key is the root correctness bug:** geojson is stored instance-wide as one TEXT row per admin level ([geojson_maps](server/db/migrations/instance/010_add_geojson_maps.sql)); each feature is rewritten to `{ geometry, properties: { area_id, source_name } }` where **`area_id` is a bare leaf admin-area NAME** ([process_geojson.ts](server/geojson/process_geojson.ts)). But `admin_areas_3/4` keys include the **parent**. So:
-  - Duplicate leaf names under different parents **collapse to one key** (the likely cause of the reported **Haiti "only one department"** and **Cameroun** errors).
-  - The render join is exact-string on that name, while the import auto-map is case-insensitive — any accent/whitespace/casing/language drift ("Cameroun" vs "Cameroon") yields no match → **silent grey**, no error.
-  - There is **no foreign key or existence check**, so a typo or later structure rename leaves features pointing at nothing.
-  - The name is instance-derived, so the snapshot is **not identity-independent** → not portable.
+The runs build captured every generation input into the package (datasets,
+facilities, indicators, assets, calendar, countryIso3) **except geojson**.
+Geojson is now the only remaining live instance read in the artifact render
+path (plus the named SNAP-5 image hole, parked in PLAN_RESULTS_RUNS).
 
-This single design choice (bare-name `area_id`) is simultaneously the **correctness** problem and the **portability** blocker. Fixing it is the heart of this plan.
+- **The leak:** non-dashboard viz / deck / report figures resolve geometry
+  live at figure build — `resolveGeoJson` in
+  `client/src/generate_visualization/build_figure_inputs.ts` reads
+  `kind:'level'` from the instance-level `t2_geojson` store. And capture can
+  freeze a live pointer: `resolve_figure_from_metric.ts` /
+  `resolve_figure_from_visualization.ts` fall back to
+  `{ kind:'level', level }` when capture outruns the geojson preload.
+  Consequence: an admin re-importing or editing the instance boundary file
+  silently changes or breaks existing project figures — no version bump, no
+  cache invalidation.
+- **The match key is the root correctness bug:** geojson is stored
+  instance-wide as one TEXT row per admin level (`geojson_maps`); each feature
+  is rewritten to `{ geometry, properties: { area_id, source_name } }` where
+  **`area_id` is a bare leaf admin-area NAME**
+  (`server/geojson/process_geojson.ts`). But `admin_areas_3/4` keys include
+  the parent. So:
+  - Duplicate leaf names under different parents collapse to one key (the
+    likely cause of the reported Haiti "only one department" and Cameroun
+    errors).
+  - The render join is exact-string on that name while the import auto-map is
+    case-insensitive — accent/whitespace/casing/language drift ("Cameroun" vs
+    "Cameroon") yields silent grey, no error.
+  - No FK or existence check — a typo or later structure rename leaves
+    features pointing at nothing.
+  - The name is instance-derived → the geometry is not identity-independent →
+    not portable.
+
+The bare-name `area_id` is simultaneously the correctness problem and the
+portability blocker. Fixing it is the heart of this plan.
 
 ---
 
-## 2. Target architecture
+## 2. Target architecture (runs model)
 
-1. **Project-level geojson snapshot.** A `geojson_by_level` snapshot table in the **project DB** with a project-local `last_updated` stamp. (Settled: one shared copy per level beats per-figure `geo.data` embedding — DRY, no heavy duplication. See the storage-home note at the top: under the runs plan this becomes `inputs/geojson/` files.)
-2. **Capture.** Snapshot the resolved geojson into the project in the dataset-add / integration transaction (or a dedicated capture step), reusing the **datasets pattern** (mirror table + `last_updated`). Always capture as **`geo.kind:'data'`** (await preload); never freeze a live `kind:'level'` pointer.
-3. **Read path.** Artifacts resolve geometry from the **project snapshot**, not `instanceState` / main DB. `build_figure_inputs` reads project geo.
-4. **Cache coherence.** Fold the snapshot's `last_updated` into the PO cache version key — **server + client byte-identical** (the vision's hard rule: snapshotting alone doesn't fix caching).
-5. **Snapshot-local stable-id match key.** `area_id` and the render join key become **snapshot-local stable structure ids** — *not* instance FKs, *not* bare names. This fixes the name-collision correctness cluster **and** satisfies the portability constraint in one move. **Hold the no-instance-FK line from the first commit** (the vision: "never bake instance foreign keys into a project-side field; that constraint must hold from the first change").
-6. **Drift-repair sweep.** One-time: (a) re-capture stored `kind:'level'` bundles as `kind:'data'`; (b) re-key existing geojson `area_id`s to the snapshot-local model; (c) transform stored `kind:'data'` snapshots (slides / reports / `dashboards.geo_data` / the public `/api/d/:slug` bundle) to the new key.
+1. **Home: the run package.** `inputs/geojson/level_{2,3,4}.geojson` (gzipped
+   — see open decision Q-GZIP), captured in the generation `prepare` stage
+   beside the dataset extracts, from the instance `geojson_maps` rows as they
+   exist at generation time. Manifest stamps: levels present, feature counts,
+   source `uploaded_at`. **Additive-optional** — no `manifestSchemaVersion`
+   bump; readers tolerate absence.
+2. **Read path.** A project-scoped route resolves `projects.run_id` and serves
+   the attached run's geojson. Packages are immutable → serve with
+   `Cache-Control: immutable`, client cache keyed by runId. `build_figure_inputs`
+   (and both capture sites) repoint to the run-scoped store. Fallback for
+   geojson-less packages (pre-capture wizard runs, backfills without capture):
+   the current live instance read — the status quo, not a regression; the next
+   regeneration heals it.
+3. **Cache coherence: free.** Every project cache already keys on the attached
+   runId; new run = new geometry version. No cache-fold work.
+4. **Snapshot-local stable-id match key.** `area_id` and the render join key
+   become parent-qualified snapshot-local ids — not instance FKs, not bare
+   names. Fixes the name-collision class and portability in one move. **Must
+   land before capture starts** — packages are immutable, so a key model
+   cannot be backfilled into published packages; they must be born correct.
+5. **Kill the `kind:'level'` freeze.** Capture always awaits/uses resolved
+   data; never store a live pointer.
+6. **Drift-repair sweep** (one-time, part of WS-KEY): re-key existing
+   `geojson_maps` rows; transform stored `kind:'data'` snapshots (slides /
+   reports / `dashboards.geo_data` / the public `/api/d/:slug` bundle);
+   re-capture stored `kind:'level'` bundles as `kind:'data'`.
+
+**What the runs model dissolved** (do not rebuild): the project-DB
+`geojson_by_level` table; the PO-cache-key fold; instance-side blob
+versioning/history (old runs keep their captured copies — runs ARE the
+history; a bad remap is recoverable by re-attaching an older run);
+remap-propagation machinery (propagation = generate a new run); the
+reconciliation sweep as standalone machinery (a stale-geometry badge comes
+free from Phase 4's capturedRunId ≠ attachedRunId provenance re-key once
+geometry is run-scoped).
 
 ---
 
 ## 3. Workstreams
 
 ### WS-DEDUP — collapse the duplicated logic  ·  P1  ·  effort S  ·  PREREQUISITE
-**Goal:** make every later correctness fix land in one place, not four. Today there are 2–4 unsynced copies of the load-bearing logic: `processGeoJson` vs `processGeoJsonFromDhis2` (near-identical — both now delegate to a shared `processFeatures`, so this pair is largely collapsed as of `805f6b15`), the lowercase auto-matcher twice in `step_2` (file vs DHIS2 branch), and `GeoJsonFeature`/`FeatureCollection` redeclared in 3+ places. **Do this first** — WS-KEY's normalization must live in one shared function.
+
+Make every later correctness fix land in one place. Remaining copies:
+the lowercase auto-matcher twice in `step_2` (file vs DHIS2 branch), and
+`GeoJsonFeature`/`FeatureCollection` redeclared in 3+ places
+(`processGeoJson` vs `processGeoJsonFromDhis2` already share
+`processFeatures` since `805f6b15`). WS-KEY's normalization must live in one
+shared function.
 
 ### WS-COVERAGE — render-side coverage + typed sentinel  ·  P1  ·  effort M  ·  PREREQUISITE for WS-KEY's backfill
 
-Inherited from the retired near-term plan (its save side shipped 2026-07-06:
-save routes return featureCount/matched/unmatched — `805f6b15` — and the
-wizard shows them — `e3cac93d`). Remaining:
+Save side shipped 2026-07-06 (`805f6b15` featureCount/matched/unmatched,
+`e3cac93d` wizard display). Remaining:
 
 - **Render-side coverage:** surface "N of M data areas have a boundary; K
   boundaries have no data" wherever a map figure renders. panther's
-  `getMapDataTransformed` builds the value maps but exposes **no** coverage
-  tally — compute the counts app-side after the transform (or add a small
-  count to panther `_010_maps`). This is the measurement WS-KEY's backfill
-  uses to prove no rows were lost.
-- **Policy (as ruled in the near-term review):** error only on 0 matched
-  (nothing would render); warn-but-allow otherwise, showing the number
-  (prominent below ~70%) — mid-rollout partial coverage is legitimate.
-- **Typed sentinel:** replace the `"[INFO] "`-string `Error` control flow
-  with a typed result. Verified consumers: the throw in
-  `build_figure_inputs.ts`, the `startsWith` checks in
-  `t2_presentation_objects.ts` and `PresentationObjectMiniDisplay.tsx`; the
-  dashboard export's `prepareFigures` currently swallows the throw to `null`
-  (any failure becomes a placeholder, masking regressions) — re-key the
-  export degrade off the typed sentinel. Note `t2_presentation_objects` also
-  *produces* `[INFO]` strings (too-many-items / no-data / no-replicant-values),
-  so the type must cover those states, not just missing-geometry.
+  `getMapDataTransformed` builds the value maps but exposes no coverage tally
+  — compute app-side after the transform (or add a small count to panther
+  `_010_maps`). This is the measurement WS-KEY's backfill uses to prove no
+  rows were lost.
+- **Policy (ruled):** error only on 0 matched; warn-but-allow otherwise,
+  showing the number (prominent below ~70%) — mid-rollout partial coverage is
+  legitimate.
+- **Typed sentinel:** replace the `"[INFO] "`-string `Error` control flow with
+  a typed result. Verified consumers: the throw in `build_figure_inputs.ts`,
+  the `startsWith` checks in `t2_presentation_objects.ts` and
+  `PresentationObjectMiniDisplay.tsx`; the dashboard export's `prepareFigures`
+  swallows the throw to `null` (masking regressions) — re-key the export
+  degrade off the typed sentinel. `t2_presentation_objects` also *produces*
+  `[INFO]` strings (too-many-items / no-data / no-replicant-values), so the
+  type must cover those states too.
 - **Half B — `area_id` validity join:** validate each chosen `area_id`
   resolves to a real admin area by joining `admin_areas_N`. Name-based in the
-  interim (that table is name-keyed); WS-KEY re-points the join to the
-  snapshot-local id — build the interface (matched/unmatched lists) so only
-  the join key changes.
-
-### WS-SNAPSHOT — project-level snapshot + capture + cache-fold  ·  P1  ·  effort L
-**Goal:** non-dashboard viz/deck/report figures read geometry from a project snapshot, reaching the parity dashboards already have. Implements target-architecture items 1–4: the `geojson_by_level` project table, capture in the integration txn (datasets pattern), force `kind:'data'` capture, fold the stamp into the PO cache key (server+client). Repoint `build_figure_inputs` to the snapshot.
+  interim; WS-KEY re-points the join to the snapshot-local id — build the
+  interface (matched/unmatched lists) so only the join key changes.
 
 ### WS-KEY — snapshot-local-id, normalized matching  ·  P1  ·  effort L  ·  the headline fix
-**Goal:** eliminate the name-collision + casing/accent-drift class of silent wrong maps at the root, and make the snapshot portable. Implements target-architecture item 5:
-- Stop storing `area_id` as a bare leaf name; store a **parent-qualified / snapshot-local stable id**.
-- **Persist the DHIS2 UID/parent the disambiguation UI already collects.** Today `step_3` shows UID/parent to disambiguate duplicate names, but the UID is **never sent on save** — the picker is *illusory*, both duplicates get the same `area_id`. Persist the chosen UID; drop the other duplicate.
-- Add unicode-normalize + trim + diacritic-fold to the auto-matcher, in the **one** shared place WS-DEDUP created, so "Cameroun"/trailing-space/casing variants match.
-- Make the render join key use the same qualified key.
-- Requires a **migration + backfill** of `geojson_maps` rows and a transform of stored `kind:'data'` snapshots. **Depends on WS-COVERAGE** (render-side coverage counting) to measure backfill correctness. After backfill, **re-point WS-COVERAGE Half B's validation join** from the name column to the new snapshot-local id.
 
-### WS-LIFECYCLE — versioning, audit, drift-repair, safe delete  ·  P1  ·  effort L
-**Goal:** make boundary changes recoverable and stop stored figures silently drifting. Today every write is a destructive in-place UPSERT with no history/audit, and delete is a hard `DELETE` with no cascade — a bad remap or accidental delete is unrecoverable.
-- Add history/versioning (keep prior blob on UPSERT, or a versions table) + an **audit-log row** (who/when) for save/remap/delete (currently unlogged).
-- **Safe delete:** check for and report dependent `kind:'level'` figures before hard-deleting; consider soft-delete.
-- **Reconciliation sweep** (target-architecture item 6): a remap/delete updates or flags stored `kind:'data'` snapshots (slides, reports, `dashboards.geo_data`, public bundle) instead of leaving them stale — same drift class as the documented FigureInputs sweep.
-- A **re-import/boundary-change flow** that diffs against the prior mapping instead of forcing a full manual re-map.
+Eliminate the name-collision + casing/accent-drift class of silent wrong maps
+at the root, and make the captured geometry portable. **Lands BEFORE
+WS-CAPTURE** (immutability — see §2 item 4).
 
-### WS-EFFICIENCY — storage/serving + optional simplification  ·  P2  ·  effort M
-**Goal:** stop shipping ~10× more bytes than necessary and make large levels tractable. Invest in the **snapshot store** (where artifacts now read), not the instance serving path.
-- **Compression:** GeoJSON gzips ~8–12×. Add compression on the snapshot store/serving.
-- **Fix the double-serialize:** the serving path returns already-stringified JSON re-escaped as a string field (double-serialize / double-parse). Return parsed JSON or a raw pre-serialized `Response`.
-- **Caching headers / ETag / Valkey** for the served geojson (today `/geojson-maps/level/:level` is *not* under `/api/`, so it gets no `Cache-Control`).
+- Stop storing `area_id` as a bare leaf name; store a parent-qualified /
+  snapshot-local stable id. The data side of the render join (figure build)
+  must emit the same qualified key — both sides move in lockstep (join lives
+  in panther `_010_maps`: stage app changes before any resync).
+- **Persist the DHIS2 UID/parent the disambiguation UI already collects.**
+  `step_3` shows UID/parent to disambiguate duplicate names, but the UID is
+  never sent on save — the picker is illusory; both duplicates get the same
+  `area_id`. Persist the chosen UID; drop the other duplicate.
+- Unicode-normalize + trim + diacritic-fold in the auto-matcher, in the one
+  shared place WS-DEDUP created.
+- **Migration + backfill:** re-key `geojson_maps` rows; transform stored
+  `kind:'data'` snapshots (slides / reports / `dashboards.geo_data` / public
+  bundle — stored-JSON move = transform + FORCED skip-gate per
+  PROTOCOL_APP_MIGRATIONS); re-capture `kind:'level'` bundles as
+  `kind:'data'`. **Depends on WS-COVERAGE** to measure backfill correctness.
+  After backfill, re-point Half B's validation join to the new id.
+- Published run packages are NOT migrated (immutable). Pre-WS-KEY packages
+  contain no geojson anyway (capture doesn't exist yet), so no dual-key join
+  is ever needed.
+
+### WS-CAPTURE — geojson into the run package  ·  P1  ·  effort M  (was WS-SNAPSHOT, effort L)
+
+Implements §2 items 1–3 and 5:
+
+- Capture in `generate_run/` `prepare_inputs` (alongside dataset extracts):
+  read `geojson_maps`, write `inputs/geojson/level_N.geojson[.gz]`, stamp the
+  manifest (additive-optional field).
+- Backfill: `backfill_runs.ts` captures from live instance `geojson_maps` — a
+  **documented exception** to "backfill from frozen project data": the live
+  blob is exactly what those projects render today, so capturing it is
+  render-equivalent by definition.
+- Project-scoped serving route (resolve `projects.run_id` → run file), gzip +
+  `Cache-Control: immutable`; client run-geo store keyed by runId.
+- Repoint `resolveGeoJson` in `build_figure_inputs.ts` and both capture sites;
+  delete the `kind:'level'` freeze fallback. Instance-plane surfaces (geojson
+  manager, wizard previews) keep reading `t2_geojson` — different plane.
+- Typed fallback for geojson-less packages → live instance read (status quo).
+
+### WS-LIFECYCLE-RESIDUAL — audit + delete warning  ·  P3  ·  effort S  (was P1/L; mostly dissolved)
+
+What survives of the old WS-LIFECYCLE: an audit-log row (who/when) on
+instance geojson save/remap/delete, and a delete warning listing dependent
+figures. Optional; everything else (versioning, propagation, reconciliation)
+is dissolved by the runs model — see §2.
+
+### WS-EFFICIENCY — storage/serving  ·  P2  ·  effort M
+
+- **Compression:** GeoJSON gzips ~8–12×. Instance serving path + the
+  in-package copy (Q-GZIP).
+- **Fix the double-serialize** on the instance serving path (stringified JSON
+  re-escaped as a string field).
+- **Caching headers** for instance-plane serving (`/geojson-maps/level/:level`
+  is not under `/api/`, so no `Cache-Control` today). The run-scoped route is
+  new code — immutable-cached from day one, not part of this workstream.
 - **Off-main-thread parse** (worker) for large levels.
-- **Optional polygon simplification** (inline Douglas–Peucker per the no-new-dependency rule; tolerance tunable). **Risk to flag:** naive per-polygon simplification breaks **shared borders** (Region edge ≠ District edge after simplification) — may need a topology-preserving approach, or accept the tolerance trade-off. Lossy; keep the raw upload if fidelity is ever needed.
-- This is also the home for the **AA4 background-worker + SSE progress** path that the shipped near-term WS1 (`805f6b15`) explicitly defers, plus the `step_3` row **virtualization** AA4 needs (live-measured 2026-07-06: DRC has **10,325** level-4 aires; Cameroon 2,219).
+- **Optional polygon simplification** (inline Douglas–Peucker, no new deps;
+  lossy; naive per-polygon simplification breaks shared borders — flag the
+  topology trade-off; keep the raw upload).
+- Also the home for the deferred AA4 background-worker + SSE progress path and
+  `step_3` row virtualization (measured 2026-07-06: DRC 10,325 level-4 aires;
+  Cameroon 2,219).
 
 ---
 
 ## 4. Decisions already made (do not re-litigate)
 
-- **One-country-per-instance is a guaranteed invariant** (confirmed by Tim). → the match key needs **no geography dimension within an instance**. But snapshot-local ids are still required for **detach/attach** portability (Step C of the vision).
-- **The public-dashboard frozen geometry is intentional, not a bug.** "Nothing a project renders should depend on live instance state." The fix for staleness is the **drift-repair / reconciliation** sweep (WS-LIFECYCLE), *not* making the public bundle read live.
-- **Storage shape = project-level `geojson_by_level` table** (recommended), not per-figure embed.
+- **One-country-per-instance is a guaranteed invariant** (Tim). → the match
+  key needs no geography dimension within an instance; snapshot-local ids are
+  still required for detach/attach portability.
+- **The public-dashboard frozen geometry is intentional, not a bug.** The fix
+  for staleness is regeneration + the Phase 4 provenance badge, not a live
+  read.
+- **Storage home = run `inputs/geojson/`** (this rewrite). The project-DB
+  table is dead.
+- **Capture trigger / propagation** (was open Q2): captured at run
+  generation; propagation = generate a new run.
+- **Versioning cost** (was open Q4): dissolved — runs are the history.
+- **Runs hard rules apply verbatim:** no links in a run dir ever (the per-run
+  geojson copy is an accepted duplicate-bytes cost); no instance FKs inside
+  run files; the package rule (attached users can see package contents).
 
 ---
 
-## 5. Implementation order (within this plan)
+## 5. Implementation order + timing
 
-1. **WS-DEDUP** — prerequisite; makes WS-KEY's normalization land once.
-2. **WS-SNAPSHOT** — stand up the project snapshot + capture + cache-fold (kind:'data' parity for the non-dashboard path). Can proceed in parallel with WS-EFFICIENCY's serving work, which touches a different path.
-3. **WS-KEY** — the snapshot-local-id match key + backfill. **Gated on WS-COVERAGE** existing (to measure the backfill). The headline correctness + portability fix.
-4. **WS-LIFECYCLE** — versioning/audit/drift-repair/safe-delete; best once the WS-KEY key model is stable (the audit-log + safe-delete slice can be pulled forward independently).
-5. **WS-EFFICIENCY** — P2; the serving/compression slice is independent and can run in parallel from the start; simplification + the AA4 worker land opportunistically.
+1. **WS-DEDUP** — prerequisite.
+2. **WS-COVERAGE** — the backfill measurement + typed sentinel.
+3. **WS-KEY** — migration + backfill + stored-snapshot transform. The
+   headline. Must precede WS-CAPTURE.
+4. **WS-CAPTURE** — capture + serving + repoint.
+5. **WS-EFFICIENCY** (P2, parallel-safe) · **WS-LIFECYCLE-RESIDUAL** (P3,
+   anytime).
 
-**Relative to the broader effort:** facility-config drift (S1/N1) is now dissolved by [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) (manifest capture, its §8); geojson remains the headline straggler, carried there as SNAP-2. The portability end-state (transportable runs) is meaningful only once geojson and the other stragglers are snapshot-local.
+**Relative to the runs rollout: no hard dependency either way.** The manifest
+change is additive with a clean fallback — do NOT gate the fleet deploy on
+this. Sweetener if this lands before Tim runs the fleet rollout:
+`backfill_runs.ts` captures geojson and the fleet never has a geojson-less
+package; if the rollout goes first, the fallback covers backfilled packages
+and the next regeneration heals them.
 
 ---
 
-## 6. Migration / backfill
+## 6. Migration / backfill verification
 
-- Existing instance `geojson_maps` → project snapshots (per project, in the capture txn).
-- Re-key `area_id`s to snapshot-local ids; transform stored `kind:'data'` snapshots; re-capture `kind:'level'` bundles.
-- **Verify each step by executing** a small harness against a real stored blob (Cameroon AA3 — the measured 200-feature / 20 MB case), not by reading. Use WS-COVERAGE's counts to confirm no rows were lost.
+- Verify each step by executing a small harness against a real stored blob
+  (Cameroon AA3 — the measured 200-feature / ~20 MB case), not by reading.
+  Use WS-COVERAGE's counts to confirm no rows were lost in the WS-KEY re-key.
 
 ### Verified DHIS2 API facts (live Cameroon + DRC, both 2.40.11.1, 2026-07-06)
 
@@ -158,19 +269,34 @@ inherits them:
 
 ---
 
-## 7. Open decisions for the reviewer / Tim
+## 7. Open decisions for Tim
 
-1. **Match-key migration appetite (the central fork).** The **full snapshot-local-id model** (WS-KEY: migration + backfill + transform of every stored `kind:'data'` snapshot) vs an **interim "normalize + parent-qualify within the existing name string"** that fixes Haiti/Cameroun cheaply but is *not* snapshot-local → would have to be redone for portability. *Recommendation: do the full model once — it is the entire point of S2 — accepting it is the larger effort.*
-2. **Capture trigger / propagation.** Capture geojson at dataset-add (like other inputs, "pinned to last integration") vs a dedicated geojson-capture action; and how an instance remap propagates to existing projects (live re-export vs pinned). Under [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) this resolves to: captured at run generation; propagation = generate a new run.
-3. **Efficiency scope.** Compression + double-serialize fix now (cheap, high-ratio) vs deferred; simplification in or out (lossy/topology risk).
-4. **Versioning cost.** Keep N prior multi-MB blobs per level, a single rollback slot, or audit-metadata-only (who/when, no full prior geometry)?
+1. **Match-key appetite (the central fork).** Full snapshot-local-id model
+   (WS-KEY as written: migration + backfill + transform of every stored
+   `kind:'data'` snapshot) vs an interim "normalize + parent-qualify within
+   the existing name string" that fixes Haiti/Cameroun cheaply but would be
+   redone for portability. *Recommendation: the full model once — it is the
+   entire point of this plan.*
+2. **Q-GZIP.** Store the in-package copy as `level_N.geojson.gz` (~8–12×
+   smaller; Cameroon L3 is ~20 MB plain and copied into EVERY package under
+   the no-links rule, with no parquet payoff coming) vs plain for
+   package-explorer transparency. *Recommendation: gzip.*
+3. **Backfill capture exception.** Confirm `backfill_runs.ts` may capture from
+   live instance `geojson_maps` (render-equivalent; documented exception) vs
+   backfilled packages simply lacking geojson. *Recommendation: capture.*
+4. **Efficiency scope.** Double-serialize fix + instance-path compression now
+   (cheap) vs deferred; simplification in or out.
 
 ---
 
-## 8. Hard rules (from the vision)
+## 8. Hard rules (carried)
 
-- **No instance FKs in project-side fields; snapshot-local stable ids from commit one.**
-- Render/query-time inputs **folded into the project cache version key** (server + client identical).
-- **Reuse the datasets pattern** (capture txn + mirror/stamp + cache-fold). Don't invent parallel machinery.
-- **No payload-shape change without a cache-prefix bump** (CLAUDE.md).
-- **Report-only until per-step go-ahead;** verify by executing; stage app changes before any panther resync (the render join lives in panther `_010_maps`).
+- **No instance FKs in project-side or run-side fields; snapshot-local stable
+  ids from commit one.**
+- **Packages are immutable** — the key model lands before capture; no
+  in-place migration of published packages, ever.
+- **No payload-shape change without a cache-prefix bump** (CLAUDE.md); stored
+  JSON moves = transform + FORCED skip-gate (PROTOCOL_APP_MIGRATIONS).
+- **Report-only until per-step go-ahead;** verify by executing; stage app
+  changes before any panther resync (the render join lives in panther
+  `_010_maps`).

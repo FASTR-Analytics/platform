@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { RectCoordsDims } from "../../deps.ts";
+import type { LargeLabelForm } from "./helpers.ts";
 
 export type PeriodAxisType =
   | "month-three-year"
@@ -21,6 +22,8 @@ export type XPeriodAxisMeasuredInfo = {
   xAxisRcd: RectCoordsDims;
   periodAxisSmallTickH: number | "none";
   periodAxisType: PeriodAxisType;
-  fourDigitYearW: number;
+  // The large-label fallback ladder, widest form first, each with its measured
+  // exemplar width. The axis picks the widest form that fits.
+  largeLabelForms: { form: LargeLabelForm; w: number }[];
   yearSkipInterval: number;
 };

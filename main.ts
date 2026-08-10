@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
@@ -12,6 +12,7 @@ import {
 } from "./server/collab/version_capture.ts";
 import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
+import { _PORT } from "./server/exposed_env_vars.ts";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -31,6 +32,7 @@ import { routesIndicators } from "./server/routes/instance/indicators.ts";
 import { routesCalculatedIndicators } from "./server/routes/instance/calculated_indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
 import { routesInstance } from "./server/routes/instance/instance.ts";
+import { routesRunGeneration } from "./server/routes/instance/run_generation.ts";
 import { routesStructure } from "./server/routes/instance/structure.ts";
 import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
@@ -44,13 +46,13 @@ import { routesProject } from "./server/routes/project/project.ts";
 import { routesProjectSSEV2 } from "./server/routes/project/project-sse-v2.ts";
 import { routesProjectCollab } from "./server/routes/project/project-collab.ts";
 import { routesModules } from "./server/routes/project/modules.ts";
+import { routesProjectResultsPackage } from "./server/routes/project/results_package.ts";
 import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesSlideDecks } from "./server/routes/project/slide_decks.ts";
 import { routesSlides } from "./server/routes/project/slides.ts";
 import { routesAiProxy } from "./server/routes/project/ai_proxy.ts";
 import { routesInstanceAiProxy } from "./server/routes/instance/ai_proxy.ts";
 import { routesAiFiles } from "./server/routes/project/ai_files.ts";
-import { routesAiTools } from "./server/routes/project/ai_tools.ts";
 import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
 import { routesSlideDeckFolders } from "./server/routes/project/slide_deck_folders.ts";
 import { routesReports } from "./server/routes/project/reports.ts";
@@ -61,10 +63,11 @@ import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
 // Public routes (no auth)
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
+import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
+import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
 import { routesWhatsNew } from "./server/routes/instance/whats_new.ts";
-import { routesExportCentral } from "./server/routes/instance/export_central.ts";
 
 await dbStartUp();
 
@@ -78,7 +81,7 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   purgeExpiredProjects(db).catch((e) =>
-    console.error("Project purge failed:", e),
+    console.error("Project purge failed:", e)
   );
 };
 runProjectPurge();
@@ -109,17 +112,43 @@ app.use("/api/d/*", authMiddleware);
 // Public routes (no auth required) - must be before authMiddleware
 app.route("/", routesPublicDashboard);
 
+// OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
+// BEFORE it has any credential, so they must sit ahead of the global Clerk
+// middleware — behind it they 401 and the Connect button spins forever.
+app.route("/", routesOAuthMetadata);
+
 // Serve SPA HTML for public dashboard routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  app.get("/d/:slug", (c) => c.html(indexHtml));
+  // These two shell serves are registered ahead of cacheMiddleware, so they
+  // never reach its no-cache branch for HTML — they set it themselves. Same
+  // reason as there: a heuristically cached shell pins the browser to the
+  // previous build's immutable bundles.
+  const serveShell = (c: Context) => {
+    c.header("Cache-Control", "no-cache, must-revalidate");
+    return c.html(indexHtml);
+  };
+  app.get("/d/:slug", serveShell);
+  // The unlisted /access-tokens SPA route (PAT panel) needs the same
+  // pre-auth HTML serve: there is NO general SPA fallback (unknown paths
+  // 302 to "/"), and the Clerk middleware would 401 a logged-out
+  // navigation. The page itself is the public SPA bundle; LoggedInWrapper
+  // gates it client-side and every PAT route stays server-gated.
+  app.get("/access-tokens", serveShell);
 } catch {
   // In development, handled by Vite dev server
 }
 
+// The /mcp endpoint (PLAN_112) authenticates with PATs inside the panther
+// adapter — the global Clerk middleware and CORS headers must not touch it.
+const isMcpPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
+
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 // LOCAL_DEVELOPMENT_TOGGLE
-app.use("*", authMiddleware);
+app.use(
+  "*",
+  (c, next) => isMcpPath(c.req.path) ? next() : authMiddleware(c, next),
+);
 
 app.onError((err: unknown, c) => {
   return c.json({
@@ -128,7 +157,27 @@ app.onError((err: unknown, c) => {
   });
 });
 
-app.use("*", corsMiddleware);
+// Unmatched GETs 302 to "/" (the SPA fallback below), so only non-GET
+// requests reach this — in practice a client calling a route this server
+// build no longer has, i.e. a tab running pre-deploy JS. Return the
+// APIResponse envelope with the actual cause instead of Hono's bare
+// "404 Not Found", so the failure is diagnosable from the error modal.
+app.notFound((c) => {
+  return c.json(
+    {
+      success: false,
+      err:
+        `Unknown route: ${c.req.method} ${c.req.path}. ` +
+        "The app may have been updated since this page was loaded — reload the page and try again.",
+    },
+    404,
+  );
+});
+
+app.use(
+  "*",
+  (c, next) => isMcpPath(c.req.path) ? next() : corsMiddleware(c, next),
+);
 
 app.route("/", routesHealth);
 app.route("/", routesInstance);
@@ -138,6 +187,7 @@ app.route("/", routesProject);
 app.route("/", routesProjectSSEV2);
 app.route("/", routesProjectCollab);
 app.route("/", routesStructure);
+app.route("/", routesRunGeneration);
 app.route("/", routesBackups);
 app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
@@ -152,6 +202,7 @@ app.route("/", routesCalculatedIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesInstanceModules);
 app.route("/", routesModules);
+app.route("/", routesProjectResultsPackage);
 app.route("/", routesSlideDecks);
 app.route("/", routesReports);
 app.route("/", routesReportFolders);
@@ -165,10 +216,42 @@ app.route("/", routesCacheStatus);
 app.route("/ai", routesAiProxy);
 app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
-app.route("/", routesAiTools);
 app.route("/", routesCustomPrompts);
 app.route("/", routesWhatsNew);
-app.route("/", routesExportCentral);
+
+// The remote MCP endpoint (PLAN_112): URL + PAT header, nothing local. The
+// panther adapter handles auth (401/503), era routing, sessions, and
+// elicitation; Hono just hands it the raw Request.
+// CORS headers for browser-origin MCP clients. This endpoint authenticates by
+// bearer token and carries NO ambient cookie credentials, so a wildcard origin
+// is safe — and `Access-Control-Allow-Credentials` is deliberately NOT set (a
+// browser can only read a response it explicitly attached the token to).
+// `Mcp-Session-Id` must be exposed or a browser client cannot read the session
+// the server issues on initialize.
+const MCP_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, Accept, Last-Event-ID, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+  "Access-Control-Expose-Headers": "Mcp-Session-Id",
+  "Access-Control-Max-Age": "86400",
+};
+
+app.all("/mcp", async (c) => {
+  // The preflight MUST be answered BEFORE auth: browsers never send the
+  // Authorization header on an OPTIONS preflight, so letting it reach the
+  // adapter's authenticate hook 401s every browser-origin connector before it
+  // can make its real request. The app's own permission guards skip OPTIONS
+  // for exactly this reason.
+  if (c.req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: MCP_CORS_HEADERS });
+  }
+  const res = await mcpHttpHandler(c.req.raw);
+  for (const [k, v] of Object.entries(MCP_CORS_HEADERS)) {
+    res.headers.set(k, v);
+  }
+  return res;
+});
 
 // Cache headers middleware
 app.use("*", cacheMiddleware);
@@ -199,10 +282,9 @@ globalThis.addEventListener("error", (e) => {
   e.preventDefault();
 });
 
-const port = parseInt(Deno.env.get("PORT") || "8000");
-console.log(`Starting server on port ${port}...`);
+console.log(`Starting server on port ${_PORT}...`);
 
-const server = Deno.serve({ port }, app.fetch);
+const server = Deno.serve({ port: _PORT }, app.fetch);
 
 const shutdown = async () => {
   console.log("\nShutting down...");
@@ -215,11 +297,11 @@ const shutdown = async () => {
   // document content from the DB — so the rooms' checkpoints must land first.
   // Both must finish BEFORE closeAllConnections() — they write through the pools.
   await flushAllRooms().catch((e) =>
-    console.error("Room flush on shutdown failed:", e),
+    console.error("Room flush on shutdown failed:", e)
   );
   // Version history: open editing sessions become versions before exit.
   await flushAllVersions().catch((e) =>
-    console.error("Version flush on shutdown failed:", e),
+    console.error("Version flush on shutdown failed:", e)
   );
   await Promise.all([
     server.shutdown(),

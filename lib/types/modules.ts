@@ -17,7 +17,6 @@ export type ModuleDefinitionDetail = ModuleDefinitionInstalled & {
   metrics: Metric[];
 };
 import type { DatasetType } from "./datasets.ts";
-import type { DirtyOrRunStatus } from "./project_dirty_states.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { DisaggregationOption, PresentationOption } from "./presentation_objects.ts";
 
@@ -44,7 +43,7 @@ export type ResultsValue = {
   valueLabelReplacements?: Record<string, string>;
   label: string;
   variantLabel?: string;
-  formatAs: "percent" | "number";
+  formatAs: MetricFormatAs;
   disaggregationOptions: {
     value: DisaggregationOption;
     isRequired: boolean;
@@ -55,35 +54,37 @@ export type ResultsValue = {
   importantNotes?: string;
 };
 
+// The metric's declared format source. "percent"/"number": the values are the
+// metric's own quantity and the format is a constant. "indicator": the values
+// ARE the displayed indicator's own quantity, so format is a per-value fact
+// carried by the indicator catalog (IndicatorMetadata.format_as) — see
+// lib/resolve_effective_format.ts.
+export type MetricFormatAs = "percent" | "number" | "indicator";
+
 export type ResultsValueForVisualization = {
-  formatAs: "percent" | "number";
+  formatAs: MetricFormatAs;
   valueProps: string[];
   valueLabelReplacements?: Record<string, string>;
 };
 
-export type MetricStatus =
-  | "ready"
-  | "module_not_installed"
-  | "results_not_ready"
-  | "error";
+// Status comes from the attached run's finalize-computed availability stamps
+// (PLAN_RESULTS_RUNS §2.2) — readers never re-derive availability.
+export type MetricStatus = "ready" | "unavailable";
 
 export type MetricWithStatus = ResultsValue & {
   status: MetricStatus;
+  statusReason?: string;
   moduleId: ModuleId;
   vizPresets?: VizPreset[];
 };
 
+// The attached run's module catalog entry as the client sees it (built from
+// the run manifest — no live project-DB state).
 export type InstalledModuleSummary = {
   id: ModuleId;
   label: string;
-  dirty: DirtyOrRunStatus;
   hasParameters: boolean;
-  computeDefUpdatedAt?: string;
-  computeDefGitRef?: string;
-  presentationDefUpdatedAt?: string;
-  presentationDefGitRef?: string;
-  configUpdatedAt?: string;
-  lastRunAt: string;
+  lastRunAt: string | null;
   lastRunGitRef?: string;
   moduleDefinitionResultsObjectIds: string[];
 };
@@ -149,49 +150,17 @@ export type ModuleConfigSelections = {
   parameterSelections: Record<string, string>;
 };
 
-export type ModuleLatestCommit = {
-  moduleId: ModuleId;
-  latestCommit: {
-    sha: string;
-    message: string;
-    date: string;
-    author: string;
-  };
-};
-
-export type DefinitionChanges = {
-  script: boolean;
-  configRequirements: boolean;
-  resultsObjects: boolean;
-  metrics: boolean;
-  vizPresets: boolean;
-  label: boolean;
-  dataSources: boolean;
-  assetsToImport: boolean;
-};
-
-export type ModuleUpdatePreview = {
-  hasUpdate: boolean;
-  currentGitRef: string | null;
-  incomingGitRef: string;
-  changes: DefinitionChanges;
-  recommendsRerun: boolean;
-  commitsSince: { sha: string; message: string; date: string; author: string }[];
-};
-
 export type CompareProjectsModuleParameter = {
   replacementString: string;
   description: string;
   value: string;
 };
 
+// Sourced from each project's attached results package manifest. The
+// dirty-state and per-half definition stamps died with the dirty machine —
+// a package records one generation, at one module git ref.
 export type CompareProjectsModule = {
   id: string;
-  dirty: "queued" | "ready" | "error";
-  computeDefUpdatedAt?: string;
-  computeDefGitRef?: string;
-  presentationDefUpdatedAt?: string;
-  presentationDefGitRef?: string;
   lastRunAt: string;
   lastRunGitRef?: string;
   parameters: CompareProjectsModuleParameter[];

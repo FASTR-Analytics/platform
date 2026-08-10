@@ -44,6 +44,9 @@ export function getSelectClasses(
     // Placeholder state (grey text when no value selected)
     "data-[placeholder=true]:text-base-content-muted",
 
+    // Invalid state (while invalidMsg is set)
+    "data-[invalid=true]:border-danger",
+
     // Disabled state
     "disabled:opacity-40",
   ].join(" ");
@@ -84,6 +87,9 @@ export function getInputClasses(
 
     // Mono variant
     "data-[mono=true]:font-mono",
+
+    // Invalid state (while invalidMsg is set)
+    "data-[invalid=true]:border-danger",
 
     // Disabled state
     "disabled:opacity-40",

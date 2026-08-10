@@ -24,11 +24,16 @@ import {
 } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
-  type CellIndices,
-  layOutPieCell,
-  type PieCell,
+  type LaidOutPie,
+  layOutPie,
+  type PieIndices,
 } from "./generate_pie_slice_primitives.ts";
-import { circleEdgeAtY, polarPoint, wedgeFitsBox } from "./pie_geometry.ts";
+import {
+  circleEdgeAtY,
+  polarPoint,
+  type SilhouetteExtents,
+  wedgeFitsBox,
+} from "./pie_geometry.ts";
 
 // pie.labelMode already names a REGION, so it maps onto the shared vocabulary
 // one-to-one. The conversion still lives in one place, mirroring map's.
@@ -54,24 +59,24 @@ export type PieLabelSpec = {
   id: string;
   text: string;
   midAngle: number;
-  sweepAngle: number;
+  sweepRadians: number;
   dl: LabelCandidate["dataLabel"];
 };
 
 export function collectPieLabelSpecs(
-  cell: PieCell,
+  pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
 ): PieLabelSpec[] {
   const formatter = mergedStyle.content.slices.textFormatter;
   // The default label is "<series> <percent>", with the decimal count chosen
-  // once across the cell's shares so sibling slices agree.
+  // once across the pie's shares so sibling slices agree.
   const autoPercent = buildAutoFormatter(
-    cell.slices.filter((s) => !s.isRemainder).map((s) => s.share),
+    pie.slices.filter((s) => !s.isRemainder).map((s) => s.share),
     "percent",
   );
 
   const specs: PieLabelSpec[] = [];
-  for (const slice of cell.slices) {
+  for (const slice of pie.slices) {
     if (slice.isRemainder) continue;
     const dl = slice.style.dataLabel;
     if (!slice.style.show || !dl.show) continue;
@@ -85,7 +90,7 @@ export function collectPieLabelSpecs(
       id: slice.seriesHeader.id,
       text,
       midAngle: (slice.angles.startAngle + slice.angles.endAngle) / 2,
-      sweepAngle: slice.angles.endAngle - slice.angles.startAngle,
+      sweepRadians: slice.angles.endAngle - slice.angles.startAngle,
       dl,
     });
   }
@@ -94,15 +99,15 @@ export function collectPieLabelSpecs(
 
 export function buildPieLabelCandidates(
   rc: RenderContext,
-  cell: PieCell,
+  pie: LaidOutPie,
   mergedStyle: MergedPieStyle,
-  cellRcd: RectCoordsDims,
+  slotRcd: RectCoordsDims,
 ): PieLabelEntry[] {
-  const { cx, cy, innerR, outerR } = cell.geometry;
+  const { cx, cy, innerR, outerR } = pie.geometry;
 
   const entries: PieLabelEntry[] = [];
-  for (const spec of collectPieLabelSpecs(cell, mergedStyle)) {
-    const { id, text, midAngle, sweepAngle, dl } = spec;
+  for (const spec of collectPieLabelSpecs(pie, mergedStyle)) {
+    const { id, text, midAngle, sweepRadians, dl } = spec;
     const anchor = polarPoint(cx, cy, (innerR + outerR) / 2, midAngle);
     // The leader starts where THIS slice meets the arc, not where the label's
     // final row does: a stub at the label's own y would sit on the circle but
@@ -111,7 +116,7 @@ export function buildPieLabelCandidates(
     const leaderOrigin = polarPoint(cx, cy, outerR, midAngle);
     // Derived from the mid-angle rather than the drawn angles so the test is
     // independent of draw direction.
-    const halfSweep = Math.abs(sweepAngle) / 2;
+    const halfSweep = Math.abs(sweepRadians) / 2;
 
     entries.push({
       candidate: {
@@ -119,7 +124,7 @@ export function buildPieLabelCandidates(
         mText: rc.mText(
           text,
           buildDataLabelTextStyle(mergedStyle.text.dataLabels, dl),
-          cellRcd.w() * mergedStyle.pie.labelWrapFraction,
+          slotRcd.w() * mergedStyle.pie.labelWrapFraction,
         ),
         anchor: new Coordinates([anchor.x, anchor.y]),
         leaderOrigin: new Coordinates([leaderOrigin.x, leaderOrigin.y]),
@@ -132,6 +137,9 @@ export function buildPieLabelCandidates(
             { x: anchor.x - cx, y: anchor.y - cy },
             w,
             h,
+            // The label is judged against the DRAWN slice, so a gap narrows
+            // the room by its own half-width, just as it narrows the fill.
+            mergedStyle.pie.sliceGap / 2,
           ),
         dataLabel: dl,
         // Decided once, from the bearing alone — an anchor-vs-centre test at
@@ -158,6 +166,14 @@ const PIE_UNTANGLES_LEADERS = false;
 // A pie's silhouette is a disc, so its track is analytically a circle of
 // radius outerR + calloutMargin about the disc centre. The circle is a
 // CONSEQUENCE of the shape, never the model (plan N1).
+//
+// A partial sweep (a gauge) keeps the whole circle here, along with
+// `outsideBand` and `circleEdgeAtY` below: the outside-label FRAME stays
+// notionally circular even when the drawn sector is not. That is conservative,
+// not wrong — anchors come from slice mid-angles so they stay inside the sweep,
+// and `pieExtentsAt` measures the boxes the placer actually produced, so sizing
+// and centring stay correct. A gauge's labels simply get marginally more room
+// than they need. Do not narrow it to the sector without a visual target.
 function pieTrack(
   cx: number,
   cy: number,
@@ -176,14 +192,14 @@ function pieTrack(
 // exactly on the arc. It is the FLANK path's hook and stays wired either way —
 // `outsideTrack` is what selects the nearest-point placer.
 export function buildPieLabelGeometry(
-  cell: PieCell,
-  cellRcd: RectCoordsDims,
+  pie: LaidOutPie,
+  slotRcd: RectCoordsDims,
   mergedStyle: MergedPieStyle,
   placement: OutsideLabelPlacement,
 ): LabelGeometry {
-  const { cx, cy, outerR } = cell.geometry;
+  const { cx, cy, outerR } = pie.geometry;
   return {
-    cellRcd,
+    hostRcd: slotRcd,
     centerX: cx,
     outsideBand: { minY: cy - outerR, maxY: cy + outerR },
     outsideEdgeAtY: (side, y) => circleEdgeAtY(cx, cy, outerR, side, y),
@@ -301,7 +317,7 @@ export function calculatePieLabelFloorBudget(
   rc: RenderContext,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-  indicesPerCell: CellIndices[],
+  indicesPerPie: PieIndices[],
 ): PieLabelFloorBudget {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   if (mode === "none" || mode === "inside") {
@@ -320,9 +336,9 @@ export function calculatePieLabelFloorBudget(
   // three properties that make a floor sound.
   let maxW = 0;
   let maxH = 0;
-  for (const indices of indicesPerCell) {
+  for (const indices of indicesPerPie) {
     // Angles are geometry-independent; a unit disc is enough to collect specs.
-    const cell = layOutPieCell(data, mergedStyle, indices, {
+    const pie = layOutPie(data, mergedStyle, indices, {
       cx: 0,
       cy: 0,
       innerR: 0,
@@ -332,7 +348,7 @@ export function calculatePieLabelFloorBudget(
     let rightStack = 0;
     let nLeft = 0;
     let nRight = 0;
-    for (const spec of collectPieLabelSpecs(cell, mergedStyle)) {
+    for (const spec of collectPieLabelSpecs(pie, mergedStyle)) {
       const mText = rc.mText(
         spec.text,
         buildDataLabelTextStyle(mergedStyle.text.dataLabels, spec.dl),
@@ -376,16 +392,24 @@ export function calculatePieLabelFloorBudget(
   };
 }
 
-// Union bbox of (disc at s) ∪ (outside label boxes at s), outward from the
-// content centre — derived from the placer's own output, never re-derived
-// alongside it. Halo padding is included unconditionally: the placement
-// offset applies it whether or not a halo is drawn.
+// Union bbox of (the DECLARED sector at s) ∪ (outside label boxes at s), outward
+// from the content centre — the label half derived from the placer's own output,
+// never re-derived alongside it. Halo padding is included unconditionally: the
+// placement offset applies it whether or not a halo is drawn.
+//
+// `silhouette` seeds each direction, so a gauge's labels are budgeted against
+// its declared footprint rather than the notional disc. Declared, not drawn: a
+// `remainder.mode: "gap"` cell whose values reach a third of its `total` still
+// reserves the whole sweep, which is what keeps a gauge's frame from moving as
+// its value changes (see `resolvePieSilhouette`). For a full pie every component
+// is 1 and `s * 1` is exactly `s`, so those extents are unchanged.
 export function pieExtentsAt(
   outside: PieLabelEntry[],
   s: number,
   clampedInnerRadiusRatio: number,
   mergedStyle: MergedPieStyle,
   placement: OutsideLabelPlacement,
+  silhouette: SilhouetteExtents,
 ): DirectionalExtents | undefined {
   const boxes = placePieOutsideBoxesAt(
     outside,
@@ -397,10 +421,10 @@ export function pieExtentsAt(
     placement,
   );
   if (!boxes) return undefined;
-  let left = s;
-  let right = s;
-  let top = s;
-  let bottom = s;
+  let left = s * silhouette.left;
+  let right = s * silhouette.right;
+  let top = s * silhouette.top;
+  let bottom = s * silhouette.bottom;
   for (let i = 0; i < outside.length; i++) {
     const { candidate } = outside[i];
     const box = boxes[i];

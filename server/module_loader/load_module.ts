@@ -1,11 +1,8 @@
 import {
   type APIResponseWithData,
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-  type DefaultPresentationObject,
+  INDICATOR_FORMAT_METRIC_IDS,
   isSampleNProp,
   type Language,
-  getAssetName,
   type Metric,
   type MetricDefinitionGithub,
   MODULE_REGISTRY,
@@ -21,59 +18,18 @@ import {
 import { z } from "zod";
 import { stripFrontmatter } from "../github/fetch_module.ts";
 
-import {
-  _GITHUB_TOKEN,
-  _IS_PRODUCTION,
-  _MODULES_LOCAL_DIR,
-} from "../exposed_env_vars.ts";
+import { _GITHUB_TOKEN, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import { MODULE_SOURCE } from "./module_source.ts";
+import { ensureRepoAssetCached } from "./repo_assets.ts";
 
-const MODULE_SOURCE: "local" | "github" = _IS_PRODUCTION ? "github" : "local";
-
-export function deriveDefaultPresentationObjects(
-  metrics: Metric[],
-  moduleId: string,
-  language: Language,
-): DefaultPresentationObject[] {
-  const results: DefaultPresentationObject[] = [];
-  let sortOrder = 0;
-  for (const metric of metrics) {
-    for (const preset of metric.vizPresets ?? []) {
-      if (!preset.createDefaultVisualizationOnInstall) continue;
-      results.push({
-        id: preset.createDefaultVisualizationOnInstall,
-        label: resolveTS(preset.label, language),
-        moduleId,
-        metricId: metric.id,
-        sortOrder: sortOrder++,
-        config: {
-          d: { ...preset.config.d },
-          s: { ...DEFAULT_S_CONFIG, ...preset.config.s },
-          t: {
-            caption: preset.config.t.caption
-              ? resolveTS(preset.config.t.caption, language)
-              : DEFAULT_T_CONFIG.caption,
-            captionRelFontSize: preset.config.t.captionRelFontSize ??
-              DEFAULT_T_CONFIG.captionRelFontSize,
-            subCaption: preset.config.t.subCaption
-              ? resolveTS(preset.config.t.subCaption, language)
-              : DEFAULT_T_CONFIG.subCaption,
-            subCaptionRelFontSize: preset.config.t.subCaptionRelFontSize ??
-              DEFAULT_T_CONFIG.subCaptionRelFontSize,
-            footnote: preset.config.t.footnote
-              ? resolveTS(preset.config.t.footnote, language)
-              : DEFAULT_T_CONFIG.footnote,
-            footnoteRelFontSize: preset.config.t.footnoteRelFontSize ??
-              DEFAULT_T_CONFIG.footnoteRelFontSize,
-          },
-        },
-      });
-    }
-  }
-  return results;
-}
-
+// pinnedGitRef: fetch the module's files at this exact commit instead of
+// HEAD — the run pipeline re-fetches the definitions the wizard's step 2
+// resolved (PLAN_RESULTS_RUNS item 2). undefined = HEAD (install/update).
+// Local source ignores the pin: local refs are per-read placeholders, and
+// dev reads the working tree by design.
 export async function fetchModuleFiles(
   moduleId: string,
+  pinnedGitRef: string | undefined,
 ): Promise<
   { definition: ModuleDefinitionGithub; script: string; gitRef?: string }
 > {
@@ -90,6 +46,7 @@ export async function fetchModuleFiles(
     const rawScript = await Deno.readTextFile(`${basePath}/script.R`);
     const rawDefinition = JSON.parse(definitionText);
     const definition = validateDefinition(rawDefinition, moduleId);
+    await cachePinnedRepoAssets(moduleId, definition, null);
     const localRef = `loc-${crypto.randomUUID().slice(0, 8)}`;
     return {
       definition,
@@ -105,21 +62,23 @@ export async function fetchModuleFiles(
     headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
   }
 
-  // Fetch HEAD commit SHA for this path
-  let gitRef: string | undefined;
-  try {
-    const commitsRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
-      { headers },
-    );
-    if (commitsRes.ok) {
-      const commits = await commitsRes.json();
-      if (commits.length > 0) {
-        gitRef = commits[0].sha;
+  // Pinned or HEAD commit SHA for this path
+  let gitRef: string | undefined = pinnedGitRef;
+  if (gitRef === undefined) {
+    try {
+      const commitsRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
+        { headers },
+      );
+      if (commitsRes.ok) {
+        const commits = await commitsRes.json();
+        if (commits.length > 0) {
+          gitRef = commits[0].sha;
+        }
       }
+    } catch {
+      // Non-fatal — we can still install without a git ref
     }
-  } catch {
-    // Non-fatal — we can still install without a git ref
   }
 
   // Use commit SHA if available to avoid GitHub's raw content cache (~5min)
@@ -145,9 +104,25 @@ export async function fetchModuleFiles(
 
   const rawDefinition = await defRes.json();
   const definition = validateDefinition(rawDefinition, moduleId);
+  await cachePinnedRepoAssets(moduleId, definition, gitRef ?? null);
   const rawScript = await scriptRes.text();
 
   return { definition, script: stripFrontmatter(rawScript), gitRef };
+}
+
+// Definition resolution is where pinned repo assets are fetched, verified,
+// and cached (PLAN_RESULTS_RUNS item 2 ruling) — a bad pin fails install/
+// update/preview in the admin's face, never a module run. Assets are fetched
+// at the same gitRef the definition was, so the two cannot disagree.
+async function cachePinnedRepoAssets(
+  moduleId: string,
+  definition: ModuleDefinitionGithub,
+  gitRef: string | null,
+): Promise<void> {
+  for (const asset of definition.assetsToImport) {
+    if (typeof asset === "string") continue;
+    await ensureRepoAssetCached(moduleId, asset, gitRef);
+  }
 }
 
 function validateDefinition(
@@ -174,6 +149,20 @@ function validateDefinition(
     throw new Error(
       `Invalid definition for module "${moduleId}": value props may not start with "${SAMPLE_N_PREFIX}" (reserved for sample sizes): ${reservedProps.join(", ")}`,
     );
+  }
+
+  // Every definition the app ever sees passes through here — install, update,
+  // wizard preview, and the run pipeline's re-fetch at a pinned gitRef — so
+  // this is the one place that can guarantee no definition VERSION produces a
+  // stale declaration. Without it the version-gated manifest repair is
+  // unreachable for the packages that need it most: a run generated from an
+  // un-flipped definition (the mandated deploy order, or a project pinned to
+  // an older gitRef) stamps the CURRENT schema version onto a manifest
+  // carrying the old value, and block 2 never runs again.
+  for (const metric of result.data.metrics) {
+    if (INDICATOR_FORMAT_METRIC_IDS.includes(metric.id)) {
+      metric.formatAs = "indicator";
+    }
   }
 
   return result.data as ModuleDefinitionGithub;
@@ -228,9 +217,13 @@ function translateConfigRequirements(
 export async function getModuleDefinitionDetail(
   id: ModuleId,
   language: Language,
+  pinnedGitRef: string | undefined,
 ): Promise<APIResponseWithData<ModuleDefinitionDetail & { gitRef?: string }>> {
   try {
-    const { definition, script, gitRef } = await fetchModuleFiles(id);
+    const { definition, script, gitRef } = await fetchModuleFiles(
+      id,
+      pinnedGitRef,
+    );
 
     const resultsObjectsWithModuleId: ResultsObjectDefinition[] = definition
       .resultsObjects.map((ro: ResultsObjectDefinitionGithub) => ({
@@ -254,13 +247,8 @@ export async function getModuleDefinitionDetail(
         language,
       ),
       script,
-      assetsToImport: definition.assetsToImport.map(getAssetName),
+      assetsToImport: definition.assetsToImport,
       resultsObjects: resultsObjectsWithModuleId,
-      defaultPresentationObjects: deriveDefaultPresentationObjects(
-        translatedMetrics,
-        id,
-        language,
-      ),
       metrics: translatedMetrics,
     };
 

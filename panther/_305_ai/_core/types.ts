@@ -19,7 +19,7 @@ import type {
   AIToolWithMetadata,
   ApprovalPolicy,
   ProposalPreview,
-} from "./tool_helpers.ts";
+} from "../deps.ts";
 import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -214,7 +214,10 @@ export type AIChatConfig = {
 
   builtInTools?: BuiltInToolsConfig;
 
-  modelConfig: AnthropicModelConfig;
+  // Model defaults live in panther (DEFAULT_MODEL_CONFIG) — omit entirely to
+  // track them; pass a partial only for a genuinely app-specific override
+  // (e.g. a max_tokens cap). Apps should never name a model here.
+  modelConfig?: Partial<AnthropicModelConfig>;
 
   system: Accessor<
     string | Array<{ type: "text"; text: string; cache_control?: CacheControl }>

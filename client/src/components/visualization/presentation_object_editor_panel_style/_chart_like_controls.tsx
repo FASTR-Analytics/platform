@@ -1,4 +1,5 @@
 import {
+  type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
   selectCf,
@@ -7,7 +8,7 @@ import {
 import { Button, Checkbox, RadioGroup, Select, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { METRICS_WITH_NEGATIVE_PCT_VALUES } from "~/generate_visualization/get_style_from_po/_0_conditional_consts";
+import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
 import { applyCfToTempConfig } from "../cf_store_helper";
 import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
@@ -18,6 +19,9 @@ type Props = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
   isColorOverridden: () => boolean;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function ChartLikeControls(p: Props) {
@@ -184,9 +188,9 @@ export function ChartLikeControls(p: Props) {
           <ConditionalFormattingEditor
             value={selectCf(p.tempConfig.s)}
             onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-            formatAs={p.poDetail.resultsValue.formatAs}
+            formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
-            allowNegative={METRICS_WITH_NEGATIVE_PCT_VALUES.includes(p.poDetail.resultsValue.id)}
+            allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
           />
         </StyleSection>
       </Show>
@@ -208,7 +212,12 @@ export function ChartLikeControls(p: Props) {
                 pt: "Mostrar rótulos de dados",
               })}
             />
-            <Show when={p.tempConfig.s.showDataLabels}>
+            <Show
+              when={
+                p.tempConfig.s.showDataLabels &&
+                p.effectiveFormatAs !== "rate_per_10k"
+              }
+            >
               <StyleRevealGroup>
                 <RadioGroup
                   label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -240,7 +249,12 @@ export function ChartLikeControls(p: Props) {
                 pt: "Mostrar rótulos de dados",
               })}
             />
-            <Show when={p.tempConfig.s.showDataLabelsLineCharts}>
+            <Show
+              when={
+                p.tempConfig.s.showDataLabelsLineCharts &&
+                p.effectiveFormatAs !== "rate_per_10k"
+              }
+            >
               <StyleRevealGroup>
                 <RadioGroup
                   label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -258,7 +272,7 @@ export function ChartLikeControls(p: Props) {
       </StyleSection>
       <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
         <>
-          <Show when={p.poDetail.resultsValue.formatAs === "percent"}>
+          <Show when={p.effectiveFormatAs === "percent"}>
             <Checkbox
               label={t3({
                 en: "Force y-axis max of 100%",

@@ -1,28 +1,32 @@
-import { getAuth } from "@hono/clerk-auth";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { Sql } from "postgres";
 import {
   _BYPASS_AUTH,
   _INSTANCE_CALENDAR,
+  _INSTANCE_FISCAL_YEAR,
   _INSTANCE_LANGUAGE,
   _INSTANCE_NAME,
   _OPEN_ACCESS,
 } from "./exposed_env_vars.ts";
 import type { DBProjectUserRole, DBUser } from "./db/mod.ts";
 import { getPgConnectionFromCacheOrNew } from "./db/mod.ts";
-import type { GlobalUser, ProjectUser, ProjectPermission } from "lib";
+import type { GlobalUser, ProjectPermission, ProjectUser } from "lib";
 import {
+  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  buildProjectPermissionsFromRow,
+  buildUserPermissionsFromRow,
   createDevGlobalUser,
   createDevProjectUser,
   H_USERS,
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  buildUserPermissionsFromRow,
-  buildProjectPermissionsFromRow,
 } from "lib";
 import { ProjectPk } from "./server_only_types/mod.ts";
+import {
+  getClerkSessionAuth,
+  getHeadlessAuthEmail,
+} from "./middleware/auth.ts";
 
 type RequireProjectPermissionOptions = {
   requireAdmin?: boolean;
@@ -39,8 +43,8 @@ export function requireProjectPermission(
   const perms: ProjectPermission[] = isOptions
     ? restArgs
     : firstArg
-      ? [firstArg as ProjectPermission, ...restArgs]
-      : restArgs;
+    ? [firstArg as ProjectPermission, ...restArgs]
+    : restArgs;
 
   const { requireAdmin = false, preventAccessToLockedProjects = false } =
     options;
@@ -154,18 +158,40 @@ export async function getGlobalUser(
       _INSTANCE_NAME,
       _INSTANCE_LANGUAGE,
       _INSTANCE_CALENDAR,
+      _INSTANCE_FISCAL_YEAR,
     );
   }
 
-  // @ts-ignore: Clerk middleware types not fully compatible with Hono
-  const auth = getAuth(c);
+  // Headless requests (PAT or OAuth) carry no Clerk session; the headless auth
+  // middleware already resolved the credential to the user's email.
+  const headlessEmail = getHeadlessAuthEmail(c);
+  if (headlessEmail !== undefined) {
+    return await buildGlobalUserFromDb(headlessEmail, null, null);
+  }
+
+  const auth = getClerkSessionAuth(c);
   if (!auth?.userId) {
     return "NOT_AUTHENTICATED";
   }
 
+  return await buildGlobalUserFromDb(
+    auth.sessionClaims.email as string,
+    auth.sessionClaims.firstName as string,
+    auth.sessionClaims.lastName as string,
+  );
+}
+
+// Exported for the /mcp context cache (PLAN_112): it resolves a headless
+// caller's email to the same GlobalUser the middleware chain builds. Headless
+// callers carry no name claims — pass null/null, exactly as getGlobalUser's
+// headless branch does.
+export async function buildGlobalUserFromDb(
+  email: string,
+  claimFirstName: string | null,
+  claimLastName: string | null,
+): Promise<GlobalUser> {
   try {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-    const email = auth.sessionClaims.email as string;
 
     const rawUserResult = await mainDb<
       DBUser[]
@@ -187,17 +213,18 @@ export async function getGlobalUser(
     const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
       ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
       : rawUser
-        ? buildUserPermissionsFromRow(rawUser)
-        : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
+      ? buildUserPermissionsFromRow(rawUser)
+      : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
 
     const globalUser: GlobalUser = {
       instanceName: _INSTANCE_NAME,
       instanceLanguage: _INSTANCE_LANGUAGE,
       instanceCalendar: _INSTANCE_CALENDAR,
+      instanceFiscalYear: _INSTANCE_FISCAL_YEAR,
       openAccess: _OPEN_ACCESS,
       email,
-      firstName: auth.sessionClaims.firstName as string,
-      lastName: auth.sessionClaims.lastName as string,
+      firstName: claimFirstName ?? rawUser?.first_name ?? "",
+      lastName: claimLastName ?? rawUser?.last_name ?? "",
       approved: _OPEN_ACCESS || !!rawUser,
       isGlobalAdmin,
       thisUserPermissions,
@@ -273,8 +300,12 @@ export async function resolveProjectUserAccess(
       throw new Error("Middleware error: No project listing in main.db");
     }
 
-    if (rawProject.is_central_reporting && !H_USERS.includes(globalUser.email)) {
-      throw new Error("Middleware error: User does not have access to this project");
+    if (
+      rawProject.is_central_reporting && !H_USERS.includes(globalUser.email)
+    ) {
+      throw new Error(
+        "Middleware error: User does not have access to this project",
+      );
     }
 
     if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {

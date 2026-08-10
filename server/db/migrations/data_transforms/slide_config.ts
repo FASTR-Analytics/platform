@@ -37,6 +37,7 @@ import type { Sql } from "postgres";
 import {
   type FigureLocalizationForTransform,
   type SlideLayoutNodeLike,
+  rawJsonNeedsIndicatorFormatFlip,
   transformFigureBlock,
   transformFigureBlockToBundle,
   warnIfFigureInputsStale,
@@ -188,7 +189,8 @@ export async function migrateSlideConfigs(
     // against panther's zFigureInputs (lib/types figureInputsSchema).
     if (
       slideConfigSchema.safeParse(config).success &&
-      !rawJsonNeedsForcedTransform(row.config)
+      !rawJsonNeedsForcedTransform(row.config) &&
+      !rawJsonNeedsIndicatorFormatFlip(row.config)
     ) {
       continue;
     }

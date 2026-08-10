@@ -12,6 +12,7 @@ export function getScriptWithParametersCalculatedIndicators(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
   countryIso3: string | undefined,
+  datasetsDirPath: string,
   calculatedIndicators: CalculatedIndicator[],
 ): string {
   // Defense in depth: validate all IDs before generating R code
@@ -58,7 +59,7 @@ export function getScriptWithParametersCalculatedIndicators(
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
-        `'../datasets/${ds.datasetType}.csv'`,
+        `'${datasetsDirPath}/${ds.datasetType}.csv'`,
       );
     } else {
       str = str.replaceAll(

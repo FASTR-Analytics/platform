@@ -1,6 +1,6 @@
 import { AIToolFailure, createAITool, createAskUserQuestionsTool } from "panther";
 import { z } from "zod";
-import { extractRIdentifiers, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode } from "lib";
+import { extractRIdentifiers, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode, type HfaIndicatorVariantCode } from "lib";
 import { serverActions } from "~/server_actions";
 import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../hfa_r_code_validator";
 
@@ -52,6 +52,12 @@ async function loadDictionary(): Promise<HfaDictionaryForValidation> {
 async function loadAllCode(): Promise<HfaIndicatorCode[]> {
   const res = await serverActions.getAllHfaIndicatorCode({});
   if (!res.success) throw new AIToolFailure("Could not load indicator code.");
+  return res.data;
+}
+
+async function loadAllVariantCode(): Promise<HfaIndicatorVariantCode[]> {
+  const res = await serverActions.getAllHfaIndicatorVariantCode({});
+  if (!res.success) throw new AIToolFailure("Could not load variant code.");
   return res.data;
 }
 
@@ -569,6 +575,7 @@ export function buildHfaIndicatorTools() {
               sortOrder: 0,
               hasSyntaxError: v.hasSyntaxError,
               codeConsistent: v.codeConsistent,
+              variantGroupId: null,
             });
             for (const c of code) codeToCreate.push({ varName: ind.varName, timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
             changes.push({
@@ -663,10 +670,16 @@ export function buildHfaIndicatorTools() {
                 const other = new Set(allNames);
                 other.delete(vn);
                 const v = computeIndicatorValidation(code, dict, other, indicator.type);
+                // saveHfaIndicatorFull replaces the indicator's whole variant
+                // code set — pass the stored rows back so they survive a
+                // main-code-only edit.
+                const variantRes = await serverActions.getHfaIndicatorVariantCode({ varName: vn });
+                if (!variantRes.success) throw new AIToolFailure(`Failed to load variant code for "${vn}".`);
                 const res = await serverActions.saveHfaIndicatorFull({
                   oldVarName: vn,
                   indicator: { ...indicator, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent },
                   code: code.map((c) => ({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode })),
+                  variantCode: variantRes.data.map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, rCode: c.rCode })),
                   hasSyntaxError: v.hasSyntaxError,
                   codeConsistent: v.codeConsistent,
                 });
@@ -694,6 +707,7 @@ export function buildHfaIndicatorTools() {
           const unknown = input.varNames.filter((v) => !existing.has(v));
           if (unknown.length > 0) throw new AIToolFailure(`Unknown indicator(s): ${unknown.join(", ")}.`);
           const allCode = await loadAllCode();
+          const allVariantCode = await loadAllVariantCode();
           const deleted = new Set(input.varNames);
           const referencing = new Set<string>();
           for (const c of allCode) {
@@ -703,6 +717,14 @@ export function buildHfaIndicatorTools() {
               ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
             ];
             if (identifiers.some((id) => deleted.has(id))) referencing.add(c.varName);
+          }
+          // References living only in variant snippets must warn too — same
+          // union as the manager's findReferencingIndicators.
+          for (const c of allVariantCode) {
+            if (deleted.has(c.varName)) continue;
+            if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
+              referencing.add(c.varName);
+            }
           }
           const referencedByNote = referencing.size > 0
             ? `\n\nReferenced by: ${[...referencing].sort().join(", ")} — their code will fail validation.`

@@ -1,4 +1,4 @@
-import type { InstanceSseMessage } from "lib";
+import type { InstanceSseMessage, RunProgress } from "lib";
 import { t3 } from "lib";
 import { Show, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
@@ -18,6 +18,38 @@ import {
   updateCurrentUser,
   updateProjectsLastUpdated,
 } from "./t1_store";
+
+// Live results-package generation (Q-B): ephemeral execution state, not T1 —
+// like the project channel's copies these go to listeners and never touch
+// the store, and the catalogue fetches its own baseline. The server only
+// sends them to can_configure_data users, so a non-admin's listeners simply
+// never fire.
+type InstanceRunProgressListener = (
+  runId: string,
+  progress: RunProgress,
+) => void;
+type InstanceRScriptListener = (
+  runId: string,
+  moduleId: string,
+  text: string,
+) => void;
+
+const runProgressListeners = new Set<InstanceRunProgressListener>();
+const rScriptListeners = new Set<InstanceRScriptListener>();
+
+export function addInstanceRunProgressListener(
+  listener: InstanceRunProgressListener,
+): () => void {
+  runProgressListeners.add(listener);
+  return () => runProgressListeners.delete(listener);
+}
+
+export function addInstanceRScriptListener(
+  listener: InstanceRScriptListener,
+): () => void {
+  rScriptListeners.add(listener);
+  return () => rScriptListeners.delete(listener);
+}
 
 const _MAX_CONNECTION_ATTEMPTS = 5;
 const _BASE_RETRY_DELAY = 1000;
@@ -88,6 +120,16 @@ export function connectInstanceSSE(): void {
       case "datasets_updated":
         updateInstanceDatasets(msg.data);
         break;
+      case "run_progress":
+        for (const listener of runProgressListeners) {
+          listener(msg.data.runId, msg.data.progress);
+        }
+        break;
+      case "r_script":
+        for (const listener of rScriptListeners) {
+          listener(msg.data.runId, msg.data.moduleId, msg.data.text);
+        }
+        break;
       case "error":
         console.error("Instance SSE error from server:", msg.data.message);
         break;
@@ -126,7 +168,7 @@ export function disconnectInstanceSSE(): void {
 // Boundary component
 // ============================================================================
 
-export function InstanceSSEBoundary(props: { children: JSX.Element }) {
+export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
   onCleanup(() => disconnectInstanceSSE());
 
@@ -174,7 +216,7 @@ export function InstanceSSEBoundary(props: { children: JSX.Element }) {
         </Show>
       }
     >
-      {props.children}
+      {p.children}
     </Show>
   );
 }

@@ -38,6 +38,10 @@ export type VizFigureCollabBinding = {
    *  figure registry id) — scopes live-cursor broadcasts to viewers of the
    *  same figure. */
   figureId: string;
+  /** Identity of the host doc whose room checkpoints these edits — the modal
+   *  reads docSaveFailing for THIS doc (not the PO), since the host editor's
+   *  own indicator is covered while the modal is open. */
+  hostDoc: { docType: "slide" | "report"; docId: string };
   /** The figConfig Y.Map in the host doc (slide node / report figure entry),
    *  or undefined if the figure isn't decomposed (no live co-editing then). */
   getConfigMap: () => Y.Map<unknown> | undefined;

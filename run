@@ -1,5 +1,14 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# VALKEY_URL is set in .env, and the server retries a missing Valkey forever
+# instead of booting — so make sure it is up rather than hanging on it.
+if ! docker exec valkey-local valkey-cli ping >/dev/null 2>&1; then
+  echo "Starting Valkey..."
+  "$SCRIPT_DIR/valkey_run" >/dev/null
+fi
+
 # Start Deno server in background with colored prefix
 deno run --allow-all --env-file --unstable-broadcast-channel main.ts 2>&1 | while IFS= read -r line; do printf "\033[0;32mS:\033[0m %s\n" "$line"; done &
 SERVER_PID=$!

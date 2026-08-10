@@ -184,6 +184,9 @@ export function measureTable(
   const rowCellPaddingB = Math.max(s.rowHeaderPadding.pb(), s.cellPadding.pb());
 
   // Measure all cell content for each row and compute row heights
+  const { rowGroupHeaderItems } = buildRowHeaderLookups(d.rowGroups);
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
+
   const measuredRows: MeasuredRowInfo[] = rowHeaderInfos.map((rhi) => {
     const cells: MeasuredCellInfo[] = [];
     let maxCellHeight = rhi.mText?.dims.h() ?? 0;
@@ -201,6 +204,8 @@ export function measureTable(
             nCols,
             toHeaderItem(rhi.id, rhi.label),
             toHeaderItem(col.id, col.label),
+            rowGroupHeaderItems[rowIndex],
+            colGroupHeaderItems[col.index],
             columnMinMax,
             d.nMatrix,
           );
@@ -322,6 +327,8 @@ export function buildTableCellInfo(
   nCols: number,
   rowHeader: HeaderItem | undefined,
   colHeader: HeaderItem | undefined,
+  rowGroupHeader: HeaderItem | undefined,
+  colGroupHeader: HeaderItem | undefined,
   columnMinMax: Map<number, { min: number; max: number }>,
   nMatrix: (number | undefined)[][] | undefined,
 ): TableCellInfo {
@@ -338,8 +345,45 @@ export function buildTableCellInfo(
     nCols,
     rowHeader,
     colHeader,
+    rowGroupHeader,
+    colGroupHeader,
     sampleN: normalizeN(nMatrix?.[i_row]?.[i_col]),
   };
+}
+
+// Header items per row/column INDEX. The three cell-measuring passes address
+// rows by index and columns by their enclosing group, so the lookups are
+// built once from the same source the headers themselves come from — one
+// HeaderItem per header, not one per cell.
+export function buildRowHeaderLookups(
+  rowGroups: TableDataTransformed["rowGroups"],
+): {
+  rowHeaderItems: (HeaderItem | undefined)[];
+  rowGroupHeaderItems: (HeaderItem | undefined)[];
+} {
+  const rowHeaderItems: (HeaderItem | undefined)[] = [];
+  const rowGroupHeaderItems: (HeaderItem | undefined)[] = [];
+  for (const rowGroup of rowGroups) {
+    const groupHeader = toHeaderItem(rowGroup.id, rowGroup.label);
+    for (const row of rowGroup.rows) {
+      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
+      rowGroupHeaderItems[row.index] = groupHeader;
+    }
+  }
+  return { rowHeaderItems, rowGroupHeaderItems };
+}
+
+export function buildColGroupHeadersByColIndex(
+  colGroups: TableDataTransformed["colGroups"],
+): (HeaderItem | undefined)[] {
+  const byCol: (HeaderItem | undefined)[] = [];
+  for (const colGroup of colGroups) {
+    const header = toHeaderItem(colGroup.id, colGroup.label);
+    for (const col of colGroup.cols) {
+      byCol[col.index] = header;
+    }
+  }
+  return byCol;
 }
 
 export function computeColumnMinMax(
@@ -532,12 +576,10 @@ export function computePerColumnMinWordWidths(
   nCols: number,
   columnMinMax: Map<number, { min: number; max: number }>,
 ): PerColumnMinWordWidths {
-  const rowHeaderItems: (HeaderItem | undefined)[] = [];
-  for (const rowGroup of d.rowGroups) {
-    for (const row of rowGroup.rows) {
-      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
-    }
-  }
+  const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
+    d.rowGroups,
+  );
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
 
   let colGroupHeaderMaxWidth = 0;
   const groupLabelWidestWordByGroup: number[] = [];
@@ -574,6 +616,8 @@ export function computePerColumnMinWordWidths(
           nCols,
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
+          rowGroupHeaderItems[rowIndex],
+          colGroupHeaderItems[col.index],
           columnMinMax,
           d.nMatrix,
         );
@@ -868,12 +912,10 @@ function measureNaturalColumnWidths(
   nCols: number,
   columnMinMax: Map<number, { min: number; max: number }>,
 ): number[] {
-  const rowHeaderItems: (HeaderItem | undefined)[] = [];
-  for (const rowGroup of d.rowGroups) {
-    for (const row of rowGroup.rows) {
-      rowHeaderItems[row.index] = toHeaderItem(row.id, row.label);
-    }
-  }
+  const { rowHeaderItems, rowGroupHeaderItems } = buildRowHeaderLookups(
+    d.rowGroups,
+  );
+  const colGroupHeaderItems = buildColGroupHeadersByColIndex(d.colGroups);
 
   const textFormatter = s.tableCells.textFormatter;
   const naturalWidths = new Array<number>(nCols).fill(0);
@@ -898,6 +940,8 @@ function measureNaturalColumnWidths(
           nCols,
           rowHeaderItems[rowIndex],
           toHeaderItem(col.id, col.label),
+          rowGroupHeaderItems[rowIndex],
+          colGroupHeaderItems[col.index],
           columnMinMax,
           d.nMatrix,
         );

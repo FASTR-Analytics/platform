@@ -108,16 +108,12 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     return isInconsistent(moduleId, getValue) ? `${base} bg-danger-subtle` : base;
   }
 
-  function dirtyBadge(dirty: string) {
-    const cls =
-      dirty === "ready"
-        ? "bg-success-subtle text-success-subtle-content"
-        : dirty === "error"
-          ? "bg-danger-subtle text-danger-subtle-content"
-          : "bg-warning-subtle text-warning-subtle-content";
+  // A module is either in the project's attached results package or it isn't;
+  // dirty state died with the dirty machine (PLAN_RESULTS_RUNS item 5).
+  function inPackageBadge() {
     return (
-      <span class={`rounded px-1.5 py-0.5 text-xs ${cls}`}>
-        {dirty}
+      <span class="bg-success-subtle text-success-subtle-content rounded px-1.5 py-0.5 text-xs">
+        {t3({ en: "in package", fr: "dans le lot", pt: "no pacote" })}
       </span>
     );
   }
@@ -159,7 +155,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               when={mod}
                               fallback={<span class="text-base-content-muted">—</span>}
                             >
-                              {dirtyBadge(mod!.dirty)}
+                              {inPackageBadge()}
                             </Show>
                           </td>
                         );
@@ -167,87 +163,6 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </For>
                   </tr>
                   <Show when={anyInstalled}>
-                    <tr class="border-b">
-                      <td
-                        class={rowHeaderClass(
-                          registryMod.id,
-                          (m) => m.computeDefGitRef,
-                        )}
-                      >
-                        {t3({ en: "Compute SHA", fr: "SHA calcul", pt: "SHA de cálculo" })}
-                      </td>
-                      <For each={projects()}>
-                        {(_, i) => {
-                          const mod = getModule(i(), registryMod.id);
-                          return (
-                            <td
-                              class={rowCellClass(
-                                registryMod.id,
-                                (m) => m.computeDefGitRef,
-                                "ui-pad-sm font-mono text-xs",
-                              )}
-                            >
-                              {mod?.computeDefGitRef?.slice(0, 7) ?? (
-                                <span class="text-base-content-muted">—</span>
-                              )}
-                            </td>
-                          );
-                        }}
-                      </For>
-                    </tr>
-                    <tr class="border-b">
-                      <td
-                        class={rowHeaderClass(
-                          registryMod.id,
-                          (m) => m.presentationDefGitRef,
-                        )}
-                      >
-                        {t3({ en: "Presentation SHA", fr: "SHA présentation", pt: "SHA de apresentação" })}
-                      </td>
-                      <For each={projects()}>
-                        {(_, i) => {
-                          const mod = getModule(i(), registryMod.id);
-                          return (
-                            <td
-                              class={rowCellClass(
-                                registryMod.id,
-                                (m) => m.presentationDefGitRef,
-                                "ui-pad-sm font-mono text-xs",
-                              )}
-                            >
-                              {mod?.presentationDefGitRef?.slice(0, 7) ?? (
-                                <span class="text-base-content-muted">—</span>
-                              )}
-                            </td>
-                          );
-                        }}
-                      </For>
-                    </tr>
-                    <tr class="border-b">
-                      <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
-                        {t3({
-                          en: "Presentation updated",
-                          fr: "Présentation mise à jour",
-                          pt: "Apresentação atualizada",
-                        })}
-                      </td>
-                      <For each={projects()}>
-                        {(_, i) => {
-                          const mod = getModule(i(), registryMod.id);
-                          return (
-                            <td class="ui-pad-sm text-xs">
-                              {mod?.presentationDefUpdatedAt ? (
-                                new Date(
-                                  mod.presentationDefUpdatedAt,
-                                ).toLocaleDateString()
-                              ) : (
-                                <span class="text-base-content-muted">—</span>
-                              )}
-                            </td>
-                          );
-                        }}
-                      </For>
-                    </tr>
                     <tr class="border-b">
                       <td
                         class={rowHeaderClass(

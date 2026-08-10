@@ -63,10 +63,15 @@ export type CascadeArrowInfoFunc<T> = (info: CascadeArrowInfo) => T;
 export type PieSliceInfo = ChartSeriesInfo & {
   value: number;
   // value / the DECLARED denominator. With an explicit `total` smaller than
-  // the cell's sum this exceeds 1 — geometry still fills the circle, but the
+  // the pie's sum this exceeds 1 — geometry still fills the circle, but the
   // true number is carried here so a formatter can print "103%".
   share: number;
   total: number;
+  // The repeat dimension: which pie in the sub-chart's indicator grid this
+  // slice belongs to (mirrors ChartValueInfo's i_val/indicatorHeader).
+  i_indicator: number;
+  nIndicators: number;
+  indicatorHeader: HeaderItem;
 };
 
 export type PieSliceInfoFunc<T> = (info: PieSliceInfo) => T;
@@ -107,6 +112,9 @@ export type MapRegionInfo = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
+  paneHeader: HeaderItem;
+  tierHeader: HeaderItem;
+  laneHeader: HeaderItem;
 };
 
 export type MapRegionInfoFunc<T> = (info: MapRegionInfo) => T;
@@ -122,6 +130,12 @@ export type TableCellInfo = {
   nCols: number;
   rowHeader: HeaderItem | undefined;
   colHeader: HeaderItem | undefined;
+  // The group headers spanning this cell, undefined when that axis carries no
+  // groups. A cell knows all four of its headers: which dimension a consumer
+  // maps onto a group axis is its choice, so a formatter that must identify
+  // the cell by a dimension value cannot be blind to half the layout.
+  rowGroupHeader: HeaderItem | undefined;
+  colGroupHeader: HeaderItem | undefined;
   // Sample size (n) for this cell, from TableDataTransformed.nMatrix.
   sampleN?: number;
 };
@@ -147,9 +161,9 @@ export type TableHeaderSampleN = {
 
 // Label semantics: the header textFormatter receives the RAW (pre-format)
 // label and returns the final display string; every other consumer — getStyle
-// funcs, TableCellInfo.rowHeader/colHeader, primitive metadata,
-// MeasuredTable.transformedData, resolveTableHeaders output — sees the
-// RESOLVED label. `id` is the raw match key everywhere.
+// funcs, TableCellInfo.rowHeader/colHeader/rowGroupHeader/colGroupHeader,
+// primitive metadata, MeasuredTable.transformedData, resolveTableHeaders
+// output — sees the RESOLVED label. `id` is the raw match key everywhere.
 export type TableHeaderInfo = {
   id: string | undefined;
   label: string;

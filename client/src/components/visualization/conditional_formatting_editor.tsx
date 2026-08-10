@@ -6,10 +6,10 @@ import {
   LEGACY_CF_PRESETS,
   type LegacyCfPresetId,
   deriveBucketLabels,
+  type IndicatorFormat,
   t3,
 } from "lib";
 import {
-  buildAutoFormatter,
   Button,
   ButtonGroup,
   Checkbox,
@@ -24,12 +24,13 @@ import {
   Slider,
 } from "panther";
 import { For, Show } from "solid-js";
+import { buildAutoValueFormatter } from "~/generate_visualization/conditional_formatting/compile";
 import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
 type Props = {
   value: ConditionalFormatting | undefined;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
 };
@@ -115,7 +116,7 @@ const CUSTOM_PALETTE = "__custom__";
 function ScalePanel(p: {
   cf: ConditionalFormattingScale;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   allowNegative?: boolean;
 }) {
   const state = () => parseScale(p.cf.scale);
@@ -244,40 +245,22 @@ function ScalePanel(p: {
             };
             return (
               <div class="flex items-center gap-3">
-                {p.formatAs === "percent" ? (
-                  <PercentSelect
-                    label={t3({ en: "Min", fr: "Min", pt: "Mín" })}
-                    value={domain.min}
-                    onChange={(v) => update({ domain: { ...domain, min: v } })}
-                    max={domain.max}
-                    allowNegative={p.allowNegative}
-                    showPlusPrefix={p.allowNegative}
-                  />
-                ) : (
-                  <NumberInput
-                    label={t3({ en: "Min", fr: "Min", pt: "Mín" })}
-                    value={domain.min}
-                    onChange={(v) => update({ domain: { ...domain, min: v } })}
-                    max={domain.max}
-                  />
-                )}
-                {p.formatAs === "percent" ? (
-                  <PercentSelect
-                    label={t3({ en: "Max", fr: "Max", pt: "Máx" })}
-                    value={domain.max}
-                    onChange={(v) => update({ domain: { ...domain, max: v } })}
-                    min={domain.min}
-                    allowNegative={p.allowNegative}
-                    showPlusPrefix={p.allowNegative}
-                  />
-                ) : (
-                  <NumberInput
-                    label={t3({ en: "Max", fr: "Max", pt: "Máx" })}
-                    value={domain.max}
-                    onChange={(v) => update({ domain: { ...domain, max: v } })}
-                    min={domain.min}
-                  />
-                )}
+                <ValueInput
+                  label={t3({ en: "Min", fr: "Min", pt: "Mín" })}
+                  value={domain.min}
+                  onChange={(v) => update({ domain: { ...domain, min: v } })}
+                  formatAs={p.formatAs}
+                  max={domain.max}
+                  allowNegative={p.allowNegative}
+                />
+                <ValueInput
+                  label={t3({ en: "Max", fr: "Max", pt: "Máx" })}
+                  value={domain.max}
+                  onChange={(v) => update({ domain: { ...domain, max: v } })}
+                  formatAs={p.formatAs}
+                  min={domain.min}
+                  allowNegative={p.allowNegative}
+                />
               </div>
             );
           })()}
@@ -296,7 +279,7 @@ const CUSTOM_PRESET_VALUE = "__custom__";
 function ThresholdsPanel(p: {
   cf: ConditionalFormattingThresholds;
   onChange: (v: ConditionalFormatting) => void;
-  formatAs: "percent" | "number";
+  formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
 }) {
@@ -374,7 +357,7 @@ function ThresholdsPanel(p: {
   const labels = () =>
     deriveBucketLabels(
       p.cf.cutoffs,
-      buildAutoFormatter(p.cf.cutoffs, p.formatAs),
+      buildAutoValueFormatter(p.cf.cutoffs, p.formatAs),
       direction(),
     );
 
@@ -412,30 +395,35 @@ function ThresholdsPanel(p: {
             // origI maps display index back to the stored bucket index.
             const origI = () => p.cf.buckets.length - 1 - j();
             const cutoffIdx = () => origI() - 1;
-            const minVal = () => cutoffIdx() > 0 ? p.cf.cutoffs[cutoffIdx() - 1] : (p.allowNegative ? -1 : 0);
-            const maxVal = () => cutoffIdx() < p.cf.cutoffs.length - 1 ? p.cf.cutoffs[cutoffIdx() + 1] : 1;
+            // Both bounds are the format's, not universal: only a percent has
+            // a natural floor (0, or -1 when the metric is signed) and a
+            // natural ceiling (100%). A count or rate is unbounded either way
+            // — m9-02-01's SII values are negative by construction.
+            const minVal = () =>
+              cutoffIdx() > 0
+                ? p.cf.cutoffs[cutoffIdx() - 1]
+                : p.formatAs === "percent"
+                  ? (p.allowNegative ? -1 : 0)
+                  : undefined;
+            const maxVal = () =>
+              cutoffIdx() < p.cf.cutoffs.length - 1
+                ? p.cf.cutoffs[cutoffIdx() + 1]
+                : p.formatAs === "percent"
+                  ? 1
+                  : undefined;
             return (
               <div class="flex items-center gap-2">
                 <div class="w-24 flex-none">
                   <Show when={origI() > 0}>
                     <div class="translate-y-1/2">
-                      <Show when={p.formatAs === "percent"} fallback={
-                        <NumberInput
-                          value={p.cf.cutoffs[cutoffIdx()]}
-                          onChange={(v) => setCutoff(cutoffIdx(), v)}
-                          min={minVal()}
-                          max={maxVal()}
-                        />
-                      }>
-                        <PercentSelect
-                          value={p.cf.cutoffs[cutoffIdx()]}
-                          onChange={(v) => setCutoff(cutoffIdx(), v)}
-                          min={minVal()}
-                          max={maxVal()}
-                          allowNegative={p.allowNegative}
-                          showPlusPrefix={p.allowNegative}
-                        />
-                      </Show>
+                      <ValueInput
+                        value={p.cf.cutoffs[cutoffIdx()]}
+                        onChange={(v) => setCutoff(cutoffIdx(), v)}
+                        formatAs={p.formatAs}
+                        min={minVal()}
+                        max={maxVal()}
+                        allowNegative={p.allowNegative}
+                      />
                     </div>
                   </Show>
                 </div>
@@ -477,6 +465,75 @@ function ThresholdsPanel(p: {
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////////////
+
+// One numeric control for a stored value, in the units the user READS it in.
+// Percent and rate_per_10k are both stored scaled-down (a fraction, a bare
+// rate) while every label beside the control is scaled up, so a raw
+// NumberInput on either one silently takes a value 100× / 10,000× off — the
+// user types 0.8 for "80%" and stores 0.8 meaning 8,000%.
+//
+// `max` is optional and stays optional: a count or rate threshold has no
+// natural ceiling, and hardcoding 1 made every non-percent figure unable to
+// take a threshold above 1.
+function ValueInput(p: {
+  label?: string;
+  value: number;
+  onChange: (v: number) => void;
+  formatAs: IndicatorFormat;
+  min?: number;
+  max?: number;
+  allowNegative?: boolean;
+}) {
+  return (
+    <Show
+      when={p.formatAs === "percent"}
+      fallback={
+        <div class="flex flex-col">
+          <NumberInput
+            label={p.label}
+            value={scaleForInput(p.value, p.formatAs)}
+            onChange={(v) => p.onChange(unscaleFromInput(v, p.formatAs))}
+            min={p.min === undefined ? undefined : scaleForInput(p.min, p.formatAs)}
+            max={p.max === undefined ? undefined : scaleForInput(p.max, p.formatAs)}
+          />
+          {/* The active unit must be VISIBLE: an "indicator" metric's
+              axisFormat is filter-sensitive, so this control can silently
+              switch between per-10k and raw units when the displayed
+              indicators change. The marker (or its disappearance) is how the
+              user sees that switch. */}
+          <Show when={p.formatAs === "rate_per_10k"}>
+            <span class="text-base-content-muted text-[10px] leading-tight">
+              {t3({ en: "per 10k", fr: "pour 10k", pt: "por 10k" })}
+            </span>
+          </Show>
+        </div>
+      }
+    >
+      <PercentSelect
+        label={p.label}
+        value={p.value}
+        onChange={p.onChange}
+        min={p.min}
+        max={p.max}
+        allowNegative={p.allowNegative}
+        showPlusPrefix={p.allowNegative}
+      />
+    </Show>
+  );
+}
+
+// Mirrors formatRateAuto's scaling on the way in and out — the control shows
+// per-10,000 counts because that is what the axis, the labels and the legend
+// all show. Rounded to 6 decimals: ×10000 on a stored fraction accumulates
+// float error (0.0003 → 2.9999999999999996) that NumberInput's String() would
+// otherwise display verbatim in the box the user just typed "3" into.
+function scaleForInput(v: number, formatAs: IndicatorFormat): number {
+  return formatAs === "rate_per_10k" ? Math.round(v * 10000 * 1e6) / 1e6 : v;
+}
+
+function unscaleFromInput(v: number, formatAs: IndicatorFormat): number {
+  return formatAs === "rate_per_10k" ? v / 10000 : v;
+}
 
 function defaultScaleCf(): ConditionalFormattingScale {
   return {
