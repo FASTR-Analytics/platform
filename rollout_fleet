@@ -37,10 +37,10 @@ HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-300}"
 MIN_FREE_GB="${MIN_FREE_GB:-10}"
 DENO_FLAGS="-A --unstable-broadcast-channel --unstable-raw-imports -c deno.json"
 
-# This script is pinned to the 1.66.1 results-packages cutover image: the
+# This script is pinned to the 1.66.2 results-packages cutover image: the
 # backfill/rig steps assume exactly this deploy, and the rig fix + config
 # transform it carries. A later version needs a deliberate re-pin.
-VERSION="1.66.1"
+VERSION="1.66.2"
 
 if [ "$#" -lt 1 ]; then
     echo "Usage: ./rollout_fleet <instance> [<instance>...]"
@@ -144,14 +144,20 @@ REMOTE
     if [ "$MISSING" = "0" ]; then
         echo "Backfill: all ready projects already have a package — skipping"
     else
+        # Backfill ONLY the projects without a package (--project per id):
+        # the full sweep would re-synthesize every project on a retry,
+        # orphaning the previous packages on disk (no run GC yet).
         echo "Backfill: $MISSING ready project(s) without a package..."
         BACKFILL_LOG="$LOG_DIR/$INSTANCE-backfill.log"
-        ssh "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS backfill_runs.ts" \
-            >"$BACKFILL_LOG" 2>&1
-        BACKFILL_EXIT=$?
+        MISSING_IDS=$(psql_main "$INSTANCE" "SELECT id FROM projects WHERE status='ready' AND run_id IS NULL") ||
+            fail "$INSTANCE" "backfill" "could not list projects needing backfill"
+        for PROJECT_ID in $MISSING_IDS; do
+            echo "  backfilling $PROJECT_ID..."
+            ssh "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS backfill_runs.ts --project $PROJECT_ID" \
+                >>"$BACKFILL_LOG" 2>&1 ||
+                fail "$INSTANCE" "backfill" "backfill failed for project $PROJECT_ID (full log: $BACKFILL_LOG)"
+        done
         tail -5 "$BACKFILL_LOG"
-        [ "$BACKFILL_EXIT" -eq 0 ] ||
-            fail "$INSTANCE" "backfill" "backfill_runs.ts exited $BACKFILL_EXIT (full log: $BACKFILL_LOG)"
         if grep -q "^FAILED" "$BACKFILL_LOG"; then
             fail "$INSTANCE" "backfill" "backfill reported per-project FAILED lines (full log: $BACKFILL_LOG)"
         fi

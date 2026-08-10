@@ -74,14 +74,32 @@ export function getFetchConfigFromPresentationObjectConfig(
     };
   }
 
+  const values = getFilteredValueProps(resultsValue.valueProps, config).map(
+    (vp) => {
+      return { prop: vp, func: resultsValue.valueFunc };
+    },
+  );
+  // A valuesFilter can name props the metric doesn't have (e.g. a config
+  // re-pointed to a different metric), leaving the intersection empty. An
+  // empty select list is never a valid query — without this guard the pg
+  // builder emits syntax-invalid SQL while the run path returns a fake "ok"
+  // with no value columns.
+  if (values.length === 0) {
+    return {
+      success: false,
+      err:
+        `The visualization's value filter (${
+          (config.d.valuesFilter ?? []).join(", ")
+        }) matches none of this metric's values (${
+          resultsValue.valueProps.join(", ")
+        })`,
+    };
+  }
+
   return {
     success: true,
     data: {
-      values: getFilteredValueProps(resultsValue.valueProps, config).map(
-        (vp) => {
-          return { prop: vp, func: resultsValue.valueFunc };
-        },
-      ),
+      values,
       postAggregationExpression: undefined,
       groupBys,
       filters,
