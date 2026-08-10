@@ -190,6 +190,24 @@ type CheckResult = {
 const allResults: CheckResult[] = [];
 let syntheticDropCount = 0;
 
+// The typed "module never produced this output" refusal, byte-aligned across
+// planes: the legacy classifier's ro_-relation case (error_classifier.ts) and
+// the run path's hasParquet guard (run_read.ts) share this phrase.
+function bothPlanesUnavailable(pgErr: string, duckErr: string): boolean {
+  const MARK = "The module may need to be run";
+  return pgErr.includes(MARK) && duckErr.includes(MARK);
+}
+// Extended-kind ELIGIBILITY (distinct from ran-count): incremented whenever a
+// gated metric satisfies a kind's corpus precondition, whether or not the
+// variant survives fetch-config construction. The extended-corpus gate fires
+// only for kinds that were eligible somewhere and still ran zero times — a
+// kind no metric on the instance can exercise (e.g. nvalues on an instance
+// with no HFA data) is a printed non-gating note, not a corpus regression.
+const extendedKindEligible = new Map<string, number>();
+function markExtendedKindEligible(kind: string): void {
+  extendedKindEligible.set(kind, (extendedKindEligible.get(kind) ?? 0) + 1);
+}
+
 // ── DuckDB shadow of one project DB ──────────────────────────────────────────
 
 class ProjectShadow {
@@ -633,6 +651,16 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
+      // Both planes refusing with the typed data-not-available message is
+      // CONSISTENT cross-plane behavior (module never ran — normal user
+      // state), not an error masking a regression.
+      if (bothPlanesUnavailable(pgRes.err, duckRes.err)) {
+        return {
+          outcome: "ok",
+          detail: "unavailable on both planes (module not run)",
+          ...timing,
+        };
+      }
       return {
         outcome: "both_error",
         detail: `pg=${pgRes.err} duck=${duckRes.err}`,
@@ -670,7 +698,13 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     const t2 = performance.now();
     const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
     if (pgRes.success === false && duckRes.success === false) {
-      record({ check: "metric_info", outcome: "both_error", detail: `pg=${pgRes.err} duck=${duckRes.err}`, ...timing });
+      record({
+        check: "metric_info",
+        ...(bothPlanesUnavailable(pgRes.err, duckRes.err)
+          ? { outcome: "ok" as const, detail: "unavailable on both planes (module not run)" }
+          : { outcome: "both_error" as const, detail: `pg=${pgRes.err} duck=${duckRes.err}` }),
+        ...timing,
+      });
     } else if (pgRes.success === false || duckRes.success === false) {
       record({
         check: "metric_info",
@@ -722,7 +756,13 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       const t2 = performance.now();
       const timing = { pgMs: t1 - t0, duckMs: t2 - t1 };
       if (pgRes.success === false && duckRes.success === false) {
-        record({ check: "replicant_options", outcome: "both_error", detail: `pg=${pgRes.err} duck=${duckRes.err}`, ...timing });
+        record({
+          check: "replicant_options",
+          ...(bothPlanesUnavailable(pgRes.err, duckRes.err)
+            ? { outcome: "ok" as const, detail: "unavailable on both planes (module not run)" }
+            : { outcome: "both_error" as const, detail: `pg=${pgRes.err} duck=${duckRes.err}` }),
+          ...timing,
+        });
       } else if (pgRes.success === false || duckRes.success === false) {
         record({
           check: "replicant_options",
@@ -797,6 +837,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       (opt) => usesBlankSentinel(opt) && roTextColumns.has(opt) && opt !== replicateBy,
     );
     if (blankOpt) {
+      markExtendedKindEligible("blankfilter");
       const realIds = (await valuesFor(blankOpt))
         .filter((v) => v.id !== BLANK_SENTINEL)
         .slice(0, 1)
@@ -814,6 +855,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     }
 
     if (availableOpts.includes("hfa_service_category")) {
+      markExtendedKindEligible("multimember");
       const ids = (await valuesFor("hfa_service_category")).map((v) => v.id).slice(0, 2);
       if (ids.length > 0) {
         extendedVariants.push({
@@ -868,6 +910,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       resultsValue.hasFacilityLevelRows &&
       resultsValue.postAggregationExpression
     ) {
+      markExtendedKindEligible("nvalues");
       const plainResultsValue: ResultsValue = {
         ...resultsValue,
         postAggregationExpression: undefined,
@@ -1698,14 +1741,30 @@ SELECT id, label FROM presentation_objects ORDER BY label
   // run (ruling 4) no variant of any kind runs, and reporting that as a
   // corpus regression would name the wrong cause. That case is surfaced by
   // the verdict line's project accounting instead.
+  // Gate only kinds some gated metric was ELIGIBLE for: eligible-but-zero-ran
+  // is a corpus regression; zero-eligible means this instance's data simply
+  // cannot exercise the kind (normal on small / non-HFA instances) — printed,
+  // never gating.
   const missingExtendedKinds = useRun && gatedProjectCount > 0
     ? ["blankfilter", "multimember", "nvalues"].filter(
-        (kind) => (synKinds.get(kind) ?? 0) === 0,
+        (kind) =>
+          (extendedKindEligible.get(kind) ?? 0) > 0 &&
+          (synKinds.get(kind) ?? 0) === 0,
       )
     : [];
   if (missingExtendedKinds.length > 0) {
     console.log(
-      `\nEXTENDED CORPUS MISSING (gating — these variant kinds ran zero times): ${missingExtendedKinds.join(", ")}`,
+      `\nEXTENDED CORPUS MISSING (gating — eligible metrics exist but these variant kinds ran zero times): ${missingExtendedKinds.join(", ")}`,
+    );
+  }
+  const ineligibleExtendedKinds = useRun && gatedProjectCount > 0
+    ? ["blankfilter", "multimember", "nvalues"].filter(
+        (kind) => (extendedKindEligible.get(kind) ?? 0) === 0,
+      )
+    : [];
+  if (ineligibleExtendedKinds.length > 0) {
+    console.log(
+      `\nEXTENDED KINDS NOT EXERCISABLE on this instance (no eligible metric; non-gating): ${ineligibleExtendedKinds.join(", ")}`,
     );
   }
 

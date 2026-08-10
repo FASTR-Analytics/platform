@@ -747,6 +747,17 @@ export async function getPresentationObjectItemsFromRun(
       err: `Unknown results object: ${resultsObjectId}`,
     };
   }
+  // No parquet in the package (module never produced this output): the view
+  // is never created, so without this guard the query surfaces a raw DuckDB
+  // catalog error. Same user-facing text as the legacy classifier's
+  // ro_-relation case (error_classifier.ts) so both planes degrade alike.
+  if (!ro.hasParquet) {
+    return {
+      success: false,
+      err:
+        "The data for this visualization is not available. The module may need to be run. Run the module to generate the required data.",
+    };
+  }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
   const queryContext = buildQueryContextFromManifest(
     ctx.manifest,
@@ -784,6 +795,17 @@ export async function getPossibleValuesFromRun(
     return {
       success: false,
       err: `Unknown results object: ${resultsObjectId}`,
+    };
+  }
+  // No parquet in the package (module never produced this output): the view
+  // is never created, so without this guard the query surfaces a raw DuckDB
+  // catalog error. Same user-facing text as the legacy classifier's
+  // ro_-relation case (error_classifier.ts) so both planes degrade alike.
+  if (!ro.hasParquet) {
+    return {
+      success: false,
+      err:
+        "The data for this visualization is not available. The module may need to be run. Run the module to generate the required data.",
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
