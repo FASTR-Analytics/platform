@@ -1,3 +1,44 @@
+[TBD] [user] [added] - Results packages section added to instance administration
+[TBD] [user] [added] - View scripts, logs, and download files from results packages
+[TBD] [user] [added] - Results package generation progress shown with per-module status
+[TBD] [user] [added] - Variant groups and variant items management for HFA indicators
+[TBD] [user] [added] - Per-item variant code editing in the HFA indicator code editor
+[TBD] [user] [added] - Variant groups tab in the HFA indicator manager
+[TBD] [user] [added] - Variant group, variant item, and variant code columns in HFA workbook export and import
+[TBD] [user] [added] - Module parameter inputs for configuring analysis modules
+[TBD] [user] [changed] - Creating a project now only requires a name
+[TBD] [user] [changed] - Visualization thumbnails refresh based on the attached results package
+[TBD] [user] [changed] - Project comparison table simplified to show package membership instead of dirty status
+[TBD] [user] [fixed] - Default visualizations can no longer be deleted or batch-edited
+[TBD] [user] [fixed] - Clear error message shown when trying to batch edit default visualizations
+[TBD] [user] [fixed] - Clear error message shown when trying to delete default visualizations
+[TBD] [user] [fixed] - Rate formatting improved for rate-per-10k calculated indicators
+[TBD] [user] [fixed] - File upload selector now supports restricting allowed file types
+[TBD] [user] [fixed] - Connection lost banner reload button is now bolder and easier to spot
+[TBD] [admin] [added] - Results packages catalogue for managing generated packages instance-wide
+[TBD] [admin] [added] - Generate, inspect, and attach results packages to projects
+[TBD] [admin] [added] - View module scripts, logs, and output files from results packages
+[TBD] [admin] [added] - Variant groups and variant items for HFA indicators
+[TBD] [admin] [added] - Per-item variant code support in the HFA indicator code editor
+[TBD] [admin] [added] - Variant groups tab in the HFA Indicator Manager
+[TBD] [admin] [added] - XLSX import and export now includes variant groups, items, and variant code
+[TBD] [admin] [added] - Module parameter inputs shared across module defaults and results package wizard
+[TBD] [admin] [added] - HMIS windowing validation before saving dataset settings or generating packages
+[TBD] [admin] [added] - File type filtering option for file upload selectors
+[TBD] [admin] [changed] - Creating a project no longer requires selecting datasets or modules upfront
+[TBD] [admin] [changed] - Projects now receive results through an attached results package
+[TBD] [admin] [changed] - Project comparison view no longer shows per-module dirty state or git SHAs
+[TBD] [admin] [changed] - Visualization thumbnails refresh based on attached results package changes
+[TBD] [admin] [changed] - Import wizard shell buttons can now be customized per wizard type
+[TBD] [admin] [fixed] - Default visualizations can no longer be batch-edited or deleted
+[TBD] [admin] [fixed] - Default visualizations are excluded from batch delete operations
+[TBD] [admin] [fixed] - Delete option hidden from context menu for default visualizations
+[TBD] [admin] [fixed] - AI assistant now preserves variant code when editing indicator main code
+[TBD] [admin] [fixed] - AI assistant detects references in variant code before deleting indicators
+[TBD] [admin] [fixed] - Unused variable check now scans variant code snippets
+[TBD] [admin] [fixed] - Browser session refresh improved to prevent persistent authentication failures
+[TBD] [admin] [internal] - Authentication transport layer extracted for browser and headless environments
+[TBD] [admin] [internal] - Network failure and recovery now reported to connection monitor
 [TBD] [user] [added] - Results packages tab for generating and managing analysis packages at the instance level
 [TBD] [user] [added] - Results package tab in projects replaces separate Data and Modules tabs
 [TBD] [user] [added] - Wizard for configuring and generating new results packages
