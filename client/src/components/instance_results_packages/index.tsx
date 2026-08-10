@@ -60,11 +60,12 @@ export function InstanceResultsPackages() {
   const [version, setVersion] = createSignal(0);
 
   createEffect(async () => {
-    version();
+    const requestId = version();
     const [attemptRes, runsRes] = await Promise.all([
       serverActions.getRunGenerationAttempt({}),
       serverActions.listRunCatalog({}),
     ]);
+    if (requestId !== version()) return;
     if (attemptRes.success) {
       setAttempt(attemptRes.data);
     }

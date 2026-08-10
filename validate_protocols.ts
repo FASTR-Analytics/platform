@@ -5,11 +5,18 @@
 //
 // Tier 1 (deterministic): a hit IS a violation — these fail the run.
 // Tier 2 (heuristic): a hit needs review — reported, never fails the run.
+// Reviewed-and-accepted tier-2 hits live in validate_protocols_baseline.json
+// (keyed by rule + file + matched text, line-number-insensitive) and are
+// suppressed; only NEW hits print. Regenerate with --update-baseline after
+// reviewing; delete an entry to re-arm that check.
 // Rules needing semantic judgment (conditional returns, batch, Show-fallback
 // peers) are not covered here; they belong to agent/human review.
 
 const SCRIPT_DIR = new URL(".", import.meta.url).pathname;
-const ROOT = Deno.args[0] ?? `${SCRIPT_DIR}client/src`;
+const POSITIONAL = Deno.args.filter((a) => !a.startsWith("--"));
+const ROOT = POSITIONAL[0] ?? `${SCRIPT_DIR}client/src`;
+const UPDATE_BASELINE = Deno.args.includes("--update-baseline");
+const BASELINE_PATH = `${SCRIPT_DIR}validate_protocols_baseline.json`;
 
 type Check = {
   id: string;
@@ -152,12 +159,47 @@ for await (const file of walk(ROOT)) {
   }
 }
 
-let tier1Total = 0;
-let tier2Total = 0;
+type BaselineEntry = { id: string; file: string; text: string };
 
-function report(tier: 1 | 2, id: string, rule: string, hits: Hit[]) {
+const tier2Groups: Array<{ id: string; rule: string; hits: Hit[] }> = CHECKS
+  .filter((c) => c.tier === 2)
+  .map((c) => ({ id: c.id, rule: c.rule, hits: hitsByCheck.get(c.id)! }));
+tier2Groups.push({
+  id: "async-effect-race",
+  rule: "STATE 11 — guard overlapping async effects",
+  hits: raceHits,
+});
+
+if (UPDATE_BASELINE) {
+  const entries: BaselineEntry[] = tier2Groups.flatMap((g) =>
+    g.hits.map((h) => ({ id: g.id, file: h.file, text: h.text }))
+  );
+  await Deno.writeTextFile(
+    BASELINE_PATH,
+    JSON.stringify(entries, null, 2) + "\n",
+  );
+  console.log(`Baseline updated: ${entries.length} accepted tier-2 hit(s)`);
+}
+
+let baseline: BaselineEntry[] = [];
+try {
+  baseline = JSON.parse(await Deno.readTextFile(BASELINE_PATH));
+} catch (err) {
+  if (!(err instanceof Deno.errors.NotFound)) throw err;
+}
+const allowances = new Map<string, number>();
+const key = (id: string, file: string, text: string) => `${id}|${file}|${text}`;
+for (const e of baseline) {
+  const k = key(e.id, e.file, e.text);
+  allowances.set(k, (allowances.get(k) ?? 0) + 1);
+}
+
+let tier1Total = 0;
+let newTier2 = 0;
+let baselined = 0;
+
+function report(label: "FAIL" | "REVIEW", id: string, rule: string, hits: Hit[]) {
   if (hits.length === 0) return;
-  const label = tier === 1 ? "FAIL" : "REVIEW";
   console.log(`\n[${label}] ${id} — ${rule}: ${hits.length} hit(s)`);
   for (const h of hits) {
     console.log(`  ${h.file}:${h.line}  ${h.text.slice(0, 100)}`);
@@ -165,24 +207,44 @@ function report(tier: 1 | 2, id: string, rule: string, hits: Hit[]) {
 }
 
 for (const check of CHECKS) {
+  if (check.tier !== 1) continue;
   const hits = hitsByCheck.get(check.id)!;
-  if (check.tier === 1) tier1Total += hits.length;
-  else tier2Total += hits.length;
-  report(check.tier, check.id, check.rule, hits);
+  tier1Total += hits.length;
+  report("FAIL", check.id, check.rule, hits);
 }
-tier2Total += raceHits.length;
-report(2, "async-effect-race", "STATE 11 — guard overlapping async effects", raceHits);
+
+for (const g of tier2Groups) {
+  const fresh = g.hits.filter((h) => {
+    const k = key(g.id, h.file, h.text);
+    const n = allowances.get(k) ?? 0;
+    if (n > 0) {
+      allowances.set(k, n - 1);
+      baselined++;
+      return false;
+    }
+    return true;
+  });
+  newTier2 += fresh.length;
+  report("REVIEW", g.id, g.rule, fresh);
+}
+
+const stale = [...allowances.values()].reduce((a, b) => a + b, 0);
 
 console.log("");
+if (stale > 0) {
+  console.log(
+    `NOTE: ${stale} baseline entr${stale === 1 ? "y" : "ies"} no longer match — run ./validate_protocols --update-baseline to prune.`,
+  );
+}
 if (tier1Total > 0) {
   console.log("\x1b[91m╔══════════════════════════════════════════════════════════════╗");
   console.log("║                PROTOCOL VALIDATION FAILED                    ║");
-  const msg = `${tier1Total} tier-1 violation(s); ${tier2Total} review flag(s)`;
+  const msg = `${tier1Total} tier-1 violation(s); ${newTier2} new review flag(s)`;
   console.log(`║  ${msg.padEnd(60)}║`);
   console.log("╚══════════════════════════════════════════════════════════════╝\x1b[0m");
   Deno.exit(1);
 } else {
   console.log(
-    `\x1b[92mPROTOCOL VALIDATION PASSED\x1b[0m — 0 tier-1 violations, ${tier2Total} tier-2 review flag(s)`,
+    `\x1b[92mPROTOCOL VALIDATION PASSED\x1b[0m — 0 tier-1 violations, ${newTier2} new tier-2 flag(s), ${baselined} baselined`,
   );
 }

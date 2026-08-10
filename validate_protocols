@@ -7,4 +7,4 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-deno run --allow-read "$SCRIPT_DIR/validate_protocols.ts" "$@"
+deno run --allow-read --allow-write="$SCRIPT_DIR/validate_protocols_baseline.json" "$SCRIPT_DIR/validate_protocols.ts" "$@"
