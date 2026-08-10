@@ -1,3 +1,5 @@
+[1.66.1] [user] [fixed] - Fixed time-trend charts that failed to load
+[1.66.1] [admin] [fixed] - Timeseries charts with missing grouping settings now auto-repair on startup
 [1.66.0] [user] [fixed] - Results page no longer shows outdated or mismatched data
 [1.66.0] [admin] [fixed] - Fixed a race condition when loading results packages
 [1.66.0] [user] [added] - Results packages section added to instance administration
