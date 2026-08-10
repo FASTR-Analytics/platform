@@ -1,75 +1,77 @@
-[TBD] [user] [added] - Results packages section added to instance administration
-[TBD] [user] [added] - View scripts, logs, and download files from results packages
-[TBD] [user] [added] - Results package generation progress shown with per-module status
-[TBD] [user] [added] - Variant groups and variant items management for HFA indicators
-[TBD] [user] [added] - Per-item variant code editing in the HFA indicator code editor
-[TBD] [user] [added] - Variant groups tab in the HFA indicator manager
-[TBD] [user] [added] - Variant group, variant item, and variant code columns in HFA workbook export and import
-[TBD] [user] [added] - Module parameter inputs for configuring analysis modules
-[TBD] [user] [changed] - Creating a project now only requires a name
-[TBD] [user] [changed] - Visualization thumbnails refresh based on the attached results package
-[TBD] [user] [changed] - Project comparison table simplified to show package membership instead of dirty status
-[TBD] [user] [fixed] - Default visualizations can no longer be deleted or batch-edited
-[TBD] [user] [fixed] - Clear error message shown when trying to batch edit default visualizations
-[TBD] [user] [fixed] - Clear error message shown when trying to delete default visualizations
-[TBD] [user] [fixed] - Rate formatting improved for rate-per-10k calculated indicators
-[TBD] [user] [fixed] - File upload selector now supports restricting allowed file types
-[TBD] [user] [fixed] - Connection lost banner reload button is now bolder and easier to spot
-[TBD] [admin] [added] - Results packages catalogue for managing generated packages instance-wide
-[TBD] [admin] [added] - Generate, inspect, and attach results packages to projects
-[TBD] [admin] [added] - View module scripts, logs, and output files from results packages
-[TBD] [admin] [added] - Variant groups and variant items for HFA indicators
-[TBD] [admin] [added] - Per-item variant code support in the HFA indicator code editor
-[TBD] [admin] [added] - Variant groups tab in the HFA Indicator Manager
-[TBD] [admin] [added] - XLSX import and export now includes variant groups, items, and variant code
-[TBD] [admin] [added] - Module parameter inputs shared across module defaults and results package wizard
-[TBD] [admin] [added] - HMIS windowing validation before saving dataset settings or generating packages
-[TBD] [admin] [added] - File type filtering option for file upload selectors
-[TBD] [admin] [changed] - Creating a project no longer requires selecting datasets or modules upfront
-[TBD] [admin] [changed] - Projects now receive results through an attached results package
-[TBD] [admin] [changed] - Project comparison view no longer shows per-module dirty state or git SHAs
-[TBD] [admin] [changed] - Visualization thumbnails refresh based on attached results package changes
-[TBD] [admin] [changed] - Import wizard shell buttons can now be customized per wizard type
-[TBD] [admin] [fixed] - Default visualizations can no longer be batch-edited or deleted
-[TBD] [admin] [fixed] - Default visualizations are excluded from batch delete operations
-[TBD] [admin] [fixed] - Delete option hidden from context menu for default visualizations
-[TBD] [admin] [fixed] - AI assistant now preserves variant code when editing indicator main code
-[TBD] [admin] [fixed] - AI assistant detects references in variant code before deleting indicators
-[TBD] [admin] [fixed] - Unused variable check now scans variant code snippets
-[TBD] [admin] [fixed] - Browser session refresh improved to prevent persistent authentication failures
-[TBD] [admin] [internal] - Authentication transport layer extracted for browser and headless environments
-[TBD] [admin] [internal] - Network failure and recovery now reported to connection monitor
-[TBD] [user] [added] - Results packages tab for generating and managing analysis packages at the instance level
-[TBD] [user] [added] - Results package tab in projects replaces separate Data and Modules tabs
-[TBD] [user] [added] - Wizard for configuring and generating new results packages
-[TBD] [user] [added] - View script, logs, and output files for each module in a results package
-[TBD] [user] [added] - Download individual output files from a results package
-[TBD] [user] [added] - Live progress display while a results package is generating
-[TBD] [user] [added] - Attach results packages to projects from the instance catalogue
-[TBD] [user] [added] - Fiscal year information shown in instance details
-[TBD] [user] [changed] - Creating a project no longer requires choosing datasets or modules upfront
-[TBD] [user] [changed] - Visualizations from default packages can no longer be deleted or batch-edited
-[TBD] [user] [changed] - Project comparison view simplified to show package membership instead of module run status
-[TBD] [user] [changed] - Metric availability tooltips now explain why a metric is unavailable
-[TBD] [user] [fixed] - Visualization thumbnails now refresh correctly when a different results package is attached
-[TBD] [user] [fixed] - Default visualizations no longer cause errors during batch editing or deletion
-[TBD] [admin] [added] - New "Results packages" tab on the instance dashboard
-[TBD] [admin] [added] - Generate, browse, and delete results packages at the instance level
-[TBD] [admin] [added] - Results packages can be attached to one or more projects
-[TBD] [admin] [added] - New results package wizard for configuring data, modules, and parameters before generation
-[TBD] [admin] [added] - Live progress and R output shown during package generation
-[TBD] [admin] [added] - View scripts, logs, and output files for each module in a package
-[TBD] [admin] [changed] - Project "Data" and "Modules" tabs replaced by a single "Results package" tab
-[TBD] [admin] [changed] - Creating a project now only requires a name; data and modules come from an attached results package
-[TBD] [admin] [changed] - Visualisation thumbnails now refresh when a different results package is attached
-[TBD] [admin] [changed] - Project comparison view no longer shows compute/presentation SHA or dirty status columns
-[TBD] [admin] [changed] - Instance metadata now displays the fiscal year setting
-[TBD] [admin] [fixed] - Default visualisations can no longer be batch-edited or deleted, preventing server errors
-[TBD] [admin] [fixed] - Deleting a results package is blocked while it is attached to a project or still generating
-[TBD] [admin] [internal] - Removed per-module dirty/running status indicators from the project header
-[TBD] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
-[TBD] [admin] [changed] - Improved audit logging for report and deck version restores and copies
-[TBD] [admin] [changed] - Improved audit logging for user setting changes
+[1.66.0] [user] [fixed] - Results page no longer shows outdated or mismatched data
+[1.66.0] [admin] [fixed] - Fixed a race condition when loading results packages
+[1.66.0] [user] [added] - Results packages section added to instance administration
+[1.66.0] [user] [added] - View scripts, logs, and download files from results packages
+[1.66.0] [user] [added] - Results package generation progress shown with per-module status
+[1.66.0] [user] [added] - Variant groups and variant items management for HFA indicators
+[1.66.0] [user] [added] - Per-item variant code editing in the HFA indicator code editor
+[1.66.0] [user] [added] - Variant groups tab in the HFA indicator manager
+[1.66.0] [user] [added] - Variant group, variant item, and variant code columns in HFA workbook export and import
+[1.66.0] [user] [added] - Module parameter inputs for configuring analysis modules
+[1.66.0] [user] [changed] - Creating a project now only requires a name
+[1.66.0] [user] [changed] - Visualization thumbnails refresh based on the attached results package
+[1.66.0] [user] [changed] - Project comparison table simplified to show package membership instead of dirty status
+[1.66.0] [user] [fixed] - Default visualizations can no longer be deleted or batch-edited
+[1.66.0] [user] [fixed] - Clear error message shown when trying to batch edit default visualizations
+[1.66.0] [user] [fixed] - Clear error message shown when trying to delete default visualizations
+[1.66.0] [user] [fixed] - Rate formatting improved for rate-per-10k calculated indicators
+[1.66.0] [user] [fixed] - File upload selector now supports restricting allowed file types
+[1.66.0] [user] [fixed] - Connection lost banner reload button is now bolder and easier to spot
+[1.66.0] [admin] [added] - Results packages catalogue for managing generated packages instance-wide
+[1.66.0] [admin] [added] - Generate, inspect, and attach results packages to projects
+[1.66.0] [admin] [added] - View module scripts, logs, and output files from results packages
+[1.66.0] [admin] [added] - Variant groups and variant items for HFA indicators
+[1.66.0] [admin] [added] - Per-item variant code support in the HFA indicator code editor
+[1.66.0] [admin] [added] - Variant groups tab in the HFA Indicator Manager
+[1.66.0] [admin] [added] - XLSX import and export now includes variant groups, items, and variant code
+[1.66.0] [admin] [added] - Module parameter inputs shared across module defaults and results package wizard
+[1.66.0] [admin] [added] - HMIS windowing validation before saving dataset settings or generating packages
+[1.66.0] [admin] [added] - File type filtering option for file upload selectors
+[1.66.0] [admin] [changed] - Creating a project no longer requires selecting datasets or modules upfront
+[1.66.0] [admin] [changed] - Projects now receive results through an attached results package
+[1.66.0] [admin] [changed] - Project comparison view no longer shows per-module dirty state or git SHAs
+[1.66.0] [admin] [changed] - Visualization thumbnails refresh based on attached results package changes
+[1.66.0] [admin] [changed] - Import wizard shell buttons can now be customized per wizard type
+[1.66.0] [admin] [fixed] - Default visualizations can no longer be batch-edited or deleted
+[1.66.0] [admin] [fixed] - Default visualizations are excluded from batch delete operations
+[1.66.0] [admin] [fixed] - Delete option hidden from context menu for default visualizations
+[1.66.0] [admin] [fixed] - AI assistant now preserves variant code when editing indicator main code
+[1.66.0] [admin] [fixed] - AI assistant detects references in variant code before deleting indicators
+[1.66.0] [admin] [fixed] - Unused variable check now scans variant code snippets
+[1.66.0] [admin] [fixed] - Browser session refresh improved to prevent persistent authentication failures
+[1.66.0] [admin] [internal] - Authentication transport layer extracted for browser and headless environments
+[1.66.0] [admin] [internal] - Network failure and recovery now reported to connection monitor
+[1.66.0] [user] [added] - Results packages tab for generating and managing analysis packages at the instance level
+[1.66.0] [user] [added] - Results package tab in projects replaces separate Data and Modules tabs
+[1.66.0] [user] [added] - Wizard for configuring and generating new results packages
+[1.66.0] [user] [added] - View script, logs, and output files for each module in a results package
+[1.66.0] [user] [added] - Download individual output files from a results package
+[1.66.0] [user] [added] - Live progress display while a results package is generating
+[1.66.0] [user] [added] - Attach results packages to projects from the instance catalogue
+[1.66.0] [user] [added] - Fiscal year information shown in instance details
+[1.66.0] [user] [changed] - Creating a project no longer requires choosing datasets or modules upfront
+[1.66.0] [user] [changed] - Visualizations from default packages can no longer be deleted or batch-edited
+[1.66.0] [user] [changed] - Project comparison view simplified to show package membership instead of module run status
+[1.66.0] [user] [changed] - Metric availability tooltips now explain why a metric is unavailable
+[1.66.0] [user] [fixed] - Visualization thumbnails now refresh correctly when a different results package is attached
+[1.66.0] [user] [fixed] - Default visualizations no longer cause errors during batch editing or deletion
+[1.66.0] [admin] [added] - New "Results packages" tab on the instance dashboard
+[1.66.0] [admin] [added] - Generate, browse, and delete results packages at the instance level
+[1.66.0] [admin] [added] - Results packages can be attached to one or more projects
+[1.66.0] [admin] [added] - New results package wizard for configuring data, modules, and parameters before generation
+[1.66.0] [admin] [added] - Live progress and R output shown during package generation
+[1.66.0] [admin] [added] - View scripts, logs, and output files for each module in a package
+[1.66.0] [admin] [changed] - Project "Data" and "Modules" tabs replaced by a single "Results package" tab
+[1.66.0] [admin] [changed] - Creating a project now only requires a name; data and modules come from an attached results package
+[1.66.0] [admin] [changed] - Visualisation thumbnails now refresh when a different results package is attached
+[1.66.0] [admin] [changed] - Project comparison view no longer shows compute/presentation SHA or dirty status columns
+[1.66.0] [admin] [changed] - Instance metadata now displays the fiscal year setting
+[1.66.0] [admin] [fixed] - Default visualisations can no longer be batch-edited or deleted, preventing server errors
+[1.66.0] [admin] [fixed] - Deleting a results package is blocked while it is attached to a project or still generating
+[1.66.0] [admin] [internal] - Removed per-module dirty/running status indicators from the project header
+[1.66.0] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[1.66.0] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[1.66.0] [admin] [changed] - Improved audit logging for user setting changes
 [1.65.0] [user] [fixed] - Scorecard tables now correctly use presentation theme colors
 [1.65.0] [user] [fixed] - Scorecard and standard tables now have consistent colored cell styling
 [1.65.0] [admin] [fixed] - Scorecard tables now correctly follow deck color presets
