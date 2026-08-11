@@ -1248,6 +1248,19 @@ export function buildResultsPackageIntroTour(): TourDefinition {
         }),
         placement: "bottom",
       },
+    ],
+  };
+}
+
+// Split from the intro rather than gated step-by-step: on a project with no
+// package attached yet these two targets do not exist, and a tour that runs
+// and skips its steps is still marked seen — the user would never get them
+// once a package IS attached.
+export function buildResultsPackageExploreTour(): TourDefinition {
+  return {
+    id: "results-package-explore",
+    labels: tourLabels(),
+    steps: [
       {
         id: "attached",
         target: tourTarget("results-package-attached"),
@@ -1262,8 +1275,6 @@ export function buildResultsPackageIntroTour(): TourDefinition {
           pt: "Este é o pacote de que este projeto se serve, marcado «Em utilização». A linha por baixo indica quando foi gerado e por quem — útil para saber se os seus números estão atualizados.",
         }),
         placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
       {
         id: "contents",
@@ -1279,8 +1290,6 @@ export function buildResultsPackageIntroTour(): TourDefinition {
           pt: "Os módulos executados para construir este pacote e quantas métricas produziram. Conforme as suas permissões, Script, Registos e Ficheiros abrem o que um módulo executou, o que imprimiu e o que escreveu.",
         }),
         placement: "top",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
     ],
   };
@@ -2234,6 +2243,18 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
         }),
         placement: "bottom",
       },
+    ],
+  };
+}
+
+// Split from the intro for the same reason as the project pair: a freshly
+// created instance holds no packages, so neither target exists — and a tour
+// that runs against nothing still writes its seen-flag.
+export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
+  return {
+    id: "instance-results-packages-catalogue",
+    labels: tourLabels(),
+    steps: [
       {
         id: "card",
         target: tourTarget("instance-results-packages-card"),
@@ -2248,8 +2269,6 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
           pt: "Todos os pacotes desta instância, com o seu estado, quando foram gerados e quanto disco ocupam. Um pacote ainda em geração mostra os seus módulos a progredir em direto.",
         }),
         placement: "top",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
       {
         id: "usage",
@@ -2265,8 +2284,6 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
           pt: "Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
         }),
         placement: "top",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
     ],
   };

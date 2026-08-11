@@ -50,6 +50,7 @@ export function TourCatalogueModal(
   const facts = (): TourProjectFacts => ({
     thisUserPermissions: projectState.thisUserPermissions,
     isLocked: projectState.isLocked,
+    attachedRunId: projectState.attachedRunId,
     projectModules: projectState.projectModules,
     metrics: projectState.metrics,
     visualizations: projectState.visualizations,

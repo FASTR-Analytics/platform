@@ -26,6 +26,9 @@ import { serverActions } from "~/server_actions";
 export type TourProjectFacts = {
   thisUserPermissions: ProjectUserPermissions;
   isLocked: boolean;
+  /** The results package this project serves from, null if none is attached
+   *  yet — the attached-package tour has nothing to point at without one. */
+  attachedRunId: string | null;
   projectModules: { id: string }[];
   metrics: { id: string; status: string }[];
   visualizations: PresentationObjectSummary[];
@@ -63,6 +66,7 @@ export type TourCatalogueEntry = {
 
 const perms = (f: TourProjectFacts) => f.thisUserPermissions;
 const hasModules = (f: TourProjectFacts) => f.projectModules.length > 0;
+const hasAttachedPackage = (f: TourProjectFacts) => f.attachedRunId !== null;
 const hasDecks = (f: TourProjectFacts) => f.slideDecks.length > 0;
 const hasReports = (f: TourProjectFacts) => f.reports.length > 0;
 const hasDashboards = (f: TourProjectFacts) => f.dashboards.length > 0;
@@ -198,6 +202,12 @@ const reasonGlobalAdminOnly = () =>
     en: "Only global admins can manage data",
     fr: "Seuls les administrateurs globaux peuvent gérer les données",
     pt: "Apenas os administradores globais podem gerir os dados",
+  });
+const reasonNeedAttachedPackage = () =>
+  t3({
+    en: "No results package is attached to this project yet",
+    fr: "Aucun paquet de résultats n'est encore rattaché à ce projet",
+    pt: "Ainda não há nenhum pacote de resultados anexado a este projeto",
   });
 const reasonNeedAttachPermission = () =>
   t3({
@@ -399,6 +409,22 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
         pt: "Gerar um pacote para a instância e o catálogo dos que ela detém.",
       }),
       // Mirrors the instance shell's own gate for this tab.
+      available: () => admin() || perms().can_configure_data,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-results-packages-catalogue",
+      tab: "results_packages",
+      label: t3({
+        en: "The package catalogue",
+        fr: "Le catalogue des paquets",
+        pt: "O catálogo de pacotes",
+      }),
+      description: t3({
+        en: "Reading a package's status and disk use, and when one can be deleted.",
+        fr: "Lire l'état et l'espace disque d'un paquet, et quand il peut être supprimé.",
+        pt: "Ler o estado e o uso de disco de um pacote, e quando pode ser eliminado.",
+      }),
       available: () => admin() || perms().can_configure_data,
       unavailableReason: reasonNoPageAccess,
     },
@@ -1093,6 +1119,26 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       }),
       available: (f) => perms(f).can_view_data,
       unavailableReason: reasonNoPageAccess,
+      navigate: goToResultsPackage,
+    },
+    {
+      id: "results-package-explore",
+      area: "results_package",
+      label: t3({
+        en: "Explore the package",
+        fr: "Explorer le paquet",
+        pt: "Explorar o pacote",
+      }),
+      description: t3({
+        en: "The package in use, and the modules, scripts, logs and files inside it.",
+        fr: "Le paquet utilisé, et les modules, scripts, journaux et fichiers qu'il contient.",
+        pt: "O pacote em utilização, e os módulos, scripts, registos e ficheiros que contém.",
+      }),
+      available: (f) => perms(f).can_view_data && hasAttachedPackage(f),
+      unavailableReason: (f) =>
+        !perms(f).can_view_data
+          ? reasonNoPageAccess()
+          : reasonNeedAttachedPackage(),
       navigate: goToResultsPackage,
     },
     {

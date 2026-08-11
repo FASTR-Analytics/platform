@@ -22,6 +22,7 @@ import {
   buildReportsManageTour,
   buildReportsOpenReportTour,
   buildReportsViewerTour,
+  buildResultsPackageExploreTour,
   buildResultsPackageIntroTour,
   buildResultsPackageSwitchTour,
   buildSettingsIntroTour,
@@ -38,6 +39,7 @@ import {
   buildInstanceAssetsTour,
   buildInstanceDataTour,
   buildInstanceProjectsTour,
+  buildInstanceResultsPackagesCatalogueTour,
   buildInstanceResultsPackagesTour,
   buildInstanceSettingsTour,
   buildInstanceUsersTour,
@@ -109,6 +111,19 @@ export function setupInstanceTours(opts: {
       {
         page: "instance-results-packages",
         tour: buildInstanceResultsPackagesTour(),
+      },
+      // Deferred until the instance actually holds a package. The run list is
+      // component-local (no instanceState field to watch), so this part starts
+      // on the next visit to the tab rather than the moment a generation
+      // lands — acceptable because generating is long and the admin leaves the
+      // tab meanwhile.
+      {
+        page: "instance-results-packages",
+        when: () =>
+          document.querySelector(
+            '[data-tour="instance-results-packages-card"]',
+          ) !== null,
+        tour: buildInstanceResultsPackagesCatalogueTour(),
       },
       { page: "instance-assets", tour: buildInstanceAssetsTour() },
       { page: "instance-users", tour: buildInstanceUsersTour() },
@@ -358,16 +373,22 @@ export function setupVisualizationTours(): TourManagerController {
   });
 }
 
-// The results package tab: the intro runs for anyone who can see the tab, the
-// switch part only for a member who may actually repoint the project AND has
-// somewhere to repoint it — the picker renders nothing when the instance holds
-// no other package, so without that check the tour would target an empty box.
+// The results package tab, in three parts. The intro (what a results package
+// is) runs for anyone who can see the tab and targets only the header, so it
+// is safe on a project with nothing attached yet. The explore part waits for
+// an attached package to actually be on screen, and the switch part for a
+// member who may repoint the project AND has somewhere to repoint it — the
+// picker renders nothing when the instance holds no other package. Splitting
+// rather than skipping steps matters because a tour that runs against missing
+// targets is still marked seen, and the user would never get it later.
 export function setupResultsPackageTours(): TourManagerController {
   const canAttach = () =>
     instanceState.currentUserIsGlobalAdmin ||
     projectState.thisUserPermissions.can_configure_visualizations;
   const pickerOnScreen = () =>
     document.querySelector('[data-tour="results-package-picker"]') !== null;
+  const attachedCardOnScreen = () =>
+    document.querySelector('[data-tour="results-package-attached"]') !== null;
   return createTourManager({
     storage: clerkOnboardingStorage,
     pages: {
@@ -383,6 +404,11 @@ export function setupResultsPackageTours(): TourManagerController {
       {
         page: "results-package",
         tour: buildResultsPackageIntroTour(),
+      },
+      {
+        page: "results-package",
+        when: attachedCardOnScreen,
+        tour: buildResultsPackageExploreTour(),
       },
       {
         page: "results-package",
