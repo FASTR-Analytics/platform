@@ -51,10 +51,10 @@ sshx() {
 MIN_FREE_GB="${MIN_FREE_GB:-10}"
 DENO_FLAGS="-A --unstable-broadcast-channel --unstable-raw-imports -c deno.json"
 
-# This script is pinned to the 1.66.5 results-packages cutover image: the
+# This script is pinned to the 1.66.6 results-packages cutover image: the
 # backfill/rig steps assume exactly this deploy, and the rig fix + config
 # transform it carries. A later version needs a deliberate re-pin.
-VERSION="1.66.5"
+VERSION="1.66.6"
 
 if [ "$#" -lt 1 ]; then
     echo "Usage: ./rollout_backfill <instance> [<instance>...]"
@@ -67,6 +67,9 @@ IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
 
 LOG_DIR="rollout_logs/$VERSION-backfill-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$LOG_DIR"
+
+# Mirror everything shown on the console into the run's log dir as well.
+exec > >(tee -a "$LOG_DIR/console.log") 2>&1
 
 fail() {
     local instance="$1" phase="$2" msg="$3"
