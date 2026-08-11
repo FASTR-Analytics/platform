@@ -1,5 +1,5 @@
-[TBD] [user] [added] - "What's New" announcements can now include YouTube videos
-[TBD] [admin] [added] - "What's New" posts now support embedded YouTube videos
+[1.66.4] [user] [added] - "What's New" announcements can now include YouTube videos
+[1.66.4] [admin] [added] - "What's New" posts now support embedded YouTube videos
 [1.66.3] [user] [fixed] - Clearer error message when visualization data needs to be generated
 [1.66.3] [admin] [fixed] - Clearer error message when module output data is missing
 [1.66.1] [user] [fixed] - Fixed time-trend charts that failed to load
