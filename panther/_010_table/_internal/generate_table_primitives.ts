@@ -229,6 +229,8 @@ export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
             i_col: cell.cellInfo.i_col,
             rowHeader: cell.cellInfo.rowHeader,
             colHeader: cell.cellInfo.colHeader,
+            rowGroupHeader: cell.cellInfo.rowGroupHeader,
+            colGroupHeader: cell.cellInfo.colGroupHeader,
           },
           annotationGroup: cell.cellStyle.annotationGroup,
           backgroundColor: cell.cellStyle.backgroundColor,

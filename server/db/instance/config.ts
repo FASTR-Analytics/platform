@@ -5,11 +5,11 @@ import {
   InstanceConfigAdminAreaLabels,
   InstanceConfigMaxAdminArea,
   InstanceConfigFacilityColumns,
-  InstanceConfigCountryIso3,
   instanceConfigAdminAreaLabelsSchema,
-  instanceConfigCountryIso3Schema,
   instanceConfigFacilityColumnsSchema,
   instanceConfigMaxAdminAreaSchema,
+  RunGenerationDefaults,
+  runGenerationDefaultsSchema,
   throwIfErrWithData,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -181,63 +181,6 @@ export async function updateFacilityColumnsConfig(
   });
 }
 
-export async function getCountryIso3Config(
-  mainDb: Sql
-): Promise<APIResponseWithData<InstanceConfigCountryIso3>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value
-      FROM instance_config
-      WHERE config_key = 'country_iso3'
-    `;
-
-    if (result.length === 0) {
-      return {
-        success: true,
-        data: { countryIso3: undefined },
-      };
-    }
-
-    const config = instanceConfigCountryIso3Schema.parse(
-      JSON.parse(result[0].config_json_value),
-    );
-
-    return {
-      success: true,
-      data: config,
-    };
-  });
-}
-
-export async function updateCountryIso3Config(
-  mainDb: Sql,
-  countryIso3: string | undefined
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Interpolated into generated R scripts as "${countryIso3}" — must be a clean token
-    const normalized = (countryIso3 ?? "").trim().toUpperCase();
-    if (normalized !== "" && !/^[A-Z]{3}$/.test(normalized)) {
-      return {
-        success: false,
-        err: "Country code must be exactly 3 letters (ISO3), e.g. KEN.",
-      };
-    }
-    const configValue: InstanceConfigCountryIso3 = {
-      countryIso3: normalized === "" ? undefined : normalized,
-    };
-    const validated = instanceConfigCountryIso3Schema.parse(configValue);
-
-    await mainDb`
-      INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('country_iso3', ${JSON.stringify(validated)})
-      ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
-    `;
-
-    return { success: true };
-  });
-}
-
 export async function getAdminAreaLabelsConfig(
   mainDb: Sql
 ): Promise<APIResponseWithData<InstanceConfigAdminAreaLabels>> {
@@ -269,6 +212,62 @@ export async function updateAdminAreaLabelsConfig(
     await mainDb`
       INSERT INTO instance_config (config_key, config_json_value)
       VALUES ('admin_area_labels', ${JSON.stringify(validated)})
+      ON CONFLICT (config_key)
+      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
+    `;
+
+    return { success: true };
+  });
+}
+
+// The results-package wizard's instance defaults (PLAN_RESULTS_RUNS Phase 3
+// item 1, §3.5): the starting values an admin saved in the module-defaults
+// editor (S8). Absent — or stored under a shape an older build wrote —
+// degrades to "no defaults", which is exactly the empty wizard, so a bad
+// blob can never block generation.
+const EMPTY_RUN_GENERATION_DEFAULTS: RunGenerationDefaults = {
+  step1: null,
+  moduleIds: [],
+  parameterSelections: {},
+};
+
+export async function getRunGenerationDefaultsConfig(
+  mainDb: Sql
+): Promise<APIResponseWithData<RunGenerationDefaults>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const result = await mainDb<{ config_json_value: string }[]>`
+      SELECT config_json_value
+      FROM instance_config
+      WHERE config_key = 'run_generation_defaults'
+    `;
+
+    if (result.length === 0) {
+      return { success: true, data: EMPTY_RUN_GENERATION_DEFAULTS };
+    }
+
+    const parsed = runGenerationDefaultsSchema.safeParse(
+      JSON.parse(result[0].config_json_value),
+    );
+    if (parsed.success === false) {
+      console.error(
+        `[run_generation] stored instance defaults do not parse — starting from scratch: ${parsed.error.message}`,
+      );
+      return { success: true, data: EMPTY_RUN_GENERATION_DEFAULTS };
+    }
+
+    return { success: true, data: parsed.data };
+  });
+}
+
+export async function updateRunGenerationDefaultsConfig(
+  mainDb: Sql,
+  config: RunGenerationDefaults
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const validated = runGenerationDefaultsSchema.parse(config);
+    await mainDb`
+      INSERT INTO instance_config (config_key, config_json_value)
+      VALUES ('run_generation_defaults', ${JSON.stringify(validated)})
       ON CONFLICT (config_key)
       DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
     `;

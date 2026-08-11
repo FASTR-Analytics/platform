@@ -1,6 +1,5 @@
 import { createSignal } from "solid-js";
 import type {
-  ModuleLatestCommit,
   ReportGroupingMode,
   SlideDeckGroupingMode,
   SlideType,
@@ -19,8 +18,7 @@ const ALL_TAB_OPTIONS = [
   "dashboards",
   "visualizations",
   "metrics",
-  "modules",
-  "data",
+  "results_package",
   "settings",
   "cache",
 ] as const;
@@ -31,8 +29,9 @@ export type TabOption = (typeof ALL_TAB_OPTIONS)[number];
 // that feeds a lookup which THROWS on a miss (PROJECT_TAB_TO_VIEW ->
 // panther's setView, from a mount effect with no ErrorBoundary above it, so
 // the throw also skips every effect queued after it). A value written by a
-// build that spelled a tab differently would take the project page down with
-// no error surface; the modes below only feed comparisons and degrade.
+// build that spelled a tab differently — or holding a removed tab like
+// "modules"/"data" — would take the project page down with no error surface;
+// the modes below only feed comparisons and degrade.
 const storedTab = localStorage.getItem("projectTab");
 const initialTab: TabOption =
   storedTab !== null &&
@@ -221,7 +220,6 @@ export type ProjectViewStateUpdates = {
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
   policyHeaderOrContent?: "policyHeaderFooter" | "content";
-  showModules?: string | undefined;
 };
 
 export function updateProjectView(updates: ProjectViewStateUpdates) {
@@ -260,9 +258,6 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
   }
   if (updates.policyHeaderOrContent !== undefined) {
     setPolicyHeaderOrContent(updates.policyHeaderOrContent);
-  }
-  if (updates.showModules !== undefined) {
-    setShowModules(updates.showModules);
   }
 }
 
@@ -317,22 +312,6 @@ export const [headerOrContent, setHeaderOrContent] = createSignal<
 export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
   "policyHeaderFooter" | "content"
 >("content");
-
-// ============================================================================
-// Module Display
-// ============================================================================
-
-export const [showModules, setShowModules] = createSignal<string | undefined>(
-  "m001",
-);
-
-// ============================================================================
-// Module Update Status
-// ============================================================================
-
-export const [moduleLatestCommits, setModuleLatestCommits] = createSignal<
-  ModuleLatestCommit[] | undefined
->(undefined);
 
 // ============================================================================
 // Editor-open flags

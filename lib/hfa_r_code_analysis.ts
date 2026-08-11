@@ -11,6 +11,28 @@
 // be reserved — see `isReservedHfaVarName`.
 export const HFA_INDICATOR_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
 
+// Shape rule for a variant item id: lowercase letter, then lowercase
+// letters/digits/underscores, max 64 chars. Item ids are data values of the
+// hfa_variant_item column and the suffix of composed per-item R columns, and
+// must be globally unique across ALL HFA id namespaces (indicator varNames,
+// categories, sub-categories, service-categories, other items) — labels
+// resolve through one flat id→label map, so a collision silently mislabels.
+export const HFA_VARIANT_ITEM_ID_REGEX = /^[a-z][a-z0-9_]{0,63}$/;
+
+// The generated per-item wide column for (parent indicator, variant item).
+// Composition is NOT reversible (varNames legally contain `__`), so nothing may
+// parse this name back apart — parent/item routing is metadata-driven only.
+// Composed names must be unique against {indicator varNames} ∪ {survey
+// variables} ∪ {other composed names} and must clear `isReservedHfaVarName`
+// (notably its `__status` suffix rule) — enforced at authoring time and as a
+// generation-time hard error.
+export function composeHfaVariantColumnName(
+  parentVarName: string,
+  itemId: string,
+): string {
+  return `${parentVarName}__${itemId}`;
+}
+
 const R_KEYWORDS = new Set([
   "TRUE",
   "FALSE",

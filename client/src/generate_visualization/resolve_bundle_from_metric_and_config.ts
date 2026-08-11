@@ -1,5 +1,6 @@
 import type { FigureBundle, MetricWithStatus, PresentationObjectConfig } from "lib";
 import { getFetchConfigFromPresentationObjectConfig } from "lib";
+import { AIToolFailure } from "panther";
 import { unwrap } from "solid-js/store";
 import { assertReplicantValid } from "./assert_replicant_valid";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
@@ -24,12 +25,17 @@ export async function resolveBundleFromMetricAndConfig(
   config = structuredClone(unwrap(config));
 
   if (metric.status !== "ready") {
-    throw new Error(`Metric "${metric.id}" is not ready (status: ${metric.status})`);
+    throw new AIToolFailure(`Metric "${metric.id}" is not ready (status: ${metric.status})`);
   }
 
   const resFetch = getFetchConfigFromPresentationObjectConfig(metric, config);
   if (!resFetch.success) {
-    throw new Error(resFetch.err);
+    // Currently unreachable (the callee throws instead of returning
+    // {success:false}) — converted anyway, forward-safe. Its LIVE plain-Error
+    // surface is get_fetch_config_from_po.ts:47 (missing timeseriesGrouping),
+    // which is lib/ code shared with human renders and stays plain Error; the
+    // AI tools pre-flight that case before reaching here.
+    throw new AIToolFailure(resFetch.err);
   }
 
   // Strict replicant validation (shared with the from_visualization AI path).

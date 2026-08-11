@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Votre projet ne change que lorsque vous le décidez</text>
+
+  <defs>
+    <marker id="grayarrow2" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L9,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- Step 1 -->
+  <g transform="translate(64,150)">
+    <circle cx="24" cy="24" r="22" fill="#2563eb"/>
+    <text x="24" y="32" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+    <text x="62" y="32" font-size="23" font-weight="bold" fill="#0f172a">De nouvelles données arrivent sur l'instance</text>
+    <text x="62" y="62" font-size="18" fill="#475569">Un nouveau trimestre de données HMIS est téléversé ou importé depuis DHIS2.</text>
+  </g>
+
+  <!-- Step 2 -->
+  <g transform="translate(64,260)">
+    <circle cx="24" cy="24" r="22" fill="#d97706"/>
+    <text x="24" y="32" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+    <text x="62" y="32" font-size="23" font-weight="bold" fill="#0f172a">Un administrateur génère un nouveau paquet de résultats</text>
+    <text x="62" y="62" font-size="18" fill="#475569">Le paquet existant reste intact. Les deux figurent désormais au catalogue.</text>
+  </g>
+
+  <!-- Step 3 -->
+  <g transform="translate(64,370)">
+    <circle cx="24" cy="24" r="22" fill="#059669"/>
+    <text x="24" y="32" font-size="22" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+    <text x="62" y="32" font-size="23" font-weight="bold" fill="#0f172a">Chaque projet bascule quand il est prêt</text>
+    <text x="62" y="62" font-size="18" fill="#475569">Un clic, après une vérification de compatibilité. Ou restez sur l'ancien paquet — pour un rapport en relecture, rien ne bouge.</text>
+  </g>
+
+  <!-- packages row -->
+  <g transform="translate(160,490)">
+    <rect width="330" height="130" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+    <text x="165" y="42" font-size="20" font-weight="bold" fill="#92400e" text-anchor="middle">Paquet : T1 2026</text>
+    <text x="165" y="70" font-size="16" fill="#a16207" text-anchor="middle">toujours là, toujours identique</text>
+    <text x="165" y="100" font-size="16" fill="#a16207" text-anchor="middle" font-style="italic">Le projet C reste ici</text>
+  </g>
+  <g transform="translate(620,490)">
+    <rect width="330" height="130" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="3"/>
+    <text x="165" y="42" font-size="20" font-weight="bold" fill="#92400e" text-anchor="middle">Paquet : T2 2026 (nouveau)</text>
+    <text x="165" y="70" font-size="16" fill="#a16207" text-anchor="middle">inclut le nouveau trimestre</text>
+    <text x="165" y="100" font-size="16" fill="#a16207" text-anchor="middle" font-style="italic">Les projets A et B basculent</text>
+  </g>
+  <path d="M500 555 H 608" stroke="#475569" stroke-width="3.5" fill="none" marker-end="url(#grayarrow2)"/>
+  <text x="554" y="540" font-size="15" fill="#475569" text-anchor="middle">générer</text>
+
+  <!-- side note -->
+  <g transform="translate(1000,490)">
+    <rect width="216" height="130" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="108" y="40" font-size="16" font-weight="bold" fill="#334155" text-anchor="middle">Les anciens paquets</text>
+    <text x="108" y="66" font-size="15" fill="#475569" text-anchor="middle">restent disponibles pour</text>
+    <text x="108" y="90" font-size="15" fill="#475569" text-anchor="middle">référence, audit et</text>
+    <text x="108" y="114" font-size="15" fill="#475569" text-anchor="middle">comparaison avant / après</text>
+  </g>
+</svg>

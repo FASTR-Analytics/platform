@@ -524,6 +524,56 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
 
+  // ── HFA variant items (plain physical TEXT column, generic path) ─────────
+  {
+    name: "variant cross: groupBy hfa_indicator × hfa_variant_item",
+    fixture: "hfa_variants",
+    fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
+        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
+        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+      ],
+    },
+  },
+  {
+    name: "variant filter: hfa_variant_item as filter under indicator+round scope",
+    fixture: "hfa_variants",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["hfa_variant_item"],
+      filters: [
+        { disOpt: "hfa_indicator", values: ["vacc"] },
+        { disOpt: "time_point", values: ["baseline"] },
+      ],
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_variant_item: "campaign", value: 30, __n_value: 2 },
+        { hfa_variant_item: "routine", value: 6, __n_value: 2 },
+      ],
+    },
+  },
+  {
+    name: "variant replicant options: possible values for hfa_variant_item",
+    fixture: "hfa_variants",
+    entry: "possibleValues",
+    disOpt: "hfa_variant_item",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The pg plane has no item-label source (labels come from the run
+    // snapshot files in the live plane), so ids label themselves here.
+    expect: {
+      values: [
+        { id: "campaign", label: "campaign" },
+        { id: "piped", label: "piped" },
+        { id: "routine", label: "routine" },
+      ],
+    },
+  },
+
   // ── Option lists ─────────────────────────────────────────────────────────
   {
     name: "possible values: __BLANK offered and sorted LAST",
@@ -531,16 +581,19 @@ const EXPLICIT_CASES: Case[] = [
     entry: "possibleValues",
     disOpt: "source_indicator",
     fetchConfig: { ...base(), groupBys: [] },
-    // Only the LAST position is ours: SQL cannot order the sentinel last under
-    // SELECT DISTINCT, so TS moves it. The order of the named values is
-    // Postgres collation under the pinned postgres:17.4 image — note it sorts
-    // "dhis2" before " x", i.e. the leading space is not a primary difference.
-    // If a base-image bump reshuffles those three, that is a collation change,
-    // not a regression.
+    // The WHOLE order is ours: get_possible_values re-sorts in TS with a
+    // hand-rolled comparator (code point over a case-folded diacritic-stripped
+    // key, numeric digit runs), so neither the DB image's collation nor the
+    // host runtime's ICU version may move these. " x" sorts FIRST — the
+    // leading space (0x20) precedes every letter by code point. (The previous
+    // expectation encoded DB-collation order, and the Intl.Collator that
+    // replaced it flipped this pair across a Deno upgrade — both were
+    // environment-dependent, which is what the comparator now forbids.) The
+    // sentinel is moved last by TS regardless.
     expect: {
       values: [
-        { id: "dhis2", label: "dhis2" },
         { id: " x", label: " x" },
+        { id: "dhis2", label: "dhis2" },
         { id: "x", label: "x" },
         { id: BLANK_SENTINEL, label: BLANK_SENTINEL },
       ],
@@ -707,6 +760,59 @@ const EXPLICIT_CASES: Case[] = [
         isSingleValueDim: false,
       },
     },
+  },
+  {
+    // from_month means "to present": the stored max is schema-mandated but
+    // ignored at query time — the upper bound re-anchors to the live data's
+    // max. Stored figure configs can now carry this filter type (the AI patch
+    // schema's open-ended periodFilter), so pin the semantics: max says
+    // 202402, the data reaches 202403, and 202403 is included.
+    name: "from_month ignores its stored max — range extends to the live data max",
+    fixture: "hmis_monthly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["period_id"],
+      periodFilter: { filterType: "from_month", min: 202402, max: 202402 },
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { period_id: 202402, value: 25 },
+        { period_id: 202403, value: 4 },
+      ],
+    },
+  },
+  {
+    // Year-granularity data collapses every non-custom filter to the latest
+    // year (getPeriodFilterExactBounds). Judged intended 2026-08-03: the UI's
+    // only relative option for year data is "Last year", stored as
+    // last_n_months(12), and {min: max, max} is exactly what it means. Module
+    // presets on annual metrics (m006/m009) rely on the same collapse.
+    name: "year table: last_n_months means 'Last year' — collapses to latest year",
+    fixture: "hmis_yearly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["year"],
+      periodFilter: { filterType: "last_n_months", nMonths: 12 },
+    },
+    expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
+  },
+  {
+    // Same collapse for a bounded from_month: min 2023 is discarded, latest
+    // year only. Judged acceptable 2026-08-03 because the state is
+    // near-unreachable — the AI patch path rejects open-ended filters on year
+    // granularity (applyFigureConfigPatch), the UI never offers from_month
+    // for year data, and no module has ever changed a metric's granularity
+    // (the drift class the quarter_id block degrades for). If the engine is
+    // ever made type-aware, this case must go red and be re-judged.
+    name: "year table: from_month min is discarded — latest year only",
+    fixture: "hmis_yearly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["year"],
+      periodFilter: { filterType: "from_month", min: 2023, max: 2024 },
+    },
+    expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
   },
 ];
 

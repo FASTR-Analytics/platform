@@ -25,6 +25,7 @@ import {
   lastMessageHasUnresolvedToolUse,
   openConfirm,
   renderOutgoingMessages,
+  resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   sanitizePersistedSettings,
@@ -59,15 +60,12 @@ import {
   ToolRegistry,
   type ToolResult,
 } from "../_core/tool_engine.ts";
-import {
-  AIToolFailure,
-  toolThrowToResultParts,
-} from "../_core/tool_failure.ts";
+import { AIToolFailure, toolThrowToResultParts } from "../deps.ts";
 import type {
   AIToolWithMetadata,
   ProposalResult,
   ToolUIMetadata,
-} from "../_core/tool_helpers.ts";
+} from "../deps.ts";
 import { ProposalPreviewBody } from "./_renderers/approval_renderer.tsx";
 import type { AIChatConfig, DisplayItem } from "../_core/types.ts";
 import type { AIChatSettingsValues } from "./ai_chat_settings_panel.tsx";
@@ -186,22 +184,25 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     ? { ...contextConfig, ...configOverride }
     : contextConfig;
 
-  if (!configMaybe || !configMaybe.sdkClient || !configMaybe.modelConfig) {
+  if (!configMaybe || !configMaybe.sdkClient) {
     throw new Error(
-      "createAIChat requires sdkClient and modelConfig. Either pass them directly or use AIChatProvider.",
+      "createAIChat requires sdkClient. Either pass it directly or use AIChatProvider.",
     );
   }
 
   const config = configMaybe as
     & Required<
-      Pick<AIChatConfig, "sdkClient" | "modelConfig">
+      Pick<AIChatConfig, "sdkClient">
     >
     & AIChatConfig;
 
-  // Per-instance copy — consumers typically pass a shared module-level
-  // default object, and mutating it (persisted settings below, updateConfig)
-  // would leak one scope's settings into every other scope in the session.
-  const modelConfig: AnthropicModelConfig = { ...config.modelConfig };
+  // Resolved against panther's DEFAULT_MODEL_CONFIG, as a per-instance copy —
+  // consumers may pass a shared module-level override object, and mutating it
+  // (persisted settings below, updateConfig) would leak one scope's settings
+  // into every other scope in the session.
+  const modelConfig: AnthropicModelConfig = resolveModelConfig(
+    config.modelConfig,
+  );
 
   const settingsKey = config.scope
     ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
@@ -1175,6 +1176,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       config.system(),
       renderOutgoingMessages(currentMessages),
     );
+    const thinking = resolveThinkingConfig(
+      modelConfig.model,
+      modelConfig.thinking,
+    );
     const stream = config.sdkClient.beta.messages.stream({
       model: modelConfig.model,
       max_tokens: modelConfig.max_tokens,
@@ -1184,13 +1189,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       temperature: supportsSamplingParams(modelConfig.model)
         ? modelConfig.temperature
         : undefined,
-      thinking: resolveThinkingConfig(
-        modelConfig.model,
-        modelConfig.thinking,
-      ),
+      thinking,
       output_config: resolveOutputConfig(
         modelConfig.model,
         modelConfig.output_config,
+        thinking,
       ),
       messages: shaped.messages,
       tools: allTools,

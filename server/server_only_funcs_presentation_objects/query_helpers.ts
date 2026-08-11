@@ -17,15 +17,19 @@ import {
   usesBlankSentinel,
 } from "lib";
 import type { QueryContext } from "./types.ts";
+import { escapeSqlString } from "../db/utils.ts";
 
 // ============================================================================
 // Blank Folding
 // ============================================================================
 
-// btrim's default charset is ASCII space only, so the whitespace classes have
+// trim's default charset is ASCII space only, so the whitespace classes have
 // to be spelled out — a tab-only cell would otherwise stay unfolded here while
 // JS `.trim()` still stripped it from the options list, which is precisely the
 // chart-group-with-no-filter-option defect this whole mechanism exists to kill.
+// Two-arg trim(), not btrim(): this SQL runs on BOTH engines (Postgres and
+// DuckDB-over-parquet share the builders) and DuckDB has no btrim. Both accept
+// trim(string, chars) and E'…' escape strings (verified by execution).
 const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
 
 /**
@@ -35,7 +39,7 @@ const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
  * the item group key stop being the same id space.
  *
  * Detects blankness with a trim but returns the value UNTRIMMED. Folding to
- * `btrim(col)` would rewrite non-blank values too: ' services' and 'services'
+ * `trim(col)` would rewrite non-blank values too: ' services' and 'services'
  * would collapse into one group keyed 'services', which buildWhereClause's
  * `UPPER(col) IN (…)` — comparing against the raw column — could then only
  * half-match. That reintroduces the same defect in a new form.
@@ -52,7 +56,7 @@ export function blankFoldedRef(columnRef: string): string {
  * Two conditions. `usesBlankSentinel` is the semantic one: integer and
  * period-derived columns have no blank state, and a multi-membership column's
  * blank cell yields no row to fold. The type check is the mechanical one — the
- * fold emits btrim() and returns a text sentinel from the CASE, neither of
+ * fold emits trim() and returns a text sentinel from the CASE, neither of
  * which Postgres will accept on an integer or numeric column, and disaggregation
  * columns are only text by convention (module authors declare the type).
  */
@@ -70,12 +74,12 @@ export function shouldFoldBlank(
  * return a different set than the group it was offered for.
  *
  * Self-parenthesising, because it contains an OR and callers AND it together
- * with other statements. `a = 1 AND col IS NULL OR btrim(col) = ''` parses as
- * `(a = 1 AND col IS NULL) OR btrim(col) = ''` — the blank test escapes its own
+ * with other statements. `a = 1 AND col IS NULL OR trim(col) = ''` parses as
+ * `(a = 1 AND col IS NULL) OR trim(col) = ''` — the blank test escapes its own
  * filter and swallows every other predicate in the WHERE clause.
  */
 export function blankPredicate(columnRef: string): string {
-  return `(${columnRef} IS NULL OR btrim(${columnRef}, ${BLANK_WHITESPACE_CHARS}) = '')`;
+  return `(${columnRef} IS NULL OR trim(${columnRef}, ${BLANK_WHITESPACE_CHARS}) = '')`;
 }
 
 // ============================================================================
@@ -318,7 +322,7 @@ export function buildWhereClause(
       // Delimiter-joined set column: membership (OR-of-many), not exact match —
       // see MULTI_MEMBERSHIP_FILTER_COLUMNS (lib/validate_fetch_config.ts)
       const quotedValues = filter.values
-        .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+        .map((v) => `'${escapeSqlString(String(v).toUpperCase())}'`)
         .join(", ");
       whereStatements.push(
         `string_to_array(UPPER(${columnName}), '${MULTI_MEMBERSHIP_DELIMITER}') && ARRAY[${quotedValues}]`,
@@ -341,7 +345,7 @@ export function buildWhereClause(
       const predicates: string[] = [];
       if (namedValues.length > 0) {
         const quotedValues = namedValues
-          .map((v) => `'${String(v).toUpperCase().replace(/'/g, "''")}'`)
+          .map((v) => `'${escapeSqlString(String(v).toUpperCase())}'`)
           .join(", ");
         predicates.push(`UPPER(${columnName}) IN (${quotedValues})`);
       }

@@ -433,6 +433,16 @@
   }
 }
 
+/* Every kit transition resolves through the --ui-dur-* tokens, so zeroing
+   them here honors prefers-reduced-motion across all components at once.
+   Un-layered on purpose: must beat the @theme-emitted :root defaults. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-dur-fast: 0ms;
+    --ui-dur-base: 0ms;
+  }
+}
+
 /* =============================================================
    Public utility classes.
 

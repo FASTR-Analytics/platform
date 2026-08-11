@@ -37,15 +37,9 @@ export function InstanceSettings(p: Props) {
     instanceState.maxAdminArea,
   );
 
-  const [countryIso3, setCountryIso3] = createSignal<string>(
-    instanceState.countryIso3 || "",
-  );
-
   const [needsSavingMaxAdminArea, setNeedsSavingMaxAdminArea] =
     createSignal(false);
   const [needsSavingFacilityCols, setNeedsSavingFacilityCols] =
-    createSignal(false);
-  const [needsSavingCountryIso3, setNeedsSavingCountryIso3] =
     createSignal(false);
 
   const [includeNames, setIncludeNames] = createSignal<boolean>(
@@ -133,27 +127,12 @@ export function InstanceSettings(p: Props) {
     return res;
   });
 
-  const updateCountryIso3 = createButtonAction(async () => {
-    const res = await serverActions.updateCountryIso3({
-      countryIso3: countryIso3(),
-    });
-    if (res.success) {
-      setNeedsSavingCountryIso3(false);
-    }
-    return res;
-  });
-
   const handleCheckboxChange = (
     setter: (value: boolean) => void,
     value: boolean,
   ) => {
     setter(value);
     setNeedsSavingFacilityCols(true);
-  };
-
-  const handleIso3Change = (value: string) => {
-    setCountryIso3(value.toUpperCase());
-    setNeedsSavingCountryIso3(true);
   };
 
   const handleLabelChange = (
@@ -300,32 +279,6 @@ export function InstanceSettings(p: Props) {
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
-        <div data-tour="instance-settings-country">
-          <SettingsSection
-            header={t3({ en: "Country", fr: "Pays", pt: "País" })}
-            rightChildren={
-              <Show when={needsSavingCountryIso3()}>
-                <Button
-                  onClick={() => updateCountryIso3.click()}
-                  state={updateCountryIso3.state()}
-                  intent="success"
-                >
-                  {t3({
-                    en: "Update country ISO3 code",
-                    fr: "Mettre à jour le code ISO3 du pays",
-                    pt: "Atualizar o código ISO3 do país",
-                  })}
-                </Button>
-              </Show>
-            }
-          >
-            <Input
-              value={countryIso3()}
-              onChange={(v) => handleIso3Change(v)}
-            />
-          </SettingsSection>
-        </div>
-
         <div data-tour="instance-settings-admin-areas">
           <SettingsSection
             header={t3({

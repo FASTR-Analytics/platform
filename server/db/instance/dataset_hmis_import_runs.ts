@@ -8,7 +8,10 @@ import {
   APIResponseWithData,
   parseJsonOrThrow,
   parseJsonOrUndefined,
+  type DatasetCsvStagingResult,
   type DatasetDhis2StagingResult,
+  type DatasetHmisCsvRunConfig,
+  type DatasetHmisCsvRunLaunchInput,
   type DatasetHmisImportRunDetail,
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunStats,
@@ -20,6 +23,9 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/import_hmis_data_dhis2/instantiate_worker.ts";
+import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
+import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
+import { resolveAssetFileOrThrow } from "./assets.ts";
 import {
   clearWorker,
   getWorker,
@@ -40,15 +46,25 @@ function toSelectionSummary(selection: Dhis2RunSelection): Dhis2RunSelectionSumm
   return selection;
 }
 
+function parseCsvConfig(
+  csvConfig: string | null,
+): DatasetHmisCsvRunConfig | undefined {
+  return csvConfig
+    ? parseJsonOrUndefined<DatasetHmisCsvRunConfig>(csvConfig)
+    : undefined;
+}
+
 function toRunSummary(row: DBDatasetHmisImportRun): DatasetHmisImportRunSummary {
   return {
     id: row.id,
     trigger: row.trigger,
     triggeredBy: row.triggered_by ?? undefined,
-    dhis2Url: row.dhis2_url,
-    selection: toSelectionSummary(
-      parseJsonOrThrow<Dhis2RunSelection>(row.selection),
-    ),
+    source: row.source,
+    dhis2Url: row.dhis2_url ?? undefined,
+    selection: row.selection
+      ? toSelectionSummary(parseJsonOrThrow<Dhis2RunSelection>(row.selection))
+      : undefined,
+    csvFileName: parseCsvConfig(row.csv_config)?.fileName,
     status: row.status,
     error: row.error ?? undefined,
     totalPairs: row.total_pairs,
@@ -68,7 +84,8 @@ export async function getDatasetHmisImportRunSummaries(
 ): Promise<APIResponseWithData<DatasetHmisImportRunSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
-      SELECT id, trigger, triggered_by, dhis2_url, selection, status, error,
+      SELECT id, trigger, triggered_by, source, dhis2_url, selection,
+        csv_config, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
         version_id, progress
       FROM dataset_hmis_import_runs
@@ -85,7 +102,8 @@ export async function getDatasetHmisImportRunDetail(
 ): Promise<APIResponseWithData<DatasetHmisImportRunDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
-      SELECT id, trigger, triggered_by, dhis2_url, selection, status, error,
+      SELECT id, trigger, triggered_by, source, dhis2_url, selection,
+        csv_config, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
         version_id, progress, run_stats
       FROM dataset_hmis_import_runs
@@ -94,6 +112,23 @@ export async function getDatasetHmisImportRunDetail(
     const row = rows.at(0);
     if (!row) {
       throw new Error(`Import run ${runId} not found.`);
+    }
+    // run_stats is by-source: DHIS2 runs store DatasetHmisImportRunStats, CSV
+    // runs store { csvStagingResult } (written at needs_review and at
+    // complete, so the diagnostics survive the run's whole life).
+    if (row.source === "csv") {
+      const parsed = row.run_stats
+        ? parseJsonOrUndefined<{ csvStagingResult: DatasetCsvStagingResult }>(
+            row.run_stats,
+          )
+        : undefined;
+      return {
+        success: true,
+        data: {
+          ...toRunSummary(row),
+          csvStagingResult: parsed?.csvStagingResult,
+        },
+      };
     }
     return {
       success: true,
@@ -170,14 +205,6 @@ async function validateRunSelection(
     );
   }
   return pairs;
-}
-
-export async function countActiveCsvAttempts(mainDb: Sql): Promise<number> {
-  const rows = await mainDb<{ count: string | number }[]>`
-    SELECT COUNT(*) as count FROM dataset_hmis_upload_attempts
-    WHERE status_type IN ('staging', 'integrating')
-  `;
-  return Number(rows[0].count);
 }
 
 // Spawns the run worker for a row already claimed as 'running' and wires the
@@ -270,12 +297,9 @@ export async function launchDatasetHmisDhis2ImportRun(
     const pairs = await validateRunSelection(mainDb, selection);
 
     // Read-guards for friendly errors; the atomic claim is the INSERT below
-    // (partial unique index: at most one status='running' row).
-    if ((await countActiveCsvAttempts(mainDb)) > 0) {
-      throw new Error(
-        "A CSV import operation is in progress. Please wait for it to complete.",
-      );
-    }
+    // (partial unique index: at most one status='running' row). CSV imports
+    // share the same claim, so no cross-table guard exists — the race it
+    // defended is structurally impossible.
     await assertNoRunningDatasetHmisImportRun(mainDb);
     if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
       throw new Error(
@@ -285,28 +309,14 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, dhis2_url, selection, status, total_pairs, progress)
+        (trigger, triggered_by, source, dhis2_url, selection, status, total_pairs, progress)
       VALUES
-        (${trigger}, ${triggeredBy}, ${dhis2Url}, ${JSON.stringify(selection)},
+        (${trigger}, ${triggeredBy}, 'dhis2', ${dhis2Url}, ${JSON.stringify(selection)},
          'running', ${pairs.length},
          ${JSON.stringify({ phase: "classifying", activePairs: [] })})
       RETURNING id
     `;
     const runId = inserted[0].id;
-
-    // Re-check the cross-table guard after the claim: a CSV claim can land
-    // between the read-guard above and our INSERT.
-    if ((await countActiveCsvAttempts(mainDb)) > 0) {
-      await mainDb`
-        UPDATE dataset_hmis_import_runs
-        SET status = 'error', ended_at = now(), progress = NULL,
-          error = 'A CSV import claimed the import slot concurrently. Try again once it completes.'
-        WHERE id = ${runId}
-      `;
-      throw new Error(
-        "A CSV import operation is in progress. Please wait for it to complete.",
-      );
-    }
 
     // Inline credentials travel only in the worker message — never stored on
     // the run row; stored credentials are decrypted inside the worker (C3).
@@ -329,9 +339,9 @@ export async function enqueueDatasetHmisImportRun(
     const pairs = await validateRunSelection(mainDb, args.selection);
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, dhis2_url, selection, status, total_pairs)
+        (trigger, triggered_by, source, dhis2_url, selection, status, total_pairs)
       VALUES
-        ('manual', ${args.triggeredBy}, ${args.dhis2Url},
+        ('manual', ${args.triggeredBy}, 'dhis2', ${args.dhis2Url},
          ${JSON.stringify(args.selection)}, 'queued', ${pairs.length})
       RETURNING id
     `;
@@ -339,11 +349,29 @@ export async function enqueueDatasetHmisImportRun(
   });
 }
 
+export type QueuedDatasetHmisImportRun =
+  | {
+      source: "dhis2";
+      id: number;
+      dhis2Url: string;
+      selection: Dhis2RunSelection;
+    }
+  | { source: "csv"; id: number; config: DatasetHmisCsvRunConfig };
+
 export async function getOldestQueuedDatasetHmisImportRun(
   mainDb: Sql,
-): Promise<{ id: number; dhis2Url: string; selection: Dhis2RunSelection } | null> {
-  const rows = await mainDb<{ id: number; dhis2_url: string; selection: string }[]>`
-    SELECT id, dhis2_url, selection FROM dataset_hmis_import_runs
+): Promise<QueuedDatasetHmisImportRun | null> {
+  const rows = await mainDb<
+    {
+      id: number;
+      source: "dhis2" | "csv";
+      dhis2_url: string | null;
+      selection: string | null;
+      csv_config: string | null;
+    }[]
+  >`
+    SELECT id, source, dhis2_url, selection, csv_config
+    FROM dataset_hmis_import_runs
     WHERE status = 'queued'
     ORDER BY id
     LIMIT 1
@@ -352,10 +380,18 @@ export async function getOldestQueuedDatasetHmisImportRun(
   if (!row) {
     return null;
   }
+  if (row.source === "csv") {
+    return {
+      source: "csv",
+      id: row.id,
+      config: parseJsonOrThrow<DatasetHmisCsvRunConfig>(row.csv_config ?? ""),
+    };
+  }
   return {
+    source: "dhis2",
     id: row.id,
-    dhis2Url: row.dhis2_url,
-    selection: parseJsonOrThrow<Dhis2RunSelection>(row.selection),
+    dhis2Url: row.dhis2_url ?? "",
+    selection: parseJsonOrThrow<Dhis2RunSelection>(row.selection ?? ""),
   };
 }
 
@@ -419,17 +455,6 @@ export async function launchQueuedDatasetHmisImportRun(
     return false;
   }
 
-  // Same post-claim CSV re-check as launch; reverting to 'queued' (not error)
-  // lets a later tick retry once the CSV phase ends.
-  if ((await countActiveCsvAttempts(mainDb)) > 0) {
-    await mainDb`
-      UPDATE dataset_hmis_import_runs
-      SET status = 'queued', progress = NULL
-      WHERE id = ${args.runId} AND status = 'running'
-    `;
-    return false;
-  }
-
   await spawnRunWorker(mainDb, {
     runId: args.runId,
     credentialsSource: { kind: "stored" },
@@ -439,11 +464,374 @@ export async function launchQueuedDatasetHmisImportRun(
   return true;
 }
 
+// ============================================================================
+// CSV IMPORT RUNS (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
+// ============================================================================
+
+// Validates the launch input and stamps the byte pin — the returned config is
+// what gets stored on the run row.
+async function validateCsvRunConfig(
+  mainDb: Sql,
+  input: DatasetHmisCsvRunLaunchInput,
+): Promise<DatasetHmisCsvRunConfig> {
+  const mappings = input.mappings;
+  for (const key of [
+    "facility_id",
+    "raw_indicator_id",
+    "period_id",
+    "count",
+  ] as const) {
+    if (!mappings[key]) {
+      throw new Error(`Missing column mapping for ${key}.`);
+    }
+  }
+  const { pin } = await resolveAssetFileOrThrow(input.fileName, null);
+  const [{ count }] = await mainDb<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM facilities_hmis
+  `;
+  if (count === 0) {
+    throw new Error(
+      "No HMIS facilities found. Import HMIS facilities before importing data.",
+    );
+  }
+  return { fileName: input.fileName, filePin: pin, mappings: input.mappings };
+}
+
+// Spawns the CSV run worker for a row already claimed as 'running'. Reads
+// config + recorded diagnostics from the row itself, so launch, queued-fire,
+// and integrate-anyway all share one spawn path. A spawn failure releases the
+// claim (same rule as the DHIS2 spawner).
+async function spawnCsvRunWorker(
+  mainDb: Sql,
+  args: { runId: number; onComplete?: () => void },
+): Promise<void> {
+  const { runId, onComplete } = args;
+  const row = (
+    await mainDb<
+      { csv_config: string | null; run_stats: string | null }[]
+    >`
+      SELECT csv_config, run_stats FROM dataset_hmis_import_runs
+      WHERE id = ${runId}
+    `
+  ).at(0);
+  if (!row || !row.csv_config) {
+    throw new Error(`CSV run ${runId} has no config.`);
+  }
+  const config = parseJsonOrThrow<DatasetHmisCsvRunConfig>(row.csv_config);
+
+  const failClaim = async (message: string) => {
+    await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'error', ended_at = now(), progress = NULL,
+        error = ${message}
+      WHERE id = ${runId} AND status = 'running'
+    `;
+  };
+
+  let csvFilePath = "";
+  if (!config.resumeFromStaging) {
+    // A missing pin (a pre-pin row) fails like a changed file: any such run
+    // that still needs its file names bytes nobody validated.
+    if (!config.filePin) {
+      const message =
+        "The file has changed since this run was launched. Start the import again.";
+      await failClaim(message);
+      throw new Error(message);
+    }
+    try {
+      const { filePath } = await resolveAssetFileOrThrow(
+        config.fileName,
+        config.filePin,
+      );
+      csvFilePath = filePath;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await failClaim(message);
+      throw e;
+    }
+  }
+
+  let stagingResult: DatasetCsvStagingResult | undefined;
+  if (config.resumeFromStaging) {
+    const parsed = row.run_stats
+      ? parseJsonOrUndefined<{ csvStagingResult: DatasetCsvStagingResult }>(
+          row.run_stats,
+        )
+      : undefined;
+    stagingResult = parsed?.csvStagingResult;
+    if (!stagingResult) {
+      await failClaim(
+        "This run has no recorded staging result to integrate. Discard it and start the import again.",
+      );
+      throw new Error("Missing recorded staging result.");
+    }
+  }
+
+  let worker: Worker;
+  try {
+    worker = instantiateImportHmisDataCsvWorker({
+      runId,
+      config,
+      csvFilePath,
+      stagingResult,
+    });
+    setWorker("hmis", worker);
+  } catch (spawnError) {
+    await failClaim(
+      `Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`,
+    );
+    throw spawnError;
+  }
+
+  worker.addEventListener("error", async (e) => {
+    console.error("HMIS CSV import run worker crashed:", e);
+    e.preventDefault();
+    clearWorker("hmis", worker);
+    worker.terminate();
+    try {
+      await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'error', ended_at = now(), progress = NULL,
+          error = ${`Worker crashed: ${e.message || "Unknown error"}`}
+        WHERE id = ${runId} AND status = 'running'
+      `;
+      await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
+      // A crash mid-integration cannot leave a committed version (single
+      // transaction), but a crash between commit and the status flip can —
+      // reconcile the version row the same way DHIS2 interruptions do.
+      await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
+    } catch (dbError) {
+      console.error("Failed to mark CSV run errored after crash:", dbError);
+    }
+    try {
+      await onComplete?.();
+    } catch (err) {
+      console.error("CSV import run onComplete callback failed:", err);
+    }
+  });
+
+  worker.addEventListener("message", async (e) => {
+    if (e.data === "COMPLETED") {
+      clearWorker("hmis", worker);
+      worker.terminate();
+      try {
+        await onComplete?.();
+      } catch (err) {
+        console.error("CSV import run onComplete callback failed:", err);
+      }
+    }
+  });
+}
+
+export async function launchDatasetHmisCsvImportRun(
+  mainDb: Sql,
+  args: {
+    config: DatasetHmisCsvRunLaunchInput;
+    triggeredBy: string;
+    onComplete?: () => void;
+  },
+): Promise<APIResponseWithData<{ runId: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const config = await validateCsvRunConfig(mainDb, args.config);
+
+    // Read-guards for friendly errors; the atomic claim is the INSERT below
+    // (partial unique index: at most one status='running' row, shared with
+    // DHIS2 runs).
+    await assertNoRunningDatasetHmisImportRun(mainDb);
+    if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
+      throw new Error(
+        "An HMIS import operation is already in progress. Please wait for it to complete.",
+      );
+    }
+
+    const inserted = await mainDb<{ id: number }[]>`
+      INSERT INTO dataset_hmis_import_runs
+        (trigger, triggered_by, source, csv_config, status, progress)
+      VALUES
+        ('manual', ${args.triggeredBy}, 'csv', ${JSON.stringify(config)},
+         'running', ${JSON.stringify({ phase: "staging", percent: 0 })})
+      RETURNING id
+    `;
+    const runId = inserted[0].id;
+
+    await spawnCsvRunWorker(mainDb, { runId, onComplete: args.onComplete });
+
+    return { success: true, data: { runId } };
+  });
+}
+
+// Explicit queueing while a run is active — inert row, drained FIFO by the
+// scheduler tick alongside queued DHIS2 runs. CSV fires need no credential
+// checks (the pinned asset is the whole input).
+export async function enqueueDatasetHmisCsvImportRun(
+  mainDb: Sql,
+  args: { config: DatasetHmisCsvRunLaunchInput; triggeredBy: string },
+): Promise<APIResponseWithData<{ runId: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const config = await validateCsvRunConfig(mainDb, args.config);
+    const inserted = await mainDb<{ id: number }[]>`
+      INSERT INTO dataset_hmis_import_runs
+        (trigger, triggered_by, source, csv_config, status)
+      VALUES
+        ('manual', ${args.triggeredBy}, 'csv', ${JSON.stringify(config)},
+         'queued')
+      RETURNING id
+    `;
+    return { success: true, data: { runId: inserted[0].id } };
+  });
+}
+
+// Claims a queued CSV row by conditional UPDATE — the partial unique index
+// still arbitrates. Returns false when the claim was not taken.
+export async function launchQueuedDatasetHmisCsvImportRun(
+  mainDb: Sql,
+  args: { runId: number; onComplete?: () => void },
+): Promise<boolean> {
+  if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
+    return false;
+  }
+  let claimed: number;
+  try {
+    const updated = await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET status = 'running', started_at = now(),
+        progress = ${JSON.stringify({ phase: "staging", percent: 0 })}
+      WHERE id = ${args.runId} AND status = 'queued'
+    `;
+    claimed = updated.count;
+  } catch (e) {
+    console.log(
+      `Queued CSV run ${args.runId} lost the launch race — staying queued:`,
+      e instanceof Error ? e.message : e,
+    );
+    return false;
+  }
+  if (claimed === 0) {
+    return false;
+  }
+  try {
+    await spawnCsvRunWorker(mainDb, {
+      runId: args.runId,
+      onComplete: args.onComplete,
+    });
+  } catch (e) {
+    // The claim WAS taken and spawnCsvRunWorker already failed it (pin
+    // mismatch, missing file) — report true so the caller's notify fires and
+    // clients drop the stale "queued" badge.
+    console.error(
+      `Queued CSV run ${args.runId} failed at spawn:`,
+      e instanceof Error ? e.message : e,
+    );
+  }
+  return true;
+}
+
+// needs_review resolution. "Integrate anyway" re-claims the slot (or queues
+// explicitly behind a running import — the §2 ruled change: a hold never
+// blocks the lane); "Discard" cancels and drops the surviving staging table.
+export async function resolveDatasetHmisCsvReview(
+  mainDb: Sql,
+  args: {
+    runId: number;
+    action: "integrate_anyway" | "discard";
+    onComplete?: () => void;
+  },
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<
+        { status: string; source: string; csv_config: string | null }[]
+      >`
+        SELECT status, source, csv_config FROM dataset_hmis_import_runs
+        WHERE id = ${args.runId}
+      `
+    ).at(0);
+    if (!row || row.source !== "csv") {
+      throw new Error("This run is not a CSV import.");
+    }
+    if (row.status !== "needs_review") {
+      throw new Error("This run is not waiting for review.");
+    }
+    const config = parseJsonOrThrow<DatasetHmisCsvRunConfig>(
+      row.csv_config ?? "",
+    );
+
+    if (args.action === "discard") {
+      const updated = await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'cancelled', ended_at = now(),
+          error = 'Discarded at review: staged rows were not integrated.'
+        WHERE id = ${args.runId} AND status = 'needs_review'
+      `;
+      if (updated.count === 0) {
+        throw new Error("This run is not waiting for review.");
+      }
+      await dropHmisCsvStagingTables(mainDb, args.runId, { keepFinal: false });
+      return { success: true };
+    }
+
+    const resumeConfig: DatasetHmisCsvRunConfig = {
+      ...config,
+      resumeFromStaging: true,
+    };
+
+    // Try to re-claim the slot directly; a unique violation (another import
+    // running) queues the run instead — the tick fires it when free.
+    let claimedCount = 0;
+    try {
+      const claimed = await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'running', started_at = now(),
+          csv_config = ${JSON.stringify(resumeConfig)},
+          progress = ${JSON.stringify({ phase: "integrating", percent: 0 })}
+        WHERE id = ${args.runId} AND status = 'needs_review'
+      `;
+      claimedCount = claimed.count;
+    } catch {
+      claimedCount = 0;
+    }
+    if (claimedCount === 0 || getWorker("hmis") || getWorker("hmis_dhis2_run")) {
+      if (claimedCount > 0) {
+        // Claimed the row but a worker is mid-teardown — queue instead of
+        // racing it.
+        await mainDb`
+          UPDATE dataset_hmis_import_runs
+          SET status = 'queued', progress = NULL
+          WHERE id = ${args.runId} AND status = 'running'
+        `;
+        return { success: true };
+      }
+      await mainDb`
+        UPDATE dataset_hmis_import_runs
+        SET status = 'queued', progress = NULL,
+          csv_config = ${JSON.stringify(resumeConfig)}
+        WHERE id = ${args.runId} AND status = 'needs_review'
+      `;
+      return { success: true };
+    }
+
+    await spawnCsvRunWorker(mainDb, {
+      runId: args.runId,
+      onComplete: args.onComplete,
+    });
+    return { success: true };
+  });
+}
+
 export async function cancelDatasetHmisImportRun(
   mainDb: Sql,
   runId: number,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
+    const runRow = (
+      await mainDb<{ source: "dhis2" | "csv" }[]>`
+        SELECT source FROM dataset_hmis_import_runs
+        WHERE id = ${runId}
+      `
+    ).at(0);
+    if (!runRow) {
+      throw new Error("This run does not exist.");
+    }
     // A queued row has no worker and no version — removing it is just a flip.
     const removedFromQueue = await mainDb`
       UPDATE dataset_hmis_import_runs
@@ -452,6 +840,9 @@ export async function cancelDatasetHmisImportRun(
       WHERE id = ${runId} AND status = 'queued'
     `;
     if (removedFromQueue.count > 0) {
+      if (runRow.source === "csv") {
+        await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
+      }
       return { success: true };
     }
     // The status flip comes FIRST and is conditional on the given runId: a
@@ -460,28 +851,33 @@ export async function cancelDatasetHmisImportRun(
     const updated = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
-        error = 'Cancelled by user. Pairs completed before cancellation are preserved in the ledger.'
+        error = ${runRow.source === "csv" ? "Cancelled by user. Nothing was integrated." : "Cancelled by user. Pairs completed before cancellation are preserved in the ledger."}
       WHERE id = ${runId} AND status = 'running'
     `;
     if (updated.count === 0) {
       throw new Error("This run is not running.");
     }
-    // Terminating the worker aborts its in-flight pair transaction; completed
-    // pairs are already committed with their ledger rows — that is the point
-    // of per-pair units. Between the flip and the terminate the worker may
-    // still commit a pair (counter increments are deliberately unguarded —
-    // finalize recomputes from them) but can never resurrect the run:
-    // progress and completion writes are status-guarded.
-    const worker = getWorker("hmis_dhis2_run");
+    // Terminating the worker aborts its in-flight transaction; DHIS2 pairs
+    // already committed keep their ledger rows (the point of per-pair units),
+    // and a CSV run's single transaction rolls back whole. Between the flip
+    // and the terminate the worker may still commit (counter increments are
+    // deliberately unguarded — finalize recomputes from them) but can never
+    // resurrect the run: progress and completion writes are status-guarded.
+    const workerKey = runRow.source === "csv" ? "hmis" : "hmis_dhis2_run";
+    const worker = getWorker(workerKey);
     if (worker) {
       worker.terminate();
-      clearWorker("hmis_dhis2_run", worker);
+      clearWorker(workerKey, worker);
+    }
+    if (runRow.source === "csv") {
+      await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
     }
     await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
-    // No scope-table drop here: the flip above already released the claim, so
-    // a successor run may have created its own scope table by now — dropping
-    // the fixed-name table here could destroy the successor's snapshot. Every
-    // run drops-and-recreates it at start, so a leftover is harmless.
+    // No scope-table drop here (DHIS2): the flip above already released the
+    // claim, so a successor run may have created its own scope table by now —
+    // dropping the fixed-name table here could destroy the successor's
+    // snapshot. Every run drops-and-recreates it at start, so a leftover is
+    // harmless.
     return { success: true };
   });
 }
@@ -611,14 +1007,22 @@ async function reconcileRunVersionRow(
 export async function markStaleRunningDatasetHmisImportRuns(
   mainDb: Sql,
 ): Promise<number> {
-  const swept = await mainDb<{ id: number }[]>`
+  const swept = await mainDb<
+    { id: number; source: "dhis2" | "csv" }[]
+  >`
     UPDATE dataset_hmis_import_runs
     SET status = 'error', ended_at = now(), progress = NULL,
-      error = 'Import run interrupted by a server restart. Pairs completed before the restart are preserved in the ledger.'
+      error = CASE WHEN source = 'csv'
+        THEN 'Import run interrupted by a server restart. Nothing was integrated — start the import again.'
+        ELSE 'Import run interrupted by a server restart. Pairs completed before the restart are preserved in the ledger.'
+      END
     WHERE status = 'running'
-    RETURNING id
+    RETURNING id, source
   `;
   for (const row of swept) {
+    if (row.source === "csv") {
+      await dropHmisCsvStagingTables(mainDb, row.id, { keepFinal: false });
+    }
     await finalizeInterruptedDatasetHmisRunVersion(mainDb, row.id);
   }
   return swept.length;

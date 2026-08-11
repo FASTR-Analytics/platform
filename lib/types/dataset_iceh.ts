@@ -2,7 +2,6 @@
 // ICEH Data Types
 // ============================================================================
 
-import type { IcehUploadAttemptSummary } from "./dataset_iceh_import.ts";
 import type { IcehStrat } from "./iceh_strats.ts";
 
 export type IcehIndicator = {
@@ -26,7 +25,6 @@ export type IcehDataRow = {
 };
 
 export type IcehDataDetail = {
-  uploadAttempt: IcehUploadAttemptSummary | undefined;
   indicators: number;
   dataRows: number;
   years: number[];

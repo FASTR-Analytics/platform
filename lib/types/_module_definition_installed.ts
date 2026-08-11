@@ -6,7 +6,6 @@
 // ============================================================================
 
 import { z } from "zod";
-import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
 
 // ============================================================================
 // Module-specific atoms
@@ -57,6 +56,24 @@ export const configRequirements = z.object({
   parameters: z.array(moduleParameter),
 });
 
+// Two kinds of asset (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut
+// 2026-08-03): a plain string names an instance-uploaded asset (resolved from
+// the instance Assets dir); an object pins a modules-repo data file by repo
+// path + sha256, fetched at the definition's own gitRef, verified against
+// sha256, and cached content-addressed (repo_assets/{sha256}). Legacy stored
+// definitions carry a now-ignored `commit` field (stripped on parse).
+export const repoAssetToImport = z.object({
+  name: z.string(),
+  repoPath: z.string(),
+  sha256: z.string(),
+});
+
+export const assetToImport = z.union([z.string(), repoAssetToImport]);
+
+export function getAssetToImportName(asset: AssetToImport): string {
+  return typeof asset === "string" ? asset : asset.name;
+}
+
 // ============================================================================
 // Component schemas
 // ============================================================================
@@ -73,15 +90,6 @@ export const resultsObjectDefinitionInstalledStrict = z.object({
   ]),
 });
 
-export const defaultPresentationObjectInstalledStrict = z.object({
-  id: z.string(),
-  label: z.string(),
-  moduleId: z.string(),
-  metricId: z.string(),
-  sortOrder: z.number(),
-  config: presentationObjectConfigSchema,
-});
-
 // ============================================================================
 // Main schema
 // ============================================================================
@@ -96,9 +104,11 @@ export const moduleDefinitionInstalledStrict = z.object({
   scriptGenerationType: scriptGenerationType,
   configRequirements: configRequirements,
   script: z.string(),
-  assetsToImport: z.array(z.string()),
+  assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
-  defaultPresentationObjects: z.array(defaultPresentationObjectInstalledStrict),
+  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b —
+  // defaults are derived from metric viz presets, never stored. Old blobs
+  // still carrying the key parse fine (strip mode).
 });
 
 export const moduleDefinitionInstalledSchema = moduleDefinitionInstalledStrict;
@@ -112,9 +122,10 @@ export type DataSource = z.infer<typeof dataSource>;
 export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
 export type ModuleParameter = z.infer<typeof moduleParameter>;
+export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
+export type AssetToImport = z.infer<typeof assetToImport>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
 export type ResultsObjectDefinition = z.infer<typeof resultsObjectDefinitionInstalledStrict>;
-export type DefaultPresentationObject = z.infer<typeof defaultPresentationObjectInstalledStrict>;
 export type ModuleDefinitionInstalled = z.infer<typeof moduleDefinitionInstalledStrict>;
 
 // ============================================================================

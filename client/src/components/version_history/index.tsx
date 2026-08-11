@@ -176,7 +176,7 @@ export function VersionHistoryEditor(p: Props) {
                   <For each={groupByDay(rows)}>
                     {(group) => (
                       <>
-                        <div class="bg-base-200 ui-text-caption sticky top-0 px-3 py-1 font-semibold">
+                        <div class="bg-base-200 ui-text-caption sticky top-0 px-3 py-1 font-700">
                           {group.day}
                         </div>
                         <For each={group.rows}>

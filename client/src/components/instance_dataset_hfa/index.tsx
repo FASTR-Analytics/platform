@@ -1,27 +1,17 @@
-import { t3, type HfaTimePoint, type DatasetUploadAttemptSummary } from "lib";
+import { t3, type HfaTimePoint } from "lib";
 import {
   Button,
   FrameRight,
   FrameTop,
   HeadingBar,
   getEditorWrapper,
-  createButtonAction,
-  toPct0,
 } from "panther";
-import {
-  Match,
-  Show,
-  Switch,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js";
-import { DatasetHfaUploadAttemptForm } from "~/components/instance_dataset_hfa_import";
-import { serverActions } from "~/server_actions";
+import { Show } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";
+import { DatasetHfaImports } from "./imports";
 
 type Props = {
   backToInstance: () => void;
@@ -30,50 +20,10 @@ type Props = {
 export function InstanceDatasetHfa(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [uploadAttempt, setUploadAttempt] = createSignal<
-    DatasetUploadAttemptSummary | undefined
-  >(undefined);
-
-  async function fetchUploadAttempt() {
-    try {
-      const result = await serverActions.getDatasetHfaDetail({});
-      if (result.success) {
-        setUploadAttempt(result.data.uploadAttempt);
-      }
-    } catch {
-      // Silent fail
-    }
-  }
-
-  let pollingInterval: ReturnType<typeof setInterval> | undefined;
-
-  onMount(() => {
-    fetchUploadAttempt();
-    pollingInterval = setInterval(async () => {
-      if (uploadAttempt() !== undefined) {
-        await fetchUploadAttempt();
-      }
-    }, 5000);
-  });
-
-  onCleanup(() => {
-    if (pollingInterval !== undefined) {
-      clearInterval(pollingInterval);
-    }
-  });
-
-  const newUploadAttempt = createButtonAction(
-    () => serverActions.createDatasetHfaUploadAttempt({}),
-    fetchUploadAttempt,
-    openUploadAttempt,
-  );
-
-  async function openUploadAttempt() {
+  async function openImports(autoOpenWizard: boolean) {
     await openEditor({
-      element: DatasetHfaUploadAttemptForm,
-      props: {
-        silentFetch: fetchUploadAttempt,
-      },
+      element: DatasetHfaImports,
+      props: { autoOpenWizard },
     });
   }
 
@@ -112,73 +62,25 @@ export function InstanceDatasetHfa(p: Props) {
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
                 <div class="font-700 text-lg">{t3({ en: "Imports", fr: "Importations", pt: "Importações" })}</div>
-                <Switch>
-                  <Match when={!uploadAttempt()}>
-                    <div class="">
-                      <Button
-                        onClick={newUploadAttempt.click}
-                        state={newUploadAttempt.state()}
-                        iconName="upload"
-                        fullWidth
-                      >
-                        {t3({ en: "Start new import", fr: "Nouvelle importation", pt: "Iniciar nova importação" })}
-                      </Button>
-                    </div>
-                  </Match>
-                  <Match when={uploadAttempt()} keyed>
-                    {(keyedUploadAttempt) => {
-                      return (
-                        <div
-                          class="ui-pad ui-hoverable-base-200 rounded border"
-                          onClick={openUploadAttempt}
-                        >
-                          <Switch>
-                            <Match when={keyedUploadAttempt.status.status === "complete"}>
-                              <div class="text-sm">
-                                {t3({ en: "Import is complete! Click to view and remove.", fr: "Importation terminée ! Cliquez pour consulter et supprimer.", pt: "Importação concluída! Clique para ver e remover." })}
-                              </div>
-                            </Match>
-                            <Match when={keyedUploadAttempt.status.status === "error"}>
-                              <div class="text-danger text-sm">
-                                {t3({ en: "Error with upload. Click to view.", fr: "Erreur lors du téléversement. Cliquez pour consulter.", pt: "Erro no carregamento. Clique para ver." })}
-                              </div>
-                            </Match>
-                            <Match when={keyedUploadAttempt.status.status === "staging"} keyed>
-                              <div class="ui-spy-sm text-center">
-                                <div class="">{t3({ en: "Staging underway", fr: "Préparation en cours", pt: "Preparação em curso" })}</div>
-                                <div class="font-700 text-lg">
-                                  {toPct0(((keyedUploadAttempt.status as any)?.progress ?? 0) / 100)}
-                                </div>
-                                <div class="text-xs">
-                                  {t3({ en: "This number will automatically update. No need to refresh.", fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.", pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página." })}
-                                </div>
-                              </div>
-                            </Match>
-                            <Match when={keyedUploadAttempt.status.status === "integrating"} keyed>
-                              <div class="ui-spy-sm text-center">
-                                <div class="">{t3({ en: "Integrating underway", fr: "Intégration en cours", pt: "Integração em curso" })}</div>
-                                <div class="font-700 text-lg">
-                                  {toPct0(
-                                    //@ts-ignore
-                                    ((keyedUploadAttempt.status as any)?.progress ?? 0) / 100,
-                                  )}
-                                </div>
-                                <div class="text-xs">
-                                  {t3({ en: "This number will automatically update. No need to refresh.", fr: "Ce nombre se met à jour automatiquement. Pas besoin d'actualiser.", pt: "Este número atualiza-se automaticamente. Não é necessário atualizar a página." })}
-                                </div>
-                              </div>
-                            </Match>
-                            <Match when={true}>
-                              <div class="text-sm">
-                                {t3({ en: "Import in draft stage. Click to continue.", fr: "Importation en cours de préparation. Cliquez pour continuer.", pt: "Importação em fase de rascunho. Clique para continuar." })}
-                              </div>
-                            </Match>
-                          </Switch>
-                        </div>
-                      );
-                    }}
-                  </Match>
-                </Switch>
+                <div class="">
+                  <Button
+                    onClick={() => openImports(true)}
+                    iconName="upload"
+                    fullWidth
+                  >
+                    {t3({ en: "Start new import", fr: "Nouvelle importation", pt: "Iniciar nova importação" })}
+                  </Button>
+                </div>
+                <div class="">
+                  <Button
+                    onClick={() => openImports(false)}
+                    iconName="databaseImport"
+                    outline
+                    fullWidth
+                  >
+                    {t3({ en: "View imports", fr: "Voir les importations", pt: "Ver as importações" })}
+                  </Button>
+                </div>
                 <Show when={instanceState.hfaTimePoints.length > 0}>
                   <div class="ui-spy text-sm">
                     <div class="">

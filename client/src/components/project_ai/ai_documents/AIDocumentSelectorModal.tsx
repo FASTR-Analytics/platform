@@ -187,7 +187,7 @@ export function AIDocumentSelectorModal(
             </div>
           }
         >
-          <div class="mb-2 font-medium">
+          <div class="mb-2 font-700">
             {t3({
               en: "Select from uploaded assets",
               fr: "Sélectionner parmi les ressources importées",

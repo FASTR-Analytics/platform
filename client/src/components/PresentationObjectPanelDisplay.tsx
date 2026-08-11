@@ -587,10 +587,35 @@ function VisualizationGrid(p: VisualizationGridProps) {
   }
 
   async function handleEditCommonProperties(po: PresentationObjectSummary) {
-    const idsToEdit = selection.getBatchIds(po.id);
+    // Default visualizations are manifest projections with no row — the batch
+    // period-filter route refuses the whole batch if any id is one. Customize
+    // them individually instead.
+    const idsToEdit = selection
+      .getBatchIds(po.id)
+      .filter((id) => !p.visualizations.find((v) => v.id === id)?.isDefault);
+
+    if (idsToEdit.length === 0) {
+      await openAlert({
+        title: t3({
+          en: "Cannot batch edit default visualizations",
+          fr: "Modification en lot des visualisations par défaut impossible",
+          pt: "Não é possível editar em lote as visualizações predefinidas",
+        }),
+        text: t3({
+          en: "Default visualizations cannot be edited in batch. Open one to customize it as your own copy.",
+          fr: "Les visualisations par défaut ne peuvent pas être modifiées en lot. Ouvrez-en une pour la personnaliser comme votre propre copie.",
+          pt: "As visualizações predefinidas não podem ser editadas em lote. Abra uma para a personalizar como a sua própria cópia.",
+        }),
+        intent: "danger",
+      });
+      return;
+    }
 
     if (idsToEdit.length === 1) {
-      p.onClick(po);
+      const only = p.visualizations.find((v) => v.id === idsToEdit[0]);
+      if (only) {
+        p.onClick(only);
+      }
       return;
     }
 
@@ -687,7 +712,27 @@ function VisualizationGrid(p: VisualizationGridProps) {
   }
 
   async function handleDelete(po: PresentationObjectSummary) {
-    const idsToDelete = selection.getBatchIds(po.id);
+    // Default visualizations have no row and the server refuses their delete
+    // (item 5b ruling: no delete on defaults) — exclude them from the batch.
+    const idsToDelete = selection
+      .getBatchIds(po.id)
+      .filter((id) => !p.visualizations.find((v) => v.id === id)?.isDefault);
+    if (idsToDelete.length === 0) {
+      await openAlert({
+        title: t3({
+          en: "Cannot delete default visualizations",
+          fr: "Suppression des visualisations par défaut impossible",
+          pt: "Não é possível eliminar as visualizações predefinidas",
+        }),
+        text: t3({
+          en: "Default visualizations come from the results package and cannot be deleted.",
+          fr: "Les visualisations par défaut proviennent du paquet de résultats et ne peuvent pas être supprimées.",
+          pt: "As visualizações predefinidas provêm do pacote de resultados e não podem ser eliminadas.",
+        }),
+        intent: "danger",
+      });
+      return;
+    }
     const confirmText =
       idsToDelete.length > 1
         ? t3({
@@ -962,13 +1007,18 @@ function VisualizationCard(p: VisualizationCardProps) {
         icon: "copy",
         onClick: p.onDuplicate,
       },
-      {
+    );
+    // Single-select delete on a default is refused server-side (item 5b: no
+    // delete on defaults) — don't offer it. Batch delete stays: the handler
+    // filters defaults out of the selection.
+    if (isMultiSelect || !p.po.isDefault) {
+      items.push({
         label: deleteLabel,
         icon: "trash",
         intent: "danger",
         onClick: p.onDelete,
-      },
-    );
+      });
+    }
     showMenu({
       anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
       items,
@@ -1008,9 +1058,10 @@ function VisualizationCard(p: VisualizationCardProps) {
         <div class="pointer-events-none absolute bottom-1 left-1 z-10">
           <PresenceAvatars peers={cardPeers()} size="sm" showEditingPulse />
         </div>
-        {/* The card stays interactive even when the metric has no results, so it
-            can still be selected and deleted (via the context menu). Only the
-            inner preview falls back to the "Not available" placeholder. */}
+        {/* The card stays interactive even when the metric has no results, so
+            the context menu still works (delete for user rows; defaults offer
+            duplicate/customize only). Only the inner preview falls back to the
+            "Not available" placeholder. */}
         <Show
           when={isReady()}
           fallback={<NotAvailableBox fillAreaNotAvailable />}
@@ -1018,9 +1069,6 @@ function VisualizationCard(p: VisualizationCardProps) {
           <PresentationObjectMiniDisplay
             projectId={p.projectId}
             presentationObjectId={p.po.id}
-            moduleId={
-              p.metrics.find((m) => m.id === p.po.metricId)?.moduleId ?? ""
-            }
             shapeType={"force-aspect-video"}
           />
         </Show>

@@ -1,3 +1,116 @@
+[TBD] [user] [added] - "What's New" announcements can now include YouTube videos
+[TBD] [admin] [added] - "What's New" posts now support embedded YouTube videos
+[1.66.3] [user] [fixed] - Clearer error message when visualization data needs to be generated
+[1.66.3] [admin] [fixed] - Clearer error message when module output data is missing
+[1.66.1] [user] [fixed] - Fixed time-trend charts that failed to load
+[1.66.1] [admin] [fixed] - Timeseries charts with missing grouping settings now auto-repair on startup
+[1.66.0] [user] [fixed] - Results page no longer shows outdated or mismatched data
+[1.66.0] [admin] [fixed] - Fixed a race condition when loading results packages
+[1.66.0] [user] [added] - Results packages section added to instance administration
+[1.66.0] [user] [added] - View scripts, logs, and download files from results packages
+[1.66.0] [user] [added] - Results package generation progress shown with per-module status
+[1.66.0] [user] [added] - Variant groups and variant items management for HFA indicators
+[1.66.0] [user] [added] - Per-item variant code editing in the HFA indicator code editor
+[1.66.0] [user] [added] - Variant groups tab in the HFA indicator manager
+[1.66.0] [user] [added] - Variant group, variant item, and variant code columns in HFA workbook export and import
+[1.66.0] [user] [added] - Module parameter inputs for configuring analysis modules
+[1.66.0] [user] [changed] - Creating a project now only requires a name
+[1.66.0] [user] [changed] - Visualization thumbnails refresh based on the attached results package
+[1.66.0] [user] [changed] - Project comparison table simplified to show package membership instead of dirty status
+[1.66.0] [user] [fixed] - Default visualizations can no longer be deleted or batch-edited
+[1.66.0] [user] [fixed] - Clear error message shown when trying to batch edit default visualizations
+[1.66.0] [user] [fixed] - Clear error message shown when trying to delete default visualizations
+[1.66.0] [user] [fixed] - Rate formatting improved for rate-per-10k calculated indicators
+[1.66.0] [user] [fixed] - File upload selector now supports restricting allowed file types
+[1.66.0] [user] [fixed] - Connection lost banner reload button is now bolder and easier to spot
+[1.66.0] [admin] [added] - Results packages catalogue for managing generated packages instance-wide
+[1.66.0] [admin] [added] - Generate, inspect, and attach results packages to projects
+[1.66.0] [admin] [added] - View module scripts, logs, and output files from results packages
+[1.66.0] [admin] [added] - Variant groups and variant items for HFA indicators
+[1.66.0] [admin] [added] - Per-item variant code support in the HFA indicator code editor
+[1.66.0] [admin] [added] - Variant groups tab in the HFA Indicator Manager
+[1.66.0] [admin] [added] - XLSX import and export now includes variant groups, items, and variant code
+[1.66.0] [admin] [added] - Module parameter inputs shared across module defaults and results package wizard
+[1.66.0] [admin] [added] - HMIS windowing validation before saving dataset settings or generating packages
+[1.66.0] [admin] [added] - File type filtering option for file upload selectors
+[1.66.0] [admin] [changed] - Creating a project no longer requires selecting datasets or modules upfront
+[1.66.0] [admin] [changed] - Projects now receive results through an attached results package
+[1.66.0] [admin] [changed] - Project comparison view no longer shows per-module dirty state or git SHAs
+[1.66.0] [admin] [changed] - Visualization thumbnails refresh based on attached results package changes
+[1.66.0] [admin] [changed] - Import wizard shell buttons can now be customized per wizard type
+[1.66.0] [admin] [fixed] - Default visualizations can no longer be batch-edited or deleted
+[1.66.0] [admin] [fixed] - Default visualizations are excluded from batch delete operations
+[1.66.0] [admin] [fixed] - Delete option hidden from context menu for default visualizations
+[1.66.0] [admin] [fixed] - AI assistant now preserves variant code when editing indicator main code
+[1.66.0] [admin] [fixed] - AI assistant detects references in variant code before deleting indicators
+[1.66.0] [admin] [fixed] - Unused variable check now scans variant code snippets
+[1.66.0] [admin] [fixed] - Browser session refresh improved to prevent persistent authentication failures
+[1.66.0] [admin] [internal] - Authentication transport layer extracted for browser and headless environments
+[1.66.0] [admin] [internal] - Network failure and recovery now reported to connection monitor
+[1.66.0] [user] [added] - Results packages tab for generating and managing analysis packages at the instance level
+[1.66.0] [user] [added] - Results package tab in projects replaces separate Data and Modules tabs
+[1.66.0] [user] [added] - Wizard for configuring and generating new results packages
+[1.66.0] [user] [added] - View script, logs, and output files for each module in a results package
+[1.66.0] [user] [added] - Download individual output files from a results package
+[1.66.0] [user] [added] - Live progress display while a results package is generating
+[1.66.0] [user] [added] - Attach results packages to projects from the instance catalogue
+[1.66.0] [user] [added] - Fiscal year information shown in instance details
+[1.66.0] [user] [changed] - Creating a project no longer requires choosing datasets or modules upfront
+[1.66.0] [user] [changed] - Visualizations from default packages can no longer be deleted or batch-edited
+[1.66.0] [user] [changed] - Project comparison view simplified to show package membership instead of module run status
+[1.66.0] [user] [changed] - Metric availability tooltips now explain why a metric is unavailable
+[1.66.0] [user] [fixed] - Visualization thumbnails now refresh correctly when a different results package is attached
+[1.66.0] [user] [fixed] - Default visualizations no longer cause errors during batch editing or deletion
+[1.66.0] [admin] [added] - New "Results packages" tab on the instance dashboard
+[1.66.0] [admin] [added] - Generate, browse, and delete results packages at the instance level
+[1.66.0] [admin] [added] - Results packages can be attached to one or more projects
+[1.66.0] [admin] [added] - New results package wizard for configuring data, modules, and parameters before generation
+[1.66.0] [admin] [added] - Live progress and R output shown during package generation
+[1.66.0] [admin] [added] - View scripts, logs, and output files for each module in a package
+[1.66.0] [admin] [changed] - Project "Data" and "Modules" tabs replaced by a single "Results package" tab
+[1.66.0] [admin] [changed] - Creating a project now only requires a name; data and modules come from an attached results package
+[1.66.0] [admin] [changed] - Visualisation thumbnails now refresh when a different results package is attached
+[1.66.0] [admin] [changed] - Project comparison view no longer shows compute/presentation SHA or dirty status columns
+[1.66.0] [admin] [changed] - Instance metadata now displays the fiscal year setting
+[1.66.0] [admin] [fixed] - Default visualisations can no longer be batch-edited or deleted, preventing server errors
+[1.66.0] [admin] [fixed] - Deleting a results package is blocked while it is attached to a project or still generating
+[1.66.0] [admin] [internal] - Removed per-module dirty/running status indicators from the project header
+[1.66.0] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[1.66.0] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[1.66.0] [admin] [changed] - Improved audit logging for user setting changes
+[1.65.0] [user] [fixed] - Scorecard tables now correctly use presentation theme colors
+[1.65.0] [user] [fixed] - Scorecard and standard tables now have consistent colored cell styling
+[1.65.0] [admin] [fixed] - Scorecard tables now correctly follow deck color presets
+[1.65.0] [user] [fixed] - Time periods now sort chronologically instead of alphabetically in charts and tables
+[1.65.0] [user] [fixed] - Months, quarters, and years display in correct order on all axes
+[1.65.0] [admin] [fixed] - Period dimensions now sort chronologically instead of alphabetically
+[1.65.0] [admin] [fixed] - Module installs no longer falsely report asset changes
+[1.65.0] [admin] [fixed] - Asset import errors during module runs are now surfaced clearly
+[1.65.0] [admin] [added] - Support for pinned-repo-asset format in module definitions
+[1.65.0] [admin] [fixed] - Clearer error messages when module definitions fail validation
+[1.64.7] [user] [added] - "What's New" bell icon shows latest platform updates
+[1.64.7] [user] [added] - Unread dot on bell icon highlights announcements you haven't seen
+[1.64.7] [user] [added] - New release announcements appear automatically after login
+[1.64.7] [user] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [user] [added] - Announcements support multiple pages with images and videos
+[1.64.7] [user] [added] - Announcements available in English, French, and Portuguese
+[1.64.7] [admin] [added] - "What's New" announcements appear automatically after login
+[1.64.7] [admin] [added] - Bell icon in header shows unread release announcements
+[1.64.7] [admin] [added] - Browsable feed of all past announcements from the bell icon
+[1.64.7] [admin] [added] - Unread dot on bell icon until all announcements are viewed
+[1.64.7] [admin] [changed] - New users no longer see announcements that predate their account
+[1.64.7] [admin] [internal] - Announcement view events are logged for usage tracking
+[1.64.6] [user] [added] - Before/after visual previews for chart and image changes in slide version history
+[1.64.6] [user] [added] - Chart captions now shown in version history change descriptions
+[1.64.6] [user] [added] - Visualization and image changes now displayed in report session edits
+[1.64.6] [user] [changed] - Edited charts and images are highlighted in the report text diff
+[1.64.6] [admin] [added] - Version history now shows before/after previews for visualizations and images
+[1.64.6] [admin] [added] - Report session edits now display visualization and image changes separately
+[1.64.6] [admin] [added] - Figure captions shown in version history to identify which chart changed
+[1.64.6] [admin] [added] - Edited visualizations are highlighted in the report text diff
+[1.64.6] [admin] [changed] - Improved audit logging for report, slide deck, and slide deletions
+[1.64.6] [admin] [changed] - Improved audit logging for report and deck version restores and copies
+[1.64.6] [admin] [changed] - Improved audit logging for user setting changes
 [1.64.5] [user] [fixed] - Version history now correctly shows who deleted and retyped text
 [1.64.5] [user] [fixed] - Edits by different people no longer blend into one unclear change
 [1.64.5] [user] [changed] - Replacements now show removed text first, then added text, for easier reading

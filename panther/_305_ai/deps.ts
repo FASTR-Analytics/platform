@@ -12,7 +12,6 @@ export {
   assembleTurnSections,
   BETA_HEADERS,
   buildApprovalViewExitMessage,
-  buildAvailabilityHint,
   buildCancelledToolResults,
   buildInteractionDigest,
   buildNavigationDoneMessage,
@@ -34,6 +33,7 @@ export {
   MODEL_PRICING,
   NAVIGATION_INTERACTION_ID,
   renderOutgoingMessages,
+  resolveModelConfig,
   resolveOutputConfig,
   resolveThinkingConfig,
   sanitizePersistedSettings,
@@ -59,6 +59,29 @@ export type {
   SystemNoticeType,
   Usage,
 } from "../_110_ai_types/mod.ts";
+export {
+  AIToolFailure,
+  buildAITool,
+  createAITool,
+  getHeadlessCapability,
+  resolveViewLabel,
+  toolThrowToResultParts,
+} from "../_112_ai_tool_core/mod.ts";
+export type {
+  AIToolKind,
+  AIToolWithMetadata,
+  AIViewDefinition,
+  AIViewParams,
+  AIViewRegistry,
+  AIViewState,
+  AIViewVoidKeys,
+  AnyAIView,
+  ApprovalPolicy,
+  ProposalPreview,
+  ProposalResult,
+  SetViewArgs,
+  ToolUIMetadata,
+} from "../_112_ai_tool_core/mod.ts";
 export {
   Button,
   deriveMarkdownCssVars,

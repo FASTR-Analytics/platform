@@ -1,5 +1,4 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import type { Language } from "panther";
 import type {
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -8,9 +7,9 @@ import type {
   InstanceStructureSummary,
   AssetInfo,
   GeoJsonMapSummary,
-  InstanceConfigFacilityColumns,
   OtherUser,
   ProjectSummary,
+  FigureLocalization,
 } from "lib";
 
 // ============================================================================
@@ -22,6 +21,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   instanceName: "",
   instanceLanguage: "en",
   instanceCalendar: "gregorian",
+  instanceFiscalYear: "none",
   maxAdminArea: 0,
   countryIso3: undefined,
   facilityColumns: {
@@ -78,56 +78,21 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
 export { instanceState };
 
 // ============================================================================
-// Non-reactive getters (for caches and async code)
+// Snapshot-read getters (for caches and async code) — named getSnapshot*
 // ============================================================================
 
-export function getIndicatorMappingsVersion(): string {
-  return unwrap(instanceState).indicatorMappingsVersion;
-}
-
-export function getInstanceFacilityColumns(): InstanceConfigFacilityColumns {
-  return unwrap(instanceState).facilityColumns;
-}
-
-export function getDatasetVersionHmis(): number | undefined {
-  return unwrap(instanceState).datasetVersions.hmis;
-}
-
-export function getInstanceMaxAdminArea(): number {
-  return unwrap(instanceState).maxAdminArea;
-}
-
-export function getInstanceCountryIso3(): string | undefined {
+export function getSnapshotInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
 }
 
-export function getInstanceLocalization(): { language: Language; calendar: "gregorian" | "ethiopian"; countryIso3: string } {
+export function getSnapshotInstanceLocalization(): FigureLocalization {
   const s = unwrap(instanceState);
-  return { language: s.instanceLanguage, calendar: s.instanceCalendar, countryIso3: s.countryIso3 ?? "" };
-}
-
-export function getInstanceProjects(): ProjectSummary[] {
-  return unwrap(instanceState).projects;
-}
-
-export function getInstanceUsers(): OtherUser[] {
-  return unwrap(instanceState).users;
-}
-
-export function getInstanceAssets(): AssetInfo[] {
-  return unwrap(instanceState).assets;
-}
-
-export function getHfaCacheHash(): string {
-  return unwrap(instanceState).hfaCacheHash;
-}
-
-export function getHfaIndicatorsVersion(): string {
-  return unwrap(instanceState).hfaIndicatorsVersion;
-}
-
-export function getCalculatedIndicatorsVersion(): string {
-  return unwrap(instanceState).calculatedIndicatorsVersion;
+  return {
+    language: s.instanceLanguage,
+    calendar: s.instanceCalendar,
+    countryIso3: s.countryIso3 ?? "",
+    fiscalYear: s.instanceFiscalYear,
+  };
 }
 
 // ============================================================================

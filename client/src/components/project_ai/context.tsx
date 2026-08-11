@@ -3,7 +3,7 @@ import type { AIProjectContextValue, DraftContent } from "./types";
 
 const AIProjectContext = createContext<AIProjectContextValue>();
 
-export function AIProjectContextProvider(props: ParentProps) {
+export function AIProjectContextProvider(p: ParentProps) {
   const [draftContent, setDraftContent] = createSignal<DraftContent>(null);
 
   const value: AIProjectContextValue = {
@@ -13,7 +13,7 @@ export function AIProjectContextProvider(props: ParentProps) {
 
   return (
     <AIProjectContext.Provider value={value}>
-      {props.children}
+      {p.children}
     </AIProjectContext.Provider>
   );
 }

@@ -53,7 +53,6 @@ export function SaveAsNewVisualizationModal(
         // draft previews) enforce the canonical config form — idempotent for
         // callers that already normalized.
         config: normalizePOConfigForStorage(p.config, p.resultsValue),
-        makeDefault: false,
         folderId,
       });
 

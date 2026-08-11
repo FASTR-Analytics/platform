@@ -9,6 +9,7 @@ import {
   calculateMinLabelPlotExtent,
   calculatePaneGrid,
   type ChartComponentSizes,
+  computeFloorScale,
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   type HeightConstraints,
@@ -18,11 +19,19 @@ import {
   type RenderContext,
   type Renderer,
   resolveDefaultLegend,
+  resolveFigureAutofitOptions,
 } from "./deps.ts";
-import type { MeasuredPie, PieDataTransformed, PieInputs } from "./types.ts";
+import type { MeasuredPie, PieInputs } from "./types.ts";
 import { getPieDataTransformed } from "./get_pie_data.ts";
 import { calculatePieLabelFloorBudget } from "./_internal/generate_pie_label_candidates.ts";
-import type { CellIndices } from "./_internal/generate_pie_slice_primitives.ts";
+import {
+  allPieIndices,
+  buildSlotObjectiveContext,
+  idealSubChartHeightAt,
+  maxSlicesPerPie,
+  resolveIdealSlotCols,
+  showsIndicatorHeaders,
+} from "./_internal/indicator_slots.ts";
 import { measurePie } from "./_internal/measure_pie.ts";
 import { renderPie } from "./_internal/render_pie.ts";
 
@@ -81,21 +90,53 @@ export function getPieComponentSizes(
   const transformedData = getPieDataTransformed(item.data);
 
   // Measured from the (scaled) data-label style, so the floor shrinks with
-  // the style scale. The content disc is aspect-1, but the CELL floors are no
-  // longer equal (plan D4): outside labels add width (the flank gutters) and
-  // can add height (a flank stack taller than the disc). Both label terms are
-  // unwrapped, so each floor stays proportional to the scale (monotone) and
-  // free of any cell dependence.
+  // the style scale. The floors are not equal per direction (plan D4):
+  // outside labels add width (the flank gutters) and can add height (a flank
+  // stack taller than the content). Both label terms are unwrapped, so each
+  // floor stays proportional to the scale (monotone) and free of any slot
+  // dependence.
+  //
+  // The content floor itself is applied to BOTH dimensions regardless of the
+  // silhouette, so a gauge — which needs only half the height its width implies
+  // — gets a slightly generous height floor. Deliberate: a legibility floor that
+  // is too generous only makes autofit cautious, and the ideal-height pass
+  // (which does read the silhouette) is what sets the natural size.
+  //
+  // The gap term is geometry (plan D7): the rim is π·d and each slice
+  // boundary removes a sliceGap channel. A necessary bound, not a guarantee;
+  // it contributes nothing at the default sliceGap 0.
   const minLabelPlotExtent = calculateMinLabelPlotExtent(
     rc,
     mergedStyle.text.dataLabels,
+  );
+  const minSlotDiameter = Math.max(
+    minLabelPlotExtent,
+    mergedStyle.pie.sliceGap > 0
+      ? maxSlicesPerPie(transformedData, mergedStyle) *
+        mergedStyle.pie.sliceGap / Math.PI
+      : 0,
   );
   const labelBudget = calculatePieLabelFloorBudget(
     rc,
     transformedData,
     mergedStyle,
-    allCellIndices(transformedData),
+    allPieIndices(transformedData),
   );
+
+  // The floor pass runs before any sub-chart shape exists, so D9's objective
+  // has nothing to optimise against and the slot grid is the plain
+  // ceil(sqrt(n)) (plan D3). That overstates the demand for a wide, short
+  // frame — conservative in the safe direction: an overstated floor only
+  // makes autofit shrink type marginally earlier than it had to.
+  const nIndicators = transformedData.indicatorHeaders.length;
+  const nSlotCols = Math.ceil(Math.sqrt(nIndicators));
+  const nSlotRows = Math.ceil(nIndicators / nSlotCols);
+  const ind = mergedStyle.pie.indicators;
+  const headerAllowance = showsIndicatorHeaders(transformedData, mergedStyle)
+    ? ind.headerGap +
+      rc.mText("Region 001", mergedStyle.pie.text.indicatorHeaders, 400).dims
+        .h()
+    : 0;
 
   // Categorical, not a scale legend: the swatches are the slices.
   const resolvedLegendLabels: LegendInput | undefined = resolveDefaultLegend(
@@ -109,13 +150,17 @@ export function getPieComponentSizes(
     nLanes: transformedData.laneHeaders.length,
     nTiers: transformedData.tierHeaders.length,
     paneHeaders: transformedData.paneHeaders,
-    minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
+    minSubChartWidth: nSlotCols * (minSlotDiameter + labelBudget.horizontal) +
+      (nSlotCols - 1) * ind.gapX,
     // The vertical demand COMBINES differently by placer (plan N9): under
-    // flank it is a stack the cell must be tall enough for; under nearest the
+    // flank it is a stack the slot must be tall enough for; under nearest the
     // labels sit above and below the content, so it is additive.
-    minSubChartHeight: mergedStyle.pie.outsideLabelPlacement === "nearest"
-      ? minLabelPlotExtent + labelBudget.vertical
-      : Math.max(minLabelPlotExtent, labelBudget.vertical),
+    minSubChartHeight: nSlotRows *
+        ((mergedStyle.pie.outsideLabelPlacement === "nearest"
+          ? minSlotDiameter + labelBudget.vertical
+          : Math.max(minSlotDiameter, labelBudget.vertical)) +
+          headerAllowance) +
+      (nSlotRows - 1) * ind.gapY,
     xAxisHeight: 0,
     paneHeaderHeight: rc
       .mText("Region 001", mergedStyle.text.paneHeaders, 400)
@@ -134,34 +179,25 @@ export function getPieComponentSizes(
   };
 }
 
-function allCellIndices(data: PieDataTransformed): CellIndices[] {
-  const indices: CellIndices[] = [];
-  for (let paneIndex = 0; paneIndex < data.paneHeaders.length; paneIndex++) {
-    for (let tierIndex = 0; tierIndex < data.tierHeaders.length; tierIndex++) {
-      for (
-        let laneIndex = 0;
-        laneIndex < data.laneHeaders.length;
-        laneIndex++
-      ) {
-        indices.push({ paneIndex, tierIndex, laneIndex });
-      }
-    }
-  }
-  return indices;
-}
-
-// The content DISC is square, so the ideal height is the real decomposition:
-// derive the per-cell width from the same terms calculateChartMinWidth uses,
-// subtract the horizontal label budget to get the disc, make THAT square, add
-// back the vertical label demand, then let the shared helper add tier gaps,
-// pane gaps, tier padding, pane headers and a measured surrounds height.
-// Squaring the whole cell would bake the flank gutters into the height and
-// pad every labelled pie with dead vertical whitespace (plan D4).
+// The ideal height is the real decomposition: derive the per-sub-chart width
+// from the same terms calculateChartMinWidth uses, split it into indicator
+// slots at the SELF-CONSISTENT wrap (plan D8), give each slot's content the
+// silhouette's own aspect at the capped natural diameter, add back the
+// vertical label demand and header strip, then let the shared helper add tier
+// gaps, pane gaps, tier padding, pane headers and a measured surrounds
+// height. Applying the aspect to the whole slot would bake the flank gutters
+// into the height and pad every labelled pie with dead vertical whitespace
+// (plan D4).
+//
+// The idealPieDiameter policy is a CAP on the width-driven term, never a
+// replacement: an ideal that exceeds the slot is meaningless, but without the
+// cap a lone pie's ideal diameter IS the available width, which is how a
+// single pie on a 1000-DU frame used to ask to be 1087 DU tall.
 //
 // maxH is FINITE (= idealH), unlike map's Infinity. A finite maxH means "I
-// resist stretching"; Infinity means "I fill freely, leave me uncapped". Since
-// radius is min(w, h) / 2, every pixel of height past square is whitespace, so
-// uncapped is actively wrong in a column layout.
+// resist stretching"; Infinity means "I fill freely, leave me uncapped". Every
+// pixel of height past the silhouette aspect is whitespace, so uncapped is
+// actively wrong in a column layout.
 function getPieIdealHeight(
   rc: RenderContext,
   width: number,
@@ -193,25 +229,14 @@ function getPieIdealHeight(
     item.autofitSurrounds,
   )
     .getMergedPieStyle();
-  const labelBudget = calculatePieLabelFloorBudget(
-    rc,
-    transformedData,
-    mergedStyle,
-    allCellIndices(transformedData),
-  );
   const contentFloor = calculateMinLabelPlotExtent(
     rc,
     mergedStyle.text.dataLabels,
   );
 
-  // The disc gets what is left of the cell after the label gutters and is never
-  // squeezed below the legibility floor (calculateChartIdealHeight multiplies
-  // minSubChartHeight through WITHOUT clamping). The height then combines by
-  // placer, exactly as minSubChartHeight does above.
-  const contentD = Math.max(cellW - labelBudget.horizontal, contentFloor);
-  const cellH = mergedStyle.pie.outsideLabelPlacement === "nearest"
-    ? contentD + labelBudget.vertical
-    : Math.max(contentD, labelBudget.vertical);
+  const ctx = buildSlotObjectiveContext(rc, transformedData, mergedStyle);
+  const idealCols = resolveIdealSlotCols(ctx, cellW, contentFloor);
+  const cellH = idealSubChartHeightAt(ctx, idealCols, cellW, contentFloor);
 
   const idealH = calculateChartIdealHeight(
     rc,
@@ -222,8 +247,28 @@ function getPieIdealHeight(
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
+  // minH is derived from the real floor at the autofit floor scale (plan
+  // D10), exactly as the scale-axis charts derive theirs — never idealH ×
+  // 0.5, which both hid the missing clamp (the layouter never allocated below
+  // it) and overstated the true floor by ~4x. getPieComponentSizes'
+  // minSubChartHeight IS the D7 floor, so the shared decomposition at
+  // floorScale is the whole derivation. With autofit off, type cannot shrink,
+  // and the natural height is the minimum — the scale-axis convention.
+  const autofitOpts = resolveFigureAutofitOptions(item.autofit);
+  let minH = idealH;
+  if (autofitOpts) {
+    const floorScale = computeFloorScale({
+      minScale: autofitOpts.minScale,
+      maxScale: autofitOpts.maxScale,
+      baseFontSizeDu: info.customFigureStyle.baseFontSize,
+      minFontSizeDu: autofitOpts.minFontSizeDu,
+    });
+    const infoFloor = getPieComponentSizes(rc, item, floorScale);
+    minH = calculateChartIdealHeight(rc, width, infoFloor, item);
+  }
+
   return {
-    minH: idealH * 0.5,
+    minH: Math.min(minH, idealH),
     idealH,
     maxH: idealH,
     neededScalingToFitWidth: width >= minComfortableWidth

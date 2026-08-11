@@ -25,6 +25,7 @@ type Props = {
   value: string;
   onChange: (fileName: string) => void;
   fullWidth?: boolean;
+  allowedFileTypes?: string[];
 };
 
 export function FileUploadSelector(p: Props) {
@@ -38,6 +39,7 @@ export function FileUploadSelector(p: Props) {
   onMount(() => {
     uppy = createUppyInstance({
       triggerId: `#${triggerId}`,
+      allowedFileTypes: p.allowedFileTypes,
       onUploadSuccess: (file) => {
         if (file) {
           const fileName = file.name as string;

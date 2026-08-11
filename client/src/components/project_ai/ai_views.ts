@@ -28,10 +28,9 @@ import {
   getEditingVisualizationInstructions,
   getViewingCacheInstructions,
   getViewingDashboardsInstructions,
-  getViewingDataInstructions,
   getViewingMetricsInstructions,
-  getViewingModulesInstructions,
   getViewingReportsInstructions,
+  getViewingResultsPackageInstructions,
   getViewingSettingsInstructions,
   getViewingSlideDecksInstructions,
   getViewingVisualizationsInstructions,
@@ -119,17 +118,13 @@ export const projectAIViews = defineAIViews({
     label: () => getViewingReportsInstructionsLabel(),
     instructions: () => getViewingReportsInstructions(),
   }),
-  viewing_data: view({
-    label: () => getViewingDataInstructionsLabel(),
-    instructions: () => getViewingDataInstructions(),
-  }),
   viewing_metrics: view({
     label: () => getViewingMetricsInstructionsLabel(),
     instructions: () => getViewingMetricsInstructions(),
   }),
-  viewing_modules: view({
-    label: () => getViewingModulesInstructionsLabel(),
-    instructions: () => getViewingModulesInstructions(),
+  viewing_results_package: view({
+    label: () => getViewingResultsPackageInstructionsLabel(),
+    instructions: () => getViewingResultsPackageInstructions(),
   }),
   viewing_settings: view({
     label: () => getViewingSettingsInstructionsLabel(),
@@ -197,14 +192,15 @@ function getViewingSlideDecksInstructionsLabel(): string {
 function getViewingReportsInstructionsLabel(): string {
   return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
 }
-function getViewingDataInstructionsLabel(): string {
-  return t3({ en: "Data", fr: "Données", pt: "Dados" });
-}
 function getViewingMetricsInstructionsLabel(): string {
   return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
 }
-function getViewingModulesInstructionsLabel(): string {
-  return t3({ en: "Modules", fr: "Modules", pt: "Módulos" });
+function getViewingResultsPackageInstructionsLabel(): string {
+  return t3({
+    en: "Results package",
+    fr: "Paquet de résultats",
+    pt: "Pacote de resultados",
+  });
 }
 function getViewingSettingsInstructionsLabel(): string {
   return t3(TC.settings);
@@ -240,9 +236,8 @@ export const PROJECT_TAB_TO_VIEW: Record<
   visualizations: "viewing_visualizations",
   decks: "viewing_slide_decks",
   reports: "viewing_reports",
-  data: "viewing_data",
   metrics: "viewing_metrics",
-  modules: "viewing_modules",
+  results_package: "viewing_results_package",
   settings: "viewing_settings",
   dashboards: "viewing_dashboards",
   cache: "viewing_cache",
@@ -268,14 +263,11 @@ export function restoreProjectAIView(state: ProjectAIViewState): void {
     case "viewing_reports":
       projectAIViewController.setView("viewing_reports");
       return;
-    case "viewing_data":
-      projectAIViewController.setView("viewing_data");
-      return;
     case "viewing_metrics":
       projectAIViewController.setView("viewing_metrics");
       return;
-    case "viewing_modules":
-      projectAIViewController.setView("viewing_modules");
+    case "viewing_results_package":
+      projectAIViewController.setView("viewing_results_package");
       return;
     case "viewing_settings":
       projectAIViewController.setView("viewing_settings");

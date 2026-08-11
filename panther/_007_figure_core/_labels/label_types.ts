@@ -53,8 +53,9 @@ export type LabelCandidate = {
 // The only per-figure geometry the shared driver needs. Map ray-casts against
 // real coastline; pie solves the circle analytically.
 export type LabelGeometry = {
-  // Primitive bounds for every label emitted for this cell.
-  cellRcd: RectCoordsDims;
+  // The rect the label solver confines labels to, and the primitive bounds for
+  // every label it emits — a slot for pie, a sub-chart for map.
+  hostRcd: RectCoordsDims;
   // Left/right split for outside labels.
   centerX: number;
   // Vertical extent outside labels stack within.
@@ -92,4 +93,7 @@ export type FigureLabelMeta = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
+  // Pie only: which pie in the sub-chart's indicator grid. Absent for map,
+  // whose keys and meta stay exactly as before.
+  indicatorIndex?: number;
 };

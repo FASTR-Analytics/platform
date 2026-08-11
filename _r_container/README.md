@@ -4,7 +4,7 @@ Build context for the R image that executes module R scripts.
 
 When a module runs, `server/worker_routines/run_module/run_module_iterator.ts`
 spawns `Rscript` inside this image (prod) or runs `Rscript` on the host (dev).
-See [SYSTEM_08_module_system.md](../SYSTEM_08_module_system.md).
+See [SYSTEM_08_results_packages.md](../SYSTEM_08_results_packages.md).
 
 ## Images
 

@@ -9,6 +9,7 @@ import {
   presentationObjectConfigSchema,
   throwIfErrWithData,
   type APIResponseWithData,
+  type DerivedDefaultVisualization,
   type PresentationObjectConfig,
   type PresentationObjectDetail,
   type PresentationObjectSummary,
@@ -30,7 +31,6 @@ export type AddPresentationObjectParams = {
   label: string;
   resultsValue: ResultsValue;
   config: PresentationObjectConfig;
-  makeDefault: boolean;
   createdByAI?: boolean;
   folderId?: string | null;
 };
@@ -45,7 +45,6 @@ export async function addPresentationObject(
     label,
     resultsValue,
     config,
-    makeDefault,
     createdByAI = false,
     folderId,
   } = params;
@@ -61,7 +60,7 @@ VALUES
   (
     ${newPresentationObjectId},
     ${resultsValue.id},
-    ${makeDefault},
+    ${false},
     ${createdByAI},
     ${label.trim()},
     ${JSON.stringify(presentationObjectConfigSchema.parse(config))},
@@ -73,11 +72,16 @@ VALUES
   });
 }
 
+// virtualDefaultSource: the manifest-derived projection when
+// presentationObjectId is a virtual default (item 5b) — no row exists, and
+// duplicating IS the customize path, so the copy is materialized from the
+// derivation instead of a source row.
 export async function duplicatePresentationObject(
   projectDb: Sql,
   presentationObjectId: string,
   label: string,
-  folderId?: string | null,
+  folderId: string | null | undefined,
+  virtualDefaultSource: DerivedDefaultVisualization | null,
 ): Promise<
   APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
 > {
@@ -87,9 +91,15 @@ export async function duplicatePresentationObject(
 SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
 `
     ).at(0);
-    if (rawPresObj === undefined) {
+    if (rawPresObj === undefined && virtualDefaultSource === null) {
       throw new Error("No presentation object with this id");
     }
+    const sourceMetricId = rawPresObj?.metric_id ??
+      virtualDefaultSource!.metricId;
+    const sourceConfig = rawPresObj?.config ??
+      JSON.stringify(
+        presentationObjectConfigSchema.parse(virtualDefaultSource!.config),
+      );
     const newPresentationObjectId =
       await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
@@ -99,10 +109,10 @@ INSERT INTO presentation_objects
 VALUES
   (
     ${newPresentationObjectId},
-    ${rawPresObj.metric_id},
+    ${sourceMetricId},
     ${false},
     ${label.trim()},
-    ${rawPresObj.config},
+    ${sourceConfig},
     ${lastUpdated},
     ${folderId ?? null}
   )
@@ -127,27 +137,6 @@ function configToSummary(row: DBPresentationObject, config: PresentationObjectCo
     sortOrder: row.sort_order,
     lastUpdated: row.last_updated,
   };
-}
-
-export async function getAllPresentationObjectsForModule(
-  projectDb: Sql,
-  moduleId: string,
-): Promise<APIResponseWithData<PresentationObjectSummary[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Join through metrics to find presentation objects for this module
-    const rows = await projectDb<DBPresentationObject[]>`
-SELECT po.*
-FROM presentation_objects po
-JOIN metrics m ON po.metric_id = m.id
-WHERE m.module_id = ${moduleId}
-ORDER BY po.sort_order, LOWER(po.label)
-`;
-    const presentationObjects = rows.map<PresentationObjectSummary>((row) => {
-      const config = parsePresentationObjectConfig(row.config);
-      return configToSummary(row, config);
-    });
-    return { success: true, data: presentationObjects };
-  });
 }
 
 export async function getAllPresentationObjectsForProject(
@@ -205,23 +194,6 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       folderId: rawPresObj.folder_id,
     };
     return { success: true, data: presObj };
-  });
-}
-
-export async function getPresentationObjectLastUpdated(
-  projectDb: Sql,
-  presentationObjectId: string,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<{ last_updated: string }[]>`
-SELECT last_updated FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      throw new Error("No presentation object with this id");
-    }
-    return { success: true, data: { lastUpdated: rawPresObj.last_updated } };
   });
 }
 
@@ -514,144 +486,6 @@ SELECT is_default_visualization FROM presentation_objects WHERE id = ${presentat
 DELETE FROM presentation_objects WHERE id = ${presentationObjectId}
 `;
     return { success: true, data: { lastUpdated } };
-  });
-}
-
-export async function getVisualizationsListForAI(
-  projectDb: Sql,
-): Promise<APIResponseWithData<string>> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Get all table names upfront
-    const existingTables = await projectDb<{ table_name: string }[]>`
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-    `;
-    const tableNamesSet = new Set(existingTables.map((t) => t.table_name));
-
-    // Join through metrics to get module info and results object
-    const rows = await projectDb<
-      {
-        id: string;
-        label: string;
-        config: string;
-        module_definition: string;
-        results_object_id: string;
-        is_default_visualization: boolean;
-        created_by_ai: boolean;
-        metric_id: string;
-        metric_label: string;
-      }[]
-    >`
-SELECT
-  po.id,
-  po.label,
-  po.config,
-  po.is_default_visualization,
-  po.created_by_ai,
-  met.id AS metric_id,
-  met.label AS metric_label,
-  met.results_object_id,
-  mod.module_definition
-FROM presentation_objects po
-JOIN metrics met ON po.metric_id = met.id
-JOIN modules mod ON met.module_id = mod.id
-ORDER BY po.is_default_visualization DESC, LOWER(po.label)
-`;
-
-    const visualizations = rows.map((row) => {
-      const config = parsePresentationObjectConfig(row.config);
-      const moduleDef = parseJsonOrThrow<{ name: string }>(
-        row.module_definition,
-      );
-      const tableName = getResultsObjectTableName(row.results_object_id);
-
-      // Active replicant dimension — filter-aware (a replicant filtered to one
-      // value is degenerate and must NOT be advertised to the AI as embeddable,
-      // since the resolver ignores it). Mirrors configToSummary.
-      const replicateBy = getReplicateByProp(config);
-
-      return {
-        id: row.id,
-        name: row.label,
-        moduleName: moduleDef.name,
-        metricId: row.metric_id,
-        metricLabel: row.metric_label,
-        caption: config.t.caption,
-        type: config.d.type,
-        disaggregations: config.d.disaggregateBy.map((d) => ({
-          dimension: d.disOpt,
-          displayAs: d.disDisplayOpt,
-        })),
-        filters: config.d.filterBy.map((f) => ({
-          dimension: f.disOpt,
-          values: f.values,
-        })),
-        isAvailable: tableNamesSet.has(tableName),
-        // Replicant info for AI
-        replicateBy,
-        selectedReplicantValue: config.d.selectedReplicantValue,
-        // Edit permissions
-        isDefault: row.is_default_visualization,
-        createdByAI: row.created_by_ai,
-      };
-    });
-
-    const lines = ["AVAILABLE VISUALIZATIONS", "=".repeat(80), ""];
-
-    const availableVisualizations = visualizations.filter((v) => v.isAvailable);
-
-    if (availableVisualizations.length === 0) {
-      lines.push("");
-      lines.push("No visualizations are currently available.");
-      lines.push(
-        "Visualizations become available after their modules have successfully run.",
-      );
-      lines.push("");
-      return { success: true, data: lines.join("\n") };
-    }
-
-    for (const viz of availableVisualizations) {
-      lines.push(`ID: ${viz.id}`);
-      lines.push(`Name: ${viz.name}`);
-      lines.push(`Module: ${viz.moduleName}`);
-      lines.push(`Metric: ${viz.metricLabel} (ID: ${viz.metricId})`);
-      lines.push(`Type: ${viz.type}`);
-      lines.push(
-        `Status: ${viz.createdByAI ? "AI-created (editable)" : viz.isDefault ? "Default (read-only)" : "Custom (read-only)"}`,
-      );
-      if (viz.caption) lines.push(`Caption: ${viz.caption}`);
-
-      if (viz.disaggregations.length > 0) {
-        lines.push(`Disaggregated by:`);
-        for (const dis of viz.disaggregations) {
-          lines.push(`  - ${dis.dimension} (displayed as ${dis.displayAs})`);
-        }
-      }
-
-      if (viz.filters.length > 0) {
-        lines.push(`Filtered by:`);
-        for (const filter of viz.filters) {
-          lines.push(`  - ${filter.dimension}: ${filter.values.join(", ")}`);
-        }
-      }
-
-      // Replicant info - tells AI this viz can be embedded with different replicant values
-      if (viz.replicateBy) {
-        lines.push(`Replicates by: ${viz.replicateBy}`);
-        if (viz.selectedReplicantValue) {
-          lines.push(`  Current value: ${viz.selectedReplicantValue}`);
-        }
-        lines.push(
-          `  (Use syntax: ![Caption](${viz.id}:VALUE) to embed with different values)`,
-        );
-      }
-
-      lines.push("-".repeat(80));
-      lines.push("");
-    }
-
-    return { success: true, data: lines.join("\n") };
   });
 }
 

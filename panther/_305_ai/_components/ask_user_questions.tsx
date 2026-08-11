@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { t3 } from "../deps.ts";
-import { createAITool } from "../_core/tool_helpers.ts";
-import type { AIToolWithMetadata } from "../_core/tool_helpers.ts";
+import { createAITool } from "../deps.ts";
+import type { AIToolWithMetadata } from "../deps.ts";
 import {
   type AskUserQuestionsAnswer,
   type AskUserQuestionsInput,

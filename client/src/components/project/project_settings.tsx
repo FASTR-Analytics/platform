@@ -612,7 +612,7 @@ interface GroupedBackups {
   backups: ProjectBackupInfo[];
 }
 
-function ProjectBackups(props: { projectId: string }) {
+function ProjectBackups(p: { projectId: string }) {
   const [expandedGroups, setExpandedGroups] = createSignal<Set<string>>(
     new Set(),
   );
@@ -631,7 +631,7 @@ function ProjectBackups(props: { projectId: string }) {
 
   const backupsQuery = createQuery<ProjectBackupInfo[]>(async () => {
     const token = await clerk.session?.getToken();
-    const headers: HeadersInit = { "Project-Id": props.projectId };
+    const headers: HeadersInit = { "Project-Id": p.projectId };
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -664,7 +664,7 @@ function ProjectBackups(props: { projectId: string }) {
       .map((backup: any) => {
         const projectFiles = backup.files.filter(
           (file: BackupFileInfo) =>
-            file.type === "project" && file.name.includes(props.projectId),
+            file.type === "project" && file.name.includes(p.projectId),
         );
         if (projectFiles.length === 0) return null;
         const projectSize = projectFiles.reduce(
@@ -742,7 +742,7 @@ function ProjectBackups(props: { projectId: string }) {
     try {
       const token = await clerk.session?.getToken();
       const headers: HeadersInit = {
-        "Project-Id": props.projectId,
+        "Project-Id": p.projectId,
       };
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -776,7 +776,7 @@ function ProjectBackups(props: { projectId: string }) {
     try {
       const token = await clerk.session?.getToken();
       const headers: HeadersInit = {};
-      const projectId = props.projectId;
+      const projectId = p.projectId;
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
@@ -811,11 +811,11 @@ function ProjectBackups(props: { projectId: string }) {
     await openComponent({
       element: CreateBackupForm,
       props: {
-        projectId: props.projectId,
+        projectId: p.projectId,
         createBackupFunc: async (backupName: string) => {
           const token = await clerk.session?.getToken();
           const headers: HeadersInit = {
-            "Project-Id": props.projectId,
+            "Project-Id": p.projectId,
           };
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
@@ -875,13 +875,13 @@ function ProjectBackups(props: { projectId: string }) {
           if (token) {
             headers["Authorization"] = `Bearer ${token}`;
           }
-          headers["Project-Id"] = props.projectId;
+          headers["Project-Id"] = p.projectId;
 
           const response = await fetch(`${_SERVER_HOST}/api/restore-backup`, {
             method: "POST",
             headers,
             body: JSON.stringify({
-              projectId: props.projectId,
+              projectId: p.projectId,
               fileData: base64,
               fileName: file.name,
             }),

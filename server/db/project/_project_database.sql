@@ -192,7 +192,7 @@ CREATE TABLE metrics (
   label text NOT NULL,
   variant_label text,
   value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
-  format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
+  format_as text NOT NULL CHECK (format_as IN ('percent', 'number', 'indicator')),
   value_props text NOT NULL,  -- JSON array of property names
   required_disaggregation_options text NOT NULL,  -- JSON array
   value_label_replacements text,  -- JSON object (nullable)

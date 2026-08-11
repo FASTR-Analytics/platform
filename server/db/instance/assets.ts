@@ -6,6 +6,7 @@ import type { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
+  AssetFilePin,
   AssetInfo,
 } from "lib";
 
@@ -29,6 +30,44 @@ export function resolveAssetFilePath(assetFileName: string): string {
     throw new Error(`Invalid asset file name: ${assetFileName}`);
   }
   return join(_ASSETS_DIR_PATH, assetFileName);
+}
+
+// The one resolution path for import-wizard file reads. Stateless wizard
+// reads pass expectedPin null (they always want current bytes); launch
+// validations pass null and store the returned pin on the run config;
+// deferred reads (spawn sites) pass the stored pin, so an
+// overwrite-after-launch fails loudly instead of silently swapping the bytes.
+// The two canonical error messages live here and nowhere else.
+export async function resolveAssetFileOrThrow(
+  fileName: string,
+  expectedPin: AssetFilePin | null,
+): Promise<{ filePath: string; pin: AssetFilePin }> {
+  let filePath: string;
+  let stat: Deno.FileInfo;
+  try {
+    filePath = resolveAssetFilePath(fileName);
+    stat = await Deno.stat(filePath);
+    if (!stat.isFile) {
+      throw new Error("Not a file");
+    }
+  } catch {
+    throw new Error(
+      "The file is no longer in assets. Upload or select it again and relaunch.",
+    );
+  }
+  const pin: AssetFilePin = {
+    size: stat.size,
+    mtimeMs: stat.mtime?.getTime() ?? 0,
+  };
+  if (
+    expectedPin &&
+    (expectedPin.size !== pin.size || expectedPin.mtimeMs !== pin.mtimeMs)
+  ) {
+    throw new Error(
+      "The file has changed since this run was launched. Start the import again.",
+    );
+  }
+  return { filePath, pin };
 }
 
 export async function getAssetsForInstance(

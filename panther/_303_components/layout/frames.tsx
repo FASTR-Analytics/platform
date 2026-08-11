@@ -612,8 +612,16 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <For each={collapsedPanes()}>
             {(pane) => (
               <div
-                class="ui-hoverable-base-200 border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0"
+                class="ui-hoverable-base-200 ui-focusable border-primary flex h-10 flex-1 items-center justify-center border-r px-3 last:border-r-0"
+                role="button"
+                tabindex="0"
                 onClick={pane.onClick}
+                onKeyDown={(evt) => {
+                  if (evt.key === "Enter" || evt.key === " ") {
+                    evt.preventDefault();
+                    pane.onClick();
+                  }
+                }}
               >
                 <div class="font-700 whitespace-nowrap text-sm">
                   {pane.label}

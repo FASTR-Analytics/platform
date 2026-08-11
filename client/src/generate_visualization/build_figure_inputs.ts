@@ -3,6 +3,7 @@ import {
   PeriodType,
   formatPeriod,
   getPeriodTypeFromValue,
+  getPieDataTransformed,
   getTimeseriesDataTransformed,
   type GeoJSONFeatureCollection,
   type JsonArrayItem,
@@ -17,15 +18,19 @@ import {
   getSingleValueDimsFromItems,
   indicatorMetadataToLabelMap,
   pickLang,
+  resolveEffectiveFormatFromItems,
   selectCf,
   withReplicant,
   type DeckStyleContext,
+  type IndicatorFormat,
   type IndicatorMetadata,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
+import { scaleLegendFormat } from "./conditional_formatting/compile";
 import {
   getChartOHJsonDataConfigFromPresentationObjectConfig,
   getChartOVJsonDataConfigFromPresentationObjectConfig,
+  getPieJsonDataConfigFromPresentationObjectConfig,
   getTableJsonDataConfigFromPresentationObjectConfig,
   getTimeseriesJsonDataConfigFromPresentationObjectConfig,
 } from "./get_data_config_from_po";
@@ -36,7 +41,6 @@ import {
   isSpecialDisruptionsChartActive,
   isSpecialScorecardTableActive,
   metricAllowsNegativeScale,
-  metricAlwaysObeysFormatAs,
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
@@ -52,14 +56,14 @@ export function buildFigureInputs(
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
 
-  const effectiveFormatAs: "percent" | "number" =
-    !metricAlwaysObeysFormatAs(bundle.metricId) &&
-    displayedIndicatorsAllPercent(items, indicatorMetadata, config)
-      ? "percent"
-      : resultsValue.formatAs;
+  const effectiveFormat = resolveEffectiveFormatFromItems({
+    metricFormatAs: resultsValue.formatAs,
+    config,
+    items,
+    indicatorMetadata,
+  });
 
   const allowNegativeScale = metricAllowsNegativeScale(bundle.metricId);
-  const obeyMetricFormat = metricAlwaysObeysFormatAs(bundle.metricId);
 
   const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
     dateRange,
@@ -95,8 +99,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormatAs, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
   }
 
@@ -121,8 +125,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormatAs, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
   }
 
@@ -131,8 +135,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormatAs, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
     };
     if (effectiveConfig.s.horizontal) {
       return {
@@ -201,8 +205,39 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormatAs, localization.calendar, deckStyle, indicatorMetadata, allowNegativeScale, obeyMetricFormat, effectiveValueProps),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormatAs, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization),
+    };
+  }
+
+  if (effectiveConfig.d.type === "pie") {
+    const j = getPieJsonDataConfigFromPresentationObjectConfig(
+      resultsValue,
+      effectiveConfig,
+      effectiveValueProps,
+      indicatorLabelReplacements,
+      localization,
+      effectiveFormat.axisFormat,
+      items,
+    );
+    // Transform eagerly (timeseries precedent) so transform-time throws
+    // (negative values, missing "--v" assignment) surface here inside the
+    // caller's catch rather than at measure time inside panther. The
+    // transform coerces string values itself — no numeric parse needed.
+    const d = getPieDataTransformed({ jsonArray: items, jsonDataConfig: j });
+    return {
+      figureType: "pie",
+      data: d,
+      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      // Never pass an explicit legend: CF is unwired for slices (they color
+      // via the series sentinel), so a cf* state carried over from a
+      // chart/map conversion would show threshold/scale colors that appear
+      // nowhere on the figure — and an explicit legend would suppress the
+      // categorical slice legend panther derives from series headers.
+      legend: undefined,
     };
   }
 
@@ -225,7 +260,7 @@ function resolveGeoJson(
 
 function buildMapAutoLegend(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   localization: Pick<FigureLocalization, "language">,
 ) {
   const cf = selectCf(config.s);
@@ -241,10 +276,11 @@ function buildMapAutoLegend(
       ? { min: cf.domain.min, max: cf.domain.max }
       : undefined;
   const steps = cf.type === "scale" ? cf.steps : undefined;
+  const format = scaleLegendFormat(formatAs);
   if (steps !== undefined && steps >= 2) {
-    return { type: "stepped-auto" as const, nSteps: steps, domain, format: formatAs, noData };
+    return { type: "stepped-auto" as const, nSteps: steps, domain, ...format, noData };
   }
-  return { type: "gradient-auto" as const, nTicks: 5, domain, format: formatAs, noData };
+  return { type: "gradient-auto" as const, nTicks: 5, domain, ...format, noData };
 }
 
 function withDateRange(
@@ -279,33 +315,3 @@ function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
     .flatMap((m) => [m.id, m.label]);
 }
 
-function displayedIndicatorsAllPercent(
-  items: FigureBundle["items"],
-  metadata: IndicatorMetadata[],
-  config: PresentationObjectConfig,
-): boolean {
-  const formatById = new Map(
-    metadata
-      .filter((m) => m.format_as !== undefined)
-      .map((m) => [m.id, m.format_as!] as const),
-  );
-  if (formatById.size === 0) return false;
-
-  const cols = config.d.disaggregateBy.map((d) => d.disOpt);
-  let sawIndicator = false;
-
-  const inspect = (value: string | number | null | undefined): boolean => {
-    const format = typeof value === "string" ? formatById.get(value) : undefined;
-    if (format === undefined) return true;
-    sawIndicator = true;
-    return format === "percent";
-  };
-
-  if (!inspect(config.d.selectedReplicantValue)) return false;
-  for (const row of items) {
-    for (const col of cols) {
-      if (!inspect(row[col])) return false;
-    }
-  }
-  return sawIndicator;
-}

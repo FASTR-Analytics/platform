@@ -12,25 +12,16 @@ import {
   type MenuItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
-import {
-  createEffect,
-  createMemo,
-  Match,
-  onMount,
-  Show,
-  Switch,
-} from "solid-js";
-import { ProjectRunStatus } from "~/components/DirtyStatus";
+import { createEffect, Match, Show, Switch } from "solid-js";
 import { ProjectPageCursors } from "~/components/_shared/cursors/page_cursors";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
-import { ProjectData } from "./project_data";
 import { ProjectDecks } from "./project_decks";
 import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
-import { ProjectModules } from "./project_modules";
+import { ProjectResultsPackage } from "./project_results_package";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectCache } from "./project_cache";
@@ -41,8 +32,6 @@ import {
   setShowAi,
   navCollapsed,
   setNavCollapsed,
-  moduleLatestCommits,
-  setModuleLatestCommits,
   pendingTourReplay,
   setPendingTourReplay,
 } from "~/state/t4_ui";
@@ -53,16 +42,9 @@ import {
   projectAIViewController,
 } from "../project_ai/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
-import { serverActions } from "~/server_actions";
-import {
-  checkDataNeedsUpdate,
-  checkModulesNeedUpdate,
-} from "./staleness_checks";
 import {
   setupDashboardTours,
-  setupDataTours,
   setupDeckTours,
-  setupModuleTours,
   setupReportTours,
   setupSettingsTours,
   setupVisualizationTours,
@@ -101,24 +83,13 @@ function ProjectInner() {
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
 
-  onMount(async () => {
-    if (moduleLatestCommits() === undefined) {
-      const res = await serverActions.checkModuleUpdates({});
-      if (res.success) {
-        setModuleLatestCommits(res.data);
-      }
-    }
-  });
-
   // Destroyed with this component's reactive owner; the tour catalogue modal
   // gets them as props, so nothing outlives a project switch.
   const tourManagers = [
     setupDeckTours(),
     setupReportTours(),
-    setupModuleTours(),
     setupVisualizationTours(),
     setupDashboardTours(),
-    setupDataTours(),
     setupSettingsTours(),
   ];
 
@@ -135,20 +106,6 @@ function ProjectInner() {
     entry.navigate();
     void tourManagers.find((m) => m.hasTour(tourId))?.start(tourId);
   });
-
-  const dataNeedsUpdate = createMemo(() =>
-    checkDataNeedsUpdate(projectState, instanceState),
-  );
-
-  const modulesNeedUpdate = createMemo(() =>
-    checkModulesNeedUpdate(projectState.projectModules, moduleLatestCommits()),
-  );
-
-  const modulesHaveError = createMemo(() =>
-    projectState.projectModules.some(
-      (mod) => projectState.moduleDirtyStates[mod.id] === "error",
-    ),
-  );
 
   const tabItems = (): ListItem<TabOption>[] => {
     const perms = projectState.thisUserPermissions;
@@ -187,28 +144,19 @@ function ProjectInner() {
         iconName: "chart",
       });
     }
-    if (
-      perms.can_configure_modules ||
-      perms.can_run_modules ||
-      perms.can_view_script_code
-    ) {
-      items.push({
-        id: "modules",
-        label: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
-        iconName: "code",
-        dot: modulesHaveError()
-          ? "danger"
-          : modulesNeedUpdate()
-            ? "warning"
-            : undefined,
-      });
-    }
+    // The package this project serves from is the project's own data, so the
+    // tab opens to any member who can view it (PLAN_RESULTS_RUNS Phase 3
+    // item 4 — matching the server's can_view_data guard). The picker inside
+    // is editor-gated separately; generation lives on the instance shell.
     if (perms.can_view_data) {
       items.push({
-        id: "data",
-        label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-        iconName: "database",
-        dot: dataNeedsUpdate() ? "warning" : undefined,
+        id: "results_package",
+        label: t3({
+          en: "Results package",
+          fr: "Paquet de résultats",
+          pt: "Pacote de resultados",
+        }),
+        iconName: "package",
       });
     }
     if (perms.can_configure_settings) {
@@ -338,7 +286,6 @@ function ProjectInner() {
                       {t3({ en: "AI", fr: "IA", pt: "IA" })}
                     </Button>
                   </Show>
-                  <ProjectRunStatus />
                 </div>
               </div>
             }
@@ -403,31 +350,11 @@ function ProjectInner() {
                 </Match>
                 <Match
                   when={
-                    projectTab() === "modules" &&
-                    (projectState.thisUserPermissions.can_configure_modules ||
-                      projectState.thisUserPermissions.can_run_modules ||
-                      projectState.thisUserPermissions.can_view_script_code)
-                  }
-                >
-                  <ProjectModules
-                    canConfigureModules={
-                      projectState.thisUserPermissions.can_configure_modules
-                    }
-                    canRunModules={
-                      projectState.thisUserPermissions.can_run_modules
-                    }
-                    canViewScriptCode={
-                      projectState.thisUserPermissions.can_view_script_code
-                    }
-                  />
-                </Match>
-                <Match
-                  when={
-                    projectTab() === "data" &&
+                    projectTab() === "results_package" &&
                     projectState.thisUserPermissions.can_view_data
                   }
                 >
-                  <ProjectData />
+                  <ProjectResultsPackage />
                 </Match>
                 <Match
                   when={

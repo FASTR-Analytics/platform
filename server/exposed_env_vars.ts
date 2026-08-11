@@ -1,4 +1,10 @@
-import { InstanceCalendar, setCalendar, setLanguage } from "lib";
+import {
+  ALL_INSTANCE_FISCAL_YEARS,
+  InstanceCalendar,
+  InstanceFiscalYear,
+  setCalendar,
+  setLanguage,
+} from "lib";
 import type { Language } from "@timroberton/panther";
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -6,9 +12,6 @@ import type { Language } from "@timroberton/panther";
 ///////////////////////////////////////////////////////////////////////////////
 
 export const _IS_PRODUCTION = !!Deno.env.get("IS_PRODUCTION");
-
-export const _CENTRAL_SERVER_SECRET = Deno.env.get("CENTRAL_SERVER_SECRET") ??
-  "";
 
 export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ??
   "./modules";
@@ -54,6 +57,48 @@ if (
 }
 setCalendar(_INSTANCE_CALENDAR);
 
+// Fiscal-year reporting mode. Orthogonal to INSTANCE_CALENDAR: it relabels
+// quarterly timeseries axes only, and only for gregorian instances (FY-July is
+// a gregorian variant; Ethiopian quarters bucket differently). Unset means
+// "none", so existing instances need no env change.
+export const _INSTANCE_FISCAL_YEAR = (Deno.env
+  .get("INSTANCE_FISCAL_YEAR")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "")
+  .trim() as InstanceFiscalYear) ?? "none";
+if (!ALL_INSTANCE_FISCAL_YEARS.includes(_INSTANCE_FISCAL_YEAR)) {
+  throw new Error(
+    `INSTANCE_FISCAL_YEAR must be one of ${
+      ALL_INSTANCE_FISCAL_YEARS.join(" | ")
+    } (got "${_INSTANCE_FISCAL_YEAR}")`,
+  );
+}
+if (_INSTANCE_FISCAL_YEAR !== "none" && _INSTANCE_CALENDAR !== "gregorian") {
+  throw new Error(
+    `INSTANCE_FISCAL_YEAR is only supported with INSTANCE_CALENDAR=gregorian (got "${_INSTANCE_CALENDAR}")`,
+  );
+}
+
+// Country the instance reports on. Every instance HAS a country (Tim's ruling
+// 2026-08-06) — country-less is not a legitimate state, so this is required and
+// boot fail-stops without it. An ISO3 code, plus SOMALILAND: the one territory
+// FASTR reports on that has no ISO3 code. The value is interpolated into
+// generated R scripts as `${countryIso3}`.
+export const _INSTANCE_COUNTRY_ISO3 = Deno.env
+  .get("ISO_COUNTRY_CODE")
+  ?.replaceAll("'", "")
+  .replaceAll(`"`, "")
+  .trim()
+  .toUpperCase() ?? "";
+if (
+  !/^[A-Z]{3}$/.test(_INSTANCE_COUNTRY_ISO3) &&
+  _INSTANCE_COUNTRY_ISO3 !== "SOMALILAND"
+) {
+  throw new Error(
+    `ISO_COUNTRY_CODE must be three uppercase letters (e.g. NGA) or SOMALILAND (got "${_INSTANCE_COUNTRY_ISO3}")`,
+  );
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Directory Paths
 ///////////////////////////////////////////////////////////////////////////////
@@ -84,6 +129,35 @@ if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
 
+// Immutable results-package directories (PLAN_RESULTS_RUNS §2.1), with the
+// same three path namespaces as the sandbox (binding decision 4): the Deno
+// process reads/writes packages at _RUNS_DIR_PATH; the R container mounts a
+// package's tmp dir during generation via _EXTERNAL (host path); the Postgres
+// container writes COPY TO dataset extracts directly into that tmp dir via
+// _POSTGRES_INTERNAL, so it must see the same directory.
+//
+// **Packages live IN the sandbox directory** (Tim's ruling 2026-07-30) — the
+// same directory, flat, not a subdir. It is already mounted into BOTH the app
+// and the Postgres containers on every instance and already world-writable, so
+// a results package needs no new volume, compose change, chmod or env var.
+// There is no separate runs path to configure and no way for the two to
+// disagree; these three names exist because the code that stores packages
+// should say what it stores, not repeat the directory's legacy name.
+//
+// Sharing one directory is safe because nothing treats its entries as a
+// homogeneous set: every consumer addresses a NAMED entry — a `{projectId}`
+// dir, the `.tmp-{runId}` prefix (the boot sweep's only filter), or
+// `.duckdb-spill`. Package dirs are freshly minted UUIDs, so they can never
+// collide with a project id.
+//
+// End state: once Phase 4 removes the legacy per-project dirs, this directory
+// holds only packages and both it and the `SANDBOX_DIR_PATH*` vars get renamed
+// to runs — at which point these three aliases collapse into them.
+export const _RUNS_DIR_PATH = _SANDBOX_DIR_PATH;
+export const _RUNS_DIR_PATH_EXTERNAL = _SANDBOX_DIR_PATH_EXTERNAL;
+export const _RUNS_DIR_PATH_POSTGRES_INTERNAL =
+  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Database Configuration
 ///////////////////////////////////////////////////////////////////////////////
@@ -102,6 +176,26 @@ export const _PG_PASSWORD = Deno.env.get("PG_PASSWORD")!;
 if (_PG_PASSWORD === undefined) {
   throw new Error("Could not get PG_PASSWORD env variable");
 }
+
+export const _VALKEY_URL = Deno.env.get("VALKEY_URL");
+
+export const _PORT = parseInt(Deno.env.get("PORT") || "8000");
+if (Number.isNaN(_PORT)) {
+  throw new Error("PORT is set but is not a number");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Client Origins
+///////////////////////////////////////////////////////////////////////////////
+
+/** Browser origins allowed to call this API with credentials (CLIENT_ORIGIN,
+ *  comma-separated). Shared by the HTTP CORS middleware and the collab
+ *  WebSocket's Origin allowlist (project-collab.ts) — WS handshakes are not
+ *  subject to CORS, so the socket enforces this list itself. */
+export const _CLIENT_ORIGINS = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
+  "http://localhost:3000",
+  "http://localhost:3001",
+];
 
 ///////////////////////////////////////////////////////////////////////////////
 // AI / External APIs
@@ -125,13 +219,6 @@ if (_STATUS_API_KEY === undefined) {
 export const _SEND_GRID_API = Deno.env.get("SEND_GRID_API")!;
 if (_SEND_GRID_API === undefined) {
   throw new Error("Could not get SEND_GRID_API env variable");
-}
-
-// Also read by clerkMiddleware internally; exposed for the server's own Clerk
-// Backend API calls (email-ownership checks in the rename-email flow).
-export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY")!;
-if (_CLERK_SECRET_KEY === undefined) {
-  throw new Error("Could not get CLERK_SECRET_KEY env variable");
 }
 
 export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
@@ -163,8 +250,8 @@ if (_WEEKLY_TOKEN_LIMIT !== null && Number.isNaN(_WEEKLY_TOKEN_LIMIT)) {
 ///////////////////////////////////////////////////////////////////////////////
 
 export const _DHIS2_FACILITY_BATCH_SIZE: number = Deno.env.get(
-  "DHIS2_FACILITY_BATCH_SIZE",
-)
+    "DHIS2_FACILITY_BATCH_SIZE",
+  )
   ? parseInt(Deno.env.get("DHIS2_FACILITY_BATCH_SIZE")!)
   : 400;
 if (
@@ -177,8 +264,8 @@ if (
 }
 
 export const _DHIS2_CONCURRENT_REQUESTS: number = Deno.env.get(
-  "DHIS2_CONCURRENT_REQUESTS",
-)
+    "DHIS2_CONCURRENT_REQUESTS",
+  )
   ? parseInt(Deno.env.get("DHIS2_CONCURRENT_REQUESTS")!)
   : 5;
 if (
@@ -206,6 +293,17 @@ export const _OPEN_ACCESS = !!Deno.env.get("OPEN_ACCESS");
 // Only enabled if BYPASS_AUTH=true AND not in production
 export const _BYPASS_AUTH = !!Deno.env.get("BYPASS_AUTH") && !_IS_PRODUCTION;
 
+// Clerk keys. NOT boot-required: clerkMiddleware reads them from the process
+// env itself and fails per-request, and a BYPASS_AUTH dev instance runs with
+// neither set. They are surfaced here for the headless OAuth resolver
+// (server/headless_auth.ts), which builds its own backend client and throws at
+// USE time — never at boot — if they are missing. The same applies to the
+// server's own Clerk Backend API calls (email-ownership checks in the
+// rename-email flow).
+export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY") ?? "";
+export const _CLERK_PUBLISHABLE_KEY = Deno.env.get("CLERK_PUBLISHABLE_KEY") ??
+  "";
+
 ///////////////////////////////////////////////////////////////////////////////
 // Deployment Metadata
 ///////////////////////////////////////////////////////////////////////////////
@@ -228,12 +326,3 @@ export const _START_TIME = new Date().toISOString();
 
 export const _MODULE_SCRIPT_FILE_NAME = "___script___.R";
 export const _MODULE_LOG_FILE_NAME = "___logs___.txt";
-
-export const UPLOADED_HMIS_DATA_STAGING_TABLE_NAME =
-  "uploaded_hmis_data_staging_ready_for_integration";
-export const UPLOADED_HFA_DATA_STAGING_TABLE_NAME =
-  "uploaded_hfa_data_staging_ready_for_integration";
-export const UPLOADED_HFA_DICT_VARS_STAGING_TABLE_NAME =
-  "uploaded_hfa_dictionary_vars_staging";
-export const UPLOADED_HFA_DICT_VALUES_STAGING_TABLE_NAME =
-  "uploaded_hfa_dictionary_values_staging";

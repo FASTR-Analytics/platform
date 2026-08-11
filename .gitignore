@@ -41,3 +41,4 @@ node_modules/
 
 PROTOCOL_ACCESS_DBS.md
 PLAN_HARDEN_SECURITY.md
+rollout_logs/

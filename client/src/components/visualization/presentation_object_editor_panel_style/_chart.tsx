@@ -1,4 +1,9 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import {
+  type IndicatorFormat,
+  PresentationObjectConfig,
+  PresentationObjectDetail,
+  t3,
+} from "lib";
 import { Checkbox, LabelHolder, RadioGroup } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -10,6 +15,9 @@ type Props = {
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
+  /** Format the figure's values will actually be written in (resolved from the
+   *  draft config — HFA metrics all declare "number"). */
+  effectiveFormatAs: IndicatorFormat;
 };
 
 export function ChartStyleControls(p: Props) {
@@ -161,6 +169,7 @@ export function ChartStyleControls(p: Props) {
         setTempConfig={p.setTempConfig}
         editCustomSeriesStyles={p.editCustomSeriesStyles}
         isColorOverridden={() => false}
+        effectiveFormatAs={p.effectiveFormatAs}
       />
     </>
   );

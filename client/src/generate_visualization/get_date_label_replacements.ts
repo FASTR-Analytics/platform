@@ -52,7 +52,10 @@ export function getDateLabelReplacements(
   // Format each unique value based on its prop type
   for (const [value, prop] of valuesByProp) {
     if (prop === "month") {
-      // Handle month prop (values are 1-12)
+      // Ids are ZERO-PADDED "01".."12", not "1".."12" — the column is derived as
+      // LPAD((period_id % 100)::text, 2, '0') (period_helpers.ts). parseInt
+      // accepts either, so this path is insensitive to it; anything that
+      // compares or orders raw month ids is NOT (see getPeriodAxisSort).
       const monthNum = parseInt(value, 10);
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
         replacements[value] = getMonthName(monthNum, calendar);

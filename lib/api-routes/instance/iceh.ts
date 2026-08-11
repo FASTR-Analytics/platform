@@ -4,8 +4,7 @@ import type {
   IcehDisplayData,
 } from "../../types/dataset_iceh.ts";
 import type {
-  IcehUploadAttemptDetail,
-  IcehUploadStatusResponse,
+  IcehImportRunSummary,
   IcehStep1Result,
 } from "../../types/dataset_iceh_import.ts";
 import { route } from "../route-utils.ts";
@@ -21,34 +20,42 @@ export const icehRouteRegistry = {
     path: "/iceh/display-data",
     response: {} as IcehDisplayData,
   }),
-  createDatasetIcehUploadAttempt: route({
+
+  // ICEH import runs (config-on-client, run-on-server —
+  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C). The wizard is client-local;
+  // its zip input is an ordinary instance asset (uploaded or picked).
+  // No queue and no scheduler: a second launch while one runs is refused.
+  parseDatasetIcehZipPreview: route({
     method: "POST",
-    path: "/iceh/upload-attempt",
-  }),
-  getDatasetIcehUploadAttempt: route({
-    method: "GET",
-    path: "/iceh/upload-attempt",
-    response: {} as IcehUploadAttemptDetail | null,
-  }),
-  getDatasetIcehUploadStatus: route({
-    method: "GET",
-    path: "/iceh/upload-attempt/status",
-    response: {} as IcehUploadStatusResponse | null,
-  }),
-  deleteDatasetIcehUploadAttempt: route({
-    method: "DELETE",
-    path: "/iceh/upload-attempt",
-  }),
-  updateDatasetIcehUploadAttemptStep1: route({
-    method: "POST",
-    path: "/iceh/upload-attempt/step1",
-    body: z.object({ zipAssetFileName: z.string() }),
+    path: "/iceh/runs/parse-zip",
+    body: z.object({ zipFileName: z.string() }),
     response: {} as IcehStep1Result,
   }),
-  updateDatasetIcehUploadAttemptStep2: route({
+  launchDatasetIcehRun: route({
     method: "POST",
-    path: "/iceh/upload-attempt/step2",
+    path: "/iceh/runs",
+    body: z.object({ zipFileName: z.string() }),
+    response: {} as { runId: number },
   }),
+  getDatasetIcehImportRuns: route({
+    method: "GET",
+    path: "/iceh/runs",
+    response: {} as IcehImportRunSummary[],
+  }),
+  resolveDatasetIcehReview: route({
+    method: "POST",
+    path: "/iceh/runs/resolve-review",
+    body: z.object({
+      runId: z.number().int(),
+      action: z.enum(["integrate_anyway", "discard"]),
+    }),
+  }),
+  cancelDatasetIcehRun: route({
+    method: "POST",
+    path: "/iceh/runs/cancel",
+    body: z.object({ runId: z.number().int() }),
+  }),
+
   deleteDatasetIcehData: route({
     method: "DELETE",
     path: "/iceh/data",

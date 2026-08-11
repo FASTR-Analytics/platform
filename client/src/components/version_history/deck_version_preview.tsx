@@ -512,7 +512,7 @@ export function DeckVersionPreview(p: {
                   </span>
                 }
               >
-                <span class="font-semibold">
+                <span class="font-700">
                   {t3({ en: "Edits in this session", fr: "Modifications de cette session", pt: "Edições desta sessão" })}
                   {sessionEditors ? ` (${sessionEditors})` : ""}
                   {": "}
@@ -657,7 +657,7 @@ function VersionSlideThumb(p: {
       <Show when={p.badge}>
         {(badge) => (
           <div
-            class="text-white absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px] font-semibold"
+            class="text-white absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px] font-700"
             style={{ "background-color": badge().color }}
             title={badge().title}
           >
@@ -716,7 +716,7 @@ function ExpandedVersionSlideModal(
       </div>
       <Show when={p.rows && p.rows.length > 0}>
         <div class="mt-3 flex max-h-[30vh] flex-col gap-2 overflow-auto">
-          <div class="text-sm font-semibold">
+          <div class="text-sm font-700">
             {t3({ en: "Changes in this session", fr: "Modifications de cette session", pt: "Alterações desta sessão" })}
           </div>
           <For each={p.rows}>

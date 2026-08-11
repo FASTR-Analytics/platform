@@ -23,7 +23,7 @@ export function Step3Configure(p: Props) {
   const typeOptions = () =>
     get_PRESENTATION_SELECT_OPTIONS(p.metric.disaggregationOptions);
 
-  const allTypes: PresentationOption[] = ["table", "timeseries", "chart", "map"];
+  const allTypes: PresentationOption[] = ["table", "timeseries", "chart", "pie", "map"];
 
   const getDisabledReason = (type: PresentationOption): string | undefined => {
     const option = typeOptions().find((o) => o.value === type);
@@ -56,7 +56,7 @@ export function Step3Configure(p: Props) {
         <div class="font-700 mb-3">
           {t3({ en: "Visualization type", fr: "Type de visualisation", pt: "Tipo de visualização" })}
         </div>
-        <div class="ui-gap-sm grid grid-cols-4">
+        <div class="ui-gap-sm grid grid-cols-5">
           <For each={allTypes}>
             {(type) => (
               <TypeCard

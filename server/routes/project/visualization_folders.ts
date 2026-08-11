@@ -9,8 +9,12 @@ import {
 import {
   updatePresentationObjectFolder,
   reorderPresentationObjects,
-  getAllPresentationObjectsForProject,
 } from "../../db/project/presentation_objects.ts";
+import {
+  findVirtualDefault,
+  getAllPresentationObjectsWithVirtualDefaults,
+  getAttachedManifestOrNull,
+} from "../../run_query/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
   notifyProjectVisualizationFoldersUpdated,
@@ -121,13 +125,29 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { params, body }) => {
+    // Virtual defaults (item 5b) have no row and no folder — refuse like the
+    // other write guards rather than no-op'ing the UPDATE.
+    const manifest = await getAttachedManifestOrNull(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    if (manifest && findVirtualDefault(manifest, params.po_id) !== undefined) {
+      return c.json({
+        success: false,
+        err: "You cannot update a default visualization",
+      });
+    }
     const res = await updatePresentationObjectFolder(
       c.var.ppk.projectDb,
       params.po_id,
       body.folderId,
     );
     if (res.success) {
-      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+        c.var.mainDb,
+        c.var.ppk.projectId,
+        c.var.ppk.projectDb,
+      );
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
       }
@@ -149,7 +169,11 @@ defineRoute(
       body.orderUpdates,
     );
     if (res.success) {
-      const vizRes = await getAllPresentationObjectsForProject(c.var.ppk.projectDb);
+      const vizRes = await getAllPresentationObjectsWithVirtualDefaults(
+        c.var.mainDb,
+        c.var.ppk.projectId,
+        c.var.ppk.projectDb,
+      );
       if (vizRes.success) {
         notifyProjectVisualizationsUpdated(c.var.ppk.projectId, vizRes.data);
       }

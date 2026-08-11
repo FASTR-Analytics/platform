@@ -231,16 +231,25 @@ const _DS = {
     exactAxisX: typed<"none" | number>("none"),
     allowIndividualTierLimits: false,
   },
-  // Natural ideal-height policy, same decay family T × (a + (1−a) × k^(n−1)) for both:
+  // Natural ideal-height policy, same decay family T × (a + (1−a) × k^(n−1)):
   // - idealPlotHeight (ChartOV/Timeseries plot height): anchor 450 DU at one
   //   subchart row, asymptote 180 (0.4×), steep k=0.5 — row counts are small.
   // - idealRowThickness (ChartOH bar thickness): anchor 40 DU at one bar row,
   //   asymptote 6 (0.15×), gentle k=0.97 — bar counts run into the hundreds, so
   //   the decay must span a much wider range than the plot-height curve.
-  // Both are tunable starting points.
+  // - idealPieDiameter (pie DISC diameter, 2s): anchor 320 DU at one
+  //   indicator per sub-chart, asymptote 112 (0.35×), k=0.75 — between its
+  //   siblings' decays (pie counts are single digits). Does double duty: a
+  //   CAP on the ideal pass's width-driven term, and the draw-time MAXIMUM —
+  //   a pie is never drawn larger than this, whatever frame it is given
+  //   (owner-ruled 2026-08-05; the maxBarWidth precedent), so a big fixed
+  //   frame yields a natural-size disc centred in whitespace rather than a
+  //   massive disc beside small type.
+  // All are tunable starting points; the anchor is the single tuning knob.
   idealHeight: {
     idealPlotHeight: (n: number) => 300 * (0.4 + 0.6 * 0.5 ** (n - 1)),
     idealRowThickness: (n: number) => 40 * (0.15 + 0.85 * 0.97 ** (n - 1)),
+    idealPieDiameter: (n: number) => 320 * (0.35 + 0.65 * 0.75 ** (n - 1)),
   },
   // Content`
   content: {
@@ -603,14 +612,40 @@ const _DS = {
     innerRadiusRatio: 0,
     // 12 o'clock, matching every mainstream library.
     startAngle: -90,
+    // How far the whole pie runs, in degrees. 360 = a full pie; less makes a
+    // gauge, whose slices are fractions OF THE SWEEP — so an explicit `total`'s
+    // remainder slice becomes the gauge's track for free. Companion to
+    // startAngle: that says where the arc begins, this says how far it goes.
+    // Clamped to (0, 360].
+    sweepAngle: 360,
     direction: typed<"clockwise" | "counterclockwise">("clockwise"),
-    // Angular gap between adjacent slices, in degrees.
-    padAngle: 0,
+    // Space between adjacent slices, as a WIDTH (DU, scaled) rather than an
+    // angle: each slice's radial edges are inset half of it, parallel to the
+    // boundary ray, so the channel stays the same width from hub to rim and a
+    // slice reads as a band rather than a wedge. 0 = slices touch.
+    sliceGap: 0,
     cornerRadius: 0,
     labelMode: typed<"none" | "inside" | "outside" | "auto">("auto"),
     // The silhouette-to-label clearance for outside labels; see map's note.
     calloutMargin: 12,
-    centerLabel: typed<"none" | "total">("none"),
+    // "total" prints the summed values; "share" prints sum/total as a percent
+    // (the completion-pie form: 75 of 100 reads "75%").
+    centerLabel: typed<"none" | "total" | "share">("none"),
+    // The indicator slot grid: one pie per indicator, tiled inside each
+    // sub-chart. Borrows panes' key names AND its gap values (15/15, ruled by
+    // the owner 2026-08-05 — adjacent pies should breathe like adjacent
+    // panes); the one departure is the header, which centres rather than
+    // panes' left, because a slot's content is a centred disc, not a wide
+    // rectangular region.
+    indicators: {
+      hideHeaders: false,
+      headerAlignH: typed<"left" | "center" | "right">("center"),
+      headerGap: 10,
+      headerPosition: typed<"top" | "bottom">("top"),
+      gapX: 15,
+      gapY: 15,
+      nCols: typed<number | "auto">("auto"),
+    },
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),
     // Pie ships on nearest-point placement: a slice at 12 o'clock gets its

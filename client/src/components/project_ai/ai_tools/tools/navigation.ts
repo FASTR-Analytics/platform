@@ -1,7 +1,11 @@
 import { createAITool } from "panther";
 import { z } from "zod";
 import { updateProjectView } from "~/state/t4_ui";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
+import {
+  PROJECT_TAB_TO_VIEW,
+  projectAIViewController,
+} from "~/components/project_ai/ai_views";
+import { instanceState } from "~/state/instance/t1_store";
 
 // Kept as a PLAIN tool (PLAN_FUTURE_AI_ADOPTIONS.md feature 8, option 2): the
 // family guard below is deliberately a SOFT return, not a throw — a throw
@@ -13,21 +17,43 @@ import { projectAIViewController } from "~/components/project_ai/ai_views";
 // stamps the resulting setView (the tab effect in project/index.tsx) origin
 // "ai" so it drops from the __navigation digest — the tab switch is
 // synchronous (state/t4_ui.ts), so one mark before the call suffices.
-export function getToolsForNavigation() {
+export function getClientToolsForNavigation() {
   return [
     createAITool({
       name: "switch_tab",
       description:
-        "Switch the main project tab. Available tabs: reports, decks, visualizations, metrics, modules, data, settings. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.",
+        'Switch the main project tab. Available tabs: reports, decks (shown as "Slide decks" in the UI), visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.',
       inputSchema: z.object({
         tab: z
-          .enum(["reports", "decks", "visualizations", "metrics", "modules", "data", "settings"])
+          .enum([
+            "reports",
+            "decks",
+            "visualizations",
+            "metrics",
+            "results_package",
+            "settings",
+          ])
           .describe("The tab to switch to"),
       }),
       kind: "nav",
       handler: async (input) => {
         if (projectAIViewController.current().id.startsWith("editing_")) {
           return "Cannot switch tabs - user is currently editing. Ask them to save/close first.";
+        }
+        // Same gate as the tab bar and content Match (project/index.tsx) —
+        // switching a non-admin here would land them on a tab with no content.
+        // Soft return, matching the editing guard above.
+        if (
+          input.tab === "results_package" &&
+          !instanceState.currentUserIsGlobalAdmin &&
+          !instanceState.currentUserPermissions.can_configure_data
+        ) {
+          return "Cannot switch to results_package - this user does not have permission to see that tab.";
+        }
+        if (
+          projectAIViewController.current().id === PROJECT_TAB_TO_VIEW[input.tab]
+        ) {
+          return `Already on the ${input.tab} tab`;
         }
         projectAIViewController.markAINavigation();
         updateProjectView({ tab: input.tab });

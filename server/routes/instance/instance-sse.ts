@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { InstanceSseMessage, InstanceState } from "lib";
-import { getInstanceDatasetsSummary, getInstanceDetail, getInstanceIndicatorsSummary } from "../../db/mod.ts";
+import { buildInstanceState } from "../../task_management/build_instance_state.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { _INSTANCE_CALENDAR, _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 
 export const routesInstanceSSE = new Hono();
 
@@ -18,8 +17,9 @@ routesInstanceSSE.get(
       // Single BroadcastChannel with one listener that switches between
       // queuing (during initial build) and streaming (after drain).
       const queue: InstanceSseMessage[] = [];
-      let controller: ReadableStreamDefaultController<InstanceSseMessage> | null =
-        null;
+      let controller:
+        | ReadableStreamDefaultController<InstanceSseMessage>
+        | null = null;
 
       const broadcastReceiver = new BroadcastChannel("instance_updates");
       broadcastReceiver.addEventListener(
@@ -52,8 +52,10 @@ routesInstanceSSE.get(
       });
 
       try {
-        // 1. Build initial state from database (while queuing any concurrent messages)
-        const res = await getInstanceDetail(mainDb, globalUser);
+        // 1. Build initial state from database (while queuing any concurrent
+        // messages). Extracted to buildInstanceState (PLAN_112 step 3) so the
+        // /mcp context cache grounds on the same state — payload unchanged.
+        const res = await buildInstanceState(mainDb, globalUser);
         if (!res.success) {
           await stream.writeSSE({
             data: JSON.stringify({
@@ -64,62 +66,32 @@ routesInstanceSSE.get(
           return;
         }
 
-        const datasetsSummary = await getInstanceDatasetsSummary(mainDb);
-        const indicatorsSummary = await getInstanceIndicatorsSummary(mainDb);
-
         if (stream.aborted) return;
 
-        const users = res.data.users;
-        const me = users.find((u) => u.email === globalUser.email);
-
-        const instanceState: InstanceState = {
-          isReady: true,
-          instanceName: res.data.instanceName,
-          instanceLanguage: _INSTANCE_LANGUAGE,
-          instanceCalendar: _INSTANCE_CALENDAR,
-          maxAdminArea: res.data.maxAdminArea,
-          countryIso3: res.data.countryIso3,
-          facilityColumns: res.data.facilityColumns,
-          adminAreaLabels: res.data.adminAreaLabels,
-          projects: res.data.projects,
-          projectsLastUpdated: new Date().toISOString(),
-          users,
-          assets: res.data.assets,
-          geojsonMaps: res.data.geojsonMaps,
-          structure: res.data.structure,
-          structureLastUpdated: res.data.structureLastUpdated,
-          hfaWeights: res.data.hfaWeights,
-          ...indicatorsSummary,
-          ...datasetsSummary,
-          currentUserEmail: globalUser.email,
-          currentUserApproved: !!me,
-          currentUserIsGlobalAdmin: me?.isGlobalAdmin ?? false,
-          currentUserPermissions: me ? {
-            can_configure_users: me.can_configure_users,
-            can_view_users: me.can_view_users,
-            can_view_logs: me.can_view_logs,
-            can_configure_settings: me.can_configure_settings,
-            can_configure_data: me.can_configure_data,
-            can_view_data: me.can_view_data,
-            can_create_projects: me.can_create_projects,
-          } : {
-            can_configure_users: false,
-            can_view_users: false,
-            can_view_logs: false,
-            can_configure_settings: false,
-            can_configure_data: false,
-            can_view_data: false,
-            can_create_projects: false,
-          },
-        };
+        const instanceState: InstanceState = res.data;
 
         // 2. Send starting message with full state
         await stream.writeSSE({
-          data: JSON.stringify({
-            type: "starting",
-            data: instanceState,
-          } satisfies InstanceSseMessage),
+          data: JSON.stringify(
+            {
+              type: "starting",
+              data: instanceState,
+            } satisfies InstanceSseMessage,
+          ),
         });
+
+        // Per-user message filter (Q-B ruling): this endpoint is guarded by
+        // requireGlobalPermission() — every logged-in user — but the
+        // results-package generation messages carry run labels, module ids
+        // and R error detail, which are for instance data admins only. The
+        // permission set is the one captured for this connection; a
+        // permission change takes effect on reconnect, exactly like the
+        // currentUserPermissions in the starting payload above.
+        const canSeeRunMessages = instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_configure_data;
+        const shouldForward = (msg: InstanceSseMessage): boolean =>
+          canSeeRunMessages ||
+          (msg.type !== "run_progress" && msg.type !== "r_script");
 
         // 3. Create ReadableStream and switch listener to stream mode
         const rs = new ReadableStream<InstanceSseMessage>({
@@ -144,6 +116,7 @@ routesInstanceSSE.get(
             if (stream.aborted) break;
             const { done, value } = await reader.read();
             if (done) break;
+            if (!shouldForward(value)) continue;
             await stream.writeSSE({
               data: JSON.stringify(value),
             });

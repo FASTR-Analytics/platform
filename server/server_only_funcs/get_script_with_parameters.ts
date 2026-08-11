@@ -2,6 +2,7 @@ import type {
   CalculatedIndicator,
   HfaIndicator,
   HfaIndicatorCode,
+  HfaIndicatorVariantCode,
   ModuleConfigSelections,
   ModuleDefinitionInstalled,
 } from "lib";
@@ -11,13 +12,20 @@ import {
   type HfaSentinelRow,
 } from "./get_script_with_parameters_hfa.ts";
 
+// datasetsDirPath = where the generated script finds dataset extract CSVs,
+// relative to the module's working directory. Per-caller: the legacy sandbox
+// layout puts them at "../datasets" (sandbox/{projectId}/datasets beside each
+// module dir); a run workspace (runs/{runId}/outputs/{moduleId}) reads
+// "../../inputs/datasets" (§2.1 run layout).
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
   countryIso3: string | undefined,
+  datasetsDirPath: string,
   knownDatasetVariables?: Set<string>,
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
+  hfaVariantCode?: HfaIndicatorVariantCode[],
   calculatedIndicators?: CalculatedIndicator[],
   hfaSentinelRows?: HfaSentinelRow[],
   hfaTimePointOrder?: string[],
@@ -32,6 +40,7 @@ export function getScriptWithParameters(
       moduleDefinition,
       configSelections,
       countryIso3,
+      datasetsDirPath,
       calculatedIndicators,
     );
   }
@@ -51,8 +60,10 @@ export function getScriptWithParameters(
       moduleDefinition,
       configSelections,
       countryIso3,
+      datasetsDirPath,
       hfaIndicators,
       hfaIndicatorCode ?? [],
+      hfaVariantCode ?? [],
       knownDatasetVariables,
       hfaSentinelRows ?? [],
       hfaTimePointOrder ?? [],
@@ -67,7 +78,7 @@ export function getScriptWithParameters(
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
-        `'../datasets/${ds.datasetType}.csv'`
+        `'${datasetsDirPath}/${ds.datasetType}.csv'`
       );
     } else {
       str = str.replaceAll(

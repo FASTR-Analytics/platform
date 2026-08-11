@@ -138,8 +138,9 @@ with no options, and `getPgConnection` never reads `options.readonly` — no
 connection can write freely, and the flag merely **doubles** the pooled
 connections per database (a `_READ_ONLY` and a `_READ_AND_WRITE` entry, up to 20
 each — size Postgres `max_connections` accordingly). Treat the parameter as
-cache-namespacing, not a safety boundary (decision tracked as
-PLAN_ENFORCEMENT item 15).
+cache-namespacing, not a safety boundary (ruled 2026-08-03: it stays
+namespacing-only — making it real would break legitimate writes on
+`READ_ONLY`-pooled connections, e.g. `getGlobalUser`'s open-access insert).
 
 ## The canonical DB-function shape
 
@@ -257,10 +258,12 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   parameterized table names** — a table name from config must be validated
   against a closed set before it reaches SQL.
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
-  **only** sanctioned manual escaper, used for hand-built `VALUES` tuples in the
-  bulk paths (the HFA dataset functions and the HFA staging worker). The
-  HMIS/structure staging paths still inline their own `''`-doubling — one shared
-  helper + a ban on manual tuple escaping is PLAN_ENFORCEMENT item 6.
+  **only** sanctioned manual escaper for Postgres-bound SQL, used for
+  hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
+  `db_startup`, S9 filter values). No call site may inline its own
+  `''`-doubling (the last inline sites were consolidated 2026-08-03).
+  `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
+  twin.
 - **`.unsafe()`** runs raw SQL with no parameterization — ~20 call sites, all
   trusted-internal, in four groups: (1) the **bulk ingest paths** (S6-owned:
   `datasets_in_project_{hfa,hmis,iceh}.ts`, `instance/dataset_{hfa,hmis}.ts`,
@@ -293,8 +296,7 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    the concurrency guards); stale mid-run DHIS2 import runs are marked likewise.
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
-5. **Per-project pass.** `countryIso3` is read **once** from the main DB, then
-   for each row in `projects`: project SQL migrations (`migrations/project/`,
+5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
    same runner), then the eight project data transforms in fixed order
    (`po_config`, `module_definition`, `metrics_columns`, `slide_deck_config`,
    `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
@@ -352,11 +354,10 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   in-project converts from its own grid exactly like any other — no re-query, no
   `mainDb`, no blank placeholders.
 - **Localization synthesis.** `getTransformLocalization(countryIso3)` builds the
-  frozen `localization`: `language`/`calendar` from the instance env
-  (`_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`), and `countryIso3` read **once**
-  from the main DB at startup ([db_startup.ts](server/db_startup.ts)) and
-  threaded through every project sweep — so backfilled figures carry the real
-  country (drives admin-area relabelling at render). `provenance.moduleLastRun`
+  frozen `localization`, all three fields from the instance env —
+  `_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3` — threaded
+  through every project sweep, so backfilled figures carry the real country
+  (drives admin-area relabelling at render). `provenance.moduleLastRun`
   is best-effort (= `snapshotAt`); the Phase-4 stale-flag is therefore
   approximate for backfilled figures (accepted).
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
@@ -365,6 +366,29 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 - **Shared traversal.** `walkSlideLayoutNodes` (exported from
   `_figure_block.ts`) is used by both the `slide_config` boot sweep and the
   dry-run, so the two cannot drift in how they walk a slide layout.
+- **`resultsValue.formatAs` is INFERRED here, and nowhere else.** A stored
+  bundle carries no metric definition, so `inferFormatAs` supplies the field:
+  `"indicator"` for the eight ids in `INDICATOR_FORMAT_METRIC_IDS`
+  ([lib/indicator_format_metrics.ts](lib/indicator_format_metrics.ts)),
+  `"number"` for m9-02-01 (frozen: its CIX/SII values are derived measures over
+  percent indicators), otherwise the original backfill heuristic — percent iff
+  **every** stored indicator entry declares `format_as: "percent"`, so a
+  label-only entry counts as disagreement. That strictness is the point: the
+  function repairs history and must not improve on it. It deliberately does NOT
+  run the live resolution rule, which counts only values on an indicator
+  DIMENSION: a legacy figure displaying no indicator dimension would resolve
+  `"number"` and freeze a percent metric's values as raw fractions, and this
+  write is permanent. The flip needs a **forced** skip-gate
+  (`rawJsonNeedsIndicatorFormatFlip`), because a bundle whose stored `formatAs`
+  still says `"number"` for a listed metric parses cleanly under the three-way
+  schema and a parse-only gate would skip it forever
+  ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate
+  Gotcha"). The same frozen list drives project migration **039**
+  (`039_metric_format_as_indicator.sql` — relaxes the `metrics.format_as` CHECK
+  to admit `'indicator'`, then flips the eight installed rows; a SQL literal,
+  the one copy that cannot import the lib constant) and `manifest_transform`
+  block 2 for run manifests. The declaration itself is
+  [SYSTEM_10](SYSTEM_10_figure_render_export.md)'s.
 
 ### The mandatory pre-deploy dry-run gate
 
@@ -387,11 +411,11 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   aggregate and re-export every non-helper sibling so callers never deep-import.
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`) — short nanoid
   (3-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`), retry-until-unique (10
-  attempts) against a specific table. There are **7 near-identical copies**
+  attempts) against a specific table: one internal core over a closed
+  `IdTable` union, seven thin named wrappers
   (deck/slide/report/presentation-object/dashboard/dashboard-item/
-  dashboard-item-group) differing only by table name — consolidation is
-  PLAN_ENFORCEMENT item 16. (Projects/folders/tokens use
-  `crypto.randomUUID()` instead.)
+  dashboard-item-group). (Projects/folders/tokens use `crypto.randomUUID()`
+  instead.)
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
   log/usage families predate it (`AddLog`, `GetLogs`, `SetUserUnlimitedAi`,
   `DeleteOldLogs`, the `ai_usage_logs.ts` set, …) — don't copy them.
@@ -423,9 +447,6 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   dump's stored-JSON shapes stay stale until the next server restart.
 - The restore body's fresh `getPgConnection(projectId)` pool is never `.end()`ed
   — one leaked pool per restore.
-- Tracked in PLAN_ENFORCEMENT: one bulk-escape helper + ban hand-built
-  `VALUES` (item 6), decide the `READ_ONLY` flag (item 15), consolidate
-  `generateUnique*Id` — now 7 copies (item 16).
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for
   trusted-input review; flag DB functions that throw or return non-envelope

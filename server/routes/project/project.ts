@@ -1,8 +1,5 @@
 import { Hono } from "hono";
 import {
-  addDatasetHfaToProject,
-  addDatasetHmisToProject,
-  addDatasetIcehToProject,
   addProject,
   addProjectUserRole,
   bulkUpdateProjectUserPermissions,
@@ -11,31 +8,21 @@ import {
   copyProjectInBackground,
   deleteProject,
   forceDeleteProject,
-  getAllDatasetsForProject,
   restoreProject,
   getProjectDetail,
   getProjectUserPermissions,
-  removeDatasetFromProject,
   setProjectCentralReportingStatus,
   setProjectLockStatus,
   updateProject,
   updateProjectUserPermissions,
 } from "../../db/mod.ts";
-import type { ModuleId } from "lib";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
-  notifyLastUpdated,
-  setAllModulesDirty,
-  setModulesDirtyForDataset,
-} from "../../task_management/mod.ts";
-import {
   notifyProjectConfigUpdated,
-  notifyProjectDatasetsUpdated,
   notifyProjectUsersUpdated,
 } from "../../task_management/notify_project_v2.ts";
 import { notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { streamResponse } from "../streaming.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
@@ -43,13 +30,10 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { H_USERS } from "lib";
 import {
   checkSpaceForCopyProject,
-  checkSpaceForDataset,
   checkSpaceForNewProject,
 } from "../../utils/disk_space.ts";
 
 export const routesProject = new Hono();
-
-const _datasetLocks = new Set<string>();
 
 defineRoute(
   routesProject,
@@ -66,32 +50,9 @@ defineRoute(
           : `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). Please contact your administrator.`,
       });
     }
-    const res = await addProject(
-      c.var.mainDb,
-      c.var.globalUser,
-      body.label,
-      body.datasetsToEnable,
-      body.modulesToEnable as ModuleId[],
-      body.projectEditors,
-      body.projectViewers,
-    );
+    const res = await addProject(c.var.mainDb, c.var.globalUser, body.label);
     if (res.success === false) {
       return c.json(res);
-    }
-    for (const enabledDataset of res.data.datasetLastUpdateds) {
-      await setModulesDirtyForDataset(
-        {
-          projectId: res.data.newProjectId,
-          projectDb: res.data.projectDb,
-        },
-        enabledDataset.datasetType,
-      );
-      notifyLastUpdated(
-        res.data.newProjectId,
-        "datasets",
-        [enabledDataset.datasetType],
-        enabledDataset.lastUpdated,
-      );
     }
     notifyInstanceProjectsLastUpdated(new Date().toISOString());
     return c.json(res);
@@ -202,114 +163,6 @@ defineRoute(
 
 defineRoute(
   routesProject,
-  "addDatasetToProject",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_data",
-  ),
-  log("addDatasetToProject"),
-  (c, { body }) => {
-    return streamResponse<{ lastUpdated: string }>(c, async (writer) => {
-      const datasetSpaceCheck = await checkSpaceForDataset(c.var.mainDb, body.datasetType);
-      if (!datasetSpaceCheck.ok) {
-        await writer.error(
-          datasetSpaceCheck.resizeTriggered
-            ? `Not enough disk space to enable this dataset (requires ~${datasetSpaceCheck.requiredGB} GB, ${datasetSpaceCheck.availableGB} GB available). A volume resize has been triggered — please try again in a few minutes.`
-            : `Not enough disk space to enable this dataset (requires ~${datasetSpaceCheck.requiredGB} GB, ${datasetSpaceCheck.availableGB} GB available). Please contact your administrator.`,
-        );
-        return;
-      }
-      const lockKey = `${c.var.ppk.projectId}_${body.datasetType}`;
-      if (_datasetLocks.has(lockKey)) {
-        await writer.error("A dataset operation is already in progress for this project. Please wait for it to complete.");
-        return;
-      }
-      _datasetLocks.add(lockKey);
-
-      try {
-        await writer.progress(0, "Starting dataset addition...");
-
-        const res =
-          body.datasetType === "hmis"
-            ? await addDatasetHmisToProject(
-                c.var.mainDb,
-                c.var.ppk.projectDb,
-                c.var.ppk.projectId,
-                body.windowing,
-                writer.progress.bind(writer),
-              )
-            : body.datasetType === "hfa"
-              ? await addDatasetHfaToProject(
-                  c.var.mainDb,
-                  c.var.ppk.projectDb,
-                  c.var.ppk.projectId,
-                  writer.progress.bind(writer),
-                  body.serviceCategoryScope ?? [],
-                )
-              : body.datasetType === "iceh"
-                ? await addDatasetIcehToProject(
-                    c.var.mainDb,
-                    c.var.ppk.projectDb,
-                    c.var.ppk.projectId,
-                    writer.progress.bind(writer),
-                  )
-                : { success: false as const, err: "Unknown dataset type" };
-
-        if (res.success === false) {
-          await writer.error(res.err);
-          return;
-        }
-
-        if (!body.skipModuleRerun) {
-          await writer.progress(0.9, "Updating module dependencies...");
-          await setModulesDirtyForDataset(c.var.ppk, body.datasetType);
-        }
-        notifyLastUpdated(
-          c.var.ppk.projectId,
-          "datasets",
-          [body.datasetType],
-          res.data.lastUpdated,
-        );
-        const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
-        if (datasetsRes.success) {
-          notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);
-        }
-
-        await writer.complete(res.data);
-      } finally {
-        _datasetLocks.delete(lockKey);
-      }
-    });
-  },
-);
-
-defineRoute(
-  routesProject,
-  "removeDatasetFromProject",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_data",
-  ),
-  log("removeDatasetFromProject"),
-  async (c, { params }) => {
-    const res = await removeDatasetFromProject(
-      c.var.ppk.projectDb,
-      c.var.ppk.projectId,
-      params.dataset_type,
-    );
-    if (res.success === true) {
-      await setModulesDirtyForDataset(c.var.ppk, params.dataset_type);
-      const datasetsRes = await getAllDatasetsForProject(c.var.ppk.projectDb);
-      if (datasetsRes.success) {
-        notifyProjectDatasetsUpdated(c.var.ppk.projectId, datasetsRes.data);
-      }
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesProject,
   "deleteProject",
   requireProjectPermission({
     preventAccessToLockedProjects: true,
@@ -397,17 +250,6 @@ defineRoute(
 
 defineRoute(
   routesProject,
-  "setAllModulesDirty",
-  requireProjectPermission({ requireAdmin: true }),
-  log("setAllModulesDirty"),
-  async (c) => {
-    await setAllModulesDirty(c.var.ppk);
-    return c.json({ success: true });
-  },
-);
-
-defineRoute(
-  routesProject,
   "copyProject",
   requireProjectPermission({ requireAdmin: true }),
   log("copyProject"),
@@ -431,8 +273,7 @@ defineRoute(
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       await closePgConnection(params.project_id);
       copyProjectInBackground(params.project_id, res.data.newProjectId)
-        .then(async () => {
-          const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+        .then(() => {
           notifyInstanceProjectsLastUpdated(new Date().toISOString());
         })
         .catch(() => {});

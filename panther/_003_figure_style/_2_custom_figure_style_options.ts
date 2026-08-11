@@ -529,12 +529,22 @@ export type CustomFigureStyleOptions = {
   pie?: {
     innerRadiusRatio?: number;
     startAngle?: number;
+    sweepAngle?: number;
     direction?: "clockwise" | "counterclockwise";
-    padAngle?: number;
+    sliceGap?: number;
     cornerRadius?: number;
     labelMode?: "none" | "inside" | "outside" | "auto";
     calloutMargin?: number;
-    centerLabel?: "none" | "total";
+    centerLabel?: "none" | "total" | "share";
+    indicators?: {
+      hideHeaders?: boolean;
+      headerAlignH?: "left" | "center" | "right";
+      headerGap?: number;
+      headerPosition?: "top" | "bottom";
+      gapX?: number;
+      gapY?: number;
+      nCols?: number | "auto";
+    };
     labelCollision?: {
       gap?: number;
       maxCentroidDisplacement?: number;
@@ -569,6 +579,12 @@ export type CustomFigureStyleOptions = {
     // Decays so dense category charts thin their bars instead of growing
     // without bound. Ignored by ChartOV, Timeseries, and Table.
     idealRowThickness?: (nTotalBarRows: number) => number;
+
+    // Pie: natural DISC diameter (DU) as a function of indicators per
+    // sub-chart. Both the ideal-height cap AND the draw-time maximum: a pie
+    // is never drawn larger than this, whatever frame it is given — raise it
+    // to let a pie fill a big tile. Ignored by every other figure.
+    idealPieDiameter?: (nIndicators: number) => number;
   };
 };
 

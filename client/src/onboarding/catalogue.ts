@@ -1,4 +1,4 @@
-import { getPossibleModules, t3 } from "lib";
+import { t3 } from "lib";
 import type {
   DashboardSummary,
   PresentationObjectSummary,
@@ -9,7 +9,6 @@ import type {
 } from "lib";
 import { projectState } from "~/state/project/t1_store";
 import {
-  getInstanceCountryIso3,
   instanceState,
 } from "~/state/instance/t1_store";
 import {
@@ -50,8 +49,6 @@ export type TourCatalogueEntry = {
     | "reports"
     | "visualizations"
     | "dashboards"
-    | "modules"
-    | "data"
     | "settings";
   label: string;
   description: string;
@@ -90,16 +87,6 @@ const vizCardVisible = (f: TourProjectFacts) => {
   );
   return f.visualizations.some((v) => ready.has(v.metricId));
 };
-const canSeeModulesTab = (f: TourProjectFacts) =>
-  perms(f).can_configure_modules ||
-  perms(f).can_run_modules ||
-  perms(f).can_view_script_code;
-const canConfigureModules = (f: TourProjectFacts) =>
-  instanceState.currentUserIsGlobalAdmin || perms(f).can_configure_modules;
-const hasUninstalledModule = (f: TourProjectFacts) =>
-  getPossibleModules(getInstanceCountryIso3()).some(
-    (def) => !f.projectModules.some((m) => m.id === def.id),
-  );
 
 const reasonNoPageAccess = () =>
   t3({
@@ -177,18 +164,6 @@ const reasonNeedReportPermission = () =>
     fr: "Vous avez besoin de la permission de modifier les rapports",
     pt: "Precisa de permissão para editar relatórios",
   });
-const reasonNeedModulePermission = () =>
-  t3({
-    en: "You need permission to configure modules",
-    fr: "Vous avez besoin de la permission de configurer les modules",
-    pt: "Precisa de permissão para configurar módulos",
-  });
-const reasonAllModulesEnabled = () =>
-  t3({
-    en: "All available modules are already enabled",
-    fr: "Tous les modules disponibles sont déjà activés",
-    pt: "Todos os módulos disponíveis já estão ativados",
-  });
 const reasonNeedViz = () =>
   t3({
     en: "Create a visualization first",
@@ -251,8 +226,6 @@ const goToDecks = () => updateProjectView({ tab: "decks" });
 const goToReports = () => updateProjectView({ tab: "reports" });
 const goToVisualizations = () => updateProjectView({ tab: "visualizations" });
 const goToDashboards = () => updateProjectView({ tab: "dashboards" });
-const goToModules = () => updateProjectView({ tab: "modules" });
-const goToData = () => updateProjectView({ tab: "data" });
 const goToSettings = () => updateProjectView({ tab: "settings" });
 
 export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
@@ -335,7 +308,13 @@ const openFirstDashboard = () => {
 // availability reads instanceState only and "navigation" is just an instance
 // tab switch, performed by the instance modal.
 
-export type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
+export type InstanceTab =
+  | "projects"
+  | "data"
+  | "results_packages"
+  | "assets"
+  | "users"
+  | "settings";
 
 export type InstanceTourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -1074,115 +1053,6 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDashboard()
             : reasonNeedDashboardItem(),
       navigate: openFirstDashboard,
-    },
-    // ── Modules ──────────────────────────────────────────────────────────
-    {
-      id: "modules-intro",
-      area: "modules",
-      label: t3({
-        en: "Modules overview",
-        fr: "Aperçu des modules",
-        pt: "Visão geral dos módulos",
-      }),
-      description: t3({
-        en: "The modules page and what modules do.",
-        fr: "La page des modules et leur rôle.",
-        pt: "A página dos módulos e o que fazem.",
-      }),
-      available: canSeeModulesTab,
-      unavailableReason: reasonNoPageAccess,
-      navigate: goToModules,
-    },
-    {
-      id: "modules-manage",
-      area: "modules",
-      label: t3({
-        en: "Manage modules",
-        fr: "Gérer les modules",
-        pt: "Gerir módulos",
-      }),
-      description: t3({
-        en: "Running, configuring and updating an enabled module.",
-        fr: "Exécuter, configurer et mettre à jour un module activé.",
-        pt: "Executar, configurar e atualizar um módulo ativado.",
-      }),
-      available: (f) =>
-        canSeeModulesTab(f) && canConfigureModules(f) && hasModules(f),
-      unavailableReason: (f) =>
-        !canSeeModulesTab(f)
-          ? reasonNoPageAccess()
-          : !canConfigureModules(f)
-            ? reasonNeedModulePermission()
-            : reasonNeedModule(),
-      navigate: goToModules,
-    },
-    {
-      id: "modules-enable",
-      area: "modules",
-      label: t3({
-        en: "Enable a module",
-        fr: "Activer un module",
-        pt: "Ativar um módulo",
-      }),
-      description: t3({
-        en: "How to enable an available module.",
-        fr: "Comment activer un module disponible.",
-        pt: "Como ativar um módulo disponível.",
-      }),
-      available: (f) =>
-        canSeeModulesTab(f) &&
-        canConfigureModules(f) &&
-        hasUninstalledModule(f),
-      unavailableReason: (f) =>
-        !canSeeModulesTab(f)
-          ? reasonNoPageAccess()
-          : !canConfigureModules(f)
-            ? reasonNeedModulePermission()
-            : reasonAllModulesEnabled(),
-      navigate: goToModules,
-    },
-    // ── Data ─────────────────────────────────────────────────────────────
-    {
-      id: "data-intro",
-      area: "data",
-      label: t3({
-        en: "Data overview",
-        fr: "Aperçu des données",
-        pt: "Visão geral dos dados",
-      }),
-      description: t3({
-        en: "The data page: datasets available to this project.",
-        fr: "La page des données : les jeux de données disponibles pour ce projet.",
-        pt: "A página dos dados: os conjuntos de dados disponíveis para este projeto.",
-      }),
-      available: (f) => perms(f).can_view_data,
-      unavailableReason: reasonNoPageAccess,
-      navigate: goToData,
-    },
-    {
-      id: "data-admin",
-      area: "data",
-      label: t3({
-        en: "Manage data",
-        fr: "Gérer les données",
-        pt: "Gerir dados",
-      }),
-      description: t3({
-        en: "Dataset actions for administrators.",
-        fr: "Les actions sur les jeux de données pour les administrateurs.",
-        pt: "As ações sobre conjuntos de dados para administradores.",
-      }),
-      available: (f) =>
-        perms(f).can_view_data &&
-        instanceState.currentUserIsGlobalAdmin &&
-        !f.isLocked,
-      unavailableReason: (f) =>
-        !perms(f).can_view_data
-          ? reasonNoPageAccess()
-          : !instanceState.currentUserIsGlobalAdmin
-            ? reasonGlobalAdminOnly()
-            : reasonLocked(),
-      navigate: goToData,
     },
     // ── Settings ─────────────────────────────────────────────────────────
     {

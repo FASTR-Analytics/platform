@@ -1,20 +1,35 @@
-import { CustomFigureStyleOptions, TableCellInfo, getFormatterFunc } from "panther";
+import { CustomFigureStyleOptions, TableCellInfo } from "panther";
 import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   type DeckStyleContext,
+  type EffectiveFormat,
   type IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
-import { getTextStyle, getTableLayoutStyle, getIndicatorMetaForCell } from "./_0_common";
+import {
+  formatIndicatorValue,
+  getCfCellTextColorStrategy,
+  getIndicatorIdsForCell,
+  getTableLayoutStyle,
+  getTextStyle,
+  getThresholdMetaForCell,
+  scaleValueForFormat,
+} from "./_0_common";
 
-function scaleValueForFormat(rawValue: number, formatAs: string): number {
-  if (formatAs === "percent") return rawValue * 100;
-  if (formatAs === "rate_per_10k") return rawValue * 10000;
-  return rawValue;
-}
+// A scorecard mixes percent, count and rate indicators by design, so every
+// cell formats as its own indicator — which is exactly what the shared
+// `EffectiveFormat.formatForValue` does, and the reason the scorecard no
+// longer carries a second implementation of it. Threshold colouring stays on
+// its own metadata lookup: a threshold is not a format, and only the entry
+// that declares a direction carries the cutoffs to compare against.
+// See SYSTEM_10 "Effective format".
 
+// Deliberately NOT panther's thresholdColorFunc: these boundaries are
+// inclusive toward green in BOTH directions (>= green / <= green), while
+// thresholdColorFunc is strict-< upward — unifying would flip exact-boundary
+// lower_is_better values (e.g. exactly 90.0) from green to yellow.
 function getScorecardCutoffColor(
   direction: "higher_is_better" | "lower_is_better",
   green: number,
@@ -32,19 +47,9 @@ function getScorecardCutoffColor(
   }
 }
 
-function formatScorecardValue(
-  rawValue: number,
-  formatAs: "percent" | "number" | "rate_per_10k",
-  decimalPlaces: number,
-): string {
-  if (formatAs === "rate_per_10k") {
-    return getFormatterFunc("number", decimalPlaces)(rawValue * 10000);
-  }
-  return getFormatterFunc(formatAs, decimalPlaces)(rawValue);
-}
-
 export function buildScorecardStyle(
   config: PresentationObjectConfig,
+  effectiveFormat: EffectiveFormat,
   indicatorMetadata: IndicatorMetadata[],
   effectiveValueProps: string[],
   deckStyle?: DeckStyleContext,
@@ -56,17 +61,13 @@ export function buildScorecardStyle(
     surrounds: { legendPosition: config.s.hideLegend ? "none" : undefined },
     grid: { showGrid: false },
     content: {
-      // tableRowHeaders: {
-      //   func: (info) => {
-      //     return {
-      //       backgroundColor:  "black",
-      //       textColorStrategy: "#ffffff",
-      //     };
-      //   },
-      // },
       tableCells: {
         func: (info: TableCellInfo) => {
-          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
+          const meta = getThresholdMetaForCell(
+            metadataById,
+            effectiveValueProps,
+            info,
+          );
           if (meta?.threshold_direction && info.valueAsNumber !== undefined) {
             const scaled = scaleValueForFormat(
               info.valueAsNumber,
@@ -79,27 +80,32 @@ export function buildScorecardStyle(
                 meta.threshold_yellow ?? 0,
                 scaled,
               ),
-              textColorStrategy: {
-                ifLight: { key: "baseContent" as const },
-                ifDark: { key: "base100" as const },
-              },
+              textColorStrategy: getCfCellTextColorStrategy(deckStyle),
             };
           }
           return { backgroundColor: "none" };
         },
+        // declaredFormatForValue, not formatForValue: when nothing along the
+        // cell's id chain declares a format the scorecard prints the RAW value.
+        // Falling through to axisFormat would render a 0.42 coverage as "0" at
+        // the default 0 decimals — and a scorecard whose package carries no
+        // calculated_indicators_snapshot.json has a label-only catalog entry
+        // for every row, so that is the whole table, not an edge case.
         textFormatter: (info: TableCellInfo) => {
-          const meta = getIndicatorMetaForCell(metadataById, effectiveValueProps, info);
-          if (meta?.format_as && info.valueAsNumber !== undefined) {
-            return formatScorecardValue(
-              info.valueAsNumber,
-              meta.format_as,
-              config.s.decimalPlaces ?? 0,
-            );
-          }
-          return String(info.value);
+          const formatAs = effectiveFormat.declaredFormatForValue(
+            getIndicatorIdsForCell(effectiveValueProps, info),
+          );
+          if (formatAs === undefined) return String(info.value);
+          return formatIndicatorValue(
+            info.value,
+            formatAs,
+            config.s.decimalPlaces ?? 0,
+          );
         },
       },
     },
-    table: getTableLayoutStyle(config, deckStyle),
+    // Scorecard colouring IS conditional formatting (per-indicator thresholds
+    // instead of user CF), so it always gets the CF table look.
+    table: getTableLayoutStyle(config, deckStyle, true),
   };
 }

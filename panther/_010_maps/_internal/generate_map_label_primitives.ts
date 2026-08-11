@@ -40,6 +40,7 @@ import {
 import type { ShownMapRegion } from "./generate_map_region_primitives.ts";
 import {
   buildMapRegionInfo,
+  type MapCellHeaders,
   measureMapLabel,
   resolveMapLabelText,
   toLabelMode,
@@ -66,6 +67,7 @@ export function collectMapLabelSpecs(
   shown: ShownMapRegion[],
   mergedStyle: MergedMapStyle,
   indices: CellIndices,
+  headers: MapCellHeaders,
 ): MapLabelSpec[] {
   const specs: MapLabelSpec[] = [];
   for (const region of shown) {
@@ -81,6 +83,7 @@ export function collectMapLabelSpecs(
         indices.paneIndex,
         indices.tierIndex,
         indices.laneIndex,
+        headers,
       ),
     );
     if (!text) continue;
@@ -124,16 +127,19 @@ export type MapLabelEntry = {
 
 export function buildMapLabelEntries(
   rc: RenderContext,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   shown: ShownMapRegion[],
   mergedStyle: MergedMapStyle,
   unitFitted: FittedProjection,
   mode: Exclude<LabelMode, "none">,
   indices: CellIndices,
+  headers: MapCellHeaders,
   s0: number,
 ): MapLabelEntry[] {
   const entries: MapLabelEntry[] = [];
-  for (const spec of collectMapLabelSpecs(shown, mergedStyle, indices)) {
+  for (
+    const spec of collectMapLabelSpecs(shown, mergedStyle, indices, headers)
+  ) {
     // `dataLabelMode: "centroid"` names an anchor RULE and is explicitly out of
     // scope: it keeps the area-weighted centroid it asked for. Every other mode
     // takes the pole of inaccessibility, which is inside its own region even
@@ -152,7 +158,7 @@ export function buildMapLabelEntries(
       mText: measureMapLabel(
         rc,
         spec.text,
-        cellRcd,
+        subChartRcd,
         mergedStyle.text.dataLabels,
         spec.dl,
         mergedStyle.map.labelWrapFraction,
@@ -342,7 +348,7 @@ const MAP_UNTANGLES_LEADERS = true;
 // the FLANK path's coastline ray-cast, and flank is the fallback.
 export function buildMapLabelGeometry(
   geom: MapUnitGeometry,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   s: number,
   cx: number,
   cy: number,
@@ -355,7 +361,7 @@ export function buildMapLabelGeometry(
     ? mapTrackAt(geom, ctx.refScale, ctx.fieldMargin, s, cx, cy, calloutMargin)
     : undefined;
   return {
-    cellRcd,
+    hostRcd: subChartRcd,
     ...labelGeometryPartsAt(geom, s, cx, cy, calloutMargin),
     untangleLeaders: MAP_UNTANGLES_LEADERS,
     outsideTrack: track
@@ -512,7 +518,7 @@ export function generateResolvedMapLabelPrimitives(
   entries: MapLabelEntry[],
   outsideIds: Set<string>,
   geom: MapUnitGeometry,
-  cellRcd: RectCoordsDims,
+  subChartRcd: RectCoordsDims,
   s: number,
   cx: number,
   cy: number,
@@ -544,7 +550,7 @@ export function generateResolvedMapLabelPrimitives(
     outside,
     buildMapLabelGeometry(
       geom,
-      cellRcd,
+      subChartRcd,
       s,
       cx,
       cy,
@@ -581,6 +587,7 @@ export function calculateMapLabelFloorBudget(
   shownPerCell: {
     shown: ShownMapRegion[];
     indices: CellIndices;
+    headers: MapCellHeaders;
     unitFitted: FittedProjection;
   }[],
   mergedStyle: MergedMapStyle,
@@ -601,12 +608,14 @@ export function calculateMapLabelFloorBudget(
   // still monotone in the font scale, still free of any cell dependence.
   let maxW = 0;
   let maxH = 0;
-  for (const { shown, indices, unitFitted } of shownPerCell) {
+  for (const { shown, indices, headers, unitFitted } of shownPerCell) {
     let leftStack = 0;
     let rightStack = 0;
     let nLeft = 0;
     let nRight = 0;
-    for (const spec of collectMapLabelSpecs(shown, mergedStyle, indices)) {
+    for (
+      const spec of collectMapLabelSpecs(shown, mergedStyle, indices, headers)
+    ) {
       const geoCentroid = computeGeoCentroid(spec.feature.geometry);
       if (!geoCentroid) continue;
       const unitAnchor = projectCentroid(geoCentroid, unitFitted);

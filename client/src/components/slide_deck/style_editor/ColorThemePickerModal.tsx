@@ -86,7 +86,7 @@ export function ColorThemePickerModal(p: ColorThemePickerModalProps) {
     onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
   });
 
-  function ThemeCard(props: {
+  function ThemeCard(p: {
     name: string;
     selected: boolean;
     theme: ColorTheme;
@@ -96,14 +96,14 @@ export function ColorThemePickerModal(p: ColorThemePickerModalProps) {
     return (
       <div
         class={`flex ${CARD_WIDTH} cursor-pointer flex-col rounded border p-2 text-left`}
-        classList={{ "border-primary border-2": props.selected }}
-        onClick={props.onSelect}
+        classList={{ "border-primary border-2": p.selected }}
+        onClick={p.onSelect}
       >
         <div class="relative mb-1 aspect-video overflow-hidden rounded border">
-          <ContentSlideMiniPreview config={configForTheme(props.theme)} />
+          <ContentSlideMiniPreview config={configForTheme(p.theme)} />
         </div>
-        <div class="text-center text-sm">{props.name}</div>
-        {props.children}
+        <div class="text-center text-sm">{p.name}</div>
+        {p.children}
       </div>
     );
   }

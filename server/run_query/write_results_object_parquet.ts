@@ -1,0 +1,122 @@
+import { DuckDBInstance } from "@duckdb/node-api";
+import {
+  getEnabledOptionalFacilityColumns,
+  type InstanceConfigFacilityColumns,
+} from "lib";
+import {
+  applyDuckDbSessionSettings,
+  escapeSqlLiteral,
+} from "./duckdb_executor.ts";
+
+// Builds the normalized query-store parquet for one results object from its
+// raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3. This is now
+// the ONLY ingest: the legacy Postgres COPY it was written to mirror was
+// deleted with the dual-write (Phase 3 item 0), so the four normalizations
+// below are stated here once and nothing shadows them. The frozen `ro_*`
+// tables still carry rows written by that COPY, which is why the parity rig
+// can diff against them:
+//   1. 'NA' → NULL (unquoted only, matching Postgres COPY)
+//   2. schema = CSV headers ∩ declared columns, with DECLARED types (an
+//      undeclared header is a hard error; types are never inferred)
+//   3. drop redundant period columns and enabled facility columns
+//   4. physical quarter_id normalized YYYY0Q (6-digit) → YYYYQ (5-digit)
+
+const SAFE_COLUMN_NAME = /^[a-z_][a-z0-9_]*$/;
+
+// The authored createTableStatementPossibleColumns vocabulary is closed:
+// TEXT / INTEGER / NUMERIC, each optionally NOT NULL. NUMERIC → DOUBLE by
+// decision (PLAN_RESULTS_RUNS §3.3).
+export function duckDbTypeForDeclaredColumnType(declared: string): string {
+  const base = declared.replace(/\s+NOT\s+NULL\s*$/i, "").trim().toUpperCase();
+  switch (base) {
+    case "TEXT":
+      return "VARCHAR";
+    case "INTEGER":
+      return "INTEGER";
+    case "NUMERIC":
+      return "DOUBLE";
+    default:
+      throw new Error(`Unknown declared results-object column type: ${declared}`);
+  }
+}
+
+// Normalization 3's drop rule: redundant period columns by granularity, plus
+// enabled optional facility columns present in the CSV (the facilities
+// table/parquet carries them instead).
+export function computeResultsObjectColumnsToExclude(
+  csvHeaders: string[],
+  facilityColumns: InstanceConfigFacilityColumns,
+): string[] {
+  const hasPeriodId = csvHeaders.includes("period_id");
+  const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
+  const baseColumnsToExclude = hasPeriodId
+    ? ["month", "quarter_id", "year"]
+    : hasQuarterId
+      ? ["month", "year"]
+      : ["month", "quarter_id"];
+  const enabledFacilityColumns =
+    getEnabledOptionalFacilityColumns(facilityColumns);
+  return [
+    ...baseColumnsToExclude,
+    ...enabledFacilityColumns.filter((col) => csvHeaders.includes(col)),
+  ];
+}
+
+export async function writeNormalizedResultsObjectParquet(opts: {
+  csvPath: string;
+  parquetPath: string;
+  csvHeaders: string[];
+  declaredColumns: Record<string, string>;
+  columnsToExclude: string[];
+}): Promise<void> {
+  const undeclaredHeaders = opts.csvHeaders.filter(
+    (h) => opts.declaredColumns[h] === undefined,
+  );
+  if (undeclaredHeaders.length > 0) {
+    throw new Error(
+      `CSV headers not found in table definition: ${undeclaredHeaders.join(", ")}`,
+    );
+  }
+
+  const columnSpec = opts.csvHeaders
+    .map((header) => {
+      if (!SAFE_COLUMN_NAME.test(header)) {
+        throw new Error(`Unsafe CSV column name: ${header}`);
+      }
+      return `'${header}': '${duckDbTypeForDeclaredColumnType(opts.declaredColumns[header])}'`;
+    })
+    .join(", ");
+
+  const keptColumns = opts.csvHeaders.filter(
+    (h) => !opts.columnsToExclude.includes(h),
+  );
+  if (keptColumns.length === 0) {
+    throw new Error(`No columns left after exclusions for ${opts.csvPath}`);
+  }
+  const selectList = keptColumns
+    .map((col) =>
+      col === "quarter_id"
+        ? `(CASE WHEN quarter_id >= 100000 THEN (quarter_id / 100) * 10 + (quarter_id % 100) ELSE quarter_id END) AS quarter_id`
+        : col,
+    )
+    .join(", ");
+
+  const tmpPath = `${opts.parquetPath}.tmp-${crypto.randomUUID()}`;
+  const instance = await DuckDBInstance.create(":memory:");
+  const conn = await instance.connect();
+  try {
+    await applyDuckDbSessionSettings(conn);
+    await conn.run(
+      `COPY (SELECT ${selectList} FROM read_csv('${escapeSqlLiteral(opts.csvPath)}',
+        header=true,
+        nullstr='NA',
+        allow_quoted_nulls=false,
+        columns={${columnSpec}}
+      )) TO '${escapeSqlLiteral(tmpPath)}' (FORMAT PARQUET)`,
+    );
+  } finally {
+    conn.disconnectSync();
+    instance.closeSync();
+  }
+  await Deno.rename(tmpPath, opts.parquetPath);
+}

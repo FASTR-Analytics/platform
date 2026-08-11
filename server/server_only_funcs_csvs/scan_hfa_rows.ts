@@ -1,4 +1,9 @@
-import { throwIfErrWithData, type HfaRowFilter } from "lib";
+import {
+  throwIfErrWithData,
+  type HfaDuplicateGroup,
+  type HfaDuplicatePreview,
+  type HfaRowFilter,
+} from "lib";
 import {
   getCsvColumnIndex,
   getCsvStreamComponents,
@@ -95,4 +100,35 @@ export async function getHfaRowScanComponents(
   };
 
   return { headers, facilityIdIndex, processFilteredRows };
+}
+
+// Streams the file through the wizard's filters and reports the facilities
+// left with >1 surviving row — the wizard's duplicates step. Stateless: the
+// caller resolves the temp upload's path, nothing is persisted.
+export async function scanHfaDuplicates(
+  csvFilePath: string,
+  facilityIdColumn: string,
+  rowFilters: HfaRowFilter[],
+): Promise<HfaDuplicatePreview> {
+  const scan = await getHfaRowScanComponents(
+    csvFilePath,
+    facilityIdColumn,
+    rowFilters,
+  );
+  const facilityRowNumbers = new Map<string, number[]>();
+  const totals = await scan.processFilteredRows((_row, rowNumber, facilityId) => {
+    const existing = facilityRowNumbers.get(facilityId);
+    if (existing) {
+      existing.push(rowNumber);
+    } else {
+      facilityRowNumbers.set(facilityId, [rowNumber]);
+    }
+  });
+  const groups: HfaDuplicateGroup[] = [];
+  for (const [facilityId, rows] of facilityRowNumbers) {
+    if (rows.length > 1) {
+      groups.push({ facilityId, rows });
+    }
+  }
+  return { groups, nRowsFilteredOut: totals.nRowsFilteredOut };
 }

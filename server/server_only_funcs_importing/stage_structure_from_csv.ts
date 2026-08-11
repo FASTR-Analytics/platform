@@ -12,6 +12,7 @@ import {
   getCsvStreamComponents,
 } from "../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 import { parseXlsForm } from "../server_only_funcs_csvs/parse_xlsform.ts";
+import { escapeSqlString } from "../db/utils.ts";
 import {
   getFacilityColumnsConfig,
   getMaxAdminAreaConfig,
@@ -299,12 +300,12 @@ export async function stageStructureFromCsv(
         }
 
         // Build VALUES tuple
-        const escapedFacilityId = facilityId.replace(/'/g, "''");
+        const escapedFacilityId = escapeSqlString(facilityId);
         const escapedAdminValues = allAdminValues.map(
-          (v) => `'${v.replace(/'/g, "''")}'`
+          (v) => `'${escapeSqlString(v)}'`
         );
         const escapedOptionalValues = optionalValues.map(
-          (v) => `'${v.replace(/'/g, "''")}'`
+          (v) => `'${escapeSqlString(v)}'`
         );
 
         const allValues = [
@@ -396,6 +397,7 @@ export async function stageStructureFromCsv(
       validationWarnings: [],
       stagedOptionalColumns: optionalIndexes.map((opt) => opt.column),
       stagedAdminAreas: hasAdminMapped,
+      stagingNonce: crypto.randomUUID(),
     };
 
     if (xlsFormFilePath) {

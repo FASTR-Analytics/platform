@@ -72,8 +72,7 @@ wb-fastr/
 ├── panther/                   # External UI/viz library (DO NOT MODIFY)
 └── _example_instance_dir/     # Instance data (git-ignored)
     ├── databases/             # PostgreSQL data files
-    ├── sandbox/               # Temp files for module execution
-    ├── runs/                  # Results-runs volume
+    ├── sandbox/               # Results packages + module execution workspace
     ├── valkey/                # Valkey data
     └── assets/                # Uploaded files
 ```
@@ -116,7 +115,7 @@ wb-fastr/
   `deno task build` there regenerates each `definition.json`)
 - Fetched from GitHub and validated at install via `server/github/` +
   `server/module_loader/` (see
-  [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md))
+  [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md))
 
 **Module Instances**
 
@@ -211,7 +210,7 @@ wb-fastr/
 cd client && npm install && cd ..
 
 # Create instance directory (if not exists)
-mkdir -p _example_instance_dir/{databases,sandbox,assets,runs,valkey}
+mkdir -p _example_instance_dir/{databases,sandbox,assets,valkey}
 
 # Configure environment
 cp .env.example .env
@@ -275,6 +274,14 @@ Prescriptive protocols for how this app is built (distinct from the
 `panther/protocols/` library protocols). Read the relevant one before working in
 that area.
 
+### Working method
+
+- [PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md) — the
+  verification loop, built MCP-first: the Clerk-OAuth end-to-end chain, the
+  rungs below it and which link each one skips (execute locally → local `/mcp`
+  → `./deploy_testing` → read-only DB), the JSON-RPC probe recipe, and the
+  standing checks for any MCP change
+
 ### Server / architecture
 
 - [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md) — registry-as-contract,
@@ -295,9 +302,10 @@ that area.
   (HMIS/HFA/ICEH dataset families)
 - [SYSTEM_07_dhis2.md](SYSTEM_07_dhis2.md) — DHIS2 API client: base fetcher,
   retry, goals, connection validation, session caches
-- [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md) — module system
-  end-to-end: load/install/update, dirty state machine + dependency propagation,
-  `task_ended` loop, R execution + `ro_*` ingest, population.csv
+- [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) — results
+  packages & module execution: **the authoritative run-directory + manifest
+  format spec**, the wizard-configured whole-DAG generation pipeline, R
+  execution, the package catalogue and project attachment, population.csv
   ([PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) is the
   write-a-worker recipe)
 - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic
@@ -316,7 +324,7 @@ that area.
 ### Data / domain
 
 - Module updates and the population.csv format are in
-  [SYSTEM_08_module_system.md](SYSTEM_08_module_system.md); period columns,
+  [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md); period columns,
   disaggregation options, and roll-up rows are in
   [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md)
 
@@ -387,6 +395,17 @@ UI-only symbols belong in `client/` code.
 - Use functional programming where appropriate
 - **Never create a `scripts/` folder** - put build/utility scripts at the repo
   root
+
+### User testing is NOT project work (ruled 2026-08-07, emphatic)
+
+Tim continually uses the app in dev and production. That usage IS the
+browser/runtime verification, it is HIS responsibility, and it NEVER counts
+as project work. Never list his verification in a plan, a todo, or a
+"remaining" line; never treat it as a blocker for closing work or deleting a
+plan file. The only exception is a specific manual check that has been
+EXPLICITLY AGREED as a gate. When implementation and the automated gates
+(typecheck, harnesses, rigs) are green, the work is done — close and delete
+the plan.
 
 ### Cross-Cutting Changes & Refactors (hard-won rules)
 
@@ -460,8 +479,12 @@ Key variables (see `.env.example`):
 - `ANTHROPIC_API_KEY` - AI features
 - `SANDBOX_DIR_PATH` - Module execution workspace
 - `ASSETS_DIR_PATH` - File uploads
+- `ISO_COUNTRY_CODE` - REQUIRED: the instance's country, an ISO3 code or
+  `SOMALILAND`; boot fail-stops without it
 - `INSTANCE_LANGUAGE` - Default language (en/fr)
 - `INSTANCE_CALENDAR` - Calendar type (gregorian/ethiopian)
+- `INSTANCE_FISCAL_YEAR` - Fiscal-year reporting (none/july, default none;
+  relabels quarterly timeseries axes; gregorian only)
 
 ## License
 

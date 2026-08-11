@@ -1,0 +1,205 @@
+#!/bin/bash
+
+# Fleet rollout for the results-packages cutover (PLAN_RESULTS_RUNS.md
+# "Rollout runbook"). Runs from the local machine; per instance it:
+#
+#   1. preflights (instance exists, disk headroom on its data volume)
+#   2. points the instance at the target server image (wb c update / wb pull /
+#      wb restart) and polls /health_check until the server boots
+#   3. runs backfill_runs.ts inside the container — skipped automatically if
+#      every ready project already has a package (safe to re-run the script)
+#   4. verifies every ready project has an attached ready package
+#   5. runs validate_results_runs_parity.ts --run (the per-instance gate)
+#
+# Failure policy: deploy/health/backfill/verify failures HALT the whole run —
+# they mean the rollout machinery itself is broken. A parity-rig RED does NOT
+# halt the fleet: instances are independent, the rig gate is per-instance,
+# and serve-first-by-construction means a halt would not undo anything —
+# the instance is recorded as NEEDS ADJUDICATION, the script continues, the
+# final summary lists every red instance, and the exit code is nonzero if
+# any exist. Do not regenerate/swap packages on a red instance until its rig
+# verdict is adjudicated. All docker-exec output is captured to
+# rollout_logs/<version>-<timestamp>/<instance>-{backfill,rig}.log locally.
+# Rollback is NOT automated: it is the documented triple (previous image +
+# volume restore + modules revert) in PLAN_RESULTS_RUNS.md.
+#
+# Usage:
+#   ./rollout_fleet <instance> [<instance>...]
+#   ./rollout_fleet sierraleone ethiopia2 ghana
+#
+# Order matters: per the runbook, Ethiopia goes EARLY (its rig run is the
+# Ethiopian-quarter gate). MIN_FREE_GB (default 10) guards the data volume.
+
+set -u -o pipefail
+
+SSH_HOST="wb-server"
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-300}"
+MIN_FREE_GB="${MIN_FREE_GB:-10}"
+DENO_FLAGS="-A --unstable-broadcast-channel --unstable-raw-imports -c deno.json"
+
+# This script is pinned to the 1.66.3 results-packages cutover image: the
+# backfill/rig steps assume exactly this deploy, and the rig fix + config
+# transform it carries. A later version needs a deliberate re-pin.
+VERSION="1.66.3"
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: ./rollout_fleet <instance> [<instance>...]"
+    echo "  e.g. ./rollout_fleet sierraleone ethiopia2 ghana"
+    exit 1
+fi
+
+INSTANCES=("$@")
+IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
+
+LOG_DIR="rollout_logs/$VERSION-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$LOG_DIR"
+
+fail() {
+    local instance="$1" phase="$2" msg="$3"
+    echo ""
+    echo "ROLLOUT HALTED at instance '$instance', phase '$phase'"
+    echo "  $msg"
+    echo "  Logs: $LOG_DIR/"
+    echo "  Instances completed before the halt: ${COMPLETED[*]:-none}"
+    echo "  Rollback (if needed) is the documented triple — see"
+    echo "  PLAN_RESULTS_RUNS.md 'Rollback = all three, together'."
+    exit 1
+}
+
+psql_main() {
+    local instance="$1" query="$2"
+    ssh "$SSH_HOST" "docker exec ${instance}-postgres psql -U postgres -d main -t -A -c \"$query\""
+}
+
+echo "Fleet rollout: $IMAGE_TAG"
+echo "Instances (in order): ${INSTANCES[*]}"
+echo "Logs: $LOG_DIR/"
+
+# Verify the image tag exists on the registry before touching any instance.
+if ! ssh "$SSH_HOST" "docker manifest inspect $IMAGE_TAG >/dev/null 2>&1"; then
+    echo "ERROR: $IMAGE_TAG not found on the registry. Push it first (./deploy)."
+    exit 1
+fi
+
+COMPLETED=()
+RIG_RED=()
+
+for INSTANCE in "${INSTANCES[@]}"; do
+    echo ""
+    echo "════════ $INSTANCE ════════"
+
+    # ── 1. Preflight ────────────────────────────────────────────────────────
+    SHOW_JSON=$(ssh -o ConnectTimeout=10 "$SSH_HOST" "wb c show $INSTANCE --json") ||
+        fail "$INSTANCE" "preflight" "wb c show failed — does the instance exist? (wb c list)"
+    PORT=$(echo "$SHOW_JSON" | jq -r '.port')
+    [ -n "$PORT" ] && [ "$PORT" != "null" ] ||
+        fail "$INSTANCE" "preflight" "could not determine port from: $SHOW_JSON"
+
+    CURRENT_IMAGE=$(ssh "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE 2>/dev/null" || true)
+    echo "Port $PORT, currently on ${CURRENT_IMAGE:-<not running>}"
+
+    SANDBOX_SRC=$(ssh "$SSH_HOST" "docker inspect $INSTANCE --format '{{range .Mounts}}{{if eq .Destination \"/app/sandbox\"}}{{.Source}}{{end}}{{end}}' 2>/dev/null" || true)
+    if [ -n "$SANDBOX_SRC" ]; then
+        FREE_GB=$(ssh "$SSH_HOST" "df -BG --output=avail '$SANDBOX_SRC' | tail -1 | tr -dc '0-9'")
+        echo "Data volume free: ${FREE_GB}G (min ${MIN_FREE_GB}G)"
+        [ "$FREE_GB" -ge "$MIN_FREE_GB" ] ||
+            fail "$INSTANCE" "preflight" "only ${FREE_GB}G free on $SANDBOX_SRC (need ${MIN_FREE_GB}G)"
+    else
+        echo "WARNING: could not resolve sandbox mount — skipping disk check"
+    fi
+
+    # ── 2. Update + health ──────────────────────────────────────────────────
+    if [ "$CURRENT_IMAGE" = "$IMAGE_TAG" ]; then
+        echo "Already on $VERSION — skipping update/restart"
+    else
+        ssh "$SSH_HOST" "wb c update $INSTANCE --server $VERSION && wb pull && wb restart $INSTANCE" ||
+            fail "$INSTANCE" "update" "wb c update / wb pull / wb restart failed"
+    fi
+
+    echo "Polling health (timeout ${HEALTH_TIMEOUT_SECONDS}s)..."
+    if ! ssh "$SSH_HOST" "PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
+deadline=$((SECONDS + TIMEOUT))
+while [ "$SECONDS" -lt "$deadline" ]; do
+    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    case "$body" in
+        *'"running":true'*) exit 0 ;;
+    esac
+    sleep 5
+done
+exit 1
+REMOTE
+    then
+        ssh "$SSH_HOST" "docker logs --tail 60 $INSTANCE" || true
+        fail "$INSTANCE" "health" "no healthy /health_check within ${HEALTH_TIMEOUT_SECONDS}s (container log tail above)"
+    fi
+    echo "Healthy."
+
+    RUNNING_IMAGE=$(ssh "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE")
+    [ "$RUNNING_IMAGE" = "$IMAGE_TAG" ] ||
+        fail "$INSTANCE" "update" "running image is $RUNNING_IMAGE, expected $IMAGE_TAG"
+
+    # ── 3. Backfill (skipped when nothing needs one) ────────────────────────
+    MISSING=$(psql_main "$INSTANCE" "SELECT count(*) FROM projects WHERE status='ready' AND run_id IS NULL") ||
+        fail "$INSTANCE" "backfill" "could not query projects"
+    if [ "$MISSING" = "0" ]; then
+        echo "Backfill: all ready projects already have a package — skipping"
+    else
+        # Backfill ONLY the projects without a package (--project per id):
+        # the full sweep would re-synthesize every project on a retry,
+        # orphaning the previous packages on disk (no run GC yet).
+        echo "Backfill: $MISSING ready project(s) without a package..."
+        BACKFILL_LOG="$LOG_DIR/$INSTANCE-backfill.log"
+        MISSING_IDS=$(psql_main "$INSTANCE" "SELECT id FROM projects WHERE status='ready' AND run_id IS NULL") ||
+            fail "$INSTANCE" "backfill" "could not list projects needing backfill"
+        for PROJECT_ID in $MISSING_IDS; do
+            echo "  backfilling $PROJECT_ID..."
+            ssh "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS backfill_runs.ts --project $PROJECT_ID" \
+                >>"$BACKFILL_LOG" 2>&1 ||
+                fail "$INSTANCE" "backfill" "backfill failed for project $PROJECT_ID (full log: $BACKFILL_LOG)"
+        done
+        tail -5 "$BACKFILL_LOG"
+        if grep -q "^FAILED" "$BACKFILL_LOG"; then
+            fail "$INSTANCE" "backfill" "backfill reported per-project FAILED lines (full log: $BACKFILL_LOG)"
+        fi
+    fi
+
+    # ── 4. Verify attachment state ──────────────────────────────────────────
+    STILL_MISSING=$(psql_main "$INSTANCE" "SELECT count(*) FROM projects WHERE status='ready' AND run_id IS NULL")
+    [ "$STILL_MISSING" = "0" ] ||
+        fail "$INSTANCE" "verify" "$STILL_MISSING ready project(s) still have no package"
+    NOT_READY=$(psql_main "$INSTANCE" "SELECT count(*) FROM runs r WHERE r.status <> 'ready' AND EXISTS (SELECT 1 FROM projects p WHERE p.run_id = r.id)")
+    [ "$NOT_READY" = "0" ] ||
+        fail "$INSTANCE" "verify" "$NOT_READY attached package(s) not in status 'ready'"
+    echo "Verified: every ready project has an attached ready package."
+
+    # ── 5. Parity rig (the per-instance gate; RED records, never halts) ─────
+    echo "Parity rig (this takes a while — logs stream to $LOG_DIR/$INSTANCE-rig.log)..."
+    RIG_LOG="$LOG_DIR/$INSTANCE-rig.log"
+    ssh "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS validate_results_runs_parity.ts --run" \
+        >"$RIG_LOG" 2>&1
+    RIG_EXIT=$?
+    tail -3 "$RIG_LOG"
+    if [ "$RIG_EXIT" -eq 0 ] && grep -q "PARITY GREEN" "$RIG_LOG"; then
+        echo "$INSTANCE COMPLETE: deployed + backfilled + rig green."
+        COMPLETED+=("$INSTANCE")
+    else
+        echo ""
+        echo "!! $INSTANCE RIG RED (exit $RIG_EXIT) — NEEDS ADJUDICATION before anyone"
+        echo "!! regenerates or swaps packages there. Deploy + backfill are DONE and stay."
+        echo "!! Full log: $RIG_LOG — continuing with the next instance."
+        RIG_RED+=("$INSTANCE")
+    fi
+done
+
+echo ""
+echo "════════ FLEET ROLLOUT COMPLETE ════════"
+echo "  Image:       $IMAGE_TAG"
+echo "  Rig green:   ${COMPLETED[*]:-none}"
+echo "  Rig RED:     ${RIG_RED[*]:-none}"
+echo "  Logs:        $LOG_DIR/"
+if [ "${#RIG_RED[@]}" -gt 0 ]; then
+    echo ""
+    echo "ADJUDICATE the red instances (their rig logs above) before anyone"
+    echo "regenerates or swaps packages there; re-run the rig after."
+    exit 1
+fi

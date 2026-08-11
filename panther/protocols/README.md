@@ -122,8 +122,7 @@ Protocols are laws, not suggestions. Use "always", "never", "must" — not
 "consider", "prefer", "try to".
 
 ```markdown
-// Good **Never use createResource** — triggers Suspense, causes full-page
-reloads
+// Good **No createResource, no Suspense — hard ban, no exceptions**
 
 // Bad Consider avoiding createResource when possible
 ```

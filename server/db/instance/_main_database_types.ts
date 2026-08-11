@@ -78,6 +78,7 @@ export type DBProject = {
   is_central_reporting: boolean;
   status: string;
   deletion_scheduled_at: Date | null;
+  run_id: string | null;
 };
 
 export type DBProjectUserRole = {
@@ -136,6 +137,17 @@ export type DBStructureUploadAttempt = {
   step_1_result: string | null; // CSV details OR DHIS2 credentials
   step_2_result: string | null; // Column mappings OR DHIS2 org unit selection
   step_3_result: string | null; // Staging result
+  recodes: string | null; // JSON: StructureRecodes
+};
+
+export type DBRunGenerationAttempt = {
+  created_by_user_email: string;
+  date_started: string;
+  step: number;
+  status: string; // JSON: RunGenerationAttemptStatus
+  status_type: string; // only ever 'configuring'
+  step_1_result: string | null; // JSON: RunGenerationStep1Result
+  step_2_result: string | null; // JSON: RunGenerationStep2Result
 };
 
 // DHIS2 import runs in main
@@ -144,9 +156,17 @@ export type DBDatasetHmisImportRun = {
   id: number;
   trigger: "manual" | "schedule";
   triggered_by: string | null;
-  dhis2_url: string;
-  selection: string;
-  status: "queued" | "running" | "complete" | "error" | "cancelled";
+  source: "dhis2" | "csv";
+  dhis2_url: string | null;
+  selection: string | null;
+  csv_config: string | null;
+  status:
+    | "queued"
+    | "running"
+    | "needs_review"
+    | "complete"
+    | "error"
+    | "cancelled";
   error: string | null;
   total_pairs: number;
   succeeded_pairs: number;
@@ -193,43 +213,31 @@ export type DBDatasetHmisVersion = {
   staging_result: string | null;
 };
 
-export type DBDatasetHmisUploadAttempt = {
-  date_started: string;
-  step: number;
-  status: string;
-  status_type: string;
-  source_type: "csv" | "dhis2" | null;
-  // Step 1: CSV upload OR DHIS2 confirmation
-  step_1_result: string | null;
-  // Step 2: Mappings OR DHIS2 selection
-  step_2_result: string | null;
-  // Step 3: Staging result
-  step_3_result: string | null;
+export type DBHfaImportRun = {
+  id: number;
+  triggered_by: string | null;
+  csv_config: string;
+  time_point: string;
+  status: "running" | "needs_review" | "complete" | "error" | "cancelled";
+  error: string | null;
+  progress: string | null;
+  diagnostics: string | null;
+  n_rows_integrated: number | null;
+  started_at: string | Date;
+  ended_at: string | Date | null;
 };
 
-export type DBDatasetHfaUploadAttempt = {
-  date_started: string;
-  step: number;
-  status: string;
-  status_type: string;
-  source_type: "csv";
-  // Step 1: CSV upload OR DHIS2 confirmation
-  step_1_result: string | null;
-  // Step 2: Mappings OR DHIS2 selection
-  step_2_result: string | null;
-  // Step 3: Staging result
-  step_3_result: string | null;
-};
-
-export type DBIcehUploadAttempt = {
-  id: string;
-  date_started: string;
-  step: number;
-  status: string;
-  status_type: string;
-  step_1_result: string | null;
-  step_2_result: string | null;
-  step_3_result: string | null;
+export type DBIcehImportRun = {
+  id: number;
+  triggered_by: string | null;
+  zip_config: string;
+  status: "running" | "needs_review" | "complete" | "error" | "cancelled";
+  error: string | null;
+  progress: string | null;
+  diagnostics: string | null;
+  n_rows_integrated: number | null;
+  started_at: string | Date;
+  ended_at: string | Date | null;
 };
 
 // Audit logging

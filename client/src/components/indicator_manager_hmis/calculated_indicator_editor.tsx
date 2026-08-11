@@ -18,6 +18,7 @@ import {
   type PopulationType,
 } from "lib";
 import { serverActions } from "~/server_actions";
+import { formatRateAuto } from "~/generate_visualization/get_style_from_po/_0_common";
 
 type FormatAs = CalculatedIndicator["format_as"];
 type ThresholdDirection = CalculatedIndicator["threshold_direction"];
@@ -133,11 +134,7 @@ export function EditCalculatedIndicatorForm(
       return `${(previewRawValue * 100).toFixed(0)}%`;
     }
     if (fmt === "rate_per_10k") {
-      const value = (previewRawValue * 10000).toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      });
-      return `${value} ${t3({ en: "per 10k", fr: "pour 10k" })}`;
+      return `${formatRateAuto(previewRawValue)} ${t3({ en: "per 10k", fr: "pour 10k" })}`;
     }
     return previewRawValue.toLocaleString(undefined, {
       minimumFractionDigits: 0,

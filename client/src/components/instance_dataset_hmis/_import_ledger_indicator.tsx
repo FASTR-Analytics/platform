@@ -15,7 +15,7 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { DatasetHmisDhis2Runs } from "./dhis2_run";
+import { DatasetHmisImports } from "./imports";
 import { sourceLabel, type LedgerPeriodWindow } from "./_import_ledger";
 
 type MonthRow = {
@@ -84,7 +84,7 @@ export function ImportLedgerIndicatorDetail(
       (periodId) => ({ indicatorRawId: p.indicatorRawId, periodId }),
     );
     await openEditor({
-      element: DatasetHmisDhis2Runs,
+      element: DatasetHmisImports,
       props: {
         silentFetch: p.silentFetch,
         presetPairs: pairs,

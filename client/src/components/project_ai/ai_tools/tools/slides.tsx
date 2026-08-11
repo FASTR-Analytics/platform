@@ -15,10 +15,9 @@ import {
   type AiContentBlockInput,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import {
-  extractBlocksFromLayout,
-  simplifySlideForAI,
-} from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { createGetSlideTool } from "lib";
+import { clientAIToolEnv } from "../client_env";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
 import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
 import {
@@ -28,7 +27,6 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
@@ -56,7 +54,7 @@ function throwSlideUpdateError(err: string): never {
 const DECK_LEVEL_NOTE =
   " If the user has a single slide open in the slide editor, they must close it first — deck-level changes are only available from the deck view.";
 
-export function getToolsForSlides(
+export function getClientToolsForSlides(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {
@@ -81,28 +79,10 @@ export function getToolsForSlides(
       },
     }),
 
-    // DELIBERATE availableIn omission: get_slide reads by explicit slideId and
-    // works from any view (e.g. while editing a report that references deck
-    // content) — this is the historical guard-bypass made explicit, not an
-    // accident.
-    createAITool({
-      name: "get_slide",
-      description:
-        "Retrieve the content and structure of a specific slide. For content slides, this returns a simplified view showing each content block with its unique ID, a summary, and the current layout structure (rows/columns with spans). Use block IDs with update_slide_content for content changes, or with modify_slide_layout for layout changes. Always call this before modifying a slide to see what's currently in it.",
-      inputSchema: z.object({
-        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
-      }),
-      kind: "read",
-      handler: async (input) => {
-        const res = await getSlideFromCacheOrFetch(projectId, input.slideId);
-        if (!res.success) throw new AIToolFailure(res.err);
-
-        const simplified = await simplifySlideForAI(projectId, res.data.slide, metrics);
-        return simplified;
-      },
-      inProgressLabel: (input) => `Getting slide ${input.slideId}...`,
-      completionMessage: (input) => `Retrieved slide ${input.slideId}`,
-    }),
+    // Shared factory in lib/ai_tools (the one non-view-gated slides tool —
+    // reads by explicit slideId from any view, and serves the headless MCP
+    // host through the same definition).
+    createGetSlideTool(clientAIToolEnv, projectId, metrics),
 
     createAITool({
       viewRegistry: projectAIViews,

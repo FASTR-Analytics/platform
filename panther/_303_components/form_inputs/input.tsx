@@ -68,6 +68,7 @@ export function Input(p: Props) {
             }}
             class={getInputClasses(p.size, !!p.outline, p.intent)}
             data-mono={p.mono}
+            data-invalid={!!p.invalidMsg}
             data-clearable={showClear()}
             autofocus={p.autoFocus}
             type={p.type}

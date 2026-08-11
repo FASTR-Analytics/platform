@@ -8,7 +8,6 @@ import {
 import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
 import {
   DEFAULT_BUILTIN_TOOLS,
-  DEFAULT_MODEL_CONFIG,
   createProjectSDKClient,
 } from "./ai_configs/defaults";
 import { AIProjectContextProvider, useAIProjectContext } from "./context";
@@ -24,15 +23,15 @@ import { useAIDocuments } from "./ai_documents";
 
 export { useAIProjectContext } from "./context";
 
-export function AIProjectWrapper(props: ParentProps) {
+export function AIProjectWrapper(p: ParentProps) {
   return (
     <AIProjectContextProvider>
-      <AIProjectWrapperInner>{props.children}</AIProjectWrapperInner>
+      <AIProjectWrapperInner>{p.children}</AIProjectWrapperInner>
     </AIProjectContextProvider>
   );
 }
 
-function AIProjectWrapperInner(props: ParentProps) {
+function AIProjectWrapperInner(p: ParentProps) {
   const projectId = projectState.id;
 
   const sdkClient = createProjectSDKClient(projectId);
@@ -109,7 +108,6 @@ function AIProjectWrapperInner(props: ParentProps) {
 
   const config: AIChatConfig = {
     sdkClient,
-    modelConfig: DEFAULT_MODEL_CONFIG,
     tools: tools as AIChatConfig["tools"],
     builtInTools: DEFAULT_BUILTIN_TOOLS,
     scope: projectId,
@@ -137,7 +135,7 @@ function AIProjectWrapperInner(props: ParentProps) {
           />
         }
       >
-        {props.children}
+        {p.children}
       </FrameRightResizable>
     </AIChatProvider>
   );

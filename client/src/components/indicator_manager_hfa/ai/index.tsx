@@ -5,7 +5,7 @@ import {
   validateAIChatConfig,
 } from "panther";
 import type { Accessor, ParentProps } from "solid-js";
-import { createHfaIndicatorAiSDKClient, HFA_AI_MODEL_CONFIG } from "./sdk_client";
+import { createHfaIndicatorAiSDKClient } from "./sdk_client";
 import { buildHfaIndicatorTools } from "./tools";
 import { buildHfaIndicatorSystemPrompt } from "./system_prompt";
 import { HfaIndicatorChatPane } from "./chat_pane";
@@ -21,13 +21,15 @@ type Props = ParentProps & {
 // chat engine as the project assistant, but with its own conversation register
 // (scope: "hfa-indicators"), its own instance-scoped SDK client, and its own
 // indicator-authoring tool set — fully isolated from project_ai.
-export function HfaIndicatorAiWrapper(props: Props) {
+export function HfaIndicatorAiWrapper(p: Props) {
   const sdkClient = createHfaIndicatorAiSDKClient();
   const system: Accessor<string> = () => buildHfaIndicatorSystemPrompt();
 
   const config: AIChatConfig = {
     sdkClient,
-    modelConfig: HFA_AI_MODEL_CONFIG,
+    // Model comes from panther's defaults; only the smaller output cap is
+    // HFA-specific (indicator authoring never needs long outputs).
+    modelConfig: { max_tokens: 4096 },
     tools: buildHfaIndicatorTools() as AIChatConfig["tools"],
     scope: "hfa-indicators",
     system,
@@ -44,13 +46,13 @@ export function HfaIndicatorAiWrapper(props: Props) {
         minWidth={300}
         startingWidth={560}
         maxWidth={1200}
-        isShown={props.show()}
-        onToggleShow={props.onClose}
+        isShown={p.show()}
+        onToggleShow={p.onClose}
         panelChildren={
-          <HfaIndicatorChatPane getSystemPrompt={system} onClose={props.onClose} />
+          <HfaIndicatorChatPane getSystemPrompt={system} onClose={p.onClose} />
         }
       >
-        {props.children}
+        {p.children}
       </FrameRightResizable>
     </AIChatProvider>
   );

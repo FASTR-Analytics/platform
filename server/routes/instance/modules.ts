@@ -1,88 +1,60 @@
 import { Hono } from "hono";
 import {
-  MODULE_REGISTRY,
   type CompareProjectsData,
   type CompareProjectsModule,
-  type ModuleLatestCommit,
 } from "lib";
-import { getPgConnectionFromCacheOrNew } from "../../db/postgres/mod.ts";
-import { type DBModule } from "../../db/project/_project_database_types.ts";
 import { parseModuleConfigSelections } from "../../db/project/modules.ts";
-import { fetchCommits } from "../../github/fetch_module.ts";
+import { getRunManifestCached } from "../../runs/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesInstanceModules = new Hono();
 
-defineRoute(routesInstanceModules, "checkModuleUpdates", requireGlobalPermission(), async (c) => {
-  const results: ModuleLatestCommit[] = [];
-  const errors: string[] = [];
-
-  const fetches = MODULE_REGISTRY.map(async (mod) => {
-    const { owner, repo, path } = mod.github;
-    const res = await fetchCommits(owner, repo, path, "main");
-    if (res.success && res.data.length > 0) {
-      results.push({
-        moduleId: mod.id,
-        latestCommit: res.data[0],
-      });
-    } else if (!res.success) {
-      errors.push(`${mod.id}: ${res.err}`);
-    }
-  });
-
-  await Promise.all(fetches);
-
-  if (results.length === 0 && errors.length > 0) {
-    return c.json({ success: false, err: errors.join("; ") });
-  }
-
-  return c.json({ success: true, data: results });
-});
-
+// Cross-project module comparison, read from each project's ATTACHED results
+// package (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5): the project catalog
+// tables are no longer written by generation, so reading them here would
+// report a frozen pre-cutover picture. A project with no package (or an
+// unreadable one) simply contributes no modules.
 defineRoute(
   routesInstanceModules,
   "compareProjects",
   requireGlobalPermission({ requireAdmin: true }),
   async (c) => {
-    const projects: { id: string; label: string }[] = await c.var.mainDb`
-      SELECT id, label FROM projects ORDER BY LOWER(label)
+    const projects: { id: string; label: string; run_id: string | null }[] =
+      await c.var.mainDb`
+      SELECT id, label, run_id FROM projects ORDER BY LOWER(label)
     `;
 
     const projectResults = await Promise.all(
-      projects.map(async (project: { id: string; label: string }) => {
-        const projectDb = getPgConnectionFromCacheOrNew(project.id, "READ_ONLY");
-        const rawModules = await projectDb<DBModule[]>`
-          SELECT id, dirty, compute_def_updated_at, compute_def_git_ref, presentation_def_updated_at, presentation_def_git_ref, last_run_at, last_run_git_ref, config_selections
-          FROM modules
-        `;
-
-        const modules: CompareProjectsModule[] = rawModules.map((raw) => {
-          const config = parseModuleConfigSelections(raw.config_selections);
-          const parameters = config.parameterDefinitions.map((def) => ({
-            replacementString: def.replacementString,
-            description: def.description,
-            value: config.parameterSelections[def.replacementString] ?? "",
-          }));
-
-          return {
-            id: raw.id,
-            dirty: raw.dirty as CompareProjectsModule["dirty"],
-            computeDefUpdatedAt: raw.compute_def_updated_at ?? undefined,
-            computeDefGitRef: raw.compute_def_git_ref ?? undefined,
-            presentationDefUpdatedAt: raw.presentation_def_updated_at ?? undefined,
-            presentationDefGitRef: raw.presentation_def_git_ref ?? undefined,
-            lastRunAt: raw.last_run_at,
-            lastRunGitRef: raw.last_run_git_ref ?? undefined,
-            parameters,
-          };
-        });
-
-        return {
-          id: project.id,
-          label: project.label,
-          modules,
-        };
+      projects.map(async (project) => {
+        const modules: CompareProjectsModule[] = [];
+        if (project.run_id !== null) {
+          try {
+            const manifest = await getRunManifestCached(project.run_id);
+            for (const mod of manifest.modules) {
+              const config = parseModuleConfigSelections(
+                mod.configSelections ?? "{}",
+              );
+              modules.push({
+                id: mod.id,
+                lastRunAt: mod.lastRunAt ?? "",
+                lastRunGitRef: mod.lastRunGitRef ?? undefined,
+                parameters: config.parameterDefinitions.map((def) => ({
+                  replacementString: def.replacementString,
+                  description: def.description,
+                  value: config.parameterSelections[def.replacementString] ?? "",
+                })),
+              });
+            }
+          } catch (e) {
+            console.error(
+              `[runs] compareProjects: run ${project.run_id} unreadable for project ${project.id}: ${
+                e instanceof Error ? e.message : e
+              }`,
+            );
+          }
+        }
+        return { id: project.id, label: project.label, modules };
       }),
     );
 

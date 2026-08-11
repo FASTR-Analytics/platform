@@ -10,9 +10,8 @@ import {
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
-  getModuleIdForResultsObject,
-  moduleDataVersionKey,
   projectState,
+  runVersionKey,
 } from "~/state/project/t1_store";
 import {
   Select,
@@ -99,7 +98,7 @@ export function ReplicateByOptionsPresentationObject(
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
     // Tracked version-key read — must precede the first await
-    moduleDataVersionKey(projectState, getModuleIdForResultsObject(resultsObjectId));
+    runVersionKey(projectState);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     setReplicantOptions({ status: "loading", msg: t3(TC.loading) });
@@ -223,7 +222,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
     // Tracked version-key read — must precede the first await
-    moduleDataVersionKey(projectState, getModuleIdForResultsObject(resultsObjectId));
+    runVersionKey(projectState);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     setReplicantOptions({ status: "loading", msg: t3(TC.loading) });

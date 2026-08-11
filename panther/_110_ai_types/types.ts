@@ -135,6 +135,7 @@ export type ToolDefinition = {
 export type AnthropicModel =
   // Claude 5 family (latest)
   | "claude-fable-5"
+  | "claude-opus-5"
   | "claude-sonnet-5"
   // Claude 4.7 / 4.8
   | "claude-opus-4-8"

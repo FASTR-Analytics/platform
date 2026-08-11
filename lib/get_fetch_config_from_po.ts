@@ -13,14 +13,16 @@ import {
   type RollupDimension,
   type RollupEligibilityInputs,
 } from "./rollup.ts";
-import { getReplicateByProp, hasOnlyOneFilteredValue } from "./get_disaggregator_display_prop.ts";
 import {
-  periodFilterHasBounds,
+  getReplicateByProp,
+  hasOnlyOneFilteredValue,
+} from "./get_disaggregator_display_prop.ts";
+import {
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
   type PeriodBounds,
   type PeriodFilter,
-  type ResultsValueInfoForPresentationObject,
+  periodFilterHasBounds,
 } from "./types/presentation_objects.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import {
@@ -72,14 +74,32 @@ export function getFetchConfigFromPresentationObjectConfig(
     };
   }
 
+  const values = getFilteredValueProps(resultsValue.valueProps, config).map(
+    (vp) => {
+      return { prop: vp, func: resultsValue.valueFunc };
+    },
+  );
+  // A valuesFilter can name props the metric doesn't have (e.g. a config
+  // re-pointed to a different metric), leaving the intersection empty. An
+  // empty select list is never a valid query — without this guard the pg
+  // builder emits syntax-invalid SQL while the run path returns a fake "ok"
+  // with no value columns.
+  if (values.length === 0) {
+    return {
+      success: false,
+      err:
+        `The visualization's value filter (${
+          (config.d.valuesFilter ?? []).join(", ")
+        }) matches none of this metric's values (${
+          resultsValue.valueProps.join(", ")
+        })`,
+    };
+  }
+
   return {
     success: true,
     data: {
-      values: getFilteredValueProps(resultsValue.valueProps, config).map(
-        (vp) => {
-          return { prop: vp, func: resultsValue.valueFunc };
-        },
-      ),
+      values,
       postAggregationExpression: undefined,
       groupBys,
       filters,
@@ -93,7 +113,10 @@ export function getFetchConfigFromPresentationObjectConfig(
 // source format differs (the finest alignment we can honor). Used to keep both
 // bounds the same self-identified format; returns the value unchanged when already
 // aligned or when the target format is unknown.
-function reAnchorToFormat(value: number, fmt: PeriodOption | undefined): number {
+function reAnchorToFormat(
+  value: number,
+  fmt: PeriodOption | undefined,
+): number {
   const src = inferPeriodFormatFromValue(value);
   if (fmt === undefined || src === fmt) {
     return value;
@@ -103,7 +126,11 @@ function reAnchorToFormat(value: number, fmt: PeriodOption | undefined): number 
     : src === "quarter_id"
     ? Math.floor(value / 10)
     : Math.floor(value / 100);
-  return fmt === "year" ? year : fmt === "quarter_id" ? year * 10 + 1 : year * 100 + 1;
+  return fmt === "year"
+    ? year
+    : fmt === "quarter_id"
+    ? year * 10 + 1
+    : year * 100 + 1;
 }
 
 export function getPeriodFilterExactBounds(
@@ -121,6 +148,16 @@ export function getPeriodFilterExactBounds(
   }
   // The live data's format — bounds inherit it; the removed periodOption tag.
   const fmt = inferPeriodFormatFromValue(periodBounds.max);
+  // Year data: every non-custom filter collapses to the latest year. This is
+  // the intended reading of every storable state — the UI offers year data
+  // only "Last year" (stored as last_n_months) and "Custom", module presets
+  // on annual metrics carry last_n_months/last_calendar_year meaning exactly
+  // this, and the AI patch path rejects from_month for year granularity
+  // (applyFigureConfigPatch). Ruled 2026-08-03, pinned by the rig's
+  // hmis_yearly period-filter cases; a drift arrival (a filter authored under
+  // a finer granularity surviving a module re-run to annual) also collapses
+  // here rather than degrading to full bounds like the quarter_id block below
+  // — acceptable because no module has ever changed a metric's granularity.
   if (fmt === "year") {
     const max = periodBounds.max;
     return { min: max, max };
@@ -177,7 +214,10 @@ export function getPeriodFilterExactBounds(
       return { ...bounds };
     }
     const startTime = getTimeFromPeriodId(bounds.min, "year-month");
-    const extendedMin = getPeriodIdFromTime(startTime - (nYears - 1) * 12, "year-month");
+    const extendedMin = getPeriodIdFromTime(
+      startTime - (nYears - 1) * 12,
+      "year-month",
+    );
     return { min: extendedMin, max: bounds.max };
   }
   if (
@@ -195,13 +235,18 @@ export function getPeriodFilterExactBounds(
       return { ...bounds };
     }
     const startTime = getTimeFromPeriodId(bounds.min, "year-month");
-    const extendedMin = getPeriodIdFromTime(startTime - (nQuarters - 1) * 3, "year-month");
+    const extendedMin = getPeriodIdFromTime(
+      startTime - (nQuarters - 1) * 3,
+      "year-month",
+    );
     return { min: extendedMin, max: bounds.max };
   }
   throw new Error("Should not happen");
 }
 
-function getLastFullYearBounds(periodBounds: PeriodBounds): { min: number; max: number } {
+function getLastFullYearBounds(
+  periodBounds: PeriodBounds,
+): { min: number; max: number } {
   if (getCalendar() === "ethiopian") {
     if (
       periodBounds.max.toFixed(0).endsWith("10") ||
@@ -222,7 +267,9 @@ function getLastFullYearBounds(periodBounds: PeriodBounds): { min: number; max: 
   return { min: minYear * 100 + 1, max: minYear * 100 + 12 };
 }
 
-function getLastFullQuarterBounds(periodBounds: PeriodBounds): { min: number; max: number } {
+function getLastFullQuarterBounds(
+  periodBounds: PeriodBounds,
+): { min: number; max: number } {
   if (getCalendar() === "ethiopian") {
     const maxMonth = periodBounds.max % 100;
     const maxYear = Math.floor(periodBounds.max / 100);
@@ -275,18 +322,30 @@ export function hashFetchConfig(fc: GenericLongFormFetchConfig): string {
     getSortedAlphabetical(fc.groupBys).join("$"),
     getSortedAlphabeticalByFunc(
       fc.filters,
-      (v: { disOpt: DisaggregationOption; values: (string | number)[] }) => v.disOpt,
+      (v: { disOpt: DisaggregationOption; values: (string | number)[] }) =>
+        v.disOpt,
     )
       .map((f: { disOpt: DisaggregationOption; values: (string | number)[] }) =>
-        [f.disOpt, JSON.stringify(getSortedAlphabetical(f.values.map(String)))].join("&"),
+        [f.disOpt, JSON.stringify(getSortedAlphabetical(f.values.map(String)))]
+          .join("&")
       )
       .join("$"),
     fc.periodFilter?.filterType ?? "",
-    fc.periodFilter?.filterType === "last_n_months" ? fc.periodFilter.nMonths.toString() : "",
-    fc.periodFilter?.filterType === "last_n_calendar_years" ? fc.periodFilter.nYears.toString() : "",
-    fc.periodFilter?.filterType === "last_n_calendar_quarters" ? fc.periodFilter.nQuarters.toString() : "",
-    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.min.toString() : "",
-    fc.periodFilter && periodFilterHasBounds(fc.periodFilter) ? fc.periodFilter.max.toString() : "",
+    fc.periodFilter?.filterType === "last_n_months"
+      ? fc.periodFilter.nMonths.toString()
+      : "",
+    fc.periodFilter?.filterType === "last_n_calendar_years"
+      ? fc.periodFilter.nYears.toString()
+      : "",
+    fc.periodFilter?.filterType === "last_n_calendar_quarters"
+      ? fc.periodFilter.nQuarters.toString()
+      : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter)
+      ? fc.periodFilter.min.toString()
+      : "",
+    fc.periodFilter && periodFilterHasBounds(fc.periodFilter)
+      ? fc.periodFilter.max.toString()
+      : "",
     fc.postAggregationExpression ?? "",
     fc.rollupDim ?? "",
   ].join("#");
@@ -296,17 +355,17 @@ export function getFilteredValueProps(
   valueProps: string[],
   config: PresentationObjectConfig,
 ) {
-  const needsFilter =
-    !!config.d.valuesFilter && config.d.valuesFilter.length > 0;
+  const needsFilter = !!config.d.valuesFilter &&
+    config.d.valuesFilter.length > 0;
   return valueProps.filter((vp) => {
     return !needsFilter || config.d.valuesFilter?.includes(vp);
   });
 }
 
-
 // Whether an entry could carry the roll-up flag as the config stands: a
 // whitelisted dimension, NOT displayed as replicant/mapArea, NOT filtered to a
-// single value, and not on a map (a "National" pane is not wanted). Shared by
+// single value, and not on a map (a "National" pane is not wanted) or a pie
+// (a total slice inside its own parts would double the whole). Shared by
 // the gate below and the editor (which shows the checkbox on every candidate
 // dimension).
 export function isRollupCandidateDimension(
@@ -315,6 +374,7 @@ export function isRollupCandidateDimension(
 ): boolean {
   return (
     config.d.type !== "map" &&
+    config.d.type !== "pie" &&
     isRollupDimension(entry.disOpt) &&
     entry.disDisplayOpt !== "replicant" &&
     entry.disDisplayOpt !== "mapArea" &&
@@ -339,7 +399,7 @@ export function getRollupDimension(
   const flagged = config.d.disaggregateBy.flatMap((d) =>
     d.rollup === true && isRollupCandidateDimension(config, d)
       ? [d.disOpt as RollupDimension]
-      : [],
+      : []
   );
   return flagged.length === 1 ? flagged[0] : undefined;
 }
@@ -407,7 +467,11 @@ export function getRollupLabelContextForDimension(
     const l = coarser[i];
     const dis = config.d.disaggregateBy.find((d) => d.disOpt === l);
     if (dis?.disDisplayOpt === "replicant") {
-      return { kind: "pinned", level: l, value: config.d.selectedReplicantValue };
+      return {
+        kind: "pinned",
+        level: l,
+        value: config.d.selectedReplicantValue,
+      };
     }
     const filter = config.d.filterBy.find((f) => f.disOpt === l);
     if (filter?.values.length === 1) {

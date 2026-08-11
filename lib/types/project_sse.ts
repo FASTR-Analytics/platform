@@ -4,14 +4,12 @@ import type { ProjectUser } from "./instance.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import type { PresentationObjectSummary } from "./presentation_objects.ts";
-import type {
-  DirtyOrRunStatus,
-  LastUpdateTableName,
-} from "./project_dirty_states.ts";
+import type { LastUpdateTableName } from "./project_dirty_states.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
+import type { RunProgress } from "./run_generation.ts";
 
 /**
  * Unified project state pushed via SSE.
@@ -30,6 +28,10 @@ export type ProjectState = {
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   isCentralReporting: boolean;
+  // The immutable results run this project serves from — the client-side
+  // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
+  // null = no run attached (typed replacement for the "unknown" sentinel).
+  attachedRunId: string | null;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
@@ -46,12 +48,8 @@ export type ProjectState = {
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
 
-  // From ProjectDirtyStates
+  // Per-entity last-updated snapshot (project caches use per-entity versioning)
   projectLastUpdated: string;
-  anyRunning: boolean;
-  moduleDirtyStates: Record<string, DirtyOrRunStatus>;
-  moduleLastRun: Record<string, string>;
-  moduleLastRunGitRef: Record<string, string>;
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
 };
 
@@ -65,31 +63,33 @@ export type ProjectSseMessage =
   // Initial state on connection
   | { type: "starting"; data: ProjectState }
 
-  // Module execution events (already granular today — kept as-is)
-  | { type: "any_running"; data: { anyRunning: boolean } }
+  // Live R output line for the currently generating module
   | { type: "r_script"; data: { moduleId: string; text: string } }
+
+  // Results-package generation (PLAN_RESULTS_RUNS item 2): worker-pushed
+  // pipeline progress on every state change, and the repoint event when a
+  // finished run becomes the project's attached package — it carries the
+  // full run-derived catalog (modules, metrics, datasets, indicators) so
+  // clients re-key live without a reconnect.
+  | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
   | {
-      type: "module_dirty_state";
+      type: "run_attached";
       data: {
-        ids: string[];
-        dirtyOrRunStatus: DirtyOrRunStatus;
-        lastRun?: string;
-        lastRunGitRef?: string;
+        attachedRunId: string;
+        projectModules: InstalledModuleSummary[];
+        metrics: MetricWithStatus[];
+        projectDatasets: DatasetInProject[];
+        commonIndicators: { id: string; label: string }[];
+        icehIndicators: { id: string; label: string; category: string }[];
+        // Default visualizations are projections of the attached run (item
+        // 5b), so the visualizations list changes at repoint — server-built,
+        // like every other list emission.
+        visualizations: PresentationObjectSummary[];
       };
     }
 
   // Data updates (replace current "project_updated" catch-all)
   | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
-  | {
-      type: "modules_updated";
-      data: {
-        projectModules: InstalledModuleSummary[];
-        metrics: MetricWithStatus[];
-        commonIndicators: { id: string; label: string }[];
-        icehIndicators: { id: string; label: string; category: string }[];
-      };
-    }
-  | { type: "datasets_updated"; data: { projectDatasets: DatasetInProject[] } }
   | {
       type: "visualizations_updated";
       data: { visualizations: PresentationObjectSummary[] };

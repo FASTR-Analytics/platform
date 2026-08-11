@@ -23,6 +23,7 @@ import {
   figureBlockSchema,
 } from "./lib/types/mod.ts";
 import {
+  rawJsonNeedsIndicatorFormatFlip,
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
@@ -66,11 +67,14 @@ function dryRunBlock(
   localization: ReturnType<typeof getTransformLocalization>,
   geoData: unknown,
 ): { outcome: Outcome; failMsg?: string } {
-  // Mirror the real sweeps' forced gate: a block that parses clean can still
-  // carry legacy keys (Zod strip mode) that the boot sweep would migrate —
-  // skipping it here would under-report the rows the deploy will touch.
+  // Mirror the real sweeps' forced gates: a block that parses clean can still
+  // carry legacy keys (Zod strip mode) or a pre-flip formatAs that the boot
+  // sweep would migrate — skipping it here would under-report the rows the
+  // deploy will touch.
+  const rawJson = JSON.stringify(figureBlock);
   const already = figureBlockSchema.safeParse(figureBlock).success &&
-    !rawJsonNeedsForcedTransform(JSON.stringify(figureBlock));
+    !rawJsonNeedsForcedTransform(rawJson) &&
+    !rawJsonNeedsIndicatorFormatFlip(rawJson);
   if (already) {
     return { outcome: figureBlock.bundle !== undefined ? "already-bundle" : "empty" };
   }

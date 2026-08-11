@@ -3,21 +3,24 @@ import {
   ChartValueInfo,
   ColorKeyOrString,
   CustomFigureStyleOptions,
-  getFormatterFunc,
-  type TickLabelFormatterOption,
 } from "panther";
 import { type CalendarType } from "panther";
 import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
+  type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
-import { getTextStyle } from "./_0_common";
+import {
+  formatIndicatorValue,
+  getScaleTickLabelFormatter,
+  getTextStyle,
+} from "./_0_common";
 
 export function buildDisruptionsChartStyle(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   calendar: CalendarType,
   allowNegativeScale: boolean,
   deckStyle?: DeckStyleContext,
@@ -33,15 +36,13 @@ export function buildDisruptionsChartStyle(
     xPeriodAxis: { calendar },
     yScaleAxis: {
       allowIndividualTierLimits: config.s.allowIndividualRowLimits,
-      max: config.s.forceYMax1 ? 1 : undefined,
+      max: config.s.forceYMax1 && formatAs === "percent" ? 1 : undefined,
       min: config.s.forceYMinAuto
         ? "auto"
         : allowNegativeScale
         ? "auto-zero"
         : undefined,
-      tickLabelFormatter: (formatAs === "percent"
-        ? "auto-percent"
-        : "auto-number") as TickLabelFormatterOption,
+      tickLabelFormatter: getScaleTickLabelFormatter(formatAs),
     },
     content: {
       points: { func: { show: false } },
@@ -55,7 +56,7 @@ export function buildDisruptionsChartStyle(
           dataLabel: { show: config.s.showDataLabelsLineCharts },
         }),
         textFormatter: (info: ChartValueInfo) =>
-          getFormatterFunc(formatAs, config.s.decimalPlaces ?? 0)(info.val),
+          formatIndicatorValue(info.val, formatAs, config.s.decimalPlaces ?? 0),
       },
       areas: {
         func: { show: true },

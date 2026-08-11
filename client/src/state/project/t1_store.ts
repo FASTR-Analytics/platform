@@ -16,6 +16,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   thisUserRole: "viewer",
   isLocked: false,
   isCentralReporting: false,
+  attachedRunId: null,
   projectDatasets: [],
   projectModules: [],
   metrics: [],
@@ -25,6 +26,8 @@ const EMPTY_PROJECT_STATE: ProjectState = {
     categories: [],
     subCategories: [],
     serviceCategories: [],
+    variantGroups: [],
+    variantItems: [],
     timePoints: [],
     indicators: [],
   },
@@ -38,10 +41,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   projectUsers: [],
   thisUserPermissions: structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
   projectLastUpdated: "",
-  anyRunning: false,
-  moduleDirtyStates: {},
-  moduleLastRun: {},
-  moduleLastRunGitRef: {},
   lastUpdated: {
     dashboards: {},
     dashboard_items: {},
@@ -58,42 +57,10 @@ const [projectState, setProjectState] = createStore<ProjectState>(
   structuredClone(EMPTY_PROJECT_STATE)
 );
 
-let metricToModule: Record<string, string> = {};
-let resultsObjectToModule: Record<string, string> = {};
-let metricToFormatAs: Record<string, "percent" | "number"> = {};
-
-function rebuildModuleMaps(state: ProjectState): void {
-  metricToModule = {};
-  resultsObjectToModule = {};
-  metricToFormatAs = {};
-  for (const metric of state.metrics) {
-    metricToModule[metric.id] = metric.moduleId;
-    resultsObjectToModule[metric.resultsObjectId] = metric.moduleId;
-    metricToFormatAs[metric.id] = metric.formatAs;
-  }
-}
-
 export function applyProjectSseMessage(msg: ProjectSseMessage): void {
   switch (msg.type) {
     case "starting":
       setProjectState(reconcile(msg.data));
-      rebuildModuleMaps(msg.data);
-      break;
-
-    case "any_running":
-      setProjectState("anyRunning", msg.data.anyRunning);
-      break;
-
-    case "module_dirty_state":
-      for (const id of msg.data.ids) {
-        setProjectState("moduleDirtyStates", id, msg.data.dirtyOrRunStatus);
-        if (msg.data.lastRun) {
-          setProjectState("moduleLastRun", id, msg.data.lastRun);
-        }
-        if (msg.data.lastRunGitRef) {
-          setProjectState("moduleLastRunGitRef", id, msg.data.lastRunGitRef);
-        }
-      }
       break;
 
     case "project_config_updated":
@@ -113,16 +80,17 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       }
       break;
 
-    case "modules_updated":
+    // A generated run was published and the project repointed: the run key
+    // flips here (T2 caches re-key off runVersionKey) together with the full
+    // run-derived catalog the new run carries.
+    case "run_attached":
+      setProjectState("attachedRunId", msg.data.attachedRunId);
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
+      setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
       setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
       setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
-      rebuildModuleMaps(projectState);
-      break;
-
-    case "datasets_updated":
-      setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
+      setProjectState("visualizations", reconcile(msg.data.visualizations));
       break;
 
     case "visualizations_updated":
@@ -202,48 +170,34 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
 
 export function resetProjectState(): void {
   setProjectState(reconcile(structuredClone(EMPTY_PROJECT_STATE)));
-  metricToModule = {};
-  resultsObjectToModule = {};
-  metricToFormatAs = {};
 }
 
-export function getProjectStateSnapshot(): ProjectState {
+export function getSnapshotProjectState(): ProjectState {
   return unwrap(projectState);
 }
 
-export function getModuleIdForMetric(metricId: string): string {
-  return metricToModule[metricId] ?? "unknown";
+// Version for caches keyed on run-derived data (PO items, metric info,
+// replicant options): the project's attached immutable run IS the data
+// version (PLAN_RESULTS_RUNS §2.5); "no_run_attached" is the typed empty
+// state (server reads error until a run is attached). Consumers inside a
+// createEffect must call this with the live `projectState` proxy before
+// their first await — getSnapshotProjectState is unwrapped, so
+// cache-internal reads are NOT tracked.
+export function runVersionKey(pds: ProjectState): string {
+  return pds.attachedRunId ?? "no_run_attached";
 }
 
-export function getModuleIdForResultsObject(resultsObjectId: string): string {
-  return resultsObjectToModule[resultsObjectId] ?? "unknown";
-}
-
-export function getFormatAsForMetric(metricId: string): "percent" | "number" {
-  return metricToFormatAs[metricId] ?? "number";
-}
-
-// Version-key fragment for caches whose value embeds indicator metadata (PO
-// items, metric info, replicant options). indicatorMetadata is rewritten on
-// dataset integration (bumps lastUpdated.datasets) independently of
-// moduleLastRun, so those caches must version on it too. Mirrors the server
-// Valkey version hash (datasets sorted by type, `type:last_updated`).
-export function datasetsVersionKey(pds: ProjectState): string {
-  return Object.keys(pds.lastUpdated.datasets)
-    .sort()
-    .map((dt) => `${dt}:${pds.lastUpdated.datasets[dt]}`)
-    .join(",");
-}
-
-// Composite version for caches keyed on module output (PO items, metric info,
-// replicant options). Consumers inside a createEffect must call this with the
-// live `projectState` proxy before their first await — getProjectStateSnapshot
-// is unwrapped, so cache-internal reads are NOT tracked.
-export function moduleDataVersionKey(
-  pds: ProjectState,
-  moduleId: string,
-): string {
-  return `${pds.moduleLastRun[moduleId] ?? "unknown"}|${datasetsVersionKey(pds)}`;
+// The response-side half of that key (item 4's cache guard): a run-keyed
+// payload carries the runId it was actually computed against, so an in-flight
+// response landing after a package repoint can be told apart from one that
+// belongs under the key it was requested with. undefined is the parity rig's
+// Postgres baseline, which must never be cached — hence the explicit false
+// rather than a "no_run_attached" fallback.
+export function responseRunIdMatches(
+  responseRunId: string | undefined,
+  runKey: string,
+): boolean {
+  return responseRunId !== undefined && responseRunId === runKey;
 }
 
 export { projectState };

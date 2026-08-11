@@ -796,7 +796,7 @@ export function LiveCursorsOverlay(p: {
                 />
               </svg>
               <div
-                class="absolute whitespace-nowrap rounded px-1 text-[10px] font-semibold text-white"
+                class="absolute whitespace-nowrap rounded px-1 text-[10px] font-700 text-white"
                 style={{
                   left: "12px",
                   top: "15px",

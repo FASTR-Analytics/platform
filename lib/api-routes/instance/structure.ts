@@ -3,6 +3,8 @@ import type {
   CsvDetails,
   FacilityFamily,
   HfaFacilityWeightsImportResult,
+  StructureStagedColumnValues,
+  StructureStagedRecodeRows,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
   StructureDhis2OrgUnitMetadata,
@@ -28,6 +30,22 @@ const structureColumnMappingsSchema = z.object({
   facility_custom_4: z.string().optional(),
   facility_custom_5: z.string().optional(),
 });
+
+const structureRecodableColumnSchema = z.enum([
+  "facility_type",
+  "facility_ownership",
+  "facility_custom_1",
+  "facility_custom_2",
+  "facility_custom_3",
+  "facility_custom_4",
+  "facility_custom_5",
+]);
+// z.partialRecord, NOT z.record: Zod 4 z.record with an enum key schema is
+// exhaustive and rejects sparse/empty payloads.
+const structureRecodesSchema = z.partialRecord(
+  structureRecodableColumnSchema,
+  z.record(z.string(), z.string().trim().min(1)),
+);
 
 const structureIntegrateStrategySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("replace_all") }),
@@ -147,6 +165,40 @@ export const structureRouteRegistry = {
     method: "POST",
     params: z.object({ family: facilityFamilySchema }),
     isStreaming: true,
+  }),
+  // Review step (between staging and import)
+  getStructureStagedColumnValues: route({
+    path: "/structure/staged_column_values/:family/:column",
+    method: "GET",
+    params: z.object({
+      family: facilityFamilySchema,
+      column: structureRecodableColumnSchema,
+    }),
+    response: {} as StructureStagedColumnValues,
+  }),
+  getStructureStagedRecodeRows: route({
+    path: "/structure/staged_recode_rows/:family",
+    method: "POST",
+    params: z.object({ family: facilityFamilySchema }),
+    body: z.object({
+      column: structureRecodableColumnSchema,
+      values: z.array(z.string()),
+      offset: z.number().int().min(0),
+      limit: z.number().int().min(1).max(1000),
+      // Encoded CSV header refs (encodeRawCsvHeader) of unmapped file columns
+      // to join in per facility as display-only context (CSV sources only)
+      csvContextColumns: z.array(z.string()).max(5).optional(),
+    }),
+    response: {} as StructureStagedRecodeRows,
+  }),
+  setStructureRecodes: route({
+    path: "/structure/set_recodes/:family",
+    method: "POST",
+    params: z.object({ family: facilityFamilySchema }),
+    body: z.object({
+      recodes: structureRecodesSchema,
+      stagingNonce: z.string(),
+    }),
   }),
   // Step 4
   structureStep4_ImportData: route({

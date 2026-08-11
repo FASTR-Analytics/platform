@@ -57,16 +57,6 @@ export function getAreaItems(): {
       }),
       iconName: "chart",
     },
-    {
-      area: "modules",
-      heading: t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
-      iconName: "code",
-    },
-    {
-      area: "data",
-      heading: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-      iconName: "database",
-    },
     { area: "settings", heading: t3(TC.settings), iconName: "settings" },
   ];
 }

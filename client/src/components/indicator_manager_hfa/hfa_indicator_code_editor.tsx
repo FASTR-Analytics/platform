@@ -7,6 +7,9 @@ import {
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorCode,
+  type HfaIndicatorVariantCode,
+  type HfaIndicatorVariantGroup,
+  type HfaIndicatorVariantItem,
 } from "lib";
 import {
   Button,
@@ -21,6 +24,7 @@ import {
   TextArea,
   createButtonAction,
   createQuery,
+  openConfirm,
 } from "panther";
 import { createSignal, For, Show, type Accessor } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -45,8 +49,18 @@ type TempState = {
   definition: string;
   type: "binary" | "numeric";
   aggregation: "sum" | "avg";
+  variantGroupId: string | null;
   code: TempCodeEntry[];
+  // Per-item numerator code, keyed "timePoint / itemId". The server only
+  // stores rows for the indicator's current group, and a confirmed group
+  // switch clears the old group's entries here too — otherwise switching back
+  // would display deleted code as if it were still persisted.
+  variantCode: Record<string, string>;
 };
+
+function variantKey(timePoint: string, itemId: string): string {
+  return `${timePoint} / ${itemId}`;
+}
 
 export function HfaIndicatorCodeEditor(
   p: EditorComponentProps<
@@ -57,6 +71,8 @@ export function HfaIndicatorCodeEditor(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
+      variantGroups: HfaIndicatorVariantGroup[];
+      variantItems: HfaIndicatorVariantItem[];
       showAi: Accessor<boolean>;
       openAi: () => void;
     },
@@ -65,6 +81,13 @@ export function HfaIndicatorCodeEditor(
 ) {
   const codeQuery = createQuery(
     () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
+    t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
+  );
+  const variantCodeQuery = createQuery(
+    () =>
+      serverActions.getHfaIndicatorVariantCode({
+        varName: p.indicator.varName,
+      }),
     t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
 
@@ -133,19 +156,26 @@ export function HfaIndicatorCodeEditor(
     >
       <StateHolderWrapper state={codeQuery.state()}>
         {(codeSnippets) => (
-          <EditorInner
-            indicator={p.indicator}
-            dictionary={p.dictionary}
-            allIndicatorVarNames={p.allIndicatorVarNames}
-            categories={p.categories}
-            subCategories={p.subCategories}
-            serviceCategories={p.serviceCategories}
-            initialCodeSnippets={codeSnippets}
-            setNeedsSaving={setNeedsSaving}
-            registerSave={(fn) => {
-              doSave = fn;
-            }}
-          />
+          <StateHolderWrapper state={variantCodeQuery.state()}>
+            {(variantCodeSnippets) => (
+              <EditorInner
+                indicator={p.indicator}
+                dictionary={p.dictionary}
+                allIndicatorVarNames={p.allIndicatorVarNames}
+                categories={p.categories}
+                subCategories={p.subCategories}
+                serviceCategories={p.serviceCategories}
+                variantGroups={p.variantGroups}
+                variantItems={p.variantItems}
+                initialCodeSnippets={codeSnippets}
+                initialVariantCodeSnippets={variantCodeSnippets}
+                setNeedsSaving={setNeedsSaving}
+                registerSave={(fn) => {
+                  doSave = fn;
+                }}
+              />
+            )}
+          </StateHolderWrapper>
         )}
       </StateHolderWrapper>
     </FrameTop>
@@ -159,7 +189,10 @@ function EditorInner(p: {
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
+  variantGroups: HfaIndicatorVariantGroup[];
+  variantItems: HfaIndicatorVariantItem[];
   initialCodeSnippets: HfaIndicatorCode[];
+  initialVariantCodeSnippets: HfaIndicatorVariantCode[];
   setNeedsSaving: (v: boolean) => void;
   registerSave: (fn: () => Promise<APIResponseNoData>) => void;
 }) {
@@ -174,6 +207,11 @@ function EditorInner(p: {
     };
   });
 
+  const initialVariantCode: Record<string, string> = {};
+  for (const c of p.initialVariantCodeSnippets) {
+    initialVariantCode[variantKey(c.timePoint, c.itemId)] = c.rCode;
+  }
+
   const [state, setState] = createStore<TempState>({
     categoryId: p.indicator.categoryId,
     subCategoryId: p.indicator.subCategoryId,
@@ -182,12 +220,21 @@ function EditorInner(p: {
     definition: p.indicator.definition,
     type: p.indicator.type,
     aggregation: p.indicator.aggregation,
+    variantGroupId: p.indicator.variantGroupId,
     code: initialCode,
+    variantCode: initialVariantCode,
   });
 
   const filteredSubCategories = () => {
     if (!state.categoryId) return [];
     return p.subCategories.filter((sc) => sc.categoryId === state.categoryId);
+  };
+
+  const currentGroupItems = () => {
+    if (!state.variantGroupId) return [];
+    return p.variantItems
+      .filter((it) => it.groupId === state.variantGroupId)
+      .toSorted((a, b) => a.sortOrder - b.sortOrder);
   };
 
   const [selectedTimePoint, setSelectedTimePoint] = createSignal(
@@ -199,6 +246,9 @@ function EditorInner(p: {
   const otherIndicatorVarNames = new Set(
     p.allIndicatorVarNames.filter((v) => v !== p.indicator.varName),
   );
+  // Variant snippets may legitimately reference their own parent indicator
+  // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
+  const allIndicatorVarNamesInclSelf = new Set(p.allIndicatorVarNames);
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -234,6 +284,14 @@ function EditorInner(p: {
       if (i === idx) continue;
       setState("code", i, "rCode", src.rCode);
       setState("code", i, "rFilterCode", src.rFilterCode);
+    }
+    const srcTp = selectedTimePoint();
+    for (const item of currentGroupItems()) {
+      const srcCode = state.variantCode[variantKey(srcTp, item.id)] ?? "";
+      for (const tp of p.dictionary.timePoints) {
+        if (tp.timePoint === srcTp) continue;
+        setState("variantCode", variantKey(tp.timePoint, item.id), srcCode);
+      }
     }
     markDirty();
   }
@@ -271,6 +329,20 @@ function EditorInner(p: {
     );
   };
 
+  // Variant entries to save: current group's items only, non-empty code.
+  const variantCodeToSave = (): { timePoint: string; itemId: string; rCode: string }[] => {
+    const entries: { timePoint: string; itemId: string; rCode: string }[] = [];
+    for (const tp of p.dictionary.timePoints) {
+      for (const item of currentGroupItems()) {
+        const rCode = (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
+        if (rCode) {
+          entries.push({ timePoint: tp.timePoint, itemId: item.id, rCode });
+        }
+      }
+    }
+    return entries;
+  };
+
   p.registerSave(async () => {
     const filterOnly = state.code.find(
       (c) => c.rFilterCode.trim() && !c.rCode.trim(),
@@ -286,7 +358,20 @@ function EditorInner(p: {
       };
     }
 
-    // Compute validation across all timepoints
+    const variantCode = variantCodeToSave();
+    if (variantCode.length > 0 && !state.code.some((c) => c.rCode.trim())) {
+      return {
+        success: false,
+        err: t3({
+          en: "An indicator with variant code must also have overall R code",
+          fr: "Un indicateur avec du code de variante doit aussi avoir un code R global",
+          pt: "Um indicador com código de variante também deve ter código R global",
+        }),
+      };
+    }
+
+    // Compute validation across all timepoints (main + variant snippets; the
+    // stored flag is display-only editor metadata)
     let hasSyntaxError = false;
     for (let i = 0; i < state.code.length; i++) {
       const c = state.code[i];
@@ -319,6 +404,25 @@ function EditorInner(p: {
         }
       }
     }
+    if (!hasSyntaxError) {
+      for (const vc of variantCode) {
+        const tp = p.dictionary.timePoints.find(
+          (t) => t.timePoint === vc.timePoint,
+        );
+        const availableVars = tp
+          ? new Set(tp.vars.map((v) => v.varName))
+          : new Set<string>();
+        const result = validateRCode(
+          vc.rCode,
+          availableVars,
+          allIndicatorVarNamesInclSelf,
+        );
+        if (hasRCodeErrors(result)) {
+          hasSyntaxError = true;
+          break;
+        }
+      }
+    }
 
     const codeConsistent = roundsConsistency() !== "different";
 
@@ -336,12 +440,14 @@ function EditorInner(p: {
         sortOrder: p.indicator.sortOrder,
         hasSyntaxError,
         codeConsistent,
+        variantGroupId: state.variantGroupId,
       },
       code: unwrap(state.code).map((c) => ({
         timePoint: c.timePoint,
         rCode: c.rCode.trim(),
         rFilterCode: c.rFilterCode.trim() || undefined,
       })),
+      variantCode,
       hasSyntaxError,
       codeConsistent,
     });
@@ -401,6 +507,68 @@ function EditorInner(p: {
                 markDirty();
               }}
               options={p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label }))}
+            />
+            <Select
+              label={t3({ en: "Variant group", fr: "Groupe de variantes", pt: "Grupo de variantes" })}
+              value={state.variantGroupId ?? ""}
+              onChange={async (v) => {
+                const newGroupId = v || null;
+                if (newGroupId === state.variantGroupId) return;
+                const oldItems = currentGroupItems();
+                const hasOldCode = oldItems.some((item) =>
+                  p.dictionary.timePoints.some(
+                    (tp) =>
+                      (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "")
+                        .trim() !== "",
+                  ),
+                );
+                if (hasOldCode) {
+                  const confirmed = await openConfirm({
+                    title: t3({
+                      en: "Switch variant group?",
+                      fr: "Changer de groupe de variantes ?",
+                      pt: "Mudar de grupo de variantes?",
+                    }),
+                    text: t3({
+                      en: "This indicator has per-item code for the current group. Switching deletes that code when you save.",
+                      fr: "Cet indicateur a du code par élément pour le groupe actuel. Changer de groupe supprime ce code lors de la sauvegarde.",
+                      pt: "Este indicador tem código por item para o grupo atual. Mudar de grupo elimina esse código ao guardar.",
+                    }),
+                    intent: "danger",
+                    confirmButtonLabel: t3({
+                      en: "Switch group",
+                      fr: "Changer de groupe",
+                      pt: "Mudar de grupo",
+                    }),
+                  });
+                  if (!confirmed) {
+                    // The native select already displays the picked option and
+                    // state never changed, so the value binding won't re-fire
+                    // on its own — the control would show the wrong group and
+                    // re-picking the displayed option would be a dead change
+                    // event. A synchronous set-away-and-back re-runs the
+                    // binding and snaps the DOM back (no dirty flag: net state
+                    // is unchanged).
+                    const current = state.variantGroupId;
+                    setState("variantGroupId", newGroupId);
+                    setState("variantGroupId", current);
+                    return;
+                  }
+                  // Clear the old group's entries so switching back never
+                  // shows deleted code as if it were still persisted.
+                  for (const item of oldItems) {
+                    for (const tp of p.dictionary.timePoints) {
+                      setState("variantCode", variantKey(tp.timePoint, item.id), "");
+                    }
+                  }
+                }
+                setState("variantGroupId", newGroupId);
+                markDirty();
+              }}
+              options={[
+                { value: "", label: t3({ en: "— None —", fr: "— Aucun —", pt: "— Nenhum —" }) },
+                ...p.variantGroups.map((g) => ({ value: g.id, label: g.label })),
+              ]}
             />
             <RadioGroup
               label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
@@ -645,6 +813,68 @@ function EditorInner(p: {
                     </div>
                   </Show>
                 </div>
+
+                <Show when={currentGroupItems().length > 0}>
+                  <div class="ui-spy-sm border-t pt-3">
+                    <div class="font-700 text-sm">
+                      {t3({
+                        en: "Variant items (per-item numerator, shares this time point's filter code)",
+                        fr: "Éléments de variante (numérateur par élément, partage le code filtre de ce point temporel)",
+                        pt: "Itens de variante (numerador por item, partilha o código de filtro deste ponto temporal)",
+                      })}
+                    </div>
+                    <For each={currentGroupItems()}>
+                      {(item) => {
+                        const key = () => variantKey(selectedTimePoint(), item.id);
+                        const validation = (): RCodeValidationResult =>
+                          validateRCode(
+                            state.variantCode[key()] ?? "",
+                            availableVarNames(),
+                            allIndicatorVarNamesInclSelf,
+                          );
+                        return (
+                          <div>
+                            <TextArea
+                              label={`${item.label} (${item.id})`}
+                              value={state.variantCode[key()] ?? ""}
+                              onChange={(v) => {
+                                setState("variantCode", key(), v);
+                                markDirty();
+                              }}
+                              fullWidth
+                              height="80px"
+                              mono
+                            />
+                            <Show
+                              when={
+                                validation().syntaxErrors.length > 0 ||
+                                validation().unknownVariableErrors.length > 0 ||
+                                validation().warnings.length > 0
+                              }
+                            >
+                              <div class="mt-1">
+                                <For each={validation().syntaxErrors}>
+                                  {(e) => (
+                                    <div class="text-danger font-700 text-xs">
+                                      {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
+                                      {e}
+                                    </div>
+                                  )}
+                                </For>
+                                <For each={validation().unknownVariableErrors}>
+                                  {(e) => <div class="text-danger text-xs">{e}</div>}
+                                </For>
+                                <For each={validation().warnings}>
+                                  {(w) => <div class="text-warning text-xs">{w}</div>}
+                                </For>
+                              </div>
+                            </Show>
+                          </div>
+                        );
+                      }}
+                    </For>
+                  </div>
+                </Show>
 
                 <div class="ui-gap-sm flex items-center">
                   <Button

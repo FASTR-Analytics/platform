@@ -1,6 +1,7 @@
 import { createTourManager } from "@njwse/roadtrip/solid";
 import type { TourManagerController } from "@njwse/roadtrip";
 import { clerkOnboardingStorage } from "./storage";
+import type { InstanceTab } from "./catalogue";
 import {
   buildDeckEditorHistoryTour,
   buildDeckEditorIntroTour,
@@ -14,9 +15,6 @@ import {
   buildSlideContentTour,
   buildSlideCoverTour,
   buildSlideSectionTour,
-  buildModulesEnableTour,
-  buildModulesIntroTour,
-  buildModulesManageTour,
   buildReportEditorFiguresTour,
   buildReportEditorHistoryTour,
   buildReportEditorIntroTour,
@@ -24,8 +22,6 @@ import {
   buildReportsManageTour,
   buildReportsOpenReportTour,
   buildReportsViewerTour,
-  buildDataAdminTour,
-  buildDataIntroTour,
   buildSettingsIntroTour,
   buildVizCardsTour,
   buildVizCreateTour,
@@ -84,7 +80,7 @@ const isEditingView = () => currentView().id.startsWith("editing_");
 // accessor plus a visibility gate (approved AND not inside a project) so a
 // tour can never fire behind a project page.
 export function setupInstanceTours(opts: {
-  currentTab: () => "projects" | "data" | "assets" | "users" | "settings";
+  currentTab: () => InstanceTab;
   instanceVisible: () => boolean;
 }): TourManagerController {
   const onTab = (tab: string) => () =>
@@ -306,54 +302,6 @@ export function setupReportTours(): TourManagerController {
   return tours;
 }
 
-// The modules tab has no folders or search — the parts split by what's on
-// screen instead: the intro always runs, while the manage and enable parts
-// wait for an enabled / available module card to exist.
-export function setupModuleTours(): TourManagerController {
-  const canConfigure = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    projectState.thisUserPermissions.can_configure_modules;
-  const installedCardOnScreen = () =>
-    document.querySelector('[data-tour="modules-installed-card"]') !== null;
-  const availableCardOnScreen = () =>
-    document.querySelector('[data-tour="modules-uninstalled-card"]') !== null;
-  const tours = createTourManager({
-    storage: clerkOnboardingStorage,
-    pages: {
-      modules: () => {
-        const perms = projectState.thisUserPermissions;
-        return (
-          projectTab() === "modules" &&
-          !isEditingView() &&
-          (perms.can_configure_modules ||
-            perms.can_run_modules ||
-            perms.can_view_script_code)
-        );
-      },
-    },
-    watch: [() => projectState.projectModules.length],
-    tours: [
-      {
-        page: "modules",
-        tour: buildModulesIntroTour(),
-      },
-      {
-        page: "modules",
-        when: () => canConfigure() && installedCardOnScreen(),
-        tour: buildModulesManageTour(),
-      },
-      {
-        page: "modules",
-        when: () => canConfigure() && availableCardOnScreen(),
-        tour: buildModulesEnableTour(),
-      },
-    ],
-  });
-  return tours;
-}
-
-// The visualizations tab: an intro for everyone, the card step once a
-// visualization exists, and the create step once creating is possible.
 export function setupVisualizationTours(): TourManagerController {
   const cardOnScreen = () =>
     document.querySelector('[data-tour="viz-card"]') !== null;
@@ -402,37 +350,6 @@ export function setupVisualizationTours(): TourManagerController {
   });
 }
 
-// The data tab is read-only unless you are a global admin on an unlocked
-// project, so the actions part is gated as a whole.
-export function setupDataTours(): TourManagerController {
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    pages: {
-      data: () =>
-        projectTab() === "data" &&
-        projectState.thisUserPermissions.can_view_data &&
-        !isEditingView(),
-    },
-    watch: [() => projectState.projectDatasets.length],
-    tours: [
-      {
-        page: "data",
-        tour: buildDataIntroTour(),
-      },
-      {
-        page: "data",
-        when: () =>
-          !projectState.isLocked &&
-          instanceState.currentUserIsGlobalAdmin &&
-          document.querySelector('[data-tour="data-dataset-actions"]') !== null,
-        tour: buildDataAdminTour(),
-      },
-    ],
-  });
-}
-
-// The settings tab is already permission-gated by the shell (only users with
-// can_configure_settings ever see it), so one part covers the whole page.
 export function setupSettingsTours(): TourManagerController {
   return createTourManager({
     storage: clerkOnboardingStorage,

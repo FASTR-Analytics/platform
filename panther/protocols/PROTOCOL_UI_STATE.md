@@ -6,22 +6,30 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
 
 ## Rules
 
-1. **createQuery for one-shot fetches** — Runs queryFunc once on mount; no
+1. **No createResource, no Suspense — hard ban, no exceptions** — Async state is
+   always explicit `StateHolder` data, never a thrown-promise boundary. Full
+   rule and rationale: `PROTOCOL_UI_SOLIDJS.md` rule 5
+2. **createQuery for one-shot fetches** — Runs queryFunc once on mount; no
    reactivity
-2. **createEffect for reactive fetches** — Long-lived views that must react to
+3. **createEffect for reactive fetches** — Long-lived views that must react to
    changing inputs or server updates
-3. **createFormAction for form submissions** — Validation inside, returns
+4. **createFormAction for form submissions** — Validation inside, returns
    success/error
-4. **createButtonAction for simple actions** — Delete, refresh, discrete
+5. **createButtonAction for simple actions** — Delete, refresh, discrete
    commands
-5. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
-6. **StateHolderWrapper for rendering** — Handles loading/error/ready states
-7. **Use `StateHolder` for loading state** — Via `createQuery` (one-shot) or
+6. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
+7. **StateHolderWrapper for rendering** — Handles loading/error/ready states
+8. **Use `StateHolder` for loading state** — Via `createQuery` (one-shot) or
    `createSignal<StateHolder<T>>` + `createEffect` (reactive). Never raw
    `loading`/`error`/`data` signals
-8. **Validation inside actions** — Return `{ success: false, err }` for failures
-9. **Don't flash loading on incremental refetches** — When refetching the same
-   entity in `createEffect`, leave stale data visible until the new data arrives
+9. **Validation inside actions** — Return `{ success: false, err }` for failures
+10. **Don't flash loading on incremental refetches** — When refetching the same
+    entity in `createEffect`, leave stale data visible until the new data
+    arrives
+11. **Guard overlapping async effects** — An async effect that can re-run while
+    a previous run is still awaiting must drop stale completions (request-id
+    guard). `createQuery` does this internally; hand-rolled effects must do it
+    themselves
 
 ## Read Modes
 
@@ -74,10 +82,14 @@ const [data, setData] = createSignal<StateHolder<MyData>>({
   status: "loading",
 });
 
+let requestId = 0;
+
 createEffect(async () => {
   const currentId = id(); // tracked
+  const thisRequest = ++requestId;
   setData({ status: "loading" });
   const res = await serverActions.getData(currentId);
+  if (thisRequest !== requestId) return; // superseded by a newer run
   setData(
     res.success
       ? { status: "ready", data: res.data }
@@ -119,11 +131,15 @@ const [data, setData] = createSignal<StateHolder<Entity>>({
   status: "loading",
 });
 
+let requestId = 0;
+
 createEffect(async () => {
   const _v = version(); // reactive read for tracking only
+  const thisRequest = ++requestId;
   // NOTE: No setData({ status: "loading" }) here.
   // Stale data stays visible while refetch is in flight.
   const res = await serverActions.getEntity(id);
+  if (thisRequest !== requestId) return; // superseded by a newer run
   setData(
     res.success
       ? { status: "ready", data: res.data }
@@ -297,6 +313,33 @@ createEffect(async () => {
 no automatic re-running. For any view that needs to react to changing inputs or
 server updates, use `createEffect`.
 
+### Overlapping Refetches
+
+```tsx
+// ❌ DON'T — two in-flight fetches can resolve out of order; stale data wins
+createEffect(async () => {
+  const currentId = id();
+  const res = await serverActions.getData(currentId);
+  setData(/* ... */); // may be the response for a PREVIOUS id
+});
+
+// ✅ DO — drop completions that a newer run has superseded
+let requestId = 0;
+
+createEffect(async () => {
+  const currentId = id();
+  const thisRequest = ++requestId;
+  const res = await serverActions.getData(currentId);
+  if (thisRequest !== requestId) return;
+  setData(/* ... */);
+});
+```
+
+**Why:** When a tracked input changes mid-flight, the effect re-runs immediately
+while the first fetch is still pending. If the first response resolves last, the
+view shows data for the wrong input. `createQuery` guards this internally;
+hand-rolled async effects must carry their own request-id guard.
+
 ### Stale-While-Revalidate
 
 ```tsx
@@ -322,6 +365,8 @@ new data arrives.
 
 ## Checklist
 
+- [ ] No `createResource` / `<Suspense>` / `createAsync` (hard ban — see
+      `PROTOCOL_UI_SOLIDJS.md`)
 - [ ] One-shot fetches use `createQuery`
 - [ ] Reactive fetches use `createEffect` + `createSignal<StateHolder<T>>`
 - [ ] No signal reads inside `createQuery`'s `queryFunc` (they are not tracked)
@@ -332,3 +377,5 @@ new data arrives.
 - [ ] No raw `loading`/`error`/`data` signal trios
 - [ ] Long-lived views don't use `createQuery`
 - [ ] Incremental refetches don't reset to `{ status: "loading" }`
+- [ ] Async effects that write state drop out-of-order completions (request-id
+      guard)

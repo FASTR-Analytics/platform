@@ -92,6 +92,19 @@ if ! docker info 2>/dev/null | grep -q "Username:"; then
     echo "Run 'docker login' if needed."
 fi
 
+# Always run protocol validation (fast, no Docker needed). A failure — real
+# violations or the validator itself erroring — can be consciously overridden.
+if ! "$SCRIPT_DIR/validate_protocols"; then
+    echo "WARNING: Protocol validation failed (violations, or the validator itself errored)."
+    echo "Continue deploy anyway? (y/n)"
+    read -r PROTOCOLS_CONTINUE
+
+    if [ "$PROTOCOLS_CONTINUE" != "y" ] && [ "$PROTOCOLS_CONTINUE" != "Y" ]; then
+        echo "ERROR: Deploy aborted on protocol validation."
+        exit 1
+    fi
+fi
+
 # Optionally validate migrations
 echo "Validate migrations? (y/n)"
 read -r VALIDATE_MIGRATIONS

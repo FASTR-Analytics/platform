@@ -10,6 +10,7 @@ import {
   whatsNewAutoShowPost,
   LANGUAGE_STORAGE_KEY,
 } from "lib";
+import type { WhatsNewPost } from "lib";
 import {
   AlertProvider,
   Button,
@@ -34,10 +35,10 @@ import {
   WhatsNewModal,
 } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
-import type { WhatsNewPost } from "lib";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
+import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";
@@ -48,7 +49,22 @@ import { ProfileForm } from "./profile";
 import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
 import { setupInstanceTours } from "~/onboarding";
 
-type InstanceTab = "projects" | "data" | "assets" | "users" | "settings";
+type InstanceTab =
+  | "projects"
+  | "data"
+  | "results_packages"
+  | "assets"
+  | "users"
+  | "settings";
+
+// Generation is instance-admin only (can_configure_data — the same guard the
+// run_generation routes use).
+function canConfigureData(): boolean {
+  return (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_data
+  );
+}
 
 function compactNavItems(): ListItem<InstanceTab>[] {
   const items: ListItem<InstanceTab>[] = [
@@ -71,6 +87,18 @@ function compactNavItems(): ListItem<InstanceTab>[] {
       iconName: "package",
     },
   ];
+  if (canConfigureData()) {
+    items.push({
+      id: "results_packages",
+      label: "",
+      labelText: t3({
+        en: "Results",
+        fr: "Résultats",
+        pt: "Resultados",
+      }),
+      iconName: "chart",
+    });
+  }
   if (
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_users ||
@@ -113,6 +141,17 @@ function wideNavItems(): ListItem<InstanceTab>[] {
       iconName: "database",
     });
   }
+  if (canConfigureData()) {
+    items.push({
+      id: "results_packages",
+      label: t3({
+        en: "Results",
+        fr: "Résultats",
+        pt: "Resultados",
+      }),
+      iconName: "chart",
+    });
+  }
   items.push({
     id: "assets",
     label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
@@ -148,13 +187,11 @@ type Props = {
 
 export default function Instance(p: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [_tab, setTab] = createSignal<
-    "projects" | "users" | "data" | "assets" | "settings"
-  >("projects");
+  const [_tab, setTab] = createSignal<InstanceTab>("projects");
 
   const p_ = () => instanceState.currentUserPermissions;
   const a_ = () => instanceState.currentUserIsGlobalAdmin;
-  const tab = (): "projects" | "users" | "data" | "assets" | "settings" => {
+  const tab = (): InstanceTab => {
     const t = _tab();
     const admin = a_();
     const perms = p_();
@@ -162,6 +199,7 @@ export default function Instance(p: Props) {
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
     const canSettings = admin || perms.can_configure_settings;
     if (t === "data" && !canData) return "projects";
+    if (t === "results_packages" && !canConfigureData()) return "projects";
     if (t === "users" && !canUsers) return "projects";
     if (t === "settings" && !canSettings) return "projects";
     return t;
@@ -435,6 +473,11 @@ export default function Instance(p: Props) {
                   }
                 >
                   <InstanceData />
+                </Match>
+                <Match
+                  when={tab() === "results_packages" && canConfigureData()}
+                >
+                  <InstanceResultsPackages />
                 </Match>
                 <Match when={tab() === "assets"}>
                   <InstanceAssets />

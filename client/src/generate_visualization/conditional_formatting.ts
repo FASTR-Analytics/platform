@@ -10,6 +10,7 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   _CF_RED,
+  type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
   pickLang,
@@ -88,7 +89,7 @@ function getPeriodChangeTranslatableStrings(
 
 export function getLegendFromConfig(
   config: PresentationObjectConfig,
-  formatAs: "percent" | "number",
+  formatAs: IndicatorFormat,
   localization: Pick<FigureLocalization, "language">,
 ): LegendInput | undefined {
   const { language } = localization;

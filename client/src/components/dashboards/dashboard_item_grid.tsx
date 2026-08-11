@@ -80,7 +80,7 @@ export function DashboardItemGrid(p: Props) {
           fallback={
             <div class={GRID_CLASS}>
               <For each={p.entries}>
-                {(entry) => <EntryCard entry={entry} p={p} />}
+                {(entry) => <EntryCard entry={entry} grid={p} />}
               </For>
             </div>
           }
@@ -101,7 +101,7 @@ export function DashboardItemGrid(p: Props) {
           >
             {(o: { id: string }) => (
               <Show when={byId().get(o.id)}>
-                {(entry) => <EntryCard entry={entry()} p={p} />}
+                {(entry) => <EntryCard entry={entry()} grid={p} />}
               </Show>
             )}
           </SortableVendor>
@@ -111,11 +111,11 @@ export function DashboardItemGrid(p: Props) {
   );
 }
 
-function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
-  const entry = () => props.entry;
-  const id = () => props.entry.id;
-  const isGroup = () => props.entry.kind === "group";
-  const isSelected = () => props.p.selection.isSelected(id());
+function EntryCard(p: { entry: DashboardGridEntry; grid: Props }) {
+  const entry = () => p.entry;
+  const id = () => p.entry.id;
+  const isGroup = () => p.entry.kind === "group";
+  const isSelected = () => p.grid.selection.isSelected(id());
   const figureInputs = () => {
     try {
       return buildFigureInputs(entry().thumbnail.bundle);
@@ -148,13 +148,13 @@ function EntryCard(props: { entry: DashboardGridEntry; p: Props }) {
           }}
           onClick={(e) => {
             e.stopPropagation();
-            props.p.selection.handleClick(id(), e);
+            p.grid.selection.handleClick(id(), e);
           }}
-          onContextMenu={(e) => props.p.onContextMenu(e, id())}
+          onContextMenu={(e) => p.grid.onContextMenu(e, id())}
         >
           <SelectionCircle
             isSelected={isSelected()}
-            onClick={(e) => props.p.selection.handleClick(id(), e)}
+            onClick={(e) => p.grid.selection.handleClick(id(), e)}
           />
           <Show when={isGroup()}>
             <div class="bg-primary text-primary-content absolute top-2 left-2 z-10 rounded px-1 py-0.5 text-xs">

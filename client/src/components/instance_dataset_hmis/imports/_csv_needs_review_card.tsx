@@ -1,0 +1,113 @@
+import { t3, type DatasetHmisImportRunSummary } from "lib";
+import {
+  Button,
+  CollapsibleSection,
+  StateHolderWrapper,
+  createButtonAction,
+  createDeleteAction,
+  createQuery,
+} from "panther";
+import { Show } from "solid-js";
+import { serverActions } from "~/server_actions";
+import { CsvStagingSummary } from "./_csv_staging_summary";
+
+type Props = {
+  run: DatasetHmisImportRunSummary;
+  onChanged: () => Promise<void>;
+};
+
+// A CSV run holding in needs_review: staging dropped rows, so nothing was
+// merged. The user integrates the surviving rows anyway or discards. The hold
+// does NOT block other imports (the slot was released).
+export function CsvNeedsReviewCard(p: Props) {
+  const detail = createQuery(
+    () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
+    t3({
+      en: "Loading staging results...",
+      fr: "Chargement des résultats de préparation...",
+      pt: "A carregar os resultados de preparação...",
+    }),
+  );
+
+  const integrateAnyway = createButtonAction(
+    () =>
+      serverActions.resolveDatasetHmisCsvReview({
+        runId: p.run.id,
+        action: "integrate_anyway",
+      }),
+    p.onChanged,
+  );
+
+  async function attemptDiscard() {
+    const discard = createDeleteAction(
+      t3({
+        en: "Discard this import? The staged rows will not be merged.",
+        fr: "Abandonner cette importation ? Les lignes préparées ne seront pas fusionnées.",
+        pt: "Descartar esta importação? As linhas preparadas não serão fundidas.",
+      }),
+      () =>
+        serverActions.resolveDatasetHmisCsvReview({
+          runId: p.run.id,
+          action: "discard",
+        }),
+      p.onChanged,
+    );
+    await discard.click();
+  }
+
+  return (
+    <div class="border-warning ui-pad ui-spy-sm rounded border">
+      <div class="font-700">
+        {t3({
+          en: "CSV import needs review",
+          fr: "Importation CSV à vérifier",
+          pt: "Importação CSV a rever",
+        })}
+        <span class="font-400 ml-2 font-mono text-sm">
+          {p.run.csvFileName ?? ""}
+        </span>
+      </div>
+      <div class="text-sm">
+        {t3({
+          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Other imports are not blocked while this waits.",
+          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les autres importations ne sont pas bloquées pendant cette attente.",
+          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As outras importações não ficam bloqueadas durante esta espera.",
+        })}
+      </div>
+      <StateHolderWrapper state={detail.state()} noPad>
+        {(keyedDetail) => (
+          <Show when={keyedDetail.csvStagingResult} keyed>
+            {(result) => (
+              <CollapsibleSection
+                defaultOpen
+                title={t3({
+                  en: "Staging results",
+                  fr: "Résultats de préparation",
+                  pt: "Resultados de preparação",
+                })}
+              >
+                <CsvStagingSummary result={result} />
+              </CollapsibleSection>
+            )}
+          </Show>
+        )}
+      </StateHolderWrapper>
+      <div class="ui-gap-sm flex">
+        <Button
+          onClick={integrateAnyway.click}
+          state={integrateAnyway.state()}
+          intent="success"
+        >
+          {t3({
+            en: "Integrate anyway",
+            fr: "Intégrer malgré tout",
+            pt: "Integrar mesmo assim",
+          })}
+        </Button>
+        <Button onClick={attemptDiscard} intent="danger" outline>
+          {t3({ en: "Discard", fr: "Abandonner", pt: "Descartar" })}
+        </Button>
+      </div>
+    </div>
+  );
+}

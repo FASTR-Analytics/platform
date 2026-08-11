@@ -17,7 +17,7 @@ import {
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { DatasetHmisDhis2Runs } from "./dhis2_run";
+import { DatasetHmisImports } from "./imports";
 import { ImportLedgerIndicatorDetail } from "./_import_ledger_indicator";
 
 export type LedgerPeriodWindow = { min: number; max: number };
@@ -236,7 +236,7 @@ export function ImportLedger(p: EditorComponentProps<{}, undefined>) {
         periodId: item.periodId,
       }));
     await openEditor({
-      element: DatasetHmisDhis2Runs,
+      element: DatasetHmisImports,
       props: {
         silentFetch: ledger.silentFetch,
         presetPairs: failedPairs,

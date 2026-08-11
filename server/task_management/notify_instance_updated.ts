@@ -7,6 +7,7 @@ import type {
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
+  RunProgress,
 } from "lib";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
@@ -45,4 +46,20 @@ export function notifyInstanceIndicatorsUpdated(data: InstanceIndicatorsSummary)
 
 export function notifyInstanceDatasetsUpdated(data: InstanceDatasetsSummary) {
   notifyInstanceUpdate({ type: "datasets_updated", data });
+}
+
+// Results-package generation, for the instance catalogue (Q-B). Emitted
+// alongside the per-attach-target project copies, and the ONLY channel a run
+// launched with no attach targets has. routesInstanceSSE drops both messages
+// for callers without can_configure_data.
+export function notifyInstanceRunProgress(runId: string, progress: RunProgress) {
+  notifyInstanceUpdate({ type: "run_progress", data: { runId, progress } });
+}
+
+export function notifyInstanceRScript(
+  runId: string,
+  moduleId: string,
+  text: string,
+) {
+  notifyInstanceUpdate({ type: "r_script", data: { runId, moduleId, text } });
 }

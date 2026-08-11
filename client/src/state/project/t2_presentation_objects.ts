@@ -13,7 +13,10 @@ import {
   hashFetchConfig,
   t3,
 } from "lib";
-import { getModuleIdForMetric, getModuleIdForResultsObject, moduleDataVersionKey } from "~/state/project/t1_store";
+import {
+  responseRunIdMatches,
+  runVersionKey,
+} from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
@@ -21,7 +24,7 @@ import { FigureInputs, getApiResponseFromGenerator, StateHolder } from "panther"
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
-import { getInstanceLocalization } from "../instance/t1_store";
+import { getSnapshotInstanceLocalization } from "../instance/t1_store";
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
@@ -35,8 +38,16 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.projectId,
     params.metricId,
   ],
-  versionKey: (params, pds) =>
-    moduleDataVersionKey(pds, getModuleIdForMetric(params.metricId)),
+  versionKey: (_params, pds) => runVersionKey(pds),
+  responseMatchesVersion: (data, version) =>
+    responseRunIdMatches(data.runId, version),
+  // A transient possible-values failure arrives as a per-dimension `error`
+  // status inside a successful payload; freezing it would pin the effective-
+  // format resolver's "cannot enumerate" fallback until the next run.
+  shouldStore: (data) =>
+    !Object.values(data.disaggregationPossibleValues).some(
+      (s) => s.status === "error",
+    ),
 });
 
 export const _PO_DETAIL_CACHE = createReactiveCache<
@@ -48,8 +59,16 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
 >({
   name: "po_detail",
   uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
+  // Folds the run key: the payload embeds run-derived resultsValue
+  // (PLAN_RESULTS_RUNS §2.5), mirroring the server po_detail version hash.
+  // The run key is the TRAILING segment by construction, because the guard
+  // below can only check that half: the row-revision half is "unknown" until
+  // an SSE last_updated for this PO arrives, so comparing it to the payload's
+  // own lastUpdated would refuse every entry.
   versionKey: (params, pds) =>
-    pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown",
+    `${pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown"}|${runVersionKey(pds)}`,
+  responseMatchesVersion: (data, version) =>
+    responseRunIdMatches(data.runId, version.slice(version.lastIndexOf("|") + 1)),
 });
 
 export const _PO_ITEMS_CACHE = createReactiveCache<
@@ -66,8 +85,9 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     params.resultsObjectId,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (params, pds) =>
-    moduleDataVersionKey(pds, getModuleIdForResultsObject(params.resultsObjectId)),
+  versionKey: (_params, pds) => runVersionKey(pds),
+  responseMatchesVersion: (data, version) =>
+    responseRunIdMatches(data.runId, version),
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
@@ -205,7 +225,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       indicatorMetadata: ih.indicatorMetadata,
       dateRange: ih.dateRange,
       geo: mapLevel ? { kind: "level", level: mapLevel } : undefined,
-      localization: getInstanceLocalization(),
+      localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
       snapshotAt: "",
       provenance: {

@@ -1,10 +1,11 @@
 import { createClient, type RedisClientType } from "redis";
+import { _VALKEY_URL } from "../exposed_env_vars.ts";
 
 let _client: RedisClientType | null = null;
 let _available = false;
 
 export async function connectValkey(): Promise<void> {
-  const url = Deno.env.get("VALKEY_URL");
+  const url = _VALKEY_URL;
   if (!url) {
     console.log("VALKEY_URL not set — caching disabled");
     return;

@@ -1,4 +1,4 @@
-import { inferPeriodFormatFromValuesIfTheSame, periodFilterHasBounds, type GenericLongFormFetchConfig, getCalendar } from "lib";
+import { inferPeriodFormatFromValuesIfTheSame, periodFilterHasBounds, type GenericLongFormFetchConfig, type InstanceCalendar } from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -21,8 +21,11 @@ export const PERIOD_COLUMN_EXPRESSIONS = {
   month: `LPAD((period_id % 100)::text, 2, '0')`,
 } as const;
 
-export function getQuarterIdExpression(): string {
-  const calendar = getCalendar();
+// Calendar is data semantics and changes the generated SQL, so it threads in
+// from the caller's context — the instance env for the Postgres path, the run
+// manifest for the runs path — never from the i18n global (PLAN_RESULTS_RUNS
+// §2.4).
+export function getQuarterIdExpression(calendar: InstanceCalendar): string {
   if (calendar === "ethiopian") {
     // Ethiopian Q1 is months 11-1, with Nov/Dec belonging to NEXT year's Q1
     return `(CASE
@@ -42,9 +45,12 @@ export function getQuarterIdExpression(): string {
   END)::int`;
 }
 
-export function getPeriodColumnExpression(column: DynamicPeriodColumn): string {
+export function getPeriodColumnExpression(
+  column: DynamicPeriodColumn,
+  calendar: InstanceCalendar,
+): string {
   if (column === "quarter_id") {
-    return getQuarterIdExpression();
+    return getQuarterIdExpression(calendar);
   }
   return PERIOD_COLUMN_EXPRESSIONS[column];
 }
@@ -66,6 +72,7 @@ export type PeriodCTEContext = {
   hasPeriodId: boolean;
   hasQuarterId: boolean;
   neededPeriodColumns: Set<DynamicPeriodColumn>;
+  calendar: InstanceCalendar;
 };
 
 // Single source of the "does this query need a period_data CTE" rule: derived
@@ -91,7 +98,7 @@ export function buildPeriodCTESelectColumns(ctx: PeriodCTEContext): string[] {
       selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
     }
     if (ctx.neededPeriodColumns.has("quarter_id")) {
-      selectColumns.push(`${getQuarterIdExpression()} AS quarter_id`);
+      selectColumns.push(`${getQuarterIdExpression(ctx.calendar)} AS quarter_id`);
     }
   } else if (ctx.hasQuarterId) {
     if (ctx.neededPeriodColumns.has("year")) {

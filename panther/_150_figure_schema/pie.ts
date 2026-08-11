@@ -25,6 +25,7 @@ const zPieTotal = z.union([z.number(), z.literal("sum")]);
 export const zPieJsonDataConfig = z.object({
   valueProps: z.array(z.string()),
   seriesProp: z.string().optional(),
+  indicatorProp: z.string().optional(),
   paneProp: z.string().optional(),
   tierProp: z.string().optional(),
   laneProp: z.string().optional(),
@@ -33,6 +34,7 @@ export const zPieJsonDataConfig = z.object({
   sort: z
     .object({
       series: zHeaderSortConfig.optional(),
+      indicator: zHeaderSortConfig.optional(),
       pane: zHeaderSortConfig.optional(),
       tier: zHeaderSortConfig.optional(),
       lane: zHeaderSortConfig.optional(),
@@ -60,11 +62,12 @@ const _zPieDataJsonConforms: Conforms<
 export const zPieDataTransformed = z.object({
   isTransformed: z.literal(true),
   seriesHeaders: zHeaderItems,
+  indicatorHeaders: zHeaderItems,
   paneHeaders: zHeaderItems,
   tierHeaders: zHeaderItems,
   laneHeaders: zHeaderItems,
-  // [pane][tier][lane][series][value] — the value axis is length 1 for v1, but
-  // the nesting is stored, so concentric rings stay a non-breaking change.
+  // [pane][tier][lane][series][indicator] — the last axis is the repeat
+  // dimension (length 1 with no indicatorProp).
   values: zValues5D,
   total: zPieTotal,
 });

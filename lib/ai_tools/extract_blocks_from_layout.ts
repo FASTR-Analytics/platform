@@ -1,0 +1,134 @@
+import type { ContentBlock, MetricWithStatus, Slide } from "../types/mod.ts";
+import type { LayoutNode } from "@timroberton/panther";
+import { getDataFromConfig } from "./format_metric_data_for_ai.ts";
+import { formatFigureConfigForAI } from "./format_figure_config_for_ai.ts";
+import {
+  layoutNodeToStructure,
+  type LayoutStructure,
+} from "./layout_spec_helpers.ts";
+import type { AIToolEnv } from "./env.ts";
+
+export type BlockWithId = {
+  id: string;
+  block: ContentBlock;
+};
+
+export function extractBlocksFromLayout(
+  layout: LayoutNode<ContentBlock>,
+): BlockWithId[] {
+  const blocks: BlockWithId[] = [];
+
+  function traverse(node: LayoutNode<ContentBlock>) {
+    if (node.type === "item") {
+      blocks.push({
+        id: node.id,
+        block: node.data,
+      });
+    } else {
+      // Rows or cols - recurse
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+  }
+
+  traverse(layout);
+  return blocks;
+}
+
+export type SimplifiedSlide =
+  | {
+    type: "cover";
+    title?: string;
+    subtitle?: string;
+    presenter?: string;
+    date?: string;
+  }
+  | { type: "section"; sectionTitle: string; sectionSubtitle?: string }
+  | {
+    type: "content";
+    header?: string;
+    blocks: Array<{ id: string; summary: string }>;
+    _layout: { description: string; structure: LayoutStructure | null };
+  };
+
+export async function simplifySlideForAI(
+  env: AIToolEnv,
+  projectId: string,
+  slide: Slide,
+  metrics?: MetricWithStatus[],
+): Promise<SimplifiedSlide> {
+  if (slide.type === "cover") {
+    return {
+      type: "cover",
+      title: slide.title,
+      subtitle: slide.subtitle,
+      presenter: slide.presenter,
+      date: slide.date,
+    };
+  }
+
+  if (slide.type === "section") {
+    return {
+      type: "section",
+      sectionTitle: slide.sectionTitle,
+      sectionSubtitle: slide.sectionSubtitle,
+    };
+  }
+
+  // Content slide - extract blocks with IDs and fetch data for figures
+  const blocks = extractBlocksFromLayout(slide.layout);
+  const simplifiedBlocks = await Promise.all(
+    blocks.map(async ({ id, block }) => {
+      if (block.type === "text") {
+        return {
+          id,
+          summary: `Text: ${block.markdown}`,
+        };
+      } else if (block.type === "image") {
+        return { id, summary: `Image: ${block.imgFile}` };
+      } else {
+        // Figure block
+        if (block.bundle) {
+          const bundle = block.bundle;
+          const metric = (metrics ?? []).find((m) => m.id === bundle.metricId);
+          let cfg: string;
+          try {
+            cfg = await formatFigureConfigForAI(
+              env,
+              projectId,
+              metric,
+              bundle.config,
+              bundle.dateRange,
+            );
+          } catch (err) {
+            cfg =
+              `Figure (metric: ${bundle.metricId}, type: ${bundle.config.d.type}) — config unavailable: ${err}`;
+          }
+          let data: string;
+          try {
+            data = await getDataFromConfig(
+              env,
+              projectId,
+              bundle.metricId,
+              metrics ?? [],
+              bundle.config,
+            );
+          } catch (err) {
+            data = `(data unavailable: ${err})`;
+          }
+          return { id, summary: `Figure\n${cfg}\n\n${data}` };
+        } else {
+          return { id, summary: "Figure (no data)" };
+        }
+      }
+    }),
+  );
+
+  return {
+    type: "content",
+    header: slide.header,
+    blocks: simplifiedBlocks,
+    _layout: layoutNodeToStructure(slide.layout),
+  };
+}

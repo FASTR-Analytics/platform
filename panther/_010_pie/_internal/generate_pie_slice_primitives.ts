@@ -14,13 +14,15 @@ import { computeBoundsForPath, Coordinates, Z_INDEX } from "../deps.ts";
 import type { PieDataTransformed } from "../types.ts";
 import {
   buildSlicePath,
+  clampSweepAngleDeg,
+  degreesToRadians,
   layOutSliceAngles,
   pathSegmentPoints,
   resolvePieTotal,
   type SliceAngles,
 } from "./pie_geometry.ts";
 
-// One laid-out slice of one cell. Kept alongside the primitive so the label
+// One laid-out slice of one pie. Kept alongside the primitive so the label
 // pass can place candidates without redoing the angle math.
 export type LaidOutSlice = {
   i_series: number;
@@ -33,45 +35,46 @@ export type LaidOutSlice = {
   info: PieSliceInfo;
 };
 
-export type PieCellGeometry = {
+export type PieGeometry = {
   cx: number;
   cy: number;
   innerR: number;
   outerR: number;
 };
 
-export type PieCell = {
-  geometry: PieCellGeometry;
+export type LaidOutPie = {
+  geometry: PieGeometry;
   slices: LaidOutSlice[];
-  // The cell's resolved denominator, for the doughnut-hole centre label.
+  // The pie's resolved denominator, for the doughnut-hole centre label.
   declaredTotal: number;
   sumOfValues: number;
 };
 
-export type CellIndices = {
+export type PieIndices = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
+  indicatorIndex: number;
 };
 
-// Lays out one grid cell's slices: resolves the denominator, turns values into
+// Lays out one pie's slices: resolves the denominator, turns values into
 // angles, and builds each slice's resolved style + info. Emits no primitives —
 // the caller does that once the label gutter is known.
-export function layOutPieCell(
+export function layOutPie(
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
-  indices: CellIndices,
-  geometry: PieCellGeometry,
-): PieCell {
+  indices: PieIndices,
+  geometry: PieGeometry,
+): LaidOutPie {
   const { paneIndex, tierIndex, laneIndex } = indices;
   const seriesValArrays = data.values[paneIndex][tierIndex][laneIndex];
   const nSerieses = data.seriesHeaders.length;
 
-  // undefined cells are OMITTED (not drawn as zero-angle slices), matching
+  // undefined values are OMITTED (not drawn as zero-angle slices), matching
   // tensor-fill semantics elsewhere.
   const defined: { i_series: number; value: number }[] = [];
   for (let i_series = 0; i_series < nSerieses; i_series++) {
-    const v = seriesValArrays[i_series]?.[0];
+    const v = seriesValArrays[i_series]?.[indices.indicatorIndex];
     if (v !== undefined) {
       defined.push({ i_series, value: v });
     }
@@ -101,7 +104,9 @@ export function layOutPieCell(
   const laidOut = layOutSliceAngles(sweepFractions, {
     startAngleDeg: mergedStyle.pie.startAngle,
     direction: mergedStyle.pie.direction,
-    padAngleDeg: mergedStyle.pie.padAngle,
+    sweepRadians: degreesToRadians(
+      clampSweepAngleDeg(mergedStyle.pie.sweepAngle),
+    ),
   });
 
   const slices: LaidOutSlice[] = defined.map((d, i) => {
@@ -172,13 +177,13 @@ const REMAINDER_HEADER: HeaderItem = {
 
 function buildPieSliceInfo(
   data: PieDataTransformed,
-  indices: CellIndices,
+  indices: PieIndices,
   i_series: number,
   value: number,
   share: number,
   total: number,
 ): PieSliceInfo {
-  const { paneIndex, tierIndex, laneIndex } = indices;
+  const { paneIndex, tierIndex, laneIndex, indicatorIndex } = indices;
   return {
     i_series,
     isFirstSeries: i_series === 0,
@@ -188,7 +193,10 @@ function buildPieSliceInfo(
     // values[pane][tier][lane] IS the seriesValArrays shape ChartSeriesInfo
     // wants — the payoff of keeping the 5-D tensor.
     seriesValArrays: data.values[paneIndex][tierIndex][laneIndex],
-    nVals: 1,
+    nVals: data.indicatorHeaders.length,
+    i_indicator: indicatorIndex,
+    nIndicators: data.indicatorHeaders.length,
+    indicatorHeader: data.indicatorHeaders[indicatorIndex],
     i_pane: paneIndex,
     nPanes: data.paneHeaders.length,
     paneHeader: data.paneHeaders[paneIndex],
@@ -205,14 +213,14 @@ function buildPieSliceInfo(
 }
 
 export function generatePieSlicePrimitives(
-  cell: PieCell,
-  cornerRadius: number,
-  indices: CellIndices,
+  pie: LaidOutPie,
+  mergedStyle: MergedPieStyle,
+  indices: PieIndices,
 ): PieSlicePrimitive[] {
-  const { cx, cy, innerR, outerR } = cell.geometry;
+  const { cx, cy, innerR, outerR } = pie.geometry;
   const primitives: PieSlicePrimitive[] = [];
 
-  for (const slice of cell.slices) {
+  for (const slice of pie.slices) {
     if (!slice.style.show) continue;
 
     const pathSegments = buildSlicePath({
@@ -222,7 +230,8 @@ export function generatePieSlicePrimitives(
       outerR,
       startAngle: slice.angles.startAngle,
       endAngle: slice.angles.endAngle,
-      cornerRadius,
+      cornerRadius: mergedStyle.pie.cornerRadius,
+      sliceGap: mergedStyle.pie.sliceGap,
     });
     if (pathSegments.length === 0) continue;
 
@@ -230,7 +239,7 @@ export function generatePieSlicePrimitives(
     primitives.push({
       type: "pie-slice",
       key:
-        `pie-slice-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${
+        `pie-slice-${indices.paneIndex}-${indices.tierIndex}-${indices.laneIndex}-${indices.indicatorIndex}-${
           slice.isRemainder ? "remainder" : slice.seriesHeader.id
         }`,
       bounds: computeBoundsForPath(
@@ -243,6 +252,7 @@ export function generatePieSlicePrimitives(
         paneIndex: indices.paneIndex,
         tierIndex: indices.tierIndex,
         laneIndex: indices.laneIndex,
+        indicatorIndex: indices.indicatorIndex,
         value: slice.value,
         share: slice.share,
         isRemainder: slice.isRemainder,

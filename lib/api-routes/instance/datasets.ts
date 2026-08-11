@@ -4,11 +4,11 @@ import type {
   ItemsHolderDatasetHfaDisplay,
 } from "../../types/dataset_hfa.ts";
 import type {
-  DatasetHfaUploadAttemptDetail,
-  DatasetHfaUploadStatusResponse,
   HfaDuplicatePreview,
+  HfaImportRunSummary,
 } from "../../types/dataset_hfa_import.ts";
 import {
+  datasetHmisWindowingRawSchema,
   instanceConfigFacilityColumnsSchema,
 } from "../../types/mod.ts";
 import type {
@@ -19,8 +19,6 @@ import type {
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
   DatasetHmisWindowingRaw,
-  DatasetUploadAttemptDetail,
-  DatasetUploadStatusResponse,
   Dhis2ImportSchedulingInfo,
   IndicatorType,
   InstanceConfigFacilityColumns,
@@ -103,16 +101,29 @@ const dhis2ScheduleFieldsSchema = z.object({
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
+// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams). The file
+// is an instance asset named by fileName; the server stamps the byte pin at
+// launch validation (pins never travel in client bodies).
+const hmisCsvRunConfigSchema = z.object({
+  fileName: z.string(),
+  mappings: z.object({
+    facility_id: z.string(),
+    raw_indicator_id: z.string(),
+    period_id: z.string(),
+    count: z.string(),
+  }),
+});
+
+const hfaRowFilterSchema = z.object({
+  column: z.string(),
+  op: z.enum(["equals", "not_equals"]),
+  value: z.string(),
+});
+
 const hfaCsvMappingParamsSchema = z.object({
   facilityIdColumn: z.string(),
   timePoint: z.string(),
-  rowFilters: z.array(
-    z.object({
-      column: z.string(),
-      op: z.enum(["equals", "not_equals"]),
-      value: z.string(),
-    }),
-  ),
+  rowFilters: z.array(hfaRowFilterSchema),
   dedupStrategy: z.enum(["first", "last"]),
   dedupOverrides: z.array(
     z.object({
@@ -122,24 +133,14 @@ const hfaCsvMappingParamsSchema = z.object({
   ),
 });
 
-const datasetHmisWindowingBaseSchema = z.object({
-  start: z.number(),
-  end: z.number(),
-  takeAllIndicators: z.boolean(),
-  takeAllAdminArea2s: z.boolean(),
-  adminArea2sToInclude: z.array(z.string()),
-  takeAllAdminArea3s: z.boolean().optional(),
-  adminArea3sToInclude: z.array(z.string()).optional(),
-  takeAllFacilityOwnerships: z.boolean().optional(),
-  takeAllFacilityTypes: z.boolean().optional(),
-  facilityOwnwershipsToInclude: z.array(z.string()).optional(),
-  facilityTypesToInclude: z.array(z.string()).optional(),
+// The HFA launch payload: two instance assets named by fileName plus the
+// wizard's mappings. The server stamps the byte pins at launch validation.
+const hfaCsvRunConfigSchema = z.object({
+  csvFileName: z.string(),
+  xlsFormFileName: z.string(),
+  mappings: hfaCsvMappingParamsSchema,
 });
 
-const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema.extend({
-  indicatorType: z.literal("raw"),
-  rawIndicatorsToInclude: z.array(z.string()),
-});
 
 export const datasetRouteRegistry = {
   // Core dataset operations
@@ -238,47 +239,37 @@ export const datasetRouteRegistry = {
     body: z.object({ id: z.number().int() }),
   }),
 
-  // Upload workflow (CSV — DHIS2 imports are runs, above)
-  createDatasetUploadAttempt: route({
-    path: "/datasets/hmis/uploads",
+  // CSV import runs (config-on-client, run-on-server —
+  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A). The wizard is client-local;
+  // its file input is an ordinary instance asset (uploaded or picked), so
+  // nothing persists server-side before launch.
+  parseDatasetHmisCsvHeaders: route({
+    path: "/datasets/hmis/csv-runs/parse-headers",
     method: "POST",
+    body: z.object({ fileName: z.string() }),
+    response: {} as { headers: string[] },
   }),
-  setDatasetUploadSourceType: route({
-    path: "/dataset-uploads/hmis/source-type",
+  launchDatasetHmisCsvRun: route({
+    path: "/datasets/hmis/csv-runs",
     method: "POST",
-    body: z.object({ sourceType: z.enum(["csv"]) }),
+    body: z.object({ config: hmisCsvRunConfigSchema }),
+    response: {} as { runId: number },
   }),
-  getDatasetUpload: route({
-    path: "/dataset-uploads/hmis",
-    method: "GET",
-    response: {} as DatasetUploadAttemptDetail,
-  }),
-  getDatasetUploadStatus: route({
-    path: "/dataset-uploads/hmis/status",
-    method: "GET",
-    response: {} as DatasetUploadStatusResponse,
-  }),
-  deleteDatasetUploadAttempt: route({
-    path: "/dataset-uploads/hmis",
-    method: "DELETE",
-  }),
-  uploadDatasetCsv: route({
-    path: "/dataset-uploads/hmis/csv",
+  // Explicit queueing while a run is active (the client always asks the user
+  // first; queueing is never the silent default) — same fork as DHIS2.
+  enqueueDatasetHmisCsvRun: route({
+    path: "/datasets/hmis/csv-runs/enqueue",
     method: "POST",
-    body: z.object({ assetFileName: z.string() }),
+    body: z.object({ config: hmisCsvRunConfigSchema }),
+    response: {} as { runId: number },
   }),
-  updateDatasetMappings: route({
-    path: "/dataset-uploads/hmis/mappings",
+  resolveDatasetHmisCsvReview: route({
+    path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
-    body: z.object({ mappings: z.record(z.string(), z.string()) }),
-  }),
-  updateDatasetStaging: route({
-    path: "/dataset-uploads/hmis/staging",
-    method: "POST",
-  }),
-  finalizeDatasetIntegration: route({
-    path: "/dataset-uploads/hmis/integrate",
-    method: "POST",
+    body: z.object({
+      runId: z.number().int(),
+      action: z.enum(["integrate_anyway", "discard"]),
+    }),
   }),
 
   // HFA Dataset Endpoints
@@ -298,55 +289,51 @@ export const datasetRouteRegistry = {
     body: z.object({ timePoint: z.string().optional() }),
   }),
 
-  // HFA Upload workflow
-  createDatasetHfaUploadAttempt: route({
-    path: "/datasets/hfa/uploads",
-    method: "POST",
-  }),
-  getDatasetHfaUpload: route({
-    path: "/dataset-uploads/hfa",
-    method: "GET",
-    response: {} as DatasetHfaUploadAttemptDetail,
-  }),
-  getDatasetHfaUploadStatus: route({
-    path: "/dataset-uploads/hfa/status",
-    method: "GET",
-    response: {} as DatasetHfaUploadStatusResponse,
-  }),
-  deleteDatasetHfaUploadAttempt: route({
-    path: "/dataset-uploads/hfa",
-    method: "DELETE",
-  }),
-  uploadDatasetHfaCsv: route({
-    path: "/dataset-uploads/hfa/csv",
+  // HFA import runs (config-on-client, run-on-server —
+  // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B). The wizard is client-local;
+  // its file inputs are ordinary instance assets (uploaded or picked).
+  // No queue and no scheduler: a second launch while one runs is refused.
+  parseDatasetHfaCsvHeaders: route({
+    path: "/datasets/hfa/runs/parse-headers",
     method: "POST",
     body: z.object({
-      csvAssetFileName: z.string(),
-      xlsFormAssetFileName: z.string(),
+      csvFileName: z.string(),
+      xlsFormFileName: z.string(),
     }),
+    response: {} as { headers: string[] },
   }),
-  // reviewConfirmed: false = step-2 (mappings/filters) save → wizard lands on
-  // the review step; true = step-3 (duplicates review) save → wizard advances
-  // to staging
-  updateDatasetHfaMappings: route({
-    path: "/dataset-uploads/hfa/mappings",
+  previewDatasetHfaDuplicates: route({
+    path: "/datasets/hfa/runs/duplicate-preview",
     method: "POST",
     body: z.object({
-      mappings: hfaCsvMappingParamsSchema,
-      reviewConfirmed: z.boolean(),
+      csvFileName: z.string(),
+      facilityIdColumn: z.string(),
+      rowFilters: z.array(hfaRowFilterSchema),
     }),
-  }),
-  getDatasetHfaDuplicatePreview: route({
-    path: "/dataset-uploads/hfa/duplicate-preview",
-    method: "GET",
     response: {} as HfaDuplicatePreview,
   }),
-  updateDatasetHfaStaging: route({
-    path: "/dataset-uploads/hfa/staging",
+  launchDatasetHfaCsvRun: route({
+    path: "/datasets/hfa/runs",
     method: "POST",
+    body: z.object({ config: hfaCsvRunConfigSchema }),
+    response: {} as { runId: number },
   }),
-  finalizeDatasetHfaIntegration: route({
-    path: "/dataset-uploads/hfa/integrate",
+  getDatasetHfaImportRuns: route({
+    path: "/datasets/hfa/runs",
+    method: "GET",
+    response: {} as HfaImportRunSummary[],
+  }),
+  resolveDatasetHfaReview: route({
+    path: "/datasets/hfa/runs/resolve-review",
     method: "POST",
+    body: z.object({
+      runId: z.number().int(),
+      action: z.enum(["integrate_anyway", "discard"]),
+    }),
+  }),
+  cancelDatasetHfaRun: route({
+    path: "/datasets/hfa/runs/cancel",
+    method: "POST",
+    body: z.object({ runId: z.number().int() }),
   }),
 } as const;

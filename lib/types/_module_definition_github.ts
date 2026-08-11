@@ -104,6 +104,7 @@ const presentationOptionGithub = z.enum([
   "table",
   "chart",
   "map",
+  "pie",
 ]);
 const disaggregationDisplayOptionGithub = z.enum([
   "row",
@@ -246,6 +247,16 @@ const configSGithubStrict = z
     mapShowRegionLabels: z.boolean().optional(),
     mapDataLabelMode: z.enum(["none", "centroid", "callout", "auto"])
       .optional(),
+    pieInnerRadiusRatio: z.number(),
+    pieGroupSmallSlices: z.number(),
+    pieCompletionMode: z.boolean(),
+    pieShowCenterValue: z.boolean(),
+    customValueOrder: z.array(
+      z.object({
+        disOpt: disaggregationOptionGithub,
+        orderedIds: z.array(z.string()),
+      }),
+    ),
   })
   .merge(cfStorageSchema)
   .partial();
@@ -294,7 +305,7 @@ const metricDefinitionGithub = z.object({
   variantLabel: translatableStringGithub.nullable(),
   valueProps: z.array(z.string()),
   valueFunc: valueFuncGithub,
-  formatAs: z.enum(["percent", "number"]),
+  formatAs: z.enum(["percent", "number", "indicator"]),
   requiredDisaggregationOptions: z.array(disaggregationOptionGithub),
   valueLabelReplacements: z.record(z.string(), z.string()),
   postAggregationExpression: postAggregationExpressionGithub.nullable(),
@@ -318,6 +329,30 @@ const resultsObjectDefinitionGithub = z.object({
   ]),
 });
 
+// ── assetsToImport (github) ─────────────────────────────────────────
+
+// Two kinds (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut 2026-08-03):
+// a plain string names an instance-uploaded asset; an object pins a
+// modules-repo data file by repo path + sha256. The file is fetched at the
+// SAME gitRef the definition itself was resolved at — definition and data can
+// never disagree, because they are read from one commit — and `sha256`
+// (computed by the modules-repo build from the working-tree file) is the
+// integrity check and content-addressed cache key. There is no per-asset
+// commit field any more; legacy definitions carrying one parse fine (strip)
+// and the field is ignored.
+//
+// The 1.65.0 hotfix declared repoPath/sha256 OPTIONAL and collapsed pins to
+// names via getAssetName (main consumed assets by name only). On this branch
+// the pin is honoured — repo_assets.ts fetches by repoPath and verifies
+// sha256 — so both fields are required and no collapse exists (2026-08-09
+// merge ruling).
+const repoAssetToImportGithub = z.object({
+  name: z.string(),
+  repoPath: z.string(),
+  sha256: z.string(),
+});
+const assetToImportGithub = z.union([z.string(), repoAssetToImportGithub]);
+
 // ── moduleDefinition (github — full file) ───────────────────────────
 
 export const moduleDefinitionGithubSchema = z
@@ -327,7 +362,7 @@ export const moduleDefinitionGithubSchema = z
     scriptGenerationType: scriptGenerationTypeGithub,
     dataSources: z.array(dataSourceGithub),
     configRequirements: configRequirementsGithub,
-    assetsToImport: z.array(z.string()),
+    assetsToImport: z.array(assetToImportGithub),
     resultsObjects: z.array(resultsObjectDefinitionGithub),
     metrics: z.array(metricDefinitionGithub),
   })
@@ -419,12 +454,16 @@ export type VizPresetTextConfig = z.infer<
 >;
 export type VizPreset = z.infer<typeof vizPresetGithub>;
 export type MetricAIDescription = z.infer<typeof metricAIDescriptionGithub>;
-export type ModuleDefinitionCore = Pick<
-  ModuleDefinitionGithub,
-  | "label"
-  | "prerequisites"
-  | "scriptGenerationType"
-  | "dataSources"
-  | "assetsToImport"
->;
+export type RepoAssetToImportGithub = z.infer<typeof repoAssetToImportGithub>;
+// Authoring shape in _core.ts — the build injects sha256.
+export type RepoAssetPin = Omit<RepoAssetToImportGithub, "sha256">;
+export type ModuleDefinitionCore =
+  & Pick<
+    ModuleDefinitionGithub,
+    | "label"
+    | "prerequisites"
+    | "scriptGenerationType"
+    | "dataSources"
+  >
+  & { assetsToImport: (string | RepoAssetPin)[] };
 export { moduleDefinitionGithubSchema as ModuleDefinitionJSONSchema };

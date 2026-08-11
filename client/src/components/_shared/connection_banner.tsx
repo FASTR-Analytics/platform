@@ -110,7 +110,7 @@ function ConnectionBannerHost() {
             })}
           </span>
           <button
-            class="ml-1 font-semibold underline underline-offset-2"
+            class="ml-1 font-700 underline underline-offset-2"
             onClick={() => globalThis.location.reload()}
           >
             {t3({ en: "Reload", fr: "Recharger", pt: "Recarregar" })}

@@ -97,7 +97,8 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
       userMessage:
         "A required data field is missing. The module configuration may have changed.",
       technicalMessage,
-      suggestedAction: "Check the module configuration or re-run the module.",
+      suggestedAction:
+        "Check the module configuration or generate a new results package.",
     };
   }
 

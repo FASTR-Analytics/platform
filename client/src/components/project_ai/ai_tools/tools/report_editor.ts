@@ -4,15 +4,20 @@ import {
   AiFigureBlockInputSchema,
   AiFigureConfigPatchSchema,
   getReplicateByProp,
+  periodFilterHasBounds,
   type FigureBlock,
   type MetricWithStatus,
+  type PeriodBounds,
+  type ResultsValueInfoForPresentationObject,
 } from "lib";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
+  describeFigureConfigPatchEffect,
   resolveBundleFromMetricAndConfig,
-  validateDisplaySlots,
+  validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { projectAIViews } from "~/components/project_ai/ai_views";
 import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
@@ -197,7 +202,7 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   return `- ${parts.join(" · ")}`;
 }
 
-export function getToolsForReportEditor(
+export function getClientToolsForReportEditor(
   projectId: string,
   metrics: MetricWithStatus[],
 ) {
@@ -282,7 +287,7 @@ export function getToolsForReportEditor(
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(projectId, metric, bundle.config);
+        return await formatFigureConfigForAI(projectId, metric, bundle.config, bundle.dateRange);
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -351,18 +356,59 @@ export function getToolsForReportEditor(
           );
         }
 
+        // Pre-flight for a stored defect this tool cannot repair (the figure
+        // patch schema carries no timeseriesGrouping) — see update_figure.
+        if (
+          bundle.config.d.type === "timeseries" &&
+          !bundle.config.d.timeseriesGrouping
+        ) {
+          throw new AIToolFailure(
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via replace_figure). No changes were applied.",
+          );
+        }
+
+        // Hoisted conditional fetch: period bounds (open-ended periodFilter)
+        // + possible-values map (pre-write collision check) — see update_figure.
+        const pf = input.patch.periodFilter;
+        const needsBounds = typeof pf === "object" && pf !== null &&
+          (pf.min == null) !== (pf.max == null);
+        const needsPossibleValues = input.patch.disaggregateBy !== undefined ||
+          input.patch.valuesDisDisplayOpt !== undefined;
+        let dataBounds: PeriodBounds | undefined;
+        let disaggregationPossibleValues:
+          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | undefined;
+        if (needsBounds || needsPossibleValues) {
+          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+            projectId,
+            bundle.metricId,
+          );
+          if (infoRes.success) {
+            dataBounds = infoRes.data.periodBounds;
+            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+          }
+          if (needsBounds && !dataBounds) {
+            throw new AIToolFailure(
+              "Cannot set an open-ended periodFilter: the metric's data period range is unavailable. Provide both min and max.",
+            );
+          }
+        }
+
         // Validate UP FRONT (a throw must mean "nothing changed"); commit once valid.
         const newConfig = applyFigureConfigPatch(
           bundle.config,
           input.patch,
-          metric.mostGranularTimePeriodColumnInResultsFile,
+          metric,
+          dataBounds,
         );
-        validateDisplaySlots(newConfig, metric, input.patch);
+        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
+          disaggregationPossibleValues,
+        });
 
         const filters =
           newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
         const periodFilter =
-          newConfig.d.periodFilter?.filterType === "custom"
+          newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
             ? {
                 min: newConfig.d.periodFilter.min,
                 max: newConfig.d.periodFilter.max,
@@ -373,6 +419,13 @@ export function getToolsForReportEditor(
           bundle.metricId,
           filters,
           periodFilter,
+        );
+
+        const report = describeFigureConfigPatchEffect(
+          bundle.config,
+          input.patch,
+          metric,
+          dataBounds,
         );
 
         const newBundle = await resolveBundleFromMetricAndConfig(
@@ -398,7 +451,7 @@ export function getToolsForReportEditor(
               `check their connection and try again.`,
           );
         }
-        return `Updated figure ${input.figureId}. The preview is updated and saved.`;
+        return `Updated figure ${input.figureId}.\n${report.map((l) => `- ${l}`).join("\n")}\nThe preview is updated and saved.`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",

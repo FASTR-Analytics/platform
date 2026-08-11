@@ -31,6 +31,9 @@ export type ProjectDetail = {
   thisUserRole: "viewer" | "editor" | "admin";
   isLocked: boolean;
   isCentralReporting: boolean;
+  // The immutable results run this project serves from (projects.run_id);
+  // null = no run attached — data reads error until one is synthesized/attached.
+  attachedRunId: string | null;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];

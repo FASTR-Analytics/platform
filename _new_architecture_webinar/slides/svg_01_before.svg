@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+  <text x="64" y="72" font-size="36" font-weight="bold" fill="#0f172a">Before: every project was its own island</text>
+
+  <!-- Instance data source -->
+  <g>
+    <ellipse cx="200" cy="300" rx="90" ry="28" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <path d="M110 300 v130 a90 28 0 0 0 180 0 v-130" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <ellipse cx="200" cy="430" rx="90" ry="28" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="200" y="368" font-size="20" font-weight="bold" fill="#1e40af" text-anchor="middle">Instance data</text>
+    <text x="200" y="394" font-size="16" fill="#1e40af" text-anchor="middle">HMIS · HFA · facilities</text>
+  </g>
+
+  <!-- arrows: full copy into each project -->
+  <g stroke="#dc2626" stroke-width="3" fill="none" marker-end="url(#redarrow)">
+    <path d="M300 330 C 380 260, 420 220, 490 200"/>
+    <path d="M305 365 C 390 365, 410 365, 490 365"/>
+    <path d="M300 400 C 380 470, 420 510, 490 530"/>
+  </g>
+  <defs>
+    <marker id="redarrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <text x="395" y="300" font-size="16" fill="#dc2626" text-anchor="middle" font-style="italic">full copy of</text>
+  <text x="395" y="322" font-size="16" fill="#dc2626" text-anchor="middle" font-style="italic">the data, ×3</text>
+
+  <!-- three project boxes -->
+  <g>
+    <g transform="translate(500,120)">
+      <rect width="620" height="160" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+      <text x="24" y="38" font-size="22" font-weight="bold" fill="#0f172a">Project A</text>
+      <rect x="24" y="56" width="170" height="76" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="109" y="90" font-size="16" fill="#1e40af" text-anchor="middle">Own copy</text>
+      <text x="109" y="112" font-size="16" fill="#1e40af" text-anchor="middle">of the data</text>
+      <rect x="218" y="56" width="170" height="76" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="303" y="90" font-size="16" fill="#92400e" text-anchor="middle">Runs its own</text>
+      <text x="303" y="112" font-size="16" fill="#92400e" text-anchor="middle">analysis modules</text>
+      <rect x="412" y="56" width="184" height="76" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+      <text x="504" y="90" font-size="16" fill="#065f46" text-anchor="middle">Own results,</text>
+      <text x="504" y="112" font-size="16" fill="#065f46" text-anchor="middle">rebuilt in place</text>
+    </g>
+    <g transform="translate(500,290)">
+      <rect width="620" height="160" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+      <text x="24" y="38" font-size="22" font-weight="bold" fill="#0f172a">Project B</text>
+      <rect x="24" y="56" width="170" height="76" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="109" y="90" font-size="16" fill="#1e40af" text-anchor="middle">Own copy</text>
+      <text x="109" y="112" font-size="16" fill="#1e40af" text-anchor="middle">of the data</text>
+      <rect x="218" y="56" width="170" height="76" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="303" y="90" font-size="16" fill="#92400e" text-anchor="middle">Runs its own</text>
+      <text x="303" y="112" font-size="16" fill="#92400e" text-anchor="middle">analysis modules</text>
+      <rect x="412" y="56" width="184" height="76" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+      <text x="504" y="90" font-size="16" fill="#065f46" text-anchor="middle">Own results,</text>
+      <text x="504" y="112" font-size="16" fill="#065f46" text-anchor="middle">rebuilt in place</text>
+    </g>
+    <g transform="translate(500,460)">
+      <rect width="620" height="160" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+      <text x="24" y="38" font-size="22" font-weight="bold" fill="#0f172a">Project C</text>
+      <rect x="24" y="56" width="170" height="76" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="109" y="90" font-size="16" fill="#1e40af" text-anchor="middle">Own copy</text>
+      <text x="109" y="112" font-size="16" fill="#1e40af" text-anchor="middle">of the data</text>
+      <rect x="218" y="56" width="170" height="76" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="303" y="90" font-size="16" fill="#92400e" text-anchor="middle">Runs its own</text>
+      <text x="303" y="112" font-size="16" fill="#92400e" text-anchor="middle">analysis modules</text>
+      <rect x="412" y="56" width="184" height="76" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+      <text x="504" y="90" font-size="16" fill="#065f46" text-anchor="middle">Own results,</text>
+      <text x="504" y="112" font-size="16" fill="#065f46" text-anchor="middle">rebuilt in place</text>
+    </g>
+  </g>
+
+  <!-- pain points -->
+  <g transform="translate(64,655)">
+    <text x="0" y="0" font-size="19" fill="#dc2626">Same national data stored many times over &#183; every project re-runs the same analysis &#183; results silently overwritten in place</text>
+  </g>
+</svg>

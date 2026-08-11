@@ -1,11 +1,7 @@
 import { ReplicantValueOverride, t3 } from "lib";
 import { FigureInputs, FigureHolder, LoadingIndicator, StateHolder } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
-import {
-  datasetsVersionKey,
-  moduleDataVersionKey,
-  projectState,
-} from "~/state/project/t1_store";
+import { projectState, runVersionKey } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
 import { adaptFigureStyleForDarkMode } from "./_shared/dark_mode_figures";
@@ -13,7 +9,6 @@ import { adaptFigureStyleForDarkMode } from "./_shared/dark_mode_figures";
 type Props = {
   projectId: string;
   presentationObjectId: string;
-  moduleId?: string;
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
   repliantOverride?: ReplicantValueOverride;
@@ -50,21 +45,16 @@ export function PresentationObjectMiniDisplay(p: Props) {
 
   createEffect(() => {
     void projectState.lastUpdated.presentation_objects[p.presentationObjectId];
-    // Tracked version-key read so mounted thumbnails refetch when module
-    // output or dataset integration changes (the caches this renders through
-    // version on it, and cache-internal reads are untracked).
-    if (p.moduleId) {
-      moduleDataVersionKey(projectState, p.moduleId);
-    } else {
-      datasetsVersionKey(projectState);
-    }
+    // Tracked version-key read so mounted thumbnails refetch when a different
+    // run is attached (the caches this renders through version on it, and
+    // cache-internal reads are untracked).
+    runVersionKey(projectState);
     attemptGetFigureInputs();
   });
 
   return (
     <PresentationObjectMiniDisplayStateHolderWrapper
       state={figureInputs()}
-      moduleId={p.moduleId}
       shapeType={p.shapeType}
       onClick={p.onClick}
     />
@@ -91,7 +81,6 @@ export function FigureThumbnail(p: {
 
 type PresentationObjectMiniDisplayStateHolderWrapperProps = {
   state: StateHolder<FigureInputs>;
-  moduleId?: string;
   onErrorButton?:
     | {
         label: string;
@@ -108,101 +97,70 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
 function PresentationObjectMiniDisplayStateHolderWrapper(
   p: PresentationObjectMiniDisplayStateHolderWrapperProps,
 ) {
-  const moduleDirtyStatus = () => {
-    try {
-      const mid = p.moduleId;
-      return mid ? projectState.moduleDirtyStates[mid] : "no_id_provided_which_is_ok";
-    } catch {
-      return "no_id_provided_which_is_ok";
-    }
-  };
   return (
     <Switch>
-      <Match when={moduleDirtyStatus() === "running"}>
-        <div class="text-success aspect-video text-xs" onClick={p.onClick}>
-          {t3({
-            en: "Module running...",
-            fr: "Module en cours d'exécution...",
-            pt: "Módulo em execução...",
-          })}
+      <Match when={p.state.status === "loading"}>
+        <div class="aspect-video text-xs" onClick={p.onClick}>
+          <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad={true} />
         </div>
       </Match>
-      <Match when={moduleDirtyStatus() === "error"}>
-        <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
-          {t3({ en: "Module error", fr: "Erreur du module", pt: "Erro do módulo" })}
-        </div>
-      </Match>
-      <Match when={moduleDirtyStatus() === "queued"}>
-        <div class="text-warning aspect-video text-xs" onClick={p.onClick}>
-          {t3({ en: "Pending...", fr: "En attente...", pt: "Pendente..." })}
-        </div>
-      </Match>
-      <Match when={true}>
-        <Switch>
-          <Match when={p.state.status === "loading"}>
-            <div class="aspect-video text-xs" onClick={p.onClick}>
-              <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad={true} />
+      <Match when={p.state.status === "error"}>
+        {(() => {
+          const err = (p.state as { err?: string }).err ?? "";
+          const isKnown = err.startsWith("[INFO] ");
+          if (isKnown) {
+            return (
+              <NotAvailableBox err={err.slice(7)} onClick={p.onClick} />
+            );
+          }
+          return (
+            <div
+              class="text-danger aspect-video text-xs"
+              onClick={p.onClick}
+            >
+              {err || t3({ en: "Error", fr: "Erreur", pt: "Erro" })}
             </div>
-          </Match>
-          <Match when={p.state.status === "error"}>
-            {(() => {
-              const err = (p.state as { err?: string }).err ?? "";
-              const isKnown = err.startsWith("[INFO] ");
-              if (isKnown) {
-                return (
-                  <NotAvailableBox err={err.slice(7)} onClick={p.onClick} />
-                );
-              }
-              return (
-                <div
-                  class="text-danger aspect-video text-xs"
-                  onClick={p.onClick}
-                >
-                  {err || t3({ en: "Error", fr: "Erreur", pt: "Erro" })}
+          );
+        })()}
+      </Match>
+      <Match
+        when={
+          p.state.status === "ready" &&
+          (p.state as { data: FigureInputs }).data
+        }
+        keyed
+      >
+        {(keyedFigureInputs) => {
+          const h1 =
+            keyedFigureInputs.figureType === "table"
+              ? ("ideal" as const)
+              : ("flex" as const);
+          const renderError = (err: string) => (
+            <NotAvailableBox err={err} />
+          );
+          return (
+            <Switch>
+              <Match when={p.shapeType === "force-aspect-video"}>
+                <div class="aspect-video overflow-hidden">
+                  <FigureHolder
+                    figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                    height={h1}
+                    sizing="zoom"
+                    renderError={renderError}
+                  />
                 </div>
-              );
-            })()}
-          </Match>
-          <Match
-            when={
-              p.state.status === "ready" &&
-              (p.state as { data: FigureInputs }).data
-            }
-            keyed
-          >
-            {(keyedFigureInputs) => {
-              const h1 =
-                keyedFigureInputs.figureType === "table"
-                  ? ("ideal" as const)
-                  : ("flex" as const);
-              const renderError = (err: string) => (
-                <NotAvailableBox err={err} />
-              );
-              return (
-                <Switch>
-                  <Match when={p.shapeType === "force-aspect-video"}>
-                    <div class="aspect-video overflow-hidden">
-                      <FigureHolder
-                        figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
-                        height={h1}
-                        sizing="zoom"
-                        renderError={renderError}
-                      />
-                    </div>
-                  </Match>
-                  <Match when={true}>
-                    <FigureHolder
-                      figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
-                      height={h1}
-                      sizing="zoom"
-                      renderError={renderError}
-                    />
-                  </Match>
-                </Switch>
-              );
-            }}
-          </Match>
-        </Switch>
+              </Match>
+              <Match when={true}>
+                <FigureHolder
+                  figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                  height={h1}
+                  sizing="zoom"
+                  renderError={renderError}
+                />
+              </Match>
+            </Switch>
+          );
+        }}
       </Match>
     </Switch>
   );

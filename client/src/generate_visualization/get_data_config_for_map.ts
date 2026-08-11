@@ -4,6 +4,7 @@ import {
   type ResultsValueForVisualization,
   getDisaggregatorDisplayProp,
 } from "lib";
+import { getAxisSort } from "./get_data_config_from_po";
 
 export function getMapJsonDataConfigFromPresentationObjectConfig(
   resultsValue: ResultsValueForVisualization,
@@ -32,6 +33,14 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
     tierProp,
     laneProp,
     labelReplacements: indicatorLabelReplacements,
+    // Map labelReplacements carry only indicator labels, so by-label on other
+    // dims sorts on raw values — which is what the map displays, keeping sort
+    // key and display consistent.
+    sort: {
+      pane: getAxisSort(config, paneProp),
+      tier: getAxisSort(config, tierProp),
+      lane: getAxisSort(config, laneProp),
+    },
   };
 
   return dataConfig;
