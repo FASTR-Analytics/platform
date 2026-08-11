@@ -129,6 +129,8 @@ Verified controls so far:
 | drop the multi-membership skip in `getSingleValueDimsFromPossibleValues` | F8: `isSingleValueDim=false` → `true` |
 | `emitsSampleN` → family-only gate (drop `hasFacilityId`) | F10: `column ro_….facility_id does not exist` |
 | `COUNT(DISTINCT facility_id)` → `COUNT(facility_id)` | 4 cases: n reports rows (4/4/8) instead of facilities (2/3/5) |
+| drop `sourceTable.` from the value aggregates (buildAggregateColumns) | both Ghana-shape cases: `column reference "facility_id" is ambiguous` |
+| drop `sourceTable.` from the plain-values sample-n FILTER | HFA Ghana-shape case only: same ambiguity error |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes — `git checkout` would discard parallel work.
