@@ -85,7 +85,13 @@ and never something to clean per-instance. Use the fleet script
 failures halt the whole run; a rig RED records that instance as
 NEEDS-ADJUDICATION and continues (instances are independent; don't
 regenerate/swap on a red instance until adjudicated). The runbook commands
-below remain the manual form. RULED 2026-08-10: no server lock during the
+below remain the manual form. NIGERIA (ruled 2026-08-10): use
+`./rollout_nigeria` (detached server-side backfill of ALL projects +
+detached rig on the ACTIVE projects only — ruled set: Bauchi State, Nigeria General Project, NHSS). Obsolete/duplicative projects
+serve from faithful package copies with parity deliberately untested —
+accepted because the engine is proven green across the fleet; the rig's
+"N of M projects gated" line keeps the partial gating explicit, and the
+per-project rig logs live in the container's /tmp/rollout_nigeria/. RULED 2026-08-10: no server lock during the
 deploy→rig window — swap has no targets right after backfill (each project
 has only its own package), generation is instance-admin-gated, and a miss
 costs one printed non-gating foreign_run, not corruption. If a hard

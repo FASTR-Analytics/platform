@@ -47,6 +47,8 @@ export async function writeParquetFromCsv(opts: {
         header=true,
         nullstr=[${nullStrSpec}],
         allow_quoted_nulls=false,
+        quote='"',
+        escape='"',
         columns={${columnSpec}}
       )) TO '${escapeSqlLiteral(opts.parquetPath)}' (FORMAT PARQUET)`,
     );

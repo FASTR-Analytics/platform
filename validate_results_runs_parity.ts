@@ -1520,10 +1520,24 @@ WHERE table_schema = 'public' AND table_name = ${tableName}
     }
     const manifestStatus = mm.status === "ready" ? "ready" : "unavailable";
     if (manifestStatus !== pgStatus.status) {
-      record({
-        outcome: "diff",
-        detail: `manifest=${manifestStatus}(${mm.statusReason ?? ""}) pg=${pgStatus.status}(${pgStatus.reason})`,
-      });
+      // Same evidence class as the raw_preview to_regclass probe: the pg
+      // table is provably absent/empty (information_schema facts above) while
+      // the package's synthesis-time stamp says ready — the legacy plane
+      // never ingested this RO. The reverse direction (pg ready, manifest
+      // unavailable = the package LOST data) stays a gating diff.
+      const pgPlaneLacksTable = pgStatus.reason === "no ro table in pg" ||
+        pgStatus.reason === "ro table has no rows";
+      if (manifestStatus === "ready" && pgPlaneLacksTable) {
+        record({
+          outcome: "legacy_gap",
+          detail: `package stamps ready; legacy plane has no data (${pgStatus.reason})`,
+        });
+      } else {
+        record({
+          outcome: "diff",
+          detail: `manifest=${manifestStatus}(${mm.statusReason ?? ""}) pg=${pgStatus.status}(${pgStatus.reason})`,
+        });
+      }
     } else {
       record({ outcome: "ok" });
     }
