@@ -1,3 +1,5 @@
+[1.66.6] [user] [fixed] - Clearer error messages when required data is missing or not yet generated
+[1.66.6] [admin] [fixed] - Clearer error messages when module data is missing or misconfigured
 [1.66.5] [user] [fixed] - Fixed incorrect results when analyzing data with quoted values in uploaded files
 [1.66.5] [user] [fixed] - Fixed errors when facility-level columns had ambiguous names in reports
 [1.66.5] [admin] [fixed] - Fixed errors when query columns share names with internal fields
