@@ -1,7 +1,7 @@
-[TBD] [user] [fixed] - Fixed incorrect results when analyzing data with quoted values in uploaded files
-[TBD] [user] [fixed] - Fixed errors when facility-level columns had ambiguous names in reports
-[TBD] [admin] [fixed] - Fixed errors when query columns share names with internal fields
-[TBD] [admin] [fixed] - Improved handling of quoted values in CSV data processing
+[1.66.5] [user] [fixed] - Fixed incorrect results when analyzing data with quoted values in uploaded files
+[1.66.5] [user] [fixed] - Fixed errors when facility-level columns had ambiguous names in reports
+[1.66.5] [admin] [fixed] - Fixed errors when query columns share names with internal fields
+[1.66.5] [admin] [fixed] - Improved handling of quoted values in CSV data processing
 [1.66.4] [user] [added] - "What's New" announcements can now include YouTube videos
 [1.66.4] [admin] [added] - "What's New" posts now support embedded YouTube videos
 [1.66.3] [user] [fixed] - Clearer error message when visualization data needs to be generated
