@@ -472,6 +472,56 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
 
+  // ── Value prop facility_id + facility-column join (the Ghana shape) ───────
+  //
+  // The facility CTE joins in a facility_id of the same name, so every value
+  // reference must be table-qualified — unqualified COUNT(facility_id) is
+  // "ambiguous column reference" on both engines. Found by the Ghana parity
+  // rig 2026-08-10; the corpus lacked this shape.
+  {
+    name: "COUNT(facility_id) disaggregated by a facility column → qualified, no ambiguity",
+    fixture: "hmis_monthly",
+    fetchConfig: {
+      ...base(),
+      values: [{ prop: "facility_id", func: "COUNT" }],
+      groupBys: ["facility_type"],
+    },
+    // Record counts: hospital = f1(2)+f4(2), clinic = f2(1)+f3(2),
+    // health_post = f5(1). Counts are STRINGS: COUNT returns bigint, which the
+    // driver hands back untransformed — pre-existing behavior for every COUNT
+    // metric (only the __n_* columns carry a ::int cast), pinned not blessed.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", facility_id: "4" },
+        { facility_type: "clinic", facility_id: "3" },
+        { facility_type: "health_post", facility_id: "1" },
+      ],
+    },
+  },
+  {
+    name: "HFA COUNT(facility_id) by facility column → sample-n FILTER qualified too",
+    fixture: "hfa_service_cats",
+    fetchConfig: {
+      ...base(),
+      values: [{ prop: "facility_id", func: "COUNT" }],
+      groupBys: ["facility_type"],
+    },
+    // The plain-values sample-n path emits FILTER (WHERE facility_id IS NOT
+    // NULL), which is the latent sibling of the aggregate ambiguity — this is
+    // the only shape that reaches it with the join present. Record counts:
+    // hospital = h1(2)+h4(1), clinic = h2(2)+h3(2), health_post = h5(1); n is
+    // distinct facilities.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", facility_id: "3", __n_facility_id: 2 },
+        { facility_type: "clinic", facility_id: "4", __n_facility_id: 2 },
+        { facility_type: "health_post", facility_id: "1", __n_facility_id: 1 },
+      ],
+    },
+  },
+
   // ── Period scenarios: one physical time column per table ──────────────────
   {
     name: "quarter_id table: groupBy physical quarter_id",

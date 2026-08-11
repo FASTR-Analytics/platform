@@ -411,13 +411,17 @@ function buildAggregateColumns(
   queryContext: QueryContext,
   hasPostAggregationExpression: boolean,
 ): string {
+  // Value props are results-table columns, so every reference is qualified
+  // with sourceTable — the facilities CTE joins in a facility_id of the same
+  // name, and an unqualified COUNT(facility_id) is ambiguous on both engines.
   const valueColumns = values.map((valueObj) => {
+    const qualified = `${sourceTable}.${valueObj.prop}`;
     if (valueObj.func === "identity") {
       return mode === "rollup"
-        ? `SUM(${valueObj.prop}) AS ${valueObj.prop}`
-        : valueObj.prop;
+        ? `SUM(${qualified}) AS ${valueObj.prop}`
+        : `${qualified} AS ${valueObj.prop}`;
     }
-    return `${valueObj.func.toUpperCase()}(${valueObj.prop}) AS ${valueObj.prop}`;
+    return `${valueObj.func.toUpperCase()}(${qualified}) AS ${valueObj.prop}`;
   });
 
   return [
@@ -502,7 +506,7 @@ function buildSampleNColumns(
     .filter((valueObj) => valueObj.func !== "identity")
     .map(
       (valueObj) =>
-        `(${distinctFacilities} FILTER (WHERE ${valueObj.prop} IS NOT NULL))::int AS ${sampleNProp(valueObj.prop)}`,
+        `(${distinctFacilities} FILTER (WHERE ${sourceTable}.${valueObj.prop} IS NOT NULL))::int AS ${sampleNProp(valueObj.prop)}`,
     );
 }
 

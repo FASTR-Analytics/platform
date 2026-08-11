@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Fleet rollout for the results-packages cutover (PLAN_RESULTS_RUNS.md
-# "Rollout runbook"). Runs from the local machine; per instance it:
+# DEPLOY + BACKFILL ONLY — ./rollout_fleet without the parity rig. Use this
+# to convert instances quickly; run the rig later via ./rollout_fleet (it
+# skips the already-done update/backfill and goes straight to the rig).
+# Per instance:
 #
 #   1. preflights (instance exists, disk headroom on its data volume)
 #   2. points the instance at the target server image (wb c update /
@@ -9,23 +11,18 @@
 #   3. runs backfill_runs.ts inside the container — skipped automatically if
 #      every ready project already has a package (safe to re-run the script)
 #   4. verifies every ready project has an attached ready package
-#   5. runs validate_results_runs_parity.ts --run (the per-instance gate)
 #
-# Failure policy: deploy/health/backfill/verify failures HALT the whole run —
-# they mean the rollout machinery itself is broken. A parity-rig RED does NOT
-# halt the fleet: instances are independent, the rig gate is per-instance,
-# and serve-first-by-construction means a halt would not undo anything —
-# the instance is recorded as NEEDS ADJUDICATION, the script continues, the
-# final summary lists every red instance, and the exit code is nonzero if
-# any exist. Do not regenerate/swap packages on a red instance until its rig
-# verdict is adjudicated. All docker-exec output is captured to
-# rollout_logs/<version>-<timestamp>/<instance>-{backfill,rig}.log locally.
+# An instance finished by this script is DEPLOYED AND SERVING but NOT GATED:
+# don't regenerate/swap packages there until its rig has run.
+#
+# Failure policy: any failure HALTS the whole run. Backfill output is
+# captured to rollout_logs/<version>-<timestamp>/<instance>-backfill.log.
 # Rollback is NOT automated: it is the documented triple (previous image +
 # volume restore + modules revert) in PLAN_RESULTS_RUNS.md.
 #
 # Usage:
-#   ./rollout_fleet <instance> [<instance>...]
-#   ./rollout_fleet sierraleone ethiopia2 ghana
+#   ./rollout_backfill <instance> [<instance>...]
+#   ./rollout_backfill haiti mali tchad
 #
 # Order matters: per the runbook, Ethiopia goes EARLY (its rig run is the
 # Ethiopian-quarter gate). MIN_FREE_GB (default 10) guards the data volume.
@@ -60,15 +57,15 @@ DENO_FLAGS="-A --unstable-broadcast-channel --unstable-raw-imports -c deno.json"
 VERSION="1.66.5"
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: ./rollout_fleet <instance> [<instance>...]"
-    echo "  e.g. ./rollout_fleet sierraleone ethiopia2 ghana"
+    echo "Usage: ./rollout_backfill <instance> [<instance>...]"
+    echo "  e.g. ./rollout_backfill haiti mali tchad"
     exit 1
 fi
 
 INSTANCES=("$@")
 IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
 
-LOG_DIR="rollout_logs/$VERSION-$(date +%Y%m%d-%H%M%S)"
+LOG_DIR="rollout_logs/$VERSION-backfill-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$LOG_DIR"
 
 fail() {
@@ -99,7 +96,6 @@ if ! sshx "$SSH_HOST" "docker manifest inspect $IMAGE_TAG >/dev/null 2>&1"; then
 fi
 
 COMPLETED=()
-RIG_RED=()
 
 for INSTANCE in "${INSTANCES[@]}"; do
     echo ""
@@ -192,34 +188,15 @@ REMOTE
         fail "$INSTANCE" "verify" "$NOT_READY attached package(s) not in status 'ready'"
     echo "Verified: every ready project has an attached ready package."
 
-    # ── 5. Parity rig (the per-instance gate; RED records, never halts) ─────
-    echo "Parity rig (this takes a while — logs stream to $LOG_DIR/$INSTANCE-rig.log)..."
-    RIG_LOG="$LOG_DIR/$INSTANCE-rig.log"
-    sshx "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS validate_results_runs_parity.ts --run" \
-        >"$RIG_LOG" 2>&1
-    RIG_EXIT=$?
-    tail -3 "$RIG_LOG"
-    if [ "$RIG_EXIT" -eq 0 ] && grep -q "PARITY GREEN" "$RIG_LOG"; then
-        echo "$INSTANCE COMPLETE: deployed + backfilled + rig green."
-        COMPLETED+=("$INSTANCE")
-    else
-        echo ""
-        echo "!! $INSTANCE RIG RED (exit $RIG_EXIT) — NEEDS ADJUDICATION before anyone"
-        echo "!! regenerates or swaps packages there. Deploy + backfill are DONE and stay."
-        echo "!! Full log: $RIG_LOG — continuing with the next instance."
-        RIG_RED+=("$INSTANCE")
-    fi
+    echo "$INSTANCE COMPLETE: deployed + backfilled (NOT rig-gated yet)."
+    COMPLETED+=("$INSTANCE")
 done
 
 echo ""
-echo "════════ FLEET ROLLOUT COMPLETE ════════"
+echo "════════ DEPLOY+BACKFILL COMPLETE ════════"
 echo "  Image:       $IMAGE_TAG"
-echo "  Rig green:   ${COMPLETED[*]:-none}"
-echo "  Rig RED:     ${RIG_RED[*]:-none}"
+echo "  Instances:   ${COMPLETED[*]:-none}"
 echo "  Logs:        $LOG_DIR/"
-if [ "${#RIG_RED[@]}" -gt 0 ]; then
-    echo ""
-    echo "ADJUDICATE the red instances (their rig logs above) before anyone"
-    echo "regenerates or swaps packages there; re-run the rig after."
-    exit 1
-fi
+echo ""
+echo "These instances are serving but NOT rig-gated: run ./rollout_fleet on"
+echo "them later (it skips update/backfill and goes straight to the rig)."

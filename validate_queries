@@ -15,7 +15,7 @@ DB_PASS="testpass"
 cleanup() {
     echo "Cleaning up..."
     docker stop "$CONTAINER_NAME" 2>/dev/null || true
-    docker rm "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
 }
 
 trap cleanup EXIT

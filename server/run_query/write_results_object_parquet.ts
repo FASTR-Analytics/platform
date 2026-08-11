@@ -111,6 +111,8 @@ export async function writeNormalizedResultsObjectParquet(opts: {
         header=true,
         nullstr='NA',
         allow_quoted_nulls=false,
+        quote='"',
+        escape='"',
         columns={${columnSpec}}
       )) TO '${escapeSqlLiteral(tmpPath)}' (FORMAT PARQUET)`,
     );
