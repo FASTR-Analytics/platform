@@ -117,8 +117,8 @@ export function InstanceResultsPackages() {
     const unsubProgress = addInstanceRunProgressListener((runId, progress) => {
       setLiveProgress((prev) => ({ ...prev, [runId]: progress }));
       const current = runs();
-      const isUnknownRun = current.status === "ready" &&
-        !current.data.some((r) => r.id === runId);
+      const isUnknownRun =
+        current.status === "ready" && !current.data.some((r) => r.id === runId);
       if (isUnknownRun || progress.currentModuleId === null) {
         setVersion((v) => v + 1);
       }
@@ -136,53 +136,62 @@ export function InstanceResultsPackages() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon
-            heading={t3({
-              en: "Results packages",
-              fr: "Paquets de résultats",
-              pt: "Pacotes de resultados",
-            })}
+          <div
+            class="h-full w-full"
+            data-tour="instance-results-packages-header"
           >
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                onClick={openModuleDefaults}
-                outline
-                onBackground="base-content"
-                intent="base-100"
-                iconName="settings"
-              >
-                {t3({
-                  en: "Module defaults",
-                  fr: "Paramètres par défaut des modules",
-                  pt: "Predefinições dos módulos",
-                })}
-              </Button>
-              <Switch>
-                <Match when={attempt() !== null}>
-                  <Button onClick={openWizard} iconName="pencil">
-                    {t3({
-                      en: "Resume configuration",
-                      fr: "Reprendre la configuration",
-                      pt: "Retomar a configuração",
-                    })}
-                  </Button>
-                </Match>
-                <Match when={true}>
+            <HeadingBarMainRibbon
+              heading={t3({
+                en: "Results packages",
+                fr: "Paquets de résultats",
+                pt: "Pacotes de resultados",
+              })}
+            >
+              <div class="ui-gap-sm flex items-center">
+                <div data-tour="instance-results-packages-defaults">
                   <Button
-                    onClick={startConfiguration.click}
-                    state={startConfiguration.state()}
-                    iconName="package"
+                    onClick={openModuleDefaults}
+                    outline
+                    onBackground="base-content"
+                    intent="base-100"
+                    iconName="settings"
                   >
                     {t3({
-                      en: "Generate new results package",
-                      fr: "Générer un nouveau paquet de résultats",
-                      pt: "Gerar novo pacote de resultados",
+                      en: "Module defaults",
+                      fr: "Paramètres par défaut des modules",
+                      pt: "Predefinições dos módulos",
                     })}
                   </Button>
-                </Match>
-              </Switch>
-            </div>
-          </HeadingBarMainRibbon>
+                </div>
+                <div data-tour="instance-results-packages-generate">
+                  <Switch>
+                    <Match when={attempt() !== null}>
+                      <Button onClick={openWizard} iconName="pencil">
+                        {t3({
+                          en: "Resume configuration",
+                          fr: "Reprendre la configuration",
+                          pt: "Retomar a configuração",
+                        })}
+                      </Button>
+                    </Match>
+                    <Match when={true}>
+                      <Button
+                        onClick={startConfiguration.click}
+                        state={startConfiguration.state()}
+                        iconName="package"
+                      >
+                        {t3({
+                          en: "Generate new results package",
+                          fr: "Générer un nouveau paquet de résultats",
+                          pt: "Gerar novo pacote de resultados",
+                        })}
+                      </Button>
+                    </Match>
+                  </Switch>
+                </div>
+              </div>
+            </HeadingBarMainRibbon>
+          </div>
         }
       >
         <div class="ui-pad ui-spy">
@@ -284,7 +293,10 @@ function RunCard(p: {
   );
 
   return (
-    <div class="ui-pad ui-spy-sm rounded border">
+    <div
+      class="ui-pad ui-spy-sm rounded border"
+      data-tour="instance-results-packages-card"
+    >
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
         <RunStatusBadge status={p.run.status} />
@@ -312,7 +324,10 @@ function RunCard(p: {
 
       <ResultsPackageProvenanceLine run={p.run} showDiskSize />
 
-      <div class="text-base-content-muted text-xs">
+      <div
+        class="text-base-content-muted text-xs"
+        data-tour="instance-results-packages-usage"
+      >
         <Show
           when={p.run.attachedProjects.length > 0}
           fallback={t3({
@@ -321,9 +336,9 @@ function RunCard(p: {
             pt: "Não anexado a nenhum projeto",
           })}
         >
-          {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${
-            p.run.attachedProjects.map((project) => project.label).join(", ")
-          }`}
+          {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${p.run.attachedProjects
+            .map((project) => project.label)
+            .join(", ")}`}
         </Show>
       </div>
 
@@ -331,13 +346,15 @@ function RunCard(p: {
           surface only renders behind can_configure_data
           (instance/index.tsx), so reaching it IS the permission. A project
           renders the same component with its own per-content bits. */}
-      <ResultsPackageContents
-        run={p.run}
-        liveProgress={p.liveProgress}
-        latestRLine={(moduleId) => p.rLogs[`${p.run.id}|${moduleId}`]}
-        internals={instancePackageInternalsSource(p.run.id, true)}
-        openEditor={p.openEditor}
-      />
+      <div data-tour="instance-results-packages-contents">
+        <ResultsPackageContents
+          run={p.run}
+          liveProgress={p.liveProgress}
+          latestRLine={(moduleId) => p.rLogs[`${p.run.id}|${moduleId}`]}
+          internals={instancePackageInternalsSource(p.run.id, true)}
+          openEditor={p.openEditor}
+        />
+      </div>
     </div>
   );
 }

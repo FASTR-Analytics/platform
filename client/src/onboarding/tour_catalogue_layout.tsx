@@ -57,6 +57,15 @@ export function getAreaItems(): {
       }),
       iconName: "chart",
     },
+    {
+      area: "results_package",
+      heading: t3({
+        en: "Results package",
+        fr: "Paquet de résultats",
+        pt: "Pacote de resultados",
+      }),
+      iconName: "package",
+    },
     { area: "settings", heading: t3(TC.settings), iconName: "settings" },
   ];
 }

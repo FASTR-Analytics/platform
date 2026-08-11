@@ -22,6 +22,8 @@ import {
   buildReportsManageTour,
   buildReportsOpenReportTour,
   buildReportsViewerTour,
+  buildResultsPackageIntroTour,
+  buildResultsPackageSwitchTour,
   buildSettingsIntroTour,
   buildVizCardsTour,
   buildVizCreateTour,
@@ -36,6 +38,7 @@ import {
   buildInstanceAssetsTour,
   buildInstanceDataTour,
   buildInstanceProjectsTour,
+  buildInstanceResultsPackagesTour,
   buildInstanceSettingsTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
@@ -90,6 +93,7 @@ export function setupInstanceTours(opts: {
     pages: {
       "instance-projects": onTab("projects"),
       "instance-data": onTab("data"),
+      "instance-results-packages": onTab("results_packages"),
       "instance-assets": onTab("assets"),
       "instance-users": onTab("users"),
       "instance-settings": onTab("settings"),
@@ -102,6 +106,10 @@ export function setupInstanceTours(opts: {
       { page: "instance-projects", tour: buildInstanceWelcomeTour() },
       { page: "instance-projects", tour: buildInstanceProjectsTour() },
       { page: "instance-data", tour: buildInstanceDataTour() },
+      {
+        page: "instance-results-packages",
+        tour: buildInstanceResultsPackagesTour(),
+      },
       { page: "instance-assets", tour: buildInstanceAssetsTour() },
       { page: "instance-users", tour: buildInstanceUsersTour() },
       { page: "instance-settings", tour: buildInstanceSettingsTour() },
@@ -345,6 +353,41 @@ export function setupVisualizationTours(): TourManagerController {
       {
         page: "viz-editor-edit",
         tour: buildVizEditorEditTour(),
+      },
+    ],
+  });
+}
+
+// The results package tab: the intro runs for anyone who can see the tab, the
+// switch part only for a member who may actually repoint the project AND has
+// somewhere to repoint it — the picker renders nothing when the instance holds
+// no other package, so without that check the tour would target an empty box.
+export function setupResultsPackageTours(): TourManagerController {
+  const canAttach = () =>
+    instanceState.currentUserIsGlobalAdmin ||
+    projectState.thisUserPermissions.can_configure_visualizations;
+  const pickerOnScreen = () =>
+    document.querySelector('[data-tour="results-package-picker"]') !== null;
+  return createTourManager({
+    storage: clerkOnboardingStorage,
+    pages: {
+      "results-package": () =>
+        projectTab() === "results_package" &&
+        projectState.thisUserPermissions.can_view_data &&
+        !isEditingView(),
+    },
+    // The attached card and its contents arrive from a fetch, not from
+    // projectState, so re-evaluate when a repoint lands.
+    watch: [() => projectState.attachedRunId],
+    tours: [
+      {
+        page: "results-package",
+        tour: buildResultsPackageIntroTour(),
+      },
+      {
+        page: "results-package",
+        when: () => canAttach() && !projectState.isLocked && pickerOnScreen(),
+        tour: buildResultsPackageSwitchTour(),
       },
     ],
   });

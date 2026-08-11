@@ -363,7 +363,7 @@ export function buildReportsOpenReportTour(): TourDefinition {
   };
 }
 
-// ---------------------------------------------------------------- Modules
+// ------------------------------------------------------------- Deck editor
 
 export function buildDeckEditorIntroTour(): TourDefinition {
   return {
@@ -1226,7 +1226,106 @@ export function buildVizCreateTour(): TourDefinition {
   };
 }
 
-// ------------------------------------------------------------------ Data tab
+// ---------------------------------------------------- Results package tab
+
+export function buildResultsPackageIntroTour(): TourDefinition {
+  return {
+    id: "results-package-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("results-package-header"),
+        title: t3({
+          en: "Results package",
+          fr: "Paquet de résultats",
+          pt: "Pacote de resultados",
+        }),
+        body: t3({
+          en: "Every number in this project — every visualization, report and slide deck — is read from one results package. It is generated once for the whole instance, then attached to the projects that should use it.",
+          fr: "Chaque chiffre de ce projet — chaque visualisation, rapport et présentation — provient d'un seul paquet de résultats. Il est généré une fois pour toute l'instance, puis rattaché aux projets qui doivent l'utiliser.",
+          pt: "Todos os números deste projeto — cada visualização, relatório e apresentação — vêm de um único pacote de resultados. É gerado uma vez para toda a instância e depois anexado aos projetos que o devem usar.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "attached",
+        target: tourTarget("results-package-attached"),
+        title: t3({
+          en: "The package in use",
+          fr: "Le paquet utilisé",
+          pt: "O pacote em utilização",
+        }),
+        body: t3({
+          en: 'This is the package this project serves from, marked "In use". The line beneath it says when it was generated and by whom — useful when you need to know how current your figures are.',
+          fr: "Voici le paquet dont ce projet se sert, marqué « En cours d'utilisation ». La ligne en dessous indique quand il a été généré et par qui — utile pour savoir à quel point vos chiffres sont récents.",
+          pt: "Este é o pacote de que este projeto se serve, marcado «Em utilização». A linha por baixo indica quando foi gerado e por quem — útil para saber se os seus números estão atualizados.",
+        }),
+        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "contents",
+        target: tourTarget("results-package-contents"),
+        title: t3({
+          en: "What's inside",
+          fr: "Ce qu'il contient",
+          pt: "O que contém",
+        }),
+        body: t3({
+          en: "The modules that ran to build this package, and how many metrics they produced. Where you have permission, Script, Logs and Files open what a module ran, what it printed, and what it wrote.",
+          fr: "Les modules exécutés pour construire ce paquet et le nombre de métriques produites. Selon vos permissions, Script, Journaux et Fichiers ouvrent ce qu'un module a exécuté, ce qu'il a affiché et ce qu'il a écrit.",
+          pt: "Os módulos executados para construir este pacote e quantas métricas produziram. Conforme as suas permissões, Script, Registos e Ficheiros abrem o que um módulo executou, o que imprimiu e o que escreveu.",
+        }),
+        placement: "top",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildResultsPackageSwitchTour(): TourDefinition {
+  return {
+    id: "results-package-switch",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "picker",
+        target: tourTarget("results-package-picker"),
+        title: t3({
+          en: "Switching package",
+          fr: "Changer de paquet",
+          pt: "Mudar de pacote",
+        }),
+        body: t3({
+          en: "The other packages on this instance that this project could use instead. Switching changes the data behind everything in the project at once, so it is not a per-figure choice.",
+          fr: "Les autres paquets de cette instance que ce projet pourrait utiliser à la place. Changer modifie d'un coup les données derrière tout le projet : ce n'est pas un choix figure par figure.",
+          pt: "Os outros pacotes desta instância que este projeto poderia usar. Mudar altera de uma só vez os dados por trás de tudo no projeto: não é uma escolha figura a figura.",
+        }),
+        placement: "top",
+      },
+      {
+        id: "compatibility",
+        target: tourTarget("results-package-picker"),
+        title: t3({
+          en: "Check before you switch",
+          fr: "Vérifiez avant de changer",
+          pt: "Verifique antes de mudar",
+        }),
+        body: t3({
+          en: '"Use this package" does not switch straight away — it first shows you what would stop resolving under the new package, so you can back out before anything changes.',
+          fr: "« Utiliser ce paquet » ne change rien immédiatement : vous voyez d'abord ce qui cesserait de se résoudre avec le nouveau paquet, et vous pouvez renoncer avant toute modification.",
+          pt: "«Usar este pacote» não muda de imediato: mostra primeiro o que deixaria de se resolver com o novo pacote, para poder desistir antes de qualquer alteração.",
+        }),
+        placement: "top",
+      },
+    ],
+  };
+}
+
+// ----------------------------------------------------------- Settings tab
 
 export function buildSettingsIntroTour(): TourDefinition {
   return {
@@ -2078,6 +2177,94 @@ export function buildInstanceDataTour(): TourDefinition {
           pt: "Configure credenciais DHIS2 para obter estabelecimentos e dados HMIS diretamente do seu sistema nacional em vez de carregar CSV.",
         }),
         placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+    ],
+  };
+}
+
+export function buildInstanceResultsPackagesTour(): TourDefinition {
+  return {
+    id: "instance-results-packages-intro",
+    labels: tourLabels(),
+    steps: [
+      {
+        id: "intro",
+        target: tourTarget("instance-results-packages-header"),
+        title: t3({
+          en: "Results packages",
+          fr: "Paquets de résultats",
+          pt: "Pacotes de resultados",
+        }),
+        body: t3({
+          en: "Running the modules is an instance-level act, not a project one: you generate a package once here from the data and modules you choose, then attach it to the projects that should use it.",
+          fr: "Exécuter les modules relève de l'instance, pas d'un projet : vous générez ici un paquet une seule fois à partir des données et des modules choisis, puis vous le rattachez aux projets qui doivent l'utiliser.",
+          pt: "Executar os módulos é um ato da instância, não de um projeto: gera aqui um pacote uma única vez a partir dos dados e módulos que escolher e depois anexa-o aos projetos que o devem usar.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "generate",
+        target: tourTarget("instance-results-packages-generate"),
+        title: t3({
+          en: "Generating a package",
+          fr: "Générer un paquet",
+          pt: "Gerar um pacote",
+        }),
+        body: t3({
+          en: "This opens the wizard that configures a generation: which data, which modules, and which projects receive the result. Your configuration is kept, so you can leave it and resume where you stopped.",
+          fr: "Ceci ouvre l'assistant de configuration d'une génération : quelles données, quels modules et quels projets reçoivent le résultat. Votre configuration est conservée : vous pouvez la quitter et la reprendre où vous en étiez.",
+          pt: "Isto abre o assistente que configura uma geração: que dados, que módulos e que projetos recebem o resultado. A sua configuração é guardada, pelo que pode sair e retomar onde parou.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "defaults",
+        target: tourTarget("instance-results-packages-defaults"),
+        title: t3({
+          en: "Module defaults",
+          fr: "Paramètres par défaut des modules",
+          pt: "Predefinições dos módulos",
+        }),
+        body: t3({
+          en: "The settings each module starts from whenever you generate. Set them once here rather than re-entering the same values in the wizard every time.",
+          fr: "Les paramètres dont chaque module part à chaque génération. Réglez-les une fois ici plutôt que de ressaisir les mêmes valeurs dans l'assistant à chaque fois.",
+          pt: "As definições de que cada módulo parte sempre que gera. Defina-as uma vez aqui em vez de repetir os mesmos valores no assistente de cada vez.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "card",
+        target: tourTarget("instance-results-packages-card"),
+        title: t3({
+          en: "The package catalogue",
+          fr: "Le catalogue des paquets",
+          pt: "O catálogo de pacotes",
+        }),
+        body: t3({
+          en: "Every package this instance holds, with its status, when it was generated, and how much disk it occupies. A package that is still generating shows its modules progressing live.",
+          fr: "Tous les paquets de cette instance, avec leur état, leur date de génération et l'espace disque occupé. Un paquet en cours de génération affiche la progression de ses modules en direct.",
+          pt: "Todos os pacotes desta instância, com o seu estado, quando foram gerados e quanto disco ocupam. Um pacote ainda em geração mostra os seus módulos a progredir em direto.",
+        }),
+        placement: "top",
+        waitForTargetTimeoutMs: 2000,
+        onTargetTimeout: "skip",
+      },
+      {
+        id: "usage",
+        target: tourTarget("instance-results-packages-usage"),
+        title: t3({
+          en: "Which projects use it",
+          fr: "Quels projets l'utilisent",
+          pt: "Que projetos o usam",
+        }),
+        body: t3({
+          en: "A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",
+          fr: "Un paquet utilisé ne peut pas être supprimé, et le bouton l'indique au lieu de disparaître. La suppression est un seul acte — entrée du catalogue, fichiers et résultats en cache — et elle est irréversible.",
+          pt: "Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
+        }),
+        placement: "top",
         waitForTargetTimeoutMs: 2000,
         onTargetTimeout: "skip",
       },

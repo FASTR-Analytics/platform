@@ -146,13 +146,15 @@ export function ProjectResultsPackage() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar
-            heading={t3({
-              en: "Results package",
-              fr: "Paquet de résultats",
-              pt: "Pacote de resultados",
-            })}
-          />
+          <div class="h-full w-full" data-tour="results-package-header">
+            <HeadingBar
+              heading={t3({
+                en: "Results package",
+                fr: "Paquet de résultats",
+                pt: "Pacote de resultados",
+              })}
+            />
+          </div>
         }
       >
         <div class="ui-pad ui-spy">
@@ -184,7 +186,7 @@ export function ProjectResultsPackage() {
           </StateHolderWrapper>
 
           <Show when={canAttach()}>
-            <div class="ui-spy-sm">
+            <div class="ui-spy-sm" data-tour="results-package-picker">
               <div class="font-700">
                 {t3({
                   en: "Other results packages",
@@ -273,7 +275,10 @@ function AttachedPackageCard(p: {
     );
 
   return (
-    <div class="ui-pad ui-spy-sm border-primary rounded border">
+    <div
+      class="ui-pad ui-spy-sm border-primary rounded border"
+      data-tour="results-package-attached"
+    >
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
         <div class="bg-primary text-primary-content rounded px-2 py-0.5 text-xs">
@@ -288,13 +293,18 @@ function AttachedPackageCard(p: {
 
       <ResultsPackageProvenanceLine run={p.run} showDiskSize={false} />
 
-      <ResultsPackageContents
-        run={p.run}
-        liveProgress={p.liveProgress}
-        latestRLine={(moduleId) => p.rLogs[moduleId]}
-        internals={internals()}
-        openEditor={p.openEditor}
-      />
+      {/* Wrapped at the call site, not inside the shared component: the
+          instance catalogue mounts the same contents and needs its own
+          anchor. */}
+      <div data-tour="results-package-contents">
+        <ResultsPackageContents
+          run={p.run}
+          liveProgress={p.liveProgress}
+          latestRLine={(moduleId) => p.rLogs[moduleId]}
+          internals={internals()}
+          openEditor={p.openEditor}
+        />
+      </div>
     </div>
   );
 }

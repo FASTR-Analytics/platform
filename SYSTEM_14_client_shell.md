@@ -37,7 +37,7 @@ for the instance tabs, to the instance shell's tab signal via
 `setupInstanceTours`). The
 same directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` +
 `catalogue.ts`, opened from the project topbar), which replays or re-arms any
-tour: the project shell passes its seven per-area managers to the modal as
+tour: the project shell passes its six per-area managers to the modal as
 props (so they share its lifecycle) and each action is routed to its owning
 manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
 document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
@@ -51,7 +51,7 @@ fetches every accessible project's detail, offers Play only for tours some
 project qualifies for (first qualifying project wins; slide-type presence is
 verified by searching the slide documents), and hands the chosen tour to the
 project shell via the `pendingTourReplay` signal, consumed after hydration;
-its extra "Instance" category plays the five instance-tab tours in place via
+its extra "Instance" category plays the seven instance-tab tours in place via
 the instance manager. Both modals share the sidebar shell in
 `tour_catalogue_layout.tsx`. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs

@@ -46,6 +46,7 @@ import {
   setupDashboardTours,
   setupDeckTours,
   setupReportTours,
+  setupResultsPackageTours,
   setupSettingsTours,
   setupVisualizationTours,
 } from "~/onboarding";
@@ -90,6 +91,7 @@ function ProjectInner() {
     setupReportTours(),
     setupVisualizationTours(),
     setupDashboardTours(),
+    setupResultsPackageTours(),
     setupSettingsTours(),
   ];
 
@@ -261,7 +263,10 @@ function ProjectInner() {
                           }),
                           icon: "document",
                           onClick: () =>
-                            window.open("https://fastr-analytics.org", "_blank"),
+                            window.open(
+                              "https://fastr-analytics.org",
+                              "_blank",
+                            ),
                         },
                       ] satisfies MenuItem[]
                     }

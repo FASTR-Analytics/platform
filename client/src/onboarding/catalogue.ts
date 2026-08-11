@@ -8,9 +8,7 @@ import type {
   SlideType,
 } from "lib";
 import { projectState } from "~/state/project/t1_store";
-import {
-  instanceState,
-} from "~/state/instance/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   hideUnreadyVisualizations,
   setPendingEditorOpen,
@@ -49,6 +47,7 @@ export type TourCatalogueEntry = {
     | "reports"
     | "visualizations"
     | "dashboards"
+    | "results_package"
     | "settings";
   label: string;
   description: string;
@@ -200,6 +199,12 @@ const reasonGlobalAdminOnly = () =>
     fr: "Seuls les administrateurs globaux peuvent gérer les données",
     pt: "Apenas os administradores globais podem gerir os dados",
   });
+const reasonNeedAttachPermission = () =>
+  t3({
+    en: "You need permission to configure visualizations to switch package",
+    fr: "Vous avez besoin de la permission de configurer les visualisations pour changer de paquet",
+    pt: "Precisa de permissão para configurar visualizações para mudar de pacote",
+  });
 const reasonSettingsPermission = () =>
   t3({
     en: "Only users who can configure settings can view this page",
@@ -226,6 +231,7 @@ const goToDecks = () => updateProjectView({ tab: "decks" });
 const goToReports = () => updateProjectView({ tab: "reports" });
 const goToVisualizations = () => updateProjectView({ tab: "visualizations" });
 const goToDashboards = () => updateProjectView({ tab: "dashboards" });
+const goToResultsPackage = () => updateProjectView({ tab: "results_package" });
 const goToSettings = () => updateProjectView({ tab: "settings" });
 
 export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
@@ -377,6 +383,23 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
       }),
       available: () =>
         admin() || perms().can_view_data || perms().can_configure_data,
+      unavailableReason: reasonNoPageAccess,
+    },
+    {
+      id: "instance-results-packages-intro",
+      tab: "results_packages",
+      label: t3({
+        en: "Results packages overview",
+        fr: "Aperçu des paquets de résultats",
+        pt: "Visão geral dos pacotes de resultados",
+      }),
+      description: t3({
+        en: "Generating a package for the instance, and the catalogue of the ones it holds.",
+        fr: "Générer un paquet pour l'instance et le catalogue de ceux qu'elle détient.",
+        pt: "Gerar um pacote para a instância e o catálogo dos que ela detém.",
+      }),
+      // Mirrors the instance shell's own gate for this tab.
+      available: () => admin() || perms().can_configure_data,
       unavailableReason: reasonNoPageAccess,
     },
     {
@@ -1053,6 +1076,53 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDashboard()
             : reasonNeedDashboardItem(),
       navigate: openFirstDashboard,
+    },
+    // ── Results package ──────────────────────────────────────────────────
+    {
+      id: "results-package-intro",
+      area: "results_package",
+      label: t3({
+        en: "Results package",
+        fr: "Paquet de résultats",
+        pt: "Pacote de resultados",
+      }),
+      description: t3({
+        en: "Where this project's numbers come from, and what is inside the package.",
+        fr: "D'où viennent les chiffres de ce projet et ce que contient le paquet.",
+        pt: "De onde vêm os números deste projeto e o que contém o pacote.",
+      }),
+      available: (f) => perms(f).can_view_data,
+      unavailableReason: reasonNoPageAccess,
+      navigate: goToResultsPackage,
+    },
+    {
+      id: "results-package-switch",
+      area: "results_package",
+      label: t3({
+        en: "Switch results package",
+        fr: "Changer de paquet de résultats",
+        pt: "Mudar de pacote de resultados",
+      }),
+      description: t3({
+        en: "Repointing the project at another package, and the compatibility check first.",
+        fr: "Rattacher le projet à un autre paquet, et la vérification de compatibilité préalable.",
+        pt: "Apontar o projeto para outro pacote, e a verificação de compatibilidade prévia.",
+      }),
+      available: (f) =>
+        perms(f).can_view_data &&
+        (instanceState.currentUserIsGlobalAdmin ||
+          perms(f).can_configure_visualizations) &&
+        !f.isLocked,
+      unavailableReason: (f) =>
+        !perms(f).can_view_data
+          ? reasonNoPageAccess()
+          : !(
+                instanceState.currentUserIsGlobalAdmin ||
+                perms(f).can_configure_visualizations
+              )
+            ? reasonNeedAttachPermission()
+            : reasonLocked(),
+      navigate: goToResultsPackage,
     },
     // ── Settings ─────────────────────────────────────────────────────────
     {
