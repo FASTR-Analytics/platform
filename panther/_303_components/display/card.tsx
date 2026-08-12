@@ -69,8 +69,12 @@ export function Card(p: CardProps) {
   const interactive = () => !!p.onClick || p.href !== undefined;
   const washPinned = () => !!p.selected && p.onSelectToggle === undefined;
 
+  // overflow-clip is enforced: flush content must not paint over the rounded
+  // corners. Safe for every kit flyout — popovers/menus are top-layer
+  // (Popover API) and tooltips are fixed, so ancestor clipping never cuts
+  // them.
   const rootClass = (extra: string) =>
-    ["rounded border", extra, p.class].filter(Boolean).join(" ");
+    ["overflow-clip rounded border", extra, p.class].filter(Boolean).join(" ");
 
   const rootClassList = () => ({
     "border-primary bg-primary-subtle": washPinned(),

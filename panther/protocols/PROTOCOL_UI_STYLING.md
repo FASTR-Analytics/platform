@@ -235,6 +235,7 @@ its whole density from one `@theme` block.
 | Error border                                 | `border-danger`                                                                                                          |
 | Callout or badge                             | `bg-{intent}-subtle` + `text-{intent}-subtle-content`                                                                    |
 | Selected card / option / nav item            | accent select: pinned `bg-primary-subtle` + `border-primary` (+ `font-700` on labels/rows, never on a content container) |
+| Multi-select card grid                       | marking select: `Card selected + onSelectToggle` — `border-primary` + circle, no wash                                    |
 | Selected row in a dense list                 | fill select: `bg-base-200`                                                                                               |
 | Any interactive opaque surface               | `ui-hoverable-{token}`                                                                                                   |
 | Clickable card (whole card is the target)    | `Card onClick` — `cursor-pointer` + `hover:border-primary` at the frame                                                  |
