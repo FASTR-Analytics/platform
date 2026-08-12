@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Dropdown menus now support searching by typing to filter options
+[TBD] [user] [changed] - Multi-select dropdowns now support searching to find items faster
+[TBD] [user] [changed] - Indicator labels in selection lists are no longer truncated
+[TBD] [admin] [changed] - Dropdown selectors now support searching by typing
+[TBD] [admin] [changed] - Multi-select filters now support searching by typing
+[TBD] [admin] [changed] - Indicator labels in selectors are no longer truncated
 [1.66.7] [user] [changed] - Dark mode now offers a "System" option that follows your OS setting
 [1.66.7] [user] [changed] - Dark mode toggle replaced with System / Light / Dark chooser in profile settings
 [1.66.7] [user] [fixed] - Fixed incorrect values in visualizations using calculated expressions with disaggregation
