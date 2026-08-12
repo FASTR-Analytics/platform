@@ -460,9 +460,18 @@ export function VisualizationEditorInner(p: InnerProps) {
     const scope = pointerScope();
     if (!aw || !scope) return out;
     const presencePeers = otherPeers();
+    const selfEmail = (aw.getLocalState()?.user as { email?: string } | undefined)
+      ?.email;
+    // One avatar per PERSON per tab, keyed on the awareness identity: a user
+    // with two tabs on this visualization holds two awareness states, and their
+    // own tabs must not show up as peers at all (same rule as the live-cursor
+    // overlay and otherPeers()).
+    const seen = new Set<string>();
     for (const [clientID, state] of aw.getStates()) {
       if (clientID === aw.clientID) continue;
-      const user = state.user as { name?: string; color?: string } | undefined;
+      const user = state.user as
+        | { name?: string; color?: string; email?: string }
+        | undefined;
       const vizTab = state.vizTab as
         | { scope: string; tab: "data" | "style" | "text" }
         | null
@@ -470,14 +479,18 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (!user?.name || !user.color || !vizTab || vizTab.scope !== scope) {
         continue;
       }
-      // Enrich with the presence entry's avatar image when we can match one
-      // (awareness carries only name/color); falls back to initials.
-      const match = presencePeers.find(
-        (pe) => pe.name === user.name && pe.color === user.color,
+      if (selfEmail !== undefined && user.email === selfEmail) continue;
+      const personKey = `${vizTab.tab}::${user.email ?? user.name}`;
+      if (seen.has(personKey)) continue;
+      seen.add(personKey);
+      // Enrich with the presence entry's avatar image (awareness carries no
+      // avatar URL); falls back to initials.
+      const match = presencePeers.find((pe) =>
+        user.email ? pe.email === user.email : pe.name === user.name
       );
       out[vizTab.tab].push({
         connectionId: String(clientID),
-        email: match?.email ?? "",
+        email: user.email ?? match?.email ?? "",
         name: user.name,
         color: user.color,
         avatarUrl: match?.avatarUrl,

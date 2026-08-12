@@ -213,8 +213,15 @@ avatar URL is self-reported).
   so a client clears them by omission; `avatarUrl` is the exception — sticky
   once provided. Every change broadcasts the full peer list to the project
   (`broadcastPresence(projectId)`).
-- Client: a Solid store mirrors `presence_state`; `otherPeers()` filters out
-  self by connectionId. Consumers: deck thumbnails, deck header + per-slide
+- Client: a Solid store mirrors `presence_state`. Presence is keyed per
+  CONNECTION, but every consumer asks about PEOPLE, so `otherPeers()` collapses
+  it: this user's own connections drop out entirely (their second tab is not a
+  collaborator — otherwise you see your own name in the avatar stack and the AI
+  busy-guard refuses to edit a slide because "you" have it open), and each
+  remaining person yields ONE entry — the connection that is `isEditing`, else
+  one that isn't `idle`, else the lowest connectionId so every viewer agrees.
+  Anything reading `collabState.peers` directly is asking about connections and
+  must say why. Consumers: deck thumbnails, deck header + per-slide
   cards via
   [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
   report + viz cards (same avatar stack filtered on `reportId`/`poId`), the

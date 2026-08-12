@@ -356,6 +356,7 @@ export function createPointerBroadcast(opts: {
   let trailingTimer: ReturnType<typeof setTimeout> | undefined;
   let lastSendTime = 0;
   let lastSentJson: string | undefined;
+  let lastSentAw: Awareness | undefined;
   // Lifetime click counter — rides on every pointer state (see the type) so a
   // trailing move re-send after a click carries the same value and dedupes.
   let clickCount = 0;
@@ -369,11 +370,17 @@ export function createPointerBroadcast(opts: {
       return;
     }
     const json = JSON.stringify(value);
-    if (json === lastSentJson) {
+    // The dedupe is per AWARENESS INSTANCE: `awareness` is reactive and can be
+    // swapped under a mounted broadcaster (a session torn down and reopened, a
+    // figure editor rebinding to its host). A fresh instance carries no pointer
+    // field, so a value-only dedupe would suppress the re-announce and leave a
+    // stationary user invisible to peers until they happened to move.
+    if (aw === lastSentAw && json === lastSentJson) {
       return;
     }
     // Safe after awareness destroy: getLocalState() is null → no-op field set.
     aw.setLocalStateField("pointer", value);
+    lastSentAw = aw;
     lastSentJson = json;
     lastSendTime = performance.now();
   }

@@ -39,7 +39,8 @@ import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 // visualization) with reconnect catch-up. Mirrors the SSE manager
 // (t1_sse.tsx): a single module-level connection, exponential-backoff
 // reconnect that never gives up, and a reactive store consumers read from.
-// The `peers` list includes self; UI filters by `connectionId`.
+// The `peers` list is per CONNECTION and includes self; UI reads it through
+// otherPeers(), which collapses it to one entry per person.
 
 type CollabState = {
   connectionId: string | null;
@@ -54,10 +55,46 @@ const [collabStore, setCollabStore] = createStore<CollabState>({
 /** Reactive presence state for the current project (includes self). */
 export const collabState = collabStore;
 
-/** Peers other than this client, for rendering. */
+/** Which connection speaks for a person holding several (two tabs, or a
+ *  reconnect overlapping the old socket's teardown): the one actually applying
+ *  edits, else one that isn't idle, else the lowest connectionId so every
+ *  viewer picks the same one. */
+function presenceRank(p: PresenceEntry): number {
+  return (p.isEditing ? 2 : 0) + (p.idle ? 0 : 1);
+}
+
+/** Other PEOPLE in this project — one entry each, never one per connection.
+ *
+ *  Presence is connection-keyed, but every consumer (avatars, viewer chips,
+ *  "who has this open" borders, the AI busy-slide guard) is asking about
+ *  people: a user with a second tab must not appear twice, and their own tabs
+ *  must not appear at all — otherwise you see your own name as a collaborator
+ *  and the AI refuses to edit a slide because "you" have it open. Matches the
+ *  join/leave toasts, which have always keyed on email, and the live-cursor
+ *  overlay, which collapses the same way. */
 export function otherPeers(): PresenceEntry[] {
-  const self = collabStore.connectionId;
-  return collabStore.peers.filter((p) => p.connectionId !== self);
+  const self = collabStore.peers.find(
+    (p) => p.connectionId === collabStore.connectionId,
+  );
+  const byPerson = new Map<string, PresenceEntry>();
+  for (const p of collabStore.peers) {
+    if (p.connectionId === collabStore.connectionId) {
+      continue;
+    }
+    if (self && p.email === self.email) {
+      continue;
+    }
+    const held = byPerson.get(p.email);
+    if (
+      !held ||
+      presenceRank(p) > presenceRank(held) ||
+      (presenceRank(p) === presenceRank(held) &&
+        p.connectionId < held.connectionId)
+    ) {
+      byPerson.set(p.email, p);
+    }
+  }
+  return [...byPerson.values()];
 }
 
 /** Connection ids the server currently lists for this project (empty before
