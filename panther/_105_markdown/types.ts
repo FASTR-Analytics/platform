@@ -73,7 +73,14 @@ export type MarkdownInline =
   | { type: "bold"; text: string }
   | { type: "italic"; text: string }
   | { type: "bold-italic"; text: string }
-  | { type: "link"; text: string; url: string }
+  // A link's own emphasis, from formatting INSIDE the link text
+  // (`[**bold**](url)`). Absent when the segment carries no emphasis.
+  | {
+    type: "link";
+    text: string;
+    url: string;
+    style?: "bold" | "italic" | "bold-italic";
+  }
   | { type: "break" }
   | { type: "code-inline"; text: string }
   | { type: "math-inline"; latex: string };

@@ -21,6 +21,7 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   toPct0,
+  typed,
   type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
   type VizGraphNodeInfoFunc,
@@ -48,10 +49,6 @@ import {
 } from "./style_func_types.ts";
 import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
-
-function typed<T>(value: T): T {
-  return value;
-}
 
 // Shared default for every figure's labelCollision block (map, pie). The
 // blocks stay per-figure (collision policy is figure-wide structural style),

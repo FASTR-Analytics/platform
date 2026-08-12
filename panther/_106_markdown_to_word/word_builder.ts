@@ -655,7 +655,10 @@ function buildInlineContent(
                 text: item.text,
                 color: linkColor,
                 underline: {},
-                italics: baseStyle?.italics,
+                bold: item.style === "bold" || item.style === "bold-italic",
+                italics: item.style === "italic" ||
+                  item.style === "bold-italic" ||
+                  baseStyle?.italics,
               }),
             ],
             link: item.url,

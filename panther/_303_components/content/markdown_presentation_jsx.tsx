@@ -365,7 +365,32 @@ function InlineContentRenderer(p: InlineContentRendererProps) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {(item as MarkdownInline & { type: "link" }).text}
+              <Switch
+                fallback={(item as MarkdownInline & { type: "link" }).text}
+              >
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "bold"}
+                >
+                  <strong>
+                    {(item as MarkdownInline & { type: "link" }).text}
+                  </strong>
+                </Match>
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "italic"}
+                >
+                  <em>{(item as MarkdownInline & { type: "link" }).text}</em>
+                </Match>
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "bold-italic"}
+                >
+                  <strong>
+                    <em>{(item as MarkdownInline & { type: "link" }).text}</em>
+                  </strong>
+                </Match>
+              </Switch>
             </a>
           </Match>
           <Match when={item.type === "break"}>

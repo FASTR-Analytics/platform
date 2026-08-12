@@ -554,7 +554,7 @@ function inlinesToFormattedText(
       case "link":
         runs.push({
           text: inline.text,
-          style: "normal",
+          style: inline.style ?? "normal",
           link: { url: inline.url },
         });
         break;

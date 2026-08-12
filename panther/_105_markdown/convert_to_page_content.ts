@@ -230,8 +230,16 @@ function inlineContentToString(content: MarkdownInline[]): string {
         return `*${c.text}*`;
       case "bold-italic":
         return `***${c.text}***`;
-      case "link":
-        return `[${c.text}](${c.url})`;
+      case "link": {
+        const marker = c.style === "bold-italic"
+          ? "***"
+          : c.style === "bold"
+          ? "**"
+          : c.style === "italic"
+          ? "*"
+          : "";
+        return `[${marker}${c.text}${marker}](${c.url})`;
+      }
       case "code-inline":
         return `\`${c.text}\``;
       case "math-inline":

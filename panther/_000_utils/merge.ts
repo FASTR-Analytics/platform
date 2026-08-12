@@ -3,6 +3,17 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+// The default level of a style cascade is authored as a plain literal and its
+// type is derived from it (`type DefaultXStyle = typeof _DS`), so each value
+// has to be widened from its literal type to the union the option actually
+// accepts — otherwise `m(custom, global, default)` infers the narrow literal
+// and rejects every other member of the union. Widen with this, not with
+// `as T`: an assertion merely silences the checker (and will happily accept a
+// wrong-but-overlapping value), while this checks that the value really is a T.
+export function typed<T>(value: T): T {
+  return value;
+}
+
 export function m<T>(cs: T | undefined, gs: T | undefined, ds: T): T {
   return cs ?? gs ?? ds;
 }

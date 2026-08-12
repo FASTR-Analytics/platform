@@ -36,7 +36,7 @@ export function Badge(p: BadgeProps) {
 
   return (
     <span
-      class={`${skin()} inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs`}
+      class={`${skin()} font-400 inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs`}
     >
       {p.children}
     </span>
