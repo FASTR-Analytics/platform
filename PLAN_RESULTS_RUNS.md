@@ -7,8 +7,9 @@ RED-adjudicated by ruling (its single diff was the GROUP BY/PAE collision,
 since FIXED in 1.66.7 — no production re-rig for it, the dev query rig is
 the verification instrument). Step 1 is COMPLETE (2026-08-12): 1.66.7 is
 deployed and swept across all 28 non-Nigeria instances, and tim-branch is
-fast-forwarded to main. The live remainder: Nigeria, then the close-out
-sequence.
+fast-forwarded to main. **1.66.8 was then deployed on main the same day** and
+is the new frozen Nigeria image; its fleet sweep is the one open action in
+Step 1. The live remainder: that sweep, Nigeria, then the close-out sequence.
 
 **The model in four lines.** Module results do not live in per-project
 Postgres. Each generation act produces an immutable run directory (a "results
@@ -26,7 +27,7 @@ semantics = [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md); the
 rig outcome contract (`legacy_gap`, `broken_config`, `foreign_run`, typed
 refusal pairs) = the header of `validate_results_runs_parity.ts`.
 
-## Step 1 — 1.66.7 fleet-wide (now)
+## Step 1 — 1.66.8 fleet-wide (now)
 
 1. **DONE 2026-08-12** — `./deploy` → **1.66.7** on main (c744dea7; carries
    the GROUP BY/PAE collision fix + numeric filter path; typecheck +
@@ -37,9 +38,16 @@ refusal pairs) = the header of `validate_results_runs_parity.ts`.
 3. **DONE 2026-08-12** — tim-branch fast-forwarded to main
    (50232cd6 → c744dea7, 39 commits) and pushed. Development continues on
    tim-branch; main stays the deploy line (hotfixes → 1.66.8+; re-pin the
-   rollout scripts if that happens).
+   rollout scripts if that happens — this then happened, see 4).
+4. **DONE 2026-08-12** — `./deploy` → **1.66.8** on main (searchable
+   indicator/replicant pickers). Landed on main without any other tim-branch
+   work: a partial panther sync of `form_inputs` only (a full `./sync` would
+   have dragged in the math/katex removal), then the app commit cherry-picked
+   across. All three rollout scripts re-pinned to 1.66.8.
+   **STILL TO RUN: the 1.66.8 fleet sweep** — `./rollout_backfill <every
+   instance except nigeria>`, a pure update+health pass as in 2.
 
-**1.66.7 is the FROZEN Nigeria image.** All three rollout scripts are pinned
+**1.66.8 is the FROZEN Nigeria image.** All three rollout scripts are pinned
 to it. Nigeria gates on this proven code, not on tim-branch development.
 
 ## Step 2 — Nigeria (window opens ~late Aug 2026)
@@ -50,7 +58,7 @@ Everything long runs DETACHED on wb-server; no terminal needs to survive.
 
 1. `./rollout_nigeria start` — preflight (registry check; disk floor
    `MIN_FREE_GB=250` on volume03, ~551G free at last check), update to
-   1.66.7, health poll, then a detached backfill of all 17 projects
+   1.66.8, health poll, then a detached backfill of all 17 projects
    (per-project isolation; failures recorded, driver continues; re-running
    `start` retries only projects still missing a package). Expect hours of
    IO; the container patch era is over — the quote/escape CSV fix is in the
