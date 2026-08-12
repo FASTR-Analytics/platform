@@ -6,7 +6,7 @@ backfilled, and rig-adjudicated: 27 PARITY GREEN on the final rig; ethiopia
 RED-adjudicated by ruling (its single diff was the GROUP BY/PAE collision,
 since FIXED in 1.66.7 — no production re-rig for it, the dev query rig is
 the verification instrument). This file is everything needed to finish the
-upgrade: deploy 1.66.7 fleet-wide, do Nigeria, then the close-out sequence.
+upgrade: deploy 1.66.8 fleet-wide, do Nigeria, then the close-out sequence.
 
 **The model in four lines.** Module results do not live in per-project
 Postgres. Each generation act produces an immutable run directory (a "results
@@ -24,21 +24,21 @@ semantics = [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md); the
 rig outcome contract (`legacy_gap`, `broken_config`, `foreign_run`, typed
 refusal pairs) = the header of `validate_results_runs_parity.ts`.
 
-## Step 1 — 1.66.7 fleet-wide (now)
+## Step 1 — 1.66.8 fleet-wide (now)
 
-1. `./deploy` → patch → **1.66.7** (carries the GROUP BY/PAE collision fix +
-   numeric filter path; typecheck + `./validate_queries` verified green
-   2026-08-12 pre-deploy).
+1. `./deploy` → patch → **1.66.8** (carries the GROUP BY/PAE collision fix +
+   numeric filter path, and the searchable indicator/replicant pickers;
+   typecheck + `./validate_queries` verified green 2026-08-12 pre-deploy).
 2. `./rollout_backfill <every instance except nigeria>` — with all backfills
    done, this is a pure update+health sweep (backfill and rig steps
    self-skip). Safe in parallel terminals; never the same instance twice.
 3. `git checkout tim-branch && git merge --ff-only main && git push` —
    tim-branch's old tip is an ancestor of main, so this is a clean
    fast-forward. Development continues on tim-branch; main stays the
-   deploy line (hotfixes → 1.66.8+; re-pin the rollout scripts if that
+   deploy line (hotfixes → 1.66.9+; re-pin the rollout scripts if that
    happens).
 
-**1.66.7 is the FROZEN Nigeria image.** All three rollout scripts are pinned
+**1.66.8 is the FROZEN Nigeria image.** All three rollout scripts are pinned
 to it. Nigeria gates on this proven code, not on tim-branch development.
 
 ## Step 2 — Nigeria (window opens ~late Aug 2026)
@@ -49,7 +49,7 @@ Everything long runs DETACHED on wb-server; no terminal needs to survive.
 
 1. `./rollout_nigeria start` — preflight (registry check; disk floor
    `MIN_FREE_GB=250` on volume03, ~551G free at last check), update to
-   1.66.7, health poll, then a detached backfill of all 17 projects
+   1.66.8, health poll, then a detached backfill of all 17 projects
    (per-project isolation; failures recorded, driver continues; re-running
    `start` retries only projects still missing a package). Expect hours of
    IO; the container patch era is over — the quote/escape CSV fix is in the
