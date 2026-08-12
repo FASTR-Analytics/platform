@@ -541,7 +541,10 @@ report / page).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur); `user` =
-identity (rewritten wholesale on every presence_state); `pointer` = live mouse
+identity — name/color/colorLight plus the `email` and `connectionId` the
+one-cursor-per-person rule below is built on (re-stamped on every
+presence_state, skipped when unchanged so identical identities don't broadcast);
+`pointer` = live mouse
 cursor (`PointerAwarenessState` — Figma-style cursors, coordinates in
 surface-relative spaces, throttled ~20 msg/s; also carries an optional `click`
 counter — bumped per primary-button press and shipped immediately, bypassing
@@ -557,6 +560,24 @@ awareness (below). Cursor name tags fade after ~4 s of stillness (hover near a
 cursor to reveal its name), idle cursors disappear after 30 s, and a cursor
 leaving the surface vanishes for everyone; the report editor sets
 `hideWhileTyping` so typing hides your pointer until the mouse moves.
+
+**One cursor per person, enforced not assumed.** Awareness is keyed per
+CONNECTION and a user legitimately holds several (second tab, a reconnect
+overlapping the old socket's teardown, a dropped connection whose state has not
+yet aged out of the ~30 s sweep), so the overlay gates on the `user` identity
+three ways: states carrying MY OWN email never render (my other tabs are me,
+not a peer), states whose `connectionId` is absent from the current
+`presence_state` never render (`liveConnectionIds()` — the server deregisters a
+closed socket and rebroadcasts presence within a round trip, an order of
+magnitude faster than the awareness sweep; an ABSENT connectionId means
+"unknown", never "dead"), and survivors collapse to one sprite per email with
+the most recently MOVED connection winning (clientID breaks exact ties, so
+every viewer picks the same one). Click ripples ride the same gates. The sender
+side backs this up: `visibilitychange` to hidden, window `blur` (a tab stays
+"visible" while another window or monitor has focus — the side-by-side case)
+and `pointerleave` each clear the pointer outright, so an unfocused tab holds
+no cursor at all; focus/visible re-broadcasts the resting position without
+waiting for a mouse move.
 
 **Project-level awareness — page cursors.** The project tab pages have no doc
 room, so their live cursors ride a dedicated PROJECT-scoped Awareness: one

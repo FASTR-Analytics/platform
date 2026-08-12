@@ -60,6 +60,17 @@ export function otherPeers(): PresenceEntry[] {
   return collabStore.peers.filter((p) => p.connectionId !== self);
 }
 
+/** Connection ids the server currently lists for this project (empty before
+ *  presence arrives — treat that as "unknown", never as "nobody"). Reactive.
+ *  The cursor overlay uses it to drop awareness states whose connection is
+ *  already gone: the server deregisters a connection and rebroadcasts presence
+ *  the instant its socket closes, whereas the Yjs awareness liveness sweep
+ *  needs ~30 s — long enough for a closed tab to keep a ghost cursor on
+ *  everyone's screen. */
+export function liveConnectionIds(): ReadonlySet<string> {
+  return new Set(collabStore.peers.map((p) => p.connectionId));
+}
+
 // Reactive "is the collab socket open right now" — for UI (live/offline save
 // indicators). Session isLive() reads the raw socket for save decisions; this
 // signal exists because ws.readyState isn't reactive.
@@ -200,26 +211,58 @@ export type SlideSession = {
 };
 
 /** This client's server-stamped identity, from its own presence entry. */
-function selfIdentity(): { name: string; color: string } | null {
+function selfIdentity(): {
+  connectionId: string;
+  email: string;
+  name: string;
+  color: string;
+} | null {
   const self = collabStore.peers.find(
     (p) => p.connectionId === collabStore.connectionId,
   );
-  return self ? { name: self.name, color: self.color } : null;
+  return self
+    ? {
+      connectionId: self.connectionId,
+      email: self.email,
+      name: self.name,
+      color: self.color,
+    }
+    : null;
 }
 
 function applySessionUser(awareness: Awareness): void {
   const id = selfIdentity();
-  if (id) {
-    awareness.setLocalStateField("user", {
-      name: id.name,
-      color: id.color,
-      // Selection-highlight color: y-codemirror paints the peer's selected
-      // RANGE with this as the background, so it must be translucent — the
-      // opaque presence color would black out the selected text. "33" = ~20%
-      // alpha on the hex color, matching the library's own fallback.
-      colorLight: id.color + "33",
-    });
+  if (!id) {
+    return;
   }
+  const next = {
+    name: id.name,
+    color: id.color,
+    // Selection-highlight color: y-codemirror paints the peer's selected
+    // RANGE with this as the background, so it must be translucent — the
+    // opaque presence color would black out the selected text. "33" = ~20%
+    // alpha on the hex color, matching the library's own fallback.
+    colorLight: id.color + "33",
+    // WHO this awareness state belongs to, and WHICH connection carries it.
+    // Both are already project-wide public in `presence_state` (same audience
+    // as awareness), and the cursor overlay needs them to guarantee one cursor
+    // per PERSON: `email` collapses a user's other tabs (and hides their own
+    // from themselves), `connectionId` lets a viewer drop states left behind by
+    // connections the server has already dropped — presence knows within one
+    // round trip, the Yjs liveness sweep takes ~30 s.
+    email: id.email,
+    connectionId: id.connectionId,
+  };
+  // Presence broadcasts land often (every peer view change); re-stamping an
+  // identical identity would ship an awareness update to everyone each time.
+  const prev = awareness.getLocalState()?.user as typeof next | undefined;
+  if (
+    prev && prev.name === next.name && prev.color === next.color &&
+    prev.email === next.email && prev.connectionId === next.connectionId
+  ) {
+    return;
+  }
+  awareness.setLocalStateField("user", next);
 }
 
 // Set once the deploy-boundary guard has decided to reload (see
