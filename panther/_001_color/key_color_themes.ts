@@ -13,6 +13,7 @@ import type { KeyColors } from "./types.ts";
 
 export type KeyColorThemeName =
   | "panther-default"
+  | "panther-default-dark"
   | "dark-blue"
   | "uwa"
   | "neutral-light"
@@ -58,6 +59,31 @@ export const KEY_COLOR_THEMES: Record<KeyColorThemeName, KeyColorTheme> = {
       warningContent: "#ffffff",
       danger: "#f04d44",
       dangerContent: "#ffffff",
+    },
+  },
+  // The dark counterpart to panther-default: neutral-dark's bases and status
+  // intents, with the default teal lifted to keep >=4.5:1 contrast on the dark
+  // bases. Single TS source for the CSS light-dark() dark halves (parity test
+  // in tests/), the canvas default dark companion (key_colors.ts), and
+  // app-side JS shims.
+  "panther-default-dark": {
+    label: "Panther Default Dark",
+    category: "dark",
+    colors: {
+      base100: "#18181b",
+      base200: "#27272a",
+      base300: "#3f3f46",
+      baseContent: "#fafafa",
+      primary: "#14b8a6",
+      primaryContent: "#052e2b",
+      neutral: "#a1a1aa",
+      neutralContent: "#18181b",
+      success: "#4ade80",
+      successContent: "#052e16",
+      warning: "#facc15",
+      warningContent: "#422006",
+      danger: "#f87171",
+      dangerContent: "#450a0a",
     },
   },
   "dark-blue": {
@@ -295,6 +321,11 @@ export const RECOMMENDED_PALETTES: Record<
   { qualitative: PaletteName; sequential: PaletteName; diverging: PaletteName }
 > = {
   "panther-default": {
+    qualitative: "tableau10",
+    sequential: "bu-gn",
+    diverging: "rd-bu",
+  },
+  "panther-default-dark": {
     qualitative: "tableau10",
     sequential: "bu-gn",
     diverging: "rd-bu",

@@ -50,6 +50,16 @@ the full token catalog, and the theming mechanics, see
 16. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
     `--color-*` app-side.
 17. **Sentence case** — all UI text, always.
+18. **Dark mode is `data-scheme`, and opted-in apps override tokens as pairs** —
+    opt in by setting `data-scheme="system|light|dark"` on `<html>` (via
+    `setSchemePreference`). Once opted in, every color token the app overrides
+    must be a `light-dark()` pair in an un-layered `:root[data-scheme]` block
+    inside `@supports (color: light-dark(#fff, #000))`, after the kit import. A
+    single-value override means "same color in both schemes". `data-theme` stays
+    reserved for palette swaps — never use it for scheme.
+19. **Document surfaces wear `ui-scheme-light`** — slide canvases, page
+    previews, print/export HTML pin `color-scheme` with the utility, never
+    `bg-white`. Canvas twin: `<FigureHolder scheme="light">`.
 
 ## Do / Don't
 

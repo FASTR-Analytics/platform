@@ -24,7 +24,10 @@ export {
   generateKeyColorsFromPrimary,
   getColor,
   getColorAsRgb,
+  getDarkKeyColors,
   getKeyColorsFromPrimaryColor,
+  runWithDarkKeyColors,
+  runWithKeyColors,
   setKeyColors,
 } from "./key_colors.ts";
 export {

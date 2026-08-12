@@ -14,9 +14,11 @@ import {
 import {
   loadFontsWithTimeout,
   releaseCanvasGPUMemory,
+  runWithDarkKeyColors,
   trackCanvas,
   untrackCanvas,
 } from "../deps.ts";
+import { effectiveScheme } from "../scheme.ts";
 import type { FigureInputs, SizingMode } from "../deps.ts";
 import {
   CanvasRenderContext,
@@ -39,7 +41,17 @@ type Props = {
   // content still overflows.
   onCramped?: (cramped: boolean) => void;
   renderError?: (err: string) => JSX.Element;
+  // "follow" (default): app-surface holders resolve key colors dark when
+  // effectiveScheme() is dark. "light": document surfaces (slide canvases,
+  // page previews) always resolve light — the canvas twin of ui-scheme-light.
+  // Exports and stored snapshots never pass through this component, so they
+  // stay light regardless.
+  scheme?: "follow" | "light";
 };
+
+function runUnscoped<T>(fn: () => T): T {
+  return fn();
+}
 
 export function FigureHolder(p: Props) {
   let div!: HTMLDivElement;
@@ -111,17 +123,28 @@ export function FigureHolder(p: Props) {
 
       const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
 
+      // Key colors resolve during measure (primitive generation), so the
+      // scope must wrap every FigureRenderer entry — including the ideal-
+      // height measure. The whole path is synchronous; runWithDarkKeyColors
+      // resets on return.
+      const runScoped = (p.scheme ?? "follow") === "follow" &&
+          effectiveScheme() === "dark"
+        ? runWithDarkKeyColors
+        : runUnscoped;
+
       // Height: "ideal" measures the figure; "flex" fills the container; a number
       // is a fixed CSS-px height. frameH/backingH are derived from devicePxPerDu.
       let frameH: number;
       let backingH: number;
       if (p.height === "ideal") {
         ctx.setTransform(devicePxPerDu, 0, 0, devicePxPerDu, 0, 0);
-        frameH = FigureRenderer.getIdealHeight(
-          new CanvasRenderContext(ctx),
-          frameW,
-          p.figureInputs,
-        ).idealH;
+        frameH = runScoped(() =>
+          FigureRenderer.getIdealHeight(
+            new CanvasRenderContext(ctx),
+            frameW,
+            p.figureInputs,
+          ).idealH
+        );
         backingH = Math.round(frameH * devicePxPerDu);
       } else {
         const domH = p.height === "flex" ? parentDomH : p.height;
@@ -144,9 +167,11 @@ export function FigureHolder(p: Props) {
 
       const rc = new CanvasRenderContext(ctx);
       const rcd = new RectCoordsDims([0, 0, frameW, frameH]);
-      const measured = FigureRenderer.measure(rc, rcd, p.figureInputs);
-      p.onCramped?.(measured.cramped ?? false);
-      FigureRenderer.render(rc, measured);
+      runScoped(() => {
+        const measured = FigureRenderer.measure(rc, rcd, p.figureInputs);
+        p.onCramped?.(measured.cramped ?? false);
+        FigureRenderer.render(rc, measured);
+      });
     } catch (e) {
       console.error("FigureHolder render error:", e);
       const errorMessage = e instanceof Error ? e.message : String(e);
@@ -162,6 +187,7 @@ export function FigureHolder(p: Props) {
     const _height = p.height;
     const _sizing = p.sizing;
     const _resolution = p.resolution;
+    const _scheme = effectiveScheme();
     if (loaded && inputs) {
       const rect = div.getBoundingClientRect();
       scheduleRender(rect.width, rect.height);
