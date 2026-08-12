@@ -335,6 +335,62 @@ const EXPLICIT_CASES: Case[] = [
     expect: { err: "value prop" },
   },
   {
+    // The replicant round-trip on a NUMERIC dimension: replicating (or
+    // filtering) by denominator sends its own values back as a filter, which
+    // the text path would turn into UPPER(numeric) — a hard SQL error on both
+    // engines. Pins buildWhereClause's numeric branch.
+    name: "filter on a numeric dimension takes the numeric path, not UPPER()",
+    fixture: "hmis_scorecard",
+    fetchConfig: {
+      values: [
+        { prop: "numerator", func: "SUM" },
+        { prop: "denominator", func: "SUM" },
+      ],
+      groupBys: ["denominator"],
+      filters: [{ disOpt: "denominator", values: ["20"] }],
+      periodFilter: undefined,
+      postAggregationExpression: "value = numerator/denominator",
+    },
+    expect: {
+      status: "ok",
+      rows: [{ denominator: 20, value: 1 }],
+    },
+  },
+  {
+    // The UNSELECTED replicant sentinel can never match a numeric column;
+    // the numeric branch drops it and emits FALSE — the same zero-match
+    // outcome the text path gives it — rather than interpolating NaN.
+    name: "non-numeric filter value on a numeric dimension matches nothing",
+    fixture: "hmis_scorecard",
+    fetchConfig: {
+      values: [
+        { prop: "numerator", func: "SUM" },
+        { prop: "denominator", func: "SUM" },
+      ],
+      groupBys: ["denominator"],
+      filters: [{ disOpt: "denominator", values: ["UNSELECTED"] }],
+      periodFilter: undefined,
+      postAggregationExpression: "value = numerator/denominator",
+    },
+    expect: { status: "no_data_available" },
+  },
+  {
+    // Derived month is LPAD TEXT and not a physical column, so it is absent
+    // from textColumns — the numeric branch's PERIOD exclusion is what keeps
+    // it on the text path (`month IN (3)` breaks on text = integer).
+    name: "month filter stays on the text path despite being absent from textColumns",
+    fixture: "hmis_monthly",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["month"],
+      filters: [{ disOpt: "month", values: ["02"] }],
+    },
+    expect: {
+      status: "ok",
+      rows: [{ month: "02", value: 25 }],
+    },
+  },
+  {
     name: "roll-up AVG over facility-level rows → allowed",
     fixture: "hmis_ratio",
     fetchConfig: {

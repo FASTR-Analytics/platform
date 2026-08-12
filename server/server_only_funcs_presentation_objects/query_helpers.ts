@@ -10,6 +10,7 @@ import {
   isRollupDimension,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
+  PERIOD_DISAGGREGATION_OPTIONS,
   type RollupDimension,
   rollupSentinelForDimension,
   SAMPLE_N_PREFIX,
@@ -103,11 +104,38 @@ export function blankPredicate(columnRef: string): string {
 export function paeCollidingGroupBys(
   fetchConfig: GenericLongFormFetchConfig,
 ): ReadonlySet<string> {
-  if (fetchConfig.postAggregationExpression === undefined) {
+  if (parsePAE(fetchConfig.postAggregationExpression) === undefined) {
     return new Set();
   }
   const valueProps = new Set(fetchConfig.values.map((v) => v.prop));
   return new Set(fetchConfig.groupBys.filter((gb) => valueProps.has(gb)));
+}
+
+/**
+ * THE single activation predicate for every PAE-conditional behavior: the
+ * wrapper itself, the collision aliasing above, and the sample-n column mode.
+ * A defined-but-malformed PAE (no "=", empty chunk) must deactivate ALL of
+ * them together — a site keying on `!== undefined` alone would alias inner
+ * columns (or emit the PAE-mode n column) with no wrapper to re-project them,
+ * leaking `__dis_`/`__n_all` names to the client. Unreachable through
+ * validated routes (isSafePostAggregationExpression requires exactly one "="),
+ * but the sites must not depend on that.
+ */
+function parsePAE(
+  postAggregationExpression: string | undefined,
+): { value: string; expression: string } | undefined {
+  if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
+    return undefined;
+  }
+  const chunks = postAggregationExpression
+    .split("=")
+    .map((chunk) => chunk.trim());
+  const value = chunks.at(0);
+  const expression = chunks.at(-1);
+  if (!value || !expression) {
+    return undefined;
+  }
+  return { value, expression };
 }
 
 // Cannot clash with SAMPLE_N_PREFIX ("__n_") and never escapes the wrapper.
@@ -133,7 +161,7 @@ export function buildMainQuery(
     "main",
     sourceTable,
     queryContext,
-    fetchConfig.postAggregationExpression !== undefined,
+    parsePAE(fetchConfig.postAggregationExpression) !== undefined,
   );
 
   const identityValueProps = fetchConfig.values
@@ -183,7 +211,7 @@ export function buildRollupQuery(
     "rollup",
     sourceTable,
     queryContext,
-    fetchConfig.postAggregationExpression !== undefined,
+    parsePAE(fetchConfig.postAggregationExpression) !== undefined,
   );
 
   // The collapsed dimension becomes its sentinel constant in SELECT and drops
@@ -345,10 +373,11 @@ export function buildWhereClause(
 ): string[] {
   const whereStatements: string[] = [];
 
-  // Add filter conditions: case-insensitive for text, direct for integers.
-  // The set lives in lib (INTEGER_FILTER_COLUMNS) beside the boundary
-  // validators that guard its values; note `month` is NOT integer — the
-  // derived month column is zero-padded LPAD text ("03").
+  // Add filter conditions: case-insensitive for text, direct for integers
+  // and for numeric results columns. The integer set lives in lib
+  // (INTEGER_FILTER_COLUMNS) beside the boundary validators that guard its
+  // values; note `month` is NOT integer — the derived month column is
+  // zero-padded LPAD text ("03").
   for (const filter of fetchConfig.filters) {
     if (filter.values.length === 0) continue;
 
@@ -368,6 +397,28 @@ export function buildWhereClause(
       // Direct comparison for integer columns
       const values = filter.values.map((v) => Number(v)).join(", ");
       whereStatements.push(`${columnName} IN (${values})`);
+    } else if (
+      !PERIOD_DISAGGREGATION_OPTIONS.has(filter.disOpt) &&
+      !queryContext.textColumns.has(filter.disOpt)
+    ) {
+      // Numeric results column used as a dimension (m8's denominator): the
+      // text path's UPPER() is a hard SQL error on both engines. Gated on the
+      // same textColumns knowledge the blank fold trusts — but the PERIOD
+      // exclusion is load-bearing: derived `month` is LPAD TEXT and not a
+      // physical column, so it is absent from textColumns and would otherwise
+      // be misrouted here (`month IN (3)` breaks on text = integer). Number()
+      // coercion is the SQL-safety boundary; non-finite values (the UNSELECTED
+      // replicant sentinel, a stale __BLANK) can never match a numeric column
+      // and are dropped, with FALSE emitted when nothing remains — the same
+      // zero-match outcome those values produce on the text path.
+      const numericValues = filter.values
+        .map((v) => Number(v))
+        .filter((v) => Number.isFinite(v));
+      whereStatements.push(
+        numericValues.length === 0
+          ? "FALSE"
+          : `${columnName} IN (${numericValues.join(", ")})`,
+      );
     } else {
       // Case-insensitive comparison for text columns. BLANK_SENTINEL cannot ride
       // the IN list — `NULL IN ('__BLANK')` is NULL, never true — so it splits
@@ -562,19 +613,11 @@ export function applyPostAggregationExpression(
   collidingGroupBys: ReadonlySet<string>,
   hasSampleNColumn: boolean,
 ): string {
-  if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
+  const parsed = parsePAE(postAggregationExpression);
+  if (parsed === undefined) {
     return sqlQuery;
   }
-
-  const chunks = postAggregationExpression
-    .split("=")
-    .map((chunk) => chunk.trim());
-  const value = chunks.at(0);
-  const expression = chunks.at(-1);
-
-  if (!value || !expression) {
-    return sqlQuery;
-  }
+  const { value, expression } = parsed;
 
   // Protect against division by zero by replacing /column with /NULLIF(column, 0)
   // Note: \s* handles optional whitespace around the division operator

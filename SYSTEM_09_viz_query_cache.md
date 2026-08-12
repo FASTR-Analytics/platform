@@ -739,7 +739,20 @@ bundle freezes:
   `CTEManager` or the shared `period_helpers` builders (which `getPeriodBounds`
   now uses).
 - **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the escaped
-  `UPPER` text path, never numeric coercion.
+  `UPPER` text path, never numeric coercion. That routing is what the PERIOD
+  exclusion in `buildWhereClause`'s numeric branch protects: `month` is not a
+  physical column, so it is absent from `textColumns`, and the type gate alone
+  would misroute it.
+- **Numeric dimension columns cannot take the `UPPER()` filter path** (both
+  engines hard-error on `upper(numeric)`): filters on columns outside
+  `textColumns` — m8's `denominator`, reachable via replicate-by or a checked
+  filter value — go down a coerced-numeric branch in `buildWhereClause`.
+  Non-finite values (the `UNSELECTED` replicant sentinel, a stale `__BLANK`)
+  are dropped and `FALSE` emitted when nothing remains, mirroring the text
+  path's zero-match outcome. `parsePAE` (query_helpers.ts) is the single
+  activation predicate for every PAE-conditional behavior — wrapper, collision
+  aliasing, sample-n mode — so a malformed expression deactivates them
+  together instead of leaking `__dis_`/`__n_all` names.
 - **The sentinels are not real data values**: `__NATIONAL` / `__ALL_FACILITIES`
   must be label-replaced and pin-sorted client-side; label replacements for them
   are added only when the roll-up is active so stored figures never carry dead

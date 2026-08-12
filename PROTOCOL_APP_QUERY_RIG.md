@@ -19,7 +19,7 @@ entry points already take `Sql` handles as parameters, so the rig just hands
 them connections to its own container.
 
 ```bash
-./validate_queries            # ~6s: container up, 12 fixtures, 57 cases
+./validate_queries            # ~6s: container up, 12 fixtures, 60 cases
 ```
 
 (~6s once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -133,6 +133,8 @@ Verified controls so far:
 | drop `sourceTable.` from the plain-values sample-n FILTER | HFA Ghana-shape case only: same ambiguity error |
 | wrapper `groupByPrefix` → plain join (no collision re-alias) | both F12 PAE cases: `column reference "denominator" is ambiguous` |
 | disable the non-PAE value-prop guard in `validateFetchConfig` | F12 boundary case: expected error, got success (silent key clobber) |
+| disable buildWhereClause's numeric filter branch | both F12 filter cases: `function upper(numeric) does not exist` |
+| drop the PERIOD exclusion from the numeric filter gate | month-filter case: derived TEXT month misrouted to `month IN (2)` |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes — `git checkout` would discard parallel work.
