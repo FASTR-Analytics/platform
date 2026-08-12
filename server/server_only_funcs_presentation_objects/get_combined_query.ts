@@ -4,6 +4,7 @@ import {
   buildMainQuery,
   buildRollupQuery,
   emitsSampleN,
+  paeCollidingGroupBys,
 } from "./query_helpers.ts";
 import type { QueryConfig } from "./types.ts";
 
@@ -38,6 +39,7 @@ export function buildCombinedQuery(config: QueryConfig): string {
     combinedQuery,
     fetchConfig.postAggregationExpression,
     fetchConfig.groupBys,
+    paeCollidingGroupBys(fetchConfig),
     emitsSampleN(queryContext),
   );
 

@@ -723,6 +723,16 @@ bundle freezes:
 - **CTE/post-aggregation/WITH/LIMIT ordering is load-bearing** — the PAE wrap
   happens before the `WITH` prepend so CTEs stay top-level; reordering breaks
   the SQL.
+- **A groupBy that is also a value prop needs disambiguation** (the m8
+  scorecard shape, ethiopia v2b 2026-08-12): the inner query emits the grouped
+  column AND a same-named aggregate alias, so the PAE wrapper's bare
+  references are ambiguous — Postgres errors, DuckDB silently binds the RAW
+  grouped value (served `SUM(num)/raw_den` until fixed; the correction shipped
+  with PO cache version 14). `paeCollidingGroupBys` (query_helpers.ts) is the
+  authoritative contract: colliding columns ride `__dis_<col>` through the
+  inner query and re-alias in the wrapper. Non-PAE fetches have no wrapper
+  layer to re-alias in — `validateFetchConfig` rejects the shape (the driver's
+  row object would silently clobber the group key with the aggregate).
 - **`getPossibleValues` still hand-writes its `WITH` strings** (shared
   derivation expressions and correct family gating, but its own string assembly
   — the last CTE-shape duplicate). New CTE construction goes through

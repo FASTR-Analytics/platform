@@ -271,6 +271,70 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
+    // The ethiopia v2b shape. den=20 spans two rows, so binding the wrapper's
+    // `denominator` to the raw grouped value gives 40/20 = 2; the correct
+    // aggregate binding gives 40/40 = 1 (and Postgres errors outright on the
+    // unaliased ambiguity). See paeCollidingGroupBys.
+    name: "PAE disaggregated by its own ingredient → wrapper binds the aggregate, not the raw group value",
+    fixture: "hmis_scorecard",
+    fetchConfig: {
+      values: [
+        { prop: "numerator", func: "SUM" },
+        { prop: "denominator", func: "SUM" },
+      ],
+      groupBys: ["denominator"],
+      filters: [],
+      periodFilter: undefined,
+      postAggregationExpression: "value = numerator/denominator",
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { denominator: 20, value: 1 },
+        { denominator: 50, value: 0.1 },
+      ],
+    },
+  },
+  {
+    name: "PAE ingredient collision + roll-up → both UNION branches alias identically",
+    fixture: "hmis_scorecard",
+    fetchConfig: {
+      values: [
+        { prop: "numerator", func: "SUM" },
+        { prop: "denominator", func: "SUM" },
+      ],
+      groupBys: ["admin_area_2", "denominator"],
+      filters: [],
+      periodFilter: undefined,
+      postAggregationExpression: "value = numerator/denominator",
+      rollupDim: "admin_area_2",
+    },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_2: "A2_north", denominator: 20, value: 1 },
+        { admin_area_2: "A2_south", denominator: 50, value: 0.1 },
+        { admin_area_2: ROLLUP_SENTINEL, denominator: 20, value: 1 },
+        { admin_area_2: ROLLUP_SENTINEL, denominator: 50, value: 0.1 },
+      ],
+    },
+  },
+  {
+    // Without a PAE there is no wrapper layer to disambiguate, and the row
+    // object would silently clobber the group value with the aggregate —
+    // validateFetchConfig rejects the shape at the boundary.
+    name: "non-PAE disaggregated by its own value prop → rejected at the boundary",
+    fixture: "hmis_scorecard",
+    fetchConfig: {
+      values: [{ prop: "denominator", func: "SUM" }],
+      groupBys: ["denominator"],
+      filters: [],
+      periodFilter: undefined,
+      postAggregationExpression: undefined,
+    },
+    expect: { err: "value prop" },
+  },
+  {
     name: "roll-up AVG over facility-level rows → allowed",
     fixture: "hmis_ratio",
     fetchConfig: {

@@ -83,6 +83,39 @@ export function blankPredicate(columnRef: string): string {
 }
 
 // ============================================================================
+// PAE GroupBy/Value Collisions
+// ============================================================================
+
+/**
+ * GroupBy columns that are ALSO value props on a post-aggregation fetch (the
+ * m8 scorecard shape: `value = numerator / denominator` disaggregated by
+ * `denominator`). The inner query then emits BOTH the grouped column and a
+ * same-named aggregate alias, and the PAE wrapper's bare references against
+ * that subquery are ambiguous — Postgres errors, DuckDB silently binds the
+ * raw grouped value instead of the aggregate ingredient. Colliding columns
+ * are therefore SELECTed as `__dis_<col>` in the inner query (selectRef) and
+ * re-aliased back in the wrapper (applyPostAggregationExpression); both sites
+ * derive from THIS function and must agree, or the wrapper re-projects a
+ * column the inner query never emitted. Non-PAE fetches have no wrapper layer
+ * to re-alias in and are rejected at the boundary instead
+ * (validateFetchConfig).
+ */
+export function paeCollidingGroupBys(
+  fetchConfig: GenericLongFormFetchConfig,
+): ReadonlySet<string> {
+  if (fetchConfig.postAggregationExpression === undefined) {
+    return new Set();
+  }
+  const valueProps = new Set(fetchConfig.values.map((v) => v.prop));
+  return new Set(fetchConfig.groupBys.filter((gb) => valueProps.has(gb)));
+}
+
+// Cannot clash with SAMPLE_N_PREFIX ("__n_") and never escapes the wrapper.
+function collisionAlias(col: string): string {
+  return `__dis_${col}`;
+}
+
+// ============================================================================
 // Main and Roll-up Query Builders
 // ============================================================================
 
@@ -213,14 +246,18 @@ function buildSelectQuery(
       ? blankFoldedRef(prefixed)
       : prefixed;
   };
+  // Colliding columns take the __dis_ alias — see paeCollidingGroupBys.
+  const collidingCols = paeCollidingGroupBys(fetchConfig);
   const selectRef = (col: string): string => {
+    const outName = collidingCols.has(col) ? collisionAlias(col) : col;
     if (collapsedLevel !== undefined && col === collapsedLevel) {
-      return `'${rollupSentinelForDimension(collapsedLevel)}' AS ${col}`;
+      return `'${rollupSentinelForDimension(collapsedLevel)}' AS ${outName}`;
     }
     const prefixed = columnPrefixes.get(col) || col;
-    return shouldFoldBlank(col, queryContext)
-      ? `${blankFoldedRef(prefixed)} AS ${col}`
-      : prefixed;
+    if (shouldFoldBlank(col, queryContext)) {
+      return `${blankFoldedRef(prefixed)} AS ${outName}`;
+    }
+    return outName === col ? prefixed : `${prefixed} AS ${outName}`;
   };
 
   ///////////////////////
@@ -522,6 +559,7 @@ export function applyPostAggregationExpression(
   sqlQuery: string,
   postAggregationExpression: string | undefined,
   groupBys: (DisaggregationOption | PeriodOption)[],
+  collidingGroupBys: ReadonlySet<string>,
   hasSampleNColumn: boolean,
 ): string {
   if (!postAggregationExpression || !postAggregationExpression.includes("=")) {
@@ -542,7 +580,16 @@ export function applyPostAggregationExpression(
   // Note: \s* handles optional whitespace around the division operator
   const safeExpression = expression.replace(/\/\s*(\w+)/g, "/ NULLIF($1, 0)");
 
-  const groupByPrefix = groupBys.length === 0 ? "" : `${groupBys.join(", ")}, `;
+  // Colliding columns re-project their __dis_ alias back to the bare name —
+  // see paeCollidingGroupBys.
+  const groupByPrefix =
+    groupBys.length === 0
+      ? ""
+      : `${groupBys
+          .map((gb) =>
+            collidingGroupBys.has(gb) ? `${collisionAlias(gb)} AS ${gb}` : gb,
+          )
+          .join(", ")}, `;
 
   // The wrapper drops every inner column it doesn't re-project, so the sample-n
   // column has to be named here — renamed to the target the client looks for,
