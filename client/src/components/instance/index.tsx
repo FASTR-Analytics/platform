@@ -29,11 +29,7 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
-import {
-  WhatsNewBellIcon,
-  WhatsNewFeedModal,
-  WhatsNewModal,
-} from "~/components/whats_new_modal";
+import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
@@ -332,9 +328,11 @@ export default function Instance(p: Props) {
                     }
                   >
                     <div class="relative">
-                      <Button onClick={openWhatsNewFeed} intent="base-100">
-                        <WhatsNewBellIcon />
-                      </Button>
+                      <Button
+                        onClick={openWhatsNewFeed}
+                        iconName="bell"
+                        intent="base-100"
+                      />
                       <Show when={whatsNewHasUnread()}>
                         <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
                       </Show>
