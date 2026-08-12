@@ -7,7 +7,7 @@ import {
   HeadingBar,
   OpenEditorProps,
   Select,
-  SelectionCircle,
+  Card,
   SelectList,
   getColor,
   openComponent,
@@ -87,7 +87,6 @@ type ExtendedProps = {
 };
 
 export function ProjectReports(p: ExtendedProps) {
-
   async function openReport(reportId: string, reportLabel: string) {
     await p.openProjectEditor({
       element: ProjectReport,
@@ -464,10 +463,7 @@ export function ProjectReports(p: ExtendedProps) {
         minWidth={170}
         maxWidth={300}
         panelChildren={
-          <div
-            class="flex h-full w-full flex-col"
-            data-cursor-zone="folders"
-          >
+          <div class="flex h-full w-full flex-col" data-cursor-zone="folders">
             <div class="border-b p-3">
               <Select
                 options={getGroupingOptions()}
@@ -538,28 +534,22 @@ export function ProjectReports(p: ExtendedProps) {
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1">
+                <div class="row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1">
                   <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>
-                  <div
-                    class="bg-base-100 relative cursor-pointer overflow-clip rounded border"
-                    classList={{
-                      "border-primary": isSelected(),
-                      "hover:border-primary": !isSelected(),
-                    }}
+                  <Card
+                    pad="none"
+                    selected={isSelected()}
+                    onSelectToggle={(e) => selection.handleClick(report.id, e)}
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e?.stopPropagation();
                       selection.handleClick(report.id, e, () =>
                         openReport(report.id, report.label),
                       );
                     }}
                     onContextMenu={(e) => handleContextMenu(e, report)}
                   >
-                    <SelectionCircle
-                      isSelected={isSelected()}
-                      onClick={(e) => selection.handleClick(report.id, e)}
-                    />
                     <div class="pointer-events-none absolute bottom-1 left-1 z-10">
                       <PresenceAvatars
                         peers={otherPeers().filter(
@@ -614,7 +604,7 @@ export function ProjectReports(p: ExtendedProps) {
                         </div>
                       </Show>
                     </div>
-                  </div>
+                  </Card>
                 </div>
               );
             }}

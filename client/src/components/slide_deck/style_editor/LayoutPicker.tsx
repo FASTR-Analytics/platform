@@ -44,8 +44,11 @@ function LayoutThumbnail(p: { layoutId: LayoutPresetId }) {
       )}
       <div class={`flex flex-1 p-2 ${alignItems()} ${justifyContent()}`}>
         <div class={`flex flex-col ${innerAlign()}`}>
-          <div class="h-1.5 rounded bg-white/90" style={{ width: "32px" }} />
-          <div class="mt-1 h-1 rounded bg-white/60" style={{ width: "20px" }} />
+          <div class="bg-base-100/90 h-1.5 rounded" style={{ width: "32px" }} />
+          <div
+            class="bg-base-100/60 mt-1 h-1 rounded"
+            style={{ width: "20px" }}
+          />
         </div>
       </div>
     </div>

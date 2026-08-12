@@ -11,7 +11,7 @@ import {
   FrameTop,
   HeadingBar,
   Icon,
-  SettingsSection,
+  Card,
   openAlert,
   openComponent,
   createDeleteAction,
@@ -214,20 +214,18 @@ export function ProjectSettings(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full" data-cursor-zone="header">
-          <HeadingBar
-            heading={t3(TC.settings)}
-          ></HeadingBar>
+          <HeadingBar heading={t3(TC.settings)}></HeadingBar>
         </div>
       }
     >
       <div class="ui-pad ui-spy" data-page-cursor-surface>
-        <SettingsSection
+        <Card
           header={t3({
             en: "Project name",
             fr: "Nom du projet",
             pt: "Nome do projeto",
           })}
-          rightChildren={
+          headerRight={
             <Show when={!projectState.isLocked}>
               <Button onClick={attemptUpdateProjectLabel} iconName="settings">
                 {t3(TC.edit)}
@@ -235,29 +233,33 @@ export function ProjectSettings(p: Props) {
             </Show>
           }
         >
-          <div class="">{projectState.label}</div>
-        </SettingsSection>
-        <SettingsSection
+          <div class="ui-spy-sm">
+            <div class="">{projectState.label}</div>
+          </div>
+        </Card>
+        <Card
           header={t3({
             en: "Project users",
             fr: "Utilisateurs du projet",
             pt: "Utilizadores do projeto",
           })}
         >
-          <ProjectUserTable
-            users={projectState.projectUsers}
-            onUserClick={attemptSelectUserRole}
-            onBulkEditPermissions={attemptBulkEditPermissions}
-            onDisplayUserRole={attemptDisplayUserRole}
-          />
-        </SettingsSection>
-        <SettingsSection
+          <div class="ui-spy-sm">
+            <ProjectUserTable
+              users={projectState.projectUsers}
+              onUserClick={attemptSelectUserRole}
+              onBulkEditPermissions={attemptBulkEditPermissions}
+              onDisplayUserRole={attemptDisplayUserRole}
+            />
+          </div>
+        </Card>
+        <Card
           header={t3({
             en: "Project context for AI interpretation",
             fr: "Contexte du projet pour l'interprétation de l'IA",
             pt: "Contexto do projeto para a interpretação da IA",
           })}
-          rightChildren={
+          headerRight={
             <Show when={!projectState.isLocked}>
               <Button
                 onClick={attemptUpdateProjectAiContext}
@@ -268,15 +270,17 @@ export function ProjectSettings(p: Props) {
             </Show>
           }
         >
-          <div class="">
-            {projectState.aiContext ||
-              t3({
-                en: "No context set",
-                fr: "Aucun contexte défini",
-                pt: "Nenhum contexto definido",
-              })}
+          <div class="ui-spy-sm">
+            <div class="">
+              {projectState.aiContext ||
+                t3({
+                  en: "No context set",
+                  fr: "Aucun contexte défini",
+                  pt: "Nenhum contexto definido",
+                })}
+            </div>
           </div>
-        </SettingsSection>
+        </Card>
 
         <Show when={H_USERS.includes(projectState.currentUserEmail)}>
           <CentralReportingSection />
@@ -284,13 +288,13 @@ export function ProjectSettings(p: Props) {
 
         <Switch>
           <Match when={projectState.isLocked}>
-            <SettingsSection
+            <Card
               header={t3({
                 en: "Project lock status",
                 fr: "Statut de verrouillage du projet",
                 pt: "Estado de bloqueio do projeto",
               })}
-              rightChildren={
+              headerRight={
                 <Button
                   onClick={unlockProject.click}
                   state={unlockProject.state()}
@@ -303,28 +307,30 @@ export function ProjectSettings(p: Props) {
                 </Button>
               }
             >
-              <div class="ui-gap-sm text-danger flex">
-                <span class="">
-                  {t3({
-                    en: "Project is currently locked",
-                    fr: "Le projet est actuellement verrouillé",
-                    pt: "O projeto está atualmente bloqueado",
-                  })}
-                </span>
-                <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <Icon iconName="lock" />
-                </span>
+              <div class="ui-spy-sm">
+                <div class="ui-gap-sm text-danger flex">
+                  <span class="">
+                    {t3({
+                      en: "Project is currently locked",
+                      fr: "Le projet est actuellement verrouillé",
+                      pt: "O projeto está atualmente bloqueado",
+                    })}
+                  </span>
+                  <span class="relative inline-flex h-[1.25em] w-[1.25em]">
+                    <Icon iconName="lock" />
+                  </span>
+                </div>
               </div>
-            </SettingsSection>
+            </Card>
           </Match>
           <Match when={!projectState.isLocked}>
-            <SettingsSection
+            <Card
               header={t3({
                 en: "Project lock status",
                 fr: "Statut de verrouillage du projet",
                 pt: "Estado de bloqueio do projeto",
               })}
-              rightChildren={
+              headerRight={
                 <Button onClick={lockProject.click} state={lockProject.state()}>
                   {t3({
                     en: "Lock project",
@@ -334,31 +340,35 @@ export function ProjectSettings(p: Props) {
                 </Button>
               }
             >
-              <div class="ui-gap-sm flex">
-                <span class="">
-                  {t3({
-                    en: "Project is currently unlocked",
-                    fr: "Le projet est actuellement déverrouillé",
-                    pt: "O projeto está atualmente desbloqueado",
-                  })}
-                </span>
-                <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                  <Icon iconName="unlock" />
-                </span>
+              <div class="ui-spy-sm">
+                <div class="ui-gap-sm flex">
+                  <span class="">
+                    {t3({
+                      en: "Project is currently unlocked",
+                      fr: "Le projet est actuellement déverrouillé",
+                      pt: "O projeto está atualmente desbloqueado",
+                    })}
+                  </span>
+                  <span class="relative inline-flex h-[1.25em] w-[1.25em]">
+                    <Icon iconName="unlock" />
+                  </span>
+                </div>
               </div>
-            </SettingsSection>
+            </Card>
           </Match>
         </Switch>
 
-        <SettingsSection
+        <Card
           header={t3({
             en: "Backups",
             fr: "Sauvegardes",
             pt: "Cópias de segurança",
           })}
         >
-          <ProjectBackups projectId={projectState.id} />
-        </SettingsSection>
+          <div class="ui-spy-sm">
+            <ProjectBackups projectId={projectState.id} />
+          </div>
+        </Card>
 
         <div class="ui-gap flex">
           <Show when={!projectState.isLocked}>
@@ -409,9 +419,9 @@ function CentralReportingSection() {
   );
 
   return (
-    <SettingsSection
+    <Card
       header="Central reporting project"
-      rightChildren={
+      headerRight={
         <Button
           onClick={setCentralReporting.click}
           state={setCentralReporting.state()}
@@ -422,12 +432,14 @@ function CentralReportingSection() {
         </Button>
       }
     >
-      <div>
-        {projectState.isCentralReporting
-          ? "This project is currently designated as the central reporting project. It is only visible to h_users."
-          : "This project is not designated as the central reporting project."}
+      <div class="ui-spy-sm">
+        <div>
+          {projectState.isCentralReporting
+            ? "This project is currently designated as the central reporting project. It is only visible to h_users."
+            : "This project is not designated as the central reporting project."}
+        </div>
       </div>
-    </SettingsSection>
+    </Card>
   );
 }
 

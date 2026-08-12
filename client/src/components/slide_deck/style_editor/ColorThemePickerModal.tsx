@@ -111,10 +111,7 @@ export function ColorThemePickerModal(p: ColorThemePickerModalProps) {
   return (
     <Portal mount={document.body}>
       <div class="fixed inset-0 z-[100] flex items-center justify-center">
-        <div
-          class="absolute inset-0 bg-black/40"
-          onClick={() => p.onClose()}
-        />
+        <div class="bg-scrim absolute inset-0" onClick={() => p.onClose()} />
         <div class="bg-base-100 relative flex max-h-[85vh] max-w-[90vw] flex-col rounded shadow-lg">
           <div class="border-b px-6 py-5 leading-none">
             <h2 class="ui-text-heading leading-none">
@@ -168,7 +165,9 @@ export function ColorThemePickerModal(p: ColorThemePickerModalProps) {
                           type: "preset",
                           id: preset.id as BrandPresetId,
                         }}
-                        onSelect={() => selectPreset(preset.id as BrandPresetId)}
+                        onSelect={() =>
+                          selectPreset(preset.id as BrandPresetId)
+                        }
                       />
                     )}
                   </For>

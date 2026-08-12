@@ -103,7 +103,11 @@ select option {
   border-right-color: var(--color-base-300);
 }
 :root[data-theme="dark"] .cm-editor .cm-activeLine {
-  background-color: color-mix(in srgb, var(--color-base-content) 6%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--color-base-content) 6%,
+    transparent
+  );
 }
 :root[data-theme="dark"] .cm-editor .cm-activeLineGutter {
   background-color: transparent;
@@ -129,8 +133,8 @@ select option {
    surfaces. For markdown that is app UI (chat messages, dashboard summaries)
    wrap the mount in .md-dark-adapt: this re-points the vars on descendants
    (an element's own var value beats an ancestor's inline one). Markdown that
-   is a document preview (report View pane) should instead stay on a pinned
-   bg-white paper and keep its document colors. */
+   is a document preview (report View pane) should instead stay on light
+   paper (bg-base-100 under a light scheme) and keep its document colors. */
 :root[data-theme="dark"] .md-dark-adapt * {
   --md-p-color: var(--color-base-content);
   --md-h1-color: var(--color-base-content);
@@ -465,4 +469,11 @@ select option {
   to {
     background-position: 0 0;
   }
+}
+
+/* Cursor-chat input sits on the peer's own data color (inline bg), so its
+   text and placeholder are constant contrast-on-data — content, not theme.
+   Placeholders cannot be inline-styled, hence the one CSS literal. */
+[data-cursor-chat-input]::placeholder {
+  color: rgb(255 255 255 / 0.7);
 }

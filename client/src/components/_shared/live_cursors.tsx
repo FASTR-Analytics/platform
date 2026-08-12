@@ -43,28 +43,26 @@ import { Portal } from "solid-js/web";
 // the overlay renders peers' bubbles). Cleared on Enter (after a short linger),
 // Escape, disable, and unmount.
 
-export type PointerAwarenessState =
-  & {
-    /** Monotonic per-tab CLICK counter, bumped on every primary-button press
-     *  over the surface. Peers render an expanding ring ("click ripple") at
-     *  the pointer position whenever it increases — the counter (not a flag)
-     *  makes repeat clicks at the same spot animate again. Optional so states
-     *  from pre-feature clients stay valid. */
-    click?: number;
-  }
-  & (
-    // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
-    | { surface: "slide"; scope: string; x: number; y: number }
+export type PointerAwarenessState = {
+  /** Monotonic per-tab CLICK counter, bumped on every primary-button press
+   *  over the surface. Peers render an expanding ring ("click ripple") at
+   *  the pointer position whenever it increases — the counter (not a flag)
+   *  makes repeat clicks at the same spot animate again. Optional so states
+   *  from pre-feature clients stay valid. */
+  click?: number;
+} &
+  // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
+  (| { surface: "slide"; scope: string; x: number; y: number }
     // x,y normalized 0..1 of the viz preview canvas rect
     | { surface: "viz-preview"; scope: string; x: number; y: number }
     // x normalized 0..1 of the tab scroll-container width; y in content px
     | {
-      surface: "viz-panel";
-      scope: string;
-      tab: "data" | "style" | "text";
-      x: number;
-      y: number;
-    }
+        surface: "viz-panel";
+        scope: string;
+        tab: "data" | "style" | "text";
+        x: number;
+        y: number;
+      }
     // Project tab pages ([data-page-cursor-surface] element): x normalized
     // 0..1 of the surface element's width, y in content px (scrollTop-
     // compensated). scope = tab (+ folder/grouping selection). Rides the
@@ -198,8 +196,10 @@ export function pointerFromPane(
     return null;
   }
   if (
-    clientX < rect.left || clientX > rect.right ||
-    clientY < rect.top || clientY > rect.bottom
+    clientX < rect.left ||
+    clientX > rect.right ||
+    clientY < rect.top ||
+    clientY > rect.bottom
   ) {
     return null;
   }
@@ -235,14 +235,18 @@ export function viewportFromPane(
   );
   const SLACK = 4;
   if (
-    pos.x < rect.left - SLACK || pos.x > rect.right + SLACK ||
-    pos.y < rect.top - SLACK || pos.y > rect.bottom + SLACK
+    pos.x < rect.left - SLACK ||
+    pos.x > rect.right + SLACK ||
+    pos.y < rect.top - SLACK ||
+    pos.y > rect.bottom + SLACK
   ) {
     return null;
   }
   if (
-    pos.x < 0 || pos.x > window.innerWidth ||
-    pos.y < 0 || pos.y > window.innerHeight
+    pos.x < 0 ||
+    pos.x > window.innerWidth ||
+    pos.y < 0 ||
+    pos.y > window.innerHeight
   ) {
     return null;
   }
@@ -370,8 +374,10 @@ export function createPointerBroadcast(opts: {
 
   function fire() {
     if (
-      !opts.enabled() || typingHidden ||
-      lastClientX === undefined || lastClientY === undefined
+      !opts.enabled() ||
+      typingHidden ||
+      lastClientX === undefined ||
+      lastClientY === undefined
     ) {
       send(null);
       return;
@@ -490,19 +496,28 @@ export function createPointerBroadcast(opts: {
 
   // Disabled (modal over the surface, collab dropped) → clear immediately;
   // re-enabled → re-broadcast the current position without waiting for a move.
-  createEffect(on(opts.enabled, (en) => {
-    if (!en) {
-      send(null);
-    } else if (lastClientX !== undefined) {
-      schedule();
-    }
-  }, { defer: true }));
+  createEffect(
+    on(
+      opts.enabled,
+      (en) => {
+        if (!en) {
+          send(null);
+        } else if (lastClientX !== undefined) {
+          schedule();
+        }
+      },
+      { defer: true },
+    ),
+  );
 
   onCleanup(() => {
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerdown", onPointerDown);
     document.removeEventListener("scroll", onScroll, true);
-    document.documentElement.removeEventListener("pointerleave", onLeaveDocument);
+    document.documentElement.removeEventListener(
+      "pointerleave",
+      onLeaveDocument,
+    );
     document.removeEventListener("visibilitychange", onVisibility);
     if (opts.hideWhileTyping) {
       document.removeEventListener("keydown", onKeyDown, true);
@@ -554,9 +569,9 @@ export function LiveCursorsOverlay(p: {
   const bump = () => setTick((t) => t + 1);
   // Local mouse position (rAF-throttled) — drives the hover-reveal of faded
   // name chips. One signal write per frame at most; nothing while still.
-  const [mouse, setMouse] = createSignal<
-    { x: number; y: number } | undefined
-  >(undefined);
+  const [mouse, setMouse] = createSignal<{ x: number; y: number } | undefined>(
+    undefined,
+  );
   // Bumped on awareness "change" (content changes + joins/leaves; keepalives
   // with deep-equal state deliberately don't fire it).
   const [version, setVersion] = createSignal(0);
@@ -663,8 +678,10 @@ export function LiveCursorsOverlay(p: {
         if (pointer && typeof pointer.click === "number") {
           const seen = clickSeen.get(id);
           if (
-            seen !== undefined && pointer.click > seen &&
-            id !== aw.clientID && !p.suppressed
+            seen !== undefined &&
+            pointer.click > seen &&
+            id !== aw.clientID &&
+            !p.suppressed
           ) {
             const user = state?.user as { color?: string } | undefined;
             const pos = p.accepts(pointer);
@@ -710,10 +727,14 @@ export function LiveCursorsOverlay(p: {
       if (!user?.name || !user.color || pointer == null) {
         continue;
       }
-      const chatState = state.pointerChat as { text?: string } | null | undefined;
-      const chat = typeof chatState?.text === "string"
-        ? chatState.text.slice(0, CHAT_MAX_LEN)
-        : undefined;
+      const chatState = state.pointerChat as
+        | { text?: string }
+        | null
+        | undefined;
+      const chat =
+        typeof chatState?.text === "string"
+          ? chatState.text.slice(0, CHAT_MAX_LEN)
+          : undefined;
       const info = moveInfo.get(clientID);
       const idle = info ? now - info.lastMoveAt : 0;
       // An active chat message keeps the cursor (and its name) fully visible
@@ -727,7 +748,8 @@ export function LiveCursorsOverlay(p: {
       }
       // Hover-reveal: your own mouse near the cursor brings a faded chip back.
       const m = mouse();
-      const hovered = m !== undefined &&
+      const hovered =
+        m !== undefined &&
         Math.hypot(m.x - pos.x, m.y - pos.y) < HOVER_REVEAL_PX;
       out.push({
         clientID,
@@ -762,15 +784,14 @@ export function LiveCursorsOverlay(p: {
                 height: `${RIPPLE_SIZE_PX}px`,
                 border: `2px solid ${r.color}`,
                 ...(REDUCED_MOTION
-                  // Static ring, gone on removal — no expansion motion.
-                  ? {
-                    transform: "translate(-50%, -50%) scale(0.5)",
-                    opacity: 0.6,
-                  }
+                  ? // Static ring, gone on removal — no expansion motion.
+                    {
+                      transform: "translate(-50%, -50%) scale(0.5)",
+                      opacity: 0.6,
+                    }
                   : {
-                    animation:
-                      `collab-click-ripple ${RIPPLE_MS}ms ease-out forwards`,
-                  }),
+                      animation: `collab-click-ripple ${RIPPLE_MS}ms ease-out forwards`,
+                    }),
               }}
             />
           )}
@@ -778,15 +799,22 @@ export function LiveCursorsOverlay(p: {
         <For each={cursors()}>
           {(c) => (
             <div
-              class="pointer-events-none absolute left-0 top-0"
+              class="pointer-events-none absolute top-0 left-0"
               style={{
                 transform: `translate(${c.x}px, ${c.y}px)`,
                 "will-change": "transform",
-                ...(REDUCED_MOTION ? {} : { transition: "transform 100ms linear" }),
+                ...(REDUCED_MOTION
+                  ? {}
+                  : { transition: "transform 100ms linear" }),
               }}
             >
               {/* Figma-style arrow; hotspot at the SVG origin. */}
-              <svg width="14" height="18" viewBox="0 0 14 18" aria-hidden="true">
+              <svg
+                width="14"
+                height="18"
+                viewBox="0 0 14 18"
+                aria-hidden="true"
+              >
                 <path
                   d="M1 1 L1 13.5 L4.2 10.6 L6.4 15.8 L8.9 14.7 L6.7 9.6 L11 9.6 Z"
                   fill={c.color}
@@ -796,11 +824,12 @@ export function LiveCursorsOverlay(p: {
                 />
               </svg>
               <div
-                class="absolute whitespace-nowrap rounded px-1 text-[10px] font-700 text-white"
+                class="font-700 absolute rounded px-1 text-[10px] whitespace-nowrap"
                 style={{
                   left: "12px",
                   top: "15px",
                   "background-color": c.color,
+                  color: "#ffffff",
                   opacity: c.chipVisible ? 1 : 0,
                   transition: "opacity 500ms",
                 }}
@@ -809,11 +838,12 @@ export function LiveCursorsOverlay(p: {
               </div>
               <Show when={c.chat}>
                 <div
-                  class="absolute rounded-2xl px-2.5 py-1 text-xs text-white shadow-md"
+                  class="absolute rounded-2xl px-2.5 py-1 text-xs shadow-md"
                   style={{
                     left: "12px",
                     top: "33px",
                     "background-color": c.color,
+                    color: "#ffffff",
                     "max-width": "240px",
                     width: "max-content",
                     "overflow-wrap": "break-word",
@@ -930,13 +960,19 @@ export function CursorChatInput(p: {
     document.addEventListener("pointermove", onMove, { passive: true });
   });
   // Surface covered / collab dropped → discard any open or lingering message.
-  createEffect(on(p.enabled, (en) => {
-    if (!en) {
-      setOpen(false);
-      setText("");
-      clearNow();
-    }
-  }, { defer: true }));
+  createEffect(
+    on(
+      p.enabled,
+      (en) => {
+        if (!en) {
+          setOpen(false);
+          setText("");
+          clearNow();
+        }
+      },
+      { defer: true },
+    ),
+  );
   onCleanup(() => {
     document.removeEventListener("keydown", onDocKeyDown);
     document.removeEventListener("pointermove", onMove);
@@ -967,9 +1003,10 @@ export function CursorChatInput(p: {
               fr: "Dites quelque chose…",
               pt: "Diga algo…",
             })}
-            class="rounded-full px-3 py-1 text-sm text-white shadow-md outline-none placeholder:text-white/70"
+            class="rounded-full px-3 py-1 text-sm shadow-md outline-none"
             style={{
               "background-color": ownColor(),
+              color: "#ffffff",
               "min-width": "150px",
               "max-width": "260px",
             }}

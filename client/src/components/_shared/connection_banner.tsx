@@ -27,7 +27,8 @@ export type CollabConnectionState =
 
 const RECOVERED_FLASH_MS = 3_000;
 
-const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION =
+  typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const [connState, setConnState] = createSignal<CollabConnectionState>("idle");
@@ -87,11 +88,11 @@ function ConnectionBannerHost() {
   return (
     // Top-center, just below the header (same height as the presence toasts,
     // which sit top-right); above them in the stack.
-    <div class="pointer-events-none fixed left-1/2 top-20 z-[96] -translate-x-1/2">
+    <div class="pointer-events-none fixed top-20 left-1/2 z-[96] -translate-x-1/2">
       <Show when={connState() === "reconnecting"}>
-        <div class="bg-warning text-warning-content pointer-events-auto flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating">
+        <div class="bg-warning text-warning-content shadow-floating pointer-events-auto flex items-center gap-2 rounded px-3 py-2 text-sm">
           <span
-            class="h-2.5 w-2.5 flex-none rounded-full bg-white/90"
+            class="bg-warning-content/90 h-2.5 w-2.5 flex-none rounded-full"
             classList={{ "animate-pulse": !REDUCED_MOTION }}
           />
           <span>
@@ -102,7 +103,7 @@ function ConnectionBannerHost() {
             })}
           </span>
           <button
-            class="ml-1 font-700 underline underline-offset-2"
+            class="font-700 ml-1 underline underline-offset-2"
             onClick={() => globalThis.location.reload()}
           >
             {t3({ en: "Reload", fr: "Recharger", pt: "Recarregar" })}
@@ -110,8 +111,8 @@ function ConnectionBannerHost() {
         </div>
       </Show>
       <Show when={connState() === "connected" && justRecovered()}>
-        <div class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating">
-          <span class="h-2.5 w-2.5 flex-none rounded-full bg-white/90" />
+        <div class="bg-primary text-primary-content shadow-floating flex items-center gap-2 rounded px-3 py-2 text-sm">
+          <span class="bg-primary-content/90 h-2.5 w-2.5 flex-none rounded-full" />
           <span>
             {t3({
               en: "Live again",

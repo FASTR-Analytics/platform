@@ -108,13 +108,13 @@ export function DeckVersionPreview(p: {
   const version = createQuery(
     async (): Promise<
       | {
-        success: true;
-        data: {
-          v: DeckVersionDetail;
-          prev: DeckVersionDetail | null;
-          prevFailed: boolean;
-        };
-      }
+          success: true;
+          data: {
+            v: DeckVersionDetail;
+            prev: DeckVersionDetail | null;
+            prevFailed: boolean;
+          };
+        }
       | { success: false; err: string }
     > => {
       const res = await serverActions.getDeckVersion({
@@ -143,20 +143,32 @@ export function DeckVersionPreview(p: {
       }
       return { success: true, data: { v: res.data, prev, prevFailed } };
     },
-    t3({ en: "Loading version...", fr: "Chargement de la version...", pt: "A carregar a versão..." }),
+    t3({
+      en: "Loading version...",
+      fr: "Chargement de la version...",
+      pt: "A carregar a versão...",
+    }),
   );
 
   const [page, setPage] = createSignal(0);
 
   async function restore(v: DeckVersionDetail) {
     const ok = await openConfirm({
-      title: t3({ en: "Restore this version?", fr: "Restaurer cette version ?", pt: "Restaurar esta versão?" }),
+      title: t3({
+        en: "Restore this version?",
+        fr: "Restaurer cette version ?",
+        pt: "Restaurar esta versão?",
+      }),
       text: t3({
         en: "The slide deck will be reset to this version. Your current content is saved as a version first — nothing is lost.",
         fr: "La présentation sera réinitialisée à cette version. Votre contenu actuel est d'abord enregistré comme version — rien n'est perdu.",
         pt: "A apresentação será reposta para esta versão. O seu conteúdo atual é primeiro guardado como versão — nada se perde.",
       }),
-      confirmButtonLabel: t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" }),
+      confirmButtonLabel: t3({
+        en: "Restore",
+        fr: "Restaurer",
+        pt: "Restaurar",
+      }),
     });
     if (!ok) {
       return;
@@ -177,7 +189,11 @@ export function DeckVersionPreview(p: {
     await openComponent({
       element: CopyVersionModal,
       props: {
-        header: t3({ en: "Restore as copy", fr: "Restaurer comme copie", pt: "Restaurar como cópia" }),
+        header: t3({
+          en: "Restore as copy",
+          fr: "Restaurer comme copie",
+          pt: "Restaurar como cópia",
+        }),
         initialLabel: `${v.label} (${new Date(v.createdAt).toLocaleDateString()})`,
         save: (label: string) =>
           serverActions.copyDeckVersion({
@@ -237,7 +253,10 @@ export function DeckVersionPreview(p: {
             }
           }
         }
-        for (const email of [...(se?.settings ?? []), ...(se?.reordered ?? [])]) {
+        for (const email of [
+          ...(se?.settings ?? []),
+          ...(se?.reordered ?? []),
+        ]) {
           addName(email);
         }
 
@@ -245,25 +264,30 @@ export function DeckVersionPreview(p: {
 
         // Attribution resolution: exact email list -> names + color, session
         // fallback otherwise.
-        function whoOf(
-          emails: string[] | undefined,
-        ): { label: string; exact: boolean; color: string; email?: string } {
+        function whoOf(emails: string[] | undefined): {
+          label: string;
+          exact: boolean;
+          color: string;
+          email?: string;
+        } {
           if (emails && emails.length > 0) {
             return {
               label: emails.map((e) => names[e] ?? e).join(", "),
               exact: true,
-              color: emails.length === 1
-                ? presenceColorForKey(emails[0])
-                : UNKNOWN_COLOR,
+              color:
+                emails.length === 1
+                  ? presenceColorForKey(emails[0])
+                  : UNKNOWN_COLOR,
               email: emails.length === 1 ? emails[0] : undefined,
             };
           }
           return {
             label: sessionEditors,
             exact: v.editors.length === 1,
-            color: v.editors.length === 1
-              ? presenceColorForKey(v.editors[0].email)
-              : UNKNOWN_COLOR,
+            color:
+              v.editors.length === 1
+                ? presenceColorForKey(v.editors[0].email)
+                : UNKNOWN_COLOR,
             email: v.editors.length === 1 ? v.editors[0].email : undefined,
           };
         }
@@ -279,14 +303,30 @@ export function DeckVersionPreview(p: {
         // Human labels for element keys (see slide_element_diff.ts).
         const FIELD_LABELS: Record<string, string> = {
           header: t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" }),
-          subHeader: t3({ en: "Subheader", fr: "Sous-en-tête", pt: "Subcabeçalho" }),
+          subHeader: t3({
+            en: "Subheader",
+            fr: "Sous-en-tête",
+            pt: "Subcabeçalho",
+          }),
           date: t3({ en: "Date", fr: "Date", pt: "Data" }),
           footer: t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
           title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
           subtitle: t3({ en: "Subtitle", fr: "Sous-titre", pt: "Subtítulo" }),
-          presenter: t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" }),
-          sectionTitle: t3({ en: "Section title", fr: "Titre de section", pt: "Título da secção" }),
-          sectionSubtitle: t3({ en: "Section subtitle", fr: "Sous-titre de section", pt: "Subtítulo da secção" }),
+          presenter: t3({
+            en: "Presenter",
+            fr: "Présentateur",
+            pt: "Apresentador",
+          }),
+          sectionTitle: t3({
+            en: "Section title",
+            fr: "Titre de section",
+            pt: "Título da secção",
+          }),
+          sectionSubtitle: t3({
+            en: "Section subtitle",
+            fr: "Sous-titre de section",
+            pt: "Subtítulo da secção",
+          }),
         };
 
         function elementLabel(ch: SlideElementChange): string {
@@ -294,19 +334,35 @@ export function DeckVersionPreview(p: {
             return FIELD_LABELS[ch.field] ?? ch.field;
           }
           if (ch.key === "props") {
-            return t3({ en: "Slide settings", fr: "Paramètres de la diapositive", pt: "Definições do diapositivo" });
+            return t3({
+              en: "Slide settings",
+              fr: "Paramètres de la diapositive",
+              pt: "Definições do diapositivo",
+            });
           }
           if (ch.key === "layout") {
-            return t3({ en: "Block arrangement", fr: "Disposition des blocs", pt: "Disposição dos blocos" });
+            return t3({
+              en: "Block arrangement",
+              fr: "Disposition des blocs",
+              pt: "Disposição dos blocos",
+            });
           }
           if (ch.blockType === "figure") {
-            const base = t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" });
+            const base = t3({
+              en: "Visualization",
+              fr: "Visualisation",
+              pt: "Visualização",
+            });
             const cap = figureCaption(ch);
             return cap ? `${base} “${cap}”` : base;
           }
           return ch.blockType === "image"
             ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
-            : t3({ en: "Text block", fr: "Bloc de texte", pt: "Bloco de texto" });
+            : t3({
+                en: "Text block",
+                fr: "Bloc de texte",
+                pt: "Bloco de texto",
+              });
         }
 
         // The figure's caption (from either side's bundle) — with several viz
@@ -336,8 +392,8 @@ export function DeckVersionPreview(p: {
               (ch.kind === "removed"
                 ? sl?.elementsRemoved?.[ch.key]
                 : ch.kind === "added"
-                ? sl?.elementsAdded?.[ch.key]
-                : undefined) ??
+                  ? sl?.elementsAdded?.[ch.key]
+                  : undefined) ??
                 sl?.elements?.[ch.key] ??
                 sl?.edited,
             );
@@ -345,22 +401,33 @@ export function DeckVersionPreview(p: {
             // removed spans of an edited row's mini diff. Marked exact only
             // for a single deleter (two deleters can't be told apart per span).
             const textDeleters = sl?.elementsTextDeleted?.[ch.key];
-            const removedBy = ch.kind === "edited" && textDeleters &&
-                textDeleters.length > 0
-              ? {
-                label: textDeleters.map((e) => names[e] ?? e).join(", "),
-                exact: textDeleters.length === 1,
-                email: textDeleters.length === 1 ? textDeleters[0] : undefined,
-              }
-              : undefined;
-            const verb = ch.kind === "added"
-              ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
-              : ch.kind === "removed"
-              ? t3({ en: "removed by", fr: "supprimé par", pt: "removido por" })
-              : t3({ en: "edited by", fr: "modifié par", pt: "editado por" });
-            const oneOf = !who.exact && who.label.includes(",")
-              ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
-              : "";
+            const removedBy =
+              ch.kind === "edited" && textDeleters && textDeleters.length > 0
+                ? {
+                    label: textDeleters.map((e) => names[e] ?? e).join(", "),
+                    exact: textDeleters.length === 1,
+                    email:
+                      textDeleters.length === 1 ? textDeleters[0] : undefined,
+                  }
+                : undefined;
+            const verb =
+              ch.kind === "added"
+                ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
+                : ch.kind === "removed"
+                  ? t3({
+                      en: "removed by",
+                      fr: "supprimé par",
+                      pt: "removido por",
+                    })
+                  : t3({
+                      en: "edited by",
+                      fr: "modifié par",
+                      pt: "editado por",
+                    });
+            const oneOf =
+              !who.exact && who.label.includes(",")
+                ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
+                : "";
             return {
               heading: `${elementLabel(ch)} — ${verb} ${oneOf}${who.label}`,
               color: who.color,
@@ -385,20 +452,27 @@ export function DeckVersionPreview(p: {
           kind: "edited" | "added" | "removed",
         ): SlideBadge {
           const who = whoFor(slideId, kind);
-          const verb = kind === "added"
-            ? t3({ en: "Added by", fr: "Ajoutée par", pt: "Adicionado por" })
-            : kind === "edited"
-            ? t3({ en: "Edited by", fr: "Modifiée par", pt: "Editado por" })
-            : t3({ en: "Removed by", fr: "Supprimée par", pt: "Removido por" });
-          const oneOf = !who.exact && who.label.includes(",")
-            ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
-            : "";
-          return {
-            text: kind === "added"
-              ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
+          const verb =
+            kind === "added"
+              ? t3({ en: "Added by", fr: "Ajoutée par", pt: "Adicionado por" })
               : kind === "edited"
-              ? t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })
-              : t3({ en: "Removed", fr: "Supprimée", pt: "Removido" }),
+                ? t3({ en: "Edited by", fr: "Modifiée par", pt: "Editado por" })
+                : t3({
+                    en: "Removed by",
+                    fr: "Supprimée par",
+                    pt: "Removido por",
+                  });
+          const oneOf =
+            !who.exact && who.label.includes(",")
+              ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
+              : "";
+          return {
+            text:
+              kind === "added"
+                ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
+                : kind === "edited"
+                  ? t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })
+                  : t3({ en: "Removed", fr: "Supprimée", pt: "Removido" }),
             color: who.color,
             title: `${verb} ${oneOf}${who.label}`,
           };
@@ -411,26 +485,28 @@ export function DeckVersionPreview(p: {
           const status: "new" | "edited" | undefined = prevFailed
             ? undefined
             : prev === null
-            ? "new"
-            : !old
-            ? "new"
-            : canonicalJson(old.config) !== canonicalJson(s.config)
-            ? "edited"
-            : undefined;
+              ? "new"
+              : !old
+                ? "new"
+                : canonicalJson(old.config) !== canonicalJson(s.config)
+                  ? "edited"
+                  : undefined;
           return {
             slideId: s.id,
             config: s.config,
             deckConfig: v.deckConfig,
             ghost: false,
             status,
-            badge: status === "new"
-              ? badgeFor(s.id, "added")
-              : status === "edited"
-              ? badgeFor(s.id, "edited")
-              : undefined,
-            rows: status === "edited" && old
-              ? elementRows(s.id, diffSlideElements(old.config, s.config))
-              : undefined,
+            badge:
+              status === "new"
+                ? badgeFor(s.id, "added")
+                : status === "edited"
+                  ? badgeFor(s.id, "edited")
+                  : undefined,
+            rows:
+              status === "edited" && old
+                ? elementRows(s.id, diffSlideElements(old.config, s.config))
+                : undefined,
           };
         });
         if (prev !== null) {
@@ -449,47 +525,60 @@ export function DeckVersionPreview(p: {
           });
         }
 
-        const totalPages = Math.max(1, Math.ceil(entries.length / SLIDES_PER_PAGE));
+        const totalPages = Math.max(
+          1,
+          Math.ceil(entries.length / SLIDES_PER_PAGE),
+        );
         const pageEntries = () =>
-          entries.slice(page() * SLIDES_PER_PAGE, (page() + 1) * SLIDES_PER_PAGE);
+          entries.slice(
+            page() * SLIDES_PER_PAGE,
+            (page() + 1) * SLIDES_PER_PAGE,
+          );
 
         // Summary line.
         const addedCount = entries.filter((e) => e.status === "new").length;
         const editedCount = entries.filter((e) => e.status === "edited").length;
-        const removedCount = entries.filter((e) => e.status === "removed").length;
-        const survivorOrderChanged = prev !== null &&
+        const removedCount = entries.filter(
+          (e) => e.status === "removed",
+        ).length;
+        const survivorOrderChanged =
+          prev !== null &&
           orderedSlides
-              .filter((s) => prevById.has(s.id))
-              .map((s) => s.id)
-              .join(",") !==
+            .filter((s) => prevById.has(s.id))
+            .map((s) => s.id)
+            .join(",") !==
             prevOrdered
               .filter((s) => currentIds.has(s.id))
               .map((s) => s.id)
               .join(",");
-        const settingsChanged = prev !== null &&
+        const settingsChanged =
+          prev !== null &&
           (prev.label !== v.label ||
             canonicalJson(prev.deckConfig) !== canonicalJson(v.deckConfig));
         const namesOf = (emails: string[] | undefined) =>
           emails && emails.length > 0
             ? ` (${emails.map((e) => names[e] ?? e).join(", ")})`
             : "";
-        const summaryParts = prev === null ? [] : [
-          addedCount > 0
-            ? `${addedCount} ${t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })}`
-            : "",
-          editedCount > 0
-            ? `${editedCount} ${t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })}`
-            : "",
-          removedCount > 0
-            ? `${removedCount} ${t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })}`
-            : "",
-          survivorOrderChanged
-            ? `${t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })}${namesOf(se?.reordered)}`
-            : "",
-          settingsChanged
-            ? `${t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })}${namesOf(se?.settings)}`
-            : "",
-        ].filter(Boolean);
+        const summaryParts =
+          prev === null
+            ? []
+            : [
+                addedCount > 0
+                  ? `${addedCount} ${t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })}`
+                  : "",
+                editedCount > 0
+                  ? `${editedCount} ${t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })}`
+                  : "",
+                removedCount > 0
+                  ? `${removedCount} ${t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })}`
+                  : "",
+                survivorOrderChanged
+                  ? `${t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })}${namesOf(se?.reordered)}`
+                  : "",
+                settingsChanged
+                  ? `${t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })}${namesOf(se?.settings)}`
+                  : "",
+              ].filter(Boolean);
 
         return (
           <div class="flex h-full min-h-0 flex-col">
@@ -500,20 +589,24 @@ export function DeckVersionPreview(p: {
                   <span>
                     {prevFailed
                       ? t3({
-                        en: "Could not load the previous version — session changes cannot be highlighted here.",
-                        fr: "Impossible de charger la version précédente — les modifications de cette session ne peuvent pas être mises en évidence ici.",
-                        pt: "Não foi possível carregar a versão anterior — as alterações desta sessão não podem ser destacadas aqui.",
-                      })
+                          en: "Could not load the previous version — session changes cannot be highlighted here.",
+                          fr: "Impossible de charger la version précédente — les modifications de cette session ne peuvent pas être mises en évidence ici.",
+                          pt: "Não foi possível carregar a versão anterior — as alterações desta sessão não podem ser destacadas aqui.",
+                        })
                       : t3({
-                        en: "First version — every slide is new in this session.",
-                        fr: "Première version — chaque diapositive est nouvelle dans cette session.",
-                        pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
-                      })}
+                          en: "First version — every slide is new in this session.",
+                          fr: "Première version — chaque diapositive est nouvelle dans cette session.",
+                          pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
+                        })}
                   </span>
                 }
               >
                 <span class="font-700">
-                  {t3({ en: "Edits in this session", fr: "Modifications de cette session", pt: "Edições desta sessão" })}
+                  {t3({
+                    en: "Edits in this session",
+                    fr: "Modifications de cette session",
+                    pt: "Edições desta sessão",
+                  })}
                   {sessionEditors ? ` (${sessionEditors})` : ""}
                   {": "}
                 </span>
@@ -521,12 +614,14 @@ export function DeckVersionPreview(p: {
                   {summaryParts.length > 0
                     ? summaryParts.join(" · ")
                     : t3({
-                      en: "no slide changes",
-                      fr: "aucune modification des diapositives",
-                      pt: "sem alterações de diapositivos",
-                    })}
+                        en: "no slide changes",
+                        fr: "aucune modification des diapositives",
+                        pt: "sem alterações de diapositivos",
+                      })}
                 </span>
-                <Show when={removedCount > 0 || addedCount > 0 || editedCount > 0}>
+                <Show
+                  when={removedCount > 0 || addedCount > 0 || editedCount > 0}
+                >
                   <span>
                     {" — "}
                     {t3({
@@ -588,7 +683,11 @@ export function DeckVersionPreview(p: {
               <div class="flex-1" />
               <Show when={p.canRestore}>
                 <Button outline onClick={() => restoreAsCopy(v)}>
-                  {t3({ en: "Restore as copy", fr: "Restaurer comme copie", pt: "Restaurar como cópia" })}
+                  {t3({
+                    en: "Restore as copy",
+                    fr: "Restaurer comme copie",
+                    pt: "Restaurar como cópia",
+                  })}
                 </Button>
                 <Button onClick={() => restore(v)}>
                   {t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" })}
@@ -657,8 +756,8 @@ function VersionSlideThumb(p: {
       <Show when={p.badge}>
         {(badge) => (
           <div
-            class="text-white absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px] font-700"
-            style={{ "background-color": badge().color }}
+            class="font-700 absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px]"
+            style={{ "background-color": badge().color, color: "#ffffff" }}
             title={badge().title}
           >
             {badge().text}
@@ -716,8 +815,12 @@ function ExpandedVersionSlideModal(
       </div>
       <Show when={p.rows && p.rows.length > 0}>
         <div class="mt-3 flex max-h-[30vh] flex-col gap-2 overflow-auto">
-          <div class="text-sm font-700">
-            {t3({ en: "Changes in this session", fr: "Modifications de cette session", pt: "Alterações desta sessão" })}
+          <div class="font-700 text-sm">
+            {t3({
+              en: "Changes in this session",
+              fr: "Modifications de cette session",
+              pt: "Alterações desta sessão",
+            })}
           </div>
           <For each={p.rows}>
             {(row) => (
@@ -733,16 +836,20 @@ function ExpandedVersionSlideModal(
                   <div
                     class="mt-1.5"
                     classList={{
-                      "grid grid-cols-2 gap-2": !!(row.oldBlock && row.newBlock),
+                      "grid grid-cols-2 gap-2": !!(
+                        row.oldBlock && row.newBlock
+                      ),
                     }}
                   >
                     <Show when={row.oldBlock} keyed>
                       {(b) => (
                         <BlockSnapshot
                           block={b}
-                          caption={row.newBlock
-                            ? t3({ en: "Before", fr: "Avant", pt: "Antes" })
-                            : undefined}
+                          caption={
+                            row.newBlock
+                              ? t3({ en: "Before", fr: "Avant", pt: "Antes" })
+                              : undefined
+                          }
                           dimmed
                         />
                       )}
@@ -751,15 +858,19 @@ function ExpandedVersionSlideModal(
                       {(b) => (
                         <BlockSnapshot
                           block={b}
-                          caption={row.oldBlock
-                            ? t3({ en: "After", fr: "Après", pt: "Depois" })
-                            : undefined}
+                          caption={
+                            row.oldBlock
+                              ? t3({ en: "After", fr: "Après", pt: "Depois" })
+                              : undefined
+                          }
                         />
                       )}
                     </Show>
                   </div>
                 </Show>
-                <Show when={row.oldText !== undefined || row.newText !== undefined}>
+                <Show
+                  when={row.oldText !== undefined || row.newText !== undefined}
+                >
                   <div class="mt-1.5">
                     <DiffSegments
                       segments={computeAttributedDiff([
@@ -808,7 +919,11 @@ function BlockSnapshot(p: {
         <Switch
           fallback={
             <div class="ui-text-caption">
-              {t3({ en: "No preview", fr: "Aucun aperçu", pt: "Sem pré-visualização" })}
+              {t3({
+                en: "No preview",
+                fr: "Aucun aperçu",
+                pt: "Sem pré-visualização",
+              })}
             </div>
           }
         >

@@ -13,7 +13,8 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION =
+  typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 type Size = "sm" | "md";
@@ -32,12 +33,15 @@ export function PresenceAvatars(p: {
   const shown = () => p.peers.slice(0, max());
   const overflow = () => Math.max(0, p.peers.length - max());
   // A stale idle flag never dims someone the server says is editing right now.
-  const isDimmed = (peer: PresenceEntry) => Boolean(peer.idle && !peer.isEditing);
+  const isDimmed = (peer: PresenceEntry) =>
+    Boolean(peer.idle && !peer.isEditing);
   const title = (peer: PresenceEntry) => {
     if (p.showEditingPulse && peer.isEditing) {
-      return `${peer.name} — ${
-        t3({ en: "editing now", fr: "modification en cours", pt: "a editar" })
-      }`;
+      return `${peer.name} — ${t3({
+        en: "editing now",
+        fr: "modification en cours",
+        pt: "a editar",
+      })}`;
     }
     if (isDimmed(peer)) {
       return `${peer.name} — ${t3({ en: "idle", fr: "inactif", pt: "inativo" })}`;
@@ -52,9 +56,9 @@ export function PresenceAvatars(p: {
           {(peer) => (
             <div class="relative" title={title(peer)}>
               <div
-                class={`${dim()} flex items-center justify-center overflow-hidden rounded-full font-700 text-white ring-2 ring-white transition-opacity duration-500`}
+                class={`${dim()} ring-base-100 font-700 flex items-center justify-center overflow-hidden rounded-full ring-2 transition-opacity duration-500`}
                 classList={{ "opacity-40 grayscale": isDimmed(peer) }}
-                style={{ "background-color": peer.color }}
+                style={{ "background-color": peer.color, color: "#ffffff" }}
               >
                 <Show
                   when={peer.avatarUrl}
@@ -71,7 +75,7 @@ export function PresenceAvatars(p: {
                 {/* z-10: overlapped avatars paint later-over-earlier, so the
                     next avatar in the stack would otherwise cover this badge. */}
                 <span
-                  class="bg-primary absolute -right-0.5 -top-0.5 z-10 block h-2 w-2 rounded-full ring-1 ring-white"
+                  class="bg-primary ring-base-100 absolute -top-0.5 -right-0.5 z-10 block h-2 w-2 rounded-full ring-1"
                   classList={{ "animate-pulse": !REDUCED_MOTION }}
                 />
               </Show>
@@ -80,7 +84,7 @@ export function PresenceAvatars(p: {
         </For>
         <Show when={overflow() > 0}>
           <div
-            class={`${dim()} bg-base-300 text-base-content flex items-center justify-center rounded-full font-700 ring-2 ring-white`}
+            class={`${dim()} bg-base-300 text-base-content font-700 ring-base-100 flex items-center justify-center rounded-full ring-2`}
           >
             +{overflow()}
           </div>

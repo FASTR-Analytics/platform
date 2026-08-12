@@ -1,6 +1,6 @@
 import type { PublicDashboardItem } from "lib";
 import { t3 } from "lib";
-import { SelectionCircle, type SelectionController } from "panther";
+import { Card, type SelectionController } from "panther";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
 import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { FigureThumbnail } from "~/components/PresentationObjectMiniDisplay";
@@ -125,7 +125,7 @@ function EntryCard(p: { entry: DashboardGridEntry; grid: Props }) {
   };
 
   return (
-    <div class="group row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
+    <div class="row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
       <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
           {entry().label}
@@ -137,32 +137,28 @@ function EntryCard(p: { entry: DashboardGridEntry; grid: Props }) {
           <div class="bg-base-100 absolute -top-1 right-1 left-1 h-full rounded border" />
           <div class="bg-base-100 absolute -top-0.5 right-0.5 left-0.5 h-full rounded border" />
         </Show>
-        <div
-          class="bg-base-100 relative cursor-pointer rounded border p-2"
-          classList={{
-            "border-primary": isSelected(),
-            "hover:border-primary": !isSelected(),
-          }}
+        <Card
+          pad="none"
+          selected={isSelected()}
+          onSelectToggle={(e) => p.grid.selection.handleClick(id(), e)}
           onClick={(e) => {
-            e.stopPropagation();
+            e?.stopPropagation();
             p.grid.selection.handleClick(id(), e);
           }}
           onContextMenu={(e) => p.grid.onContextMenu(e, id())}
         >
-          <SelectionCircle
-            isSelected={isSelected()}
-            onClick={(e) => p.grid.selection.handleClick(id(), e)}
-          />
           <Show when={isGroup()}>
             <div class="bg-primary text-primary-content absolute top-2 left-2 z-10 rounded px-1 py-0.5 text-xs">
               {entry().count}{" "}
               {t3({ en: "replicants", fr: "réplicants", pt: "replicantes" })}
             </div>
           </Show>
-          <Show when={figureInputs()}>
-            {(fi) => <FigureThumbnail figureInputs={fi()} />}
-          </Show>
-        </div>
+          <div class="p-2">
+            <Show when={figureInputs()}>
+              {(fi) => <FigureThumbnail figureInputs={fi()} />}
+            </Show>
+          </div>
+        </Card>
       </div>
     </div>
   );

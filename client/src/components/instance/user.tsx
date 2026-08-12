@@ -13,7 +13,7 @@ import {
   Checkbox,
   FrameTop,
   HeadingBar,
-  SettingsSection,
+  Card,
   openComponent,
   createButtonAction,
   createDeleteAction,
@@ -22,7 +22,6 @@ import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { ProjectPermissionForm } from "./project_permission_form.tsx";
 import { instanceState } from "~/state/instance/t1_store";
-
 
 type Props = {
   user: OtherUser;
@@ -41,19 +40,39 @@ function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
 export function User(p: Props) {
   const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
 
-  const [permissions, setPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
-  const [originalPermissions, setOriginalPermissions] = createSignal<Record<UserPermission, boolean> | null>(null);
+  const [permissions, setPermissions] = createSignal<Record<
+    UserPermission,
+    boolean
+  > | null>(null);
+  const [originalPermissions, setOriginalPermissions] = createSignal<Record<
+    UserPermission,
+    boolean
+  > | null>(null);
 
   const [unlimitedAi, setUnlimitedAi] = createSignal(p.user.unlimitedAi);
   const toggleUnlimitedAi = createButtonAction(
-    () => serverActions.setUserUnlimitedAi({ email: p.user.email, unlimited: !unlimitedAi() }),
-    () => { setUnlimitedAi((v) => !v); },
+    () =>
+      serverActions.setUserUnlimitedAi({
+        email: p.user.email,
+        unlimited: !unlimitedAi(),
+      }),
+    () => {
+      setUnlimitedAi((v) => !v);
+    },
   );
 
-  const [isContactPerson, setIsContactPerson] = createSignal(p.user.isContactPerson);
+  const [isContactPerson, setIsContactPerson] = createSignal(
+    p.user.isContactPerson,
+  );
   const toggleContactPerson = createButtonAction(
-    () => serverActions.setUserContactPerson({ email: p.user.email, isContactPerson: !isContactPerson() }),
-    () => { setIsContactPerson((v) => !v); },
+    () =>
+      serverActions.setUserContactPerson({
+        email: p.user.email,
+        isContactPerson: !isContactPerson(),
+      }),
+    () => {
+      setIsContactPerson((v) => !v);
+    },
   );
 
   // get user permissions
@@ -78,21 +97,22 @@ export function User(p: Props) {
   const togglePermission = async (key: UserPermission) => {
     const current = permissions();
     if (!current) return;
-    setPermissions({ ...current, [key]: !current[key]});
+    setPermissions({ ...current, [key]: !current[key] });
   };
 
   const savePermissions = createButtonAction(
     () => {
       const perms = permissions();
-      if (!perms) return Promise.resolve({ success: false, err: "No permissions" });
+      if (!perms)
+        return Promise.resolve({ success: false, err: "No permissions" });
       return serverActions.updateUserPermissions({
         email: p.user.email,
-        permissions: perms
+        permissions: perms,
       });
     },
     () => {
       setOriginalPermissions(permissions());
-    }
+    },
   );
 
   const attemptMakeAdmin = createButtonAction(
@@ -115,7 +135,11 @@ export function User(p: Props) {
   async function attemptDeleteUser() {
     const deleteAction = createDeleteAction(
       {
-        text: t3({ en: "Are you sure you want to remove this user?", fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?", pt: "Tem a certeza de que pretende remover este utilizador?" }),
+        text: t3({
+          en: "Are you sure you want to remove this user?",
+          fr: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+          pt: "Tem a certeza de que pretende remover este utilizador?",
+        }),
         itemList: [p.user.email],
       },
       () => serverActions.deleteUser({ emails: [p.user.email] }),
@@ -126,7 +150,10 @@ export function User(p: Props) {
     await deleteAction.click();
   }
 
-  async function openProjectPermissions(projectId: string | null, projectLabel: string) {
+  async function openProjectPermissions(
+    projectId: string | null,
+    projectLabel: string,
+  ) {
     await openComponent({
       element: ProjectPermissionForm,
       props: { projectId, projectLabel, email: p.user.email },
@@ -144,16 +171,33 @@ export function User(p: Props) {
       }
     >
       <div class="ui-pad ui-spy">
-        <SettingsSection header={t3({ en: "Login details", fr: "Identifiants", pt: "Dados de início de sessão" })}>
-          <div class="flex">
-            <div class="w-48 flex-none">{t3(TC.email)}:</div>
-            <div class="flex-1">{p.user.email}</div>
+        <Card
+          header={t3({
+            en: "Login details",
+            fr: "Identifiants",
+            pt: "Dados de início de sessão",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <div class="flex">
+              <div class="w-48 flex-none">{t3(TC.email)}:</div>
+              <div class="flex-1">{p.user.email}</div>
+            </div>
           </div>
-        </SettingsSection>
-        <Show when={instanceState.currentUserIsGlobalAdmin || instanceState.currentUserPermissions.can_configure_users}>
-          <SettingsSection
-            header={t3({ en: "Instance permissions", fr: "Droits d'accès à l'instance", pt: "Permissões da instância" })}
-            rightChildren={
+        </Card>
+        <Show
+          when={
+            instanceState.currentUserIsGlobalAdmin ||
+            instanceState.currentUserPermissions.can_configure_users
+          }
+        >
+          <Card
+            header={t3({
+              en: "Instance permissions",
+              fr: "Droits d'accès à l'instance",
+              pt: "Permissões da instância",
+            })}
+            headerRight={
               <div class="ui-gap-sm flex">
                 <Switch>
                   <Match when={p.user.isGlobalAdmin}>
@@ -162,7 +206,11 @@ export function User(p: Props) {
                       state={attemptMakeNonAdmin.state()}
                       outline
                     >
-                      {t3({ en: "Make non-admin", fr: "Retirer le rôle d'administrateur", pt: "Remover administrador" })}
+                      {t3({
+                        en: "Make non-admin",
+                        fr: "Retirer le rôle d'administrateur",
+                        pt: "Remover administrador",
+                      })}
                     </Button>
                   </Match>
                   <Match when={true}>
@@ -171,89 +219,163 @@ export function User(p: Props) {
                       state={attemptMakeAdmin.state()}
                       outline
                     >
-                      {t3({ en: "Make admin", fr: "Attribuer le rôle d'administrateur", pt: "Tornar administrador" })}
+                      {t3({
+                        en: "Make admin",
+                        fr: "Attribuer le rôle d'administrateur",
+                        pt: "Tornar administrador",
+                      })}
                     </Button>
                   </Match>
                 </Switch>
               </div>
             }
           >
-            <div class="flex">
-              <div class="w-48 flex-none">{t3({ en: "Instance admin", fr: "Administrateur de l'instance", pt: "Administrador da instância" })}:</div>
-              <div class="flex-1">
-                {p.user.isGlobalAdmin ? t3({ en: "Yes", fr: "Oui", pt: "Sim" }) : t3({ en: "No", fr: "Non", pt: "Não" })}
+            <div class="ui-spy-sm">
+              <div class="flex">
+                <div class="w-48 flex-none">
+                  {t3({
+                    en: "Instance admin",
+                    fr: "Administrateur de l'instance",
+                    pt: "Administrador da instância",
+                  })}
+                  :
+                </div>
+                <div class="flex-1">
+                  {p.user.isGlobalAdmin
+                    ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
+                    : t3({ en: "No", fr: "Non", pt: "Não" })}
+                </div>
               </div>
             </div>
-          </SettingsSection>
+          </Card>
           <Show when={p.user.isGlobalAdmin === false}>
-            <SettingsSection
-              header={t3({ en: "User Permissions", fr: "Droits d'accès de l'utilisateur", pt: "Permissões do utilizador" })}
-              rightChildren={
+            <Card
+              header={t3({
+                en: "User Permissions",
+                fr: "Droits d'accès de l'utilisateur",
+                pt: "Permissões do utilizador",
+              })}
+              headerRight={
                 <Show when={hasChanges()}>
                   <Button
                     onClick={savePermissions.click}
-                    state={savePermissions.state()}>
-                    {t3({ en: "Save Changes", fr: "Sauvegarder les modifications", pt: "Guardar alterações" })}
+                    state={savePermissions.state()}
+                  >
+                    {t3({
+                      en: "Save Changes",
+                      fr: "Sauvegarder les modifications",
+                      pt: "Guardar alterações",
+                    })}
                   </Button>
                 </Show>
               }
             >
-              <Show when={permissions()} fallback={<div>{t3(TC.loading)}</div>}>
-                {(perms) => (
-                  <div class="space-y-2">
-                    <For each={USER_PERMISSIONS as readonly UserPermission[]}>
-                      {(key) =>(
-                        <Checkbox
-                          label={t3(INSTANCE_PERMISSION_LABELS[key])}
-                          checked={perms()[key]}
-                          onChange={() => togglePermission(key)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                )}
-              </Show>
-            </SettingsSection>
+              <div class="ui-spy-sm">
+                <Show
+                  when={permissions()}
+                  fallback={<div>{t3(TC.loading)}</div>}
+                >
+                  {(perms) => (
+                    <div class="space-y-2">
+                      <For each={USER_PERMISSIONS as readonly UserPermission[]}>
+                        {(key) => (
+                          <Checkbox
+                            label={t3(INSTANCE_PERMISSION_LABELS[key])}
+                            checked={perms()[key]}
+                            onChange={() => togglePermission(key)}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  )}
+                </Show>
+              </div>
+            </Card>
           </Show>
           <Show when={p.user.isGlobalAdmin === false}>
-            <SettingsSection
-              header={t3({ en: "Project permissions", fr: "Permissions par projet", pt: "Permissões do projeto" })}
+            <Card
+              header={t3({
+                en: "Project permissions",
+                fr: "Permissions par projet",
+                pt: "Permissões do projeto",
+              })}
             >
-              <div class="grid grid-cols-3 gap-2">
-                {p.projects.map((project) => (
+              <div class="ui-spy-sm">
+                <div class="grid grid-cols-3 gap-2">
+                  {p.projects.map((project) => (
+                    <button
+                      type="button"
+                      class="ui-pad ui-hoverable-base-100 font-700 min-h-[60px] rounded border text-left text-sm"
+                      onClick={() =>
+                        openProjectPermissions(project.id, project.label)
+                      }
+                    >
+                      {project.label}
+                    </button>
+                  ))}
                   <button
                     type="button"
-                    class="ui-pad ui-hoverable-base-100 min-h-[60px] rounded border text-left text-sm font-700"
-                    onClick={() => openProjectPermissions(project.id, project.label)}
+                    class="ui-pad ui-hoverable-base-100 text-base-content-muted col-span-full min-h-[40px] rounded border text-left text-sm italic"
+                    onClick={() =>
+                      openProjectPermissions(
+                        null,
+                        t3({
+                          en: "New projects (default)",
+                          fr: "Nouveaux projets (défaut)",
+                          pt: "Novos projetos (predefinição)",
+                        }),
+                      )
+                    }
                   >
-                    {project.label}
+                    {t3({
+                      en: "New projects (default)",
+                      fr: "Nouveaux projets (défaut)",
+                      pt: "Novos projetos (predefinição)",
+                    })}
                   </button>
-                ))}
-                <button
-                  type="button"
-                  class="ui-pad ui-hoverable-base-100 col-span-full min-h-[40px] rounded border text-left text-sm italic text-base-content-muted"
-                  onClick={() => openProjectPermissions(null, t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" }))}
-                >
-                  {t3({ en: "New projects (default)", fr: "Nouveaux projets (défaut)", pt: "Novos projetos (predefinição)" })}
-                </button>
+                </div>
               </div>
-            </SettingsSection>
+            </Card>
           </Show>
           <Show when={currentUserIsHUser()}>
-            <SettingsSection header={t3({ en: "AI usage", fr: "Utilisation IA", pt: "Utilização de IA" })}>
-              <Checkbox
-                label={t3({ en: "Unlimited AI token usage", fr: "Utilisation IA illimitée", pt: "Utilização ilimitada de tokens de IA" })}
-                checked={unlimitedAi()}
-                onChange={toggleUnlimitedAi.click}
-              />
-            </SettingsSection>
-            <SettingsSection header={t3({ en: "Contact person", fr: "Personne de contact", pt: "Pessoa de contacto" })}>
-              <Checkbox
-                label={t3({ en: "Contact person", fr: "Personne de contact", pt: "Pessoa de contacto" })}
-                checked={isContactPerson()}
-                onChange={toggleContactPerson.click}
-              />
-            </SettingsSection>
+            <Card
+              header={t3({
+                en: "AI usage",
+                fr: "Utilisation IA",
+                pt: "Utilização de IA",
+              })}
+            >
+              <div class="ui-spy-sm">
+                <Checkbox
+                  label={t3({
+                    en: "Unlimited AI token usage",
+                    fr: "Utilisation IA illimitée",
+                    pt: "Utilização ilimitada de tokens de IA",
+                  })}
+                  checked={unlimitedAi()}
+                  onChange={toggleUnlimitedAi.click}
+                />
+              </div>
+            </Card>
+            <Card
+              header={t3({
+                en: "Contact person",
+                fr: "Personne de contact",
+                pt: "Pessoa de contacto",
+              })}
+            >
+              <div class="ui-spy-sm">
+                <Checkbox
+                  label={t3({
+                    en: "Contact person",
+                    fr: "Personne de contact",
+                    pt: "Pessoa de contacto",
+                  })}
+                  checked={isContactPerson()}
+                  onChange={toggleContactPerson.click}
+                />
+              </div>
+            </Card>
           </Show>
           <Button
             onClick={attemptDeleteUser}
@@ -261,7 +383,11 @@ export function User(p: Props) {
             outline
             iconName="trash"
           >
-            {t3({ en: "Remove this user", fr: "Supprimer cet utilisateur", pt: "Remover este utilizador" })}
+            {t3({
+              en: "Remove this user",
+              fr: "Supprimer cet utilisateur",
+              pt: "Remover este utilizador",
+            })}
           </Button>
         </Show>
       </div>

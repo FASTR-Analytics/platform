@@ -1010,8 +1010,11 @@ export function SlideEditor(p: Props) {
                 {/* Room checkpoint health — edits relay live between peers,
                     but the server can't persist them right now. */}
                 <Show
-                  when={collabReady() && collabSocketOpen() &&
-                    docSaveFailing("slide", p.slideId)}
+                  when={
+                    collabReady() &&
+                    collabSocketOpen() &&
+                    docSaveFailing("slide", p.slideId)
+                  }
                 >
                   <div class="ui-text-caption flex items-center gap-1.5">
                     <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
@@ -1470,8 +1473,8 @@ function PeerSelectionOverlay(p: {
                 <For each={b.editors}>
                   {(e) => (
                     <div
-                      class="rounded px-1 text-[10px] font-700 whitespace-nowrap text-white"
-                      style={{ "background-color": e.color }}
+                      class="font-700 rounded px-1 text-[10px] whitespace-nowrap"
+                      style={{ "background-color": e.color, color: "#ffffff" }}
                     >
                       {e.name}
                       {e.editingFigure
