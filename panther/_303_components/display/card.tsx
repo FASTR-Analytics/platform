@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createMemo, type JSX, Match, Show, Switch } from "solid-js";
+import { SelectionCircle } from "../list_selection/selection_circle.tsx";
 
 // Clickable cards signal at the frame, not the fill: a card is a container of
 // arbitrary content, so repainting its ground on hover reads badly. The
@@ -13,6 +14,13 @@ import { createMemo, type JSX, Match, Show, Switch } from "solid-js";
 // phrasing content, and a card body is flow content. The link variant is a
 // real <a> (Button's href arm is the precedent) so middle-click/new-tab/native
 // keyboard behavior survive.
+//
+// Selection: `onSelectToggle` puts the card in multi-select marking mode — a
+// SelectionCircle overlay (hover/focus-revealed via the group/card name), and
+// selected renders border-only (no wash: these cards hold previews the wash
+// would tint). The wash pin remains the single-choice accent-select look.
+// Selection state stays controlled — pair with createSelectionController in
+// app code (DOC_LIST_SELECTION); the circle owns its propagation guard.
 const BORDER_TRANSITION = {
   transition: "border-color var(--ui-dur-fast) var(--ui-ease)",
 };
@@ -25,13 +33,15 @@ type CardPropsBase = {
   pad?: "sm" | "md" | "none";
   shaded?: boolean;
   selected?: boolean;
+  onSelectToggle?: (evt?: MouseEvent) => void;
+  onContextMenu?: (evt: MouseEvent) => void;
   // Positioning only (width/grid/margin) — never skin overrides. Interactive
   // cards size like any block: pass w-full / w-* here (never hardcoded).
   class?: string;
 };
 
 type CardPropsClickable = CardPropsBase & {
-  onClick?: () => void;
+  onClick?: (evt?: MouseEvent) => void;
   href?: never;
 };
 
@@ -56,16 +66,20 @@ export function Card(p: CardProps) {
     return pad === "none" ? "" : pad === "sm" ? "ui-pad-sm" : "ui-pad";
   };
 
+  const interactive = () => !!p.onClick || p.href !== undefined;
+  const washPinned = () => !!p.selected && p.onSelectToggle === undefined;
+
   const rootClass = (extra: string) =>
     ["rounded border", extra, p.class].filter(Boolean).join(" ");
 
   const rootClassList = () => ({
-    "border-primary bg-primary-subtle": !!p.selected,
-    "bg-base-200": !p.selected && !!p.shaded,
-    "bg-base-100": !p.selected && !p.shaded,
-    "ui-focusable cursor-pointer": !!p.onClick || p.href !== undefined,
-    "hover:border-primary": !p.selected &&
-      (!!p.onClick || p.href !== undefined),
+    "border-primary bg-primary-subtle": washPinned(),
+    "border-primary": !!p.selected && !washPinned(),
+    "bg-base-200": !washPinned() && !!p.shaded,
+    "bg-base-100": !washPinned() && !p.shaded,
+    "group/card relative": p.onSelectToggle !== undefined,
+    "ui-focusable cursor-pointer": interactive(),
+    "hover:border-primary": !p.selected && interactive(),
   });
 
   // Actions in headerRight/footer must not also fire the card. For the link
@@ -73,7 +87,7 @@ export function Card(p: CardProps) {
   // too (accepted edge: this also cancels native defaults of controls placed
   // in those regions of a link card).
   const guardRegion = (evt: MouseEvent) => {
-    if (p.onClick || p.href !== undefined) {
+    if (interactive()) {
       evt.stopPropagation();
       if (p.href !== undefined) {
         evt.preventDefault();
@@ -83,6 +97,14 @@ export function Card(p: CardProps) {
 
   const inner = () => (
     <>
+      <Show when={p.onSelectToggle} keyed>
+        {(keyedOnSelectToggle) => (
+          <SelectionCircle
+            isSelected={!!p.selected}
+            onClick={keyedOnSelectToggle}
+          />
+        )}
+      </Show>
       <Show when={header() !== undefined || p.headerRight !== undefined}>
         <div class={`${rowPad()} flex items-center gap-2 border-b`}>
           <div class="min-w-0 flex-1">
@@ -122,6 +144,7 @@ export function Card(p: CardProps) {
           classList={rootClassList()}
           style={BORDER_TRANSITION}
           aria-current={p.selected ? "true" : undefined}
+          onContextMenu={(evt) => p.onContextMenu?.(evt)}
         >
           {inner()}
         </a>
@@ -134,7 +157,8 @@ export function Card(p: CardProps) {
           role="button"
           tabindex="0"
           aria-pressed={p.selected !== undefined ? p.selected : undefined}
-          onClick={() => p.onClick?.()}
+          onClick={(evt) => p.onClick?.(evt)}
+          onContextMenu={(evt) => p.onContextMenu?.(evt)}
           onKeyDown={(evt) => {
             if (
               p.onClick &&
@@ -154,6 +178,7 @@ export function Card(p: CardProps) {
           class={rootClass("")}
           classList={rootClassList()}
           style={BORDER_TRANSITION}
+          onContextMenu={(evt) => p.onContextMenu?.(evt)}
         >
           {inner()}
         </div>
