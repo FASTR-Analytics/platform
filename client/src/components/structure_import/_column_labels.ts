@@ -1,4 +1,4 @@
-import { t3, type InstanceConfigFacilityColumns } from "lib";
+import { t3, type StructureColumns } from "lib";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 // Human label for a structure-import column key (facility_id, admin_area_N, or an
@@ -6,7 +6,7 @@ import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 // Shared by the step-2 mapping screen and the step-4 confirmation.
 export function getStructureColumnLabel(
   column: string,
-  fc: InstanceConfigFacilityColumns
+  fc: StructureColumns
 ): string {
   switch (column) {
     case "facility_id":

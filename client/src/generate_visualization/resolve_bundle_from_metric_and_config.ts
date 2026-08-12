@@ -53,6 +53,7 @@ export async function resolveBundleFromMetricAndConfig(
         valueProps: metric.valueProps,
         valueLabelReplacements: metric.valueLabelReplacements,
       },
+      datasetFamily: metric.datasetFamily,
       fetchConfig: resFetch.data,
     },
     config,

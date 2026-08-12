@@ -13,7 +13,11 @@ import { Facilities } from "../structure";
 import { AdminAreas } from "../structure/admin_areas";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  maxDepth,
+  structureSchemaForFamily,
+} from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 type Props = {};
@@ -158,30 +162,48 @@ export function InstanceData(p: Props) {
                         }
                         keyed
                       >
-                        {(keyedStructureNumbers) => (
+                        {(keyedStructure) => (
                           <div class="ui-spy-sm text-success text-xs">
-                            <div class="ui-gap flex justify-between">
-                              <span>{t3(getAdminAreaLabel(2))}:</span>
-                              <span class="font-mono">
-                                {toNum0(keyedStructureNumbers.adminArea2s)}
-                              </span>
-                            </div>
-                            <Show when={instanceState.maxAdminArea >= 3}>
-                              <div class="ui-gap flex justify-between">
-                                <span>{t3(getAdminAreaLabel(3))}:</span>
-                                <span class="font-mono">
-                                  {toNum0(keyedStructureNumbers.adminArea3s)}
-                                </span>
-                              </div>
-                            </Show>
-                            <Show when={instanceState.maxAdminArea >= 4}>
-                              <div class="ui-gap flex justify-between">
-                                <span>{t3(getAdminAreaLabel(4))}:</span>
-                                <span class="font-mono">
-                                  {toNum0(keyedStructureNumbers.adminArea4s)}
-                                </span>
-                              </div>
-                            </Show>
+                            <For
+                              each={([2, 3, 4] as const).filter(
+                                (level) => maxDepth() >= level,
+                              )}
+                            >
+                              {(level) => (
+                                <div class="ui-gap flex justify-between">
+                                  <span>{t3(getAdminAreaLabel(level))}:</span>
+                                  <span class="font-mono">
+                                    {(["hmis", "hfa"] as const)
+                                      .filter(
+                                        (family) =>
+                                          structureSchemaForFamily(family)
+                                            .adminDepth >= level,
+                                      )
+                                      .map(
+                                        (family) =>
+                                          `${
+                                            family === "hmis"
+                                              ? t3({
+                                                  en: "HMIS",
+                                                  fr: "SNIS",
+                                                  pt: "HMIS",
+                                                })
+                                              : t3({
+                                                  en: "HFA",
+                                                  fr: "FOSA",
+                                                  pt: "HFA",
+                                                })
+                                          } ${toNum0(
+                                            keyedStructure[family][
+                                              `adminArea${level}s`
+                                            ],
+                                          )}`,
+                                      )
+                                      .join(" · ")}
+                                  </span>
+                                </div>
+                              )}
+                            </For>
                           </div>
                         )}
                       </Show>
@@ -218,9 +240,23 @@ export function InstanceData(p: Props) {
                             pt: "Níveis configurados",
                           })}
                           :{" "}
-                          {instanceState.geojsonMaps
-                            .map((g) => g.adminAreaLevel)
-                            .join(", ")}
+                          {(["hmis", "hfa"] as const)
+                            .map((family) => ({
+                              family,
+                              levels: instanceState.geojsonMaps
+                                .filter((g) => g.family === family)
+                                .map((g) => g.adminAreaLevel),
+                            }))
+                            .filter(({ levels }) => levels.length > 0)
+                            .map(
+                              ({ family, levels }) =>
+                                `${
+                                  family === "hmis"
+                                    ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
+                                    : t3({ en: "HFA", fr: "FOSA", pt: "HFA" })
+                                } ${levels.join(", ")}`,
+                            )
+                            .join(" · ")}
                         </div>
                       </Show>
                     </div>
@@ -250,8 +286,8 @@ export function InstanceData(p: Props) {
                       </div>
                       <Show
                         when={
-                          (instanceState.structure?.facilitiesHmis ?? 0) > 0 &&
-                          instanceState.structure?.facilitiesHmis
+                          (instanceState.structure?.hmis.facilities ?? 0) > 0 &&
+                          instanceState.structure?.hmis.facilities
                         }
                         fallback={
                           <div class="text-danger text-xs">
@@ -442,8 +478,8 @@ export function InstanceData(p: Props) {
                       </div>
                       <Show
                         when={
-                          (instanceState.structure?.facilitiesHfa ?? 0) > 0 &&
-                          instanceState.structure?.facilitiesHfa
+                          (instanceState.structure?.hfa.facilities ?? 0) > 0 &&
+                          instanceState.structure?.hfa.facilities
                         }
                         fallback={
                           <div class="text-danger text-xs">

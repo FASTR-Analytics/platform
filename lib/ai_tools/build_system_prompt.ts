@@ -77,8 +77,12 @@ function buildAISystemContext(
   sections.push("");
   sections.push("**Geographic levels:**");
   sections.push("- admin_area_1 is always the national level");
-  if (instance.maxAdminArea >= 2) {
-    const aa = instance.maxAdminArea;
+  // Depth is per facility registry; the shared level labels apply to both.
+  const hmisDepth = instance.structureSchemaHmis?.adminDepth;
+  const hfaDepth = instance.structureSchemaHfa?.adminDepth;
+  const maxAdminArea = Math.max(hmisDepth ?? 1, hfaDepth ?? 1);
+  if (maxAdminArea >= 2) {
+    const aa = maxAdminArea;
     const labels = instance.adminAreaLabels;
     const hasCustomLabels = labels.label2 || labels.label3 || labels.label4;
 
@@ -134,6 +138,14 @@ function buildAISystemContext(
       }
       sections.push(
         "- If this instance's country matches one of the above, use that country's terminology instead of 'admin_area_2' etc.",
+      );
+    }
+    if (
+      hmisDepth !== undefined && hfaDepth !== undefined &&
+      hmisDepth !== hfaDepth
+    ) {
+      sections.push(
+        `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
       );
     }
   }
@@ -218,13 +230,21 @@ function buildAISystemContext(
     sections.push("");
     sections.push("**Data coverage:**");
     sections.push(
-      `- ${instance.structure.facilitiesHmis} HMIS facilities, ${instance.structure.facilitiesHfa} HFA facilities`,
+      `- ${instance.structure.hmis.facilities} HMIS facilities, ${instance.structure.hfa.facilities} HFA facilities`,
     );
-    if (instance.structure.adminArea2s > 0) {
-      sections.push(`- ${instance.structure.adminArea2s} admin area 2s`);
-    }
-    if (instance.structure.adminArea3s > 0) {
-      sections.push(`- ${instance.structure.adminArea3s} admin area 3s`);
+    for (
+      const [familyLabel, counts] of [
+        ["HMIS", instance.structure.hmis],
+        ["HFA", instance.structure.hfa],
+      ] as const
+    ) {
+      if (counts.facilities === 0) continue;
+      const parts: string[] = [];
+      if (counts.adminArea2s > 0) parts.push(`${counts.adminArea2s} admin area 2s`);
+      if (counts.adminArea3s > 0) parts.push(`${counts.adminArea3s} admin area 3s`);
+      if (parts.length > 0) {
+        sections.push(`- ${familyLabel} registry: ${parts.join(", ")}`);
+      }
     }
   }
 

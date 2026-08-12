@@ -82,6 +82,7 @@ function issueFor(
       label: po.label,
       kind: "dimensions_not_in_package",
       disaggregationOptions: missing,
+      datasetFamily: metric.datasetFamily ?? undefined,
     };
   }
 

@@ -1,9 +1,10 @@
-import { t3 } from "lib";
+import { t3, type FacilityFamily } from "lib";
 import { Button, Select, StateHolderFormError, createFormAction } from "panther";
 import { For, Show, createMemo, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
+  family: FacilityFamily;
   adminAreaLevel: 2 | 3 | 4;
   close: (p: unknown) => void;
 };
@@ -24,8 +25,14 @@ export function GeoJsonEditModal(p: Props) {
   onMount(async () => {
     try {
       const [geoRes, optionsRes] = await Promise.all([
-        serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }),
-        serverActions.getAdminAreaOptionsForLevel({ level: p.adminAreaLevel }),
+        serverActions.getGeoJsonForLevel({
+          family: p.family,
+          level: p.adminAreaLevel,
+        }),
+        serverActions.getAdminAreaOptionsForLevel({
+          family: p.family,
+          level: p.adminAreaLevel,
+        }),
       ]);
 
       if (!geoRes.success) {
@@ -139,6 +146,7 @@ export function GeoJsonEditModal(p: Props) {
       }
 
       const res = await serverActions.remapGeoJson({
+        family: p.family,
         adminAreaLevel: p.adminAreaLevel,
         remapping: map,
       });
@@ -153,22 +161,29 @@ export function GeoJsonEditModal(p: Props) {
   );
 
   function handleDownload() {
-    serverActions.getGeoJsonForLevel({ level: p.adminAreaLevel }).then((res) => {
-      if (!res.success) return;
-      const blob = new Blob([res.data.geojson], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `geojson_aa${p.adminAreaLevel}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+    serverActions
+      .getGeoJsonForLevel({ family: p.family, level: p.adminAreaLevel })
+      .then((res) => {
+        if (!res.success) return;
+        const blob = new Blob([res.data.geojson], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `geojson_${p.family}_aa${p.adminAreaLevel}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
   }
 
   return (
     <div class="ui-pad-lg ui-spy" style={{ "min-width": "600px", "max-height": "80vh", "overflow-y": "auto" }}>
       <div class="font-700 text-lg">
-        {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON", pt: "Editar a associação GeoJSON" })} — AA{p.adminAreaLevel}
+        {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON", pt: "Editar a associação GeoJSON" })}
+        {" — "}
+        {p.family === "hmis"
+          ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
+          : t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "FOSA" })}{" "}
+        AA{p.adminAreaLevel}
       </div>
 
       <Show when={loading()}>

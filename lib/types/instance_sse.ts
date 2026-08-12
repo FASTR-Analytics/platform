@@ -4,7 +4,7 @@ import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
-import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceConfigFacilityColumns, InstanceFiscalYear, OtherUser } from "./instance.ts";
+import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
 import type { RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
@@ -28,9 +28,9 @@ export type InstanceState = {
   instanceFiscalYear: InstanceFiscalYear;
 
   // Config (rarely changes, updated via `config_updated` event)
-  maxAdminArea: number;
   countryIso3: string | undefined;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchemaHmis: StructureSchema | null;
+  structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
 
   // Lists (sent as full arrays on change)
@@ -43,12 +43,8 @@ export type InstanceState = {
   // Summaries (lightweight aggregates)
   structure:
     | {
-        adminArea1s: number;
-        adminArea2s: number;
-        adminArea3s: number;
-        adminArea4s: number;
-        facilitiesHmis: number;
-        facilitiesHfa: number;
+        hmis: StructureFamilyCounts;
+        hfa: StructureFamilyCounts;
       }
     | undefined;
   structureLastUpdated: string | undefined;
@@ -92,21 +88,17 @@ export type InstanceState = {
 // ============================================================================
 
 export type InstanceConfig = {
-  maxAdminArea: number;
   countryIso3: string | undefined;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchemaHmis: StructureSchema | null;
+  structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
 };
 
 export type InstanceStructureSummary = {
   structure:
     | {
-        adminArea1s: number;
-        adminArea2s: number;
-        adminArea3s: number;
-        adminArea4s: number;
-        facilitiesHmis: number;
-        facilitiesHfa: number;
+        hmis: StructureFamilyCounts;
+        hfa: StructureFamilyCounts;
       }
     | undefined;
   structureLastUpdated: string | undefined;

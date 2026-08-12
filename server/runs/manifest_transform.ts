@@ -16,6 +16,9 @@
 //      recomputed from the package's own input mirrors.
 //   2. metrics[].format_as → "indicator" for the 8 pre-declaration metrics
 //      (schema v4) — the declared-format migration (PLAN_EFFECTIVE_FORMAT).
+//   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
+//      (schema v5) — the structure family split (PLAN_2). Pure copy, no
+//      recompute, no parquet read.
 //
 // =============================================================================
 
@@ -105,6 +108,29 @@ async function transformRunManifest(
     }
   }
   m.manifestSchemaVersion = 4;
+
+  // 3. facilityColumnsConfig → structureSchemaHmis / structureSchemaHfa. A
+  //    pure copy: every artefact in a legacy package (export CSVs, the
+  //    availableDisaggregationOptions stamps, the manifest stamp) was built
+  //    from that one global config, so copying it into each PRESENT family's
+  //    slot is exactly faithful — no stamp recompute, no parquet read, no
+  //    behavioural change to any existing package. A family is present when
+  //    its facilities parquet is in the package (facilitiesTables/inputFiles);
+  //    absent families get null. Idempotent: copies only while the legacy key
+  //    is still present.
+  if ("facilityColumnsConfig" in m) {
+    const legacy = m.facilityColumnsConfig ?? null;
+    const tables = Array.isArray(m.facilitiesTables) ? m.facilitiesTables : [];
+    const inputFiles = Array.isArray(m.inputFiles) ? m.inputFiles : [];
+    const familyPresent = (family: "hmis" | "hfa"): boolean =>
+      tables.some((t) =>
+        (t as Record<string, unknown>).tableName === `facilities_${family}`
+      ) || inputFiles.includes(`inputs/facilities_${family}.parquet`);
+    m.structureSchemaHmis = familyPresent("hmis") ? legacy : null;
+    m.structureSchemaHfa = familyPresent("hfa") ? legacy : null;
+    delete m.facilityColumnsConfig;
+  }
+  m.manifestSchemaVersion = 5;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version — it has to, so a

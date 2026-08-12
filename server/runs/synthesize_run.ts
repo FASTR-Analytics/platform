@@ -7,8 +7,9 @@ import {
   RUN_MANIFEST_SCHEMA_VERSION,
   runManifestSchema,
   type AssetToImport,
+  structureColumnsFromSchema,
+  type DatasetType,
   type DisaggregationOption,
-  type InstanceConfigFacilityColumns,
   type RunAsset,
   type RunDataset,
   type RunFacilitiesTable,
@@ -19,13 +20,14 @@ import {
   type RunProvenance,
   type RunResultsObject,
   type RunSummary,
+  type StructureSchema,
 } from "lib";
 import {
   computeResultsObjectColumnsToExclude,
   executeSqlOverParquet,
   writeNormalizedResultsObjectParquet,
 } from "../run_query/mod.ts";
-import { getFacilityColumnsConfig } from "../db/instance/config.ts";
+import { getStructureSchema } from "../db/instance/config.ts";
 import { resolveAssetFilePath } from "../db/instance/assets.ts";
 import { ensureRepoAssetCached } from "../module_loader/repo_assets.ts";
 import { R_DOCKER_IMAGE_TAG } from "../worker_routines/generate_run/r_docker_image.ts";
@@ -175,11 +177,22 @@ export async function buildRunPackageIntoTmp(
   tmpDir: string,
   opts: RunBuildOptions,
 ): Promise<{ manifest: RunManifest; summary: RunSummary }> {
-  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-  if (resFacilityConfig.success === false) {
-    throw new Error(`facility config: ${resFacilityConfig.err}`);
+  const resSchemaHmis = await getStructureSchema(mainDb, "hmis");
+  if (resSchemaHmis.success === false) {
+    throw new Error(`hmis structure schema: ${resSchemaHmis.err}`);
   }
-  const facilityConfig = resFacilityConfig.data;
+  const resSchemaHfa = await getStructureSchema(mainDb, "hfa");
+  if (resSchemaHfa.success === false) {
+    throw new Error(`hfa structure schema: ${resSchemaHfa.err}`);
+  }
+  const schemaByFamily = (
+    family: DatasetType | null | undefined,
+  ): StructureSchema | undefined =>
+    family === "hmis"
+      ? resSchemaHmis.data
+      : family === "hfa"
+      ? resSchemaHfa.data
+      : undefined;
   const countryIso3 = _INSTANCE_COUNTRY_ISO3;
 
   await Deno.mkdir(join(tmpDir, "inputs"), { recursive: true });
@@ -279,6 +292,11 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
   // (metric stamped unavailable) rather than failing the whole run.
   const runResultsObjects: RunResultsObject[] = [];
   for (const mod of moduleDefinitions) {
+    // The module's own family selects which structure schema governs its
+    // facility columns (iceh/unknown → none)
+    const moduleFamilySchema = schemaByFamily(
+      getDatasetFamily(mod.moduleDefinition),
+    );
     const def = JSON.parse(mod.moduleDefinition) as {
       resultsObjects?: {
         id: string;
@@ -317,7 +335,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
           join(opts.moduleCsvDir(mod.id), ro.id),
           parquetPath,
           ro.createTableStatementPossibleColumns,
-          facilityConfig,
+          moduleFamilySchema,
         );
         if (!ready) {
           runResultsObjects.push(noQueryData);
@@ -333,7 +351,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
           physicalTimeColumn: meta.physicalTimeColumn,
           availableDisaggregationOptions: deriveAvailableDisaggregationOptions(
             meta.columnNames,
-            facilityConfig,
+            moduleFamilySchema,
           ),
           rowCount: meta.rowCount,
           periodBounds: meta.periodBounds,
@@ -477,7 +495,16 @@ SELECT dataset_type, info, last_updated FROM datasets
     rImageTag: R_DOCKER_IMAGE_TAG,
     calendar: _INSTANCE_CALENDAR,
     countryIso3,
-    facilityColumnsConfig: facilityConfig,
+    // Per-family slot, stamped only for families whose facilities parquet
+    // made it into the package. The projection drops adminDepth — the
+    // manifest carries flags + labels only (ruling: a field nothing on the
+    // read path consumes must not exist in the file).
+    structureSchemaHmis: facilitiesTables.some((t) => t.tableName === "facilities_hmis")
+      ? structureColumnsFromSchema(resSchemaHmis.data)
+      : null,
+    structureSchemaHfa: facilitiesTables.some((t) => t.tableName === "facilities_hfa")
+      ? structureColumnsFromSchema(resSchemaHfa.data)
+      : null,
     datasets,
     facilitiesTables,
     assets,
@@ -542,7 +569,7 @@ async function buildResultsObjectParquet(
   sandboxCsvPath: string,
   parquetPath: string,
   declaredColumns: Record<string, string>,
-  facilityConfig: InstanceConfigFacilityColumns,
+  facilityConfig: StructureSchema | undefined,
 ): Promise<boolean> {
   const sandboxParquetPath = `${sandboxCsvPath}.parquet`;
   const csvStat = await statOrUndefined(sandboxCsvPath);

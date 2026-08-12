@@ -1,3 +1,4 @@
+import type { Sql } from "postgres";
 import type {
   AssetInfo,
   GeoJsonMapSummary,
@@ -9,6 +10,11 @@ import type {
   OtherUser,
   RunProgress,
 } from "lib";
+import {
+  getAdminAreaLabelsConfig,
+  getStructureSchema,
+} from "../db/instance/config.ts";
+import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
 
@@ -18,6 +24,28 @@ export function notifyInstanceUpdate(message: InstanceSseMessage) {
 
 export function notifyInstanceConfigUpdated(config: InstanceConfig) {
   notifyInstanceUpdate({ type: "config_updated", data: config });
+}
+
+// Reads the live per-family schemas + shared labels and broadcasts them.
+// Fired after config edits, structure integration and both delete paths. A
+// missing schema row (near-zero probability, guarded by the pre-deploy check)
+// broadcasts as null rather than suppressing the event.
+export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
+  const [hmisRes, hfaRes, labelsRes] = await Promise.all([
+    getStructureSchema(mainDb, "hmis"),
+    getStructureSchema(mainDb, "hfa"),
+    getAdminAreaLabelsConfig(mainDb),
+  ]);
+  if (labelsRes.success === false) {
+    return;
+  }
+  const config: InstanceConfig = {
+    structureSchemaHmis: hmisRes.success ? hmisRes.data : null,
+    structureSchemaHfa: hfaRes.success ? hfaRes.data : null,
+    countryIso3: _INSTANCE_COUNTRY_ISO3,
+    adminAreaLabels: labelsRes.data,
+  };
+  notifyInstanceConfigUpdated(config);
 }
 
 export function notifyInstanceProjectsLastUpdated(lastUpdated: string) {

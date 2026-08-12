@@ -30,6 +30,10 @@ export type HfaSnapshots = {
 export type Fixture = {
   name: string;
   family: "hmis" | "hfa";
+  // Seeded into the family's structure_schema_{family} row alongside the
+  // flags. Not consumed by the query engine (ruling 4: flags only) — it makes
+  // the seeded row a valid StructureSchema.
+  adminDepth: 1 | 2 | 3 | 4;
   moduleId: string;
   moduleDefinition: Record<string, unknown>;
   resultsObjectId: string;
@@ -74,6 +78,7 @@ const ALL_FACILITY_COLUMNS_OFF = {
 export const F1_HMIS_MONTHLY: Fixture = {
   name: "hmis_monthly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_hmis",
   moduleDefinition: {
     scriptGenerationType: "standard",
@@ -151,6 +156,7 @@ const HFA_FACILITIES: Record<string, string | null>[] = [
 export const F2_HFA_SERVICE_CATS: Fixture = {
   name: "hfa_service_cats",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -223,6 +229,7 @@ function hmisModule(): Record<string, unknown> {
 export const F4_HMIS_RATIO: Fixture = {
   name: "hmis_ratio",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_ratio",
   moduleDefinition: hmisModule(),
   resultsObjectId: "dddddddd-eeee-ffff-0000-111111111111",
@@ -253,6 +260,7 @@ export const F4_HMIS_RATIO: Fixture = {
 export const F5_HMIS_AREA_ONLY: Fixture = {
   name: "hmis_area_only",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_area_only",
   moduleDefinition: hmisModule(),
   resultsObjectId: "eeeeeeee-ffff-0000-1111-222222222222",
@@ -278,6 +286,7 @@ export const F5_HMIS_AREA_ONLY: Fixture = {
 export const F6_HMIS_QUARTERLY: Fixture = {
   name: "hmis_quarterly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_quarterly",
   moduleDefinition: hmisModule(),
   resultsObjectId: "ffffffff-0000-1111-2222-333333333333",
@@ -304,6 +313,7 @@ export const F6_HMIS_QUARTERLY: Fixture = {
 export const F7_HMIS_YEARLY: Fixture = {
   name: "hmis_yearly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_yearly",
   moduleDefinition: hmisModule(),
   resultsObjectId: "00000000-1111-2222-3333-444444444444",
@@ -339,6 +349,7 @@ export const F7_HMIS_YEARLY: Fixture = {
 export const F8_HFA_FACILITY_BLANKS: Fixture = {
   name: "hfa_facility_blanks",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_edge",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -392,6 +403,7 @@ const CAP_ROWS = Array.from({ length: 501 }, (_, i) => ({
 export const F9_HMIS_OPTION_CAP: Fixture = {
   name: "hmis_option_cap",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_cap",
   moduleDefinition: hmisModule(),
   resultsObjectId: "22222222-3333-4444-5555-666666666666",
@@ -424,6 +436,7 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
 export const F10_HFA_AREA_ONLY: Fixture = {
   name: "hfa_area_only",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_area_only",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -453,6 +466,7 @@ export const F10_HFA_AREA_ONLY: Fixture = {
 export const F11_HFA_VARIANTS: Fixture = {
   name: "hfa_variants",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_var",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -493,6 +507,7 @@ export const F11_HFA_VARIANTS: Fixture = {
 export const F12_HMIS_SCORECARD: Fixture = {
   name: "hmis_scorecard",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_scorecard",
   moduleDefinition: hmisModule(),
   resultsObjectId: "33333333-4444-5555-6666-777777777777",
@@ -513,6 +528,49 @@ export const F12_HMIS_SCORECARD: Fixture = {
   firstPeriodOption: "period_id",
 };
 
+// F13 — the family-split divergence specimen: an HFA fixture at depth 2 with
+// includeTypes ON, while seedInstance seeds the OTHER family's row with a
+// different depth AND inverted flags (so hmis carries includeTypes OFF here).
+// The facility_type cases only pass if the engine picked the HFA row — reading
+// the hmis row would drop the facility join and kill the option/group-by.
+export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
+  name: "hfa_divergent_schema",
+  family: "hfa",
+  adminDepth: 2,
+  moduleId: "m_hfa_div",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "33333333-4444-5555-6666-777777777777",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
+  facilities: [
+    { facility_id: "d1", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A2_north", admin_area_4: "A2_north", facility_type: "hospital" },
+    { facility_id: "d2", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A2_north", admin_area_4: "A2_north", facility_type: "clinic" },
+    { facility_id: "d3", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A2_south", admin_area_4: "A2_south", facility_type: "hospital" },
+  ],
+  roColumns: [
+    { name: "facility_id", type: "text" },
+    { name: "admin_area_2", type: "text" },
+    { name: "value", type: "double precision" },
+  ],
+  roRows: [
+    { facility_id: "d1", admin_area_2: "A2_north", value: 10 },
+    { facility_id: "d2", admin_area_2: "A2_north", value: 20 },
+    { facility_id: "d3", admin_area_2: "A2_south", value: 5 },
+  ],
+  indicators: [],
+  metric: {
+    id: "metric_div",
+    label: "Divergence metric",
+    value_func: "SUM",
+    format_as: "number",
+    value_props: ["value"],
+    required_disaggregation_options: [],
+  },
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -526,4 +584,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F10_HFA_AREA_ONLY,
   F11_HFA_VARIANTS,
   F12_HMIS_SCORECARD,
+  F13_HFA_DIVERGENT_SCHEMA,
 ];

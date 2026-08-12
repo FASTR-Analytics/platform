@@ -2,158 +2,46 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
+  FacilityFamily,
   InstanceConfigAdminAreaLabels,
-  InstanceConfigMaxAdminArea,
-  InstanceConfigFacilityColumns,
   instanceConfigAdminAreaLabelsSchema,
-  instanceConfigFacilityColumnsSchema,
-  instanceConfigMaxAdminAreaSchema,
   RunGenerationDefaults,
   runGenerationDefaultsSchema,
-  throwIfErrWithData,
+  StructureSchema,
+  structureSchemaSchema,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
-export async function updateMaxAdminArea(
+// One advisory lock shared by the two write paths that race on a family's
+// depth-vs-maps consistency: setStructureSchema's depth change and the geojson
+// map saves (saveGeoJsonMap / dhis2SaveGeoJsonMap). Both check-then-write
+// inside a transaction, so without the lock a depth lowering and a map save
+// above the new depth can interleave.
+export const STRUCTURE_GEOJSON_ADVISORY_LOCK_KEY = 727401;
+
+function structureSchemaConfigKey(family: FacilityFamily): string {
+  return `structure_schema_${family}`;
+}
+
+export async function getStructureSchema(
   mainDb: Sql,
-  newMaxAdminArea: number
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Validate the new value is between 1 and 4
-    if (newMaxAdminArea < 1 || newMaxAdminArea > 4) {
-      return {
-        success: false,
-        err: "maxAdminArea must be between 1 and 4",
-      };
-    }
-
-    // Emptiness checks and the config write share one transaction so a
-    // concurrent structure import can't land rows between check and write.
-    return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
-      const facilitiesCount = await sql<{ count: number }[]>`
-        SELECT
-          (SELECT COUNT(*) FROM facilities_hmis) +
-          (SELECT COUNT(*) FROM facilities_hfa) as count
-      `;
-
-      if (facilitiesCount[0].count > 0) {
-        return {
-          success: false,
-          err: "Cannot change maxAdminArea: facilities table contains data",
-        };
-      }
-
-      for (let i = 1; i <= 4; i++) {
-        const tableName = `admin_areas_${i}`;
-        const result = await sql<{ count: number }[]>`
-          SELECT COUNT(*) as count FROM ${sql(tableName)}
-        `;
-
-        if (result[0].count > 0) {
-          return {
-            success: false,
-            err: `Cannot change maxAdminArea: ${tableName} table contains data`,
-          };
-        }
-      }
-
-      // Check no geojson boundaries exist above the new max level
-      const geojsonLevels = await sql<{ admin_area_level: number }[]>`
-        SELECT admin_area_level FROM geojson_maps
-        WHERE admin_area_level > ${newMaxAdminArea}
-        ORDER BY admin_area_level
-      `;
-      if (geojsonLevels.length > 0) {
-        const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
-        return {
-          success: false,
-          err: `Cannot lower maxAdminArea: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
-        };
-      }
-
-      const configValue: InstanceConfigMaxAdminArea = {
-        maxAdminArea: newMaxAdminArea,
-      };
-      const validated = instanceConfigMaxAdminAreaSchema.parse(configValue);
-
-      await sql`
-        UPDATE instance_config
-        SET config_json_value = ${JSON.stringify(validated)}
-        WHERE config_key = 'max_admin_area'
-      `;
-
-      return {
-        success: true,
-      };
-    });
-  });
-}
-
-// API-facing function that returns wrapped response
-export async function getMaxAdminAreaConfig(
-  mainDb: Sql
-): Promise<APIResponseWithData<{ maxAdminArea: number }>> {
+  family: FacilityFamily
+): Promise<APIResponseWithData<StructureSchema>> {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value 
-      FROM instance_config 
-      WHERE config_key = 'max_admin_area'
+      SELECT config_json_value
+      FROM instance_config
+      WHERE config_key = ${structureSchemaConfigKey(family)}
     `;
 
     if (result.length === 0) {
       return {
         success: false,
-        err: "max_admin_area config not found",
+        err: `${structureSchemaConfigKey(family)} config not found`,
       };
     }
 
-    const config = instanceConfigMaxAdminAreaSchema.parse(
-      JSON.parse(result[0].config_json_value),
-    );
-
-    return {
-      success: true,
-      data: { maxAdminArea: config.maxAdminArea },
-    };
-  });
-}
-
-// Helper to get the table name for the max admin area level
-export async function getMaxAdminAreaTableName(mainDb: Sql): Promise<string> {
-  const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-  throwIfErrWithData(resMaxAdminArea);
-  return `admin_areas_${resMaxAdminArea.data.maxAdminArea}`;
-}
-
-// Facility columns configuration functions
-export async function getFacilityColumnsConfig(
-  mainDb: Sql
-): Promise<APIResponseWithData<InstanceConfigFacilityColumns>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const result = await mainDb<{ config_json_value: string }[]>`
-      SELECT config_json_value 
-      FROM instance_config 
-      WHERE config_key = 'facility_columns'
-    `;
-
-    if (result.length === 0) {
-      // Return default config if not found
-      return {
-        success: true,
-        data: {
-          includeNames: false,
-          includeTypes: false,
-          includeOwnership: false,
-          includeCustom1: false,
-          includeCustom2: false,
-          includeCustom3: false,
-          includeCustom4: false,
-          includeCustom5: false,
-        },
-      };
-    }
-
-    const config = instanceConfigFacilityColumnsSchema.parse(
+    const config = structureSchemaSchema.parse(
       JSON.parse(result[0].config_json_value),
     );
 
@@ -164,20 +52,84 @@ export async function getFacilityColumnsConfig(
   });
 }
 
-export async function updateFacilityColumnsConfig(
+// The 3-way family selection used by query context / availability (ruling 4):
+// hmis → HMIS schema, hfa → HFA schema, iceh/undefined → undefined (no
+// enabled facility columns; iceh_data has no facility dimension, so that
+// branch is defensive, not live).
+export async function getStructureSchemaForDatasetFamily(
   mainDb: Sql,
-  config: InstanceConfigFacilityColumns
+  family: string | undefined
+): Promise<StructureSchema | undefined> {
+  if (family !== "hmis" && family !== "hfa") {
+    return undefined;
+  }
+  const res = await getStructureSchema(mainDb, family);
+  if (res.success === false) {
+    throw new Error(res.err);
+  }
+  return res.data;
+}
+
+export async function setStructureSchema(
+  mainDb: Sql,
+  family: FacilityFamily,
+  schema: StructureSchema
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const validated = instanceConfigFacilityColumnsSchema.parse(config);
-    await mainDb`
-      INSERT INTO instance_config (config_key, config_json_value)
-      VALUES ('facility_columns', ${JSON.stringify(validated)})
-      ON CONFLICT (config_key)
-      DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
-    `;
+    const validated = structureSchemaSchema.parse(schema);
+    const configKey = structureSchemaConfigKey(family);
 
-    return { success: true };
+    // Guard checks and the config write share one transaction so a concurrent
+    // structure import can't land rows between check and write.
+    return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
+      const currentRows = await sql<{ config_json_value: string }[]>`
+        SELECT config_json_value FROM instance_config
+        WHERE config_key = ${configKey}
+      `;
+      const current = currentRows.length > 0
+        ? structureSchemaSchema.parse(JSON.parse(currentRows[0].config_json_value))
+        : null;
+
+      if (current !== null && current.adminDepth !== validated.adminDepth) {
+        await sql`SELECT pg_advisory_xact_lock(${STRUCTURE_GEOJSON_ADVISORY_LOCK_KEY})`;
+
+        const facilitiesTable = family === "hmis"
+          ? "facilities_hmis"
+          : "facilities_hfa";
+        const facilitiesCount = await sql<{ count: number }[]>`
+          SELECT COUNT(*) as count FROM ${sql(facilitiesTable)}
+        `;
+        if (facilitiesCount[0].count > 0) {
+          return {
+            success: false,
+            err: `Cannot change the ${family.toUpperCase()} admin depth: the ${family.toUpperCase()} facility registry contains data`,
+          };
+        }
+
+        const geojsonLevels = await sql<{ admin_area_level: number }[]>`
+          SELECT admin_area_level FROM geojson_maps
+          WHERE facility_family = ${family}
+            AND admin_area_level > ${validated.adminDepth}
+          ORDER BY admin_area_level
+        `;
+        if (geojsonLevels.length > 0) {
+          const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
+          return {
+            success: false,
+            err: `Cannot lower the ${family.toUpperCase()} admin depth: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+          };
+        }
+      }
+
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES (${configKey}, ${JSON.stringify(validated)})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = ${JSON.stringify(validated)}
+      `;
+
+      return { success: true };
+    });
   });
 }
 

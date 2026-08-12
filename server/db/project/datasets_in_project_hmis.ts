@@ -10,7 +10,7 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   getEnabledOptionalFacilityColumns,
-  InstanceConfigFacilityColumns,
+  StructureSchema,
   isValidPeriodId,
   throwIfErrWithData,
   type CalculatedIndicator,
@@ -20,8 +20,7 @@ import {
 import { DBIndicator } from "../instance/_main_database_types.ts";
 import { getCalculatedIndicators } from "../instance/calculated_indicators.ts";
 import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
+  getStructureSchema,
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
@@ -168,11 +167,8 @@ export async function computeDatasetHmisRunCapture(
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
 
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
-
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
+    const resStructureSchema = await getStructureSchema(mainDb, "hmis");
+    throwIfErrWithData(resStructureSchema);
 
     // Get actual min/max periods from the entire dataset table
     const datasetTableName = "dataset_hmis";
@@ -209,9 +205,8 @@ export async function computeDatasetHmisRunCapture(
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
-    const exportStatement = await getDatasetHmisExportStatement(
-      mainDb,
-      resFacilityConfig.data
+    const exportStatement = getDatasetHmisExportStatement(
+      resStructureSchema.data
     );
 
     if (onProgress) await onProgress(0.3, "Counting rows to export...");
@@ -246,8 +241,6 @@ export async function computeDatasetHmisRunCapture(
       totalRows,
       structureLastUpdated,
       indicatorMappingsVersion,
-      facilityColumnsConfig: resFacilityConfig.data,
-      maxAdminArea: resMaxAdminArea.data.maxAdminArea,
       calculatedIndicatorsVersion,
     };
 
@@ -367,20 +360,17 @@ export function getDatasetFilePath(
   return join(_SANDBOX_DIR_PATH, projectId, "datasets", `${datasetType}.csv`);
 }
 
-async function getDatasetHmisExportStatement(
-  mainDb: Sql,
-  facilityConfig: InstanceConfigFacilityColumns
-): Promise<string> {
-  // Build admin area columns list (we only have admin_area_1 through admin_area_4)
-  const maxAdminAreaRes = await getMaxAdminAreaConfig(mainDb);
-  throwIfErrWithData(maxAdminAreaRes);
+function getDatasetHmisExportStatement(
+  structureSchema: StructureSchema
+): string {
+  // Admin columns up to the HMIS registry's own depth — never a global max
   const adminAreaColumns = [];
-  for (let i = 1; i <= Math.min(maxAdminAreaRes.data.maxAdminArea, 4); i++) {
+  for (let i = 1; i <= structureSchema.adminDepth; i++) {
     adminAreaColumns.push(`admin_area_${i}`);
   }
 
   // Add enabled optional columns
-  const optionalColumns = getEnabledOptionalFacilityColumns(facilityConfig);
+  const optionalColumns = getEnabledOptionalFacilityColumns(structureSchema);
 
   // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
   const statement = `

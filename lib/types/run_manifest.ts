@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { instanceConfigFacilityColumnsSchema } from "./instance.ts";
+import { structureColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
@@ -16,7 +16,13 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // 4: metrics[].format_as became the three-way declaration ("indicator" =
 // values carry the displayed indicator's own format) — the 8 pre-declaration
 // metric rows are rewritten in place (manifest_transform block 2).
-export const RUN_MANIFEST_SCHEMA_VERSION = 4;
+// 5: facilityColumnsConfig split into per-family structureSchemaHmis /
+// structureSchemaHfa slots (null = family not in the package). Flags + labels
+// only — adminDepth is deliberately NOT carried (nothing on the read path
+// consumes it), and there is no shared adminAreaLabels key (every admin-label
+// consumer reads live instance state). Pure copy in manifest_transform
+// block 3.
+export const RUN_MANIFEST_SCHEMA_VERSION = 5;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -167,11 +173,13 @@ export const runManifestSchema = z.object({
   rImageTag: z.string().nullable(),
 
   // Data semantics captured into the run at finalize — the adapter reads
-  // calendar from HERE, never from the env global (§2.4); facility-columns
-  // config is the dissolved N1 gap (§8 SNAP-1).
+  // calendar from HERE, never from the env global (§2.4); the per-family
+  // structure-schema slots are the dissolved N1 gap (§8 SNAP-1), null when
+  // that family's facilities are not in the package.
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string().nullable(),
-  facilityColumnsConfig: instanceConfigFacilityColumnsSchema,
+  structureSchemaHmis: structureColumnsSchema.nullable(),
+  structureSchemaHfa: structureColumnsSchema.nullable(),
 
   datasets: z.array(runDatasetSchema),
   facilitiesTables: z.array(runFacilitiesTableSchema),

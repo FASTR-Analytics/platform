@@ -1,11 +1,12 @@
 // =============================================================================
-// DATA TRANSFORM: instance_config.config_json_value (facility_columns)
+// DATA TRANSFORM: instance_config.config_json_value
+//                 (structure_schema_hmis / structure_schema_hfa)
 // =============================================================================
 //
 // Table:    instance_config
 // Column:   config_json_value (JSON)
 // Schema:   lib/types/instance.ts
-//           → instanceConfigFacilityColumnsSchema
+//           → structureSchemaSchema
 //
 // HOW THIS WORKS:
 // - Runs at startup in a transaction (on main database, not per-project)
@@ -14,18 +15,23 @@
 // - If invalid: apply transform blocks, validate, write
 // - If any row fails validation after transforms: rollback, boot fails
 //
+// Runs AFTER the SQL migrations, so on the deploy that ships migration 076 it
+// validates 076's per-family copy output on the same boot.
+//
 // TRANSFORM BLOCKS:
-// 1. Fill all missing include* boolean fields with false
+// 1. Fill all missing include* boolean fields with false (carried over from
+//    the legacy facility_columns sweep: an instance jumping several versions
+//    can have 076 copy a pre-flags facility_columns row verbatim)
 //
 // =============================================================================
 
-import { instanceConfigFacilityColumnsSchema } from "lib";
+import { structureSchemaSchema } from "lib";
 import type { Sql } from "postgres";
 import type { MigrationStats } from "./po_config.ts";
 
 export type { MigrationStats };
 
-function transformFacilityColumnsConfig(config: Record<string, unknown>): void {
+function transformStructureSchema(config: Record<string, unknown>): void {
   // Block 1: Fill all missing include* boolean fields with false
   if (!("includeNames" in config)) config.includeNames = false;
   if (!("includeTypes" in config)) config.includeTypes = false;
@@ -40,7 +46,7 @@ function transformFacilityColumnsConfig(config: Record<string, unknown>): void {
 export async function migrateInstanceConfigs(tx: Sql): Promise<MigrationStats> {
   const rows = await tx<{ config_key: string; config_json_value: string }[]>`
     SELECT config_key, config_json_value FROM instance_config
-    WHERE config_key = 'facility_columns'
+    WHERE config_key IN ('structure_schema_hmis', 'structure_schema_hfa')
   `;
   let rowsTransformed = 0;
 
@@ -48,7 +54,7 @@ export async function migrateInstanceConfigs(tx: Sql): Promise<MigrationStats> {
     const config = JSON.parse(row.config_json_value);
 
     // Already valid? Skip.
-    if (instanceConfigFacilityColumnsSchema.safeParse(config).success) {
+    if (structureSchemaSchema.safeParse(config).success) {
       continue;
     }
 
@@ -56,10 +62,10 @@ export async function migrateInstanceConfigs(tx: Sql): Promise<MigrationStats> {
     const transformed = structuredClone(config) as Record<string, unknown>;
 
     // Apply transforms
-    transformFacilityColumnsConfig(transformed);
+    transformStructureSchema(transformed);
 
     // Validate against current schema — throws if invalid
-    const validated = instanceConfigFacilityColumnsSchema.parse(transformed);
+    const validated = structureSchemaSchema.parse(transformed);
 
     // Write back
     await tx`

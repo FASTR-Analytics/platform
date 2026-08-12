@@ -2,6 +2,7 @@ import { Sql } from "postgres";
 import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
+  DatasetType,
   DisaggregationOption,
   DisaggregationPossibleValuesStatus,
   type IndicatorFormat,
@@ -17,7 +18,6 @@ import {
   getIndicatorMetadata,
 } from "./get_indicator_metadata.ts";
 import { resolveMetricById } from "../db/project/results_value_resolver.ts";
-import { getFacilityColumnsConfig } from "../db/instance/config.ts";
 import { exceedsMaxReplicantOptions } from "./consts.ts";
 import type { ItemsVersionInfo } from "./get_presentation_object_items.ts";
 
@@ -34,12 +34,7 @@ export async function getResultsValueInfoForPresentationObject(
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 > {
   return await tryCatchDatabaseAsync(async () => {
-    const facilityConfigResult = await getFacilityColumnsConfig(mainDb);
-    const facilityConfig = facilityConfigResult.success
-      ? facilityConfigResult.data
-      : undefined;
-
-    const resResultsValue = await resolveMetricById(projectDb, metricId, facilityConfig);
+    const resResultsValue = await resolveMetricById(mainDb, projectDb, metricId);
     throwIfErrWithData(resResultsValue);
 
     // Extract everything from the ResultsValue
@@ -68,6 +63,7 @@ export async function getResultsValueInfoForPresentationObject(
       projectId,
       metricId,
       resultsObjectId,
+      resultsValue.datasetFamily,
       { moduleLastRun, datasetsVersion },
       periodBounds,
       disaggregationOptions,
@@ -91,6 +87,7 @@ export async function buildResultsValueInfo(
   projectId: string,
   metricId: string,
   resultsObjectId: string,
+  datasetFamily: DatasetType | undefined,
   versionInfo: ItemsVersionInfo,
   periodBounds: PeriodBounds | undefined,
   disaggregationOptions: DisaggregationOption[],
@@ -144,6 +141,7 @@ export async function buildResultsValueInfo(
         resultsObjectId,
         metricId,
         projectId,
+        datasetFamily,
         ...versionInfo,
         periodBounds,
         disaggregationPossibleValues,

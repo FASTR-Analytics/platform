@@ -1,7 +1,7 @@
 import { DuckDBInstance } from "@duckdb/node-api";
 import {
   getEnabledOptionalFacilityColumns,
-  type InstanceConfigFacilityColumns,
+  type StructureColumns,
 } from "lib";
 import {
   applyDuckDbSessionSettings,
@@ -45,7 +45,7 @@ export function duckDbTypeForDeclaredColumnType(declared: string): string {
 // table/parquet carries them instead).
 export function computeResultsObjectColumnsToExclude(
   csvHeaders: string[],
-  facilityColumns: InstanceConfigFacilityColumns,
+  facilityColumns: StructureColumns | undefined,
 ): string[] {
   const hasPeriodId = csvHeaders.includes("period_id");
   const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
@@ -54,8 +54,9 @@ export function computeResultsObjectColumnsToExclude(
     : hasQuarterId
       ? ["month", "year"]
       : ["month", "quarter_id"];
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityColumns);
+  const enabledFacilityColumns = facilityColumns
+    ? getEnabledOptionalFacilityColumns(facilityColumns)
+    : [];
   return [
     ...baseColumnsToExclude,
     ...enabledFacilityColumns.filter((col) => csvHeaders.includes(col)),

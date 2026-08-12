@@ -1,5 +1,6 @@
 import {
   type BoundedPeriodFilter,
+  type DatasetType,
   type DisaggregationPossibleValuesStatus,
   inferPeriodFormatFromValue,
   PeriodBounds,
@@ -106,6 +107,7 @@ export function Filters(p: FiltersProps) {
                   return (
                     <DisaggregationFilter
                       disOpt={disOpt}
+                      datasetFamily={p.poDetail.resultsValue.datasetFamily}
                       keyedStatus={keyedStatus}
                       tempConfig={p.tempConfig}
                       setTempConfig={p.setTempConfig}
@@ -442,6 +444,7 @@ function PeriodFilter(p: PeriodFilterProps) {
 
 type DisaggregationFilterProps = {
   disOpt: FiltersProps["allowedFilterOptions"][number];
+  datasetFamily: DatasetType | undefined;
   keyedStatus: DisaggregationPossibleValuesStatus;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -462,7 +465,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+        label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.datasetFamily))}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }

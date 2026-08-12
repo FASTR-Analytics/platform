@@ -250,10 +250,11 @@ export type StructureIntegrateStrategy =
   | { type: "add_and_update" }
   | { type: "update_existing_only" };
 
-// Per admin-area level: how many stored geojson feature area_ids no longer
-// match any admin_areas_N row (an import that renamed areas orphans them;
-// repairable in the map boundaries editor).
+// Per map (family + level): how many stored geojson feature area_ids no
+// longer match any row in that family's admin tree (an import that renamed
+// areas orphans them; repairable in the map boundaries editor).
 export type GeojsonOrphanedAreaIds = {
+  family: FacilityFamily;
   adminAreaLevel: number;
   orphanedCount: number;
 };

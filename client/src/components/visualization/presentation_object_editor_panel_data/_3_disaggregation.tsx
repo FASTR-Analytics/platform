@@ -180,7 +180,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
         {(ineff) => (
           <div class="">
             <Checkbox
-              label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+              label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
               checked={false}
               disabled={true}
               onChange={() => {}}
@@ -194,7 +194,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+            label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -244,7 +244,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
             label={
               <div class="flex flex-wrap items-center gap-x-1">
                 <span class="">
-                  {t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+                  {t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
                 </span>
                 <span class="text-xs">
                   (
@@ -371,7 +371,7 @@ function rollupCheckboxLabel(
   }
   const ctx = getRollupLabelContextForDimension(config, disOpt);
   if (ctx.kind === "pinned") {
-    const name = t3(getDisplayDisaggregationLabel(ctx.level));
+    const name = t3(getDisplayDisaggregationLabel(ctx.level, undefined));
     return t3({
       en: `Include ${name} results`,
       fr: `Inclure les résultats : ${name}`,

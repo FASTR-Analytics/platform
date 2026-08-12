@@ -121,7 +121,11 @@ export function formatVizEditorForAI(
   for (const opt of resultsValue.disaggregationOptions) {
     const label = getDisaggregationLabel(opt.value, {
       adminAreaLabels: instanceState.adminAreaLabels,
-      facilityColumns: instanceState.facilityColumns,
+      facilityColumns: resultsValue.datasetFamily === "hmis"
+        ? instanceState.structureSchemaHmis ?? undefined
+        : resultsValue.datasetFamily === "hfa"
+        ? instanceState.structureSchemaHfa ?? undefined
+        : undefined,
     }).en;
     const required = opt.isRequired ? " (required)" : "";
     lines.push(`  - ${opt.value}: ${label}${required}`);

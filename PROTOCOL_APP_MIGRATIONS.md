@@ -222,7 +222,9 @@ A DB transform only reshuffles fields inside the row it was handed, so it
 
 - **A field knowable only at generation time is nullable forever.** `createdAt`,
   `appVersion`, `rImageTag`, `label`, `provenance`, `calendar`, `countryIso3`,
-  `facilityColumnsConfig`, `datasets[]`, `modules[]`, `metrics[]`, `inputKey`,
+  `structureSchemaHmis` / `structureSchemaHfa` (generation-only; copied forward
+  from the legacy `facilityColumnsConfig` key by block 3, null for families not
+  in the package), `datasets[]`, `modules[]`, `metrics[]`, `inputKey`,
   `outputFileHashes`. Carry them forward untouched; leave them null where they
   never existed. Never synthesize a plausible value.
 - Recomputable, therefore fair game: `runId` (the directory name),
@@ -377,7 +379,7 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 | `metrics.*`                   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `metricStrict`                    |
 | `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
 | `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
-| `instance_config.*`           | `server/db/instance/config.ts`              | `updateMaxAdminArea`, `updateFacilityColumnsConfig`, `updateCountryIso3Config`, `updateAdminAreaLabelsConfig` | Type-specific schemas             |
+| `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
 
 **Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
 

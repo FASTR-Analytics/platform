@@ -84,7 +84,7 @@ import {
 } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import type { GeoJSONFeatureCollection } from "panther";
 import { serverActions } from "~/server_actions";
 import {
@@ -228,7 +228,10 @@ export function VisualizationEditorInner(p: InnerProps) {
         }
         const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
         if (mapLevel) {
-          const geoJson = getGeoJsonSync(mapLevel);
+          const geoJson = getGeoJsonSync(
+            geoJsonFamilyFor(p.poDetail.resultsValue.datasetFamily),
+            mapLevel,
+          );
           setItemsHolder({
             status: "ready",
             data: { ...lastState.data, geoJson },

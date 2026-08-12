@@ -1,7 +1,7 @@
-import { hashFacilityColumnsConfig, ItemsHolderStructure, t3, TC, type FacilityFamily } from "lib";
+import { hashStructureSchema, ItemsHolderStructure, t3, TC, type FacilityFamily } from "lib";
 import { Csv, StateHolder, StateHolderWrapper, TableFromCsv } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 import { getStructureItemsFromCacheOrFetch } from "~/state/instance/t2_structure";
 
 type Props = {
@@ -18,13 +18,13 @@ export function StructureWithCsv(p: Props) {
   });
 
   let fetchRunId = 0;
-  async function attemptGetStructureItems(lastUpdated: string, maxAA: number, fcHash: string) {
+  async function attemptGetStructureItems(lastUpdated: string, schemaHash: string) {
     const runId = ++fetchRunId;
     setStructureItems({
       status: "loading",
       msg: t3(TC.fetchingData),
     });
-    const res = await getStructureItemsFromCacheOrFetch(p.family, lastUpdated, maxAA, fcHash);
+    const res = await getStructureItemsFromCacheOrFetch(p.family, lastUpdated, schemaHash);
     if (runId !== fetchRunId) return;
     if (res.success === false) {
       setStructureItems({ status: "error", err: res.err });
@@ -45,8 +45,7 @@ export function StructureWithCsv(p: Props) {
 
   createEffect(() => {
     const lastUpdated = instanceState.structureLastUpdated;
-    const maxAA = instanceState.maxAdminArea;
-    const fcHash = hashFacilityColumnsConfig(instanceState.facilityColumns);
+    const schemaHash = hashStructureSchema(structureSchemaForFamily(p.family));
     if (!lastUpdated) {
       setStructureItems({
         status: "error",
@@ -54,7 +53,7 @@ export function StructureWithCsv(p: Props) {
       });
       return;
     }
-    attemptGetStructureItems(lastUpdated, maxAA, fcHash);
+    attemptGetStructureItems(lastUpdated, schemaHash);
   });
 
   return (

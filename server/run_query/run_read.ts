@@ -230,9 +230,16 @@ function buildQueryContextFromManifest(
   fetchConfig: GenericLongFormFetchConfig,
   datasetFamily: DatasetType | undefined,
 ): QueryContext {
-  const facilityConfig = manifest.facilityColumnsConfig;
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityConfig);
+  // Per-family slot (manifest v5): hmis → structureSchemaHmis, hfa →
+  // structureSchemaHfa, iceh/undefined → no enabled facility columns.
+  const facilityConfig = datasetFamily === "hmis"
+    ? manifest.structureSchemaHmis ?? undefined
+    : datasetFamily === "hfa"
+    ? manifest.structureSchemaHfa ?? undefined
+    : undefined;
+  const enabledFacilityColumns = facilityConfig
+    ? getEnabledOptionalFacilityColumns(facilityConfig)
+    : [];
   const facilityContext = computeFacilityContext(
     fetchConfig,
     enabledFacilityColumns,
@@ -969,6 +976,7 @@ export async function getResultsValueInfoFromRun(
     projectId,
     metricId,
     resultsObjectId,
+    resultsValue.datasetFamily,
     versionInfoFor(ctx, moduleId),
     ro?.periodBounds ?? undefined,
     resultsValue.disaggregationOptions.map((d) => d.value),

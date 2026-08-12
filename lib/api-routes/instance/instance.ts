@@ -1,11 +1,9 @@
 import { z } from "zod";
 import {
   instanceConfigAdminAreaLabelsSchema,
-  instanceConfigFacilityColumnsSchema,
+  structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
-  InstanceConfigAdminAreaLabels,
-  InstanceConfigFacilityColumns,
   InstanceDetail,
   InstanceMeta,
   ProjectSummary,
@@ -28,15 +26,13 @@ export const instanceRouteRegistry = {
     method: "GET",
     response: {} as ProjectSummary[],
   }),
-  updateMaxAdminArea: route({
-    path: "/update_max_admin_area",
+  updateStructureSchema: route({
+    path: "/update_structure_schema",
     method: "POST",
-    body: z.object({ maxAdminArea: z.number() }),
-  }),
-  updateFacilityColumnsConfig: route({
-    path: "/update_facility_columns_config",
-    method: "POST",
-    body: instanceConfigFacilityColumnsSchema,
+    body: z.object({
+      family: z.enum(["hmis", "hfa"]),
+      schema: structureSchemaSchema,
+    }),
   }),
   updateAdminAreaLabelsConfig: route({
     path: "/update_admin_area_labels_config",

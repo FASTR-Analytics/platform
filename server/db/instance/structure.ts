@@ -33,13 +33,12 @@ import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_s
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
 import {
   buildDedupOrderClause,
-  cleanupUnusedAdminAreas,
   getStagedColumns,
   integrateStructureFromStaging,
 } from "../../server_only_funcs_importing/integrate_structure_from_staging.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 import { DBStructureUploadAttempt } from "./_main_database_types.ts";
-import { getMaxAdminAreaConfig, getFacilityColumnsConfig } from "./config.ts";
+import { getStructureSchema } from "./config.ts";
 import { resolveDhis2Credentials } from "./instance_dhis2_credentials.ts";
 import { toNum0 } from "@timroberton/panther";
 
@@ -94,14 +93,21 @@ export function facilitiesTableForFacilityFamily(
   return family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 }
 
+// Project AA2 identity is registry-agnostic, so this picker unions both
+// families' level-2 trees (UNION dedupes exact matches).
 export async function listAdminArea2s(
   mainDb: Sql
 ): Promise<APIResponseWithData<string[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const adminArea2s = (
-      await mainDb<
-        { admin_area_2: string }[]
-      >`SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
+      await mainDb<{ admin_area_2: string }[]>`
+        SELECT admin_area_2 FROM (
+          SELECT admin_area_2 FROM admin_areas_hmis_2
+          UNION
+          SELECT admin_area_2 FROM admin_areas_hfa_2
+        ) u
+        ORDER BY LOWER(admin_area_2)
+      `
     ).map((r) => r.admin_area_2);
     return { success: true, data: adminArea2s };
   });
@@ -117,15 +123,11 @@ export async function getStructureItems(
   return await tryCatchDatabaseAsync(async () => {
     const facilitiesTable = facilitiesTableForFacilityFamily(family);
 
-    // Get maxAdminArea to determine which columns to return
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
-    const maxAdminArea = resMaxAdminArea.data.maxAdminArea;
-
-    // Get facility columns config to know which optional columns to include
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-    const facilityConfig = resFacilityConfig.data;
+    // The family's structure schema: admin depth + enabled optional columns
+    const resStructureSchema = await getStructureSchema(mainDb, family);
+    throwIfErrWithData(resStructureSchema);
+    const maxAdminArea = resStructureSchema.data.adminDepth;
+    const facilityConfig = resStructureSchema.data;
 
     const counts = await mainDb<{ total_count: number }[]>`
       SELECT count(*) AS total_count FROM ${mainDb(facilitiesTable)}
@@ -198,15 +200,19 @@ export async function deleteAllStructureData(
       };
     }
 
-    // Delete all structure data in a transaction
+    // Delete all structure data in a transaction. The per-family schema rows
+    // (structure_schema_hmis/hfa) deliberately survive — flags, labels and
+    // depth persist across a delete + re-import cycle.
     await mainDb.begin(async (sql) => {
       // Delete facilities first due to foreign key constraints
       await sql`DELETE FROM facilities_hmis`;
       await sql`DELETE FROM facilities_hfa`;
 
-      // Delete all admin areas tables (in reverse order due to foreign keys)
-      for (let i = 4; i >= 1; i--) {
-        await sql`DELETE FROM ${sql(`admin_areas_${i}`)}`;
+      // Delete both families' admin trees (in reverse order due to foreign keys)
+      for (const family of ["hmis", "hfa"] as const) {
+        for (let i = 4; i >= 1; i--) {
+          await sql`DELETE FROM ${sql(`admin_areas_${family}_${i}`)}`;
+        }
       }
 
       // Bump the version the client structure-items caches are keyed on
@@ -227,42 +233,62 @@ export async function deleteFamilyFacilities(
   family: FacilityFamily
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    const datasetCount =
-      family === "hmis"
-        ? await mainDb<{ count: number }[]>`
-            SELECT COUNT(*) as count FROM dataset_hmis
-          `
-        : await mainDb<{ count: number }[]>`
-            SELECT COUNT(*) as count FROM hfa_data
-          `;
-
-    if ((datasetCount[0]?.count || 0) > 0) {
-      return {
-        success: false,
-        err: `Cannot delete ${family.toUpperCase()} facilities because they are referenced by an existing ${family.toUpperCase()} dataset (${toNum0(
-          datasetCount[0].count
-        )} records). Please delete the dataset first.`,
-      };
-    }
-
-    if (family === "hfa") {
-      // Weights would vanish via the ON DELETE CASCADE FK — refuse, like the
-      // replace_all integrate strategy does, instead of destroying them silently.
-      const weightsCount = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM hfa_facility_weights
+    // Refusal guards and the deletes share one transaction so a concurrent
+    // dataset import or structure import can't land rows between check and
+    // delete. The family's schema row (structure_schema_{family}) deliberately
+    // survives — flags, labels and depth persist across delete + re-import.
+    return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
+      // A running structure import for this family holds the staging table and
+      // will re-insert facilities on commit — refuse instead of racing it.
+      const importing = await sql<{ count: number }[]>`
+        SELECT COUNT(*) as count FROM structure_upload_attempts
+        WHERE dataset_family = ${family} AND status_type = 'importing'
       `;
-      if ((weightsCount[0]?.count || 0) > 0) {
+      if ((importing[0]?.count || 0) > 0) {
         return {
           success: false,
-          err: "Cannot delete HFA facilities: sampling weights still reference them. Delete the HFA sampling weights first.",
+          err: `Cannot delete ${family.toUpperCase()} facilities: a facility import is currently running for this registry. Wait for it to finish first.`,
         };
       }
-    }
 
-    await mainDb.begin(async (sql) => {
+      const datasetCount =
+        family === "hmis"
+          ? await sql<{ count: number }[]>`
+              SELECT COUNT(*) as count FROM dataset_hmis
+            `
+          : await sql<{ count: number }[]>`
+              SELECT COUNT(*) as count FROM hfa_data
+            `;
+
+      if ((datasetCount[0]?.count || 0) > 0) {
+        return {
+          success: false,
+          err: `Cannot delete ${family.toUpperCase()} facilities because they are referenced by an existing ${family.toUpperCase()} dataset (${toNum0(
+            datasetCount[0].count
+          )} records). Please delete the dataset first.`,
+        };
+      }
+
+      if (family === "hfa") {
+        // Weights would vanish via the ON DELETE CASCADE FK — refuse, like the
+        // replace_all integrate strategy does, instead of destroying them silently.
+        const weightsCount = await sql<{ count: number }[]>`
+          SELECT COUNT(*) as count FROM hfa_facility_weights
+        `;
+        if ((weightsCount[0]?.count || 0) > 0) {
+          return {
+            success: false,
+            err: "Cannot delete HFA facilities: sampling weights still reference them. Delete the HFA sampling weights first.",
+          };
+        }
+      }
+
       await sql`DELETE FROM ${sql(facilitiesTableForFacilityFamily(family))}`;
-      // Admin areas referenced only by this family's facilities are now orphans
-      await cleanupUnusedAdminAreas(sql);
+      // The family's tree is now fully orphaned by construction — cleanup
+      // degenerates to a plain clear. The other family is untouchable.
+      for (let i = 4; i >= 1; i--) {
+        await sql`DELETE FROM ${sql(`admin_areas_${family}_${i}`)}`;
+      }
       // Bump the version the client structure-items caches are keyed on
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
@@ -270,9 +296,9 @@ export async function deleteFamilyFacilities(
         ON CONFLICT (config_key)
         DO UPDATE SET config_json_value = EXCLUDED.config_json_value
       `;
-    });
 
-    return { success: true };
+      return { success: true };
+    });
   });
 }
 
@@ -653,12 +679,12 @@ export async function structureStep2Csv_SetColumnMappings(
       throw new Error("Not yet ready for this step");
     }
 
-    // Get maxAdminArea from config to validate mappings
-    const maxAdminAreaResult = await getMaxAdminAreaConfig(mainDb);
-    if (!maxAdminAreaResult.success) {
-      throw new Error(maxAdminAreaResult.err);
+    // The family's admin depth, to validate mappings
+    const resStructureSchema = await getStructureSchema(mainDb, family);
+    if (!resStructureSchema.success) {
+      throw new Error(resStructureSchema.err);
     }
-    const maxAdminArea = maxAdminAreaResult.data.maxAdminArea;
+    const maxAdminArea = resStructureSchema.data.adminDepth;
 
     // facility_id is the only always-required column. Admin areas are optional
     // as a group: map all levels (to place facilities) or none (a tag-only

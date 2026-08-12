@@ -1,11 +1,11 @@
 import {
   APIResponseWithData,
-  hashFacilityColumnsConfig,
+  hashStructureSchema,
   ItemsHolderDatasetHmisDisplay,
   type HfaDictionaryForValidation,
   type IcehDisplayData,
   type IndicatorType,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import type { ItemsHolderDatasetHfaDisplay } from "lib";
 import { serverActions } from "~/server_actions";
@@ -27,20 +27,27 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   {
     rawOrCommonIndicators: IndicatorType;
-    facilityColumns: InstanceConfigFacilityColumns;
+    structureSchema: StructureSchema;
     versionId: number;
     indicatorMappingsVersion: string;
-    maxAdminArea: number;
+    structureLastUpdated: string | undefined;
   },
   ItemsHolderDatasetHmisDisplay
 >({
   name: "dataset_hmis_display_info",
+  // Include-flags hash only — labels are display-only and must not bust a
+  // data cache
   uniquenessKeys: (params) => {
-    const fcHash = hashFacilityColumnsConfig(params.facilityColumns);
-    return [params.rawOrCommonIndicators, fcHash];
+    const schemaHash = hashStructureSchema(params.structureSchema);
+    return [params.rawOrCommonIndicators, schemaHash];
   },
+  // structureLastUpdated closes the hole where a facility re-import changes
+  // the admin tree without any other key moving; the undefined case (no
+  // structure yet) is guarded with an explicit token
   versionKey: (params, _pds) =>
-    `${params.versionId}_${params.indicatorMappingsVersion}_${params.maxAdminArea}`,
+    `${params.versionId}_${params.indicatorMappingsVersion}_${
+      params.structureLastUpdated ?? "no-structure"
+    }`,
   pdsNotRequired: true,
 });
 
@@ -48,8 +55,8 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   rawOrCommonIndicators: IndicatorType,
   versionId: number,
   indicatorMappingsVersion: string,
-  facilityColumns: InstanceConfigFacilityColumns,
-  maxAdminArea: number,
+  structureSchema: StructureSchema,
+  structureLastUpdated: string | undefined,
   hmisImportRunActive: boolean,
 ) {
   // While a run is integrating per-pair, the data keeps changing under the
@@ -60,16 +67,16 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
       rawOrCommonIndicators,
       versionId,
       indicatorMappingsVersion,
-      facilityColumns,
+      structureSchema,
     });
   }
 
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
     rawOrCommonIndicators,
-    facilityColumns,
+    structureSchema,
     versionId,
     indicatorMappingsVersion,
-    maxAdminArea,
+    structureLastUpdated,
   });
 
   if (data) {
@@ -80,17 +87,17 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
     rawOrCommonIndicators,
     versionId,
     indicatorMappingsVersion,
-    facilityColumns,
+    structureSchema,
   });
 
   _DATASET_HMIS_DISPLAY_INFO_CACHE.setPromise(
     newPromise,
     {
       rawOrCommonIndicators,
-      facilityColumns,
+      structureSchema,
       versionId,
       indicatorMappingsVersion,
-      maxAdminArea,
+      structureLastUpdated,
     },
     version,
   );

@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { DatasetHmisImports } from "./imports";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { ImportLedger } from "./_import_ledger";
 import { DatasetItemsHolder } from "./dataset_items_holder";
@@ -45,7 +45,7 @@ export function InstanceDatasetHmis(p: Props) {
       props: {
         hmisVersionId: versionId,
         indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
-        facilityColumns: instanceState.facilityColumns,
+        structureSchema: structureSchemaForFamily("hmis"),
         silentFetch: async () => {},
       },
     });
@@ -175,7 +175,7 @@ export function InstanceDatasetHmis(p: Props) {
                 <DatasetItemsHolder
                   versionId={versionId}
                   indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
-                  facilityColumns={instanceState.facilityColumns}
+                  structureSchema={structureSchemaForFamily("hmis")}
                 />
               )}
             </Show>

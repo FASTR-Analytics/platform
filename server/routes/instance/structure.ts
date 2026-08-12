@@ -37,7 +37,10 @@ import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { notifyInstanceStructureUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceConfigUpdatedFromDb,
+  notifyInstanceStructureUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 
@@ -89,6 +92,7 @@ defineRoute(
     const res = await deleteAllStructureData(c.var.mainDb);
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
   },
@@ -107,6 +111,7 @@ defineRoute(
     const res = await deleteFamilyFacilities(c.var.mainDb, family);
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
   },
@@ -397,6 +402,7 @@ defineRoute(
         );
       }
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
   },

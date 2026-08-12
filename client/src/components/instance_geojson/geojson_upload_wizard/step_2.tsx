@@ -3,6 +3,7 @@ import { Button, Select, StateHolderFormError, createFormAction } from "panther"
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
+import { structureSchemaForFamily } from "~/state/instance/t1_store";
 import type { WizardState } from "./index";
 
 type Props = {
@@ -32,7 +33,10 @@ export function Step2(p: Props) {
 
   async function fetchAdminAreas() {
     setAdminAreasLoading(true);
-    const res = await serverActions.getAdminAreaOptionsForLevel({ level: state.adminAreaLevel() });
+    const res = await serverActions.getAdminAreaOptionsForLevel({
+      family: state.family,
+      level: state.adminAreaLevel(),
+    });
     if (res.success) {
       state.setAdminAreaOptions(res.data);
       state.setAdminAreaNames(res.data.map((o) => o.value));
@@ -77,7 +81,10 @@ export function Step2(p: Props) {
       }
 
       // Fetch admin area options
-      const aaRes = await serverActions.getAdminAreaOptionsForLevel({ level: state.adminAreaLevel() });
+      const aaRes = await serverActions.getAdminAreaOptionsForLevel({
+        family: state.family,
+        level: state.adminAreaLevel(),
+      });
       if (!aaRes.success) {
         return { success: false, err: aaRes.err ?? "Failed to fetch admin areas" };
       }
@@ -126,14 +133,27 @@ export function Step2(p: Props) {
     () => {},
   );
 
-  const levelOptions = [
-    { value: "2", label: t3(getAdminAreaLabel(2)) },
-    { value: "3", label: t3(getAdminAreaLabel(3)) },
-    { value: "4", label: t3(getAdminAreaLabel(4)) },
-  ];
+  const levelOptions = createMemo(() =>
+    ([2, 3, 4] as const)
+      .filter(
+        (level) => level <= structureSchemaForFamily(state.family).adminDepth,
+      )
+      .map((level) => ({
+        value: String(level),
+        label: t3(getAdminAreaLabel(level)),
+      })),
+  );
+
+  const noLevelsAvailable = () => levelOptions().length === 0;
+
+  const noLevelsMessage = t3({
+    en: "This registry's admin area depth does not allow any map levels. Import facilities with admin areas first.",
+    fr: "La profondeur des unités administratives de ce registre ne permet aucun niveau de carte. Importez d'abord des établissements avec des unités administratives.",
+    pt: "A profundidade das zonas administrativas deste registo não permite nenhum nível de mapa. Importe primeiro estabelecimentos com zonas administrativas.",
+  });
 
   const canAnalyzeDhis2 = createMemo(() => {
-    return state.selectedDhis2Level() !== null;
+    return state.selectedDhis2Level() !== null && !noLevelsAvailable();
   });
 
   return (
@@ -150,12 +170,17 @@ export function Step2(p: Props) {
 
           <div class="ui-spy-sm">
             <label class="text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
-            <Select
-              options={levelOptions}
-              value={String(state.adminAreaLevel())}
-              onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
-              fullWidth
-            />
+            <Show
+              when={!noLevelsAvailable()}
+              fallback={<div class="text-warning text-sm">{noLevelsMessage}</div>}
+            >
+              <Select
+                options={levelOptions()}
+                value={String(state.adminAreaLevel())}
+                onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
+                fullWidth
+              />
+            </Show>
           </div>
 
           <div class="ui-spy-sm">
@@ -201,12 +226,17 @@ export function Step2(p: Props) {
 
         <div class="ui-spy-sm">
           <label class="text-sm">{t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" })}</label>
-          <Select
-            options={levelOptions}
-            value={String(state.adminAreaLevel())}
-            onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
-            fullWidth
-          />
+          <Show
+            when={!noLevelsAvailable()}
+            fallback={<div class="text-warning text-sm">{noLevelsMessage}</div>}
+          >
+            <Select
+              options={levelOptions()}
+              value={String(state.adminAreaLevel())}
+              onChange={(v) => state.setAdminAreaLevel(parseInt(v))}
+              fullWidth
+            />
+          </Show>
         </div>
 
         <div class="ui-spy-sm">
@@ -238,7 +268,7 @@ export function Step2(p: Props) {
         <div class="ui-gap-sm flex">
           <Button
             onClick={goToMappingStepFile}
-            disabled={!state.selectedProp() || adminAreasLoading()}
+            disabled={!state.selectedProp() || adminAreasLoading() || noLevelsAvailable()}
             intent="primary"
           >
             {adminAreasLoading()

@@ -52,6 +52,7 @@ export function Step4(p: Props) {
 
       if (state.source() === "file") {
         const res = await serverActions.saveGeoJsonMap({
+          family: state.family,
           adminAreaLevel,
           assetFileName: state.selectedFileName(),
           areaMatchProp: state.selectedProp(),
@@ -72,6 +73,7 @@ export function Step4(p: Props) {
         const res = await serverActions.dhis2SaveGeoJsonMap({
           credentialsSource,
           dhis2Level,
+          family: state.family,
           adminAreaLevel,
           areaMatchProp: state.selectedProp(),
           areaMapping: mapping,

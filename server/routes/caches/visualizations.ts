@@ -68,7 +68,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE) — payloads are computed
 // under the project's scope and the keys gain a scopeToken segment; "14"
 // entries were keyed without it.
-const PO_CACHE_VERSION = "15";
+const PO_CACHE_VERSION = "16";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -110,7 +110,7 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // retire entries sourced from the pre-transform manifest. v7: manifest
   // schema v4 (declared format) — payloads embed resultsValue.formatAs, which
   // the v4 rewrite flips for the 8 pre-declaration metrics.
->("po_detail_v7", {
+>("po_detail_v8", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

@@ -45,9 +45,13 @@ export function createMcpAIToolEnv(
         replicateBy,
         fetchConfig,
       }),
-    getDimensionLabelConfig: () => ({
+    getDimensionLabelConfig: (family) => ({
       adminAreaLabels: instanceState.adminAreaLabels,
-      facilityColumns: instanceState.facilityColumns,
+      facilityColumns: family === "hmis"
+        ? instanceState.structureSchemaHmis ?? undefined
+        : family === "hfa"
+        ? instanceState.structureSchemaHfa ?? undefined
+        : undefined,
     }),
   };
 }

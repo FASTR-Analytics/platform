@@ -21,7 +21,11 @@ const dhis2RunCredentialsSourceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("stored") }),
 ]);
 
-const levelParamsSchema = z.object({ level: z.coerce.number() });
+const facilityFamilySchema = z.enum(["hmis", "hfa"]);
+const familyLevelParamsSchema = z.object({
+  family: facilityFamilySchema,
+  level: z.coerce.number(),
+});
 const adminAreaLevelSchema = z.union([z.literal(2), z.literal(3), z.literal(4)]);
 
 export const geojsonMapRouteRegistry = {
@@ -44,6 +48,7 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/save",
     method: "POST",
     body: z.object({
+      family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,
       assetFileName: z.string(),
       areaMatchProp: z.string(),
@@ -61,24 +66,25 @@ export const geojsonMapRouteRegistry = {
     // adminAreaLevel stays a plain number: the delete handler has no 2|3|4 guard and the
     // client sources this from `number`-typed map summaries. Tightening belongs with a
     // GeoJsonMapSummary type change, not here.
-    body: z.object({ adminAreaLevel: z.number() }),
+    body: z.object({ family: facilityFamilySchema, adminAreaLevel: z.number() }),
   }),
   getAdminAreaOptionsForLevel: route({
-    path: "/geojson-maps/admin-area-options/:level",
+    path: "/geojson-maps/admin-area-options/:family/:level",
     method: "GET",
-    params: levelParamsSchema,
+    params: familyLevelParamsSchema,
     response: {} as Array<{ value: string; label: string }>,
   }),
   getGeoJsonForLevel: route({
-    path: "/geojson-maps/level/:level",
+    path: "/geojson-maps/level/:family/:level",
     method: "GET",
-    params: levelParamsSchema,
+    params: familyLevelParamsSchema,
     response: {} as { geojson: string; uploadedAt: string },
   }),
   remapGeoJson: route({
     path: "/geojson-maps/remap",
     method: "POST",
     body: z.object({
+      family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,
       remapping: z.record(z.string(), z.string()),
     }),
@@ -112,6 +118,7 @@ export const geojsonMapRouteRegistry = {
     body: z.object({
       credentialsSource: dhis2RunCredentialsSourceSchema,
       dhis2Level: z.number(),
+      family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,
       areaMatchProp: z.string(),
       areaMapping: z.record(z.string(), z.string()),

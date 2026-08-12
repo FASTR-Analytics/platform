@@ -2,7 +2,7 @@ import type {
   DatasetType,
   GenericLongFormFetchConfig,
   InstanceCalendar,
-  InstanceConfigFacilityColumns,
+  StructureColumns,
   OptionalFacilityColumn,
 } from "lib";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
@@ -33,7 +33,7 @@ export interface QueryContext {
   // observations rather than pre-aggregated area summaries. Gates the sample-n
   // aggregate (buildAggregateColumns) and the AVG roll-up eligibility check.
   hasFacilityId: boolean;
-  facilityConfig?: InstanceConfigFacilityColumns;
+  facilityConfig?: StructureColumns;
   enabledFacilityColumns: OptionalFacilityColumn[];
   requestedOptionalFacilityColumns: OptionalFacilityColumn[];
   needsFacilityJoin: boolean;

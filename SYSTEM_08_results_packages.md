@@ -519,6 +519,14 @@ columns dropped, and physical `quarter_id` normalized 6-digit → 5-digit. The
 deleted Postgres COPY applied the same four, which is what makes the frozen
 `ro_*` rows a valid parity oracle; the parquet is the only serving plane.
 
+**Module outputs must derive their admin columns from the input CSV, never
+hardcode them** — the input carries admin columns only up to the family's
+configured depth, and that per-family depth is the single lever for admin-area
+disaggregation availability. Convention-only today: `m010`'s empty-result
+branch hardcodes headers and `m001`'s GEOLEVEL param assumes AA3 (a depth-2
+family would need it depth-aware); both are fixed in the next modules-repo
+cycle.
+
 **Path namespaces** — R runs in a container (prod) and Postgres `COPY`
 reads/writes from its own container's filesystem, so both the sandbox and the
 runs dir have three views each: `_SANDBOX_DIR_PATH` /

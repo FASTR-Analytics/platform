@@ -1,4 +1,4 @@
-import type { DisaggregationOption, TranslatableString } from "lib";
+import type { DatasetType, DisaggregationOption, TranslatableString } from "lib";
 import {
   BLANK_SENTINEL,
   BLANK_SENTINEL_LABEL,
@@ -17,12 +17,19 @@ export function getDisplayDisaggregationValueLabel(
   return id === BLANK_SENTINEL ? t3(BLANK_SENTINEL_LABEL) : label;
 }
 
+// Facility-column labels are per family: pass the results value's
+// datasetFamily. iceh/missing family → generic default labels.
 export function getDisplayDisaggregationLabel(
   disOpt: DisaggregationOption,
+  family: DatasetType | undefined,
 ): TranslatableString {
   return getDisaggregationLabel(disOpt, {
     adminAreaLabels: instanceState.adminAreaLabels,
-    facilityColumns: instanceState.facilityColumns,
+    facilityColumns: family === "hmis"
+      ? instanceState.structureSchemaHmis ?? undefined
+      : family === "hfa"
+      ? instanceState.structureSchemaHfa ?? undefined
+      : undefined,
   });
 }
 

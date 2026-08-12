@@ -83,21 +83,25 @@ export type InstanceMeta = {
   isHealthy: boolean;
 };
 
+export type StructureFamilyCounts = {
+  adminArea1s: number;
+  adminArea2s: number;
+  adminArea3s: number;
+  adminArea4s: number;
+  facilities: number;
+};
+
 export type InstanceDetail = {
   instanceId: string;
   instanceName: string;
-  maxAdminArea: number;
   countryIso3: string | undefined;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchemaHmis: StructureSchema | null;
+  structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   structure:
     | {
-      adminArea1s: number;
-      adminArea2s: number;
-      adminArea3s: number;
-      adminArea4s: number;
-      facilitiesHmis: number;
-      facilitiesHfa: number;
+      hmis: StructureFamilyCounts;
+      hfa: StructureFamilyCounts;
     }
     | undefined;
   structureLastUpdated?: string;
@@ -118,13 +122,6 @@ export type InstanceDetail = {
   users: OtherUser[];
 };
 
-export const instanceConfigMaxAdminAreaSchema = z.object({
-  maxAdminArea: z.number(),
-});
-export type InstanceConfigMaxAdminArea = z.infer<
-  typeof instanceConfigMaxAdminAreaSchema
->;
-
 export const instanceConfigAdminAreaLabelsSchema = z.object({
   label1: z.string().optional(),
   label2: z.string().optional(),
@@ -135,7 +132,11 @@ export type InstanceConfigAdminAreaLabels = z.infer<
   typeof instanceConfigAdminAreaLabelsSchema
 >;
 
-export const instanceConfigFacilityColumnsSchema = z.object({
+// The facility-columns portion of a family's structure schema: which optional
+// facility columns are enabled, plus their display labels. This is also the
+// per-family slot shape in the run manifest (adminDepth is deliberately NOT
+// carried there — nothing on the manifest read path consumes it).
+export const structureColumnsSchema = z.object({
   includeNames: z.boolean(),
   includeTypes: z.boolean(),
   includeOwnership: z.boolean(),
@@ -153,9 +154,32 @@ export const instanceConfigFacilityColumnsSchema = z.object({
   labelCustom4: z.string().optional(),
   labelCustom5: z.string().optional(),
 });
-export type InstanceConfigFacilityColumns = z.infer<
-  typeof instanceConfigFacilityColumnsSchema
->;
+export type StructureColumns = z.infer<typeof structureColumnsSchema>;
+
+// Per-family structure configuration, stored as the instance_config rows
+// structure_schema_hmis / structure_schema_hfa. Seeded at instance creation;
+// row presence carries no meaning — behaviour gates key off the family
+// TABLE's emptiness.
+export const structureSchemaSchema = structureColumnsSchema.extend({
+  adminDepth: z.union([
+    z.literal(1),
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+  ]),
+});
+export type StructureSchema = z.infer<typeof structureSchemaSchema>;
+
+// The manifest-slot projection: drops adminDepth EXPLICITLY (nothing on the
+// run read path consumes it, so it must not enter run files), then validates.
+// Same pattern as prepareModuleDefinitionForStorage — the narrowing is a
+// named function, never an implicit schema strip.
+export function structureColumnsFromSchema(
+  schema: StructureSchema,
+): StructureColumns {
+  const { adminDepth: _adminDepth, ...columns } = schema;
+  return structureColumnsSchema.parse(columns);
+}
 
 export type OptionalFacilityColumn =
   | "facility_name"
@@ -186,7 +210,7 @@ export type AdminAreaColumn =
 
 // Helper to get list of enabled optional facility columns
 export function getEnabledOptionalFacilityColumns(
-  config: InstanceConfigFacilityColumns,
+  config: StructureColumns,
 ): OptionalFacilityColumn[] {
   const columns: OptionalFacilityColumn[] = [];
   if (config.includeNames) columns.push("facility_name");
@@ -200,14 +224,23 @@ export function getEnabledOptionalFacilityColumns(
   return columns;
 }
 
-// Canonical string representation for staleness comparison. Sorted keys so
-// that server and client produce byte-identical output from equal configs.
-export function hashFacilityColumnsConfig(
-  config: InstanceConfigFacilityColumns,
-): string {
-  const keys = Object.keys(config)
-    .sort() as (keyof InstanceConfigFacilityColumns)[];
-  return JSON.stringify(keys.map((k) => [k, config[k] ?? null]));
+// Canonical string representation for staleness comparison — the include
+// flags ONLY. Labels are display-only and deliberately excluded so a label
+// rename never busts a data cache. Fixed key order so server and client
+// produce byte-identical output from equal configs.
+const _INCLUDE_FLAG_KEYS = [
+  "includeNames",
+  "includeTypes",
+  "includeOwnership",
+  "includeCustom1",
+  "includeCustom2",
+  "includeCustom3",
+  "includeCustom4",
+  "includeCustom5",
+] as const;
+
+export function hashStructureSchema(schema: StructureColumns): string {
+  return JSON.stringify(_INCLUDE_FLAG_KEYS.map((k) => [k, schema[k]]));
 }
 
 // ============================================================================
@@ -408,7 +441,7 @@ export type ConflictDecisions = {
 
 export type ItemsHolderDatasetHmisDisplay = {
   rawOrCommonIndicators: IndicatorType;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   versionId: number | undefined;
   indicatorMappingsVersion: string | undefined;
   vizItems: Record<string, string>[];

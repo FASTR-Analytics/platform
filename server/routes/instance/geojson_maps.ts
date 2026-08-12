@@ -104,7 +104,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("saveGeoJsonMap"),
   async (c, { body }) => {
-    const { adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;
+    const { family, adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;
     if (![2, 3, 4].includes(adminAreaLevel)) {
       return c.json({
         success: false,
@@ -126,6 +126,7 @@ defineRoute(
       }
       const res = await saveGeoJsonMap(
         c.var.mainDb,
+        family,
         adminAreaLevel,
         result.geojson,
       );
@@ -160,7 +161,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("deleteGeoJsonMap"),
   async (c, { body }) => {
-    const res = await deleteGeoJsonMap(c.var.mainDb, body.adminAreaLevel);
+    const res = await deleteGeoJsonMap(c.var.mainDb, body.family, body.adminAreaLevel);
     if (res.success) {
       notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
     }
@@ -177,7 +178,11 @@ defineRoute(
     if (![2, 3, 4].includes(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getAdminAreaOptionsForLevel(c.var.mainDb, params.level);
+    const res = await getAdminAreaOptionsForLevel(
+      c.var.mainDb,
+      params.family,
+      params.level,
+    );
     return c.json(res);
   },
 );
@@ -190,7 +195,7 @@ defineRoute(
     if (![2, 3, 4].includes(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getGeoJsonForLevel(c.var.mainDb, params.level);
+    const res = await getGeoJsonForLevel(c.var.mainDb, params.family, params.level);
     return c.json(res);
   },
 );
@@ -201,7 +206,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("remapGeoJson"),
   async (c, { body }) => {
-    const { adminAreaLevel, remapping } = body;
+    const { family, adminAreaLevel, remapping } = body;
     if (![2, 3, 4].includes(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
@@ -210,7 +215,7 @@ defineRoute(
     }
 
     try {
-      const geoRes = await getGeoJsonForLevel(c.var.mainDb, adminAreaLevel);
+      const geoRes = await getGeoJsonForLevel(c.var.mainDb, family, adminAreaLevel);
       if (!geoRes.success) {
         return c.json({ success: false, err: "GeoJSON not found for this level" });
       }
@@ -238,7 +243,12 @@ defineRoute(
       }
 
       const updatedGeoJson = JSON.stringify(parsed);
-      const saveRes = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, updatedGeoJson);
+      const saveRes = await saveGeoJsonMap(
+        c.var.mainDb,
+        family,
+        adminAreaLevel,
+        updatedGeoJson,
+      );
 
       if (saveRes.success) {
         notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
@@ -392,7 +402,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2SaveGeoJsonMap"),
   async (c, { body }) => {
-    const { dhis2Level, adminAreaLevel, areaMatchProp, areaMapping } = body;
+    const { dhis2Level, family, adminAreaLevel, areaMatchProp, areaMapping } = body;
 
     if (![2, 3, 4].includes(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
@@ -455,7 +465,7 @@ defineRoute(
         });
       }
 
-      const res = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, result.geojson);
+      const res = await saveGeoJsonMap(c.var.mainDb, family, adminAreaLevel, result.geojson);
       if (res.success === false) {
         return c.json(res);
       }

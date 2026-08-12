@@ -3,19 +3,21 @@ import {
   getDatasetFamily,
   ResultsValue,
   type APIResponseWithData,
-  type InstanceConfigFacilityColumns,
 } from "lib";
+import { getStructureSchemaForDatasetFamily } from "../instance/config.ts";
 import { DBMetric } from "./_project_database_types.ts";
 import { enrichMetric } from "./metric_enricher.ts";
 
 /**
  * Resolves a metric by its ID from the metrics table.
- * Returns a fully enriched ResultsValue with disaggregation options.
+ * Returns a fully enriched ResultsValue with disaggregation options. The
+ * facility-column config is the metric's own FAMILY's structure schema
+ * (iceh/unknown family → no enabled facility columns).
  */
 export async function resolveMetricById(
+  mainDb: Sql,
   projectDb: Sql,
   metricId: string,
-  facilityConfig?: InstanceConfigFacilityColumns,
 ): Promise<APIResponseWithData<{ resultsValue: ResultsValue; moduleId: string }>> {
   try {
     const dbMetric = (
@@ -34,11 +36,19 @@ export async function resolveMetricById(
       `
     ).at(0);
 
+    const datasetFamily = moduleRow
+      ? getDatasetFamily(moduleRow.module_definition)
+      : undefined;
+    const facilityConfig = await getStructureSchemaForDatasetFamily(
+      mainDb,
+      datasetFamily ?? undefined,
+    );
+
     const enrichedMetric = await enrichMetric(
       dbMetric,
       projectDb,
       facilityConfig,
-      moduleRow ? getDatasetFamily(moduleRow.module_definition) : undefined,
+      datasetFamily ?? undefined,
     );
     return { success: true, data: { resultsValue: enrichedMetric, moduleId: dbMetric.module_id } };
   } catch (error) {

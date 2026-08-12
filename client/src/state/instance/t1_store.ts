@@ -1,5 +1,7 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
+  FacilityFamily,
+  StructureSchema,
   InstanceConfig,
   InstanceDatasetsSummary,
   InstanceIndicatorsSummary,
@@ -22,18 +24,9 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   instanceLanguage: "en",
   instanceCalendar: "gregorian",
   instanceFiscalYear: "none",
-  maxAdminArea: 0,
   countryIso3: undefined,
-  facilityColumns: {
-    includeNames: false,
-    includeTypes: false,
-    includeOwnership: false,
-    includeCustom1: false,
-    includeCustom2: false,
-    includeCustom3: false,
-    includeCustom4: false,
-    includeCustom5: false,
-  },
+  structureSchemaHmis: null,
+  structureSchemaHfa: null,
   adminAreaLabels: {},
   projects: [],
   projectsLastUpdated: "",
@@ -104,10 +97,45 @@ export function initInstanceState(data: InstanceState): void {
 }
 
 export function updateInstanceConfig(data: InstanceConfig): void {
-  setInstanceState("maxAdminArea", data.maxAdminArea);
   setInstanceState("countryIso3", data.countryIso3);
-  setInstanceState("facilityColumns", reconcile(data.facilityColumns));
+  // Solid's reconcile handles null↔object transitions cleanly (verified:
+  // isWrappable guard returns the value directly when either side is not
+  // wrappable)
+  setInstanceState("structureSchemaHmis", reconcile(data.structureSchemaHmis));
+  setInstanceState("structureSchemaHfa", reconcile(data.structureSchemaHfa));
   setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
+}
+
+// The shared-surface depth: the deepest level either registry uses. Surfaces
+// that are family-scoped read their own family's schema instead.
+export function maxDepth(): number {
+  return Math.max(
+    instanceState.structureSchemaHmis?.adminDepth ?? 1,
+    instanceState.structureSchemaHfa?.adminDepth ?? 1,
+  );
+}
+
+// Family-scoped surfaces that need a definite schema. The fallback matches
+// the seeded default (depth 4, all columns off) and only applies on an
+// instance whose schema row is missing — near-zero probability, guarded by
+// the pre-deploy check.
+const FALLBACK_STRUCTURE_SCHEMA: StructureSchema = {
+  adminDepth: 4,
+  includeNames: false,
+  includeTypes: false,
+  includeOwnership: false,
+  includeCustom1: false,
+  includeCustom2: false,
+  includeCustom3: false,
+  includeCustom4: false,
+  includeCustom5: false,
+};
+
+export function structureSchemaForFamily(family: FacilityFamily): StructureSchema {
+  const schema = family === "hmis"
+    ? instanceState.structureSchemaHmis
+    : instanceState.structureSchemaHfa;
+  return schema ?? FALLBACK_STRUCTURE_SCHEMA;
 }
 
 export function updateInstanceProjects(projects: ProjectSummary[]): void {

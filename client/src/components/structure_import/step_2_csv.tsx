@@ -4,7 +4,7 @@ import {
   t3,
   type CsvDetails,
   type StructureColumnMappings,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type FacilityFamily,
   encodeRawCsvHeader,
   getEnabledOptionalFacilityColumns,
@@ -24,17 +24,16 @@ type Props = {
   step1Result: CsvDetails;
   step2Result: StructureColumnMappings | undefined;
   family: FacilityFamily;
-  maxAdminArea: number;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   silentFetch: () => Promise<void>;
 };
 
 export function Step2_Csv(p: Props) {
-  const optionalCols = getEnabledOptionalFacilityColumns(p.facilityColumns);
+  const optionalCols = getEnabledOptionalFacilityColumns(p.structureSchema);
 
   const adminLevels = () => {
     const levels: number[] = [];
-    for (let i = 1; i <= p.maxAdminArea; i++) {
+    for (let i = 1; i <= p.structureSchema.adminDepth; i++) {
       levels.push(i);
     }
     return levels;
@@ -116,7 +115,7 @@ export function Step2_Csv(p: Props) {
     // Each enabled optional column must be mapped.
     for (const col of optionalCols) {
       if (enabled[col] && !mappings[col]) {
-        const label = getStructureColumnLabel(col, p.facilityColumns);
+        const label = getStructureColumnLabel(col, p.structureSchema);
         return {
           success: false,
           err: t3({
@@ -137,7 +136,7 @@ export function Step2_Csv(p: Props) {
     for (let i = 2; i <= 4; i++) {
       const key = `admin_area_${i}` as keyof StructureColumnMappings;
       (columnMappings as Record<string, string>)[key] =
-        enabled.admin && i <= p.maxAdminArea ? (mappings[key] ?? "") : "";
+        enabled.admin && i <= p.structureSchema.adminDepth ? (mappings[key] ?? "") : "";
     }
     for (const col of optionalCols) {
       (columnMappings as Record<string, string>)[col] = enabled[col]
@@ -169,7 +168,7 @@ export function Step2_Csv(p: Props) {
               checked={true}
               disabled
               onChange={() => {}}
-              label={`${getStructureColumnLabel("facility_id", p.facilityColumns)} *`}
+              label={`${getStructureColumnLabel("facility_id", p.structureSchema)} *`}
             />
           </div>
           <div class="w-96">
@@ -206,7 +205,7 @@ export function Step2_Csv(p: Props) {
                     <div class="w-72 flex-none pl-12 text-sm">
                       {getStructureColumnLabel(
                         `admin_area_${level}`,
-                        p.facilityColumns,
+                        p.structureSchema,
                       )}
                     </div>
                     <div class="w-96">
@@ -239,7 +238,7 @@ export function Step2_Csv(p: Props) {
                 <Checkbox
                   checked={enabled[col]}
                   onChange={(v) => toggle(col, v)}
-                  label={getStructureColumnLabel(col, p.facilityColumns)}
+                  label={getStructureColumnLabel(col, p.structureSchema)}
                 />
               </div>
               <div class="w-96">

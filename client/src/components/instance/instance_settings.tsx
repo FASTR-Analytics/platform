@@ -1,8 +1,9 @@
 import {
   t3,
   TC,
+  type FacilityFamily,
   type InstanceConfigAdminAreaLabels,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import {
   Button,
@@ -17,7 +18,11 @@ import {
 import { HeadingBar } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  maxDepth,
+  structureSchemaForFamily,
+} from "~/state/instance/t1_store";
 
 type Props = {
   thisLoggedInUserEmail: string;
@@ -32,107 +37,85 @@ function withAdminSuffix(v: string, level: number): string | undefined {
   return trimmed ? `${trimmed} (AA${level})` : undefined;
 }
 
-export function InstanceSettings(p: Props) {
-  const [selectedMaxAdminArea, setSelectedMaxAdminArea] = createSignal<number>(
-    instanceState.maxAdminArea,
-  );
+function familyHeading(family: FacilityFamily): string {
+  return family === "hmis"
+    ? t3({
+        en: "HMIS structure",
+        fr: "Structure SNIS",
+        pt: "Estrutura SNIS",
+      })
+    : t3({
+        en: "HFA structure",
+        fr: "Structure Enquêtes FOSA",
+        pt: "Estrutura FOSA",
+      });
+}
 
-  const [needsSavingMaxAdminArea, setNeedsSavingMaxAdminArea] =
-    createSignal(false);
-  const [needsSavingFacilityCols, setNeedsSavingFacilityCols] =
-    createSignal(false);
+function FamilyStructureCard(p: { family: FacilityFamily }) {
+  const initial = structureSchemaForFamily(p.family);
+
+  const [needsSaving, setNeedsSaving] = createSignal(false);
+
+  const [selectedDepth, setSelectedDepth] = createSignal<number>(
+    initial.adminDepth,
+  );
 
   const [includeNames, setIncludeNames] = createSignal<boolean>(
-    instanceState.facilityColumns.includeNames || false,
+    initial.includeNames,
   );
   const [includeTypes, setIncludeTypes] = createSignal<boolean>(
-    instanceState.facilityColumns.includeTypes || false,
+    initial.includeTypes,
   );
   const [includeOwnership, setIncludeOwnership] = createSignal<boolean>(
-    instanceState.facilityColumns.includeOwnership || false,
+    initial.includeOwnership,
   );
   const [includeCustom1, setIncludeCustom1] = createSignal<boolean>(
-    instanceState.facilityColumns.includeCustom1 || false,
+    initial.includeCustom1,
   );
   const [includeCustom2, setIncludeCustom2] = createSignal<boolean>(
-    instanceState.facilityColumns.includeCustom2 || false,
+    initial.includeCustom2,
   );
   const [includeCustom3, setIncludeCustom3] = createSignal<boolean>(
-    instanceState.facilityColumns.includeCustom3 || false,
+    initial.includeCustom3,
   );
   const [includeCustom4, setIncludeCustom4] = createSignal<boolean>(
-    instanceState.facilityColumns.includeCustom4 || false,
+    initial.includeCustom4,
   );
   const [includeCustom5, setIncludeCustom5] = createSignal<boolean>(
-    instanceState.facilityColumns.includeCustom5 || false,
+    initial.includeCustom5,
   );
 
   const [labelNames, setLabelNames] = createSignal<string>(
-    instanceState.facilityColumns.labelNames || "",
+    initial.labelNames || "",
   );
   const [labelTypes, setLabelTypes] = createSignal<string>(
-    instanceState.facilityColumns.labelTypes || "",
+    initial.labelTypes || "",
   );
   const [labelOwnership, setLabelOwnership] = createSignal<string>(
-    instanceState.facilityColumns.labelOwnership || "",
+    initial.labelOwnership || "",
   );
   const [labelCustom1, setLabelCustom1] = createSignal<string>(
-    instanceState.facilityColumns.labelCustom1 || "",
+    initial.labelCustom1 || "",
   );
   const [labelCustom2, setLabelCustom2] = createSignal<string>(
-    instanceState.facilityColumns.labelCustom2 || "",
+    initial.labelCustom2 || "",
   );
   const [labelCustom3, setLabelCustom3] = createSignal<string>(
-    instanceState.facilityColumns.labelCustom3 || "",
+    initial.labelCustom3 || "",
   );
   const [labelCustom4, setLabelCustom4] = createSignal<string>(
-    instanceState.facilityColumns.labelCustom4 || "",
+    initial.labelCustom4 || "",
   );
   const [labelCustom5, setLabelCustom5] = createSignal<string>(
-    instanceState.facilityColumns.labelCustom5 || "",
+    initial.labelCustom5 || "",
   );
-
-  const [adminLabel2, setAdminLabel2] = createSignal<string>(
-    stripAdminSuffix(instanceState.adminAreaLabels.label2, 2),
-  );
-  const [adminLabel3, setAdminLabel3] = createSignal<string>(
-    stripAdminSuffix(instanceState.adminAreaLabels.label3, 3),
-  );
-  const [adminLabel4, setAdminLabel4] = createSignal<string>(
-    stripAdminSuffix(instanceState.adminAreaLabels.label4, 4),
-  );
-  const [needsSavingAdminLabels, setNeedsSavingAdminLabels] =
-    createSignal(false);
-
-  const updateAdminAreaLabels = createButtonAction(async () => {
-    const newConfig: InstanceConfigAdminAreaLabels = {
-      label2: withAdminSuffix(adminLabel2(), 2),
-      label3: withAdminSuffix(adminLabel3(), 3),
-      label4: withAdminSuffix(adminLabel4(), 4),
-    };
-    const res = await serverActions.updateAdminAreaLabelsConfig(newConfig);
-    if (res.success) {
-      setNeedsSavingAdminLabels(false);
-    }
-    return res;
-  });
-
-  const updateMaxAdminArea = createButtonAction(async () => {
-    const res = await serverActions.updateMaxAdminArea({
-      maxAdminArea: selectedMaxAdminArea(),
-    });
-    if (res.success) {
-      setNeedsSavingMaxAdminArea(false);
-    }
-    return res;
-  });
 
   const handleCheckboxChange = (
     setter: (value: boolean) => void,
     value: boolean,
   ) => {
     setter(value);
-    setNeedsSavingFacilityCols(true);
+    setNeedsSaving(true);
   };
 
   const handleLabelChange = (
@@ -140,7 +123,7 @@ export function InstanceSettings(p: Props) {
     value: string,
   ) => {
     setter(value);
-    setNeedsSavingFacilityCols(true);
+    setNeedsSaving(true);
   };
 
   const facilityColumnOptions = [
@@ -242,8 +225,9 @@ export function InstanceSettings(p: Props) {
     },
   ];
 
-  const updateFacilityColumns = createButtonAction(async () => {
-    const newConfig: InstanceConfigFacilityColumns = {
+  const updateStructureSchema = createButtonAction(async () => {
+    const schema: StructureSchema = {
+      adminDepth: selectedDepth() as 2 | 3 | 4,
       includeNames: includeNames(),
       includeTypes: includeTypes(),
       includeOwnership: includeOwnership(),
@@ -261,9 +245,124 @@ export function InstanceSettings(p: Props) {
       labelCustom4: labelCustom4() || undefined,
       labelCustom5: labelCustom5() || undefined,
     };
-    const res = await serverActions.updateFacilityColumnsConfig(newConfig);
+    const res = await serverActions.updateStructureSchema({
+      family: p.family,
+      schema,
+    });
     if (res.success) {
-      setNeedsSavingFacilityCols(false);
+      setNeedsSaving(false);
+    }
+    return res;
+  });
+
+  return (
+    <Card
+      header={familyHeading(p.family)}
+      headerRight={
+        <Show when={needsSaving()}>
+          <Button
+            onClick={() => updateStructureSchema.click()}
+            state={updateStructureSchema.state()}
+            intent="success"
+          >
+            {t3({
+              en: "Update structure settings",
+              fr: "Mettre à jour les paramètres de structure",
+              pt: "Atualizar as definições de estrutura",
+            })}
+          </Button>
+        </Show>
+      }
+    >
+      <div class="ui-spy">
+        <div class="ui-spy-sm">
+          <div class="font-700">
+            {t3({
+              en: "Max admin area level",
+              fr: "Niveau maximal d'unité administrative",
+              pt: "Nível máximo de zona administrativa",
+            })}
+          </div>
+          <RadioGroup
+            options={getSelectOptions(["2", "3", "4"])}
+            value={String(selectedDepth())}
+            onChange={(v) => {
+              setSelectedDepth(Number(v));
+              setNeedsSaving(true);
+            }}
+          />
+        </div>
+
+        <div class="ui-spy-sm">
+          <div class="font-700">
+            {t3({
+              en: "Facility columns",
+              fr: "Colonnes des établissements",
+              pt: "Colunas dos estabelecimentos de saúde",
+            })}
+          </div>
+          <div class="ui-gap ui-spy-sm">
+            <For each={facilityColumnOptions}>
+              {(option) => (
+                <div class="ui-gap flex items-center">
+                  <div class="w-56">
+                    <Checkbox
+                      checked={option.checked()}
+                      onChange={(checked) =>
+                        handleCheckboxChange(option.setChecked, checked)
+                      }
+                      label={option.label}
+                    />
+                  </div>
+
+                  <Show when={option.checked()}>
+                    <div class="w-96">
+                      <Input
+                        value={option.labelValue()}
+                        onChange={(value) =>
+                          handleLabelChange(option.setLabelValue, value)
+                        }
+                        placeholder={t3({
+                          en: `Custom label for ${option.label.toLowerCase()}`,
+                          fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                          pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
+                        })}
+                        fullWidth
+                      />
+                    </div>
+                  </Show>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export function InstanceSettings(p: Props) {
+  const [adminLabel2, setAdminLabel2] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label2, 2),
+  );
+  const [adminLabel3, setAdminLabel3] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label3, 3),
+  );
+  const [adminLabel4, setAdminLabel4] = createSignal<string>(
+    stripAdminSuffix(instanceState.adminAreaLabels.label4, 4),
+  );
+  const [needsSavingAdminLabels, setNeedsSavingAdminLabels] =
+    createSignal(false);
+
+  const updateAdminAreaLabels = createButtonAction(async () => {
+    const newConfig: InstanceConfigAdminAreaLabels = {
+      label2: withAdminSuffix(adminLabel2(), 2),
+      label3: withAdminSuffix(adminLabel3(), 3),
+      label4: withAdminSuffix(adminLabel4(), 4),
+    };
+    const res = await serverActions.updateAdminAreaLabelsConfig(newConfig);
+    if (res.success) {
+      setNeedsSavingAdminLabels(false);
     }
     return res;
   });
@@ -273,40 +372,6 @@ export function InstanceSettings(p: Props) {
       panelChildren={<HeadingBar tonal heading={t3(TC.settings)}></HeadingBar>}
     >
       <div class="ui-pad ui-spy h-full w-full">
-        <Card
-          header={t3({
-            en: "Max admin area level",
-            fr: "Niveau maximal d'unité administrative",
-            pt: "Nível máximo de zona administrativa",
-          })}
-          headerRight={
-            <Show when={needsSavingMaxAdminArea()}>
-              <Button
-                onClick={() => updateMaxAdminArea.click()}
-                state={updateMaxAdminArea.state()}
-                intent="success"
-              >
-                {t3({
-                  en: "Update max admin area level",
-                  fr: "Mettre à jour le niveau maximal d'unité administrative",
-                  pt: "Atualizar o nível máximo de zona administrativa",
-                })}
-              </Button>
-            </Show>
-          }
-        >
-          <div class="ui-spy-sm">
-            <RadioGroup
-              options={getSelectOptions(["2", "3", "4"])}
-              value={String(selectedMaxAdminArea())}
-              onChange={(v) => {
-                setSelectedMaxAdminArea(Number(v));
-                setNeedsSavingMaxAdminArea(true);
-              }}
-            />
-          </div>
-        </Card>
-
         <Card
           header={t3({
             en: "Admin area labels",
@@ -361,7 +426,7 @@ export function InstanceSettings(p: Props) {
                     exampleEn: "Catchment",
                     exampleFr: "Zone",
                   },
-                ].filter((row) => row.level <= instanceState.maxAdminArea)}
+                ].filter((row) => row.level <= maxDepth())}
               >
                 {(row) => (
                   <div class="ui-gap flex items-center">
@@ -394,65 +459,8 @@ export function InstanceSettings(p: Props) {
           </div>
         </Card>
 
-        <Card
-          header={t3({
-            en: "Facility columns",
-            fr: "Colonnes des établissements",
-            pt: "Colunas dos estabelecimentos de saúde",
-          })}
-          headerRight={
-            <Show when={needsSavingFacilityCols()}>
-              <Button
-                onClick={() => updateFacilityColumns.click()}
-                state={updateFacilityColumns.state()}
-                intent="success"
-              >
-                {t3({
-                  en: "Update facility columns",
-                  fr: "Mettre à jour les colonnes des établissements",
-                  pt: "Atualizar as colunas dos estabelecimentos de saúde",
-                })}
-              </Button>
-            </Show>
-          }
-        >
-          <div class="ui-spy-sm">
-            <div class="ui-gap ui-spy-sm">
-              <For each={facilityColumnOptions}>
-                {(option) => (
-                  <div class="ui-gap flex items-center">
-                    <div class="w-56">
-                      <Checkbox
-                        checked={option.checked()}
-                        onChange={(checked) =>
-                          handleCheckboxChange(option.setChecked, checked)
-                        }
-                        label={option.label}
-                      />
-                    </div>
-
-                    <Show when={option.checked()}>
-                      <div class="w-96">
-                        <Input
-                          value={option.labelValue()}
-                          onChange={(value) =>
-                            handleLabelChange(option.setLabelValue, value)
-                          }
-                          placeholder={t3({
-                            en: `Custom label for ${option.label.toLowerCase()}`,
-                            fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
-                            pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
-                          })}
-                          fullWidth
-                        />
-                      </div>
-                    </Show>
-                  </div>
-                )}
-              </For>
-            </div>
-          </div>
-        </Card>
+        <FamilyStructureCard family="hmis" />
+        <FamilyStructureCard family="hfa" />
       </div>
     </FrameTop>
   );

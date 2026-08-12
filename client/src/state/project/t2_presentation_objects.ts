@@ -25,6 +25,7 @@ import { buildFigureInputs } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 import { getSnapshotInstanceLocalization } from "../instance/t1_store";
+import { geoJsonFamilyFor } from "../instance/t2_geojson";
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
@@ -224,7 +225,13 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       },
       indicatorMetadata: ih.indicatorMetadata,
       dateRange: ih.dateRange,
-      geo: mapLevel ? { kind: "level", level: mapLevel } : undefined,
+      geo: mapLevel
+        ? {
+          kind: "level",
+          level: mapLevel,
+          family: geoJsonFamilyFor(resultsValue.datasetFamily),
+        }
+        : undefined,
       localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
       snapshotAt: "",

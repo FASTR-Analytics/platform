@@ -4,7 +4,7 @@ import {
   getCalendar,
   t3,
   type IndicatorType,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import {
   FigureInputs,
@@ -32,7 +32,7 @@ import { instanceState } from "~/state/instance/t1_store";
 type Props = {
   versionId: number;
   indicatorMappingsVersion: string;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
 };
 
 export function DatasetItemsHolder(p: Props) {
@@ -66,8 +66,8 @@ export function DatasetItemsHolder(p: Props) {
       rawOrCommonIndicators,
       versionId,
       indicatorMappingsVersion,
-      p.facilityColumns,
-      instanceState.maxAdminArea,
+      p.structureSchema,
+      instanceState.structureLastUpdated,
       instanceState.hmisImportRunActive,
     );
     if (res.success === false) {

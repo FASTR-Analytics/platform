@@ -1,4 +1,4 @@
-import type { DisaggregationOption, InstanceConfigFacilityColumns } from "lib";
+import type { DisaggregationOption, StructureColumns } from "lib";
 import {
   getEnabledFacilityDisaggregationOptions,
   PHYSICAL_DISAGGREGATION_COLUMNS,
@@ -11,7 +11,7 @@ import {
 // end-to-end. Ordering matches the enricher exactly (UI list order).
 export function deriveAvailableDisaggregationOptions(
   columnNames: Set<string>,
-  facilityConfig: InstanceConfigFacilityColumns,
+  facilityConfig: StructureColumns | undefined,
 ): DisaggregationOption[] {
   const out: DisaggregationOption[] = [];
   for (const disOpt of PHYSICAL_DISAGGREGATION_COLUMNS) {
@@ -19,7 +19,7 @@ export function deriveAvailableDisaggregationOptions(
       out.push(disOpt);
     }
   }
-  if (columnNames.has("facility_id")) {
+  if (columnNames.has("facility_id") && facilityConfig) {
     out.push(...getEnabledFacilityDisaggregationOptions(facilityConfig));
   }
   if (columnNames.has("period_id")) {

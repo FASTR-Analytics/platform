@@ -70,8 +70,15 @@ resultsValueForVisualizationSchema.parse(_rv);
 
 // Discriminated union: live editor passes level (derives GeoJSON from sync
 // cache); stored bundles (dashboards/slides/reports) embed the full GeoJSON.
+// family selects the registry's map; optional and additive — stored
+// {kind:"level"} bundles without it default to hmis at resolution (same
+// ruling as ResultsValue.datasetFamily absence), no force block needed.
 export const geoRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("level"), level: z.number() }),
+  z.object({
+    kind: z.literal("level"),
+    level: z.number(),
+    family: z.enum(["hmis", "hfa"]).optional(),
+  }),
   z.object({ kind: z.literal("data"), data: z.unknown() }),
 ]);
 

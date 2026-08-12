@@ -4,7 +4,7 @@ import {
   type StructureStagingResult,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type FacilityFamily,
 } from "lib";
 import {
@@ -22,7 +22,7 @@ type Props = {
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
   family: FacilityFamily;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   close: () => void;
   silentRefresUploadAttempt: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
@@ -164,7 +164,7 @@ export function Step5Import(p: Props) {
 
   function columnsNotice(intent: IntentType): string {
     const cols = (p.step3Result.stagedOptionalColumns ?? []).map((c) =>
-      getStructureColumnLabel(c, p.facilityColumns)
+      getStructureColumnLabel(c, p.structureSchema)
     );
     if (p.step3Result.stagedAdminAreas) {
       cols.unshift(
@@ -365,7 +365,7 @@ export function Step5Import(p: Props) {
                           <span class="font-700">
                             {getStructureColumnLabel(
                               entry.column,
-                              p.facilityColumns,
+                              p.structureSchema,
                             )}
                           </span>
                           {": "}
@@ -407,9 +407,9 @@ export function Step5Import(p: Props) {
                     {(entry) => (
                       <div class="text-sm">
                         {t3({
-                          en: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} facilities will be recoded`,
-                          fr: `${getStructureColumnLabel(entry.column, p.facilityColumns)} : ${toNum0(entry.count)} établissements seront recodés`,
-                          pt: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} estabelecimentos serão recodificados`,
+                          en: `${getStructureColumnLabel(entry.column, p.structureSchema)}: ${toNum0(entry.count)} facilities will be recoded`,
+                          fr: `${getStructureColumnLabel(entry.column, p.structureSchema)} : ${toNum0(entry.count)} établissements seront recodés`,
+                          pt: `${getStructureColumnLabel(entry.column, p.structureSchema)}: ${toNum0(entry.count)} estabelecimentos serão recodificados`,
                         })}
                       </div>
                     )}

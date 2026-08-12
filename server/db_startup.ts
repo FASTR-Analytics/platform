@@ -3,8 +3,7 @@ import {
   H_USERS,
   MODULE_REGISTRY,
   type InstanceConfigAdminAreaLabels,
-  type InstanceConfigFacilityColumns,
-  type InstanceConfigMaxAdminArea,
+  type StructureSchema,
 } from "lib";
 import { uninstallModule } from "./db/project/modules.ts";
 import { escapeSqlString } from "./db/utils.ts";
@@ -383,11 +382,8 @@ function getInitialUsersInsertStatements(): string {
 }
 
 function getDefaultInstanceConfigInsertStatement(): string {
-  const adminAreaValue: InstanceConfigMaxAdminArea = {
-    maxAdminArea: 4,
-  };
-
-  const facilityColumnsValue: InstanceConfigFacilityColumns = {
+  const structureSchemaValue: StructureSchema = {
+    adminDepth: 4,
     includeNames: false,
     includeTypes: false,
     includeOwnership: false,
@@ -403,8 +399,8 @@ function getDefaultInstanceConfigInsertStatement(): string {
   return `
 INSERT INTO instance_config (config_key, config_json_value)
 VALUES
-  ('max_admin_area', '${JSON.stringify(adminAreaValue)}'),
-  ('facility_columns', '${JSON.stringify(facilityColumnsValue)}'),
+  ('structure_schema_hmis', '${JSON.stringify(structureSchemaValue)}'),
+  ('structure_schema_hfa', '${JSON.stringify(structureSchemaValue)}'),
   ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
 `;
 }

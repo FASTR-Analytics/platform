@@ -165,43 +165,88 @@ CREATE INDEX idx_project_user_roles_project_id ON project_user_roles(project_id)
 -- ADMINISTRATIVE STRUCTURE
 -- ============================================================================
 
-CREATE TABLE admin_areas_1 (
+-- Per-family admin-area trees: each facility registry (HMIS, HFA) has its own
+-- four-level tree. Storage is always 4 levels — staging pads levels above the
+-- family's configured depth with the leaf value — and every read gates on the
+-- family's depth, which hides exactly the padding. Invariant: each tree level
+-- mirrors the distinct level-N paths in that family's facilities table
+-- (maintained by cleanupUnusedAdminAreas after every integrate/delete).
+
+CREATE TABLE admin_areas_hmis_1 (
   admin_area_1 text PRIMARY KEY NOT NULL
 );
 
-CREATE TABLE admin_areas_2 (
+CREATE TABLE admin_areas_hmis_2 (
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_1 (admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_hmis_1 (admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_2_admin_area_1 ON admin_areas_2(admin_area_1);
-CREATE INDEX idx_admin_areas_2_admin_area_2 ON admin_areas_2(admin_area_2);
+CREATE INDEX idx_admin_areas_hmis_2_admin_area_1 ON admin_areas_hmis_2(admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_2_admin_area_2 ON admin_areas_hmis_2(admin_area_2);
 
-CREATE TABLE admin_areas_3 (
+CREATE TABLE admin_areas_hmis_3 (
   admin_area_3 text NOT NULL,
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_3, admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_3_admin_area_2_admin_area_1 ON admin_areas_3(admin_area_2, admin_area_1);
-CREATE INDEX idx_admin_areas_3_admin_area_3 ON admin_areas_3(admin_area_3);
-CREATE INDEX idx_admin_areas_3_admin_area_2 ON admin_areas_3(admin_area_2);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_2_admin_area_1 ON admin_areas_hmis_3(admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_3 ON admin_areas_hmis_3(admin_area_3);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_2 ON admin_areas_hmis_3(admin_area_2);
 
-CREATE TABLE admin_areas_4 (
+CREATE TABLE admin_areas_hmis_4 (
   admin_area_4 text NOT NULL,
   admin_area_3 text NOT NULL,
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_4(admin_area_3, admin_area_2, admin_area_1);
-CREATE INDEX idx_admin_areas_4_admin_area_4 ON admin_areas_4(admin_area_4);
+CREATE INDEX idx_admin_areas_hmis_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_hmis_4(admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_4_admin_area_4 ON admin_areas_hmis_4(admin_area_4);
+
+CREATE TABLE admin_areas_hfa_1 (
+  admin_area_1 text PRIMARY KEY NOT NULL
+);
+
+CREATE TABLE admin_areas_hfa_2 (
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_hfa_1 (admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_2_admin_area_1 ON admin_areas_hfa_2(admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_2_admin_area_2 ON admin_areas_hfa_2(admin_area_2);
+
+CREATE TABLE admin_areas_hfa_3 (
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_3, admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_2_admin_area_1 ON admin_areas_hfa_3(admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_3 ON admin_areas_hfa_3(admin_area_3);
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_2 ON admin_areas_hfa_3(admin_area_2);
+
+CREATE TABLE admin_areas_hfa_4 (
+  admin_area_4 text NOT NULL,
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_hfa_4(admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_4_admin_area_4 ON admin_areas_hfa_4(admin_area_4);
 
 CREATE TABLE facilities_hmis (
   facility_id text PRIMARY KEY NOT NULL,
@@ -218,7 +263,7 @@ CREATE TABLE facilities_hmis (
   facility_custom_3 text,
   facility_custom_4 text,
   facility_custom_5 text,
-  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_facilities_hmis_admin_areas ON facilities_hmis(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
@@ -244,7 +289,7 @@ CREATE TABLE facilities_hfa (
   facility_custom_3 text,
   facility_custom_4 text,
   facility_custom_5 text,
-  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_facilities_hfa_admin_areas ON facilities_hfa(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
@@ -692,10 +737,14 @@ CREATE TABLE calculated_indicators (
 -- GEOJSON MAPS
 -- ============================================================================
 
+-- Per-family boundary files: a map means "boundaries matching THIS registry's
+-- naming at THIS level". Up to six rows (2 families x levels 2..4).
 CREATE TABLE geojson_maps (
-  admin_area_level integer PRIMARY KEY CHECK (admin_area_level IN (2, 3, 4)),
+  facility_family text NOT NULL CHECK (facility_family IN ('hmis', 'hfa')),
+  admin_area_level integer NOT NULL CHECK (admin_area_level IN (2, 3, 4)),
   geojson text NOT NULL,
-  uploaded_at timestamptz NOT NULL DEFAULT now()
+  uploaded_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (facility_family, admin_area_level)
 );
 
 -- ============================================================================

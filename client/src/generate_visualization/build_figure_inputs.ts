@@ -252,10 +252,12 @@ function resolveGeoJson(
 ): GeoJSONFeatureCollection | undefined {
   if (!geo) return undefined;
   if (geo.kind === "data") return geo.data as GeoJSONFeatureCollection;
-  // geo.kind === "level": derive from sync cache
+  // geo.kind === "level": derive from sync cache. Stored bundles without a
+  // family predate the split and default to hmis (same ruling as an absent
+  // ResultsValue.datasetFamily).
   const level = getAdminAreaLevelFromMapConfig(config);
   if (!level) return undefined;
-  return getGeoJsonSync(level) ?? undefined;
+  return getGeoJsonSync(geo.family ?? "hmis", level) ?? undefined;
 }
 
 function buildMapAutoLegend(

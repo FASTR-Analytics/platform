@@ -1,5 +1,4 @@
 import type { DatasetHmisVersion } from "./dataset_hmis.ts";
-import type { InstanceConfigFacilityColumns } from "./instance.ts";
 
 export type DatasetInProject =
   | {
@@ -19,16 +18,14 @@ export type DatasetInProject =
     };
 
 // Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Legacy
-// packages may carry an extra `windowing` (HMIS) key in their stored info
-// JSON — inert, nothing reads it.
+// packages may carry extra `windowing` (HMIS), `facilityColumnsConfig` or
+// `maxAdminArea` keys in their stored info JSON — inert, nothing reads them.
 export type DatasetHmisInfoInProject = {
   version: DatasetHmisVersion;
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;
   indicatorMappingsVersion?: string;
-  facilityColumnsConfig?: InstanceConfigFacilityColumns;
-  maxAdminArea?: number;
   calculatedIndicatorsVersion?: string;
 };
 
@@ -37,11 +34,11 @@ export type DatasetHfaInfoInProject = {
   // 011 backfills this so the client has a single, explicit legacy branch.
   _legacy?: true;
   // All snapshot fields are optional to match reality — legacy rows lack them
-  // and the client compares missing-vs-present uniformly.
+  // and the client compares missing-vs-present uniformly. Legacy rows may
+  // carry an inert `facilityColumnsHash` key — nothing reads it.
   hfaCacheHash?: string;
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;
-  facilityColumnsHash?: string;
 };
 
 export type DatasetIcehInfoInProject = {

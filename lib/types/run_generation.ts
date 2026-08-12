@@ -135,6 +135,8 @@ export type ResultsPackageCompatibilityIssue = {
   | {
     kind: "dimensions_not_in_package";
     disaggregationOptions: DisaggregationOption[];
+    // Labels the missing dimensions with the owning family's column labels
+    datasetFamily?: DatasetType;
   }
 );
 

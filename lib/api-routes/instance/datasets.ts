@@ -9,7 +9,7 @@ import type {
 } from "../../types/dataset_hfa_import.ts";
 import {
   datasetHmisWindowingRawSchema,
-  instanceConfigFacilityColumnsSchema,
+  structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
   DatasetHmisDetail,
@@ -21,7 +21,6 @@ import type {
   DatasetHmisWindowingRaw,
   Dhis2ImportSchedulingInfo,
   IndicatorType,
-  InstanceConfigFacilityColumns,
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -166,7 +165,7 @@ export const datasetRouteRegistry = {
       versionId: z.number(),
       indicatorMappingsVersion: z.string(),
       rawOrCommonIndicators: z.enum(["raw", "common"]),
-      facilityColumns: instanceConfigFacilityColumnsSchema,
+      structureSchema: structureSchemaSchema,
     }),
     response: {} as ItemsHolderDatasetHmisDisplay,
   }),

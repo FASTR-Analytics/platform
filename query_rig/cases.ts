@@ -984,6 +984,45 @@ const EXPLICIT_CASES: Case[] = [
     },
     expect: { status: "ok", rows: [{ year: 2024, value: 25 }] },
   },
+
+  // ── Per-family structure schemas (PLAN_2 split) ───────────────────────────
+  // The fixture is HFA depth 2 / includeTypes ON while seedInstance seeds the
+  // hmis row divergent (depth 4, flags inverted → includeTypes OFF). Each case
+  // only passes if the engine resolved the HFA row.
+  {
+    name: "diverging family schemas: facility_type group-by uses the HFA row",
+    fixture: "hfa_divergent_schema",
+    fetchConfig: { ...base(), groupBys: ["facility_type"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 15, __n_value: 2 },
+        { facility_type: "clinic", value: 20, __n_value: 1 },
+      ],
+    },
+  },
+  {
+    name: "diverging family schemas: facility_type option list uses the HFA row",
+    fixture: "hfa_divergent_schema",
+    entry: "possibleValues",
+    disOpt: "facility_type",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      values: [
+        { id: "clinic", label: "clinic" },
+        { id: "hospital", label: "hospital" },
+      ],
+    },
+  },
+  {
+    name: "diverging family schemas: metric info offers facility_type for HFA",
+    fixture: "hfa_divergent_schema",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      dimStatus: { disOpt: "facility_type", status: "ok", namedCount: 2 },
+    },
+  },
 ];
 
 // The one genuinely calendar-dependent derivation. F1 holds 202401 (23),

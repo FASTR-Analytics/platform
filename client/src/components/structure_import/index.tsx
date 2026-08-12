@@ -2,7 +2,7 @@ import {
   t3,
   _RECODABLE_FACILITY_COLUMNS,
   type FacilityFamily,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type StructureUploadAttemptDetail,
 } from "lib";
 import { createStore } from "solid-js/store";
@@ -58,8 +58,7 @@ function reviewApplies(sua: StructureUploadAttemptDetail): boolean {
 type Props = EditorComponentProps<
   {
     family: FacilityFamily;
-    maxAdminArea: number;
-    facilityColumns: InstanceConfigFacilityColumns;
+    structureSchema: StructureSchema;
     silentRefreshInstance: () => Promise<void>;
   },
   { needsReload: true }
@@ -287,7 +286,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
                   recodes={keyedUploadAttempt.recodes}
                   family={p.family}
-                  facilityColumns={p.facilityColumns}
+                  structureSchema={p.structureSchema}
                   close={() => p.close({ needsReload: true })}
                   silentRefresUploadAttempt={uploadAttempt.silentFetch}
                   silentRefreshInstance={p.silentRefreshInstance}
@@ -308,7 +307,7 @@ export function StructureUploadAttemptForm(p: Props) {
                   family={p.family}
                   step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
                   recodes={keyedUploadAttempt.recodes}
-                  facilityColumns={p.facilityColumns}
+                  structureSchema={p.structureSchema}
                   csvDetails={
                     keyedUploadAttempt.sourceType === "csv"
                       ? (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
@@ -369,8 +368,7 @@ export function StructureUploadAttemptForm(p: Props) {
                           | undefined
                       }
                       family={p.family}
-                      maxAdminArea={p.maxAdminArea}
-                      facilityColumns={p.facilityColumns}
+                      structureSchema={p.structureSchema}
                       silentFetch={uploadAttempt.silentFetch}
                     />
                   </Match>

@@ -5,7 +5,7 @@ import {
   encodeRawCsvHeader,
   type CsvDetails,
   type FacilityFamily,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type StructureColumnMappings,
   type StructureRecodableColumn,
   type StructureRecodes,
@@ -80,7 +80,7 @@ type Props = {
   family: FacilityFamily;
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   // CSV sources only (undefined for DHIS2): enables showing extra, unmapped
   // file columns as display-only context in the rows table
   csvDetails: CsvDetails | undefined;
@@ -344,7 +344,7 @@ export function Step4Recode(p: Props) {
       ...responseColumns.map(
         (c): TableColumn<Record<string, string>> => ({
           key: c,
-          header: getStructureColumnLabel(c, p.facilityColumns),
+          header: getStructureColumnLabel(c, p.structureSchema),
         }),
       ),
       ...p.ui.contextColumns.map(
@@ -428,7 +428,7 @@ export function Step4Recode(p: Props) {
           value={column()}
           options={columnOptions().map((c) => ({
             value: c,
-            label: getStructureColumnLabel(c, p.facilityColumns),
+            label: getStructureColumnLabel(c, p.structureSchema),
           }))}
           onChange={onColumnChange}
           label={t3({ en: "Column", fr: "Colonne", pt: "Coluna" })}

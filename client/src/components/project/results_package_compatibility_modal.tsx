@@ -154,7 +154,14 @@ function IssueRow(p: { issue: ResultsPackageCompatibilityIssue }) {
                 fr: "Ce paquet ne produit pas",
                 pt: "Este pacote não produz",
               })}: ${disOpts
-                .map((disOpt) => t3(getDisplayDisaggregationLabel(disOpt)))
+                .map((disOpt) =>
+                  t3(getDisplayDisaggregationLabel(
+                    disOpt,
+                    p.issue.kind === "dimensions_not_in_package"
+                      ? p.issue.datasetFamily
+                      : undefined,
+                  ))
+                )
                 .join(", ")}`}
           </Match>
         </Switch>

@@ -5,7 +5,7 @@ import {
 import { Sql } from "postgres";
 import type {
   DatasetHmisWindowingRaw,
-  InstanceConfigFacilityColumns,
+  StructureSchema,
 } from "lib";
 import {
   APIResponseNoData,
@@ -24,7 +24,6 @@ import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
 import { assertNoRunningDatasetHmisImportRun } from "./dataset_hmis_import_runs.ts";
 import type { DBDatasetHmisVersion } from "./_main_database_types.ts";
-import { getMaxAdminAreaConfig } from "./config.ts";
 
 //////////////////////////////////////////////////////
 //  _______               __                __  __  //
@@ -281,7 +280,7 @@ export async function deleteAllDatasetHmisData(
 ///////////////////////
 
 type SharedDataForDisplay = {
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   adminArea2s: string[];
   adminArea3s?: { admin_area_3: string; admin_area_2: string }[];
   facilityTypes?: string[];
@@ -293,31 +292,30 @@ export async function getDatasetHmisItemsForDisplay(
   versionId: number | undefined,
   indicatorMappingsVersion: string | undefined,
   rawOrCommonIndicators: IndicatorType,
-  facilityColumns: InstanceConfigFacilityColumns
+  structureSchema: StructureSchema
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Query common data used by both raw and common functions
+    // Query common data used by both raw and common functions. The windowing
+    // tree is HMIS data's own registry tree — HFA areas are structurally gone.
     const adminArea2s = (
       await mainDb<
         { admin_area_2: string }[]
-      >`SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
+      >`SELECT admin_area_2 FROM admin_areas_hmis_2 ORDER BY LOWER(admin_area_2)`
     ).map<string>((aa) => aa.admin_area_2);
 
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
     let adminArea3s:
       | { admin_area_3: string; admin_area_2: string }[]
       | undefined;
-    if (resMaxAdminArea.data.maxAdminArea >= 3) {
+    if (structureSchema.adminDepth >= 3) {
       adminArea3s = await mainDb<
         { admin_area_3: string; admin_area_2: string }[]
-      >`SELECT admin_area_3, admin_area_2 FROM admin_areas_3
+      >`SELECT admin_area_3, admin_area_2 FROM admin_areas_hmis_3
         ORDER BY LOWER(admin_area_2), LOWER(admin_area_3)`;
     }
 
     // Conditionally query facility types if enabled
     let facilityTypes: string[] | undefined;
-    if (facilityColumns.includeTypes) {
+    if (structureSchema.includeTypes) {
       facilityTypes = (
         await mainDb<
           { facility_type: string }[]
@@ -329,7 +327,7 @@ export async function getDatasetHmisItemsForDisplay(
 
     // Conditionally query facility ownership if enabled
     let facilityOwnership: string[] | undefined;
-    if (facilityColumns.includeOwnership) {
+    if (structureSchema.includeOwnership) {
       facilityOwnership = (
         await mainDb<
           { facility_ownership: string }[]
@@ -340,7 +338,7 @@ export async function getDatasetHmisItemsForDisplay(
     }
 
     const sharedData: SharedDataForDisplay = {
-      facilityColumns,
+      structureSchema,
       adminArea2s,
       adminArea3s,
       facilityTypes,
@@ -432,7 +430,7 @@ async function getDatasetHmisItemsForDisplayRaw(
 
     const ih: ItemsHolderDatasetHmisDisplay = {
       rawOrCommonIndicators: "raw",
-      facilityColumns: sharedData.facilityColumns,
+      structureSchema: sharedData.structureSchema,
       versionId,
       indicatorMappingsVersion,
       vizItems,
@@ -514,7 +512,7 @@ async function getDatasetHmisItemsForDisplayCommon(
 
     const ih: ItemsHolderDatasetHmisDisplay = {
       rawOrCommonIndicators: "common",
-      facilityColumns: sharedData.facilityColumns,
+      structureSchema: sharedData.structureSchema,
       versionId,
       indicatorMappingsVersion,
       vizItems,

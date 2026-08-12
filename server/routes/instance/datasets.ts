@@ -108,7 +108,7 @@ defineRoute(
       body.versionId,
       body.indicatorMappingsVersion,
       body.rawOrCommonIndicators,
-      body.facilityColumns,
+      body.structureSchema,
     );
     return c.json(res);
   },

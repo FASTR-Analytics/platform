@@ -2,10 +2,27 @@ import type { Sql } from "postgres";
 import { getResultsObjectTableName } from "../server/db/utils.ts";
 import type { Fixture } from "./fixtures.ts";
 
+// Both per-family schema rows are seeded, and the OTHER family's row is
+// deliberately DIVERGENT — different depth, every flag inverted — so any
+// engine path that picks the wrong family's row breaks a case instead of
+// coincidentally passing.
 export async function seedInstance(mainDb: Sql, fx: Fixture): Promise<void> {
+  const ownSchema = { adminDepth: fx.adminDepth, ...fx.facilityColumns };
+  const otherSchema = {
+    adminDepth: fx.adminDepth === 2 ? 4 : 2,
+    ...Object.fromEntries(
+      Object.entries(fx.facilityColumns).map(([k, v]) => [k, !v]),
+    ),
+  };
+  const ownKey = `structure_schema_${fx.family}`;
+  const otherKey = fx.family === "hmis"
+    ? "structure_schema_hfa"
+    : "structure_schema_hmis";
   await mainDb`
     INSERT INTO instance_config (config_key, config_json_value)
-    VALUES ('facility_columns', ${JSON.stringify(fx.facilityColumns)})
+    VALUES
+      (${ownKey}, ${JSON.stringify(ownSchema)}),
+      (${otherKey}, ${JSON.stringify(otherSchema)})
     ON CONFLICT (config_key)
     DO UPDATE SET config_json_value = EXCLUDED.config_json_value
   `;

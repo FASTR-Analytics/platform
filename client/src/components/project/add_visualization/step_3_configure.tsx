@@ -100,7 +100,7 @@ export function Step3Configure(p: Props) {
                     <Checkbox
                       label={
                         <>
-                          {t3(getDisplayDisaggregationLabel(disOpt.value))}
+                          {t3(getDisplayDisaggregationLabel(disOpt.value, p.metric.datasetFamily))}
                           <Show when={isRequired}>
                             <span class="ui-text-caption ml-2">
                               ({t3({ en: "required", fr: "requis", pt: "obrigatório" })})

@@ -150,7 +150,7 @@ export async function formatFigureConfigForAI(
     for (const opt of metric.disaggregationOptions) {
       const label = getDisaggregationLabel(
         opt.value,
-        env.getDimensionLabelConfig(),
+        env.getDimensionLabelConfig(metric.datasetFamily),
       ).en;
       lines.push(
         `  - ${opt.value}: ${label}${opt.isRequired ? " (required)" : ""}`,

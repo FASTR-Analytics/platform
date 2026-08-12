@@ -14,6 +14,7 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "./disaggregation_options.ts";
+import type { DatasetType } from "./datasets.ts";
 import type { IndicatorFormat } from "./indicators.ts";
 import type { ResultsValue } from "./modules.ts";
 import {
@@ -108,6 +109,9 @@ export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
   metricId: string;
   projectId: string;
+  // The metric's dataset family — selects which family's structure schema
+  // labels its facility columns. Absent for iceh/unknown-family metrics.
+  datasetFamily?: DatasetType;
   moduleLastRun: string;
   // Freshness of the dataset(s) feeding indicator metadata, which labels the
   // cached disaggregation values. Rewritten on dataset integration (bumps

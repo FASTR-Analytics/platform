@@ -1,4 +1,5 @@
 import type {
+  DatasetType,
   FigureBundle,
   GenericLongFormFetchConfig,
   PeriodOption,
@@ -10,7 +11,7 @@ import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
@@ -21,6 +22,7 @@ export type MetricInputsForBundle = {
   mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
   moduleLastRun: string;
   resultsValueForViz: ResultsValueForVisualization;
+  datasetFamily: DatasetType | undefined;
   fetchConfig: GenericLongFormFetchConfig;
 };
 
@@ -29,7 +31,7 @@ export async function resolveFigureBundleFromMetric(
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, moduleLastRun, resultsValueForViz, fetchConfig } = inputs;
+  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, moduleLastRun, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
@@ -68,10 +70,13 @@ export async function resolveFigureBundleFromMetric(
   }
 
   const mapLevel = getAdminAreaLevelFromMapConfig(config);
+  const geoFamily = geoJsonFamilyFor(datasetFamily);
   let geo: FigureBundle["geo"];
   if (mapLevel) {
-    const geoJson = getGeoJsonSync(mapLevel);
-    geo = geoJson ? { kind: "data", data: geoJson } : { kind: "level", level: mapLevel };
+    const geoJson = getGeoJsonSync(geoFamily, mapLevel);
+    geo = geoJson
+      ? { kind: "data", data: geoJson }
+      : { kind: "level", level: mapLevel, family: geoFamily };
   }
 
   const bundle: FigureBundle = {

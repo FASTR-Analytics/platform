@@ -1,5 +1,6 @@
 import type {
   APIResponseWithData,
+  DatasetType,
   DisaggregationOption,
   GenericLongFormFetchConfig,
   ItemsHolderPresentationObject,
@@ -46,6 +47,9 @@ export type AIToolEnv = {
   ) => Promise<APIResponseWithData<ReplicantOptionsForPresentationObject>>;
   // Instance-level dimension display labels (admin-area names, facility
   // columns). The SPA reads its instance store; the host reads its hydrated
-  // snapshot.
-  getDimensionLabelConfig: () => DisaggregationLabelConfig;
+  // snapshot. Facility-column labels are per family — pass the results
+  // value's datasetFamily; undefined/iceh yields the generic defaults.
+  getDimensionLabelConfig: (
+    family: DatasetType | undefined,
+  ) => DisaggregationLabelConfig;
 };

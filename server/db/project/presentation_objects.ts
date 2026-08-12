@@ -21,7 +21,6 @@ import {
 import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
-import { getFacilityColumnsConfig } from "../instance/config.ts";
 import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
@@ -173,13 +172,10 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       throw new Error("No presentation object with this id");
     }
 
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-
     const resResultsValue = await resolveMetricById(
+      mainDb,
       projectDb,
       rawPresObj.metric_id,
-      resFacilityConfig.data,
     );
     throwIfErrWithData(resResultsValue);
 

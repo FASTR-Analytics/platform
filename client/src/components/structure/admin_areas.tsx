@@ -1,13 +1,53 @@
-import { t3 } from "lib";
+import { t3, type FacilityFamily, type StructureFamilyCounts } from "lib";
 import { Button, FrameTop, HeadingBar, createDeleteAction, toNum0 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 
 type Props = {
   backToInstance: () => void;
 };
+
+function FamilyAdminAreaCounts(p: {
+  family: FacilityFamily;
+  counts: StructureFamilyCounts;
+}) {
+  const depth = () => structureSchemaForFamily(p.family).adminDepth;
+  return (
+    <Show when={p.counts.adminArea1s > 0}>
+      <div class="ui-spy-sm max-w-72 text-sm">
+        <div class="font-700">
+          {p.family === "hmis"
+            ? t3({ en: "HMIS registry", fr: "Registre SNIS", pt: "Registo SNIS" })
+            : t3({
+              en: "HFA registry",
+              fr: "Registre Enquêtes FOSA",
+              pt: "Registo FOSA",
+            })}
+        </div>
+        <Show when={depth() >= 2}>
+          <div class="ui-gap flex justify-between">
+            <span>{t3(getAdminAreaLabel(2))}:</span>
+            <span class="font-mono">{toNum0(p.counts.adminArea2s)}</span>
+          </div>
+        </Show>
+        <Show when={depth() >= 3}>
+          <div class="ui-gap flex justify-between">
+            <span>{t3(getAdminAreaLabel(3))}:</span>
+            <span class="font-mono">{toNum0(p.counts.adminArea3s)}</span>
+          </div>
+        </Show>
+        <Show when={depth() >= 4}>
+          <div class="ui-gap flex justify-between">
+            <span>{t3(getAdminAreaLabel(4))}:</span>
+            <span class="font-mono">{toNum0(p.counts.adminArea4s)}</span>
+          </div>
+        </Show>
+      </div>
+    </Show>
+  );
+}
 
 export function AdminAreas(p: Props) {
   async function attemptDeleteAll() {
@@ -36,9 +76,9 @@ export function AdminAreas(p: Props) {
       <div class="ui-pad ui-spy max-w-xl overflow-auto">
         <div class="text-sm">
           {t3({
-            en: "Admin areas are the shared geography for both facility registries. They are created automatically when facilities are imported (each facility row carries its admin area path), and removed automatically when no facility in either registry references them.",
-            fr: "Les unités administratives constituent la géographie commune aux deux registres d'établissements. Elles sont créées automatiquement lors de l'importation des établissements (chaque ligne d'établissement porte son chemin d'unité administrative) et supprimées automatiquement lorsqu'aucun établissement des deux registres n'y fait référence.",
-            pt: "As zonas administrativas constituem a geografia comum aos dois registos de estabelecimentos. São criadas automaticamente quando os estabelecimentos são importados (cada linha de estabelecimento inclui o seu caminho de zona administrativa) e removidas automaticamente quando nenhum estabelecimento dos dois registos lhes faz referência.",
+            en: "Each facility registry (HMIS and HFA) has its own admin area tree. Admin areas are created automatically when that registry's facilities are imported (each facility row carries its admin area path), and removed automatically when no facility in that registry references them.",
+            fr: "Chaque registre d'établissements (SNIS et Enquêtes FOSA) possède son propre arbre d'unités administratives. Les unités administratives sont créées automatiquement lors de l'importation des établissements de ce registre (chaque ligne d'établissement porte son chemin d'unité administrative) et supprimées automatiquement lorsqu'aucun établissement de ce registre n'y fait référence.",
+            pt: "Cada registo de estabelecimentos (SNIS e FOSA) tem a sua própria árvore de zonas administrativas. As zonas administrativas são criadas automaticamente quando os estabelecimentos desse registo são importados (cada linha de estabelecimento inclui o seu caminho de zona administrativa) e removidas automaticamente quando nenhum estabelecimento desse registo lhes faz referência.",
           })}
         </div>
         <Show
@@ -55,23 +95,9 @@ export function AdminAreas(p: Props) {
           keyed
         >
           {(keyedStructure) => (
-            <div class="ui-spy-sm max-w-72 text-sm">
-              <div class="ui-gap flex justify-between">
-                <span>{t3(getAdminAreaLabel(2))}:</span>
-                <span class="font-mono">{toNum0(keyedStructure.adminArea2s)}</span>
-              </div>
-              <Show when={instanceState.maxAdminArea >= 3}>
-                <div class="ui-gap flex justify-between">
-                  <span>{t3(getAdminAreaLabel(3))}:</span>
-                  <span class="font-mono">{toNum0(keyedStructure.adminArea3s)}</span>
-                </div>
-              </Show>
-              <Show when={instanceState.maxAdminArea >= 4}>
-                <div class="ui-gap flex justify-between">
-                  <span>{t3(getAdminAreaLabel(4))}:</span>
-                  <span class="font-mono">{toNum0(keyedStructure.adminArea4s)}</span>
-                </div>
-              </Show>
+            <div class="ui-spy">
+              <FamilyAdminAreaCounts family="hmis" counts={keyedStructure.hmis} />
+              <FamilyAdminAreaCounts family="hfa" counts={keyedStructure.hfa} />
             </div>
           )}
         </Show>

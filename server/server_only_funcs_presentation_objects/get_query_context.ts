@@ -1,5 +1,5 @@
 import { Sql } from "postgres";
-import { getFacilityColumnsConfig } from "../db/instance/config.ts";
+import { getStructureSchemaForDatasetFamily } from "../db/instance/config.ts";
 import {
   detectColumnExists,
   detectHasPeriodId,
@@ -89,13 +89,15 @@ export async function buildQueryContext(
   fetchConfig: GenericLongFormFetchConfig,
   datasetFamily: DatasetType | undefined,
 ): Promise<QueryContext> {
-  // Get facility config first (always, to know what's enabled)
-  const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-  throwIfErrWithData(resFacilityConfig);
-  const facilityConfig = resFacilityConfig.data;
+  // The FAMILY's schema decides what's enabled (iceh/undefined → none)
+  const structureSchema = await getStructureSchemaForDatasetFamily(
+    mainDb,
+    datasetFamily,
+  );
 
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityConfig);
+  const enabledFacilityColumns = structureSchema
+    ? getEnabledOptionalFacilityColumns(structureSchema)
+    : [];
 
   const facilityContext = computeFacilityContext(
     fetchConfig,
@@ -139,7 +141,7 @@ export async function buildQueryContext(
     hasQuarterId,
     hasFacilityId,
     calendar,
-    facilityConfig,
+    facilityConfig: structureSchema,
     enabledFacilityColumns,
     ...facilityContext,
     needsPeriodCTE,

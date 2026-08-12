@@ -9,7 +9,7 @@ import {
   getDisaggregationAllowedPresentationOptions,
   metricAIDescriptionInstalled,
   postAggregationExpressionStrict,
-  type InstanceConfigFacilityColumns,
+  type StructureColumns,
 } from "lib";
 import { detectColumnExists, getResultsObjectTableName } from "../utils.ts";
 import { DBMetric } from "./_project_database_types.ts";
@@ -45,7 +45,7 @@ export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
 ];
 
 export function getEnabledFacilityDisaggregationOptions(
-  facilityConfig: InstanceConfigFacilityColumns,
+  facilityConfig: StructureColumns,
 ): DisaggregationOption[] {
   const facilityOptions: { option: DisaggregationOption; enabled: boolean }[] = [
     { option: "facility_type", enabled: facilityConfig.includeTypes },
@@ -62,7 +62,7 @@ export function getEnabledFacilityDisaggregationOptions(
 export async function enrichMetric(
   dbMetric: DBMetric,
   projectDb: Sql,
-  facilityConfig: InstanceConfigFacilityColumns | undefined,
+  facilityConfig: StructureColumns | undefined,
   datasetFamily: DatasetType | undefined,
 ): Promise<ResultsValue> {
   const resultsObjectId = dbMetric.results_object_id;
@@ -124,7 +124,7 @@ async function buildDisaggregationOptions(
   requiredOptions: DisaggregationOption[],
   resultsObjectId: string,
   projectDb: Sql,
-  facilityConfig: InstanceConfigFacilityColumns | undefined,
+  facilityConfig: StructureColumns | undefined,
   hasFacilityId: boolean,
 ): Promise<ResultsValue["disaggregationOptions"]> {
   const out: ResultsValue["disaggregationOptions"] = [];

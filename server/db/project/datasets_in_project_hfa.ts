@@ -5,7 +5,6 @@ import {
   composeHfaIndicatorLabel,
   DatasetHfaInfoInProject,
   getHfaIndicatorMeasure,
-  hashFacilityColumnsConfig,
   throwIfErrWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -15,8 +14,7 @@ import {
   type HfaTaxonomyForAI,
 } from "lib";
 import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
+  getStructureSchema,
 } from "../instance/config.ts";
 import { computeHfaCacheHash } from "../instance/dataset_hfa.ts";
 import {
@@ -94,16 +92,9 @@ export async function computeDatasetHfaRunCapture(
       throw new Error("No HFA data available to add to project");
     }
 
-    // Get facility columns configuration
-    const facilityColumnsRes = await getFacilityColumnsConfig(mainDb);
-    if (!facilityColumnsRes.success) {
-      return facilityColumnsRes;
-    }
-    const facilityConfig = facilityColumnsRes.data;
-
-    // Get max admin area configuration
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
+    // The HFA registry's structure schema (depth + columns)
+    const resStructureSchema = await getStructureSchema(mainDb, "hfa");
+    throwIfErrWithData(resStructureSchema);
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
     // DB for the run snapshot. The module runner reads from the snapshot so
@@ -155,9 +146,9 @@ export async function computeDatasetHfaRunCapture(
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
-    // Build admin area columns list based on config
+    // Admin columns up to the HFA registry's own depth — never a global max
     const adminAreaColumns = [];
-    for (let i = 1; i <= Math.min(resMaxAdminArea.data.maxAdminArea, 4); i++) {
+    for (let i = 1; i <= resStructureSchema.data.adminDepth; i++) {
       adminAreaColumns.push(`admin_area_${i}`);
     }
 
@@ -231,7 +222,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       hfaCacheHash,
       hfaIndicatorsVersion,
       structureLastUpdated,
-      facilityColumnsHash: hashFacilityColumnsConfig(facilityConfig),
     };
 
     // Fetch facilities from main database for the project/run capture

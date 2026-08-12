@@ -17,7 +17,7 @@ import {
 import { Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { StructureUploadAttemptForm } from "~/components/structure_import";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 import { StructureWithCsv } from "./with_csv";
 
 type Props = {
@@ -70,8 +70,7 @@ export function Facilities(p: Props) {
       element: StructureUploadAttemptForm,
       props: {
         family: p.family,
-        maxAdminArea: instanceState.maxAdminArea,
-        facilityColumns: instanceState.facilityColumns,
+        structureSchema: structureSchemaForFamily(p.family),
         silentRefreshInstance: fetchUploadAttempt,
       },
     });
@@ -101,8 +100,8 @@ export function Facilities(p: Props) {
 
   const facilityCount = () =>
     (p.family === "hmis"
-      ? instanceState.structure?.facilitiesHmis
-      : instanceState.structure?.facilitiesHfa) ?? 0;
+      ? instanceState.structure?.hmis.facilities
+      : instanceState.structure?.hfa.facilities) ?? 0;
 
   return (
     <EditorWrapper>

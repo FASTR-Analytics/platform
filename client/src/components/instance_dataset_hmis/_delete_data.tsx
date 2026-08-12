@@ -4,7 +4,7 @@ import {
   t3,
   TC,
   type DatasetHmisWindowingRaw,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import {
   Button,
@@ -25,7 +25,7 @@ export function DeleteData(
       hmisVersionId: number;
       indicatorMappingsVersion: string;
       silentFetch: () => Promise<void>;
-      facilityColumns: InstanceConfigFacilityColumns;
+      structureSchema: StructureSchema;
     },
     undefined
   >,
@@ -100,7 +100,7 @@ export function DeleteData(
             tempWindowing={tempWindowing}
             setTempWindowing={setTempWindowing}
             includeOrDelete="delete"
-            facilityColumns={p.facilityColumns}
+            structureSchema={p.structureSchema}
           />
         </div>
         <div class="ui-spy-sm">

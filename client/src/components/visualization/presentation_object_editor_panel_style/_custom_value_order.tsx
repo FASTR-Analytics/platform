@@ -232,7 +232,7 @@ export function CustomValueOrderSection(p: Props) {
     const res = await openComponent({
       element: CustomValueOrderModal,
       props: {
-        dimLabel: t3(getDisplayDisaggregationLabel(disOpt)),
+        dimLabel: t3(getDisplayDisaggregationLabel(disOpt, p.resultsValueInfo.datasetFamily)),
         items: possibleValues.values.map((v) => ({
           id: v.id,
           label: getDisplayDisaggregationValueLabel(v.id, v.label),
@@ -259,7 +259,7 @@ export function CustomValueOrderSection(p: Props) {
             <div>
               <div class="ui-gap-sm flex items-center">
                 <div class="min-w-0 flex-1 truncate">
-                  {t3(getDisplayDisaggregationLabel(row.disOpt))}
+                  {t3(getDisplayDisaggregationLabel(row.disOpt, p.resultsValueInfo.datasetFamily))}
                 </div>
                 <Show when={row.canEdit}>
                   <Button
