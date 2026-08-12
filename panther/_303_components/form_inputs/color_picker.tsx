@@ -273,7 +273,7 @@ function ColorSwatch(p: {
   return (
     <button
       type="button"
-      class="cursor-pointer select-none hover:border-base-content relative h-6 w-6 rounded border border-black/10"
+      class="cursor-pointer select-none hover:border-base-content border-base-content/10 relative h-6 w-6 rounded border"
       style={{ "background-color": p.color }}
       onClick={() => p.onClick(p.color)}
       title={p.color}

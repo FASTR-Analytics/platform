@@ -70,10 +70,13 @@
      on top of it. `base-*` is the app surface; `base-content` is the
      default foreground on that surface. */
 
+  /* Only `transparent` survives the wipe — it is structural (reserved
+     borders, ghost rests), not a color choice. There are no white/black
+     escape hatches: `bg-white`, `text-black` etc. are visible no-ops like
+     every other off-token class. Constant contrast over data-driven or media
+     backgrounds is content — an inline style beside the inline background. */
   --color-*: initial;
   --color-transparent: transparent;
-  --color-black: #000716;
-  --color-white: #ffffff;
 
   --color-base-100: #ffffff;
   --color-base-200: #f2f2f2;

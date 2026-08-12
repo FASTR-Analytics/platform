@@ -358,8 +358,10 @@ foreground is not derived from the background.
 
 ## Checklist
 
-- [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`) and no
-      arbitrary values (`p-[Npx]`)
+- [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`, and
+      `bg-white` / `text-black` — white/black are not tokens) and no arbitrary
+      values (`p-[Npx]`). Constant contrast over a data/media background is an
+      inline style beside its inline background
 - [ ] No `/N` alpha as a surface fill (`bg-primary/10`) — `-subtle` instead;
       `bg-scrim` is the one sanctioned veil
 - [ ] Muted text is `base-content-muted`, never `neutral`
