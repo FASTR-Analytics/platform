@@ -143,9 +143,9 @@
   --color-danger-subtle-content: color-mix(in oklab, var(--color-danger) 70%, var(--color-base-content));
 
   /* Foreground ramp — three steps: base-content, muted, faint. Muted:
-     secondary text (sublabels, captions, placeholders, empty states,
-     metadata). Faint: the next step down — still legible, just quieter.
-     Disabled is opacity-40, not a color. */
+     secondary text (sublabels, captions, placeholders, empty-state
+     descriptions, metadata). Faint: the next step down — still legible, just
+     quieter. Disabled is opacity-40, not a color. */
   --color-base-content-muted: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
   --color-base-content-faint: color-mix(in oklab, var(--color-base-content) 50%, var(--color-base-100));
 

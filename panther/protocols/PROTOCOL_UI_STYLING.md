@@ -19,12 +19,13 @@ the full token catalog, and the theming mechanics, see
    fails silently rather than visibly. `bg-gray-100`, `rounded-lg`, `shadow-md`,
    `font-normal`, `font-medium` and `font-semibold` are all no-ops. Weights are
    `font-400` and `font-700`, plus any the app declares.
-4. **Cursor change ⇒ background change** — no cursor-only hovers. Sole
-   exception: text-only interactives (inline links, tab labels) may hover on
-   text color.
+4. **Cursor change ⇒ visible state change** — no cursor-only hovers. Two
+   exceptions to the background rule: text-only interactives (inline links, tab
+   labels) hover on text color; clickable cards (content containers) hover at
+   the frame — `cursor-pointer` + `hover:border-primary` (prefer `Card`).
 5. **`ui-hoverable-{token}` is the state pattern** — every interactive opaque
    surface uses it. Explicit `hover:`/`active:` pairs only for selectable text
-   or a transparent rest.
+   or a transparent rest. Clickable cards use the frame idiom instead (rule 4).
 6. **Never stack `bg-*` on a family-classed element** — the utility wins and
    kills the states. Scope the family per `classList` arm instead.
 7. **Declare `onBackground`** — any outline `Button` / `ButtonGroup` not sitting
@@ -214,30 +215,31 @@ its whole density from one `@theme` block.
 
 ### Which token do I reach for
 
-| Situation                                    | Reach for                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------------- |
-| Body text                                    | inherited `base-content`                                                  |
-| Sublabels, captions, metadata, help text     | `text-base-content-muted` / `ui-text-caption`                             |
-| One step quieter still                       | `text-base-content-faint`                                                 |
-| Text on a solid fill                         | `text-{intent}-content`                                                   |
-| Text on a wash                               | `text-{intent}-subtle-content`                                            |
-| Disabled anything                            | `opacity-40`                                                              |
-| Page background                              | `bg-base-200`                                                             |
-| Card / panel on the page                     | `bg-base-100`                                                             |
-| Inset or well inside a panel                 | `bg-base-200`                                                             |
-| Chip, slider track, filled placeholder       | `bg-base-300`                                                             |
-| Divider, tick, scrollbar thumb               | `bg-border`                                                               |
-| In-flow container                            | `border rounded` — no color, no shadow                                    |
-| Popover, menu, tooltip, modal panel          | `bg-base-100 border rounded shadow-floating`                              |
-| Modal backdrop                               | `bg-scrim`                                                                |
-| Selected / active border                     | `border-primary`                                                          |
-| Error border                                 | `border-danger`                                                           |
-| Callout or badge                             | `bg-{intent}-subtle` + `text-{intent}-subtle-content`                     |
-| Selected card / option / nav item            | accent select: pinned `bg-primary-subtle` + `border-primary` + `font-700` |
-| Selected row in a dense list                 | fill select: `bg-base-200`                                                |
-| Any interactive opaque surface               | `ui-hoverable-{token}`                                                    |
-| Focus                                        | `ui-focusable`                                                            |
-| Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`       |
+| Situation                                    | Reach for                                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Body text                                    | inherited `base-content`                                                                                                 |
+| Sublabels, captions, metadata, help text     | `text-base-content-muted` / `ui-text-caption`                                                                            |
+| One step quieter still                       | `text-base-content-faint`                                                                                                |
+| Text on a solid fill                         | `text-{intent}-content`                                                                                                  |
+| Text on a wash                               | `text-{intent}-subtle-content`                                                                                           |
+| Disabled anything                            | `opacity-40`                                                                                                             |
+| Page background                              | `bg-base-200`                                                                                                            |
+| Card / panel on the page                     | `bg-base-100`                                                                                                            |
+| Inset or well inside a panel                 | `bg-base-200`                                                                                                            |
+| Chip, slider track, filled placeholder       | `bg-base-300`                                                                                                            |
+| Divider, tick, scrollbar thumb               | `bg-border`                                                                                                              |
+| In-flow container                            | `border rounded` — no color, no shadow                                                                                   |
+| Popover, menu, tooltip, modal panel          | `bg-base-100 border rounded shadow-floating`                                                                             |
+| Modal backdrop                               | `bg-scrim`                                                                                                               |
+| Selected / active border                     | `border-primary`                                                                                                         |
+| Error border                                 | `border-danger`                                                                                                          |
+| Callout or badge                             | `bg-{intent}-subtle` + `text-{intent}-subtle-content`                                                                    |
+| Selected card / option / nav item            | accent select: pinned `bg-primary-subtle` + `border-primary` (+ `font-700` on labels/rows, never on a content container) |
+| Selected row in a dense list                 | fill select: `bg-base-200`                                                                                               |
+| Any interactive opaque surface               | `ui-hoverable-{token}`                                                                                                   |
+| Clickable card (whole card is the target)    | `Card onClick` — `cursor-pointer` + `hover:border-primary` at the frame                                                  |
+| Focus                                        | `ui-focusable`                                                                                                           |
+| Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
 
 Status intents: `success` complete/positive · `warning` caution · `danger`
 error/destructive · `neutral` running/queued/pending · `primary`
@@ -277,7 +279,7 @@ lighter wash, or a per-intent focus color for one awkward site. See
       class="ui-pad w-full rounded border text-left"
       classList={{
         "border-primary bg-primary-subtle font-700": isSelected(item),
-        "ui-hoverable-base-100": !isSelected(item),
+        "cursor-pointer hover:border-primary": !isSelected(item),
       }}
       onClick={() => select(item)}
     >
@@ -287,6 +289,11 @@ lighter wash, or a per-intent focus color for one awkward site. See
   )}
 </For>;
 ```
+
+Prefer `Card` (`selected` / `onClick`) for card-shaped sites — it carries the
+`border-color` transition and the keyboard/focus wiring for you. The `font-700`
+here bolds the option label; a content container pins wash + border without
+bolding.
 
 ### App theme block
 
@@ -356,7 +363,8 @@ foreground is not derived from the background.
       `bg-scrim` is the one sanctioned veil
 - [ ] Muted text is `base-content-muted`, never `neutral`
 - [ ] Every `cursor-pointer` element also changes background (or is a text-only
-      interactive changing text color)
+      interactive changing text color, or a clickable card hovering at the
+      frame)
 - [ ] Interactive surfaces use `ui-hoverable-{token}`; no utility `bg-*` on the
       same element
 - [ ] Explicit `hover:bg-*` pairs only for selectable text or transparent-rest

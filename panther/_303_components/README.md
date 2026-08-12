@@ -93,7 +93,7 @@ Modals, dialogs, and state containers.
 ### Tables (`tables/`)
 
 ```typescript
-<DisplayTable
+<Table
   columns={columns}
   data={data()}
   sortable
@@ -137,10 +137,10 @@ rules: `protocols/PROTOCOL_UI_STYLING.md`.
 ```typescript
 import {
   Button,
-  DisplayTable,
   FrameSide,
   Input,
   SettingsIcon,
+  Table,
 } from "@timroberton/panther";
 
 function MyApp() {
@@ -159,7 +159,7 @@ function MyApp() {
             <SettingsIcon size={16} />
             Search
           </Button>
-          <DisplayTable columns={columns} data={results()} />
+          <Table columns={columns} data={results()} />
         </div>
       </div>
     </FrameSide>

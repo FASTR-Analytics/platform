@@ -9,6 +9,7 @@ export * from "./checkbox.tsx";
 export * from "./color_picker.tsx";
 export * from "./copy_button.tsx";
 export * from "./dates.tsx";
+export * from "./file_input.tsx";
 export * from "./comparison_slider.tsx";
 export * from "./double_slider.tsx";
 export * from "./icon_renderer.tsx";

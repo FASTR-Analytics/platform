@@ -28,6 +28,7 @@ import {
   sortData,
 } from "./helpers.ts";
 import { Button, Checkbox } from "../../form_inputs/mod.ts";
+import { EmptyState } from "../../display/mod.ts";
 
 // ============================================================================
 // Main Table Component
@@ -280,14 +281,15 @@ export function Table<
                   <tr>
                     <td
                       colspan={p.columns.length + (enableSelection() ? 1 : 0)}
-                      class="text-base-content-muted px-4 py-8 text-center text-sm"
                     >
-                      {p.noRowsMessage ||
-                        t3({
-                          en: "No data available",
-                          fr: "Aucune donnée disponible",
-                          pt: "Sem dados disponíveis",
-                        })}
+                      <EmptyState
+                        title={p.noRowsMessage ||
+                          t3({
+                            en: "No data available",
+                            fr: "Aucune donnée disponible",
+                            pt: "Sem dados disponíveis",
+                          })}
+                      />
                     </td>
                   </tr>
                 </Match>

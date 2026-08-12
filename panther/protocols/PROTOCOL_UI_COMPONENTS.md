@@ -16,8 +16,8 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
    its components rather than reimplementing them.
 3. **Custom only when justified** — Hand-write a component only when panther has
    no equivalent or the need is app-specific; even then, wrap panther parts.
-4. **Tables use `DisplayTable`** — Define `columns: TableColumn<T>[]`; never
-   build bespoke `<table>` markup for data.
+4. **Tables use `Table`** — Define `columns: TableColumn<T>[]`; never build
+   bespoke `<table>` markup for data.
 5. **Modals/editors use the helpers** — Open dialogs via the editor/alert
    helpers (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll
    a custom overlay.
@@ -76,7 +76,7 @@ ad-hoc classes drift and break global resizing.
   </For>
 </table>;
 
-// ✅ DO — DisplayTable with typed columns
+// ✅ DO — Table with typed columns
 const columns: TableColumn<Row>[] = [
   {
     key: "id",
@@ -85,11 +85,11 @@ const columns: TableColumn<Row>[] = [
     render: (item) => <span class="font-mono">{item.id}</span>,
   },
 ];
-<DisplayTable columns={columns} data={rows()} />;
+<Table columns={columns} data={rows()} />;
 ```
 
-**Why:** `DisplayTable` provides sorting/selection/rendering consistently;
-bespoke tables re-solve those and diverge.
+**Why:** `Table` provides sorting/selection/rendering consistently; bespoke
+tables re-solve those and diverge.
 
 ### Modals & editors
 
@@ -114,11 +114,12 @@ duplicate that and miss edge cases.
 
 ### Component catalog (prefer these)
 
-- **Form:** `Button`, `Input`, `TextArea`, `Select`, `MultiSelect`, `Checkbox`,
-  `RadioGroup`, `Slider`, `ButtonGroup`.
-- **Layout:** `FrameTop` / `FrameSide`, `HeadingBar`, `Tabs`, `Stepper`,
-  collapsible sections.
-- **Data:** `DisplayTable` (sortable/selectable), `FigureHolder`, `PageHolder`.
+- **Form:** `Button`, `Input`, `TextArea`, `Select`, `MultiSelect`, `Checkbox`
+  (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`, `FileInput`.
+- **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` / `FrameBottom` (+
+  resizable variants), `HeadingBar`, `Tabs`, `Stepper`, collapsible sections.
+- **Display:** `Badge`, `Card`, `EmptyState`.
+- **Data:** `Table` (sortable/selectable), `FigureHolder`, `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
   helpers, loading/progress indicators.
 
@@ -134,7 +135,7 @@ const query = createQuery(
   panelChildren={<HeadingBar heading={t3({ en: "Rows", fr: "Lignes" })} />}
 >
   <StateHolderWrapper state={query.state()} noPad>
-    {(rows) => <DisplayTable columns={columns} data={rows} />}
+    {(rows) => <Table columns={columns} data={rows} />}
   </StateHolderWrapper>
 </FrameTop>;
 ```
@@ -189,7 +190,7 @@ Outline `Button`s placed in a `tonal` bar still declare their surface:
 ## Checklist
 
 - [ ] No hand-rolled equivalents of panther `Button`/`Input`/`Select`/etc.
-- [ ] Data tables use `DisplayTable` with typed `TableColumn<T>[]`
+- [ ] Data tables use `Table` with typed `TableColumn<T>[]`
 - [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`
