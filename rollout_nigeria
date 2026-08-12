@@ -42,7 +42,7 @@ DEFAULT_RIG_PROJECTS="06f6e66f-f0af-4195-b45f-ddf5d8705eff 5e27143f-d8bd-49c0-a1
 # Pinned to the cutover image that carries the CSV quote/escape fix — REQUIRED
 # for Nigeria's backfill (facility names with embedded quotes) — and the full
 # legacy_gap/broken_config rig classifications.
-VERSION="1.66.6"
+VERSION="1.66.7"
 IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
 
 SSH_OPTS=(-o ConnectTimeout=15 -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=15m)
