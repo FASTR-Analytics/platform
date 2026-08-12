@@ -68,10 +68,6 @@ export const structureRouteRegistry = {
     method: "GET",
     response: {} as string[],
   }),
-  deleteAllStructureData: route({
-    path: "/structure/data",
-    method: "DELETE",
-  }),
   deleteFamilyFacilities: route({
     path: "/structure/facilities/:family",
     method: "DELETE",

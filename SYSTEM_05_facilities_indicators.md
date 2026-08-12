@@ -6,7 +6,6 @@ globs:
   - client/src/components/forms_editors/edit_hfa_indicator.tsx
   - client/src/components/indicator_manager_hfa/**
   - client/src/components/indicator_manager_hmis/**
-  - client/src/components/instance/instance_settings.tsx
   - client/src/components/instance_geojson/**
   - client/src/components/instance_hfa_time_points/**
   - client/src/components/structure/**
@@ -194,11 +193,17 @@ optional free-text columns (`facility_name`, `facility_type`,
 `facility_ownership`, `facility_custom_1..5`) — all plain text, no value
 dictionary (ODK codes are resolved to labels at staging, see Structure
 ELT). The 4-level admin-area model is
-name-keyed: `admin_areas_1..4` rows are names, and the name is the join
-key everywhere (S9 maps, geojson `area_id`). Duplicate names within a
-level are therefore ambiguous — the wizard warns but cannot fix.
+name-keyed and **per facility registry**: `admin_areas_{hmis,hfa}_1..4`
+rows are names, and the name is the join key everywhere (S9 maps, geojson
+`area_id`). Duplicate names within a level are therefore ambiguous — the
+wizard warns but cannot fix. The two registries' name-spaces are
+independent and are never reconciled (migration 076; the legacy shared
+`admin_areas_1..4` tables are frozen, readerless, and dropped by
+PLAN_REMOVE_OLD_STRUCTURE_TABLES.md). Project AA2 scope is deliberately
+registry-agnostic: the name is matched against whichever registry each
+results object belongs to, at read time.
 
-FK topology: `facilities_* → admin_areas_4` CASCADE;
+FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION
 DEFERRABLE with **named constraints** (migration 048) — note the migration
 comments claim the names are load-bearing for a `SET CONSTRAINTS` call
@@ -420,18 +425,24 @@ absent from a push. Consumers read via the deliberately non-reactive
 
 `instance_config` is a key→JSON table. Keys owned here:
 
-- `max_admin_area` — gates which admin levels exist everywhere;
-  parameterizes S6 ELT staging and S9 SQL. Changeable only while
-  facilities + all admin_areas tables are empty AND no geojson map exists
-  above the new max.
-- `facility_columns` — 8 include-flags + optional display labels; drives
-  which facility columns S6 ingests and S9 exposes; part of the
-  facility-columns cache hash. Label overrides are column-NAME labels
-  (there is no value-label mechanism — values arrive as labels because
-  ODK codes are resolved at staging, see Structure ELT).
+- `structure_schema_hmis` / `structure_schema_hfa` — one row per facility
+  registry, each `adminDepth` (1–4) + 8 include-flags + 8 optional display
+  labels. `adminDepth` gates which admin levels that registry exposes and
+  parameterizes S6 ELT staging and S9 SQL; the flags drive which facility
+  columns S6 ingests and S9 exposes. Label overrides are column-NAME labels
+  (there is no value-label mechanism — values arrive as labels because ODK
+  codes are resolved at staging, see Structure ELT), and they are
+  deliberately OUT of the cache hash (`hashStructureSchema` covers the
+  include-flags only, so renaming a label cannot bust a data cache).
+  Written by `setStructureSchema`, which refuses a depth change while that
+  family's facilities table is non-empty or while that family has a geojson
+  map above the new depth (the admin_areas-emptiness half of the old guard
+  was dropped: per family it is implied by the cleanup invariant). The rows
+  are seeded at instance creation and survive both delete paths, so flags,
+  labels and depth persist across a delete + re-import cycle.
 - `admin_area_labels` — display-only label overrides carrying an `(AAn)`
   suffix convention (space-prefixed) appended/stripped by
-  `instance_settings.tsx`.
+  `structure/admin_area_labels.tsx`.
 - `structure_last_updated` — see above; written by the structure world,
   not by the settings UI.
 
@@ -451,7 +462,7 @@ Every config mutation re-reads all configs and pushes one consolidated
 ## Client state & wizard
 
 - T2 caches: facilities keyed
-  `family + structureLastUpdated + maxAdminArea + facilityColumnsHash`;
+  `family + structureLastUpdated + hashStructureSchema(family schema)`;
   indicators/calculated keyed on the T1 version stamps
   (`indicatorMappingsVersion` = MD5 over MAX(updated_at)+counts of the
   three HMIS tables; `calculatedIndicatorsVersion`; `hfaIndicatorsVersion`;

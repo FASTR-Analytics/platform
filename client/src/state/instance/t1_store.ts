@@ -27,6 +27,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   countryIso3: undefined,
   structureSchemaHmis: null,
   structureSchemaHfa: null,
+  dhis2ConnectionUrl: null,
   adminAreaLabels: {},
   projects: [],
   projectsLastUpdated: "",
@@ -104,6 +105,7 @@ export function updateInstanceConfig(data: InstanceConfig): void {
   setInstanceState("structureSchemaHmis", reconcile(data.structureSchemaHmis));
   setInstanceState("structureSchemaHfa", reconcile(data.structureSchemaHfa));
   setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
+  setInstanceState("dhis2ConnectionUrl", data.dhis2ConnectionUrl);
 }
 
 // The shared-surface depth: the deepest level either registry uses. Surfaces

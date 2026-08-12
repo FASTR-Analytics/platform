@@ -347,8 +347,9 @@ callback re-parses the new bytes).
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed
-  `versionId_indicatorMappingsVersion_maxAdminArea`; HFA/ICEH use
-  server-provided cache hashes from the T1 SSE store.
+  `versionId_indicatorMappingsVersion_structureLastUpdated`, with the HMIS
+  schema hash in the uniqueness keys; HFA/ICEH use server-provided cache
+  hashes from the T1 SSE store.
 
 ## Project attach/snapshot seam
 

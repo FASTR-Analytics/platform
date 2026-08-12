@@ -33,7 +33,6 @@ export interface QueryContext {
   // observations rather than pre-aggregated area summaries. Gates the sample-n
   // aggregate (buildAggregateColumns) and the AVG roll-up eligibility check.
   hasFacilityId: boolean;
-  facilityConfig?: StructureColumns;
   enabledFacilityColumns: OptionalFacilityColumn[];
   requestedOptionalFacilityColumns: OptionalFacilityColumn[];
   needsFacilityJoin: boolean;

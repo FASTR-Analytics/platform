@@ -358,7 +358,10 @@ Four invariants, in the order they matter:
 (`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
 `appVersion`, `rImageTag`); the **captured data semantics** the query layer must
 read from here rather than from the environment — `calendar`, `countryIso3`, and
-`facilityColumnsConfig`; the dataset version stamps the generation consumed; the module and metric catalogs as the installed definitions verbatim
+the per-family `structureSchemaHmis` / `structureSchemaHfa` slots (each null
+when that family's facilities are not in the package; flags + labels only,
+never `adminDepth`, which nothing on the read path consumes); the dataset
+version stamps the generation consumed; the module and metric catalogs as the installed definitions verbatim
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 

@@ -40,7 +40,6 @@ import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";
 import { FeedbackForm } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
-import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
 
 type InstanceTab =
@@ -48,8 +47,7 @@ type InstanceTab =
   | "data"
   | "results_packages"
   | "assets"
-  | "users"
-  | "settings";
+  | "users";
 
 // Generation is instance-admin only (can_configure_data — the same guard the
 // run_generation routes use).
@@ -105,14 +103,6 @@ function compactNavItems(): ListItem<InstanceTab>[] {
       iconName: "users",
     });
   }
-  if (instanceState.currentUserIsGlobalAdmin) {
-    items.push({
-      id: "settings",
-      label: "",
-      labelText: t3(TC.settings),
-      iconName: "settings",
-    });
-  }
   return items;
 }
 
@@ -162,16 +152,6 @@ function wideNavItems(): ListItem<InstanceTab>[] {
       iconName: "users",
     });
   }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_settings
-  ) {
-    items.push({
-      id: "settings",
-      label: t3(TC.settings),
-      iconName: "settings",
-    });
-  }
   return items;
 }
 
@@ -191,11 +171,9 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    const canSettings = admin || perms.can_configure_settings;
     if (t === "data" && !canData) return "projects";
     if (t === "results_packages" && !canConfigureData()) return "projects";
     if (t === "users" && !canUsers) return "projects";
-    if (t === "settings" && !canSettings) return "projects";
     return t;
   };
 
@@ -403,18 +381,6 @@ export default function Instance(p: Props) {
                   }
                 >
                   <InstanceUsers
-                    thisLoggedInUserEmail={instanceState.currentUserEmail}
-                  />
-                </Match>
-                <Match
-                  when={
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions
-                        .can_configure_settings) &&
-                    tab() === "settings"
-                  }
-                >
-                  <InstanceSettings
                     thisLoggedInUserEmail={instanceState.currentUserEmail}
                   />
                 </Match>

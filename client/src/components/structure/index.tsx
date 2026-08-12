@@ -13,11 +13,13 @@ import {
   getEditorWrapper,
   createButtonAction,
   createDeleteAction,
+  toNum0,
 } from "panther";
-import { Match, Show, Switch, createSignal, onMount } from "solid-js";
+import { For, Match, Show, Switch, createSignal, onMount } from "solid-js";
 import { StructureUploadAttemptForm } from "~/components/structure_import";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { StructureWithCsv } from "./with_csv";
 
 type Props = {
@@ -29,6 +31,53 @@ function familyLabel(family: FacilityFamily) {
   return family === "hmis"
     ? t3({ en: "HMIS facilities", fr: "Établissements SNIS", pt: "Estabelecimentos SNIS" })
     : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA", pt: "Estabelecimentos FOSA" });
+}
+
+// Admin areas are DERIVED from the facility rows — each facility carries its
+// admin area path, and this registry's tree is exactly the distinct paths in
+// it. They are created and removed by facility imports alone, so they are
+// reported here rather than as a surface of their own.
+function AdminAreaSummary(props: { family: FacilityFamily }) {
+  const counts = () =>
+    props.family === "hmis"
+      ? instanceState.structure?.hmis
+      : instanceState.structure?.hfa;
+  const depth = () => structureSchemaForFamily(props.family).adminDepth;
+
+  return (
+    <Show when={counts()} keyed>
+      {(keyedCounts) => (
+        <Show when={keyedCounts.adminArea1s > 0}>
+          <div class="ui-spy-sm border-t pt-3 text-sm">
+            <div class="font-700">
+              {t3({
+                en: "Admin areas",
+                fr: "Unités administratives",
+                pt: "Zonas administrativas",
+              })}
+            </div>
+            <For each={([2, 3, 4] as const).filter((l) => depth() >= l)}>
+              {(level) => (
+                <div class="ui-gap flex justify-between">
+                  <span>{t3(getAdminAreaLabel(level))}:</span>
+                  <span class="font-mono">
+                    {toNum0(keyedCounts[`adminArea${level}s`])}
+                  </span>
+                </div>
+              )}
+            </For>
+            <div class="ui-text-caption">
+              {t3({
+                en: "Derived from the facility rows — created and removed automatically by imports.",
+                fr: "Dérivées des lignes d'établissements — créées et supprimées automatiquement par les importations.",
+                pt: "Derivadas das linhas de estabelecimentos — criadas e removidas automaticamente pelas importações.",
+              })}
+            </div>
+          </div>
+        </Show>
+      )}
+    </Show>
+  );
 }
 
 export function Facilities(p: Props) {
@@ -156,6 +205,8 @@ export function Facilities(p: Props) {
                     {t3({ en: "Delete facilities", fr: "Supprimer les établissements", pt: "Eliminar estabelecimentos" })}
                   </Button>
                 </Show>
+
+                <AdminAreaSummary family={p.family} />
               </div>
             </Show>
           }

@@ -1,5 +1,5 @@
-import { t3 } from "lib";
-import { Button, Card, FrameTop, openComponent, toNum0 } from "panther";
+import { t3, type FacilityFamily } from "lib";
+import { Card, FrameTop, openComponent, toNum0 } from "panther";
 import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
@@ -10,7 +10,8 @@ import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Facilities } from "../structure";
-import { AdminAreas } from "../structure/admin_areas";
+import { AdminAreaLabels } from "../structure/admin_area_labels";
+import { FamilyConfiguration } from "../structure/family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
 import {
@@ -31,14 +32,59 @@ export function InstanceData(p: Props) {
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_data;
 
+  // The Configuration cards inherit the deleted Settings tab's gate, so who
+  // can change structure config is unchanged.
+  const canConfigureSettings = () =>
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_settings;
+
+  const enabledColumnCount = (family: FacilityFamily) => {
+    const schema = structureSchemaForFamily(family);
+    return [
+      schema.includeNames,
+      schema.includeTypes,
+      schema.includeOwnership,
+      schema.includeCustom1,
+      schema.includeCustom2,
+      schema.includeCustom3,
+      schema.includeCustom4,
+      schema.includeCustom5,
+    ].filter(Boolean).length;
+  };
+
+  const isAdminAreaLabelSet = (level: 2 | 3 | 4) =>
+    !!instanceState.adminAreaLabels[`label${level}`];
+
+  const hasCustomAdminAreaLabel = () =>
+    ([2, 3, 4] as const).some((level) => isAdminAreaLabelSet(level));
+
+  const geojsonLevels = (family: FacilityFamily) =>
+    instanceState.geojsonMaps
+      .filter((g) => g.family === family)
+      .map((g) => g.adminAreaLevel);
+
   async function openDhis2Credentials() {
     await openComponent({ element: Dhis2ManageConnection, props: {} });
   }
 
   return (
     <Switch>
-      <Match when={selectedDataSource() === "admin_areas"}>
-        <AdminAreas backToInstance={() => setSelectedDatasource(undefined)} />
+      <Match when={selectedDataSource() === "config_hmis"}>
+        <FamilyConfiguration
+          family="hmis"
+          backToInstance={() => setSelectedDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "config_hfa"}>
+        <FamilyConfiguration
+          family="hfa"
+          backToInstance={() => setSelectedDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "admin_area_labels"}>
+        <AdminAreaLabels
+          backToInstance={() => setSelectedDatasource(undefined)}
+        />
       </Match>
       <Match when={selectedDataSource() === "facilities_hmis"}>
         <Facilities
@@ -85,8 +131,15 @@ export function InstanceData(p: Props) {
           backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
-      <Match when={selectedDataSource() === "geojson"}>
+      <Match when={selectedDataSource() === "geojson_hmis"}>
         <GeoJsonManager
+          family="hmis"
+          backToInstance={() => setSelectedDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "geojson_hfa"}>
+        <GeoJsonManager
+          family="hfa"
           backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
@@ -106,178 +159,175 @@ export function InstanceData(p: Props) {
               tonal
               heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
             >
-              <Show when={canConfigureData()}>
-                <Button
-                  onClick={openDhis2Credentials}
-                  outline
-                  onBackground="base-200"
-                  iconName="settings"
-                >
-                  {t3({
-                    en: "DHIS2 credentials",
-                    fr: "Identifiants DHIS2",
-                    pt: "Credenciais DHIS2",
-                  })}
-                </Button>
-              </Show>
             </HeadingBar>
           }
         >
           <div class="ui-pad overflow-auto">
             <div class="space-y-14">
-              {/* Structure & maps */}
-              <div class="flex gap-6">
-                <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">
-                    {t3({
-                      en: "Structure & maps",
-                      fr: "Structure et cartes",
-                      pt: "Estrutura e mapas",
-                    })}
+              {/* General — the one setting that is not per-registry */}
+              <div class="ui-spy">
+                <div class="ui-spy-sm">
+                  <div class="font-700 text-lg">
+                    {t3({ en: "General", fr: "Général", pt: "Geral" })}
                   </div>
+                  <div class="border-b" />
                 </div>
-                <div class="ui-gap flex flex-1 flex-wrap">
-                  <Card
-                    class="w-[300px]"
-                    onClick={() => setSelectedDatasource("admin_areas")}
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
-                        {t3({
-                          en: "Admin areas",
-                          fr: "Unités administratives",
-                          pt: "Zonas administrativas",
-                        })}
-                      </div>
-                      <Show
-                        when={instanceState.structure}
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No admin areas (created by facility imports)",
-                              fr: "Aucune unité administrative (créées par l'importation d'établissements)",
-                              pt: "Nenhuma zona administrativa (criadas pela importação de estabelecimentos de saúde)",
-                            })}
-                          </div>
-                        }
-                        keyed
-                      >
-                        {(keyedStructure) => (
-                          <div class="ui-spy-sm text-success text-xs">
+                <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+                  <Show when={canConfigureSettings()}>
+                    <Card
+                      onClick={() => setSelectedDatasource("admin_area_labels")}
+                    >
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "Admin area labels",
+                            fr: "Libellés des unités administratives",
+                            pt: "Rótulos das zonas administrativas",
+                          })}
+                        </div>
+                        {/* The names themselves, so the current naming is
+                            readable without opening the editor. Green marks a
+                            level the instance has actually named; unnamed
+                            levels fall back to the generic default. */}
+                        <Show
+                          when={hasCustomAdminAreaLabel()}
+                          fallback={
+                            <div class="text-danger text-xs">
+                              {t3({
+                                en: "Not set — using default names",
+                                fr: "Non définis — noms par défaut utilisés",
+                                pt: "Não definidos — a usar nomes predefinidos",
+                              })}
+                            </div>
+                          }
+                        >
+                          <div class="ui-spy-sm text-xs">
                             <For
                               each={([2, 3, 4] as const).filter(
                                 (level) => maxDepth() >= level,
                               )}
                             >
                               {(level) => (
-                                <div class="ui-gap flex justify-between">
-                                  <span>{t3(getAdminAreaLabel(level))}:</span>
-                                  <span class="font-mono">
-                                    {(["hmis", "hfa"] as const)
-                                      .filter(
-                                        (family) =>
-                                          structureSchemaForFamily(family)
-                                            .adminDepth >= level,
-                                      )
-                                      .map(
-                                        (family) =>
-                                          `${
-                                            family === "hmis"
-                                              ? t3({
-                                                  en: "HMIS",
-                                                  fr: "SNIS",
-                                                  pt: "HMIS",
-                                                })
-                                              : t3({
-                                                  en: "HFA",
-                                                  fr: "FOSA",
-                                                  pt: "HFA",
-                                                })
-                                          } ${toNum0(
-                                            keyedStructure[family][
-                                              `adminArea${level}s`
-                                            ],
-                                          )}`,
-                                      )
-                                      .join(" · ")}
+                                <div
+                                  class="ui-gap flex justify-between"
+                                  classList={{
+                                    "text-success": isAdminAreaLabelSet(level),
+                                    "text-base-content-muted":
+                                      !isAdminAreaLabelSet(level),
+                                  }}
+                                >
+                                  <span>
+                                    {t3({
+                                      en: `Admin area ${level}`,
+                                      fr: `Unité administrative ${level}`,
+                                      pt: `Zona administrativa ${level}`,
+                                    })}
+                                    :
                                   </span>
+                                  <span>{t3(getAdminAreaLabel(level))}</span>
                                 </div>
                               )}
                             </For>
                           </div>
-                        )}
-                      </Show>
-                    </div>
-                  </Card>
-                  <Card
-                    class="w-[300px]"
-                    onClick={() => setSelectedDatasource("geojson")}
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
-                        {t3({
-                          en: "GeoJSON maps",
-                          fr: "Cartes GeoJSON",
-                          pt: "Mapas GeoJSON",
-                        })}
+                        </Show>
                       </div>
-                      <Show
-                        when={instanceState.geojsonMaps.length > 0}
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No GeoJSON maps uploaded",
-                              fr: "Aucune carte GeoJSON téléchargée",
-                              pt: "Nenhum mapa GeoJSON carregado",
-                            })}
-                          </div>
-                        }
-                      >
-                        <div class="text-success text-xs">
-                          {t3({
-                            en: "Levels configured",
-                            fr: "Niveaux configurés",
-                            pt: "Níveis configurados",
-                          })}
-                          :{" "}
-                          {(["hmis", "hfa"] as const)
-                            .map((family) => ({
-                              family,
-                              levels: instanceState.geojsonMaps
-                                .filter((g) => g.family === family)
-                                .map((g) => g.adminAreaLevel),
-                            }))
-                            .filter(({ levels }) => levels.length > 0)
-                            .map(
-                              ({ family, levels }) =>
-                                `${
-                                  family === "hmis"
-                                    ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
-                                    : t3({ en: "HFA", fr: "FOSA", pt: "HFA" })
-                                } ${levels.join(", ")}`,
-                            )
-                            .join(" · ")}
-                        </div>
-                      </Show>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Show>
                 </div>
               </div>
 
               {/* HMIS */}
-              <div class="flex gap-6">
-                <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">
+              <div class="ui-spy">
+                <div class="ui-spy-sm">
+                  <div class="font-700 text-lg">
                     {t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
                   </div>
+                  <div class="border-b" />
                 </div>
-                <div class="ui-gap flex flex-1 flex-wrap">
+                <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+                  <Show when={canConfigureSettings()}>
+                    <Card
+                      onClick={() => setSelectedDatasource("config_hmis")}
+                    >
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "Configuration",
+                            fr: "Configuration",
+                            pt: "Configuração",
+                          })}
+                        </div>
+                        <div class="ui-spy-sm text-success text-xs">
+                          <div class="ui-gap flex justify-between">
+                            <span>
+                              {t3({
+                                en: "Admin area depth",
+                                fr: "Profondeur des unités administratives",
+                                pt: "Profundidade das zonas administrativas",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">
+                              {structureSchemaForFamily("hmis").adminDepth}
+                            </span>
+                          </div>
+                          <div class="ui-gap flex justify-between">
+                            <span>
+                              {t3({
+                                en: "Facility columns",
+                                fr: "Colonnes des établissements",
+                                pt: "Colunas dos estabelecimentos",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">
+                              {toNum0(enabledColumnCount("hmis"))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Show>
+                  <Show when={canConfigureData()}>
+                    <Card onClick={openDhis2Credentials}>
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "DHIS2 connection",
+                            fr: "Connexion DHIS2",
+                            pt: "Ligação DHIS2",
+                          })}
+                        </div>
+                        <Show
+                          when={instanceState.dhis2ConnectionUrl}
+                          fallback={
+                            <div class="text-danger text-xs">
+                              {t3({
+                                en: "No connection configured",
+                                fr: "Aucune connexion configurée",
+                                pt: "Nenhuma ligação configurada",
+                              })}
+                            </div>
+                          }
+                          keyed
+                        >
+                          {(url) => (
+                            <div class="ui-gap text-success flex justify-between text-xs">
+                              <span>
+                                {t3({ en: "Server", fr: "Serveur", pt: "Servidor" })}:
+                              </span>
+                              <span class="truncate">{url}</span>
+                            </div>
+                          )}
+                        </Show>
+                      </div>
+                    </Card>
+                  </Show>
                   <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("facilities_hmis")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Facilities",
                           fr: "Établissements",
@@ -301,57 +351,50 @@ export function InstanceData(p: Props) {
                         keyed
                       >
                         {(keyedCount) => (
-                          <div class="text-success ui-gap flex justify-between text-xs">
-                            <span>
-                              {t3({
-                                en: "Facilities",
-                                fr: "Établissements",
-                                pt: "Estabelecimentos de saúde",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedCount)}</span>
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="ui-gap flex justify-between">
+                              <span>
+                                {t3({
+                                  en: "Facilities",
+                                  fr: "Établissements",
+                                  pt: "Estabelecimentos de saúde",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">{toNum0(keyedCount)}</span>
+                            </div>
+                            {/* Admin areas are derived from these rows, so they
+                                are reported here rather than as their own card. */}
+                            <For
+                              each={([2, 3, 4] as const).filter(
+                                (level) =>
+                                  structureSchemaForFamily("hmis").adminDepth >=
+                                    level,
+                              )}
+                            >
+                              {(level) => (
+                                <div class="ui-gap flex justify-between">
+                                  <span>{t3(getAdminAreaLabel(level))}:</span>
+                                  <span class="font-mono">
+                                    {toNum0(
+                                      instanceState.structure?.hmis[
+                                        `adminArea${level}s`
+                                      ] ?? 0,
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </For>
                           </div>
                         )}
                       </Show>
                     </div>
                   </Card>
                   <Card
-                    class="w-[300px]"
-                    onClick={() => setSelectedDatasource("hmis")}
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
-                        {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-                      </div>
-                      <Show
-                        when={instanceState.datasetsWithData.includes("hmis")}
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No data added",
-                              fr: "Aucune donnée ajoutée",
-                              pt: "Nenhum dado adicionado",
-                            })}
-                          </div>
-                        }
-                      >
-                        <div class="text-success text-xs">
-                          {t3({
-                            en: "Has data",
-                            fr: "Contient des données",
-                            pt: "Contém dados",
-                          })}
-                        </div>
-                      </Show>
-                    </div>
-                  </Card>
-                  <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("indicators")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Indicators",
                           fr: "Indicateurs",
@@ -376,7 +419,7 @@ export function InstanceData(p: Props) {
                       >
                         {(keyedNumber) => (
                           <div class="ui-spy-sm text-success text-xs">
-                            <div class="flex justify-between gap-4">
+                            <div class="ui-gap flex justify-between">
                               <span>
                                 {t3({
                                   en: "Common indicators",
@@ -410,7 +453,7 @@ export function InstanceData(p: Props) {
                       >
                         {(keyedNumber) => (
                           <div class="ui-spy-sm text-success text-xs">
-                            <div class="flex justify-between gap-4">
+                            <div class="ui-gap flex justify-between">
                               <span>
                                 {t3({
                                   en: "DHIS2 indicators",
@@ -435,7 +478,7 @@ export function InstanceData(p: Props) {
                       >
                         {(keyedNumber) => (
                           <div class="ui-spy-sm text-success text-xs">
-                            <div class="flex justify-between gap-4">
+                            <div class="ui-gap flex justify-between">
                               <span>
                                 {t3({
                                   en: "Calculated indicators",
@@ -453,23 +496,129 @@ export function InstanceData(p: Props) {
                       </Show>
                     </div>
                   </Card>
+                  <Card
+                    onClick={() => setSelectedDatasource("hmis")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2 text-sm">
+                        {t3({ en: "Data", fr: "Données", pt: "Dados" })}
+                      </div>
+                      <Show
+                        when={instanceState.datasetsWithData.includes("hmis")}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No data added",
+                              fr: "Aucune donnée ajoutée",
+                              pt: "Nenhum dado adicionado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Has data",
+                            fr: "Contient des données",
+                            pt: "Contém dados",
+                          })}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    onClick={() => setSelectedDatasource("geojson_hmis")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2 text-sm">
+                        {t3({
+                          en: "GeoJSON maps",
+                          fr: "Cartes GeoJSON",
+                          pt: "Mapas GeoJSON",
+                        })}
+                      </div>
+                      <Show
+                        when={geojsonLevels("hmis").length > 0}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No GeoJSON maps uploaded",
+                              fr: "Aucune carte GeoJSON téléchargée",
+                              pt: "Nenhum mapa GeoJSON carregado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Levels configured",
+                            fr: "Niveaux configurés",
+                            pt: "Níveis configurados",
+                          })}
+                          : {geojsonLevels("hmis").join(", ")}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
                 </div>
               </div>
 
               {/* HFA */}
-              <div class="flex gap-6">
-                <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">
+              <div class="ui-spy">
+                <div class="ui-spy-sm">
+                  <div class="font-700 text-lg">
                     {t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
                   </div>
+                  <div class="border-b" />
                 </div>
-                <div class="ui-gap flex flex-1 flex-wrap">
+                <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+                  <Show when={canConfigureSettings()}>
+                    <Card
+                      onClick={() => setSelectedDatasource("config_hfa")}
+                    >
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "Configuration",
+                            fr: "Configuration",
+                            pt: "Configuração",
+                          })}
+                        </div>
+                        <div class="ui-spy-sm text-success text-xs">
+                          <div class="ui-gap flex justify-between">
+                            <span>
+                              {t3({
+                                en: "Admin area depth",
+                                fr: "Profondeur des unités administratives",
+                                pt: "Profundidade das zonas administrativas",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">
+                              {structureSchemaForFamily("hfa").adminDepth}
+                            </span>
+                          </div>
+                          <div class="ui-gap flex justify-between">
+                            <span>
+                              {t3({
+                                en: "Facility columns",
+                                fr: "Colonnes des établissements",
+                                pt: "Colunas dos estabelecimentos",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">
+                              {toNum0(enabledColumnCount("hfa"))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Show>
                   <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("facilities_hfa")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Facilities",
                           fr: "Établissements",
@@ -493,27 +642,50 @@ export function InstanceData(p: Props) {
                         keyed
                       >
                         {(keyedCount) => (
-                          <div class="text-success ui-gap flex justify-between text-xs">
-                            <span>
-                              {t3({
-                                en: "Facilities",
-                                fr: "Établissements",
-                                pt: "Estabelecimentos de saúde",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedCount)}</span>
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="ui-gap flex justify-between">
+                              <span>
+                                {t3({
+                                  en: "Facilities",
+                                  fr: "Établissements",
+                                  pt: "Estabelecimentos de saúde",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">{toNum0(keyedCount)}</span>
+                            </div>
+                            {/* Admin areas are derived from these rows, so they
+                                are reported here rather than as their own card. */}
+                            <For
+                              each={([2, 3, 4] as const).filter(
+                                (level) =>
+                                  structureSchemaForFamily("hfa").adminDepth >=
+                                    level,
+                              )}
+                            >
+                              {(level) => (
+                                <div class="ui-gap flex justify-between">
+                                  <span>{t3(getAdminAreaLabel(level))}:</span>
+                                  <span class="font-mono">
+                                    {toNum0(
+                                      instanceState.structure?.hfa[
+                                        `adminArea${level}s`
+                                      ] ?? 0,
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </For>
                           </div>
                         )}
                       </Show>
                     </div>
                   </Card>
                   <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("hfa_time_points")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Time points",
                           fr: "Points temporels",
@@ -533,7 +705,7 @@ export function InstanceData(p: Props) {
                         }
                       >
                         <div class="ui-spy-sm text-success text-xs">
-                          <div class="flex justify-between gap-4">
+                          <div class="ui-gap flex justify-between">
                             <span>
                               {t3({
                                 en: "Time points",
@@ -551,11 +723,10 @@ export function InstanceData(p: Props) {
                     </div>
                   </Card>
                   <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("hfa_weights")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Sampling weights",
                           fr: "Pondérations d'échantillonnage",
@@ -567,7 +738,7 @@ export function InstanceData(p: Props) {
                           (tp) => tp.weightCount > 0,
                         )}
                         fallback={
-                          <div class="ui-text-caption">
+                          <div class="text-danger text-xs">
                             {t3({
                               en: "No weights imported",
                               fr: "Aucune pondération importée",
@@ -600,11 +771,57 @@ export function InstanceData(p: Props) {
                     </div>
                   </Card>
                   <Card
-                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hfa_indicators")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2 text-sm">
+                        {t3({
+                          en: "Indicators",
+                          fr: "Indicateurs",
+                          pt: "Indicadores",
+                        })}
+                      </div>
+                      <Show
+                        when={
+                          instanceState.indicators.hfaIndicators > 0 &&
+                          instanceState.indicators.hfaIndicators
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No HFA indicators configured",
+                              fr: "Aucun indicateur HFA configuré",
+                              pt: "Nenhum indicador HFA configurado",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedNumber) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="ui-gap flex justify-between">
+                              <span>
+                                {t3({
+                                  en: "HFA indicators",
+                                  fr: "Indicateurs Enquetes FOSA",
+                                  pt: "Indicadores HFA",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(keyedNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
                     onClick={() => setSelectedDatasource("hfa")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({ en: "Data", fr: "Données", pt: "Dados" })}
                       </div>
                       <Show
@@ -630,50 +847,36 @@ export function InstanceData(p: Props) {
                     </div>
                   </Card>
                   <Card
-                    class="w-[300px]"
-                    onClick={() => setSelectedDatasource("hfa_indicators")}
+                    onClick={() => setSelectedDatasource("geojson_hfa")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
-                          en: "Indicators",
-                          fr: "Indicateurs",
-                          pt: "Indicadores",
+                          en: "GeoJSON maps",
+                          fr: "Cartes GeoJSON",
+                          pt: "Mapas GeoJSON",
                         })}
                       </div>
                       <Show
-                        when={
-                          instanceState.indicators.hfaIndicators > 0 &&
-                          instanceState.indicators.hfaIndicators
-                        }
+                        when={geojsonLevels("hfa").length > 0}
                         fallback={
                           <div class="text-danger text-xs">
                             {t3({
-                              en: "No HFA indicators configured",
-                              fr: "Aucun indicateur HFA configuré",
-                              pt: "Nenhum indicador HFA configurado",
+                              en: "No GeoJSON maps uploaded",
+                              fr: "Aucune carte GeoJSON téléchargée",
+                              pt: "Nenhum mapa GeoJSON carregado",
                             })}
                           </div>
                         }
-                        keyed
                       >
-                        {(keyedNumber) => (
-                          <div class="ui-spy-sm text-success text-xs">
-                            <div class="flex justify-between gap-4">
-                              <span>
-                                {t3({
-                                  en: "HFA indicators",
-                                  fr: "Indicateurs Enquetes FOSA",
-                                  pt: "Indicadores HFA",
-                                })}
-                                :
-                              </span>
-                              <span class="font-mono">
-                                {toNum0(keyedNumber)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Levels configured",
+                            fr: "Niveaux configurés",
+                            pt: "Níveis configurados",
+                          })}
+                          : {geojsonLevels("hfa").join(", ")}
+                        </div>
                       </Show>
                     </div>
                   </Card>
@@ -681,19 +884,19 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* ICEH */}
-              <div class="flex gap-6">
-                <div class="w-44 shrink-0 pt-3">
-                  <div class="font-700 text-base">
+              <div class="ui-spy">
+                <div class="ui-spy-sm">
+                  <div class="font-700 text-lg">
                     {t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}
                   </div>
+                  <div class="border-b" />
                 </div>
-                <div class="ui-gap flex flex-1 flex-wrap">
+                <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
                   <Card
-                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("iceh")}
                   >
                     <div class="ui-spy-sm">
-                      <div class="font-700 pb-2">
+                      <div class="font-700 pb-2 text-sm">
                         {t3({
                           en: "Equity data",
                           fr: "Données d'équité",

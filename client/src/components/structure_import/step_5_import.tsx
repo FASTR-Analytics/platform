@@ -41,6 +41,13 @@ export function Step5Import(p: Props) {
     StructureIntegrateSummary | undefined
   >(undefined);
 
+  // The orphan count is scoped to the family just imported, so the warning
+  // names that registry — otherwise an admin cannot tell which map to repair.
+  const registryLabel = () =>
+    p.family === "hmis"
+      ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
+      : t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "FOSA" });
+
   const strategyOptions: { value: IntentType; label: string }[] = [
     {
       value: "replace_all",
@@ -269,9 +276,9 @@ export function Step5Import(p: Props) {
                 <div class="border-danger bg-danger-subtle rounded border p-4">
                   <div class="text-danger text-sm">
                     {t3({
-                      en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
-                      fr: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de carte ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
-                      pt: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de mapa já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
+                      en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} ${registryLabel()} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
+                      fr: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de carte ${registryLabel()} ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
+                      pt: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de mapa ${registryLabel()} já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
                     })}
                   </div>
                 </div>

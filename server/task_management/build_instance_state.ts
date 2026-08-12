@@ -45,6 +45,7 @@ export async function buildInstanceState(
     structureSchemaHmis: res.data.structureSchemaHmis,
     structureSchemaHfa: res.data.structureSchemaHfa,
     adminAreaLabels: res.data.adminAreaLabels,
+    dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
     projects: res.data.projects,
     projectsLastUpdated: new Date().toISOString(),
     users,

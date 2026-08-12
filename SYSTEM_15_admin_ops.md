@@ -44,7 +44,7 @@ The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
 `components/instance/**` except the files owned elsewhere
 (`index.tsx`/`instance_assets.tsx`, `instance_data.tsx` → S6,
-`instance_settings.tsx` → S5, `compare_projects.tsx` → S8);
+`compare_projects.tsx` → S8);
 `project_settings.tsx` + copy/backup/restore forms; role/permission
 forms_editors. Server: `routes/project/project.ts` (18 routes — lifecycle +
 roles), `routes/instance/{health,backups}.ts`, `db/project/projects.ts` (the

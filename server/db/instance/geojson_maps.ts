@@ -86,13 +86,20 @@ export async function deleteGeoJsonMap(
   });
 }
 
+// `family` scopes the check to one registry's maps. Callers that report after
+// a facility import MUST pass the imported family: a map is matched against
+// its own registry's tree, so the other family's counts cannot have been
+// changed by that import and reporting them blames the wrong registry.
 export async function countOrphanedGeoJsonAreaIds(
   mainDb: Sql,
+  family: FacilityFamily | undefined,
 ): Promise<GeojsonOrphanedAreaIds[]> {
   const rows = await mainDb<
     { facility_family: FacilityFamily; admin_area_level: number; geojson: string }[]
   >`
-    SELECT facility_family, admin_area_level, geojson FROM geojson_maps ORDER BY facility_family, admin_area_level`;
+    SELECT facility_family, admin_area_level, geojson FROM geojson_maps
+    ${family === undefined ? mainDb`` : mainDb`WHERE facility_family = ${family}`}
+    ORDER BY facility_family, admin_area_level`;
   const results: GeojsonOrphanedAreaIds[] = [];
   for (const row of rows) {
     const parsed = JSON.parse(row.geojson) as {

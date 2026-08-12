@@ -233,15 +233,25 @@ function buildAISystemContext(
       `- ${instance.structure.hmis.facilities} HMIS facilities, ${instance.structure.hfa.facilities} HFA facilities`,
     );
     for (
-      const [familyLabel, counts] of [
-        ["HMIS", instance.structure.hmis],
-        ["HFA", instance.structure.hfa],
+      const [familyLabel, counts, familyDepth] of [
+        ["HMIS", instance.structure.hmis, instance.structureSchemaHmis?.adminDepth],
+        ["HFA", instance.structure.hfa, instance.structureSchemaHfa?.adminDepth],
       ] as const
     ) {
       if (counts.facilities === 0) continue;
+      // Storage is always four levels: staging pads every level above the
+      // family's depth with the leaf value, so a depth-2 registry's level-3
+      // rows are a 1:1 mirror of its level-2 rows. Reporting them would tell
+      // the copilot a level-2 registry has AA3s and invite breakdowns on a
+      // column its results objects do not carry.
+      const depth = familyDepth ?? 4;
       const parts: string[] = [];
-      if (counts.adminArea2s > 0) parts.push(`${counts.adminArea2s} admin area 2s`);
-      if (counts.adminArea3s > 0) parts.push(`${counts.adminArea3s} admin area 3s`);
+      if (depth >= 2 && counts.adminArea2s > 0) {
+        parts.push(`${counts.adminArea2s} admin area 2s`);
+      }
+      if (depth >= 3 && counts.adminArea3s > 0) {
+        parts.push(`${counts.adminArea3s} admin area 3s`);
+      }
       if (parts.length > 0) {
         sections.push(`- ${familyLabel} registry: ${parts.join(", ")}`);
       }

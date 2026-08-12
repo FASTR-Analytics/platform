@@ -4,7 +4,6 @@ import { _DATASET_LIMIT, t3, type Dhis2Credentials, type FacilityFamily } from "
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
-  deleteAllStructureData,
   deleteFamilyFacilities,
   getHfaFacilityWeightsItems,
   getInstanceStructureSummary,
@@ -79,21 +78,6 @@ defineRoute(
       return c.json({ success: false, err: "Family must be hmis or hfa" });
     }
     const res = await getStructureItems(c.var.mainDb, family, _DATASET_LIMIT);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesStructure,
-  "deleteAllStructureData",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteAllStructureData"),
-  async (c) => {
-    const res = await deleteAllStructureData(c.var.mainDb);
-    if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
-      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
-    }
     return c.json(res);
   },
 );
@@ -392,7 +376,10 @@ defineRoute(
       // Best-effort: the integrate has already committed, so a failure here
       // must not turn the response into an error
       try {
-        const orphans = await countOrphanedGeoJsonAreaIds(c.var.mainDb);
+        const orphans = await countOrphanedGeoJsonAreaIds(
+          c.var.mainDb,
+          params.family,
+        );
         if (orphans.length > 0) {
           res.data = { ...res.data, orphanedGeojsonAreaIds: orphans };
         }

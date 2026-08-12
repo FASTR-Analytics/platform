@@ -14,6 +14,7 @@ import {
   getAdminAreaLabelsConfig,
   getStructureSchema,
 } from "../db/instance/config.ts";
+import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
@@ -31,10 +32,11 @@ export function notifyInstanceConfigUpdated(config: InstanceConfig) {
 // missing schema row (near-zero probability, guarded by the pre-deploy check)
 // broadcasts as null rather than suppressing the event.
 export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
-  const [hmisRes, hfaRes, labelsRes] = await Promise.all([
+  const [hmisRes, hfaRes, labelsRes, dhis2Info] = await Promise.all([
     getStructureSchema(mainDb, "hmis"),
     getStructureSchema(mainDb, "hfa"),
     getAdminAreaLabelsConfig(mainDb),
+    getStoredDhis2CredentialsInfo(mainDb),
   ]);
   if (labelsRes.success === false) {
     return;
@@ -44,6 +46,7 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
     structureSchemaHfa: hfaRes.success ? hfaRes.data : null,
     countryIso3: _INSTANCE_COUNTRY_ISO3,
     adminAreaLabels: labelsRes.data,
+    dhis2ConnectionUrl: dhis2Info?.url ?? null,
   };
   notifyInstanceConfigUpdated(config);
 }

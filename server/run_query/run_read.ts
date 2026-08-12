@@ -274,7 +274,6 @@ function buildQueryContextFromManifest(
     hasPeriodId,
     hasQuarterId,
     calendar: manifest.calendar,
-    facilityConfig,
     enabledFacilityColumns,
     ...facilityContext,
     neededPeriodColumns,
@@ -785,8 +784,21 @@ const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
 // the derivation surface). RO carries admin_area_2 → filter it directly; only
 // a child admin column → filter by the child values derived from the family
 // facilities parquet (matching by NAME — the duplicate-district collision is
-// an accepted latent, see the plan's ruling); no admin columns or no
-// facilities parquet → unfiltered.
+// an accepted latent, see SYSTEM_08's ruling); no admin columns at all
+// (national ROs, ICEH) → unfiltered, which is the ruling's one blessed
+// unfiltered case.
+//
+// An RO that HAS an admin column but whose scope cannot be applied fails
+// CLOSED, never unfiltered: the family is undeclarable for a module whose
+// dataSources are all upstream results objects (m004/m005/m006), and those
+// same modules drop admin_area_2 from their admin3 outputs, so the pair would
+// otherwise show every area in the country inside a scoped project. Blank is
+// wrong visibly; national data under a regional heading is wrong silently.
+// The durable fix is those scripts emitting admin_area_2 (which puts them on
+// the direct-filter path and retires the derivation entirely) — tracked in
+// the modules repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are
+// immutable,
+// so this branch still guards every package generated before that lands.
 export async function computeScopeFilters(
   ctx: RunReadContext,
   ro: RunResultsObject,
@@ -810,7 +822,7 @@ export async function computeScopeFilters(
     facilitiesTable === undefined ||
     !ctx.manifest.inputFiles.includes(`inputs/${facilitiesTable}.parquet`)
   ) {
-    return [];
+    return [{ disOpt: childColumn, values: [SCOPE_EMPTY_SENTINEL] }];
   }
   const cacheKey =
     `${ctx.runId}|${facilitiesTable}|${childColumn}|${ctx.adminArea2.toUpperCase()}`;

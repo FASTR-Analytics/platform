@@ -90,7 +90,7 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 | Data                  | Fields on `InstanceState`                                                                                                                  | SSE event                    | Version key for T2                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------------------- |
 | Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced)                              | `starting` only              | —                                       |
-| Instance config       | `maxAdminArea`, `facilityColumns`, `adminAreaLabels`                                                                                       | `config_updated`             | —                                       |
+| Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`                                                       | `config_updated`             | —                                       |
 | Projects              | `projects`, `projectsLastUpdated`                                                                                                          | `projects_last_updated`      | —                                       |
 | Users                 | `users` (full `OtherUser[]`)                                                                                                               | `users_updated`              | —                                       |
 | Assets                | `assets` (full `AssetInfo[]`)                                                                                                              | `assets_updated`             | —                                       |
@@ -98,7 +98,7 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 | Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
 | HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | —                                       |
 | Indicator summary     | `indicators` (counts), `indicatorMappingsVersion`, `hfaIndicatorsVersion`, `calculatedIndicatorsVersion`                                   | `indicators_updated`         | all three version fields                |
-| HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + `maxAdminArea` |
+| HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
 | Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | —                                       |
@@ -216,15 +216,15 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 
 | Data                               | File                        | Version key(s)                                                       |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `indicatorMappingsVersion` + `maxAdminArea` |
+| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `indicatorMappingsVersion` + `structureLastUpdated` (HMIS schema hash in uniqueness keys) |
 | HFA display items (data rows)      | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
 | ICEH display items (data rows)     | `instance/t2_datasets.ts`   | `icehCacheHash`                                                      |
 | HFA dictionary (variable metadata) | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
 | Indicator full list (mappings)     | `instance/t2_indicators.ts` | `indicatorMappingsVersion`                                           |
 | HFA indicator full list            | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                               |
 | Calculated indicators              | `instance/t2_indicators.ts` | `calculatedIndicatorsVersion`                                        |
-| Structure items (facility/admin)   | `instance/t2_structure.ts`  | `structureLastUpdated` + `maxAdminArea` + `facilityColumnsHash`      |
-| GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per admin level                                         |
+| Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
+| GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |
 
 - **HMIS special case:** the display cache is bypassed entirely (no read, no
   write) while `hmisImportRunActive` — "revisit at same version = cache hit"

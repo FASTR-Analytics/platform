@@ -9,6 +9,7 @@ import {
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // Instance-wide stored DHIS2 credentials, shared by every DHIS2 flow
@@ -53,6 +54,9 @@ defineRoute(
       body.credentials,
       c.var.globalUser?.email ?? "unknown",
     );
+    // The Data page shows the connection as instance state, so a change has
+    // to reach every open client the same way other config edits do.
+    await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     return c.json({ success: true });
   },
 );
@@ -64,6 +68,7 @@ defineRoute(
   log("deleteInstanceDhis2Credentials"),
   async (c) => {
     await deleteStoredDhis2Credentials(c.var.mainDb);
+    await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     return c.json({ success: true });
   },
 );

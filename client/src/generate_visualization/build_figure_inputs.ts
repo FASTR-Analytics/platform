@@ -175,7 +175,16 @@ export function buildFigureInputs(
   if (effectiveConfig.d.type === "map") {
     if (!geoJson) {
       const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
-      throw new Error(`[INFO] Map files not yet uploaded for Admin Area ${level ?? ""}`);
+      // Each facility registry carries its OWN boundaries, so the level alone
+      // no longer identifies the missing map — an instance can have an HMIS
+      // AA2 map and no HFA one, and the maps page would show "a level 2 map
+      // exists" while this metric still cannot render.
+      const registry = geo && geo.kind === "level" && geo.family === "hfa"
+        ? "HFA"
+        : "HMIS";
+      throw new Error(
+        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${level ?? ""}`,
+      );
     }
     const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
       resultsValue,

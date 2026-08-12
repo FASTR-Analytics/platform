@@ -141,7 +141,6 @@ export async function buildQueryContext(
     hasQuarterId,
     hasFacilityId,
     calendar,
-    facilityConfig: structureSchema,
     enabledFacilityColumns,
     ...facilityContext,
     needsPeriodCTE,

@@ -42,9 +42,9 @@ individually); the barrel itself is just wiring. One deliberate exception:
 holds, side by side: the `APIResponse` envelope types +
 `throwIfErrWithData`/`throwIfErrNoData` asserts (S1's contract, defined here);
 `InstanceMeta`/`InstanceDetail` and the instance-config zod schemas —
-`maxAdminArea`, admin-area labels, facility columns with
-`getEnabledOptionalFacilityColumns` + `hashFacilityColumnsConfig` (S5's config
-surface); `GlobalUser`/`ProjectUser`/`OtherUser`/user-log types + the dev-mode
+admin-area labels and the per-family `structureSchemaSchema` /
+`structureColumnsSchema` with `getEnabledOptionalFacilityColumns`,
+`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface); `GlobalUser`/`ProjectUser`/`OtherUser`/user-log types + the dev-mode
 user factories (S1/S15); generic table-column and CSV-import wizard types
 (`CsvDetails`, `Mappings`, `Conflicts` — S5/S6); and the `ItemsHolder*` payload
 types, including `ItemsHolderPresentationObject` whose fields are cache-version

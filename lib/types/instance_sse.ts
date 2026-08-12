@@ -32,6 +32,7 @@ export type InstanceState = {
   structureSchemaHmis: StructureSchema | null;
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
+  dhis2ConnectionUrl: string | null;
 
   // Lists (sent as full arrays on change)
   projects: ProjectSummary[];
@@ -92,6 +93,7 @@ export type InstanceConfig = {
   structureSchemaHmis: StructureSchema | null;
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
+  dhis2ConnectionUrl: string | null;
 };
 
 export type InstanceStructureSummary = {

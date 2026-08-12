@@ -1,4 +1,5 @@
 import { Sql } from "postgres";
+import { getStoredDhis2CredentialsInfo } from "./instance_dhis2_credentials.ts";
 import {
   APIResponseWithData,
   H_USERS,
@@ -441,6 +442,8 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,
+      dhis2ConnectionUrl:
+        (await getStoredDhis2CredentialsInfo(mainDb))?.url ?? null,
       geojsonMaps: await getGeoJsonMapSummaries(mainDb),
       datasetsWithData,
       datasetVersions: {
