@@ -8,7 +8,7 @@ import {
   type ListItem,
   type TableColumn,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
@@ -22,7 +22,10 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type FileType = "csv" | "excel" | "image" | "zip" | "other";
 
-const FILE_TYPE_LABELS: Record<FileType, { en: string; fr: string; pt: string }> = {
+const FILE_TYPE_LABELS: Record<
+  FileType,
+  { en: string; fr: string; pt: string }
+> = {
   csv: { en: "CSV files", fr: "Fichiers CSV", pt: "Ficheiros CSV" },
   excel: { en: "Excel files", fr: "Fichiers Excel", pt: "Ficheiros Excel" },
   image: { en: "Images", fr: "Images", pt: "Imagens" },
@@ -84,11 +87,14 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBarMainRibbon heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}>
+        <HeadingBar
+          tonal
+          heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
+        >
           <Button id="select-file-button" iconName="upload">
             {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
           </Button>
-        </HeadingBarMainRibbon>
+        </HeadingBar>
       }
     >
       <AssetFileSystem
@@ -184,7 +190,11 @@ function AssetTable(p: {
   const columns = createMemo((): TableColumn<AssetInfo>[] => [
     {
       key: "fileName",
-      header: t3({ en: "File Name", fr: "Nom du fichier", pt: "Nome do ficheiro" }),
+      header: t3({
+        en: "File Name",
+        fr: "Nom du fichier",
+        pt: "Nome do ficheiro",
+      }),
       sortable: true,
       render: (asset) => (
         <span class="font-mono text-sm">{asset.fileName}</span>
@@ -195,7 +205,9 @@ function AssetTable(p: {
       header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-base-content-muted text-sm">{formatFileSize(asset.size)}</span>
+        <span class="text-base-content-muted text-sm">
+          {formatFileSize(asset.size)}
+        </span>
       ),
     },
     {
@@ -307,7 +319,11 @@ function AssetTable(p: {
       columns={columns()}
       keyField="fileName"
       defaultSort={{ key: "fileName", direction: "asc" }}
-      noRowsMessage={t3({ en: "No assets", fr: "Aucune ressource", pt: "Sem recursos" })}
+      noRowsMessage={t3({
+        en: "No assets",
+        fr: "Aucune ressource",
+        pt: "Sem recursos",
+      })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
     />

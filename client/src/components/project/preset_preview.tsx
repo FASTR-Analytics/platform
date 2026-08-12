@@ -16,15 +16,17 @@ import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
+import { projectState, runVersionKey } from "~/state/project/t1_store";
 import {
-  projectState,
-  runVersionKey,
-} from "~/state/project/t1_store";
-import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
+  buildFigureInputs,
+  makeFigureBundleFromFetchedData,
+} from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
-import { _PO_ITEMS_CACHE, resolveDefaultReplicant } from "~/state/project/t2_presentation_objects";
+import {
+  _PO_ITEMS_CACHE,
+  resolveDefaultReplicant,
+} from "~/state/project/t2_presentation_objects";
 import { poItemsQueue } from "~/state/_infra/request_queue";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   projectId: string;
@@ -95,10 +97,10 @@ export function PresetPreview(p: Props) {
             >
               {(figureInputs) => (
                 <FigureHolder
-                  figureInputs={adaptFigureStyleForDarkMode(figureInputs)}
+                  figureInputs={figureInputs}
                   height="ideal"
                   sizing="zoom"
-                  />
+                />
               )}
             </Match>
           </Switch>
@@ -166,7 +168,11 @@ export function PresetSelector(p: PresetSelectorProps) {
             {t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" })}
           </div>
           <div class="ui-text-caption">
-            {t3({ en: "Configure manually", fr: "Configurer manuellement", pt: "Configurar manualmente" })}
+            {t3({
+              en: "Configure manually",
+              fr: "Configurer manuellement",
+              pt: "Configurar manualmente",
+            })}
           </div>
         </div>
       </div>
@@ -209,7 +215,11 @@ async function fetchPreview(
   if (!resolvedReplicant.ok) {
     return {
       status: "error",
-      err: t3({ en: "No data available", fr: "Aucune donnée disponible", pt: "Nenhum dado disponível" }),
+      err: t3({
+        en: "No data available",
+        fr: "Aucune donnée disponible",
+        pt: "Nenhum dado disponível",
+      }),
     };
   }
   const fetchConfig = resolvedReplicant.fetchConfig;
@@ -256,19 +266,32 @@ async function fetchPreview(
       status: "error",
       err:
         itemsHolder.status === "too_many_items"
-          ? t3({ en: "Too many data points", fr: "Trop de points de données", pt: "Demasiados pontos de dados" })
-          : t3({ en: "No data available", fr: "Aucune donnée disponible", pt: "Nenhum dado disponível" }),
+          ? t3({
+              en: "Too many data points",
+              fr: "Trop de points de données",
+              pt: "Demasiados pontos de dados",
+            })
+          : t3({
+              en: "No data available",
+              fr: "Aucune donnée disponible",
+              pt: "Nenhum dado disponível",
+            }),
     };
   }
 
   try {
     const bundle = makeFigureBundleFromFetchedData({
       resultsValue: metric,
-      ih: itemsHolder as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+      ih: itemsHolder as Parameters<
+        typeof makeFigureBundleFromFetchedData
+      >[0]["ih"],
       effectiveConfig,
     });
     return { status: "ready" as const, data: buildFigureInputs(bundle) };
   } catch (e) {
-    return { status: "error" as const, err: e instanceof Error ? e.message : "Render error" };
+    return {
+      status: "error" as const,
+      err: e instanceof Error ? e.message : "Render error",
+    };
   }
 }

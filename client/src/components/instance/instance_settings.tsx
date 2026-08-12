@@ -14,7 +14,7 @@ import {
   getSelectOptions,
   createButtonAction,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -270,9 +270,7 @@ export function InstanceSettings(p: Props) {
 
   return (
     <FrameTop
-      panelChildren={
-        <HeadingBarMainRibbon heading={t3(TC.settings)}></HeadingBarMainRibbon>
-      }
+      panelChildren={<HeadingBar tonal heading={t3(TC.settings)}></HeadingBar>}
     >
       <div class="ui-pad ui-spy h-full w-full">
         <Card

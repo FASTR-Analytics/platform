@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { Button, Card, FrameTop, openComponent, toNum0 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";
@@ -98,15 +98,15 @@ export function InstanceData(p: Props) {
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBarMainRibbon
+            <HeadingBar
+              tonal
               heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
             >
               <Show when={canConfigureData()}>
                 <Button
                   onClick={openDhis2Credentials}
                   outline
-                  intent="base-100"
-                  onBackground="base-content"
+                  onBackground="base-200"
                   iconName="settings"
                 >
                   {t3({
@@ -116,7 +116,7 @@ export function InstanceData(p: Props) {
                   })}
                 </Button>
               </Show>
-            </HeadingBarMainRibbon>
+            </HeadingBar>
           }
         >
           <div class="ui-pad overflow-auto">

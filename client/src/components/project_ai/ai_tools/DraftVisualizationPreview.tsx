@@ -40,7 +40,6 @@ import { projectState } from "~/state/project/t1_store";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type FigureInput = AiFigureFromVisualization | AiFigureFromMetric;
 
@@ -161,7 +160,10 @@ export function DraftVisualizationPreview(p: Props) {
         },
       });
     } else {
-      const { resultsValue, config } = buildConfigFromPreset(p.figure, p.metrics);
+      const { resultsValue, config } = buildConfigFromPreset(
+        p.figure,
+        p.metrics,
+      );
       config.t.caption = p.title;
 
       await openComponent({
@@ -247,10 +249,7 @@ export function DraftVisualizationPreview(p: Props) {
             }
           >
             {(vizFigure) => (
-              <div
-                class="cursor-pointer"
-                onClick={openExpandedViewForViz}
-              >
+              <div class="cursor-pointer" onClick={openExpandedViewForViz}>
                 <div class="pointer-events-none">
                   <PresentationObjectMiniDisplay
                     projectId={p.projectId}
@@ -267,10 +266,7 @@ export function DraftVisualizationPreview(p: Props) {
             )}
           </Show>
           <Show when={p.figure.type === "from_metric"}>
-            <div
-              class="cursor-pointer"
-              onClick={openExpandedViewForMetric}
-            >
+            <div class="cursor-pointer" onClick={openExpandedViewForMetric}>
               <div class="pointer-events-none">
                 <FigureStateWrapper state={figureState()} />
               </div>
@@ -345,7 +341,7 @@ function FigureStateWrapper(p: FigureStateWrapperProps) {
           return (
             <div class="aspect-video overflow-hidden">
               <FigureHolder
-                figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                figureInputs={keyedFigureInputs}
                 height={h1}
                 sizing="zoom"
               />

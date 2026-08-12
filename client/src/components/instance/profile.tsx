@@ -1,9 +1,10 @@
 import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
-import { darkMode, setDarkMode } from "~/state/t4_ui";
+import { darkMode, schemePref, setScheme } from "~/state/t4_ui";
 import { clerk } from "~/components/LoggedInWrapper";
 import { t3, TC } from "lib";
 import {
   Button,
+  ButtonGroup,
   Checkbox,
   TextArea,
   ModalContainer,
@@ -17,18 +18,14 @@ import {
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
 
-const DARK_THEME_COLORS = KEY_COLOR_THEMES["neutral-dark"].colors;
-
-// app.css's dark block overrides primary to the GFF teal instead of
-// neutral-dark's monochrome default — mirror that override here too.
-const DARK_PRIMARY = "#14b8a6";
-const DARK_PRIMARY_CONTENT = "#052e2b";
+// The one panther dark palette — same source as the CSS pairs and the canvas
+// dark companion.
+const DARK_THEME_COLORS = KEY_COLOR_THEMES["panther-default-dark"].colors;
 
 // Clerk's account window renders in its own portal with Clerk's own styling,
-// so the app's CSS tokens don't reach it. Pass dark appearance variables
-// (sourced from the same neutral-dark theme as app.css) at open time —
-// evaluated per open, so it follows the theme active when the window is
-// launched.
+// so the app's CSS tokens don't reach it. Pass dark appearance variables at
+// open time — evaluated per open, so it follows the scheme active when the
+// window is launched (including OS-driven "system" dark).
 function openClerkUserProfile() {
   clerk.openUserProfile(
     darkMode()
@@ -41,8 +38,8 @@ function openClerkUserProfile() {
               colorNeutral: DARK_THEME_COLORS.baseContent,
               colorInputBackground: DARK_THEME_COLORS.base200,
               colorInputText: DARK_THEME_COLORS.baseContent,
-              colorPrimary: DARK_PRIMARY,
-              colorTextOnPrimaryBackground: DARK_PRIMARY_CONTENT,
+              colorPrimary: DARK_THEME_COLORS.primary,
+              colorTextOnPrimaryBackground: DARK_THEME_COLORS.primaryContent,
               colorDanger: DARK_THEME_COLORS.danger,
               colorSuccess: DARK_THEME_COLORS.success,
               colorWarning: DARK_THEME_COLORS.warning,
@@ -274,14 +271,27 @@ export function ProfileForm(
                 })}
               >
                 <div class="ui-spy-sm">
-                  <Checkbox
-                    checked={darkMode()}
-                    onChange={setDarkMode}
-                    label={t3({
-                      en: "Dark mode",
-                      fr: "Mode sombre",
-                      pt: "Modo escuro",
-                    })}
+                  <ButtonGroup
+                    items={[
+                      {
+                        id: "system" as const,
+                        label: t3({
+                          en: "System",
+                          fr: "Système",
+                          pt: "Sistema",
+                        }),
+                      },
+                      {
+                        id: "light" as const,
+                        label: t3({ en: "Light", fr: "Clair", pt: "Claro" }),
+                      },
+                      {
+                        id: "dark" as const,
+                        label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
+                      },
+                    ]}
+                    value={schemePref()}
+                    onChange={(v) => v && setScheme(v)}
                   />
                 </div>
               </Card>

@@ -28,7 +28,6 @@ import {
 import { createStore } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   versionId: number;
@@ -43,7 +42,11 @@ export function DatasetItemsHolder(p: Props) {
     StateHolder<ItemsHolderDatasetHmisDisplay>
   >({
     status: "loading",
-    msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+    msg: t3({
+      en: "Fetching data...",
+      fr: "Récupération des données...",
+      pt: "A obter dados...",
+    }),
   });
 
   async function attemptGetDatatable(
@@ -53,7 +56,11 @@ export function DatasetItemsHolder(p: Props) {
   ) {
     setItemsHolder({
       status: "loading",
-      msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+      msg: t3({
+        en: "Fetching data...",
+        fr: "Récupération des données...",
+        pt: "A obter dados...",
+      }),
     });
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
       rawOrCommonIndicators,
@@ -170,12 +177,19 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 periodProp: "period_id",
                 periodType: "year-month",
                 seriesProp: "indicator_id",
-                labelReplacements:
-                  p.displayItems.indicatorLabelReplacements,
+                labelReplacements: p.displayItems.indicatorLabelReplacements,
                 yScaleAxisLabel:
                   value === "count"
-                    ? t3({ en: "Number of records", fr: "Nombre d'enregistrements", pt: "Número de registos" })
-                    : t3({ en: "Number of service counts", fr: "Nombre de prestations de services", pt: "Número de prestações de serviços" }),
+                    ? t3({
+                        en: "Number of records",
+                        fr: "Nombre d'enregistrements",
+                        pt: "Número de registos",
+                      })
+                    : t3({
+                        en: "Number of service counts",
+                        fr: "Nombre de prestations de services",
+                        pt: "Número de prestações de serviços",
+                      }),
               },
             },
             style,
@@ -189,8 +203,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 colProp: "indicator_id",
                 rowProp: "period_id",
                 sort: { col: "by-label", row: "by-label" },
-                labelReplacements:
-                  p.displayItems.indicatorLabelReplacements,
+                labelReplacements: p.displayItems.indicatorLabelReplacements,
               },
             },
             style,
@@ -205,10 +218,28 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       panelChildren={
         <div class="ui-pad ui-spy h-full w-full">
           <RadioGroup
-            label={t3({ en: "Common or DHIS2 indicators", fr: "Indicateurs communs ou DHIS2", pt: "Indicadores comuns ou DHIS2" })}
+            label={t3({
+              en: "Common or DHIS2 indicators",
+              fr: "Indicateurs communs ou DHIS2",
+              pt: "Indicadores comuns ou DHIS2",
+            })}
             options={[
-              { value: "common", label: t3({ en: "Common indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" }) },
-              { value: "raw", label: t3({ en: "DHIS2 indicators", fr: "Indicateurs DHIS2", pt: "Indicadores DHIS2" }) },
+              {
+                value: "common",
+                label: t3({
+                  en: "Common indicators",
+                  fr: "Indicateurs communs",
+                  pt: "Indicadores comuns",
+                }),
+              },
+              {
+                value: "raw",
+                label: t3({
+                  en: "DHIS2 indicators",
+                  fr: "Indicateurs DHIS2",
+                  pt: "Indicadores DHIS2",
+                }),
+              },
             ]}
             value={p.rawOrCommon}
             onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
@@ -216,8 +247,22 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
           <RadioGroup
             label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
             options={[
-              { value: "count", label: t3({ en: "Number of records", fr: "Nombre d'enregistrements", pt: "Número de registos" }) },
-              { value: "sum", label: t3({ en: "Number of service counts", fr: "Nombre de prestations de services", pt: "Número de prestações de serviços" }) },
+              {
+                value: "count",
+                label: t3({
+                  en: "Number of records",
+                  fr: "Nombre d'enregistrements",
+                  pt: "Número de registos",
+                }),
+              },
+              {
+                value: "sum",
+                label: t3({
+                  en: "Number of service counts",
+                  fr: "Nombre de prestations de services",
+                  pt: "Número de prestações de serviços",
+                }),
+              },
             ]}
             value={vizConfig.value}
             onChange={(v) => setVizConfig("value", v as "count" | "sum")}
@@ -229,7 +274,11 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
           />
           <MultiSelect
-            label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+            label={t3({
+              en: "Indicators",
+              fr: "Indicateurs",
+              pt: "Indicadores",
+            })}
             options={p.displayItems.indicators}
             values={vizConfig.indicators}
             onChange={(v) => setVizConfig("indicators", v)}
@@ -242,14 +291,20 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
         <Show
           when={vizConfig.indicators.length > 0}
           fallback={
-            <span class="text-sm">{t3({ en: "You must select at least one indicator", fr: "Vous devez sélectionner au moins un indicateur", pt: "Tem de selecionar pelo menos um indicador" })}</span>
+            <span class="text-sm">
+              {t3({
+                en: "You must select at least one indicator",
+                fr: "Vous devez sélectionner au moins un indicateur",
+                pt: "Tem de selecionar pelo menos um indicador",
+              })}
+            </span>
           }
         >
           <StateHolderWrapper state={figureInputs()}>
             {(keyedInputs) => {
               return (
                 <FigureHolder
-                  figureInputs={adaptFigureStyleForDarkMode(keyedInputs)}
+                  figureInputs={keyedInputs}
                   height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );

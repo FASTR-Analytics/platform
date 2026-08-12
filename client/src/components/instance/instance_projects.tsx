@@ -9,7 +9,7 @@ import {
   openAlert,
   openComponent,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { AddProjectForm } from "./add_project";
@@ -119,21 +119,20 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon
+          <HeadingBar
+            tonal
             heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
           >
             <div class="ui-gap-sm flex items-center">
               <SortControl
                 value={projectsSortMode()}
                 onChange={setProjectsSortMode}
-                outlineAndBase100
               />
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button
                   onClick={compareProjects}
                   outline
-                  onBackground="base-content"
-                  intent="base-100"
+                  onBackground="base-200"
                 >
                   {t3({
                     en: "Compare projects",
@@ -151,8 +150,7 @@ export function InstanceProjects(p: Props) {
                 <Button
                   onClick={openPendingDeletions}
                   outline
-                  onBackground="base-content"
-                  intent="base-100"
+                  onBackground="base-200"
                 >
                   {t3({
                     en: `Pending deletions (${pendingDeletionCount()})`,
@@ -175,7 +173,7 @@ export function InstanceProjects(p: Props) {
                 </Button>
               </Show>
             </div>
-          </HeadingBarMainRibbon>
+          </HeadingBar>
         }
       >
         <div class="ui-pad ui-gap grid h-full w-full flex-1 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start overflow-auto">

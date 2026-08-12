@@ -1,8 +1,5 @@
 import { trackStore } from "@solid-primitives/deep";
-import {
-  projectState,
-  runVersionKey,
-} from "~/state/project/t1_store";
+import { projectState, runVersionKey } from "~/state/project/t1_store";
 import {
   FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
@@ -81,7 +78,10 @@ import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOp
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
-import { buildFigureInputs, makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
+import {
+  buildFigureInputs,
+  makeFigureBundleFromFetchedData,
+} from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getTableExportAoa } from "~/exports/get_table_export_aoa";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -107,7 +107,6 @@ import {
   restoreProjectAIView,
   type ProjectAIViewState,
 } from "../project_ai/ai_views";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
@@ -218,7 +217,8 @@ export function VisualizationEditorInner(p: InnerProps) {
         // only reflect its result here. Guarded on inequality so it settles in one
         // extra (cache-hit) fetch and never loops. Raw setTempConfig (not the
         // manuallyUpdate wrapper): this is an auto-resolution, not a user edit.
-        const resolvedReplicant = lastState.data.config.d.selectedReplicantValue;
+        const resolvedReplicant =
+          lastState.data.config.d.selectedReplicantValue;
         if (
           resolvedReplicant !== undefined &&
           resolvedReplicant !== tempConfig.d.selectedReplicantValue
@@ -278,12 +278,16 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Both expose a config Y.Map + awareness + a per-user origin; push/reconcile/
   // undo/captions run off whichever is active. Create mode and users without
   // configure permission keep the classic non-collab flow (no target).
-  const collabEnabled = p.mode === "edit" && !p.poDetail.isDefault &&
+  const collabEnabled =
+    p.mode === "edit" &&
+    !p.poDetail.isDefault &&
     projectState.thisUserPermissions.can_configure_visualizations &&
     !projectState.isLocked;
 
   const [poSession, setPoSession] = createSignal<PoSession | null>(null);
-  const [ephemeralMap, setEphemeralMap] = createSignal<Y.Map<unknown> | null>(null);
+  const [ephemeralMap, setEphemeralMap] = createSignal<Y.Map<unknown> | null>(
+    null,
+  );
   // Reactive readiness (a session's plain ready field isn't reactive); drives the
   // caption editors switching from TextArea to CollabMarkdownEditor.
   const [collabReady, setCollabReady] = createSignal(false);
@@ -340,8 +344,9 @@ export function VisualizationEditorInner(p: InnerProps) {
       return docSaveFailing("po", p.poDetail.id);
     }
     const b = p.collabBinding;
-    return b !== undefined &&
-      docSaveFailing(b.hostDoc.docType, b.hostDoc.docId);
+    return (
+      b !== undefined && docSaveFailing(b.hostDoc.docType, b.hostDoc.docId)
+    );
   };
   /** A "must save first" guard only applies when NOT live-autosaving. */
   const blockedByUnsaved = () => needsSave() && !isCollabLive();
@@ -363,7 +368,10 @@ export function VisualizationEditorInner(p: InnerProps) {
     const t = collabTarget();
     const doc = t?.configMap.doc;
     if (!t || !doc) return;
-    doc.transact(() => syncFigureConfigToMap(t.configMap, config), t.localOrigin);
+    doc.transact(
+      () => syncFigureConfigToMap(t.configMap, config),
+      t.localOrigin,
+    );
   }
 
   function adoptFromMap(map: Y.Map<unknown>) {
@@ -398,8 +406,8 @@ export function VisualizationEditorInner(p: InnerProps) {
     poSession()
       ? `po:${p.poDetail.id}`
       : p.collabBinding
-      ? `fig:${p.collabBinding.figureId}`
-      : undefined;
+        ? `fig:${p.collabBinding.figureId}`
+        : undefined;
 
   // Live cursors: surface glue lives in _shared/cursors/viz_cursors.tsx
   // (mounted in the JSX below).
@@ -931,7 +939,9 @@ export function VisualizationEditorInner(p: InnerProps) {
     try {
       const bundle = makeFigureBundleFromFetchedData({
         resultsValue: p.poDetail.resultsValue,
-        ih: ih.data.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+        ih: ih.data.ih as Parameters<
+          typeof makeFigureBundleFromFetchedData
+        >[0]["ih"],
         effectiveConfig: ih.data.config,
       });
       figureInputs = buildFigureInputs(bundle);
@@ -943,10 +953,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     // export resolution — not the on-screen (reflow) canvas, which is only
     // container width. (getFigureAsCanvas fills white, so the "transparent"
     // download option yields white until panther offers a transparent flag.)
-    const canvas = getFigureAsCanvas(
-      figureInputs,
-      FIGURE_EXPORT_WIDTH_PX,
-    );
+    const canvas = getFigureAsCanvas(figureInputs, FIGURE_EXPORT_WIDTH_PX);
     const replicateBy = getReplicateByProp(tempConfig);
     const res = await openComponent({
       element: DownloadPresentationObject,
@@ -1004,7 +1011,9 @@ export function VisualizationEditorInner(p: InnerProps) {
         res.data.ih.items.map((item) =>
           Object.fromEntries(
             Object.entries(item).map(([k, v]) =>
-              isSampleNProp(k) ? [`sample_size_${k.slice(SAMPLE_N_PREFIX.length)}`, v] : [k, v],
+              isSampleNProp(k)
+                ? [`sample_size_${k.slice(SAMPLE_N_PREFIX.length)}`, v]
+                : [k, v],
             ),
           ),
         ),
@@ -1108,7 +1117,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                         <Button
                           intent="success"
                           onClick={() =>
-                            (p.onClose as (result: EphemeralModeReturn) => void)({
+                            (
+                              p.onClose as (result: EphemeralModeReturn) => void
+                            )({
                               updated: { config: getConfigForSave() },
                             })
                           }
@@ -1457,12 +1468,23 @@ export function VisualizationEditorInner(p: InnerProps) {
                               try {
                                 const bundle = makeFigureBundleFromFetchedData({
                                   resultsValue: p.poDetail.resultsValue,
-                                  ih: keyedItemsHolder.ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+                                  ih: keyedItemsHolder.ih as Parameters<
+                                    typeof makeFigureBundleFromFetchedData
+                                  >[0]["ih"],
                                   effectiveConfig: keyedItemsHolder.config,
                                 });
-                                return { status: "ready" as const, data: buildFigureInputs(bundle) };
+                                return {
+                                  status: "ready" as const,
+                                  data: buildFigureInputs(bundle),
+                                };
                               } catch (e) {
-                                return { status: "error" as const, err: e instanceof Error ? e.message : "Render error" };
+                                return {
+                                  status: "error" as const,
+                                  err:
+                                    e instanceof Error
+                                      ? e.message
+                                      : "Render error",
+                                };
                               }
                             });
 
@@ -1475,7 +1497,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   {(keyedFigureInputs) => {
                                     return (
                                       <FigureHolder
-                                        figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                                        figureInputs={keyedFigureInputs}
                                         height={editorHeight()}
                                         canvasElementId="VIZ_PREVIEW_CANVAS"
                                       />

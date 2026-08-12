@@ -32,7 +32,11 @@ export function HfaIndicatorChatPane(p: Props) {
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
+      title: t3({
+        en: "Delete conversation",
+        fr: "Supprimer la conversation",
+        pt: "Eliminar conversa",
+      }),
       text: t3({
         en: "Are you sure you want to delete this conversation? This action cannot be undone.",
         fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
@@ -48,20 +52,32 @@ export function HfaIndicatorChatPane(p: Props) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "New conversation", fr: "Nouvelle conversation", pt: "Nova conversa" }),
+      label: t3({
+        en: "New conversation",
+        fr: "Nouvelle conversation",
+        pt: "Nova conversa",
+      }),
       icon: "plus",
       onClick: () => conversations.createConversation(),
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Switch conversation", fr: "Changer de conversation", pt: "Mudar de conversa" }),
+      label: t3({
+        en: "Switch conversation",
+        fr: "Changer de conversation",
+        pt: "Mudar de conversa",
+      }),
       icon: "versions",
       onClick: openConversationSelector,
       disabled: isLoading(),
     },
     { type: "divider" },
     {
-      label: t3({ en: "View system prompt", fr: "Voir le prompt système", pt: "Ver o prompt do sistema" }),
+      label: t3({
+        en: "View system prompt",
+        fr: "Voir le prompt système",
+        pt: "Ver o prompt do sistema",
+      }),
       icon: "code",
       onClick: () =>
         openComponent<AIChatSystemPromptPanelProps, void>({
@@ -71,7 +87,11 @@ export function HfaIndicatorChatPane(p: Props) {
     },
     { type: "divider" },
     {
-      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
+      label: t3({
+        en: "Delete conversation",
+        fr: "Supprimer la conversation",
+        pt: "Eliminar conversa",
+      }),
       icon: "trash",
       intent: "danger",
       onClick: handleDeleteConversation,
@@ -81,15 +101,25 @@ export function HfaIndicatorChatPane(p: Props) {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="ui-pad ui-gap border-base-content dark:border-base-300 bg-primary text-primary-content flex items-center justify-between border-b">
+      <div class="ui-pad ui-gap border-primary-active bg-primary text-primary-content flex items-center justify-between border-b">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">
-            {t3({ en: "Indicator AI", fr: "IA Indicateurs", pt: "IA de Indicadores" })}
+            {t3({
+              en: "Indicator AI",
+              fr: "IA Indicateurs",
+              pt: "IA de Indicadores",
+            })}
           </span>
         </h3>
         <div class="ui-gap-sm flex items-center">
           <MenuTriggerWrapper items={menuItems} position="bottom-end">
-            <Button outline onBackground="primary" intent="base-100" iconName="moreVertical" ariaLabel="Menu" />
+            <Button
+              outline
+              onBackground="primary"
+              intent="base-100"
+              iconName="moreVertical"
+              ariaLabel="Menu"
+            />
           </MenuTriggerWrapper>
           <Button
             onClick={p.onClose}
@@ -102,7 +132,7 @@ export function HfaIndicatorChatPane(p: Props) {
         </div>
       </div>
 
-      <div class="md-dark-adapt flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden">
         <AIChat
           placeholder={t3({
             en: "Ask me to clean up labels or organise indicators...",

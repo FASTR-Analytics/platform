@@ -1,4 +1,9 @@
 import { createSignal } from "solid-js";
+import {
+  effectiveScheme,
+  type SchemePreference,
+  setSchemePreference,
+} from "panther";
 import type {
   ReportGroupingMode,
   SlideDeckGroupingMode,
@@ -59,7 +64,9 @@ export function setNavCollapsed(collapsed: boolean) {
 }
 
 // List sort modes (defaults chosen to match each list's current server order)
-const storedProjectsSortMode = localStorage.getItem("projectsSortMode") as SortMode | null;
+const storedProjectsSortMode = localStorage.getItem(
+  "projectsSortMode",
+) as SortMode | null;
 export const [projectsSortMode, setProjectsSortModeInternal] =
   createSignal<SortMode>(storedProjectsSortMode ?? "name");
 export function setProjectsSortMode(mode: SortMode) {
@@ -67,23 +74,31 @@ export function setProjectsSortMode(mode: SortMode) {
   setProjectsSortModeInternal(mode);
 }
 
-const storedVizSortMode = localStorage.getItem("vizSortMode") as SortMode | null;
-export const [vizSortMode, setVizSortModeInternal] =
-  createSignal<SortMode>(storedVizSortMode ?? "name");
+const storedVizSortMode = localStorage.getItem(
+  "vizSortMode",
+) as SortMode | null;
+export const [vizSortMode, setVizSortModeInternal] = createSignal<SortMode>(
+  storedVizSortMode ?? "name",
+);
 export function setVizSortMode(mode: SortMode) {
   localStorage.setItem("vizSortMode", mode);
   setVizSortModeInternal(mode);
 }
 
-const storedDeckSortMode = localStorage.getItem("deckSortMode") as SortMode | null;
-export const [deckSortMode, setDeckSortModeInternal] =
-  createSignal<SortMode>(storedDeckSortMode ?? "recent");
+const storedDeckSortMode = localStorage.getItem(
+  "deckSortMode",
+) as SortMode | null;
+export const [deckSortMode, setDeckSortModeInternal] = createSignal<SortMode>(
+  storedDeckSortMode ?? "recent",
+);
 export function setDeckSortMode(mode: SortMode) {
   localStorage.setItem("deckSortMode", mode);
   setDeckSortModeInternal(mode);
 }
 
-const storedReportSortMode = localStorage.getItem("reportSortMode") as SortMode | null;
+const storedReportSortMode = localStorage.getItem(
+  "reportSortMode",
+) as SortMode | null;
 export const [reportSortMode, setReportSortModeInternal] =
   createSignal<SortMode>(storedReportSortMode ?? "recent");
 export function setReportSortMode(mode: SortMode) {
@@ -91,7 +106,9 @@ export function setReportSortMode(mode: SortMode) {
   setReportSortModeInternal(mode);
 }
 
-const storedDashboardSortMode = localStorage.getItem("dashboardSortMode") as SortMode | null;
+const storedDashboardSortMode = localStorage.getItem(
+  "dashboardSortMode",
+) as SortMode | null;
 export const [dashboardSortMode, setDashboardSortModeInternal] =
   createSignal<SortMode>(storedDashboardSortMode ?? "recent");
 export function setDashboardSortMode(mode: SortMode) {
@@ -252,27 +269,38 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
 // Appearance
 // ============================================================================
 
-// Applied at module scope so the stored theme is on <html> before first paint
-const storedDarkMode = localStorage.getItem("darkMode") === "true";
+// Tri-state scheme preference on panther's data-scheme contract: "system"
+// follows the OS, "light"/"dark" pin. Legacy migration: the old boolean
+// "darkMode" key maps true -> "dark", explicit false -> "light"; users who
+// never touched the old toggle (no key) get "system".
+const storedScheme = localStorage.getItem("scheme");
+const legacyDarkMode = localStorage.getItem("darkMode");
+const initialScheme: SchemePreference =
+  storedScheme === "system" ||
+  storedScheme === "light" ||
+  storedScheme === "dark"
+    ? storedScheme
+    : legacyDarkMode === "true"
+      ? "dark"
+      : legacyDarkMode === "false"
+        ? "light"
+        : "system";
 
-export const [darkMode, setDarkModeInternal] =
-  createSignal<boolean>(storedDarkMode);
+export const [schemePref, setSchemePrefInternal] =
+  createSignal<SchemePreference>(initialScheme);
 
-export function setDarkMode(value: boolean) {
-  localStorage.setItem("darkMode", String(value));
-  setDarkModeInternal(value);
-  applyThemeToDocument(value);
+export function setScheme(pref: SchemePreference) {
+  localStorage.setItem("scheme", pref);
+  setSchemePrefInternal(pref);
+  setSchemePreference(pref);
 }
 
-function applyThemeToDocument(dark: boolean) {
-  if (dark) {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-  }
-}
+// Resolved scheme as rendered, for JS consumers (CM highlight extensions,
+// diff tints, Clerk appearance). Reactive through panther's signal.
+export const darkMode = () => effectiveScheme() === "dark";
 
-applyThemeToDocument(storedDarkMode);
+// Applied at module scope so the stored scheme is on <html> before first paint
+setSchemePreference(initialScheme);
 
 // ============================================================================
 // Chart/Viz Display Settings
@@ -299,4 +327,3 @@ export const [headerOrContent, setHeaderOrContent] = createSignal<
 export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
   "policyHeaderFooter" | "content"
 >("content");
-

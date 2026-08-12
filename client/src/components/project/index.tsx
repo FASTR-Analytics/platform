@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { _DEV_USERS, t3, TC } from "lib";
 import {
+  HeadingBar,
   Button,
   FrameLeft,
   FrameTop,
@@ -83,7 +84,11 @@ function ProjectInner() {
     if (perms.can_view_slide_decks) {
       items.push({
         id: "decks",
-        label: t3({ en: "Slide decks", fr: "Présentations", pt: "Apresentações" }),
+        label: t3({
+          en: "Slide decks",
+          fr: "Présentations",
+          pt: "Apresentações",
+        }),
         iconName: "presentation",
       });
       items.push({
@@ -95,7 +100,11 @@ function ProjectInner() {
     if (perms.can_view_visualizations) {
       items.push({
         id: "visualizations",
-        label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
+        label: t3({
+          en: "Visualizations",
+          fr: "Visualisations",
+          pt: "Visualizações",
+        }),
         iconName: "chart",
       });
     }
@@ -152,46 +161,42 @@ function ProjectInner() {
         >
           <FrameTop
             panelChildren={
-              <div
-                class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b"
-                data-cursor-zone="topbar"
-              >
-                <Button iconName="chevronLeft" onClick={() => navigate("/")} />
-                <div class="font-700 flex-1 truncate text-xl">
-                  <span class="font-400">{projectState.label}</span>
-                </div>
-                <div class="ui-gap-sm flex items-center">
-                  <Button
-                    onClick={() =>
-                      openComponent({
-                        element: FeedbackForm,
-                        props: {
-                          projectLabel: projectState.label,
-                        },
-                      })
-                    }
-                    intent="base-100"
-                    outline
-                    onBackground="base-content"
-                  >
-                    {t3({
-                      en: "Send feedback",
-                      fr: "Envoyer un commentaire",
-                      pt: "Enviar comentários",
-                    })}
-                  </Button>
-                  <Show when={!showAi()}>
+              // data-cursor-zone lives on a wrapper: HeadingBar owns its own
+              // root. Flush bar: same surface as the content, border-b divider.
+              <div class="h-full w-full" data-cursor-zone="topbar">
+                <HeadingBar
+                  onBack={() => navigate("/")}
+                  heading={projectState.label}
+                >
+                  <div class="ui-gap-sm flex items-center">
                     <Button
-                      onClick={() => setShowAi(true)}
-                      iconName="chevronLeft"
-                      intent="base-100"
+                      onClick={() =>
+                        openComponent({
+                          element: FeedbackForm,
+                          props: {
+                            projectLabel: projectState.label,
+                          },
+                        })
+                      }
                       outline
-                      onBackground="base-content"
                     >
-                      {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                      {t3({
+                        en: "Send feedback",
+                        fr: "Envoyer un commentaire",
+                        pt: "Enviar comentários",
+                      })}
                     </Button>
-                  </Show>
-                </div>
+                    <Show when={!showAi()}>
+                      <Button
+                        onClick={() => setShowAi(true)}
+                        iconName="chevronLeft"
+                        outline
+                      >
+                        {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                      </Button>
+                    </Show>
+                  </div>
+                </HeadingBar>
               </div>
             }
           >

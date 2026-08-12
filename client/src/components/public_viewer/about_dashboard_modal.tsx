@@ -35,7 +35,7 @@ export function AboutDashboardModal(
         </Button>,
       ]}
     >
-      <div class="ui-spy md-dark-adapt">
+      <div class="ui-spy">
         <MarkdownPresentationJsx markdown={p.body} />
         <Show when={p.logos.length > 0}>
           <DashboardLogos selected={p.logos} />

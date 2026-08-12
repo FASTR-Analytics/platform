@@ -31,7 +31,6 @@ import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
 import { PeriodSelector } from "./PeriodSelector";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
@@ -76,7 +75,11 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
         instanceState.maxAdminArea,
         instanceState.hmisImportRunActive,
       ),
-    t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+    t3({
+      en: "Fetching data...",
+      fr: "Récupération des données...",
+      pt: "A obter dados...",
+    }),
   );
 
   return (
@@ -154,7 +157,11 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 periodProp: "period_id",
                 periodType: "year-month",
                 seriesProp: "indicator_id",
-                yScaleAxisLabel: t3({ en: "Number of facility records", fr: "Nombre d'enregistrements d'établissements de santé", pt: "Número de registos de estabelecimentos de saúde" }),
+                yScaleAxisLabel: t3({
+                  en: "Number of facility records",
+                  fr: "Nombre d'enregistrements d'établissements de santé",
+                  pt: "Número de registos de estabelecimentos de saúde",
+                }),
               },
               false,
             );
@@ -284,7 +291,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 {(figInputs) => {
                   return (
                     <FigureHolder
-                      figureInputs={adaptFigureStyleForDarkMode(figInputs)}
+                      figureInputs={figInputs}
                       height={300}
                       sizing="zoom"
                     />
@@ -302,8 +309,24 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               />
             </div>
             <ToggledMultiSelect
-              heading={{ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }}
-              toggleAllLabel={isDelete ? { en: "Delete all indicators", fr: "Supprimer tous les indicateurs", pt: "Eliminar todos os indicadores" } : { en: "Include all indicators", fr: "Inclure tous les indicateurs", pt: "Incluir todos os indicadores" }}
+              heading={{
+                en: "Indicators",
+                fr: "Indicateurs",
+                pt: "Indicadores",
+              }}
+              toggleAllLabel={
+                isDelete
+                  ? {
+                      en: "Delete all indicators",
+                      fr: "Supprimer tous les indicateurs",
+                      pt: "Eliminar todos os indicadores",
+                    }
+                  : {
+                      en: "Include all indicators",
+                      fr: "Inclure tous les indicateurs",
+                      pt: "Incluir todos os indicadores",
+                    }
+              }
               takeAll={p.tempWindowing.takeAllIndicators}
               setTakeAll={(v) =>
                 (p.setTempWindowing as any)("takeAllIndicators", v)
@@ -318,8 +341,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 when={adminAreaTree()}
                 fallback={
                   <ToggledMultiSelect
-                    heading={{ en: "Admin areas", fr: "Unités administratives", pt: "Zonas administrativas" }}
-                    toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives", pt: "Incluir todas as zonas administrativas" }}
+                    heading={{
+                      en: "Admin areas",
+                      fr: "Unités administratives",
+                      pt: "Zonas administrativas",
+                    }}
+                    toggleAllLabel={{
+                      en: "Include all admin areas",
+                      fr: "Inclure toutes les unités administratives",
+                      pt: "Incluir todas as zonas administrativas",
+                    }}
                     takeAll={p.tempWindowing.takeAllAdminArea2s}
                     setTakeAll={(v) =>
                       (p.setTempWindowing as any)("takeAllAdminArea2s", v)
@@ -335,8 +366,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               >
                 {(tree) => (
                   <ToggledNestedMultiSelect
-                    heading={{ en: "Admin areas", fr: "Unités administratives", pt: "Zonas administrativas" }}
-                    toggleAllLabel={{ en: "Include all admin areas", fr: "Inclure toutes les unités administratives", pt: "Incluir todas as zonas administrativas" }}
+                    heading={{
+                      en: "Admin areas",
+                      fr: "Unités administratives",
+                      pt: "Zonas administrativas",
+                    }}
+                    toggleAllLabel={{
+                      en: "Include all admin areas",
+                      fr: "Inclure toutes les unités administratives",
+                      pt: "Incluir todas as zonas administrativas",
+                    }}
                     takeAll={p.tempWindowing.takeAllAdminArea3s ?? true}
                     setTakeAll={(v) =>
                       (p.setTempWindowing as any)("takeAllAdminArea3s", v)
@@ -352,8 +391,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeOwnership}>
               <ToggledMultiSelect
-                heading={{ en: "Facility ownership categories", fr: "Catégories de propriété des établissements", pt: "Categorias de propriedade dos estabelecimentos" }}
-                toggleAllLabel={{ en: "Include all facility ownership categories", fr: "Inclure toutes les catégories de propriété", pt: "Incluir todas as categorias de propriedade" }}
+                heading={{
+                  en: "Facility ownership categories",
+                  fr: "Catégories de propriété des établissements",
+                  pt: "Categorias de propriedade dos estabelecimentos",
+                }}
+                toggleAllLabel={{
+                  en: "Include all facility ownership categories",
+                  fr: "Inclure toutes les catégories de propriété",
+                  pt: "Incluir todas as categorias de propriedade",
+                }}
                 takeAll={p.tempWindowing.takeAllFacilityOwnerships ?? true}
                 setTakeAll={(v) =>
                   (p.setTempWindowing as any)("takeAllFacilityOwnerships", v)
@@ -370,8 +417,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeTypes}>
               <ToggledMultiSelect
-                heading={{ en: "Facility types", fr: "Types d'établissements", pt: "Tipos de estabelecimentos" }}
-                toggleAllLabel={{ en: "Include all facility types", fr: "Inclure tous les types d'établissements", pt: "Incluir todos os tipos de estabelecimentos" }}
+                heading={{
+                  en: "Facility types",
+                  fr: "Types d'établissements",
+                  pt: "Tipos de estabelecimentos",
+                }}
+                toggleAllLabel={{
+                  en: "Include all facility types",
+                  fr: "Inclure tous les types d'établissements",
+                  pt: "Incluir todos os tipos de estabelecimentos",
+                }}
                 takeAll={p.tempWindowing.takeAllFacilityTypes ?? true}
                 setTakeAll={(v) =>
                   (p.setTempWindowing as any)("takeAllFacilityTypes", v)
@@ -407,9 +462,7 @@ type ToggledMultiSelectProps = {
 function ToggledMultiSelect(p: ToggledMultiSelectProps) {
   return (
     <div class="ui-spy-sm ui-pad max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
-      <div class="text-md font-700">
-        {t3(p.heading)}
-      </div>
+      <div class="text-md font-700">{t3(p.heading)}</div>
       <Checkbox
         label={t3(p.toggleAllLabel)}
         checked={p.takeAll}
@@ -441,9 +494,7 @@ type ToggledNestedMultiSelectProps = {
 function ToggledNestedMultiSelect(p: ToggledNestedMultiSelectProps) {
   return (
     <div class="ui-spy-sm ui-pad max-h-[600px] flex-none overflow-auto rounded border xl:col-span-4">
-      <div class="text-md font-700">
-        {t3(p.heading)}
-      </div>
+      <div class="text-md font-700">{t3(p.heading)}</div>
       <Checkbox
         label={t3(p.toggleAllLabel)}
         checked={p.takeAll}

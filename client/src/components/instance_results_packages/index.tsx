@@ -25,7 +25,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { instancePackageInternalsSource } from "~/components/_shared/results_package/internals_source";
 import {
   ResultsPackageContents,
@@ -117,8 +117,8 @@ export function InstanceResultsPackages() {
     const unsubProgress = addInstanceRunProgressListener((runId, progress) => {
       setLiveProgress((prev) => ({ ...prev, [runId]: progress }));
       const current = runs();
-      const isUnknownRun = current.status === "ready" &&
-        !current.data.some((r) => r.id === runId);
+      const isUnknownRun =
+        current.status === "ready" && !current.data.some((r) => r.id === runId);
       if (isUnknownRun || progress.currentModuleId === null) {
         setVersion((v) => v + 1);
       }
@@ -136,7 +136,8 @@ export function InstanceResultsPackages() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBarMainRibbon
+          <HeadingBar
+            tonal
             heading={t3({
               en: "Results packages",
               fr: "Paquets de résultats",
@@ -147,8 +148,7 @@ export function InstanceResultsPackages() {
               <Button
                 onClick={openModuleDefaults}
                 outline
-                onBackground="base-content"
-                intent="base-100"
+                onBackground="base-200"
                 iconName="settings"
               >
                 {t3({
@@ -182,7 +182,7 @@ export function InstanceResultsPackages() {
                 </Match>
               </Switch>
             </div>
-          </HeadingBarMainRibbon>
+          </HeadingBar>
         }
       >
         <div class="ui-pad ui-spy">
@@ -321,9 +321,9 @@ function RunCard(p: {
             pt: "Não anexado a nenhum projeto",
           })}
         >
-          {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${
-            p.run.attachedProjects.map((project) => project.label).join(", ")
-          }`}
+          {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${p.run.attachedProjects
+            .map((project) => project.label)
+            .join(", ")}`}
         </Show>
       </div>
 
