@@ -13,6 +13,7 @@ import {
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
   postAggregationExpressionStrict,
+  projectScopeToken,
   throwIfErrWithData,
   vizPresetInstalled,
   type APIResponseWithData,
@@ -40,7 +41,11 @@ import {
   type RunModule,
   type RunResultsObject,
 } from "lib";
-import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/utils.ts";
+import {
+  escapeSqlString,
+  getResultsObjectTableName,
+  tryCatchDatabaseAsync,
+} from "../db/utils.ts";
 import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
 import { parseModuleConfigSelections } from "../db/project/modules.ts";
 import {
@@ -69,6 +74,7 @@ import {
   detectNeededPeriodColumns,
   needsPeriodCTEFor,
 } from "../server_only_funcs_presentation_objects/period_helpers.ts";
+import { buildWhereClause } from "../server_only_funcs_presentation_objects/query_helpers.ts";
 import type {
   QueryContext,
   SqlRowsExecutor,
@@ -90,6 +96,11 @@ export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
+  // The owning project's AA2 identity (projects.admin_area_2); null =
+  // national. Scopes every read through the FromRun wrappers
+  // (PLAN_1_PROJECT_AA2_SCOPE §3).
+  adminArea2: string | null;
+  scopeToken: string;
 };
 
 // Resolves the project's attached run via projects.run_id — the one and only
@@ -102,8 +113,8 @@ export async function getRunReadContext(
 ): Promise<APIResponseWithData<RunReadContext>> {
   try {
     const row = (
-      await mainDb<{ run_id: string | null }[]>`
-SELECT run_id FROM projects WHERE id = ${projectId}
+      await mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`
+SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
 `
     ).at(0);
     if (row === undefined) {
@@ -118,7 +129,13 @@ SELECT run_id FROM projects WHERE id = ${projectId}
     const manifest = await getRunManifestCached(row.run_id);
     return {
       success: true,
-      data: { runId: row.run_id, runDir: runDirPath(row.run_id), manifest },
+      data: {
+        runId: row.run_id,
+        runDir: runDirPath(row.run_id),
+        manifest,
+        adminArea2: row.admin_area_2,
+        scopeToken: projectScopeToken(row.admin_area_2),
+      },
     };
   } catch (e) {
     return {
@@ -655,7 +672,12 @@ export function getModuleIdForMetricFromRun(
 export function getRunVersionInfo(
   ctx: RunReadContext,
   moduleId: string,
-): { moduleLastRun: string; datasetsVersion: string; runId: string } {
+): {
+  moduleLastRun: string;
+  datasetsVersion: string;
+  runId: string;
+  scopeToken: string;
+} {
   return versionInfoFor(ctx, moduleId);
 }
 
@@ -702,6 +724,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
         isDefault: true,
         folderId: null,
         runId: ctx.runId,
+        scopeToken: ctx.scopeToken,
       };
       return { success: true, data: virtualDetail };
     }
@@ -717,6 +740,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       isDefault: rawPresObj.is_default_visualization,
       folderId: rawPresObj.folder_id,
       runId: ctx.runId,
+      scopeToken: ctx.scopeToken,
     };
     return { success: true, data: presObj };
   });
@@ -728,7 +752,83 @@ function versionInfoFor(ctx: RunReadContext, moduleId: string) {
     moduleLastRun: mod?.lastRunAt ?? "unknown",
     datasetsVersion: datasetsVersionFromManifest(ctx.manifest),
     runId: ctx.runId,
+    scopeToken: ctx.scopeToken,
   };
+}
+
+// ── Project scope (PLAN_1_PROJECT_AA2_SCOPE §3) ──────────────────────────────
+
+// Derived child values are immutable per run, so they memo like manifests:
+// FIFO cap for memory, evicted only when the run is deleted.
+const MAX_CACHED_SCOPE_DERIVATIONS = 50;
+const SCOPE_DERIVATION_CACHE = new Map<string, string[]>();
+
+export function evictRunFromScopeDerivationCache(runId: string): void {
+  for (const key of SCOPE_DERIVATION_CACHE.keys()) {
+    if (key.startsWith(`${runId}|`)) SCOPE_DERIVATION_CACHE.delete(key);
+  }
+}
+
+// An empty derivation must inject a never-matching sentinel — an empty
+// `values` array is skipped by buildWhereClause and would show ALL data.
+const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
+
+// The scope filter for one results object, decided per-RO from the manifest
+// column stamps at runtime (never from a baked list — a new module can add to
+// the derivation surface). RO carries admin_area_2 → filter it directly; only
+// a child admin column → filter by the child values derived from the family
+// facilities parquet (matching by NAME — the duplicate-district collision is
+// an accepted latent, see the plan's ruling); no admin columns or no
+// facilities parquet → unfiltered.
+export async function computeScopeFilters(
+  ctx: RunReadContext,
+  ro: RunResultsObject,
+): Promise<GenericLongFormFetchConfig["filters"]> {
+  if (ctx.adminArea2 === null) return [];
+  const columnNames = new Set(ro.columns.map((c) => c.name));
+  if (columnNames.has("admin_area_2")) {
+    return [{ disOpt: "admin_area_2", values: [ctx.adminArea2] }];
+  }
+  const childColumn = columnNames.has("admin_area_3")
+    ? ("admin_area_3" as const)
+    : columnNames.has("admin_area_4")
+    ? ("admin_area_4" as const)
+    : undefined;
+  if (childColumn === undefined) return [];
+  const family = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  const facilitiesTable = family === "hmis" || family === "hfa"
+    ? `facilities_${family}`
+    : undefined;
+  if (
+    facilitiesTable === undefined ||
+    !ctx.manifest.inputFiles.includes(`inputs/${facilitiesTable}.parquet`)
+  ) {
+    return [];
+  }
+  const cacheKey =
+    `${ctx.runId}|${facilitiesTable}|${childColumn}|${ctx.adminArea2.toUpperCase()}`;
+  let values = SCOPE_DERIVATION_CACHE.get(cacheKey);
+  if (values === undefined) {
+    const rows = await executeSqlOverParquet(
+      [{
+        viewName: facilitiesTable,
+        parquetPath: runInputFilePath(ctx.runDir, `${facilitiesTable}.parquet`),
+      }],
+      `SELECT DISTINCT ${childColumn} FROM ${facilitiesTable} WHERE UPPER(admin_area_2) = UPPER('${
+        escapeSqlString(ctx.adminArea2)
+      }') AND ${childColumn} IS NOT NULL`,
+    );
+    values = rows.map((r) => String(r[childColumn]));
+    SCOPE_DERIVATION_CACHE.set(cacheKey, values);
+    if (SCOPE_DERIVATION_CACHE.size > MAX_CACHED_SCOPE_DERIVATIONS) {
+      const oldest = SCOPE_DERIVATION_CACHE.keys().next().value!;
+      SCOPE_DERIVATION_CACHE.delete(oldest);
+    }
+  }
+  return [{
+    disOpt: childColumn,
+    values: values.length === 0 ? [SCOPE_EMPTY_SENTINEL] : values,
+  }];
 }
 
 // ── The read functions ───────────────────────────────────────────────────────
@@ -759,13 +859,18 @@ export async function getPresentationObjectItemsFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  const scopeFilters = await computeScopeFilters(ctx, ro);
+  const effectiveFetchConfig = scopeFilters.length === 0 ? fetchConfig : {
+    ...fetchConfig,
+    filters: [...fetchConfig.filters, ...scopeFilters],
+  };
   const queryContext = buildQueryContextFromManifest(
     ctx.manifest,
     ro,
-    fetchConfig,
+    effectiveFetchConfig,
     datasetFamily,
   );
-  return await getPresentationObjectItemsCore(
+  const res = await getPresentationObjectItemsCore(
     {
       execute: executorFor(ctx, resultsObjectId),
       columnExists: columnExistsFor(ctx, resultsObjectId),
@@ -776,10 +881,16 @@ export async function getPresentationObjectItemsFromRun(
     resultsObjectId,
     getResultsObjectTableName(resultsObjectId),
     queryContext,
-    fetchConfig,
+    effectiveFetchConfig,
     firstPeriodOption,
     versionInfoFor(ctx, ro.moduleId),
   );
+  // The echo is the REQUEST: restore the caller's fetchConfig onto the
+  // holder — the scope rides separately as the version-info scopeToken.
+  if (res.success && scopeFilters.length !== 0) {
+    res.data.fetchConfig = fetchConfig;
+  }
+  return res;
 }
 
 export async function getPossibleValuesFromRun(
@@ -809,6 +920,10 @@ export async function getPossibleValuesFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  // REASSIGN the param — it is consumed twice below (buildMinimalFetchConfig
+  // AND the getPossibleValuesCore call); scoping only one would leave the
+  // query context and the actual query disagreeing.
+  filters = [...filters, ...(await computeScopeFilters(ctx, ro))];
   const fetchConfig = buildMinimalFetchConfig(
     disaggregationOptionValue,
     filters,
@@ -887,8 +1002,30 @@ export async function getResultsObjectItemsFromRun(
       };
     }
     const tableName = getResultsObjectTableName(resultsObjectId);
-    const rawItems = await executorFor(ctx, resultsObjectId)(
-      `SELECT * FROM ${tableName}${limit ? ` LIMIT ${Math.floor(limit)}` : ""}`,
+    const scopeFilters = await computeScopeFilters(ctx, ro);
+    // Scope columns are always text — route them down buildWhereClause's
+    // UPPER/escape path (an empty textColumns set would send them down the
+    // numeric branch, which compiles admin-area names to FALSE).
+    const whereStatements = buildWhereClause(
+      {
+        values: [],
+        groupBys: [],
+        filters: scopeFilters,
+        periodFilter: undefined,
+        postAggregationExpression: undefined,
+      },
+      false,
+      undefined,
+      { textColumns: new Set(scopeFilters.map((f) => f.disOpt)) },
+    );
+    const whereClause = whereStatements.length === 0
+      ? ""
+      : ` WHERE ${whereStatements.join(" AND ")}`;
+    const execute = executorFor(ctx, resultsObjectId);
+    const rawItems = await execute(
+      `SELECT * FROM ${tableName}${whereClause}${
+        limit ? ` LIMIT ${Math.floor(limit)}` : ""
+      }`,
     );
     if (rawItems.length === 0) {
       return {
@@ -896,11 +1033,18 @@ export async function getResultsObjectItemsFromRun(
         data: { status: "no_data_available" as const },
       };
     }
+    // The manifest rowCount is package-wide; a scoped preview must count over
+    // the same WHERE or report scoped items under an unscoped total.
+    const totalCount = whereClause === "" ? ro.rowCount : Number(
+      (await execute(
+        `SELECT COUNT(*) AS total_count FROM ${tableName}${whereClause}`,
+      )).at(0)?.total_count ?? 0,
+    );
     return {
       success: true as const,
       data: {
         status: "ok" as const,
-        totalCount: ro.rowCount,
+        totalCount,
         items: rawItems as Record<string, string>[],
       },
     };

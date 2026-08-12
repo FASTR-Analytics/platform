@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { t3 } from "lib";
 import {
+  Badge,
   Button,
   Card,
   FrameTop,
@@ -213,6 +214,13 @@ export function InstanceProjects(p: Props) {
                   <div class="ui-pad flex min-h-[150px] flex-col justify-between">
                     <div class="ui-spy-sm">
                       <div class="font-700">{project.label}</div>
+                      <Show when={project.adminArea2}>
+                        {(area) => (
+                          <div>
+                            <Badge>{area()}</Badge>
+                          </div>
+                        )}
+                      </Show>
                       <Show when={project.isLocked}>
                         <div class="ui-gap-sm text-primary flex text-sm">
                           <span class="relative inline-flex h-[1.25em] w-[1.25em]">

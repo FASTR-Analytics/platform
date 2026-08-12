@@ -7,6 +7,8 @@ import {
   H_USERS,
 } from "lib";
 import {
+  AlertComponentProps,
+  AlertFormHolder,
   Button,
   FrameTop,
   HeadingBar,
@@ -16,6 +18,7 @@ import {
   openComponent,
   createDeleteAction,
   createButtonAction,
+  createFormAction,
   StateHolderWrapper,
   createQuery,
 } from "panther";
@@ -32,6 +35,12 @@ import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { projectState } from "~/state/project/t1_store";
+import {
+  ProjectScopePicker,
+  scopeSelectionFromStored,
+  storedValueFromScopeSelection,
+  type ProjectScopeSelection,
+} from "~/components/_shared/project_scope_picker";
 
 // Backup types
 interface BackupFileInfo {
@@ -134,6 +143,10 @@ export function ProjectSettings(p: Props) {
         textArea: true,
       },
     });
+  }
+
+  async function attemptUpdateProjectScope() {
+    await openComponent({ element: ProjectScopeForm, props: undefined });
   }
 
   async function attemptSelectUserRole(users: ProjectUser[]) {
@@ -282,6 +295,28 @@ export function ProjectSettings(p: Props) {
           </div>
         </Card>
 
+        <Card
+          header={t3({
+            en: "Project scope",
+            fr: "Portée du projet",
+            pt: "Âmbito do projeto",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button onClick={attemptUpdateProjectScope} iconName="settings">
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">
+              {projectState.adminArea2 ??
+                t3({ en: "National", fr: "National", pt: "Nacional" })}
+            </div>
+          </div>
+        </Card>
+
         <Show when={H_USERS.includes(projectState.currentUserEmail)}>
           <CentralReportingSection />
         </Show>
@@ -395,6 +430,54 @@ export function ProjectSettings(p: Props) {
         </div>
       </div>
     </FrameTop>
+  );
+}
+
+// Scope edits are global-admin-only server-side (the updateProject class —
+// project identity, like label edits).
+function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
+  const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>(
+    scopeSelectionFromStored(projectState.adminArea2),
+  );
+
+  const save = createFormAction(
+    async (e: MouseEvent) => {
+      e.preventDefault();
+      const adminArea2 = storedValueFromScopeSelection(tempScope());
+      if (adminArea2 === undefined) {
+        return {
+          success: false,
+          err: t3({
+            en: "You must select an area for the project scope",
+            fr: "Vous devez sélectionner une zone pour la portée du projet",
+            pt: "Tem de selecionar uma zona para o âmbito do projeto",
+          }),
+        };
+      }
+      return await serverActions.updateProjectAdminArea2({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        adminArea2,
+      });
+    },
+    async () => {},
+    () => p.close(true),
+  );
+
+  return (
+    <AlertFormHolder
+      formId="project-scope"
+      header={t3({
+        en: "Edit project scope",
+        fr: "Modifier la portée du projet",
+        pt: "Editar o âmbito do projeto",
+      })}
+      savingState={save.state()}
+      saveFunc={save.click}
+      cancelFunc={() => p.close(undefined)}
+    >
+      <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
+    </AlertFormHolder>
   );
 }
 

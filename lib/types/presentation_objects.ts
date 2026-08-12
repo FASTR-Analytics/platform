@@ -71,6 +71,9 @@ export type PresentationObjectDetail = {
   // version (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's
   // Postgres baseline, which never enters the caches.
   runId?: string;
+  // The project scope the payload was computed under (projectScopeToken) —
+  // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
+  scopeToken?: string;
 };
 
 export type PeriodBounds = {
@@ -113,6 +116,8 @@ export type ResultsValueInfoForPresentationObject = {
   datasetsVersion: string;
   // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
   runId?: string;
+  // See PresentationObjectDetail.scopeToken.
+  scopeToken?: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -143,6 +148,8 @@ export type ReplicantOptionsForPresentationObject =
     datasetsVersion: string;
     // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
     runId?: string;
+    // See PresentationObjectDetail.scopeToken.
+    scopeToken?: string;
   }
   & (
     | {

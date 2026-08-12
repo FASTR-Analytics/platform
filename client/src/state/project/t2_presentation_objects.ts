@@ -14,7 +14,7 @@ import {
   t3,
 } from "lib";
 import {
-  responseRunIdMatches,
+  responseRunVersionMatches,
   runVersionKey,
 } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
@@ -40,7 +40,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version),
+    responseRunVersionMatches(data, version),
   // A transient possible-values failure arrives as a per-dimension `error`
   // status inside a successful payload; freezing it would pin the effective-
   // format resolver's "cannot enumerate" fallback until the next run.
@@ -68,7 +68,7 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
   versionKey: (params, pds) =>
     `${pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown"}|${runVersionKey(pds)}`,
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version.slice(version.lastIndexOf("|") + 1)),
+    responseRunVersionMatches(data, version.slice(version.lastIndexOf("|") + 1)),
 });
 
 export const _PO_ITEMS_CACHE = createReactiveCache<
@@ -87,7 +87,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version),
+    responseRunVersionMatches(data, version),
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(

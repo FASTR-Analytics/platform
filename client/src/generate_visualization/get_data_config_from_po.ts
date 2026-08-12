@@ -34,6 +34,7 @@ import {
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
+import { projectState } from "~/state/project/t1_store";
 
 function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
   if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
@@ -106,6 +107,13 @@ function getRollupRowLabel(config: PresentationObjectConfig, language: Language,
   }
   if (ctx?.kind === "all_facilities") {
     return pickLang(language, { en: "All facilities", fr: "Tous les établissements", pt: "Todos os estabelecimentos" });
+  }
+  // Project AA2 scope: the scope filter is server-injected and never in the
+  // PO config, so the context still reads national while the row totals one
+  // area — render the pinned form instead. Display-only; the scope is never
+  // pushed into the config (that would reach the fetch config and cache hash).
+  if (projectState.adminArea2 !== null) {
+    return `${resolveAdminAreaLabel(projectState.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   return pickLang(language, TC.national);
 }

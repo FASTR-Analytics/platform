@@ -6,7 +6,7 @@ import {
   hashFetchConfig,
 } from "lib";
 import {
-  responseRunIdMatches,
+  responseRunVersionMatches,
   runVersionKey,
 } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
@@ -31,7 +31,7 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version),
+    responseRunVersionMatches(data, version),
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(

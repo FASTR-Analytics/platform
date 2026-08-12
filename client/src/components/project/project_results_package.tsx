@@ -5,6 +5,7 @@ import {
   HeadingBar,
   StateHolderWrapper,
   createButtonAction,
+  createQuery,
   getEditorWrapper,
   openComponent,
   type StateHolder,
@@ -253,6 +254,38 @@ export function ProjectResultsPackage() {
   );
 }
 
+// Persistent scope-mismatch warning on the attached package (one mechanism,
+// two surfaces: same compatibility route as the pre-attach modal). Renders
+// nothing while loading or on error — this is a passive advisory, not a gate.
+function AttachedScopeCoverageWarning(p: { runId: string }) {
+  const report = createQuery(() =>
+    serverActions.getResultsPackageCompatibility({
+      projectId: projectState.id,
+      run_id: p.runId,
+    }),
+  );
+  const uncovered = () => {
+    const s = report.state();
+    return s.status === "ready" &&
+      s.data.projectAdminArea2Coverage === "uncovered";
+  };
+  return (
+    <Show when={uncovered()}>
+      <div class="text-warning text-sm">
+        {`${t3({
+          en: "This package has no data for",
+          fr: "Ce paquet ne contient aucune donnée pour",
+          pt: "Este pacote não contém dados para",
+        })} ${projectState.adminArea2}. ${t3({
+          en: "Area-level metrics show no data; national-level metrics remain visible.",
+          fr: "Les indicateurs au niveau des zones n'affichent aucune donnée ; les indicateurs nationaux restent visibles.",
+          pt: "Os indicadores ao nível das zonas não mostram dados; os indicadores nacionais permanecem visíveis.",
+        })}`}
+      </div>
+    </Show>
+  );
+}
+
 function AttachedPackageCard(p: {
   run: RunListingItem;
   liveProgress: RunProgress | undefined;
@@ -287,6 +320,10 @@ function AttachedPackageCard(p: {
       </div>
 
       <ResultsPackageProvenanceLine run={p.run} showDiskSize={false} />
+
+      <Show when={projectState.adminArea2 !== null}>
+        <AttachedScopeCoverageWarning runId={p.run.id} />
+      </Show>
 
       <ResultsPackageContents
         run={p.run}

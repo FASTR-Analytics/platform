@@ -28,6 +28,9 @@ export type ProjectState = {
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   isCentralReporting: boolean;
+  // The project's Admin Area 2 identity; null = national. Folded into the
+  // client run version key so a scope change invalidates run-derived caches.
+  adminArea2: string | null;
   // The immutable results run this project serves from — the client-side
   // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
   // null = no run attached (typed replacement for the "unknown" sentinel).
@@ -90,6 +93,9 @@ export type ProjectSseMessage =
 
   // Data updates (replace current "project_updated" catch-all)
   | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
+  // Scope identity change: flips the client run version key, invalidating
+  // every run-derived cache entry for this project (PLAN_1_PROJECT_AA2_SCOPE §5).
+  | { type: "admin_area_2_changed"; data: { adminArea2: string | null } }
   | {
       type: "visualizations_updated";
       data: { visualizations: PresentationObjectSummary[] };

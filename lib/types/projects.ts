@@ -19,6 +19,7 @@ export type ProjectSummary = {
   thisUserRole: "viewer" | "editor";
   isLocked: boolean;
   isCentralReporting: boolean;
+  adminArea2: string | null;
   status: "ready" | "copying" | "pending_deletion";
   lastActivityAt: string | undefined;
   deletionScheduledAt: string | undefined;
@@ -31,6 +32,9 @@ export type ProjectDetail = {
   thisUserRole: "viewer" | "editor" | "admin";
   isLocked: boolean;
   isCentralReporting: boolean;
+  // The project's Admin Area 2 identity (projects.admin_area_2); null =
+  // national. Scopes every run read server-side (PLAN_1_PROJECT_AA2_SCOPE).
+  adminArea2: string | null;
   // The immutable results run this project serves from (projects.run_id);
   // null = no run attached — data reads error until one is synthesized/attached.
   attachedRunId: string | null;
@@ -50,6 +54,16 @@ export type ProjectDetail = {
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;
 };
+
+// The ONE scope token used by server cache keys, response-holder stamps, and
+// the client version key. encodeURIComponent keeps it readable in Valkey keys
+// and escapes `|` (cache-segment separator); the tilde replace closes the one
+// unreserved char that would collide with the client version-key separator.
+export function projectScopeToken(adminArea2: string | null): string {
+  return adminArea2 === null
+    ? "national"
+    : encodeURIComponent(adminArea2.toUpperCase()).replaceAll("~", "%7E");
+}
 
 // ============================================================================
 // User Role Types

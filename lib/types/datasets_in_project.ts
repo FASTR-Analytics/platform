@@ -19,8 +19,8 @@ export type DatasetInProject =
     };
 
 // Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Legacy
-// packages may carry an extra `windowing` (HMIS) / `serviceCategoryScope`
-// (HFA) key in their stored info JSON — inert, nothing reads it.
+// packages may carry an extra `windowing` (HMIS) key in their stored info
+// JSON — inert, nothing reads it.
 export type DatasetHmisInfoInProject = {
   version: DatasetHmisVersion;
   totalRows?: number;

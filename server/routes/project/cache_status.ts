@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { projectScopeToken } from "lib";
 import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/mod.ts";
 import { getRunManifestCached } from "../../runs/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
@@ -34,11 +35,13 @@ defineRoute(
     // metric → results-object map comes from that run's manifest, never the
     // project catalog tables (Phase 3 re-cut ruling 5 — generation no longer
     // writes them, so they would report a stale mapping here).
-    const runId = (
-      await c.var.mainDb<{ run_id: string | null }[]>`
-SELECT run_id FROM projects WHERE id = ${projectId}
+    const projectRow = (
+      await c.var.mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`
+SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
 `
-    ).at(0)?.run_id ?? null;
+    ).at(0);
+    const runId = projectRow?.run_id ?? null;
+    const scopeToken = projectScopeToken(projectRow?.admin_area_2 ?? null);
 
     const metricToResultsObject = new Map<string, string>();
     if (runId !== null) {
@@ -91,6 +94,7 @@ SELECT run_id FROM projects WHERE id = ${projectId}
             ? await _METRIC_INFO_CACHE.exists({
                 runId,
                 metricId: po.metricId,
+                scopeToken,
               })
             : false,
           poItemsCount: resultsObjectId

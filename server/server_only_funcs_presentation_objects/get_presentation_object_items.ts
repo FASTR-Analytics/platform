@@ -36,6 +36,8 @@ export type ItemsVersionInfo = {
   // Set by the run read path (the cache identity, PLAN_RESULTS_RUNS §2.5);
   // absent from the Postgres wrappers (the parity rig's baseline).
   runId?: string;
+  // Set by the run read path beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
+  scopeToken?: string;
 };
 
 // Postgres wrapper — probes and executes on the project DB.

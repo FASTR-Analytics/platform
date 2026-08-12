@@ -14,10 +14,12 @@ import {
   setProjectCentralReportingStatus,
   setProjectLockStatus,
   updateProject,
+  updateProjectAdminArea2,
   updateProjectUserPermissions,
 } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
+  notifyProjectAdminArea2Changed,
   notifyProjectConfigUpdated,
   notifyProjectUsersUpdated,
 } from "../../task_management/notify_project_v2.ts";
@@ -50,7 +52,12 @@ defineRoute(
           : `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). Please contact your administrator.`,
       });
     }
-    const res = await addProject(c.var.mainDb, c.var.globalUser, body.label);
+    const res = await addProject(
+      c.var.mainDb,
+      c.var.globalUser,
+      body.label,
+      body.adminArea2,
+    );
     if (res.success === false) {
       return c.json(res);
     }
@@ -156,6 +163,29 @@ defineRoute(
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, body.aiContext);
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "updateProjectAdminArea2",
+  requireProjectPermission({
+    preventAccessToLockedProjects: true,
+    requireAdmin: true,
+  }),
+  log("updateProjectAdminArea2"),
+  async (c, { params, body }) => {
+    const res = await updateProjectAdminArea2(
+      c.var.mainDb,
+      params.project_id,
+      body.adminArea2,
+    );
+    if (res.success) {
+      notifyProjectAdminArea2Changed(params.project_id, body.adminArea2);
+      // The instance list badge refetches only off projects_last_updated.
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },

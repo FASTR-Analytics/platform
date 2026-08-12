@@ -17,7 +17,6 @@ globs:
   - lib/types/run_manifest.ts
   - server/db/instance/run_generation.ts
   - server/db/project/modules.ts
-  - server/db/project/results_objects.ts
   - server/github/**
   - server/module_loader/**
   - server/routes/instance/modules.ts
@@ -81,8 +80,7 @@ The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `server/module_loader/**`; `server/github/**`; ALL of `db/project/modules.ts`
 (now just the installed-definition blob helper the manifest builder shares, the
-config-selections parser, and the boot sweep's `uninstallModule`) +
-`db/project/results_objects.ts` (the rig's pg read wrappers);
+config-selections parser, and the boot sweep's `uninstallModule`);
 `server/runs/**` + `worker_routines/generate_run/**` (the results-package
 pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
@@ -164,10 +162,11 @@ monolingual blob, now built straight into the manifest by
 cleanup sweep, which is why the orphaned-PO purge lives with it.
 
 So the `modules` / `results_objects` / `metrics` rows and the `ro_*` tables in
-every project DB are **frozen**: written by images before the cutover, read now
-only by the parity rig's Postgres baseline (`db/project/results_objects.ts`),
-and dropped in Phase 4. Nothing in the serving path consults them — a project
-serves entirely from its attached run's manifest and parquet.
+every project DB are **frozen**: written by images before the cutover, read by
+nothing (the last raw-rows pg reader, `db/project/results_objects.ts`, was
+deleted with PLAN_1_PROJECT_AA2_SCOPE §7), and dropped in Phase 4. Nothing in
+the serving path consults them — a project serves entirely from its attached
+run's manifest and parquet.
 
 `routes/project/modules.ts` is read-only and, since Phase 3 item 3, holds only
 what a project MEMBER may read from the attached run's manifest:
@@ -227,6 +226,60 @@ would pass its selected run and reuse the tools unchanged. The permission
 model for package internals is still open (PLAN_RESULTS_RUNS item 3b); the
 client gates the viewer buttons on one expression per surface so a caller
 without access sees no button rather than one that 403s.
+
+## Project Admin Area 2 scope (PLAN_1_PROJECT_AA2_SCOPE, shipped 2026-08-12)
+
+A project IS either a **national project** or a **single-AA2 project**
+("Lagos State project") — `projects.admin_area_2` (migration 075, NULL =
+national), chosen at creation, edited in settings by a global admin (the
+`updateProject` class: identity, like label edits; there is no project-level
+admin role). Packages stay scope-blind — instance-level, immutable, no
+project FKs; one full national package published to many projects renders as
+each project's own view. The scope is enforced at the run read layer
+(SYSTEM_09) and branded in the shell (SYSTEM_14). **Not a security
+boundary**: package internals (scripts, logs, raw downloads) stay reachable
+under their existing content permissions and show the package as-is.
+
+Rulings:
+
+- **Scope where the column exists.** RO carries `admin_area_2` → filtered
+  directly; only `admin_area_3`/`admin_area_4` → filtered by child values
+  derived by NAME from the family facilities parquet; no admin columns
+  (national ROs, ICEH) → shown unfiltered — a state project still sees
+  national metrics, inevitable and coherent under the branding. The
+  degrade-to-empty guarantee holds for direct-filter ROs, NOT the derived
+  ones: an instance with duplicate district names across regions would fold
+  the twin's numbers in (measured nil in prod today; latent). If it ever
+  goes live, the fix is stopping the M4/M5/M6 R scripts dropping
+  `admin_area_2` — a modules lockstep this plan otherwise avoids.
+- **Mismatch is allowed, surfaced, never auto-fixed.** A package without the
+  project's AA2 attaches fine; area metrics degrade to empty. Surfaced via
+  `projectAdminArea2Coverage` on the compatibility report
+  (`package_compatibility.ts` — its one data query: DISTINCT-probe of the
+  run's facilities parquets, UPPER compare; `"no_facilities_data"` is a
+  distinct third state for ICEH-only packages) — shown in the pre-attach
+  modal and as a persistent warning on the attached-package card. The scope
+  is never silently cleared: the picker renders an orphaned stored value
+  (structure re-upload dropped the area) as an explicit annotated option.
+- **Write-time validation is schema-only** — no membership check against any
+  package; the identity must survive package churn.
+- **Stored FigureBundles and package internals are documented exceptions** —
+  bundles are deliberately frozen and pick up the scope on re-resolution at
+  authoring time, exactly as they behave across re-attach.
+- **MCP context cache**: no invalidation call on scope change (needs the
+  principal token; attach doesn't invalidate either); 30s TTL accepted. Data
+  tools dispatch through routes per-call and scope immediately.
+- **Legacy subsetted projects** (backfill-synthesized windowed packages, and
+  early windowed wizard packages): the subset became the package. They ship
+  `admin_area_2 = NULL` and keep working unchanged. No migration
+  auto-derives identity from legacy windowing stamps (multi-area windows and
+  renamed areas make guessing wrong too often) — convergence is manual: an
+  admin sets the identity in settings whenever ready (harmless on the old
+  package — the filter matches everything in it), and the next attach of a
+  full package continues the scoping from identity.
+- **Future direction (recorded, not built): user permissions.** The AA2
+  identity on the `projects` row is the join key an instance-level user↔AA2
+  permission scheme would need. Nothing in this design precludes it.
 
 ## The results package format (authoritative)
 
@@ -395,8 +448,8 @@ capture is always the FULL dataset per family — entire period range, all
 indicators/admin areas/facility types/ownerships, every HFA service category
 (Tim's ruling 2026-08-03: the R scripts need the full dataset to compute
 correctly, and per-project subsetting is an attach-time query filter —
-PLAN_DATA_SUBSETTING_PROJECT_SPECIFIED — never a generation input). Legacy manifests
-carry a `windowing`/`serviceCategoryScope` key inside their `z.unknown()`
+PLAN_1_PROJECT_AA2_SCOPE — never a generation input). Legacy manifests
+carry a `windowing` key inside their `z.unknown()`
 datasets info — inert, nothing reads it, no schema-version gate needed);
 resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated
 and Kahn-ordered); execute per module (Docker container
@@ -554,10 +607,9 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
   forward-direction twin.
 - **Phase 4 demolition (PLAN_RESULTS_RUNS), gated on FLEET VERIFICATION:** the
   writers are already gone (Phase 3 items 0/1/5); what remains is dropping the
-  frozen plane itself — the `ro_*` tables, the project-DB `modules` /
-  `results_objects` / `metrics` catalog, and their pg read wrappers
-  (`db/project/results_objects.ts`) — which retires the parity rig's oracle and
-  therefore the rig. Full S8 rewrite lands then.
+  frozen plane itself — the `ro_*` tables and the project-DB `modules` /
+  `results_objects` / `metrics` catalog — which retires the parity rig's
+  oracle and therefore the rig. Full S8 rewrite lands then.
 - **No links in a run dir — ever** (Tim's ironclad rule 2026-07-30, reversing
   PLAN_RESULTS_RUNS Q-C's hardlink-dedup amendment and restoring §3.7's
   original "copy, never link"). Every file in a results package is an unlinked

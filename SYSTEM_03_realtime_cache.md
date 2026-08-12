@@ -149,13 +149,17 @@ type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceDatasetsUpdated` (`datasets_updated`),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
 (`r_script`). `server/task_management/notify_project_v2.ts` exposes
-`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus thirteen
+`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus fourteen
 wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectVisualizationFoldersUpdated`, `notifyProjectSlideDecksUpdated`,
 `notifyProjectSlideDeckFoldersUpdated`, `notifyProjectReportsUpdated`,
 `notifyProjectReportFoldersUpdated`, `notifyProjectDashboardsUpdated`,
 `notifyProjectUsersUpdated`, `notifyProjectLastUpdatedV2`,
-`notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`.
+`notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`,
+`notifyProjectAdminArea2Changed` (`admin_area_2_changed` — the scope-identity
+edit, PLAN_1_PROJECT_AA2_SCOPE §5; its route also fires
+`notifyInstanceProjectsLastUpdated`, the only message the instance projects
+list refetches off, so the list badge stays live).
 (The module-dirty-state / any-running / modules-updated / datasets-updated
 wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushes
 `r_script`, `run_progress`, and `run_attached` instead.) Generation telemetry
@@ -359,6 +363,16 @@ semantics and the composite-key caveat are in PROTOCOL_APP_STATE "Sentinel
 versions". `clearEntry` clears all versions of one uniqueness key;
 `clearEntriesWithPrefix` requires a STRICT prefix of the uniqueness keys (a
 complete key list matches nothing — full keys are followed by `::`, not `|`).
+
+The four run-derived caches version on the composite `runVersionKey(pds)` =
+`` `${attachedRunId ?? "no_run_attached"}~${projectScopeToken(adminArea2)}` ``
+(PLAN_1_PROJECT_AA2_SCOPE §5) — a package repoint OR a scope change flips it,
+and the `responseRunVersionMatches` guard rejects in-flight responses from the
+old key. Uniqueness is already projectId-scoped on all four, so cross-project
+bleed was never possible client-side; the scope segment exists solely to
+invalidate on a scope change within one project. Old IndexedDB entries become
+unreachable via the version flip and age out — no purge, the same mechanism
+attach relies on.
 
 Around it:
 

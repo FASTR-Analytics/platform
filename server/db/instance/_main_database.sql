@@ -63,6 +63,7 @@ CREATE TABLE projects (
   status text NOT NULL DEFAULT 'ready',
   deletion_scheduled_at TIMESTAMPTZ,
   run_id text,
+  admin_area_2 text,
   FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 

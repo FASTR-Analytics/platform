@@ -584,7 +584,12 @@ dimensions are always **all_facilities** ("All facilities" — one scope word fo
 all seven columns, so no per-column or per-instance naming is needed; fr/pt use
 the app's established "établissement" / "estabelecimento"). The same context
 drives the editor checkbox text, so row and checkbox can't tell different
-stories.
+stories. One display-side override (S10's `getRollupRowLabel`): under a
+project AA2 scope the injected filter is server-side and never in the config,
+so the context still reads national while the SQL totals one area —
+`projectState.adminArea2` set + national context renders the pinned form
+("{Area} — All areas") instead. Display-only; the scope is never pushed into
+the config (that would reach the fetch config and the cache hash).
 
 **Position is display-only.** The entry's `rollupPosition` ("top"/"bottom", read
 via `getRollupPosition`) drives client-side sort pinning (`ROLLUP_PIN_IDS`) and
@@ -598,6 +603,53 @@ clearing on transient gate closures —
 canonical off-state is both entry fields absent. AI data payloads deliberately
 exclude the roll-up row (double-counting hazard).
 
+## Project AA2 scope injection (PLAN_1_PROJECT_AA2_SCOPE §3)
+
+The project's scope (`projects.admin_area_2`, SYSTEM_08) is enforced
+**wrapper-level, above the Cores** — the shared Cores and the pg-parity path
+are untouched, so `./validate_queries` is unaffected. `getRunReadContext`
+loads `adminArea2` + `scopeToken` in its one SELECT; `computeScopeFilters(ctx,
+ro)` (run_read.ts) decides per-RO from the manifest column stamps at runtime —
+never from a baked list, because a new module output can change the split:
+
+- RO has `admin_area_2` → `[{disOpt: "admin_area_2", values: [aa2]}]`,
+  appended to the caller's filters. Compares case-insensitively and escapes
+  like any filter value (buildWhereClause UPPER + escapeSqlString). A PO
+  whose own filterBy names a different AA2 ANDs to empty — correct.
+- Only `admin_area_3` (or `admin_area_4`) → child values derived from the
+  family facilities parquet (`SELECT DISTINCT <child> WHERE
+  UPPER(admin_area_2) = UPPER(aa2)`), memoized per
+  `runId|table|child|UPPER(aa2)` (FIFO ~50, evicted by
+  `evictRunFromScopeDerivationCache` in `delete_run.ts`). The facilities
+  table resolves off `manifest.inputFiles`, never `facilitiesTableForFamily`
+  unguarded (it throws for iceh/undefined). An **empty derivation injects the
+  `__SCOPE_EMPTY__` sentinel** — an empty values array is skipped by
+  `buildWhereClause` and would show ALL data. Matching is by district NAME
+  (the collision caveat, SYSTEM_08). As of the prod sweep 2026-08-12 this
+  reaches 7 RO names (M4/M5/M6 coverage/denominators/combined-results under
+  historical numberings); 24 scope directly; 19 have no admin columns and
+  pass unfiltered.
+- Injection sites, all in the FromRun wrappers:
+  `getPresentationObjectItemsFromRun` (effective config passed to BOTH the
+  query context and the Core; the caller's fetchConfig restored onto the
+  holder afterwards — the echo is the request, the scope rides as
+  `scopeToken`), `getPossibleValuesFromRun` (the `filters` param is
+  REASSIGNED because it is consumed twice; automatically scopes
+  `getResultsValueInfoFromRun` and the replicant-options route), and
+  `getResultsObjectItemsFromRun` (raw-rows preview: WHERE spliced before the
+  LIMIT, with the scope columns passed as textColumns — an empty set would
+  route admin-area names down the numeric branch and compile to FALSE — and
+  `totalCount` counted over the same WHERE instead of the manifest's
+  package-wide rowCount).
+
+**Period bounds anchor differently on the two paths, ruled fine**: the scope
+filter is a non-facility filter, so `getPeriodBoundsCore` re-anchors the
+items path to the scoped subset (axis min moves), while the replicant-options
+route keeps the manifest stamp (`getRawPeriodBoundsFromRun`). Measured across
+83 real RO/run pairs: zero areas lag the package period max, and every
+relative filter type anchors on max — do not "fix" the replicant path on
+this basis.
+
 ## Caching
 
 **Server (Valkey, S3's `TimCacheC`).** Four instances in
@@ -605,32 +657,39 @@ exclude the roll-up row (double-counting hazard).
 consumed by the query routes and by migration data-transforms (the layering
 inversion in Open items):
 
-| Cache            | Uniqueness                                                | Version hash                                       |
-| ---------------- | --------------------------------------------------------- | -------------------------------------------------- |
-| `po_detail_v2`   | project + po id                                           | `presentationObjectLastUpdated`                    |
-| `po_items`       | project + resultsObject + `hashFetchConfig`               | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `metric_info`    | project + metric                                          | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
-| `replicant_opts` | project + resultsObject + replicateBy + `hashFetchConfig` | `PO_CACHE_VERSION\|moduleLastRun\|datasetsVersion` |
+| Cache            | Uniqueness                                                              | Version hash                        |
+| ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
+| `po_detail_v7`   | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
+| `po_items`       | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
+| `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
+| `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
 
-Two version dimensions by design: `moduleLastRun` tracks module re-runs;
-`datasetsVersion` (`getDatasetsVersion` — concat of
-`datasets.dataset_type:
-last_updated` rows, defined in the route file) tracks
-dataset re-integration, which rewrites `indicatorMetadata` independently of
-module runs. Payloads carry both so `parseData` can reproduce the version hash
-byte-identically to `versionHashFromParams` — that pairing is the `TimCacheC`
-contract; a mismatch silently no-ops the cache. Error envelopes are never stored
+The three data caches key on the attached immutable run, not the project —
+two projects on one run share entries — plus the **scopeToken**
+(`projectScopeToken`, PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed
+under the project's AA2 scope, so sharing requires BOTH run and scope to
+match. scopeToken is **required** on the uniqueness-param types (an optional
+would compile and silently mis-key — the `cache_status.ts` exists-probe was
+the site this was designed to force) and rides as the **trailing** segment so
+the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` and
+`cache_status.ts` (roId parsed at segment index 1) keep working. Payloads
+missing `runId` OR `scopeToken` are never stored (the parity rig's Postgres
+baseline).
+
+Payloads carry the key ingredients (`runId`, `scopeToken`, and for po_detail
+`lastUpdated`) so `parseData` can reproduce the version hash byte-identically
+to `versionHashFromParams` — that pairing is the `TimCacheC` contract; a
+mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "5") is
-folded into the version hash — bump it when a code change alters the _meaning_
-of a cached payload without any data change ("2": `YYYYQ` quarter cutover; "3":
-self-strip removal; "4": replicant options resolve relative period filters; "5":
-`hfa_service_category` filtering changed exact-match → set-membership). **The
-key prefix** (`po_detail` → `po_detail_v2`) — bump it when the payload _shape_
-changes (the version hash only tracks row `last_updated`, so a deploy adding a
-field would keep serving old-shape payloads for unmodified rows; `_v2` added
-`resultsValue.hasFacilityLevelRows`). The `po_detail` hit path additionally
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently
+"15") is folded into the version hash — bump it when a code change alters the
+_meaning_ of a cached payload without any data change (full history in the
+comment block above the constant; "15" is the AA2-scope key change). **The
+key prefix** (`po_detail` → `po_detail_v7`) — bump it when the payload
+_shape_ changes (the version hash only tracks row `last_updated` + run +
+scope, so a deploy adding a field would keep serving old-shape payloads for
+unmodified rows). The `po_detail` hit path additionally
 re-parses `config` through `presentationObjectConfigSchema` so pre-deploy Valkey
 entries get legacy-shape adaptation the DB read path would have applied.
 
@@ -663,14 +722,19 @@ in
 Two-tier (LRU memory, default 100, + IndexedDB); the version is **part of the
 key**, so invalidation is automatic misses, with old versions left to the deploy
 flush (LoggedInWrapper clears site caches on version change — dev has no deploy,
-hence the stale-IndexedDB trap). Version keys: `po_detail` =
-`pds.lastUpdated.presentation_objects[id]`; the other three =
-`moduleDataVersionKey` = `moduleLastRun[moduleId]|datasetsVersionKey(pds)` — the
-same two dimensions as the server, fed by the T1 SSE store (module re-runs
-UPDATE every dependent PO's `last_updated` and broadcast, so the `po_detail` key
-also moves — a refuted staleness finding proved this chain sound). Sentinel
-versions (`pds_not_ready`, `unknown`) are never cached. In-flight promises
-coalesce identically to the server.
+hence the stale-IndexedDB trap). Version keys build on `runVersionKey(pds)` =
+`` `${attachedRunId ?? "no_run_attached"}~${projectScopeToken(adminArea2)}` ``
+(SYSTEM_03 — `~` separator because the `po_detail` guard slices the trailing
+segment at the LAST `|`; `projectScopeToken` escapes both separators):
+`po_detail` = `pds.lastUpdated.presentation_objects[id]|runVersionKey`; the
+other three = `runVersionKey` alone. The response-side guard
+`responseRunVersionMatches` compares the payload's `runId`+`scopeToken`
+against the key, so an in-flight response landing after a package repoint OR
+a scope change is rejected; payloads missing either field (the parity
+baseline) are never cached. Uniqueness stays projectId-keyed on all four, so
+cross-project bleed was already impossible — the scope segment exists to
+invalidate on a scope CHANGE within one project. In-flight promises coalesce
+identically to the server.
 
 **Cache observability**: `getCacheStatus`
 ([routes/project/cache_status.ts](server/routes/project/cache_status.ts),

@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { _DEV_USERS, t3, TC } from "lib";
 import {
+  Badge,
   HeadingBar,
   Button,
   FrameLeft,
@@ -166,7 +167,14 @@ function ProjectInner() {
               <div class="h-full w-full" data-cursor-zone="topbar">
                 <HeadingBar
                   onBack={() => navigate("/")}
-                  heading={projectState.label}
+                  heading={
+                    <div class="ui-gap-sm flex items-center">
+                      <span>{projectState.label}</span>
+                      <Show when={projectState.adminArea2}>
+                        {(area) => <Badge>{area()}</Badge>}
+                      </Show>
+                    </div>
+                  }
                 >
                   <div class="ui-gap-sm flex items-center">
                     <Button

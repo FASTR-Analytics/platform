@@ -7,10 +7,17 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import {
+  ProjectScopePicker,
+  storedValueFromScopeSelection,
+  type ProjectScopeSelection,
+} from "~/components/_shared/project_scope_picker";
 
-// A new project is just a name: it starts with no results package attached
-// (the typed no-run state) and gets one from the Results package tab, which
-// is where datasets and modules now come from (PLAN_RESULTS_RUNS Phase 3).
+// A new project is a name plus a scope identity (national or a single Admin
+// Area 2 — PLAN_1_PROJECT_AA2_SCOPE): it starts with no results package
+// attached (the typed no-run state) and gets one from the Results package
+// tab, which is where datasets and modules now come from (PLAN_RESULTS_RUNS
+// Phase 3).
 export function AddProjectForm(
   p: AlertComponentProps<
     {
@@ -20,6 +27,9 @@ export function AddProjectForm(
   >,
 ) {
   const [tempLabel, setTempLabel] = createSignal<string>("");
+  const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>({
+    mode: "national",
+  });
 
   const save = createFormAction(
     async (e: MouseEvent) => {
@@ -35,7 +45,18 @@ export function AddProjectForm(
           }),
         };
       }
-      return await serverActions.createProject({ label: goodLabel });
+      const adminArea2 = storedValueFromScopeSelection(tempScope());
+      if (adminArea2 === undefined) {
+        return {
+          success: false,
+          err: t3({
+            en: "You must select an area for the project scope",
+            fr: "Vous devez sélectionner une zone pour la portée du projet",
+            pt: "Tem de selecionar uma zona para o âmbito do projeto",
+          }),
+        };
+      }
+      return await serverActions.createProject({ label: goodLabel, adminArea2 });
     },
     async () => {},
     (data) => p.close({ newProjectId: data!.newProjectId }),
@@ -66,6 +87,7 @@ export function AddProjectForm(
           fullWidth
           autoFocus
         />
+        <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
       </div>
     </AlertFormHolder>
   );

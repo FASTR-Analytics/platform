@@ -144,3 +144,13 @@ export function notifyProjectRunAttached(
 ): void {
   notifyProjectV2(projectId, { type: "run_attached", data });
 }
+
+export function notifyProjectAdminArea2Changed(
+  projectId: string,
+  adminArea2: string | null,
+): void {
+  notifyProjectV2(projectId, {
+    type: "admin_area_2_changed",
+    data: { adminArea2 },
+  });
+}

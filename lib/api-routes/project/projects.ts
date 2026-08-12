@@ -19,10 +19,15 @@ const projectPermissionsPartialSchema = projectPermissionsRequiredSchema.partial
 export const projectRouteRegistry = {
   // A new project starts empty — datasets and modules arrive with the
   // results package an admin attaches to it (Phase 3 item 1).
+  // adminArea2 is required-nullable: the client always states the scope
+  // choice explicitly (null = national project).
   createProject: route({
     path: "/projects",
     method: "POST",
-    body: z.object({ label: z.string() }),
+    body: z.object({
+      label: z.string(),
+      adminArea2: z.string().min(1).nullable(),
+    }),
     response: {} as { newProjectId: string },
   }),
 
@@ -31,6 +36,17 @@ export const projectRouteRegistry = {
     method: "POST",
     params: projectIdParamsSchema,
     body: z.object({ label: z.string(), aiContext: z.string() }),
+    requiresProject: true,
+  }),
+
+  // Project identity, not the attach guard: global-admin-only, like label
+  // edits. Schema-only validation — no membership check against any package
+  // (the identity must survive package churn).
+  updateProjectAdminArea2: route({
+    path: "/project/:project_id/admin_area_2",
+    method: "POST",
+    params: projectIdParamsSchema,
+    body: z.object({ adminArea2: z.string().min(1).nullable() }),
     requiresProject: true,
   }),
 

@@ -7,6 +7,7 @@ import {
   _REPLICANT_OPTIONS_CACHE,
 } from "../routes/caches/visualizations.ts";
 import { evictRunFromManifestCache } from "./manifest_cache.ts";
+import { evictRunFromScopeDerivationCache } from "../run_query/run_read.ts";
 import { runDirPath } from "./run_paths.ts";
 
 // Guarded hard delete of a results package (PLAN_RESULTS_RUNS Phase 3 fork
@@ -45,6 +46,7 @@ export async function deleteRun(
   }
 
   evictRunFromManifestCache(runId);
+  evictRunFromScopeDerivationCache(runId);
   await purgeRunCaches(runId);
   return { success: true };
 }

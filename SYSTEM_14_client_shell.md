@@ -110,7 +110,12 @@ Everything else is a **signal-driven switchboard**, never the URL:
 - `components/project/index.tsx` — the page is the **persisted** `projectTab()`
   signal from `t4_ui` (localStorage-backed, so reloads land on the same tab);
   changes go through `updateProjectView`, and an `AIContextSync` component
-  mirrors the current tab into the AI context (S13).
+  mirrors the current tab into the AI context (S13). Its `HeadingBar` brands
+  the project's AA2 scope (PLAN_1_PROJECT_AA2_SCOPE §6): when
+  `projectState.adminArea2` is set, a small badge with the area name renders
+  beside the label; national projects show nothing extra. The instance
+  projects list (`instance_projects.tsx`, S15) carries the same badge off
+  `ProjectSummary.adminArea2`.
 
 ## Language, calendar & translation
 

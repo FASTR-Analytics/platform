@@ -94,6 +94,19 @@ export function facilitiesTableForFacilityFamily(
   return family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 }
 
+export async function listAdminArea2s(
+  mainDb: Sql
+): Promise<APIResponseWithData<string[]>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const adminArea2s = (
+      await mainDb<
+        { admin_area_2: string }[]
+      >`SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)`
+    ).map((r) => r.admin_area_2);
+    return { success: true, data: adminArea2s };
+  });
+}
+
 export async function getStructureItems(
   mainDb: Sql,
   family: FacilityFamily,

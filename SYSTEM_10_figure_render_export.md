@@ -283,6 +283,15 @@ layout/cells, map regions, pie slices, the standard series/map color funcs) live
 in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via
 `setGlobalStyle` at boot ([index.tsx:12](client/src/index.tsx#L12)).
 
+### Roll-up row label under a project AA2 scope
+
+`getRollupRowLabel` (in `get_data_config_from_po.ts`) has one display-side
+override: when `projectState.adminArea2` is set and the label context resolves
+national, it renders the pinned form ("{Area} — All areas") — the scope filter
+is server-injected and never in the PO config, so without this a scoped
+project's roll-up row would read "National" while totalling one area. Full
+ruling in SYSTEM_09 "Roll-up"; the scope itself in SYSTEM_08.
+
 ### Sample sizes in table headers (`s.showNValues`)
 
 v1 display policy for the `__n_*` columns S9 emits. The data half is `nProps` on

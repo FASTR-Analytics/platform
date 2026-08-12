@@ -79,6 +79,7 @@ export type DBProject = {
   status: string;
   deletion_scheduled_at: Date | null;
   run_id: string | null;
+  admin_area_2: string | null;
 };
 
 export type DBProjectUserRole = {

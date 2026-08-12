@@ -63,6 +63,19 @@ export function ResultsPackageCompatibilityModal(
       <StateHolderWrapper state={report.state()} noPad>
         {(keyedReport) => (
           <div class="ui-spy-sm">
+            <Show when={keyedReport.projectAdminArea2Coverage === "uncovered"}>
+              <div class="text-warning text-sm">
+                {`${t3({
+                  en: "This package has no data for",
+                  fr: "Ce paquet ne contient aucune donnée pour",
+                  pt: "Este pacote não contém dados para",
+                })} ${keyedReport.projectAdminArea2}. ${t3({
+                  en: "Area-level metrics will show no data; national-level metrics remain visible.",
+                  fr: "Les indicateurs au niveau des zones n'afficheront aucune donnée ; les indicateurs nationaux restent visibles.",
+                  pt: "Os indicadores ao nível das zonas não mostrarão dados; os indicadores nacionais permanecem visíveis.",
+                })}`}
+              </div>
+            </Show>
             <Show
               when={keyedReport.issues.length > 0}
               fallback={

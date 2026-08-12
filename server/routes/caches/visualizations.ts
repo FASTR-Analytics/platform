@@ -65,13 +65,22 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // configs disaggregated by a PAE ingredient previously had DuckDB bind the
 // expression to the raw grouped value instead of the aggregate; cached "13"
 // items hold those numbers.
-const PO_CACHE_VERSION = "14";
+// "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE) — payloads are computed
+// under the project's scope and the keys gain a scopeToken segment; "14"
+// entries were keyed without it.
+const PO_CACHE_VERSION = "15";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
 // attached to the same run share entries — and is folded into po_detail's
 // version (its payload embeds run-derived resultsValue). Payloads missing a
-// runId (the parity rig's Postgres baseline) are never stored.
+// runId (the parity rig's Postgres baseline) are never stored. The scopeToken
+// (projectScopeToken) rides beside it: payloads are computed under the
+// project's AA2 scope, so two projects share entries only when they share
+// BOTH run and scope. Required on the uniqueness side so every exists/read
+// site is forced to supply it (an optional would compile and silently
+// mis-key); trailing segment so the `${runId}|`/`${runId}::` prefix scans
+// and their roId-at-index-1 parses keep working.
 export type PoDataVersionParams = {
   runId: string;
 };
@@ -84,6 +93,7 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   {
     presentationObjectLastUpdated: string;
     runId: string;
+    scopeToken: string;
   },
   APIResponseWithData<PresentationObjectDetail>
   // Prefix is versioned: bump it whenever the cached payload SHAPE or
@@ -104,7 +114,7 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>
-    `${params.presentationObjectLastUpdated}|${params.runId}`,
+    `${params.presentationObjectLastUpdated}|${params.runId}|${params.scopeToken}`,
   parseData: (res) => {
     if (res.success === false || res.data.runId === undefined) {
       return {
@@ -116,7 +126,9 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
     return {
       shouldStore: true,
       uniquenessHash: [res.data.projectId, res.data.id].join("|"),
-      versionHash: `${res.data.lastUpdated}|${res.data.runId}`,
+      versionHash: `${res.data.lastUpdated}|${res.data.runId}|${
+        res.data.scopeToken ?? "none"
+      }`,
     };
   },
 });
@@ -126,6 +138,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
     runId: string;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ItemsHolderPresentationObject>
@@ -135,10 +148,15 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
       params.runId,
       params.resultsObjectId,
       hashFetchConfig(params.fetchConfig),
+      params.scopeToken,
     ].join("|"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (
+      res.success === false ||
+      res.data.runId === undefined ||
+      res.data.scopeToken === undefined
+    ) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -151,6 +169,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
         res.data.runId,
         res.data.resultsObjectId,
         hashFetchConfig(res.data.fetchConfig),
+        res.data.scopeToken,
       ].join("|"),
       versionHash: PO_CACHE_VERSION,
     };
@@ -161,12 +180,13 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
   {
     runId: string;
     metricId: string;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 >("metric_info", {
   uniquenessHashFromParams: (params) =>
-    [params.runId, params.metricId].join("::"),
+    [params.runId, params.metricId, params.scopeToken].join("::"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
     // A transient possible-values failure is folded into a SUCCESSFUL payload
@@ -175,6 +195,7 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     if (
       res.success === false ||
       res.data.runId === undefined ||
+      res.data.scopeToken === undefined ||
       Object.values(res.data.disaggregationPossibleValues).some(
         (s) => s.status === "error",
       )
@@ -187,7 +208,11 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     }
     return {
       shouldStore: true,
-      uniquenessHash: [res.data.runId, res.data.metricId].join("::"),
+      uniquenessHash: [
+        res.data.runId,
+        res.data.metricId,
+        res.data.scopeToken,
+      ].join("::"),
       versionHash: PO_CACHE_VERSION,
     };
   },
@@ -199,6 +224,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ReplicantOptionsForPresentationObject>
@@ -209,11 +235,16 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
       params.resultsObjectId,
       params.replicateBy,
       hashFetchConfig(params.fetchConfig),
+      params.scopeToken,
     ].join("::");
   },
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (
+      res.success === false ||
+      res.data.runId === undefined ||
+      res.data.scopeToken === undefined
+    ) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -227,6 +258,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
         res.data.resultsObjectId,
         res.data.replicateBy,
         hashFetchConfig(res.data.fetchConfig),
+        res.data.scopeToken,
       ].join("::"),
       versionHash: PO_CACHE_VERSION,
     };

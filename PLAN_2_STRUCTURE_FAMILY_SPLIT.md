@@ -27,6 +27,28 @@ in between): `PO_CACHE_VERSION` is already "14" (the PAE fix took the "13"→"14
 bump this plan's earlier text claimed), so this plan bumps "15"→"16" after
 PLAN_1; migrations are **076** (+ **077** next release) since PLAN_1 takes 075.
 
+**Rejected alternative — unified geography (Tim, 2026-08-12, FINAL; do not
+re-litigate):** reconciling the two families' admin names into one name-space
+(ingest-time recode of the second family's areas onto the first's, unified
+tree + single geojson keying) was considered and REJECTED. The recode pattern
+works for a handful of facility-column values but not for thousands of
+AA3/AA4 names, re-adjudicated on every structure re-upload; and run packages
+are immutable, so even perfect ingest reconciliation never fixes names
+already baked into attached packages. Families stay distinct — this plan's
+split IS the design.
+
+**Future direction (recorded, NOT in scope): a read-side view layer.** Where
+a surface wants "the instance's areas" rather than one family's, project the
+per-family trees as a single listing at read time — a generalization of
+`listAdminArea2s`'s union query (this plan's read-site table), extended to
+other levels/surfaces (and to a shared helper or SQL view per level) only
+when a second consumer appears. No new storage, no ID mapping, no
+reconciliation; per-family tables stay the only truth. The one design
+decision it owns, ruled when built: dedupe case-insensitively (the query
+layer's UPPER equality) and pick a display spelling. Family-scoped surfaces
+(windowing trees, per-family deletes, depth-gated exports) keep reading
+their own family's tables directly.
+
 ## The change, in one line
 
 `max_admin_area` and `facility_columns` (today ONE global setting each,

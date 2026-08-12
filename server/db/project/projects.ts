@@ -202,6 +202,7 @@ export async function getProjectDetail(
       thisUserRole: "viewer",
       isLocked: rawProject.is_locked,
       isCentralReporting: rawProject.is_central_reporting,
+      adminArea2: rawProject.admin_area_2,
       attachedRunId: rawProject.run_id,
       projectDatasets: datasetsInProject,
       projectModules,
@@ -260,6 +261,7 @@ export async function addProject(
   mainDb: Sql,
   globalUser: GlobalUser,
   projectLabel: string,
+  adminArea2: string | null,
 ): Promise<APIResponseWithData<{ newProjectId: string; projectDb: Sql }>> {
   return await tryCatchDatabaseAsync(async () => {
     const newProjectId = crypto.randomUUID();
@@ -332,7 +334,7 @@ export async function addProject(
     `;
 
     await mainDb.begin((sql) => [
-      sql`INSERT INTO projects (id, label, ai_context) VALUES (${newProjectId}, ${projectLabel}, '')`,
+      sql`INSERT INTO projects (id, label, ai_context, admin_area_2) VALUES (${newProjectId}, ${projectLabel}, '', ${adminArea2})`,
       sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
        VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
       ...usersToAutoAdd.map(
@@ -366,6 +368,21 @@ export async function updateProject(
     `;
     const isLocked = result.at(0)?.is_locked ?? false;
     return { success: true, data: { label, isLocked } };
+  });
+}
+
+export async function updateProjectAdminArea2(
+  mainDb: Sql,
+  projectId: string,
+  adminArea2: string | null,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
+      UPDATE projects
+      SET admin_area_2 = ${adminArea2}
+      WHERE id = ${projectId}
+    `;
+    return { success: true };
   });
 }
 
@@ -860,7 +877,7 @@ export async function copyProjectSync(
       VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
       ON CONFLICT (email) DO NOTHING
     `;
-    await mainDb`INSERT INTO projects (id, label, ai_context, status) VALUES (${newProjectId}, ${newProjectLabel}, '', 'copying')`;
+    await mainDb`INSERT INTO projects (id, label, ai_context, status, admin_area_2) VALUES (${newProjectId}, ${newProjectLabel}, '', 'copying', ${sourceProject.admin_area_2})`;
 
     await mainDb`
       INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)

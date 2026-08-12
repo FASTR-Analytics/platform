@@ -143,6 +143,17 @@ export type ResultsPackageCompatibilityReport = {
   runLabel: string;
   authoredVisualizationCount: number;
   issues: ResultsPackageCompatibilityIssue[];
+  // Whether the package's facilities data contains the project's Admin Area 2
+  // scope (PLAN_1_PROJECT_AA2_SCOPE §6). null = national project (nothing to
+  // check); "no_facilities_data" = the package has no facilities parquet to
+  // check against (e.g. ICEH-only) — a distinct state, not "uncovered".
+  projectAdminArea2Coverage:
+    | "covered"
+    | "uncovered"
+    | "no_facilities_data"
+    | null;
+  // Echoed so the UI can name the area in the warning.
+  projectAdminArea2: string | null;
 };
 
 export type RunGenerationAttemptDetail = {

@@ -1,7 +1,17 @@
-# PLAN: GeoJSON into the Run Package — the last artifact-render leak
+# PLAN_3: GeoJSON into the Run Package — the last artifact-render leak
 
 Status: DRAFT for review. No implementation yet. Report-only until per-step
 go-ahead.
+
+**Sequencing (ruled 2026-08-12): plan 3 of 3** — after PLAN_1 (AA2 project
+scope) and PLAN_2 (structure family split). The PLAN_2 gate is hard for
+WS-CAPTURE: packages are immutable, so `geojson_maps` must already be keyed
+`(facility_family, admin_area_level)` before geometry is frozen into
+packages — capture is per-family from day one (file naming + manifest stamp
+carry the family dimension). Treat PLAN_2's geojson section and this plan as
+one continuous workstream (same five `getGeoJsonSync` sites, same
+`t2_geojson` cache, same `geojson_maps` rows). WS-DEDUP and WS-COVERAGE have
+no such gate — they can run anytime, including in parallel with PLAN_1/2.
 
 **Rewritten 2026-08-06** around the landed results-runs model
 ([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md), built 2026-07-30; format spec =
@@ -57,12 +67,13 @@ portability blocker. Fixing it is the heart of this plan.
 
 ## 2. Target architecture (runs model)
 
-1. **Home: the run package.** `inputs/geojson/level_{2,3,4}.geojson` (gzipped
-   — see open decision Q-GZIP), captured in the generation `prepare` stage
-   beside the dataset extracts, from the instance `geojson_maps` rows as they
-   exist at generation time. Manifest stamps: levels present, feature counts,
-   source `uploaded_at`. **Additive-optional** — no `manifestSchemaVersion`
-   bump; readers tolerate absence.
+1. **Home: the run package.** `inputs/geojson/{family}_level_{2,3,4}.geojson`
+   (gzipped — see open decision Q-GZIP; family-keyed per PLAN_2), captured in
+   the generation `prepare` stage beside the dataset extracts, from the
+   instance `geojson_maps` rows as they exist at generation time. Manifest
+   stamps: families+levels present, feature counts, source `uploaded_at`.
+   **Additive-optional** — no `manifestSchemaVersion` bump; readers tolerate
+   absence.
 2. **Read path.** A project-scoped route resolves `projects.run_id` and serves
    the attached run's geojson. Packages are immutable → serve with
    `Cache-Control: immutable`, client cache keyed by runId. `build_figure_inputs`
@@ -164,8 +175,9 @@ WS-CAPTURE** (immutability — see §2 item 4).
 Implements §2 items 1–3 and 5:
 
 - Capture in `generate_run/` `prepare_inputs` (alongside dataset extracts):
-  read `geojson_maps`, write `inputs/geojson/level_N.geojson[.gz]`, stamp the
-  manifest (additive-optional field).
+  read `geojson_maps` (family-keyed after PLAN_2), write
+  `inputs/geojson/{family}_level_N.geojson[.gz]`, stamp the manifest
+  (additive-optional field carrying family + level + counts).
 - Backfill: `backfill_runs.ts` captures from live instance `geojson_maps` — a
   **documented exception** to "backfill from frozen project data": the live
   blob is exactly what those projects render today, so capturing it is
@@ -228,16 +240,16 @@ is dissolved by the runs model — see §2.
 2. **WS-COVERAGE** — the backfill measurement + typed sentinel.
 3. **WS-KEY** — migration + backfill + stored-snapshot transform. The
    headline. Must precede WS-CAPTURE.
-4. **WS-CAPTURE** — capture + serving + repoint.
+4. **WS-CAPTURE** — capture + serving + repoint. Gated on PLAN_2 (family
+   keying — see the sequencing note in the header).
 5. **WS-EFFICIENCY** (P2, parallel-safe) · **WS-LIFECYCLE-RESIDUAL** (P3,
    anytime).
 
-**Relative to the runs rollout: no hard dependency either way.** The manifest
-change is additive with a clean fallback — do NOT gate the fleet deploy on
-this. Sweetener if this lands before Tim runs the fleet rollout:
-`backfill_runs.ts` captures geojson and the fleet never has a geojson-less
-package; if the rollout goes first, the fallback covers backfilled packages
-and the next regeneration heals them.
+**Relative to the runs rollout: resolved 2026-08-12.** The fleet rollout
+completed first (28 of 29 instances on 1.66.7; Nigeria pending its window),
+so the backfilled fleet packages carry no geojson — the typed fallback (live
+instance read, the status quo) covers them, and each project's next
+regeneration heals it. The old "capture before rollout" sweetener is moot.
 
 ---
 

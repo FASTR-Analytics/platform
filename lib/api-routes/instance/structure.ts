@@ -60,6 +60,14 @@ export const structureRouteRegistry = {
     params: z.object({ family: facilityFamilySchema }),
     response: {} as { totalCount: number; items: Record<string, string>[] },
   }),
+  // Any authenticated user: feeds the project scope picker (area names are
+  // not sensitive; counts are already in instanceState). The heavier
+  // structure routes require can_view_data — the wrong audience for this.
+  listAdminArea2s: route({
+    path: "/structure/admin_area_2s",
+    method: "GET",
+    response: {} as string[],
+  }),
   deleteAllStructureData: route({
     path: "/structure/data",
     method: "DELETE",

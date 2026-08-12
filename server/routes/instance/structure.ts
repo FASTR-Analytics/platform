@@ -16,6 +16,7 @@ import {
   getStructureStagedRecodeRows,
   getStructureUploadAttempt,
   getStructureUploadStatus,
+  listAdminArea2s,
   setStructureRecodes,
   resolveDhis2Credentials,
   structureStep0_SetSourceType,
@@ -51,6 +52,18 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 //    Structure items    //
 //                        //
 ////////////////////////////
+
+defineRoute(
+  routesStructure,
+  "listAdminArea2s",
+  // Any authenticated user — feeds the project scope picker (see registry).
+  requireGlobalPermission(),
+  log("listAdminArea2s"),
+  async (c) => {
+    const res = await listAdminArea2s(c.var.mainDb);
+    return c.json(res);
+  },
+);
 
 defineRoute(
   routesStructure,

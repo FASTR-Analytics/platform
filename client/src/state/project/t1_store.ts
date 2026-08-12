@@ -3,6 +3,7 @@ import {
   type ProjectSseMessage,
   type LastUpdateTableName,
   _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  projectScopeToken,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { forceCollabReconnect } from "./collab";
@@ -16,6 +17,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   thisUserRole: "viewer",
   isLocked: false,
   isCentralReporting: false,
+  adminArea2: null,
   attachedRunId: null,
   projectDatasets: [],
   projectModules: [],
@@ -78,6 +80,12 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       if (msg.data.isCentralReporting !== undefined) {
         setProjectState("isCentralReporting", msg.data.isCentralReporting);
       }
+      break;
+
+    // Scope identity change: flips runVersionKey's scope segment, so every
+    // run-derived T2 entry re-keys (same mechanism as run_attached).
+    case "admin_area_2_changed":
+      setProjectState("adminArea2", msg.data.adminArea2);
       break;
 
     // A generated run was published and the project repointed: the run key
@@ -184,20 +192,24 @@ export function getSnapshotProjectState(): ProjectState {
 // their first await — getSnapshotProjectState is unwrapped, so
 // cache-internal reads are NOT tracked.
 export function runVersionKey(pds: ProjectState): string {
-  return pds.attachedRunId ?? "no_run_attached";
+  // `~` separator, not `|`: the po_detail version guard slices at the LAST
+  // `|` and must receive the whole run+scope token as one trailing segment
+  // (projectScopeToken escapes both separators).
+  return `${pds.attachedRunId ?? "no_run_attached"}~${projectScopeToken(pds.adminArea2)}`;
 }
 
 // The response-side half of that key (item 4's cache guard): a run-keyed
-// payload carries the runId it was actually computed against, so an in-flight
-// response landing after a package repoint can be told apart from one that
-// belongs under the key it was requested with. undefined is the parity rig's
-// Postgres baseline, which must never be cached — hence the explicit false
-// rather than a "no_run_attached" fallback.
-export function responseRunIdMatches(
-  responseRunId: string | undefined,
+// payload carries the runId + scopeToken it was actually computed against, so
+// an in-flight response landing after a package repoint OR a scope change can
+// be told apart from one that belongs under the key it was requested with.
+// undefined is the parity rig's Postgres baseline, which must never be cached
+// — hence the explicit false rather than a "no_run_attached" fallback.
+export function responseRunVersionMatches(
+  data: { runId?: string; scopeToken?: string },
   runKey: string,
 ): boolean {
-  return responseRunId !== undefined && responseRunId === runKey;
+  return data.runId !== undefined && data.scopeToken !== undefined &&
+    `${data.runId}~${data.scopeToken}` === runKey;
 }
 
 export { projectState };

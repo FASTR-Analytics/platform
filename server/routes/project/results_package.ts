@@ -76,7 +76,9 @@ defineRoute(
   log("getResultsPackageCompatibility"),
   async (c, { params }) => {
     const res = await buildResultsPackageCompatibilityReport(
+      c.var.mainDb,
       c.var.ppk.projectDb,
+      c.var.ppk.projectId,
       params.run_id,
     );
     return c.json(res);

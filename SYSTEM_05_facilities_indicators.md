@@ -526,7 +526,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   closed 2026-07-06: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
-  PLAN_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
+  PLAN_3_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
   (lon/lat range, polygonal types, non-unique match values). (The
   plaintext-sessionStorage credentials item is resolved — the
   sessionStorage cache was deleted by PLAN_DHIS2_CREDENTIAL_STORE_

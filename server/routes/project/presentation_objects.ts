@@ -217,6 +217,7 @@ defineRoute(
       {
         presentationObjectLastUpdated: poLastUpdated,
         runId: runCtx.runId,
+        scopeToken: runCtx.scopeToken,
       },
     );
 
@@ -262,6 +263,7 @@ defineRoute(
       {
         presentationObjectLastUpdated: poLastUpdated,
         runId: runCtx.runId,
+        scopeToken: runCtx.scopeToken,
       },
     );
 
@@ -578,6 +580,7 @@ defineRoute(
         runId: runCtx.runId,
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+        scopeToken: runCtx.scopeToken,
       },
       versionParams,
     );
@@ -633,6 +636,7 @@ defineRoute(
           runId: runCtx.runId,
           resultsObjectId: body.resultsObjectId,
           fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+          scopeToken: runCtx.scopeToken,
         },
         versionParams,
       );
@@ -685,6 +689,7 @@ defineRoute(
       {
         runId: runCtx.runId,
         metricId: body.metricId,
+        scopeToken: runCtx.scopeToken,
       },
       versionParams,
     );
@@ -731,6 +736,7 @@ defineRoute(
         {
           runId: runCtx.runId,
           metricId: body.metricId,
+          scopeToken: runCtx.scopeToken,
         },
         versionParams,
       );
@@ -810,6 +816,7 @@ defineRoute(
         resultsObjectId: body.resultsObjectId,
         replicateBy: body.replicateBy,
         fetchConfig: fetchConfig,
+        scopeToken: runCtx.scopeToken,
       },
       versionInfo,
     );
@@ -962,6 +969,7 @@ defineRoute(
           resultsObjectId: body.resultsObjectId,
           replicateBy: body.replicateBy,
           fetchConfig: fetchConfig,
+          scopeToken: runCtx.scopeToken,
         },
         versionInfo,
       );
