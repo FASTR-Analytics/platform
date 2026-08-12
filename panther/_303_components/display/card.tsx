@@ -10,12 +10,14 @@ import { createMemo, type JSX, Match, Show, Switch } from "solid-js";
 // selected pin stays distinguishable from hover because only selection
 // carries the wash. The clickable variant stays a <div> (role="button" +
 // keyboard wiring, as frames.tsx collapsed panes) — a <button> permits only
-// phrasing content, and a card body is flow content.
+// phrasing content, and a card body is flow content. The link variant is a
+// real <a> (Button's href arm is the precedent) so middle-click/new-tab/native
+// keyboard behavior survive.
 const BORDER_TRANSITION = {
   transition: "border-color var(--ui-dur-fast) var(--ui-ease)",
 };
 
-type CardProps = {
+type CardPropsBase = {
   children: JSX.Element;
   header?: string | JSX.Element;
   headerRight?: JSX.Element;
@@ -23,10 +25,22 @@ type CardProps = {
   pad?: "sm" | "md" | "none";
   shaded?: boolean;
   selected?: boolean;
-  onClick?: () => void;
-  // Positioning only (width/grid/margin) — never skin overrides.
+  // Positioning only (width/grid/margin) — never skin overrides. Interactive
+  // cards size like any block: pass w-full / w-* here (never hardcoded).
   class?: string;
 };
+
+type CardPropsClickable = CardPropsBase & {
+  onClick?: () => void;
+  href?: never;
+};
+
+type CardPropsLink = CardPropsBase & {
+  href: string;
+  onClick?: never;
+};
+
+type CardProps = CardPropsClickable | CardPropsLink;
 
 export function Card(p: CardProps) {
   // A JSX-element prop re-instantiates on every read; memo it so the header
@@ -42,41 +56,33 @@ export function Card(p: CardProps) {
     return pad === "none" ? "" : pad === "sm" ? "ui-pad-sm" : "ui-pad";
   };
 
-  // Actions in headerRight/footer must not also fire the card's onClick.
-  const stopWhenClickable = (evt: MouseEvent) => {
-    if (p.onClick) {
+  const rootClass = (extra: string) =>
+    ["rounded border", extra, p.class].filter(Boolean).join(" ");
+
+  const rootClassList = () => ({
+    "border-primary bg-primary-subtle": !!p.selected,
+    "bg-base-200": !p.selected && !!p.shaded,
+    "bg-base-100": !p.selected && !p.shaded,
+    "ui-focusable cursor-pointer": !!p.onClick || p.href !== undefined,
+    "hover:border-primary": !p.selected &&
+      (!!p.onClick || p.href !== undefined),
+  });
+
+  // Actions in headerRight/footer must not also fire the card. For the link
+  // arm, any click inside the anchor navigates, so it needs preventDefault
+  // too (accepted edge: this also cancels native defaults of controls placed
+  // in those regions of a link card).
+  const guardRegion = (evt: MouseEvent) => {
+    if (p.onClick || p.href !== undefined) {
       evt.stopPropagation();
+      if (p.href !== undefined) {
+        evt.preventDefault();
+      }
     }
   };
 
-  return (
-    <div
-      class={["rounded border", p.class].filter(Boolean).join(" ")}
-      classList={{
-        "border-primary bg-primary-subtle": !!p.selected,
-        "bg-base-200": !p.selected && !!p.shaded,
-        "bg-base-100": !p.selected && !p.shaded,
-        "ui-focusable cursor-pointer": !!p.onClick,
-        "hover:border-primary": !p.selected && !!p.onClick,
-      }}
-      style={BORDER_TRANSITION}
-      role={p.onClick ? "button" : undefined}
-      tabindex={p.onClick ? "0" : undefined}
-      aria-pressed={p.onClick && p.selected !== undefined
-        ? p.selected
-        : undefined}
-      onClick={() => p.onClick?.()}
-      onKeyDown={(evt) => {
-        if (
-          p.onClick &&
-          evt.target === evt.currentTarget &&
-          (evt.key === "Enter" || evt.key === " ")
-        ) {
-          evt.preventDefault();
-          p.onClick();
-        }
-      }}
-    >
+  const inner = () => (
+    <>
       <Show when={header() !== undefined || p.headerRight !== undefined}>
         <div class={`${rowPad()} flex items-center gap-2 border-b`}>
           <div class="min-w-0 flex-1">
@@ -89,7 +95,7 @@ export function Card(p: CardProps) {
           </div>
           <Show when={p.headerRight} keyed>
             {(keyedHeaderRight) => (
-              <div class="flex-none" onClick={stopWhenClickable}>
+              <div class="flex-none" onClick={guardRegion}>
                 {keyedHeaderRight}
               </div>
             )}
@@ -99,11 +105,59 @@ export function Card(p: CardProps) {
       <div class={bodyPad()}>{p.children}</div>
       <Show when={p.footer} keyed>
         {(keyedFooter) => (
-          <div class={`${rowPad()} border-t`} onClick={stopWhenClickable}>
+          <div class={`${rowPad()} border-t`} onClick={guardRegion}>
             {keyedFooter}
           </div>
         )}
       </Show>
-    </div>
+    </>
+  );
+
+  return (
+    <Switch>
+      <Match when={p.href !== undefined}>
+        <a
+          href={p.href}
+          class={rootClass("block no-underline")}
+          classList={rootClassList()}
+          style={BORDER_TRANSITION}
+          aria-current={p.selected ? "true" : undefined}
+        >
+          {inner()}
+        </a>
+      </Match>
+      <Match when={p.onClick !== undefined}>
+        <div
+          class={rootClass("")}
+          classList={rootClassList()}
+          style={BORDER_TRANSITION}
+          role="button"
+          tabindex="0"
+          aria-pressed={p.selected !== undefined ? p.selected : undefined}
+          onClick={() => p.onClick?.()}
+          onKeyDown={(evt) => {
+            if (
+              p.onClick &&
+              evt.target === evt.currentTarget &&
+              (evt.key === "Enter" || evt.key === " ")
+            ) {
+              evt.preventDefault();
+              p.onClick();
+            }
+          }}
+        >
+          {inner()}
+        </div>
+      </Match>
+      <Match when={p.onClick === undefined && p.href === undefined}>
+        <div
+          class={rootClass("")}
+          classList={rootClassList()}
+          style={BORDER_TRANSITION}
+        >
+          {inner()}
+        </div>
+      </Match>
+    </Switch>
   );
 }
