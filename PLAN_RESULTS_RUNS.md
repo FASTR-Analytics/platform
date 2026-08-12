@@ -7,9 +7,9 @@ RED-adjudicated by ruling (its single diff was the GROUP BY/PAE collision,
 since FIXED in 1.66.7 — no production re-rig for it, the dev query rig is
 the verification instrument). Step 1 is COMPLETE (2026-08-12): 1.66.7 is
 deployed and swept across all 28 non-Nigeria instances, and tim-branch is
-fast-forwarded to main. **1.66.8 was then deployed on main the same day** and
-is the new frozen Nigeria image; its fleet sweep is the one open action in
-Step 1. The live remainder: that sweep, Nigeria, then the close-out sequence.
+fast-forwarded to main. **1.66.8 was then deployed and swept the same day**
+across all 28 non-Nigeria instances, and is the new frozen Nigeria image.
+The live remainder: Nigeria, then the close-out sequence.
 
 **The model in four lines.** Module results do not live in per-project
 Postgres. Each generation act produces an immutable run directory (a "results
@@ -44,8 +44,8 @@ refusal pairs) = the header of `validate_results_runs_parity.ts`.
    work: a partial panther sync of `form_inputs` only (a full `./sync` would
    have dragged in the math/katex removal), then the app commit cherry-picked
    across. All three rollout scripts re-pinned to 1.66.8.
-   **STILL TO RUN: the 1.66.8 fleet sweep** — `./rollout_backfill <every
-   instance except nigeria>`, a pure update+health pass as in 2.
+5. **DONE 2026-08-12** — 1.66.8 swept across every instance except Nigeria;
+   the fleet (28 instances) is on 1.66.8. Step 1 is now closed.
 
 **1.66.8 is the FROZEN Nigeria image.** All three rollout scripts are pinned
 to it. Nigeria gates on this proven code, not on tim-branch development.
