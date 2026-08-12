@@ -101,11 +101,6 @@ const _DS = {
       opacity: 1,
     },
   },
-
-  // Math display alignment
-  math: {
-    displayAlign: typed<"left" | "center" | "right">("center"),
-  },
 };
 
 export type DefaultMarkdownStyle = typeof _DS;

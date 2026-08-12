@@ -8,7 +8,6 @@ import type {
   PageBreakRules,
 } from "./converter.ts";
 import type {
-  DocxMath,
   ImageMap,
   MarkdownInline,
   MergedMarkdownStyle,
@@ -33,7 +32,6 @@ import {
   TextRun,
   WidthType,
 } from "./deps.ts";
-import { latexToDocxMath } from "./latex_to_math.ts";
 import {
   createFooterFromWordConfig,
   createNumberingFromMerged,
@@ -174,8 +172,6 @@ function getElementMargins(
       return merged.margins.table;
     case "code-block":
       return merged.margins.code;
-    case "math-block":
-      return merged.margins.paragraph;
   }
 }
 
@@ -492,18 +488,6 @@ function buildParagraph(
       });
     }
 
-    case "math-block": {
-      const mathContent = element.latex;
-      const mathObj = latexToDocxMath(mathContent);
-      return new Paragraph({
-        children: [mathObj],
-        spacing: {
-          before: pixelsToTwips(spacingBefore),
-          after: pixelsToTwips(spacingAfter),
-        },
-      });
-    }
-
     case "paragraph":
     default:
       return new Paragraph({
@@ -581,8 +565,8 @@ function buildInlineContent(
   content: MarkdownInline[],
   merged: MergedMarkdownStyle,
   baseStyle?: BaseTextStyle,
-): (TextRun | ExternalHyperlink | DocxMath)[] {
-  const result: (TextRun | ExternalHyperlink | DocxMath)[] = [];
+): (TextRun | ExternalHyperlink)[] {
+  const result: (TextRun | ExternalHyperlink)[] = [];
   const linkColor = getLinkColorFromMerged(merged);
 
   for (const item of content) {
@@ -665,10 +649,6 @@ function buildInlineContent(
           }),
         );
         break;
-
-      case "math-inline":
-        result.push(latexToDocxMath(item.latex));
-        break;
     }
   }
 
@@ -687,8 +667,7 @@ function getInlineMaxLineCharCount(content: MarkdownInline[]): number {
     if (item.type === "break") {
       lines.push("");
     } else {
-      const text = item.type === "math-inline" ? item.latex : item.text;
-      lines[lines.length - 1] += text;
+      lines[lines.length - 1] += item.text;
     }
   }
   return Math.max(...lines.map((line) => line.length));

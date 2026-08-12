@@ -118,7 +118,6 @@ export const MARKDOWN_BASE_STYLES = `
 
   [&_strong]:font-700 [&_em]:italic
 
-  [&_.katex-html]:[text-align:var(--md-math-align)]
 `
   .replace(/\s+/g, " ")
   .trim();
@@ -283,8 +282,6 @@ export function deriveMarkdownCssVars(
     "--md-table-cell-py": `${em.table.cellPaddingV}em`,
     "--md-table-header-bg": merged.table.headerShadingColor +
       opacityToHex(merged.table.headerShadingOpacity),
-
-    "--md-math-align": merged.math.displayAlign,
   };
 
   return vars as JSX.CSSProperties;

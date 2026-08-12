@@ -105,10 +105,6 @@ export type CustomMarkdownStyleOptions = {
       opacity?: number; // 0-1
     };
   };
-
-  math?: {
-    displayAlign?: "left" | "center" | "right";
-  };
 };
 
 let _GS: CustomMarkdownStyleOptions | undefined = undefined;

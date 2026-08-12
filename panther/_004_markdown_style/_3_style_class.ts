@@ -496,13 +496,6 @@ export class CustomMarkdownStyle {
           d.table.headerShading.opacity,
         ),
       },
-      math: {
-        displayAlign: m(
-          c.math?.displayAlign,
-          g.math?.displayAlign,
-          d.math.displayAlign,
-        ),
-      },
     };
   }
 

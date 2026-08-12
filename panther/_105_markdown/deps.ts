@@ -36,5 +36,4 @@ export type { ImageInputs } from "../_012_image_renderer/mod.ts";
 export { MarkdownRenderer } from "./markdown_renderer.ts";
 export { createMarkdownIt } from "./parser.ts";
 export type { ImageMap, MarkdownRendererInput } from "./types.ts";
-export { default as markdownItKatex } from "@vscode/markdown-it-katex";
 export { default as MarkdownIt } from "markdown-it";

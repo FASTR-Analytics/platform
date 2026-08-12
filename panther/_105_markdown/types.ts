@@ -82,8 +82,7 @@ export type MarkdownInline =
     style?: "bold" | "italic" | "bold-italic";
   }
   | { type: "break" }
-  | { type: "code-inline"; text: string }
-  | { type: "math-inline"; latex: string };
+  | { type: "code-inline"; text: string };
 
 export type ParsedMarkdownItem =
   & (
@@ -105,7 +104,6 @@ export type ParsedMarkdownItem =
     | { type: "blockquote"; content: MarkdownInline[] }
     | { type: "horizontal-rule" }
     | { type: "code-block"; code: string }
-    | { type: "math-block"; latex: string }
     | {
       type: "image";
       src: string;

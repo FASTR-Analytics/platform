@@ -206,9 +206,6 @@ export function docElementToMarkdown(element: ParsedMarkdownItem): string {
     case "code-block":
       return "```\n" + element.code + "```";
 
-    case "math-block":
-      return "$$\n" + element.latex + "\n$$";
-
     case "image":
       return `![${element.alt}](${element.src})`;
 
@@ -242,8 +239,6 @@ function inlineContentToString(content: MarkdownInline[]): string {
       }
       case "code-inline":
         return `\`${c.text}\``;
-      case "math-inline":
-        return `$${c.latex}$`;
     }
   }).join("");
 }
@@ -251,7 +246,6 @@ function inlineContentToString(content: MarkdownInline[]): string {
 function inlineContentToPlainText(content: MarkdownInline[]): string {
   return content.map((c) => {
     if (c.type === "break") return "\n";
-    if (c.type === "math-inline") return c.latex;
     return c.text;
   }).join("");
 }

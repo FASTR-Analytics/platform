@@ -4,8 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createEffect, createMemo } from "solid-js";
-import markdownItKatex from "@vscode/markdown-it-katex";
-import "katex/dist/katex.min.css";
 import type { CustomMarkdownStyleOptions, ImageMap } from "../deps.ts";
 import { createMarkdownIt } from "../deps.ts";
 import {
@@ -27,9 +25,7 @@ type Props = {
 };
 
 const md = createMarkdownIt();
-md.use(markdownItKatex);
 const mdRawHtml = createMarkdownIt({ html: true });
-mdRawHtml.use(markdownItKatex);
 
 export function MarkdownPresentation(p: Props) {
   let containerRef: HTMLDivElement | undefined;

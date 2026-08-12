@@ -227,13 +227,6 @@ function DocElementRenderer(p: DocElementRendererProps) {
           </code>
         </pre>
       </Match>
-      <Match when={p.element.type === "math-block"}>
-        <div class="katex-display" data-line={p.element.line}>
-          <code>
-            {(p.element as ParsedMarkdownItem & { type: "math-block" }).latex}
-          </code>
-        </div>
-      </Match>
     </Switch>
   );
 }
@@ -399,11 +392,6 @@ function InlineContentRenderer(p: InlineContentRendererProps) {
           <Match when={item.type === "code-inline"}>
             <code>
               {(item as MarkdownInline & { type: "code-inline" }).text}
-            </code>
-          </Match>
-          <Match when={item.type === "math-inline"}>
-            <code>
-              {(item as MarkdownInline & { type: "math-inline" }).latex}
             </code>
           </Match>
         </Switch>

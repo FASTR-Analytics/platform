@@ -24,6 +24,7 @@ export * from "./progress_bar.tsx";
 export * from "./radio_group.tsx";
 export * from "./select.tsx";
 export * from "./select_list.tsx";
+export * from "./select_search.tsx";
 export * from "./slider.tsx";
 export * from "./slider_with_input.tsx";
 export * from "./text_area.tsx";

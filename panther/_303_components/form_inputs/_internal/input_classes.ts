@@ -6,8 +6,8 @@
 import type { Intent } from "../../types.ts";
 
 // Select classes composed from utility classes and component classes. Shared
-// by Select (native <select>) and MultiSelectSearch (button trigger) so both
-// closed states render identically.
+// by Select (native <select>) and the search combo-boxes (SelectSearch,
+// MultiSelectSearch) so every closed state renders identically.
 export function getSelectClasses(
   size: "sm" | undefined,
   outline: boolean,

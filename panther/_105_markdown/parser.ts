@@ -25,8 +25,6 @@ export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
     typographer: true,
   });
   md.disable("replacements", true);
-  // TODO: Fix katex plugin loading issue
-  // md.use(markdownItKatex);
   return md;
 }
 
@@ -51,8 +49,6 @@ export function parseMarkdown(markdownContent: string): ParsedMarkdown {
       items.push({ type: "horizontal-rule", line });
     } else if (token.type === "fence") {
       items.push({ type: "code-block", code: token.content ?? "", line });
-    } else if (token.type === "math_block") {
-      items.push({ type: "math-block", latex: token.content ?? "", line });
     } else if (token.type === "blockquote_open") {
       const content: MarkdownInline[] = [];
       let j = i + 1;
@@ -227,9 +223,6 @@ function parseInlineTokens(tokens: MarkdownItToken[]): MarkdownInline[] {
       i = result.endIndex + 1;
     } else if (token.type === "code_inline" && token.content) {
       content.push({ type: "code-inline", text: token.content });
-      i++;
-    } else if (token.type === "math_inline" && token.content) {
-      content.push({ type: "math-inline", latex: token.content });
       i++;
     } else {
       i++;

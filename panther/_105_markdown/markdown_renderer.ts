@@ -46,10 +46,9 @@ function getMinComfortableWidth(
     textStyle: Parameters<typeof rc.mText>[1],
   ) {
     if (inline.type === "break") return;
-    if (inline.type === "code-inline" || inline.type === "math-inline") {
-      // For code/math, measure the whole thing as one "word"
-      const text = inline.type === "code-inline" ? inline.text : inline.latex;
-      const mText = rc.mText(text, textStyle, Infinity);
+    if (inline.type === "code-inline") {
+      // For code, measure the whole thing as one "word"
+      const mText = rc.mText(inline.text, textStyle, Infinity);
       maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
       return;
     }
@@ -71,10 +70,6 @@ function getMinComfortableWidth(
         const mText = rc.mText(line, style.text.code, Infinity);
         maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
       }
-      return;
-    }
-    if (item.type === "math-block") {
-      // For math blocks, just use a reasonable estimate
       return;
     }
     if (item.type === "image") return;
