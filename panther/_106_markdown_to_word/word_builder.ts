@@ -25,7 +25,6 @@ import {
   ImageRun,
   PageOrientation,
   Paragraph,
-  parseEmailsInText,
   ShadingType,
   Table,
   TableCell,
@@ -588,35 +587,17 @@ function buildInlineContent(
 
   for (const item of content) {
     switch (item.type) {
-      case "text": {
-        // Check for email addresses in plain text
-        const emailParts = parseEmailsInText(item.text);
-        for (const part of emailParts) {
-          if (part.type === "link") {
-            result.push(
-              new ExternalHyperlink({
-                children: [
-                  new TextRun({
-                    text: part.text,
-                    color: linkColor,
-                    underline: {},
-                    italics: baseStyle?.italics,
-                  }),
-                ],
-                link: part.url,
-              }),
-            );
-          } else if (part.type === "text") {
-            result.push(
-              new TextRun({
-                text: part.text,
-                italics: baseStyle?.italics,
-              }),
-            );
-          }
-        }
+      case "text":
+        // Emails need no special handling here: markdown-it autolinks
+        // `<a@b.com>` itself, so an email arrives as a `link` inline like any
+        // other and never reaches this branch as text.
+        result.push(
+          new TextRun({
+            text: item.text,
+            italics: baseStyle?.italics,
+          }),
+        );
         break;
-      }
 
       case "bold":
         result.push(

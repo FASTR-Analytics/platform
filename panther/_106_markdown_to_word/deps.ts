@@ -8,7 +8,7 @@ export type {
   CustomMarkdownStyleOptions,
   MergedMarkdownStyle,
 } from "../_004_markdown_style/mod.ts";
-export { parseEmailsInText, parseMarkdown } from "../_105_markdown/mod.ts";
+export { parseMarkdown } from "../_105_markdown/mod.ts";
 export type {
   ImageMap,
   MarkdownInline,

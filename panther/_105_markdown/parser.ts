@@ -380,36 +380,3 @@ function parseTable(
     endIndex: i,
   };
 }
-
-export function parseEmailsInText(text: string): MarkdownInline[] {
-  const emailRegex = /<([^>]+@[^>]+)>/g;
-  const parts: MarkdownInline[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = emailRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push({
-        type: "text",
-        text: text.substring(lastIndex, match.index),
-      });
-    }
-
-    parts.push({
-      type: "link",
-      text: match[1],
-      url: `mailto:${match[1]}`,
-    });
-
-    lastIndex = emailRegex.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push({
-      type: "text",
-      text: text.substring(lastIndex),
-    });
-  }
-
-  return parts.length > 0 ? parts : [{ type: "text", text }];
-}
