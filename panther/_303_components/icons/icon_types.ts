@@ -21,6 +21,7 @@ export type IconName =
   | "arrowsDiagonalMinimize2"
   | "backspace"
   | "badge"
+  | "bell"
   | "box"
   | "calendar"
   | "chart"

@@ -141,6 +141,15 @@ export function BadgeIcon(p: { class?: string }) {
   );
 }
 
+export function BellIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
+      <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+    </TablerWrapper>
+  );
+}
+
 export function BoxIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -895,6 +904,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   arrowsDiagonalMinimize2: ArrowsDiagonalMinimize2Icon,
   backspace: BackspaceIcon,
   badge: BadgeIcon,
+  bell: BellIcon,
   box: BoxIcon,
   calendar: CalendarIcon,
   chart: ChartIcon,
