@@ -30,7 +30,6 @@
       "papaparse": ["./node_modules/@types/papaparse", "./node_modules/papaparse"],
       "zod": ["./node_modules/zod"],
       "@anthropic-ai/sdk": ["./node_modules/@anthropic-ai/sdk"],
-      "@vscode/markdown-it-katex": ["./node_modules/@vscode/markdown-it-katex"],
       "codemirror": ["./node_modules/codemirror"],
       "@codemirror/state": ["./node_modules/@codemirror/state"],
       "@codemirror/lang-markdown": ["./node_modules/@codemirror/lang-markdown"],
