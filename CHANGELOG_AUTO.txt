@@ -1,19 +1,27 @@
-[TBD] [user] [changed] - Visualization and dashboard cards have a refreshed, more consistent appearance
-[TBD] [user] [changed] - Settings sections now display in cleaner card-style panels
-[TBD] [user] [changed] - Project list cards have an updated visual style
-[TBD] [user] [fixed] - Live cursor name labels now display correctly in dark mode
-[TBD] [user] [fixed] - Connection status banner colors now adapt properly to dark mode
-[TBD] [user] [fixed] - Presence notification dot colors now adapt properly to dark mode
-[TBD] [user] [fixed] - Login screen title text now displays correctly in dark mode
-[TBD] [admin] [changed] - Visualization and dashboard cards use a unified card style with built-in selection
-[TBD] [admin] [changed] - Dashboard settings sections now display in updated card layout
-[TBD] [admin] [changed] - Instance data, settings, and profile pages use updated card layout
-[TBD] [admin] [changed] - User management page uses updated card layout
-[TBD] [admin] [changed] - Project list cards use updated card style with consistent hover behavior
-[TBD] [admin] [fixed] - Login screen brand text now renders correctly in dark mode
-[TBD] [admin] [fixed] - Collaboration cursor labels and chat bubbles display correctly in dark mode
-[TBD] [admin] [fixed] - Connection and presence banner colors adapt properly to dark mode
-[TBD] [admin] [internal] - Code formatting and style cleanup across multiple pages
+[1.66.7] [user] [changed] - Dark mode now offers a "System" option that follows your OS setting
+[1.66.7] [user] [changed] - Dark mode toggle replaced with System / Light / Dark chooser in profile settings
+[1.66.7] [user] [fixed] - Fixed incorrect values in visualizations using calculated expressions with disaggregation
+[1.66.7] [user] [changed] - Page headers across the app have an updated visual style
+[1.66.7] [admin] [changed] - Dark mode now offers System, Light, and Dark options instead of a simple toggle
+[1.66.7] [admin] [fixed] - Certain visualizations with disaggregation by a numeric column displayed incorrect values
+[1.66.7] [admin] [changed] - Page header bars across Settings, Users, Projects, Data, Assets, and Results packages updated with new styling
+[1.66.7] [admin] [internal] - Dark mode for charts and figures now handled automatically by the platform
+[1.66.7] [user] [changed] - Visualization and dashboard cards have a refreshed, more consistent appearance
+[1.66.7] [user] [changed] - Settings sections now display in cleaner card-style panels
+[1.66.7] [user] [changed] - Project list cards have an updated visual style
+[1.66.7] [user] [fixed] - Live cursor name labels now display correctly in dark mode
+[1.66.7] [user] [fixed] - Connection status banner colors now adapt properly to dark mode
+[1.66.7] [user] [fixed] - Presence notification dot colors now adapt properly to dark mode
+[1.66.7] [user] [fixed] - Login screen title text now displays correctly in dark mode
+[1.66.7] [admin] [changed] - Visualization and dashboard cards use a unified card style with built-in selection
+[1.66.7] [admin] [changed] - Dashboard settings sections now display in updated card layout
+[1.66.7] [admin] [changed] - Instance data, settings, and profile pages use updated card layout
+[1.66.7] [admin] [changed] - User management page uses updated card layout
+[1.66.7] [admin] [changed] - Project list cards use updated card style with consistent hover behavior
+[1.66.7] [admin] [fixed] - Login screen brand text now renders correctly in dark mode
+[1.66.7] [admin] [fixed] - Collaboration cursor labels and chat bubbles display correctly in dark mode
+[1.66.7] [admin] [fixed] - Connection and presence banner colors adapt properly to dark mode
+[1.66.7] [admin] [internal] - Code formatting and style cleanup across multiple pages
 [1.66.6] [user] [fixed] - Clearer error messages when required data is missing or not yet generated
 [1.66.6] [admin] [fixed] - Clearer error messages when module data is missing or misconfigured
 [1.66.5] [user] [fixed] - Fixed incorrect results when analyzing data with quoted values in uploaded files
