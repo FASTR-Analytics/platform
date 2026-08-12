@@ -3,6 +3,14 @@
 Status: DRAFT for review. No implementation yet. Report-only until per-step
 go-ahead.
 
+**Updated 2026-08-13 — the PLAN_2 gate is SATISFIED.** The structure family
+split landed (`3d320bb4`, plus review fixes in `90d444da`): `geojson_maps` is
+keyed `(facility_family, admin_area_level)`, every server read/write takes a
+family, and the client cache is keyed `geojson:{family}:{level}`. WS-CAPTURE
+is therefore unblocked, and part of its repoint work is already done (see the
+workstream). **Not yet deployed** — migration 076 has run on dev only. That
+matters for WS-KEY: see its new bullet on the duplicated rows 076 creates.
+
 **Sequencing (ruled 2026-08-12): plan 3 of 3** — after PLAN_1 (AA2 project
 scope) and PLAN_2 (structure family split). The PLAN_2 gate is hard for
 WS-CAPTURE: packages are immutable, so `geojson_maps` must already be keyed
@@ -68,7 +76,8 @@ portability blocker. Fixing it is the heart of this plan.
 ## 2. Target architecture (runs model)
 
 1. **Home: the run package.** `inputs/geojson/{family}_level_{2,3,4}.geojson`
-   (gzipped — see open decision Q-GZIP; family-keyed per PLAN_2), captured in
+   (gzipped — see open decision Q-GZIP; family-keyed, which `geojson_maps`
+   now is), captured in
    the generation `prepare` stage beside the dataset extracts, from the
    instance `geojson_maps` rows as they exist at generation time. Manifest
    stamps: families+levels present, feature counts, source `uploaded_at`.
@@ -89,7 +98,10 @@ portability blocker. Fixing it is the heart of this plan.
    land before capture starts** — packages are immutable, so a key model
    cannot be backfilled into published packages; they must be born correct.
 5. **Kill the `kind:'level'` freeze.** Capture always awaits/uses resolved
-   data; never store a live pointer.
+   data; never store a live pointer. Note the variant now carries an optional
+   `family` (PLAN_2, additive; absent → hmis), so any bundle frozen between
+   that change and this one is family-tagged — the deletion still applies, but
+   the fallback is no longer ambiguous in the meantime.
 6. **Drift-repair sweep** (one-time, part of WS-KEY): re-key existing
    `geojson_maps` rows; transform stored `kind:'data'` snapshots (slides /
    reports / `dashboards.geo_data` / the public `/api/d/:slug` bundle);
@@ -132,7 +144,10 @@ Save side shipped 2026-07-06 (`805f6b15` featureCount/matched/unmatched,
   showing the number (prominent below ~70%) — mid-rollout partial coverage is
   legitimate.
 - **Typed sentinel:** replace the `"[INFO] "`-string `Error` control flow with
-  a typed result. Verified consumers: the throw in `build_figure_inputs.ts`,
+  a typed result. Verified consumers: the throw in `build_figure_inputs.ts`
+  (whose text changed in `90d444da` — it now names the registry as well as the
+  level, since level alone stopped identifying a map once geojson went
+  per-family; still a `[INFO]` string, so the consumer list is unchanged),
   the `startsWith` checks in `t2_presentation_objects.ts` and
   `PresentationObjectMiniDisplay.tsx`; the dashboard export's `prepareFigures`
   swallows the throw to `null` (masking regressions) — re-key the export
@@ -140,9 +155,14 @@ Save side shipped 2026-07-06 (`805f6b15` featureCount/matched/unmatched,
   `[INFO]` strings (too-many-items / no-data / no-replicant-values), so the
   type must cover those states too.
 - **Half B — `area_id` validity join:** validate each chosen `area_id`
-  resolves to a real admin area by joining `admin_areas_N`. Name-based in the
-  interim; WS-KEY re-points the join to the snapshot-local id — build the
-  interface (matched/unmatched lists) so only the join key changes.
+  resolves to a real admin area. **Partly shipped by PLAN_2:**
+  `countOrphanedGeoJsonAreaIds` already performs exactly this join, per
+  family, against `admin_areas_{family}_N` (never the other family's tree),
+  and its count is surfaced on the structure-import summary scoped to the
+  imported family. What remains is the wizard/editor-side interface
+  (matched/unmatched lists) rather than the join itself. Still name-based;
+  WS-KEY re-points it to the snapshot-local id — build the interface so only
+  the join key changes.
 
 ### WS-KEY — snapshot-local-id, normalized matching  ·  P1  ·  effort L  ·  the headline fix
 
@@ -166,6 +186,21 @@ WS-CAPTURE** (immutability — see §2 item 4).
   PROTOCOL_APP_MIGRATIONS); re-capture `kind:'level'` bundles as
   `kind:'data'`. **Depends on WS-COVERAGE** to measure backfill correctness.
   After backfill, re-point Half B's validation join to the new id.
+- **Migration 076 duplicated the pre-split maps across families — expect rows
+  that cannot be re-keyed at all.** When both registries had facilities, 076
+  copied each existing map into BOTH `hmis` and `hfa` (faithful: the single
+  shared map served both registries before the split). On any instance whose
+  two registries use different admin naming — the premise of the split — one
+  copy therefore matches nothing in its own family's tree. Measured on dev:
+  `hfa` level 2 = 8 of 8 area_ids orphaned, level 3 = 16 of 16. The re-key
+  backfill must decide per row rather than assume a name resolves, and
+  WS-COVERAGE's "no rows lost" measurement must not read these as losses.
+  Dropping a fully-orphaned duplicate is the better outcome than re-keying
+  it — it restores the missing-map path, which is what surfaces the gap.
+  **Which instances hold such rows is not knowable until 076 is deployed
+  fleet-wide** (its assignment branches on each instance's facilities at
+  migration time), so this backfill should be designed against the observed
+  fleet, not a predicted row set.
 - Published run packages are NOT migrated (immutable). Pre-WS-KEY packages
   contain no geojson anyway (capture doesn't exist yet), so no dual-key join
   is ever needed.
@@ -185,8 +220,13 @@ Implements §2 items 1–3 and 5:
 - Project-scoped serving route (resolve `projects.run_id` → run file), gzip +
   `Cache-Control: immutable`; client run-geo store keyed by runId.
 - Repoint `resolveGeoJson` in `build_figure_inputs.ts` and both capture sites;
-  delete the `kind:'level'` freeze fallback. Instance-plane surfaces (geojson
-  manager, wizard previews) keep reading `t2_geojson` — different plane.
+  delete the `kind:'level'` freeze fallback. **PLAN_2 already threaded the
+  family dimension through this surface:** all five `getGeoJsonSync` call
+  sites take `(family, level)` and all four `{kind:"level"}` producers stamp
+  the family, so this repoint changes the SOURCE (run package vs instance
+  store), not the key shape. Instance-plane surfaces (geojson manager, wizard
+  previews) keep reading `t2_geojson` — different plane, and now per-family
+  pages, which makes the split cleaner than when this plan was written.
 - Typed fallback for geojson-less packages → live instance read (status quo).
 
 ### WS-LIFECYCLE-RESIDUAL — audit + delete warning  ·  P3  ·  effort S  (was P1/L; mostly dissolved)
@@ -240,10 +280,20 @@ is dissolved by the runs model — see §2.
 2. **WS-COVERAGE** — the backfill measurement + typed sentinel.
 3. **WS-KEY** — migration + backfill + stored-snapshot transform. The
    headline. Must precede WS-CAPTURE.
-4. **WS-CAPTURE** — capture + serving + repoint. Gated on PLAN_2 (family
-   keying — see the sequencing note in the header).
+4. **WS-CAPTURE** — capture + serving + repoint. PLAN_2's family keying has
+   landed, so this is unblocked (and partly pre-done — see the workstream).
 5. **WS-EFFICIENCY** (P2, parallel-safe) · **WS-LIFECYCLE-RESIDUAL** (P3,
    anytime).
+
+**Relative to the PLAN_2 deploy (2026-08-13).** 1–2 (WS-DEDUP, WS-COVERAGE)
+have no gate and no migration, stored-shape change or panther edit — they are
+safe to do while PLAN_2 sits undeployed, and they are WS-KEY's prerequisites
+anyway. **WS-KEY should wait for the 076 deploy**: it re-keys `geojson_maps`
+rows whose existence and family assignment 076 decides per instance, so
+before the deploy the row set it operates on is predicted rather than
+observed, and the backfill is one-way. Stacking a second undeployed
+structural change also means the first prod deploy carries both, which makes
+attribution hard if either misbehaves.
 
 **Relative to the runs rollout: resolved 2026-08-12.** The fleet rollout
 completed first (28 of 29 instances on 1.66.7; Nigeria pending its window),
