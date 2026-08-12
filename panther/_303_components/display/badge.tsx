@@ -25,6 +25,7 @@ const SUBTLE_CLASSES: Record<Intent, string> = {
 type BadgeProps = {
   intent?: Intent;
   variant?: "subtle" | "solid";
+  bold?: boolean;
   children: JSX.Element;
 };
 
@@ -36,7 +37,9 @@ export function Badge(p: BadgeProps) {
 
   return (
     <span
-      class={`${skin()} font-400 inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs`}
+      class={`${skin()} ${
+        p.bold ? "font-700" : "font-400"
+      } inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs`}
     >
       {p.children}
     </span>
