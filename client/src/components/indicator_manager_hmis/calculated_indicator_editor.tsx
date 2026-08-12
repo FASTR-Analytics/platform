@@ -4,7 +4,7 @@ import {
   Input,
   RadioGroup,
   Select,
-  getTruncatedString,
+  SelectSearch,
   createFormAction,
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
@@ -111,20 +111,11 @@ export function EditCalculatedIndicatorForm(
     return unusableCommonIdMessage();
   });
 
-  const commonIndicatorOptions = () => [
-    {
-      value: "",
-      label: t3({
-        en: "Select an indicator...",
-        fr: "Sélectionner un indicateur...",
-        pt: "Selecionar um indicador...",
-      }),
-    },
-    ...p.commonIndicators.map((ci) => ({
+  const commonIndicatorOptions = () =>
+    p.commonIndicators.map((ci) => ({
       value: ci.indicator_common_id,
-      label: `${ci.indicator_common_id} ~ ${getTruncatedString(ci.indicator_common_label, 30)}`,
-    })),
-  ];
+      label: `${ci.indicator_common_id} ~ ${ci.indicator_common_label}`,
+    }));
 
   // ---- Live preview ----
   const previewRawValue = 0.73;
@@ -365,9 +356,14 @@ export function EditCalculatedIndicatorForm(
           <div class="font-700 text-sm">
             {t3({ en: "Numerator", fr: "Numérateur", pt: "Numerador" })}
           </div>
-          <Select
+          <SelectSearch
             label={t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" })}
-            value={numIndicatorId()}
+            placeholder={t3({
+              en: "Select an indicator...",
+              fr: "Sélectionner un indicateur...",
+              pt: "Selecionar um indicador...",
+            })}
+            value={numIndicatorId() || undefined}
             onChange={setNumIndicatorId}
             options={commonIndicatorOptions()}
             fullWidth
@@ -413,13 +409,18 @@ export function EditCalculatedIndicatorForm(
             ]}
           />
           <Show when={denomKind() === "indicator"}>
-            <Select
+            <SelectSearch
               label={t3({
                 en: "Denominator indicator",
                 fr: "Indicateur du dénominateur",
                 pt: "Indicador do denominador",
               })}
-              value={denomIndicatorId()}
+              placeholder={t3({
+                en: "Select an indicator...",
+                fr: "Sélectionner un indicateur...",
+                pt: "Selecionar um indicador...",
+              })}
+              value={denomIndicatorId() || undefined}
               onChange={setDenomIndicatorId}
               options={commonIndicatorOptions()}
               fullWidth

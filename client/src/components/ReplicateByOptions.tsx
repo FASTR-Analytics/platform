@@ -14,8 +14,8 @@ import {
   runVersionKey,
 } from "~/state/project/t1_store";
 import {
-  Select,
   SelectList,
+  SelectSearch,
   StateHolder,
   StateHolderWrapper,
   getSelectOptionsFromIdLabel,
@@ -300,7 +300,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
                 ).possibleValues;
 
                 return (
-                  <Select
+                  <SelectSearch
                     options={cleanedReplicantSelectOptions(
                       possibleValues,
                       p.replicateBy,

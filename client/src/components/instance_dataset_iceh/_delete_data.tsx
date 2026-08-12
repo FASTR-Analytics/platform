@@ -6,7 +6,7 @@ import {
   FrameTop,
   HeadingBar,
   Input,
-  MultiSelect,
+  MultiSelectSearch,
   type SelectOption,
   createDeleteAction,
 } from "panther";
@@ -107,11 +107,12 @@ export function DeleteData(
                 })}
               </div>
               <div class="w-96">
-                <MultiSelect
+                <MultiSelectSearch
                   values={selectedCodes()}
                   options={options()}
                   onChange={setSelectedCodes}
                   label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+                  fullWidth
                 />
               </div>
               <div class="">

@@ -1,3 +1,4 @@
+import { getTruncatedString } from "@timroberton/panther";
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import { formatReplicantLabelForDisplay } from "./format_nigeria_admin_label.ts";
 import { PresentationObjectConfig } from "./types/mod.ts";
@@ -52,6 +53,6 @@ export function parseJsonOrThrow<T>(str: string): T {
   try {
     return JSON.parse(str) as T;
   } catch {
-    throw new Error("Could not parse JSON: " + str.slice(0, 10) + "...");
+    throw new Error("Could not parse JSON: " + getTruncatedString(str, 200));
   }
 }

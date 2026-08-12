@@ -4,8 +4,7 @@ import {
   AlertFormHolder,
   Button,
   Input,
-  Select,
-  getTruncatedString,
+  SelectSearch,
   getUnique,
   createFormAction,
 } from "panther";
@@ -142,16 +141,14 @@ export function EditIndicatorRawForm(
         <For each={mappedCommonIds()}>
           {(commonId, index) => (
             <div class="ui-gap-sm flex items-center">
-              <Select
-                value={commonId}
+              <SelectSearch
+                value={commonId || undefined}
                 onChange={(value) => updateMappedCommonId(index(), value)}
-                options={[
-                  { value: "", label: t3({ en: "Select common indicator...", fr: "Sélectionner un indicateur commun...", pt: "Selecionar um indicador comum..." }) },
-                  ...p.commonIndicators.map((common) => ({
-                    value: common.indicator_common_id,
-                    label: `${common.indicator_common_id} ~ ${getTruncatedString(common.indicator_common_label, 30)}`,
-                  })),
-                ]}
+                placeholder={t3({ en: "Select common indicator...", fr: "Sélectionner un indicateur commun...", pt: "Selecionar um indicador comum..." })}
+                options={p.commonIndicators.map((common) => ({
+                  value: common.indicator_common_id,
+                  label: `${common.indicator_common_id} ~ ${common.indicator_common_label}`,
+                }))}
                 fullWidth
               />
               <Button

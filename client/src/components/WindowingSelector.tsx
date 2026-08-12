@@ -13,7 +13,7 @@ import {
 import {
   FigureHolder,
   Checkbox,
-  MultiSelect,
+  MultiSelectSearch,
   NestedMultiSelect,
   StateHolderWrapper,
   getSelectOptions,
@@ -334,7 +334,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               itemOptions={keyedItemsHolder.indicators}
               itemsToTake={getIndicators()}
               setItemsToTake={setIndicators}
-              isDelete={isDelete}
             />
             <Show when={!isDelete}>
               <Show
@@ -360,7 +359,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                     setItemsToTake={(v) =>
                       (p.setTempWindowing as any)("adminArea2sToInclude", v)
                     }
-                    isDelete={isDelete}
                   />
                 }
               >
@@ -412,7 +410,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 setItemsToTake={(v) =>
                   (p.setTempWindowing as any)("facilityOwnwershipsToInclude", v)
                 }
-                isDelete={isDelete}
               />
             </Show>
             <Show when={!isDelete && p.facilityColumns.includeTypes}>
@@ -438,7 +435,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 setItemsToTake={(v) =>
                   (p.setTempWindowing as any)("facilityTypesToInclude", v)
                 }
-                isDelete={isDelete}
               />
             </Show>
           </div>
@@ -449,7 +445,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 }
 
 type ToggledMultiSelectProps = {
-  isDelete: boolean;
   takeAll: boolean;
   heading: TranslatableString;
   toggleAllLabel: TranslatableString;
@@ -470,10 +465,11 @@ function ToggledMultiSelect(p: ToggledMultiSelectProps) {
       />
       <Show when={!p.takeAll}>
         <div class="pl-4">
-          <MultiSelect
+          <MultiSelectSearch
             options={p.itemOptions}
             values={p.itemsToTake}
             onChange={p.setItemsToTake}
+            fullWidth
           />
         </div>
       </Show>
