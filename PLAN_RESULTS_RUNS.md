@@ -5,8 +5,10 @@ other instances (every country + demo/demo-fr + testing-tim) are on 1.66.x,
 backfilled, and rig-adjudicated: 27 PARITY GREEN on the final rig; ethiopia
 RED-adjudicated by ruling (its single diff was the GROUP BY/PAE collision,
 since FIXED in 1.66.7 — no production re-rig for it, the dev query rig is
-the verification instrument). This file is everything needed to finish the
-upgrade: deploy 1.66.7 fleet-wide, do Nigeria, then the close-out sequence.
+the verification instrument). Step 1 is COMPLETE (2026-08-12): 1.66.7 is
+deployed and swept across all 28 non-Nigeria instances, and tim-branch is
+fast-forwarded to main. The live remainder: Nigeria, then the close-out
+sequence.
 
 **The model in four lines.** Module results do not live in per-project
 Postgres. Each generation act produces an immutable run directory (a "results
@@ -26,17 +28,16 @@ refusal pairs) = the header of `validate_results_runs_parity.ts`.
 
 ## Step 1 — 1.66.7 fleet-wide (now)
 
-1. `./deploy` → patch → **1.66.7** (carries the GROUP BY/PAE collision fix +
-   numeric filter path; typecheck + `./validate_queries` verified green
-   2026-08-12 pre-deploy).
-2. `./rollout_backfill <every instance except nigeria>` — with all backfills
-   done, this is a pure update+health sweep (backfill and rig steps
-   self-skip). Safe in parallel terminals; never the same instance twice.
-3. `git checkout tim-branch && git merge --ff-only main && git push` —
-   tim-branch's old tip is an ancestor of main, so this is a clean
-   fast-forward. Development continues on tim-branch; main stays the
-   deploy line (hotfixes → 1.66.8+; re-pin the rollout scripts if that
-   happens).
+1. **DONE 2026-08-12** — `./deploy` → **1.66.7** on main (c744dea7; carries
+   the GROUP BY/PAE collision fix + numeric filter path; typecheck +
+   `./validate_queries` green pre-deploy).
+2. **DONE 2026-08-12** — `./rollout_backfill` update+health sweep across
+   every instance except Nigeria (backfills already done, so backfill and
+   rig steps self-skipped). The fleet (28 instances) is on 1.66.7.
+3. **DONE 2026-08-12** — tim-branch fast-forwarded to main
+   (50232cd6 → c744dea7, 39 commits) and pushed. Development continues on
+   tim-branch; main stays the deploy line (hotfixes → 1.66.8+; re-pin the
+   rollout scripts if that happens).
 
 **1.66.7 is the FROZEN Nigeria image.** All three rollout scripts are pinned
 to it. Nigeria gates on this proven code, not on tim-branch development.
