@@ -193,13 +193,6 @@ export function ProjectResultsPackage() {
                   pt: "Outros pacotes de resultados",
                 })}
               </div>
-              <div class="text-base-content-muted max-w-2xl text-sm">
-                {t3({
-                  en: "Switching packages changes the data behind every visualization, report and slide deck in this project. You will see what would not resolve before anything changes.",
-                  fr: "Changer de paquet modifie les données derrière chaque visualisation, rapport et présentation de ce projet. Vous verrez ce qui ne se résoudrait pas avant tout changement.",
-                  pt: "Mudar de pacote altera os dados por trás de cada visualização, relatório e apresentação deste projeto. Verá o que não se resolveria antes de qualquer alteração.",
-                })}
-              </div>
               <StateHolderWrapper state={attachable()} noPad>
                 {(keyedAttachable) => (
                   <div class="ui-spy-sm">
@@ -266,8 +259,9 @@ function AttachedScopeCoverageWarning(p: { runId: string }) {
   );
   const uncovered = () => {
     const s = report.state();
-    return s.status === "ready" &&
-      s.data.projectAdminArea2Coverage === "uncovered";
+    return (
+      s.status === "ready" && s.data.projectAdminArea2Coverage === "uncovered"
+    );
   };
   return (
     <Show when={uncovered()}>

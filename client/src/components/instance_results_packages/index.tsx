@@ -185,45 +185,36 @@ export function InstanceResultsPackages() {
           </HeadingBar>
         }
       >
-        <div class="ui-pad ui-spy">
-          <div class="text-base-content-muted max-w-2xl">
-            {t3({
-              en: "A results package is generated once for the whole instance from the data and modules you choose, then attached to the projects that should use it.",
-              fr: "Un paquet de résultats est généré une fois pour toute l'instance à partir des données et des modules que vous choisissez, puis rattaché aux projets qui doivent l'utiliser.",
-              pt: "Um pacote de resultados é gerado uma vez para toda a instância a partir dos dados e módulos que escolher, e depois é anexado aos projetos que o devem usar.",
-            })}
-          </div>
-          <StateHolderWrapper state={runs()} noPad>
-            {(keyedRuns) => (
-              <div class="ui-spy">
-                <Show
-                  when={keyedRuns.length > 0}
-                  fallback={
-                    <div class="text-base-content-muted">
-                      {t3({
-                        en: "No results packages yet.",
-                        fr: "Aucun paquet de résultats pour l'instant.",
-                        pt: "Ainda não existem pacotes de resultados.",
-                      })}
-                    </div>
-                  }
-                >
-                  <For each={keyedRuns}>
-                    {(run) => (
-                      <RunCard
-                        run={run}
-                        liveProgress={liveProgress()[run.id]}
-                        rLogs={rLogs}
-                        openEditor={openEditor}
-                        refreshAll={refreshAll}
-                      />
-                    )}
-                  </For>
-                </Show>
-              </div>
-            )}
-          </StateHolderWrapper>
-        </div>
+        <StateHolderWrapper state={runs()}>
+          {(keyedRuns) => (
+            <div class="ui-spy ui-pad">
+              <Show
+                when={keyedRuns.length > 0}
+                fallback={
+                  <div class="text-base-content-muted">
+                    {t3({
+                      en: "No results packages yet.",
+                      fr: "Aucun paquet de résultats pour l'instant.",
+                      pt: "Ainda não existem pacotes de resultados.",
+                    })}
+                  </div>
+                }
+              >
+                <For each={keyedRuns}>
+                  {(run) => (
+                    <RunCard
+                      run={run}
+                      liveProgress={liveProgress()[run.id]}
+                      rLogs={rLogs}
+                      openEditor={openEditor}
+                      refreshAll={refreshAll}
+                    />
+                  )}
+                </For>
+              </Show>
+            </div>
+          )}
+        </StateHolderWrapper>
       </FrameTop>
     </EditorWrapper>
   );
