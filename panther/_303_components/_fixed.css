@@ -276,6 +276,14 @@
   --ui-heading-bar-tonal-bg: var(--color-base-200);
   --ui-heading-bar-tonal-fg: var(--color-base-content);
 
+  /* THE inverted header surface — dark chrome bars (`<HeadingBar inverted>`).
+     Same one-answer rule as tonal. The utility pins color-scheme, so on a
+     dark scheme the bar stays dark and its descendants keep resolving
+     light-token values. */
+
+  --ui-heading-bar-inverted-bg: var(--color-base-content);
+  --ui-heading-bar-inverted-fg: var(--color-base-100);
+
   /* ============================================= */
   /* App-level markdown (--md-*)                   */
   /* ============================================= */
@@ -650,6 +658,16 @@
 @utility ui-heading-bar-tonal {
   background-color: var(--ui-heading-bar-tonal-bg);
   color: var(--ui-heading-bar-tonal-fg);
+}
+
+/* Inverted chrome is a light-token island: the surface and its scheme pin
+   are one designed unit, so the bar stays dark in dark mode and descendants
+   (outline controls with onBackground="base-content", focus rings) keep
+   their light-mode semantics. */
+@utility ui-heading-bar-inverted {
+  background-color: var(--ui-heading-bar-inverted-bg);
+  color: var(--ui-heading-bar-inverted-fg);
+  color-scheme: light;
 }
 
 /* ---- Forced-scheme island ---- */

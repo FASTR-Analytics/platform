@@ -12,6 +12,7 @@ type Props = {
   subheading?: string | JSX.Element;
   onBack?: () => void;
   tonal?: boolean;
+  inverted?: boolean;
   leftChildren?: JSX.Element;
   centerChildren?: JSX.Element;
   children?: JSX.Element;
@@ -20,11 +21,19 @@ type Props = {
 };
 
 export function HeadingBar(p: Props) {
-  // A tonal bar has a surface of its own, and that surface change IS the
-  // divider. A flush bar sits on the same surface as its content, so it draws
-  // one. The tonal surface is a kit-owned token, not a per-call-site choice —
-  // there is exactly one tonal header in an app.
-  const surfaceClass = () => p.tonal ? "ui-heading-bar-tonal" : "border-b";
+  // A tonal or inverted bar has a surface of its own, and that surface change
+  // IS the divider. A flush bar sits on the same surface as its content, so
+  // it draws one. Both surfaces are kit-owned tokens, not per-call-site
+  // choices — one tonal and one inverted answer per app. Inverted is dark
+  // chrome: the utility carries the surface AND its color-scheme pin, so the
+  // bar stays dark under a dark scheme. The two are mutually exclusive;
+  // inverted wins if both are passed.
+  const surfaceClass = () =>
+    p.inverted
+      ? "ui-heading-bar-inverted"
+      : p.tonal
+      ? "ui-heading-bar-tonal"
+      : "border-b";
   // Slots collapse on prop PRESENCE, not on rendered content: several consumers
   // pass children that are a <Show> and render nothing under some app state,
   // and keying on output would slide the centred search field sideways as that
