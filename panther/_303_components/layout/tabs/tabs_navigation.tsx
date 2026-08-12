@@ -6,6 +6,7 @@
 import { For, Show } from "solid-js";
 import { IconRenderer } from "../../form_inputs/icon_renderer.tsx";
 import { Tooltip } from "../../special_state/tooltip.tsx";
+import { Badge } from "../../display/badge.tsx";
 import { Button } from "../../form_inputs/mod.ts";
 import type { Intent } from "../../types.ts";
 import type { ListItem } from "../../list_selection/list_item_types.ts";
@@ -135,12 +136,8 @@ export function TabsNavigation<T extends string = string, M = never>(
           </span>
         </div>
         <Show when={badge !== undefined}>
-          <span
-            class={`bg-base-300 text-base-content rounded-full px-2 py-0.5 text-xs ${
-              isVertical ? "flex-none" : ""
-            }`}
-          >
-            {badge}
+          <span classList={{ "flex-none": isVertical }}>
+            <Badge intent="base-300">{badge}</Badge>
           </span>
         </Show>
         <Show when={dot}>

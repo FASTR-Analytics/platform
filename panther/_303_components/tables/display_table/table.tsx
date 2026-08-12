@@ -45,12 +45,19 @@ export function Table<
     Set<T[K]>
   >(new Set());
 
-  // Use controlled state if provided, otherwise use internal state
-  const isControlled = !!(p.selectedKeys && p.setSelectedKeys);
-  const selectedKeys = isControlled ? p.selectedKeys! : internalSelectedKeys;
-  const setSelectedKeys = isControlled
-    ? p.setSelectedKeys!
-    : setInternalSelectedKeys;
+  // Use controlled state if provided, otherwise use internal state. Resolved
+  // per call so a parent toggling controlled/uncontrolled (or swapping the
+  // accessor identity) is picked up reactively.
+  const isControlled = () => !!(p.selectedKeys && p.setSelectedKeys);
+  const selectedKeys = () =>
+    isControlled() ? p.selectedKeys!() : internalSelectedKeys();
+  const setSelectedKeys = (keys: Set<T[K]>) => {
+    if (isControlled()) {
+      p.setSelectedKeys!(keys);
+    } else {
+      setInternalSelectedKeys(keys);
+    }
+  };
 
   // Compute selection states
   const allSelected = createMemo(() => {
@@ -134,7 +141,7 @@ export function Table<
 
   // Check if selection should be enabled
   const enableSelection = () =>
-    !!(p.bulkActions && p.bulkActions.length > 0) || isControlled;
+    !!(p.bulkActions && p.bulkActions.length > 0) || isControlled();
 
   const padding = createMemo(() =>
     getPaddingClasses(p.paddingX || "normal", p.paddingY || "normal")

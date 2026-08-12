@@ -9,6 +9,7 @@ import type { Intent } from "../types.ts";
 import { Icon, type IconName } from "../icons/mod.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
+import { Badge } from "../display/badge.tsx";
 import type { ListItem } from "./list_item_types.ts";
 import {
   createSelectionController,
@@ -100,9 +101,7 @@ export function EditableList<T extends string, M = never>(
           </Show>
           <span class="truncate">{item.label}</span>
           <Show when={item.badge !== undefined}>
-            <span class="bg-base-300 text-base-content rounded-full px-2 py-0.5 text-xs">
-              {item.badge}
-            </span>
+            <Badge intent="base-300">{item.badge}</Badge>
           </Show>
           <Show when={item.dot}>
             <span class={dotClass(item.dot!)} />
