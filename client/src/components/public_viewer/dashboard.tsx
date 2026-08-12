@@ -16,7 +16,7 @@ import {
   HeadingBar,
   MarkdownPresentationJsx,
   openComponent,
-  Select,
+  SelectSearch,
   StateHolderWrapper,
   createQuery,
 } from "panther";
@@ -329,8 +329,8 @@ function GroupTile(p: {
         label={p.group.label}
         onDownload={() => p.onDownload(current()?.id)}
       >
-        <Select
-          value={value()}
+        <SelectSearch
+          value={value() || undefined}
           options={p.group.replicants.map((r) => ({
             value: r.value,
             label: r.label,

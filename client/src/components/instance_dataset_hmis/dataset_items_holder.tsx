@@ -10,7 +10,7 @@ import {
   FigureInputs,
   FigureHolder,
   FrameLeftResizable,
-  MultiSelect,
+  MultiSelectSearch,
   RadioGroup,
   StateHolder,
   StateHolderWrapper,
@@ -273,7 +273,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             value={vizConfig.figureType}
             onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
           />
-          <MultiSelect
+          <MultiSelectSearch
             label={t3({
               en: "Indicators",
               fr: "Indicateurs",
@@ -282,7 +282,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             options={p.displayItems.indicators}
             values={vizConfig.indicators}
             onChange={(v) => setVizConfig("indicators", v)}
-            showSelectAll
+            fullWidth
           />
         </div>
       }
