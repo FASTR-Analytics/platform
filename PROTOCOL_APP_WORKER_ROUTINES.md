@@ -162,8 +162,8 @@ the isolate dies with its sockets.
   clear the tracker and terminate.
 
 The consumers are not interchangeable: dataset clients poll the `status_type`
-enum; module clients react to `module_dirty_state`/`r_script` SSE. Wire the
-matching one.
+enum; the results-package catalogue reacts to instance-SSE
+`run_progress`/`r_script`. Wire the matching one.
 
 ### 6. Register a tracker, and clear it on every terminal path
 

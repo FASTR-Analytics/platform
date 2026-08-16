@@ -1,83 +1,63 @@
 import {
   t3,
-  TC,
   type RunCatalogItem,
   type RunGenerationAttemptDetail,
   type RunProgress,
 } from "lib";
 import {
   Button,
+  EmptyState,
+  FrameLeftResizable,
   FrameTop,
-  StateHolderWrapper,
+  HeadingBar,
+  SelectList,
   createButtonAction,
   getEditorWrapper,
-  openConfirm,
-  type StateHolder,
 } from "panther";
 import {
-  For,
   Match,
   Show,
   Switch,
   createEffect,
+  createMemo,
   createSignal,
   onCleanup,
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { HeadingBar } from "panther";
-import { instancePackageInternalsSource } from "~/components/_shared/results_package/internals_source";
-import {
-  ResultsPackageContents,
-  ResultsPackageProvenanceLine,
-} from "~/components/_shared/results_package/package_contents";
 import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
+import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import { serverActions } from "~/server_actions";
 import {
   addInstanceRScriptListener,
   addInstanceRunProgressListener,
 } from "~/state/instance/t1_sse";
+import { instanceState } from "~/state/instance/t1_store";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
 // launch wizard is entered — one in-flight configuration per admin,
-// resumable — and the catalogue of every package the instance holds. A
-// package attaches to projects at launch (the wizard's confirm step) or
-// later from a project's Results package tab. This surface owns the only act
-// that ever reclaims a package's disk; exploring a package is shared with the
-// project tab, each with its own permission model.
+// resumable — and the catalogue of every package the instance holds, as a
+// master–detail (sidebar list + detail pane). The listing is T1
+// (`instanceState.runsCatalog`, pushed on every catalogue mutation); the only
+// component fetch left is the per-admin wizard attempt (T3, per-user, not
+// broadcastable). A package attaches to projects at launch (the wizard's
+// confirm step) or later from a project's Results package tab. This surface
+// owns the only act that ever reclaims a package's disk.
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [attempt, setAttempt] = createSignal<RunGenerationAttemptDetail | null>(
     null,
   );
-  const [runs, setRuns] = createSignal<StateHolder<RunCatalogItem[]>>({
-    status: "loading",
-  });
-  const [version, setVersion] = createSignal(0);
-
-  createEffect(async () => {
-    const requestId = version();
-    const [attemptRes, runsRes] = await Promise.all([
-      serverActions.getRunGenerationAttempt({}),
-      serverActions.listRunCatalog({}),
-    ]);
-    if (requestId !== version()) return;
-    if (attemptRes.success) {
-      setAttempt(attemptRes.data);
-    }
-    setRuns(
-      runsRes.success
-        ? { status: "ready", data: runsRes.data }
-        : { status: "error", err: runsRes.err },
-    );
-  });
 
   async function refreshAll(): Promise<void> {
-    setVersion((v) => v + 1);
+    const res = await serverActions.getRunGenerationAttempt({});
+    if (res.success) {
+      setAttempt(res.data);
+    }
   }
 
   async function openWizard(): Promise<void> {
@@ -102,26 +82,20 @@ export function InstanceResultsPackages() {
   );
 
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
-  // progress patches the row in place and the R line is keyed by RUN as well
-  // as module, so two concurrent generations never overwrite each other's
-  // line. The listing itself refetches when a run this list has never seen
-  // appears (another admin launched it) and at the boundaries of a
-  // generation — currentModuleId is null before the first module and after
-  // the last, which is exactly when status, summary and disk size change.
+  // progress patches the pane in place and the R line is keyed by RUN as
+  // well as module, so two concurrent generations never overwrite each
+  // other's line. The listing itself is T1 — every catalogue mutation
+  // signals runs_catalog_updated and the SSE boundary refetches the store,
+  // so this page never fetches the listing.
   const [liveProgress, setLiveProgress] = createSignal<
     Record<string, RunProgress>
   >({});
   const [rLogs, setRLogs] = createStore<Record<string, string>>({});
 
   onMount(() => {
+    void refreshAll();
     const unsubProgress = addInstanceRunProgressListener((runId, progress) => {
       setLiveProgress((prev) => ({ ...prev, [runId]: progress }));
-      const current = runs();
-      const isUnknownRun =
-        current.status === "ready" && !current.data.some((r) => r.id === runId);
-      if (isUnknownRun || progress.currentModuleId === null) {
-        setVersion((v) => v + 1);
-      }
     });
     const unsubRScript = addInstanceRScriptListener((runId, moduleId, text) => {
       setRLogs(`${runId}|${moduleId}`, text);
@@ -131,6 +105,41 @@ export function InstanceResultsPackages() {
       unsubRScript();
     });
   });
+
+  const sortedRuns = createMemo((): RunCatalogItem[] =>
+    [...instanceState.runsCatalog].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    ),
+  );
+
+  // Selection is T5 and never jumps (ruling 4, amended): the effect PINS the
+  // newest run's id whenever nothing is pinned — first non-empty render, and
+  // after the selected run is deleted (falling to newest was the ruled
+  // behavior there). Without the pin, the derived fallback re-resolved to
+  // another admin's freshly launched run and the keyed <Show> remounted the
+  // pane mid-read. The `?? sortedRuns()[0]` fallback stays as the same-tick
+  // bridge until the effect runs.
+  const [selectedId, setSelectedId] = createSignal<string | undefined>(
+    undefined,
+  );
+  createEffect(() => {
+    if (selectedId() === undefined) {
+      const first = sortedRuns()[0];
+      if (first !== undefined) {
+        setSelectedId(first.id);
+      }
+    }
+  });
+  const selectedRun = (): RunCatalogItem | undefined =>
+    instanceState.runsCatalog.find((r) => r.id === selectedId()) ??
+    sortedRuns()[0];
+
+  const emptyMessage = () =>
+    t3({
+      en: "No results packages yet.",
+      fr: "Aucun paquet de résultats pour l'instant.",
+      pt: "Ainda não existem pacotes de resultados.",
+    });
 
   return (
     <EditorWrapper>
@@ -167,7 +176,7 @@ export function InstanceResultsPackages() {
                     })}
                   </Button>
                 </Match>
-                <Match when={true}>
+                <Match when={attempt() === null}>
                   <Button
                     onClick={startConfiguration.click}
                     state={startConfiguration.state()}
@@ -185,150 +194,57 @@ export function InstanceResultsPackages() {
           </HeadingBar>
         }
       >
-        <StateHolderWrapper state={runs()}>
-          {(keyedRuns) => (
-            <div class="ui-spy ui-pad">
-              <Show
-                when={keyedRuns.length > 0}
-                fallback={
-                  <div class="text-base-content-muted">
-                    {t3({
-                      en: "No results packages yet.",
-                      fr: "Aucun paquet de résultats pour l'instant.",
-                      pt: "Ainda não existem pacotes de resultados.",
-                    })}
-                  </div>
-                }
-              >
-                <For each={keyedRuns}>
-                  {(run) => (
-                    <RunCard
-                      run={run}
-                      liveProgress={liveProgress()[run.id]}
-                      rLogs={rLogs}
-                      openEditor={openEditor}
-                      refreshAll={refreshAll}
-                    />
-                  )}
-                </For>
-              </Show>
+        <FrameLeftResizable
+          startingWidth={280}
+          minWidth={170}
+          maxWidth={300}
+          panelChildren={
+            <div class="ui-pad h-full overflow-auto">
+              <SelectList<string, RunCatalogItem>
+                items={sortedRuns().map((r) => ({
+                  id: r.id,
+                  label: r.label,
+                  meta: r,
+                }))}
+                value={selectedRun()?.id}
+                onChange={setSelectedId}
+                fullWidth
+                emptyMessage={emptyMessage()}
+                renderItem={(item) => (
+                  <Show when={item.meta} keyed fallback={item.label}>
+                    {(run) => (
+                      <div>
+                        <div class="ui-gap-sm flex items-center">
+                          <div class="flex-1 truncate">{run.label}</div>
+                          {/* <RunStatusBadge status={run.status} /> */}
+                        </div>
+                        <div class="ui-text-caption">
+                          {new Date(run.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                  </Show>
+                )}
+              />
             </div>
-          )}
-        </StateHolderWrapper>
+          }
+        >
+          <Show
+            when={selectedRun()}
+            keyed
+            fallback={<EmptyState iconName="package" title={emptyMessage()} />}
+          >
+            {(run) => (
+              <RunCatalogDetailPane
+                run={run}
+                liveProgress={liveProgress()[run.id]}
+                latestRLine={(moduleId) => rLogs[`${run.id}|${moduleId}`]}
+                openEditor={openEditor}
+              />
+            )}
+          </Show>
+        </FrameLeftResizable>
       </FrameTop>
     </EditorWrapper>
-  );
-}
-
-function RunCard(p: {
-  run: RunCatalogItem;
-  liveProgress: RunProgress | undefined;
-  rLogs: Record<string, string>;
-  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
-  refreshAll: () => Promise<void>;
-}) {
-  // Guarded hard delete (fork ruling 3): ONE act — catalog row, files and
-  // cached results — with no archived state and no automatic GC. The server
-  // refuses while a project points at the package or it is still
-  // generating; the button states the reason rather than disappearing, so
-  // an undeletable package is never a mystery.
-  const deleteBlockedReason = (): string | null => {
-    if (p.run.status === "generating") {
-      return t3({
-        en: "Cannot delete while generating",
-        fr: "Suppression impossible pendant la génération",
-        pt: "Não é possível eliminar durante a geração",
-      });
-    }
-    if (p.run.attachedProjects.length > 0) {
-      return t3({
-        en: "Cannot delete while in use",
-        fr: "Suppression impossible tant qu'il est utilisé",
-        pt: "Não é possível eliminar enquanto estiver em uso",
-      });
-    }
-    return null;
-  };
-
-  const deletePackage = createButtonAction(
-    async () => {
-      const confirmed = await openConfirm({
-        title: t3({
-          en: "Delete this results package?",
-          fr: "Supprimer ce paquet de résultats ?",
-          pt: "Eliminar este pacote de resultados?",
-        }),
-        text: t3({
-          en: "Its files and cached results are permanently removed. This cannot be undone.",
-          fr: "Ses fichiers et ses résultats mis en cache sont définitivement supprimés. Cette action est irréversible.",
-          pt: "Os seus ficheiros e resultados em cache são removidos permanentemente. Esta ação não pode ser anulada.",
-        }),
-        intent: "danger",
-        confirmButtonLabel: t3(TC.delete),
-      });
-      if (!confirmed) {
-        return { success: true as const };
-      }
-      return await serverActions.deleteRun({ run_id: p.run.id });
-    },
-    () => p.refreshAll(),
-  );
-
-  return (
-    <div class="ui-pad ui-spy-sm rounded border">
-      <div class="ui-gap flex items-center">
-        <div class="font-700 flex-1 truncate">{p.run.label}</div>
-        <RunStatusBadge status={p.run.status} />
-        <Show
-          when={deleteBlockedReason()}
-          fallback={
-            <Button
-              size="sm"
-              intent="danger"
-              outline
-              iconName="trash"
-              onClick={deletePackage.click}
-              state={deletePackage.state()}
-            >
-              {t3(TC.delete)}
-            </Button>
-          }
-          keyed
-        >
-          {(reason) => (
-            <div class="text-base-content-muted text-xs">{reason}</div>
-          )}
-        </Show>
-      </div>
-
-      <ResultsPackageProvenanceLine run={p.run} showDiskSize />
-
-      <div class="text-base-content-muted text-xs">
-        <Show
-          when={p.run.attachedProjects.length > 0}
-          fallback={t3({
-            en: "Not attached to any project",
-            fr: "Rattaché à aucun projet",
-            pt: "Não anexado a nenhum projeto",
-          })}
-        >
-          {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${p.run.attachedProjects
-            .map((project) => project.label)
-            .join(", ")}`}
-        </Show>
-      </div>
-
-      {/* The internals flags are unconditionally true here: this whole
-          surface only renders behind can_configure_data
-          (instance/index.tsx), so reaching it IS the permission. A project
-          renders the same component with its own per-content bits. */}
-      <ResultsPackageContents
-        run={p.run}
-        liveProgress={p.liveProgress}
-        latestRLine={(moduleId) => p.rLogs[`${p.run.id}|${moduleId}`]}
-        internals={instancePackageInternalsSource(p.run.id, true)}
-        openEditor={p.openEditor}
-      />
-    </div>
   );
 }

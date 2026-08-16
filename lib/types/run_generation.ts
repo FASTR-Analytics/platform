@@ -106,6 +106,18 @@ export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
 };
 
+// Detail view of one READY package (instance catalogue master–detail):
+// settings resolved from the manifest's configSelections, files from the
+// outputs dir. Manifest-gated — generating/failed runs are served by the
+// progress-derived UI instead.
+export type RunCatalogDetail = {
+  modules: {
+    moduleId: string;
+    settings: { label: string; value: string }[];
+    files: { name: string; sizeBytes: number }[];
+  }[];
+};
+
 // One module's raw output files inside a package. Named rather than inlined
 // because the same listing is served by two mounts under two permission
 // models — the instance catalogue by runId, a project by its own attached

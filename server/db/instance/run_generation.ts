@@ -569,7 +569,10 @@ WHERE id = ANY(${args.attachTargetProjectIds})
 
 // Marks a generation failed, stamping errorDetail (and the current module's
 // error status) into the stored progress. Returns the updated progress for
-// the SSE push; null when the run row is gone.
+// the SSE push; null when the run row is gone — or no longer 'generating':
+// only a generating run can fail, so a post-publish exception in a caller
+// must never flip a published, attached run to 'failed' (delete would be
+// blocked "in use" with nothing able to restore 'ready').
 export async function markRunGenerationFailed(
   mainDb: Sql,
   runId: string,
@@ -597,10 +600,17 @@ SELECT progress FROM runs WHERE id = ${runId}
     progress.moduleStatus[progress.currentModuleId] = "error";
   }
   progress.errorDetail = errorDetail;
-  await mainDb`
+  const updated = await mainDb<{ id: string }[]>`
 UPDATE runs SET status = 'failed', progress = ${JSON.stringify(progress)}
-WHERE id = ${runId}
+WHERE id = ${runId} AND status = 'generating'
+RETURNING id
 `;
+  if (updated.length === 0) {
+    console.error(
+      `[runs] refused to mark non-generating run ${runId} as failed: ${errorDetail}`,
+    );
+    return null;
+  }
   return progress;
 }
 

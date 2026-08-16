@@ -1,6 +1,5 @@
-import { t3, TC, type ModuleId } from "lib";
+import { t3, type ModuleId } from "lib";
 import {
-  Button,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
@@ -32,17 +31,10 @@ export function ViewScript(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}>
-          <div class="ui-gap-sm flex">
-            <Button
-              onClick={() => p.close(undefined)}
-              intent="neutral"
-              iconName="x"
-            >
-              {t3(TC.done)}
-            </Button>
-          </div>
-        </HeadingBar>
+        <HeadingBar
+          onBack={() => p.close(undefined)}
+          heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}
+        />
       }
     >
       <StateHolderWrapper state={rScript.state()}>

@@ -27,7 +27,7 @@ import {
   ReuseSourceMissingError,
   reuseRunModule,
 } from "./execute_module.ts";
-import { notifyRunProgress } from "./notify_run.ts";
+import { notifyInstanceRunProgress } from "../../task_management/notify_instance_updated.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
 import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
 import {
@@ -68,7 +68,7 @@ export async function runGenerationPipeline(
   };
   const pushProgress = async () => {
     await updateRunProgress(mainDb, std.runId, progress);
-    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+    notifyInstanceRunProgress(std.runId, progress);
   };
 
   const prepared = await prepareRunInputs(mainDb, std.step1Result, std.runId);
@@ -120,7 +120,6 @@ export async function runGenerationPipeline(
       await pushProgress();
       try {
         result = await reuseRunModule({
-          attachTargetProjectIds: std.attachTargetProjectIds,
           runId: std.runId,
           tmpDir,
           module: mod,
@@ -138,7 +137,6 @@ export async function runGenerationPipeline(
       progress.moduleStatus[mod.moduleId] = "running";
       await pushProgress();
       result = await executeRunModule({
-        attachTargetProjectIds: std.attachTargetProjectIds,
         runId: std.runId,
         tmpDir,
         module: mod,
@@ -192,25 +190,38 @@ export async function runGenerationPipeline(
   // longer written, so it is never read here either). A run launched with no
   // targets publishes silently and is attached later from a project's
   // picker.
-  // Final progress first, on both channels: it is what tells the catalogue
-  // and every target's package surface that this generation is over, so it
-  // must not be gated on the per-target catalog reads below (a run with no
-  // targets does none of them).
-  notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+  // Final progress first: it is what tells the catalogue that this
+  // generation is over, so it must not be gated on the per-target catalog
+  // reads below (a run with no targets does none of them). Attach targets
+  // learn of the publish through `run_attached` alone — a project has no
+  // live view of a generation (it is attached only once the run is ready).
+  // The run IS published from here on — a notify failure must never fail the
+  // generation (worker.ts's catch would flip a published, attached run to
+  // 'failed'). Same class of post-write catch as attachRunToProject: log,
+  // continue; the read plane reports a broken payload properly on its own.
+  try {
+    notifyInstanceRunProgress(std.runId, progress);
 
-  if (std.attachTargetProjectIds.length > 0) {
-    const payload = await buildRunAttachedManifestPayload({
-      runId: std.runId,
-      manifest,
-    });
-    for (const projectId of std.attachTargetProjectIds) {
-      const projectDb = createWorkerReadConnection(projectId);
-      try {
-        await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
-      } finally {
-        await projectDb.end();
+    if (std.attachTargetProjectIds.length > 0) {
+      const payload = await buildRunAttachedManifestPayload({
+        runId: std.runId,
+        manifest,
+      });
+      for (const projectId of std.attachTargetProjectIds) {
+        const projectDb = createWorkerReadConnection(projectId);
+        try {
+          await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
+        } finally {
+          await projectDb.end();
+        }
       }
     }
+  } catch (e) {
+    console.error(
+      `[generate_run] run ${std.runId} published but its post-publish events could not be built: ${
+        e instanceof Error ? e.message : e
+      }`,
+    );
   }
 }
 

@@ -26,6 +26,7 @@ export {
 export { transformRunManifestFile } from "./manifest_transform.ts";
 export {
   listRunModuleFiles,
+  readRunCatalogDetail,
   readRunModuleLogs,
   readRunModuleScript,
   resolveRunModuleFileForDownload,

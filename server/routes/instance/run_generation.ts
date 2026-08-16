@@ -17,16 +17,20 @@ import {
   deleteRun,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
+  readRunCatalogDetail,
   readRunModuleLogs,
   readRunModuleScript,
 } from "../../runs/mod.ts";
+import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // Results-package wizard + catalogue (PLAN_RESULTS_RUNS item 2, re-cut by
 // Phase 3 items 1 and 3): attempt-record CRUD, the instance defaults store,
-// launch, the catalogue listing, the guarded hard delete, and the per-module
-// script/log/file viewers. Instance-admin gated throughout
+// launch, the catalogue listing (instance-T1's fetch half — pulled on the
+// runs_catalog_updated timestamp signal), the guarded hard delete, the
+// master–detail body for ready runs, and the per-module script/log/file
+// viewers. Instance-admin gated throughout
 // (can_configure_data — the dataset-attempt guard). Every attempt is keyed
 // by the calling admin's email, so a user only ever sees and edits their own
 // in-flight configuration. Launch consumes the attempt and hands the run to
@@ -147,6 +151,9 @@ defineRoute(
   log("deleteRun"),
   async (c, { params }) => {
     const res = await deleteRun(c.var.mainDb, params.run_id);
+    if (res.success) {
+      notifyInstanceRunsCatalogUpdated();
+    }
     return c.json(res);
   },
 );
@@ -194,6 +201,19 @@ defineRoute(
   },
 );
 
+// The catalogue's master–detail body for a READY run: per-module settings
+// (resolved server-side from the manifest's configSelections) plus the
+// outputs-dir file listing, in one manifest-gated read.
+defineRoute(
+  routesRunGeneration,
+  "getRunCatalogDetail",
+  requireGlobalPermission("can_configure_data"),
+  log("getRunCatalogDetail"),
+  async (c, { params }) => {
+    return c.json(await readRunCatalogDetail(params.run_id));
+  },
+);
+
 defineRoute(
   routesRunGeneration,
   "launchRunGeneration",
@@ -206,6 +226,9 @@ defineRoute(
       body.label,
       c.var.globalUser.email,
     );
+    if (res.success) {
+      notifyInstanceRunsCatalogUpdated();
+    }
     return c.json(res);
   },
 );

@@ -20,6 +20,7 @@ import {
   resolveRunModuleFileForDownload,
 } from "../../runs/mod.ts";
 import { getRunReadContext } from "../../run_query/mod.ts";
+import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // The project's Results package surface (PLAN_RESULTS_RUNS Phase 3 item 4):
@@ -100,6 +101,11 @@ defineRoute(
       c.var.ppk.projectDb,
       params.run_id,
     );
+    if (res.success) {
+      // A repoint changes attachedProjects — the catalogue's delete-blocking
+      // column — so the instance listing must move too.
+      notifyInstanceRunsCatalogUpdated();
+    }
     return c.json(res);
   },
 );

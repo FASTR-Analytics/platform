@@ -1,5 +1,6 @@
-import { t3, type RunListingItem, type RunProgress } from "lib";
+import { t3, type RunListingItem } from "lib";
 import {
+  Badge,
   Button,
   FrameTop,
   HeadingBar,
@@ -10,15 +11,7 @@ import {
   openComponent,
   type StateHolder,
 } from "panther";
-import {
-  For,
-  Show,
-  createEffect,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js";
-import { createStore } from "solid-js/store";
+import { For, Show, createEffect, createSignal } from "solid-js";
 import {
   ResultsPackageContents,
   ResultsPackageProvenanceLine,
@@ -27,10 +20,6 @@ import { projectPackageInternalsSource } from "~/components/_shared/results_pack
 import { RunStatusBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageCompatibilityModal } from "./results_package_compatibility_modal";
 import { serverActions } from "~/server_actions";
-import {
-  addRScriptListener,
-  addRunProgressListener,
-} from "~/state/project/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
 
@@ -66,15 +55,21 @@ export function ProjectResultsPackage() {
 
   // Stale-while-revalidate: refetches on version bump and on attachedRunId
   // change — a repoint (this picker, or a generation publishing onto this
-  // project) is the only thing that changes what either list holds.
+  // project) is the only thing that changes what either list holds. The
+  // counter drops out-of-order completions (a repoint landing mid-fetch).
+  let requestCounter = 0;
   createEffect(async () => {
     version();
     const _attachedRunId = projectState.attachedRunId;
     const projectId = projectState.id;
     const showPicker = canAttach();
+    const requestId = ++requestCounter;
     const attachedRes = await serverActions.getAttachedResultsPackage({
       projectId,
     });
+    if (requestId !== requestCounter) {
+      return;
+    }
     setAttached(
       attachedRes.success
         ? { status: "ready", data: attachedRes.data }
@@ -86,38 +81,14 @@ export function ProjectResultsPackage() {
     const attachableRes = await serverActions.listAttachableResultsPackages({
       projectId,
     });
+    if (requestId !== requestCounter) {
+      return;
+    }
     setAttachable(
       attachableRes.success
         ? { status: "ready", data: attachableRes.data }
         : { status: "error", err: attachableRes.err },
     );
-  });
-
-  // Live generation state for a run that targets this project. The attached
-  // package is always ready (§2.6's invariant), so this only ever fills the
-  // shared contents' progress branch for a package mid-swap; the refetch
-  // fires at the generation's terminal boundary — currentModuleId is null
-  // before the first module and after the last — which is when a new package
-  // becomes attachable.
-  const [liveProgress, setLiveProgress] = createSignal<
-    Record<string, RunProgress>
-  >({});
-  const [rLogs, setRLogs] = createStore<Record<string, string>>({});
-
-  onMount(() => {
-    const unsubProgress = addRunProgressListener((runId, progress) => {
-      setLiveProgress((prev) => ({ ...prev, [runId]: progress }));
-      if (progress.currentModuleId === null) {
-        setVersion((v) => v + 1);
-      }
-    });
-    const unsubRScript = addRScriptListener((moduleId, text) => {
-      setRLogs(moduleId, text);
-    });
-    onCleanup(() => {
-      unsubProgress();
-      unsubRScript();
-    });
   });
 
   const attachPackage = createButtonAction(
@@ -173,12 +144,7 @@ export function ProjectResultsPackage() {
                 }
               >
                 {(run) => (
-                  <AttachedPackageCard
-                    run={run}
-                    liveProgress={liveProgress()[run.id]}
-                    rLogs={rLogs}
-                    openEditor={openEditor}
-                  />
+                  <AttachedPackageCard run={run} openEditor={openEditor} />
                 )}
               </Show>
             )}
@@ -186,13 +152,13 @@ export function ProjectResultsPackage() {
 
           <Show when={canAttach()}>
             <div class="ui-spy-sm">
-              <div class="font-700">
+              <h3 class="ui-text-heading">
                 {t3({
                   en: "Other results packages",
                   fr: "Autres paquets de résultats",
                   pt: "Outros pacotes de resultados",
                 })}
-              </div>
+              </h3>
               <StateHolderWrapper state={attachable()} noPad>
                 {(keyedAttachable) => (
                   <div class="ui-spy-sm">
@@ -282,8 +248,6 @@ function AttachedScopeCoverageWarning(p: { runId: string }) {
 
 function AttachedPackageCard(p: {
   run: RunListingItem;
-  liveProgress: RunProgress | undefined;
-  rLogs: Record<string, string>;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
   // What this member may explore inside the package they serve from. Tim's
@@ -303,13 +267,13 @@ function AttachedPackageCard(p: {
     <div class="ui-pad ui-spy-sm border-primary rounded border">
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
-        <div class="bg-primary text-primary-content rounded px-2 py-0.5 text-xs">
+        <Badge intent="primary" variant="solid">
           {t3({
             en: "In use",
             fr: "En cours d'utilisation",
             pt: "Em utilização",
           })}
-        </div>
+        </Badge>
         <RunStatusBadge status={p.run.status} />
       </div>
 
@@ -321,8 +285,6 @@ function AttachedPackageCard(p: {
 
       <ResultsPackageContents
         run={p.run}
-        liveProgress={p.liveProgress}
-        latestRLine={(moduleId) => p.rLogs[moduleId]}
         internals={internals()}
         openEditor={p.openEditor}
       />

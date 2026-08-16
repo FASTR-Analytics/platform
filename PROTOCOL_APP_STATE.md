@@ -95,6 +95,7 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 | Users                 | `users` (full `OtherUser[]`)                                                                                                               | `users_updated`              | —                                       |
 | Assets                | `assets` (full `AssetInfo[]`)                                                                                                              | `assets_updated`             | —                                       |
 | GeoJSON maps          | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                                                                 | `geojson_maps_updated`       | —                                       |
+| Runs catalogue        | `runsCatalog` (full `RunCatalogItem[]`), `runsCatalogSignal` (nonce)                                                                       | `runs_catalog_updated`       | —                                       |
 | Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
 | HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | —                                       |
 | Indicator summary     | `indicators` (counts), `indicatorMappingsVersion`, `hfaIndicatorsVersion`, `calculatedIndicatorsVersion`                                   | `indicators_updated`         | all three version fields                |
@@ -106,7 +107,28 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
 the current user in the broadcast list on `users_updated`. `projects` /
 `projectsLastUpdated` are per-user; on `projects_last_updated` the client
-fetches `/my_projects` (a broadcast can't carry every user's project list). All
+fetches `/my_projects` (a broadcast can't carry every user's project list).
+`runsCatalog` is per-user by the same signal-plus-own-fetch shape: run labels
+must not fan out (Q-B), so `runs_catalog_updated` carries only a data-free
+NONCE (`crypto.randomUUID()`, not a timestamp — two same-millisecond
+mutations minted identical ISO strings and the store's equality guard
+silently dropped the second refetch; a nonce cannot collide and needs no
+cross-worker counter coordination) and each entitled client
+(`can_configure_data` / global-admin) fetches `listRunCatalog` through its
+per-request guard; the boundary's effect also tracks the user's OWN
+entitlement, so a mid-session grant fetches the catalogue and a revocation
+clears it to `[]` — live, with no connection-captured gating. The starting
+payload fills it per user like `projects`, AND stamps a fresh nonce — so the
+boundary refetches after every `starting`. RULED DELIBERATE (2026-08-15),
+not waste: that refetch is what makes reconnect self-healing (backfill runs
+and any missed signal surface there); the payload fill exists to prevent an
+empty flash while it resolves, and `defer: true` only skips the mount-time
+no-op run. A failed boundary catalogue fetch only console-errors, keeping
+stale rows visible — accepted, same shape as the projects fetch. The
+ephemeral `run_progress`/`r_script` filter on the instance channel is also
+live (re-derived from each `users_updated` in the forward loop) — see
+SYSTEM_03 †. `users` is `[]` for an UNAPPROVED connection (starting payload
+and every `users_updated`, until a roster names them — SYSTEM_03 †). All
 other fields are identical across clients.
 
 ### Project T1 fields
@@ -296,16 +318,18 @@ ordering fresh).
 
 ### Imperative listener side-channel
 
-Two sanctioned ephemeral-event hooks in `client/src/state/project/t1_sse.tsx`
+One sanctioned ephemeral-event hook in `client/src/state/project/t1_sse.tsx`
 for consumers that need event notification without subscribing to the store:
 
 - `addLastUpdatedListener(fn)` — fires on every `last_updated` SSE event with
   `(tableName, ids, timestamp)`. Used by `project_ai/index.tsx` to feed entity
   changes into the AI conversation.
-- `addRScriptListener(fn)` — fires on every `r_script` SSE event with
-  `(moduleId, text)`. Streams R execution logs to the module log panel.
 
-Both return a cleanup function; register in `onMount`, clean up in `onCleanup`.
+Returns a cleanup function; register in `onMount`, clean up in `onCleanup`.
+The instance channel has the equivalent pair for generation telemetry
+(`addInstanceRunProgressListener` / `addInstanceRScriptListener` in
+`state/instance/t1_sse.tsx`) — the project channel carries none, since a
+project is attached only once a run is ready.
 
 ## T3 — on-demand fetch
 
@@ -320,8 +344,12 @@ import runs (`instance_dataset_hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 compare-projects modal, HFA indicator R code
 (`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
-editors, instance meta modal, profile refresh, and the `LoggedInWrapper.tsx`
-bootstrap fetches (GlobalUser, InstanceMeta — needed before SSE connects).
+editors, instance meta modal, profile refresh, results-package catalogue
+detail (`instance_results_packages/detail.tsx` — per-module settings + files
+for the selected READY run; a run dir is immutable, so nothing to cache), the
+per-admin wizard attempt (`instance_results_packages/index.tsx` — per-user,
+not broadcastable), and the `LoggedInWrapper.tsx` bootstrap fetches
+(GlobalUser, InstanceMeta — needed before SSE connects).
 
 Project-level: module execution logs (`view_logs.tsx`), module R script source
 (`view_script.tsx`), module config selections (`settings_generic.tsx`), module

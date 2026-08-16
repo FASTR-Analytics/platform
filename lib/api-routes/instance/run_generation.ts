@@ -5,6 +5,7 @@ import {
   runGenerationStep2ResultSchema,
 } from "../../types/mod.ts";
 import type {
+  RunCatalogDetail,
   RunCatalogItem,
   RunGenerationAttemptDetail,
   RunGenerationDefaults,
@@ -36,7 +37,11 @@ const runModuleParamsSchema = z.object({
 
 export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
-  // projects currently attached to each.
+  // projects currently attached to each. This is instance-T1's fetch half
+  // (the `projects` pattern): `runs_catalog_updated` broadcasts a data-free
+  // timestamp, and each entitled client pulls the listing here — the guard
+  // is evaluated per request, so run labels never ride the broadcast and
+  // permission changes take effect live.
   listRunCatalog: route({
     path: "/run_generation/catalog",
     method: "GET",
@@ -67,6 +72,16 @@ export const runGenerationRouteRegistry = {
     method: "GET",
     params: runModuleParamsSchema,
     response: {} as RunModuleFileListing,
+  }),
+  // Master–detail body for a READY run: per-module settings (resolved
+  // server-side from the manifest's configSelections) + outputs-dir file
+  // listing. Manifest-gated — generating/failed runs use the
+  // progress-derived UI instead.
+  getRunCatalogDetail: route({
+    path: "/run_generation/run/:run_id/detail",
+    method: "GET",
+    params: z.object({ run_id: z.string() }),
+    response: {} as RunCatalogDetail,
   }),
   createRunGenerationAttempt: route({
     path: "/run_generation/attempt",

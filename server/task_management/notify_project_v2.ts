@@ -5,7 +5,6 @@ import type {
   ProjectUser,
   ReportFolder,
   ReportSummary,
-  RunProgress,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -113,28 +112,6 @@ export function notifyProjectUsersUpdated(
   notifyProjectV2(projectId, {
     type: "project_users_updated",
     data: { projectUsers },
-  });
-}
-
-export function notifyProjectRScript(
-  projectId: string,
-  moduleId: string,
-  text: string
-): void {
-  notifyProjectV2(projectId, {
-    type: "r_script",
-    data: { moduleId, text },
-  });
-}
-
-export function notifyProjectRunProgress(
-  projectId: string,
-  runId: string,
-  progress: RunProgress,
-): void {
-  notifyProjectV2(projectId, {
-    type: "run_progress",
-    data: { runId, progress },
   });
 }
 

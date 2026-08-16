@@ -13,7 +13,7 @@ import { checkSpaceForModuleRun } from "../../utils/disk_space.ts";
 import { importAsset } from "./import_asset.ts";
 import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
-import { notifyRunRScript } from "./notify_run.ts";
+import { notifyInstanceRScript } from "../../task_management/notify_instance_updated.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 
@@ -46,7 +46,6 @@ type ModuleRunResult = {
 };
 
 export async function executeRunModule(args: {
-  attachTargetProjectIds: string[];
   runId: string;
   tmpDir: string;
   module: ResolvedRunModule;
@@ -56,11 +55,12 @@ export async function executeRunModule(args: {
 }): Promise<ModuleRunResult> {
   const { module: mod } = args;
   const moduleId = mod.moduleId;
-  // The live R line goes to the instance catalogue and to every attach
-  // target's project channel (Q-B/(e)); the full log is captured in the run
-  // either way.
+  // The live R line goes to the instance catalogue only (Q-B/(e)):
+  // generation is an instance act and a project is attached only once the
+  // run is ready, so no project channel has a live view to feed. The full
+  // log is captured in the run either way.
   const notifyRScript = (line: string) => {
-    notifyRunRScript(args.attachTargetProjectIds, args.runId, moduleId, line);
+    notifyInstanceRScript(args.runId, moduleId, line);
   };
 
   const moduleSpaceCheck = await checkSpaceForModuleRun();
@@ -155,7 +155,6 @@ export async function executeRunModule(args: {
 // ruled way to pay them down. outputFileHashes come from the source
 // manifest: they describe the exact bytes copied from the immutable run.
 export async function reuseRunModule(args: {
-  attachTargetProjectIds: string[];
   runId: string;
   tmpDir: string;
   module: ResolvedRunModule;
@@ -193,8 +192,7 @@ export async function reuseRunModule(args: {
       `Reusing outputs from results package ${args.sourceRunId} — inputs unchanged`,
       "starting",
     );
-    notifyRunRScript(
-      args.attachTargetProjectIds,
+    notifyInstanceRScript(
       args.runId,
       moduleId,
       "Reusing outputs from an earlier results package (inputs unchanged)",

@@ -2,12 +2,16 @@ import { join } from "@std/path";
 import {
   getValidatedModuleId,
   type APIResponseWithData,
+  type ModuleConfigSelections,
+  type RunCatalogDetail,
   type RunModuleFileListing,
 } from "lib";
+import { parseModuleConfigSelections } from "../db/project/modules.ts";
 import {
   _MODULE_LOG_FILE_NAME,
   _MODULE_SCRIPT_FILE_NAME,
 } from "../exposed_env_vars.ts";
+import { getRunManifestCached } from "./manifest_cache.ts";
 import { runDirPath } from "./run_paths.ts";
 
 // Reading a package's INTERNALS — the generated R script, the execution log,
@@ -132,6 +136,73 @@ export async function listRunModuleFiles(
   }
   files.sort((a, b) => a.name.localeCompare(b.name));
   return { success: true, data: { files } };
+}
+
+// The catalogue's master–detail body for one READY package: per-module
+// settings resolved from the manifest's configSelections (the
+// formatModuleSettingsForAI precedent — label from the parameter definition,
+// select values displayed as their option label) plus the outputs-dir file
+// listing. Manifest-gated: generating/failed runs have no manifest and are
+// served by the progress-derived UI instead.
+export async function readRunCatalogDetail(
+  runId: string,
+): Promise<APIResponseWithData<RunCatalogDetail>> {
+  if (!UUID_RE.test(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
+  let manifest;
+  try {
+    manifest = await getRunManifestCached(runId);
+  } catch (e) {
+    return {
+      success: false,
+      err: "This results package has no manifest to read settings from: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+  try {
+    const modules: RunCatalogDetail["modules"] = [];
+    for (const mod of manifest.modules) {
+      const filesRes = await listRunModuleFiles(runId, mod.id);
+      if (filesRes.success === false) {
+        return filesRes;
+      }
+      modules.push({
+        moduleId: mod.id,
+        settings: resolveModuleSettings(mod.configSelections),
+        files: filesRes.data.files,
+      });
+    }
+    return { success: true, data: { modules } };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem reading this results package's settings: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+function resolveModuleSettings(
+  configSelectionsJson: string | null,
+): { label: string; value: string }[] {
+  if (configSelectionsJson === null) {
+    return [];
+  }
+  const configSelections: ModuleConfigSelections = parseModuleConfigSelections(
+    configSelectionsJson,
+  );
+  return Object.entries(configSelections.parameterSelections).map(
+    ([key, value]) => {
+      const param = configSelections.parameterDefinitions.find(
+        (d) => d.replacementString === key,
+      );
+      const displayValue = param?.input.inputType === "select"
+        ? param.input.options.find((o) => o.value === value)?.label ?? value
+        : value;
+      return { label: param?.description ?? key, value: displayValue };
+    },
+  );
 }
 
 // Resolves ONE output file for download. Returns the absolute path plus its

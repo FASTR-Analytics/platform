@@ -244,7 +244,7 @@ function ModuleDefaultsInner(p: {
         })}
       </div>
 
-      <h3 class="font-700 text-lg">
+      <h3 class="ui-text-heading">
         {t3({
           en: "Default data families",
           fr: "Familles de données par défaut",
@@ -273,7 +273,7 @@ function ModuleDefaultsInner(p: {
         />
       </div>
 
-      <h3 class="font-700 text-lg">
+      <h3 class="ui-text-heading">
         {t3({
           en: "Default modules and parameters",
           fr: "Modules et paramètres par défaut",

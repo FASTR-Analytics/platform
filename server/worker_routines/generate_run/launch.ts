@@ -16,9 +16,12 @@ import {
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
+import {
+  notifyInstanceRunProgress,
+  notifyInstanceRunsCatalogUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { checkSpaceForDataset } from "../../utils/disk_space.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
-import { notifyRunProgress } from "./notify_run.ts";
 import { instantiateGenerateRunWorker } from "./instantiate_worker.ts";
 import {
   RUN_GENERATION_ENDED_CHANNEL,
@@ -207,7 +210,7 @@ export async function launchRunGeneration(
       return targetAlreadyGenerating;
     }
     entry.worker = worker;
-    notifyRunProgress(attachTargetProjectIds, runId, progress);
+    notifyInstanceRunProgress(runId, progress);
     return { success: true, data: { runId } };
   } catch (e) {
     GENERATING_BY_RUN.delete(runId);
@@ -216,6 +219,10 @@ export async function launchRunGeneration(
       runId,
       e instanceof Error ? e.message : String(e),
     ).catch(() => null);
+    // The row may already exist (created then marked failed above), and the
+    // route's notify is success-gated — signal here so the failed row is not
+    // invisible until reconnect. Harmless when the throw predates the row.
+    notifyInstanceRunsCatalogUpdated();
     return {
       success: false,
       err: "Problem launching results-package generation: " +
@@ -255,7 +262,10 @@ async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
     runId,
     "The generation worker crashed",
   );
+  // A crash bypasses the worker's own finalize-or-fail notify site — the row
+  // just flipped generating→failed, so the T1 listing must move here too.
+  notifyInstanceRunsCatalogUpdated();
   if (progress !== null) {
-    notifyRunProgress(entry.attachTargetProjectIds, runId, progress);
+    notifyInstanceRunProgress(runId, progress);
   }
 }

@@ -106,7 +106,7 @@ function Step1Inner(p: {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg">
+      <h3 class="ui-text-heading">
         {t3({ en: "Choose data", fr: "Choisir les données", pt: "Escolher os dados" })}
       </h3>
       <div class="text-base-content-muted text-sm">

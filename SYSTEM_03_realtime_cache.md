@@ -98,10 +98,29 @@ Exactly **two SSE-feeding** broadcast channels, each with one endpoint:
 † The instance endpoint admits every logged-in user, so the two results-package
 generation messages — `run_progress` and `r_script`, which carry run labels,
 module ids and R error detail — are dropped in the forward loop for callers
-without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The permission set is the
-one captured at connect; a change takes effect on reconnect, exactly like
-`currentUserPermissions` in the starting payload. No other message on either
-channel is filtered per user.
+without `can_configure_data` (PLAN_RESULTS_RUNS Q-B). The filter is LIVE:
+every `users_updated` passing through the same forward loop carries the full
+permission rows, and the filter re-derives the connection's entitlement from
+it (keyed on the connection's own email, which never changes), so a
+mid-session grant starts the stream and a revocation stops it without a
+reconnect. Per-message filtering is tolerable ONLY because these are
+ephemeral telemetry. Durable per-user state never relies on it: the runs
+CATALOGUE broadcasts a data-free nonce (`runs_catalog_updated`) and each
+entitled client fetches `listRunCatalog` through its per-request guard — the
+same signal-plus-own-fetch shape as `projects_last_updated` → `/my_projects`
+— so nothing sensitive rides the broadcast and permission changes take
+effect live. The one other per-connection rule on the instance channel is
+the ROSTER (2026-08-16): a connection whose user is absent from the `users`
+table — Clerk-authenticated but unapproved — receives `users: []` in
+`starting` and has every `users_updated` rewritten to `[]` in the forward
+loop, until a roster payload names them, at which point that message flows
+whole and the client's own-email re-derivation flips them approved. The
+roster is an enumeration surface (emails, names, permission maps) with no
+consumer on the pending-approval screen. Deliberately NOT withheld from
+unapproved connections, pending a separate ruling if ever wanted:
+`dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets;
+likewise approved non-admin users still receive the full roster. No other
+message on either channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process — which is how a background worker's
@@ -139,35 +158,49 @@ a `queue: []` + `ReadableStream` controller; **project** uses a
 **The notify catalog (normative).** Every broadcast to the two SSE channels goes
 through a typed wrapper — never `postMessage` directly.
 `server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus ten wrappers, one per `InstanceSseMessage`
-type: `notifyInstanceConfigUpdated` (`config_updated`),
+`notifyInstanceUpdate(message)` plus eleven wrappers, one per
+`InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceProjectsLastUpdated` (`projects_last_updated`),
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
 (`assets_updated`), `notifyInstanceGeoJsonMapsUpdated` (`geojson_maps_updated`),
 `notifyInstanceStructureUpdated` (`structure_updated`),
 `notifyInstanceIndicatorsUpdated` (`indicators_updated`),
 `notifyInstanceDatasetsUpdated` (`datasets_updated`),
+`notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated` — a data-free
+NONCE, `crypto.randomUUID()`: a timestamp collided when two mutations landed
+in the same millisecond and the client store's equality guard dropped the
+second refetch. `projects_last_updated` still carries a timestamp and shares
+that same-ms collision — known sibling, separate decision. Entitled clients
+refetch `listRunCatalog` per the † rule above;
+fired by every in-process mutation of the catalogue's facts: launch — success
+AND the row-created-then-failed path — delete, the generate-run worker's
+finalize-or-fail site plus the host's crash handler, attach/repoint, and the
+`projects.run_id`/label movers (project force-delete, copy completion,
+rename). The backfill synthesizer is a separate process, so its runs surface
+on reconnect),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
 (`r_script`). `server/task_management/notify_project_v2.ts` exposes
-`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus fourteen
+`notifyProjectV2(projectId, message)` (spreads `projectId` in) plus twelve
 wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectVisualizationFoldersUpdated`, `notifyProjectSlideDecksUpdated`,
 `notifyProjectSlideDeckFoldersUpdated`, `notifyProjectReportsUpdated`,
 `notifyProjectReportFoldersUpdated`, `notifyProjectDashboardsUpdated`,
 `notifyProjectUsersUpdated`, `notifyProjectLastUpdatedV2`,
-`notifyProjectRScript`, `notifyProjectRunProgress`, `notifyProjectRunAttached`,
+`notifyProjectRunAttached`,
 `notifyProjectAdminArea2Changed` (`admin_area_2_changed` — the scope-identity
 edit, PLAN_1_PROJECT_AA2_SCOPE §5; its route also fires
 `notifyInstanceProjectsLastUpdated`, the only message the instance projects
 list refetches off, so the list badge stays live).
 (The module-dirty-state / any-running / modules-updated / datasets-updated
 wrappers died with the dirty machine — PLAN_RESULTS_RUNS; run generation pushes
-`r_script`, `run_progress`, and `run_attached` instead.) Generation telemetry
-fans out on BOTH channels and no emitter calls the project wrappers directly:
-`worker_routines/generate_run/notify_run.ts` pairs each instance push with the
-per-attach-target project pushes, because a run launched with no attach targets
-has no project channel at all. `run_attached` has TWO emitters — the generation
-publish and a project's own package picker — and both go through
+`run_attached` instead.) Generation telemetry (`run_progress`, `r_script`) is
+INSTANCE-CHANNEL ONLY (C2 ruling, 2026-08-16): a project is attached only once
+a run is ready, so it has no live view of a generation and the former
+per-attach-target project copies were unrenderable — the project package tab
+keyed live progress by the ATTACHED run's id, which is never the generating
+one. The generate_run emitters call `notifyInstanceRunProgress` /
+`notifyInstanceRScript` directly. `run_attached` has TWO emitters — the
+generation publish and a project's own package picker — and both go through
 `server/runs/attach_run.ts`, so the repoint event carries the same full
 run-derived catalog either way.
 

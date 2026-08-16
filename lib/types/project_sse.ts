@@ -9,7 +9,6 @@ import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
-import type { RunProgress } from "./run_generation.ts";
 
 /**
  * Unified project state pushed via SSE.
@@ -66,15 +65,13 @@ export type ProjectSseMessage =
   // Initial state on connection
   | { type: "starting"; data: ProjectState }
 
-  // Live R output line for the currently generating module
-  | { type: "r_script"; data: { moduleId: string; text: string } }
-
-  // Results-package generation (PLAN_RESULTS_RUNS item 2): worker-pushed
-  // pipeline progress on every state change, and the repoint event when a
-  // finished run becomes the project's attached package — it carries the
-  // full run-derived catalog (modules, metrics, datasets, indicators) so
-  // clients re-key live without a reconnect.
-  | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
+  // Results-package repoint (PLAN_RESULTS_RUNS item 2): the event when a
+  // ready run becomes the project's attached package — it carries the full
+  // run-derived catalog (modules, metrics, datasets, indicators) so clients
+  // re-key live without a reconnect. Generation telemetry (`run_progress`,
+  // `r_script`) is instance-channel only: a project is attached only once
+  // the run is ready, so it has no live view of a generation (C2 ruling,
+  // 2026-08-16).
   | {
       type: "run_attached";
       data: {

@@ -79,10 +79,33 @@ export function notifyInstanceDatasetsUpdated(data: InstanceDatasetsSummary) {
   notifyInstanceUpdate({ type: "datasets_updated", data });
 }
 
-// Results-package generation, for the instance catalogue (Q-B). Emitted
-// alongside the per-attach-target project copies, and the ONLY channel a run
-// launched with no attach targets has. routesInstanceSSE drops both messages
-// for callers without can_configure_data.
+// The catalogue's T1 signal (the projects_last_updated pattern): a data-free
+// signal broadcast — each entitled client refetches via listRunCatalog,
+// whose guard is evaluated per request, so nothing sensitive rides the wire
+// and no per-connection filtering is needed. Fired by every in-process
+// catalogue mutation — launch (incl. its row-created-then-failed path),
+// delete, worker finalize/fail/crash, attach/repoint, and the
+// projects.run_id/label movers (project force-delete, copy completion,
+// rename). The backfill synthesizer is a separate process, so its runs
+// surface on the next reconnect instead (plan ruling 2).
+//
+// The value is a NONCE, not a timestamp: two mutations in the same
+// millisecond minted identical ISO strings, and the client store's equality
+// guard dropped the second write — the second refetch never fired. A nonce
+// cannot collide, and needs no cross-context counter coordination (the
+// generate-run worker has its own module instance of this file, so a
+// monotonic counter would regress across contexts).
+export function notifyInstanceRunsCatalogUpdated() {
+  notifyInstanceUpdate({
+    type: "runs_catalog_updated",
+    data: crypto.randomUUID(),
+  });
+}
+
+// Results-package generation telemetry, for the instance catalogue (Q-B) —
+// the ONLY channel it rides: a project is attached only once a run is
+// ready, so no project channel has a live view to feed. routesInstanceSSE
+// drops both messages for callers without can_configure_data (live filter).
 export function notifyInstanceRunProgress(runId: string, progress: RunProgress) {
   notifyInstanceUpdate({ type: "run_progress", data: { runId, progress } });
 }

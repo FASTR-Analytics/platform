@@ -242,7 +242,7 @@ function Step2Inner(p: {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg">
+      <h3 class="ui-text-heading">
         {t3({
           en: "Configure modules",
           fr: "Configurer les modules",

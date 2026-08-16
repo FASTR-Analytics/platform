@@ -1,10 +1,11 @@
-import type { GlobalUser, InstanceState } from "lib";
+import type { GlobalUser, InstanceState, RunCatalogItem } from "lib";
 import type { Sql } from "postgres";
 import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
   getInstanceIndicatorsSummary,
 } from "../db/mod.ts";
+import { listRunCatalog } from "../db/instance/run_generation.ts";
 import {
   _INSTANCE_CALENDAR,
   _INSTANCE_COUNTRY_ISO3,
@@ -34,6 +35,29 @@ export async function buildInstanceState(
 
   const users = res.data.users;
   const me = users.find((u) => u.email === globalUser.email);
+  // Roster fill mirrors the SSE forward filter (routes/instance/instance-sse.ts):
+  // an unapproved caller — absent from the roster — gets [] instead of every
+  // user's email, name and permission map. Their pending-approval screen has
+  // no roster consumer, and the first `users_updated` naming them flows whole.
+  const rosterForCaller = me === undefined ? [] : users;
+
+  // Per-user fill, the `projects` pattern (Q-B: run labels must not fan
+  // out): entitled callers get the catalogue in the starting payload — a
+  // fresh-auth point-in-time response, like every field here — and everyone
+  // else gets []. After connect, runs_catalog_updated broadcasts only a
+  // timestamp and entitled clients refetch via listRunCatalog (per-request
+  // guard). The /mcp context cache inherits the same fill, which is correct.
+  const canSeeRuns = (me?.isGlobalAdmin ?? false) ||
+    (me?.can_configure_data ?? false);
+  let runsCatalog: RunCatalogItem[] = [];
+  if (canSeeRuns) {
+    const runsRes = await listRunCatalog(mainDb);
+    if (runsRes.success) {
+      runsCatalog = runsRes.data;
+    } else {
+      console.error(`buildInstanceState runsCatalog: ${runsRes.err}`);
+    }
+  }
 
   const instanceState: InstanceState = {
     isReady: true,
@@ -48,9 +72,14 @@ export async function buildInstanceState(
     dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
     projects: res.data.projects,
     projectsLastUpdated: new Date().toISOString(),
-    users,
+    users: rosterForCaller,
     assets: res.data.assets,
     geojsonMaps: res.data.geojsonMaps,
+    // Fresh nonce per connect: the client's boundary effect sees a changed
+    // value after every `starting` and refetches — DELIBERATE, the reconnect
+    // self-healing path (see the field's doc in lib/types/instance_sse.ts).
+    runsCatalog,
+    runsCatalogSignal: crypto.randomUUID(),
     structure: res.data.structure,
     structureLastUpdated: res.data.structureLastUpdated,
     hfaWeights: res.data.hfaWeights,

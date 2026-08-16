@@ -451,12 +451,19 @@ export async function forceDeleteProject(
   });
 }
 
-export async function purgeExpiredProjects(mainDb: Sql): Promise<void> {
+// Returns the number of projects actually purged so the caller (main.ts's
+// boot + 24h tick) can fire the projects/runs-catalogue notifies — the purge
+// removes projects.run_id pointers, which are the catalogue's
+// attachedProjects and delete-guard facts, and clients would otherwise never
+// hear about it. The notify stays at the caller per the established split
+// (route/host layer owns notifies).
+export async function purgeExpiredProjects(mainDb: Sql): Promise<number> {
   const expired = await mainDb<{ id: string }[]>`
     SELECT id FROM projects
     WHERE status = 'pending_deletion' AND deletion_scheduled_at <= NOW()
   `;
 
+  let purgedCount = 0;
   for (const project of expired) {
     try {
       await closePgConnection(project.id);
@@ -485,11 +492,13 @@ export async function purgeExpiredProjects(mainDb: Sql): Promise<void> {
       }
 
       await mainDb`DELETE FROM projects WHERE id = ${project.id}`;
+      purgedCount++;
       console.log(`[PURGE] Deleted project ${project.id}`);
     } catch (e) {
       console.error(`[PURGE] Failed to delete project ${project.id}:`, e);
     }
   }
+  return purgedCount;
 }
 
 export async function setProjectLockStatus(

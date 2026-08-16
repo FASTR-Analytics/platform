@@ -28,9 +28,9 @@ export function ResultsPackageWizard(p: Props) {
     heading: () => (
       <>
         {t3({
-          en: "GENERATE RESULTS PACKAGE",
-          fr: "GÉNÉRER LE PAQUET DE RÉSULTATS",
-          pt: "GERAR PACOTE DE RESULTADOS",
+          en: "Generate results package",
+          fr: "Générer le paquet de résultats",
+          pt: "Gerar pacote de resultados",
         })}
       </>
     ),

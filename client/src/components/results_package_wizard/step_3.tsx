@@ -1,5 +1,4 @@
 import {
-  MODULE_REGISTRY,
   t3,
   type ProjectSummary,
   type RunGenerationStep1Result,
@@ -7,6 +6,7 @@ import {
 } from "lib";
 import {
   Button,
+  Card,
   Checkbox,
   Input,
   StateHolderFormError,
@@ -14,6 +14,7 @@ import {
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
+import { moduleLabel } from "~/components/_shared/results_package/status";
 import { instanceState } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
@@ -44,10 +45,6 @@ export function Step3(p: Props) {
       pt: "Pacote de resultados",
     })} ${new Date().toISOString().slice(0, 10)}`,
   );
-  function moduleLabel(moduleId: string): string {
-    const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
-    return entry === undefined ? moduleId : t3(entry.label);
-  }
 
   // A project can only receive a package while it is ready and unlocked; the
   // launch route re-checks the same rule, since the selection predates it.
@@ -115,7 +112,7 @@ export function Step3(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <h3 class="font-700 text-lg">
+      <h3 class="ui-text-heading">
         {t3({
           en: "Confirm and launch",
           fr: "Confirmer et lancer",
@@ -124,16 +121,15 @@ export function Step3(p: Props) {
       </h3>
 
       <div class="max-w-lg">
-        <div class="font-700 mb-1">
-          {t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}
-        </div>
-        <Input value={label()} onChange={setLabel} fullWidth />
+        <Input
+          label={t3({ en: "Label", fr: "Libellé", pt: "Rótulo" })}
+          value={label()}
+          onChange={setLabel}
+          fullWidth
+        />
       </div>
 
-      <div class="ui-pad rounded border">
-        <h4 class="font-700 mb-2">
-          {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-        </h4>
+      <Card header={t3({ en: "Data", fr: "Données", pt: "Dados" })}>
         <ul class="ui-spy-sm text-sm">
           <Show when={p.step1Result.hmis}>
             <li>{t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}</li>
@@ -151,58 +147,56 @@ export function Step3(p: Props) {
             </li>
           </Show>
         </ul>
-      </div>
+      </Card>
 
-      <div class="ui-pad rounded border">
-        <h4 class="font-700 mb-2">
-          {t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}
-        </h4>
+      <Card header={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}>
         <ul class="ui-spy-sm text-sm">
           <For each={p.step2Result.modules}>
             {(mod) => <li>{moduleLabel(mod.moduleId)}</li>}
           </For>
         </ul>
-      </div>
+      </Card>
 
-      <div class="ui-pad ui-spy-sm rounded border">
-        <h4 class="font-700">
-          {t3({
-            en: "Attach to projects",
-            fr: "Rattacher aux projets",
-            pt: "Anexar a projetos",
-          })}
-        </h4>
-        <div class="text-base-content-muted text-sm">
-          {t3({
-            en: "These projects switch to the new package when generation succeeds. Optional — you can also attach it later from a project's Results package tab.",
-            fr: "Ces projets basculeront vers le nouveau paquet lorsque la génération aura réussi. Facultatif — vous pouvez aussi le rattacher plus tard depuis l'onglet Paquet de résultats d'un projet.",
-            pt: "Estes projetos passam a usar o novo pacote quando a geração for concluída com êxito. Opcional — também o pode anexar mais tarde no separador Pacote de resultados de um projeto.",
-          })}
+      <Card
+        header={t3({
+          en: "Attach to projects",
+          fr: "Rattacher aux projets",
+          pt: "Anexar a projetos",
+        })}
+      >
+        <div class="ui-spy-sm">
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: "These projects switch to the new package when generation succeeds. Optional — you can also attach it later from a project's Results package tab.",
+              fr: "Ces projets basculeront vers le nouveau paquet lorsque la génération aura réussi. Facultatif — vous pouvez aussi le rattacher plus tard depuis l'onglet Paquet de résultats d'un projet.",
+              pt: "Estes projetos passam a usar o novo pacote quando a geração for concluída com êxito. Opcional — também o pode anexar mais tarde no separador Pacote de resultados de um projeto.",
+            })}
+          </div>
+          <Show
+            when={instanceState.projects.length > 0}
+            fallback={
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "No projects available",
+                  fr: "Aucun projet disponible",
+                  pt: "Nenhum projeto disponível",
+                })}
+              </div>
+            }
+          >
+            <For each={instanceState.projects}>
+              {(project) => (
+                <Checkbox
+                  label={projectCheckboxLabel(project)}
+                  checked={attachTargets[project.id] === true}
+                  onChange={(v) => setAttachTargets(project.id, v)}
+                  disabled={ineligibleReason(project) !== null}
+                />
+              )}
+            </For>
+          </Show>
         </div>
-        <Show
-          when={instanceState.projects.length > 0}
-          fallback={
-            <div class="text-base-content-muted text-sm">
-              {t3({
-                en: "No projects available",
-                fr: "Aucun projet disponible",
-                pt: "Nenhum projeto disponível",
-              })}
-            </div>
-          }
-        >
-          <For each={instanceState.projects}>
-            {(project) => (
-              <Checkbox
-                label={projectCheckboxLabel(project)}
-                checked={attachTargets[project.id] === true}
-                onChange={(v) => setAttachTargets(project.id, v)}
-                disabled={ineligibleReason(project) !== null}
-              />
-            )}
-          </For>
-        </Show>
-      </div>
+      </Card>
 
       <div class="text-base-content-muted text-sm">
         {t3({

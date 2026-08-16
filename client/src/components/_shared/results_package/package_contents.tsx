@@ -1,39 +1,26 @@
-import {
-  getValidatedModuleId,
-  t3,
-  type RunListingItem,
-  type RunProgress,
-} from "lib";
-import { Button, getEditorWrapper } from "panther";
+import { getValidatedModuleId, t3, type RunListingItem } from "lib";
+import { Button, formatFileSize, getEditorWrapper } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import type { PackageInternalsSource } from "./internals_source";
-import { ModuleProgressChip, formatBytes, moduleLabel } from "./status";
+import { moduleLabel } from "./status";
 import { ViewFiles } from "./view_files";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
 
-// What a results package CONTAINS, rendered identically wherever a package
-// is explored — the instance catalogue and a project's Results package tab
-// (PLAN_RESULTS_RUNS: exploring a package is one capability, built once and
-// mounted twice). Everything here answers a question whose answer lives
-// INSIDE the run directory, which is why it is the same view for both: who
-// is looking changes the chrome around it, not the package.
+// What a READY results package CONTAINS, as a project's Results package tab
+// explores it (PLAN_RESULTS_RUNS: exploring a package is one capability;
+// the instance catalogue's detail pane renders its own ready view plus the
+// generating/failed branches, because only the catalogue ever shows a
+// non-ready run — a project is attached only once the run is ready, so the
+// package here is always ready by construction). Everything here answers a
+// question whose answer lives INSIDE the run directory: who is looking
+// changes the chrome around it, not the package.
 //
-// The chrome each surface adds for itself: the instance catalogue brings the
-// run list, generate, guarded delete, disk size and the attached-projects
-// column; the project tab brings the "in use" marker and (item 4) the attach
-// picker.
+// The chrome the project tab adds for itself: the "in use" marker and (item
+// 4) the attach picker.
 
 export function ResultsPackageContents(p: {
   run: RunListingItem;
-  // Live progress for a generating run, from whichever SSE channel the host
-  // surface listens on (instance for the catalogue, project for the tab).
-  liveProgress: RunProgress | undefined;
-  // Latest R line for a module of THIS run. A lookup rather than a map so
-  // each surface keeps its own store shape — the catalogue keys by
-  // run+module because two generations can be visible at once, a project
-  // only ever watches its own.
-  latestRLine: (moduleId: string) => string | undefined;
   // How this surface reaches the package's internals, and which of them it
   // may offer. The routes are permission-guarded server-side; the source's
   // flags only decide whether a button appears, so a caller without access
@@ -43,8 +30,6 @@ export function ResultsPackageContents(p: {
   internals: PackageInternalsSource;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
-  const progress = () => p.liveProgress ?? p.run.progress;
-
   function openViewer(
     element: typeof ViewScript | typeof ViewLogs | typeof ViewFiles,
     moduleId: string,
@@ -94,94 +79,36 @@ export function ResultsPackageContents(p: {
   }
 
   return (
-    <>
-      <Show when={p.run.status === "ready" && p.run.summary} keyed>
-        {(summary) => (
-          <div class="ui-spy-sm">
-            <div class="text-base-content-muted text-sm">
-              {summary.moduleIds.length}{" "}
-              {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
-              {summary.metricCount}{" "}
-              {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
-            </div>
-            <For each={summary.moduleIds}>
-              {(moduleId) => (
-                <div class="ui-gap-sm flex items-center text-sm">
-                  <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  {viewerButtons(moduleId)}
-                </div>
-              )}
-            </For>
-          </div>
-        )}
-      </Show>
-
-      <Show when={p.run.status === "generating" && progress()} keyed>
-        {(keyedProgress) => (
-          <div class="ui-spy-sm">
-            <div class="ui-gap-sm flex flex-wrap">
-              <For each={keyedProgress.moduleOrder}>
-                {(moduleId) => (
-                  <ModuleProgressChip
-                    label={moduleLabel(moduleId)}
-                    status={keyedProgress.moduleStatus[moduleId] ?? "pending"}
-                  />
-                )}
-              </For>
-            </div>
-            <Show when={keyedProgress.currentModuleId} keyed>
-              {(currentModuleId) => (
-                <div class="text-base-content-muted truncate font-mono text-xs">
-                  {p.latestRLine(currentModuleId) ?? "..."}
-                </div>
-              )}
-            </Show>
-          </div>
-        )}
-      </Show>
-
-      <Show when={p.run.status === "failed"}>
+    <Show when={p.run.status === "ready" && p.run.summary} keyed>
+      {(summary) => (
         <div class="ui-spy-sm">
-          <FailedErrorDetail errorDetail={progress()?.errorDetail ?? null} />
-          {/* The failed workspace is published for inspection (no manifest,
-              so there is no summary): the module list comes from the stored
-              progress, and viewers are offered only for modules that
-              started — a pending module never got a workspace. */}
-          <Show when={progress()} keyed>
-            {(keyedProgress) => (
-              <For each={keyedProgress.moduleOrder}>
-                {(moduleId) => {
-                  const status = keyedProgress.moduleStatus[moduleId] ??
-                    "pending";
-                  return (
-                    <div class="ui-gap-sm flex items-center text-sm">
-                      <div class="flex w-64">
-                        <ModuleProgressChip
-                          label={moduleLabel(moduleId)}
-                          status={status}
-                        />
-                      </div>
-                      <Show when={status !== "pending"}>
-                        {viewerButtons(moduleId)}
-                      </Show>
-                    </div>
-                  );
-                }}
-              </For>
+          <div class="text-base-content-muted text-sm">
+            {summary.moduleIds.length}{" "}
+            {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
+            {summary.metricCount}{" "}
+            {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
+          </div>
+          <For each={summary.moduleIds}>
+            {(moduleId) => (
+              <div class="ui-gap-sm flex items-center text-sm">
+                <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
+                {viewerButtons(moduleId)}
+              </div>
             )}
-          </Show>
+          </For>
         </div>
-      </Show>
-    </>
+      )}
+    </Show>
   );
 }
 
 // A failed run's errorDetail can be a wall of text (module-resolution or R
 // errors) — clamp it to a few lines, expandable on demand. Display-only:
-// the stored detail stays intact.
+// the stored detail stays intact. Exported for the instance catalogue's
+// detail pane, which renders its own failed branch.
 const ERROR_CLAMP_CHARS = 280;
 
-function FailedErrorDetail(p: { errorDetail: string | null }) {
+export function FailedErrorDetail(p: { errorDetail: string | null }) {
   const [expanded, setExpanded] = createSignal(false);
   const detail = () =>
     p.errorDetail ??
@@ -192,22 +119,23 @@ function FailedErrorDetail(p: { errorDetail: string | null }) {
       });
   const isLong = () => detail().length > ERROR_CLAMP_CHARS;
   return (
-    <div class="text-danger text-sm">
+    <div class="ui-spy-sm text-danger text-sm">
       <div class="whitespace-pre-wrap">
         {expanded() || !isLong()
           ? detail()
           : `${detail().slice(0, ERROR_CLAMP_CHARS)}…`}
       </div>
       <Show when={isLong()}>
-        <button
-          type="button"
-          class="cursor-pointer underline"
+        <Button
+          size="sm"
+          outline
+          intent="danger"
           onClick={() => setExpanded(!expanded())}
         >
           {expanded()
             ? t3({ en: "Show less", fr: "Afficher moins", pt: "Mostrar menos" })
             : t3({ en: "Show more", fr: "Afficher plus", pt: "Mostrar mais" })}
-        </button>
+        </Button>
       </Show>
     </div>
   );
@@ -222,7 +150,7 @@ export function ResultsPackageProvenanceLine(p: {
   showDiskSize: boolean;
 }) {
   return (
-    <div class="text-base-content-muted text-xs">
+    <div class="ui-text-caption">
       {new Date(p.run.createdAt).toLocaleString()}
       {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
       {p.run.provenance === "synthetic-backfill"
@@ -233,7 +161,7 @@ export function ResultsPackageProvenanceLine(p: {
         })}`
         : ""}
       {p.showDiskSize && p.run.summary?.diskSizeBytes != null
-        ? ` · ${formatBytes(p.run.summary.diskSizeBytes)}`
+        ? ` · ${formatFileSize(p.run.summary.diskSizeBytes, 1)}`
         : ""}
     </div>
   );

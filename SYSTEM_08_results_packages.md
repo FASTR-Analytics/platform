@@ -173,10 +173,16 @@ what a project MEMBER may read from the attached run's manifest:
 `getResultsObjectItems` (raw preview) and `getModuleWithConfigSelections`.
 Instance level: `routes/instance/modules.ts` (`compareProjects`) and
 `routes/instance/run_generation.ts` — the wizard's attempt CRUD +
-defaults/module-options/launch, plus the catalogue listing, the guarded hard
-delete, and the `(run_id, module_id)` run-dir viewers
-(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), all behind
-`can_configure_data`. The viewers moved here from the project mount with the
+defaults/module-options/launch, plus the catalogue listing (instance-T1's
+fetch half — pulled by entitled clients on the `runs_catalog_updated`
+nonce signal), the guarded hard delete, the
+`(run_id, module_id)` run-dir viewers
+(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), and the
+catalogue's master–detail body `getRunCatalogDetail` (per-module settings
+resolved server-side from the manifest's `configSelections` + the outputs-dir
+file listing, via `readRunCatalogDetail` in
+`server/runs/package_internals.ts`; manifest-gated, so ready runs only), all
+behind `can_configure_data`. The viewers moved here from the project mount with the
 `runReadableByProject` guard deleted (Q-F); item 3b then re-opened the
 FRAMING — they are package contents, not an admin-only debug class — so what
 permission should govern them is the plan's one deferred question. The
@@ -226,6 +232,43 @@ would pass its selected run and reuse the tools unchanged. The permission
 model for package internals is still open (PLAN_RESULTS_RUNS item 3b); the
 client gates the viewer buttons on one expression per surface so a caller
 without access sees no button rather than one that 403s.
+
+**The instance catalogue is a master–detail**
+(PLAN_RESULTS_PACKAGES_CATALOGUE_UI, 2026-08-15): a plain newest-first
+sidebar (`SelectList`, no search/sort/grouping — dozens of rows, not
+hundreds; selection is T5 and never jumps — an effect PINS the newest run's
+id whenever nothing is pinned (first non-empty render, and newest after the
+selection is deleted), with the derived `?? newest` fallback kept only as
+the same-tick bridge, so another admin's launch never remounts the pane)
+beside a detail pane (`instance_results_packages/detail.tsx`). The
+LISTING is instance-T1 via the `projects` pattern:
+`runs_catalog_updated` broadcasts a data-free nonce — signalled by every
+in-process catalogue mutation: launch (success and the
+row-created-then-failed path), guarded delete, the generate-run worker's
+finalize-or-fail notify site plus the host's worker-crash handler,
+attach/repoint, and the `projects.run_id`/label movers (project force-delete,
+copy completion, rename) — and each entitled client refetches
+`listRunCatalog` into `InstanceState.runsCatalog` (per-request guard;
+SYSTEM_03 †). `attachedProjects` is the delete-blocking column, so anything
+that moves a pointer or a label moves the list. The one staleness window is
+deliberate:
+`synthesizeRunForProject` runs only inside the ops script
+`backfill_runs.ts`, a separate process whose BroadcastChannel post would
+reach no SSE client, so ops backfills surface on the next
+reconnect/`starting` (ruling 2). A visitor arriving mid-generation sees
+launch-time progress chips until the next per-module push: the
+`run_progress` listeners are page-local and `updateRunProgress` deliberately
+does not signal the catalogue — per-module signal spam is worse than a
+bounded-stale chip row (accepted 2026-08-15). The detail pane is the ONLY
+surface that renders a non-ready run — its generating/failed branches
+(progress chips + live R line; `FailedErrorDetail` + per-started-module
+viewers) live here, not in the shared `ResultsPackageContents`, which is
+ready-only because the project tab it serves is attached only once a run is
+ready (C2 ruling, 2026-08-16). The catalogue's READY view also diverges from
+the project tab's by design: `getRunCatalogDetail` settings + inline
+per-module file rows with download links (the gated static mount), fetched
+T3 with the stale-response counter guard and no cache — a ready run dir is
+immutable.
 
 ## Project Admin Area 2 scope (PLAN_1_PROJECT_AA2_SCOPE, shipped 2026-08-12)
 
@@ -354,6 +397,11 @@ Four invariants, in the order they matter:
    mirror absent from an older package now lives at transform time, where a
    migration belongs, instead of in a per-request read.
 
+Beyond the query read path, the manifest's module catalog also serves
+`getRunCatalogDetail` (the instance catalogue's detail pane): each entry's
+`configSelections` resolves to the displayed settings server-side — same
+`getRunManifestCached` load, same version gate.
+
 `manifest.json` also carries, and is the only record of: identity and provenance
 (`createdAt`, `label`, `provenance` = `wizard | synthetic-backfill`,
 `appVersion`, `rImageTag`); the **captured data semantics** the query layer must
@@ -365,10 +413,12 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `4`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v4 = `metrics[].format_as` became the
-three-way declared format and the 8 pre-declaration metric rows were
-rewritten to `"indicator"`). Invariant 1's immutability covers package
+**`manifestSchemaVersion` gates every read**, currently `5`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v5 = `facilityColumnsConfig` split into the
+per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy in
+transform block 3; v4 = `metrics[].format_as` became the three-way declared
+format and the 8 pre-declaration metric rows were rewritten to
+`"indicator"`). Invariant 1's immutability covers package
 **outputs**; the manifest is a derived descriptor and **is transformed forward
 in place** (`server/runs/manifest_transform.ts`), because a schema change would
 otherwise orphan every existing package and regenerating mints a new `runId`.
@@ -440,10 +490,11 @@ inline invalid messages.
 Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename →
 `projects.run_id` repoint (`publishReadyRun`, one transaction). Launch consumes
 a `run_generation_attempts` row, inserts a `runs` row `generating`, and spawns
-the worker; progress and the live R line stream via `notify_run.ts`, which
-pairs an INSTANCE-SSE push (the catalogue; `can_configure_data`-filtered in
-the endpoint) with the per-attach-target project pushes — a run with no
-attach targets has only the former. Completion goes via
+the worker; progress and the live R line stream on the INSTANCE channel only
+(`notifyInstanceRunProgress` / `notifyInstanceRScript` — the catalogue;
+`can_configure_data`-filtered live in the endpoint). There is no project
+copy: a project is attached only once a run is ready, so it never has a live
+view of a generation (C2 ruling, 2026-08-16). Completion goes via
 `RUN_GENERATION_ENDED_CHANNEL` + `notifyProjectRunAttached`. Stages: prepare
 (dataset extracts COPY'd by Postgres directly into the run tmp dir via
 `RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored back to the sandbox;

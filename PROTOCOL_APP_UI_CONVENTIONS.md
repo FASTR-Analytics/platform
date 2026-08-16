@@ -93,9 +93,13 @@ panther repo's PLAN_DARK_MODE.)
   (`components/_shared/heading_bar_main_ribbon.tsx`) is deliberately not a
   panther component — the kit no longer ships inverted surfaces, and the
   re-invert rule above keys on its `bg-base-content`/`text-base-100` pair.
-- **`text-white` / `bg-white`** are acceptable only on fixed-color surfaces
-  (identity-color badges, document thumbnails, the login brand panel) —
-  everywhere else they break the dark palette.
+- **No `text-white` / `bg-white`** — they are not tokens and break the dark
+  palette. Document surfaces (slide canvases, thumbnails, previews) wear
+  `ui-scheme-light`; constant contrast over media/data is an inline style
+  beside its inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
+- The `data-theme="dark"` mechanism above predates PROTOCOL_UI_STYLING rule 18
+  (`data-scheme` + `light-dark()` pairs); that rule is the target state, landing
+  with the panther repo's PLAN_DARK_MODE.
 
 ## Page layout patterns
 
@@ -138,7 +142,8 @@ skeleton; the color/state classes in them follow PROTOCOL_UI_STYLING and will
 change with it.
 
 **Card grid** (`15rem` is the standard card width; `18rem` for larger cards like
-dashboards/metrics):
+dashboards/metrics). Cards are panther `Card` — it owns the frame, hover,
+selected state and keyboard wiring:
 
 ```tsx
 <div class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto">
@@ -153,58 +158,51 @@ dashboards/metrics):
     }
   >
     {(item) => (
-      <div
-        class="ui-pad group relative rounded border"
-        classList={{
-          "border-primary bg-primary-subtle": isSelected(item.id),
-          "ui-hoverable-base-100": !isSelected(item.id),
-        }}
+      <Card
+        header={item.label}
+        selected={isSelected(item.id)}
         onClick={() => openItem(item.id)}
       >
-        <div class="ui-spy-sm">
-          <div class="font-700">{item.label}</div>
-          <div class="text-base-content-muted text-sm">{item.description}</div>
-        </div>
-      </div>
+        <div class="text-base-content-muted text-sm">{item.description}</div>
+      </Card>
     )}
   </For>
 </div>;
 ```
 
-**Multi-select on cards:** use panther's `createSelectionController` (click /
-Cmd+click toggle / Shift+click range) + `<SelectionCircle isSelected onClick/>`
-inside the `group relative` card — never hand-roll the circle markup.
+**Multi-select on cards:** panther's `createSelectionController` (click /
+Cmd+click toggle / Shift+click range) drives `Card`'s `selected` +
+`onSelectToggle`, which renders the selection circle itself.
 
 **Search:** `HeadingBar`'s built-in search input; filtering triggers at **3+
 characters** (below that, show all). Empty states are search-aware (see the grid
 fallback above).
 
 **List with borders** (non-grid): rows with
-`border-b px-3 py-2 last:border-b-0`, `flex-1 truncate` label, small outline
-action buttons.
+`ui-pad-sm border-b last:border-b-0`, `flex-1 truncate` label, `size="sm"`
+outline action buttons.
 
-**Grouping sidebar** (inside Pattern C's resizable panel): full-height column —
-the frame draws the edge, so don't add one; controls section `border-b p-3`
-(e.g. a `Select` for group-by); list section `flex-1 overflow-auto p-2` with
-`SelectList`.
+**Grouping sidebar** (inside Pattern C's resizable panel): the frame draws the
+edge, so don't add one. With a controls section (e.g. a `Select` for group-by):
+full-height column, controls `ui-pad border-b`, list `ui-pad flex-1
+overflow-auto` around the `SelectList`. Without one: just
+`ui-pad h-full overflow-auto` around the `SelectList` — no column wrapper.
 
 **Context menu:** panther
 `showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items })`
 — or the convenience `showMenuAtPoint(x, y, { items })`. `MenuItem`s take `icon`
 and `intent`; delete is always last and `intent: "danger"`.
 
-**Buttons:** primary = default intent, no outline; secondary/cancel =
-`intent="neutral" outline`; destructive = `intent="danger" outline` and always
+**Buttons:** which intent / outline / `onBackground` → PROTOCOL_UI_STYLING
+("Which token do I reach for"). App policy on top: destructive actions always go
 through `createDeleteAction` (confirmation built in); async buttons pass
 `state={action.state()}`; toolbar groups are `div.flex.items-center.ui-gap-sm`.
-Outline buttons off a `base-100` surface must declare `onBackground`
-(PROTOCOL_UI_STYLING).
 
 **Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction` —
 validate inside the action and return `{ success: false, err }`; fields spaced
-`ui-spy-sm`; `autoFocus` the first input. Settings pages: `SettingsSection`
-blocks inside `ui-pad ui-spy`, fields `ui-spy-sm`. Modal widths: `sm` 400 / `md`
-560 / `lg` 800 / `xl` 1000 / `2xl` 1200 / `3xl` 1400 (all clamped to viewport).
+`ui-spy-sm`; `autoFocus` the first input. Settings pages: `ui-pad ui-spy` page,
+`ui-text-heading` section headings, fields `ui-spy-sm`. Modal widths are
+`ModalContainer`'s `width` tokens (panther).
 
 **Form-draft signals:** draft state under edit uses a `temp*` prefix
 (`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
@@ -241,8 +239,10 @@ App-specific only — the general styling prohibitions are in PROTOCOL_UI_STYLIN
   counterpart.
 - Don't build a new inverted surface without the `bg-base-content` /
   `text-base-100` pair the re-invert rule keys on.
-- Don't hand-roll selection circles, context menus, delete confirmations, or the
-  running-stripe animation — primitives exist for all four.
+- Don't hand-roll cards, selection circles, context menus, delete
+  confirmations, or the running-stripe animation — `Card` (with
+  `selected`/`onSelectToggle`), `showMenu`, `createDeleteAction` and
+  `ui-running` exist for exactly these.
 - Don't put color or radius overrides in components; the override point is
   `client/src/app.css`.
 - Never modify `panther/` in this repo (fix in the panther repo, resync).

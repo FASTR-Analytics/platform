@@ -116,7 +116,7 @@ function IssueRow(p: { issue: ResultsPackageCompatibilityIssue }) {
   return (
     <div class="ui-pad-sm rounded border text-sm">
       <div class="font-700 truncate">{p.issue.label}</div>
-      <div class="text-base-content-muted text-xs">
+      <div class="ui-text-caption">
         <Switch>
           <Match when={p.issue.kind === "metric_not_in_package"}>
             {t3({

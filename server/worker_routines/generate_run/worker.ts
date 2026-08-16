@@ -2,7 +2,10 @@ import type { Sql } from "postgres";
 import { createWorkerReadConnection } from "../../db/mod.ts";
 import { markRunGenerationFailed } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
-import { notifyRunProgress } from "./notify_run.ts";
+import {
+  notifyInstanceRunProgress,
+  notifyInstanceRunsCatalogUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { runGenerationPipeline } from "./pipeline.ts";
 import {
   RUN_GENERATION_ENDED_CHANNEL,
@@ -47,6 +50,9 @@ async function run(std: GenerateRunStartData) {
       );
       await failGeneration(mainDb, std, e);
     }
+    // One notify site for finalize AND fail (ruling 3): by this point either
+    // publishReadyRun or markRunGenerationFailed has updated the row.
+    notifyInstanceRunsCatalogUpdated();
     const ended: GenerateRunEndedData = {
       runId: std.runId,
       successOrError,
@@ -73,6 +79,6 @@ async function failGeneration(
     e instanceof Error ? e.message : String(e),
   );
   if (progress !== null) {
-    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+    notifyInstanceRunProgress(std.runId, progress);
   }
 }

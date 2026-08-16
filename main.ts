@@ -3,6 +3,10 @@ import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { purgeExpiredProjects } from "./server/db/mod.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceRunsCatalogUpdated,
+} from "./server/task_management/notify_instance_updated.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { startDhis2ImportScheduler } from "./server/worker_routines/import_hmis_data_dhis2/scheduler.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
@@ -80,9 +84,19 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  purgeExpiredProjects(db).catch((e) =>
-    console.error("Project purge failed:", e)
-  );
+  purgeExpiredProjects(db)
+    .then((purgedCount) => {
+      // The purge drops projects.run_id pointers — the catalogue's
+      // attachedProjects and delete-guard facts — so connected clients must
+      // be signalled (forceDeleteProject's route fires the same pair). The
+      // boot-time invocation notifies harmlessly: no clients are connected
+      // yet.
+      if (purgedCount > 0) {
+        notifyInstanceProjectsLastUpdated(new Date().toISOString());
+        notifyInstanceRunsCatalogUpdated();
+      }
+    })
+    .catch((e) => console.error("Project purge failed:", e));
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);

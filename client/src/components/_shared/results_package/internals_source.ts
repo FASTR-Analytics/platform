@@ -48,7 +48,9 @@ export function instancePackageInternalsSource(
     listFiles: (moduleId) =>
       serverActions.listRunModuleFiles({ run_id: runId, module_id: moduleId }),
     fileHref: (moduleId, fileName) =>
-      `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${fileName}?t=${Date.now()}`,
+      `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${
+        encodeURIComponent(fileName)
+      }?t=${Date.now()}`,
   };
 }
 

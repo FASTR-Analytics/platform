@@ -12,13 +12,18 @@ import type {
   OtherUser,
   ProjectSummary,
   FigureLocalization,
+  RunCatalogItem,
 } from "lib";
 
 // ============================================================================
 // Store
 // ============================================================================
 
-const [instanceState, setInstanceState] = createStore<InstanceState>({
+// Hoisted so resetInstanceState can reconcile back to it — the instance
+// sibling of EMPTY_PROJECT_STATE. `isReady: false` included: a disconnect
+// must never leave the previous user's state renderable (Clerk cross-tab
+// user switch unmounts/remounts the boundary without a reload).
+const EMPTY_INSTANCE_STATE: InstanceState = {
   isReady: false,
   instanceName: "",
   instanceLanguage: "en",
@@ -34,6 +39,8 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   users: [],
   assets: [],
   geojsonMaps: [],
+  runsCatalog: [],
+  runsCatalogSignal: "",
   structure: undefined,
   structureLastUpdated: undefined,
   hfaWeights: [],
@@ -67,7 +74,11 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
     can_view_data: false,
     can_create_projects: false,
   },
-});
+};
+
+const [instanceState, setInstanceState] = createStore<InstanceState>(
+  structuredClone(EMPTY_INSTANCE_STATE),
+);
 
 export { instanceState };
 
@@ -95,6 +106,14 @@ export function getSnapshotInstanceLocalization(): FigureLocalization {
 
 export function initInstanceState(data: InstanceState): void {
   setInstanceState(reconcile(data));
+}
+
+// Mirrors resetProjectState: called from disconnectInstanceSSE so a boundary
+// unmount (incl. the Clerk-listener user-switch path, which does NOT reload)
+// never lets the next user render the previous user's permissions, roster or
+// catalogue.
+export function resetInstanceState(): void {
+  setInstanceState(reconcile(structuredClone(EMPTY_INSTANCE_STATE)));
 }
 
 export function updateInstanceConfig(data: InstanceConfig): void {
@@ -158,6 +177,22 @@ export function updateInstanceAssets(assets: AssetInfo[]): void {
 
 export function updateInstanceGeoJsonMaps(maps: GeoJsonMapSummary[]): void {
   setInstanceState("geojsonMaps", reconcile(maps));
+}
+
+export function updateInstanceRunsCatalog(runs: RunCatalogItem[]): void {
+  setInstanceState("runsCatalog", reconcile(runs));
+}
+
+export function updateRunsCatalogSignal(signal: string): void {
+  setInstanceState("runsCatalogSignal", signal);
+}
+
+// Live read of the current user's own catalogue entitlement (Q-B): the
+// boundary's catalogue fetch tracks this, so a grant or revocation takes
+// effect without a reconnect.
+export function canSeeRunsCatalog(): boolean {
+  return instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_data;
 }
 
 export function updateInstanceStructure(data: InstanceStructureSummary): void {

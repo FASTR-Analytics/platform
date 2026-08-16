@@ -80,18 +80,42 @@ routesInstanceSSE.get(
           ),
         });
 
-        // Per-user message filter (Q-B ruling): this endpoint is guarded by
-        // requireGlobalPermission() — every logged-in user — but the
-        // results-package generation messages carry run labels, module ids
-        // and R error detail, which are for instance data admins only. The
-        // permission set is the one captured for this connection; a
-        // permission change takes effect on reconnect, exactly like the
-        // currentUserPermissions in the starting payload above.
-        const canSeeRunMessages = instanceState.currentUserIsGlobalAdmin ||
+        // Per-user message filter: this endpoint is guarded by
+        // requireGlobalPermission() — every logged-in user, approved or not.
+        // Two per-message rules, both LIVE (every `users_updated` passing
+        // through the forward loop carries the full roster with permission
+        // rows, and the connection's own email never changes, so re-finding
+        // it in each roster is sufficient):
+        //   - Q-B: `run_progress`/`r_script` (run labels, module ids, R error
+        //     detail) go to instance data admins only — a mid-session grant
+        //     starts the stream, a revocation stops it, no reconnect.
+        //   - Roster: an UNAPPROVED connection (its user absent from the
+        //     roster) gets `users_updated` rewritten to `[]` — the roster is
+        //     an enumeration surface (emails, names, permission maps) with no
+        //     consumer on the pending-approval screen. The moment the user
+        //     appears in a roster payload, that same message flows through
+        //     whole, and the client's own-email re-derivation flips them
+        //     approved and fills the roster in one step. The starting payload
+        //     applies the same rule (buildInstanceState).
+        // Returns the message to write (possibly rewritten) or null to drop.
+        let canSeeRunMessages = instanceState.currentUserIsGlobalAdmin ||
           instanceState.currentUserPermissions.can_configure_data;
-        const shouldForward = (msg: InstanceSseMessage): boolean =>
-          canSeeRunMessages ||
-          (msg.type !== "run_progress" && msg.type !== "r_script");
+        const forwardable = (
+          msg: InstanceSseMessage,
+        ): InstanceSseMessage | null => {
+          if (msg.type === "users_updated") {
+            const me = msg.data.find(
+              (u) => u.email === instanceState.currentUserEmail,
+            );
+            canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
+              (me?.can_configure_data ?? false);
+            return me === undefined ? { type: "users_updated", data: [] } : msg;
+          }
+          if (msg.type === "run_progress" || msg.type === "r_script") {
+            return canSeeRunMessages ? msg : null;
+          }
+          return msg;
+        };
 
         // 3. Create ReadableStream and switch listener to stream mode
         const rs = new ReadableStream<InstanceSseMessage>({
@@ -116,9 +140,10 @@ routesInstanceSSE.get(
             if (stream.aborted) break;
             const { done, value } = await reader.read();
             if (done) break;
-            if (!shouldForward(value)) continue;
+            const outgoing = forwardable(value);
+            if (outgoing === null) continue;
             await stream.writeSSE({
-              data: JSON.stringify(value),
+              data: JSON.stringify(outgoing),
             });
           }
         } finally {
@@ -126,12 +151,15 @@ routesInstanceSSE.get(
           await rs.cancel();
         }
       } catch (err) {
+        // Generic on the wire: this connection may be an unapproved user, and
+        // buildInstanceState's summary reads are unwrapped — a raw driver
+        // message must not reach the SSE stream. The real error goes to the
+        // server log.
+        console.error("[instance-sse] failed to build instance state:", err);
         await stream.writeSSE({
           data: JSON.stringify({
             type: "error",
-            data: {
-              message: err instanceof Error ? err.message : "Unknown error",
-            },
+            data: { message: "Failed to build instance state" },
           }),
         });
       } finally {

@@ -1,4 +1,4 @@
-import { t3, TC, type ModuleId } from "lib";
+import { t3, type ModuleId } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -6,9 +6,9 @@ import {
   HeadingBar,
   StateHolderWrapper,
   createQuery,
+  formatFileSize,
 } from "panther";
 import { For, Show } from "solid-js";
-import { formatBytes } from "./status";
 import type { PackageInternalsSource } from "./internals_source";
 
 // Lists the actual files in the run's outputs/{moduleId} dir, with a download
@@ -35,17 +35,10 @@ export function ViewFiles(
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}>
-          <div class="ui-gap-sm flex">
-            <Button
-              onClick={() => p.close(undefined)}
-              intent="neutral"
-              iconName="x"
-            >
-              {t3(TC.done)}
-            </Button>
-          </div>
-        </HeadingBar>
+        <HeadingBar
+          onBack={() => p.close(undefined)}
+          heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}
+        />
       }
     >
       <StateHolderWrapper state={rFiles.state()}>
@@ -72,7 +65,7 @@ export function ViewFiles(
                       outline
                       download={file.name}
                     >
-                      {`${file.name} (${formatBytes(file.sizeBytes)})`}
+                      {`${file.name} (${formatFileSize(file.sizeBytes, 1)})`}
                     </Button>
                   </div>
                 )}
