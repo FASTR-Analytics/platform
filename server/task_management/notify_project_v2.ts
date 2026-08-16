@@ -28,10 +28,11 @@ export function notifyProjectConfigUpdated(
   isLocked: boolean,
   aiContext?: string,
   isCentralReporting?: boolean,
+  followPinned?: boolean,
 ): void {
   notifyProjectV2(projectId, {
     type: "project_config_updated",
-    data: { label, isLocked, aiContext, isCentralReporting },
+    data: { label, isLocked, aiContext, isCentralReporting, followPinned },
   });
 }
 

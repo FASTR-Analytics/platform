@@ -96,6 +96,7 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 | Assets                | `assets` (full `AssetInfo[]`)                                                                                                              | `assets_updated`             | —                                       |
 | GeoJSON maps          | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                                                                 | `geojson_maps_updated`       | —                                       |
 | Runs catalogue        | `runsCatalog` (full `RunCatalogItem[]`), `runsCatalogSignal` (nonce)                                                                       | `runs_catalog_updated`       | —                                       |
+| Pinned package        | `pinnedRunId` (bare id, `null` = nothing pinned; unfiltered — every client)                                                                | `pinned_run_updated`         | —                                       |
 | Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
 | HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | —                                       |
 | Indicator summary     | `indicators` (counts), `indicatorMappingsVersion`, `hfaIndicatorsVersion`, `calculatedIndicatorsVersion`                                   | `indicators_updated`         | all three version fields                |
@@ -136,7 +137,7 @@ other fields are identical across clients.
 | Data                  | Fields on `ProjectState`                                                                              | SSE event                                                  | Version key for T2                 |
 | --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
 | Project identity      | `id`                                                                                                  | `starting` only                                            | —                                  |
-| Project config        | `label`, `isLocked`, `isCentralReporting`, `aiContext`                                                | `project_config_updated`                                   | —                                  |
+| Project config        | `label`, `isLocked`, `isCentralReporting`, `aiContext`, `followPinned`                                | `project_config_updated`                                   | —                                  |
 | Project datasets      | `projectDatasets`                                                                                     | `datasets_updated`                                         | —                                  |
 | Installed modules     | `projectModules`                                                                                      | `modules_updated`                                          | —                                  |
 | Metrics / indicators  | `metrics`, `commonIndicators`, `icehIndicators`                                                       | `modules_updated` (derived)                                | —                                  |
@@ -156,7 +157,10 @@ The table-name list for `lastUpdated` has one source of truth:
 
 **`aiContext` quirk:** only the `updateProject` route sends `aiContext` in
 `project_config_updated`; routes that change just `isLocked` /
-`isCentralReporting` omit it (optional in the payload).
+`isCentralReporting` omit it (optional in the payload). `followPinned`
+follows the same optional-field shape: sent only by the two writers that
+change it — the follow toggle route and `attachRunToProject`'s auto-clear
+(a manual attach to a non-pinned package ends the subscription; SYSTEM_08).
 
 ### The collab WS store — T1-adjacent
 

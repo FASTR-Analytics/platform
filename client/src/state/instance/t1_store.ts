@@ -41,6 +41,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   geojsonMaps: [],
   runsCatalog: [],
   runsCatalogSignal: "",
+  pinnedRunId: null,
   structure: undefined,
   structureLastUpdated: undefined,
   hfaWeights: [],
@@ -185,6 +186,10 @@ export function updateInstanceRunsCatalog(runs: RunCatalogItem[]): void {
 
 export function updateRunsCatalogSignal(signal: string): void {
   setInstanceState("runsCatalogSignal", signal);
+}
+
+export function updatePinnedRunId(pinnedRunId: string | null): void {
+  setInstanceState("pinnedRunId", pinnedRunId);
 }
 
 // Live read of the current user's own catalogue entitlement (Q-B): the

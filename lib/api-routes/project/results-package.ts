@@ -52,6 +52,18 @@ export const projectResultsPackageRouteRegistry = {
     params: runIdParamsSchema,
     requiresProject: true,
   }),
+  // Subscribe/unsubscribe this project to the instance's pinned package
+  // (SYSTEM_08 "The pinned package + followers"): enabling attaches the
+  // current pin immediately if
+  // one is set and differs; a later manual attach to a non-pinned package
+  // clears it. Same permission class as attach — subscribing IS consenting
+  // to future repoints.
+  setProjectFollowPinned: route({
+    path: "/results_package/follow_pinned",
+    method: "POST",
+    body: z.object({ follow: z.boolean() }),
+    requiresProject: true,
+  }),
 
   // A package's INTERNALS, from the project side (Tim's ruling 2026-07-30:
   // what lives inside the run package directory is visible to a user of an

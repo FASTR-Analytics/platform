@@ -38,6 +38,10 @@ export type ProjectDetail = {
   // The immutable results run this project serves from (projects.run_id);
   // null = no run attached — data reads error until one is synthesized/attached.
   attachedRunId: string | null;
+  // projects.follow_pinned — subscribed to the instance's pinned package
+  // (SYSTEM_08 "The pinned package + followers"); a pin-move physically
+  // repoints this project.
+  followPinned: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];

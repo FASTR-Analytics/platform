@@ -80,6 +80,7 @@ export type DBProject = {
   deletion_scheduled_at: Date | null;
   run_id: string | null;
   admin_area_2: string | null;
+  follow_pinned: boolean;
 };
 
 export type DBProjectUserRole = {

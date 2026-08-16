@@ -34,6 +34,12 @@ export type ProjectState = {
   // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
   // null = no run attached (typed replacement for the "unknown" sentinel).
   attachedRunId: string | null;
+  // Subscribed to the instance's pinned package: whenever the pin moves this
+  // project is physically repointed through the normal attach path (never a
+  // read-time indirection — SYSTEM_08 "Followers are physically repointed,
+  // never indirected"). A config bit like
+  // isLocked, pushed on project_config_updated.
+  followPinned: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
@@ -89,7 +95,7 @@ export type ProjectSseMessage =
     }
 
   // Data updates (replace current "project_updated" catch-all)
-  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
+  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean; followPinned?: boolean } }
   // Scope identity change: flips the client run version key, invalidating
   // every run-derived cache entry for this project (PLAN_1_PROJECT_AA2_SCOPE §5).
   | { type: "admin_area_2_changed"; data: { adminArea2: string | null } }

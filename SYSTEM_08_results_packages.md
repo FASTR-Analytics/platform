@@ -215,6 +215,69 @@ transaction emits, built by the same two helpers. It never blocks on the
 report: an incompatible package is still attachable, and the affected
 visualizations render their typed unavailable states.
 
+**The pinned package + followers** (PLAN_PINNED_PACKAGE, shipped
+2026-08-17). The instance blesses at most ONE package: `runs.pinned`
+(migration 077, partial unique index `runs_one_pinned` enforces the
+cardinality; NOT "exactly one" — a fresh instance has zero runs and
+unpin/delete must leave a typed no-pin state). A project can subscribe:
+`projects.follow_pinned`. Rulings, all deliberate:
+
+- **Latest is derived, pinned is stored.** "Latest" = the newest ready run,
+  a client-side badge on the catalogue and nothing more — never a stored
+  or consumer-facing pointer. The pin is the only stored concept.
+- **Pinning is always an explicit act** (`pinResultsPackage`,
+  `can_configure_data`, `server/runs/pin_run.ts`). Nothing auto-advances
+  on a newly ready run — that would kill "a generation with no attach
+  targets touches nothing" — and unpin moves nothing. Future scheduled
+  generation gets an explicit `autoPinOnSuccess` flag, not recency.
+- **Pin-move is a two-statement transaction, not one UPDATE** (verified by
+  execution): Postgres checks the partial unique index per row as an
+  UPDATE proceeds, so a single `SET pinned = (id = $1)` trips it whenever
+  the new row is visited before the old. `setPinnedRun` unpins all, then
+  pins the target with the ready gate IN the UPDATE, and throws to roll
+  back on zero rows — a not-ready or missing target leaves the current pin
+  untouched. Concurrent pin-moves serialize on the first statement's row
+  locks.
+- **Followers are physically repointed, never indirected.** A pin-move
+  loops the follow-pinned projects through `attachRunToProject` — one call
+  per project, identical to a manual attach (ready gate, compatibility
+  never blocks, full `run_attached`). `projects.run_id` stays the single
+  truth and cache identity; a read-time "my run = whatever is pinned"
+  indirection is banned (it would reopen the stamp-propagation bug class
+  the runs architecture exists to kill). Locked followers are skipped and
+  reported; a failed follower is reported and the loop continues (it
+  self-heals on the next pin-move or manual attach). The route response
+  (`PinResultsPackageResult`) lists repointed / skippedLocked / failed.
+- **The pin never enters the package.** `pinned` is catalog state like
+  `status`; no manifest field, no schema bump, no Valkey prefix, no
+  cache-key change.
+- **Delete protection is a code guard** in `deleteRunCatalogRow` — the
+  boolean carries no FK protection the way `projects.run_id` does — and
+  the catalogue pane states "cannot delete while pinned" like its other
+  blocked reasons.
+- **Manual attach overrides the subscription.** `attachRunToProject`
+  clears `follow_pinned` when the target is not the current pin
+  (`clearFollowPinnedIfNotPin`, one statement so the test and the clear
+  cannot straddle a pin-move) and pushes `project_config_updated
+  {followPinned:false}`; followers attach TO the pin and never trip it.
+- **Publish does not touch the flag.** A follow-pinned project selected as
+  a wizard attach target is repointed by publish (unchanged) and keeps its
+  subscription — the flag is project-owned (editor class); instance-admin
+  provisioning must not silently rewrite it. The next pin-move realigns it.
+- **Enabling follow attaches immediately** when a pin exists and differs
+  (`setProjectFollowPinned` route, the attach permission class +
+  locked-refusal: subscribing IS consenting to future repoints); the flag
+  is written only if that attach succeeds. Enabling with no pin, or already
+  on it, just sets the flag — subscribing before any package is pinned is
+  meaningful, the project moves once an admin pins.
+- **The project plane stays telemetry-free** (C2 ruling stands): the pin's
+  ready gate and the follower loop's attach mean a project is only ever
+  attached to a READY package. The only project-side pushes are the
+  existing `run_attached` and the `followPinned` config bit; the bare
+  `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what
+  lets the project tab render the pin for editors without
+  `can_configure_data`.
+
 **Exploring a package is ONE capability, mounted twice.** The routes are
 RUN-keyed, not project-keyed, and the client renders them through
 `_shared/results_package/` — the same components on the instance catalogue

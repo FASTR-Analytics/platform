@@ -19,6 +19,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   isCentralReporting: false,
   adminArea2: null,
   attachedRunId: null,
+  followPinned: false,
   projectDatasets: [],
   projectModules: [],
   metrics: [],
@@ -79,6 +80,9 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       }
       if (msg.data.isCentralReporting !== undefined) {
         setProjectState("isCentralReporting", msg.data.isCentralReporting);
+      }
+      if (msg.data.followPinned !== undefined) {
+        setProjectState("followPinned", msg.data.followPinned);
       }
       break;
 

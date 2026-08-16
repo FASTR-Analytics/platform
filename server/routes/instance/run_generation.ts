@@ -17,9 +17,11 @@ import {
   deleteRun,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
+  pinRunAndRepointFollowers,
   readRunCatalogDetail,
   readRunModuleLogs,
   readRunModuleScript,
+  unpinRun,
 } from "../../runs/mod.ts";
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
@@ -154,6 +156,30 @@ defineRoute(
     if (res.success) {
       notifyInstanceRunsCatalogUpdated();
     }
+    return c.json(res);
+  },
+);
+
+// Pin/unpin own their notifies (pin state + catalogue nonce, ordered around
+// the follower loop) — see server/runs/pin_run.ts.
+defineRoute(
+  routesRunGeneration,
+  "pinResultsPackage",
+  requireGlobalPermission("can_configure_data"),
+  log("pinResultsPackage"),
+  async (c, { params }) => {
+    const res = await pinRunAndRepointFollowers(c.var.mainDb, params.run_id);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "unpinResultsPackage",
+  requireGlobalPermission("can_configure_data"),
+  log("unpinResultsPackage"),
+  async (c) => {
+    const res = await unpinRun(c.var.mainDb);
     return c.json(res);
   },
 );

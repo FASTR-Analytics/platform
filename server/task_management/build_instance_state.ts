@@ -5,7 +5,10 @@ import {
   getInstanceDetail,
   getInstanceIndicatorsSummary,
 } from "../db/mod.ts";
-import { listRunCatalog } from "../db/instance/run_generation.ts";
+import {
+  getPinnedRunId,
+  listRunCatalog,
+} from "../db/instance/run_generation.ts";
 import {
   _INSTANCE_CALENDAR,
   _INSTANCE_COUNTRY_ISO3,
@@ -58,6 +61,9 @@ export async function buildInstanceState(
       console.error(`buildInstanceState runsCatalog: ${runsRes.err}`);
     }
   }
+  // Every caller, entitled or not — the id alone is not gated (see the
+  // field's doc in lib/types/instance_sse.ts).
+  const pinnedRunId = await getPinnedRunId(mainDb);
 
   const instanceState: InstanceState = {
     isReady: true,
@@ -80,6 +86,7 @@ export async function buildInstanceState(
     // self-healing path (see the field's doc in lib/types/instance_sse.ts).
     runsCatalog,
     runsCatalogSignal: crypto.randomUUID(),
+    pinnedRunId,
     structure: res.data.structure,
     structureLastUpdated: res.data.structureLastUpdated,
     hfaWeights: res.data.hfaWeights,

@@ -4,7 +4,10 @@ import type {
   ProjectSseMessage,
   RunManifest,
 } from "lib";
-import { setProjectAttachedRun } from "../db/instance/run_generation.ts";
+import {
+  clearFollowPinnedIfNotPin,
+  setProjectAttachedRun,
+} from "../db/instance/run_generation.ts";
 import {
   getAllPresentationObjectsWithVirtualDefaults,
   getCommonIndicatorsFromManifestInputs,
@@ -13,7 +16,10 @@ import {
   getIcehIndicatorsFromManifestInputs,
   getProjectDatasetsFromManifest,
 } from "../run_query/mod.ts";
-import { notifyProjectRunAttached } from "../task_management/notify_project_v2.ts";
+import {
+  notifyProjectConfigUpdated,
+  notifyProjectRunAttached,
+} from "../task_management/notify_project_v2.ts";
 import { getRunManifestCached } from "./manifest_cache.ts";
 
 // Attaching a package to a project — the pointer half of §2.6, shared by the
@@ -71,11 +77,18 @@ export async function notifyRunAttachedForProject(
   });
 }
 
-// The picker's act: repoint, then push the same event a publish pushes. The
-// pointer write is gated on the package being ready and is the only thing
-// that can fail — an unreadable manifest after a successful repoint would
-// mean the project is attached to a broken package, which the read plane
-// already reports properly, so it is logged rather than rolled back.
+// The picker's act — and the pin-move's, once per follower (pin_run.ts):
+// repoint, then push the same event a publish pushes. The pointer write is
+// gated on the package being ready and is the only thing that can fail — an
+// unreadable manifest after a successful repoint would mean the project is
+// attached to a broken package, which the read plane already reports
+// properly, so it is logged rather than rolled back.
+//
+// A manual attach to anything but the pinned package also ends a
+// follow-pinned subscription (SYSTEM_08 "Manual attach overrides the
+// subscription") — here, so the
+// picker and the follower loop share it; followers attach TO the pin and
+// never trip it.
 export async function attachRunToProject(
   mainDb: Sql,
   projectId: string,
@@ -85,6 +98,18 @@ export async function attachRunToProject(
   const res = await setProjectAttachedRun(mainDb, projectId, runId);
   if (res.success === false) {
     return res;
+  }
+
+  const unsubscribed = await clearFollowPinnedIfNotPin(mainDb, projectId, runId);
+  if (unsubscribed !== null) {
+    notifyProjectConfigUpdated(
+      projectId,
+      unsubscribed.label,
+      unsubscribed.isLocked,
+      undefined,
+      undefined,
+      false,
+    );
   }
 
   try {

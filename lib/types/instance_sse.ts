@@ -56,6 +56,13 @@ export type InstanceState = {
   // starting-payload fill above prevents an empty flash while it resolves.
   runsCatalog: RunCatalogItem[];
   runsCatalogSignal: string;
+  // The at-most-one package the instance blesses (SYSTEM_08 "The pinned
+  // package + followers");
+  // null = nothing pinned. Broadcast to EVERY client (unlike runsCatalog):
+  // a bare run id is not sensitive — a project member already sees the id
+  // of the package their project serves from — and the project tab's
+  // "follow pinned" toggle needs it for editors without can_configure_data.
+  pinnedRunId: string | null;
 
   // Summaries (lightweight aggregates)
   structure:
@@ -162,7 +169,9 @@ export type InstanceDatasetsSummary = {
 // acceptable ONLY because these are ephemeral telemetry — durable per-user
 // state (`runsCatalog`, `projects`) instead broadcasts a data-free signal
 // and lets each client fetch its own view through a per-request-guarded
-// route. This is the ONLY channel generation telemetry rides: a project is
+// route. `pinned_run_updated` is neither: a plain unfiltered broadcast of a
+// bare run id (see `pinnedRunId`), the same class as `config_updated`.
+// This is the ONLY channel generation telemetry rides: a project is
 // attached only once a run is ready, so it has no live view to feed (C2
 // ruling, 2026-08-16 — the per-attach-target project copies were deleted).
 export type InstanceSseMessage =
@@ -177,6 +186,7 @@ export type InstanceSseMessage =
   | { type: "users_updated"; data: OtherUser[] }
   // Data-free nonce signal only — the catalogue itself is fetched per user.
   | { type: "runs_catalog_updated"; data: string }
+  | { type: "pinned_run_updated"; data: { pinnedRunId: string | null } }
   | { type: "assets_updated"; data: AssetInfo[] }
   | { type: "geojson_maps_updated"; data: GeoJsonMapSummary[] }
   | { type: "structure_updated"; data: InstanceStructureSummary }

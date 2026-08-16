@@ -5,6 +5,7 @@ import {
   runGenerationStep2ResultSchema,
 } from "../../types/mod.ts";
 import type {
+  PinResultsPackageResult,
   RunCatalogDetail,
   RunCatalogItem,
   RunGenerationAttemptDetail,
@@ -54,6 +55,21 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/run/:run_id",
     method: "DELETE",
     params: z.object({ run_id: z.string() }),
+  }),
+  // The instance's pinned package (SYSTEM_08 "The pinned package +
+  // followers"): an explicit act on a
+  // ready run that also physically repoints every follow-pinned project;
+  // the response says which followers moved, were skipped (locked) or
+  // failed. Unpin moves nothing.
+  pinResultsPackage: route({
+    path: "/run_generation/run/:run_id/pin",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    response: {} as PinResultsPackageResult,
+  }),
+  unpinResultsPackage: route({
+    path: "/run_generation/pin",
+    method: "DELETE",
   }),
   getRunModuleScript: route({
     path: "/run_generation/run/:run_id/module/:module_id/script",

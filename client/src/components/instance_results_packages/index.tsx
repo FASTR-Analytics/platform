@@ -5,6 +5,7 @@ import {
   type RunProgress,
 } from "lib";
 import {
+  Badge,
   Button,
   EmptyState,
   FrameLeftResizable,
@@ -25,7 +26,10 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { RunStatusBadge } from "~/components/_shared/results_package/status";
+import {
+  PinnedBadge,
+  RunStatusBadge,
+} from "~/components/_shared/results_package/status";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
@@ -134,6 +138,14 @@ export function InstanceResultsPackages() {
     instanceState.runsCatalog.find((r) => r.id === selectedId()) ??
     sortedRuns()[0];
 
+  // "Latest" is DERIVED — the newest ready package — never stored and never
+  // a consumer-facing pointer (SYSTEM_08 "Latest is derived, pinned is
+  // stored"). The stored,
+  // explicit concept is `pinned`, read straight off the row.
+  const latestReadyId = createMemo(
+    (): string | undefined => sortedRuns().find((r) => r.status === "ready")?.id,
+  );
+
   const emptyMessage = () =>
     t3({
       en: "No results packages yet.",
@@ -217,6 +229,14 @@ export function InstanceResultsPackages() {
                         <div class="ui-gap-sm flex items-center">
                           <div class="flex-1 truncate">{run.label}</div>
                           {/* <RunStatusBadge status={run.status} /> */}
+                          <Show when={run.pinned}>
+                            <PinnedBadge />
+                          </Show>
+                          <Show when={run.id === latestReadyId()}>
+                            <Badge intent="neutral">
+                              {t3({ en: "Latest", fr: "Dernier", pt: "Mais recente" })}
+                            </Badge>
+                          </Show>
                         </div>
                         <div class="ui-text-caption">
                           {new Date(run.createdAt).toLocaleDateString()}

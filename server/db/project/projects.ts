@@ -204,6 +204,7 @@ export async function getProjectDetail(
       isCentralReporting: rawProject.is_central_reporting,
       adminArea2: rawProject.admin_area_2,
       attachedRunId: rawProject.run_id,
+      followPinned: rawProject.follow_pinned,
       projectDatasets: datasetsInProject,
       projectModules,
       metrics,

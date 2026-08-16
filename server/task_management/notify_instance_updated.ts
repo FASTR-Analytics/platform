@@ -102,6 +102,15 @@ export function notifyInstanceRunsCatalogUpdated() {
   });
 }
 
+// The pinned package moved or was cleared (SYSTEM_08 "The pinned package +
+// followers"). Plain
+// unfiltered broadcast — a bare run id is not sensitive, and every project
+// tab's "follow pinned" toggle needs it. Callers ALSO re-nonce the catalogue
+// (`pinned` is a listing column).
+export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
+  notifyInstanceUpdate({ type: "pinned_run_updated", data: { pinnedRunId } });
+}
+
 // Results-package generation telemetry, for the instance catalogue (Q-B) —
 // the ONLY channel it rides: a project is attached only once a run is
 // ready, so no project channel has a live view to feed. routesInstanceSSE

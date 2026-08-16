@@ -15,6 +15,7 @@ import {
   updateInstanceGeoJsonMaps,
   updateInstanceRunsCatalog,
   updateRunsCatalogSignal,
+  updatePinnedRunId,
   canSeeRunsCatalog,
   updateInstanceStructure,
   updateInstanceIndicators,
@@ -150,6 +151,9 @@ export function connectInstanceSSE(): void {
         break;
       case "runs_catalog_updated":
         updateRunsCatalogSignal(msg.data);
+        break;
+      case "pinned_run_updated":
+        updatePinnedRunId(msg.data.pinnedRunId);
         break;
       case "geojson_maps_updated":
         updateInstanceGeoJsonMaps(msg.data);

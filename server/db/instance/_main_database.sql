@@ -51,8 +51,12 @@ CREATE TABLE runs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by text,
   summary text,
-  progress text
+  progress text,
+  pinned boolean NOT NULL DEFAULT FALSE
 );
+
+-- At most one pinned package per instance (SYSTEM_08 "The pinned package + followers").
+CREATE UNIQUE INDEX runs_one_pinned ON runs (pinned) WHERE pinned;
 
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
@@ -64,6 +68,7 @@ CREATE TABLE projects (
   deletion_scheduled_at TIMESTAMPTZ,
   run_id text,
   admin_area_2 text,
+  follow_pinned boolean NOT NULL DEFAULT FALSE,
   FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 

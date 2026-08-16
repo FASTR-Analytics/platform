@@ -2,6 +2,7 @@ import { t3, type RunListingItem } from "lib";
 import {
   Badge,
   Button,
+  Checkbox,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
@@ -17,7 +18,10 @@ import {
   ResultsPackageProvenanceLine,
 } from "~/components/_shared/results_package/package_contents";
 import { projectPackageInternalsSource } from "~/components/_shared/results_package/internals_source";
-import { RunStatusBadge } from "~/components/_shared/results_package/status";
+import {
+  PinnedBadge,
+  RunStatusBadge,
+} from "~/components/_shared/results_package/status";
 import { ResultsPackageCompatibilityModal } from "./results_package_compatibility_modal";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -114,6 +118,20 @@ export function ProjectResultsPackage() {
     },
   );
 
+  // Follow the instance's pinned package (SYSTEM_08 "The pinned package +
+  // followers"). The flag is
+  // T1 (`projectState.followPinned`, pushed on project_config_updated) and
+  // the pin itself is instance T1 (`instanceState.pinnedRunId`), so nothing
+  // is refetched here: enabling may also repoint the project, which arrives
+  // as run_attached and re-runs the effect above. Subscribing before any
+  // package is pinned is allowed — the project moves once an admin pins.
+  const setFollowPinned = createButtonAction((follow: boolean) =>
+    serverActions.setProjectFollowPinned({
+      projectId: projectState.id,
+      follow,
+    }),
+  );
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -154,6 +172,50 @@ export function ProjectResultsPackage() {
             <div class="ui-spy-sm">
               <h3 class="ui-text-heading">
                 {t3({
+                  en: "Pinned package",
+                  fr: "Paquet épinglé",
+                  pt: "Pacote fixado",
+                })}
+              </h3>
+              <Checkbox
+                checked={projectState.followPinned}
+                onChange={(v) => setFollowPinned.click(v)}
+                disabled={
+                  projectState.isLocked ||
+                  setFollowPinned.state().status === "loading"
+                }
+                label={t3({
+                  en: "Always use the instance's pinned package",
+                  fr: "Toujours utiliser le paquet épinglé de l'instance",
+                  pt: "Usar sempre o pacote fixado da instância",
+                })}
+              />
+              <div class="text-base-content-muted text-sm">
+                <Show
+                  when={instanceState.pinnedRunId !== null}
+                  fallback={t3({
+                    en: "No package is pinned on this instance yet; the project will switch to one as soon as an administrator pins it.",
+                    fr: "Aucun paquet n'est encore épinglé sur cette instance ; le projet y basculera dès qu'un administrateur en épinglera un.",
+                    pt: "Ainda não há nenhum pacote fixado nesta instância; o projeto mudará para um assim que um administrador o fixar.",
+                  })}
+                >
+                  {t3({
+                    en: "Whenever an administrator pins a different package, this project switches to it.",
+                    fr: "Chaque fois qu'un administrateur épingle un autre paquet, ce projet y bascule.",
+                    pt: "Sempre que um administrador fixar outro pacote, este projeto muda para ele.",
+                  })}
+                </Show>{" "}
+                {t3({
+                  en: "Choosing another package below turns this off.",
+                  fr: "Choisir un autre paquet ci-dessous désactive cette option.",
+                  pt: "Escolher outro pacote abaixo desativa esta opção.",
+                })}
+              </div>
+            </div>
+
+            <div class="ui-spy-sm">
+              <h3 class="ui-text-heading">
+                {t3({
                   en: "Other results packages",
                   fr: "Autres paquets de résultats",
                   pt: "Outros pacotes de resultados",
@@ -178,7 +240,12 @@ export function ProjectResultsPackage() {
                         {(run) => (
                           <div class="ui-pad-sm ui-gap flex items-center rounded border">
                             <div class="min-w-0 flex-1">
-                              <div class="truncate">{run.label}</div>
+                              <div class="ui-gap-sm flex items-center">
+                                <div class="truncate">{run.label}</div>
+                                <Show when={run.id === instanceState.pinnedRunId}>
+                                  <PinnedBadge />
+                                </Show>
+                              </div>
                               <ResultsPackageProvenanceLine
                                 run={run}
                                 showDiskSize={false}
@@ -274,6 +341,9 @@ function AttachedPackageCard(p: {
             pt: "Em utilização",
           })}
         </Badge>
+        <Show when={p.run.id === instanceState.pinnedRunId}>
+          <PinnedBadge />
+        </Show>
         <RunStatusBadge status={p.run.status} />
       </div>
 

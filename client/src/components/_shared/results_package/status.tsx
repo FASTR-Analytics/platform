@@ -44,6 +44,16 @@ export function RunStatusBadge(p: { status: RunCatalogStatus }) {
   );
 }
 
+// The instance's pinned package (SYSTEM_08) — same mark wherever a
+// package is listed: catalogue sidebar + detail, project card + picker.
+export function PinnedBadge() {
+  return (
+    <Badge intent="primary" variant="solid">
+      {t3({ en: "Pinned", fr: "Épinglé", pt: "Fixado" })}
+    </Badge>
+  );
+}
+
 const MODULE_PROGRESS_INTENT: Record<RunModuleProgressStatus, Intent> = {
   pending: "neutral",
   running: "primary",

@@ -88,6 +88,9 @@ export type RunGenerationAttemptStatus = { status: "configuring" };
 // Runs-catalog listing row, rendered wherever a package is listed.
 export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
+// `pinned` is DB catalog state like `status` — the at-most-one package the
+// instance blesses (SYSTEM_08 "The pinned package + followers"); it never
+// enters the manifest.
 export type RunListingItem = {
   id: string;
   label: string;
@@ -97,6 +100,16 @@ export type RunListingItem = {
   createdBy: string | null;
   summary: RunSummary | null;
   progress: RunProgress | null;
+  pinned: boolean;
+};
+
+// Outcome of a pin-move: which follow-pinned projects were physically
+// repointed, which were skipped because locked, and which failed to attach
+// (project labels — the admin-facing summary).
+export type PinResultsPackageResult = {
+  repointed: string[];
+  skippedLocked: string[];
+  failed: string[];
 };
 
 // The instance catalogue row (Phase 3 item 3): every run on the instance,
