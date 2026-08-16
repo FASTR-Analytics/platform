@@ -195,9 +195,9 @@ export function InstanceResultsPackages() {
         }
       >
         <FrameLeftResizable
-          startingWidth={280}
-          minWidth={170}
-          maxWidth={300}
+          startingWidth={300}
+          minWidth={150}
+          maxWidth={400}
           panelChildren={
             <div class="ui-pad h-full overflow-auto">
               <SelectList<string, RunCatalogItem>
