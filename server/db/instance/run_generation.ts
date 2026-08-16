@@ -6,6 +6,7 @@ import {
   runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
+  type FollowPinnedProject,
   type RunCatalogItem,
   type RunCatalogStatus,
   type RunGenerationAttemptDetail,
@@ -225,7 +226,6 @@ type RunListingRow = {
   created_by: string | null;
   summary: string | null;
   progress: string | null;
-  pinned: boolean;
 };
 
 // summary/progress are stored JSON; a malformed blob degrades that field to
@@ -252,7 +252,6 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
     createdBy: row.created_by,
     summary,
     progress,
-    pinned: row.pinned,
   };
 }
 
@@ -270,7 +269,7 @@ export async function listRunCatalog(
       (RunListingRow & { attached_projects: { id: string; label: string }[] })[]
     >`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
-  r.summary, r.progress, r.pinned,
+  r.summary, r.progress,
   COALESCE(
     (
       SELECT json_agg(json_build_object('id', p.id, 'label', p.label)
@@ -370,7 +369,7 @@ export async function getAttachedRunForProject(
     const row = (
       await mainDb<RunListingRow[]>`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
-  r.summary, r.progress, r.pinned
+  r.summary, r.progress
 FROM runs r
 JOIN projects p ON p.run_id = r.id
 WHERE p.id = ${projectId}
@@ -397,7 +396,7 @@ export async function listAttachableRunsForProject(
   try {
     const rows = await mainDb<RunListingRow[]>`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
-  r.summary, r.progress, r.pinned
+  r.summary, r.progress
 FROM runs r
 WHERE r.status = 'ready'
   AND r.id IS DISTINCT FROM (SELECT p.run_id FROM projects p WHERE p.id = ${projectId})
@@ -465,25 +464,28 @@ SELECT status FROM runs WHERE id = ${runId}
 // pinned package + followers")
 ///////////////////////////////////////////////////////////////////////////////
 
+// Every pin write takes this transaction-scoped advisory lock, so pin-moves
+// and unpins serialize (last write wins) instead of the loser tripping the
+// partial unique index or an unpin silently missing a row its snapshot never
+// saw — verified by execution under READ COMMITTED.
+const PINNED_RUN_ADVISORY_LOCK_KEY = 727402;
+
 // Pin-move: unpin-all then pin-target, in ONE transaction. Not one UPDATE —
 // verified by execution: Postgres checks the partial unique index
 // (`runs_one_pinned`) per row as an UPDATE proceeds, so `SET pinned = (id =
 // $1) WHERE pinned OR id = $1` trips it whenever the new row is visited
-// before the old. Two statements are safe: after the first, nothing is
-// pinned; the second pins exactly one. Concurrent pin-moves serialize on the
-// first statement's row locks. The ready gate is IN the pinning UPDATE
-// exactly as in setProjectAttachedRun — a run that failed or was deleted
-// between the click and the write cannot become pinned — and a zero-row
-// second UPDATE throws to roll the unpin back, so a bad target leaves the
-// current pin untouched. The re-read then says why.
-class PinTargetNotPinnable extends Error {}
-
+// before the old. The ready gate is IN the pinning UPDATE exactly as in
+// setProjectAttachedRun — a run that failed or was deleted between the click
+// and the write cannot become pinned — and a zero-row second UPDATE throws
+// to roll the unpin back, so a bad target leaves the current pin untouched.
+// The re-read then says why.
 export async function setPinnedRun(
   mainDb: Sql,
   runId: string,
 ): Promise<APIResponseNoData> {
   try {
     await mainDb.begin(async (sql) => {
+      await sql`SELECT pg_advisory_xact_lock(${PINNED_RUN_ADVISORY_LOCK_KEY})`;
       await sql`UPDATE runs SET pinned = FALSE WHERE pinned`;
       const pinned = await sql<{ id: string }[]>`
 UPDATE runs SET pinned = TRUE WHERE id = ${runId} AND status = 'ready'
@@ -502,25 +504,51 @@ RETURNING id
           (e instanceof Error ? e.message : ""),
       };
     }
-    const row = (
-      await mainDb<{ status: string }[]>`
+    try {
+      const row = (
+        await mainDb<{ status: string }[]>`
 SELECT status FROM runs WHERE id = ${runId}
 `
-    ).at(0);
-    if (row === undefined) {
-      return { success: false, err: "Results package not found" };
+      ).at(0);
+      if (row === undefined) {
+        return { success: false, err: "Results package not found" };
+      }
+      return {
+        success: false,
+        err: "Only a ready results package can be pinned",
+      };
+    } catch (e2) {
+      return {
+        success: false,
+        err: "Problem pinning results package: " +
+          (e2 instanceof Error ? e2.message : ""),
+      };
     }
-    return {
-      success: false,
-      err: "Only a ready results package can be pinned",
-    };
   }
 }
 
-export async function clearPinnedRun(mainDb: Sql): Promise<APIResponseNoData> {
+class PinTargetNotPinnable extends Error {}
+
+// Unpin is run-keyed: it clears the pin only if `runId` IS the pin, so a
+// stale catalogue (one that has not yet learned another admin moved the pin)
+// cannot clear a pin it never saw. Zero rows = refused with the reason.
+export async function clearPinnedRun(
+  mainDb: Sql,
+  runId: string,
+): Promise<APIResponseNoData> {
   try {
-    await mainDb`UPDATE runs SET pinned = FALSE WHERE pinned`;
-    return { success: true };
+    const cleared = await mainDb.begin(async (sql) => {
+      await sql`SELECT pg_advisory_xact_lock(${PINNED_RUN_ADVISORY_LOCK_KEY})`;
+      return await sql<{ id: string }[]>`
+UPDATE runs SET pinned = FALSE WHERE pinned AND id = ${runId} RETURNING id
+`;
+    });
+    return cleared.length > 0
+      ? { success: true }
+      : {
+        success: false,
+        err: "This results package is no longer the pinned one",
+      };
   } catch (e) {
     return {
       success: false,
@@ -530,37 +558,117 @@ export async function clearPinnedRun(mainDb: Sql): Promise<APIResponseNoData> {
   }
 }
 
-export async function getPinnedRunId(mainDb: Sql): Promise<string | null> {
-  const row = (
-    await mainDb<{ id: string }[]>`SELECT id FROM runs WHERE pinned`
-  ).at(0);
-  return row === undefined ? null : row.id;
+export async function getPinnedRunId(
+  mainDb: Sql,
+): Promise<APIResponseWithData<string | null>> {
+  try {
+    const row = (
+      await mainDb<{ id: string }[]>`SELECT id FROM runs WHERE pinned`
+    ).at(0);
+    return { success: true, data: row === undefined ? null : row.id };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem reading the pinned results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
 }
 
-// The follower roster for a pin-move, with what the loop needs to decide per
-// project: locked ones are skipped (attach refuses them), ones already on the
-// target are skipped (nothing to repoint).
+export async function getProjectAttachedRunId(
+  mainDb: Sql,
+  projectId: string,
+): Promise<APIResponseWithData<string | null>> {
+  try {
+    const row = (
+      await mainDb<{ run_id: string | null }[]>`
+SELECT run_id FROM projects WHERE id = ${projectId}
+`
+    ).at(0);
+    return row === undefined
+      ? { success: false, err: "Project not found" }
+      : { success: true, data: row.run_id };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem reading this project's results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The follower roster — for the pin-move loop and for the pin confirm. The
+// loop skips locked projects (a roster-time snapshot; the lock refusal itself
+// is route middleware, not an attach-layer gate) and ones already on the
+// target.
 export async function listFollowPinnedProjects(
   mainDb: Sql,
-): Promise<{ id: string; label: string; isLocked: boolean; runId: string | null }[]> {
-  const rows = await mainDb<
-    { id: string; label: string; is_locked: boolean; run_id: string | null }[]
-  >`
+): Promise<APIResponseWithData<FollowPinnedProject[]>> {
+  try {
+    const rows = await mainDb<
+      { id: string; label: string; is_locked: boolean; run_id: string | null }[]
+    >`
 SELECT id, label, is_locked, run_id FROM projects WHERE follow_pinned
 ORDER BY label
 `;
-  return rows.map((r) => ({
-    id: r.id,
-    label: r.label,
-    isLocked: r.is_locked,
-    runId: r.run_id,
-  }));
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        label: r.label,
+        isLocked: r.is_locked,
+        runId: r.run_id,
+      })),
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem listing projects that follow the pinned package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
 }
 
-// The flag write only; the enable-time attach and the notify are the route's
-// (routes/project/results_package.ts). Returns label + isLocked so the
-// caller can push project_config_updated without a second read (the
-// updateProject pattern).
+// The follower repoint: setProjectAttachedRun's UPDATE plus `r.pinned` in
+// the gate, so a pin-move loop that has been superseded (another pin-move
+// or an unpin landed while it was running) writes NOTHING and learns it —
+// "pin_moved" — instead of moving a project onto a package that is no
+// longer the pin. Verified by execution: two overlapping loops cannot
+// leave a follower on the older target, whichever writes last.
+export async function setProjectAttachedRunIfPinned(
+  mainDb: Sql,
+  projectId: string,
+  runId: string,
+): Promise<APIResponseWithData<"attached" | "pin_moved">> {
+  try {
+    const updated = await mainDb<{ id: string }[]>`
+UPDATE projects p SET run_id = r.id
+FROM runs r
+WHERE p.id = ${projectId} AND r.id = ${runId} AND r.status = 'ready' AND r.pinned
+RETURNING p.id
+`;
+    if (updated.length > 0) {
+      return { success: true, data: "attached" };
+    }
+    const stillPinned = await mainDb<{ id: string }[]>`
+SELECT id FROM runs WHERE id = ${runId} AND pinned
+`;
+    if (stillPinned.length === 0) {
+      return { success: true, data: "pin_moved" };
+    }
+    return { success: false, err: "Project not found" };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem attaching results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The flag write only — the enable-time attach and the notify are
+// server/runs/pin_run.ts's. Returns label + isLocked so the caller can push
+// project_config_updated without a second read (the updateProject pattern).
 export async function setProjectFollowPinned(
   mainDb: Sql,
   projectId: string,
@@ -585,26 +693,40 @@ RETURNING label, is_locked
   }
 }
 
-// Ruling 8 — a manual attach to anything but the current pin ends the
-// subscription. One statement so the "is this the pin?" test and the clear
-// cannot straddle a pin-move. Returns the project's label + isLocked when
-// the flag was actually cleared (the caller pushes project_config_updated),
-// null when nothing changed; a follower attached TO the pin never trips
-// this by construction.
+// A MANUAL attach to anything but the current pin ends the subscription
+// (SYSTEM_08 "Manual attach overrides the subscription"). One statement so
+// the "is this the pin?" test and the clear cannot straddle a pin-move.
+// data = the project's label + isLocked when the flag was actually cleared
+// (the caller pushes project_config_updated), null when nothing changed.
+// The follower loop never calls this — it repoints through
+// setProjectAttachedRunIfPinned.
 export async function clearFollowPinnedIfNotPin(
   mainDb: Sql,
   projectId: string,
   attachedRunId: string,
-): Promise<{ label: string; isLocked: boolean } | null> {
-  const row = (
-    await mainDb<{ label: string; is_locked: boolean }[]>`
+): Promise<APIResponseWithData<{ label: string; isLocked: boolean } | null>> {
+  try {
+    const row = (
+      await mainDb<{ label: string; is_locked: boolean }[]>`
 UPDATE projects SET follow_pinned = FALSE
 WHERE id = ${projectId} AND follow_pinned
   AND NOT EXISTS (SELECT 1 FROM runs WHERE id = ${attachedRunId} AND pinned)
 RETURNING label, is_locked
 `
-  ).at(0);
-  return row === undefined ? null : { label: row.label, isLocked: row.is_locked };
+    ).at(0);
+    return {
+      success: true,
+      data: row === undefined
+        ? null
+        : { label: row.label, isLocked: row.is_locked },
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem updating follow-pinned setting: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////

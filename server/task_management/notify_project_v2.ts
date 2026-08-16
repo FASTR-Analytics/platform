@@ -22,18 +22,17 @@ export function notifyProjectV2(
   broadcastV2.postMessage(msg);
 }
 
+// The optional fields are sent ONLY by the writer that changed them (the
+// client applies each one when present) — PROTOCOL_APP_STATE "aiContext
+// quirk".
 export function notifyProjectConfigUpdated(
   projectId: string,
-  label: string,
-  isLocked: boolean,
-  aiContext?: string,
-  isCentralReporting?: boolean,
-  followPinned?: boolean,
+  data: Extract<
+    ProjectSseMessage,
+    { type: "project_config_updated" }
+  >["data"],
 ): void {
-  notifyProjectV2(projectId, {
-    type: "project_config_updated",
-    data: { label, isLocked, aiContext, isCentralReporting, followPinned },
-  });
+  notifyProjectV2(projectId, { type: "project_config_updated", data });
 }
 
 export function notifyProjectVisualizationsUpdated(

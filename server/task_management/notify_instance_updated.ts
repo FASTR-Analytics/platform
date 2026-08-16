@@ -102,11 +102,10 @@ export function notifyInstanceRunsCatalogUpdated() {
   });
 }
 
-// The pinned package moved or was cleared (SYSTEM_08 "The pinned package +
-// followers"). Plain
-// unfiltered broadcast — a bare run id is not sensitive, and every project
-// tab's "follow pinned" toggle needs it. Callers ALSO re-nonce the catalogue
-// (`pinned` is a listing column).
+// The pinned package moved or was cleared (SYSTEM_08 "The pinned package
+// + followers"). Plain unfiltered broadcast — a bare run id is not
+// sensitive, and it is the one field every Pinned badge derives from.
+// Callers ALSO re-nonce the catalogue (a pin-move moves attachedProjects).
 export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
   notifyInstanceUpdate({ type: "pinned_run_updated", data: { pinnedRunId } });
 }

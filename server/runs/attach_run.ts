@@ -1,12 +1,14 @@
 import type { Sql } from "postgres";
 import type {
   APIResponseNoData,
+  APIResponseWithData,
   ProjectSseMessage,
   RunManifest,
 } from "lib";
 import {
   clearFollowPinnedIfNotPin,
   setProjectAttachedRun,
+  setProjectAttachedRunIfPinned,
 } from "../db/instance/run_generation.ts";
 import {
   getAllPresentationObjectsWithVirtualDefaults,
@@ -77,18 +79,19 @@ export async function notifyRunAttachedForProject(
   });
 }
 
-// The picker's act — and the pin-move's, once per follower (pin_run.ts):
-// repoint, then push the same event a publish pushes. The pointer write is
-// gated on the package being ready and is the only thing that can fail — an
+// The picker's act: repoint, then push the same event a publish pushes. The
+// pointer write is gated on the package being ready and is the only thing
+// that can fail — everything after it is logged rather than rolled back: an
 // unreadable manifest after a successful repoint would mean the project is
 // attached to a broken package, which the read plane already reports
-// properly, so it is logged rather than rolled back.
+// properly, and a failed subscription-clear leaves a follower one pin-move
+// away from realignment.
 //
-// A manual attach to anything but the pinned package also ends a
+// A MANUAL attach to anything but the pinned package also ends a
 // follow-pinned subscription (SYSTEM_08 "Manual attach overrides the
-// subscription") — here, so the
-// picker and the follower loop share it; followers attach TO the pin and
-// never trip it.
+// subscription"). The pin-move loop does NOT come through here — it uses
+// attachFollowerToPinnedRun below, which has no auto-clear and is gated on
+// the target still being the pin.
 export async function attachRunToProject(
   mainDb: Sql,
   projectId: string,
@@ -100,18 +103,48 @@ export async function attachRunToProject(
     return res;
   }
 
-  const unsubscribed = await clearFollowPinnedIfNotPin(mainDb, projectId, runId);
-  if (unsubscribed !== null) {
-    notifyProjectConfigUpdated(
-      projectId,
-      unsubscribed.label,
-      unsubscribed.isLocked,
-      undefined,
-      undefined,
-      false,
+  const clearRes = await clearFollowPinnedIfNotPin(mainDb, projectId, runId);
+  if (clearRes.success === false) {
+    console.error(
+      `[runs] project ${projectId} repointed to ${runId} but its follow-pinned flag could not be re-evaluated: ${clearRes.err}`,
     );
+  } else if (clearRes.data !== null) {
+    notifyProjectConfigUpdated(projectId, {
+      label: clearRes.data.label,
+      isLocked: clearRes.data.isLocked,
+      followPinned: false,
+    });
   }
 
+  await pushRunAttached(mainDb, projectId, projectDb, runId);
+  return { success: true };
+}
+
+// The pin-move loop's act, once per follower (pin_run.ts): the pointer write
+// is gated on `runId` STILL being the pin, so a loop superseded by another
+// pin-move or an unpin writes nothing and reports "pin_moved" — it never
+// moves a project onto a package that stopped being the pin, and it never
+// touches the subscription.
+export async function attachFollowerToPinnedRun(
+  mainDb: Sql,
+  projectId: string,
+  projectDb: Sql,
+  runId: string,
+): Promise<APIResponseWithData<"attached" | "pin_moved">> {
+  const res = await setProjectAttachedRunIfPinned(mainDb, projectId, runId);
+  if (res.success === false || res.data === "pin_moved") {
+    return res;
+  }
+  await pushRunAttached(mainDb, projectId, projectDb, runId);
+  return res;
+}
+
+async function pushRunAttached(
+  mainDb: Sql,
+  projectId: string,
+  projectDb: Sql,
+  runId: string,
+): Promise<void> {
   try {
     const manifest = await getRunManifestCached(runId);
     const payload = await buildRunAttachedManifestPayload({ runId, manifest });
@@ -123,5 +156,4 @@ export async function attachRunToProject(
       }`,
     );
   }
-  return { success: true };
 }

@@ -54,10 +54,9 @@ export const projectResultsPackageRouteRegistry = {
   }),
   // Subscribe/unsubscribe this project to the instance's pinned package
   // (SYSTEM_08 "The pinned package + followers"): enabling attaches the
-  // current pin immediately if
-  // one is set and differs; a later manual attach to a non-pinned package
-  // clears it. Same permission class as attach — subscribing IS consenting
-  // to future repoints.
+  // current pin immediately if one is set and differs; a later manual
+  // attach to a non-pinned package clears it. Same permission class as
+  // attach — subscribing IS consenting to future repoints.
   setProjectFollowPinned: route({
     path: "/results_package/follow_pinned",
     method: "POST",

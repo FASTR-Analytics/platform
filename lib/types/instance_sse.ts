@@ -57,11 +57,12 @@ export type InstanceState = {
   runsCatalog: RunCatalogItem[];
   runsCatalogSignal: string;
   // The at-most-one package the instance blesses (SYSTEM_08 "The pinned
-  // package + followers");
-  // null = nothing pinned. Broadcast to EVERY client (unlike runsCatalog):
-  // a bare run id is not sensitive — a project member already sees the id
-  // of the package their project serves from — and the project tab's
-  // "follow pinned" toggle needs it for editors without can_configure_data.
+  // package + followers"); null = nothing pinned. The ONE field every
+  // Pinned badge derives from (catalogue, project card, picker). Broadcast
+  // to EVERY client (unlike runsCatalog): a bare run id is not sensitive —
+  // a project member already sees the id of the package their project
+  // serves from — and the project tab needs it for editors without
+  // can_configure_data.
   pinnedRunId: string | null;
 
   // Summaries (lightweight aggregates)

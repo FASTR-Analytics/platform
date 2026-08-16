@@ -35,10 +35,9 @@ export type ProjectState = {
   // null = no run attached (typed replacement for the "unknown" sentinel).
   attachedRunId: string | null;
   // Subscribed to the instance's pinned package: whenever the pin moves this
-  // project is physically repointed through the normal attach path (never a
-  // read-time indirection — SYSTEM_08 "Followers are physically repointed,
-  // never indirected"). A config bit like
-  // isLocked, pushed on project_config_updated.
+  // project is physically repointed (never a read-time indirection —
+  // SYSTEM_08 "Followers are physically repointed, never indirected"). A
+  // config bit like isLocked, pushed on project_config_updated.
   followPinned: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];

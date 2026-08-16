@@ -179,14 +179,16 @@ finalize-or-fail site plus the host's crash handler, attach/repoint, and the
 rename). The backfill synthesizer is a separate process, so its runs surface
 on reconnect),
 `notifyInstancePinnedRunUpdated` (`pinned_run_updated` — the instance's
-pinned results package moved or was cleared, PLAN_PINNED_PACKAGE; carries
-the bare `pinnedRunId | null` and is deliberately UNFILTERED, the
-`config_updated` class: a run id alone is not sensitive — a project member
-already sees the id their project serves from — and every project tab's
-"follow pinned" toggle needs it regardless of `can_configure_data`. Its two
-callers, `server/runs/pin_run.ts`'s pin-move and unpin, ALSO fire the
-catalogue nonce, since `pinned` is a listing column; the pin-move fires it
-once AFTER its follower-repoint loop, not per follower),
+pinned results package moved or was cleared, SYSTEM_08 "The pinned
+package + followers"; carries the bare `pinnedRunId | null` and is deliberately
+UNFILTERED, the `config_updated` class: a run id alone is not sensitive —
+a project member already sees the id their project serves from — and it is
+the ONE field every surface derives its Pinned badge from, so the project
+tab renders it for editors without `can_configure_data`. Its callers,
+`server/runs/pin_run.ts`'s pin-move and unpin, ALSO fire the catalogue
+nonce because a pin-move repoints followers and moves attachedProjects; the
+pin-move fires it once in a `finally` AFTER its follower loop, not per
+follower, so a loop that throws can never strand the catalogue),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
 (`r_script`). `server/task_management/notify_project_v2.ts` exposes
 `notifyProjectV2(projectId, message)` (spreads `projectId` in) plus twelve

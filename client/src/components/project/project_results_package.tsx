@@ -118,19 +118,44 @@ export function ProjectResultsPackage() {
     },
   );
 
-  // Follow the instance's pinned package (SYSTEM_08 "The pinned package +
-  // followers"). The flag is
-  // T1 (`projectState.followPinned`, pushed on project_config_updated) and
-  // the pin itself is instance T1 (`instanceState.pinnedRunId`), so nothing
-  // is refetched here: enabling may also repoint the project, which arrives
-  // as run_attached and re-runs the effect above. Subscribing before any
-  // package is pinned is allowed — the project moves once an admin pins.
-  const setFollowPinned = createButtonAction((follow: boolean) =>
-    serverActions.setProjectFollowPinned({
-      projectId: projectState.id,
-      follow,
-    }),
+  // Follow the instance's pinned package (SYSTEM_08 "The pinned package
+  // + followers"). The flag is T1 (`projectState.followPinned`, pushed on
+  // project_config_updated) and the pin itself is instance T1
+  // (`instanceState.pinnedRunId`), so nothing is refetched here: enabling may
+  // also repoint the project, which arrives as run_attached and re-runs the
+  // effect above. Subscribing before any package is pinned is allowed — the
+  // project moves once an admin pins. The checkbox is keyed on a counter
+  // bumped when a save is refused, because a controlled native checkbox has
+  // already flipped visually by then and no store value changes to flip it
+  // back.
+  const [checkboxKey, setCheckboxKey] = createSignal(1);
+  const setFollowPinned = createButtonAction(
+    async (follow: boolean) => {
+      const res = await serverActions.setProjectFollowPinned({
+        projectId: projectState.id,
+        follow,
+      });
+      if (res.success === false) {
+        setCheckboxKey((k) => k + 1);
+      }
+      return res;
+    },
   );
+
+  // "Following, but not on the pin" is a real state (publish repointed this
+  // project as a wizard attach target, it was locked while the pin moved, or
+  // its repoint failed) — surface it and offer the manual realign, which is
+  // just a manual attach TO the pin (that never clears the subscription).
+  const behindPin = () =>
+    projectState.followPinned &&
+    instanceState.pinnedRunId !== null &&
+    projectState.attachedRunId !== instanceState.pinnedRunId;
+  const pinnedCandidate = (): RunListingItem | undefined => {
+    const s = attachable();
+    return s.status === "ready"
+      ? s.data.find((r) => r.id === instanceState.pinnedRunId)
+      : undefined;
+  };
 
   return (
     <EditorWrapper>
@@ -168,28 +193,52 @@ export function ProjectResultsPackage() {
             )}
           </StateHolderWrapper>
 
-          <Show when={canAttach()}>
-            <div class="ui-spy-sm">
-              <h3 class="ui-text-heading">
-                {t3({
-                  en: "Pinned package",
-                  fr: "Paquet épinglé",
-                  pt: "Pacote fixado",
-                })}
-              </h3>
-              <Checkbox
-                checked={projectState.followPinned}
-                onChange={(v) => setFollowPinned.click(v)}
-                disabled={
-                  projectState.isLocked ||
-                  setFollowPinned.state().status === "loading"
-                }
-                label={t3({
-                  en: "Always use the instance's pinned package",
-                  fr: "Toujours utiliser le paquet épinglé de l'instance",
-                  pt: "Usar sempre o pacote fixado da instância",
-                })}
-              />
+          <div class="ui-spy-sm">
+            <h3 class="ui-text-heading">
+              {t3({
+                en: "Pinned package",
+                fr: "Paquet épinglé",
+                pt: "Pacote fixado",
+              })}
+            </h3>
+            <Show
+              when={canAttach()}
+              fallback={
+                <div class="text-base-content-muted text-sm">
+                  <Show
+                    when={projectState.followPinned}
+                    fallback={t3({
+                      en: "This project does not follow the instance's pinned package.",
+                      fr: "Ce projet ne suit pas le paquet épinglé de l'instance.",
+                      pt: "Este projeto não segue o pacote fixado da instância.",
+                    })}
+                  >
+                    {t3({
+                      en: "This project follows the instance's pinned package: whenever an administrator pins a different package, it switches to it.",
+                      fr: "Ce projet suit le paquet épinglé de l'instance : chaque fois qu'un administrateur épingle un autre paquet, il y bascule.",
+                      pt: "Este projeto segue o pacote fixado da instância: sempre que um administrador fixar outro pacote, muda para ele.",
+                    })}
+                  </Show>
+                </div>
+              }
+            >
+              <Show when={String(checkboxKey())} keyed>
+                {(_key) => (
+                  <Checkbox
+                    checked={projectState.followPinned}
+                    onChange={(v) => setFollowPinned.click(v)}
+                    disabled={
+                      projectState.isLocked ||
+                      setFollowPinned.state().status === "loading"
+                    }
+                    label={t3({
+                      en: "Always use the instance's pinned package",
+                      fr: "Toujours utiliser le paquet épinglé de l'instance",
+                      pt: "Usar sempre o pacote fixado da instância",
+                    })}
+                  />
+                )}
+              </Show>
               <div class="text-base-content-muted text-sm">
                 <Show
                   when={instanceState.pinnedRunId !== null}
@@ -211,8 +260,39 @@ export function ProjectResultsPackage() {
                   pt: "Escolher outro pacote abaixo desativa esta opção.",
                 })}
               </div>
-            </div>
+            </Show>
+            <Show when={behindPin()}>
+              <div class="ui-gap flex items-center">
+                <div class="text-warning flex-1 text-sm">
+                  {t3({
+                    en: "This project follows the pinned package but is currently on a different one.",
+                    fr: "Ce projet suit le paquet épinglé mais se trouve actuellement sur un autre paquet.",
+                    pt: "Este projeto segue o pacote fixado, mas está atualmente noutro pacote.",
+                  })}
+                </div>
+                <Show when={canAttach() && pinnedCandidate()} keyed>
+                  {(run) => (
+                    <Button
+                      size="sm"
+                      outline
+                      iconName="package"
+                      onClick={() => attachPackage.click(run)}
+                      state={attachPackage.state()}
+                      disabled={projectState.isLocked}
+                    >
+                      {t3({
+                        en: "Switch to pinned package",
+                        fr: "Basculer vers le paquet épinglé",
+                        pt: "Mudar para o pacote fixado",
+                      })}
+                    </Button>
+                  )}
+                </Show>
+              </div>
+            </Show>
+          </div>
 
+          <Show when={canAttach()}>
             <div class="ui-spy-sm">
               <h3 class="ui-text-heading">
                 {t3({

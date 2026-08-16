@@ -26,10 +26,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import {
-  PinnedBadge,
-  RunStatusBadge,
-} from "~/components/_shared/results_package/status";
+import { PinnedBadge } from "~/components/_shared/results_package/status";
 import { ResultsPackageWizard } from "~/components/results_package_wizard";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
@@ -138,10 +135,10 @@ export function InstanceResultsPackages() {
     instanceState.runsCatalog.find((r) => r.id === selectedId()) ??
     sortedRuns()[0];
 
-  // "Latest" is DERIVED — the newest ready package — never stored and never
-  // a consumer-facing pointer (SYSTEM_08 "Latest is derived, pinned is
-  // stored"). The stored,
-  // explicit concept is `pinned`, read straight off the row.
+  // "Latest" is DERIVED — the newest ready package — never stored and never a
+  // consumer-facing pointer (SYSTEM_08 "Latest is derived, pinned is
+  // stored"). The stored, explicit concept is the pin, read from the one
+  // instance T1 field every surface uses (`instanceState.pinnedRunId`).
   const latestReadyId = createMemo(
     (): string | undefined => sortedRuns().find((r) => r.status === "ready")?.id,
   );
@@ -228,8 +225,7 @@ export function InstanceResultsPackages() {
                       <div>
                         <div class="ui-gap-sm flex items-center">
                           <div class="flex-1 truncate">{run.label}</div>
-                          {/* <RunStatusBadge status={run.status} /> */}
-                          <Show when={run.pinned}>
+                          <Show when={run.id === instanceState.pinnedRunId}>
                             <PinnedBadge />
                           </Show>
                           <Show when={run.id === latestReadyId()}>

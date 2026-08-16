@@ -173,8 +173,8 @@ Scope:
   nothing live; no instance FKs or projectId inside run files. Calendar is a
   run input (the adapter reads the manifest, never the env global).
 - **Retention**: no automatic or time-based GC. Reclamation is ONLY the
-  catalogue's guarded hard delete (row + dir), refused while referenced or
-  generating.
+  catalogue's guarded hard delete (row + dir), refused while referenced,
+  generating, or pinned (SYSTEM_08 "The pinned package + followers").
 - Display-only preferences stay out of fetch configs and cache hashes.
 - Stored-JSON moves = migration transform + FORCED skip-gate + lockstep
   `definition.json` (PROTOCOL_APP_MIGRATIONS).

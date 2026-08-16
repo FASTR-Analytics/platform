@@ -7,6 +7,7 @@ import {
   createRunGenerationAttempt,
   deleteRunGenerationAttempt,
   getRunGenerationAttempt,
+  listFollowPinnedProjects,
   listRunCatalog,
   updateRunGenerationAttemptStep1,
   updateRunGenerationAttemptStep2,
@@ -178,8 +179,18 @@ defineRoute(
   "unpinResultsPackage",
   requireGlobalPermission("can_configure_data"),
   log("unpinResultsPackage"),
+  async (c, { params }) => {
+    const res = await unpinRun(c.var.mainDb, params.run_id);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "listFollowPinnedProjects",
+  requireGlobalPermission("can_configure_data"),
   async (c) => {
-    const res = await unpinRun(c.var.mainDb);
+    const res = await listFollowPinnedProjects(c.var.mainDb);
     return c.json(res);
   },
 );

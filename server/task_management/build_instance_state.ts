@@ -62,8 +62,16 @@ export async function buildInstanceState(
     }
   }
   // Every caller, entitled or not — the id alone is not gated (see the
-  // field's doc in lib/types/instance_sse.ts).
-  const pinnedRunId = await getPinnedRunId(mainDb);
+  // field's doc in lib/types/instance_sse.ts). Degrades to null like the
+  // catalogue above degrades to []: a read failure must not stop the
+  // boundary from coming up.
+  const pinnedRes = await getPinnedRunId(mainDb);
+  let pinnedRunId: string | null = null;
+  if (pinnedRes.success) {
+    pinnedRunId = pinnedRes.data;
+  } else {
+    console.error(`buildInstanceState pinnedRunId: ${pinnedRes.err}`);
+  }
 
   const instanceState: InstanceState = {
     isReady: true,

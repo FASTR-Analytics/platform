@@ -11,7 +11,11 @@ export {
 } from "./attach_run.ts";
 export { buildResultsPackageCompatibilityReport } from "./package_compatibility.ts";
 export { deleteRun } from "./delete_run.ts";
-export { pinRunAndRepointFollowers, unpinRun } from "./pin_run.ts";
+export {
+  pinRunAndRepointFollowers,
+  setProjectFollowPinnedAndAlign,
+  unpinRun,
+} from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
 export {

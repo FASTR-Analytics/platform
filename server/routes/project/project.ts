@@ -165,7 +165,11 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, body.aiContext);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+        aiContext: body.aiContext,
+      });
       // The runs catalogue embeds project labels in attachedProjects.
       notifyInstanceRunsCatalogUpdated();
     }
@@ -258,7 +262,10 @@ defineRoute(
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+      });
     }
     return c.json(res);
   },
@@ -280,7 +287,11 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, undefined, res.data.isCentralReporting);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+        isCentralReporting: res.data.isCentralReporting,
+      });
     }
     return c.json(res);
   },

@@ -38,6 +38,7 @@ import { ViewFiles } from "~/components/_shared/results_package/view_files";
 import { ViewLogs } from "~/components/_shared/results_package/view_logs";
 import { ViewScript } from "~/components/_shared/results_package/view_script";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Viewer = typeof ViewScript | typeof ViewLogs | typeof ViewFiles;
 type OpenViewer = (element: Viewer, moduleId: string) => void;
@@ -73,7 +74,7 @@ export function RunCatalogDetailPane(p: {
         pt: "Não é possível eliminar durante a geração",
       });
     }
-    if (p.run.pinned) {
+    if (isPinned()) {
       return t3({
         en: "Cannot delete while pinned",
         fr: "Suppression impossible tant qu'il est épinglé",
@@ -103,24 +104,70 @@ export function RunCatalogDetailPane(p: {
   );
 
   // Pin / unpin (SYSTEM_08 "The pinned package + followers"): an explicit
-  // act on a ready package.
-  // Pinning physically repoints every project that follows the pin, so the
-  // confirm says so and the result reports which projects moved, were
-  // skipped (locked) or failed. Unpin moves nothing. No refetch on success:
-  // the pin push + catalogue nonce update the store.
+  // act on a ready package. Pinning physically repoints every project that
+  // follows the pin, so the confirm lists them first and the result reports
+  // which moved, were skipped (locked) or failed — and whether a later
+  // pin-move superseded this one midway. Unpin is run-keyed and moves
+  // nothing. No refetch on success: the pin push + catalogue nonce update the
+  // store, and both badges/buttons derive from `instanceState.pinnedRunId`.
+  const isPinned = () => p.run.id === instanceState.pinnedRunId;
+
   const pinPackage = createButtonAction(
     async () => {
+      const followersRes = await serverActions.listFollowPinnedProjects({});
+      if (followersRes.success === false) {
+        return followersRes;
+      }
+      const followers = followersRes.data;
       const ok = await openConfirm({
         title: t3({
           en: "Pin this results package?",
           fr: "Épingler ce paquet de résultats ?",
           pt: "Fixar este pacote de resultados?",
         }),
-        text: t3({
-          en: "It becomes the instance's pinned package. Every project set to follow the pinned package is switched to it now.",
-          fr: "Il devient le paquet épinglé de l'instance. Chaque projet configuré pour suivre le paquet épinglé y est basculé maintenant.",
-          pt: "Passa a ser o pacote fixado da instância. Todos os projetos configurados para seguir o pacote fixado mudam para ele agora.",
-        }),
+        text: (
+          <div class="ui-spy-sm">
+            <div>
+              {t3({
+                en: "It becomes the instance's pinned package.",
+                fr: "Il devient le paquet épinglé de l'instance.",
+                pt: "Passa a ser o pacote fixado da instância.",
+              })}
+            </div>
+            <Show
+              when={followers.length > 0}
+              fallback={
+                <div>
+                  {t3({
+                    en: "No project follows the pinned package, so no project is switched.",
+                    fr: "Aucun projet ne suit le paquet épinglé, donc aucun projet n'est basculé.",
+                    pt: "Nenhum projeto segue o pacote fixado, pelo que nenhum projeto é mudado.",
+                  })}
+                </div>
+              }
+            >
+              <div>
+                {t3({
+                  en: "These projects follow the pinned package and are switched to it now:",
+                  fr: "Ces projets suivent le paquet épinglé et y sont basculés maintenant :",
+                  pt: "Estes projetos seguem o pacote fixado e mudam para ele agora:",
+                })}
+              </div>
+              <ul class="list-disc pl-5">
+                <For each={followers}>
+                  {(f) => (
+                    <li>
+                      {f.label}
+                      <Show when={f.isLocked}>
+                        {` (${t3({ en: "locked — skipped", fr: "verrouillé — ignoré", pt: "bloqueado — ignorado" })})`}
+                      </Show>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </Show>
+          </div>
+        ),
         confirmButtonLabel: t3({ en: "Pin", fr: "Épingler", pt: "Fixar" }),
       });
       if (!ok) {
@@ -148,18 +195,38 @@ export function RunCatalogDetailPane(p: {
           `${t3({ en: "Failed to update", fr: "Échec de la mise à jour", pt: "Falha ao atualizar" })}: ${result.failed.join(", ")}`,
         );
       }
-      if (lines.length > 0) {
-        await openAlert({
-          title: t3({ en: "Package pinned", fr: "Paquet épinglé", pt: "Pacote fixado" }),
-          text: lines.join("\n"),
-          intent: result.failed.length > 0 ? "danger" : undefined,
-        });
+      if (result.supersededMidway) {
+        lines.push(
+          t3({
+            en: "The pinned package was changed again while projects were being switched; the newer pin takes over.",
+            fr: "Le paquet épinglé a de nouveau changé pendant le basculement des projets ; le nouvel épinglage prend le relais.",
+            pt: "O pacote fixado foi alterado novamente enquanto os projetos eram mudados; a fixação mais recente prevalece.",
+          }),
+        );
       }
+      if (lines.length === 0) {
+        lines.push(
+          t3({
+            en: "No project follows the pinned package, so no project was switched.",
+            fr: "Aucun projet ne suit le paquet épinglé, donc aucun projet n'a été basculé.",
+            pt: "Nenhum projeto segue o pacote fixado, pelo que nenhum projeto foi mudado.",
+          }),
+        );
+      }
+      await openAlert({
+        title: t3({ en: "Package pinned", fr: "Paquet épinglé", pt: "Pacote fixado" }),
+        text: (
+          <div class="ui-spy-sm">
+            <For each={lines}>{(line) => <div>{line}</div>}</For>
+          </div>
+        ),
+        intent: result.failed.length > 0 ? "danger" : undefined,
+      });
     },
   );
 
   const unpinPackage = createButtonAction(() =>
-    serverActions.unpinResultsPackage({}),
+    serverActions.unpinResultsPackage({ run_id: p.run.id }),
   );
 
   const openViewer: OpenViewer = (element, moduleId) => {
@@ -177,12 +244,12 @@ export function RunCatalogDetailPane(p: {
     <div class="ui-pad ui-spy h-full overflow-auto">
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
-        <Show when={p.run.pinned}>
+        <Show when={isPinned()}>
           <PinnedBadge />
         </Show>
         <RunStatusBadge status={p.run.status} />
         <Switch>
-          <Match when={p.run.pinned}>
+          <Match when={isPinned()}>
             <Button
               size="sm"
               outline

@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import {
   getAttachedRunForProject,
-  getPinnedRunId,
   listAttachableRunsForProject,
-  setProjectFollowPinned,
 } from "../../db/instance/run_generation.ts";
 import { log } from "../../middleware/logging.ts";
 import {
@@ -20,10 +18,10 @@ import {
   readRunModuleLogs,
   readRunModuleScript,
   resolveRunModuleFileForDownload,
+  setProjectFollowPinnedAndAlign,
 } from "../../runs/mod.ts";
 import { getRunReadContext } from "../../run_query/mod.ts";
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
-import { notifyProjectConfigUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // The project's Results package surface (PLAN_RESULTS_RUNS Phase 3 item 4):
@@ -113,11 +111,8 @@ defineRoute(
   },
 );
 
-// Follow the pin (SYSTEM_08 "Enabling follow attaches immediately"): enabling attaches the
-// current pin first when one is set and differs — the flag is written only
-// if that attach succeeds, so a project is never "following" a package it
-// failed to reach. Enabling with no pin, or already on it, just sets the
-// flag. Disabling moves nothing.
+// The follow toggle — the enable-time attach + realign live in
+// server/runs/pin_run.ts (SYSTEM_08 "Enabling follow attaches immediately").
 defineRoute(
   routesProjectResultsPackage,
   "setProjectFollowPinned",
@@ -127,43 +122,12 @@ defineRoute(
   ),
   log("setProjectFollowPinned"),
   async (c, { body }) => {
-    if (body.follow) {
-      const pinnedRunId = await getPinnedRunId(c.var.mainDb);
-      const attachedRes = await getAttachedRunForProject(
-        c.var.mainDb,
-        c.var.ppk.projectId,
-      );
-      if (attachedRes.success === false) {
-        return c.json(attachedRes);
-      }
-      if (pinnedRunId !== null && attachedRes.data?.id !== pinnedRunId) {
-        const attachRes = await attachRunToProject(
-          c.var.mainDb,
-          c.var.ppk.projectId,
-          c.var.ppk.projectDb,
-          pinnedRunId,
-        );
-        if (attachRes.success === false) {
-          return c.json(attachRes);
-        }
-        notifyInstanceRunsCatalogUpdated();
-      }
-    }
-    const res = await setProjectFollowPinned(
+    const res = await setProjectFollowPinnedAndAlign(
       c.var.mainDb,
       c.var.ppk.projectId,
+      c.var.ppk.projectDb,
       body.follow,
     );
-    if (res.success) {
-      notifyProjectConfigUpdated(
-        c.var.ppk.projectId,
-        res.data.label,
-        res.data.isLocked,
-        undefined,
-        undefined,
-        body.follow,
-      );
-    }
     return c.json(res);
   },
 );
