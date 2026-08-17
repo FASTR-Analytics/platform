@@ -22,6 +22,7 @@ globs:
   - server/routes/instance/whats_new.ts
   - lib/translate/**
   - server/routes/instance/whats_new.ts
+  - server/routes/instance/onboarding.ts
 docs_absorbed:
 ---
 
@@ -51,9 +52,18 @@ fetches every accessible project's detail, offers Play only for tours some
 project qualifies for (first qualifying project wins; slide-type presence is
 verified by searching the slide documents), and hands the chosen tour to the
 project shell via the `pendingTourReplay` signal, consumed after hydration;
-its extra "Instance" category plays the seven instance-tab tours in place via
+its extra "Instance" category plays the eight instance-tab tours in place via
 the instance manager. Both modals share the sidebar shell in
-`tour_catalogue_layout.tsx`. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+`tour_catalogue_layout.tsx`. Every manager is created with the shared button
+labels (`tourLabels()`, merged by roadtrip under any per-tour labels) and
+`onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
+abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
+user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
+trigger, and for aborts the step reached and the reason — skip vs missing
+target); per-step events are not sent. Seen-state in the modals reads the
+Solid manager's reactive `hasSeen()` (the instance modal falls back to the
+Clerk storage adapter for project tours, whose managers are not mounted
+there). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

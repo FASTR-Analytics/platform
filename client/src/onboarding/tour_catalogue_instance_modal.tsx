@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import type { ProjectDetail, SlideType } from "lib";
 import { type AlertComponentProps } from "panther";
-import type { TourManagerController } from "@njwse/roadtrip";
+import type { SolidTourManagerController } from "@njwse/roadtrip/solid";
 import { For, Show, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { setPendingTourReplay } from "~/state/t4_ui";
@@ -48,7 +48,7 @@ export function TourCatalogueInstanceModal(
     {
       projects: { id: string; label: string }[];
       openProject: (projectId: string) => void;
-      instanceManager: TourManagerController;
+      instanceManager: SolidTourManagerController;
       openInstanceTab: (tab: InstanceTab) => void;
     },
     undefined
@@ -137,8 +137,14 @@ export function TourCatalogueInstanceModal(
     })();
   });
 
+  // Instance tours are answered by their (reactive) manager. Project tours
+  // have no manager here — their managers live in the project shell, which
+  // is not mounted — so their seen-flags are read straight from storage,
+  // which is synchronous and already hydrated by the time this modal opens.
   const seen = (id: string): boolean =>
-    clerkOnboardingStorage.get(`tour:${id}`) === true;
+    p.instanceManager.hasTour(id)
+      ? p.instanceManager.hasSeen(id)
+      : clerkOnboardingStorage.get(`tour:${id}`) === true;
 
   function playInProject(entry: TourCatalogueEntry, target: TourTarget) {
     p.close(undefined);

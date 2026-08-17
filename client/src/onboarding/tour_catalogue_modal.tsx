@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import type { SlideType } from "lib";
-import type { TourManagerController } from "@njwse/roadtrip";
+import type { SolidTourManagerController } from "@njwse/roadtrip/solid";
 import { type AlertComponentProps } from "panther";
 import { createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
@@ -25,7 +25,7 @@ import { For } from "solid-js";
 // from the project shell as props, so they share its lifecycle and each
 // action is routed to its owner via hasTour().
 export function TourCatalogueModal(
-  p: AlertComponentProps<{ managers: TourManagerController[] }, undefined>,
+  p: AlertComponentProps<{ managers: SolidTourManagerController[] }, undefined>,
 ) {
   const managerFor = (id: string) => p.managers.find((m) => m.hasTour(id));
 
@@ -60,16 +60,9 @@ export function TourCatalogueModal(
     slideTypesPresent: slideTypesPresent(),
   });
 
-  // hasSeen() isn't reactive — bump once hydration settles in case the modal
-  // opened before it finished
-  const [seenRev, setSeenRev] = createSignal(0);
-  void Promise.all(p.managers.map((m) => m.ready)).then(() =>
-    setSeenRev((r) => r + 1),
-  );
-  const seen = (id: string): boolean => {
-    seenRev();
-    return managerFor(id)?.hasSeen(id) ?? false;
-  };
+  // The Solid manager's hasSeen() reads a signal, so the pill updates on
+  // hydration and after a tour finishes without any manual invalidation.
+  const seen = (id: string): boolean => managerFor(id)?.hasSeen(id) ?? false;
 
   function play(entry: TourCatalogueEntry) {
     const manager = managerFor(entry.id);

@@ -29,6 +29,7 @@ import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
 import { customPromptRouteRegistry } from "./instance/custom_prompts.ts";
 import { whatsNewRouteRegistry } from "./instance/whats_new.ts";
+import { onboardingRouteRegistry } from "./instance/onboarding.ts";
 
 // Total individual route count across all feature registries.
 // Used by validateAllRoutesDefined to detect key collisions (a collision causes
@@ -64,7 +65,8 @@ export const routeRegistryIndividualCount =
   Object.keys(emailRouteRegistry).length +
   Object.keys(cacheStatusRouteRegistry).length +
   Object.keys(customPromptRouteRegistry).length +
-  Object.keys(whatsNewRouteRegistry).length;
+  Object.keys(whatsNewRouteRegistry).length +
+  Object.keys(onboardingRouteRegistry).length;
 
 // Combined route registry
 export const routeRegistry = {
@@ -99,4 +101,5 @@ export const routeRegistry = {
   ...cacheStatusRouteRegistry,
   ...customPromptRouteRegistry,
   ...whatsNewRouteRegistry,
+  ...onboardingRouteRegistry,
 } as const;

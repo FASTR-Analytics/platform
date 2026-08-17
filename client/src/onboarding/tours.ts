@@ -7,7 +7,9 @@ import { instanceState } from "~/state/instance/t1_store";
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
 
-function tourLabels(): TourLabels {
+// Button labels shared by every tour — passed once per manager (roadtrip
+// merges them under any tour-specific labels) rather than per definition.
+export function tourLabels(): TourLabels {
   return {
     next: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
     back: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
@@ -23,7 +25,6 @@ function tourLabels(): TourLabels {
 export function buildDecksEditorTour(): TourDefinition {
   return {
     id: "decks-intro-editor",
-    labels: tourLabels(),
     steps: [
       {
         id: "folders",
@@ -67,7 +68,6 @@ export function buildDecksEditorTour(): TourDefinition {
 export function buildDecksViewerTour(): TourDefinition {
   return {
     id: "decks-intro-viewer",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -150,7 +150,6 @@ export function buildDecksViewerTour(): TourDefinition {
 export function buildDecksOpenDeckTour(): TourDefinition {
   return {
     id: "decks-open-deck",
-    labels: tourLabels(),
     steps: [
       {
         id: "open-deck",
@@ -176,7 +175,6 @@ export function buildDecksOpenDeckTour(): TourDefinition {
 export function buildDecksManageTour(): TourDefinition {
   return {
     id: "decks-manage-decks",
-    labels: tourLabels(),
     steps: [
       {
         id: "deck-actions",
@@ -201,7 +199,6 @@ export function buildDecksManageTour(): TourDefinition {
 export function buildReportsViewerTour(): TourDefinition {
   return {
     id: "reports-intro-viewer",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -275,7 +272,6 @@ export function buildReportsViewerTour(): TourDefinition {
 export function buildReportsEditorTour(): TourDefinition {
   return {
     id: "reports-intro-editor",
-    labels: tourLabels(),
     steps: [
       {
         id: "folders",
@@ -316,7 +312,6 @@ export function buildReportsEditorTour(): TourDefinition {
 export function buildReportsManageTour(): TourDefinition {
   return {
     id: "reports-manage-reports",
-    labels: tourLabels(),
     steps: [
       {
         id: "report-actions",
@@ -341,7 +336,6 @@ export function buildReportsManageTour(): TourDefinition {
 export function buildReportsOpenReportTour(): TourDefinition {
   return {
     id: "reports-open-reports",
-    labels: tourLabels(),
     steps: [
       {
         id: "open-report",
@@ -368,7 +362,6 @@ export function buildReportsOpenReportTour(): TourDefinition {
 export function buildDeckEditorIntroTour(): TourDefinition {
   return {
     id: "deck-editor-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -425,7 +418,6 @@ export function buildDeckEditorIntroTour(): TourDefinition {
 export function buildDeckEditorSlidesTour(): TourDefinition {
   return {
     id: "deck-editor-slides",
-    labels: tourLabels(),
     steps: [
       {
         id: "grid",
@@ -482,7 +474,6 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
 export function buildDeckEditorPresentTour(): TourDefinition {
   return {
     id: "deck-editor-present",
-    labels: tourLabels(),
     steps: [
       {
         id: "present",
@@ -524,7 +515,6 @@ export function buildDeckEditorPresentTour(): TourDefinition {
 export function buildDeckEditorHistoryTour(): TourDefinition {
   return {
     id: "deck-editor-history",
-    labels: tourLabels(),
     steps: [
       {
         id: "open-menu",
@@ -540,7 +530,7 @@ export function buildDeckEditorHistoryTour(): TourDefinition {
           pt: "Cada apresentação mantém um histórico de versões anteriores. Abra este menu para o encontrar.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "pick-version-history",
@@ -559,7 +549,7 @@ export function buildDeckEditorHistoryTour(): TourDefinition {
           pt: "Clique em Histórico de versões para continuar.",
         }),
         placement: "right",
-        advanceOn: {},
+        advanceOn: "click",
         waitForTargetTimeoutMs: 4000,
         onTargetTimeout: "skip",
       },
@@ -592,7 +582,7 @@ export function buildDeckEditorHistoryTour(): TourDefinition {
           pt: "Selecionar uma versão mostra o que mudou em relação à anterior e permite restaurá-la se precisar de voltar atrás. Clique aqui para regressar aos seus diapositivos.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
     ],
   };
@@ -603,7 +593,6 @@ export function buildDeckEditorHistoryTour(): TourDefinition {
 export function buildDeckEditorSettingsTour(): TourDefinition {
   return {
     id: "deck-editor-settings",
-    labels: tourLabels(),
     steps: [
       {
         id: "open-settings",
@@ -619,7 +608,7 @@ export function buildDeckEditorSettingsTour(): TourDefinition {
           pt: "As definições controlam o aspeto de toda a apresentação. Clique agora para as abrir — a visita continua lá dentro.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "settings-body",
@@ -728,7 +717,6 @@ function slideCanvasStep(): TourStep {
 export function buildSlideCoverTour(): TourDefinition {
   return {
     id: "slide-cover-intro",
-    labels: tourLabels(),
     steps: [
       slideEditorIntroStep(
         t3({
@@ -762,7 +750,6 @@ export function buildSlideCoverTour(): TourDefinition {
 export function buildSlideSectionTour(): TourDefinition {
   return {
     id: "slide-section-intro",
-    labels: tourLabels(),
     steps: [
       slideEditorIntroStep(
         t3({
@@ -796,7 +783,6 @@ export function buildSlideSectionTour(): TourDefinition {
 export function buildSlideContentTour(): TourDefinition {
   return {
     id: "slide-content-intro",
-    labels: tourLabels(),
     steps: [
       slideEditorIntroStep(
         t3({
@@ -851,7 +837,7 @@ export function buildSlideContentTour(): TourDefinition {
           pt: "Clique no separador Conteúdo para continuar.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "blocks",
@@ -878,7 +864,6 @@ export function buildSlideContentTour(): TourDefinition {
 export function buildReportEditorIntroTour(): TourDefinition {
   return {
     id: "report-editor-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1024,7 +1009,6 @@ export function buildReportEditorIntroTour(): TourDefinition {
 export function buildReportEditorFiguresTour(): TourDefinition {
   return {
     id: "report-editor-figures",
-    labels: tourLabels(),
     steps: [
       {
         id: "embed",
@@ -1051,7 +1035,6 @@ export function buildReportEditorFiguresTour(): TourDefinition {
 export function buildReportEditorHistoryTour(): TourDefinition {
   return {
     id: "report-editor-history",
-    labels: tourLabels(),
     steps: [
       {
         id: "open-history",
@@ -1067,7 +1050,7 @@ export function buildReportEditorHistoryTour(): TourDefinition {
           pt: "Os relatórios mantêm um histórico de versões anteriores. Clique aqui para o abrir — a visita continua lá dentro.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "version-list",
@@ -1098,7 +1081,7 @@ export function buildReportEditorHistoryTour(): TourDefinition {
           pt: "Uma versão selecionada mostra as diferenças em relação à anterior e pode ser restaurada se precisar de voltar atrás. Clique aqui para regressar ao relatório.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
     ],
   };
@@ -1109,7 +1092,6 @@ export function buildReportEditorHistoryTour(): TourDefinition {
 export function buildVizIntroTour(): TourDefinition {
   return {
     id: "viz-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1179,7 +1161,6 @@ export function buildVizIntroTour(): TourDefinition {
 export function buildVizCardsTour(): TourDefinition {
   return {
     id: "viz-cards",
-    labels: tourLabels(),
     steps: [
       {
         id: "card",
@@ -1205,7 +1186,6 @@ export function buildVizCardsTour(): TourDefinition {
 export function buildVizCreateTour(): TourDefinition {
   return {
     id: "viz-create",
-    labels: tourLabels(),
     steps: [
       {
         id: "create",
@@ -1231,7 +1211,6 @@ export function buildVizCreateTour(): TourDefinition {
 export function buildResultsPackageIntroTour(): TourDefinition {
   return {
     id: "results-package-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1259,7 +1238,6 @@ export function buildResultsPackageIntroTour(): TourDefinition {
 export function buildResultsPackageExploreTour(): TourDefinition {
   return {
     id: "results-package-explore",
-    labels: tourLabels(),
     steps: [
       {
         id: "attached",
@@ -1298,7 +1276,6 @@ export function buildResultsPackageExploreTour(): TourDefinition {
 export function buildResultsPackageSwitchTour(): TourDefinition {
   return {
     id: "results-package-switch",
-    labels: tourLabels(),
     steps: [
       {
         id: "picker",
@@ -1339,7 +1316,6 @@ export function buildResultsPackageSwitchTour(): TourDefinition {
 export function buildSettingsIntroTour(): TourDefinition {
   return {
     id: "settings-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1440,7 +1416,6 @@ export function buildSettingsIntroTour(): TourDefinition {
 export function buildDashboardsIntroTour(): TourDefinition {
   return {
     id: "dashboards-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1491,7 +1466,6 @@ export function buildDashboardsIntroTour(): TourDefinition {
 export function buildDashboardsCardsTour(): TourDefinition {
   return {
     id: "dashboards-cards",
-    labels: tourLabels(),
     steps: [
       {
         id: "card",
@@ -1517,7 +1491,6 @@ export function buildDashboardsCardsTour(): TourDefinition {
 export function buildDashboardsCreateTour(): TourDefinition {
   return {
     id: "dashboards-create",
-    labels: tourLabels(),
     steps: [
       {
         id: "create",
@@ -1550,7 +1523,6 @@ const canConfigureDashboards = () =>
 export function buildDashboardEditorIntroTour(): TourDefinition {
   return {
     id: "dashboard-editor-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1613,7 +1585,7 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
           pt: "Definições contém o título, o endereço web, o layout da página, os logótipos e — sobretudo — se os visitantes precisam de iniciar sessão. Clique agora para ver.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
         when: canConfigureDashboards,
       },
       {
@@ -1642,7 +1614,6 @@ export function buildDashboardEditorIntroTour(): TourDefinition {
 export function buildDashboardEditorItemsTour(): TourDefinition {
   return {
     id: "dashboard-editor-items",
-    labels: tourLabels(),
     steps: [
       {
         id: "item-card",
@@ -1720,7 +1691,6 @@ function vizPreviewStep(): TourStep {
 export function buildVizEditorCreateTour(): TourDefinition {
   return {
     id: "viz-editor-create",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1777,7 +1747,6 @@ export function buildVizEditorCreateTour(): TourDefinition {
 export function buildVizEditorEditTour(): TourDefinition {
   return {
     id: "viz-editor-edit",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -1820,7 +1789,7 @@ export function buildVizEditorEditTour(): TourDefinition {
           pt: "Clique em Apresentação para continuar.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "style",
@@ -1851,7 +1820,7 @@ export function buildVizEditorEditTour(): TourDefinition {
           pt: "Clique em Texto para continuar.",
         }),
         placement: "bottom",
-        advanceOn: {},
+        advanceOn: "click",
       },
       {
         id: "text",
@@ -1890,18 +1859,9 @@ export function buildVizEditorEditTour(): TourDefinition {
 // Users / Settings). Unlike the project tours above, their availability reads
 // instanceState only and their manager lives in the instance shell.
 
-// The nav renders twice (compact icons below xl, labelled buttons above), so
-// the target picks whichever variant is actually visible.
-const visibleInstanceNav = () => {
-  const els = Array.from(
-    document.querySelectorAll('[data-tour="instance-nav"]'),
-  );
-  return (
-    els.find((el) => el instanceof HTMLElement && el.offsetParent !== null) ??
-    els[0] ??
-    null
-  );
-};
+// The nav renders twice (compact icons below xl, labelled buttons above); a
+// selector that matches both resolves to the visible one (roadtrip ≥ 0.10),
+// so a plain tourTarget() is enough.
 
 // The instance shell itself: navigation, language, release notes and where to
 // find help. Fires on the projects page (the landing tab), merging seamlessly
@@ -1909,11 +1869,10 @@ const visibleInstanceNav = () => {
 export function buildInstanceWelcomeTour(): TourDefinition {
   return {
     id: "instance-welcome",
-    labels: tourLabels(),
     steps: [
       {
         id: "nav",
-        target: visibleInstanceNav,
+        target: tourTarget("instance-nav"),
         title: t3({
           en: "Welcome to FASTR",
           fr: "Bienvenue dans FASTR",
@@ -1986,7 +1945,6 @@ export function buildInstanceProjectsTour(): TourDefinition {
   const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
   return {
     id: "instance-projects-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -2096,7 +2054,6 @@ export function buildInstanceProjectsTour(): TourDefinition {
 export function buildInstanceDataTour(): TourDefinition {
   return {
     id: "instance-data-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -2196,7 +2153,6 @@ export function buildInstanceDataTour(): TourDefinition {
 export function buildInstanceResultsPackagesTour(): TourDefinition {
   return {
     id: "instance-results-packages-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -2253,7 +2209,6 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
     id: "instance-results-packages-catalogue",
-    labels: tourLabels(),
     steps: [
       {
         id: "card",
@@ -2292,7 +2247,6 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
 export function buildInstanceAssetsTour(): TourDefinition {
   return {
     id: "instance-assets-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -2363,7 +2317,6 @@ export function buildInstanceAssetsTour(): TourDefinition {
 export function buildInstanceUsersTour(): TourDefinition {
   return {
     id: "instance-users-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",
@@ -2432,7 +2385,6 @@ export function buildInstanceUsersTour(): TourDefinition {
 export function buildInstanceSettingsTour(): TourDefinition {
   return {
     id: "instance-settings-intro",
-    labels: tourLabels(),
     steps: [
       {
         id: "intro",

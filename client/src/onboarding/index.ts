@@ -1,6 +1,9 @@
-import { createTourManager } from "@njwse/roadtrip/solid";
-import type { TourManagerController } from "@njwse/roadtrip";
+import {
+  createTourManager,
+  type SolidTourManagerController,
+} from "@njwse/roadtrip/solid";
 import { clerkOnboardingStorage } from "./storage";
+import { reportTourEvent } from "./telemetry";
 import type { InstanceTab } from "./catalogue";
 import {
   buildDeckEditorHistoryTour,
@@ -44,6 +47,7 @@ import {
   buildInstanceSettingsTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
+  tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
@@ -89,11 +93,13 @@ const isEditingView = () => currentView().id.startsWith("editing_");
 export function setupInstanceTours(opts: {
   currentTab: () => InstanceTab;
   instanceVisible: () => boolean;
-}): TourManagerController {
+}): SolidTourManagerController {
   const onTab = (tab: string) => () =>
     opts.instanceVisible() && opts.currentTab() === tab;
   return createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       "instance-projects": onTab("projects"),
       "instance-data": onTab("data"),
@@ -153,7 +159,7 @@ const editingSlideOfType = (type: SlideType) => {
   );
 };
 
-export function setupDeckTours(): TourManagerController {
+export function setupDeckTours(): SolidTourManagerController {
   const hasDecks = () =>
     projectState.projectModules.length > 0 &&
     projectState.slideDecks.length > 0;
@@ -168,6 +174,8 @@ export function setupDeckTours(): TourManagerController {
   // mid-tour hands over cleanly instead of two tours overlapping.
   const tours = createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       decks: () =>
         projectTab() === "decks" &&
@@ -265,13 +273,15 @@ export function setupDeckTours(): TourManagerController {
 // Same layering as the decks tours: a viewer part for everyone, a
 // permission-gated editor part, and card parts deferred until a report is on
 // screen.
-export function setupReportTours(): TourManagerController {
+export function setupReportTours(): SolidTourManagerController {
   const hasReports = () => projectState.reports.length > 0;
   const reportCardOnScreen = () =>
     document.querySelector('[data-tour="reports-report-card"]') !== null;
   const isEditor = () => projectState.thisUserPermissions.can_configure_reports;
   const tours = createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       reports: () =>
         projectTab() === "reports" &&
@@ -334,13 +344,15 @@ export function setupReportTours(): TourManagerController {
   return tours;
 }
 
-export function setupVisualizationTours(): TourManagerController {
+export function setupVisualizationTours(): SolidTourManagerController {
   const cardOnScreen = () =>
     document.querySelector('[data-tour="viz-card"]') !== null;
   const canCreate = () =>
     !projectState.isLocked && projectState.projectModules.length > 0;
   return createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       visualizations: () =>
         projectTab() === "visualizations" &&
@@ -400,7 +412,7 @@ export function setupVisualizationTours(): TourManagerController {
 // Later settles (a repoint's refetch) bump the count and re-check, so a
 // member who attaches their first package from this tab gets the explore
 // part as soon as the card is drawn.
-export function setupResultsPackageTours(): TourManagerController {
+export function setupResultsPackageTours(): SolidTourManagerController {
   const canAttach = () =>
     instanceState.currentUserIsGlobalAdmin ||
     projectState.thisUserPermissions.can_configure_visualizations;
@@ -410,6 +422,8 @@ export function setupResultsPackageTours(): TourManagerController {
     document.querySelector('[data-tour="results-package-attached"]') !== null;
   return createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       "results-package": () =>
         projectTab() === "results_package" &&
@@ -436,9 +450,11 @@ export function setupResultsPackageTours(): TourManagerController {
   });
 }
 
-export function setupSettingsTours(): TourManagerController {
+export function setupSettingsTours(): SolidTourManagerController {
   return createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       settings: () =>
         projectTab() === "settings" &&
@@ -456,9 +472,11 @@ export function setupSettingsTours(): TourManagerController {
 
 // The dashboards tab: intro for everyone, then the card and create parts once
 // each is actually possible. Creating uses the slide-deck configure permission.
-export function setupDashboardTours(): TourManagerController {
+export function setupDashboardTours(): SolidTourManagerController {
   return createTourManager({
     storage: clerkOnboardingStorage,
+    labels: tourLabels(),
+    onEvent: reportTourEvent,
     pages: {
       dashboards: () =>
         projectTab() === "dashboards" &&
