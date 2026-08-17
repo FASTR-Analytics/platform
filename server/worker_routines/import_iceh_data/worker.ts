@@ -72,8 +72,8 @@ async function run(payload: ImportIcehDataWorkerPayload) {
 
   try {
     // ── Stage leg (in-memory; runs even for skipReviewGate resumes) ───────
-    const staged = await stageIcehZip(zipFilePath, async (percent) => {
-      await writeProgress({ phase: "staging", percent }, false);
+    const staged = await stageIcehZip(zipFilePath, (percent) => {
+      writeProgress({ phase: "staging", percent }, false);
     });
 
     if (staged.stagingResult.nRowsValid === 0) {
@@ -111,8 +111,8 @@ async function run(payload: ImportIcehDataWorkerPayload) {
       db: importDb,
       runId,
       staged,
-      onProgress: async (percent) => {
-        await writeProgress({ phase: "integrating", percent }, false);
+      onProgress: (percent) => {
+        writeProgress({ phase: "integrating", percent }, false);
       },
     });
 

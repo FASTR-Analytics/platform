@@ -76,7 +76,7 @@ export async function stageHfaCsvIntoTables(args: {
   xlsFormFilePath: string;
   mappings: HfaCsvMappingParams;
   runId: number;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<DatasetHfaCsvStagingResult> {
   const {
     importDb,
@@ -197,7 +197,7 @@ export async function stageHfaCsvIntoTables(args: {
   // Clean up any leftover tables from a previous crashed run of this id.
   await dropHfaStagingTables(importDb, runId, { keepFinal: false });
 
-  await onProgress(1);
+  onProgress(1);
 
   // row_seq = 1-based position of the source data row in the file, stamped by
   // the scanner.
@@ -296,7 +296,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
         await flushBuffer();
         const progress = Math.floor((bytesRead / fileSizeBytes) * 84) + 1;
         if (progress > lastProgressUpdate) {
-          await onProgress(progress);
+          onProgress(progress);
           lastProgressUpdate = progress;
         }
       }
@@ -349,7 +349,7 @@ CREATE UNLOGGED TABLE ${names.keepRows} (
     );
   }
 
-  await onProgress(88);
+  onProgress(88);
 
   // Validate facilities
   await importDb.unsafe(`
@@ -360,7 +360,7 @@ WHERE EXISTS (
   WHERE t.facility_id = facilities_hfa.facility_id
 )`);
 
-  await onProgress(90);
+  onProgress(90);
 
   // Final staging table with validated facilities, keeping only the resolved
   // row per facility
@@ -383,7 +383,7 @@ WHERE EXISTS (
 ALTER TABLE ${names.final}
 ADD PRIMARY KEY (facility_id, time_point, var_name)`);
 
-  await onProgress(93);
+  onProgress(93);
 
   // Dictionary staging tables
   await importDb.unsafe(`
@@ -487,7 +487,7 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
     );
   }
 
-  await onProgress(95);
+  onProgress(95);
 
   const validRowCount = (
     await importDb<{ count: number }[]>`

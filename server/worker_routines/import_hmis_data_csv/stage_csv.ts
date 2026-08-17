@@ -68,7 +68,7 @@ export async function stageHmisCsvIntoTables(args: {
   csvFileName: string;
   mappings: HmisCsvMappingParams;
   runId: number;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<DatasetCsvStagingResult> {
   const { importDb, csvFilePath, csvFileName, mappings, runId, onProgress } =
     args;
@@ -107,7 +107,7 @@ export async function stageHmisCsvIntoTables(args: {
   // Clean up any leftover tables from a previous crashed run of this id.
   await dropHmisCsvStagingTables(importDb, runId, { keepFinal: false });
 
-  await onProgress(1);
+  onProgress(1);
 
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.raw} (
@@ -140,7 +140,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       85,
     );
     if (actualProgress - lastProgressUpdate >= 1) {
-      await onProgress(actualProgress);
+      onProgress(actualProgress);
       lastProgressUpdate = actualProgress;
     }
   };
@@ -190,7 +190,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   );
 
   await flushBuffer();
-  await onProgress(85);
+  onProgress(85);
 
   const tempCount = await importDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM ${importDb(names.raw)}
@@ -232,7 +232,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (raw_indicator_id)`,
   );
 
-  await onProgress(87);
+  onProgress(87);
 
   // Facility validation.
   const invalidFacilitiesSample = await importDb<
@@ -276,7 +276,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const rowsAfterFacilityValidation = validFacilityCount[0]?.count || 0;
   await importDb.unsafe(`DROP TABLE ${names.dedup}`);
 
-  await onProgress(88);
+  onProgress(88);
 
   // Indicator validation.
   let indicatorValidation: {
@@ -360,7 +360,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
   await importDb.unsafe(`DROP TABLE IF EXISTS ${names.validFacilities}`);
 
-  await onProgress(90);
+  onProgress(90);
 
   // Statistics from staged data.
   let periodIndicatorStats: PeriodIndicatorRawStat[] = [];

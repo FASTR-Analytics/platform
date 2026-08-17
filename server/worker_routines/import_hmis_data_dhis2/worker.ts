@@ -214,8 +214,8 @@ async function run(std: RunWorkerMessage) {
     },
   );
 
-  const updateProgress = async (force: boolean) => {
-    await writeProgress(
+  const updateProgress = (force: boolean) => {
+    writeProgress(
       {
         phase: progressPhase,
         activePairs: Array.from(activePairs.values()).slice(0, 20),
@@ -413,7 +413,7 @@ async function run(std: RunWorkerMessage) {
     // │ PHASE 2: DISPATCHER CLASSIFICATION (per run, from DHIS2 metadata)   │
     // └─────────────────────────────────────────────────────────────────────┘
 
-    await updateProgress(true);
+    updateProgress(true);
 
     const metadataFetchOptions: FetchOptions = {
       ...baseFetchOptions,
@@ -526,7 +526,7 @@ async function run(std: RunWorkerMessage) {
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "fetching";
-    await updateProgress(true);
+    updateProgress(true);
 
     const fetchPairViaAnalytics = async (
       pair: Dhis2RunPair,
@@ -624,7 +624,7 @@ async function run(std: RunWorkerMessage) {
     const runAnalyticsPair = async (pair: Dhis2RunPair): Promise<void> => {
       const key = pairKey(pair);
       activePairs.set(key, { ...pair, route: "analytics" });
-      await updateProgress(false);
+      updateProgress(false);
       try {
         const { rows, acc, rowsFetched } = await fetchPairViaAnalytics(pair);
         await integratePair(pair, rows);
@@ -649,7 +649,7 @@ async function run(std: RunWorkerMessage) {
         await failPair(pair, message, kind);
       } finally {
         activePairs.delete(key);
-        await updateProgress(true);
+        updateProgress(true);
       }
     };
 
@@ -740,7 +740,7 @@ async function run(std: RunWorkerMessage) {
           route: "dvs",
         });
       }
-      await updateProgress(false);
+      updateProgress(false);
 
       const acc = newFetchAccumulator();
       let values: DHIS2DataValue[];
@@ -771,7 +771,7 @@ async function run(std: RunWorkerMessage) {
           await failPair(pair, message, kind);
           activePairs.delete(pairKey(pair));
         }
-        await updateProgress(true);
+        updateProgress(true);
         return;
       }
 
@@ -804,7 +804,7 @@ async function run(std: RunWorkerMessage) {
           await failPair(pair, message, "permanent");
           activePairs.delete(pairKey(pair));
         }
-        await updateProgress(true);
+        updateProgress(true);
         return;
       }
 
@@ -879,7 +879,7 @@ async function run(std: RunWorkerMessage) {
           activePairs.delete(pairKey(pair));
         }
       }
-      await updateProgress(true);
+      updateProgress(true);
     };
 
     const results = pooledMap(CONCURRENT_REQUESTS, tasks, async (task) => {
@@ -919,7 +919,7 @@ async function run(std: RunWorkerMessage) {
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "finalizing";
-    await updateProgress(true);
+    updateProgress(true);
 
     // Edge of the "zero successful pairs ⇒ no version" ruling: the mint
     // commits before the first pair's own transaction, so that pair failing

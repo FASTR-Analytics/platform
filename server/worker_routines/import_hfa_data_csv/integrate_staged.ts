@@ -12,7 +12,7 @@ export async function integrateStagedHfaData(args: {
   mainDb: Sql;
   runId: number;
   stagingResult: DatasetHfaCsvStagingResult;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<void> {
   const { importDb, mainDb, runId, stagingResult, onProgress } = args;
   const names = hfaStagingTableNames(runId);
@@ -45,11 +45,11 @@ export async function integrateStagedHfaData(args: {
     );
   }
 
-  await onProgress(10);
+  onProgress(10);
 
   await importDb`ANALYZE ${importDb(names.final)}`;
 
-  await onProgress(20);
+  onProgress(20);
 
   await mainDb.begin(async (sql) => {
     await sql`SET LOCAL work_mem = '256MB'`;
@@ -69,7 +69,7 @@ export async function integrateStagedHfaData(args: {
     await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
     await sql`DELETE FROM hfa_variables WHERE time_point = ${timePoint}`;
 
-    await onProgress(30);
+    onProgress(30);
 
     await sql.unsafe(`
       INSERT INTO hfa_variables (time_point, var_name, var_label, var_type)
@@ -80,14 +80,14 @@ export async function integrateStagedHfaData(args: {
       SELECT time_point, var_name, value, value_label, sentinel_class FROM ${names.dictValues}
     `);
 
-    await onProgress(50);
+    onProgress(50);
 
     await sql.unsafe(`
       INSERT INTO hfa_data (facility_id, time_point, var_name, value)
       SELECT facility_id, time_point, var_name, value FROM ${names.final}
     `);
 
-    await onProgress(80);
+    onProgress(80);
 
     // The completion flip lives INSIDE the merge transaction, conditional on
     // the run still being 'running', and comes LAST (so the run-row lock is
@@ -110,7 +110,7 @@ export async function integrateStagedHfaData(args: {
     }
   });
 
-  await onProgress(90);
+  onProgress(90);
 
   await dropHfaStagingTables(importDb, runId, { keepFinal: false });
 }

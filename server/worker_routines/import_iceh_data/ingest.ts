@@ -159,7 +159,7 @@ export type IcehStagedData = {
 // of Retriever exports).
 export async function stageIcehZip(
   zipFilePath: string,
-  onProgress: (percent: number) => Promise<void>,
+  onProgress: (percent: number) => void,
 ): Promise<IcehStagedData> {
   const { csvText, indicatorSheetRows } = await readIcehZip(zipFilePath);
 
@@ -213,7 +213,7 @@ export async function stageIcehZip(
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
     if (i % 2000 === 0) {
-      await onProgress(Math.round((i / dataRows.length) * 100));
+      onProgress(Math.round((i / dataRows.length) * 100));
     }
 
     const rawStrat = row[stratIndex]?.trim() ?? "";
@@ -318,7 +318,7 @@ export async function integrateIcehData(args: {
   db: Sql;
   runId: number;
   staged: IcehStagedData;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<void> {
   const { db, runId, staged, onProgress } = args;
   const uploadedCodes = staged.indicators.map((i) => i.code);
@@ -333,7 +333,7 @@ export async function integrateIcehData(args: {
       `;
     }
 
-    await onProgress(10);
+    onProgress(10);
 
     for (let i = 0; i < staged.validDataRows.length; i++) {
       const row = staged.validDataRows[i];
@@ -346,7 +346,7 @@ export async function integrateIcehData(args: {
           sample_size = ${row.sampleSize}
       `;
       if (i % 1000 === 0) {
-        await onProgress(
+        onProgress(
           10 + Math.round((i / staged.validDataRows.length) * 80),
         );
       }

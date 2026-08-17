@@ -99,8 +99,8 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         csvFileName: config.fileName,
         mappings: config.mappings,
         runId,
-        onProgress: async (percent) => {
-          await writeProgress({ phase: "staging", percent }, false);
+        onProgress: (percent) => {
+          writeProgress({ phase: "staging", percent }, false);
         },
       });
 
@@ -138,8 +138,8 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
       mainDb,
       runId,
       stagingResult,
-      onProgress: async (percent) => {
-        await writeProgress({ phase: "integrating", percent }, false);
+      onProgress: (percent) => {
+        writeProgress({ phase: "integrating", percent }, false);
       },
     });
 

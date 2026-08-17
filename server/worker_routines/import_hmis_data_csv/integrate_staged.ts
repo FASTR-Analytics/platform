@@ -14,7 +14,7 @@ export async function integrateStagedHmisCsvData(args: {
   mainDb: Sql;
   runId: number;
   stagingResult: DatasetCsvStagingResult;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<{ versionId: number; rowsInserted: number; rowsUpdated: number }> {
   const { importDb, mainDb, runId, stagingResult, onProgress } = args;
   const stagingTableName = hmisCsvStagingTableNames(runId).final;
@@ -63,12 +63,12 @@ export async function integrateStagedHmisCsvData(args: {
     );
   }
 
-  await onProgress(10);
+  onProgress(10);
 
   await importDb`ANALYZE ${importDb(stagingTableName)}`;
   await mainDb`ANALYZE ${mainDb(datasetTableName)}`;
 
-  await onProgress(20);
+  onProgress(20);
 
   let rowsUpdated = 0;
   let rowsInserted = 0;
@@ -106,7 +106,7 @@ export async function integrateStagedHmisCsvData(args: {
       )
     `;
 
-    await onProgress(40);
+    onProgress(40);
 
     // CSV merge — "absent = keep prior value" semantics are intended and
     // must not change. Update existing rows first (faster than ON CONFLICT).
@@ -135,7 +135,7 @@ export async function integrateStagedHmisCsvData(args: {
       )
     `;
 
-    await onProgress(60);
+    onProgress(60);
 
     const insertResult = await sql`
       INSERT INTO ${sql(datasetTableName)}
@@ -175,7 +175,7 @@ export async function integrateStagedHmisCsvData(args: {
 
     await upsertHmisLedgerPairsFromData(sql, touchedPairs, "csv", versionId);
 
-    await onProgress(70);
+    onProgress(70);
 
     // Run-row link comes LAST inside the transaction: it takes the run-row
     // lock, and the progress writer (a separate pooled connection) updates the
@@ -190,11 +190,11 @@ export async function integrateStagedHmisCsvData(args: {
     `;
   });
 
-  await onProgress(80);
+  onProgress(80);
 
   await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
 
-  await onProgress(90);
+  onProgress(90);
 
   return { versionId, rowsInserted, rowsUpdated };
 }
