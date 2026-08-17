@@ -32,6 +32,7 @@ import {
 } from "~/state/project/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
+import { setResultsPackageTabLoadCount } from "~/state/t4_ui";
 
 // The project "Results package" surface (PLAN_RESULTS_RUNS Phase 3 item 4):
 // the package this project serves from, and — for an editor — the picker
@@ -91,6 +92,19 @@ export function ProjectResultsPackage() {
         : { status: "error", err: attachableRes.err },
     );
   });
+
+  // Tell the onboarding manager when this surface is actually drawn: the
+  // attached card is a tour anchor that only exists once the fetch above has
+  // settled, and the manager evaluates its gates while the tab counts as
+  // visible. Every settle counts (a repoint's refetch included, so a part
+  // that needs the new card can start once it is on screen); reset on
+  // unmount so a revisit waits for its own fetch.
+  createEffect(() => {
+    if (attached().status !== "loading") {
+      setResultsPackageTabLoadCount((n) => n + 1);
+    }
+  });
+  onCleanup(() => setResultsPackageTabLoadCount(0));
 
   // Live generation state for a run that targets this project. The attached
   // package is always ready (§2.6's invariant), so this only ever fills the

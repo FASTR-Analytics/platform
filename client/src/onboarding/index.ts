@@ -59,6 +59,8 @@ import {
   vizSelectedGroup,
   dashboardSortMode,
   dashboardEditorOpen,
+  instanceResultsPackagesLoadCount,
+  resultsPackageTabLoadCount,
 } from "~/state/t4_ui";
 
 // Call from a component with a reactive owner (the project shell). Each
@@ -95,7 +97,15 @@ export function setupInstanceTours(opts: {
     pages: {
       "instance-projects": onTab("projects"),
       "instance-data": onTab("data"),
-      "instance-results-packages": onTab("results_packages"),
+      // The run catalogue is fetched by the tab component, not read from
+      // instanceState, so the tab counts as visible only once that fetch has
+      // settled: the catalogue part below probes for a package card, and
+      // probing at tab-entry found a loading pane and excluded it for good
+      // (nothing re-checked once the fetch landed, and the intro run in
+      // progress blocks re-checks anyway). Later settles bump the count, so
+      // they re-check too.
+      "instance-results-packages": () =>
+        onTab("results_packages")() && instanceResultsPackagesLoadCount() > 0,
       "instance-assets": onTab("assets"),
       "instance-users": onTab("users"),
       "instance-settings": onTab("settings"),
@@ -112,11 +122,10 @@ export function setupInstanceTours(opts: {
         page: "instance-results-packages",
         tour: buildInstanceResultsPackagesTour(),
       },
-      // Deferred until the instance actually holds a package. The run list is
-      // component-local (no instanceState field to watch), so this part starts
-      // on the next visit to the tab rather than the moment a generation
-      // lands — acceptable because generating is long and the admin leaves the
-      // tab meanwhile.
+      // Deferred until the instance actually holds a package: merges into the
+      // intro's run when a card is on screen, or starts on its own once the
+      // first generation's refetch lands (if the admin is still on the tab)
+      // or on the next visit.
       {
         page: "instance-results-packages",
         when: () =>
@@ -377,10 +386,20 @@ export function setupVisualizationTours(): TourManagerController {
 // is) runs for anyone who can see the tab and targets only the header, so it
 // is safe on a project with nothing attached yet. The explore part waits for
 // an attached package to actually be on screen, and the switch part for a
-// member who may repoint the project AND has somewhere to repoint it — the
-// picker renders nothing when the instance holds no other package. Splitting
-// rather than skipping steps matters because a tour that runs against missing
-// targets is still marked seen, and the user would never get it later.
+// member who may repoint the project (the picker section is theirs alone; it
+// renders with a "none available" line when the instance holds no other
+// package, and the tour still explains what it is for). Splitting rather than
+// skipping steps matters because a tour that runs against missing targets is
+// still marked seen, and the user would never get it later.
+//
+// The attached card comes from a fetch the tab component makes on mount, not
+// from projectState, so the page counts as visible only once that fetch has
+// settled — probing for the card at tab-entry found a loading pane, which
+// excluded the explore part from the run for good: nothing re-checked once
+// the fetch landed, and the intro run in progress blocks re-checks anyway.
+// Later settles (a repoint's refetch) bump the count and re-check, so a
+// member who attaches their first package from this tab gets the explore
+// part as soon as the card is drawn.
 export function setupResultsPackageTours(): TourManagerController {
   const canAttach = () =>
     instanceState.currentUserIsGlobalAdmin ||
@@ -395,11 +414,9 @@ export function setupResultsPackageTours(): TourManagerController {
       "results-package": () =>
         projectTab() === "results_package" &&
         projectState.thisUserPermissions.can_view_data &&
-        !isEditingView(),
+        !isEditingView() &&
+        resultsPackageTabLoadCount() > 0,
     },
-    // The attached card and its contents arrive from a fetch, not from
-    // projectState, so re-evaluate when a repoint lands.
-    watch: [() => projectState.attachedRunId],
     tours: [
       {
         page: "results-package",

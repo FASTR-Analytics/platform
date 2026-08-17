@@ -324,6 +324,25 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
 export const [dashboardEditorOpen, setDashboardEditorOpen] =
   createSignal<boolean>(false);
 
+// The two results-package surfaces fetch what they show on mount (the
+// project tab its attached package, the instance tab its run catalogue)
+// instead of reading a store, so their tour anchors appear a network
+// round-trip after the tab itself does. Each surface counts its settled
+// fetches here (ready OR error; 0 while the first is in flight, reset to 0 on
+// unmount). The onboarding managers count the tab as visible only while this
+// is > 0, so tour parts gated on those anchors are evaluated against the
+// drawn page rather than the loading one — evaluating at tab-entry excluded
+// them, and nothing re-checked once the fetch landed. A count rather than a
+// flag so that every later settle (a repoint, a generation finishing) is a
+// re-check too: a part that only became possible mid-visit starts as soon as
+// its anchor is on screen and no run is in progress.
+export const [resultsPackageTabLoadCount, setResultsPackageTabLoadCount] =
+  createSignal<number>(0);
+export const [
+  instanceResultsPackagesLoadCount,
+  setInstanceResultsPackagesLoadCount,
+] = createSignal<number>(0);
+
 // Request signal for opening a document editor from outside the tab
 // components (the tour catalogue modal). The openers live in private closures
 // inside each tab component, and inactive tabs are unmounted, so the request

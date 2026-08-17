@@ -39,6 +39,7 @@ import {
   addInstanceRScriptListener,
   addInstanceRunProgressListener,
 } from "~/state/instance/t1_sse";
+import { setInstanceResultsPackagesLoadCount } from "~/state/t4_ui";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
@@ -75,6 +76,19 @@ export function InstanceResultsPackages() {
         : { status: "error", err: runsRes.err },
     );
   });
+
+  // Tell the onboarding manager when this surface is actually drawn: the
+  // package cards are tour anchors that only exist once the listing above has
+  // settled, and the manager evaluates its gates while the tab counts as
+  // visible. Every settle counts (the refetch at a generation's end included,
+  // so the catalogue part can start once the first card is on screen); reset
+  // on unmount so a revisit waits for its own fetch.
+  createEffect(() => {
+    if (runs().status !== "loading") {
+      setInstanceResultsPackagesLoadCount((n) => n + 1);
+    }
+  });
+  onCleanup(() => setInstanceResultsPackagesLoadCount(0));
 
   async function refreshAll(): Promise<void> {
     setVersion((v) => v + 1);
