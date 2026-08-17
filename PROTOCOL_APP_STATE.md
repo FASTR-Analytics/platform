@@ -343,7 +343,10 @@ component-local** — transient per-user workflow state (signal + polling), not
 shared.
 
 Instance-level: structure upload attempts (in the structure dataset
-component), HMIS import runs + ledger (`instance_dataset_hmis/imports/`), HFA
+component), HMIS import runs + ledger (`instance_dataset_hmis/imports/` — the
+ledger is a full-table read fetched only while its tab is showing, so it is
+the shell's `createSignal<StateHolder>` + `createEffect` on the tab signal
+plus a local `ledgerVersion` bumped by the shell's `refresh()`; SYSTEM_06), HFA
 import runs (`instance_dataset_hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 compare-projects modal, HFA indicator R code

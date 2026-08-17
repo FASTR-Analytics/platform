@@ -24,7 +24,6 @@ export function DeleteData(
     {
       hmisVersionId: number;
       indicatorMappingsVersion: string;
-      silentFetch: () => Promise<void>;
       structureSchema: StructureSchema;
     },
     undefined
@@ -75,7 +74,6 @@ export function DeleteData(
 
         return serverActions.deleteAllDatasetHmisData({ windowing });
       },
-      p.silentFetch,
       () => p.close(undefined),
     );
 

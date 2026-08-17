@@ -13,7 +13,7 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { For, Show, createEffect, onCleanup, onMount } from "solid-js";
+import { For, Show, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { HfaNeedsReviewCard } from "./_needs_review_card";
@@ -22,14 +22,7 @@ import { HfaRunView } from "./_run_view";
 import { hfaRunStatusLabel } from "./_status_label";
 import { HfaWizard } from "./_wizard";
 
-type Props = EditorComponentProps<
-  {
-    // The sidebar's "Start new import" button opens this surface with the
-    // wizard already open.
-    autoOpenWizard?: boolean;
-  },
-  undefined
->;
+type Props = EditorComponentProps<{}, undefined>;
 
 // The HFA imports surface: a Current card (running progress / needs_review
 // hold) plus a History table. Deliberately smaller than the HMIS machine —
@@ -72,14 +65,6 @@ export function DatasetHfaImports(p: Props) {
       await refresh();
     }
   }
-
-  let autoOpened = false;
-  createEffect(() => {
-    const ready = runs.state().status === "ready";
-    if (autoOpened || !ready || !p.autoOpenWizard) return;
-    autoOpened = true;
-    void openWizard();
-  });
 
   const columns: TableColumn<HfaImportRunSummary>[] = [
     {

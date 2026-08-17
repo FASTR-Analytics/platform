@@ -11,64 +11,30 @@ import {
   HeadingBar,
   Table,
   formatPeriod,
-  getEditorWrapper,
   toNum0,
   type TableColumn,
 } from "panther";
-import { DatasetHmisImports } from "./imports";
-import { sourceLabel, type LedgerPeriodWindow } from "./_import_ledger";
+import { ledgerSourceLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
 
 type MonthRow = {
   periodId: number;
   item: DatasetHmisImportLedgerItem | undefined;
 };
 
-function enumerateMonthsDescending(window: LedgerPeriodWindow): number[] {
-  const out: number[] = [];
-  let year = Math.floor(window.max / 100);
-  let month = window.max % 100;
-  while (year * 100 + month >= window.min) {
-    out.push(year * 100 + month);
-    month--;
-    if (month < 1) {
-      month = 12;
-      year--;
-    }
-  }
-  return out;
-}
-
-// The stored error is prefixed with its classification by the ledger writer:
-// "[permanent] …" = config error that will fail again until fixed,
-// "[transient] …" = server health at the time of the run.
-function splitError(
-  error: string | undefined,
-): { kind: "permanent" | "transient" | undefined; message: string } {
-  if (!error) {
-    return { kind: undefined, message: "" };
-  }
-  if (error.startsWith("[permanent] ")) {
-    return { kind: "permanent", message: error.slice("[permanent] ".length) };
-  }
-  if (error.startsWith("[transient] ")) {
-    return { kind: "transient", message: error.slice("[transient] ".length) };
-  }
-  return { kind: undefined, message: error };
-}
-
+// The per-indicator ledger surface: every month in the window with its
+// import status. Closes with a pair list when the user asks to re-import the
+// indicator; the shell feeds it to the wizard's presetPairs entry (same
+// contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<
     {
       indicatorRawId: string;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
-      silentFetch: () => Promise<void>;
     },
-    undefined
+    Dhis2RunPair[] | undefined
   >,
 ) {
-  const { openEditor, EditorWrapper } = getEditorWrapper();
-
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
   for (const item of p.items) {
     itemsByPeriod.set(item.periodId, item);
@@ -77,24 +43,11 @@ export function ImportLedgerIndicatorDetail(
     (periodId) => ({ periodId, item: itemsByPeriod.get(periodId) }),
   );
 
-  // Checklist action: re-import every month in the window for this indicator
-  // as per-pair units.
-  async function reimportIndicator() {
+  function reimportIndicator() {
     const pairs: Dhis2RunPair[] = enumerateMonthsDescending(p.window).map(
       (periodId) => ({ indicatorRawId: p.indicatorRawId, periodId }),
     );
-    await openEditor({
-      element: DatasetHmisImports,
-      props: {
-        silentFetch: p.silentFetch,
-        presetPairs: pairs,
-        presetLabel: `${t3({
-          en: "Re-importing",
-          fr: "Réimportation de",
-          pt: "A reimportar",
-        })} ${p.indicatorRawId}:`,
-      },
-    });
+    p.close(pairs);
   }
 
   const columns: TableColumn<MonthRow>[] = [
@@ -167,7 +120,7 @@ export function ImportLedgerIndicatorDetail(
     {
       key: "source",
       header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
-      render: (row) => (row.item ? sourceLabel(row.item.source) : ""),
+      render: (row) => (row.item ? ledgerSourceLabel(row.item.source) : ""),
     },
     {
       key: "importedAt",
@@ -184,7 +137,7 @@ export function ImportLedgerIndicatorDetail(
           // Backfill rows predate tracking; anything else with no timestamp
           // has never successfully imported — leave the cell empty rather
           // than implying a pre-tracking import.
-          return row.item.source === "backfill" ? sourceLabel("backfill") : "";
+          return row.item.source === "backfill" ? ledgerSourceLabel("backfill") : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },
@@ -204,45 +157,76 @@ export function ImportLedgerIndicatorDetail(
   ];
 
   return (
-    <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            tonal
-            onBack={() => p.close(undefined)}
-            heading={t3({
-              en: "Import status",
-              fr: "État des importations",
-              pt: "Estado das importações",
-            })}
-            subheading={p.indicatorRawId}
-          >
-            <div class="ui-gap-sm flex items-center">
-              <Button iconName="databaseImport" onClick={reimportIndicator}>
-                {t3({
-                  en: "Re-import this indicator",
-                  fr: "Réimporter cet indicateur",
-                  pt: "Reimportar este indicador",
-                })}
-              </Button>
-            </div>
-          </HeadingBar>
-        }
-      >
-        <div class="ui-pad h-full w-full">
-          <Table
-            data={rows}
-            columns={columns}
-            keyField="periodId"
-            noRowsMessage={t3({
-              en: "No months in window",
-              fr: "Aucun mois dans la fenêtre",
-              pt: "Nenhum mês na janela",
-            })}
-            fitTableToAvailableHeight
-          />
-        </div>
-      </FrameTop>
-    </EditorWrapper>
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          tonal
+          onBack={() => p.close(undefined)}
+          heading={t3({
+            en: "Import status",
+            fr: "État des importations",
+            pt: "Estado das importações",
+          })}
+          subheading={p.indicatorRawId}
+        >
+          <div class="ui-gap-sm flex items-center">
+            <Button iconName="databaseImport" onClick={reimportIndicator}>
+              {t3({
+                en: "Re-import this indicator",
+                fr: "Réimporter cet indicateur",
+                pt: "Reimportar este indicador",
+              })}
+            </Button>
+          </div>
+        </HeadingBar>
+      }
+    >
+      <div class="ui-pad h-full w-full">
+        <Table
+          data={rows}
+          columns={columns}
+          keyField="periodId"
+          noRowsMessage={t3({
+            en: "No months in window",
+            fr: "Aucun mois dans la fenêtre",
+            pt: "Nenhum mês na janela",
+          })}
+          fitTableToAvailableHeight
+        />
+      </div>
+    </FrameTop>
   );
+}
+
+function enumerateMonthsDescending(window: LedgerPeriodWindow): number[] {
+  const out: number[] = [];
+  let year = Math.floor(window.max / 100);
+  let month = window.max % 100;
+  while (year * 100 + month >= window.min) {
+    out.push(year * 100 + month);
+    month--;
+    if (month < 1) {
+      month = 12;
+      year--;
+    }
+  }
+  return out;
+}
+
+// The stored error is prefixed with its classification by the ledger writer:
+// "[permanent] …" = config error that will fail again until fixed,
+// "[transient] …" = server health at the time of the run.
+function splitError(
+  error: string | undefined,
+): { kind: "permanent" | "transient" | undefined; message: string } {
+  if (!error) {
+    return { kind: undefined, message: "" };
+  }
+  if (error.startsWith("[permanent] ")) {
+    return { kind: "permanent", message: error.slice("[permanent] ".length) };
+  }
+  if (error.startsWith("[transient] ")) {
+    return { kind: "transient", message: error.slice("[transient] ".length) };
+  }
+  return { kind: undefined, message: error };
 }

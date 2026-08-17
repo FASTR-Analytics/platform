@@ -314,10 +314,13 @@ the client display cache and the results-run capture staleness hash).
 
 ## Client
 
-One imports surface per family, opened from a single sidebar button (the
-surface's toolbar owns the actions — no shortcut buttons replaying toolbar
-clicks, no attempt cards anywhere): the runs query polls every 2 s while a run
-is active, needs_review runs render as Current cards with the staging
+One imports surface per family, opened from a single `Imports` button in the
+dataset page's admin sidebar — the sidebar is the seam between the viewer
+and the imports layer: the SSE status flags (HMIS only: running / queued /
+attention), that one button, and `Delete data` (HFA also `Manage time
+points`); no wizard shortcuts, no heading (ruled 2026-08-17). The surface's toolbar owns
+the actions; no attempt cards anywhere. The runs query polls every 2 s while
+a run is active, needs_review runs render as Current cards with the staging
 diagnostics + Integrate-anyway/Discard, History rows click through to a run
 detail, and the wizard is a client-local modal (nothing persists before
 launch). Every wizard file slot is S4's `FileUploadSelector` — upload a new
@@ -327,13 +330,28 @@ the slot's direct `onChange` callback (never an effect on the fileName
 signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
-- **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History
-  tabs (SSE summary fields as the wake-up signal); two wizards — DHIS2
-  (credentials/indicators/time/config/review) and CSV (upload → mappings →
-  review) — both with the launch-or-queue fork. A run detail's Version row
-  opens the version's `_import_information.tsx` — this replaced the "View
-  previous imports" entry point (Phase D); the versions table and detail view
-  are unchanged.
+- **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History /
+  By indicator tabs (SSE summary fields as the wake-up signal, routed through
+  the shell's `refresh()`). The shell owns every read — the tabs are
+  stateless: panther's `StateHolderWrapper` keys its ready branch on the data
+  object, so every silent runs/scheduling fetch (the 2 s poll included)
+  remounts the tab area, and a tab-owned query would refetch on every poll.
+  The ledger is a full-table read, so it is a shell-level
+  `createSignal<StateHolder>` + `createEffect` fetched only while the
+  By-indicator tab is showing (every switch to it, and every `refresh()` /
+  toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
+  fresh ones arrive). By indicator is the import ledger — import history
+  pivoted by raw indicator, click-through to a per-month detail
+  (`_ledger_indicator_detail.tsx`). "Re-import this indicator" closes the
+  detail with a pair list and "Retry failed pairs" hands the tab's pair list
+  to the shell; both feed the wizard's `presetPairs` entry, the same contract
+  as History → run detail (a cancelled wizard lands on the tab, not back in
+  the detail — same as run detail; accepted). Two wizards
+  — DHIS2 (credentials/indicators/time/config/review) and CSV (upload →
+  mappings → review) — both with the launch-or-queue fork. A run detail's
+  Version row opens the version's `_import_information.tsx` — this replaced
+  the "View previous imports" entry point (Phase D); the versions table and
+  detail view are unchanged.
 - **HFA** (`instance_dataset_hfa/imports/`): Current card + History table, no
   tabs; four-step wizard (upload both files → mappings + filters → duplicates
   → review; Start only, refusal inline). The run row is HFA's only durable

@@ -42,11 +42,8 @@ export function InstanceDatasetIceh(p: Props) {
     void fetchDetail();
   });
 
-  async function openImports(autoOpenWizard: boolean) {
-    await openEditor({
-      element: DatasetIcehImports,
-      props: { autoOpenWizard },
-    });
+  async function openImports() {
+    await openEditor({ element: DatasetIcehImports, props: {} });
     await fetchDetail();
   }
 
@@ -75,49 +72,26 @@ export function InstanceDatasetIceh(p: Props) {
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
-                <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
-                </div>
                 <div class="">
-                  <Button
-                    onClick={() => openImports(true)}
-                    iconName="upload"
-                    fullWidth
-                  >
-                    {t3({
-                      en: "Start new import",
-                      fr: "Nouvelle importation",
-                      pt: "Iniciar nova importação",
-                    })}
-                  </Button>
-                </div>
-                <div class="">
-                  <Button
-                    onClick={() => openImports(false)}
-                    iconName="databaseImport"
-                    outline
-                    fullWidth
-                  >
-                    {t3({ en: "View imports", fr: "Voir les importations", pt: "Ver as importações" })}
+                  <Button onClick={openImports} iconName="databaseImport" fullWidth>
+                    {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                   </Button>
                 </div>
                 <Show when={detail() && detail()!.dataRows > 0}>
-                  <div class="ui-spy text-sm">
-                    <div class="">
-                      <Button
-                        onClick={deleteData}
-                        intent="danger"
-                        iconName="trash"
-                        outline
-                        fullWidth
-                      >
-                        {t3({
-                          en: "Delete data",
-                          fr: "Supprimer les données",
-                          pt: "Eliminar os dados",
-                        })}
-                      </Button>
-                    </div>
+                  <div class="">
+                    <Button
+                      onClick={deleteData}
+                      intent="danger"
+                      iconName="trash"
+                      outline
+                      fullWidth
+                    >
+                      {t3({
+                        en: "Delete data",
+                        fr: "Supprimer les données",
+                        pt: "Eliminar os dados",
+                      })}
+                    </Button>
                   </div>
                 </Show>
               </div>

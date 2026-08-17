@@ -10,7 +10,6 @@ import { Show } from "solid-js";
 import { DatasetHmisImports } from "./imports";
 import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
-import { ImportLedger } from "./_import_ledger";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
 type Props = {
@@ -20,33 +19,21 @@ type Props = {
 export function InstanceDatasetHmis(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  async function openImports(autoOpenCsvWizard: boolean) {
-    await openEditor({
-      element: DatasetHmisImports,
-      props: {
-        silentFetch: async () => {},
-        autoOpenCsvWizard,
-      },
-    });
-  }
-
-  async function viewImportLedger() {
-    await openEditor({
-      element: ImportLedger,
-      props: {},
-    });
+  async function openImports() {
+    await openEditor({ element: DatasetHmisImports, props: {} });
   }
 
   async function deleteData() {
     const versionId = instanceState.datasetVersions.hmis;
-    if (versionId === undefined) return;
+    if (versionId === undefined) {
+      return;
+    }
     await openEditor({
       element: DeleteData,
       props: {
         hmisVersionId: versionId,
         indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
         structureSchema: structureSchemaForFamily("hmis"),
-        silentFetch: async () => {},
       },
     });
   }
@@ -67,9 +54,6 @@ export function InstanceDatasetHmis(p: Props) {
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
-                <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
-                </div>
                 <Show when={instanceState.hmisScheduledImportAttention}>
                   <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
                     {t3({
@@ -79,32 +63,6 @@ export function InstanceDatasetHmis(p: Props) {
                     })}
                   </div>
                 </Show>
-                <div class="">
-                  <Button
-                    onClick={() => openImports(false)}
-                    iconName="databaseImport"
-                    fullWidth
-                  >
-                    {t3({
-                      en: "Import from DHIS2",
-                      fr: "Importer depuis DHIS2",
-                      pt: "Importar do DHIS2",
-                    })}
-                  </Button>
-                </div>
-                <div class="">
-                  <Button
-                    onClick={() => openImports(true)}
-                    iconName="upload"
-                    fullWidth
-                  >
-                    {t3({
-                      en: "Upload CSV file",
-                      fr: "Téléverser un fichier CSV",
-                      pt: "Carregar um ficheiro CSV",
-                    })}
-                  </Button>
-                </div>
                 <Show when={instanceState.hmisImportRunActive}>
                   <div class="ui-pad bg-base-200 rounded border text-sm">
                     {t3({
@@ -124,37 +82,26 @@ export function InstanceDatasetHmis(p: Props) {
                     })}
                   </div>
                 </Show>
+                <div class="">
+                  <Button onClick={openImports} iconName="databaseImport" fullWidth>
+                    {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+                  </Button>
+                </div>
                 <Show when={instanceState.hmisNVersions > 0}>
-                  <div class="ui-spy text-sm">
-                    <div class="">
-                      <Button
-                        onClick={viewImportLedger}
-                        outline
-                        fullWidth
-                        iconName="databaseImport"
-                      >
-                        {t3({
-                          en: "Import status by indicator",
-                          fr: "État des importations par indicateur",
-                          pt: "Estado das importações por indicador",
-                        })}
-                      </Button>
-                    </div>
-                    <div class="">
-                      <Button
-                        onClick={deleteData}
-                        intent="danger"
-                        iconName="trash"
-                        outline
-                        fullWidth
-                      >
-                        {t3({
-                          en: "Delete data",
-                          fr: "Supprimer les données",
-                          pt: "Eliminar os dados",
-                        })}
-                      </Button>
-                    </div>
+                  <div class="">
+                    <Button
+                      onClick={deleteData}
+                      intent="danger"
+                      iconName="trash"
+                      outline
+                      fullWidth
+                    >
+                      {t3({
+                        en: "Delete data",
+                        fr: "Supprimer les données",
+                        pt: "Eliminar os dados",
+                      })}
+                    </Button>
                   </div>
                 </Show>
               </div>

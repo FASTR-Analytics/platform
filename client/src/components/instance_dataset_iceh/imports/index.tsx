@@ -13,7 +13,7 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { For, Show, createEffect, onCleanup, onMount } from "solid-js";
+import { For, Show, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { IcehNeedsReviewCard } from "./_needs_review_card";
 import { IcehRunDetail } from "./_run_detail";
@@ -21,14 +21,7 @@ import { IcehRunView } from "./_run_view";
 import { icehRunStatusLabel } from "./_status_label";
 import { IcehWizard } from "./_wizard";
 
-type Props = EditorComponentProps<
-  {
-    // The sidebar's "Start new import" button opens this surface with the
-    // wizard already open.
-    autoOpenWizard?: boolean;
-  },
-  undefined
->;
+type Props = EditorComponentProps<{}, undefined>;
 
 // The ICEH imports surface: a Current card (running progress / needs_review
 // hold) plus a History table — ICEH's first-ever durable import history.
@@ -72,14 +65,6 @@ export function DatasetIcehImports(p: Props) {
       await refresh();
     }
   }
-
-  let autoOpened = false;
-  createEffect(() => {
-    const ready = runs.state().status === "ready";
-    if (autoOpened || !ready || !p.autoOpenWizard) return;
-    autoOpened = true;
-    void openWizard();
-  });
 
   const columns: TableColumn<IcehImportRunSummary>[] = [
     {
