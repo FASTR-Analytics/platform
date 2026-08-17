@@ -1,3 +1,5 @@
+[TBD] [user] [fixed] - Fixed data imports occasionally freezing and never completing
+[TBD] [admin] [fixed] - Fixed rare hang during HMIS CSV data imports
 [TBD] [user] [added] - Change your email address from your profile settings
 [TBD] [user] [added] - Guided tours accessible from the Help menu in projects
 [TBD] [user] [added] - Guided tours accessible from the Help menu on the home page
