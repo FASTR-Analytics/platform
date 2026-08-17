@@ -35,6 +35,12 @@ type ProjectFacts = { projectId: string; label: string; facts: ProjectDetail };
 
 type TourTarget = { projectId: string; label: string };
 
+// Why no project qualifies: the reason from the project that came closest
+// (highest TourReason rank), and that project's label so the row can say
+// which project the reason is about. `nearest` is null when the user has no
+// projects at all.
+type Unavailability = { text: string; nearest: string | null };
+
 // Instance-level catalogue. The "Instance" category's tours play right here
 // (an instance tab switch + start on the instance tour manager). The project
 // categories need a project: on mount the modal fetches every accessible
@@ -60,7 +66,9 @@ export function TourCatalogueInstanceModal(
   const [targets, setTargets] = createSignal<
     Map<string, TourTarget | null> | undefined
   >(undefined);
-  const [reasons, setReasons] = createSignal<Map<string, string>>(new Map());
+  const [reasons, setReasons] = createSignal<Map<string, Unavailability>>(
+    new Map(),
+  );
 
   onMount(() => {
     void (async () => {
@@ -109,11 +117,34 @@ export function TourCatalogueInstanceModal(
       }
 
       const nextTargets = new Map<string, TourTarget | null>();
-      const nextReasons = new Map<string, string>();
+      const nextReasons = new Map<string, Unavailability>();
       const factsWithSlides = (d: ProjectFacts): TourProjectFacts => ({
         ...d.facts,
         slideTypesPresent: slidePresent,
       });
+      // The reason shown when no project qualifies is the one from the
+      // project that gets furthest (highest rank) — the most actionable gap.
+      const nearestUnavailability = (
+        entry: TourCatalogueEntry,
+      ): Unavailability => {
+        let best: { rank: number; text: string; label: string } | null = null;
+        for (const d of projects) {
+          const reason = entry.unavailableReason(factsWithSlides(d));
+          if (best === null || reason.rank > best.rank) {
+            best = { ...reason, label: d.label };
+          }
+        }
+        return best
+          ? { text: best.text, nearest: best.label }
+          : {
+              text: t3({
+                en: "You don't have access to any project yet",
+                fr: "Vous n'avez encore accès à aucun projet",
+                pt: "Ainda não tem acesso a nenhum projeto",
+              }),
+              nearest: null,
+            };
+      };
       for (const entry of catalogue) {
         const slideType = SLIDE_TOUR_TYPE_BY_ID[entry.id];
         const target = slideType
@@ -125,12 +156,7 @@ export function TourCatalogueInstanceModal(
                 : null;
             })();
         nextTargets.set(entry.id, target);
-        if (!target && projects[0]) {
-          nextReasons.set(
-            entry.id,
-            entry.unavailableReason(factsWithSlides(projects[0])),
-          );
-        }
+        if (!target) nextReasons.set(entry.id, nearestUnavailability(entry));
       }
       setReasons(nextReasons);
       setTargets(nextTargets);
@@ -189,7 +215,7 @@ export function TourCatalogueInstanceModal(
                 description={entry.description}
                 seen={seen(entry.id)}
                 available={entry.available()}
-                reason={entry.unavailableReason()}
+                reason={entry.unavailableReason().text}
                 onPlay={() => playInstanceTour(entry)}
               />
             )}
@@ -208,26 +234,49 @@ export function TourCatalogueInstanceModal(
           >
             {(entry) => {
               const target = () => targets()?.get(entry.id) ?? null;
+              const why = () => reasons().get(entry.id);
               return (
                 <TourRow
                   label={entry.label}
                   description={entry.description}
                   seen={seen(entry.id)}
                   available={target() !== null}
-                  reason={reasons().get(entry.id) ?? ""}
+                  reason={why()?.text ?? ""}
                   detail={
-                    <Show when={target()}>
-                      {(tgt) => (
-                        <div class="text-base-content-muted mt-1 text-xs">
-                          {t3({
-                            en: "Opens project",
-                            fr: "Ouvre le projet",
-                            pt: "Abre o projeto",
-                          })}{" "}
-                          <span class="font-700">{tgt().label}</span>
-                        </div>
-                      )}
-                    </Show>
+                    <>
+                      <Show when={target()}>
+                        {(tgt) => (
+                          <div class="text-base-content-muted mt-1 text-xs">
+                            {t3({
+                              en: "Opens project",
+                              fr: "Ouvre le projet",
+                              pt: "Abre o projeto",
+                            })}{" "}
+                            <span class="font-700">{tgt().label}</span>
+                          </div>
+                        )}
+                      </Show>
+                      {/* No project qualifies: say which one the reason
+                          below is about — the one that came closest. */}
+                      <Show when={target() === null && why()?.nearest}>
+                        {(nearest) => (
+                          <div class="text-base-content-muted mt-1 text-xs">
+                            {p.projects.length > 1
+                              ? t3({
+                                  en: "Nearest project",
+                                  fr: "Projet le plus proche",
+                                  pt: "Projeto mais próximo",
+                                })
+                              : t3({
+                                  en: "Project",
+                                  fr: "Projet",
+                                  pt: "Projeto",
+                                })}{" "}
+                            <span class="font-700">{nearest()}</span>
+                          </div>
+                        )}
+                      </Show>
+                    </>
                   }
                   onPlay={() => {
                     const tgt = target();

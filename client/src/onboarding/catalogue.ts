@@ -58,7 +58,7 @@ export type TourCatalogueEntry = {
    *  tab is usually unmounted (or another project entirely) when evaluated. */
   available: (f: TourProjectFacts) => boolean;
   /** Shown in place of the action when `available()` is false. */
-  unavailableReason: (f: TourProjectFacts) => string;
+  unavailableReason: (f: TourProjectFacts) => TourReason;
   /** Tab switch, plus editor/slide open requests for the deeper tours. Runs
    *  inside the project shell only. */
   navigate: () => void;
@@ -91,136 +91,209 @@ const vizCardVisible = (f: TourProjectFacts) => {
   return f.visualizations.some((v) => ready.has(v.metricId));
 };
 
-const reasonNoPageAccess = () =>
-  t3({
+// Why a tour is unavailable. `rank` orders reasons by how close the project
+// is to qualifying (higher = closer): the instance modal evaluates every
+// accessible project and reports the nearest one, so the user sees the most
+// actionable gap rather than whichever project happened to be listed first.
+export type TourReason = { rank: number; text: string };
+
+const RANK_PAGE_ACCESS = 0; // cannot even see the page
+const RANK_EDIT_PERMISSION = 1; // page visible, action needs a permission the user lacks
+const RANK_PACKAGE = 2; // attach a results package
+const RANK_PACKAGE_CONTENT = 3; // package attached but provides nothing usable
+const RANK_LOCKED = 4;
+const RANK_CONTENT = 5; // create a deck / report / viz / dashboard
+const RANK_SUBCONTENT = 6; // add slides / a figure / an item
+const RANK_SLIDE_TYPE = 7;
+const RANK_FILTER = 8; // only a view filter hides it
+
+const reasonNoPageAccess = (): TourReason => ({
+  rank: RANK_PAGE_ACCESS,
+  text: t3({
     en: "You don't have permission to view this page",
     fr: "Vous n'avez pas la permission de voir cette page",
     pt: "Não tem permissão para ver esta página",
-  });
-const reasonNeedModule = () =>
-  t3({
-    en: "Enable a module first",
-    fr: "Activez d'abord un module",
-    pt: "Ative primeiro um módulo",
-  });
-const reasonLocked = () =>
-  t3({
+  }),
+});
+// Modules come from the attached package's manifest, so a project with a
+// package but no modules is an unusual (generation-side) state — the common
+// case, no package at all, is reasonNeedAttachedPackage and is always checked
+// first.
+const reasonNeedModule = (): TourReason => ({
+  rank: RANK_PACKAGE_CONTENT,
+  text: t3({
+    en: "The attached results package contains no modules",
+    fr: "Le paquet de résultats rattaché ne contient aucun module",
+    pt: "O pacote de resultados anexado não contém nenhum módulo",
+  }),
+});
+const reasonNeedDefaultViz = (): TourReason => ({
+  rank: RANK_PACKAGE_CONTENT,
+  text: t3({
+    en: "The attached results package provides no default visualizations",
+    fr: "Le paquet de résultats rattaché ne fournit aucune visualisation par défaut",
+    pt: "O pacote de resultados anexado não fornece nenhuma visualização predefinida",
+  }),
+});
+const reasonLocked = (): TourReason => ({
+  rank: RANK_LOCKED,
+  text: t3({
     en: "The project is locked",
     fr: "Le projet est verrouillé",
     pt: "O projeto está bloqueado",
-  });
-const reasonNeedDeck = () =>
-  t3({
+  }),
+});
+const reasonNeedDeck = (): TourReason => ({
+  rank: RANK_CONTENT,
+  text: t3({
     en: "Create a slide deck first",
     fr: "Créez d'abord une présentation",
     pt: "Crie primeiro uma apresentação",
-  });
-const reasonNeedSlides = () =>
-  t3({
+  }),
+});
+const reasonNeedSlides = (): TourReason => ({
+  rank: RANK_SUBCONTENT,
+  text: t3({
     en: "Add slides to your first slide deck first",
     fr: "Ajoutez d'abord des diapositives à votre première présentation",
     pt: "Adicione primeiro diapositivos à sua primeira apresentação",
-  });
-const reasonNeedSlideOfType = (type: SlideType) => {
+  }),
+});
+const reasonNeedSlideOfType = (type: SlideType): TourReason => {
   switch (type) {
     case "cover":
-      return t3({
-        en: "Add a cover slide to a slide deck first",
-        fr: "Ajoutez d'abord une diapositive de couverture à une présentation",
-        pt: "Adicione primeiro um diapositivo de capa a uma apresentação",
-      });
+      return {
+        rank: RANK_SLIDE_TYPE,
+        text: t3({
+          en: "Add a cover slide to a slide deck first",
+          fr: "Ajoutez d'abord une diapositive de couverture à une présentation",
+          pt: "Adicione primeiro um diapositivo de capa a uma apresentação",
+        }),
+      };
     case "section":
-      return t3({
-        en: "Add a section slide to a slide deck first",
-        fr: "Ajoutez d'abord une diapositive de section à une présentation",
-        pt: "Adicione primeiro um diapositivo de secção a uma apresentação",
-      });
+      return {
+        rank: RANK_SLIDE_TYPE,
+        text: t3({
+          en: "Add a section slide to a slide deck first",
+          fr: "Ajoutez d'abord une diapositive de section à une présentation",
+          pt: "Adicione primeiro um diapositivo de secção a uma apresentação",
+        }),
+      };
     default:
-      return t3({
-        en: "Add a content slide to a slide deck first",
-        fr: "Ajoutez d'abord une diapositive de contenu à une présentation",
-        pt: "Adicione primeiro um diapositivo de conteúdo a uma apresentação",
-      });
+      return {
+        rank: RANK_SLIDE_TYPE,
+        text: t3({
+          en: "Add a content slide to a slide deck first",
+          fr: "Ajoutez d'abord une diapositive de contenu à une présentation",
+          pt: "Adicione primeiro um diapositivo de conteúdo a uma apresentação",
+        }),
+      };
   }
 };
-const reasonNeedDeckPermission = () =>
-  t3({
+const reasonNeedDeckPermission = (): TourReason => ({
+  rank: RANK_EDIT_PERMISSION,
+  text: t3({
     en: "You need permission to edit slide decks",
     fr: "Vous avez besoin de la permission de modifier les présentations",
     pt: "Precisa de permissão para editar apresentações",
-  });
-const reasonNeedReport = () =>
-  t3({
+  }),
+});
+const reasonNeedReport = (): TourReason => ({
+  rank: RANK_CONTENT,
+  text: t3({
     en: "Create a report first",
     fr: "Créez d'abord un rapport",
     pt: "Crie primeiro um relatório",
-  });
-const reasonNeedReportFigure = () =>
-  t3({
+  }),
+});
+const reasonNeedReportFigure = (): TourReason => ({
+  rank: RANK_SUBCONTENT,
+  text: t3({
     en: "Add a figure to your first report first",
     fr: "Ajoutez d'abord une figure à votre premier rapport",
     pt: "Adicione primeiro uma figura ao seu primeiro relatório",
-  });
-const reasonNeedReportPermission = () =>
-  t3({
+  }),
+});
+const reasonNeedReportPermission = (): TourReason => ({
+  rank: RANK_EDIT_PERMISSION,
+  text: t3({
     en: "You need permission to edit reports",
     fr: "Vous avez besoin de la permission de modifier les rapports",
     pt: "Precisa de permissão para editar relatórios",
-  });
-const reasonNeedViz = () =>
-  t3({
+  }),
+});
+const reasonNeedViz = (): TourReason => ({
+  rank: RANK_CONTENT,
+  text: t3({
     en: "Create a visualization first",
     fr: "Créez d'abord une visualisation",
     pt: "Crie primeiro uma visualização",
-  });
-const reasonVizHidden = () =>
-  t3({
+  }),
+});
+const reasonVizHidden = (): TourReason => ({
+  rank: RANK_FILTER,
+  text: t3({
     en: 'All visualizations are hidden by the "Hide unavailable" filter',
     fr: "Toutes les visualisations sont masquées par le filtre « Masquer les indisponibles »",
     pt: "Todas as visualizações estão ocultas pelo filtro «Ocultar indisponíveis»",
-  });
-const reasonNeedDashboard = () =>
-  t3({
+  }),
+});
+const reasonNeedDashboard = (): TourReason => ({
+  rank: RANK_CONTENT,
+  text: t3({
     en: "Create a dashboard first",
     fr: "Créez d'abord un tableau de bord",
     pt: "Crie primeiro um painel",
-  });
-const reasonNeedDashboardItem = () =>
-  t3({
+  }),
+});
+const reasonNeedDashboardItem = (): TourReason => ({
+  rank: RANK_SUBCONTENT,
+  text: t3({
     en: "Add an item to your first dashboard first",
     fr: "Ajoutez d'abord un élément à votre premier tableau de bord",
     pt: "Adicione primeiro um elemento ao seu primeiro painel",
-  });
-const reasonNeedDashboardPermission = () =>
-  t3({
+  }),
+});
+const reasonNeedDashboardPermission = (): TourReason => ({
+  rank: RANK_EDIT_PERMISSION,
+  text: t3({
     en: "You need permission to edit dashboards",
     fr: "Vous avez besoin de la permission de modifier les tableaux de bord",
     pt: "Precisa de permissão para editar painéis",
-  });
-const reasonGlobalAdminOnly = () =>
-  t3({
+  }),
+});
+const reasonGlobalAdminOnly = (): TourReason => ({
+  rank: RANK_PAGE_ACCESS,
+  text: t3({
     en: "Only global admins can manage data",
     fr: "Seuls les administrateurs globaux peuvent gérer les données",
     pt: "Apenas os administradores globais podem gerir os dados",
-  });
-const reasonNeedAttachedPackage = () =>
-  t3({
+  }),
+});
+const reasonNeedAttachedPackage = (): TourReason => ({
+  rank: RANK_PACKAGE,
+  text: t3({
     en: "No results package is attached to this project yet",
     fr: "Aucun paquet de résultats n'est encore rattaché à ce projet",
     pt: "Ainda não há nenhum pacote de resultados anexado a este projeto",
-  });
-const reasonNeedAttachPermission = () =>
-  t3({
+  }),
+});
+const reasonNeedAttachPermission = (): TourReason => ({
+  rank: RANK_EDIT_PERMISSION,
+  text: t3({
     en: "You need permission to configure visualizations to switch package",
     fr: "Vous avez besoin de la permission de configurer les visualisations pour changer de paquet",
     pt: "Precisa de permissão para configurar visualizações para mudar de pacote",
-  });
-const reasonSettingsPermission = () =>
-  t3({
+  }),
+});
+const reasonSettingsPermission = (): TourReason => ({
+  rank: RANK_PAGE_ACCESS,
+  text: t3({
     en: "Only users who can configure settings can view this page",
     fr: "Seuls les utilisateurs pouvant configurer les paramètres peuvent voir cette page",
     pt: "Apenas os utilizadores que podem configurar as definições podem ver esta página",
-  });
+  }),
+});
 
 const slideTourAvailable = (f: TourProjectFacts, type: SlideType) =>
   perms(f).can_view_slide_decks &&
@@ -339,7 +412,7 @@ export type InstanceTourCatalogueEntry = {
   label: string;
   description: string;
   available: () => boolean;
-  unavailableReason: () => string;
+  unavailableReason: () => TourReason;
 };
 
 export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
@@ -520,9 +593,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: (f) =>
         !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasModules(f)
-            ? reasonNeedModule()
-            : reasonNeedDeck(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : !hasModules(f)
+              ? reasonNeedModule()
+              : reasonNeedDeck(),
       navigate: goToDecks,
     },
     {
@@ -572,9 +647,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
             ? reasonNeedDeckPermission()
             : f.isLocked
               ? reasonLocked()
-              : !hasModules(f)
-                ? reasonNeedModule()
-                : reasonNeedDeck(),
+              : !hasAttachedPackage(f)
+                ? reasonNeedAttachedPackage()
+                : !hasModules(f)
+                  ? reasonNeedModule()
+                  : reasonNeedDeck(),
       navigate: goToDecks,
     },
     {
@@ -903,7 +980,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: (f) =>
         !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : reasonNeedModule(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : reasonNeedModule(),
       navigate: goToVisualizations,
     },
     {
@@ -924,9 +1003,13 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: (f) =>
         !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : !hasModules(f) || f.visualizations.length === 0
-            ? reasonNeedModule()
-            : reasonVizHidden(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : !hasModules(f)
+              ? reasonNeedModule()
+              : f.visualizations.length === 0
+                ? reasonNeedViz()
+                : reasonVizHidden(),
       navigate: goToVisualizations,
     },
     {
@@ -947,9 +1030,11 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
       unavailableReason: (f) =>
         !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : !hasModules(f)
-            ? reasonNeedModule()
-            : reasonLocked(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : !hasModules(f)
+              ? reasonNeedModule()
+              : reasonLocked(),
       navigate: goToVisualizations,
     },
     {
@@ -977,7 +1062,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
           ? reasonNoPageAccess()
           : !hasAttachedPackage(f)
             ? reasonNeedAttachedPackage()
-            : reasonNeedModule(),
+            : reasonNeedDefaultViz(),
       navigate: () => {
         goToVisualizations();
         const po = firstDefaultViz(projectState);

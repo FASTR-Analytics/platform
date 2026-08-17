@@ -51,7 +51,15 @@ a fetched `ProjectDetail`, which powers the instance-level variant
 fetches every accessible project's detail, offers Play only for tours some
 project qualifies for (first qualifying project wins; slide-type presence is
 verified by searching the slide documents), and hands the chosen tour to the
-project shell via the `pendingTourReplay` signal, consumed after hydration;
+project shell via the `pendingTourReplay` signal, consumed after hydration.
+When no project qualifies the row names the project that came closest and
+shows its reason: `unavailableReason` returns a ranked `TourReason` (page
+access < edit permission < package < package content < locked < content <
+sub-content < slide type < view filter) and the highest rank across projects
+wins; the reason chains check the attached package before anything
+run-derived (modules, default visualizations), since those come from the
+package's manifest. Tours that open a data-loading editor (viz editor,
+report figures, dashboard items) additionally require an attached package;
 its extra "Instance" category plays the eight instance-tab tours in place via
 the instance manager. Both modals share the sidebar shell in
 `tour_catalogue_layout.tsx`. Every manager is created with the shared button
