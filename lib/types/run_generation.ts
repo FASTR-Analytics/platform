@@ -6,13 +6,12 @@ import type { ModuleId } from "./module_registry.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
-// item 1). Two surfaces: the LAUNCH wizard (configuration only — its attempt
-// record holds these step results, one configuring attempt per admin user,
-// deleted at launch or discard) and the run pipeline (execution state lives
-// on the runs catalog row: runs.status + runs.progress — never on the
-// attempt). The wizard is entered from the instance shell: generation is an
-// instance-level act, and a run attaches to projects rather than belonging
-// to one.
+// item 1). Two surfaces: the LAUNCH wizard (an ephemeral modal — its step
+// results are client-local until launch sends them in one body; nothing is
+// persisted server-side before that) and the run pipeline (execution state
+// lives on the runs catalog row: runs.status + runs.progress). The wizard is
+// entered from the instance shell: generation is an instance-level act, and
+// a run attaches to projects rather than belonging to one.
 
 // Step 1 — choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
@@ -28,8 +27,8 @@ export type RunGenerationStep1Result = z.infer<
 >;
 
 // Step 2 — configure modules: definitions are resolved from the modules repo
-// at latest commit when the step is edited; gitRef records that commit so
-// the run pipeline re-fetches the exact same definitions at launch.
+// at latest commit when the wizard opens; gitRef records that commit so the
+// run pipeline re-fetches the exact same definitions at launch.
 export const runGenerationStep2ResultSchema = z.object({
   gitRef: z.string(),
   modules: z.array(
@@ -47,8 +46,8 @@ export type RunGenerationStep2Result = z.infer<
 // written only by the module-defaults editor (S8 "Instance module defaults")
 // and kept in instance_config under
 // `run_generation_defaults`. Flat — one country per instance makes per-country
-// presets meaningless. Merge order in the wizard is resume > instance
-// defaults > definition defaults; there is no manifest tier (the wizard is
+// presets meaningless. Merge order in the wizard is instance defaults >
+// definition defaults; there is no manifest tier (the wizard is
 // instance-entered, so there is no anchor run). Unknown moduleIds in the
 // store are tolerated: modules evolve, the store does not have to.
 // step1 is .catch(null): a stored step1 under an older shape degrades to
@@ -82,8 +81,6 @@ export type RunGenerationModuleOptions = {
   gitRef: string;
   modules: RunGenerationModuleOption[];
 };
-
-export type RunGenerationAttemptStatus = { status: "configuring" };
 
 export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
@@ -191,14 +188,6 @@ export type ResultsPackageCompatibilityReport = {
     | null;
   // Echoed so the UI can name the area in the warning.
   projectAdminArea2: string | null;
-};
-
-export type RunGenerationAttemptDetail = {
-  step: number;
-  dateStarted: string;
-  status: RunGenerationAttemptStatus;
-  step1Result: RunGenerationStep1Result | null;
-  step2Result: RunGenerationStep2Result | null;
 };
 
 // Worker-updated pipeline progress (runs.progress JSON), pushed on every

@@ -142,16 +142,6 @@ export type DBStructureUploadAttempt = {
   recodes: string | null; // JSON: StructureRecodes
 };
 
-export type DBRunGenerationAttempt = {
-  created_by_user_email: string;
-  date_started: string;
-  step: number;
-  status: string; // JSON: RunGenerationAttemptStatus
-  status_type: string; // only ever 'configuring'
-  step_1_result: string | null; // JSON: RunGenerationStep1Result
-  step_2_result: string | null; // JSON: RunGenerationStep2Result
-};
-
 // DHIS2 import runs in main
 
 export type DBDatasetHmisImportRun = {

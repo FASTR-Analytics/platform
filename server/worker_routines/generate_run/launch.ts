@@ -1,7 +1,10 @@
 import type { Sql } from "postgres";
 import {
+  MODULE_REGISTRY,
   RUN_MANIFEST_SCHEMA_VERSION,
   type APIResponseWithData,
+  type RunGenerationStep1Result,
+  type RunGenerationStep2Result,
   type RunProgress,
   type RunSummary,
 } from "lib";
@@ -9,10 +12,8 @@ import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createGeneratingRun,
-  deleteRunGenerationAttempt,
   getGeneratingRunIdForAttachTargets,
   getIneligibleAttachTargetNames,
-  getRunGenerationAttempt,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
@@ -28,9 +29,11 @@ import {
   type GenerateRunEndedData,
 } from "./types.ts";
 
-// Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch consumes
-// the launching admin's configuring attempt, mints the 'generating' catalog
-// row, and spawns the worker; the run owns its whole lifecycle from here.
+// Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch takes the
+// wizard's configuration in the request body (the wizard is an ephemeral
+// modal — nothing is persisted before this call), validates it, mints the
+// 'generating' catalog row, and spawns the worker; the run owns its whole
+// lifecycle from here.
 // Concurrency ruling (Phase 3 sub-fork d): generations run concurrently, but
 // a launch is refused while any of its ATTACH TARGETS is already the target
 // of a generating run — claimed in the same synchronous segment as the check
@@ -69,39 +72,58 @@ broadcastEnded.addEventListener("message", (evt) => {
   GENERATING_BY_RUN.delete(data.runId);
 });
 
+export type RunGenerationLaunchInput = {
+  label: string;
+  attachTargetProjectIds: string[];
+  step1Result: RunGenerationStep1Result;
+  step2Result: RunGenerationStep2Result;
+};
+
+function getLaunchInputInvalidMsg(
+  input: RunGenerationLaunchInput,
+): string | undefined {
+  const { step1Result, step2Result } = input;
+  if (!step1Result.hmis && !step1Result.hfa && !step1Result.iceh) {
+    return "Select at least one data family for the results package";
+  }
+  if (step2Result.modules.length === 0) {
+    return "Select at least one module for the results package";
+  }
+  const moduleIds = new Set(step2Result.modules.map((m) => m.moduleId));
+  if (moduleIds.size !== step2Result.modules.length) {
+    return "Duplicate module in selection";
+  }
+  for (const moduleId of moduleIds) {
+    const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
+    if (entry === undefined) {
+      return `Unknown module: ${moduleId}`;
+    }
+    for (const prerequisite of entry.prerequisites) {
+      if (!moduleIds.has(prerequisite)) {
+        return `Module ${moduleId} requires ${prerequisite}, which is not in the selection`;
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function launchRunGeneration(
   mainDb: Sql,
-  attachTargetProjectIds: string[],
-  label: string,
+  input: RunGenerationLaunchInput,
   createdBy: string,
 ): Promise<APIResponseWithData<{ runId: string }>> {
+  const { label, attachTargetProjectIds, step1Result, step2Result } = input;
+  const invalidMsg = getLaunchInputInvalidMsg(input);
+  if (invalidMsg !== undefined) {
+    return { success: false, err: invalidMsg };
+  }
   const targetAlreadyGenerating = {
     success: false as const,
     err:
       "A results package is already being generated for one of the projects you selected",
   };
-  // Checked before the attempt read: launch deletes the attempt, so a
-  // duplicate launch would otherwise surface as the misleading "no
-  // configuration in progress".
   if (targetsClaimed(attachTargetProjectIds)) {
     return targetAlreadyGenerating;
-  }
-  const resAttempt = await getRunGenerationAttempt(mainDb, createdBy);
-  if (resAttempt.success === false) {
-    return resAttempt;
-  }
-  if (resAttempt.data === null) {
-    return {
-      success: false,
-      err: "No results-package configuration in progress",
-    };
-  }
-  const attempt = resAttempt.data;
-  if (attempt.step1Result === null || attempt.step2Result === null) {
-    return {
-      success: false,
-      err: "The results-package configuration is not complete",
-    };
   }
 
   const ineligibleTargets = await getIneligibleAttachTargetNames(
@@ -121,9 +143,9 @@ export async function launchRunGeneration(
   // Disk guard for the dataset extracts the prepare stage is about to export
   // (re-pointed from the deleted per-project attach route — same threshold).
   const selectedFamilies: string[] = [
-    ...(attempt.step1Result.hmis !== null ? ["hmis"] : []),
-    ...(attempt.step1Result.hfa !== null ? ["hfa"] : []),
-    ...(attempt.step1Result.iceh ? ["iceh"] : []),
+    ...(step1Result.hmis ? ["hmis"] : []),
+    ...(step1Result.hfa ? ["hfa"] : []),
+    ...(step1Result.iceh ? ["iceh"] : []),
   ];
   for (const family of selectedFamilies) {
     const spaceCheck = await checkSpaceForDataset(mainDb, family);
@@ -143,7 +165,7 @@ export async function launchRunGeneration(
   // Claim the slot in the same synchronous segment as the check above, so
   // concurrent launch requests cannot both start a generation for a target.
   const runId = crypto.randomUUID();
-  const moduleIds = attempt.step2Result.modules.map((m) => m.moduleId);
+  const moduleIds = step2Result.modules.map((m) => m.moduleId);
   GENERATING_BY_RUN.set(runId, {
     attachTargetProjectIds,
     moduleIds,
@@ -184,17 +206,12 @@ export async function launchRunGeneration(
       summary,
       progress,
     });
-    const resDelete = await deleteRunGenerationAttempt(mainDb, createdBy);
-    if (resDelete.success === false) {
-      throw new Error(resDelete.err);
-    }
-
     const worker = instantiateGenerateRunWorker({
       attachTargetProjectIds,
       runId,
       label,
-      step1Result: attempt.step1Result,
-      step2Result: attempt.step2Result,
+      step1Result,
+      step2Result,
     });
     worker.addEventListener("error", (e) => {
       e.preventDefault(); // Never let a worker error crash the server

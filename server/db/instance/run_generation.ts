@@ -1,221 +1,26 @@
 import type { Sql } from "postgres";
 import {
-  MODULE_REGISTRY,
-  runGenerationStep1ResultSchema,
-  runGenerationStep2ResultSchema,
   runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
   type FollowPinnedProject,
   type RunCatalogItem,
   type RunCatalogStatus,
-  type RunGenerationAttemptDetail,
-  type RunGenerationStep1Result,
-  type RunGenerationStep2Result,
   type RunListingItem,
   type RunProgress,
   type RunProvenance,
   type RunSummary,
 } from "lib";
-import type { DBRunGenerationAttempt } from "./_main_database_types.ts";
 
-// The results-package launch wizard's attempt record (PLAN_RESULTS_RUNS
-// item 2, re-keyed by Phase 3 item 1): one configuring attempt per admin
-// user (structure_upload_attempts pattern) — the wizard is entered from the
-// instance shell, so an attempt belongs to whoever is configuring it, not to
-// a project. The attempt is configuration only — status_type is only ever
-// 'configuring', execution state lives on the runs catalog row — so there is
-// no claim machinery here; each config-step write advances step and nulls
-// downstream results, and the row is deleted at launch (and by discard).
-//
-// The middle of this file is the runs catalog's read surface: the instance
-// catalogue listing (Phase 3 item 3) and the guarded hard delete, plus the
-// project surface's attached-run row.
+// The runs catalog (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3 items 1 and
+// 3). The first section is the read surface: the instance catalogue listing
+// and the guarded hard delete, plus the project surface's attached-run row.
 //
 // The last section is the runs-catalog execution state the pipeline writes:
 // the 'generating' row minted at launch, worker progress updates, the
 // ready-publish transaction (status flip + projects.run_id repoint of every
 // attach target), and failure marking. These are worker/host internals, so
 // they throw instead of returning APIResponse envelopes.
-
-const CONFIGURING_STATUS = JSON.stringify({ status: "configuring" });
-
-async function getRawAttempt(
-  mainDb: Sql,
-  userEmail: string,
-): Promise<DBRunGenerationAttempt | undefined> {
-  const rows = await mainDb<DBRunGenerationAttempt[]>`
-SELECT * FROM run_generation_attempts WHERE created_by_user_email = ${userEmail}
-`;
-  return rows.at(0);
-}
-
-export async function createRunGenerationAttempt(
-  mainDb: Sql,
-  userEmail: string,
-): Promise<APIResponseNoData> {
-  try {
-    await mainDb`
-INSERT INTO run_generation_attempts
-  (created_by_user_email, date_started, step, status, status_type)
-VALUES
-  (${userEmail}, ${new Date().toISOString()}, 1, ${CONFIGURING_STATUS}, 'configuring')
-ON CONFLICT (created_by_user_email) DO UPDATE SET
-  date_started = EXCLUDED.date_started,
-  step = 1,
-  status = EXCLUDED.status,
-  status_type = 'configuring',
-  step_1_result = NULL,
-  step_2_result = NULL
-`;
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem creating results-package configuration: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-export async function getRunGenerationAttempt(
-  mainDb: Sql,
-  userEmail: string,
-): Promise<APIResponseWithData<RunGenerationAttemptDetail | null>> {
-  try {
-    const raw = await getRawAttempt(mainDb, userEmail);
-    if (raw === undefined) {
-      return { success: true, data: null };
-    }
-    // safeParse: a stored step 1 written under an older shape degrades to a
-    // fresh step 1 instead of bricking the wizard for that admin.
-    const step1Parsed = raw.step_1_result === null
-      ? null
-      : runGenerationStep1ResultSchema.safeParse(
-        JSON.parse(raw.step_1_result),
-      );
-    const step1Result: RunGenerationStep1Result | null =
-      step1Parsed?.success ? step1Parsed.data : null;
-    const step2Result: RunGenerationStep2Result | null =
-      raw.step_2_result === null
-        ? null
-        : runGenerationStep2ResultSchema.parse(JSON.parse(raw.step_2_result));
-    return {
-      success: true,
-      data: {
-        step: raw.step,
-        dateStarted: raw.date_started,
-        status: { status: "configuring" },
-        step1Result,
-        step2Result,
-      },
-    };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem getting results-package configuration: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-export async function updateRunGenerationAttemptStep1(
-  mainDb: Sql,
-  userEmail: string,
-  step1Result: RunGenerationStep1Result,
-): Promise<APIResponseNoData> {
-  try {
-    if (!step1Result.hmis && !step1Result.hfa && !step1Result.iceh) {
-      return {
-        success: false,
-        err: "Select at least one data family for the results package",
-      };
-    }
-    const rows = await mainDb`
-UPDATE run_generation_attempts SET
-  step = 2,
-  step_1_result = ${JSON.stringify(step1Result)},
-  step_2_result = NULL
-WHERE created_by_user_email = ${userEmail}
-RETURNING created_by_user_email
-`;
-    if (rows.length === 0) {
-      return {
-        success: false,
-        err: "No results-package configuration in progress",
-      };
-    }
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem saving data selection: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-export async function updateRunGenerationAttemptStep2(
-  mainDb: Sql,
-  userEmail: string,
-  step2Result: RunGenerationStep2Result,
-): Promise<APIResponseNoData> {
-  try {
-    if (step2Result.modules.length === 0) {
-      return {
-        success: false,
-        err: "Select at least one module for the results package",
-      };
-    }
-    const moduleIds = new Set(step2Result.modules.map((m) => m.moduleId));
-    if (moduleIds.size !== step2Result.modules.length) {
-      return { success: false, err: "Duplicate module in selection" };
-    }
-    for (const moduleId of moduleIds) {
-      if (!MODULE_REGISTRY.some((m) => m.id === moduleId)) {
-        return { success: false, err: `Unknown module: ${moduleId}` };
-      }
-    }
-    const rows = await mainDb`
-UPDATE run_generation_attempts SET
-  step = 3,
-  step_2_result = ${JSON.stringify(step2Result)}
-WHERE created_by_user_email = ${userEmail} AND step_1_result IS NOT NULL
-RETURNING created_by_user_email
-`;
-    if (rows.length === 0) {
-      return {
-        success: false,
-        err: "Not yet ready for this step — choose data first",
-      };
-    }
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem saving module selection: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-export async function deleteRunGenerationAttempt(
-  mainDb: Sql,
-  userEmail: string,
-): Promise<APIResponseNoData> {
-  try {
-    await mainDb`
-DELETE FROM run_generation_attempts WHERE created_by_user_email = ${userEmail}
-`;
-    return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem discarding results-package configuration: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
 
 type RunListingRow = {
   id: string;

@@ -4,13 +4,8 @@ import {
   updateRunGenerationDefaultsConfig,
 } from "../../db/instance/config.ts";
 import {
-  createRunGenerationAttempt,
-  deleteRunGenerationAttempt,
-  getRunGenerationAttempt,
   listFollowPinnedProjects,
   listRunCatalog,
-  updateRunGenerationAttemptStep1,
-  updateRunGenerationAttemptStep2,
 } from "../../db/instance/run_generation.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -29,76 +24,18 @@ import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // Results-package wizard + catalogue (PLAN_RESULTS_RUNS item 2, re-cut by
-// Phase 3 items 1 and 3): attempt-record CRUD, the instance defaults store,
-// launch, the catalogue listing (instance-T1's fetch half — pulled on the
-// runs_catalog_updated timestamp signal), the guarded hard delete, the
-// master–detail body for ready runs, and the per-module script/log/file
-// viewers. Instance-admin gated throughout
-// (can_configure_data — the dataset-attempt guard). Every attempt is keyed
-// by the calling admin's email, so a user only ever sees and edits their own
-// in-flight configuration. Launch consumes the attempt and hands the run to
-// the generate_run worker; further state arrives over instance SSE (the
-// catalogue) and project SSE (each attach target).
+// Phase 3 items 1 and 3): the instance defaults store, the wizard's
+// module-options read, launch, the catalogue listing (instance-T1's fetch
+// half — pulled on the runs_catalog_updated timestamp signal), the guarded
+// hard delete, the master–detail body for ready runs, and the per-module
+// script/log/file viewers. Instance-admin gated throughout
+// (can_configure_data). The wizard is an ephemeral modal: nothing is
+// persisted server-side before launch, which takes the whole configuration
+// in its body and hands the run to the generate_run worker; further state
+// arrives over instance SSE (the catalogue) and project SSE (each attach
+// target).
 
 export const routesRunGeneration = new Hono();
-
-defineRoute(
-  routesRunGeneration,
-  "createRunGenerationAttempt",
-  requireGlobalPermission("can_configure_data"),
-  log("createRunGenerationAttempt"),
-  async (c) => {
-    const res = await createRunGenerationAttempt(
-      c.var.mainDb,
-      c.var.globalUser.email,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "getRunGenerationAttempt",
-  requireGlobalPermission("can_configure_data"),
-  log("getRunGenerationAttempt"),
-  async (c) => {
-    const res = await getRunGenerationAttempt(
-      c.var.mainDb,
-      c.var.globalUser.email,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "updateRunGenerationAttemptStep1",
-  requireGlobalPermission("can_configure_data"),
-  log("updateRunGenerationAttemptStep1"),
-  async (c, { body }) => {
-    const res = await updateRunGenerationAttemptStep1(
-      c.var.mainDb,
-      c.var.globalUser.email,
-      body.step1Result,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "updateRunGenerationAttemptStep2",
-  requireGlobalPermission("can_configure_data"),
-  log("updateRunGenerationAttemptStep2"),
-  async (c, { body }) => {
-    const res = await updateRunGenerationAttemptStep2(
-      c.var.mainDb,
-      c.var.globalUser.email,
-      body.step2Result,
-    );
-    return c.json(res);
-  },
-);
 
 defineRoute(
   routesRunGeneration,
@@ -259,8 +196,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await launchRunGeneration(
       c.var.mainDb,
-      body.attachTargetProjectIds,
-      body.label,
+      body,
       c.var.globalUser.email,
     );
     if (res.success) {
@@ -270,16 +206,3 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesRunGeneration,
-  "deleteRunGenerationAttempt",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteRunGenerationAttempt"),
-  async (c) => {
-    const res = await deleteRunGenerationAttempt(
-      c.var.mainDb,
-      c.var.globalUser.email,
-    );
-    return c.json(res);
-  },
-);

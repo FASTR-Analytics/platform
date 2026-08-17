@@ -363,9 +363,9 @@ callback re-parses the new bytes).
 - **ICEH** (`instance_dataset_iceh/imports/`): the leaner twin — Current
   card plus History table; two-step wizard (upload zip + preview → review);
   needs_review cards show the skip counters/samples.
-- `ImportWizardShell` (`_import_wizard/`) is the descriptor-driven
-  query/stepper/poll/delete machinery — its only remaining consumer is the
-  results-package wizard, so S8 owns it now.
+- The old `ImportWizardShell` (`_import_wizard/`) descriptor machinery is
+  gone (2026-08-17): every wizard — the three import families and the
+  results-package wizard — is now an ephemeral modal.
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed

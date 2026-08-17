@@ -1,9 +1,4 @@
-import {
-  t3,
-  type RunCatalogItem,
-  type RunGenerationAttemptDetail,
-  type RunProgress,
-} from "lib";
+import { t3, type RunCatalogItem, type RunProgress } from "lib";
 import {
   Badge,
   Button,
@@ -12,13 +7,11 @@ import {
   FrameTop,
   HeadingBar,
   SelectList,
-  createButtonAction,
   getEditorWrapper,
+  openComponent,
 } from "panther";
 import {
-  Match,
   Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
@@ -27,10 +20,9 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { PinnedBadge } from "~/components/_shared/results_package/status";
-import { ResultsPackageWizard } from "~/components/results_package_wizard";
+import { ResultsPackageWizard } from "./_wizard";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
-import { serverActions } from "~/server_actions";
 import {
   addInstanceRScriptListener,
   addInstanceRunProgressListener,
@@ -39,34 +31,19 @@ import { instanceState } from "~/state/instance/t1_store";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
-// launch wizard is entered — one in-flight configuration per admin,
-// resumable — and the catalogue of every package the instance holds, as a
+// launch wizard is entered — an ephemeral modal, nothing persisted before
+// launch — and the catalogue of every package the instance holds, as a
 // master–detail (sidebar list + detail pane). The listing is T1
-// (`instanceState.runsCatalog`, pushed on every catalogue mutation); the only
-// component fetch left is the per-admin wizard attempt (T3, per-user, not
-// broadcastable). A package attaches to projects at launch (the wizard's
-// confirm step) or later from a project's Results package tab. This surface
-// owns the only act that ever reclaims a package's disk.
+// (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
+// surface has no component fetch of its own. A package attaches to projects
+// at launch (the wizard's confirm step) or later from a project's Results
+// package tab. This surface owns the only act that ever reclaims a
+// package's disk.
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [attempt, setAttempt] = createSignal<RunGenerationAttemptDetail | null>(
-    null,
-  );
-
-  async function refreshAll(): Promise<void> {
-    const res = await serverActions.getRunGenerationAttempt({});
-    if (res.success) {
-      setAttempt(res.data);
-    }
-  }
-
   async function openWizard(): Promise<void> {
-    await openEditor({
-      element: ResultsPackageWizard,
-      props: { silentFetch: refreshAll },
-    });
-    await refreshAll();
+    await openComponent({ element: ResultsPackageWizard, props: {} });
   }
 
   async function openModuleDefaults(): Promise<void> {
@@ -75,12 +52,6 @@ export function InstanceResultsPackages() {
       props: {},
     });
   }
-
-  const startConfiguration = createButtonAction(
-    () => serverActions.createRunGenerationAttempt({}),
-    refreshAll,
-    openWizard,
-  );
 
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
   // progress patches the pane in place and the R line is keyed by RUN as
@@ -94,7 +65,6 @@ export function InstanceResultsPackages() {
   const [rLogs, setRLogs] = createStore<Record<string, string>>({});
 
   onMount(() => {
-    void refreshAll();
     const unsubProgress = addInstanceRunProgressListener((runId, progress) => {
       setLiveProgress((prev) => ({ ...prev, [runId]: progress }));
     });
@@ -138,7 +108,8 @@ export function InstanceResultsPackages() {
   // stored"). The stored, explicit concept is the pin, read from the one
   // instance T1 field every surface uses (`instanceState.pinnedRunId`).
   const latestReadyId = createMemo(
-    (): string | undefined => sortedRuns().find((r) => r.status === "ready")?.id,
+    (): string | undefined =>
+      sortedRuns().find((r) => r.status === "ready")?.id,
   );
 
   const emptyMessage = () =>
@@ -173,30 +144,13 @@ export function InstanceResultsPackages() {
                   pt: "Predefinições dos módulos",
                 })}
               </Button>
-              <Switch>
-                <Match when={attempt() !== null}>
-                  <Button onClick={openWizard} iconName="pencil">
-                    {t3({
-                      en: "Resume configuration",
-                      fr: "Reprendre la configuration",
-                      pt: "Retomar a configuração",
-                    })}
-                  </Button>
-                </Match>
-                <Match when={attempt() === null}>
-                  <Button
-                    onClick={startConfiguration.click}
-                    state={startConfiguration.state()}
-                    iconName="package"
-                  >
-                    {t3({
-                      en: "Generate new results package",
-                      fr: "Générer un nouveau paquet de résultats",
-                      pt: "Gerar novo pacote de resultados",
-                    })}
-                  </Button>
-                </Match>
-              </Switch>
+              <Button onClick={openWizard} iconName="package">
+                {t3({
+                  en: "Generate new results package",
+                  fr: "Générer un nouveau paquet de résultats",
+                  pt: "Gerar novo pacote de resultados",
+                })}
+              </Button>
             </div>
           </HeadingBar>
         }
@@ -220,15 +174,21 @@ export function InstanceResultsPackages() {
                 renderItem={(item) => (
                   <Show when={item.meta} keyed fallback={item.label}>
                     {(run) => (
-                      <div>
-                        <div class="ui-gap-sm flex items-center">
-                          <div class="flex-1 truncate">{run.label}</div>
+                      <div class="my-0.5">
+                        <div class="ui-gap-sm flex items-center overflow-hidden">
+                          <div class="min-w-16 flex-1 truncate">
+                            {run.label}
+                          </div>
                           <Show when={run.id === instanceState.pinnedRunId}>
                             <PinnedBadge />
                           </Show>
                           <Show when={run.id === latestReadyId()}>
                             <Badge intent="neutral">
-                              {t3({ en: "Latest", fr: "Dernier", pt: "Mais recente" })}
+                              {t3({
+                                en: "Latest",
+                                fr: "Dernier",
+                                pt: "Mais recente",
+                              })}
                             </Badge>
                           </Show>
                         </div>

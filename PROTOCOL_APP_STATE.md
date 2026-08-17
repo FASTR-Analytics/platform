@@ -354,8 +354,9 @@ compare-projects modal, HFA indicator R code
 editors, instance meta modal, profile refresh, results-package catalogue
 detail (`instance_results_packages/detail.tsx` — per-module settings + files
 for the selected READY run; a run dir is immutable, so nothing to cache), the
-per-admin wizard attempt (`instance_results_packages/index.tsx` — per-user,
-not broadcastable), and the `LoggedInWrapper.tsx` bootstrap fetches
+results-package wizard's module options + defaults
+(`instance_results_packages/_wizard/index.tsx` — read once per open,
+client-local until launch), and the `LoggedInWrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta — needed before SSE connects).
 
 Project-level: module execution logs (`view_logs.tsx`), module R script source

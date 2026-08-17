@@ -2,13 +2,11 @@
 system: 8
 name: Results Packages & Module Execution
 globs:
-  - client/src/components/_import_wizard/**
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/instance_results_packages/**
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_results_package.tsx
   - client/src/components/project/results_package_compatibility_modal.tsx
-  - client/src/components/results_package_wizard/**
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -90,9 +88,10 @@ and the per-module script/log/file viewers moved off the project mount) +
 `routes/project/results_package.ts` (the project picker); lib module + run
 types + `module_registry.ts`; client: `instance_results_packages/**` (the
 catalogue), `project_results_package.tsx` +
-`results_package_compatibility_modal.tsx`, `results_package_wizard/**` (+ its
-descriptor shell `_import_wizard/**` — the results-package wizard is the
-shell's only consumer since ICEH moved to import runs),
+`results_package_compatibility_modal.tsx`, the launch wizard
+`instance_results_packages/_wizard/**` (an ephemeral modal — the Upload-CSV
+pattern; the last consumer of the old `_import_wizard/` descriptor shell,
+deleted with it 2026-08-17),
 `compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
 what a package CONTAINS, rendered identically wherever a package is explored
 (`package_contents.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). It
@@ -205,7 +204,7 @@ run's manifest and parquet.
 what a project MEMBER may read from the attached run's manifest:
 `getResultsObjectItems` (raw preview) and `getModuleWithConfigSelections`.
 Instance level: `routes/instance/modules.ts` (`compareProjects`) and
-`routes/instance/run_generation.ts` — the wizard's attempt CRUD +
+`routes/instance/run_generation.ts` — the wizard's
 defaults/module-options/launch, plus the catalogue listing (instance-T1's
 fetch half — pulled by entitled clients on the `runs_catalog_updated`
 nonce signal), the guarded hard delete, the
@@ -596,8 +595,10 @@ no `inputKey` and are never reuse sources.
 
 The wizard's starting values — default data families, default module set, and
 per-module parameter values — in one `instance_config` row, seeded into the
-wizard as resume > instance defaults > definition defaults (`step_1.tsx`,
-`step_2.tsx` via `getMergedModuleConfigSelections`). Its **sole writer** is the
+wizard as instance defaults > definition defaults
+(`instance_results_packages/_wizard/index.tsx` via
+`getMergedModuleConfigSelections`).
+Its **sole writer** is the
 module-defaults editor (`instance_results_packages/module_defaults.tsx`, opened
 from the Results packages surface); the wizard only reads it. Step 3's old
 "save as instance defaults" button was deleted with that editor (2026-08-06,
@@ -620,18 +621,21 @@ pinned; per-module "Reset to definition defaults" is the unpin act, dropping
 that module's stored entry. Entries for modules not offerable here
 (country-filtered or removed) and stored keys a definition no longer declares
 pass through verbatim — the store tolerates unknowns by design. The editor
-enforces neither DAG closure nor data availability: the wizard's seed already
-sanitizes (step 2 drops non-offerable ids and closure-completes, step 1
-re-masks families by what is uploaded). Both writers gate their save on one
+enforces neither DAG closure nor data availability: the wizard sanitizes at
+read time (step 1 re-masks families by what is uploaded; the launched module
+set is the closure-completed, offerability-masked derivation of what is
+ticked, so a stored default whose family is absent simply never launches). Both writers gate their save on one
 shared check, `getModuleParameterInvalidMsg`, which also drives the inputs'
 inline invalid messages.
 
 ## Generation (`server/worker_routines/generate_run/`)
 
 Whole-DAG generation into `runs/.tmp-{runId}` → one finalize → atomic rename →
-`projects.run_id` repoint (`publishReadyRun`, one transaction). Launch consumes
-a `run_generation_attempts` row, inserts a `runs` row `generating`, and spawns
-the worker; progress and the live R line stream on the INSTANCE channel only
+`projects.run_id` repoint (`publishReadyRun`, one transaction). Launch takes
+the wizard's whole configuration in its body (the wizard is an ephemeral
+modal — nothing persists server-side before launch; Tim's ruling 2026-08-17,
+the per-admin `run_generation_attempts` record dropped by migration 078),
+validates it, inserts a `runs` row `generating`, and spawns the worker; progress and the live R line stream on the INSTANCE channel only
 (`notifyInstanceRunProgress` / `notifyInstanceRScript` — the catalogue;
 `can_configure_data`-filtered live in the endpoint). There is no project
 copy: a project is attached only once a run is ready, so it never has a live
@@ -654,8 +658,7 @@ base run at all — reused modules copy raw CSVs and skip R); finalize
 (`server/runs/synthesize_run.ts`'s `buildRunPackageIntoTmp`, shared with the
 backfill synthesizer — parquet + manifest rebuilt fresh every generation).
 Boot recovery: `markInterruptedGeneratingRuns` + `.tmp-` sweep.
-Concurrency is keyed on ATTACH TARGETS, not projects: one in-flight wizard
-configuration per admin user (`run_generation_attempts` PK), and a launch is
+Concurrency is keyed on ATTACH TARGETS, not projects or admins: a launch is
 refused while any selected target is already a target of a generating run —
 claimed in the same synchronous segment as the check, with the catalog as the
 cross-restart backstop. A generation with no attach targets never collides.
