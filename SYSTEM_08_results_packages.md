@@ -101,6 +101,22 @@ wb-fastr-modules repo, Docker images.
 
 ## Contract
 
+**Architecture (the reached end-state of VISION_RESULTS_RUNS, 2026-07 →
+2026-08-17).** The app is three planes with one-way data flow: the
+**instance plane** (data in — ingestion, structure master, config; S4–S7,
+live and mutable), the **results plane** (compute — the wizard generates a
+**results package**: one immutable, file-based directory keyed by a run id
+holding everything the modules consumed AND everything they produced), and
+the **project plane** (meaning — a project holds one pointer,
+`projects.run_id`, and is a pure authoring space; S9–S13). Results are never
+ingested into Postgres: the viz layer runs its SQL through DuckDB over the
+package's parquet, so repointing a project is a pointer write and every cache
+keys on the run id with no data-version dimension left to go stale. This
+replaced per-project mutable `ro_*` tables plus the dirty-state/stamp cascade
+that policed their freshness. Measured payoff at cutover: Nigeria's legacy
+per-project CSV plane was ~1.4T; the packages replacing it total ~10G;
+national-scale item queries went from 8–16 s (pg seq-scan) to sub-second.
+
 Definitions zod-validated at every fetch; compute/presentation git-ref split;
 whole-DAG generation into an immutable run dir (PLAN_RESULTS_RUNS), entered
 ONLY from the instance shell, with §3.7 memoized reuse resolved by a
@@ -109,6 +125,23 @@ dirty-state machine, per-module rerun, and module-card surfaces were deleted by
 the wizard deploy — module status is the run manifest's availability stamps.
 Rollback is a hosting-level volume restore (Phase 3 ruling 5), not a second
 data plane.
+
+Standing rules carried over from PLAN_RESULTS_RUNS (all Tim's rulings, do not
+re-litigate; the package-format invariants below are their file-level twins):
+
+- **Layer rule.** The project plane reads only its attached run; a run reads
+  nothing live at read time; no instance FKs or projectId inside run files.
+  Calendar / countryIso3 / structure schema are run INPUTS — the adapter reads
+  the manifest, never the env global.
+- **The package rule** (2026-07-30). If the answer lives inside the run
+  package directory, a project user attached to that package can see it —
+  package contents never depend on who is asking, only the chrome does. One
+  shared explorer (`client/src/components/_shared/results_package/`) on both
+  surfaces; AI tools take a run RESOLVER, never a runId from the model.
+- **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
+  catalogue's guarded hard delete (row + dir), refused while referenced or
+  generating.
+- **Vocabulary.** UI label "Results package"; "run" stays the internal name.
 
 ## Loading (`server/module_loader/load_module.ts`)
 
@@ -470,7 +503,7 @@ Four invariants, in the order they matter:
    record, the ready-only gates (attach picker + its UPDATE, the reuse
    search) never see it, and the module script/log/file viewers work on it
    unchanged so failures stay diagnosable. Reclaimed only by the guarded
-   hard delete (no GC yet); only a server-process death still leaves bare
+   hard delete (no GC, by ruling); only a server-process death still leaves bare
    `.tmp-` debris, swept at boot. Every cache in the app depends on this:
    the manifest cache parses once per runId with no invalidation path, the
    virtual-defaults cache keys on runId alone, and the Valkey entries fold runId

@@ -205,8 +205,9 @@ boot from `db_startup.ts` and again on the read path (`manifest_cache.ts`) for
 packages that arrive after boot, using the same function.
 
 Packages are immutable, so this is a deliberate amendment recorded in
-`VISION_RESULTS_RUNS.md`: **package outputs are immutable; the manifest is a
-derived descriptor and may be transformed forward.** Without it a schema change
+SYSTEM_08 (the `manifestSchemaVersion` paragraph of the format spec):
+**package outputs are immutable; the manifest is a derived descriptor and may
+be transformed forward.** Without it a schema change
 orphans every existing package, and "regenerate" is not a real remedy — it mints
 a new `runId`, which marks every stored figure in the fleet stale.
 

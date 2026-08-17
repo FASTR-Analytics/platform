@@ -37,12 +37,12 @@ function familyLabel(family: FacilityFamily) {
 // admin area path, and this registry's tree is exactly the distinct paths in
 // it. They are created and removed by facility imports alone, so they are
 // reported here rather than as a surface of their own.
-function AdminAreaSummary(props: { family: FacilityFamily }) {
+function AdminAreaSummary(p: { family: FacilityFamily }) {
   const counts = () =>
-    props.family === "hmis"
+    p.family === "hmis"
       ? instanceState.structure?.hmis
       : instanceState.structure?.hfa;
-  const depth = () => structureSchemaForFamily(props.family).adminDepth;
+  const depth = () => structureSchemaForFamily(p.family).adminDepth;
 
   return (
     <Show when={counts()} keyed>

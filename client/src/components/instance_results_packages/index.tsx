@@ -124,11 +124,9 @@ export function InstanceResultsPackages() {
     undefined,
   );
   createEffect(() => {
-    if (selectedId() === undefined) {
-      const first = sortedRuns()[0];
-      if (first !== undefined) {
-        setSelectedId(first.id);
-      }
+    const first = sortedRuns()[0];
+    if (selectedId() === undefined && first !== undefined) {
+      setSelectedId(first.id);
     }
   });
   const selectedRun = (): RunCatalogItem | undefined =>
