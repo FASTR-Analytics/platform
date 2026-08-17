@@ -106,14 +106,6 @@ export async function integrateStagedHmisCsvData(args: {
       )
     `;
 
-    // Linking inside the transaction keeps the version hidden from readers
-    // (running-run exclusion) until the status flip at run end.
-    await sql`
-      UPDATE dataset_hmis_import_runs
-      SET version_id = ${versionId}
-      WHERE id = ${runId}
-    `;
-
     await onProgress(40);
 
     // CSV merge — "absent = keep prior value" semantics are intended and
@@ -184,6 +176,18 @@ export async function integrateStagedHmisCsvData(args: {
     await upsertHmisLedgerPairsFromData(sql, touchedPairs, "csv", versionId);
 
     await onProgress(70);
+
+    // Run-row link comes LAST inside the transaction: it takes the run-row
+    // lock, and the progress writer (a separate pooled connection) updates the
+    // same row — a progress write after this point would wait on this
+    // transaction while this transaction awaits the write (the Ghana
+    // 2026-08-12 wedge). Still inside the transaction, so version readers hide
+    // the version until the status flip at run end.
+    await sql`
+      UPDATE dataset_hmis_import_runs
+      SET version_id = ${versionId}
+      WHERE id = ${runId}
+    `;
   });
 
   await onProgress(80);
