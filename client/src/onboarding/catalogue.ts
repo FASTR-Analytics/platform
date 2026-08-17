@@ -850,14 +850,21 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
         pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
       }),
+      // Embedded figures render from the attached run — without a package the
+      // report opens but every figure fails to load.
       available: (f) =>
-        perms(f).can_view_reports && hasReports(f) && firstReportHasEmbeds(f),
+        perms(f).can_view_reports &&
+        hasAttachedPackage(f) &&
+        hasReports(f) &&
+        firstReportHasEmbeds(f),
       unavailableReason: (f) =>
         !perms(f).can_view_reports
           ? reasonNoPageAccess()
-          : !hasReports(f)
-            ? reasonNeedReport()
-            : reasonNeedReportFigure(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : !hasReports(f)
+              ? reasonNeedReport()
+              : reasonNeedReportFigure(),
       navigate: openFirstReport,
     },
     {
@@ -958,12 +965,19 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "L'éditeur pour une nouvelle visualisation. Ouvre une copie de votre première visualisation par défaut.",
         pt: "O editor para uma nova visualização. Abre uma cópia da sua primeira visualização predefinida.",
       }),
+      // The editor loads the visualization's data (getPresentationObjectDetail
+      // reads through the attached run), so a project without a package
+      // cannot host this tour even when it has visualizations.
       available: (f) =>
-        perms(f).can_view_visualizations && firstDefaultViz(f) !== undefined,
+        perms(f).can_view_visualizations &&
+        hasAttachedPackage(f) &&
+        firstDefaultViz(f) !== undefined,
       unavailableReason: (f) =>
         !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : reasonNeedModule(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : reasonNeedModule(),
       navigate: () => {
         goToVisualizations();
         const po = firstDefaultViz(projectState);
@@ -984,11 +998,15 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         pt: "Editar uma visualização existente. Abre a sua primeira visualização personalizada.",
       }),
       available: (f) =>
-        perms(f).can_view_visualizations && firstCustomViz(f) !== undefined,
+        perms(f).can_view_visualizations &&
+        hasAttachedPackage(f) &&
+        firstCustomViz(f) !== undefined,
       unavailableReason: (f) =>
         !perms(f).can_view_visualizations
           ? reasonNoPageAccess()
-          : reasonNeedViz(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : reasonNeedViz(),
       navigate: () => {
         goToVisualizations();
         const po = firstCustomViz(projectState);
@@ -1091,16 +1109,20 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec les éléments d'un tableau de bord. Ouvre votre premier tableau de bord.",
         pt: "Trabalhar com os elementos de um painel. Abre o seu primeiro painel.",
       }),
+      // Dashboard items are visualizations rendered from the attached run.
       available: (f) =>
         perms(f).can_view_slide_decks &&
+        hasAttachedPackage(f) &&
         hasDashboards(f) &&
         f.dashboards[0].itemCount > 0,
       unavailableReason: (f) =>
         !perms(f).can_view_slide_decks
           ? reasonNoPageAccess()
-          : !hasDashboards(f)
-            ? reasonNeedDashboard()
-            : reasonNeedDashboardItem(),
+          : !hasAttachedPackage(f)
+            ? reasonNeedAttachedPackage()
+            : !hasDashboards(f)
+              ? reasonNeedDashboard()
+              : reasonNeedDashboardItem(),
       navigate: openFirstDashboard,
     },
     // ── Results package ──────────────────────────────────────────────────
