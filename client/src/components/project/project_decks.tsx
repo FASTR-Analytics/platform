@@ -7,7 +7,7 @@ import {
   HeadingBar,
   OpenEditorProps,
   Select,
-  SelectionCircle,
+  Card,
   SelectList,
   getColor,
   openComponent,
@@ -569,30 +569,24 @@ export function ProjectDecks(p: ExtendedProps) {
                 const isSelected = () => selection.isSelected(deck.id);
                 return (
                   <div
-                    class="group row-span-2 grid grid-rows-subgrid gap-y-1"
+                    class="row-span-2 grid grid-rows-subgrid gap-y-1"
                     data-tour="decks-deck-card"
                   >
                     <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                       {deck.label}
                     </div>
-                    <div
-                      class="relative cursor-pointer overflow-clip rounded border bg-white"
-                      classList={{
-                        "border-primary": isSelected(),
-                        "hover:border-primary": !isSelected(),
-                      }}
+                    <Card
+                      pad="none"
+                      selected={isSelected()}
+                      onSelectToggle={(e) => selection.handleClick(deck.id, e)}
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e?.stopPropagation();
                         selection.handleClick(deck.id, e, () =>
                           openDeck(deck.id, deck.label),
                         );
                       }}
                       onContextMenu={(e) => handleContextMenu(e, deck)}
                     >
-                      <SelectionCircle
-                        isSelected={isSelected()}
-                        onClick={(e) => selection.handleClick(deck.id, e)}
-                      />
                       <div class="pointer-events-none absolute bottom-1 left-1 z-10">
                         <PresenceAvatars
                           peers={otherPeers().filter(
@@ -602,30 +596,32 @@ export function ProjectDecks(p: ExtendedProps) {
                           showEditingPulse
                         />
                       </div>
-                      <Show
-                        when={deck.firstSlideId}
-                        fallback={
-                          <div
-                            class="bg-base-200 flex items-center justify-center"
-                            style={{ "aspect-ratio": "16/9" }}
-                          >
-                            <span class="ui-text-caption">
-                              {t3({
-                                en: "No slides",
-                                fr: "Aucune diapositive",
-                                pt: "Sem diapositivos",
-                              })}
-                            </span>
-                          </div>
-                        }
-                      >
-                        <SlideDeckThumbnail
-                          projectId={projectState.id}
-                          deckId={deck.id}
-                          slideId={deck.firstSlideId!}
-                        />
-                      </Show>
-                    </div>
+                      <div class="bg-base-100">
+                        <Show
+                          when={deck.firstSlideId}
+                          fallback={
+                            <div
+                              class="bg-base-200 flex items-center justify-center"
+                              style={{ "aspect-ratio": "16/9" }}
+                            >
+                              <span class="ui-text-caption">
+                                {t3({
+                                  en: "No slides",
+                                  fr: "Aucune diapositive",
+                                  pt: "Sem diapositivos",
+                                })}
+                              </span>
+                            </div>
+                          }
+                        >
+                          <SlideDeckThumbnail
+                            projectId={projectState.id}
+                            deckId={deck.id}
+                            slideId={deck.firstSlideId!}
+                          />
+                        </Show>
+                      </div>
+                    </Card>
                   </div>
                 );
               }}

@@ -16,7 +16,7 @@ import {
   HeadingBar,
   Input,
   Select,
-  SettingsSection,
+  Card,
   TextArea,
   getSelectOptions,
   openConfirm,
@@ -70,7 +70,11 @@ export function DashboardSettings(p: Props) {
       if (!title().trim()) {
         return {
           success: false as const,
-          err: t3({ en: "Title is required", fr: "Le titre est requis", pt: "O título é obrigatório" }),
+          err: t3({
+            en: "Title is required",
+            fr: "Le titre est requis",
+            pt: "O título é obrigatório",
+          }),
         };
       }
       if (!isValidDashboardSlug(slug())) {
@@ -158,152 +162,180 @@ export function DashboardSettings(p: Props) {
         class="ui-pad ui-gap grid overflow-auto lg:grid-cols-2 lg:items-start"
         data-tour="dashboard-settings-body"
       >
-        <SettingsSection header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
-          <div class="ui-spy" data-tour="dashboard-settings-general">
-            <Input
-              label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
-              value={title()}
-              onChange={setTitle}
-              fullWidth
-            />
-            <Input
-              label={t3({ en: "URL slug", fr: "Slug URL", pt: "Slug do URL" })}
-              value={slug()}
-              onChange={setSlug}
-              fullWidth
-            />
-            <Checkbox
-              checked={!isPublic()}
-              onChange={(v) => setIsPublic(!v)}
-              label={t3({
-                en: "Require authentication",
-                fr: "Exiger l'authentification",
-                pt: "Exigir autenticação",
-              })}
-            />
-            <Select
-              label={t3({ en: "Layout", fr: "Disposition", pt: "Disposição" })}
-              options={[
-                {
-                  value: "sidebar",
-                  label: t3({ en: "Sidebar", fr: "Barre latérale", pt: "Barra lateral" }),
-                },
-                { value: "grid", label: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }) },
-              ]}
-              value={layoutType()}
-              onChange={(v) => setLayoutType(v as "sidebar" | "grid")}
-              fullWidth
-            />
-          </div>
-        </SettingsSection>
-
-        <SettingsSection header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
-          <div class="ui-spy">
-            <div class="ui-spy-sm">
-              <div class="text-base-content-muted font-700 text-sm">
-                {t3({
-                  en: "Custom logos (uploaded image assets)",
-                  fr: "Logos personnalisés (images téléversées)",
-                  pt: "Logótipos personalizados (imagens carregadas)",
+        <Card header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
+          <div class="ui-spy-sm">
+            <div class="ui-spy" data-tour="dashboard-settings-general">
+              <Input
+                label={t3({ en: "Title", fr: "Titre", pt: "Título" })}
+                value={title()}
+                onChange={setTitle}
+                fullWidth
+              />
+              <Input
+                label={t3({
+                  en: "URL slug",
+                  fr: "Slug URL",
+                  pt: "Slug do URL",
                 })}
-              </div>
-              <For each={config.logos.availableCustom}>
-                {(logo, i_logo) => (
-                  <div class="ui-gap-sm flex items-center">
-                    <Select
-                      options={getSelectOptions(
-                        instanceState.assets
-                          .filter((f) => f.isImage)
-                          .map((f) => f.fileName),
-                      )}
-                      value={logo}
-                      onChange={(v) =>
-                        setConfig("logos", "availableCustom", i_logo(), v)
-                      }
-                      fullWidth
-                    />
-                    <Button
-                      intent="danger"
-                      onClick={() => removeCustomLogo(i_logo())}
-                      outline
-                      iconName="trash"
-                    />
-                  </div>
-                )}
-              </For>
-              <Button onClick={addCustomLogo} iconName="plus" size="sm">
-                {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-              </Button>
-            </div>
-
-            <LogoSectionEditor
-              title={t3({
-                en: "Show on dashboard",
-                fr: "Afficher sur le tableau de bord",
-                pt: "Mostrar no painel",
-              })}
-              dontShowSizing
-              config={{ selected: config.logos.selected, showByDefault: true }}
-              customLogos={config.logos.availableCustom.filter(Boolean)}
-              onChange={(c) => setConfig("logos", "selected", c.selected)}
-            />
-
-            <Show when={config.logos.selected.length > 0}>
+                value={slug()}
+                onChange={setSlug}
+                fullWidth
+              />
+              <Checkbox
+                checked={!isPublic()}
+                onChange={(v) => setIsPublic(!v)}
+                label={t3({
+                  en: "Require authentication",
+                  fr: "Exiger l'authentification",
+                  pt: "Exigir autenticação",
+                })}
+              />
               <Select
-                label={t3({ en: "Placement", fr: "Emplacement", pt: "Posicionamento" })}
+                label={t3({
+                  en: "Layout",
+                  fr: "Disposition",
+                  pt: "Disposição",
+                })}
                 options={[
                   {
-                    value: "left",
+                    value: "sidebar",
                     label: t3({
-                      en: "Far left (left of title)",
-                      fr: "Tout à gauche (à gauche du titre)",
-                      pt: "Extrema esquerda (à esquerda do título)",
+                      en: "Sidebar",
+                      fr: "Barre latérale",
+                      pt: "Barra lateral",
                     }),
                   },
                   {
-                    value: "right",
-                    label: t3({
-                      en: "Far right (right of buttons)",
-                      fr: "Tout à droite (à droite des boutons)",
-                      pt: "Extrema direita (à direita dos botões)",
-                    }),
+                    value: "grid",
+                    label: t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
                   },
                 ]}
-                value={config.logos.placement ?? "left"}
-                onChange={(v) =>
-                  setConfig("logos", "placement", v as "left" | "right")
-                }
+                value={layoutType()}
+                onChange={(v) => setLayoutType(v as "sidebar" | "grid")}
+                fullWidth
               />
-            </Show>
+            </div>
           </div>
-        </SettingsSection>
+        </Card>
 
-        <SettingsSection header={t3({ en: "About", fr: "À propos", pt: "Acerca de" })}>
-          <div class="ui-spy">
-            <TextArea
-              label={t3({
-                en: "Summary (shown under the title) — markdown",
-                fr: "Résumé (affiché sous le titre) — markdown",
-                pt: "Resumo (apresentado sob o título) — markdown",
-              })}
-              value={config.about.summary}
-              onChange={(v) => setConfig("about", "summary", v)}
-              rows={2}
-              fullWidth
-            />
-            <TextArea
-              label={t3({
-                en: "About this dashboard (shown in a dialog) — markdown",
-                fr: "À propos de ce tableau de bord (affiché dans une boîte de dialogue) — markdown",
-                pt: "Acerca deste painel (apresentado numa caixa de diálogo) — markdown",
-              })}
-              value={config.about.body}
-              onChange={(v) => setConfig("about", "body", v)}
-              rows={6}
-              fullWidth
-            />
+        <Card header={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
+          <div class="ui-spy-sm">
+            <div class="ui-spy">
+              <div class="ui-spy-sm">
+                <div class="text-base-content-muted font-700 text-sm">
+                  {t3({
+                    en: "Custom logos (uploaded image assets)",
+                    fr: "Logos personnalisés (images téléversées)",
+                    pt: "Logótipos personalizados (imagens carregadas)",
+                  })}
+                </div>
+                <For each={config.logos.availableCustom}>
+                  {(logo, i_logo) => (
+                    <div class="ui-gap-sm flex items-center">
+                      <Select
+                        options={getSelectOptions(
+                          instanceState.assets
+                            .filter((f) => f.isImage)
+                            .map((f) => f.fileName),
+                        )}
+                        value={logo}
+                        onChange={(v) =>
+                          setConfig("logos", "availableCustom", i_logo(), v)
+                        }
+                        fullWidth
+                      />
+                      <Button
+                        intent="danger"
+                        onClick={() => removeCustomLogo(i_logo())}
+                        outline
+                        iconName="trash"
+                      />
+                    </div>
+                  )}
+                </For>
+                <Button onClick={addCustomLogo} iconName="plus" size="sm">
+                  {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                </Button>
+              </div>
+
+              <LogoSectionEditor
+                title={t3({
+                  en: "Show on dashboard",
+                  fr: "Afficher sur le tableau de bord",
+                  pt: "Mostrar no painel",
+                })}
+                dontShowSizing
+                config={{
+                  selected: config.logos.selected,
+                  showByDefault: true,
+                }}
+                customLogos={config.logos.availableCustom.filter(Boolean)}
+                onChange={(c) => setConfig("logos", "selected", c.selected)}
+              />
+
+              <Show when={config.logos.selected.length > 0}>
+                <Select
+                  label={t3({
+                    en: "Placement",
+                    fr: "Emplacement",
+                    pt: "Posicionamento",
+                  })}
+                  options={[
+                    {
+                      value: "left",
+                      label: t3({
+                        en: "Far left (left of title)",
+                        fr: "Tout à gauche (à gauche du titre)",
+                        pt: "Extrema esquerda (à esquerda do título)",
+                      }),
+                    },
+                    {
+                      value: "right",
+                      label: t3({
+                        en: "Far right (right of buttons)",
+                        fr: "Tout à droite (à droite des boutons)",
+                        pt: "Extrema direita (à direita dos botões)",
+                      }),
+                    },
+                  ]}
+                  value={config.logos.placement ?? "left"}
+                  onChange={(v) =>
+                    setConfig("logos", "placement", v as "left" | "right")
+                  }
+                />
+              </Show>
+            </div>
           </div>
-        </SettingsSection>
+        </Card>
+
+        <Card header={t3({ en: "About", fr: "À propos", pt: "Acerca de" })}>
+          <div class="ui-spy-sm">
+            <div class="ui-spy">
+              <TextArea
+                label={t3({
+                  en: "Summary (shown under the title) — markdown",
+                  fr: "Résumé (affiché sous le titre) — markdown",
+                  pt: "Resumo (apresentado sob o título) — markdown",
+                })}
+                value={config.about.summary}
+                onChange={(v) => setConfig("about", "summary", v)}
+                rows={2}
+                fullWidth
+              />
+              <TextArea
+                label={t3({
+                  en: "About this dashboard (shown in a dialog) — markdown",
+                  fr: "À propos de ce tableau de bord (affiché dans une boîte de dialogue) — markdown",
+                  pt: "Acerca deste painel (apresentado numa caixa de diálogo) — markdown",
+                })}
+                value={config.about.body}
+                onChange={(v) => setConfig("about", "body", v)}
+                rows={6}
+                fullWidth
+              />
+            </div>
+          </div>
+        </Card>
       </div>
     </FrameTop>
   );

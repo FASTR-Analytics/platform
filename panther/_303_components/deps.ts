@@ -18,7 +18,7 @@ export {
   toPct3,
 } from "../_000_utils/mod.ts";
 export type { Language, ZonedDateTime } from "../_000_utils/mod.ts";
-export { Color } from "../_001_color/mod.ts";
+export { Color, runWithDarkKeyColors } from "../_001_color/mod.ts";
 export { loadFontsWithTimeout } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
 export { CanvasRenderContext } from "../_002_canvas/mod.ts";

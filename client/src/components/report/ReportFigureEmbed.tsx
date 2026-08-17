@@ -2,16 +2,13 @@ import { createEffect, createMemo, type JSX, Match, Switch } from "solid-js";
 import { FigureHolder, type FigureInputs } from "panther";
 import { type FigureBlock, t3 } from "lib";
 import { buildFigureInputs } from "~/generate_visualization/mod";
-import { adaptFigureStyleForDarkMode } from "~/components/_shared/dark_mode_figures";
 
 type Props = {
   figure: FigureBlock;
   onMeasured?: () => void;
 };
 
-type Hydrated =
-  | { ok: true; inputs: FigureInputs }
-  | { ok: false; err: string };
+type Hydrated = { ok: true; inputs: FigureInputs } | { ok: false; err: string };
 
 export function ReportFigureEmbed(p: Props): JSX.Element {
   const hydrated = createMemo<Hydrated>(() => {
@@ -29,7 +26,10 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
     try {
       return { ok: true, inputs: buildFigureInputs(bundle) };
     } catch (e) {
-      return { ok: false, err: e instanceof Error ? e.message : "Render error" };
+      return {
+        ok: false,
+        err: e instanceof Error ? e.message : "Render error",
+      };
     }
   });
 
@@ -50,11 +50,7 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
     <Switch>
       <Match when={inputs()}>
         {(fi) => (
-          <FigureHolder
-            figureInputs={adaptFigureStyleForDarkMode(fi())}
-            height="ideal"
-            sizing="zoom"
-          />
+          <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" />
         )}
       </Match>
       <Match when={errMsg()}>

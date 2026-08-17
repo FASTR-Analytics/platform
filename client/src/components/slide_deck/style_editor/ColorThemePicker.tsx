@@ -75,7 +75,8 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
   function CheckIcon() {
     return (
       <svg
-        class="h-4 w-4 text-white drop-shadow"
+        class="h-4 w-4 drop-shadow"
+        style={{ color: "#ffffff" }}
         viewBox="0 0 20 20"
         fill="currentColor"
       >
@@ -95,9 +96,7 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border transition-transform hover:scale-110"
         classList={{
           "border-base-content": isPresetSelected(p.id),
-          "border-transparent hover:border-border": !isPresetSelected(
-            p.id,
-          ),
+          "border-transparent hover:border-border": !isPresetSelected(p.id),
         }}
         style={{ background: p.preset.swatch }}
         onClick={() => selectPreset(p.id)}
@@ -148,7 +147,11 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
       <div class="ui-spy-sm">
         <div>
           <div class="ui-text-caption mb-1">
-            {t3({ en: "Standard colors", fr: "Couleurs standard", pt: "Cores padrão" })}
+            {t3({
+              en: "Standard colors",
+              fr: "Couleurs standard",
+              pt: "Cores padrão",
+            })}
           </div>
           <div class="flex flex-wrap gap-1.5">
             <For each={corePresets}>
@@ -159,7 +162,11 @@ export function ColorThemePicker(p: ColorThemePickerProps) {
         <Show when={BRAND_PRESETS.length > 0}>
           <div>
             <div class="ui-text-caption mb-1">
-              {t3({ en: "Special colors", fr: "Couleurs spéciales", pt: "Cores especiais" })}
+              {t3({
+                en: "Special colors",
+                fr: "Couleurs spéciales",
+                pt: "Cores especiais",
+              })}
             </div>
             <div class="flex flex-wrap gap-1.5">
               <For each={BRAND_PRESETS}>

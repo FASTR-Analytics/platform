@@ -2,13 +2,14 @@ import { useNavigate } from "@solidjs/router";
 import { t3 } from "lib";
 import {
   Button,
+  Card,
   FrameTop,
   Icon,
   getEditorWrapper,
   openAlert,
   openComponent,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { AddProjectForm } from "./add_project";
@@ -119,7 +120,8 @@ export function InstanceProjects(p: Props) {
       <FrameTop
         panelChildren={
           <div class="h-full w-full" data-tour="instance-projects-header">
-            <HeadingBarMainRibbon
+            <HeadingBar
+              tonal
               heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
             >
               <div class="ui-gap-sm flex items-center">
@@ -127,7 +129,6 @@ export function InstanceProjects(p: Props) {
                   <SortControl
                     value={projectsSortMode()}
                     onChange={setProjectsSortMode}
-                    outlineAndBase100
                   />
                 </div>
                 <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -135,8 +136,7 @@ export function InstanceProjects(p: Props) {
                     <Button
                       onClick={compareProjects}
                       outline
-                      onBackground="base-content"
-                      intent="base-100"
+                      onBackground="base-200"
                     >
                       {t3({
                         en: "Compare projects",
@@ -156,8 +156,7 @@ export function InstanceProjects(p: Props) {
                     <Button
                       onClick={openPendingDeletions}
                       outline
-                      onBackground="base-content"
-                      intent="base-100"
+                      onBackground="base-200"
                     >
                       {t3({
                         en: `Pending deletions (${pendingDeletionCount()})`,
@@ -184,7 +183,7 @@ export function InstanceProjects(p: Props) {
                   </div>
                 </Show>
               </div>
-            </HeadingBarMainRibbon>
+            </HeadingBar>
           </div>
         }
       >
@@ -208,45 +207,46 @@ export function InstanceProjects(p: Props) {
               <Show
                 when={project.status === "ready"}
                 fallback={
-                  <div class="ui-pad min-h-[150px] rounded border opacity-50">
-                    <div class="ui-spy-sm col-span-1">
-                      <div class="font-700">{project.label}</div>
-                      <div class="text-base-content-muted text-sm">
-                        {t3({
-                          en: "Copying...",
-                          fr: "Copie en cours...",
-                          pt: "A copiar...",
-                        })}
+                  <Card pad="none" class="opacity-50">
+                    <div class="ui-pad min-h-[150px]">
+                      <div class="ui-spy-sm col-span-1">
+                        <div class="font-700">{project.label}</div>
+                        <div class="text-base-content-muted text-sm">
+                          {t3({
+                            en: "Copying...",
+                            fr: "Copie en cours...",
+                            pt: "A copiar...",
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 }
               >
-                <a
-                  href={`/?p=${project.id}`}
-                  class="ui-pad ui-hoverable-base-100 flex min-h-[150px] flex-col justify-between rounded border"
-                >
-                  <div class="ui-spy-sm">
-                    <div class="font-700">{project.label}</div>
-                    <Show when={project.isLocked}>
-                      <div class="ui-gap-sm text-primary flex text-sm">
-                        <span class="relative inline-flex h-[1.25em] w-[1.25em]">
-                          <Icon iconName="lock" />
-                        </span>
-                        {t3({
-                          en: "Project locked",
-                          fr: "Projet verrouillé",
-                          pt: "Projeto bloqueado",
-                        })}
-                      </div>
+                <Card href={`/?p=${project.id}`} pad="none">
+                  <div class="ui-pad flex min-h-[150px] flex-col justify-between">
+                    <div class="ui-spy-sm">
+                      <div class="font-700">{project.label}</div>
+                      <Show when={project.isLocked}>
+                        <div class="ui-gap-sm text-primary flex text-sm">
+                          <span class="relative inline-flex h-[1.25em] w-[1.25em]">
+                            <Icon iconName="lock" />
+                          </span>
+                          {t3({
+                            en: "Project locked",
+                            fr: "Projet verrouillé",
+                            pt: "Projeto bloqueado",
+                          })}
+                        </div>
+                      </Show>
+                    </div>
+                    <Show when={project.lastActivityAt}>
+                      {(ts) => (
+                        <div class="ui-text-caption">{formatTimeAgo(ts())}</div>
+                      )}
                     </Show>
                   </div>
-                  <Show when={project.lastActivityAt}>
-                    {(ts) => (
-                      <div class="ui-text-caption">{formatTimeAgo(ts())}</div>
-                    )}
-                  </Show>
-                </a>
+                </Card>
               </Show>
             )}
           </For>

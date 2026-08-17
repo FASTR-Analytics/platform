@@ -61,7 +61,11 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // v4 rewrites metrics[].format_as in place under the SAME runId, and "12"
 // entries (briefly live on testing deploys) hold payloads computed under the
 // deleted inference design.
-const PO_CACHE_VERSION = "13";
+// "14": the PAE groupBy/value-prop collision fix (paeCollidingGroupBys) —
+// configs disaggregated by a PAE ingredient previously had DuckDB bind the
+// expression to the raw grouped value instead of the aggregate; cached "13"
+// items hold those numbers.
+const PO_CACHE_VERSION = "14";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects

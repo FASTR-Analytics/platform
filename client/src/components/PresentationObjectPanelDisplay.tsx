@@ -22,7 +22,7 @@ import {
   openAlert,
   openComponent,
   Select,
-  SelectionCircle,
+  Card,
   SelectList,
   showMenu,
   createDeleteAction,
@@ -781,7 +781,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
       selectedCount={selection.selectedCount()}
       index={index}
       onCardClick={(e) => {
-        e.stopPropagation();
+        e?.stopPropagation();
         selection.handleClick(po.id, e, () => p.onClick(po));
       }}
       onCircleClick={(e) => selection.handleClick(po.id, e)}
@@ -911,8 +911,8 @@ type VisualizationCardProps = {
   selectedCount: number;
   index: number;
   onOpen: () => void;
-  onCardClick: (e: MouseEvent) => void;
-  onCircleClick: (e: MouseEvent) => void;
+  onCardClick: (e?: MouseEvent) => void;
+  onCircleClick: (e?: MouseEvent) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onMoveToFolder: () => void;
@@ -1035,7 +1035,7 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   return (
     <div
-      class="group bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]"
+      class="bg-base-100 row-span-3 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]"
       data-tour="viz-card"
     >
       <div class="ui-gap-sm flex items-end pb-1">
@@ -1043,16 +1043,13 @@ function VisualizationCard(p: VisualizationCardProps) {
           {p.po.label}
         </div>
       </div>
-      <div
-        class="relative cursor-pointer rounded border p-2"
-        classList={{
-          "border-primary": p.isSelected,
-          "hover:border-primary": !p.isSelected,
-        }}
+      <Card
+        pad="none"
+        selected={p.isSelected}
+        onSelectToggle={p.onCircleClick}
         onClick={p.onCardClick}
         onContextMenu={handleContextMenu}
       >
-        <SelectionCircle isSelected={p.isSelected} onClick={p.onCircleClick} />
         {/* Live-presence avatars, overlaid bottom-left on the thumbnail — same
             placement as the deck and report lists. */}
         <div class="pointer-events-none absolute bottom-1 left-1 z-10">
@@ -1062,17 +1059,19 @@ function VisualizationCard(p: VisualizationCardProps) {
             the context menu still works (delete for user rows; defaults offer
             duplicate/customize only). Only the inner preview falls back to the
             "Not available" placeholder. */}
-        <Show
-          when={isReady()}
-          fallback={<NotAvailableBox fillAreaNotAvailable />}
-        >
-          <PresentationObjectMiniDisplay
-            projectId={p.projectId}
-            presentationObjectId={p.po.id}
-            shapeType={"force-aspect-video"}
-          />
-        </Show>
-      </div>
+        <div class="p-2">
+          <Show
+            when={isReady()}
+            fallback={<NotAvailableBox fillAreaNotAvailable />}
+          >
+            <PresentationObjectMiniDisplay
+              projectId={p.projectId}
+              presentationObjectId={p.po.id}
+              shapeType={"force-aspect-video"}
+            />
+          </Show>
+        </div>
+      </Card>
       <div class="ui-gap-sm flex items-start justify-end pt-1 select-none">
         <Show when={p.po.replicateBy && !p.po.isFiltered}>
           <div class="bg-primary font-400 text-base-100 rounded px-1 py-0.5 text-xs">

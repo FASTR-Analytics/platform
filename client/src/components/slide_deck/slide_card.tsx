@@ -2,7 +2,14 @@ import { t3, type PresenceEntry, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
 import { PresenceAvatars } from "./presence_avatars";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs, showMenu, type MenuItem } from "panther";
+import {
+  getQueryStateFromApiResponse,
+  PageHolder,
+  StateHolder,
+  type PageInputs,
+  showMenu,
+  type MenuItem,
+} from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { projectState } from "~/state/project/t1_store";
@@ -46,26 +53,52 @@ export function SlideCard(p: Props) {
       return;
     }
 
-    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, index, config);
+    const renderRes = await convertSlideToPageInputs(
+      p.projectId,
+      res.data.slide,
+      index,
+      config,
+    );
     if (runId !== fetchRunId) return;
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });
 
-
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
 
-    const deleteLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en: `Delete ${p.selectedCount} slides`, fr: `Supprimer ${p.selectedCount} diapositives`, pt: `Eliminar ${p.selectedCount} diapositivos` })
-      : t3({ en: "Delete slide", fr: "Supprimer la diapositive", pt: "Eliminar diapositivo" });
+    const deleteLabel =
+      p.isSelected && p.selectedCount > 1
+        ? t3({
+            en: `Delete ${p.selectedCount} slides`,
+            fr: `Supprimer ${p.selectedCount} diapositives`,
+            pt: `Eliminar ${p.selectedCount} diapositivos`,
+          })
+        : t3({
+            en: "Delete slide",
+            fr: "Supprimer la diapositive",
+            pt: "Eliminar diapositivo",
+          });
 
-    const duplicateLabel = p.isSelected && p.selectedCount > 1
-      ? t3({ en: `Duplicate ${p.selectedCount} slides`, fr: `Dupliquer ${p.selectedCount} diapositives`, pt: `Duplicar ${p.selectedCount} diapositivos` })
-      : t3({ en: "Duplicate slide", fr: "Dupliquer la diapositive", pt: "Duplicar diapositivo" });
+    const duplicateLabel =
+      p.isSelected && p.selectedCount > 1
+        ? t3({
+            en: `Duplicate ${p.selectedCount} slides`,
+            fr: `Dupliquer ${p.selectedCount} diapositives`,
+            pt: `Duplicar ${p.selectedCount} diapositivos`,
+          })
+        : t3({
+            en: "Duplicate slide",
+            fr: "Dupliquer la diapositive",
+            pt: "Duplicar diapositivo",
+          });
 
     const items: MenuItem[] = [
       {
-        label: t3({ en: "Edit slide", fr: "Modifier la diapositive", pt: "Editar diapositivo" }),
+        label: t3({
+          en: "Edit slide",
+          fr: "Modifier la diapositive",
+          pt: "Editar diapositivo",
+        }),
         icon: "pencil",
         onClick: p.onEdit,
       },
@@ -81,7 +114,10 @@ export function SlideCard(p: Props) {
         onClick: p.onDelete,
       },
     ];
-    showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items });
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   }
 
   return (
@@ -90,11 +126,11 @@ export function SlideCard(p: Props) {
       style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
       data-tour="deck-slide-card"
     >
-      <div class="mb-2 text-base-content text-center text-sm">
+      <div class="text-base-content mb-2 text-center text-sm">
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper group relative overflow-clip rounded border bg-white cursor-pointer"
+        class="slide-card-wrapper group bg-base-100 relative cursor-pointer overflow-clip rounded border"
         classList={{
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
@@ -105,10 +141,12 @@ export function SlideCard(p: Props) {
           p.onCardClick(e, false);
         }}
       >
-        <div class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
+        <div
+          class="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
           classList={{
             "bg-primary text-primary-content opacity-100": p.isSelected,
-            "border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent": !p.isSelected,
+            "border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent":
+              !p.isSelected,
           }}
           onClick={(e) => p.onCardClick(e, true)}
         >
@@ -130,7 +168,13 @@ export function SlideCard(p: Props) {
             class="bg-base-200 flex items-center justify-center"
             style={{ "aspect-ratio": "16/9" }}
           >
-            <div class="text-sm">{t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}</div>
+            <div class="text-sm">
+              {t3({
+                en: "Loading...",
+                fr: "Chargement...",
+                pt: "A carregar...",
+              })}
+            </div>
           </div>
         </Show>
         <Show when={pageInputs().status === "error"}>

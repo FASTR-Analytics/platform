@@ -13,8 +13,10 @@ import {
   type CustomStyleOptions,
   downloadPdf,
   markdownToPdfBrowser,
+  t3,
 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
+import { EmptyState } from "../display/mod.ts";
 import { FrameBottom } from "../layout/frames.tsx";
 import { Select, Slider } from "../mod.ts";
 import { StateHolderWrapper } from "../special_state/state_holder_wrapper.tsx";
@@ -204,9 +206,13 @@ function PresentationViewerContent(p: ContentProps) {
         <Show
           when={currentSlide()}
           fallback={
-            <div class="ui-pad text-base-content-muted flex h-full items-center justify-center">
-              No slides available
-            </div>
+            <EmptyState
+              title={t3({
+                en: "No slides available",
+                fr: "Aucune diapositive disponible",
+                pt: "Sem diapositivos disponíveis",
+              })}
+            />
           }
         >
           <FrameBottom

@@ -17,7 +17,7 @@ import {
   createDeleteAction,
   createQuery,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
@@ -102,7 +102,8 @@ export function InstanceUsers(p: Props) {
         <FrameTop
           panelChildren={
             <div class="h-full w-full" data-tour="instance-users-header">
-              <HeadingBarMainRibbon
+              <HeadingBar
+                tonal
                 heading={t3({
                   en: "Users",
                   fr: "Utilisateurs",
@@ -114,7 +115,8 @@ export function InstanceUsers(p: Props) {
                     <Button
                       onClick={() => setShowHUsers((v) => !v)}
                       iconName={showHUsers() ? "eyeOff" : "eye"}
-                      intent="base-100"
+                      outline
+                      onBackground="base-200"
                     >
                       {showHUsers()
                         ? t3({
@@ -158,7 +160,7 @@ export function InstanceUsers(p: Props) {
                     </Button>
                   </div>
                 </div>
-              </HeadingBarMainRibbon>
+              </HeadingBar>
             </div>
           }
         >
@@ -370,7 +372,8 @@ function UserTable(p: {
               e.stopPropagation();
               p.onUserClick(user);
             }}
-            intent="base-100"
+            outline
+            onBackground="base-200"
             iconName="pencil"
           />
         </div>

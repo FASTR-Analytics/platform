@@ -44,10 +44,15 @@ export function SlidePresenter(p: Props) {
   const total = () => slideIds().length;
   const clamp = (i: number) => Math.max(0, Math.min(total() - 1, i));
 
-  const [currentIndex, setCurrentIndex] = createSignal(clamp(p.startIndex ?? 0));
+  const [currentIndex, setCurrentIndex] = createSignal(
+    clamp(p.startIndex ?? 0),
+  );
   // Render cache, keyed by slide id (stable across reorders) and stamped with
   // the slide's lastUpdated at render time so peer edits evict the entry.
-  type CachedPage = { state: StateHolder<PageInputs>; renderedAt: string | undefined };
+  type CachedPage = {
+    state: StateHolder<PageInputs>;
+    renderedAt: string | undefined;
+  };
   const [pages, setPages] = createSignal<Map<string, CachedPage>>(new Map());
   const [isFullscreen, setIsFullscreen] = createSignal(false);
   const [controlsVisible, setControlsVisible] = createSignal(true);
@@ -57,7 +62,11 @@ export function SlidePresenter(p: Props) {
     return id === undefined ? undefined : pages().get(id)?.state;
   };
 
-  function setPage(id: string, state: StateHolder<PageInputs>, renderedAt: string | undefined) {
+  function setPage(
+    id: string,
+    state: StateHolder<PageInputs>,
+    renderedAt: string | undefined,
+  ) {
     setPages((prev) => {
       const next = new Map(prev);
       next.set(id, { state, renderedAt });
@@ -84,7 +93,12 @@ export function SlidePresenter(p: Props) {
       setPage(id, { status: "error", err: res.err }, renderedAt);
       return;
     }
-    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, i, p.deckConfig);
+    const renderRes = await convertSlideToPageInputs(
+      p.projectId,
+      res.data.slide,
+      i,
+      p.deckConfig,
+    );
     setPage(id, getQueryStateFromApiResponse(renderRes), renderedAt);
   }
 
@@ -105,7 +119,10 @@ export function SlidePresenter(p: Props) {
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     async function load() {
-      const res = await getSlideDeckDetailFromCacheOrFetch(p.projectId, p.deckId);
+      const res = await getSlideDeckDetailFromCacheOrFetch(
+        p.projectId,
+        p.deckId,
+      );
       if (controller.signal.aborted || !res.success) {
         return;
       }
@@ -257,7 +274,8 @@ export function SlidePresenter(p: Props) {
   return (
     <div
       ref={rootEl!}
-      class="fixed inset-0 z-50 flex select-none items-center justify-center bg-black"
+      class="fixed inset-0 z-50 flex items-center justify-center select-none"
+      style={{ background: "#000000" }}
       onClick={goNext}
       onPointerMove={pokeControls}
     >
@@ -265,12 +283,16 @@ export function SlidePresenter(p: Props) {
         when={total() > 0}
         fallback={
           <div class="text-base-100 text-sm">
-            {t3({ en: "No slides to present", fr: "Aucune diapositive à présenter", pt: "Sem diapositivos para apresentar" })}
+            {t3({
+              en: "No slides to present",
+              fr: "Aucune diapositive à présenter",
+              pt: "Sem diapositivos para apresentar",
+            })}
           </div>
         }
       >
         <div
-          class="relative bg-white"
+          class="bg-base-100 relative"
           style={{
             "aspect-ratio": `${PAGE_WIDTH_DU} / ${PAGE_HEIGHT_DU}`,
             width: `min(100vw, calc(100vh * ${PAGE_WIDTH_DU} / ${PAGE_HEIGHT_DU}))`,
@@ -304,10 +326,13 @@ export function SlidePresenter(p: Props) {
       {/* Controls overlay: transparent to clicks except the button clusters. */}
       <div
         class="pointer-events-none absolute inset-0 transition-opacity duration-200"
-        classList={{ "opacity-0": !controlsVisible(), "opacity-100": controlsVisible() }}
+        classList={{
+          "opacity-0": !controlsVisible(),
+          "opacity-100": controlsVisible(),
+        }}
       >
         <div
-          class="ui-gap-sm pointer-events-auto absolute right-4 top-4 flex items-center"
+          class="ui-gap-sm pointer-events-auto absolute top-4 right-4 flex items-center"
           onClick={(e) => e.stopPropagation()}
         >
           <Button
@@ -320,7 +345,8 @@ export function SlidePresenter(p: Props) {
 
         <Show when={total() > 0}>
           <div
-            class="ui-gap pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center rounded-full bg-black/60 px-3 py-2"
+            class="ui-gap pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center rounded-full px-3 py-2"
+            style={{ background: "rgb(0 0 0 / 0.6)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <Button

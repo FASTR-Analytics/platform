@@ -70,10 +70,13 @@
      on top of it. `base-*` is the app surface; `base-content` is the
      default foreground on that surface. */
 
+  /* Only `transparent` survives the wipe — it is structural (reserved
+     borders, ghost rests), not a color choice. There are no white/black
+     escape hatches: `bg-white`, `text-black` etc. are visible no-ops like
+     every other off-token class. Constant contrast over data-driven or media
+     backgrounds is content — an inline style beside the inline background. */
   --color-*: initial;
   --color-transparent: transparent;
-  --color-black: #000716;
-  --color-white: #ffffff;
 
   --color-base-100: #ffffff;
   --color-base-200: #f2f2f2;
@@ -143,9 +146,9 @@
   --color-danger-subtle-content: color-mix(in oklab, var(--color-danger) 70%, var(--color-base-content));
 
   /* Foreground ramp — three steps: base-content, muted, faint. Muted:
-     secondary text (sublabels, captions, placeholders, empty states,
-     metadata). Faint: the next step down — still legible, just quieter.
-     Disabled is opacity-40, not a color. */
+     secondary text (sublabels, captions, placeholders, empty-state
+     descriptions, metadata). Faint: the next step down — still legible, just
+     quieter. Disabled is opacity-40, not a color. */
   --color-base-content-muted: color-mix(in oklab, var(--color-base-content) 70%, var(--color-base-100));
   --color-base-content-faint: color-mix(in oklab, var(--color-base-content) 50%, var(--color-base-100));
 
@@ -415,6 +418,86 @@
   --md-math-align: center;
 }
 
+/* =============================================================
+   Dark scheme (opt-in): light-dark() token pairs.
+
+   An app opts in by setting data-scheme="system|light|dark" on
+   <html> (usually via setSchemePreference()). "system" follows the
+   OS preference with zero JS in the styling path; "light"/"dark"
+   pin. No attribute -> this block never applies and the @theme
+   literals above stay in force, byte-identical to today.
+
+   Two load-bearing gates:
+   - @supports, not double declaration: custom property declarations
+     are not validated at parse time, so the classic `--x: fallback;
+     --x: light-dark(...)` trick would leave old browsers with
+     guaranteed-invalid tokens. @supports skips the whole block.
+   - :root[data-scheme], not bare :root: this block is un-layered
+     (must beat the @theme-emitted :root defaults), so unconditional
+     pairs would also beat every consuming app's layered @theme brand
+     overrides. Gating on the attribute keeps non-opted apps exact.
+
+   The attribute is data-scheme, NOT data-theme: data-theme is the
+   palette-swap idiom (arbitrary values), orthogonal to scheme and
+   free to compose with it.
+
+   Light halves are the @theme literals above, verbatim. Dark halves
+   are KEY_COLOR_THEMES["panther-default-dark"] (_001_color). The
+   parity test in tests/dark_token_parity_test.ts enforces both.
+
+   Everything derived needs no pairs: custom-property substitution
+   at :root inlines only the inner var()s, so the color-mix() ramps
+   and these light-dark() pairs travel down unevaluated and resolve
+   against the color-scheme of the element that uses them. That is
+   also what makes forced-scheme islands work (see ui-scheme-light).
+   ============================================================= */
+@supports (color: light-dark(#fff, #000)) {
+  :root[data-scheme] {
+    color-scheme: light dark;
+
+    --color-base-100: light-dark(#ffffff, #18181b);
+    --color-base-200: light-dark(#f2f2f2, #27272a);
+    --color-base-300: light-dark(#e4e4e4, #3f3f46);
+    --color-base-content: light-dark(#2a2a2a, #fafafa);
+
+    --color-primary: light-dark(#0e706c, #14b8a6);
+    --color-primary-content: light-dark(#ffffff, #052e2b);
+
+    --color-neutral: light-dark(rgb(161, 161, 161), #a1a1aa);
+    --color-neutral-content: light-dark(#ffffff, #18181b);
+
+    --color-success: light-dark(#009f70, #4ade80);
+    --color-success-content: light-dark(#ffffff, #052e16);
+
+    --color-warning: light-dark(#d97706, #facc15);
+    --color-warning-content: light-dark(#ffffff, #422006);
+
+    --color-danger: light-dark(#f04d44, #f87171);
+    --color-danger-content: light-dark(#ffffff, #450a0a);
+
+    --color-border: light-dark(#cacaca, #3f3f46);
+    /* A 30% black veil is near-invisible over near-black surfaces. */
+    --color-scrim: light-dark(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.6));
+  }
+  :root[data-scheme="light"] {
+    color-scheme: light;
+  }
+  :root[data-scheme="dark"] {
+    color-scheme: dark;
+  }
+
+  /* Native <select> popup lists: <option> text inherits the select's
+     OWN text color, but the UA draws the popup over its own
+     scheme-colored background — an option inside a forced-scheme
+     island can otherwise render white-on-white. Pin options to the
+     popup scheme's system colors; Canvas/CanvasText track
+     color-scheme in both directions. Scoped to opted-in apps only. */
+  :root[data-scheme] select option {
+    color: CanvasText;
+    background-color: Canvas;
+  }
+}
+
 @layer base {
   /* Tailwind v4's preflight defaults bare borders to currentColor, so an
      uncolored `border-b` renders in the text color — a dark border nobody
@@ -567,6 +650,18 @@
 @utility ui-heading-bar-tonal {
   background-color: var(--ui-heading-bar-tonal-bg);
   color: var(--ui-heading-bar-tonal-fg);
+}
+
+/* ---- Forced-scheme island ---- */
+/* Document surfaces that stay light paper regardless of the app scheme:
+   slide canvases, report page previews, print/export HTML. Every
+   light-dark() token inside resolves light (the pairs travel down
+   unevaluated and resolve against the using element's color-scheme), so
+   no pinned bg-white and no per-token exclusions. Inert when the app has
+   not opted in via data-scheme. */
+
+@utility ui-scheme-light {
+  color-scheme: light;
 }
 
 @layer components {

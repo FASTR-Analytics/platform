@@ -32,9 +32,35 @@ const _KEY_COLORS = new Map<KeyColorsKey, string>([
 
 let _keyColorsHaveBeenSet = false;
 
+let _darkKeyColors: KeyColors = {
+  ...KEY_COLOR_THEMES["panther-default-dark"].colors,
+};
+let _remapNearBlackOnDark = false;
+
+type KeyColorScope = {
+  colors: Map<KeyColorsKey, string>;
+  remapNearBlack: boolean;
+};
+
+// Scoped resolution set, consulted before the foundation map. Only ever
+// non-null inside a runWithKeyColors() call — the try/finally keeps the
+// scope strictly synchronous, so the wrapped fn must not defer resolution
+// (the figure measure/render path is synchronous by contract).
+let _scope: KeyColorScope | null = null;
+
 // Foundation setter: call once at init (a partial merges over the defaults).
-// Per-render overrides go through CustomStyle, not this.
-export function setKeyColors(kc: Partial<KeyColors> | KeyColorThemeName) {
+// Per-render overrides go through CustomStyle, not this. `dark` merges over
+// the panther-default-dark companion, used by runWithDarkKeyColors() for
+// on-screen dark rendering — exports and stored snapshots stay on the light
+// foundation. `remapNearBlackOnDark` opts the dark render path into flipping
+// near-black LITERAL colors (data colors, not {key} tokens) to the dark
+// baseContent — for module-authored near-black series lines that would
+// otherwise vanish on dark bases.
+export function setKeyColors(
+  kc: Partial<KeyColors> | KeyColorThemeName,
+  dark?: Partial<KeyColors> | KeyColorThemeName,
+  options?: { remapNearBlackOnDark?: boolean },
+) {
   assert(!_keyColorsHaveBeenSet, "Key colors have already been set");
   _keyColorsHaveBeenSet = true;
   const colors = typeof kc === "string" ? KEY_COLOR_THEMES[kc].colors : kc;
@@ -43,6 +69,58 @@ export function setKeyColors(kc: Partial<KeyColors> | KeyColorThemeName) {
   ) {
     _KEY_COLORS.set(key, value);
   }
+  if (dark !== undefined) {
+    const darkColors = typeof dark === "string"
+      ? KEY_COLOR_THEMES[dark].colors
+      : dark;
+    _darkKeyColors = { ..._darkKeyColors, ...darkColors };
+  }
+  _remapNearBlackOnDark = options?.remapNearBlackOnDark ?? false;
+}
+
+export function getDarkKeyColors(): KeyColors {
+  return { ..._darkKeyColors };
+}
+
+export function runWithKeyColors<T>(
+  colors: KeyColors,
+  fn: () => T,
+  options?: { remapNearBlack?: boolean },
+): T {
+  const prev = _scope;
+  _scope = {
+    colors: new Map(Object.entries(colors) as [KeyColorsKey, string][]),
+    remapNearBlack: options?.remapNearBlack ?? false,
+  };
+  try {
+    return fn();
+  } finally {
+    _scope = prev;
+  }
+}
+
+export function runWithDarkKeyColors<T>(fn: () => T): T {
+  return runWithKeyColors(_darkKeyColors, fn, {
+    remapNearBlack: _remapNearBlackOnDark,
+  });
+}
+
+// The prototype-validated threshold: perceptual-weighted sRGB mean below 10%.
+// Catches authored blacks/near-blacks; leaves dark chromatic colors alone.
+function isNearBlackLiteral(color: string): boolean {
+  if (color === "none" || color === "transparent") {
+    return false;
+  }
+  const { r, g, b } = new Color(color).rgb();
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.1;
+}
+
+function resolveKey(key: KeyColorsKey): string {
+  const finalColor = (_scope?.colors ?? _KEY_COLORS).get(key);
+  if (!finalColor) {
+    throw new Error("No color for this color key");
+  }
+  return finalColor;
 }
 
 export function getColor(colorKey: ColorKeyOrString): string {
@@ -50,13 +128,12 @@ export function getColor(colorKey: ColorKeyOrString): string {
     return "none";
   }
   if (typeof colorKey === "string") {
+    if (_scope?.remapNearBlack && isNearBlackLiteral(colorKey)) {
+      return normalizeToHex(resolveKey("baseContent"));
+    }
     return normalizeToHex(colorKey);
   }
-  const finalColor = _KEY_COLORS.get(colorKey.key);
-  if (!finalColor) {
-    throw new Error("No color for this color key");
-  }
-  return normalizeToHex(finalColor);
+  return normalizeToHex(resolveKey(colorKey.key));
 }
 
 function normalizeToHex(color: string): string {
@@ -71,13 +148,12 @@ export function getColorAsRgb(colorKey: ColorKeyOrString): ColorRgb {
     throw new Error("Cannot use 'none' when getting rgba");
   }
   if (typeof colorKey === "string") {
+    if (_scope?.remapNearBlack && isNearBlackLiteral(colorKey)) {
+      return new Color(resolveKey("baseContent")).rgb();
+    }
     return new Color(colorKey).rgb();
   }
-  const finalColor = _KEY_COLORS.get(colorKey.key);
-  if (!finalColor) {
-    throw new Error("No color for this color key");
-  }
-  return new Color(finalColor).rgb();
+  return new Color(resolveKey(colorKey.key)).rgb();
 }
 
 export function getKeyColorsFromPrimaryColor(primary: ColorOptions): KeyColors {

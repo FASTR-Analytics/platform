@@ -54,10 +54,10 @@ sshx() {
 MIN_FREE_GB="${MIN_FREE_GB:-10}"
 DENO_FLAGS="-A --unstable-broadcast-channel --unstable-raw-imports -c deno.json"
 
-# This script is pinned to the 1.66.5 results-packages cutover image: the
+# This script is pinned to the 1.66.8 results-packages cutover image: the
 # backfill/rig steps assume exactly this deploy, and the rig fix + config
 # transform it carries. A later version needs a deliberate re-pin.
-VERSION="1.66.5"
+VERSION="1.66.8"
 
 if [ "$#" -lt 1 ]; then
     echo "Usage: ./rollout_fleet <instance> [<instance>...]"
@@ -70,6 +70,9 @@ IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
 
 LOG_DIR="rollout_logs/$VERSION-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$LOG_DIR"
+
+# Mirror everything shown on the console into the run's log dir as well.
+exec > >(tee -a "$LOG_DIR/console.log") 2>&1
 
 fail() {
     local instance="$1" phase="$2" msg="$3"
@@ -193,12 +196,18 @@ REMOTE
     echo "Verified: every ready project has an attached ready package."
 
     # ── 5. Parity rig (the per-instance gate; RED records, never halts) ─────
-    echo "Parity rig (this takes a while — logs stream to $LOG_DIR/$INSTANCE-rig.log)..."
+    echo "Parity rig (full log: $LOG_DIR/$INSTANCE-rig.log)..."
     RIG_LOG="$LOG_DIR/$INSTANCE-rig.log"
-    sshx "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS validate_results_runs_parity.ts --run" \
-        >"$RIG_LOG" 2>&1
+    # tee: FULL output to the log; the console gets the progress signal only
+    # (project headers, per-check summaries, verdict sections — the stderr
+    # error-funnel stack traces stay out of the terminal). pipefail carries
+    # the rig's real exit code through the pipeline; grep's own status only
+    # surfaces when the rig produced no recognizable output at all, and that
+    # correctly reads as RED.
+    sshx "$SSH_HOST" "docker exec -w /app $INSTANCE deno run $DENO_FLAGS validate_results_runs_parity.ts --run" 2>&1 \
+        | tee "$RIG_LOG" \
+        | grep --line-buffered -aE "^── |^   [a-z_]+: ok=|TOTALS|synthetic corpus:|^DIFFS|^BOTH-ENGINE|^SKIPS|^LEGACY GAPS|^BROKEN CONFIGS|^FOREIGN RUNS|^EXTENDED|^PARITY|^  \["
     RIG_EXIT=$?
-    tail -3 "$RIG_LOG"
     if [ "$RIG_EXIT" -eq 0 ] && grep -q "PARITY GREEN" "$RIG_LOG"; then
         echo "$INSTANCE COMPLETE: deployed + backfilled + rig green."
         COMPLETED+=("$INSTANCE")

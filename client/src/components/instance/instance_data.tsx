@@ -1,6 +1,6 @@
 import { t3 } from "lib";
-import { Button, FrameTop, openComponent, toNum0 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { Button, Card, FrameTop, openComponent, toNum0 } from "panther";
+import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 import { HfaIndicatorsManager } from "../indicator_manager_hfa/hfa_indicators_manager";
@@ -99,7 +99,8 @@ export function InstanceData(p: Props) {
         <FrameTop
           panelChildren={
             <div class="h-full w-full" data-tour="instance-data-header">
-              <HeadingBarMainRibbon
+              <HeadingBar
+                tonal
                 heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
               >
                 <Show when={canConfigureData()}>
@@ -107,8 +108,7 @@ export function InstanceData(p: Props) {
                     <Button
                       onClick={openDhis2Credentials}
                       outline
-                      intent="base-100"
-                      onBackground="base-content"
+                      onBackground="base-200"
                       iconName="settings"
                     >
                       {t3({
@@ -119,7 +119,7 @@ export function InstanceData(p: Props) {
                     </Button>
                   </div>
                 </Show>
-              </HeadingBarMainRibbon>
+              </HeadingBar>
             </div>
           }
         >
@@ -137,94 +137,98 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("admin_areas")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Admin areas",
-                        fr: "Unités administratives",
-                        pt: "Zonas administrativas",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.structure}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No admin areas (created by facility imports)",
-                            fr: "Aucune unité administrative (créées par l'importation d'établissements)",
-                            pt: "Nenhuma zona administrativa (criadas pela importação de estabelecimentos de saúde)",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedStructureNumbers) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>{t3(getAdminAreaLabel(2))}:</span>
-                            <span class="font-mono">
-                              {toNum0(keyedStructureNumbers.adminArea2s)}
-                            </span>
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({
+                          en: "Admin areas",
+                          fr: "Unités administratives",
+                          pt: "Zonas administrativas",
+                        })}
+                      </div>
+                      <Show
+                        when={instanceState.structure}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No admin areas (created by facility imports)",
+                              fr: "Aucune unité administrative (créées par l'importation d'établissements)",
+                              pt: "Nenhuma zona administrativa (criadas pela importação de estabelecimentos de saúde)",
+                            })}
                           </div>
-                          <Show when={instanceState.maxAdminArea >= 3}>
+                        }
+                        keyed
+                      >
+                        {(keyedStructureNumbers) => (
+                          <div class="ui-spy-sm text-success text-xs">
                             <div class="ui-gap flex justify-between">
-                              <span>{t3(getAdminAreaLabel(3))}:</span>
+                              <span>{t3(getAdminAreaLabel(2))}:</span>
                               <span class="font-mono">
-                                {toNum0(keyedStructureNumbers.adminArea3s)}
+                                {toNum0(keyedStructureNumbers.adminArea2s)}
                               </span>
                             </div>
-                          </Show>
-                          <Show when={instanceState.maxAdminArea >= 4}>
-                            <div class="ui-gap flex justify-between">
-                              <span>{t3(getAdminAreaLabel(4))}:</span>
-                              <span class="font-mono">
-                                {toNum0(keyedStructureNumbers.adminArea4s)}
-                              </span>
-                            </div>
-                          </Show>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                            <Show when={instanceState.maxAdminArea >= 3}>
+                              <div class="ui-gap flex justify-between">
+                                <span>{t3(getAdminAreaLabel(3))}:</span>
+                                <span class="font-mono">
+                                  {toNum0(keyedStructureNumbers.adminArea3s)}
+                                </span>
+                              </div>
+                            </Show>
+                            <Show when={instanceState.maxAdminArea >= 4}>
+                              <div class="ui-gap flex justify-between">
+                                <span>{t3(getAdminAreaLabel(4))}:</span>
+                                <span class="font-mono">
+                                  {toNum0(keyedStructureNumbers.adminArea4s)}
+                                </span>
+                              </div>
+                            </Show>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("geojson")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "GeoJSON maps",
-                        fr: "Cartes GeoJSON",
-                        pt: "Mapas GeoJSON",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.geojsonMaps.length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No GeoJSON maps uploaded",
-                            fr: "Aucune carte GeoJSON téléchargée",
-                            pt: "Nenhum mapa GeoJSON carregado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
                         {t3({
-                          en: "Levels configured",
-                          fr: "Niveaux configurés",
-                          pt: "Níveis configurados",
+                          en: "GeoJSON maps",
+                          fr: "Cartes GeoJSON",
+                          pt: "Mapas GeoJSON",
                         })}
-                        :{" "}
-                        {instanceState.geojsonMaps
-                          .map((g) => g.adminAreaLevel)
-                          .join(", ")}
                       </div>
-                    </Show>
-                  </div>
+                      <Show
+                        when={instanceState.geojsonMaps.length > 0}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No GeoJSON maps uploaded",
+                              fr: "Aucune carte GeoJSON téléchargée",
+                              pt: "Nenhum mapa GeoJSON carregado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Levels configured",
+                            fr: "Niveaux configurés",
+                            pt: "Níveis configurados",
+                          })}
+                          :{" "}
+                          {instanceState.geojsonMaps
+                            .map((g) => g.adminAreaLevel)
+                            .join(", ")}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
                 </div>
               </div>
 
@@ -236,175 +240,187 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("facilities_hmis")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Facilities",
-                        fr: "Établissements",
-                        pt: "Estabelecimentos de saúde",
-                      })}
-                    </div>
-                    <Show
-                      when={
-                        (instanceState.structure?.facilitiesHmis ?? 0) > 0 &&
-                        instanceState.structure?.facilitiesHmis
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No facilities imported",
-                            fr: "Aucun établissement importé",
-                            pt: "Nenhum estabelecimento de saúde importado",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedCount) => (
-                        <div class="text-success ui-gap flex justify-between text-xs">
-                          <span>
-                            {t3({
-                              en: "Facilities",
-                              fr: "Établissements",
-                              pt: "Estabelecimentos de saúde",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">{toNum0(keyedCount)}</span>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelectedDatasource("hmis")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("hmis")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
                         {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
+                          en: "Facilities",
+                          fr: "Établissements",
+                          pt: "Estabelecimentos de saúde",
                         })}
                       </div>
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                      <Show
+                        when={
+                          (instanceState.structure?.facilitiesHmis ?? 0) > 0 &&
+                          instanceState.structure?.facilitiesHmis
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No facilities imported",
+                              fr: "Aucun établissement importé",
+                              pt: "Nenhum estabelecimento de saúde importado",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedCount) => (
+                          <div class="text-success ui-gap flex justify-between text-xs">
+                            <span>
+                              {t3({
+                                en: "Facilities",
+                                fr: "Établissements",
+                                pt: "Estabelecimentos de saúde",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">{toNum0(keyedCount)}</span>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hmis")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({ en: "Data", fr: "Données", pt: "Dados" })}
+                      </div>
+                      <Show
+                        when={instanceState.datasetsWithData.includes("hmis")}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No data added",
+                              fr: "Aucune donnée ajoutée",
+                              pt: "Nenhum dado adicionado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Has data",
+                            fr: "Contient des données",
+                            pt: "Contém dados",
+                          })}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("indicators")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Indicators",
-                        fr: "Indicateurs",
-                        pt: "Indicadores",
-                      })}
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({
+                          en: "Indicators",
+                          fr: "Indicateurs",
+                          pt: "Indicadores",
+                        })}
+                      </div>
+                      <Show
+                        when={
+                          instanceState.indicators.commonIndicators > 0 &&
+                          instanceState.indicators.commonIndicators
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No common indicators",
+                              fr: "Aucun indicateur commun",
+                              pt: "Nenhum indicador comum",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedNumber) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="flex justify-between gap-4">
+                              <span>
+                                {t3({
+                                  en: "Common indicators",
+                                  fr: "Indicateurs communs",
+                                  pt: "Indicadores comuns",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(keyedNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Show>
+                      <Show
+                        when={
+                          instanceState.indicators.rawIndicators > 0 &&
+                          instanceState.indicators.rawIndicators
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No DHIS2 indicators",
+                              fr: "Aucun indicateur DHIS2",
+                              pt: "Nenhum indicador DHIS2",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedNumber) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="flex justify-between gap-4">
+                              <span>
+                                {t3({
+                                  en: "DHIS2 indicators",
+                                  fr: "Indicateurs DHIS2",
+                                  pt: "Indicadores DHIS2",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(keyedNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Show>
+                      <Show
+                        when={
+                          instanceState.indicators.calculatedIndicators > 0 &&
+                          instanceState.indicators.calculatedIndicators
+                        }
+                        keyed
+                      >
+                        {(keyedNumber) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="flex justify-between gap-4">
+                              <span>
+                                {t3({
+                                  en: "Calculated indicators",
+                                  fr: "Indicateurs calculés",
+                                  pt: "Indicadores calculados",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(keyedNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Show>
                     </div>
-                    <Show
-                      when={
-                        instanceState.indicators.commonIndicators > 0 &&
-                        instanceState.indicators.commonIndicators
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No common indicators",
-                            fr: "Aucun indicateur commun",
-                            pt: "Nenhum indicador comum",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedNumber) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="flex justify-between gap-4">
-                            <span>
-                              {t3({
-                                en: "Common indicators",
-                                fr: "Indicateurs communs",
-                                pt: "Indicadores comuns",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </Show>
-                    <Show
-                      when={
-                        instanceState.indicators.rawIndicators > 0 &&
-                        instanceState.indicators.rawIndicators
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No DHIS2 indicators",
-                            fr: "Aucun indicateur DHIS2",
-                            pt: "Nenhum indicador DHIS2",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedNumber) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="flex justify-between gap-4">
-                            <span>
-                              {t3({
-                                en: "DHIS2 indicators",
-                                fr: "Indicateurs DHIS2",
-                                pt: "Indicadores DHIS2",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </Show>
-                    <Show
-                      when={
-                        instanceState.indicators.calculatedIndicators > 0 &&
-                        instanceState.indicators.calculatedIndicators
-                      }
-                      keyed
-                    >
-                      {(keyedNumber) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="flex justify-between gap-4">
-                            <span>
-                              {t3({
-                                en: "Calculated indicators",
-                                fr: "Indicateurs calculés",
-                                pt: "Indicadores calculados",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
+                  </Card>
                 </div>
               </div>
 
@@ -416,207 +432,219 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("facilities_hfa")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Facilities",
-                        fr: "Établissements",
-                        pt: "Estabelecimentos de saúde",
-                      })}
-                    </div>
-                    <Show
-                      when={
-                        (instanceState.structure?.facilitiesHfa ?? 0) > 0 &&
-                        instanceState.structure?.facilitiesHfa
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No facilities imported",
-                            fr: "Aucun établissement importé",
-                            pt: "Nenhum estabelecimento de saúde importado",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedCount) => (
-                        <div class="text-success ui-gap flex justify-between text-xs">
-                          <span>
-                            {t3({
-                              en: "Facilities",
-                              fr: "Établissements",
-                              pt: "Estabelecimentos de saúde",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">{toNum0(keyedCount)}</span>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelectedDatasource("hfa_time_points")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Time points",
-                        fr: "Points temporels",
-                        pt: "Pontos temporais",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.hfaTimePoints.length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No time points (import data to create)",
-                            fr: "Aucun point temporel (importer des données pour créer)",
-                            pt: "Nenhum ponto temporal (importar dados para criar)",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="ui-spy-sm text-success text-xs">
-                        <div class="flex justify-between gap-4">
-                          <span>
-                            {t3({
-                              en: "Time points",
-                              fr: "Points temporels",
-                              pt: "Pontos temporais",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {toNum0(instanceState.hfaTimePoints.length)}
-                          </span>
-                        </div>
-                      </div>
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelectedDatasource("hfa_weights")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Sampling weights",
-                        fr: "Pondérations d'échantillonnage",
-                        pt: "Pesos de amostragem",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.hfaWeights.some(
-                        (tp) => tp.weightCount > 0,
-                      )}
-                      fallback={
-                        <div class="ui-text-caption">
-                          {t3({
-                            en: "No weights imported",
-                            fr: "Aucune pondération importée",
-                            pt: "Nenhum peso importado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="ui-spy-sm text-xs">
-                        <For each={instanceState.hfaWeights}>
-                          {(tp) => (
-                            <div
-                              class="ui-gap text-success flex justify-between"
-                              classList={{
-                                "text-warning":
-                                  tp.weightCount > 0 &&
-                                  tp.facilitiesWithDataAndWeight <
-                                    tp.facilitiesWithData,
-                              }}
-                            >
-                              <span>{tp.timePoint}:</span>
-                              <span class="font-mono">
-                                {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
-                              </span>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelectedDatasource("hfa")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("hfa")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
                         {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
+                          en: "Facilities",
+                          fr: "Établissements",
+                          pt: "Estabelecimentos de saúde",
                         })}
                       </div>
-                    </Show>
-                  </div>
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
-                    onClick={() => setSelectedDatasource("hfa_indicators")}
-                  >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Indicators",
-                        fr: "Indicateurs",
-                        pt: "Indicadores",
-                      })}
+                      <Show
+                        when={
+                          (instanceState.structure?.facilitiesHfa ?? 0) > 0 &&
+                          instanceState.structure?.facilitiesHfa
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No facilities imported",
+                              fr: "Aucun établissement importé",
+                              pt: "Nenhum estabelecimento de saúde importado",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedCount) => (
+                          <div class="text-success ui-gap flex justify-between text-xs">
+                            <span>
+                              {t3({
+                                en: "Facilities",
+                                fr: "Établissements",
+                                pt: "Estabelecimentos de saúde",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">{toNum0(keyedCount)}</span>
+                          </div>
+                        )}
+                      </Show>
                     </div>
-                    <Show
-                      when={
-                        instanceState.indicators.hfaIndicators > 0 &&
-                        instanceState.indicators.hfaIndicators
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No HFA indicators configured",
-                            fr: "Aucun indicateur HFA configuré",
-                            pt: "Nenhum indicador HFA configurado",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedNumber) => (
+                  </Card>
+                  <Card
+                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hfa_time_points")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({
+                          en: "Time points",
+                          fr: "Points temporels",
+                          pt: "Pontos temporais",
+                        })}
+                      </div>
+                      <Show
+                        when={instanceState.hfaTimePoints.length > 0}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No time points (import data to create)",
+                              fr: "Aucun point temporel (importer des données pour créer)",
+                              pt: "Nenhum ponto temporal (importar dados para criar)",
+                            })}
+                          </div>
+                        }
+                      >
                         <div class="ui-spy-sm text-success text-xs">
                           <div class="flex justify-between gap-4">
                             <span>
                               {t3({
-                                en: "HFA indicators",
-                                fr: "Indicateurs Enquetes FOSA",
-                                pt: "Indicadores HFA",
+                                en: "Time points",
+                                fr: "Points temporels",
+                                pt: "Pontos temporais",
                               })}
                               :
                             </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
+                            <span class="font-mono">
+                              {toNum0(instanceState.hfaTimePoints.length)}
+                            </span>
                           </div>
                         </div>
-                      )}
-                    </Show>
-                  </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hfa_weights")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({
+                          en: "Sampling weights",
+                          fr: "Pondérations d'échantillonnage",
+                          pt: "Pesos de amostragem",
+                        })}
+                      </div>
+                      <Show
+                        when={instanceState.hfaWeights.some(
+                          (tp) => tp.weightCount > 0,
+                        )}
+                        fallback={
+                          <div class="ui-text-caption">
+                            {t3({
+                              en: "No weights imported",
+                              fr: "Aucune pondération importée",
+                              pt: "Nenhum peso importado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="ui-spy-sm text-xs">
+                          <For each={instanceState.hfaWeights}>
+                            {(tp) => (
+                              <div
+                                class="ui-gap text-success flex justify-between"
+                                classList={{
+                                  "text-warning":
+                                    tp.weightCount > 0 &&
+                                    tp.facilitiesWithDataAndWeight <
+                                      tp.facilitiesWithData,
+                                }}
+                              >
+                                <span>{tp.timePoint}:</span>
+                                <span class="font-mono">
+                                  {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
+                                </span>
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hfa")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({ en: "Data", fr: "Données", pt: "Dados" })}
+                      </div>
+                      <Show
+                        when={instanceState.datasetsWithData.includes("hfa")}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No data added",
+                              fr: "Aucune donnée ajoutée",
+                              pt: "Nenhum dado adicionado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Has data",
+                            fr: "Contient des données",
+                            pt: "Contém dados",
+                          })}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card
+                    class="w-[300px]"
+                    onClick={() => setSelectedDatasource("hfa_indicators")}
+                  >
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
+                        {t3({
+                          en: "Indicators",
+                          fr: "Indicateurs",
+                          pt: "Indicadores",
+                        })}
+                      </div>
+                      <Show
+                        when={
+                          instanceState.indicators.hfaIndicators > 0 &&
+                          instanceState.indicators.hfaIndicators
+                        }
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No HFA indicators configured",
+                              fr: "Aucun indicateur HFA configuré",
+                              pt: "Nenhum indicador HFA configurado",
+                            })}
+                          </div>
+                        }
+                        keyed
+                      >
+                        {(keyedNumber) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="flex justify-between gap-4">
+                              <span>
+                                {t3({
+                                  en: "HFA indicators",
+                                  fr: "Indicateurs Enquetes FOSA",
+                                  pt: "Indicadores HFA",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(keyedNumber)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Show>
+                    </div>
+                  </Card>
                 </div>
               </div>
 
@@ -628,38 +656,40 @@ export function InstanceData(p: Props) {
                   </div>
                 </div>
                 <div class="ui-gap flex flex-1 flex-wrap">
-                  <div
-                    class="ui-pad ui-hoverable-base-100 ui-spy-sm w-[300px] rounded border"
+                  <Card
+                    class="w-[300px]"
                     onClick={() => setSelectedDatasource("iceh")}
                   >
-                    <div class="font-700 pb-2">
-                      {t3({
-                        en: "Equity data",
-                        fr: "Données d'équité",
-                        pt: "Dados de equidade",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("iceh")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2">
                         {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
+                          en: "Equity data",
+                          fr: "Données d'équité",
+                          pt: "Dados de equidade",
                         })}
                       </div>
-                    </Show>
-                  </div>
+                      <Show
+                        when={instanceState.datasetsWithData.includes("iceh")}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No data added",
+                              fr: "Aucune donnée ajoutée",
+                              pt: "Nenhum dado adicionado",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="text-success text-xs">
+                          {t3({
+                            en: "Has data",
+                            fr: "Contient des données",
+                            pt: "Contém dados",
+                          })}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
                 </div>
               </div>
             </div>

@@ -190,12 +190,28 @@ type CheckResult = {
 const allResults: CheckResult[] = [];
 let syntheticDropCount = 0;
 
-// The typed "module never produced this output" refusal, byte-aligned across
-// planes: the legacy classifier's ro_-relation case (error_classifier.ts) and
-// the run path's hasParquet guard (run_read.ts) share this phrase.
+// Typed refusals each plane emits when a metric's data or columns are absent
+// on that plane. A PAIR of refusals — even with different wording — is
+// CONSISTENT cross-plane behavior: the PO is equally broken before and after
+// the cutover (found fleet-wide on stale workshop projects whose modules
+// were never re-run). The duck side may surface raw engine text for the same
+// absence fact (Binder/Catalog column/table not found) — accepted ONLY when
+// pg typed-refuses too; a raw duck error against a healthy pg stays a gating
+// diff. (classifyDatabaseError now maps these duck signatures to the same
+// friendly texts; raw duck texts persist on fleet versions predating that
+// fix, so this guard stays.)
+function isTypedPlaneRefusal(err: string): boolean {
+  return err.includes("The module may need to be run") ||
+    err === "Column does not exist in results table" ||
+    err.includes("A required data field is missing");
+}
+function isDuckAbsenceError(err: string): boolean {
+  return err.includes("Binder Error: Referenced column") ||
+    err.includes("Catalog Error: Table with name");
+}
 function bothPlanesUnavailable(pgErr: string, duckErr: string): boolean {
-  const MARK = "The module may need to be run";
-  return pgErr.includes(MARK) && duckErr.includes(MARK);
+  return isTypedPlaneRefusal(pgErr) &&
+    (isTypedPlaneRefusal(duckErr) || isDuckAbsenceError(duckErr));
 }
 // Extended-kind ELIGIBILITY (distinct from ran-count): incremented whenever a
 // gated metric satisfies a kind's corpus precondition, whether or not the
@@ -557,6 +573,13 @@ async function checkPresentationObject(
   const detail = resDetail.data;
   const resultsValue = detail.resultsValue;
   const roTableName = getResultsObjectTableName(resultsValue.resultsObjectId);
+  // The legacy-gap evidence fact for every check on this PO: the pg table's
+  // absence is probed once, never inferred from error text.
+  const pgTableMissing = (
+    await projectDb<{ reg: string | null }[]>`
+SELECT to_regclass(${"public." + roTableName})::text AS reg
+`
+  )[0]?.reg === null;
 
   const moduleRow = (
     await projectDb<{ module_id: string }[]>`
@@ -657,7 +680,7 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       if (bothPlanesUnavailable(pgRes.err, duckRes.err)) {
         return {
           outcome: "ok",
-          detail: "unavailable on both planes (module not run)",
+          detail: "both planes refuse: typed data/column absence",
           ...timing,
         };
       }
@@ -668,6 +691,13 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       };
     }
     if (pgRes.success === false || duckRes.success === false) {
+      if (duckRes.success === true && pgRes.success === false && pgTableMissing) {
+        return {
+          outcome: "legacy_gap",
+          detail: `legacy plane has no ${roTableName} (pg: ${pgRes.err}); package serves`,
+          ...timing,
+        };
+      }
       return {
         outcome: "diff",
         detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
@@ -701,20 +731,38 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
       record({
         check: "metric_info",
         ...(bothPlanesUnavailable(pgRes.err, duckRes.err)
-          ? { outcome: "ok" as const, detail: "unavailable on both planes (module not run)" }
+          ? { outcome: "ok" as const, detail: "both planes refuse: typed data/column absence" }
           : { outcome: "both_error" as const, detail: `pg=${pgRes.err} duck=${duckRes.err}` }),
         ...timing,
       });
     } else if (pgRes.success === false || duckRes.success === false) {
       record({
         check: "metric_info",
-        outcome: "diff",
-        detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
+        ...(duckRes.success === true && pgRes.success === false && pgTableMissing
+          ? {
+            outcome: "legacy_gap" as const,
+            detail: `legacy plane has no ${roTableName} (pg: ${pgRes.err})`,
+          }
+          : {
+            outcome: "diff" as const,
+            detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
+          }),
         ...timing,
       });
     } else {
       const diff = diffMetricInfo(pgRes.data, duckRes.data);
-      record({ check: "metric_info", outcome: diff ? "diff" : "ok", detail: diff, ...timing });
+      // A value diff (empty pg bounds/options vs served duck values) over a
+      // provably absent pg table is the same legacy gap, not a divergence.
+      record({
+        check: "metric_info",
+        ...(diff && pgTableMissing
+          ? {
+            outcome: "legacy_gap" as const,
+            detail: `pg enrichment empty (no ${roTableName}): ${diff}`,
+          }
+          : { outcome: diff ? "diff" as const : "ok" as const, detail: diff }),
+        ...timing,
+      });
     }
   }
 
@@ -759,15 +807,22 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
         record({
           check: "replicant_options",
           ...(bothPlanesUnavailable(pgRes.err, duckRes.err)
-            ? { outcome: "ok" as const, detail: "unavailable on both planes (module not run)" }
+            ? { outcome: "ok" as const, detail: "both planes refuse: typed data/column absence" }
             : { outcome: "both_error" as const, detail: `pg=${pgRes.err} duck=${duckRes.err}` }),
           ...timing,
         });
       } else if (pgRes.success === false || duckRes.success === false) {
         record({
           check: "replicant_options",
-          outcome: "diff",
-          detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
+          ...(duckRes.success === true && pgRes.success === false && pgTableMissing
+            ? {
+              outcome: "legacy_gap" as const,
+              detail: `legacy plane has no ${roTableName} (pg: ${pgRes.err})`,
+            }
+            : {
+              outcome: "diff" as const,
+              detail: `one engine errored: pg=${pgRes.success ? "ok" : pgRes.err} duck=${duckRes.success ? "ok" : duckRes.err}`,
+            }),
           ...timing,
         });
       } else {
@@ -855,9 +910,9 @@ SELECT last_run_at FROM modules WHERE id = ${moduleRow.module_id}
     }
 
     if (availableOpts.includes("hfa_service_category")) {
-      markExtendedKindEligible("multimember");
       const ids = (await valuesFor("hfa_service_category")).map((v) => v.id).slice(0, 2);
       if (ids.length > 0) {
+        markExtendedKindEligible("multimember");
         extendedVariants.push({
           name: "syn:multimember:hfa_service_category",
           d: {
@@ -1706,8 +1761,15 @@ SELECT id, label FROM presentation_objects ORDER BY label
             poId: po.id,
             poLabel: po.label,
             check: "items",
-            outcome: "skip",
-            detail: `rig error: ${(e as Error).message}`,
+            ...(/relation "[^"]+" does not exist/.test((e as Error).message)
+              ? {
+                outcome: "legacy_gap" as const,
+                detail: `rig pg probe hit a missing legacy table: ${(e as Error).message}`,
+              }
+              : {
+                outcome: "skip" as const,
+                detail: `rig error: ${(e as Error).message}`,
+              }),
           });
         }
       }

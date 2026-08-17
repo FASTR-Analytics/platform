@@ -102,6 +102,40 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
     };
   }
 
+  // DuckDB (run path) twins of the two Postgres patterns above — same
+  // categories/messages so both planes degrade identically.
+  const duckTableMatch = technicalMessage.match(
+    /Catalog Error: Table with name (\w+) does not exist/,
+  );
+  if (duckTableMatch) {
+    const tableName = duckTableMatch[1];
+    if (tableName.startsWith("ro_")) {
+      return {
+        category: ERROR_CATEGORY.DATA_NOT_FOUND,
+        userMessage:
+          "The data for this visualization is not available. The module may need to be run.",
+        technicalMessage,
+        suggestedAction: "Run the module to generate the required data.",
+      };
+    }
+    return {
+      category: ERROR_CATEGORY.DATA_NOT_FOUND,
+      userMessage: `Database table "${tableName}" does not exist`,
+      technicalMessage,
+    };
+  }
+
+  if (/Binder Error: Referenced column "[^"]+" not found/.test(technicalMessage)) {
+    return {
+      category: ERROR_CATEGORY.CONFIGURATION_ERROR,
+      userMessage:
+        "A required data field is missing. The module configuration may have changed.",
+      technicalMessage,
+      suggestedAction:
+        "Check the module configuration or generate a new results package.",
+    };
+  }
+
   if (/permission denied/.test(technicalMessage)) {
     return {
       category: ERROR_CATEGORY.PERMISSION_DENIED,

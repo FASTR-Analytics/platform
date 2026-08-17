@@ -19,7 +19,7 @@ entry points already take `Sql` handles as parameters, so the rig just hands
 them connections to its own container.
 
 ```bash
-./validate_queries            # ~6s: container up, 10 fixtures, 40 cases
+./validate_queries            # ~6s: container up, 12 fixtures, 60 cases
 ```
 
 (~6s once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -131,6 +131,10 @@ Verified controls so far:
 | `COUNT(DISTINCT facility_id)` → `COUNT(facility_id)` | 4 cases: n reports rows (4/4/8) instead of facilities (2/3/5) |
 | drop `sourceTable.` from the value aggregates (buildAggregateColumns) | both Ghana-shape cases: `column reference "facility_id" is ambiguous` |
 | drop `sourceTable.` from the plain-values sample-n FILTER | HFA Ghana-shape case only: same ambiguity error |
+| wrapper `groupByPrefix` → plain join (no collision re-alias) | both F12 PAE cases: `column reference "denominator" is ambiguous` |
+| disable the non-PAE value-prop guard in `validateFetchConfig` | F12 boundary case: expected error, got success (silent key clobber) |
+| disable buildWhereClause's numeric filter branch | both F12 filter cases: `function upper(numeric) does not exist` |
+| drop the PERIOD exclusion from the numeric filter gate | month-filter case: derived TEXT month misrouted to `month IN (2)` |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes — `git checkout` would discard parallel work.
@@ -149,6 +153,8 @@ changes — `git checkout` would discard parallel work.
 | `hfa_facility_blanks` (F8) | NULL facility cell + a results row with no facilities row | the fold reaches joined facility columns, from both blank origins; single-member set column |
 | `hmis_option_cap` (F9) | 500 named + blank / 501 named | the option-list cap counts NAMED values only |
 | `hfa_area_only` (F10) | HFA, pre-aggregated area rows, **no** `facility_id` | the table-aware half of the sample-n gate — the family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column |
+| `hfa_variants` (F11) | HFA, `hfa_variant_item` plain TEXT physical column, parent in `hfa_indicator` | the generic physical-column path for group-by / filter / option lists on the variants dimension |
+| `hmis_scorecard` (F12) | `denominator` is BOTH a PAE ingredient and a disaggregation option | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`) — den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

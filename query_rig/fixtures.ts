@@ -482,6 +482,37 @@ export const F11_HFA_VARIANTS: Fixture = {
   firstPeriodOption: undefined,
 };
 
+// F12 — the ethiopia v2b shape (m8 scorecard): `denominator` is BOTH a PAE
+// ingredient (`value = numerator / denominator` over SUM ingredients) and a
+// disaggregation option. The inner query then emits the grouped column and a
+// same-named aggregate alias, which the PAE wrapper must disambiguate
+// (paeCollidingGroupBys). Numbers are chosen so a wrong binding cannot
+// coincidentally pass: den=20 spans two rows, so binding the wrapper's
+// `denominator` to the raw grouped value gives 40/20 = 2 while the correct
+// aggregate binding gives 40/40 = 1.
+export const F12_HMIS_SCORECARD: Fixture = {
+  name: "hmis_scorecard",
+  family: "hmis",
+  moduleId: "m_scorecard",
+  moduleDefinition: hmisModule(),
+  resultsObjectId: "33333333-4444-5555-6666-777777777777",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "text" },
+    { name: "period_id", type: "integer" },
+    { name: "numerator", type: "double precision" },
+    { name: "denominator", type: "double precision" },
+  ],
+  roRows: [
+    { admin_area_2: "A2_north", period_id: 202401, numerator: 10, denominator: 20 },
+    { admin_area_2: "A2_north", period_id: 202401, numerator: 30, denominator: 20 },
+    { admin_area_2: "A2_south", period_id: 202401, numerator: 5, denominator: 50 },
+  ],
+  indicators: [],
+  firstPeriodOption: "period_id",
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -494,4 +525,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F9_HMIS_OPTION_CAP,
   F10_HFA_AREA_ONLY,
   F11_HFA_VARIANTS,
+  F12_HMIS_SCORECARD,
 ];

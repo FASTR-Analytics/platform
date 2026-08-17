@@ -723,13 +723,36 @@ bundle freezes:
 - **CTE/post-aggregation/WITH/LIMIT ordering is load-bearing** — the PAE wrap
   happens before the `WITH` prepend so CTEs stay top-level; reordering breaks
   the SQL.
+- **A groupBy that is also a value prop needs disambiguation** (the m8
+  scorecard shape, ethiopia v2b 2026-08-12): the inner query emits the grouped
+  column AND a same-named aggregate alias, so the PAE wrapper's bare
+  references are ambiguous — Postgres errors, DuckDB silently binds the RAW
+  grouped value (served `SUM(num)/raw_den` until fixed; the correction shipped
+  with PO cache version 14). `paeCollidingGroupBys` (query_helpers.ts) is the
+  authoritative contract: colliding columns ride `__dis_<col>` through the
+  inner query and re-alias in the wrapper. Non-PAE fetches have no wrapper
+  layer to re-alias in — `validateFetchConfig` rejects the shape (the driver's
+  row object would silently clobber the group key with the aggregate).
 - **`getPossibleValues` still hand-writes its `WITH` strings** (shared
   derivation expressions and correct family gating, but its own string assembly
   — the last CTE-shape duplicate). New CTE construction goes through
   `CTEManager` or the shared `period_helpers` builders (which `getPeriodBounds`
   now uses).
 - **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the escaped
-  `UPPER` text path, never numeric coercion.
+  `UPPER` text path, never numeric coercion. That routing is what the PERIOD
+  exclusion in `buildWhereClause`'s numeric branch protects: `month` is not a
+  physical column, so it is absent from `textColumns`, and the type gate alone
+  would misroute it.
+- **Numeric dimension columns cannot take the `UPPER()` filter path** (both
+  engines hard-error on `upper(numeric)`): filters on columns outside
+  `textColumns` — m8's `denominator`, reachable via replicate-by or a checked
+  filter value — go down a coerced-numeric branch in `buildWhereClause`.
+  Non-finite values (the `UNSELECTED` replicant sentinel, a stale `__BLANK`)
+  are dropped and `FALSE` emitted when nothing remains, mirroring the text
+  path's zero-match outcome. `parsePAE` (query_helpers.ts) is the single
+  activation predicate for every PAE-conditional behavior — wrapper, collision
+  aliasing, sample-n mode — so a malformed expression deactivates them
+  together instead of leaking `__dis_`/`__n_all` names.
 - **The sentinels are not real data values**: `__NATIONAL` / `__ALL_FACILITIES`
   must be label-replaced and pin-sorted client-side; label replacements for them
   are added only when the roll-up is active so stored figures never carry dead

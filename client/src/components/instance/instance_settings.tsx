@@ -10,11 +10,11 @@ import {
   FrameTop,
   Input,
   RadioGroup,
-  SettingsSection,
+  Card,
   getSelectOptions,
   createButtonAction,
 } from "panther";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -272,21 +272,19 @@ export function InstanceSettings(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full" data-tour="instance-settings-header">
-          <HeadingBarMainRibbon
-            heading={t3(TC.settings)}
-          ></HeadingBarMainRibbon>
+          <HeadingBar tonal heading={t3(TC.settings)}></HeadingBar>
         </div>
       }
     >
       <div class="ui-pad ui-spy h-full w-full">
         <div data-tour="instance-settings-admin-areas">
-          <SettingsSection
+          <Card
             header={t3({
               en: "Max admin area level",
               fr: "Niveau maximal d'unité administrative",
               pt: "Nível máximo de zona administrativa",
             })}
-            rightChildren={
+            headerRight={
               <Show when={needsSavingMaxAdminArea()}>
                 <Button
                   onClick={() => updateMaxAdminArea.click()}
@@ -302,25 +300,27 @@ export function InstanceSettings(p: Props) {
               </Show>
             }
           >
-            <RadioGroup
-              options={getSelectOptions(["2", "3", "4"])}
-              value={String(selectedMaxAdminArea())}
-              onChange={(v) => {
-                setSelectedMaxAdminArea(Number(v));
-                setNeedsSavingMaxAdminArea(true);
-              }}
-            />
-          </SettingsSection>
+            <div class="ui-spy-sm">
+              <RadioGroup
+                options={getSelectOptions(["2", "3", "4"])}
+                value={String(selectedMaxAdminArea())}
+                onChange={(v) => {
+                  setSelectedMaxAdminArea(Number(v));
+                  setNeedsSavingMaxAdminArea(true);
+                }}
+              />
+            </div>
+          </Card>
         </div>
 
         <div data-tour="instance-settings-admin-labels">
-          <SettingsSection
+          <Card
             header={t3({
               en: "Admin area labels",
               fr: "Libellés des unités administratives",
               pt: "Rótulos das zonas administrativas",
             })}
-            rightChildren={
+            headerRight={
               <Show when={needsSavingAdminLabels()}>
                 <Button
                   onClick={() => updateAdminAreaLabels.click()}
@@ -328,86 +328,88 @@ export function InstanceSettings(p: Props) {
                   intent="success"
                 >
                   {t3({
-                    en: "Update admin area labels",
-                    fr: "Mettre à jour les libellés",
-                    pt: "Atualizar os rótulos das zonas administrativas",
+                    en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
+                    fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+                    pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
                   })}
                 </Button>
               </Show>
             }
           >
             <div class="ui-spy-sm">
-              <div class="ui-text-caption">
-                {t3({
-                  en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
-                  fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
-                  pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
-                })}
-              </div>
-              <For
-                each={[
-                  {
-                    level: 2 as const,
-                    value: adminLabel2,
-                    setter: setAdminLabel2,
-                    exampleEn: "Region",
-                    exampleFr: "Région",
-                  },
-                  {
-                    level: 3 as const,
-                    value: adminLabel3,
-                    setter: setAdminLabel3,
-                    exampleEn: "District",
-                    exampleFr: "District",
-                  },
-                  {
-                    level: 4 as const,
-                    value: adminLabel4,
-                    setter: setAdminLabel4,
-                    exampleEn: "Catchment",
-                    exampleFr: "Zone",
-                  },
-                ].filter((row) => row.level <= instanceState.maxAdminArea)}
-              >
-                {(row) => (
-                  <div class="ui-gap flex items-center">
-                    <div class="w-56">
-                      {t3({
-                        en: `Admin area ${row.level}`,
-                        fr: `Unité administrative ${row.level}`,
-                        pt: `Zona administrativa ${row.level}`,
-                      })}
-                    </div>
-                    <div class="w-96">
-                      <Input
-                        value={row.value()}
-                        onChange={(value) => {
-                          row.setter(value);
-                          setNeedsSavingAdminLabels(true);
-                        }}
-                        placeholder={t3({
-                          en: `e.g. ${row.exampleEn}`,
-                          fr: `ex. ${row.exampleFr}`,
-                          pt: `por ex. ${row.exampleEn}`,
+              <div class="ui-spy-sm">
+                <div class="ui-text-caption">
+                  {t3({
+                    en: 'Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
+                    fr: "Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+                    pt: 'Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
+                  })}
+                </div>
+                <For
+                  each={[
+                    {
+                      level: 2 as const,
+                      value: adminLabel2,
+                      setter: setAdminLabel2,
+                      exampleEn: "Region",
+                      exampleFr: "Région",
+                    },
+                    {
+                      level: 3 as const,
+                      value: adminLabel3,
+                      setter: setAdminLabel3,
+                      exampleEn: "District",
+                      exampleFr: "District",
+                    },
+                    {
+                      level: 4 as const,
+                      value: adminLabel4,
+                      setter: setAdminLabel4,
+                      exampleEn: "Catchment",
+                      exampleFr: "Zone",
+                    },
+                  ].filter((row) => row.level <= instanceState.maxAdminArea)}
+                >
+                  {(row) => (
+                    <div class="ui-gap flex items-center">
+                      <div class="w-56">
+                        {t3({
+                          en: `Admin area ${row.level}`,
+                          fr: `Unité administrative ${row.level}`,
+                          pt: `Zona administrativa ${row.level}`,
                         })}
-                        fullWidth
-                      />
+                      </div>
+                      <div class="w-96">
+                        <Input
+                          value={row.value()}
+                          onChange={(value) => {
+                            row.setter(value);
+                            setNeedsSavingAdminLabels(true);
+                          }}
+                          placeholder={t3({
+                            en: `e.g. ${row.exampleEn}`,
+                            fr: `ex. ${row.exampleFr}`,
+                            pt: `por ex. ${row.exampleEn}`,
+                          })}
+                          fullWidth
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </For>
+                  )}
+                </For>
+              </div>
             </div>
-          </SettingsSection>
+          </Card>
         </div>
 
         <div data-tour="instance-settings-facility-columns">
-          <SettingsSection
+          <Card
             header={t3({
               en: "Facility columns",
               fr: "Colonnes des établissements",
               pt: "Colunas dos estabelecimentos de saúde",
             })}
-            rightChildren={
+            headerRight={
               <Show when={needsSavingFacilityCols()}>
                 <Button
                   onClick={() => updateFacilityColumns.click()}
@@ -423,41 +425,43 @@ export function InstanceSettings(p: Props) {
               </Show>
             }
           >
-            <div class="ui-gap ui-spy-sm">
-              <For each={facilityColumnOptions}>
-                {(option) => (
-                  <div class="ui-gap flex items-center">
-                    <div class="w-56">
-                      <Checkbox
-                        checked={option.checked()}
-                        onChange={(checked) =>
-                          handleCheckboxChange(option.setChecked, checked)
-                        }
-                        label={option.label}
-                      />
-                    </div>
-
-                    <Show when={option.checked()}>
-                      <div class="w-96">
-                        <Input
-                          value={option.labelValue()}
-                          onChange={(value) =>
-                            handleLabelChange(option.setLabelValue, value)
+            <div class="ui-spy-sm">
+              <div class="ui-gap ui-spy-sm">
+                <For each={facilityColumnOptions}>
+                  {(option) => (
+                    <div class="ui-gap flex items-center">
+                      <div class="w-56">
+                        <Checkbox
+                          checked={option.checked()}
+                          onChange={(checked) =>
+                            handleCheckboxChange(option.setChecked, checked)
                           }
-                          placeholder={t3({
-                            en: `Custom label for ${option.label.toLowerCase()}`,
-                            fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
-                            pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
-                          })}
-                          fullWidth
+                          label={option.label}
                         />
                       </div>
-                    </Show>
-                  </div>
-                )}
-              </For>
+
+                      <Show when={option.checked()}>
+                        <div class="w-96">
+                          <Input
+                            value={option.labelValue()}
+                            onChange={(value) =>
+                              handleLabelChange(option.setLabelValue, value)
+                            }
+                            placeholder={t3({
+                              en: `Custom label for ${option.label.toLowerCase()}`,
+                              fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                              pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
+                            })}
+                            fullWidth
+                          />
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
             </div>
-          </SettingsSection>
+          </Card>
         </div>
       </div>
     </FrameTop>

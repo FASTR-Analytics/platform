@@ -25,7 +25,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { HeadingBarMainRibbon } from "~/components/_shared/heading_bar_main_ribbon";
+import { HeadingBar } from "panther";
 import { instancePackageInternalsSource } from "~/components/_shared/results_package/internals_source";
 import {
   ResultsPackageContents,
@@ -154,7 +154,8 @@ export function InstanceResultsPackages() {
             class="h-full w-full"
             data-tour="instance-results-packages-header"
           >
-            <HeadingBarMainRibbon
+            <HeadingBar
+              tonal
               heading={t3({
                 en: "Results packages",
                 fr: "Paquets de résultats",
@@ -166,8 +167,7 @@ export function InstanceResultsPackages() {
                   <Button
                     onClick={openModuleDefaults}
                     outline
-                    onBackground="base-content"
-                    intent="base-100"
+                    onBackground="base-200"
                     iconName="settings"
                   >
                     {t3({
@@ -204,7 +204,7 @@ export function InstanceResultsPackages() {
                   </Switch>
                 </div>
               </div>
-            </HeadingBarMainRibbon>
+            </HeadingBar>
           </div>
         }
       >

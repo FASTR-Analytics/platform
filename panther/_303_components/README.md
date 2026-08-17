@@ -5,14 +5,15 @@ applications.
 
 ## Purpose
 
-Complete set of production-ready SolidJS components including:
+Complete set of production-ready SolidJS components:
 
-- Form inputs (buttons, inputs, selects, sliders, etc.)
-- Layout components (frames, tabs, steppers, etc.)
-- Chart and visualization holders
-- State management and modals
-- Data tables with sorting/filtering/pagination
-- Icon library (Tabler Icons)
+- Form inputs (buttons, inputs, selects, sliders, file input, etc.)
+- Display components (badges, cards, empty states)
+- Layout components (frames, heading bars, tabs, steppers)
+- Chart and page holders for panther figures
+- Modals, editors, and async-state containers
+- Data tables with sorting, grouping, and controlled selection
+- Icon system with swappable sets (Tabler default, Phosphor opt-in)
 
 ## Prerequisites
 
@@ -27,85 +28,133 @@ Your application must have:
 
 ### Charts (`charts/`)
 
-```typescript
-<ChartHolder figure={myFigure} />
-<PageHolder page={myPage} />
+```tsx
+<FigureHolder figureInputs={figureInputs} />
+<PageHolder pageInputs={pageInputs} />
 ```
 
-Display Panther visualizations in SolidJS apps.
+Display panther visualizations and pages in SolidJS apps.
+
+### Display (`display/`)
+
+```tsx
+<Badge intent="success">Ready</Badge>
+<Badge intent="danger" variant="solid">3</Badge>
+
+<Card header="Section title" headerRight={<Badge>4</Badge>}>
+  {content}
+</Card>
+<Card href={`/?p=${id}`}>{navCardContent}</Card>          // real <a>
+<Card onClick={open}>{actionCardContent}</Card>            // div role="button"
+<Card
+  selected={sel.isSelected(id)}
+  onSelectToggle={(e) => sel.handleClick(id, e)}
+  onClick={(e) => sel.handleClick(id, e, () => open())}
+>
+  {markingSelectCardContent}
+</Card>
+
+<EmptyState
+  iconName="box"
+  title="No datasets yet"
+  description="Import a CSV to get started."
+>
+  <Button size="sm">Import</Button>
+</EmptyState>
+```
+
+Cards clip their content to the rounded corners, hover at the frame
+(`hover:border-primary` — never a bg tint), and render selection via the
+integrated circle in marking-select mode. See
+**[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)** (selection
+idioms) and **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)** (the
+controller).
 
 ### Form Inputs (`form_inputs/`)
 
-```typescript
+```tsx
 <Button intent="primary" onClick={handleClick}>Save</Button>
+<Button outline onBackground="base-200" onClick={edit}>Edit</Button>
 <Input value={value()} onChange={setValue} />
 <Select options={options} value={selected()} onChange={setSelected} />
 <SelectList items={items} value={selected()} onChange={setSelected} />
 <ButtonGroup items={items} value={selected()} onChange={setSelected} />
 <Slider min={0} max={100} value={value()} onChange={setValue} />
-<Checkbox checked={checked()} onChange={setChecked} />
+<Checkbox checked={checked()} onChange={setChecked} label="Enabled" />
+<Checkbox checked={false} indeterminate onChange={...} label="Partial" />
 <TextArea value={text()} onChange={setText} />
+<FileInput value={file()} onChange={setFile} label="Data file" />
 ```
 
-Complete form control library.
+Complete form control library. Size via `size="sm"`, never ad-hoc classes.
 
 ### Layout (`layout/`)
 
-```typescript
-<FrameSide sidebar={<Sidebar />}>{mainContent}</FrameSide>
-<FrameTop header={<Header />}>{mainContent}</FrameTop>
+```tsx
+<FrameTop panelChildren={<HeadingBar heading="Rows" />}>{content}</FrameTop>
+<FrameLeft panelChildren={<Sidebar />}>{content}</FrameLeft>
 <TabsNavigation items={items} value={active()} onChange={setActive} vertical />
-<Stepper steps={steps} currentStep={current()} />
+<CollapsibleSection header="Advanced">{content}</CollapsibleSection>
 ```
 
-Page layout and navigation components.
+Frames: `FrameTop`, `FrameLeft`, `FrameRight`, `FrameBottom`, plus
+`FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Side
+frames own their panel/content divider (never add that edge's border yourself).
+Steppers: `StepperNavigation`, `StepperLabeledBreadcrumb`,
+`StepperChipsWithTitles`, and friends.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
 `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
-optional `createSelectionController` helper backs multi-select card grids. See
+optional `createSelectionController` helper backs multi-select card grids via
+`Card`'s selectable mode. See
 **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)**.
 
 ### Icons (`icons/`)
 
-```typescript
-<ChevronRightIcon size={24} />
-<CheckIcon color="green" />
+```tsx
+<Icon iconName="check" />                       // bare glyph, scales with font size
+<IconRenderer iconName="search" size="sm" />    // form-control sized
 ```
 
-100+ Tabler Icons as SolidJS components.
+One shared `IconName` key set across two glyph sets — Tabler (default) and
+Phosphor. Select per app with `--panther-icon-set: phosphor;` in the theme
+block; unknown keys render a visible fallback, never a gap.
 
 ### Special State (`special_state/`)
 
-```typescript
-// Alerts
-alert("Message");
-confirm("Are you sure?");
-prompt("Enter name:");
+```tsx
+await openAlert({ text: "Saved", intent: "success" });
+const ok = await openConfirm({ title: "Delete?", text: "..." });
+await openComponent({ element: EditForm, props: { data } });
 
-// State management
-<StateHolderWrapper initialState={state}>
-  {children}
+const { openEditor, EditorWrapper } = getEditorWrapper();
+
+<StateHolderWrapper state={query.state()}>
+  {(data) => <Content data={data} />}
 </StateHolderWrapper>;
 ```
 
-Modals, dialogs, and state containers.
+Modals, editors, popover menus (`PopoverMenu`, `showMenu`), tooltips, and the
+async-state container. Never hand-roll an overlay.
 
 ### Tables (`tables/`)
 
-```typescript
-<DisplayTable
-  columns={columns}
+```tsx
+<Table
+  columns={columns}   // TableColumn<T>[]
   data={data()}
-  sortable
-  filterable
-  paginate
-  pageSize={20}
+  keyField="id"
+  onRowClick={open}
+  selectedKeys={selectedKeys}          // controlled selection (optional)
+  setSelectedKeys={setSelectedKeys}
+  bulkActions={bulkActions}
 />
 
-<CsvTable csv={csvData()} />
+<TableFromCsv csv={csvData()} />
 ```
 
-Rich data tables with built-in features.
+Sorting via column config, grouping, controlled multi-select with bulk actions,
+and an `EmptyState` no-rows fallback.
 
 ## CSS Public API
 
@@ -134,42 +183,40 @@ rules: `protocols/PROTOCOL_UI_STYLING.md`.
 
 ## Usage Example
 
-```typescript
+```tsx
 import {
   Button,
-  DisplayTable,
-  FrameSide,
+  Card,
+  FrameLeft,
+  HeadingBar,
   Input,
-  SettingsIcon,
+  Table,
 } from "@timroberton/panther";
 
 function MyApp() {
   const [value, setValue] = createSignal("");
 
   return (
-    <FrameSide sidebar={<Sidebar />}>
-      <div class="ui-pad">
-        <div class="ui-spy">
-          <Input
-            value={value()}
-            onChange={setValue}
-            placeholder="Search..."
-          />
-          <Button intent="primary" onClick={handleSearch}>
-            <SettingsIcon size={16} />
-            Search
-          </Button>
-          <DisplayTable columns={columns} data={results()} />
-        </div>
+    <FrameLeft panelChildren={<Sidebar />}>
+      <div class="ui-pad ui-spy">
+        <Input
+          value={value()}
+          onChange={setValue}
+          searchIcon
+          placeholder="Search..."
+        />
+        <Card header="Results" pad="none">
+          <Table columns={columns} data={results()} keyField="id" />
+        </Card>
       </div>
-    </FrameSide>
+    </FrameLeft>
   );
 }
 ```
 
 ## Module Dependencies
 
-- `solid-js` - SolidJS framework
-- `@solidjs/router` - Routing
-- `sortablejs` - Drag-and-drop
-- Internal: `_301_util_funcs`, `_304_query`
+- `solid-js` — SolidJS framework
+- `@solidjs/router` — routing
+- `sortablejs` — drag-and-drop (vendored wrapper)
+- Internal: lower-numbered panther modules, imported through `deps.ts` only

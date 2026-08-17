@@ -1,10 +1,14 @@
 import { ReplicantValueOverride, t3 } from "lib";
-import { FigureInputs, FigureHolder, LoadingIndicator, StateHolder } from "panther";
+import {
+  FigureInputs,
+  FigureHolder,
+  LoadingIndicator,
+  StateHolder,
+} from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
 import { projectState, runVersionKey } from "~/state/project/t1_store";
 import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
 import { NotAvailableBox } from "./NotAvailableBox";
-import { adaptFigureStyleForDarkMode } from "./_shared/dark_mode_figures";
 
 type Props = {
   projectId: string;
@@ -15,12 +19,15 @@ type Props = {
 };
 
 export function PresentationObjectMiniDisplay(p: Props) {
-
   const [figureInputs, setFigureInputs] = createSignal<
     StateHolder<FigureInputs>
   >({
     status: "loading",
-    msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+    msg: t3({
+      en: "Fetching data...",
+      fr: "Récupération des données...",
+      pt: "A obter dados...",
+    }),
   });
 
   // Monotonic run id: two effect re-runs (PO last_updated bursts) race their
@@ -101,7 +108,10 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
     <Switch>
       <Match when={p.state.status === "loading"}>
         <div class="aspect-video text-xs" onClick={p.onClick}>
-          <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad={true} />
+          <LoadingIndicator
+            msg={(p.state as { msg?: string }).msg}
+            noPad={true}
+          />
         </div>
       </Match>
       <Match when={p.state.status === "error"}>
@@ -109,15 +119,10 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
           const err = (p.state as { err?: string }).err ?? "";
           const isKnown = err.startsWith("[INFO] ");
           if (isKnown) {
-            return (
-              <NotAvailableBox err={err.slice(7)} onClick={p.onClick} />
-            );
+            return <NotAvailableBox err={err.slice(7)} onClick={p.onClick} />;
           }
           return (
-            <div
-              class="text-danger aspect-video text-xs"
-              onClick={p.onClick}
-            >
+            <div class="text-danger aspect-video text-xs" onClick={p.onClick}>
               {err || t3({ en: "Error", fr: "Erreur", pt: "Erro" })}
             </div>
           );
@@ -125,8 +130,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
       </Match>
       <Match
         when={
-          p.state.status === "ready" &&
-          (p.state as { data: FigureInputs }).data
+          p.state.status === "ready" && (p.state as { data: FigureInputs }).data
         }
         keyed
       >
@@ -135,15 +139,13 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
             keyedFigureInputs.figureType === "table"
               ? ("ideal" as const)
               : ("flex" as const);
-          const renderError = (err: string) => (
-            <NotAvailableBox err={err} />
-          );
+          const renderError = (err: string) => <NotAvailableBox err={err} />;
           return (
             <Switch>
               <Match when={p.shapeType === "force-aspect-video"}>
                 <div class="aspect-video overflow-hidden">
                   <FigureHolder
-                    figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                    figureInputs={keyedFigureInputs}
                     height={h1}
                     sizing="zoom"
                     renderError={renderError}
@@ -152,7 +154,7 @@ function PresentationObjectMiniDisplayStateHolderWrapper(
               </Match>
               <Match when={true}>
                 <FigureHolder
-                  figureInputs={adaptFigureStyleForDarkMode(keyedFigureInputs)}
+                  figureInputs={keyedFigureInputs}
                   height={h1}
                   sizing="zoom"
                   renderError={renderError}

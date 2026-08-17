@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { _DEV_USERS, t3, TC } from "lib";
 import {
+  HeadingBar,
   Button,
   FrameLeft,
   FrameTop,
@@ -199,99 +200,93 @@ function ProjectInner() {
         >
           <FrameTop
             panelChildren={
-              <div
-                class="ui-gap ui-pad bg-base-content border-base-content text-base-100 flex h-full w-full items-center border-b"
-                data-cursor-zone="topbar"
-              >
-                <Button iconName="chevronLeft" onClick={() => navigate("/")} />
-                <div class="font-700 flex-1 truncate text-xl">
-                  <span class="font-400">{projectState.label}</span>
-                </div>
-                <div class="ui-gap-sm flex items-center">
-                  <MenuTriggerWrapper
-                    items={
-                      [
-                        {
-                          label: t3({
-                            en: "Guided tours",
-                            fr: "Visites guidées",
-                            pt: "Visitas guiadas",
-                          }),
-                          icon: "slideshow",
-                          onClick: () =>
-                            void openComponent({
-                              element: TourCatalogueModal,
-                              props: { managers: tourManagers },
+              // data-cursor-zone lives on a wrapper: HeadingBar owns its own
+              // root. Flush bar: same surface as the content, border-b divider.
+              <div class="h-full w-full" data-cursor-zone="topbar">
+                <HeadingBar
+                  onBack={() => navigate("/")}
+                  heading={projectState.label}
+                >
+                  <div class="ui-gap-sm flex items-center">
+                    <MenuTriggerWrapper
+                      items={
+                        [
+                          {
+                            label: t3({
+                              en: "Guided tours",
+                              fr: "Visites guidées",
+                              pt: "Visitas guiadas",
                             }),
-                        },
-                        {
-                          label: t3({
-                            en: "Ask for help",
-                            fr: "Demander de l'aide",
-                            pt: "Pedir ajuda",
-                          }),
-                          icon: "lifebuoy",
-                          onClick: () =>
-                            void openComponent({
-                              element: FeedbackForm,
-                              props: {
-                                projectLabel: projectState.label,
-                                initialType: "help",
-                              },
+                            icon: "slideshow",
+                            onClick: () =>
+                              void openComponent({
+                                element: TourCatalogueModal,
+                                props: { managers: tourManagers },
+                              }),
+                          },
+                          {
+                            label: t3({
+                              en: "Ask for help",
+                              fr: "Demander de l'aide",
+                              pt: "Pedir ajuda",
                             }),
-                        },
-                        {
-                          label: t3({
-                            en: "Send feedback",
-                            fr: "Envoyer un commentaire",
-                            pt: "Enviar comentários",
-                          }),
-                          icon: "pencil",
-                          onClick: () =>
-                            void openComponent({
-                              element: FeedbackForm,
-                              props: {
-                                projectLabel: projectState.label,
-                              },
+                            icon: "lifebuoy",
+                            onClick: () =>
+                              void openComponent({
+                                element: FeedbackForm,
+                                props: {
+                                  projectLabel: projectState.label,
+                                  initialType: "help",
+                                },
+                              }),
+                          },
+                          {
+                            label: t3({
+                              en: "Send feedback",
+                              fr: "Envoyer un commentaire",
+                              pt: "Enviar comentários",
                             }),
-                        },
-                        {
-                          label: t3({
-                            en: "Documentation",
-                            fr: "Documentation",
-                            pt: "Documentação",
-                          }),
-                          icon: "document",
-                          onClick: () =>
-                            window.open(
-                              "https://fastr-analytics.org",
-                              "_blank",
-                            ),
-                        },
-                      ] satisfies MenuItem[]
-                    }
-                    position="bottom-end"
-                  >
-                    <Button
-                      intent="base-100"
-                      outline
-                      onBackground="base-content"
+                            icon: "pencil",
+                            onClick: () =>
+                              void openComponent({
+                                element: FeedbackForm,
+                                props: {
+                                  projectLabel: projectState.label,
+                                },
+                              }),
+                          },
+                          {
+                            label: t3({
+                              en: "Documentation",
+                              fr: "Documentation",
+                              pt: "Documentação",
+                            }),
+                            icon: "document",
+                            onClick: () =>
+                              window.open(
+                                "https://fastr-analytics.org",
+                                "_blank",
+                              ),
+                          },
+                        ] satisfies MenuItem[]
+                      }
+                      position="bottom-end"
                     >
-                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                    </Button>
-                  </MenuTriggerWrapper>
-                  <Show when={!showAi()}>
-                    <Button
-                      onClick={() => setShowAi(true)}
-                      iconName="chevronLeft"
-                      intent="base-100"
-                      outline
-                      onBackground="base-content"
-                    >
-                      {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                    </Button>
-                  </Show>
-                </div>
+                      <Button outline>
+                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                      </Button>
+                    </MenuTriggerWrapper>
+                    <Show when={!showAi()}>
+                      <Button
+                        onClick={() => setShowAi(true)}
+                        iconName="chevronLeft"
+                        outline
+                      >
+                        {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                      </Button>
+                    </Show>
+                  </div>
+                </HeadingBar>
               </div>
             }
           >

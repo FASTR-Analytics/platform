@@ -16,7 +16,14 @@ import {
   type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
-import { createEffect, createSignal, on, onMount, Show, type Accessor } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  on,
+  onMount,
+  Show,
+  type Accessor,
+} from "solid-js";
 import { projectAIViewController } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
@@ -35,13 +42,26 @@ function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
     <div class="bg-base-100 my-1 max-w-sm rounded border p-3">
       <div class="text-warning text-sm">
         {isWeekly()
-          ? t3({ en: "Country AI usage limit reached", fr: "Limite IA du pays atteinte", pt: "Limite de utilização da IA do país atingido" })
-          : t3({ en: "Daily AI usage limit reached", fr: "Limite IA journalière atteinte", pt: "Limite diário de utilização da IA atingido" })}
+          ? t3({
+              en: "Country AI usage limit reached",
+              fr: "Limite IA du pays atteinte",
+              pt: "Limite de utilização da IA do país atingido",
+            })
+          : t3({
+              en: "Daily AI usage limit reached",
+              fr: "Limite IA journalière atteinte",
+              pt: "Limite diário de utilização da IA atingido",
+            })}
       </div>
       <Show when={resetTime()}>
         {(time) => (
           <div class="ui-text-caption mt-1">
-            {t3({ en: "Usage will reset at", fr: "L'utilisation se réinitialisera à", pt: "A utilização será reposta às" })} {time()}
+            {t3({
+              en: "Usage will reset at",
+              fr: "L'utilisation se réinitialisera à",
+              pt: "A utilização será reposta às",
+            })}{" "}
+            {time()}
           </div>
         )}
       </Show>
@@ -49,29 +69,37 @@ function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
   );
 }
 
-function ToolErrorRenderer(p: { item: { errorMessage: string; errorDetails: string } }) {
-  const isRateLimit = () => /daily AI token limit|weekly AI token limit/i.test(p.item.errorDetails);
+function ToolErrorRenderer(p: {
+  item: { errorMessage: string; errorDetails: string };
+}) {
+  const isRateLimit = () =>
+    /daily AI token limit|weekly AI token limit/i.test(p.item.errorDetails);
   const [expanded, setExpanded] = createSignal(false);
   return (
-    <Show when={isRateLimit()} fallback={
-      <div class="my-1">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
-        >
-          <div class="mt-0.5">
-            {expanded()
-              ? <Icon iconName="chevronDown" class="h-3 w-3" />
-              : <Icon iconName="chevronRight" class="h-3 w-3" />}
-          </div>
-          <span>{p.item.errorMessage}</span>
-        </button>
-        <Show when={expanded()}>
-          <div class="ml-4 mt-1 text-xs">{p.item.errorDetails}</div>
-        </Show>
-      </div>
-    }>
+    <Show
+      when={isRateLimit()}
+      fallback={
+        <div class="my-1">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
+          >
+            <div class="mt-0.5">
+              {expanded() ? (
+                <Icon iconName="chevronDown" class="h-3 w-3" />
+              ) : (
+                <Icon iconName="chevronRight" class="h-3 w-3" />
+              )}
+            </div>
+            <span>{p.item.errorMessage}</span>
+          </button>
+          <Show when={expanded()}>
+            <div class="mt-1 ml-4 text-xs">{p.item.errorDetails}</div>
+          </Show>
+        </div>
+      }
+    >
       <RateLimitErrorBox item={p.item} />
     </Show>
   );
@@ -80,7 +108,9 @@ function ToolErrorRenderer(p: { item: { errorMessage: string; errorDetails: stri
 // Non-error turn outcomes (refusal, truncation, context-window exceeded,
 // continuation caps) arrive as system_notice items. Match the collapsible
 // look of ToolErrorRenderer so they read like the rest of the chat.
-function SystemNoticeRenderer(p: { item: { message: string; details: string } }) {
+function SystemNoticeRenderer(p: {
+  item: { message: string; details: string };
+}) {
   const [expanded, setExpanded] = createSignal(false);
   return (
     <div class="my-1">
@@ -90,20 +120,26 @@ function SystemNoticeRenderer(p: { item: { message: string; details: string } })
         class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
-          {expanded()
-            ? <Icon iconName="chevronDown" class="h-3 w-3" />
-            : <Icon iconName="chevronRight" class="h-3 w-3" />}
+          {expanded() ? (
+            <Icon iconName="chevronDown" class="h-3 w-3" />
+          ) : (
+            <Icon iconName="chevronRight" class="h-3 w-3" />
+          )}
         </div>
         <span>{p.item.message}</span>
       </button>
       <Show when={expanded()}>
-        <div class="ml-4 mt-1 text-xs">{p.item.details}</div>
+        <div class="mt-1 ml-4 text-xs">{p.item.details}</div>
       </Show>
     </div>
   );
 }
 
-const customChatRenderers = { toolError: ToolErrorRenderer, systemNotice: SystemNoticeRenderer, userText: SaveableUserTextRenderer } as Parameters<typeof AIChat>[0]["customRenderers"];
+const customChatRenderers = {
+  toolError: ToolErrorRenderer,
+  systemNotice: SystemNoticeRenderer,
+  userText: SaveableUserTextRenderer,
+} as Parameters<typeof AIChat>[0]["customRenderers"];
 
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
@@ -163,7 +199,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const handleDeleteConversation = async () => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
+      title: t3({
+        en: "Delete conversation",
+        fr: "Supprimer la conversation",
+        pt: "Eliminar conversa",
+      }),
       text: t3({
         en: "Are you sure you want to delete this conversation? This action cannot be undone.",
         fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
@@ -179,13 +219,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   const menuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "New conversation", fr: "Nouvelle conversation", pt: "Nova conversa" }),
+      label: t3({
+        en: "New conversation",
+        fr: "Nouvelle conversation",
+        pt: "Nova conversa",
+      }),
       icon: "plus",
       onClick: () => conversations.createConversation(),
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Switch conversation", fr: "Changer de conversation", pt: "Mudar de conversa" }),
+      label: t3({
+        en: "Switch conversation",
+        fr: "Changer de conversation",
+        pt: "Mudar de conversa",
+      }),
       icon: "versions",
       onClick: openConversationSelector,
       disabled: isLoading(),
@@ -194,13 +242,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "Prompt library", fr: "Bibliothèque de prompts", pt: "Biblioteca de prompts" }),
+      label: t3({
+        en: "Prompt library",
+        fr: "Bibliothèque de prompts",
+        pt: "Biblioteca de prompts",
+      }),
       icon: "sparkles",
       onClick: openPromptLibrary,
       disabled: isLoading(),
     },
     {
-      label: t3({ en: "Include file", fr: "Inclure un fichier", pt: "Incluir ficheiro" }),
+      label: t3({
+        en: "Include file",
+        fr: "Inclure un fichier",
+        pt: "Incluir ficheiro",
+      }),
       icon: "document",
       onClick: p.aiDocs.openSelector,
       disabled: isLoading(),
@@ -209,12 +265,20 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "AI settings", fr: "Paramètres IA", pt: "Definições da IA" }),
+      label: t3({
+        en: "AI settings",
+        fr: "Paramètres IA",
+        pt: "Definições da IA",
+      }),
       icon: "settings",
       onClick: openSettings,
     },
     {
-      label: t3({ en: "View system prompt", fr: "Voir le prompt système", pt: "Ver prompt do sistema" }),
+      label: t3({
+        en: "View system prompt",
+        fr: "Voir le prompt système",
+        pt: "Ver prompt do sistema",
+      }),
       icon: "code",
       onClick: () =>
         openComponent<AIChatSystemPromptPanelProps, void>({
@@ -244,7 +308,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       type: "divider",
     },
     {
-      label: t3({ en: "Delete conversation", fr: "Supprimer la conversation", pt: "Eliminar conversa" }),
+      label: t3({
+        en: "Delete conversation",
+        fr: "Supprimer la conversation",
+        pt: "Eliminar conversa",
+      }),
       icon: "trash",
       intent: "danger",
       onClick: handleDeleteConversation,
@@ -274,7 +342,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           pt: "Faça uma pergunta sobre esta visualização...",
         });
       case "editing_report":
-        return t3({ en: "Ask about this report...", fr: "Posez une question sur ce rapport...", pt: "Faça uma pergunta sobre este relatório..." });
+        return t3({
+          en: "Ask about this report...",
+          fr: "Posez une question sur ce rapport...",
+          pt: "Faça uma pergunta sobre este relatório...",
+        });
       case "viewing_visualizations":
       case "viewing_slide_decks":
       case "viewing_reports":
@@ -299,26 +371,43 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   // the controller resolves the current view's label.
   const titleSubtext = () => projectAIViewController.currentLabel();
 
-  type AiUsageData = { tokensUsedToday: number; dailyTokenLimit: number | null; isUnlimited: boolean; tokensUsedThisWeek: number; weeklyTokenLimit: number | null };
+  type AiUsageData = {
+    tokensUsedToday: number;
+    dailyTokenLimit: number | null;
+    isUnlimited: boolean;
+    tokensUsedThisWeek: number;
+    weeklyTokenLimit: number | null;
+  };
   const [aiUsage, setAiUsage] = createSignal<AiUsageData | null>(null);
 
   async function refreshAiUsage() {
     try {
       const res = await serverActions.getAiUsage({});
       if (res.success) setAiUsage(res.data);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   onMount(refreshAiUsage);
 
-  createEffect(on(isLoading, (loading) => {
-    if (!loading) refreshAiUsage();
-  }, { defer: true }));
+  createEffect(
+    on(
+      isLoading,
+      (loading) => {
+        if (!loading) refreshAiUsage();
+      },
+      { defer: true },
+    ),
+  );
 
   const usagePct = () => {
     const u = aiUsage();
     if (!u || u.isUnlimited || u.dailyTokenLimit === null) return null;
-    return Math.min(100, Math.round((u.tokensUsedToday / u.dailyTokenLimit) * 100));
+    return Math.min(
+      100,
+      Math.round((u.tokensUsedToday / u.dailyTokenLimit) * 100),
+    );
   };
 
   const usageTooltip = () => {
@@ -332,7 +421,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="ui-pad ui-gap border-base-content dark:border-base-300 bg-primary text-primary-content flex items-center justify-between border-b">
+      <div class="ui-pad ui-gap border-primary-active bg-primary text-primary-content flex items-center justify-between border-b">
         <h3 class="flex items-baseline gap-2 truncate text-base">
           <span class="font-700">{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
@@ -363,7 +452,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         onRemove={p.aiDocs.removeDocument}
       />
 
-      <div class="md-dark-adapt flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden">
         <AIChat
           placeholder={placeholder()}
           onScrollReady={(fn) => (scrollToBottom = fn)}
@@ -372,13 +461,37 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       </div>
 
       <Show when={usagePct() !== null}>
-        <div class="border-base-200 flex items-center gap-2 border-t px-3 py-1.5" title={usageTooltip()}>
-          <svg width="18" height="18" viewBox="0 0 20 20" class="shrink-0 cursor-default">
-            <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="3" class="text-base-300" />
+        <div
+          class="border-base-200 flex items-center gap-2 border-t px-3 py-1.5"
+          title={usageTooltip()}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            class="shrink-0 cursor-default"
+          >
             <circle
-              cx="10" cy="10" r="7"
+              cx="10"
+              cy="10"
+              r="7"
               fill="none"
-              stroke={usagePct()! >= 100 ? "#ef4444" : usagePct()! >= 80 ? "#f59e0b" : "currentColor"}
+              stroke="currentColor"
+              stroke-width="3"
+              class="text-base-300"
+            />
+            <circle
+              cx="10"
+              cy="10"
+              r="7"
+              fill="none"
+              stroke={
+                usagePct()! >= 100
+                  ? "#ef4444"
+                  : usagePct()! >= 80
+                    ? "#f59e0b"
+                    : "currentColor"
+              }
               stroke-width="3"
               stroke-dasharray="43.98"
               stroke-dashoffset={43.98 * (1 - usagePct()! / 100)}
@@ -387,7 +500,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
               class={usagePct()! >= 80 ? "" : "text-primary"}
             />
           </svg>
-          <span class="ui-text-caption">{usagePct()}% of daily AI limit used</span>
+          <span class="ui-text-caption">
+            {usagePct()}% of daily AI limit used
+          </span>
         </div>
       </Show>
     </div>

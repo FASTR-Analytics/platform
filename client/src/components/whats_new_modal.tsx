@@ -17,9 +17,18 @@ import {
   ModalContainer,
   type AlertComponentProps,
 } from "panther";
-import { For, Index, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  For,
+  Index,
+  Show,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 
-const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION =
+  typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export type WhatsNewModalOutcome = "skipped" | "completed";
@@ -83,7 +92,9 @@ export function WhatsNewModal(
     <ModalContainer
       width="lg"
       scroll="content"
-      topPanel={<div class="font-700 text-base-content text-xl">{rt(p.post.title)}</div>}
+      topPanel={
+        <div class="font-700 text-base-content text-xl">{rt(p.post.title)}</div>
+      }
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
@@ -192,13 +203,24 @@ function WhatsNewPageContent(p: {
       fallback={
         <div class="ui-spy">
           <Show when={rt(p.page.title)}>
-            <h3 class="font-700 text-base-content text-lg">{rt(p.page.title)}</h3>
+            <h3 class="font-700 text-base-content text-lg">
+              {rt(p.page.title)}
+            </h3>
           </Show>
-          <div classList={{ "ui-spy": !layout().row, "flex items-start gap-6": layout().row }}>
+          <div
+            classList={{
+              "ui-spy": !layout().row,
+              "flex items-start gap-6": layout().row,
+            }}
+          >
             <Show when={showImage() && layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
+                wrapClass={
+                  layout().row
+                    ? "relative shrink-0 rounded"
+                    : "relative mx-auto rounded"
+                }
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
                 active={p.active}
@@ -212,7 +234,11 @@ function WhatsNewPageContent(p: {
             <Show when={showImage() && !layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={layout().row ? "relative shrink-0 rounded" : "relative mx-auto rounded"}
+                wrapClass={
+                  layout().row
+                    ? "relative shrink-0 rounded"
+                    : "relative mx-auto rounded"
+                }
                 imgClass="w-full rounded object-contain"
                 width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
                 active={p.active}
@@ -233,7 +259,14 @@ function WhatsNewPageContent(p: {
           canLoad={p.canLoad}
           onLoaded={p.onLoaded}
         />
-        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-6 pt-16 text-white">
+        <div
+          class="absolute inset-x-0 bottom-0 p-6 pt-16"
+          style={{
+            background:
+              "linear-gradient(to top, rgb(0 0 0 / 0.75), transparent)",
+            color: "#ffffff",
+          }}
+        >
           <Show when={rt(p.page.title)}>
             <h3 class="font-700 mb-2 text-xl">{rt(p.page.title)}</h3>
           </Show>
@@ -345,51 +378,41 @@ function WhatsNewMedia(p: {
         {/* The player is mounted only while its page is visible — every page
             stays in the DOM, and N background YouTube iframes would be a
             heavy, pointless load */}
-        <Show when={!youTubeUrl()} fallback={
-          <Show
-            when={p.active}
-            fallback={<div class="bg-base-200 aspect-video w-full rounded" />}
-          >
-            <iframe
-              src={youTubeUrl()}
-              class="aspect-video w-full rounded"
-              title={t3({ en: "Video", fr: "Vidéo", pt: "Vídeo" })}
-              allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
-              allowfullscreen
-            />
-          </Show>
-        }>
-        {/* Video appears as soon as it has a frame — no opacity ramp; fading
+        <Show
+          when={!youTubeUrl()}
+          fallback={
+            <Show
+              when={p.active}
+              fallback={<div class="bg-base-200 aspect-video w-full rounded" />}
+            >
+              <iframe
+                src={youTubeUrl()}
+                class="aspect-video w-full rounded"
+                title={t3({ en: "Video", fr: "Vidéo", pt: "Vídeo" })}
+                allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture; fullscreen"
+                allowfullscreen
+              />
+            </Show>
+          }
+        >
+          {/* Video appears as soon as it has a frame — no opacity ramp; fading
             in a video's first frame reads as sluggish, and by the time the
             page is shown the clip is already buffered in this very element */}
-        <Show when={!isVideo()} fallback={
-          <video
-            src={src()}
-            class={p.imgClass}
-            preload="auto"
-            loop
-            controls={REDUCED_MOTION}
-            ref={(el) => {
-              videoRef = el;
-              el.muted = true;
-              el.playsInline = true;
-            }}
-            onLoadedData={markLoaded}
-            onError={() => {
-              setFailed(true);
-              p.onLoaded();
-            }}
-          />
-        }>
           <Show
-            when={staticFrame()}
+            when={!isVideo()}
             fallback={
-              <img
+              <video
                 src={src()}
-                alt=""
-                class={`${p.imgClass} ${fadeClass}`}
-                classList={fadeState()}
-                onLoad={markLoaded}
+                class={p.imgClass}
+                preload="auto"
+                loop
+                controls={REDUCED_MOTION}
+                ref={(el) => {
+                  videoRef = el;
+                  el.muted = true;
+                  el.playsInline = true;
+                }}
+                onLoadedData={markLoaded}
                 onError={() => {
                   setFailed(true);
                   p.onLoaded();
@@ -397,21 +420,42 @@ function WhatsNewMedia(p: {
               />
             }
           >
-            <canvas
-              ref={canvasRef}
-              class={`${p.imgClass} ${fadeClass}`}
-              classList={fadeState()}
-            />
-            <button
-              type="button"
-              class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white"
-              title={t3({ en: "Play animation", fr: "Lire l'animation", pt: "Reproduzir animação" })}
-              onClick={() => setPlay(true)}
+            <Show
+              when={staticFrame()}
+              fallback={
+                <img
+                  src={src()}
+                  alt=""
+                  class={`${p.imgClass} ${fadeClass}`}
+                  classList={fadeState()}
+                  onLoad={markLoaded}
+                  onError={() => {
+                    setFailed(true);
+                    p.onLoaded();
+                  }}
+                />
+              }
             >
-              ▶
-            </button>
+              <canvas
+                ref={canvasRef}
+                class={`${p.imgClass} ${fadeClass}`}
+                classList={fadeState()}
+              />
+              <button
+                type="button"
+                class="absolute inset-0 m-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full"
+                style={{ background: "rgb(0 0 0 / 0.6)", color: "#ffffff" }}
+                title={t3({
+                  en: "Play animation",
+                  fr: "Lire l'animation",
+                  pt: "Reproduzir animação",
+                })}
+                onClick={() => setPlay(true)}
+              >
+                ▶
+              </button>
+            </Show>
           </Show>
-        </Show>
         </Show>
       </div>
     </Show>
@@ -473,7 +517,9 @@ export function WhatsNewFeedModal(
               onClick={() => p.close(post)}
             >
               <div class="flex items-center gap-2">
-                <div class="font-700 text-base-content grow">{rt(post.title)}</div>
+                <div class="font-700 text-base-content grow">
+                  {rt(post.title)}
+                </div>
                 <Show when={!p.readIds.has(post.id)}>
                   <div
                     class="bg-warning h-2 w-2 shrink-0 rounded-full"
@@ -481,7 +527,9 @@ export function WhatsNewFeedModal(
                   />
                 </Show>
               </div>
-              <div class="text-base-content-muted mt-1 text-sm">{metaLabel(post)}</div>
+              <div class="text-base-content-muted mt-1 text-sm">
+                {metaLabel(post)}
+              </div>
             </button>
           )}
         </For>
@@ -494,7 +542,11 @@ export function WhatsNewFeedModal(
 // icon set has no bell, and panther itself must not be modified from this repo.
 export function WhatsNewBellIcon() {
   return (
-    <svg viewBox="0 0 256 256" fill="currentColor" class="h-[1.25em] w-[1.25em]">
+    <svg
+      viewBox="0 0 256 256"
+      fill="currentColor"
+      class="h-[1.25em] w-[1.25em]"
+    >
       <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" />
     </svg>
   );

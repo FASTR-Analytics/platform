@@ -129,11 +129,12 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
           const color = seg.whoEmail
             ? presenceColorForKey(seg.whoEmail)
             : UNKNOWN_COLOR;
-          const flag = seg.kind === "added"
-            ? addedTitle(seg.who, seg.whoExact)
-            : seg.kind === "edited"
-            ? editedTitle(seg.who, seg.whoExact)
-            : removedTitle(seg.who, seg.whoExact);
+          const flag =
+            seg.kind === "added"
+              ? addedTitle(seg.who, seg.whoExact)
+              : seg.kind === "edited"
+                ? editedTitle(seg.who, seg.whoExact)
+                : removedTitle(seg.who, seg.whoExact);
           return (
             <span
               class="group relative cursor-help rounded-sm"
@@ -147,11 +148,12 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
             >
               {seg.text}
               <span
-                class="pointer-events-none absolute left-0 z-10 rounded-sm px-1 font-sans whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100"
+                class="pointer-events-none absolute left-0 z-10 rounded-sm px-1 font-sans whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100"
                 style={{
                   top: "-1.05em",
                   "font-size": "10.5px",
                   "background-color": color,
+                  color: "#ffffff",
                 }}
               >
                 {flag}

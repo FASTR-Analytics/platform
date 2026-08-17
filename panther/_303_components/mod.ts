@@ -5,11 +5,13 @@
 
 export * from "./charts/mod.ts";
 export * from "./content/mod.ts";
+export * from "./display/mod.ts";
 export * from "./docs/mod.ts";
 export * from "./form_inputs/mod.ts";
 export * from "./icons/mod.ts";
 export * from "./layout/mod.ts";
 export * from "./presentation_viewer/mod.ts";
+export * from "./scheme.ts";
 export * from "./special_state/mod.ts";
 export * from "./tables/mod.ts";
 export * from "./types.ts";

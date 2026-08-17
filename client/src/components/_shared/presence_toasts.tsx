@@ -24,7 +24,8 @@ const TOAST_MS = 4_000;
 const LEAVE_GRACE_MS = 4_000;
 const MAX_TOASTS = 4;
 
-const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION =
+  typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ── Toast host (lazily mounted into document.body on first toast) ────────────
@@ -58,15 +59,19 @@ function PresenceToastHost() {
   return (
     // top-20 sits just below the tallest editor header, clear of the AI /
     // settings / download buttons in the top-right corner.
-    <div class="pointer-events-none fixed right-4 top-20 z-[95] flex flex-col items-end gap-2">
+    <div class="pointer-events-none fixed top-20 right-4 z-[95] flex flex-col items-end gap-2">
       <For each={toasts()}>
         {(t) => (
           <div
-            class="bg-primary text-primary-content flex items-center gap-2 rounded px-3 py-2 text-sm shadow-floating"
-            style={REDUCED_MOTION ? {} : { animation: "presence-toast-in 150ms ease-out" }}
+            class="bg-primary text-primary-content shadow-floating flex items-center gap-2 rounded px-3 py-2 text-sm"
+            style={
+              REDUCED_MOTION
+                ? {}
+                : { animation: "presence-toast-in 150ms ease-out" }
+            }
           >
             <span
-              class="h-2.5 w-2.5 flex-none rounded-full ring-1 ring-white/60"
+              class="ring-base-100/60 h-2.5 w-2.5 flex-none rounded-full ring-1"
               style={{ "background-color": t.color }}
             />
             <span>{t.text}</span>

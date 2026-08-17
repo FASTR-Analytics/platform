@@ -4,8 +4,7 @@ import {
   AlertFormHolder,
   Button,
   Input,
-  Select,
-  getTruncatedString,
+  SelectSearch,
   getUnique,
   createFormAction,
 } from "panther";
@@ -143,16 +142,14 @@ export function EditIndicatorCommonForm(
         <For each={mappedRawIds()}>
           {(rawId, index) => (
             <div class="ui-gap-sm flex items-center">
-              <Select
-                value={rawId}
+              <SelectSearch
+                value={rawId || undefined}
                 onChange={(value) => updateMappedRawId(index(), value)}
-                options={[
-                  { value: "", label: t3({ en: "Select DHIS2 indicator...", fr: "Sélectionner un indicateur DHIS2...", pt: "Selecionar um indicador DHIS2..." }) },
-                  ...p.rawIndicators.map((raw) => ({
-                    value: raw.raw_indicator_id,
-                    label: `${raw.raw_indicator_id} ~ ${getTruncatedString(raw.raw_indicator_label, 30)}`,
-                  })),
-                ]}
+                placeholder={t3({ en: "Select DHIS2 indicator...", fr: "Sélectionner un indicateur DHIS2...", pt: "Selecionar um indicador DHIS2..." })}
+                options={p.rawIndicators.map((raw) => ({
+                  value: raw.raw_indicator_id,
+                  label: `${raw.raw_indicator_id} ~ ${raw.raw_indicator_label}`,
+                }))}
                 fullWidth
               />
               <Button

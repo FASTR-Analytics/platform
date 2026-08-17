@@ -218,6 +218,22 @@ export function validateFetchConfig(
     }
   }
 
+  // A groupBy that is also a value prop makes the query emit two same-named
+  // columns. With a PAE the builders disambiguate (paeCollidingGroupBys,
+  // query_helpers.ts); without one there is no wrapper layer to re-alias in,
+  // and the driver's row object would silently clobber the group value with
+  // the aggregate. No shipped non-PAE metric has this shape — fail loud.
+  if (fetchConfig.postAggregationExpression === undefined) {
+    const valueProps = new Set(fetchConfig.values.map((v) => v.prop));
+    for (const groupBy of fetchConfig.groupBys) {
+      if (valueProps.has(groupBy)) {
+        throw new Error(
+          `Cannot disaggregate by value prop without a post-aggregation expression: ${groupBy}`
+        );
+      }
+    }
+  }
+
   if (
     fetchConfig.postAggregationExpression !== undefined &&
     !isSafePostAggregationExpression(fetchConfig.postAggregationExpression)

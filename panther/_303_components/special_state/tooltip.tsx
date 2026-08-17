@@ -101,15 +101,19 @@ export function TooltipProvider() {
         style={{ "position-anchor": "--tooltip-anchor" } as JSX.CSSProperties}
       >
         {
-          /* Inverted surface authored against light-theme tokens
-            (base-content as bg). color-scheme is pinned so the bubble keeps
-            resolving light token values under any future scheme-flipping
-            (light-dark() pairs); inert until then. */
+          /* Inverted surface: base-content as bg flips with the scheme, so
+            in a dark-scheme app the bubble renders as a LIGHT surface —
+            true inversion, max contrast on dark bases (the MD3
+            inverse-surface / shadcn-dark idiom). Light mode and non-opted
+            apps resolve light tokens and render the dark bubble unchanged.
+            Do not pin color-scheme here, and do not re-author to
+            bg-base-100 (that would equal the page background in dark
+            mode). */
         }
         <Show when={tooltipState()} keyed>
           {(state) => (
             <div
-              class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating [color-scheme:light] data-[size=sm]:px-1.5 data-[size=sm]:py-0.5 data-[size=sm]:text-xs"
+              class="bg-base-content text-base-100 max-w-[280px] rounded px-2 py-1 text-sm shadow-floating data-[size=sm]:px-1.5 data-[size=sm]:py-0.5 data-[size=sm]:text-xs"
               data-size={state.size}
             >
               {state.content}

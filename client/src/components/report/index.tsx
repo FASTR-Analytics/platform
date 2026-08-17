@@ -645,59 +645,59 @@ export function ProjectReport(p: Props) {
       "editing_report",
       { reportId: p.reportId, reportLabel: label() },
       {
-      getBody: () => body(),
-      getFigures: () => figures(),
-      getImages: () => images(),
-      getSelection: () => editorApi?.getSelection(),
-      proposeEdit: (proposal): ReportEditProposalResult => {
-        // The base the proposal was computed from. Every proposing tool builds
-        // newBody from getBody() with only synchronous work before calling
-        // proposeEdit (from inside its own approval.propose), so body() here
-        // IS that base — captured for the rebase on accept (collaborators may
-        // edit while the diff is under review).
-        const baseBody = body();
-        if (proposal.newBody === baseBody) {
+        getBody: () => body(),
+        getFigures: () => figures(),
+        getImages: () => images(),
+        getSelection: () => editorApi?.getSelection(),
+        proposeEdit: (proposal): ReportEditProposalResult => {
+          // The base the proposal was computed from. Every proposing tool builds
+          // newBody from getBody() with only synchronous work before calling
+          // proposeEdit (from inside its own approval.propose), so body() here
+          // IS that base — captured for the rebase on accept (collaborators may
+          // edit while the diff is under review).
+          const baseBody = body();
+          if (proposal.newBody === baseBody) {
+            return {
+              skip: "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+            };
+          }
           return {
-            skip:
-              "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+            preview: {
+              title: proposal.summary,
+              diff: { before: baseBody, after: proposal.newBody },
+            },
+            // Stages the SAME locking modal (openComponent backdrop) as before
+            // migration; the signal aborts on an external resolution (Stop) and
+            // the modal closes itself (see ReportMarkdownDiff's signal prop) —
+            // panther has no dismissal API for an already-open dialog otherwise.
+            customProposalUI: (signal) =>
+              openComponent({
+                element: ReportMarkdownDiff,
+                props: {
+                  oldText: baseBody,
+                  newText: proposal.newBody,
+                  summary: proposal.summary,
+                  signal,
+                },
+              }).then((accepted) => accepted === true),
+            // Guards the dangerous half of the proposeEdit orphan: a decision
+            // that resolves "accepted" after this editor unmounted (or the AI
+            // context moved on to something else while it was still mounted)
+            // must NOT run commit against torn-down editor state. Checked only
+            // at accept — panther maps a false return to the standardized
+            // stale/auto_declined outcome instead of calling commit.
+            stillValid: () =>
+              mounted &&
+              projectAIViewController.current().id === "editing_report",
+            // Runs ONLY after an accepted, still-valid decision — same rebase-
+            // over-collaborator-edits + persist logic as before migration.
+            commit: async () => {
+              const skipped = await applyProposal(proposal, baseBody);
+              return { skipped };
+            },
           };
-        }
-        return {
-          preview: {
-            title: proposal.summary,
-            diff: { before: baseBody, after: proposal.newBody },
-          },
-          // Stages the SAME locking modal (openComponent backdrop) as before
-          // migration; the signal aborts on an external resolution (Stop) and
-          // the modal closes itself (see ReportMarkdownDiff's signal prop) —
-          // panther has no dismissal API for an already-open dialog otherwise.
-          customProposalUI: (signal) =>
-            openComponent({
-              element: ReportMarkdownDiff,
-              props: {
-                oldText: baseBody,
-                newText: proposal.newBody,
-                summary: proposal.summary,
-                signal,
-              },
-            }).then((accepted) => accepted === true),
-          // Guards the dangerous half of the proposeEdit orphan: a decision
-          // that resolves "accepted" after this editor unmounted (or the AI
-          // context moved on to something else while it was still mounted)
-          // must NOT run commit against torn-down editor state. Checked only
-          // at accept — panther maps a false return to the standardized
-          // stale/auto_declined outcome instead of calling commit.
-          stillValid: () =>
-            mounted && projectAIViewController.current().id === "editing_report",
-          // Runs ONLY after an accepted, still-valid decision — same rebase-
-          // over-collaborator-edits + persist logic as before migration.
-          commit: async () => {
-            const skipped = await applyProposal(proposal, baseBody);
-            return { skipped };
-          },
-        };
-      },
-      applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
+        },
+        applyFigureUpdate: (figureId, block) => updateFigure(figureId, block),
       },
     );
   });
@@ -1321,7 +1321,7 @@ export function ProjectReport(p: Props) {
         ref={(el) => (previewEl = el)}
       >
         <div
-          class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating"
+          class="bg-base-100 md-dark-adapt shadow-floating mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10"
           data-report-cursor="preview-content"
           ref={(el) => (contentEl = el)}
         >
@@ -1478,7 +1478,9 @@ export function ProjectReport(p: Props) {
               <div class="ui-gap-sm flex items-center">
                 {/* Who else is currently in THIS report (live presence). */}
                 <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.reportId === p.reportId)}
+                  peers={otherPeers().filter(
+                    (pe) => pe.reportId === p.reportId,
+                  )}
                   size="sm"
                 />
                 <div
@@ -1717,8 +1719,8 @@ function ReportPeerSelectionOverlay(p: {
                 <For each={b.editors}>
                   {(e) => (
                     <div
-                      class="rounded px-1 text-[10px] font-700 whitespace-nowrap text-white"
-                      style={{ "background-color": e.color }}
+                      class="font-700 rounded px-1 text-[10px] whitespace-nowrap"
+                      style={{ "background-color": e.color, color: "#ffffff" }}
                     >
                       {e.name}
                       {e.editingFigure

@@ -6,7 +6,7 @@ import {
   HeadingBar,
   OpenEditorProps,
   openComponent,
-  SelectionCircle,
+  Card,
   showMenu,
   createDeleteAction,
   type MenuItem,
@@ -226,50 +226,49 @@ export function ProjectDashboards(p: Props) {
           {(dashboard) => {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
-              <div
-                class="group relative cursor-pointer rounded border p-3"
-                data-tour="dashboards-card"
-                classList={{
-                  "hover:border-primary": !isSelected(),
-                  "border-primary": isSelected(),
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  selection.handleClick(dashboard.id, e, () =>
-                    openDashboard(dashboard.id, dashboard.title),
-                  );
-                }}
-                onContextMenu={(e) => handleContextMenu(e, dashboard)}
-              >
-                <SelectionCircle
-                  isSelected={isSelected()}
-                  onClick={(e) => selection.handleClick(dashboard.id, e)}
-                />
-                <div class="font-700 truncate text-base">{dashboard.title}</div>
-                <div class="ui-text-caption truncate font-mono">
-                  /{dashboard.slug}
-                </div>
-                <div class="ui-text-caption flex items-center justify-between">
-                  <span>
-                    {dashboard.itemCount}{" "}
-                    {t3({ en: "items", fr: "éléments", pt: "elementos" })}
-                  </span>
-                  <span
-                    class={
-                      dashboard.isPublic
-                        ? "text-success font-700"
-                        : "text-base-content-muted"
-                    }
-                  >
-                    {dashboard.isPublic
-                      ? t3({ en: "Public", fr: "Public", pt: "Público" })
-                      : t3({
-                          en: "Auth required",
-                          fr: "Authentification requise",
-                          pt: "Autenticação necessária",
-                        })}
-                  </span>
-                </div>
+              <div data-tour="dashboards-card">
+                <Card
+                  pad="none"
+                  selected={isSelected()}
+                  onSelectToggle={(e) => selection.handleClick(dashboard.id, e)}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    selection.handleClick(dashboard.id, e, () =>
+                      openDashboard(dashboard.id, dashboard.title),
+                    );
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, dashboard)}
+                >
+                  <div class="p-3">
+                    <div class="font-700 truncate text-base">
+                      {dashboard.title}
+                    </div>
+                    <div class="ui-text-caption truncate font-mono">
+                      /{dashboard.slug}
+                    </div>
+                    <div class="ui-text-caption flex items-center justify-between">
+                      <span>
+                        {dashboard.itemCount}{" "}
+                        {t3({ en: "items", fr: "éléments", pt: "elementos" })}
+                      </span>
+                      <span
+                        class={
+                          dashboard.isPublic
+                            ? "text-success font-700"
+                            : "text-base-content-muted"
+                        }
+                      >
+                        {dashboard.isPublic
+                          ? t3({ en: "Public", fr: "Public", pt: "Público" })
+                          : t3({
+                              en: "Auth required",
+                              fr: "Authentification requise",
+                              pt: "Autenticação necessária",
+                            })}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
               </div>
             );
           }}

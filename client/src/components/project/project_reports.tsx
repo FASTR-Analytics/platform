@@ -7,7 +7,7 @@ import {
   HeadingBar,
   OpenEditorProps,
   Select,
-  SelectionCircle,
+  Card,
   SelectList,
   getColor,
   openComponent,
@@ -559,30 +559,24 @@ export function ProjectReports(p: ExtendedProps) {
               const isSelected = () => selection.isSelected(report.id);
               return (
                 <div
-                  class="group row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1"
+                  class="row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1"
                   data-tour="reports-report-card"
                 >
                   <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>
-                  <div
-                    class="bg-base-100 relative cursor-pointer overflow-clip rounded border"
-                    classList={{
-                      "border-primary": isSelected(),
-                      "hover:border-primary": !isSelected(),
-                    }}
+                  <Card
+                    pad="none"
+                    selected={isSelected()}
+                    onSelectToggle={(e) => selection.handleClick(report.id, e)}
                     onClick={(e) => {
-                      e.stopPropagation();
+                      e?.stopPropagation();
                       selection.handleClick(report.id, e, () =>
                         openReport(report.id, report.label),
                       );
                     }}
                     onContextMenu={(e) => handleContextMenu(e, report)}
                   >
-                    <SelectionCircle
-                      isSelected={isSelected()}
-                      onClick={(e) => selection.handleClick(report.id, e)}
-                    />
                     <div class="pointer-events-none absolute bottom-1 left-1 z-10">
                       <PresenceAvatars
                         peers={otherPeers().filter(
@@ -637,7 +631,7 @@ export function ProjectReports(p: ExtendedProps) {
                         </div>
                       </Show>
                     </div>
-                  </div>
+                  </Card>
                 </div>
               );
             }}

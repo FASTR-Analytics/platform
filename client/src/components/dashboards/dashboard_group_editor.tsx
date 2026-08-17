@@ -1,6 +1,6 @@
 import type { DashboardItemGroup } from "lib";
 import { t3 } from "lib";
-import { Button, Select } from "panther";
+import { Button, SelectSearch } from "panther";
 import { Show } from "solid-js";
 
 type Props = {
@@ -28,9 +28,9 @@ export function DashboardGroupEditor(p: Props) {
           })}
         </div>
         <div class="text-sm font-700">{p.group.label}</div>
-        <Select
+        <SelectSearch
           label={t3({ en: "Default replicant", fr: "Réplicant par défaut", pt: "Replicante predefinido" })}
-          value={defaultValue()}
+          value={defaultValue() || undefined}
           options={p.group.replicants.map((r) => ({
             value: r.value,
             label: r.label,
