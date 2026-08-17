@@ -108,7 +108,9 @@ history). Shape:
   per-run table survives the hold; "Integrate anyway" re-claims — or queues;
   "Discard" cancels and drops it); zero staged rows → loud `error`. The
   integrate leg is the old single-transaction CSV merge unchanged; the
-  version lands inside the transaction so readers hide it until the flip.
+  version link and the `complete` flip land together as the transaction's
+  last statement (readers hide a running run's version; a committed one is
+  already complete).
 - **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot
   and recurring rows, rolling-window selection resolved at fire time) is
   fired by a ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`) —
@@ -288,11 +290,13 @@ crash-truncation or an interrupted re-stage. Then:
   writing transaction (CSV integrate leg; DHIS2 lazy mint; windowed deletes
   with negative counts); all writers are mutually excluded by the
   single-running claim + delete guard. Ids are monotonic, never reset — the
-  client cache key component and staleness marker. Post-commit: drop staging
-  → flip `complete` → notify. Death between commit and flip leaves
-  error-state-with-data-integrated; the count invariant then blocks a blind
-  re-integrate, and the crash path reconciles the version row the same way
-  DHIS2 interruptions do.
+  client cache key component and staleness marker. The CSV run's
+  `version_id` and its `complete` flip land in ONE guarded statement, last in
+  the merge transaction (HFA/ICEH's model): a cancel that flips first rolls
+  the merge back whole; a merge that commits is already complete. So a CSV
+  run can never be error/cancelled with a version, and the crash / cancel /
+  sweep paths reconcile version rows for DHIS2 runs only. Post-commit: drop
+  staging → notify.
 
 **HFA — full replace per time_point**: stamp `hfa_time_points.imported_at` (the
 time point must pre-exist), DELETE `hfa_data` + `hfa_variables` for that time

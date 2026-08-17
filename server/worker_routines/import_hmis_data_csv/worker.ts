@@ -133,6 +133,9 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
     }
 
     // ── Integrate leg ───────────────────────────────────────────────────
+    // The completion flip happens INSIDE the merge transaction (see
+    // integrate_staged.ts) — a cancel racing the commit either rolls the merge
+    // back whole or arrives after the run is already 'complete'.
     await integrateStagedHmisCsvData({
       importDb,
       mainDb,
@@ -142,13 +145,6 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         writeProgress({ phase: "integrating", percent }, false);
       },
     });
-
-    await mainDb`
-      UPDATE dataset_hmis_import_runs
-      SET status = 'complete', ended_at = now(), progress = NULL,
-        run_stats = ${JSON.stringify({ csvStagingResult: stagingResult })}
-      WHERE id = ${runId} AND status = 'running'
-    `;
 
     await importDb.end();
     await mainDb.end();

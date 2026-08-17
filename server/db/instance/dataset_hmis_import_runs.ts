@@ -596,10 +596,11 @@ async function spawnCsvRunWorker(
         WHERE id = ${runId} AND status = 'running'
       `;
       await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
-      // A crash mid-integration cannot leave a committed version (single
-      // transaction), but a crash between commit and the status flip can —
-      // reconcile the version row the same way DHIS2 interruptions do.
-      await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
+      // No version reconciliation here: a CSV run's version_id and its
+      // 'complete' flip commit in ONE statement, so a crashed CSV run either
+      // has no version or is already complete. (finalizeInterrupted… is
+      // DHIS2 placeholder-version reconciliation; on a completed CSV version
+      // it would overwrite the CSV staging_result with a dhis2-shaped one.)
     } catch (dbError) {
       console.error("Failed to mark CSV run errored after crash:", dbError);
     }
@@ -871,8 +872,12 @@ export async function cancelDatasetHmisImportRun(
     }
     if (runRow.source === "csv") {
       await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
+    } else {
+      // DHIS2 only: a CSV run's version_id commits together with its
+      // 'complete' flip, so a cancelled CSV run never has a version to
+      // reconcile.
+      await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     }
-    await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     // No scope-table drop here (DHIS2): the flip above already released the
     // claim, so a successor run may have created its own scope table by now —
     // dropping the fixed-name table here could destroy the successor's
@@ -1022,8 +1027,9 @@ export async function markStaleRunningDatasetHmisImportRuns(
   for (const row of swept) {
     if (row.source === "csv") {
       await dropHmisCsvStagingTables(mainDb, row.id, { keepFinal: false });
+    } else {
+      await finalizeInterruptedDatasetHmisRunVersion(mainDb, row.id);
     }
-    await finalizeInterruptedDatasetHmisRunVersion(mainDb, row.id);
   }
   return swept.length;
 }

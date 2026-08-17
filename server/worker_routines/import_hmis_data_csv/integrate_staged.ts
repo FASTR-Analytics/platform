@@ -7,8 +7,9 @@ import { hmisCsvStagingTableNames } from "./stage_csv.ts";
 // integrate_hmis_data worker — semantics unchanged (version minted MAX(id)
 // inline, "absent = keep prior value" merge, ledger writes in the same
 // transaction). Only the staging-table name (per-run) and the run linkage
-// (version_id lands on the run row inside the transaction, so version
-// readers hide it until the status flip) differ.
+// differ: version_id AND the completion flip land on the run row together as
+// the transaction's last statement (see below). On success the run row is
+// 'complete' when this returns.
 export async function integrateStagedHmisCsvData(args: {
   importDb: Sql;
   mainDb: Sql;
@@ -177,17 +178,26 @@ export async function integrateStagedHmisCsvData(args: {
 
     onProgress(70);
 
-    // Run-row link comes LAST inside the transaction: it takes the run-row
-    // lock, and the progress writer (a separate pooled connection) updates the
-    // same row — a progress write after this point would wait on this
-    // transaction while this transaction awaits the write (the Ghana
-    // 2026-08-12 wedge). Still inside the transaction, so version readers hide
-    // the version until the status flip at run end.
-    await sql`
+    // Single run-row write, LAST in the transaction (PROTOCOL_APP_WORKER_
+    // ROUTINES.md "Gotchas"): version link + completion flip together, so the
+    // run-row lock is held only for the final instant and version_id can never
+    // be observed without status='complete'. Guarded on status='running': a
+    // cancel that landed first matches zero rows and the throw rolls the whole
+    // merge back (a run marked cancelled has truly integrated nothing); a
+    // merge that commits has atomically marked itself complete, so a blocked
+    // cancel then no-ops.
+    const flipped = await sql`
       UPDATE dataset_hmis_import_runs
-      SET version_id = ${versionId}
-      WHERE id = ${runId}
+      SET version_id = ${versionId}, status = 'complete', ended_at = now(),
+        progress = NULL,
+        run_stats = ${JSON.stringify({ csvStagingResult: stagingResult })}
+      WHERE id = ${runId} AND status = 'running'
     `;
+    if (flipped.count === 0) {
+      throw new Error(
+        "The run was cancelled during integration — nothing was merged.",
+      );
+    }
   });
 
   onProgress(80);
