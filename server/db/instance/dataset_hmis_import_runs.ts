@@ -887,6 +887,7 @@ export async function cancelDatasetHmisImportRun(
   });
 }
 
+// DHIS2 runs only (a CSV run's version_id commits with its 'complete' flip).
 // A run that ends without its natural finalize (cancel, worker crash,
 // restart sweep) leaves its version row holding the mint-time placeholder
 // (0 rows, empty stats) while real dataset_hmis rows reference it. Reconcile
@@ -926,6 +927,9 @@ export async function finalizeInterruptedDatasetHmisRunVersion(
     const versionId = run.version_id;
     if (run.succeeded_pairs === 0) {
       try {
+        // Run row written FIRST, but the transaction awaits nothing but its
+        // own two statements, so a concurrent progress write only waits for
+        // COMMIT (PROTOCOL_APP_WORKER_ROUTINES.md "Gotchas").
         await mainDb.begin(async (sql) => {
           await sql`
             UPDATE dataset_hmis_import_runs SET version_id = NULL

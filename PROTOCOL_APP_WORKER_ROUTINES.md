@@ -201,6 +201,28 @@ the process; a worker that dies without clearing its tracker blocks future work.
 - **Don't diverge the preamble.** It's copy-pasted per routine; subtle drift
   (READY string, error semantics) is a latent bug. Today only the
   `console.error` prefix varies — keep it that way until item 8 factors it.
+- **The progress writer is a second connection — a run transaction must
+  never wait on it while holding the run row.** `createThrottledProgressWriter`
+  updates the run row (`… WHERE id AND status='running'`) on the worker's
+  read connection. Inside a `begin(...)`, any statement touching the run row
+  (`version_id`, counters, the completion flip) holds that row's lock until
+  COMMIT; a progress write issued after it blocks on that lock. If the
+  transaction then AWAITED the write, the two waited on each other forever —
+  Postgres cannot detect it (the holder is idle-in-transaction), and Ghana
+  sat wedged 4 days (2026-08-12). Two defences, in order: (1) the writer is
+  non-blocking and coalescing — it NEVER blocks the caller, so a blocked
+  write just lands after COMMIT (harmless: every progress write is
+  status-guarded and every terminal flip NULLs progress); (2) inside a run
+  transaction the run-row write is still the LAST statement, after the final
+  `onProgress`, so the lock is held only for the final instant —
+  HFA/ICEH/CSV's guarded in-transaction completion flip is the model. Both
+  assume the run-row pool is `max ≥ 2` (a max=1 pool wedges on pool
+  starvation instead). Worker connections carry
+  `idle_in_transaction_session_timeout` (5 min) as the generic backstop for
+  the whole idle-in-transaction class; when it fires, `begin` rejects AND the
+  still-running transaction callback crashes the worker on its next statement
+  (postgres.js `nextWrite` on a dead socket) — the host crash listener is the
+  expected exit, not a bug.
 
 ## Checklist
 
@@ -214,3 +236,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
 - [ ] Report-back matches the need: `task_ended` (chains work) or
       `postMessage("COMPLETED")` + status row (tracked job)
 - [ ] Tracker registered and cleared + worker terminated on every terminal path
+- [ ] Inside any run transaction, the run-row write is the last statement
+      (after the final `onProgress`)
+- [ ] Every progress `write` callback is guarded `AND status = 'running'`;
+      every terminal flip sets `progress = NULL` under the same guard

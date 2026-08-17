@@ -925,7 +925,10 @@ async function run(std: RunWorkerMessage) {
     // commits before the first pair's own transaction, so that pair failing
     // (and every other pair after it) leaves an empty version row. Nothing
     // references it — succeeded_pairs increments inside each pair's
-    // transaction — so delete it.
+    // transaction — so delete it. Run row written FIRST here, but the
+    // transaction awaits nothing but its own two statements, so a concurrent
+    // progress write only waits for COMMIT (PROTOCOL_APP_WORKER_ROUTINES.md
+    // "Gotchas").
     if (mintedVersionId !== null && succeededPairsCount === 0) {
       await importDb.begin(async (sql) => {
         await sql`
