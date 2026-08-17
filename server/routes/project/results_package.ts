@@ -21,7 +21,10 @@ import {
   setProjectFollowPinnedAndAlign,
 } from "../../runs/mod.ts";
 import { getRunReadContext } from "../../run_query/mod.ts";
-import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceRunsCatalogUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 // The project's Results package surface (PLAN_RESULTS_RUNS Phase 3 item 4):
@@ -104,8 +107,10 @@ defineRoute(
     );
     if (res.success) {
       // A repoint changes attachedProjects — the catalogue's delete-blocking
-      // column — so the instance listing must move too.
+      // column — so the instance listing must move too, and the project
+      // cards' package badge (ProjectSummary.attachedRunId) with it.
       notifyInstanceRunsCatalogUpdated();
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },

@@ -49,29 +49,51 @@ export function InstanceDatasetHfa(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-            subheading={t3({ en: "Health Facility Assessment Data", fr: "Données d'évaluation des établissements de santé", pt: "Dados de avaliação dos estabelecimentos de saúde" })}
+            heading={t3({
+              en: "DATA SOURCE",
+              fr: "SOURCE DE DONNÉES",
+              pt: "FONTE DE DADOS",
+            })}
+            subheading={t3({
+              en: "Health Facility Assessment Data",
+              fr: "Données d'évaluation des établissements de santé",
+              pt: "Dados de avaliação dos estabelecimentos de saúde",
+            })}
           />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
+              <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
                 <div class="">
-                  <Button onClick={openImports} iconName="databaseImport" fullWidth>
-                    {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+                  <Button
+                    onClick={openImports}
+                    iconName="databaseImport"
+                    fullWidth
+                  >
+                    {t3({
+                      en: "Imports",
+                      fr: "Importations",
+                      pt: "Importações",
+                    })}
                   </Button>
                 </div>
                 <Show when={instanceState.hfaTimePoints.length > 0}>
                   <div class="">
                     <Button
-                      onClick={() => viewTimePoints(instanceState.hfaTimePoints)}
+                      onClick={() =>
+                        viewTimePoints(instanceState.hfaTimePoints)
+                      }
                       outline
                       fullWidth
                       iconName="pencil"
                     >
-                      {t3({ en: "Manage time points", fr: "Gérer les points temporels", pt: "Gerir os pontos temporais" })}
+                      {t3({
+                        en: "Manage time points",
+                        fr: "Gérer les points temporels",
+                        pt: "Gerir os pontos temporais",
+                      })}
                     </Button>
                   </div>
                   <div class="">
@@ -82,7 +104,11 @@ export function InstanceDatasetHfa(p: Props) {
                       outline
                       fullWidth
                     >
-                      {t3({ en: "Delete data", fr: "Supprimer les données", pt: "Eliminar os dados" })}
+                      {t3({
+                        en: "Delete data",
+                        fr: "Supprimer les données",
+                        pt: "Eliminar os dados",
+                      })}
                     </Button>
                   </div>
                 </Show>
@@ -93,7 +119,11 @@ export function InstanceDatasetHfa(p: Props) {
           <div class="h-full w-full">
             <Show
               when={instanceState.hfaTimePoints.length > 0}
-              fallback={<div class="ui-pad">{t3({ en: "No data", fr: "Aucune donnée", pt: "Sem dados" })}</div>}
+              fallback={
+                <div class="ui-pad">
+                  {t3({ en: "No data", fr: "Aucune donnée", pt: "Sem dados" })}
+                </div>
+              }
             >
               <DatasetItemsHolder cacheHash={instanceState.hfaCacheHash} />
             </Show>

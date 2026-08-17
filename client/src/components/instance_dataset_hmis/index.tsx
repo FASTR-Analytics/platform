@@ -8,7 +8,10 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { DatasetHmisImports } from "./imports";
-import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  structureSchemaForFamily,
+} from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 
@@ -45,15 +48,23 @@ export function InstanceDatasetHmis(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-            subheading={t3({ en: "HMIS Data", fr: "Données HMIS", pt: "Dados HMIS" })}
+            heading={t3({
+              en: "DATA SOURCE",
+              fr: "SOURCE DE DONNÉES",
+              pt: "FONTE DE DADOS",
+            })}
+            subheading={t3({
+              en: "HMIS Data",
+              fr: "Données HMIS",
+              pt: "Dados HMIS",
+            })}
           />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
+              <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
                 <Show when={instanceState.hmisScheduledImportAttention}>
                   <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
                     {t3({
@@ -83,8 +94,16 @@ export function InstanceDatasetHmis(p: Props) {
                   </div>
                 </Show>
                 <div class="">
-                  <Button onClick={openImports} iconName="databaseImport" fullWidth>
-                    {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+                  <Button
+                    onClick={openImports}
+                    iconName="databaseImport"
+                    fullWidth
+                  >
+                    {t3({
+                      en: "Imports",
+                      fr: "Importations",
+                      pt: "Importações",
+                    })}
                   </Button>
                 </div>
                 <Show when={instanceState.hmisNVersions > 0}>
@@ -121,7 +140,9 @@ export function InstanceDatasetHmis(p: Props) {
               {(versionId) => (
                 <DatasetItemsHolder
                   versionId={versionId}
-                  indicatorMappingsVersion={instanceState.indicatorMappingsVersion}
+                  indicatorMappingsVersion={
+                    instanceState.indicatorMappingsVersion
+                  }
                   structureSchema={structureSchemaForFamily("hmis")}
                 />
               )}

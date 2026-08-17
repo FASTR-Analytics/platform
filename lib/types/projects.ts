@@ -21,6 +21,11 @@ export type ProjectSummary = {
   isCentralReporting: boolean;
   adminArea2: string | null;
   status: "ready" | "copying" | "pending_deletion";
+  // projects.run_id + the run's label, for the project card badge; the pinned
+  // marker is derived client-side against instanceState.pinnedRunId.
+  attachedRunId: string | null;
+  attachedRunLabel: string | null;
+  followPinned: boolean;
   lastActivityAt: string | undefined;
   deletionScheduledAt: string | undefined;
 };

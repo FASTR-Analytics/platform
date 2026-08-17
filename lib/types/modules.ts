@@ -170,6 +170,8 @@ export type CompareProjectsData = {
   projects: {
     id: string;
     label: string;
+    // The attached package's manifest label; null = no package, or unreadable.
+    packageLabel: string | null;
     modules: CompareProjectsModule[];
   }[];
 };

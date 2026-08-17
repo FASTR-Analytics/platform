@@ -289,9 +289,10 @@ export async function getProjectsForUser(
 ): Promise<ProjectSummary[]> {
   if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
     return (
-      await mainDb<(DBProject & { last_activity_at: Date | null })[]>`
-        SELECT p.*, la.last_activity_at
+      await mainDb<(DBProject & { last_activity_at: Date | null; run_label: string | null })[]>`
+        SELECT p.*, la.last_activity_at, r.label AS run_label
         FROM projects p
+        LEFT JOIN runs r ON r.id = p.run_id
         LEFT JOIN (
           SELECT project_id, MAX(timestamp) as last_activity_at
           FROM user_logs
@@ -308,16 +309,20 @@ export async function getProjectsForUser(
       isCentralReporting: p.is_central_reporting,
       adminArea2: p.admin_area_2,
       status: p.status as ProjectSummary["status"],
+      attachedRunId: p.run_id,
+      attachedRunLabel: p.run_label,
+      followPinned: p.follow_pinned,
       lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
       deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
     }));
   }
 
   return (
-    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null })[]>`
-      SELECT pur.*, p.*, la.last_activity_at
+    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null; run_label: string | null })[]>`
+      SELECT pur.*, p.*, la.last_activity_at, r.label AS run_label
       FROM project_user_roles pur
       JOIN projects p ON pur.project_id = p.id
+      LEFT JOIN runs r ON r.id = p.run_id
       LEFT JOIN (
         SELECT project_id, MAX(timestamp) as last_activity_at
         FROM user_logs
@@ -344,6 +349,9 @@ export async function getProjectsForUser(
     isCentralReporting: false,
     adminArea2: p.admin_area_2,
     status: p.status as ProjectSummary["status"],
+    attachedRunId: p.run_id,
+    attachedRunLabel: p.run_label,
+    followPinned: p.follow_pinned,
     lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
     deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
   }));

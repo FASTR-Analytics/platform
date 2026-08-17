@@ -19,6 +19,7 @@ import { PendingDeletions } from "./pending_deletions";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectsSortMode, setProjectsSortMode } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
+import { PinnedBadge } from "~/components/_shared/results_package/status";
 
 type Props = {
   canCreateProjects: boolean;
@@ -211,8 +212,8 @@ export function InstanceProjects(p: Props) {
                 }
               >
                 <Card href={`/?p=${project.id}`} pad="none">
-                  <div class="ui-pad flex min-h-[150px] flex-col justify-between">
-                    <div class="ui-spy-sm">
+                  <div class="ui-pad ui-spy-sm flex min-h-[150px] flex-col justify-between">
+                    <div class="ui-spy-sm flex-1">
                       <div class="font-700">{project.label}</div>
                       <Show when={project.adminArea2}>
                         {(area) => (
@@ -233,6 +234,44 @@ export function InstanceProjects(p: Props) {
                           })}
                         </div>
                       </Show>
+                      <div class="ui-gap-sm flex flex-wrap items-center text-xs">
+                        <div class="ui-gap-sm flex w-full items-center">
+                          <div class="text-base-content-muted relative h-[1.25em] w-[1.25em] flex-none">
+                            <Icon iconName="package" />
+                          </div>
+                          <Show
+                            when={project.attachedRunLabel}
+                            fallback={
+                              <div class="text-base-content-muted flex-1">
+                                {t3({
+                                  en: "No results package",
+                                  fr: "Aucun paquet de résultats",
+                                  pt: "Nenhum pacote de resultados",
+                                })}
+                              </div>
+                            }
+                          >
+                            {(label) => <div class="flex-1">{label()}</div>}
+                          </Show>
+                        </div>
+                        <Show
+                          when={
+                            project.attachedRunId !== null &&
+                            project.attachedRunId === instanceState.pinnedRunId
+                          }
+                        >
+                          <PinnedBadge />
+                        </Show>
+                        <Show when={project.followPinned}>
+                          <Badge intent="neutral">
+                            {t3({
+                              en: "Follows pin",
+                              fr: "Suit l'épingle",
+                              pt: "Segue o fixado",
+                            })}
+                          </Badge>
+                        </Show>
+                      </div>
                     </div>
                     <Show when={project.lastActivityAt}>
                       {(ts) => (

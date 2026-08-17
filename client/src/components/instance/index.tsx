@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   getFirstString,
   openComponent,
+  type IconName,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -58,56 +59,10 @@ function canConfigureData(): boolean {
   );
 }
 
-function compactNavItems(): ListItem<InstanceTab>[] {
-  const items: ListItem<InstanceTab>[] = [
-    {
-      id: "projects",
-      label: "",
-      labelText: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
-      iconName: "folder",
-    },
-    {
-      id: "data",
-      label: "",
-      labelText: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-      iconName: "database",
-    },
-    {
-      id: "assets",
-      label: "",
-      labelText: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
-      iconName: "package",
-    },
-  ];
-  if (canConfigureData()) {
-    items.push({
-      id: "results_packages",
-      label: "",
-      labelText: t3({
-        en: "Results",
-        fr: "Résultats",
-        pt: "Resultados",
-      }),
-      iconName: "chart",
-    });
-  }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_users ||
-    instanceState.currentUserPermissions.can_view_users
-  ) {
-    items.push({
-      id: "users",
-      label: "",
-      labelText: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
-      iconName: "users",
-    });
-  }
-  return items;
-}
-
-function wideNavItems(): ListItem<InstanceTab>[] {
-  const items: ListItem<InstanceTab>[] = [
+// One gated, ordered list; the compact (icon-only) nav is a projection of it
+// so order and permission gates cannot drift between the two widths.
+function wideNavItems(): { id: InstanceTab; label: string; iconName: IconName }[] {
+  const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
     {
       id: "projects",
       label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
@@ -153,6 +108,15 @@ function wideNavItems(): ListItem<InstanceTab>[] {
     });
   }
   return items;
+}
+
+function compactNavItems(): ListItem<InstanceTab>[] {
+  return wideNavItems().map((item) => ({
+    id: item.id,
+    label: "",
+    labelText: item.label,
+    iconName: item.iconName,
+  }));
 }
 
 type Props = {

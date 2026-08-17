@@ -15,6 +15,7 @@ import {
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   notifyInstancePinnedRunUpdated,
+  notifyInstanceProjectsLastUpdated,
   notifyInstanceRunsCatalogUpdated,
 } from "../task_management/notify_instance_updated.ts";
 import { notifyProjectConfigUpdated } from "../task_management/notify_project_v2.ts";
@@ -99,6 +100,7 @@ export async function pinRunAndRepointFollowers(
     return { success: true, data: result };
   } finally {
     notifyInstanceRunsCatalogUpdated();
+    notifyInstanceProjectsLastUpdated(new Date().toISOString());
   }
 }
 
@@ -152,6 +154,9 @@ export async function setProjectFollowPinnedAndAlign(
       );
     }
   }
+  // The project cards render followPinned (ProjectSummary), so the instance
+  // list moves once, after the flag write and any realign.
+  notifyInstanceProjectsLastUpdated(new Date().toISOString());
   return { success: true };
 }
 
@@ -189,6 +194,7 @@ async function alignProjectWithPin(
     }
     if (attachRes.data === "attached") {
       notifyInstanceRunsCatalogUpdated();
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
       return { success: true };
     }
   }

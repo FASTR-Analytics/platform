@@ -28,9 +28,11 @@ defineRoute(
     const projectResults = await Promise.all(
       projects.map(async (project) => {
         const modules: CompareProjectsModule[] = [];
+        let packageLabel: string | null = null;
         if (project.run_id !== null) {
           try {
             const manifest = await getRunManifestCached(project.run_id);
+            packageLabel = manifest.label;
             for (const mod of manifest.modules) {
               const config = parseModuleConfigSelections(
                 mod.configSelections ?? "{}",
@@ -54,7 +56,7 @@ defineRoute(
             );
           }
         }
-        return { id: project.id, label: project.label, modules };
+        return { id: project.id, label: project.label, packageLabel, modules };
       }),
     );
 

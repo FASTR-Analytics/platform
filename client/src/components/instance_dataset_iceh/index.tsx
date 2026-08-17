@@ -21,7 +21,7 @@ export function InstanceDatasetIceh(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [detail, setDetail] = createSignal<IcehDataDetail | undefined>(
-    undefined
+    undefined,
   );
 
   async function fetchDetail() {
@@ -63,18 +63,34 @@ export function InstanceDatasetIceh(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-            subheading={t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
+            heading={t3({
+              en: "DATA SOURCE",
+              fr: "SOURCE DE DONNÉES",
+              pt: "FONTE DE DADOS",
+            })}
+            subheading={t3({
+              en: "ICEH Equity Data",
+              fr: "Données d'équité ICEH",
+              pt: "Dados de equidade ICEH",
+            })}
           />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
+              <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
                 <div class="">
-                  <Button onClick={openImports} iconName="databaseImport" fullWidth>
-                    {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+                  <Button
+                    onClick={openImports}
+                    iconName="databaseImport"
+                    fullWidth
+                  >
+                    {t3({
+                      en: "Imports",
+                      fr: "Importations",
+                      pt: "Importações",
+                    })}
                   </Button>
                 </div>
                 <Show when={detail() && detail()!.dataRows > 0}>

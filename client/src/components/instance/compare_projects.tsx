@@ -126,8 +126,12 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
             <th class="text-base-content-muted ui-pad-sm bg-base-100 sticky left-0 text-left"></th>
             <For each={projects()}>
               {(project) => (
-                <th class="ui-pad-sm text-left whitespace-nowrap">
-                  {project.label}
+                <th class="ui-pad-sm text-left whitespace-nowrap align-top">
+                  <div>{project.label}</div>
+                  <div class="ui-text-caption font-400">
+                    {project.packageLabel ??
+                      t3({ en: "No package", fr: "Aucun lot", pt: "Sem pacote" })}
+                  </div>
                 </th>
               )}
             </For>
@@ -197,7 +201,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     </tr>
                     <tr class="border-b">
                       <td class="ui-text-caption ui-pad-sm bg-base-100 sticky left-0 pl-6">
-                        {t3({ en: "Last run at", fr: "Dernière exécution le", pt: "Última execução em" })}
+                        {t3({ en: "Generated at", fr: "Généré le", pt: "Gerado em" })}
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
