@@ -224,7 +224,6 @@ export type CustomFigureStyleOptions = {
     tickPosition?: "sides" | "center";
     paddingTop?: number;
     paddingBottom?: number;
-    labelGap?: number;
     tickWidth?: number;
     tickLabelGap?: number;
     logicTickLabelWidth?: "auto" | "fixed";

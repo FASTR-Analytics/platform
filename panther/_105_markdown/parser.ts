@@ -9,6 +9,7 @@ import type {
   MarkdownItToken,
   ParsedMarkdown,
   ParsedMarkdownItem,
+  TableColumnAlign,
 } from "./types.ts";
 
 export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
@@ -331,6 +332,7 @@ function parseTable(
 ): { item: ParsedMarkdownItem; endIndex: number } {
   const header: MarkdownInline[][][] = [];
   const rows: MarkdownInline[][][] = [];
+  const align: (TableColumnAlign | undefined)[] = [];
   let currentTarget: MarkdownInline[][][] | undefined;
   let i = startIndex + 1; // Skip table_open
 
@@ -347,6 +349,9 @@ function parseTable(
       i++;
       while (i < tokens.length && tokens[i].type !== "tr_close") {
         if (tokens[i].type === "th_open" || tokens[i].type === "td_open") {
+          if (tokens[i].type === "th_open") {
+            align.push(getCellAlign(tokens[i]));
+          }
           i++;
           if (i < tokens.length && tokens[i].type === "inline") {
             const cellContent = parseInlineTokens(tokens[i].children || []);
@@ -369,7 +374,16 @@ function parseTable(
       type: "table",
       header: header.length > 0 ? header : undefined,
       rows: rows.length > 0 ? rows : undefined,
+      align: align.some((a) => a !== undefined) ? align : undefined,
     },
     endIndex: i,
   };
+}
+
+// markdown-it carries GFM column alignment as `style="text-align:center"` on
+// every th/td of the column.
+function getCellAlign(token: MarkdownItToken): TableColumnAlign | undefined {
+  const style = token.attrs?.find(([name]) => name === "style")?.[1];
+  const value = style?.match(/text-align:\s*(left|center|right)/)?.[1];
+  return value as TableColumnAlign | undefined;
 }

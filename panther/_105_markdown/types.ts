@@ -19,6 +19,8 @@ import type {
 // Markdown-it Token Type
 // =============================================================================
 
+export type TableColumnAlign = "left" | "center" | "right";
+
 export type MarkdownItToken = {
   type: string;
   tag?: string;
@@ -115,6 +117,9 @@ export type ParsedMarkdownItem =
       type: "table";
       header?: MarkdownInline[][][];
       rows?: MarkdownInline[][][];
+      // GFM column alignment (`:---`, `:---:`, `---:`), one entry per column;
+      // undefined where the source gave none.
+      align?: (TableColumnAlign | undefined)[];
     }
   )
   & {
@@ -141,9 +146,17 @@ export type FormattedRun = {
   isCode?: boolean;
 };
 
+// Inline `code` runs: their own text style (monospace by default) on a
+// padded, rounded background — the same look as HTML/Word.
+export type InlineCodeStyle = {
+  textInfo: TextInfoUnkeyed;
+  backgroundColor: string;
+};
+
 export type FormattedText = {
   runs: FormattedRun[];
   baseStyle: TextInfoUnkeyed;
+  codeStyle?: InlineCodeStyle;
 };
 
 export type MeasuredFormattedRun = {
@@ -155,6 +168,14 @@ export type MeasuredFormattedRun = {
   };
   link?: {
     url: string;
+  };
+  // Padded background behind the run (inline code); the run's `x` is the
+  // background's left edge, text starts `paddingH` inside it.
+  background?: {
+    color: string;
+    paddingH: number;
+    paddingV: number;
+    radius: number;
   };
 };
 

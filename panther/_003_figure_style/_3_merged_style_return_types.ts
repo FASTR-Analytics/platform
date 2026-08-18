@@ -284,11 +284,9 @@ export type MergedCascadeArrowStyle = {
 export type MergedYTextAxisStyle = {
   text: {
     yTextAxisTickLabels: TextInfoUnkeyed;
-    yTextAxisLabel: TextInfoUnkeyed;
   };
   tickWidth: number;
   tickLabelGap: number;
-  labelGap: number;
   tickPosition: "sides" | "center";
   paddingTop: number;
   paddingBottom: number;

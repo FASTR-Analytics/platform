@@ -63,10 +63,13 @@ export function getBaseTextInfo(
   };
 }
 
+// `defaultFont` is a per-key default-level font adjustment applied under the
+// global/custom levels (e.g. markdown `text.code` defaults to a monospace).
 export function getTextInfo(
   cText: CustomStyleTextOptions | undefined,
   gText: CustomStyleTextOptions | undefined,
   baseText: TextInfo,
+  defaultFont?: FontInfoOptions,
 ): TextInfoUnkeyed {
   const rawColor = m(cText?.color, gText?.color, baseText.color);
   const rawLineHeight = m(
@@ -84,8 +87,11 @@ export function getTextInfo(
     gText?.letterSpacing,
     baseText.letterSpacing,
   );
+  const keyBaseFont = defaultFont
+    ? getAdjustedFont(baseText.font, defaultFont)
+    : baseText.font;
   return {
-    font: getMergedFonts(cText, gText, baseText.font),
+    font: getMergedFonts(cText, gText, keyBaseFont),
     fontSize: baseText.fontSize *
       (cText?.relFontSize ?? gText?.relFontSize ?? 1),
     color: getColor(rawColor === "same-as-base" ? baseText.color : rawColor),
@@ -194,6 +200,7 @@ export function getFontsToRegister<K extends string>(
     | Record<string, CustomStyleTextOptions | TextInfoOptions>
     | undefined,
   defaultBaseFont: FontInfo,
+  defaultKeyFonts?: Partial<Record<K, FontInfoOptions>>,
 ): FontInfo[] {
   const baseFont = getMergedFonts(
     customText?.base as CustomStyleTextOptions | undefined,
@@ -208,10 +215,11 @@ export function getFontsToRegister<K extends string>(
     if (key === "base") {
       mainFont = baseFont;
     } else {
+      const keyDefault = defaultKeyFonts?.[key];
       mainFont = getMergedFonts(
         customText?.[key] as CustomStyleTextOptions | undefined,
         globalText?.[key] as CustomStyleTextOptions | undefined,
-        baseFont,
+        keyDefault ? getAdjustedFont(baseFont, keyDefault) : baseFont,
       );
     }
     allFonts.push(...deriveAllVariants(mainFont));

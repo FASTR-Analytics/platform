@@ -287,6 +287,10 @@ type TableElementRendererProps = {
 };
 
 function TableElementRenderer(p: TableElementRendererProps) {
+  const cellStyle = (i: number) => {
+    const align = p.element.align?.[i];
+    return align ? { "text-align": align } : undefined;
+  };
   return (
     <table data-line={p.element.line}>
       <Show when={p.element.header && p.element.header.length > 0}>
@@ -295,8 +299,8 @@ function TableElementRenderer(p: TableElementRendererProps) {
             {(row) => (
               <tr>
                 <For each={row}>
-                  {(cell) => (
-                    <th>
+                  {(cell, i) => (
+                    <th style={cellStyle(i())}>
                       <InlineContentRenderer content={cell.flat()} />
                     </th>
                   )}
@@ -312,8 +316,8 @@ function TableElementRenderer(p: TableElementRendererProps) {
             {(row) => (
               <tr>
                 <For each={row}>
-                  {(cell) => (
-                    <td>
+                  {(cell, i) => (
+                    <td style={cellStyle(i())}>
                       <InlineContentRenderer content={cell.flat()} />
                     </td>
                   )}

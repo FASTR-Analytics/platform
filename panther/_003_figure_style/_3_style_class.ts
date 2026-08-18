@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import "./_4_key_coverage.ts";
 import type { MergedSurroundsStyle } from "./_3_merged_style_return_types.ts";
 import {
   type DefaultFigureStyle,
@@ -1196,11 +1197,6 @@ export class CustomFigureStyle {
           g.text?.yTextAxisTickLabels,
           baseText,
         ),
-        yTextAxisLabel: getTextInfo(
-          c.text?.yTextAxisLabel,
-          g.text?.yTextAxisLabel,
-          baseText,
-        ),
       },
       tickWidth: ms(
         sf,
@@ -1213,12 +1209,6 @@ export class CustomFigureStyle {
         c.yTextAxis?.tickLabelGap,
         g.yTextAxis?.tickLabelGap,
         d.yTextAxis.tickLabelGap,
-      ),
-      labelGap: ms(
-        sf,
-        c.yTextAxis?.labelGap,
-        g.yTextAxis?.labelGap,
-        d.yTextAxis.labelGap,
       ),
       tickPosition: m(
         c.yTextAxis?.tickPosition,

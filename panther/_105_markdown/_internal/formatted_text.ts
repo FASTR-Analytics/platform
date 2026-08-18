@@ -15,10 +15,17 @@ import type {
   FormattedRun,
   FormattedRunStyle,
   FormattedText,
+  InlineCodeStyle,
   MeasuredFormattedLine,
   MeasuredFormattedRun,
   MeasuredFormattedText,
 } from "../types.ts";
+
+// Inline code background box, in em of the code font size (mirrors the HTML
+// renderer's `px-[0.4em] py-[0.2em] rounded`).
+const INLINE_CODE_PADDING_H_EM = 0.4;
+const INLINE_CODE_PADDING_V_EM = 0.2;
+const INLINE_CODE_RADIUS_EM = 0.25;
 
 // =============================================================================
 // Chunk Types (internal)
@@ -28,6 +35,7 @@ type Chunk = {
   text: string;
   style: FormattedRunStyle;
   link?: { url: string };
+  isCode: boolean;
   isSpace: boolean;
   isBreak: boolean;
 };
@@ -35,6 +43,10 @@ type Chunk = {
 type MeasuredChunk = Chunk & {
   mText: MeasuredText;
   ti: TextInfoUnkeyed;
+  // Full advance of the chunk on the line (text width plus any background
+  // padding); `mText.dims.w()` is the text alone.
+  width: number;
+  background?: MeasuredFormattedRun["background"];
 };
 
 // =============================================================================
@@ -61,7 +73,13 @@ export function measureFormattedText(
   }
 
   const chunks = splitRunsIntoChunks(text.runs);
-  const measuredChunks = measureChunks(rc, chunks, text.baseStyle, linkColor);
+  const measuredChunks = measureChunks(
+    rc,
+    chunks,
+    text.baseStyle,
+    linkColor,
+    text.codeStyle,
+  );
   const lines = wrapIntoLines(measuredChunks, maxWidth, linkUnderline);
   const lineHeight = text.baseStyle.fontSize * text.baseStyle.lineHeight;
   assignYPositions(lines, lineHeight);
@@ -83,52 +101,95 @@ export function measureFormattedText(
 // renderFormattedText
 // =============================================================================
 
-export function renderFormattedText(
-  rc: RenderContext,
+type PlacedRun = { run: MeasuredFormattedRun; textX: number; runY: number };
+
+function placeRuns(
   mText: MeasuredFormattedText,
   position: Coordinates,
-): void {
+): PlacedRun[] {
+  const placed: PlacedRun[] = [];
   for (const line of mText.lines) {
     const lineX = mText.alignH === "left"
       ? position.x()
       : mText.alignH === "right"
       ? position.x() + mText.maxWidth - line.totalWidth
       : position.x() + (mText.maxWidth - line.totalWidth) / 2;
-
     const lineY = position.y() + line.y;
-
     for (const run of line.runs) {
       const runBaseline = run.mText.lines[0]?.y ?? 0;
-      const baselineOffset = line.maxBaseline - runBaseline;
-      const runY = lineY + baselineOffset;
-
-      rc.rText(
-        run.mText,
-        { x: lineX + run.x, y: runY },
-        "left",
-        "top",
-        run.link?.url,
-      );
-
-      if (run.underline) {
-        rc.rLine(
-          [
-            { x: lineX + run.x, y: runY + run.underline.yOffset },
-            {
-              x: lineX + run.x + run.mText.dims.w(),
-              y: runY + run.underline.yOffset,
-            },
-          ],
-          {
-            strokeWidth: 1,
-            strokeColor: run.underline.color,
-            lineDash: "solid",
-            show: true,
-          },
-        );
-      }
+      const runY = lineY + line.maxBaseline - runBaseline;
+      const textX = lineX + run.x + (run.background?.paddingH ?? 0);
+      placed.push({ run, textX, runY });
     }
   }
+  return placed;
+}
+
+export function renderFormattedText(
+  rc: RenderContext,
+  mText: MeasuredFormattedText,
+  position: Coordinates,
+): void {
+  const placed = placeRuns(mText, position);
+
+  // Backgrounds first, so a padded box on one line never covers the
+  // descenders of the line above.
+  for (const { run, textX, runY } of placed) {
+    if (run.background) {
+      rc.rRect(
+        {
+          x: textX - run.background.paddingH,
+          y: runY - run.background.paddingV,
+          w: run.mText.dims.w() + run.background.paddingH * 2,
+          h: run.mText.dims.h() + run.background.paddingV * 2,
+        },
+        {
+          fillColor: run.background.color,
+          rectRadius: run.background.radius,
+        },
+      );
+    }
+  }
+
+  for (const { run, textX, runY } of placed) {
+    rc.rText(
+      run.mText,
+      { x: textX, y: runY },
+      "left",
+      "top",
+      run.link?.url,
+    );
+
+    if (run.underline) {
+      rc.rLine(
+        [
+          { x: textX, y: runY + run.underline.yOffset },
+          {
+            x: textX + run.mText.dims.w(),
+            y: runY + run.underline.yOffset,
+          },
+        ],
+        {
+          strokeWidth: 1,
+          strokeColor: run.underline.color,
+          lineDash: "solid",
+          show: true,
+        },
+      );
+    }
+  }
+}
+
+// Line advance of an inline code span (text plus its background padding) —
+// the unbreakable-word width the autofit floor must respect.
+export function measureInlineCodeAdvance(
+  rc: RenderContext,
+  text: string,
+  codeStyle: InlineCodeStyle,
+): number {
+  const mText = rc.mText(text, codeStyle.textInfo, 99999);
+  return mText.dims.w() +
+    codeStyle.textInfo.fontSize * INLINE_CODE_PADDING_H_EM * 2;
 }
 
 // =============================================================================
@@ -166,6 +227,18 @@ function splitRunsIntoChunks(runs: FormattedRun[]): Chunk[] {
   const chunks: Chunk[] = [];
 
   for (const run of runs) {
+    if (run.isCode) {
+      chunks.push({
+        text: run.text,
+        style: run.style,
+        link: run.link,
+        isCode: true,
+        isSpace: false,
+        isBreak: false,
+      });
+      continue;
+    }
+
     const parts = run.text.split(/(\s+|\n)/);
 
     for (const part of parts) {
@@ -176,6 +249,7 @@ function splitRunsIntoChunks(runs: FormattedRun[]): Chunk[] {
           text: "",
           style: run.style,
           link: run.link,
+          isCode: false,
           isSpace: false,
           isBreak: true,
         });
@@ -184,6 +258,7 @@ function splitRunsIntoChunks(runs: FormattedRun[]): Chunk[] {
           text: part,
           style: run.style,
           link: run.link,
+          isCode: false,
           isSpace: /^\s+$/.test(part),
           isBreak: false,
         });
@@ -199,17 +274,30 @@ function measureChunks(
   chunks: Chunk[],
   baseStyle: TextInfoUnkeyed,
   linkColor: string,
+  codeStyle: InlineCodeStyle | undefined,
 ): MeasuredChunk[] {
   // Cache space measurement - space width is consistent across style variants
   const spaceMText = rc.mText(" ", baseStyle, 99999);
 
   return chunks.map((chunk) => {
+    if (chunk.isCode && codeStyle) {
+      const ti = codeStyle.textInfo;
+      const mText = rc.mText(chunk.text, ti, 99999);
+      const background = {
+        color: codeStyle.backgroundColor,
+        paddingH: ti.fontSize * INLINE_CODE_PADDING_H_EM,
+        paddingV: ti.fontSize * INLINE_CODE_PADDING_V_EM,
+        radius: ti.fontSize * INLINE_CODE_RADIUS_EM,
+      };
+      const width = mText.dims.w() + background.paddingH * 2;
+      return { ...chunk, mText, ti, width, background };
+    }
     let ti = resolveRunStyle(baseStyle, chunk.style);
     if (chunk.link) {
       ti = { ...ti, color: linkColor };
     }
     const mText = chunk.isSpace ? spaceMText : rc.mText(chunk.text, ti, 99999);
-    return { ...chunk, mText, ti };
+    return { ...chunk, mText, ti, width: mText.dims.w() };
   });
 }
 
@@ -223,7 +311,7 @@ function wrapIntoLines(
   let lineWidth = 0;
 
   for (const chunk of chunks) {
-    const chunkWidth = chunk.mText.dims.w();
+    const chunkWidth = chunk.width;
 
     if (chunk.isBreak) {
       lines.push(finalizeLine(currentLine, lineWidth));
@@ -245,6 +333,9 @@ function wrapIntoLines(
         mText: chunk.mText,
         x: lineWidth,
       };
+      if (chunk.background) {
+        run.background = chunk.background;
+      }
       if (chunk.link) {
         run.link = chunk.link;
         if (linkUnderline) {

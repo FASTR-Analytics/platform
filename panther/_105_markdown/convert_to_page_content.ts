@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  CustomFigureStyleOptions,
   CustomMarkdownStyleOptions,
   FigureInputs,
   ImageInputs,
@@ -11,7 +12,12 @@ import type {
   MarkdownRendererInput,
   TableInputs,
 } from "./deps.ts";
-import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
+import type {
+  FigureMap,
+  MarkdownInline,
+  ParsedMarkdownItem,
+  TableColumnAlign,
+} from "./types.ts";
 
 export type ConvertedPageContent =
   | MarkdownRendererInput
@@ -70,6 +76,7 @@ export function contentGroupToPageContentItem(
       figureType: "table",
       data: tableData,
       columnWidths: Array(nCols).fill("auto"),
+      style: getTableAlignStyle(element.align),
     };
   }
 
@@ -122,6 +129,7 @@ export function docElementToPageContentItem(
       figureType: "table",
       data: tableData,
       columnWidths: Array(nCols).fill("auto"),
+      style: getTableAlignStyle(element.align),
     };
   }
 
@@ -140,6 +148,7 @@ export function docElementToPageContentItem(
 function convertMarkdownTableToTableData(
   element: ParsedMarkdownItem & { type: "table" },
 ) {
+  // GFM tables have exactly one header row (markdown-it emits one thead tr).
   const headers = element.header?.[0] || [];
   const rows = element.rows || [];
 
@@ -162,17 +171,35 @@ function convertMarkdownTableToTableData(
     rowGroups: [{
       id: undefined,
       label: undefined,
-      rows: dataRows.map((row, index) => ({
+      rows: dataRows.map((_row, index) => ({
         id: undefined,
         label: undefined,
         index,
-        values: row,
       })),
     }],
     aoa: dataRows,
   };
 
   return tableData;
+}
+
+// GFM column alignment → per-column alignH on body cells and column headers.
+// Returned as a custom style so an app-level tableCells/tableColHeaders func
+// still supplies every other field.
+function getTableAlignStyle(
+  align: (TableColumnAlign | undefined)[] | undefined,
+): CustomFigureStyleOptions | undefined {
+  if (!align) {
+    return undefined;
+  }
+  const alignAt = (i: number | undefined) =>
+    i === undefined ? {} : { alignH: align[i] };
+  return {
+    content: {
+      tableCells: { func: (info) => alignAt(info.i_col) },
+      tableColHeaders: { func: (info) => alignAt(info.index) },
+    },
+  };
 }
 
 export function docElementToMarkdown(element: ParsedMarkdownItem): string {

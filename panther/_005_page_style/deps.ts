@@ -4,6 +4,10 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { assert, m, ms, msArea, typed } from "../_000_utils/mod.ts";
+export type {
+  AssertNoMissingKeys,
+  MissingKeyPaths,
+} from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
 export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export {

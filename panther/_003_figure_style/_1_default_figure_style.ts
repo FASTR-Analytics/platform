@@ -207,7 +207,6 @@ const _DS = {
     tickPosition: typed<"sides" | "center">("sides"),
     paddingTop: 0,
     paddingBottom: 0,
-    labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 10,
     logicTickLabelWidth: typed<"auto" | "fixed">("auto"),

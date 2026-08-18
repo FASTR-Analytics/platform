@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AlignH, ColorKeyOrString } from "./deps.ts";
+import type { AlignH, ColorKeyOrString, FontInfoOptions } from "./deps.ts";
 import { typed } from "./deps.ts";
 
 const _DS = {
@@ -13,6 +13,12 @@ const _DS = {
     h1: 1.5,
     h2: 1.25,
     h3: 1.125,
+  },
+
+  // Default-level font adjustments per text key (applied under global/custom).
+  // Every other key inherits the base font.
+  textFonts: {
+    code: typed<FontInfoOptions>({ fontFamily: "Fira Mono" }),
   },
 
   marginsEm: {

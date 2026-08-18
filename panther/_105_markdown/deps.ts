@@ -20,6 +20,7 @@ export type {
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
+export type { CustomFigureStyleOptions } from "../_003_figure_style/mod.ts";
 export { CustomMarkdownStyle } from "../_004_markdown_style/mod.ts";
 export type {
   CustomMarkdownStyleOptions,

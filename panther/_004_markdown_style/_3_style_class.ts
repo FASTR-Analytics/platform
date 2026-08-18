@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import "./_4_key_coverage.ts";
 import {
   type DefaultMarkdownStyle,
   getDefaultMarkdownStyle,
@@ -302,7 +303,12 @@ export class CustomMarkdownStyle {
       g.text?.blockquote,
       baseText,
     );
-    const codeText = getTextInfo(c.text?.code, g.text?.code, baseText);
+    const codeText = getTextInfo(
+      c.text?.code,
+      g.text?.code,
+      baseText,
+      d.textFonts.code,
+    );
 
     // Project an em margin to px against a given element fontSize.
     const px = (mar: EmMargin, fontSize: number) => ({
@@ -505,6 +511,7 @@ export class CustomMarkdownStyle {
       this._c.text,
       this._g.text,
       getBaseText().font,
+      this._d.textFonts,
     );
   }
 

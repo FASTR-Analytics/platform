@@ -336,6 +336,11 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
         options.hyperlink = { url: run.link.url };
       }
 
+      // Inline code background → text highlight
+      if (run.background) {
+        options.highlight = Color.toHexNoHash(run.background.color);
+      }
+
       runs.push({ text, options });
     }
   }
