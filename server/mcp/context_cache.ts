@@ -165,6 +165,39 @@ export async function resolvePinnedRunId(): Promise<string | null> {
   return res.data;
 }
 
+// Every package-tool result at /mcp starts with one provenance line naming
+// the run it read (label + generated timestamp — the same identity
+// get_orientation gives; no run id, which no tool accepts as input). The pin
+// can move between two calls of one conversation and a client may carry a
+// stale catalog, so results are self-identifying by construction. Failures
+// pass through unchanged.
+export function buildSourceHeader(run: RunListingItem): string {
+  return `Source: results package "${run.label}" (generated ${run.createdAt})`;
+}
+
+// deno-lint-ignore no-explicit-any
+export function withSourceHeader<T extends AIToolWithMetadata<any>>(
+  tool: T,
+  run: RunListingItem,
+): T {
+  const header = buildSourceHeader(run);
+  const prepend = (body: string) => `${header}\n\n${body}`;
+  const inner = tool.sdkTool;
+  return {
+    metadata: tool.metadata,
+    sdkTool: {
+      ...inner,
+      run: async (input: unknown) => prepend(await inner.run(input)),
+      runWithView: async (input: unknown, getView?: () => unknown) =>
+        prepend(
+          inner.runWithView
+            ? await inner.runWithView(input, getView)
+            : await inner.run(input),
+        ),
+    },
+  } as T;
+}
+
 export async function requirePinnedPackageContext(
   principal: McpPrincipal,
 ): Promise<McpPackageContext> {
@@ -233,7 +266,7 @@ export async function resolvePackageContext(
   const sessionTools: AIToolWithMetadata<any>[] = [
     ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
     ...getSharedToolsForModules(env, modules, metrics),
-  ];
+  ].map((tool) => withSourceHeader(tool, run));
 
   const context: McpPackageContext = {
     runId,

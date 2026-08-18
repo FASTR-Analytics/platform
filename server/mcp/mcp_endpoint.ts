@@ -4,7 +4,7 @@ import {
   resolveHeadlessCredentialEmail,
 } from "../headless_auth.ts";
 import { mcpResourceMetadataUrl } from "../routes/public/oauth_metadata.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { _BYPASS_AUTH, _SERVER_VERSION } from "../exposed_env_vars.ts";
 import type { McpPrincipal } from "./context_cache.ts";
 import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 
@@ -36,7 +36,7 @@ const INSTRUCTIONS = [
 
 export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
   name: "fastr",
-  version: "1.0.0",
+  version: _SERVER_VERSION,
   instructions: INSTRUCTIONS,
   tools: (ctx) => buildMcpToolsForPrincipal(ctx.principal),
   // This surface has NO write tools (2026-08-19), so both approval settings

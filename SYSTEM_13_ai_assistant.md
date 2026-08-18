@@ -25,6 +25,7 @@ globs:
   - server/routes/project/ai_proxy.ts
   - server/routes/project/ai_tools.ts
   - server/tests/mcp_context_cache_test.ts
+  - server/tests/mcp_tools_source_header_test.ts
 ---
 
 # S13 — AI Copilot & Usage Governance
@@ -82,7 +83,19 @@ the query pipeline the data tools call is **S9**.
    from the DB on every call (a pin-move is visible on the next call;
    orientation answers without a pin), and package tools are boot-time
    templates bound per call via panther's `bindAITool` because panther
-   caches a principal's tool set per core. The system prompt splits the same
+   caches a principal's tool set per core. The catalog is fixed per process:
+   a client sees a catalog change only when it re-lists (a chat client: a
+   new conversation), and the server does not advertise `listChanged`
+   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
+   self-identifying instead: every package-tool result starts with a
+   `Source: results package "<label>" (generated <createdAt>)` line naming
+   the run it read (`withSourceHeader` in `context_cache.ts`, applied where
+   run and session tools meet — never in `lib/ai_tools`, which stays
+   surface-agnostic; failures pass through unheadered), and
+   `serverInfo.version` reports the deployed `SERVER_VERSION` (hygiene: no
+   client re-lists on it). Panther's per-request `[panther mcp] fastr:
+   <era> <method> …` log is how a client's re-list behaviour is observed;
+   `./mcp_probe <origin> --info` shows the handshake. The system prompt splits the same
    way: shared grounding blocks in `lib/ai_tools/build_system_prompt.ts`,
    each surface assembling its own context — the SPA's assembled prompt is
    byte-stable across navigation (prompt-cache breakpoint).

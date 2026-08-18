@@ -9,6 +9,7 @@
 # (rungs 1a and 2a — it proves the tool surface, never the OAuth chain).
 #
 # Usage:
+#   ./mcp_probe <origin> --info                 initialize result (serverInfo, capabilities, instructions)
 #   ./mcp_probe <origin> --list                 list tools (name + summary)
 #   ./mcp_probe <origin> --schema <tool>        that tool's full input schema
 #   ./mcp_probe <origin> <tool> [json-args]     call a tool
@@ -22,10 +23,11 @@
 #       Mint one with: deno task mint-pat you@example.com claude
 #
 # Examples:
+#   ./mcp_probe local --info
 #   ./mcp_probe local --list
-#   ./mcp_probe local get_projects
-#   ./mcp_probe local get_orientation '{"projectId":"39b790d8-…"}'
-#   FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim get_projects
+#   ./mcp_probe local get_orientation
+#   ./mcp_probe local get_available_metrics
+#   FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim get_metric_data '{"metricId":"m10-02-01"}'
 #   ./mcp_probe testing-tim --discovery
 
 set -e
@@ -33,7 +35,7 @@ set -e
 PROTOCOL_VERSION="2025-06-18"
 
 usage() {
-    sed -n '3,28p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '3,31p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
 }
 
@@ -144,8 +146,14 @@ trap end_session EXIT
 call '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null
 
 ########################################################################
-# --list / tools/call
+# --info / --schema / --list / tools/call
 ########################################################################
+
+if [ "$TOOL" = "--info" ]; then
+    echo "$RESP" | sed '$d' | sed -n -e 's/^data: //' -e '/^{/p' | head -1 \
+        | jq '.result | {serverInfo, protocolVersion, capabilities, instructions}'
+    exit 0
+fi
 
 if [ "$TOOL" = "--schema" ]; then
     OUT=$(call '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')

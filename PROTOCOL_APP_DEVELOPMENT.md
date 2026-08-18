@@ -106,6 +106,7 @@ something you find later. `deno task test` alone runs the same suite.
 ### 1a — the JSON-RPC probe: `./mcp_probe`
 
 ```bash
+./mcp_probe <origin> --info                 # initialize result: serverInfo (deployed version), capabilities, instructions
 ./mcp_probe <origin> --list                 # tool names + summaries
 ./mcp_probe <origin> --schema <tool>        # that tool's full input schema
 ./mcp_probe <origin> <tool> [json-args]     # call it
