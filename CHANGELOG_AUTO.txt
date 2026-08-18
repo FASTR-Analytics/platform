@@ -1,3 +1,14 @@
+[TBD] [user] [changed] - Results package tab now shows module parameters, output files with download buttons, and script/logs inline
+[TBD] [user] [changed] - Package picker redesigned as a dropdown selector instead of a scrollable list
+[TBD] [user] [changed] - Results package tab now accessible to more users based on instance-level permissions
+[TBD] [user] [changed] - Disk size now always shown in results package details
+[TBD] [admin] [changed] - Results package tab now shows module parameters, output files, and download buttons inline
+[TBD] [admin] [changed] - Package picker on project tab replaced with a dropdown selector
+[TBD] [admin] [changed] - Viewing package contents now requires instance-level data permission instead of project-level
+[TBD] [admin] [changed] - Viewing package logs now requires instance-level logs permission instead of project-level
+[TBD] [admin] [changed] - Disk size now always shown on package provenance line
+[TBD] [admin] [changed] - Instance catalogue and project tab now display identical package contents
+[TBD] [admin] [internal] - Package detail data is now cached locally for faster repeat viewing
 [TBD] [user] [added] - Projects can now be scoped to a single admin area
 [TBD] [user] [added] - Project cards show attached results package and pinned/follows-pin badges
 [TBD] [user] [added] - Project cards display their scoped admin area
