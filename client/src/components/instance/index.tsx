@@ -2,6 +2,7 @@ import { useSearchParams } from "@solidjs/router";
 import {
   TC,
   compareDottedVersions,
+  getDocsOverviewUrl,
   getLanguage,
   migrateSeenVersionToReadIds,
   parseWhatsNewReadIds,
@@ -418,10 +419,7 @@ export default function Instance(p: Props) {
                             }),
                             icon: "document",
                             onClick: () =>
-                              window.open(
-                                "https://fastr-analytics.org",
-                                "_blank",
-                              ),
+                              window.open(getDocsOverviewUrl(), "_blank"),
                           });
                           return items;
                         }}

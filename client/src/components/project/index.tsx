@@ -1,5 +1,5 @@
 import { useNavigate } from "@solidjs/router";
-import { _DEV_USERS, t3, TC } from "lib";
+import { _DEV_USERS, getDocsOverviewUrl, t3, TC } from "lib";
 import {
   HeadingBar,
   Button,
@@ -263,10 +263,7 @@ function ProjectInner() {
                             }),
                             icon: "document",
                             onClick: () =>
-                              window.open(
-                                "https://fastr-analytics.org",
-                                "_blank",
-                              ),
+                              window.open(getDocsOverviewUrl(), "_blank"),
                           },
                         ] satisfies MenuItem[]
                       }
