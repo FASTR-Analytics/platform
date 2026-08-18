@@ -31,10 +31,9 @@ export {
 export { transformRunManifestFile } from "./manifest_transform.ts";
 export {
   listRunModuleFiles,
-  readRunCatalogDetail,
+  readRunDetail,
   readRunModuleLogs,
   readRunModuleScript,
-  resolveRunModuleFileForDownload,
 } from "./package_internals.ts";
 export {
   publishFailedRunDirOrSweep,

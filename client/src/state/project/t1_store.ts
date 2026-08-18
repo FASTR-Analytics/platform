@@ -19,6 +19,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   isCentralReporting: false,
   adminArea2: null,
   attachedRunId: null,
+  attachedRun: null,
   followPinned: false,
   projectDatasets: [],
   projectModules: [],
@@ -97,6 +98,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     // run-derived catalog the new run carries.
     case "run_attached":
       setProjectState("attachedRunId", msg.data.attachedRunId);
+      setProjectState("attachedRun", reconcile(msg.data.attachedRun));
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
       setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));

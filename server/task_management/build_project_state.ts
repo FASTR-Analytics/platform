@@ -48,6 +48,7 @@ export async function buildProjectState(
     isCentralReporting: detail.isCentralReporting,
     adminArea2: detail.adminArea2,
     attachedRunId: detail.attachedRunId,
+    attachedRun: detail.attachedRun,
     followPinned: detail.followPinned,
     projectDatasets: detail.projectDatasets,
     projectModules: detail.projectModules,

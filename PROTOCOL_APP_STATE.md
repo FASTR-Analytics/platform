@@ -138,6 +138,7 @@ other fields are identical across clients.
 | --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
 | Project identity      | `id`                                                                                                  | `starting` only                                            | —                                  |
 | Project config        | `label`, `isLocked`, `isCentralReporting`, `aiContext`, `followPinned`                                | `project_config_updated`                                   | —                                  |
+| Attached package      | `attachedRunId`, `attachedRun` (the run's catalogue row; immutable once ready)                        | `run_attached` (+ the run-derived catalog below)           | `attachedRunId` → `runVersionKey`  |
 | Project datasets      | `projectDatasets`                                                                                     | `datasets_updated`                                         | —                                  |
 | Installed modules     | `projectModules`                                                                                      | `modules_updated`                                          | —                                  |
 | Metrics / indicators  | `metrics`, `commonIndicators`, `icehIndicators`                                                       | `modules_updated` (derived)                                | —                                  |
@@ -251,6 +252,7 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 | Calculated indicators              | `instance/t2_indicators.ts` | `calculatedIndicatorsVersion`                                        |
 | Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
 | GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |
+| Results-package detail (settings + files per module) | `instance/t2_runs.ts` | `[runId]` + constant `"immutable"` — immutable-by-identity like `t2_images`; never invalidated (a ready run dir never changes) |
 
 - **HMIS special case:** the display cache is bypassed entirely (no read, no
   write) while `hmisImportRunActive` — "revisit at same version = cache hit"
@@ -276,6 +278,12 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 (`_infra/indexeddb_cache.ts`) with the URL as both key and version, never reads
 `ProjectState`, and is not SSE-invalidated. Correct because image URLs are
 immutable.
+
+`instance/t2_runs.ts` is the second immutable-by-identity cache, built on
+`createReactiveCache` with a constant version key: a results package's detail
+never changes once the run is ready, so nothing invalidates it and both hosts
+(the catalogue pane and a project's package tab) hit the same entry. Bump the
+cache name when `RunDetail` changes shape.
 
 ### Sentinel versions
 
@@ -351,19 +359,17 @@ import runs (`instance_dataset_hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 compare-projects modal, HFA indicator R code
 (`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
-editors, instance meta modal, profile refresh, results-package catalogue
-detail (`instance_results_packages/detail.tsx` — per-module settings + files
-for the selected READY run; a run dir is immutable, so nothing to cache), the
-results-package wizard's module options + defaults
+editors, instance meta modal, profile refresh, the results-package wizard's
+module options + defaults
 (`instance_results_packages/_wizard/index.tsx` — read once per open,
 client-local until launch), and the `LoggedInWrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta — needed before SSE connects).
 
-Project-level: module execution logs (`view_logs.tsx`), module R script source
-(`view_script.tsx`), module config selections (`settings_generic.tsx`), module
-files modal (`view_files.tsx` — renders download links from its
-`resultsObjectIds` prop; content fetched on download), backup creation trigger
-(`create_backup_form.tsx`).
+Project-level: module config selections (`settings_generic.tsx`), the
+results-package picker's option list (`project_results_package.tsx`, once per
+mount, editors only), backup creation trigger (`create_backup_form.tsx`).
+Run-keyed, either level: a package's script / log bytes and a failed run's
+file listing (`_shared/results_package/view_{script,logs,files}.tsx`).
 
 ## T4 — client-persistent
 
@@ -385,9 +391,6 @@ form inputs, AI chat drafts. Dies on unmount; no files.
 
 ## Open items
 
-- `client/src/components/project/view_files.tsx:27` — dead fetch: an `rLogs`
-  `createQuery` calls `getLogs` on every modal open but the result is never used
-  (copy-paste from `view_logs.tsx`). Remove.
 - `lib/types/project_sse.ts:30` — `thisUserRole` is deprecated ("kept with
   hardcoding bug intact") but still ships on every `starting` payload. Remove
   the field or fix the derivation.

@@ -1,3 +1,4 @@
+import type { RunListingItem } from "./run_generation.ts";
 import type { DatasetInProject } from "./datasets_in_project.ts";
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import { ProjectUser } from "./instance.ts";
@@ -43,6 +44,8 @@ export type ProjectDetail = {
   // The immutable results run this project serves from (projects.run_id);
   // null = no run attached — data reads error until one is synthesized/attached.
   attachedRunId: string | null;
+  // Its catalogue row, for the project T1 store (see ProjectState.attachedRun).
+  attachedRun: RunListingItem | null;
   // projects.follow_pinned — subscribed to the instance's pinned package; a
   // pin-move physically repoints this project (SYSTEM_08 "The pinned
   // package + followers").

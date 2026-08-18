@@ -400,7 +400,10 @@ export function getViewingResultsPackageInstructions(): string {
   return `# Current View: Results Package
 
 The user is viewing the project's attached results package (an immutable run
-of analysis-module outputs) and the wizard that generates a new one.
+of analysis-module outputs: per-module parameters, output files, scripts and
+logs) and, for editors, the picker that switches the project to another
+package or follows the instance's pinned one. Packages are generated on the
+instance shell, not here.
 
 ## Primary Tools (most relevant here)
 

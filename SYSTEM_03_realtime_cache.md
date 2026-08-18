@@ -213,7 +213,10 @@ one. The generate_run emitters call `notifyInstanceRunProgress` /
 `notifyInstanceRScript` directly. `run_attached` has TWO emitters — the
 generation publish and a project's own package picker — and both go through
 `server/runs/attach_run.ts`, so the repoint event carries the same full
-run-derived catalog either way.
+run-derived catalog either way — including the run's catalogue row itself
+(`attachedRun`, 2026-08-18: read once per publish by
+`buildRunAttachedManifestPayload`, and by `getProjectDetail` for `starting`),
+which is what lets the project package tab render with no fetch.
 
 **The `last_updated` entry point.**
 `server/task_management/notify_last_updated.ts` —

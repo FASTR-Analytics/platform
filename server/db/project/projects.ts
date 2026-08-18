@@ -37,6 +37,7 @@ import {
 } from "../../run_query/run_read.ts";
 import { getHfaTimePointsForAI } from "../instance/dataset_hfa.ts";
 import { getRunManifestCached } from "../../runs/manifest_cache.ts";
+import { getRunListingItem } from "../instance/run_generation.ts";
 import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/virtual_defaults.ts";
 import { getAllSlideDeckFolders } from "./slide_deck_folders.ts";
 import { getAllSlideDecks } from "./slide_decks.ts";
@@ -99,6 +100,11 @@ export async function getProjectDetail(
         );
       }
     }
+
+    const resAttachedRun = rawProject.run_id === null
+      ? { success: true as const, data: null }
+      : await getRunListingItem(mainDb, rawProject.run_id);
+    throwIfErrWithData(resAttachedRun);
 
     const resSlideDecks = await getAllSlideDecks(projectDb);
     throwIfErrWithData(resSlideDecks);
@@ -204,6 +210,7 @@ export async function getProjectDetail(
       isCentralReporting: rawProject.is_central_reporting,
       adminArea2: rawProject.admin_area_2,
       attachedRunId: rawProject.run_id,
+      attachedRun: resAttachedRun.data,
       followPinned: rawProject.follow_pinned,
       projectDatasets: datasetsInProject,
       projectModules,

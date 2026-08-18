@@ -126,11 +126,11 @@ export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
 };
 
-// Detail view of one READY package (instance catalogue master–detail):
-// settings resolved from the manifest's configSelections, files from the
-// outputs dir. Manifest-gated — generating/failed runs are served by the
-// progress-derived UI instead.
-export type RunCatalogDetail = {
+// What one READY package contains, wherever it is explored: settings
+// resolved from the manifest's configSelections, files from the outputs dir.
+// Manifest-gated — generating/failed runs are served by the progress-derived
+// UI instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
+export type RunDetail = {
   modules: {
     moduleId: string;
     settings: { label: string; value: string }[];

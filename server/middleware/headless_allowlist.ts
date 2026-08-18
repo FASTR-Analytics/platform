@@ -27,13 +27,13 @@ const HEADLESS_ALLOWED_ROUTE_NAMES = [
   "getPresentationObjectDetail",
   "getReplicantOptions",
   "getSlide",
-  // Module script/logs: the PROJECT-scoped attached-package routes (no runId
-  // in the path — the server resolves projects.run_id; per-project
-  // can_view_script_code / can_view_logs gates). The instance-wide run-keyed
-  // routes (getRunModuleScript/getRunModuleLogs) are deliberately NOT
-  // allowlisted: they would give a leaked credential every run in the instance.
-  "getAttachedPackageModuleScript",
-  "getAttachedPackageModuleLogs",
+  // Module script/logs: the run-keyed package reads under the instance data
+  // bits (Tim's ruling 2026-08-18 — reads mounted once). A leaked credential
+  // reaches exactly what its user's own can_view_data / can_view_logs already
+  // reach in the UI; the AI tools resolve the runId from the project's
+  // attached package at call time, never from the model.
+  "getRunModuleScript",
+  "getRunModuleLogs",
   "getModuleWithConfigSelections",
   "getReportDetail",
   "createReport",

@@ -14,7 +14,7 @@ import {
   getRunGenerationModuleOptions,
   listRunModuleFiles,
   pinRunAndRepointFollowers,
-  readRunCatalogDetail,
+  readRunDetail,
   readRunModuleLogs,
   readRunModuleScript,
   unpinRun,
@@ -27,9 +27,9 @@ import { defineRoute } from "../route-helpers.ts";
 // Phase 3 items 1 and 3): the instance defaults store, the wizard's
 // module-options read, launch, the catalogue listing (instance-T1's fetch
 // half — pulled on the runs_catalog_updated timestamp signal), the guarded
-// hard delete, the master–detail body for ready runs, and the per-module
-// script/log/file viewers. Instance-admin gated throughout
-// (can_configure_data). The wizard is an ephemeral modal: nothing is
+// hard delete, the ready-run detail and the per-module script/log/file
+// reads. Instance-admin gated (can_configure_data) except the package reads,
+// which sit under the instance data bits (see below). The wizard is an ephemeral modal: nothing is
 // persisted server-side before launch, which takes the whole configuration
 // in its body and hands the run to the generate_run worker; further state
 // arrives over instance SSE (the catalogue) and project SSE (each attach
@@ -138,17 +138,16 @@ defineRoute(
 
 // Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
 // reader in server/runs/package_internals.ts, which also owns path safety.
-// These three are the INSTANCE catalogue's mount: run-keyed, because an admin
-// browses packages that may be attached to no project at all, and
-// `can_configure_data` for the same reason. A project reaching the same bytes
-// goes through routes/project/results_package.ts instead, which never takes a
-// runId and gates on the per-project bit for each kind of content (Tim's
-// ruling 2026-07-30). Both mounts call the same reader; only the guard differs.
+// Mounted ONCE, run-keyed, under the instance data bits (Tim's ruling
+// 2026-08-18): a package is instance-level data, so `can_view_data` reads
+// its script/files/detail (and the outputs download mount in
+// middleware/static.ts) and `can_view_logs` reads its logs — the same guard
+// whether the caller is the catalogue, a project's tab, an AI tool or MCP.
 
 defineRoute(
   routesRunGeneration,
   "getRunModuleScript",
-  requireGlobalPermission("can_configure_data"),
+  requireGlobalPermission("can_view_data"),
   log("getRunModuleScript"),
   async (c, { params }) => {
     return c.json(await readRunModuleScript(params.run_id, params.module_id));
@@ -158,7 +157,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunModuleLogs",
-  requireGlobalPermission("can_configure_data"),
+  requireGlobalPermission("can_view_logs"),
   log("getRunModuleLogs"),
   async (c, { params }) => {
     return c.json(await readRunModuleLogs(params.run_id, params.module_id));
@@ -168,23 +167,23 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "listRunModuleFiles",
-  requireGlobalPermission("can_configure_data"),
+  requireGlobalPermission("can_view_data"),
   log("listRunModuleFiles"),
   async (c, { params }) => {
     return c.json(await listRunModuleFiles(params.run_id, params.module_id));
   },
 );
 
-// The catalogue's master–detail body for a READY run: per-module settings
-// (resolved server-side from the manifest's configSelections) plus the
-// outputs-dir file listing, in one manifest-gated read.
+// What a READY run contains: per-module settings (resolved server-side from
+// the manifest's configSelections) plus the outputs-dir file listing, in one
+// manifest-gated read.
 defineRoute(
   routesRunGeneration,
-  "getRunCatalogDetail",
-  requireGlobalPermission("can_configure_data"),
-  log("getRunCatalogDetail"),
+  "getRunDetail",
+  requireGlobalPermission("can_view_data"),
+  log("getRunDetail"),
   async (c, { params }) => {
-    return c.json(await readRunCatalogDetail(params.run_id));
+    return c.json(await readRunDetail(params.run_id));
   },
 );
 

@@ -162,13 +162,13 @@ FROM runs r WHERE r.id = ${runId}
   }
 }
 
-// The package this project currently serves from (Phase 3 item 4) — a run
-// belongs to no project (Q-A), so "the attached one" is the only package a
-// member has business reading. null when nothing is attached: the typed
-// no-package state, not an error.
-export async function getAttachedRunForProject(
+// One catalogue row by id — the `attachedRun` half of a project's
+// starting/run_attached payloads (a run belongs to no project, so the row is
+// read from the runs table, never denormalised onto projects). null when no
+// such run: the typed absent state, not an error.
+export async function getRunListingItem(
   mainDb: Sql,
-  projectId: string,
+  runId: string,
 ): Promise<APIResponseWithData<RunListingItem | null>> {
   try {
     const row = (
@@ -176,27 +176,26 @@ export async function getAttachedRunForProject(
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress
 FROM runs r
-JOIN projects p ON p.run_id = r.id
-WHERE p.id = ${projectId}
+WHERE r.id = ${runId}
 `
     ).at(0);
     return { success: true, data: row === undefined ? null : toRunListingItem(row) };
   } catch (e) {
     return {
       success: false,
-      err: "Problem reading this project's results package: " +
+      err: "Problem reading this results package: " +
         (e instanceof Error ? e.message : ""),
     };
   }
 }
 
-// The picker's candidate list: every ready package this project could repoint
-// at, newest first, minus the one it already serves from. A narrowing of the
-// instance catalogue rather than a different fact — the same rows, without the
-// catalogue's housekeeping columns, for a surface whose only act is a repoint.
+// The picker's options: every ready package on the instance, newest first,
+// the attached one included (a Select lists its current value). A narrowing
+// of the instance catalogue rather than a different fact — the same rows,
+// without the catalogue's housekeeping columns, for a surface whose only act
+// is a repoint.
 export async function listAttachableRunsForProject(
   mainDb: Sql,
-  projectId: string,
 ): Promise<APIResponseWithData<RunListingItem[]>> {
   try {
     const rows = await mainDb<RunListingRow[]>`
@@ -204,7 +203,6 @@ SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress
 FROM runs r
 WHERE r.status = 'ready'
-  AND r.id IS DISTINCT FROM (SELECT p.run_id FROM projects p WHERE p.id = ${projectId})
 ORDER BY r.created_at DESC
 `;
     return { success: true, data: rows.map(toRunListingItem) };

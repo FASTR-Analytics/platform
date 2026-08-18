@@ -3,7 +3,7 @@ import {
   getValidatedModuleId,
   type APIResponseWithData,
   type ModuleConfigSelections,
-  type RunCatalogDetail,
+  type RunDetail,
   type RunModuleFileListing,
 } from "lib";
 import { parseModuleConfigSelections } from "../db/project/modules.ts";
@@ -138,15 +138,14 @@ export async function listRunModuleFiles(
   return { success: true, data: { files } };
 }
 
-// The catalogue's master–detail body for one READY package: per-module
-// settings resolved from the manifest's configSelections (the
-// formatModuleSettingsForAI precedent — label from the parameter definition,
+// What one READY package contains — per-module settings resolved from the
+// manifest's configSelections (the formatModuleSettingsForAI precedent — label from the parameter definition,
 // select values displayed as their option label) plus the outputs-dir file
 // listing. Manifest-gated: generating/failed runs have no manifest and are
 // served by the progress-derived UI instead.
-export async function readRunCatalogDetail(
+export async function readRunDetail(
   runId: string,
-): Promise<APIResponseWithData<RunCatalogDetail>> {
+): Promise<APIResponseWithData<RunDetail>> {
   if (!UUID_RE.test(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
@@ -161,7 +160,7 @@ export async function readRunCatalogDetail(
     };
   }
   try {
-    const modules: RunCatalogDetail["modules"] = [];
+    const modules: RunDetail["modules"] = [];
     for (const mod of manifest.modules) {
       const filesRes = await listRunModuleFiles(runId, mod.id);
       if (filesRes.success === false) {
@@ -203,48 +202,4 @@ function resolveModuleSettings(
       return { label: param?.description ?? key, value: displayValue };
     },
   );
-}
-
-// Resolves ONE output file for download. Returns the absolute path plus its
-// size so the caller can stream it with a Content-Length; the caller owns the
-// response, this owns the safety.
-export async function resolveRunModuleFileForDownload(
-  runId: string,
-  moduleId: string,
-  fileName: string,
-): Promise<APIResponseWithData<{ path: string; sizeBytes: number }>> {
-  const resolved = resolveOutputsDir(runId, moduleId);
-  if (resolved.success === false) {
-    return resolved;
-  }
-  if (
-    fileName.length === 0 ||
-    fileName.includes("/") ||
-    fileName.includes("\\") ||
-    fileName.includes("\0") ||
-    fileName === "." ||
-    fileName === ".."
-  ) {
-    return { success: false, err: "Invalid file name" };
-  }
-  const path = join(resolved.dir, fileName);
-  try {
-    const stat = await Deno.stat(path);
-    if (!stat.isFile) {
-      return { success: false, err: "Not a file" };
-    }
-    return { success: true, data: { path, sizeBytes: stat.size } };
-  } catch (e) {
-    if (e instanceof Deno.errors.NotFound) {
-      return {
-        success: false,
-        err: "No such file in this results package.",
-      };
-    }
-    return {
-      success: false,
-      err: "Problem reading this results package file: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
 }

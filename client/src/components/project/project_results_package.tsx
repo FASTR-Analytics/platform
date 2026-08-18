@@ -1,26 +1,33 @@
 import { t3, type RunListingItem } from "lib";
 import {
-  Badge,
   Button,
+  Card,
   Checkbox,
   FrameTop,
   HeadingBar,
-  StateHolderWrapper,
+  Select,
   createButtonAction,
   createQuery,
   getEditorWrapper,
   openComponent,
-  type StateHolder,
+  type SelectOption,
 } from "panther";
-import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import {
-  ResultsPackageContents,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import {
   ResultsPackageProvenanceLine,
-} from "~/components/_shared/results_package/package_contents";
-import { projectPackageInternalsSource } from "~/components/_shared/results_package/internals_source";
+  ResultsPackageView,
+} from "~/components/_shared/results_package/package_view";
 import {
   PinnedBadge,
-  RunStatusBadge,
+  canViewPackageContents,
 } from "~/components/_shared/results_package/status";
 import { ResultsPackageCompatibilityModal } from "./results_package_compatibility_modal";
 import { serverActions } from "~/server_actions";
@@ -29,133 +36,184 @@ import { projectState } from "~/state/project/t1_store";
 import { setResultsPackageTabLoadCount } from "~/state/t4_ui";
 
 // The project "Results package" surface (PLAN_RESULTS_RUNS Phase 3 item 4):
-// the package this project serves from, and — for an editor — the picker
-// that repoints it at another. Generation belongs to the instance shell (a
-// package belongs to no project); what a project does with packages is
-// choose one.
+// two halves with two permission models.
 //
-// What the package CONTAINS is rendered by the shared
-// `_shared/results_package/` components — byte-identical to the instance
-// catalogue, because the answer to "what is in this package" lives in the
-// run directory and does not depend on who is asking. This surface only adds
-// its own chrome: the "in use" marker and the picker.
+// The CONFIGURE card is the project's relationship with packages — which one
+// it serves from (the picker) and whether it follows the instance's pin — and
+// is the editor's (`can_configure_visualizations`, or global admin). It
+// renders synchronously from T1 (`projectState.attachedRun`, `followPinned`,
+// `instanceState.pinnedRunId`); its one fetch is the picker's option list.
 //
-// The picker is editor-only, in the client and in the route guards: a
-// non-editor member sees the package the project serves from and nothing
-// else, so the other packages on the instance are not enumerated to them.
+// The VIEWER is the package itself, rendered by the shared ResultsPackageView
+// exactly as the instance catalogue renders it, under the instance data bits
+// (Tim's ruling 2026-08-18: what a package contains is a function of the
+// runId, not of who is asking). Generation belongs to the instance shell.
+
+export function canOpenProjectResultsPackageTab(): boolean {
+  return canAttachPackage() || canViewPackageContents();
+}
+
+function canAttachPackage(): boolean {
+  return (
+    instanceState.currentUserIsGlobalAdmin ||
+    projectState.thisUserPermissions.can_configure_visualizations
+  );
+}
+
 export function ProjectResultsPackage() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const canAttach = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    projectState.thisUserPermissions.can_configure_visualizations;
-
-  const [attached, setAttached] = createSignal<
-    StateHolder<RunListingItem | null>
-  >({ status: "loading" });
-  const [attachable, setAttachable] = createSignal<
-    StateHolder<RunListingItem[]>
-  >({ status: "loading" });
-  const [version, setVersion] = createSignal(0);
-
-  // Stale-while-revalidate: refetches on version bump and on attachedRunId
-  // change — a repoint (this picker, or a generation publishing onto this
-  // project) is the only thing that changes what either list holds. The
-  // counter drops out-of-order completions (a repoint landing mid-fetch).
-  let requestCounter = 0;
-  createEffect(async () => {
-    version();
-    const _attachedRunId = projectState.attachedRunId;
-    const projectId = projectState.id;
-    const showPicker = canAttach();
-    const requestId = ++requestCounter;
-    const attachedRes = await serverActions.getAttachedResultsPackage({
-      projectId,
-    });
-    if (requestId !== requestCounter) {
-      return;
-    }
-    setAttached(
-      attachedRes.success
-        ? { status: "ready", data: attachedRes.data }
-        : { status: "error", err: attachedRes.err },
-    );
-    if (!showPicker) {
-      return;
-    }
-    const attachableRes = await serverActions.listAttachableResultsPackages({
-      projectId,
-    });
-    if (requestId !== requestCounter) {
-      return;
-    }
-    setAttachable(
-      attachableRes.success
-        ? { status: "ready", data: attachableRes.data }
-        : { status: "error", err: attachableRes.err },
-    );
-  });
-
-  // Tell the onboarding manager when this surface is actually drawn: the
-  // attached card is a tour anchor that only exists once the fetch above has
-  // settled, and the manager evaluates its gates while the tab counts as
-  // visible. Every settle counts (a repoint's refetch included, so a part
-  // that needs the new card can start once it is on screen); reset on
-  // unmount so a revisit waits for its own fetch.
-  createEffect(() => {
-    if (attached().status !== "loading") {
-      setResultsPackageTabLoadCount((n) => n + 1);
-    }
-  });
+  // The onboarding manager counts this tab as visible only while this is > 0
+  // (its anchors render synchronously from T1, so mount is the settle).
+  onMount(() => setResultsPackageTabLoadCount((n) => n + 1));
   onCleanup(() => setResultsPackageTabLoadCount(0));
 
+  return (
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <HeadingBar
+            data-tour="results-package-header"
+            heading={t3({
+              en: "Results package",
+              fr: "Paquet de résultats",
+              pt: "Pacote de resultados",
+            })}
+          />
+        }
+      >
+        <div class="ui-pad ui-spy">
+          <Show when={canAttachPackage()}>
+            <ConfigureCard />
+          </Show>
 
-  const attachPackage = createButtonAction(
-    async (run: RunListingItem) => {
-      const confirmed = await openComponent({
-        element: ResultsPackageCompatibilityModal,
-        props: {
-          projectId: projectState.id,
-          runId: run.id,
-          runLabel: run.label,
-        },
-      });
-      if (confirmed !== true) {
-        return { success: true as const };
-      }
-      return await serverActions.attachResultsPackage({
-        projectId: projectState.id,
-        run_id: run.id,
-      });
-    },
-    () => {
-      setVersion((v) => v + 1);
-    },
+          <Show
+            when={projectState.attachedRun}
+            keyed
+            fallback={
+              <div class="text-base-content-muted">
+                {t3({
+                  en: "This project has no results package attached yet.",
+                  fr: "Aucun paquet de résultats n'est encore rattaché à ce projet.",
+                  pt: "Este projeto ainda não tem nenhum pacote de resultados anexado.",
+                })}
+              </div>
+            }
+          >
+            {(run) => (
+              <div data-tour="results-package-attached">
+                <Show
+                  when={canViewPackageContents()}
+                  fallback={<AttachedPackageSummary run={run} />}
+                >
+                  <div data-tour="results-package-contents">
+                    <ResultsPackageView
+                      run={run}
+                      headerNote={
+                        <Show when={projectState.adminArea2 !== null}>
+                          <AttachedScopeCoverageWarning runId={run.id} />
+                        </Show>
+                      }
+                      openEditor={openEditor}
+                    />
+                  </div>
+                </Show>
+              </div>
+            )}
+          </Show>
+        </div>
+      </FrameTop>
+    </EditorWrapper>
   );
+}
+
+// The picker + follow-pinned subscription. Options are every ready package
+// on the instance (T3 once per mount, editors only — the one genuinely
+// project-context read on this page). Two-step on purpose: a native <select>
+// flips before we can veto, and the compatibility modal must be able to
+// cancel — so the selection is local until "Use this package" confirms it.
+// No refetch after a repoint: `run_attached` moves `attachedRunId` and the
+// candidate resets to it.
+function ConfigureCard() {
+  const options = createQuery(() =>
+    serverActions.listAttachableResultsPackages({ projectId: projectState.id }),
+  );
+  const readyRuns = (): RunListingItem[] => {
+    const s = options.state();
+    return s.status === "ready" ? s.data : [];
+  };
+  const runLabel = (id: string): string =>
+    readyRuns().find((r) => r.id === id)?.label ??
+      (projectState.attachedRun?.id === id ? projectState.attachedRun.label : id);
+
+  const selectOptions = createMemo((): SelectOption<string>[] => {
+    const runs = readyRuns();
+    const attached = projectState.attachedRun;
+    const withAttached =
+      attached !== null && !runs.some((r) => r.id === attached.id)
+        ? [attached, ...runs]
+        : runs;
+    return withAttached.map((r) => ({
+      value: r.id,
+      label: [
+        r.label,
+        r.id === projectState.attachedRunId
+          ? t3({ en: "in use", fr: "en cours d'utilisation", pt: "em utilização" })
+          : undefined,
+        r.id === instanceState.pinnedRunId
+          ? t3({ en: "pinned", fr: "épinglé", pt: "fixado" })
+          : undefined,
+      ]
+        .filter((part) => part !== undefined)
+        .join(" · "),
+    }));
+  });
+
+  const [candidate, setCandidate] = createSignal<string | undefined>(undefined);
+  createEffect(on(() => projectState.attachedRunId, () => setCandidate(undefined)));
+  const selectedId = (): string | undefined =>
+    candidate() ?? projectState.attachedRunId ?? undefined;
+  const isDifferent = () =>
+    selectedId() !== undefined && selectedId() !== projectState.attachedRunId;
+
+  const attachPackage = createButtonAction(async (runId: string) => {
+    const confirmed = await openComponent({
+      element: ResultsPackageCompatibilityModal,
+      props: {
+        projectId: projectState.id,
+        runId,
+        runLabel: runLabel(runId),
+      },
+    });
+    if (confirmed !== true) {
+      return { success: true as const };
+    }
+    return await serverActions.attachResultsPackage({
+      projectId: projectState.id,
+      run_id: runId,
+    });
+  });
 
   // Follow the instance's pinned package (SYSTEM_08 "The pinned package
   // + followers"). The flag is T1 (`projectState.followPinned`, pushed on
   // project_config_updated) and the pin itself is instance T1
   // (`instanceState.pinnedRunId`), so nothing is refetched here: enabling may
-  // also repoint the project, which arrives as run_attached and re-runs the
-  // effect above. Subscribing before any package is pinned is allowed — the
-  // project moves once an admin pins. The checkbox is keyed on a counter
-  // bumped when a save is refused, because a controlled native checkbox has
-  // already flipped visually by then and no store value changes to flip it
-  // back.
+  // also repoint the project, which arrives as run_attached. Subscribing
+  // before any package is pinned is allowed — the project moves once an admin
+  // pins. The checkbox is keyed on a counter bumped when a save is refused,
+  // because a controlled native checkbox has already flipped visually by then
+  // and no store value changes to flip it back.
   const [checkboxKey, setCheckboxKey] = createSignal(1);
-  const setFollowPinned = createButtonAction(
-    async (follow: boolean) => {
-      const res = await serverActions.setProjectFollowPinned({
-        projectId: projectState.id,
-        follow,
-      });
-      if (res.success === false) {
-        setCheckboxKey((k) => k + 1);
-      }
-      return res;
-    },
-  );
+  const setFollowPinned = createButtonAction(async (follow: boolean) => {
+    const res = await serverActions.setProjectFollowPinned({
+      projectId: projectState.id,
+      follow,
+    });
+    if (res.success === false) {
+      setCheckboxKey((k) => k + 1);
+    }
+    return res;
+  });
 
   // "Following, but not on the pin" is a real state (publish repointed this
   // project as a wizard attach target, it was locked while the pin moved, or
@@ -165,120 +223,108 @@ export function ProjectResultsPackage() {
     projectState.followPinned &&
     instanceState.pinnedRunId !== null &&
     projectState.attachedRunId !== instanceState.pinnedRunId;
-  const pinnedCandidate = (): RunListingItem | undefined => {
-    const s = attachable();
-    return s.status === "ready"
-      ? s.data.find((r) => r.id === instanceState.pinnedRunId)
-      : undefined;
-  };
+
+  const locked = () => projectState.isLocked;
 
   return (
-    <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <div class="h-full w-full" data-tour="results-package-header">
-            <HeadingBar
-              heading={t3({
-                en: "Results package",
-                fr: "Paquet de résultats",
-                pt: "Pacote de resultados",
+    <Card
+      header={t3({
+        en: "Package settings",
+        fr: "Paramètres du paquet",
+        pt: "Definições do pacote",
+      })}
+    >
+      <div class="ui-spy">
+        <div class="ui-spy-sm" data-tour="results-package-picker">
+          <div class="ui-gap flex items-end">
+            <Select<string>
+              label={t3({
+                en: "Results package in use",
+                fr: "Paquet de résultats utilisé",
+                pt: "Pacote de resultados em utilização",
+              })}
+              value={selectedId()}
+              options={selectOptions()}
+              onChange={setCandidate}
+              disabled={options.state().status !== "ready" || locked()}
+              fullWidth
+              placeholder={t3({
+                en: "No package attached",
+                fr: "Aucun paquet rattaché",
+                pt: "Nenhum pacote anexado",
               })}
             />
-          </div>
-        }
-      >
-        <div class="ui-pad ui-spy">
-          <StateHolderWrapper state={attached()} noPad>
-            {(keyedAttached) => (
-              <Show
-                when={keyedAttached}
-                keyed
-                fallback={
-                  <div class="text-base-content-muted">
-                    {t3({
-                      en: "This project has no results package attached yet.",
-                      fr: "Aucun paquet de résultats n'est encore rattaché à ce projet.",
-                      pt: "Este projeto ainda não tem nenhum pacote de resultados anexado.",
-                    })}
-                  </div>
-                }
-              >
-                {(run) => (
-                  <AttachedPackageCard run={run} openEditor={openEditor} />
-                )}
-              </Show>
-            )}
-          </StateHolderWrapper>
-
-          <div class="ui-spy-sm">
-            <h3 class="ui-text-heading">
-              {t3({
-                en: "Pinned package",
-                fr: "Paquet épinglé",
-                pt: "Pacote fixado",
-              })}
-            </h3>
-            <Show
-              when={canAttach()}
-              fallback={
-                <div class="text-base-content-muted text-sm">
-                  <Show
-                    when={projectState.followPinned}
-                    fallback={t3({
-                      en: "This project does not follow the instance's pinned package.",
-                      fr: "Ce projet ne suit pas le paquet épinglé de l'instance.",
-                      pt: "Este projeto não segue o pacote fixado da instância.",
-                    })}
-                  >
-                    {t3({
-                      en: "This project follows the instance's pinned package: whenever an administrator pins a different package, it switches to it.",
-                      fr: "Ce projet suit le paquet épinglé de l'instance : chaque fois qu'un administrateur épingle un autre paquet, il y bascule.",
-                      pt: "Este projeto segue o pacote fixado da instância: sempre que um administrador fixar outro pacote, muda para ele.",
-                    })}
-                  </Show>
-                </div>
-              }
+            <Button
+              iconName="package"
+              onClick={() => attachPackage.click(selectedId() ?? "")}
+              state={attachPackage.state()}
+              disabled={!isDifferent() || locked()}
             >
-              <Show when={String(checkboxKey())} keyed>
-                {(_key) => (
-                  <Checkbox
-                    checked={projectState.followPinned}
-                    onChange={(v) => setFollowPinned.click(v)}
-                    disabled={
-                      projectState.isLocked ||
-                      setFollowPinned.state().status === "loading"
-                    }
-                    label={t3({
-                      en: "Always use the instance's pinned package",
-                      fr: "Toujours utiliser le paquet épinglé de l'instance",
-                      pt: "Usar sempre o pacote fixado da instância",
-                    })}
-                  />
-                )}
-              </Show>
-              <div class="text-base-content-muted text-sm">
-                <Show
-                  when={instanceState.pinnedRunId !== null}
-                  fallback={t3({
-                    en: "No package is pinned on this instance yet; the project will switch to one as soon as an administrator pins it.",
-                    fr: "Aucun paquet n'est encore épinglé sur cette instance ; le projet y basculera dès qu'un administrateur en épinglera un.",
-                    pt: "Ainda não há nenhum pacote fixado nesta instância; o projeto mudará para um assim que um administrador o fixar.",
-                  })}
-                >
+              {t3({
+                en: "Use this package",
+                fr: "Utiliser ce paquet",
+                pt: "Usar este pacote",
+              })}
+            </Button>
+          </div>
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: "Switching changes the data behind every visualization, report and slide deck in this project. You will see what would stop resolving before anything changes.",
+              fr: "Changer modifie les données derrière chaque visualisation, rapport et présentation de ce projet. Vous verrez ce qui cesserait de se résoudre avant toute modification.",
+              pt: "Mudar altera os dados por trás de cada visualização, relatório e apresentação deste projeto. Verá o que deixaria de se resolver antes de qualquer alteração.",
+            })}
+          </div>
+        </div>
+
+        <div class="ui-spy-sm">
+          <Show when={String(checkboxKey())} keyed>
+            {(_key) => (
+              <Checkbox
+                checked={projectState.followPinned}
+                onChange={(v) => setFollowPinned.click(v)}
+                disabled={locked() || setFollowPinned.state().status === "loading"}
+                label={t3({
+                  en: "Always use the instance's pinned package",
+                  fr: "Toujours utiliser le paquet épinglé de l'instance",
+                  pt: "Usar sempre o pacote fixado da instância",
+                })}
+              />
+            )}
+          </Show>
+          <div class="text-base-content-muted text-sm">
+            <Show
+              when={instanceState.pinnedRunId}
+              keyed
+              fallback={t3({
+                en: "No package is pinned on this instance yet; the project will switch to one as soon as an administrator pins it.",
+                fr: "Aucun paquet n'est encore épinglé sur cette instance ; le projet y basculera dès qu'un administrateur en épinglera un.",
+                pt: "Ainda não há nenhum pacote fixado nesta instância; o projeto mudará para um assim que um administrador o fixar.",
+              })}
+            >
+              {(pinnedRunId) => (
+                <>
+                  {t3({
+                    en: "Pinned package:",
+                    fr: "Paquet épinglé :",
+                    pt: "Pacote fixado:",
+                  })}{" "}
+                  {runLabel(pinnedRunId)}.{" "}
                   {t3({
                     en: "Whenever an administrator pins a different package, this project switches to it.",
                     fr: "Chaque fois qu'un administrateur épingle un autre paquet, ce projet y bascule.",
                     pt: "Sempre que um administrador fixar outro pacote, este projeto muda para ele.",
                   })}
-                </Show>{" "}
-                {t3({
-                  en: "Choosing another package below turns this off.",
-                  fr: "Choisir un autre paquet ci-dessous désactive cette option.",
-                  pt: "Escolher outro pacote abaixo desativa esta opção.",
-                })}
-              </div>
-            </Show>
-            <Show when={behindPin()}>
+                </>
+              )}
+            </Show>{" "}
+            {t3({
+              en: "Choosing another package above turns this off.",
+              fr: "Choisir un autre paquet ci-dessus désactive cette option.",
+              pt: "Escolher outro pacote acima desativa esta opção.",
+            })}
+          </div>
+          <Show when={behindPin() && instanceState.pinnedRunId} keyed>
+            {(pinnedRunId) => (
               <div class="ui-gap flex items-center">
                 <div class="text-warning flex-1 text-sm">
                   {t3({
@@ -287,93 +333,49 @@ export function ProjectResultsPackage() {
                     pt: "Este projeto segue o pacote fixado, mas está atualmente noutro pacote.",
                   })}
                 </div>
-                <Show when={canAttach() && pinnedCandidate()} keyed>
-                  {(run) => (
-                    <Button
-                      size="sm"
-                      outline
-                      iconName="package"
-                      onClick={() => attachPackage.click(run)}
-                      state={attachPackage.state()}
-                      disabled={projectState.isLocked}
-                    >
-                      {t3({
-                        en: "Switch to pinned package",
-                        fr: "Basculer vers le paquet épinglé",
-                        pt: "Mudar para o pacote fixado",
-                      })}
-                    </Button>
-                  )}
-                </Show>
+                <Button
+                  size="sm"
+                  outline
+                  iconName="package"
+                  onClick={() => attachPackage.click(pinnedRunId)}
+                  state={attachPackage.state()}
+                  disabled={locked()}
+                >
+                  {t3({
+                    en: "Switch to pinned package",
+                    fr: "Basculer vers le paquet épinglé",
+                    pt: "Mudar para o pacote fixado",
+                  })}
+                </Button>
               </div>
-            </Show>
-          </div>
-
-          <Show when={canAttach()}>
-            <div class="ui-spy-sm" data-tour="results-package-picker">
-              <h3 class="ui-text-heading">
-                {t3({
-                  en: "Other results packages",
-                  fr: "Autres paquets de résultats",
-                  pt: "Outros pacotes de resultados",
-                })}
-              </h3>
-              <StateHolderWrapper state={attachable()} noPad>
-                {(keyedAttachable) => (
-                  <div class="ui-spy-sm">
-                    <Show
-                      when={keyedAttachable.length > 0}
-                      fallback={
-                        <div class="text-base-content-muted text-sm">
-                          {t3({
-                            en: "No other results packages are available on this instance.",
-                            fr: "Aucun autre paquet de résultats n'est disponible sur cette instance.",
-                            pt: "Não há outros pacotes de resultados disponíveis nesta instância.",
-                          })}
-                        </div>
-                      }
-                    >
-                      <For each={keyedAttachable}>
-                        {(run) => (
-                          <div class="ui-pad-sm ui-gap flex items-center rounded border">
-                            <div class="min-w-0 flex-1">
-                              <div class="ui-gap-sm flex items-center">
-                                <div class="truncate">{run.label}</div>
-                                <Show when={run.id === instanceState.pinnedRunId}>
-                                  <PinnedBadge />
-                                </Show>
-                              </div>
-                              <ResultsPackageProvenanceLine
-                                run={run}
-                                showDiskSize={false}
-                              />
-                            </div>
-                            <Button
-                              size="sm"
-                              outline
-                              iconName="package"
-                              onClick={() => attachPackage.click(run)}
-                              state={attachPackage.state()}
-                              disabled={projectState.isLocked}
-                            >
-                              {t3({
-                                en: "Use this package",
-                                fr: "Utiliser ce paquet",
-                                pt: "Usar este pacote",
-                              })}
-                            </Button>
-                          </div>
-                        )}
-                      </For>
-                    </Show>
-                  </div>
-                )}
-              </StateHolderWrapper>
-            </div>
+            )}
           </Show>
         </div>
-      </FrameTop>
-    </EditorWrapper>
+      </div>
+    </Card>
+  );
+}
+
+// What a member without the instance data bit sees of the attached package:
+// the row itself (T1), which is the project's own configuration fact.
+function AttachedPackageSummary(p: { run: RunListingItem }) {
+  return (
+    <div class="ui-spy-sm">
+      <div class="ui-gap flex items-center">
+        <div class="font-700 flex-1 truncate">{p.run.label}</div>
+        <Show when={p.run.id === instanceState.pinnedRunId}>
+          <PinnedBadge />
+        </Show>
+      </div>
+      <ResultsPackageProvenanceLine run={p.run} />
+      <div class="text-base-content-muted text-sm">
+        {t3({
+          en: "Viewing what this package contains needs the instance's data permission.",
+          fr: "Voir le contenu de ce paquet nécessite la permission de données de l'instance.",
+          pt: "Ver o conteúdo deste pacote requer a permissão de dados da instância.",
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -407,62 +409,5 @@ function AttachedScopeCoverageWarning(p: { runId: string }) {
         })}`}
       </div>
     </Show>
-  );
-}
-
-function AttachedPackageCard(p: {
-  run: RunListingItem;
-  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
-}) {
-  // What this member may explore inside the package they serve from. Tim's
-  // ruling 2026-07-30: what lives inside the run package directory is visible
-  // to a user of an attached project, governed per kind of content by the
-  // per-project bits the app already had — script code, logs, data. A project
-  // admin has all three; the Viewer and Editor presets have only
-  // `can_view_data`. Nothing here names a runId: the server resolves the
-  // package from `projects.run_id`.
-  const internals = () =>
-    projectPackageInternalsSource(
-      projectState.id,
-      projectState.thisUserPermissions,
-    );
-
-  return (
-    <div
-      class="ui-pad ui-spy-sm border-primary rounded border"
-      data-tour="results-package-attached"
-    >
-      <div class="ui-gap flex items-center">
-        <div class="font-700 flex-1 truncate">{p.run.label}</div>
-        <Badge intent="primary" variant="solid">
-          {t3({
-            en: "In use",
-            fr: "En cours d'utilisation",
-            pt: "Em utilização",
-          })}
-        </Badge>
-        <Show when={p.run.id === instanceState.pinnedRunId}>
-          <PinnedBadge />
-        </Show>
-        <RunStatusBadge status={p.run.status} />
-      </div>
-
-      <ResultsPackageProvenanceLine run={p.run} showDiskSize={false} />
-
-      <Show when={projectState.adminArea2 !== null}>
-        <AttachedScopeCoverageWarning runId={p.run.id} />
-      </Show>
-
-      {/* Wrapped at the call site, not inside the shared component: the
-          instance catalogue mounts the same contents and needs its own
-          anchor. */}
-      <div data-tour="results-package-contents">
-        <ResultsPackageContents
-          run={p.run}
-          internals={internals()}
-          openEditor={p.openEditor}
-        />
-      </div>
-    </div>
   );
 }

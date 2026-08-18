@@ -33,18 +33,18 @@ export function setupStaticServing(app: Hono) {
     await next();
   });
 
-  // Run output downloads, the files-viewer's surface, at
+  // Run output downloads, the package detail's file rows, at
   // /{runId}/outputs/{moduleId}/{file}. Scoped to that shape AND gated on
-  // can_configure_data (PLAN_RESULTS_RUNS Q-G): this mount used to answer
-  // any path under the runs volume for any authenticated instance user, so
-  // knowing a runId was enough to download another project's raw output
-  // CSVs. It carries the same guard as the viewer routes the listing comes
-  // from. The path scope also matters for what follows: a wildcard mount
-  // with this guard would 403 every non-admin request that falls through to
-  // the assets serve below.
+  // the instance data bit (PLAN_RESULTS_RUNS Q-G, regated 2026-08-18): this
+  // mount used to answer any path under the runs volume for any
+  // authenticated instance user, so knowing a runId was enough to download
+  // raw output CSVs. It carries the same guard as the run-keyed package reads
+  // the listing comes from (`getRunDetail`, `can_view_data`). The path scope
+  // also matters for what follows: a wildcard mount with this guard would
+  // 403 every non-data request that falls through to the assets serve below.
   app.use(
     "/:run_id/outputs/*",
-    requireGlobalPermission("can_configure_data"),
+    requireGlobalPermission("can_view_data"),
     serveStatic({ root: _RUNS_DIR_PATH }),
   );
 

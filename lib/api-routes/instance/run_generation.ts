@@ -7,7 +7,7 @@ import {
 import type {
   FollowPinnedProject,
   PinResultsPackageResult,
-  RunCatalogDetail,
+  RunDetail,
   RunCatalogItem,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
@@ -17,20 +17,19 @@ import { route } from "../route-utils.ts";
 
 // Results-package launch wizard + catalogue (PLAN_RESULTS_RUNS item 2,
 // re-cut by Phase 3 items 1 and 3). Instance-level routes entered from the
-// instance shell, all instance-admin gated (can_configure_data): the wizard
+// instance shell, instance-admin gated (can_configure_data) except the
+// package reads below: the wizard
 // is an ephemeral modal that persists nothing before launch, and a
 // generation belongs to no project — it attaches to the projects chosen at
 // launch.
 
 // A run's outputs dir holds one module's generated script, execution log and
-// raw CSVs. These three are the INSTANCE catalogue's copy: run-keyed and
-// `can_configure_data`, because an admin browses packages that may be attached
-// to no project at all. A project reads the same bytes through
-// `projectResultsPackageRouteRegistry`, which takes no runId and gates each
-// kind of content on its own per-project bit (Tim's ruling 2026-07-30). One
-// reader (server/runs/package_internals.ts) serves both; only the guard
-// differs — exploring a package is one capability rendered on both surfaces
-// (item 3b).
+// raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
+// 2026-08-18, superseding the 2026-07-30 per-project mount): a package is
+// instance-level data, so what it contains is gated on the instance data
+// bits — `can_view_data` for detail/script/files/download, `can_view_logs`
+// for logs — wherever it is explored (the catalogue, a project's tab, the AI
+// tools, MCP). Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
@@ -96,15 +95,15 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as RunModuleFileListing,
   }),
-  // Master–detail body for a READY run: per-module settings (resolved
-  // server-side from the manifest's configSelections) + outputs-dir file
-  // listing. Manifest-gated — generating/failed runs use the
-  // progress-derived UI instead.
-  getRunCatalogDetail: route({
+  // What a READY run contains: per-module settings (resolved server-side
+  // from the manifest's configSelections) + outputs-dir file listing.
+  // Manifest-gated — generating/failed runs use the progress-derived UI
+  // instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
+  getRunDetail: route({
     path: "/run_generation/run/:run_id/detail",
     method: "GET",
     params: z.object({ run_id: z.string() }),
-    response: {} as RunCatalogDetail,
+    response: {} as RunDetail,
   }),
   // The instance defaults store (§3.5): the wizard's starting values,
   // written only by the module-defaults editor (S8 "Instance module

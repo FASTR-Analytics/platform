@@ -203,7 +203,7 @@ export async function runGenerationPipeline(
     notifyInstanceRunProgress(std.runId, progress);
 
     if (std.attachTargetProjectIds.length > 0) {
-      const payload = await buildRunAttachedManifestPayload({
+      const payload = await buildRunAttachedManifestPayload(mainDb, {
         runId: std.runId,
         manifest,
       });

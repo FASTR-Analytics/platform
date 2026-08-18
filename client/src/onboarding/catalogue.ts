@@ -9,6 +9,7 @@ import type {
 } from "lib";
 import { projectState } from "~/state/project/t1_store";
 import { instanceState } from "~/state/instance/t1_store";
+import { canViewPackageContents } from "~/components/_shared/results_package/status";
 import {
   hideUnreadyVisualizations,
   setPendingEditorOpen,
@@ -67,6 +68,13 @@ export type TourCatalogueEntry = {
 const perms = (f: TourProjectFacts) => f.thisUserPermissions;
 const hasModules = (f: TourProjectFacts) => f.projectModules.length > 0;
 const hasAttachedPackage = (f: TourProjectFacts) => f.attachedRunId !== null;
+// The results package tab's two gates (project_results_package.tsx): the
+// picker is the editor's, the contents are instance data.
+const canAttach = (f: TourProjectFacts) =>
+  instanceState.currentUserIsGlobalAdmin ||
+  perms(f).can_configure_visualizations;
+const canOpenTab = (f: TourProjectFacts) =>
+  canAttach(f) || canViewPackageContents();
 const hasDecks = (f: TourProjectFacts) => f.slideDecks.length > 0;
 const hasReports = (f: TourProjectFacts) => f.reports.length > 0;
 const hasDashboards = (f: TourProjectFacts) => f.dashboards.length > 0;
@@ -1207,7 +1215,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "D'où viennent les chiffres de ce projet et ce que contient le paquet.",
         pt: "De onde vêm os números deste projeto e o que contém o pacote.",
       }),
-      available: (f) => perms(f).can_view_data,
+      available: (f) => canOpenTab(f),
       unavailableReason: reasonNoPageAccess,
       navigate: goToResultsPackage,
     },
@@ -1224,9 +1232,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Le paquet utilisé, et les modules, scripts, journaux et fichiers qu'il contient.",
         pt: "O pacote em utilização, e os módulos, scripts, registos e ficheiros que contém.",
       }),
-      available: (f) => perms(f).can_view_data && hasAttachedPackage(f),
+      available: (f) => canViewPackageContents() && hasAttachedPackage(f),
       unavailableReason: (f) =>
-        !perms(f).can_view_data
+        !canViewPackageContents()
           ? reasonNoPageAccess()
           : reasonNeedAttachedPackage(),
       navigate: goToResultsPackage,
@@ -1244,20 +1252,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Rattacher le projet à un autre paquet, et la vérification de compatibilité préalable.",
         pt: "Apontar o projeto para outro pacote, e a verificação de compatibilidade prévia.",
       }),
-      available: (f) =>
-        perms(f).can_view_data &&
-        (instanceState.currentUserIsGlobalAdmin ||
-          perms(f).can_configure_visualizations) &&
-        !f.isLocked,
+      available: (f) => canAttach(f) && !f.isLocked,
       unavailableReason: (f) =>
-        !perms(f).can_view_data
-          ? reasonNoPageAccess()
-          : !(
-                instanceState.currentUserIsGlobalAdmin ||
-                perms(f).can_configure_visualizations
-              )
-            ? reasonNeedAttachPermission()
-            : reasonLocked(),
+        !canAttach(f) ? reasonNeedAttachPermission() : reasonLocked(),
       navigate: goToResultsPackage,
     },
     // ── Settings ─────────────────────────────────────────────────────────

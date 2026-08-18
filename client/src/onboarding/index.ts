@@ -50,6 +50,7 @@ import {
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
+import { canOpenProjectResultsPackageTab } from "~/components/project/project_results_package";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import type { SlideType } from "lib";
 import {
@@ -386,20 +387,16 @@ export function setupVisualizationTours(): SolidTourManagerController {
 // is) runs for anyone who can see the tab and targets only the header, so it
 // is safe on a project with nothing attached yet. The explore part waits for
 // an attached package to actually be on screen, and the switch part for a
-// member who may repoint the project (the picker section is theirs alone; it
-// renders with a "none available" line when the instance holds no other
-// package, and the tour still explains what it is for). Splitting rather than
-// skipping steps matters because a tour that runs against missing targets is
-// still marked seen, and the user would never get it later.
+// member who may repoint the project (the configure card is theirs alone).
+// Splitting rather than skipping steps matters because a tour that runs
+// against missing targets is still marked seen, and the user would never get
+// it later.
 //
-// The attached card comes from a fetch the tab component makes on mount, not
-// from projectState, so the page counts as visible only once that fetch has
-// settled — probing for the card at tab-entry found a loading pane, which
-// excluded the explore part from the run for good: nothing re-checked once
-// the fetch landed, and the intro run in progress blocks re-checks anyway.
-// Later settles (a repoint's refetch) bump the count and re-check, so a
-// member who attaches their first package from this tab gets the explore
-// part as soon as the card is drawn.
+// The tab renders from project T1 (`attachedRun`), so its anchors exist on
+// mount; the tab bumps `resultsPackageTabLoadCount` on mount and resets it on
+// unmount, and the page counts as visible only while it is > 0 — the same
+// gate the fetch-driven version used, kept so a tour part is evaluated
+// against the drawn page.
 export function setupResultsPackageTours(): SolidTourManagerController {
   const canAttach = () =>
     instanceState.currentUserIsGlobalAdmin ||
@@ -415,7 +412,7 @@ export function setupResultsPackageTours(): SolidTourManagerController {
     pages: {
       "results-package": () =>
         projectTab() === "results_package" &&
-        projectState.thisUserPermissions.can_view_data &&
+        canOpenProjectResultsPackageTab() &&
         !isEditingView() &&
         resultsPackageTabLoadCount() > 0,
     },

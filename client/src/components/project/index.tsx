@@ -23,7 +23,10 @@ import { ProjectDecks } from "./project_decks";
 import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
-import { ProjectResultsPackage } from "./project_results_package";
+import {
+  ProjectResultsPackage,
+  canOpenProjectResultsPackageTab,
+} from "./project_results_package";
 import { ProjectSettings } from "./project_settings";
 import { ProjectVisualizations } from "./project_visualizations";
 import { ProjectCache } from "./project_cache";
@@ -148,11 +151,11 @@ function ProjectInner() {
         iconName: "chart",
       });
     }
-    // The package this project serves from is the project's own data, so the
-    // tab opens to any member who can view it (PLAN_RESULTS_RUNS Phase 3
-    // item 4 — matching the server's can_view_data guard). The picker inside
-    // is editor-gated separately; generation lives on the instance shell.
-    if (perms.can_view_data) {
+    // Two halves, two gates (Tim's ruling 2026-08-18): the picker is the
+    // editor's (project can_configure_visualizations), the package contents
+    // are instance data (instance can_view_data). Either opens the tab;
+    // generation lives on the instance shell.
+    if (canOpenProjectResultsPackageTab()) {
       items.push({
         id: "results_package",
         label: t3({
@@ -359,7 +362,7 @@ function ProjectInner() {
                 <Match
                   when={
                     projectTab() === "results_package" &&
-                    projectState.thisUserPermissions.can_view_data
+                    canOpenProjectResultsPackageTab()
                   }
                 >
                   <ProjectResultsPackage />

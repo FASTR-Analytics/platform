@@ -2,6 +2,7 @@
 system: 8
 name: Results Packages & Module Execution
 globs:
+  - client/src/state/instance/t2_runs.ts
   - client/src/components/instance/compare_projects.tsx
   - client/src/components/instance_results_packages/**
   - client/src/components/project/metric_details_modal.tsx
@@ -83,20 +84,22 @@ config-selections parser, and the boot sweep's `uninstallModule`);
 pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
 `routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`
-(the latter now also carries the catalogue listing, the guarded hard delete
-and the per-module script/log/file viewers moved off the project mount) +
-`routes/project/results_package.ts` (the project picker); lib module + run
+(the catalogue listing, the guarded hard delete, and the ONE mount for
+package reads — detail/script/logs/files, run-keyed under the instance data
+bits) + `routes/project/results_package.ts` (the project picker + follow
+toggle); lib module + run
 types + `module_registry.ts`; client: `instance_results_packages/**` (the
 catalogue), `project_results_package.tsx` +
 `results_package_compatibility_modal.tsx`, the launch wizard
 `instance_results_packages/_wizard/**` (an ephemeral modal — the Upload-CSV
 pattern; the last consumer of the old `_import_wizard/` descriptor shell,
 deleted with it 2026-08-17),
-`compare_projects.tsx`, `metric_details_modal.tsx`. Shared-custody: `_shared/results_package/**` —
-what a package CONTAINS, rendered identically wherever a package is explored
-(`package_contents.tsx`, `status.tsx`, `view_{script,logs,files}.tsx`). It
-sits under S12's `_shared/**` glob; §4.1 records S8 as its owner. External:
-wb-fastr-modules repo, Docker images.
+`compare_projects.tsx`, `metric_details_modal.tsx`, and the T2 run-detail
+cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`
+— what a package CONTAINS, rendered identically wherever a package is
+explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
+`view_{script,logs,files}.tsx`). It sits under S12's `_shared/**` glob; §4.1
+records S8 as its owner. External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
@@ -132,11 +135,14 @@ re-litigate; the package-format invariants below are their file-level twins):
   nothing live at read time; no instance FKs or projectId inside run files.
   Calendar / countryIso3 / structure schema are run INPUTS — the adapter reads
   the manifest, never the env global.
-- **The package rule** (2026-07-30). If the answer lives inside the run
-  package directory, a project user attached to that package can see it —
-  package contents never depend on who is asking, only the chrome does. One
-  shared explorer (`client/src/components/_shared/results_package/`) on both
-  surfaces; AI tools take a run RESOLVER, never a runId from the model.
+- **The package rule** (2026-07-30, re-cut 2026-08-18). If the answer lives
+  inside the run package directory it is a function of the runId alone —
+  package contents never depend on who is asking, only the chrome does. So
+  reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`)
+  under the INSTANCE data bits (`can_view_data`; `can_view_logs` for logs),
+  and one shared view (`_shared/results_package/package_view.tsx`) renders a
+  package on the catalogue and on a project's tab identically. AI tools take
+  a run RESOLVER, never a runId from the model.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
@@ -207,33 +213,33 @@ Instance level: `routes/instance/modules.ts` (`compareProjects`) and
 `routes/instance/run_generation.ts` — the wizard's
 defaults/module-options/launch, plus the catalogue listing (instance-T1's
 fetch half — pulled by entitled clients on the `runs_catalog_updated`
-nonce signal), the guarded hard delete, the
-`(run_id, module_id)` run-dir viewers
-(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`), and the
-catalogue's master–detail body `getRunCatalogDetail` (per-module settings
-resolved server-side from the manifest's `configSelections` + the outputs-dir
-file listing, via `readRunCatalogDetail` in
-`server/runs/package_internals.ts`; manifest-gated, so ready runs only), all
-behind `can_configure_data`. The viewers moved here from the project mount with the
-`runReadableByProject` guard deleted (Q-F); item 3b then re-opened the
-FRAMING — they are package contents, not an admin-only debug class — so what
-permission should govern them is the plan's one deferred question. The
-raw-file download surface they link to — the `_RUNS_DIR_PATH` static mount in
-`middleware/static.ts` — was narrowed to `/:run_id/outputs/*` under the same
-guard (Q-G; it previously answered any path under the runs volume for any
-authenticated user) and moves with them when that question is settled.
+nonce signal), the guarded hard delete — all `can_configure_data` — and the
+ONE mount for package reads: the `(run_id, module_id)` run-dir reads
+(`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`) and
+`getRunDetail` (per-module settings resolved server-side from the manifest's
+`configSelections` + the outputs-dir file listing, via `readRunDetail` in
+`server/runs/package_internals.ts`; manifest-gated, so ready runs only),
+gated on the INSTANCE data bits — `can_view_data`, `can_view_logs` for logs
+(item 3b's deferred question, settled 2026-08-18: package contents are
+instance-level data, not an admin-only debug class and not a per-project
+entitlement). The raw-file download surface they link to — the
+`_RUNS_DIR_PATH` static mount in `middleware/static.ts`, narrowed to
+`/:run_id/outputs/*` (Q-G; it previously answered any path under the runs
+volume for any authenticated user) — carries the same `can_view_data`.
 
 **A project's relationship with packages** is its own project-scoped mount,
-`routes/project/results_package.ts` (Phase 3 item 4), split by permission
-along §4 Phase 3's "generation instance-admin, attach project editor" line:
-`getAttachedResultsPackage` (the package this project serves from, null =
-the typed no-package state) is `can_view_data`, the project's own data;
-`listAttachableResultsPackages`, `getResultsPackageCompatibility` and
-`attachResultsPackage` are `can_configure_visualizations` — the authoring bit
-the Editor preset is built on, because a repoint changes what every authored
-visualization resolves against — with the attach also refusing a locked
-project. Editor-gating the LISTING is deliberate: a non-editor member sees
-the package in use and is never told what else the instance holds. The
+`routes/project/results_package.ts` (Phase 3 item 4), all
+`can_configure_visualizations` per §4 Phase 3's "generation instance-admin,
+attach project editor" line — the authoring bit the Editor preset is built
+on, because a repoint changes what every authored visualization resolves
+against: `listAttachableResultsPackages` (every ready package, the attached
+one included — a Select lists its current value), `getResultsPackageCompatibility`,
+`attachResultsPackage` (also refusing a locked project) and
+`setProjectFollowPinned`. There is no project-mounted READ of the package:
+the attached row rides project T1 (`attachedRun`) and its contents are the
+run-keyed instance reads above. Editor-gating the LISTING is deliberate: a
+non-editor member sees the package in use and is never told what else the
+instance holds. The
 compatibility report (§2.6, `server/runs/package_compatibility.ts`) resolves
 the project's AUTHORED visualizations against the candidate's manifest —
 metric absent, metric stamped unavailable, or a requested disaggregation the
@@ -351,27 +357,72 @@ deliberate:
   are still project-keyed (they call projectId-mounted routes), so an
   instance-mode surface needs run-keyed reads first; and it must read
   `getPinnedRunId` per call — the MCP context cache holds `InstanceState`
-  (incl. `pinnedRunId`) for 30 s per principal.
+  (incl. `pinnedRunId`) for 30 s per principal. Since 2026-08-18 everything
+  a package CONTAINS is already run-keyed (detail/script/logs/files under the
+  instance data bits); the one remaining step is a run-keyed metric-data
+  read (`run_id` + explicit no-scope token, no project DB).
 
-**Exploring a package is ONE capability, mounted twice.** The routes are
-RUN-keyed, not project-keyed, and the client renders them through
-`_shared/results_package/` — the same components on the instance catalogue
-and on a project's Results package tab. The rule that decides what belongs
-there: **if the answer to the question lives inside the run directory, it is
-the same view for everyone who can see that package.** What a package
-contains does not depend on who is asking; only the chrome around it does
-(the catalogue adds the run list, generate, guarded delete, disk size and
-attached projects; the project tab adds the in-use marker and the attach
-picker). The same rule governs the AI tools: `getSharedToolsForModules` takes a
-run RESOLVER, never a runId from the model — inside a project there is
-exactly one correct package, and resolving at call time means a
-mid-conversation repoint moves the tools with it. An instance-level copilot
-would resolve to the pinned package — but the tools themselves still call
-projectId-mounted routes, so that needs run-keyed reads first (see "MCP
-(future)" under the pinned-package rulings above). The permission
-model for package internals is still open (PLAN_RESULTS_RUNS item 3b); the
-client gates the viewer buttons on one expression per surface so a caller
-without access sees no button rather than one that 403s.
+**Exploring a package is ONE capability, mounted ONCE** (Tim's ruling
+2026-08-18, superseding the 2026-07-30 two-mount design). Every read of what
+a package contains — `getRunDetail` (per-module settings + files),
+`getRunModuleScript`, `getRunModuleLogs`, `listRunModuleFiles`, and the
+`/{runId}/outputs/…` download mount — is RUN-keyed on the instance mount and
+gated on the instance data bits: `can_view_data` for all but logs,
+`can_view_logs` for logs (global admins bypass). The project-mounted copies
+(no `run_id`, per-project `can_view_script_code`/`can_view_logs`/
+`can_view_data`) and the client's `internals_source.ts` indirection are gone;
+project `can_view_script_code` is no longer enforced by anything (column kept;
+retire later). The rule that decides what belongs on the shared surface: **if
+the answer to the question lives inside the run directory, it is the same
+view for everyone who can see that package.** `ResultsPackageView`
+(`_shared/results_package/package_view.tsx`) renders a READY run's header
+(label · pin · status · provenance incl. disk size), summary line and
+per-module cards (settings; Script/Logs viewers gated client-side by
+`canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`, the same
+expressions on both hosts; files inline with download). The hosts add only
+chrome through its slots: the catalogue puts pin/unpin/delete in
+`headerActions` and "in use by" in `headerNote`, and renders
+generating/failed runs itself; the project tab puts its AA2 scope warning in
+`headerNote`. The detail is **T2, immutable-by-identity**
+(`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
+`versionKey: () => "immutable"` — the `t2_images` shape: nothing ever
+invalidates it because a ready run dir never changes; bump the cache name
+when `RunDetail` changes shape). Script/log bytes stay T3.
+
+The same rule governs the AI tools: `getSharedToolsForModules` takes a
+`getAttachedRunId` RESOLVER, never a runId from the model — inside a project
+there is exactly one correct package, and resolving at call time means a
+mid-conversation repoint moves the tools with it (the SPA snapshots project
+T1; the MCP host reads its cached context, a bounded 30 s window). The
+headless allowlist admits `getRunModuleScript`/`getRunModuleLogs`: a leaked
+PAT reaches exactly what its user's own instance bits already reach in the
+UI. An instance-level copilot/MCP connector resolves to the pinned package
+and can already read everything the package CONTAINS run-keyed; what it
+still lacks is a run-keyed METRIC-DATA read (today's `get_metric_data` goes
+through project-mounted routes and a project read context) — see "MCP
+(future)" under the pinned-package rulings.
+
+**A project's own package** rides project T1: `ProjectState.attachedRun`
+(`RunListingItem | null`, beside `attachedRunId`), pushed on `starting`
+(`getProjectDetail` → `getRunListingItem`) and on `run_attached`
+(`buildRunAttachedManifestPayload` reads the row once per publish). A project
+attaches only to a READY run and a ready row is immutable (label/provenance/
+summary; the one moving fact, pinned, is instance T1 `pinnedRunId`), so the
+tab's header renders with no fetch. Every project member receives the label
+over project SSE — accepted (Q-B was about the instance channel).
+
+**The project tab** (`project/project_results_package.tsx`) is two halves
+under two gates: the CONFIGURE card — a `Select` of every ready package
+(`listAttachableResultsPackages`, project-mounted, `can_configure_visualizations`,
+T3 once per mount, now returning the attached one too) + "Use this package"
+(two-step on purpose: a native `<select>` flips before the compatibility
+modal can veto, so the selection is local until confirmed; no refetch after
+the repoint — `run_attached` moves the store and the candidate resets) +
+the follow-pinned checkbox and behind-pin realign — is the editor's; the
+VIEWER is `ResultsPackageView` under `canViewPackageContents()`. The tab
+opens on either gate (`canOpenProjectResultsPackageTab()`); a member with
+neither does not get it; an editor without the instance data bit sees the
+attached row (T1) and a one-line explanation in place of the contents.
 
 **The instance catalogue is a master–detail**
 (PLAN_RESULTS_PACKAGES_CATALOGUE_UI, 2026-08-15): a plain newest-first
@@ -402,13 +453,12 @@ does not signal the catalogue — per-module signal spam is worse than a
 bounded-stale chip row (accepted 2026-08-15). The detail pane is the ONLY
 surface that renders a non-ready run — its generating/failed branches
 (progress chips + live R line; `FailedErrorDetail` + per-started-module
-viewers) live here, not in the shared `ResultsPackageContents`, which is
+Script/Logs/Files viewers, the last via `ViewFiles` since a failed run has no
+manifest) live here, not in the shared `ResultsPackageView`, which is
 ready-only because the project tab it serves is attached only once a run is
-ready (C2 ruling, 2026-08-16). The catalogue's READY view also diverges from
-the project tab's by design: `getRunCatalogDetail` settings + inline
-per-module file rows with download links (the gated static mount), fetched
-T3 with the stale-response counter guard and no cache — a ready run dir is
-immutable.
+ready (C2 ruling, 2026-08-16). A READY run is rendered by that shared view,
+identically to the project tab (2026-08-18 — the earlier "diverges by design"
+ruling is superseded).
 
 ## Project Admin Area 2 scope (PLAN_1_PROJECT_AA2_SCOPE, shipped 2026-08-12)
 
@@ -421,7 +471,7 @@ project FKs; one full national package published to many projects renders as
 each project's own view. The scope is enforced at the run read layer
 (SYSTEM_09) and branded in the shell (SYSTEM_14). **Not a security
 boundary**: package internals (scripts, logs, raw downloads) stay reachable
-under their existing content permissions and show the package as-is.
+under the instance data bits (2026-08-18) and show the package as-is.
 
 Rulings:
 

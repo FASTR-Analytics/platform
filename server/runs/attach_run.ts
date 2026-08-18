@@ -7,6 +7,7 @@ import type {
 } from "lib";
 import {
   clearFollowPinnedIfNotPin,
+  getRunListingItem,
   setProjectAttachedRun,
   setProjectAttachedRunIfPinned,
 } from "../db/instance/run_generation.ts";
@@ -39,19 +40,29 @@ type RunAttachedData = Extract<
   { type: "run_attached" }
 >["data"];
 
-// The manifest-derived half of the repoint event: identical for every project
-// attaching to the same package, so a publish with several attach targets
-// builds it once and reuses it across the loop.
+// The run-derived half of the repoint event (manifest + catalogue row):
+// identical for every project attaching to the same package, so a publish
+// with several attach targets builds it once and reuses it across the loop.
 export type RunAttachedManifestPayload = Omit<
   RunAttachedData,
   "visualizations"
 >;
 
 export async function buildRunAttachedManifestPayload(
+  mainDb: Sql,
   runCtx: { runId: string; manifest: RunManifest },
 ): Promise<RunAttachedManifestPayload> {
+  const rowRes = await getRunListingItem(mainDb, runCtx.runId);
+  if (rowRes.success === false || rowRes.data === null) {
+    throw new Error(
+      rowRes.success === false
+        ? rowRes.err
+        : `Results package ${runCtx.runId} has no catalogue row`,
+    );
+  }
   return {
     attachedRunId: runCtx.runId,
+    attachedRun: rowRes.data,
     projectModules: getModuleSummariesFromManifest(runCtx.manifest),
     metrics: getMetricsWithStatusFromManifest(runCtx.manifest),
     projectDatasets: getProjectDatasetsFromManifest(runCtx.manifest),
@@ -147,7 +158,10 @@ async function pushRunAttached(
 ): Promise<void> {
   try {
     const manifest = await getRunManifestCached(runId);
-    const payload = await buildRunAttachedManifestPayload({ runId, manifest });
+    const payload = await buildRunAttachedManifestPayload(mainDb, {
+      runId,
+      manifest,
+    });
     await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
   } catch (e) {
     console.error(

@@ -206,6 +206,7 @@ export async function resolveProjectContext(
     ...getSharedToolsForModules(
       env,
       projectId,
+      () => projectState.attachedRunId,
       projectState.projectModules,
       projectState.metrics,
     ),

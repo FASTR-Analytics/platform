@@ -9,18 +9,18 @@ import {
   formatFileSize,
 } from "panther";
 import { For, Show } from "solid-js";
-import type { PackageInternalsSource } from "./internals_source";
+import { serverActions } from "~/server_actions";
+import { runOutputFileHref } from "./status";
 
 // Lists the actual files in the run's outputs/{moduleId} dir, with a download
-// per file. Both the listing and the download come from the host surface's
-// source, so each carries that surface's guard: the instance catalogue reads
-// run-keyed routes plus the runs static mount (`can_configure_data`), while a
-// project reads its own attached package and streams downloads through a
-// path-scoped endpoint (`can_view_data`).
+// per file. Used only for a FAILED run's started modules (the catalogue's
+// failed branch — a partial workspace with no manifest); a ready run's files
+// are listed inline by ResultsPackageView from the T2 detail. Listing and
+// download share the guard of every package read (`can_view_data`).
 export function ViewFiles(
   p: EditorComponentProps<
     {
-      source: PackageInternalsSource;
+      runId: string;
       moduleId: ModuleId;
       moduleLabel: string;
     },
@@ -28,7 +28,11 @@ export function ViewFiles(
   >,
 ) {
   const rFiles = createQuery(
-    () => p.source.listFiles(p.moduleId),
+    () =>
+      serverActions.listRunModuleFiles({
+        run_id: p.runId,
+        module_id: p.moduleId,
+      }),
     t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers...", pt: "A carregar a lista de ficheiros..." }),
   );
 
@@ -61,7 +65,7 @@ export function ViewFiles(
                   <div>
                     <Button
                       iconName="download"
-                      href={p.source.fileHref(p.moduleId, file.name)}
+                      href={runOutputFileHref(p.runId, p.moduleId, file.name)}
                       outline
                       download={file.name}
                     >

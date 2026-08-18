@@ -7,6 +7,7 @@ import type { PresentationObjectSummary } from "./presentation_objects.ts";
 import type { LastUpdateTableName } from "./project_dirty_states.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
+import type { RunListingItem } from "./run_generation.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
 
@@ -34,6 +35,12 @@ export type ProjectState = {
   // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
   // null = no run attached (typed replacement for the "unknown" sentinel).
   attachedRunId: string | null;
+  // The attached run's catalogue row (label, provenance, summary) — the
+  // project tab's header renders from it with no fetch. A project attaches
+  // only to a READY run and a ready row is immutable (the one moving fact,
+  // pinned, is instance T1 `pinnedRunId`), so it is pushed once per attach
+  // and on starting. Always paired with attachedRunId.
+  attachedRun: RunListingItem | null;
   // Subscribed to the instance's pinned package: whenever the pin moves this
   // project is physically repointed (never a read-time indirection —
   // SYSTEM_08 "Followers are physically repointed, never indirected"). A
@@ -81,6 +88,7 @@ export type ProjectSseMessage =
       type: "run_attached";
       data: {
         attachedRunId: string;
+        attachedRun: RunListingItem;
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
         projectDatasets: DatasetInProject[];

@@ -75,7 +75,13 @@ function buildTemplateTools(): AnyTool[] {
       [],
       structuredClone(EMPTY_HFA_TAXONOMY),
     ),
-    ...getSharedToolsForModules(TEMPLATE_ENV, TEMPLATE_PROJECT_ID, [], []),
+    ...getSharedToolsForModules(
+      TEMPLATE_ENV,
+      TEMPLATE_PROJECT_ID,
+      () => null,
+      [],
+      [],
+    ),
     ...getSharedToolsForVisualizations(
       TEMPLATE_ENV,
       TEMPLATE_PROJECT_ID,

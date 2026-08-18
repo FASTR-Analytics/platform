@@ -23,7 +23,7 @@ import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getClientToolsForSlides } from "./ai_tools/tools/slides";
 import { getClientToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getClientToolsForNavigation } from "./ai_tools/tools/navigation";
-import { projectState } from "~/state/project/t1_store";
+import { getSnapshotProjectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
   projectId: string;
@@ -45,10 +45,16 @@ export function buildToolsForContext(params: BuildToolsParams) {
     // the SPA injects cache-backed getters via clientAIToolEnv, the headless
     // MCP host injects direct fetches)
     ...getSharedToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
-    // The package the script/log tools read is resolved SERVER-side at call
-    // time (projects.run_id via the attached-package routes), so a repoint
-    // mid-conversation moves them to the newly attached package.
-    ...getSharedToolsForModules(clientAIToolEnv, projectId, modules, metrics),
+    // The package the script/log tools read is resolved at call time from
+    // project T1, so a repoint mid-conversation moves them to the newly
+    // attached package.
+    ...getSharedToolsForModules(
+      clientAIToolEnv,
+      projectId,
+      () => getSnapshotProjectState().attachedRunId,
+      modules,
+      metrics,
+    ),
     ...getSharedToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
     ...getSharedToolsForSlideDecks(slideDecks),
     ...getSharedToolsForReports(clientAIToolEnv, projectId, reports),
