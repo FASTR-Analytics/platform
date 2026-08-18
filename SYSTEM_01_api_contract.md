@@ -427,12 +427,12 @@ byte-identically. Pinned by `server/tests/pat_identity_parity_test.ts`, which
 drives the same route through the raw PAT app, an explicit transport, and a
 defaulted caller and asserts all three agree. The headless app's mount list
 and the allowlist are two hand-kept lists; `validateHeadlessMounts()`
-(`headless_app.ts`) runs at every DEV boot (`main.ts`, gated on
-`BYPASS_AUTH` — the check is decidable only when the headless auth
-middleware passes through) beside `validateAllRoutesDefined()`, dispatching
-one request per allowlisted name into `headlessApp` and fail-stopping on any
-404 (they drifted once — allowlisted run-keyed reads whose route file was
-never mounted 404'd silently through `/mcp`). Note there is NO compiler-enforced
+(`headless_app.ts`) runs at every DEV boot (`main.ts`, gated on `_IS_DEV`)
+beside `validateAllRoutesDefined()`: a structural check of Hono's route
+table — every allowlisted name's `method + path` must be registered on
+`headlessApp` — that fail-stops on a miss (they drifted once — allowlisted
+run-keyed reads whose route file was never mounted 404'd silently through
+`/mcp`). Note there is NO compiler-enforced
 browser-free boundary in `lib/` either: the server typecheck carries the
 TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
 `document`/`window` reference in a `lib/` file passes `deno check main.ts` clean

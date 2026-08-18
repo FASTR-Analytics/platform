@@ -11,7 +11,9 @@ import type { Language } from "@timroberton/panther";
 // Environment Indicator
 ///////////////////////////////////////////////////////////////////////////////
 
+// IS_PRODUCTION is set by the Dockerfile; every non-container boot is dev.
 export const _IS_PRODUCTION = !!Deno.env.get("IS_PRODUCTION");
+export const _IS_DEV = !_IS_PRODUCTION;
 
 export const _MODULES_LOCAL_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR") ??
   "./modules";
