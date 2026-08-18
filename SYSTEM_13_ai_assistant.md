@@ -69,36 +69,38 @@ the query pipeline the data tools call is **S9**.
    `lib/ai_tools` holds exactly the tools BOTH surfaces expose (metrics ×2,
    modules ×4, methodology docs ×2, `get_info`) over `AIToolEnv` — a package
    data source bound at construction (items, value info, module
-   script/logs/settings; no project or run id ever crosses the seam or
-   appears in a schema). The SPA binds a project (`clientAIToolEnvFor(
-   projectId)`, cache-backed, the attached package resolved from project T1
-   at call time; `ClientAIToolEnv` adds the project-content getters) and
-   concatenates its own client tools (project content — visualizations,
-   slide decks, reports, `get_slide` — plus editors, navigation, drafts) in
+   script/logs/settings; no project or run id ever crosses the seam or appears
+   in a schema). The SPA binds a project (`clientAIToolEnvFor(
+   projectId)`,
+   cache-backed, the attached package resolved from project T1 at call time;
+   `ClientAIToolEnv` adds the project-content getters) and concatenates its own
+   client tools (project content — visualizations, slide decks, reports,
+   `get_slide` — plus editors, navigation, drafts) in
    [build_tools.ts](client/src/components/project_ai/build_tools.ts); `/mcp`
    binds the instance's **pinned** results package (national scope, run-keyed
-   instance routes, gate = instance `can_view_data`) and exposes only the
-   shared tools + `get_orientation` — 10 read-only tools, no `projectId`, no
-   writes. The `/mcp` surface is stateless above the wire: the pin is read
-   from the DB on every call (a pin-move is visible on the next call;
-   orientation answers without a pin), and package tools are boot-time
-   templates bound per call via panther's `bindAITool` because panther
-   caches a principal's tool set per core. The catalog is fixed per process:
-   a client sees a catalog change only when it re-lists (a chat client: a
-   new conversation), and the server does not advertise `listChanged`
-   (panther ruling, DOC_AI_CHAT §Headless tools). So results are
-   self-identifying instead: every package-tool result starts with a
-   `Source: results package "<label>" (generated <createdAt>)` line naming
-   the run it read (`withSourceHeader` in `context_cache.ts`, applied where
-   run and session tools meet — never in `lib/ai_tools`, which stays
-   surface-agnostic; failures pass through unheadered), and
-   `serverInfo.version` reports the deployed `SERVER_VERSION` (hygiene: no
-   client re-lists on it). Panther's per-request `[panther mcp] fastr:
-   <era> <method> …` log is how a client's re-list behaviour is observed;
-   `./mcp_probe <origin> --info` shows the handshake. The system prompt splits the same
-   way: shared grounding blocks in `lib/ai_tools/build_system_prompt.ts`,
-   each surface assembling its own context — the SPA's assembled prompt is
-   byte-stable across navigation (prompt-cache breakpoint).
+   instance routes, gate = instance `can_view_data`) and exposes only the shared
+   tools + `get_orientation` — 10 read-only tools, no `projectId`, no writes.
+   The `/mcp` surface is stateless above the wire: the pin is read from the DB
+   on every call (a pin-move is visible on the next call; orientation answers
+   without a pin), and package tools are boot-time templates bound per call via
+   panther's `bindAITool` because panther caches a principal's tool set per
+   core. The catalog is fixed per process: a client sees a catalog change only
+   when it re-lists (a chat client: refresh the connector's tools, or a new
+   conversation — neither claude.ai nor Claude Code reliably re-lists on a new
+   conversation alone), and the server does not advertise `listChanged` (panther
+   ruling, DOC_AI_CHAT §Headless tools). So results are self-identifying
+   instead: every package-tool result starts with a
+   `Source: results package "<label>" (generated <createdAt>)` line naming the
+   run it read (`withSourceHeader` in `context_cache.ts`, applied where run and
+   session tools meet — never in `lib/ai_tools`, which stays surface-agnostic;
+   failures pass through unheadered), and `serverInfo.version` reports the
+   deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A client's
+   re-list behaviour is observed from panther's per-request stderr line,
+   `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info` shows
+   the handshake. The system prompt splits the same way: shared grounding blocks
+   in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its own
+   context — the SPA's assembled prompt is byte-stable across navigation
+   (prompt-cache breakpoint).
 3. **Editors expose live mutators via the view registry's context** — each
    editing view's live context carries the editor's store getters/setters
    ([ai_views.ts](client/src/components/project_ai/ai_views.ts)), so the AI
@@ -729,11 +731,10 @@ embed count is surfaced in the proposal summary). Remaining:
   sort field at all. Two consequences: the AI cannot honor "put X first", and a
   saved custom order silently outranks the axis order the AI reads back, so its
   description of a figure can disagree with what renders — the
-  accepted-but-inert class (PROTOCOL_APP_AI_TOOLS.md), reached without any
-  patch being applied. Fix direction: project the order in the viz
-  read-projection, and either admit an ordering verb or have
-  `validateFigureConfigEdit` reject/annotate edits a custom order would
-  override.
+  accepted-but-inert class (PROTOCOL_APP_AI_TOOLS.md), reached without any patch
+  being applied. Fix direction: project the order in the viz read-projection,
+  and either admit an ordering verb or have `validateFigureConfigEdit`
+  reject/annotate edits a custom order would override.
 - **[LOW]** Complex (non-3×3) layouts read back as `structure: null`, so only
   `replace_slide` (destructive rebuild) can edit them. **[LOW]**
   `get_available_modules` reduces `dirty:"error"` to the bare word "Error" with
