@@ -119,7 +119,10 @@
      thing that looks like a callout must not carry an onClick — put a
      real control inside or beside it). Never use it as a border color.
      The one exception is the pinned surface of a *selected* selection
-     control — see DOC_UI_COLOR_AND_STATE.md. */
+     control — see DOC_UI_COLOR_AND_STATE.md. The tinted hover of an
+     outline control (ui-hoverable-outline-on-*) is not -subtle: same
+     ingredients, composed per surface at a smaller amount, present only
+     under the cursor. */
   --color-primary-hover: color-mix(in oklab, var(--color-primary), black 8%);
   --color-primary-active: color-mix(in oklab, var(--color-primary), black 14%);
   --color-primary-subtle: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
@@ -684,8 +687,10 @@
      where a selected arm pins its own surface, scope the family class
      to the non-selected classList arm instead. Outline-style
      interactives get their appearance from the stateless
-     ui-outline-{intent} skins below and their states from the family
-     class named by their onBackground token. ---- */
+     ui-outline-{intent} skins below and their states from the
+     ui-hoverable-outline-on-{token} family named by their onBackground
+     token (rest = that surface, hover/press = a currentColor tint over
+     it). ---- */
   .ui-hoverable-base-100,
   .ui-hoverable-base-200,
   .ui-hoverable-base-300,
@@ -736,14 +741,78 @@
     background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 14%);
   }
 
-  /* =============================================================
-     Internal utilities — used by panther components only. Not part
-     of the public API.
-     ============================================================= */
+  /* ---- Outline hoverable family — public. The state pattern for an
+     outline control: rest is the declared surface token (opaque — safe
+     over busy content), hover/press are a tint of the control's own
+     colour over that surface. The tint is currentColor because an
+     outline skin IS a currentColor object (text-{intent} +
+     border-[currentColor]); nothing is handed between classes. Same nine
+     members as ui-hoverable-{token}. Amounts are in-class constants like
+     ui-hoverable-base-content — composed, not pinnable. This is not the
+     -subtle wash: same ingredients, composed per surface at a smaller
+     amount, present only under the cursor. ---- */
+  .ui-hoverable-outline-on-base-100,
+  .ui-hoverable-outline-on-base-200,
+  .ui-hoverable-outline-on-base-300,
+  .ui-hoverable-outline-on-base-content,
+  .ui-hoverable-outline-on-primary,
+  .ui-hoverable-outline-on-neutral,
+  .ui-hoverable-outline-on-success,
+  .ui-hoverable-outline-on-warning,
+  .ui-hoverable-outline-on-danger {
+    @apply cursor-pointer select-none;
+    background-color: var(--ui-outline-surface);
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
+  }
+  .ui-hoverable-outline-on-base-100 {
+    --ui-outline-surface: var(--color-base-100);
+  }
+  .ui-hoverable-outline-on-base-200 {
+    --ui-outline-surface: var(--color-base-200);
+  }
+  .ui-hoverable-outline-on-base-300 {
+    --ui-outline-surface: var(--color-base-300);
+  }
+  .ui-hoverable-outline-on-base-content {
+    --ui-outline-surface: var(--color-base-content);
+  }
+  .ui-hoverable-outline-on-primary {
+    --ui-outline-surface: var(--color-primary);
+  }
+  .ui-hoverable-outline-on-neutral {
+    --ui-outline-surface: var(--color-neutral);
+  }
+  .ui-hoverable-outline-on-success {
+    --ui-outline-surface: var(--color-success);
+  }
+  .ui-hoverable-outline-on-warning {
+    --ui-outline-surface: var(--color-warning);
+  }
+  .ui-hoverable-outline-on-danger {
+    --ui-outline-surface: var(--color-danger);
+  }
 
-  /* Disabled State */
-  .ui-disabled {
-    @apply pointer-events-none opacity-40;
+  .ui-hoverable-outline-on-base-100:hover,
+  .ui-hoverable-outline-on-base-200:hover,
+  .ui-hoverable-outline-on-base-300:hover,
+  .ui-hoverable-outline-on-base-content:hover,
+  .ui-hoverable-outline-on-primary:hover,
+  .ui-hoverable-outline-on-neutral:hover,
+  .ui-hoverable-outline-on-success:hover,
+  .ui-hoverable-outline-on-warning:hover,
+  .ui-hoverable-outline-on-danger:hover {
+    background-color: color-mix(in oklab, currentColor 8%, var(--ui-outline-surface));
+  }
+  .ui-hoverable-outline-on-base-100:active,
+  .ui-hoverable-outline-on-base-200:active,
+  .ui-hoverable-outline-on-base-300:active,
+  .ui-hoverable-outline-on-base-content:active,
+  .ui-hoverable-outline-on-primary:active,
+  .ui-hoverable-outline-on-neutral:active,
+  .ui-hoverable-outline-on-success:active,
+  .ui-hoverable-outline-on-warning:active,
+  .ui-hoverable-outline-on-danger:active {
+    background-color: color-mix(in oklab, currentColor 14%, var(--ui-outline-surface));
   }
 
   /* Focus States — one focus signal, everywhere: 2px outline in
@@ -753,10 +822,6 @@
      surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
     @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
-  }
-
-  .ui-never-focusable {
-    @apply outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0;
   }
 
   /* ============================================= */
@@ -798,10 +863,12 @@
   }
 
   /* Outline skins — intent-colored text on a currentColor border. No bg
-     here: an outline Button's rest surface comes from its onBackground
-     family class (the declared backdrop token, painted opaque — which is
-     also what makes it safe over busy content); stateless consumers
-     (Select, Input) have no bg of their own anyway. */
+     here: an outline Button's rest surface comes from its
+     ui-hoverable-outline-on-{onBackground} family class (the declared
+     backdrop token, painted opaque — which is also what makes it safe
+     over busy content), and that family's hover/press tint is
+     currentColor — i.e. the text colour this skin sets. Stateless
+     consumers (Select, Input) have no bg of their own anyway. */
   .ui-outline-primary,
   .ui-outline-neutral,
   .ui-outline-success,
@@ -839,6 +906,20 @@
   }
   .ui-outline-base-300 {
     @apply text-base-300;
+  }
+
+  /* =============================================================
+     Internal utilities — used by panther components only. Not part
+     of the public API.
+     ============================================================= */
+
+  /* Disabled State */
+  .ui-disabled {
+    @apply pointer-events-none opacity-40;
+  }
+
+  .ui-never-focusable {
+    @apply outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0;
   }
 
   /* ============================================= */

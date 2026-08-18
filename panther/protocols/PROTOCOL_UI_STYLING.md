@@ -40,7 +40,10 @@ the full token catalog, and the theming mechanics, see
    tonal against its content or draws a deliberately non-default border colour.
 10. **`-subtle` washes are non-interactive** — never a hover target, never a
     hover destination, never a click target's rest surface. Only exception: the
-    pinned surface of a _selected_ selection control.
+    pinned surface of a _selected_ selection control. An outline `Button`'s
+    tinted hover is not `-subtle` (same ingredients, composed per surface at a
+    smaller amount, present only under the cursor) — `-subtle` stays banned as a
+    destination.
 11. **Controls on washes are filled, not outline** — at the wash's own intent.
 12. **Disabled is `opacity-40`** — a treatment, not a color.
 13. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
@@ -145,8 +148,9 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 </div>;
 ```
 
-**Why:** An outline control is a quiet interactive _of the surface it sits on_;
-`onBackground` names that surface so rest, hover and press match it.
+**Why:** An outline control rests _on the surface it sits on_; `onBackground`
+names that surface so the rest matches it. Hover and press are a tint of the
+control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 
 ### Controls in callouts
 
@@ -339,7 +343,8 @@ Usable from app code:
   `ui-icon-only-correction-sm`
 - **State:** the `ui-hoverable-{token}` family — `base-100`, `base-200`,
   `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
-  `danger` — and `ui-focusable`
+  `danger` — its outline sibling `ui-hoverable-outline-on-{token}` (same nine
+  members) — and `ui-focusable`
 - **Type:** `ui-text-display`, `ui-text-title`, `ui-text-heading`,
   `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
   `ui-label`

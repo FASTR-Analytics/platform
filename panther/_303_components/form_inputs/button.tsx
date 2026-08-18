@@ -23,15 +23,15 @@ function getButtonClasses(
   return [
     // Component classes (defined in CSS): the per-intent skin, then the
     // behavior. Filled buttons are hoverable surfaces of their own intent.
-    // Outline buttons are quiet interactives OF THE SURFACE THEY SIT ON:
-    // onBackground declares that token, and the button takes its exact
-    // rest/hover/active pattern (the opaque rest is also what makes the
-    // button safe over busy content).
+    // Outline buttons REST on the surface they sit on (onBackground names
+    // that token; the opaque rest is what makes the button safe over busy
+    // content) and hover/press with a tint of their own colour over it —
+    // the outline family mixes currentColor, which the outline skin sets.
     "ui-focusable",
     ...(outline
       ? [
         `ui-outline-${intent ?? "primary"}`,
-        `ui-hoverable-${onBackground ?? "base-100"}`,
+        `ui-hoverable-outline-on-${onBackground ?? "base-100"}`,
       ]
       : [
         `ui-fill-${intent ?? "primary"}`,
