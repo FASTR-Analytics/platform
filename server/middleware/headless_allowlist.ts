@@ -5,39 +5,32 @@ import { routeRegistry } from "lib";
 // (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5 —
 // the /mcp endpoint dispatches into headlessApp in-process): a headless
 // credential can reach exactly the routes the /mcp tools need — the
-// AI-Assistant read tools + create_report, a whoami, the projects listing, and
-// the /info reference docs. A route added next year is headless-closed until
-// opted in here. Token mint/list/revoke and user/admin routes are deliberately
-// absent: a headless caller can never mint or revoke PATs.
+// run-keyed package reads (all read-only, all under the instance data bits),
+// a whoami, and the /info reference docs. A route added next year is
+// headless-closed until opted in here. Token mint/list/revoke and user/admin
+// routes are deliberately absent: a headless caller can never mint or revoke
+// PATs.
 //
 // NEVER allowlist any backups route: server/routes/instance/backups.ts
 // forwards the raw incoming Authorization header off-instance (to
 // status-api.fastr-analytics.org), which would ship the user's credential to
 // an external service.
 const HEADLESS_ALLOWED_ROUTE_NAMES = [
-  // getCurrentUser: not called by the host or lib tools — it is the parity
-  // test's whoami probe (server/tests/pat_identity_parity_test.ts) and grants
-  // only the caller's own identity.
+  // getCurrentUser: not called by the lib tools — it is the parity test's
+  // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
+  // the caller's own identity.
   "getCurrentUser",
-  // The /mcp get_projects tool + orientation (PLAN_112): the caller's own
-  // accessible projects only.
-  "getProjectsForUser",
-  "getPresentationObjectItems",
-  "getResultsValueInfoForPresentationObject",
-  "getPresentationObjectDetail",
-  "getReplicantOptions",
-  "getSlide",
-  // Module script/logs: the run-keyed package reads under the instance data
-  // bits (Tim's ruling 2026-08-18 — reads mounted once). A leaked credential
-  // reaches exactly what its user's own can_view_data / can_view_logs already
-  // reach in the UI; the AI tools resolve the runId from the project's
-  // attached package at call time, never from the model.
+  // The run-keyed package reads (S8 "one core, two lenses"; Tim's ruling
+  // 2026-08-18 — what a package contains is a function of the runId alone,
+  // gated on instance can_view_data / can_view_logs). A leaked credential
+  // reaches exactly what its user's own instance bits already reach in the
+  // UI; the /mcp tools resolve the runId from the instance's pin at call
+  // time, never from the model.
+  "getRunPresentationObjectItems",
+  "getRunResultsValueInfo",
   "getRunModuleScript",
   "getRunModuleLogs",
-  "getModuleWithConfigSelections",
-  "getReportDetail",
-  "createReport",
-  "updateReportBody",
+  "getRunModuleWithConfigSelections",
 ] as const satisfies readonly (keyof typeof routeRegistry)[];
 
 // Non-registry paths: the /info markdown docs (served by the headless app's

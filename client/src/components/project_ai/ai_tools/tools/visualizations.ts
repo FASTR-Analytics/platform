@@ -1,19 +1,18 @@
-import { createAITool } from "@timroberton/panther";
+import { createAITool } from "panther";
 import { z } from "zod";
-import type {
-  MetricWithStatus,
-  PresentationObjectSummary,
-} from "../types/mod.ts";
-import { getVisualizationDataAsCSV } from "./format_visualization_data_for_ai.ts";
-import { formatVisualizationsListForAI } from "./format_visualizations_list_for_ai.ts";
-import type { AIToolEnv } from "./env.ts";
+import type { MetricWithStatus, PresentationObjectSummary } from "lib";
+import { clientAIToolEnvFor } from "../client_env";
+import { getVisualizationDataAsCSV } from "./_internal/format_visualization_data_for_ai";
+import { formatVisualizationsListForAI } from "./_internal/format_visualizations_list_for_ai";
 
-export function getSharedToolsForVisualizations(
-  env: AIToolEnv,
+// Project content: the project's saved visualizations (SPA-only — the /mcp
+// surface has no project).
+export function getClientToolsForVisualizations(
   projectId: string,
   visualizations: PresentationObjectSummary[],
   metrics: MetricWithStatus[],
 ) {
+  const env = clientAIToolEnvFor(projectId);
   return [
     createAITool({
       name: "get_available_visualizations",
@@ -26,7 +25,6 @@ export function getSharedToolsForVisualizations(
       inProgressLabel: "Getting available visualizations...",
       completionMessage: "Retrieved visualizations list",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -35,17 +33,11 @@ export function getSharedToolsForVisualizations(
         "Get the underlying data for a specific saved visualization by its ID. Use get_available_visualizations to find IDs. For the current visualization being edited, use get_viz_editor instead.",
       inputSchema: z.object({ id: z.string().describe("Visualization ID") }),
       handler: async (input) => {
-        return await getVisualizationDataAsCSV(
-          env,
-          projectId,
-          input.id,
-          metrics,
-        );
+        return await getVisualizationDataAsCSV(env, input.id, metrics);
       },
       inProgressLabel: (input) => `Getting data for viz ${input.id}...`,
       completionMessage: (input) => `Retrieved data for viz ${input.id}`,
       kind: "read",
-      headless: true,
     }),
   ];
 }

@@ -3,12 +3,8 @@ import {
   headlessAuthMiddleware,
   headlessRouteAllowlist,
 } from "./middleware/mod.ts";
+import { routesRunGeneration } from "./routes/instance/run_generation.ts";
 import { routesUsers } from "./routes/instance/users.ts";
-import { routesModules } from "./routes/project/modules.ts";
-import { routesProjectResultsPackage } from "./routes/project/results_package.ts";
-import { routesPresentationObjects } from "./routes/project/presentation_objects.ts";
-import { routesSlides } from "./routes/project/slides.ts";
-import { routesReports } from "./routes/project/reports.ts";
 
 // The headless app (REVIEW_MCP_HOST_ARCHITECTURE.md §8, retired as a public
 // mount by PLAN_112 D5): headless-credential-only auth + deny-by-default route
@@ -23,17 +19,16 @@ import { routesReports } from "./routes/project/reports.ts";
 //
 // Only the route FILES containing allowlisted routes are registered — the
 // allowlist (middleware/headless_allowlist.ts) remains the authority on which
-// individual routes a headless caller can reach.
+// individual routes a headless caller can reach. Since 2026-08-19 those are
+// the run-keyed package reads (routes/instance/run_generation.ts) and the
+// whoami; the project route files are gone from this mount with the
+// project-scoped /mcp surface.
 export const headlessApp = new Hono();
 //@ts-ignore - middleware typed loosely, same as authMiddleware in main.ts
 headlessApp.use("*", headlessAuthMiddleware);
 headlessApp.use("*", headlessRouteAllowlist);
 headlessApp.route("/", routesUsers);
-headlessApp.route("/", routesModules);
-headlessApp.route("/", routesProjectResultsPackage);
-headlessApp.route("/", routesPresentationObjects);
-headlessApp.route("/", routesSlides);
-headlessApp.route("/", routesReports);
+headlessApp.route("/", routesRunGeneration);
 // The /info reference docs (get_info tool): same files the SPA fetches from
 // its origin, served from the built client (dev fallback: the source dir).
 headlessApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {

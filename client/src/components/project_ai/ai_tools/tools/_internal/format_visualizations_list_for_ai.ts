@@ -1,4 +1,4 @@
-import type { PresentationObjectSummary } from "../types/mod.ts";
+import type { PresentationObjectSummary } from "lib";
 
 export function formatVisualizationsListForAI(
   visualizations: PresentationObjectSummary[],

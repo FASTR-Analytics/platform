@@ -29,12 +29,13 @@ import {
   projectAIViewController,
   projectAIViews,
 } from "~/components/project_ai/ai_views";
+import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
-  validateMetricInputs,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
+import { clientAIToolEnvFor } from "../client_env";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   extractBlocksFromLayout,
@@ -84,7 +85,7 @@ export function getClientToolsForSlideEditor(
       kind: "read",
       handler: async (_input, view) => {
         const slide = view.context.getTempSlide();
-        const simplified = await simplifySlideForAI(projectId, slide, metrics);
+        const simplified = await simplifySlideForAI(clientAIToolEnvFor(projectId), slide, metrics);
 
         const lines: string[] = [];
         lines.push("# SLIDE EDITOR");
@@ -510,7 +511,7 @@ export function getClientToolsForSlideEditor(
         const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
           ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
           : undefined;
-        await validateMetricInputs(projectId, bundle.metricId, filters, periodFilter);
+        await validateMetricInputs(clientAIToolEnvFor(projectId), bundle.metricId, filters, periodFilter);
 
         const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 

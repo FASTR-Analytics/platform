@@ -16,8 +16,7 @@ import {
 } from "lib";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
-import { createGetSlideTool } from "lib";
-import { clientAIToolEnv } from "../client_env";
+import { createGetSlideTool } from "./get_slide";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
 import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
 import {
@@ -79,10 +78,9 @@ export function getClientToolsForSlides(
       },
     }),
 
-    // Shared factory in lib/ai_tools (the one non-view-gated slides tool —
-    // reads by explicit slideId from any view, and serves the headless MCP
-    // host through the same definition).
-    createGetSlideTool(clientAIToolEnv, projectId, metrics),
+    // The one non-view-gated slides tool — reads by explicit slideId from
+    // any view.
+    createGetSlideTool(projectId, metrics),
 
     createAITool({
       viewRegistry: projectAIViews,

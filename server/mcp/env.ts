@@ -1,57 +1,33 @@
-import type { AIToolEnv, InstanceState, ServerActionsType } from "lib";
+import type { AIToolEnv, ServerActionsType } from "lib";
 
-// The server-side injection of the shared AI-tool environment — the
-// createHostAIToolEnv shape (mcp_host/env.ts), recreated for the /mcp
-// endpoint (PLAN_112 step 4): every getter is a direct call to the server
-// action it fronts, and those actions dispatch in-process through the PAT
-// middleware chain (the transport's fetchImpl). Dimension labels come off the
-// instance state the context cache resolved for this principal.
+// The /mcp injection of the shared AI-tool environment (lib/ai_tools/env.ts),
+// bound to ONE results package — the instance's pinned package, resolved per
+// call by the context cache — at national scope. Every getter is the
+// run-keyed instance route it fronts (S8 "one core, two lenses"), dispatched
+// in-process through the headless middleware chain (the transport's
+// fetchImpl), so the caller's instance `can_view_data` is judged on every
+// read.
 export function createMcpAIToolEnv(
   serverActions: ServerActionsType,
-  instanceState: InstanceState,
+  runId: string,
 ): AIToolEnv {
   return {
-    serverActions,
-    getItems: (
-      { projectId, resultsObjectId, fetchConfig, firstPeriodOption },
-    ) =>
-      serverActions.getPresentationObjectItems({
-        projectId,
+    getItems: ({ resultsObjectId, fetchConfig }) =>
+      serverActions.getRunPresentationObjectItems({
+        run_id: runId,
         resultsObjectId,
         fetchConfig,
-        firstPeriodOption,
       }),
-    getPODetail: (projectId, presentationObjectId) =>
-      serverActions.getPresentationObjectDetail({
-        projectId,
-        po_id: presentationObjectId,
+    getResultsValueInfo: (metricId) =>
+      serverActions.getRunResultsValueInfo({ run_id: runId, metricId }),
+    getModuleScript: (moduleId) =>
+      serverActions.getRunModuleScript({ run_id: runId, module_id: moduleId }),
+    getModuleLogs: (moduleId) =>
+      serverActions.getRunModuleLogs({ run_id: runId, module_id: moduleId }),
+    getModuleSettings: (moduleId) =>
+      serverActions.getRunModuleWithConfigSelections({
+        run_id: runId,
+        module_id: moduleId,
       }),
-    getResultsValueInfo: (projectId, metricId) =>
-      serverActions.getResultsValueInfoForPresentationObject({
-        projectId,
-        metricId,
-      }),
-    getSlide: (projectId, slideId) =>
-      serverActions.getSlide({ projectId, slide_id: slideId }),
-    getReplicantOptions: (
-      projectId,
-      resultsObjectId,
-      replicateBy,
-      fetchConfig,
-    ) =>
-      serverActions.getReplicantOptions({
-        projectId,
-        resultsObjectId,
-        replicateBy,
-        fetchConfig,
-      }),
-    getDimensionLabelConfig: (family) => ({
-      adminAreaLabels: instanceState.adminAreaLabels,
-      facilityColumns: family === "hmis"
-        ? instanceState.structureSchemaHmis ?? undefined
-        : family === "hfa"
-        ? instanceState.structureSchemaHfa ?? undefined
-        : undefined,
-    }),
   };
 }

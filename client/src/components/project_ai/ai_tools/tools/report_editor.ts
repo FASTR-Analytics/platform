@@ -23,7 +23,8 @@ import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
-import { validateMetricInputs } from "../validators/content_validators";
+import { validateMetricInputs } from "lib";
+import { clientAIToolEnvFor } from "../client_env";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -287,7 +288,12 @@ export function getClientToolsForReportEditor(
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(projectId, metric, bundle.config, bundle.dateRange);
+        return await formatFigureConfigForAI(
+          clientAIToolEnvFor(projectId),
+          metric,
+          bundle.config,
+          bundle.dateRange,
+        );
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -415,7 +421,7 @@ export function getClientToolsForReportEditor(
               }
             : undefined;
         await validateMetricInputs(
-          projectId,
+          clientAIToolEnvFor(projectId),
           bundle.metricId,
           filters,
           periodFilter,

@@ -1,15 +1,13 @@
-import type { MetricWithStatus } from "../types/mod.ts";
-import { AIToolFailure } from "@timroberton/panther";
-import { getDataFromConfig } from "./format_metric_data_for_ai.ts";
-import type { AIToolEnv } from "./env.ts";
+import { AIToolFailure } from "panther";
+import { getDataFromConfig, type MetricWithStatus } from "lib";
+import type { ClientAIToolEnv } from "../../client_env";
 
 export async function getVisualizationDataAsCSV(
-  env: AIToolEnv,
-  projectId: string,
+  env: ClientAIToolEnv,
   presentationObjectId: string,
   metrics: MetricWithStatus[],
 ): Promise<string> {
-  const resPoDetail = await env.getPODetail(projectId, presentationObjectId);
+  const resPoDetail = await env.getPODetail(presentationObjectId);
   if (!resPoDetail.success) throw new AIToolFailure(resPoDetail.err);
 
   const poDetail = resPoDetail.data;
@@ -18,7 +16,6 @@ export async function getVisualizationDataAsCSV(
 
   const dataOutput = await getDataFromConfig(
     env,
-    projectId,
     poDetail.resultsValue.id,
     metrics,
     config,

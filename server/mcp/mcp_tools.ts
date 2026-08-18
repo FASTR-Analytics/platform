@@ -1,254 +1,148 @@
 import {
-  AIToolFailure,
+  bindAITool,
   buildToolCatalog,
   createAITool,
-  scopeAITool,
 } from "@timroberton/panther";
 import type { AIToolWithMetadata } from "@timroberton/panther";
 import { z } from "zod";
-import type { AIToolEnv, ServerActionsType } from "lib";
+import type { AIToolEnv } from "lib";
 import {
-  buildSystemPromptForContext,
-  createAllServerActions,
-  createGetSlideTool,
+  buildDataCoverageSections,
+  buildInstanceContextSections,
+  buildPackageGroundingSections,
+  buildSystemPrompt,
   EMPTY_HFA_TAXONOMY,
   getSharedToolsForInfo,
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
   getSharedToolsForModules,
-  getSharedToolsForReports,
-  getSharedToolsForSlideDecks,
-  getSharedToolsForVisualizations,
-  getViewingMetricsInstructions,
-  getViewingReportsInstructions,
-  getViewingSlideDecksInstructions,
-  getViewingVisualizationsInstructions,
 } from "lib";
 import {
   buildPrincipalTransport,
-  invalidateProjectContext,
   type McpPrincipal,
+  NO_PIN_MESSAGE,
+  requirePinnedPackageContext,
   resolveInstanceState,
-  resolveProjectContext,
+  resolvePackageContext,
+  resolvePinnedRunId,
 } from "./context_cache.ts";
 
 // deno-lint-ignore no-explicit-any
 type AnyTool = AIToolWithMetadata<any>;
 
 ////////////////////////////////////////////////////////////////////////////////
-// TEMPLATE TOOLS (boot-time, principal-free)
+// TEMPLATE TOOLS (boot-time, package-free)
 ////////////////////////////////////////////////////////////////////////////////
 //
-// The scoped wrappers need the 13 project tools' names/descriptions/schemas
-// BEFORE any principal or project exists — tools/list must answer statelessly.
-// The factories are pure over their inputs and their schemas are static, so a
-// boot-time instantiation against a throwing dummy env and empty arrays
-// harvests exactly that. If any template handler ever runs, that is a bug in
-// the scoped-wrapper delegation — fail loudly.
+// tools/list must answer statelessly, and panther builds a principal's tool
+// set ONCE per core (30 min idle TTL) — but the package behind the tools is
+// the instance's pin, which can move mid-session. So each package tool is a
+// static outer tool (name/description/schema from a boot-time template
+// instantiated against a throwing env and empty catalogs — the factories are
+// pure over their inputs and their schemas are static) that resolves the
+// CURRENT pinned-package context per call and delegates to the inner tool by
+// name (bindAITool). If a template handler ever runs, delegation failed —
+// fail loudly.
 
 function templateThrow(): never {
   throw new Error(
-    "mcp template env must never be invoked — the scoped wrapper failed to delegate to a resolved per-project tool",
+    "mcp template env must never be invoked — the bound wrapper failed to delegate to a resolved package tool",
   );
 }
 
 const TEMPLATE_ENV: AIToolEnv = {
-  serverActions: new Proxy({}, {
-    get: () => templateThrow,
-  }) as ServerActionsType,
   getItems: templateThrow,
-  getPODetail: templateThrow,
   getResultsValueInfo: templateThrow,
-  getSlide: templateThrow,
-  getReplicantOptions: templateThrow,
-  getDimensionLabelConfig: templateThrow,
+  getModuleScript: templateThrow,
+  getModuleLogs: templateThrow,
+  getModuleSettings: templateThrow,
 };
 
-const TEMPLATE_PROJECT_ID = "__template__";
-
-function buildTemplateTools(): AnyTool[] {
-  return [
-    ...getSharedToolsForMetrics(
-      TEMPLATE_ENV,
-      TEMPLATE_PROJECT_ID,
-      [],
-      [],
-      structuredClone(EMPTY_HFA_TAXONOMY),
-    ),
-    ...getSharedToolsForModules(
-      TEMPLATE_ENV,
-      TEMPLATE_PROJECT_ID,
-      () => null,
-      [],
-      [],
-    ),
-    ...getSharedToolsForVisualizations(
-      TEMPLATE_ENV,
-      TEMPLATE_PROJECT_ID,
-      [],
-      [],
-    ),
-    ...getSharedToolsForSlideDecks([]),
-    ...getSharedToolsForReports(TEMPLATE_ENV, TEMPLATE_PROJECT_ID, []),
-    createGetSlideTool(TEMPLATE_ENV, TEMPLATE_PROJECT_ID, []),
-  ];
-}
-
-const TEMPLATE_TOOLS = buildTemplateTools();
-
-const PROJECT_ID_DESCRIPTION =
-  "The id of the project this call targets. List your projects (ids, labels, roles) with get_projects; every project tool requires this field.";
+const TEMPLATE_TOOLS: AnyTool[] = [
+  ...getSharedToolsForMetrics(
+    TEMPLATE_ENV,
+    [],
+    [],
+    structuredClone(EMPTY_HFA_TAXONOMY),
+  ),
+  ...getSharedToolsForModules(TEMPLATE_ENV, [], []),
+];
 
 ////////////////////////////////////////////////////////////////////////////////
 // PER-PRINCIPAL TOOL SET (the D3 thunk)
 ////////////////////////////////////////////////////////////////////////////////
 
-function formatProjectsList(
-  projects: { id: string; label: string; role: string; isLocked: boolean }[],
-): string {
-  if (projects.length === 0) {
-    return "You have no accessible projects on this instance.";
-  }
-  return [
-    "Projects you can access (pass the id as projectId in project tools):",
-    ...projects.map(
-      (p) =>
-        `- ${p.id} — "${p.label}" (role: ${p.role}${
-          p.isLocked ? ", LOCKED — read-only" : ""
-        })`,
-    ),
-  ].join("\n");
-}
-
 export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
   const transport = buildPrincipalTransport(principal.token);
-  const serverActions = createAllServerActions(transport);
-
-  const getProjects = async (): Promise<string> => {
-    const res = await serverActions.getProjectsForUser({});
-    if (!res.success) {
-      throw new AIToolFailure(res.err);
-    }
-    return formatProjectsList(res.data);
-  };
-
-  const getProjectsTool = createAITool({
-    name: "get_projects",
-    description:
-      "List the projects you can access on this FASTR instance — id, label, your role, and whether the project is locked (read-only). Call this first to discover projectId values for the project tools.",
-    inputSchema: z.object({}),
-    kind: "read",
-    headless: true,
-    handler: getProjects,
-  });
 
   const getOrientationTool = createAITool({
     name: "get_orientation",
     description:
-      "Read the orientation for this instance. With no argument: what this instance is and which projects you can access. With a projectId: the full project grounding — which metrics, modules, visualizations, slide decks and reports exist right now, and how to use the tools against them. Call it (with a projectId) before working in a project.",
-    inputSchema: z.object({
-      projectId: z.string().optional().describe(
-        "Project to orient in. Omit to get the instance-level overview and your project list.",
-      ),
-    }),
+      "Read the orientation for this FASTR instance: what it is, which results package is pinned (the one every tool here reads), what that package holds — datasets, indicators, analysis modules — and how to use the tools against it. Call this first.",
+    inputSchema: z.object({}),
     kind: "read",
     headless: true,
-    handler: async (input) => {
-      if (!input.projectId) {
-        const instanceState = await resolveInstanceState(principal);
-        const projectsText = await getProjects();
+    handler: async () => {
+      const instanceState = await resolveInstanceState(principal);
+      const runId = await resolvePinnedRunId();
+      // Orientation answers WITHOUT a pin — a connector still connects and
+      // the model can explain what to do; every other tool fails typed.
+      if (runId === null) {
         return [
-          `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis (projects contain metrics, visualizations, slide decks, and reports).`,
-          projectsText,
-          "Next: call get_orientation with a projectId to load that project's full grounding, then use the project tools (each takes the same projectId). The only write, create_report, asks the user for confirmation before committing.",
+          `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
+          NO_PIN_MESSAGE,
+          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data, get_available_modules, get_module_r_script, get_module_log, get_module_settings) cannot answer. The reference tools (get_methodology_docs_list, get_methodology_doc_content, get_info) still work.",
         ].join("\n\n");
       }
-      const ctx = await resolveProjectContext(principal, input.projectId);
-      const catalog = buildToolCatalog(ctx.sessionTools);
-      return [
-        `# Project: ${ctx.projectLabel} (projectId: ${ctx.projectId})${
-          ctx.isLocked ? " — LOCKED (read-only)" : ""
-        }\n\nEvery project tool call must include projectId: "${ctx.projectId}".`,
-        buildSystemPromptForContext(
-          ctx.instanceState,
-          ctx.projectState,
-          catalog,
-        ),
-        getViewingMetricsInstructions(),
-        getViewingVisualizationsInstructions(),
-        getViewingSlideDecksInstructions(),
-        getViewingReportsInstructions(),
-      ].join("\n\n");
+      const ctx = await resolvePackageContext(principal, runId);
+      const contextSection = [
+        ...buildInstanceContextSections(instanceState),
+        "# Results package (pinned)",
+        "",
+        `**Name:** ${ctx.run.label}`,
+        `**Generated:** ${ctx.run.createdAt}`,
+        ...buildPackageGroundingSections(ctx.grounding),
+        ...buildDataCoverageSections(instanceState),
+        "",
+        "Every tool here reads this package at national scope. Discover metric and module ids with get_available_metrics / get_available_modules; never invent them.",
+        "",
+        "---",
+        "",
+      ].join("\n");
+      return buildSystemPrompt({
+        contextSection,
+        toolCatalog: buildToolCatalog(ctx.sessionTools),
+        roleAndPurpose:
+          "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and modules, query metric data (CSV), and read module scripts, logs and settings. Everything is read-only.",
+        extraCorePrinciples: [],
+      });
     },
   });
 
-  // The 13 project tools, scoped (PLAN_112 D7): the wrapper injects a
-  // required projectId into the schema, and resolve() binds the call to the
-  // per-(principal, project) context — authorization runs inside
-  // resolveProjectContext on every cold resolve, and every data access runs
-  // through the PAT middleware chain regardless.
-  const scopedProjectTools = TEMPLATE_TOOLS.map((template) =>
-    scopeAITool(template, {
-      param: "projectId",
-      description: PROJECT_ID_DESCRIPTION,
-      resolve: async (projectId) => {
-        const ctx = await resolveProjectContext(principal, projectId);
-        const inner = ctx.sessionTools.find(
-          (t) => t.sdkTool.name === template.sdkTool.name,
+  // The 6 package tools, bound: the outer tool is the boot-time template
+  // (static schema); resolve() runs per call, reads the pin, and hands back
+  // the inner tool from that package's context — authorization (instance
+  // can_view_data) runs inside resolvePackageContext on every cold resolve,
+  // and every data access runs through the headless middleware chain
+  // regardless.
+  const boundPackageTools = TEMPLATE_TOOLS.map((template) =>
+    bindAITool(template, async () => {
+      const ctx = await requirePinnedPackageContext(principal);
+      const inner = ctx.sessionTools.find(
+        (t) => t.sdkTool.name === template.sdkTool.name,
+      );
+      if (!inner) {
+        throw new Error(
+          `mcp: no session tool named "${template.sdkTool.name}" in the package context — template and session tool sets have drifted`,
         );
-        if (!inner) {
-          throw new Error(
-            `mcp: no session tool named "${template.sdkTool.name}" in the project context — template and session tool sets have drifted`,
-          );
-        }
-        // Approval (write) tools: invalidate this (principal, project)
-        // context after a successful commit, so the list tools and
-        // orientation see the write immediately instead of after the 30s
-        // TTL — a model that creates a report, lists, and sees nothing
-        // might create a duplicate. The proposal passes through otherwise
-        // untouched; commit still only runs after an accepted decision.
-        const innerApproval = inner.metadata.approval;
-        if (!innerApproval) {
-          return inner;
-        }
-        return {
-          sdkTool: inner.sdkTool,
-          metadata: {
-            ...inner.metadata,
-            approval: {
-              ...innerApproval,
-              propose: async (input, view, proposeCtx) => {
-                const proposal = await Promise.resolve(
-                  innerApproval.propose(input, view, proposeCtx),
-                );
-                if (
-                  proposal !== null && typeof proposal === "object" &&
-                  "commit" in proposal &&
-                  typeof proposal.commit === "function"
-                ) {
-                  const originalCommit = proposal.commit;
-                  return {
-                    ...proposal,
-                    commit: async () => {
-                      const output = await Promise.resolve(originalCommit());
-                      invalidateProjectContext(principal, projectId);
-                      return output;
-                    },
-                  };
-                }
-                return proposal;
-              },
-            },
-          },
-        };
-      },
+      }
+      return inner;
     })
   );
 
   return [
-    getProjectsTool,
     getOrientationTool,
-    ...scopedProjectTools,
+    ...boundPackageTools,
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(transport),
   ];

@@ -1,15 +1,16 @@
-import { AIToolFailure, createAITool } from "@timroberton/panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { ReportSummary } from "../types/mod.ts";
-import type { AIToolEnv } from "./env.ts";
+import type { ReportSummary } from "lib";
+import { serverActions } from "~/server_actions";
 
+// Project content: the project's reports (SPA-only). create_report is the
+// copilot's one non-editor write — approval-gated.
 function formatReportsListForAI(reports: ReportSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
   return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
 }
 
-export function getSharedToolsForReports(
-  env: AIToolEnv,
+export function getClientToolsForReports(
   projectId: string,
   reports: ReportSummary[],
 ) {
@@ -22,7 +23,6 @@ export function getSharedToolsForReports(
       inProgressLabel: "Getting available reports...",
       completionMessage: "Retrieved reports list",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -31,7 +31,7 @@ export function getSharedToolsForReports(
         "Get the full markdown body and the embedded figure/image ids of a report. Call this before discussing or editing an existing report.",
       inputSchema: z.object({ reportId: z.string() }),
       handler: async (input) => {
-        const res = await env.serverActions.getReportDetail({
+        const res = await serverActions.getReportDetail({
           projectId,
           report_id: input.reportId,
         });
@@ -59,7 +59,6 @@ export function getSharedToolsForReports(
       inProgressLabel: "Reading report...",
       completionMessage: "Read report",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -88,13 +87,13 @@ export function getSharedToolsForReports(
             diff: { before: "", after: input.markdown },
           },
           commit: async () => {
-            const createRes = await env.serverActions.createReport({
+            const createRes = await serverActions.createReport({
               projectId,
               label: input.label,
               folderId: null,
             });
             if (!createRes.success) throw new AIToolFailure(createRes.err);
-            const bodyRes = await env.serverActions.updateReportBody({
+            const bodyRes = await serverActions.updateReportBody({
               projectId,
               report_id: createRes.data.reportId,
               body: input.markdown,
@@ -113,7 +112,6 @@ export function getSharedToolsForReports(
       inProgressLabel: "Creating report...",
       completionMessage: "Created report",
       kind: "write",
-      headless: true,
     }),
   ];
 }

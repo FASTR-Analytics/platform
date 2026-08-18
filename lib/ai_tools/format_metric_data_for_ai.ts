@@ -31,7 +31,6 @@ export function inferPeriodFilter(
 
 export async function getMetricDataForAI(
   env: AIToolEnv,
-  projectId: string,
   query: AiMetricQuery,
   metrics: MetricWithStatus[],
   valuesFilter?: string[],
@@ -101,7 +100,6 @@ export async function getMetricDataForAI(
       };
 
   const res = await env.getItems({
-    projectId,
     resultsObjectId: metric.resultsObjectId,
     fetchConfig,
     firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
@@ -682,7 +680,6 @@ function formatValueWithN(
 
 export async function getDataFromConfig(
   env: AIToolEnv,
-  projectId: string,
   metricId: string,
   metrics: MetricWithStatus[],
   config: PresentationObjectConfig,
@@ -712,7 +709,6 @@ export async function getDataFromConfig(
   };
   return await getMetricDataForAI(
     env,
-    projectId,
     query,
     metrics,
     config.d.valuesFilter,

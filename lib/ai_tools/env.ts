@@ -1,55 +1,38 @@
 import type {
   APIResponseWithData,
-  DatasetType,
-  DisaggregationOption,
   GenericLongFormFetchConfig,
+  InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
   PeriodOption,
-  PresentationObjectDetail,
-  ReplicantOptionsForPresentationObject,
   ResultsValueInfoForPresentationObject,
-  SlideWithMeta,
 } from "../types/mod.ts";
-import type { DisaggregationLabelConfig } from "../disaggregation_labels.ts";
-import type { ServerActionsType } from "../api-routes/server-action-types.ts";
 
-// The injected environment for the shared AI tools (ruling in
-// REVIEW_MCP_HOST_ARCHITECTURE.md §RULING): one tool definition AND one
-// handler, consumed by the SPA chat and the headless MCP host alike. The SPA
-// injects cache-backed getters (reactive caches + request queues); the host
-// injects direct server-action fetches. Everything else the tools need is
-// reachable through serverActions.
+// The injected environment for the SHARED AI tools (metrics + modules — the
+// tools both the SPA copilot and the /mcp surface expose). An env is a
+// package data source, bound at construction to ONE results package and
+// scope: the SPA binds a project (its attached package, its AA2 scope, its
+// cache-backed getters over the project routes); the /mcp surface binds the
+// instance's pinned package (national scope, run-keyed instance routes). The
+// tools never learn which — no project or run id crosses this seam, and none
+// appears in a tool schema. Getters the SPA-only tools need on top of these
+// (project content: PO detail, slides, replicant options, dimension labels)
+// live on the client's ClientAIToolEnv extension, not here.
 export type AIToolEnv = {
-  serverActions: ServerActionsType;
   getItems: (params: {
-    projectId: string;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
     firstPeriodOption: PeriodOption | undefined;
   }) => Promise<APIResponseWithData<ItemsHolderPresentationObject>>;
-  getPODetail: (
-    projectId: string,
-    presentationObjectId: string,
-  ) => Promise<APIResponseWithData<PresentationObjectDetail>>;
   getResultsValueInfo: (
-    projectId: string,
     metricId: string,
   ) => Promise<APIResponseWithData<ResultsValueInfoForPresentationObject>>;
-  getSlide: (
-    projectId: string,
-    slideId: string,
-  ) => Promise<APIResponseWithData<SlideWithMeta>>;
-  getReplicantOptions: (
-    projectId: string,
-    resultsObjectId: string,
-    replicateBy: DisaggregationOption,
-    fetchConfig: GenericLongFormFetchConfig,
-  ) => Promise<APIResponseWithData<ReplicantOptionsForPresentationObject>>;
-  // Instance-level dimension display labels (admin-area names, facility
-  // columns). The SPA reads its instance store; the host reads its hydrated
-  // snapshot. Facility-column labels are per family — pass the results
-  // value's datasetFamily; undefined/iceh yields the generic defaults.
-  getDimensionLabelConfig: (
-    family: DatasetType | undefined,
-  ) => DisaggregationLabelConfig;
+  getModuleScript: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<{ script: string }>>;
+  getModuleLogs: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<{ logs: string }>>;
+  getModuleSettings: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<InstalledModuleWithConfigSelections>>;
 };

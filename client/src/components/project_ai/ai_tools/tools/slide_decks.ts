@@ -1,9 +1,10 @@
-import { createAITool } from "@timroberton/panther";
+import { createAITool } from "panther";
 import { z } from "zod";
-import type { SlideDeckSummary } from "../types/mod.ts";
-import { formatSlideDecksListForAI } from "./format_slide_decks_list_for_ai.ts";
+import type { SlideDeckSummary } from "lib";
+import { formatSlideDecksListForAI } from "./_internal/format_slide_decks_list_for_ai";
 
-export function getSharedToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
+// Project content: the project's slide decks (SPA-only).
+export function getClientToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
   return [
     createAITool({
       name: "get_available_slide_decks",
@@ -15,7 +16,6 @@ export function getSharedToolsForSlideDecks(slideDecks: SlideDeckSummary[]) {
       inProgressLabel: "Getting available slide decks...",
       completionMessage: "Retrieved slide decks list",
       kind: "read",
-      headless: true,
     }),
   ];
 }

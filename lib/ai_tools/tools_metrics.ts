@@ -21,7 +21,6 @@ type IcehIndicator = { id: string; label: string; category: string };
 
 export function getSharedToolsForMetrics(
   env: AIToolEnv,
-  projectId: string,
   metrics: MetricWithStatus[],
   icehIndicators: IcehIndicator[],
   hfaTaxonomy: HfaTaxonomyForAI,
@@ -55,14 +54,12 @@ export function getSharedToolsForMetrics(
         const periodFilter = inferPeriodFilter(input.startDate, input.endDate);
         await validateMetricInputs(
           env,
-          projectId,
           input.metricId,
           input.filters,
           periodFilter,
         );
         return await getMetricDataForAI(
           env,
-          projectId,
           input,
           metrics,
           input.valuesFilter,

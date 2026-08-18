@@ -1,4 +1,4 @@
-import type { SlideDeckSummary } from "../types/mod.ts";
+import type { SlideDeckSummary } from "lib";
 
 export function formatSlideDecksListForAI(
   slideDecks: SlideDeckSummary[],

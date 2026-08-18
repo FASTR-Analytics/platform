@@ -11,19 +11,18 @@ import {
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
   getSharedToolsForModules,
-  getSharedToolsForReports,
-  getSharedToolsForSlideDecks,
-  getSharedToolsForVisualizations,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import { clientAIToolEnv } from "./ai_tools/client_env";
+import { clientAIToolEnvFor } from "./ai_tools/client_env";
 import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
+import { getClientToolsForReports } from "./ai_tools/tools/reports";
+import { getClientToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
 import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getClientToolsForSlides } from "./ai_tools/tools/slides";
+import { getClientToolsForVisualizations } from "./ai_tools/tools/visualizations";
 import { getClientToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getClientToolsForNavigation } from "./ai_tools/tools/navigation";
-import { getSnapshotProjectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
   projectId: string;
@@ -36,28 +35,24 @@ type BuildToolsParams = {
   reports: ReportSummary[];
 };
 
+// The copilot's tool set = the SHARED tools (lib/ai_tools — the same
+// definitions the /mcp surface exposes, over the env bound to this project)
+// + the CLIENT tools (project content, editors, navigation, drafts). Array
+// order is the tool-catalog order and the catalog is a prompt-cache input —
+// keep it stable.
 export function buildToolsForContext(params: BuildToolsParams) {
   const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =
     params;
+  const env = clientAIToolEnvFor(projectId);
 
   return [
-    // Base data tools - always available (shared factories in lib/ai_tools;
-    // the SPA injects cache-backed getters via clientAIToolEnv, the headless
-    // MCP host injects direct fetches)
-    ...getSharedToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
-    // The package the script/log tools read is resolved at call time from
-    // project T1, so a repoint mid-conversation moves them to the newly
-    // attached package.
-    ...getSharedToolsForModules(
-      clientAIToolEnv,
-      projectId,
-      () => getSnapshotProjectState().attachedRunId,
-      modules,
-      metrics,
-    ),
-    ...getSharedToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
-    ...getSharedToolsForSlideDecks(slideDecks),
-    ...getSharedToolsForReports(clientAIToolEnv, projectId, reports),
+    // Shared data tools (metrics + modules), bound to this project's package.
+    ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
+    ...getSharedToolsForModules(env, modules, metrics),
+    // Project content
+    ...getClientToolsForVisualizations(projectId, visualizations, metrics),
+    ...getClientToolsForSlideDecks(slideDecks),
+    ...getClientToolsForReports(projectId, reports),
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(),
 

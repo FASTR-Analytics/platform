@@ -1,18 +1,18 @@
-import { AIToolFailure, createAITool } from "@timroberton/panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { MetricWithStatus } from "../types/mod.ts";
-import { simplifySlideForAI } from "./extract_blocks_from_layout.ts";
-import type { AIToolEnv } from "./env.ts";
+import type { MetricWithStatus } from "lib";
+import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { clientAIToolEnvFor } from "../client_env";
 
 // DELIBERATE availableIn omission: get_slide reads by explicit slideId and
 // works from any view (e.g. while editing a report that references deck
 // content) — this is the historical guard-bypass made explicit, not an
 // accident.
 export function createGetSlideTool(
-  env: AIToolEnv,
   projectId: string,
   metrics: MetricWithStatus[],
 ) {
+  const env = clientAIToolEnvFor(projectId);
   return createAITool({
     name: "get_slide",
     description:
@@ -23,14 +23,12 @@ export function createGetSlideTool(
       ),
     }),
     kind: "read",
-    headless: true,
     handler: async (input) => {
-      const res = await env.getSlide(projectId, input.slideId);
+      const res = await env.getSlide(input.slideId);
       if (!res.success) throw new AIToolFailure(res.err);
 
       const simplified = await simplifySlideForAI(
         env,
-        projectId,
         res.data.slide,
         metrics,
       );

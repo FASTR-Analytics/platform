@@ -16,8 +16,8 @@ import {
   validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { validateMetricInputs } from "../validators/content_validators";
-import { getDataFromConfig } from "./_internal/format_metric_data_for_ai";
+import { getDataFromConfig, validateMetricInputs } from "lib";
+import { clientAIToolEnvFor } from "../client_env";
 import { formatVizEditorForAI } from "./_internal/format_viz_editor_for_ai";
 
 export function getClientToolsForVizEditor(
@@ -38,7 +38,13 @@ export function getClientToolsForVizEditor(
         const presentationObjectId = view.params.vizId;
 
         const metric = metrics.find(m => m.id === resultsValue.id);
-        const dataOutput = await getDataFromConfig(projectId, resultsValue.id, metrics, config, metric?.aiDescription);
+        const dataOutput = await getDataFromConfig(
+          clientAIToolEnvFor(projectId),
+          resultsValue.id,
+          metrics,
+          config,
+          metric?.aiDescription,
+        );
 
         return formatVizEditorForAI(config, resultsValue, presentationObjectId ?? undefined, dataOutput);
       },
@@ -127,7 +133,7 @@ export function getClientToolsForVizEditor(
             : undefined;
         if (valueChecks.length > 0 || periodCheck) {
           await validateMetricInputs(
-            projectId,
+            clientAIToolEnvFor(projectId),
             resultsValue.id,
             valueChecks.length > 0 ? valueChecks : undefined,
             periodCheck,

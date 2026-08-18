@@ -8,13 +8,14 @@ import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import type { McpPrincipal } from "./context_cache.ts";
 import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 
-// The remote MCP endpoint (PLAN_112): any Claude client connects with just
-// the instance URL (https://<instance>/mcp) and a PAT in the Authorization
-// header. Stateless above the wire (D1): identity rides every request,
-// project scope rides every tool call (projectId), authorization runs per
-// call. The panther adapter owns the wire (both protocol eras, sessions,
-// elicitation); the D3 thunk below binds one tool set per authenticated
-// principal.
+// The remote MCP endpoint (PLAN_112, re-cut 2026-08-19 to the pinned
+// package): any Claude client connects with just the instance URL
+// (https://<instance>/mcp) and a PAT in the Authorization header. Stateless
+// above the wire (D1): identity rides every request, every tool call reads
+// the instance's CURRENT pinned results package (no project or package id in
+// any schema), authorization runs per call. All tools are read-only. The
+// panther adapter owns the wire (both protocol eras, sessions, elicitation);
+// the D3 thunk below binds one tool set per authenticated principal.
 //
 // Auth is the shared headless-credential seam (server/headless_auth.ts) — the
 // SAME resolver the per-dispatch middleware runs, which is what keeps a
@@ -25,12 +26,12 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // auth-on.
 
 const INSTRUCTIONS = [
-  "FASTR Analytics assistant. One connector serves every project you can access.",
+  "FASTR Analytics assistant. Every tool reads this instance's pinned national results package.",
   "Rules:",
-  "- Call get_projects, then get_orientation with a projectId, BEFORE working — orientation carries the live project context (which metrics, visualizations, slide decks and reports exist right now).",
-  "- Every project tool takes an explicit projectId plus explicit ids; discover ids with the get_available_* tools, never invent them.",
-  "- Reads are safe to call freely. The only write, create_report, asks the user for confirmation before committing.",
-  "- Data questions: use get_metric_data (CSV output). Load get_info topics before building domain-specific reports.",
+  "- Call get_orientation FIRST — it carries the live grounding (which package is pinned, its datasets, indicators and analysis modules) and the tool catalog.",
+  "- Discover metric and module ids with get_available_metrics / get_available_modules; never invent them.",
+  "- All tools are read-only and safe to call freely.",
+  "- Data questions: use get_metric_data (CSV output). Load get_info topics before domain-specific analysis.",
 ].join("\n");
 
 export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
@@ -38,23 +39,15 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
   version: "1.0.0",
   instructions: INSTRUCTIONS,
   tools: (ctx) => buildMcpToolsForPrincipal(ctx.principal),
-  // Consent is the CLIENT's tool-permission prompt, not a second in-protocol
-  // one. Every MCP client already asks before running a tool, and for the only
-  // write here the arguments ARE the effect (create_report's {label, markdown}
-  // is the whole report), so an elicitation round trip asked the same question
-  // twice — and failed closed on any client that cannot present it, which made
-  // writes unreachable from claude.ai and Desktop entirely.
-  //
-  // "delegate" still runs propose() in full: skip/invalid validation, the
-  // stillValid staleness re-check, and the preview returned as an audit header
-  // on the result. It gives up exactly one thing — a prompt the client had
-  // already shown. Note the consequence: a user who has "always allow"-ed the
-  // tool gets no prompt at all, which is the same posture as every other MCP
-  // write tool.
-  //
-  // approvalPolicy is unaffected by the mode — it is a CONSTRUCTION-time guard
-  // that refuses to build a server where a kind:"write" tool has no approval
-  // block, so a future write cannot ship unguarded by omission.
+  // This surface has NO write tools (2026-08-19), so both approval settings
+  // are inert today and kept as the guard for a future write:
+  // approvalPolicy is a CONSTRUCTION-time check that refuses to build a
+  // server where a kind:"write" tool has no approval block, so a write cannot
+  // ship unguarded by omission. "delegate" is the mode such a write would run
+  // under — consent is the CLIENT's tool-permission prompt, not a second
+  // in-protocol elicitation (which failed closed on clients that cannot
+  // present it); propose() still runs in full and the preview rides the
+  // result as an audit header.
   approvalMode: "delegate",
   approvalPolicy: { requireForKind: "write", requireKind: true },
 }, {
