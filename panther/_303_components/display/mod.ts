@@ -4,5 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./badge.tsx";
+export * from "./callout.tsx";
 export * from "./card.tsx";
 export * from "./empty_state.tsx";
