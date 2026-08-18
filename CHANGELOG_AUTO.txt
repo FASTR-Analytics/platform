@@ -1,7 +1,7 @@
-[TBD] [user] [added] - Import default HFA indicators from FASTR resource hub
-[TBD] [user] [changed] - Guidance message now directs users to add time points first
-[TBD] [admin] [added] - Import default HFA indicators from FASTR resource hub on GitHub
-[TBD] [admin] [changed] - HFA setup message now directs users to add time points first
+[1.67.3] [user] [added] - Import default HFA indicators from FASTR resource hub
+[1.67.3] [user] [changed] - Guidance message now directs users to add time points first
+[1.67.3] [admin] [added] - Import default HFA indicators from FASTR resource hub on GitHub
+[1.67.3] [admin] [changed] - HFA setup message now directs users to add time points first
 [1.67.2] [user] [changed] - Guidance messages now say "attach a results package" instead of "enable a module"
 [1.67.2] [user] [fixed] - Improved readability of placeholder and status messages across the app
 [1.67.2] [user] [fixed] - Asset table now fills available screen height properly
