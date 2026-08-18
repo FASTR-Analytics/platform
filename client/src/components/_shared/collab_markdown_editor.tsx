@@ -1,12 +1,12 @@
 import { minimalSetup } from "codemirror";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorState, type Extension } from "@codemirror/state";
+import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import type { Awareness } from "y-protocols/awareness";
-import type * as Y from "yjs";
+import * as Y from "yjs";
 import { createEffect, onCleanup } from "solid-js";
 import { darkMode } from "~/state/t4_ui";
 
@@ -248,6 +248,64 @@ export function darkMarkdownExtensions() {
   return darkMode() ? [syntaxHighlighting(darkMarkdownHighlight)] : [];
 }
 
+// ── Caret hygiene ────────────────────────────────────────────────────────────
+// yCollab is supposed to null the local "cursor" awareness field (the text
+// caret peers render) when the editor loses focus — but in y-codemirror.next
+// (0.3.5, and upstream main at the time of writing) that branch is dead code:
+// `else if (cursor != null && hasFocus)` sits inside the path only reached
+// when hasFocus is FALSE. It also does nothing on view teardown. Verified in a
+// jsdom harness: after blur, and after view.destroy(), the caret stays set.
+// So without help a caret would sit in every peer's editor after its owner
+// clicked away, tabbed out, or closed the editor — and a background tab's
+// caret would blink in and out as the browser throttles the awareness
+// keepalive below the peers' 30 s sweep. This plugin restores the contract the
+// field registry documents (SYSTEM_16: "nulled on every CM blur"):
+//   • focus lost (in-document click-away, window blur, tab switch — CodeMirror
+//     reports every one as `focusChanged`) → clear;
+//   • view destroyed while the field still points into THIS Y.Text (destroyed
+//     while focused, e.g. a panel closing) → clear. The ownership check keeps
+//     a teardown from clobbering a caret another editor bound to the same
+//     awareness has since taken (click from textbox A's editor into B's).
+// Re-focus needs no help: yCollab's own update() sets the field again.
+export function yCaretHygiene(yText: Y.Text, awareness: Awareness): Extension {
+  const clear = () => {
+    // No-op after awareness destroy (getLocalState() is null).
+    if (awareness.getLocalState()?.cursor != null) {
+      awareness.setLocalStateField("cursor", null);
+    }
+  };
+  const ownsCaret = () => {
+    const cur = awareness.getLocalState()?.cursor as
+      | { anchor?: unknown }
+      | null
+      | undefined;
+    if (!cur?.anchor || !yText.doc) {
+      return false;
+    }
+    try {
+      const abs = Y.createAbsolutePositionFromRelativePosition(
+        Y.createRelativePositionFromJSON(cur.anchor as Y.RelativePosition),
+        yText.doc,
+      );
+      return abs?.type === yText;
+    } catch {
+      return false;
+    }
+  };
+  return ViewPlugin.define(() => ({
+    update(u) {
+      if (u.focusChanged && !u.view.hasFocus) {
+        clear();
+      }
+    },
+    destroy() {
+      if (ownsCaret()) {
+        clear();
+      }
+    },
+  }));
+}
+
 function buildExtensions(
   yText: Y.Text,
   awareness: Awareness,
@@ -284,6 +342,7 @@ function buildExtensions(
     undoManager
       ? yCollab(yText, awareness, { undoManager })
       : yCollab(yText, awareness),
+    yCaretHygiene(yText, awareness),
   ];
 }
 

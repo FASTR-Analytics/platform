@@ -20,8 +20,10 @@ import { liveConnectionIds } from "~/state/project/collab";
 // the surfaces that support it (slide canvas, viz editor preview/panel). Rides
 // the existing per-session Yjs awareness (ephemeral, relayed, never persisted)
 // in its OWN field "pointer" — the fields "cursor" (yCollab text carets; nulled
-// on every CodeMirror blur) and "user" (identity; rewritten wholesale on every
-// presence_state) are reserved by existing machinery and must not be touched.
+// on every CodeMirror blur/teardown by yCaretHygiene in collab_markdown_editor
+// — yCollab itself never clears it) and "user" (identity; rewritten wholesale
+// on every presence_state) are reserved by existing machinery and must not be
+// touched.
 //
 // Coordinates are stored in surface-relative spaces (slide DU / normalized
 // rects / panel content-px), never viewport px, so they survive different
@@ -48,7 +50,9 @@ import { liveConnectionIds } from "~/state/project/collab";
 // email never render (my other tabs are me, not a peer), states whose
 // connectionId is no longer in presence never render (the server deregisters
 // a closed socket and rebroadcasts within a round trip — far faster than the
-// awareness sweep), and whatever survives collapses to one sprite per email,
+// awareness sweep; state/project/collab.ts additionally REMOVES such states
+// on every presence_state, so this gate only covers the sub-round-trip
+// window), and whatever survives collapses to one sprite per email,
 // the most recently MOVED connection winning. The sender side backs this up:
 // tabbing or clicking away (visibilitychange, window blur, pointerleave)
 // clears the pointer outright, so an unfocused tab holds no cursor at all.

@@ -200,6 +200,53 @@ let view: {
 
 const SLIDE_REMOTE_ORIGIN = "remote-server";
 const AWARENESS_REMOTE_ORIGIN = "awareness-remote";
+// Origin of the LOCAL removal of a peer's awareness state whose connection the
+// server no longer lists (pruneGoneAwareness). Every client prunes on its own
+// presence_state, so the removal is never shipped — relaying it would only
+// duplicate work peers already did, and could bounce off a still-alive peer
+// (a remote removal of one's own state makes y-protocols re-announce it).
+const AWARENESS_PRUNE_ORIGIN = "awareness-presence-prune";
+
+/** Awareness "update" events that must NOT be shipped to the server: those
+ *  just applied FROM it, and local presence-driven prunes. */
+function isLocalOnlyAwarenessOrigin(origin: unknown): boolean {
+  return origin === AWARENESS_REMOTE_ORIGIN || origin === AWARENESS_PRUNE_ORIGIN;
+}
+
+/** Drop the awareness states of connections the server no longer lists.
+ *
+ *  A closed socket (tab closed, browser quit, network death reaped by the
+ *  server's idleTimeout) removes its connection from presence within a round
+ *  trip, but its awareness states — the yCollab text caret, the pointer, the
+ *  viz-tab avatar — would otherwise linger on every peer until y-protocols'
+ *  ~30 s silence sweep. The cursor overlay already hides such states through
+ *  liveConnectionIds(); everything that reads awareness DIRECTLY (yCollab's
+ *  caret rendering, the viz "who is on which tab" strip) has no such gate, so
+ *  the state itself is removed here — the same removeAwarenessStates path the
+ *  sweep takes, just triggered by presence instead of the clock. Fires
+ *  "change" (removed) so every consumer re-renders. A live peer that
+ *  reconnected re-stamps its `user` field with the new connectionId, and that
+ *  update carries a higher clock, so it re-adds cleanly (verified: prune
+ *  harness). States without a connectionId are unknown, not dead — kept. */
+function pruneGoneAwareness(aw: Awareness, live: ReadonlySet<string>): void {
+  if (live.size === 0) {
+    return; // no presence yet — nothing is known to be gone
+  }
+  const gone: number[] = [];
+  for (const [clientID, state] of aw.getStates()) {
+    if (clientID === aw.clientID) {
+      continue;
+    }
+    const connectionId = (state.user as { connectionId?: string } | undefined)
+      ?.connectionId;
+    if (connectionId !== undefined && !live.has(connectionId)) {
+      gone.push(clientID);
+    }
+  }
+  if (gone.length > 0) {
+    removeAwarenessStates(aw, gone, AWARENESS_PRUNE_ORIGIN);
+  }
+}
 
 type InternalSlideSession = {
   slideId: string;
@@ -394,8 +441,9 @@ export function openSlideSession(
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
+      // Don't re-ship awareness that was just applied from the server, nor
+      // local presence-driven prunes.
+      if (isLocalOnlyAwarenessOrigin(origin)) {
         return;
       }
       const changed = [
@@ -545,7 +593,7 @@ export function openReportSession(
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
+      if (isLocalOnlyAwarenessOrigin(origin)) {
         return;
       }
       const changed = [
@@ -695,7 +743,7 @@ export function openPoSession(
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
+      if (isLocalOnlyAwarenessOrigin(origin)) {
         return;
       }
       const changed = [
@@ -1048,18 +1096,26 @@ function openSocket(projectId: string): void {
     } else if (msg.type === "presence_state") {
       setCollabStore("peers", msg.data.peers);
       // Our identity (name/color) may have just arrived — stamp it on any open
-      // session's awareness so remote peers see a labelled cursor.
+      // session's awareness so remote peers see a labelled cursor. And drop
+      // the awareness of any connection this presence no longer lists (see
+      // pruneGoneAwareness) — the caret/avatar of a peer who just closed
+      // their tab must not wait ~30 s for the awareness sweep.
+      const live = liveConnectionIds();
       for (const s of slideSessions.values()) {
         applySessionUser(s.awareness);
+        pruneGoneAwareness(s.awareness, live);
       }
       for (const s of reportSessions.values()) {
         applySessionUser(s.awareness);
+        pruneGoneAwareness(s.awareness, live);
       }
       for (const s of poSessions.values()) {
         applySessionUser(s.awareness);
+        pruneGoneAwareness(s.awareness, live);
       }
       if (projectAw) {
         applySessionUser(projectAw.awareness);
+        pruneGoneAwareness(projectAw.awareness, live);
       }
       // "Alice joined this deck" toasts — scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
@@ -1261,8 +1317,9 @@ function createProjectAwareness(): void {
       changes: { added: number[]; updated: number[]; removed: number[] },
       origin: unknown,
     ) => {
-      // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
+      // Don't re-ship awareness that was just applied from the server, nor
+      // local presence-driven prunes.
+      if (isLocalOnlyAwarenessOrigin(origin)) {
         return;
       }
       const changed = [

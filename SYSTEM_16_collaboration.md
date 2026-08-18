@@ -547,7 +547,11 @@ in [\_shared/cursors/](client/src/components/_shared/cursors/) (slide / viz /
 report / page).
 
 **Awareness field registry** (one shared Awareness per session — do not
-collide): `cursor` = yCollab text caret (nulled on every CM blur); `user` =
+collide): `cursor` = yCollab text caret (nulled on every CM blur and on view
+teardown by `yCaretHygiene` in `_shared/collab_markdown_editor.tsx` —
+y-codemirror.next itself NEVER clears it: its blur-clear branch is dead code
+upstream, so without the plugin a caret sat in peers' editors after its owner
+clicked away, tabbed out, or closed the editor); `user` =
 identity — name/color/colorLight plus the `email` and `connectionId` the
 one-cursor-per-person rule below is built on (re-stamped on every
 presence_state, skipped when unchanged so identical identities don't broadcast);
@@ -585,6 +589,20 @@ side backs this up: `visibilitychange` to hidden, window `blur` (a tab stays
 and `pointerleave` each clear the pointer outright, so an unfocused tab holds
 no cursor at all; focus/visible re-broadcasts the resting position without
 waiting for a mouse move.
+
+**Presence-driven awareness prune.** The server sends no awareness removal
+when a socket closes (it never applies awareness, so it holds no clientIDs to
+remove); it only rebroadcasts `presence_state`. The overlay's connectionId
+gate covers the pointer, but everything that reads awareness DIRECTLY —
+yCollab's caret rendering, the viz-editor "who is on which tab" strip — has
+no such gate and would show a departed peer for up to the ~30 s sweep. So on
+every `presence_state` the client REMOVES (`pruneGoneAwareness`, origin
+`awareness-presence-prune`, never shipped — each client prunes for itself)
+the states of every connection the new presence no longer lists, from all
+four awareness instances (slide/report/po sessions + project). Same
+`removeAwarenessStates` path as the sweep, so consumers see a normal
+"change"/removed; a peer that merely reconnected re-stamps `user` with its new
+connectionId at a higher clock and re-adds cleanly.
 
 **Project-level awareness — page cursors.** The project tab pages have no doc
 room, so their live cursors ride a dedicated PROJECT-scoped Awareness: one

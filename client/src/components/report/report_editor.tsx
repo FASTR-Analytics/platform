@@ -7,6 +7,7 @@ import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
   attachSelectionNameHover,
+  yCaretHygiene,
   darkMarkdownExtensions,
 } from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
@@ -233,7 +234,12 @@ export function ReportEditor(p: Props) {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
         }),
         ...(collab && undoMgr
-          ? [yCollab(collab.yText, collab.awareness, { undoManager: undoMgr })]
+          ? [
+            yCollab(collab.yText, collab.awareness, { undoManager: undoMgr }),
+            // Clears the caret on blur/teardown — yCollab alone never does
+            // (see yCaretHygiene).
+            yCaretHygiene(collab.yText, collab.awareness),
+          ]
           : []),
       ],
     });
