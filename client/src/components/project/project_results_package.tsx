@@ -90,11 +90,11 @@ export function ProjectResultsPackage() {
             when={projectState.attachedRun}
             keyed
             fallback={
-              <div class="text-base-content-muted">
+              <div class="text-base-content-muted text-sm">
                 {t3({
-                  en: "This project has no results package attached yet.",
-                  fr: "Aucun paquet de résultats n'est encore rattaché à ce projet.",
-                  pt: "Este projeto ainda não tem nenhum pacote de resultados anexado.",
+                  en: "This project has no results package attached yet",
+                  fr: "Aucun paquet de résultats n'est encore rattaché à ce projet",
+                  pt: "Este projeto ainda não tem nenhum pacote de resultados anexado",
                 })}
               </div>
             }

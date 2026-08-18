@@ -92,7 +92,7 @@ export function ReportVersionCompare(
               <Show
                 when={hasChanges}
                 fallback={
-                  <div class="text-neutral py-8 text-center text-sm">
+                  <div class="text-base-content-muted py-8 text-center text-sm">
                     {t3({
                       en: "This version is identical to the current document.",
                       fr: "Cette version est identique au document actuel.",

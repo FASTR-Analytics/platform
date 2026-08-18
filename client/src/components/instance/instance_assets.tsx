@@ -163,7 +163,7 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <div class="h-full w-full">
+            <div class="ui-pad-x h-full w-full">
               <TabsNavigation
                 data-tour="instance-assets-tabs"
                 items={tabItems()}
@@ -335,6 +335,7 @@ function AssetTable(p: {
       })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
+      fitTableToAvailableHeight
     />
   );
 }

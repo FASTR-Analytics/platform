@@ -637,7 +637,7 @@ export function DeckVersionPreview(p: {
               <Show
                 when={entries.length > 0}
                 fallback={
-                  <div class="text-neutral w-full py-16 text-center">
+                  <div class="text-base-content-muted w-full py-16 text-center">
                     {t3({
                       en: "This version has no slides",
                       fr: "Cette version n'a aucune diapositive",

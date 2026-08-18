@@ -51,9 +51,9 @@ export function buildDecksEditorTour(): TourDefinition {
           pt: "Criar uma apresentação",
         }),
         body: t3({
-          en: "Start a new deck here. The project needs at least one module enabled first.",
-          fr: "Commencez une nouvelle présentation ici. Le projet doit d'abord avoir au moins un module activé.",
-          pt: "Comece uma nova apresentação aqui. Primeiro, o projeto tem de ter pelo menos um módulo ativado.",
+          en: "Start a new deck here. The project needs a results package attached first.",
+          fr: "Commencez une nouvelle présentation ici. Le projet doit d'abord avoir un paquet de résultats rattaché.",
+          pt: "Comece uma nova apresentação aqui. Primeiro, o projeto tem de ter um pacote de resultados anexado.",
         }),
         placement: "bottom",
         when: () =>

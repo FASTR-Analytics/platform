@@ -229,7 +229,7 @@ export function VersionHistoryEditor(p: Props) {
           when={selectedVersionId()}
           keyed
           fallback={
-            <div class="text-neutral flex h-full w-full items-center justify-center px-8 text-center text-sm">
+            <div class="text-base-content-muted flex h-full w-full items-center justify-center px-8 text-center text-sm">
               {t3({
                 en: "This is the current version. Select a version on the left to preview or restore it.",
                 fr: "Ceci est la version actuelle. Sélectionnez une version à gauche pour la prévisualiser ou la restaurer.",

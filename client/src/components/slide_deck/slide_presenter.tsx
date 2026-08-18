@@ -299,7 +299,7 @@ export function SlidePresenter(p: Props) {
           }}
         >
           <Show when={!currentPage() || currentPage()!.status === "loading"}>
-            <div class="text-neutral flex h-full w-full items-center justify-center">
+            <div class="text-base-content-muted flex h-full w-full items-center justify-center">
               <div class="text-sm">{loadingMsg()}</div>
             </div>
           </Show>

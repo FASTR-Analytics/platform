@@ -226,9 +226,9 @@ export function ProjectVisualizations(p: Props) {
         fallback={
           <div class="ui-pad text-base-content-muted text-sm">
             {t3({
-              en: "You need to enable at least one module to create visualizations",
-              fr: "Vous devez activer au moins un module pour créer des visualisations",
-              pt: "Tem de ativar pelo menos um módulo para criar visualizações",
+              en: "You need to attach a results package to create visualizations",
+              fr: "Vous devez rattacher un paquet de résultats pour créer des visualisations",
+              pt: "Tem de anexar um pacote de resultados para criar visualizações",
             })}
           </div>
         }

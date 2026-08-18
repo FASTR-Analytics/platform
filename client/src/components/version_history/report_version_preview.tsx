@@ -318,7 +318,7 @@ function SessionEdits(p: {
               </div>
             </Show>
             <Show when={!hasChanges && !hasVizChanges}>
-              <div class="text-neutral py-8 text-center text-sm">
+              <div class="text-base-content-muted py-8 text-center text-sm">
                 {t3({
                   en: "No text changes in this session.",
                   fr: "Aucune modification de texte dans cette session.",

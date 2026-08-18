@@ -474,11 +474,11 @@ export function ProjectDecks(p: ExtendedProps) {
       <Show
         when={projectState.projectModules.length > 0}
         fallback={
-          <div class="ui-pad text-neutral text-sm">
+          <div class="ui-pad text-base-content-muted text-sm">
             {t3({
-              en: "You need to enable at least one module to create slide decks",
-              fr: "Vous devez activer au moins un module pour créer des présentations",
-              pt: "Tem de ativar pelo menos um módulo para criar apresentações",
+              en: "You need to attach a results package to create slide decks",
+              fr: "Vous devez rattacher un paquet de résultats pour créer des présentations",
+              pt: "Tem de anexar um pacote de resultados para criar apresentações",
             })}
           </div>
         }
