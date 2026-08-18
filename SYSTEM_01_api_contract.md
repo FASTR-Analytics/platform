@@ -11,6 +11,7 @@ globs:
   - lib/types/permissions.ts
   - lib/types/streaming.ts
   - main.ts
+  - server/dev_boot_checks.ts
   - mint_pat.ts
   - server/clerk_api.ts
   - server/db/instance/personal_access_tokens.ts
@@ -432,7 +433,11 @@ beside `validateAllRoutesDefined()`: a structural check of Hono's route
 table — every allowlisted name's `method + path` must be registered on
 `headlessApp` — that fail-stops on a miss (they drifted once — allowlisted
 run-keyed reads whose route file was never mounted 404'd silently through
-`/mcp`). Note there is NO compiler-enforced
+`/mcp`). **Every DEV boot then runs the whole server test suite**
+(`server/dev_boot_checks.ts` → `deno task test`, a subprocess with
+`BYPASS_AUTH` cleared, `--no-check`, ~2 s) and fail-stops on any failure;
+production boots skip both. `deno task typecheck` checks `server/tests/*.ts`
+too, so the suite is typed at the deploy gate. Note there is NO compiler-enforced
 browser-free boundary in `lib/` either: the server typecheck carries the
 TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
 `document`/`window` reference in a `lib/` file passes `deno check main.ts` clean

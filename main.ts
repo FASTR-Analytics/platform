@@ -18,6 +18,7 @@ import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
 import { _IS_DEV, _PORT } from "./server/exposed_env_vars.ts";
 import { validateHeadlessMounts } from "./server/headless_app.ts";
+import { runServerTestSuiteOrExit } from "./server/dev_boot_checks.ts";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -282,10 +283,14 @@ app.get("*", (c) => {
 
 // Validate that all routes in the registry have been defined
 validateAllRoutesDefined();
-// Dev-only structural self-checks (fail-stop, same as the route validation
-// above).
+// Dev-only self-checks, fail-stop like the route validation above: the
+// structural headless-mount check, then the whole server test suite
+// (`deno task test` — a subprocess, because those tests need BYPASS_AUTH
+// cleared and their own module graph; ~2 s with --no-check, the tests'
+// typecheck being `deno task typecheck`'s job). Production boots skip both.
 if (_IS_DEV) {
   validateHeadlessMounts();
+  await runServerTestSuiteOrExit();
 }
 
 // Process-level backstop for the serving phase. A single collaborative-editing
