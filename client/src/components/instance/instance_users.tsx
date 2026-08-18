@@ -101,8 +101,9 @@ export function InstanceUsers(p: Props) {
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <div class="h-full w-full" data-tour="instance-users-header">
+            <div class="h-full w-full">
               <HeadingBar
+                data-tour="instance-users-header"
                 tonal
                 heading={t3({
                   en: "Users",
@@ -133,9 +134,8 @@ export function InstanceUsers(p: Props) {
                   </Show>
                   <div
                     class="ui-gap-sm flex items-center"
-                    data-tour="instance-users-bulk"
                   >
-                    <Button onClick={downloadUsersCSV} iconName="download">
+                    <Button data-tour="instance-users-bulk" onClick={downloadUsersCSV} iconName="download">
                       {t3({
                         en: "Download users",
                         fr: "Télécharger les utilisateurs",
@@ -150,15 +150,13 @@ export function InstanceUsers(p: Props) {
                       })}
                     </Button>
                   </div>
-                  <div data-tour="instance-users-add">
-                    <Button onClick={attemptAddUser} iconName="plus">
-                      {t3({
-                        en: "Add users",
-                        fr: "Ajouter des utilisateurs",
-                        pt: "Adicionar utilizadores",
-                      })}
-                    </Button>
-                  </div>
+                  <Button data-tour="instance-users-add" onClick={attemptAddUser} iconName="plus">
+                    {t3({
+                      en: "Add users",
+                      fr: "Ajouter des utilisateurs",
+                      pt: "Adicionar utilizadores",
+                    })}
+                  </Button>
                 </div>
               </HeadingBar>
             </div>

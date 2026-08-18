@@ -183,9 +183,9 @@ export function ProjectVisualizations(p: Props) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="viz-header"
         >
           <HeadingBar
+            data-tour="viz-header"
             heading={t3({
               en: "Visualizations",
               fr: "Visualisations",
@@ -204,8 +204,8 @@ export function ProjectVisualizations(p: Props) {
                 !projectState.isLocked && projectState.projectModules.length > 0
               }
             >
-              <div class="ui-gap-sm flex items-center" data-tour="viz-create">
-                {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
+              <div class="ui-gap-sm flex items-center">
+                {/* <Button data-tour="viz-create" onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}
                 <Button onClick={attempAddPresentationObject} iconName="plus">

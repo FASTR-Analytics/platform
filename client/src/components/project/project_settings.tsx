@@ -229,9 +229,8 @@ export function ProjectSettings(p: Props) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="settings-header"
         >
-          <HeadingBar heading={t3(TC.settings)}></HeadingBar>
+          <HeadingBar data-tour="settings-header" heading={t3(TC.settings)}></HeadingBar>
         </div>
       }
     >
@@ -240,74 +239,71 @@ export function ProjectSettings(p: Props) {
         data-page-cursor-surface
         data-tour="settings-body"
       >
-        <div data-tour="settings-name">
-          <Card
-            header={t3({
-              en: "Project name",
-              fr: "Nom du projet",
-              pt: "Nome do projeto",
-            })}
-            headerRight={
-              <Show when={!projectState.isLocked}>
-                <Button onClick={attemptUpdateProjectLabel} iconName="settings">
-                  {t3(TC.edit)}
-                </Button>
-              </Show>
-            }
-          >
-            <div class="ui-spy-sm">
-              <div class="">{projectState.label}</div>
+        <Card
+          data-tour="settings-name"
+          header={t3({
+            en: "Project name",
+            fr: "Nom du projet",
+            pt: "Nome do projeto",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button onClick={attemptUpdateProjectLabel} iconName="settings">
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">{projectState.label}</div>
+          </div>
+        </Card>
+        <Card
+          data-tour="settings-users"
+          header={t3({
+            en: "Project users",
+            fr: "Utilisateurs du projet",
+            pt: "Utilizadores do projeto",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <ProjectUserTable
+              users={projectState.projectUsers}
+              onUserClick={attemptSelectUserRole}
+              onBulkEditPermissions={attemptBulkEditPermissions}
+              onDisplayUserRole={attemptDisplayUserRole}
+            />
+          </div>
+        </Card>
+        <Card
+          data-tour="settings-ai"
+          header={t3({
+            en: "Project context for AI interpretation",
+            fr: "Contexte du projet pour l'interprétation de l'IA",
+            pt: "Contexto do projeto para a interpretação da IA",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button
+                onClick={attemptUpdateProjectAiContext}
+                iconName="settings"
+              >
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">
+              {projectState.aiContext ||
+                t3({
+                  en: "No context set",
+                  fr: "Aucun contexte défini",
+                  pt: "Nenhum contexto definido",
+                })}
             </div>
-          </Card>
-        </div>
-        <div data-tour="settings-users">
-          <Card
-            header={t3({
-              en: "Project users",
-              fr: "Utilisateurs du projet",
-              pt: "Utilizadores do projeto",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <ProjectUserTable
-                users={projectState.projectUsers}
-                onUserClick={attemptSelectUserRole}
-                onBulkEditPermissions={attemptBulkEditPermissions}
-                onDisplayUserRole={attemptDisplayUserRole}
-              />
-            </div>
-          </Card>
-        </div>
-        <div data-tour="settings-ai">
-          <Card
-            header={t3({
-              en: "Project context for AI interpretation",
-              fr: "Contexte du projet pour l'interprétation de l'IA",
-              pt: "Contexto do projeto para a interpretação da IA",
-            })}
-            headerRight={
-              <Show when={!projectState.isLocked}>
-                <Button
-                  onClick={attemptUpdateProjectAiContext}
-                  iconName="settings"
-                >
-                  {t3(TC.edit)}
-                </Button>
-              </Show>
-            }
-          >
-            <div class="ui-spy-sm">
-              <div class="">
-                {projectState.aiContext ||
-                  t3({
-                    en: "No context set",
-                    fr: "Aucun contexte défini",
-                    pt: "Nenhum contexto definido",
-                  })}
-              </div>
-            </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
         <Card
           header={t3({
@@ -407,19 +403,18 @@ export function ProjectSettings(p: Props) {
           </Match>
         </Switch>
 
-        <div data-tour="settings-backups">
-          <Card
-            header={t3({
-              en: "Backups",
-              fr: "Sauvegardes",
-              pt: "Cópias de segurança",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <ProjectBackups projectId={projectState.id} />
-            </div>
-          </Card>
-        </div>
+        <Card
+          data-tour="settings-backups"
+          header={t3({
+            en: "Backups",
+            fr: "Sauvegardes",
+            pt: "Cópias de segurança",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <ProjectBackups projectId={projectState.id} />
+          </div>
+        </Card>
 
         <div class="ui-gap flex" data-tour="settings-actions">
           <Show when={!projectState.isLocked}>

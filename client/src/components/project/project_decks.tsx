@@ -433,9 +433,9 @@ export function ProjectDecks(p: ExtendedProps) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="decks-header"
         >
           <HeadingBar
+            data-tour="decks-header"
             heading={t3({
               en: "Slide decks",
               fr: "Présentations",
@@ -459,15 +459,13 @@ export function ProjectDecks(p: ExtendedProps) {
                 projectState.thisUserPermissions.can_configure_slide_decks
               }
             >
-              <div data-tour="decks-create">
-                <Button onClick={attemptAddDeck} iconName="plus">
-                  {t3({
-                    en: "Create slide deck",
-                    fr: "Créer une présentation",
-                    pt: "Criar apresentação",
-                  })}
-                </Button>
-              </div>
+              <Button data-tour="decks-create" onClick={attemptAddDeck} iconName="plus">
+                {t3({
+                  en: "Create slide deck",
+                  fr: "Créer une présentation",
+                  pt: "Criar apresentação",
+                })}
+              </Button>
             </Show>
           </HeadingBar>
         </div>

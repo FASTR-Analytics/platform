@@ -1441,9 +1441,9 @@ export function ProjectReport(p: Props) {
           <div
             class="h-full w-full"
             data-cursor-zone="header"
-            data-tour="report-toolbar"
           >
             <HeadingBar
+              data-tour="report-toolbar"
               heading={label()}
               leftChildren={
                 <Button
@@ -1453,8 +1453,8 @@ export function ProjectReport(p: Props) {
                 />
               }
               centerChildren={
-                <div data-tour="report-mode">
                 <ButtonGroup<ReportMode>
+                  data-tour="report-mode"
                   items={[
                     {
                       id: "edit",
@@ -1472,7 +1472,6 @@ export function ProjectReport(p: Props) {
                   value={mode()}
                   onChange={(v) => v && setMode(v)}
                 />
-                </div>
               }
             >
               <div class="ui-gap-sm flex items-center">

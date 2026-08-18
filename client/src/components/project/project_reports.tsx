@@ -447,9 +447,9 @@ export function ProjectReports(p: ExtendedProps) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="reports-header"
         >
           <HeadingBar
+            data-tour="reports-header"
             heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
             searchText={searchText()}
             setSearchText={setSearchText}
@@ -463,15 +463,13 @@ export function ProjectReports(p: ExtendedProps) {
             }
           >
             <Show when={!projectState.isLocked}>
-              <div data-tour="reports-create">
-                <Button onClick={attemptAddReport} iconName="plus">
-                  {t3({
-                    en: "Create report",
-                    fr: "Créer un rapport",
-                    pt: "Criar relatório",
-                  })}
-                </Button>
-              </div>
+              <Button data-tour="reports-create" onClick={attemptAddReport} iconName="plus">
+                {t3({
+                  en: "Create report",
+                  fr: "Créer un rapport",
+                  pt: "Criar relatório",
+                })}
+              </Button>
             </Show>
           </HeadingBar>
         </div>

@@ -232,9 +232,9 @@ export default function Instance(p: Props) {
                 <Show when={instanceState.currentUserApproved}>
                   <div
                     class="flex flex-1 justify-center xl:hidden"
-                    data-tour="instance-nav"
                   >
                     <ButtonGroup
+                      data-tour="instance-nav"
                       value={tab()}
                       onChange={setTab}
                       items={compactNavItems()}
@@ -243,9 +243,9 @@ export default function Instance(p: Props) {
                   </div>
                   <div
                     class="hidden flex-1 justify-center xl:flex"
-                    data-tour="instance-nav"
                   >
                     <ButtonGroup
+                      data-tour="instance-nav"
                       value={tab()}
                       onChange={setTab}
                       items={wideNavItems()}
@@ -254,47 +254,46 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                  <div data-tour="instance-topbar-language">
-                    <MenuTriggerWrapper
-                      items={
-                        [
-                          {
-                            label: "English",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                              if (getLanguage() === "en") return;
-                              window.location.reload();
-                            },
-                          },
-                          {
-                            label: "Français",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                              if (getLanguage() === "fr") return;
-                              window.location.reload();
-                            },
-                          },
-                          {
-                            label: "Português",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                              if (getLanguage() === "pt") return;
-                              window.location.reload();
-                            },
-                          },
-                        ] satisfies MenuItem[]
-                      }
-                      position="bottom-end"
-                    >
-                      <Button intent="base-100">
+                  <MenuTriggerWrapper
+                    data-tour="instance-topbar-language"
+                    items={
+                      [
                         {
-                          ({ en: "EN", fr: "FR", pt: "PT" } as const)[
-                            getLanguage()
-                          ]
-                        }
-                      </Button>
-                    </MenuTriggerWrapper>
-                  </div>
+                          label: "English",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                            if (getLanguage() === "en") return;
+                            window.location.reload();
+                          },
+                        },
+                        {
+                          label: "Français",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                            if (getLanguage() === "fr") return;
+                            window.location.reload();
+                          },
+                        },
+                        {
+                          label: "Português",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                            if (getLanguage() === "pt") return;
+                            window.location.reload();
+                          },
+                        },
+                      ] satisfies MenuItem[]
+                    }
+                    position="bottom-end"
+                  >
+                    <Button intent="base-100">
+                      {
+                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                          getLanguage()
+                        ]
+                      }
+                    </Button>
+                  </MenuTriggerWrapper>
                   <Show
                     when={
                       instanceState.currentUserApproved &&
@@ -313,65 +312,64 @@ export default function Instance(p: Props) {
                     </div>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <div data-tour="instance-topbar-help">
-                      <MenuTriggerWrapper
-                        items={() => {
-                          const items: MenuItem[] = [];
-                          if (
-                            instanceState.projects.some(
-                              (project) => project.status === "ready",
-                            )
-                          ) {
-                            items.push({
-                              label: t3({
-                                en: "Guided tours",
-                                fr: "Visites guidées",
-                                pt: "Visitas guiadas",
-                              }),
-                              icon: "slideshow",
-                              onClick: () => void openTours(),
-                            });
-                          }
+                    <MenuTriggerWrapper
+                      data-tour="instance-topbar-help"
+                      items={() => {
+                        const items: MenuItem[] = [];
+                        if (
+                          instanceState.projects.some(
+                            (project) => project.status === "ready",
+                          )
+                        ) {
                           items.push({
                             label: t3({
-                              en: "Ask for help",
-                              fr: "Demander de l'aide",
-                              pt: "Pedir ajuda",
+                              en: "Guided tours",
+                              fr: "Visites guidées",
+                              pt: "Visitas guiadas",
                             }),
-                            icon: "lifebuoy",
-                            onClick: () => void openFeedback("help"),
+                            icon: "slideshow",
+                            onClick: () => void openTours(),
                           });
-                          items.push({
-                            label: t3({
-                              en: "Send feedback",
-                              fr: "Envoyer un commentaire",
-                              pt: "Enviar comentários",
-                            }),
-                            icon: "pencil",
-                            onClick: () => void openFeedback(),
-                          });
-                          items.push({
-                            label: t3({
-                              en: "Documentation",
-                              fr: "Documentation",
-                              pt: "Documentação",
-                            }),
-                            icon: "document",
-                            onClick: () =>
-                              window.open(
-                                "https://fastr-analytics.org",
-                                "_blank",
-                              ),
-                          });
-                          return items;
-                        }}
-                        position="bottom-end"
-                      >
-                        <Button intent="base-100">
-                          {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                        </Button>
-                      </MenuTriggerWrapper>
-                    </div>
+                        }
+                        items.push({
+                          label: t3({
+                            en: "Ask for help",
+                            fr: "Demander de l'aide",
+                            pt: "Pedir ajuda",
+                          }),
+                          icon: "lifebuoy",
+                          onClick: () => void openFeedback("help"),
+                        });
+                        items.push({
+                          label: t3({
+                            en: "Send feedback",
+                            fr: "Envoyer un commentaire",
+                            pt: "Enviar comentários",
+                          }),
+                          icon: "pencil",
+                          onClick: () => void openFeedback(),
+                        });
+                        items.push({
+                          label: t3({
+                            en: "Documentation",
+                            fr: "Documentation",
+                            pt: "Documentação",
+                          }),
+                          icon: "document",
+                          onClick: () =>
+                            window.open(
+                              "https://fastr-analytics.org",
+                              "_blank",
+                            ),
+                        });
+                        return items;
+                      }}
+                      position="bottom-end"
+                    >
+                      <Button intent="base-100">
+                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                      </Button>
+                    </MenuTriggerWrapper>
                     <Button
                       onClick={openInstanceMeta}
                       iconName="versions"

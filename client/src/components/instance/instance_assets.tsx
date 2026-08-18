@@ -87,8 +87,9 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-tour="instance-assets-header">
+        <div class="h-full w-full">
           <HeadingBar
+            data-tour="instance-assets-header"
             tonal
             heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
           >
@@ -162,8 +163,9 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <div class="h-full w-full" data-tour="instance-assets-tabs">
+            <div class="h-full w-full">
               <TabsNavigation
+                data-tour="instance-assets-tabs"
                 items={tabItems()}
                 value={active()}
                 onChange={setSelectedType}

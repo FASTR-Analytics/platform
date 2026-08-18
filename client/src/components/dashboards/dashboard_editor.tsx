@@ -1000,14 +1000,13 @@ export function DashboardEditor(p: Props) {
                     >
                       {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
                     </Button>
-                    <div data-tour="dashboard-copy-link">
-                      <CopyToClipboardButton
-                        text={publicUrl(dashboard.slug)}
-                        outline
-                      >
-                        {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
-                      </CopyToClipboardButton>
-                    </div>
+                    <CopyToClipboardButton
+                      data-tour="dashboard-copy-link"
+                      text={publicUrl(dashboard.slug)}
+                      outline
+                    >
+                      {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
+                    </CopyToClipboardButton>
                     <Show when={canConfigure()}>
                       <Button
                         id="dashboard-settings-button"

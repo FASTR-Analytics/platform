@@ -435,8 +435,9 @@ export function SlideList(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header" data-tour="deck-toolbar">
+        <div class="h-full w-full" data-cursor-zone="header">
         <HeadingBar
+          data-tour="deck-toolbar"
           heading={p.deckLabel}
           onBack={() => p.handleClose()}
         >
@@ -445,8 +446,9 @@ export function SlideList(p: Props) {
               peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
             />
             <Show when={p.slideIds.length > 0}>
-              <div class="w-32" data-tour="deck-slide-size">
+              <div class="w-32">
                 <Slider
+                  data-tour="deck-slide-size"
                   value={slideSize()}
                   onChange={setSlideSize}
                   min={200}

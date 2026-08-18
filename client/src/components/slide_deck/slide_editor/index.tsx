@@ -995,9 +995,9 @@ export function SlideEditor(p: Props) {
           <div
             class="h-full w-full"
             data-cursor-zone="header"
-            data-tour="slide-editor-header"
           >
             <HeadingBar
+              data-tour="slide-editor-header"
               heading={t3({
                 en: "Edit Slide",
                 fr: "Modifier la diapositive",
@@ -1042,32 +1042,31 @@ export function SlideEditor(p: Props) {
                   <Button onClick={undo} iconName="undo" outline />
                   <Button onClick={redo} iconName="redo" outline />
                 </Show>
-                <div data-tour="slide-type-select">
-                  <Select
-                    options={[
-                      {
-                        value: "cover",
-                        label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
-                      },
-                      {
-                        value: "section",
-                        label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
-                      },
-                      {
-                        value: "content",
-                        label: t3({
-                          en: "Content",
-                          fr: "Contenu",
-                          pt: "Conteúdo",
-                        }),
-                      },
-                    ]}
-                    value={tempSlide.type}
-                    onChange={(v: string) =>
-                      handleTypeChange(v as "cover" | "section" | "content")
-                    }
-                  />
-                </div>
+                <Select
+                  data-tour="slide-type-select"
+                  options={[
+                    {
+                      value: "cover",
+                      label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
+                    },
+                    {
+                      value: "section",
+                      label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
+                    },
+                    {
+                      value: "content",
+                      label: t3({
+                        en: "Content",
+                        fr: "Contenu",
+                        pt: "Conteúdo",
+                      }),
+                    },
+                  ]}
+                  value={tempSlide.type}
+                  onChange={(v: string) =>
+                    handleTypeChange(v as "cover" | "section" | "content")
+                  }
+                />
                 <Show when={!showAi()}>
                   <Button
                     onClick={() => setShowAi(true)}

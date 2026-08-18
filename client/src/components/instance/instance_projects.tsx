@@ -121,8 +121,9 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-tour="instance-projects-header">
+          <div class="h-full w-full">
             <HeadingBar
+              data-tour="instance-projects-header"
               tonal
               heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
             >
@@ -134,19 +135,19 @@ export function InstanceProjects(p: Props) {
                   />
                 </div>
                 <Show when={instanceState.currentUserIsGlobalAdmin}>
-                  <div data-tour="instance-projects-compare">
-                    <Button
-                      onClick={compareProjects}
-                      outline
-                      onBackground="base-200"
-                    >
-                      {t3({
-                        en: "Compare projects",
-                        fr: "Comparer les projets",
-                        pt: "Comparar projetos",
-                      })}
-                    </Button>
-                  </div>
+                  <Button
+                    data-tour="instance-projects-compare"
+                    onClick={compareProjects}
+                    outline
+                    onBackground="base-200"
+                    // intent="base-100"
+                  >
+                    {t3({
+                      en: "Compare projects",
+                      fr: "Comparer les projets",
+                      pt: "Comparar projetos",
+                    })}
+                  </Button>
                 </Show>
                 <Show
                   when={
@@ -154,19 +155,18 @@ export function InstanceProjects(p: Props) {
                     pendingDeletionCount() > 0
                   }
                 >
-                  <div data-tour="instance-projects-pending">
-                    <Button
-                      onClick={openPendingDeletions}
-                      outline
-                      onBackground="base-200"
-                    >
-                      {t3({
-                        en: `Pending deletions (${pendingDeletionCount()})`,
-                        fr: `Suppressions en attente (${pendingDeletionCount()})`,
-                        pt: `Eliminações pendentes (${pendingDeletionCount()})`,
-                      })}
-                    </Button>
-                  </div>
+                  <Button
+                    data-tour="instance-projects-pending"
+                    onClick={openPendingDeletions}
+                    outline
+                    onBackground="base-200"
+                  >
+                    {t3({
+                      en: `Pending deletions (${pendingDeletionCount()})`,
+                      fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                      pt: `Eliminações pendentes (${pendingDeletionCount()})`,
+                    })}
+                  </Button>
                 </Show>
                 <Show
                   when={
@@ -174,15 +174,13 @@ export function InstanceProjects(p: Props) {
                     p.canCreateProjects
                   }
                 >
-                  <div data-tour="instance-projects-create">
-                    <Button onClick={attemptAddProject} iconName="plus">
-                      {t3({
-                        en: "Create project",
-                        fr: "Créer un projet",
-                        pt: "Criar projeto",
-                      })}
-                    </Button>
-                  </div>
+                  <Button data-tour="instance-projects-create" onClick={attemptAddProject} iconName="plus">
+                    {t3({
+                      en: "Create project",
+                      fr: "Créer un projet",
+                      pt: "Criar projeto",
+                    })}
+                  </Button>
                 </Show>
               </div>
             </HeadingBar>
