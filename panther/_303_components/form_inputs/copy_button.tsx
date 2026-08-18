@@ -7,6 +7,7 @@ import { createSignal, onCleanup } from "solid-js";
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Button } from "./button.tsx";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 const FEEDBACK_DURATION_MS = 2000;
 
@@ -24,7 +25,7 @@ type CopyToClipboardButtonProps = CopySource & {
   size?: "sm";
   disabled?: boolean;
   ariaLabel?: string;
-};
+} & DataAttrs;
 
 async function getTextFromSource(source: CopySource): Promise<string> {
   if ("text" in source) {
@@ -109,6 +110,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   const [showSuccess, setShowSuccess] = createSignal(false);
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -147,6 +149,7 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
 
   return (
     <Button
+      {...dataAttrs}
       onClick={handleClick}
       intent={p.intent}
       outline={p.outline}

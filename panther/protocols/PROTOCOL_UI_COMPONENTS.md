@@ -28,6 +28,17 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
    restyle a component with ad-hoc classes to change its size.
 8. **Loading/error via `StateHolderWrapper`** — Render async data through it,
    not hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
+9. **`data-*` goes on the component, not a wrapper** — `Button`, `Card`,
+   `HeadingBar`, `CollapsibleSection`, `Select`, `ButtonGroup`,
+   `MenuTriggerWrapper` and `CopyToClipboardButton` forward `data-*` attributes
+   to their root element; put tour anchors, test hooks and other DOM markers
+   there instead of wrapping in a `<div data-*="...">`. `data-*` only — anything
+   else (`class`, `style`, `id`, event handlers) is a real prop or needs a
+   wrapper; it will NOT forward, by design. On every other component a `data-*`
+   attribute compiles but is silently dropped (TypeScript exempts hyphenated JSX
+   attribute names), so this list is the source of truth. Inside the kit, a
+   component's own attributes are always written after `{...dataAttrs}`, so they
+   win on a key collision.
 
 ## Do / Don't
 

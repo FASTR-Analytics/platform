@@ -5,6 +5,7 @@
 
 import { For, type JSX, Show } from "solid-js";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Icon } from "../icons/mod.ts";
 import type { SelectOption } from "./types.ts";
 import { getSelectClasses } from "./_internal/input_classes.ts";
@@ -24,11 +25,16 @@ type Props<T extends string> = {
   disabled?: boolean;
   size?: "sm";
   outline?: boolean;
-};
+} & DataAttrs;
 
 export function Select<T extends string>(p: Props<T>) {
+  const [dataAttrs] = splitDataAttrs(p);
   return (
-    <div class="w-[200px] data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div
+      {...dataAttrs}
+      class="w-[200px] data-[width=true]:w-full"
+      data-width={p.fullWidth}
+    >
       <Show when={p.label}>
         <label class="ui-label" data-intent={p.intent}>
           {p.label}
@@ -36,11 +42,9 @@ export function Select<T extends string>(p: Props<T>) {
       </Show>
       <div class="ui-form-text relative w-full">
         <select
-          ref={(el) =>
-            useAutoFocus(el, p.autoFocus)}
+          ref={(el) => useAutoFocus(el, p.autoFocus)}
           value={p.value ?? ""}
-          onChange={(e) =>
-            p.onChange(e.currentTarget.value as T)}
+          onChange={(e) => p.onChange(e.currentTarget.value as T)}
           class={getSelectClasses(p.size, !!p.outline, p.intent)}
           data-mono={p.mono}
           data-invalid={!!p.invalidMsg}

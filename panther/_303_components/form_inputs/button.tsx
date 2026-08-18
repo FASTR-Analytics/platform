@@ -9,6 +9,7 @@ import type {
   StateHolderFormAction,
 } from "../special_state/mod.ts";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Spinner } from "./loading_el.tsx";
 import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
@@ -111,9 +112,10 @@ type ButtonPropsLink = ButtonPropsBase & {
   autofocus?: never;
 };
 
-type ButtonProps = ButtonPropsButton | ButtonPropsLink;
+type ButtonProps = (ButtonPropsButton | ButtonPropsLink) & DataAttrs;
 
 export function Button(p: ButtonProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   const isLoading = () => p.loading || p.state?.status === "loading";
   const iconPos = () => p.iconPosition ?? "left";
 
@@ -182,6 +184,7 @@ export function Button(p: ButtonProps) {
     <Switch>
       <Match when={!p.href}>
         <button
+          {...dataAttrs}
           class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
@@ -198,6 +201,7 @@ export function Button(p: ButtonProps) {
       </Match>
       <Match when={p.href}>
         <a
+          {...dataAttrs}
           class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           href={p.href}
           id={p.id}

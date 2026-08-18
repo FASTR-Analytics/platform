@@ -5,8 +5,9 @@
 
 import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
 import { Icon } from "../icons/mod.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
-export interface CollapsibleSectionProps {
+export interface CollapsibleSectionProps extends DataAttrs {
   title: string | JSX.Element;
   isOpen?: boolean;
   defaultOpen?: boolean;
@@ -39,7 +40,8 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
     },
     p,
   );
-  const [local, others] = splitProps(merged, [
+  const [dataAttrs] = splitDataAttrs(p);
+  const [local] = splitProps(merged, [
     "title",
     "isOpen",
     "defaultOpen",
@@ -104,7 +106,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
   const headerPadding = () => (local.padding === "sm" ? "ui-pad-sm" : "ui-pad");
 
   return (
-    <div class={containerClasses()} {...others}>
+    <div {...dataAttrs} class={containerClasses()}>
       <div
         class={`${headerPadding()} flex items-center`}
         classList={{
