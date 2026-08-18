@@ -1,44 +1,46 @@
-[TBD] [user] [changed] - Results package tab now shows module parameters, output files with download buttons, and script/logs inline
-[TBD] [user] [changed] - Package picker redesigned as a dropdown selector instead of a scrollable list
-[TBD] [user] [changed] - Results package tab now accessible to more users based on instance-level permissions
-[TBD] [user] [changed] - Disk size now always shown in results package details
-[TBD] [admin] [changed] - Results package tab now shows module parameters, output files, and download buttons inline
-[TBD] [admin] [changed] - Package picker on project tab replaced with a dropdown selector
-[TBD] [admin] [changed] - Viewing package contents now requires instance-level data permission instead of project-level
-[TBD] [admin] [changed] - Viewing package logs now requires instance-level logs permission instead of project-level
-[TBD] [admin] [changed] - Disk size now always shown on package provenance line
-[TBD] [admin] [changed] - Instance catalogue and project tab now display identical package contents
-[TBD] [admin] [internal] - Package detail data is now cached locally for faster repeat viewing
-[TBD] [user] [added] - Projects can now be scoped to a single admin area
-[TBD] [user] [added] - Project cards show attached results package and pinned/follows-pin badges
-[TBD] [user] [added] - Project cards display their scoped admin area
-[TBD] [user] [changed] - Data page now shows separate Configuration cards for HMIS and HFA
-[TBD] [user] [changed] - Admin area labels setting moved from Settings tab to Data page
-[TBD] [user] [changed] - Settings tab removed from main navigation
-[TBD] [user] [changed] - GeoJSON maps now managed separately for HMIS and HFA
-[TBD] [user] [changed] - Facility and admin area counts shown together on facility cards
-[TBD] [user] [changed] - Data page cards reorganized into General, HMIS, HFA, and ICEH sections
-[TBD] [user] [changed] - DHIS2 connection settings moved to the HMIS section of the Data page
-[TBD] [user] [changed] - Project comparison table now shows attached package name per project
-[TBD] [user] [changed] - Import status by indicator view integrated into imports panel
-[TBD] [user] [changed] - Module parameter inputs now show labels directly on fields
-[TBD] [user] [changed] - Viewer panels for files, logs, and scripts use a simpler back button
-[TBD] [user] [fixed] - File downloads with special characters in names now work correctly
-[TBD] [user] [changed] - File sizes displayed with consistent formatting across the platform
-[TBD] [admin] [added] - Projects can now be scoped to a single admin area
-[TBD] [admin] [added] - Project cards show attached results package and pinned/follows-pin badges
-[TBD] [admin] [changed] - Settings tab removed; configuration moved into the Data page per registry
-[TBD] [admin] [changed] - HMIS and HFA now have separate structure configuration and GeoJSON maps
-[TBD] [admin] [changed] - Admin area labels editor is now under a General section on the Data page
-[TBD] [admin] [changed] - Facility and admin area counts shown directly on facility cards per registry
-[TBD] [admin] [changed] - DHIS2 connection settings moved into the HMIS section of the Data page
-[TBD] [admin] [changed] - Import history by-indicator view integrated into imports surface instead of separate screen
-[TBD] [admin] [changed] - Results package detail panels use standardized badge styling for status
-[TBD] [admin] [changed] - Comparison table now shows each project's attached package name
-[TBD] [admin] [changed] - Module parameter inputs now show labels inline with the control
-[TBD] [admin] [changed] - File viewer, log viewer, and script viewer panels use back-arrow navigation
-[TBD] [admin] [fixed] - File download links now handle special characters in filenames correctly
-[TBD] [admin] [internal] - Consolidated navigation list so compact and wide views stay in sync
+[1.67.0] [user] [changed] - Removed pinned badge from project list items
+[1.67.0] [admin] [changed] - Removed pinned badge from project list items
+[1.67.0] [user] [changed] - Results package tab now shows module parameters, output files with download buttons, and script/logs inline
+[1.67.0] [user] [changed] - Package picker redesigned as a dropdown selector instead of a scrollable list
+[1.67.0] [user] [changed] - Results package tab now accessible to more users based on instance-level permissions
+[1.67.0] [user] [changed] - Disk size now always shown in results package details
+[1.67.0] [admin] [changed] - Results package tab now shows module parameters, output files, and download buttons inline
+[1.67.0] [admin] [changed] - Package picker on project tab replaced with a dropdown selector
+[1.67.0] [admin] [changed] - Viewing package contents now requires instance-level data permission instead of project-level
+[1.67.0] [admin] [changed] - Viewing package logs now requires instance-level logs permission instead of project-level
+[1.67.0] [admin] [changed] - Disk size now always shown on package provenance line
+[1.67.0] [admin] [changed] - Instance catalogue and project tab now display identical package contents
+[1.67.0] [admin] [internal] - Package detail data is now cached locally for faster repeat viewing
+[1.67.0] [user] [added] - Projects can now be scoped to a single admin area
+[1.67.0] [user] [added] - Project cards show attached results package and pinned/follows-pin badges
+[1.67.0] [user] [added] - Project cards display their scoped admin area
+[1.67.0] [user] [changed] - Data page now shows separate Configuration cards for HMIS and HFA
+[1.67.0] [user] [changed] - Admin area labels setting moved from Settings tab to Data page
+[1.67.0] [user] [changed] - Settings tab removed from main navigation
+[1.67.0] [user] [changed] - GeoJSON maps now managed separately for HMIS and HFA
+[1.67.0] [user] [changed] - Facility and admin area counts shown together on facility cards
+[1.67.0] [user] [changed] - Data page cards reorganized into General, HMIS, HFA, and ICEH sections
+[1.67.0] [user] [changed] - DHIS2 connection settings moved to the HMIS section of the Data page
+[1.67.0] [user] [changed] - Project comparison table now shows attached package name per project
+[1.67.0] [user] [changed] - Import status by indicator view integrated into imports panel
+[1.67.0] [user] [changed] - Module parameter inputs now show labels directly on fields
+[1.67.0] [user] [changed] - Viewer panels for files, logs, and scripts use a simpler back button
+[1.67.0] [user] [fixed] - File downloads with special characters in names now work correctly
+[1.67.0] [user] [changed] - File sizes displayed with consistent formatting across the platform
+[1.67.0] [admin] [added] - Projects can now be scoped to a single admin area
+[1.67.0] [admin] [added] - Project cards show attached results package and pinned/follows-pin badges
+[1.67.0] [admin] [changed] - Settings tab removed; configuration moved into the Data page per registry
+[1.67.0] [admin] [changed] - HMIS and HFA now have separate structure configuration and GeoJSON maps
+[1.67.0] [admin] [changed] - Admin area labels editor is now under a General section on the Data page
+[1.67.0] [admin] [changed] - Facility and admin area counts shown directly on facility cards per registry
+[1.67.0] [admin] [changed] - DHIS2 connection settings moved into the HMIS section of the Data page
+[1.67.0] [admin] [changed] - Import history by-indicator view integrated into imports surface instead of separate screen
+[1.67.0] [admin] [changed] - Results package detail panels use standardized badge styling for status
+[1.67.0] [admin] [changed] - Comparison table now shows each project's attached package name
+[1.67.0] [admin] [changed] - Module parameter inputs now show labels inline with the control
+[1.67.0] [admin] [changed] - File viewer, log viewer, and script viewer panels use back-arrow navigation
+[1.67.0] [admin] [fixed] - File download links now handle special characters in filenames correctly
+[1.67.0] [admin] [internal] - Consolidated navigation list so compact and wide views stay in sync
 [1.66.9] [user] [fixed] - Fixed data imports occasionally freezing and never completing
 [1.66.9] [admin] [fixed] - Fixed rare hang during HMIS CSV data imports
 [1.66.9] [user] [added] - Change your email address from your profile settings
