@@ -1,3 +1,16 @@
+[TBD] [user] [changed] - Navigation icons updated for Results and Assets tabs
+[TBD] [user] [changed] - Results package list now shows project count instead of "Latest" badge
+[TBD] [user] [changed] - Package selector now supports search filtering
+[TBD] [user] [changed] - Package settings layout simplified with less explanatory text
+[TBD] [user] [changed] - Projects using a package are now highlighted with a callout
+[TBD] [user] [changed] - Results package header text is now larger
+[TBD] [admin] [changed] - Results package list now shows attached project count instead of "Latest" badge
+[TBD] [admin] [changed] - Package settings on projects simplified and reorganized for clarity
+[TBD] [admin] [changed] - Package selector upgraded to searchable dropdown
+[TBD] [admin] [changed] - "In use by" project list now displayed as a highlighted callout
+[TBD] [admin] [changed] - Navigation icons updated for Results and Assets tabs
+[TBD] [admin] [changed] - Results package header text is now larger for readability
+[TBD] [admin] [changed] - Module and metric summary line removed from package view
 [1.67.0] [user] [changed] - Removed pinned badge from project list items
 [1.67.0] [admin] [changed] - Removed pinned badge from project list items
 [1.67.0] [user] [changed] - Results package tab now shows module parameters, output files with download buttons, and script/logs inline
