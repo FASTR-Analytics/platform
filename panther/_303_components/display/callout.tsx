@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { JSX } from "solid-js";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import type { Intent } from "../types.ts";
 
 // Literal strings so the consumer app's Tailwind scan generates the classes —
@@ -47,13 +48,14 @@ type CalloutProps = {
   noBorder?: boolean;
   class?: string;
   children: JSX.Element;
-};
+} & DataAttrs;
 
 // Non-interactive by design (DOC_UI_COLOR_AND_STATE.md's wash-ban doctrine —
 // a `-subtle` wash must never be a clickable rest surface). If a callout
 // needs an action, put a real control inside it, filled with the same
 // intent — never onClick the callout itself.
 export function Callout(p: CalloutProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   const intent = () => p.intent ?? "primary";
   const skin = () => SUBTLE_CLASSES[intent()];
   const border = () => p.noBorder ? "" : `border ${BORDER_CLASSES[intent()]}`;
@@ -61,6 +63,7 @@ export function Callout(p: CalloutProps) {
 
   return (
     <div
+      {...dataAttrs}
       class={[skin(), border(), pad(), "ui-spy-sm rounded text-sm", p.class]
         .filter(Boolean)
         .join(" ")}
