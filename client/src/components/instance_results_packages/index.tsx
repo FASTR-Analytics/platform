@@ -123,9 +123,7 @@ export function InstanceResultsPackages() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div
-            class="h-full w-full"
-          >
+          <div class="h-full w-full">
             <HeadingBar
               data-tour="instance-results-packages-header"
               tonal
@@ -149,7 +147,11 @@ export function InstanceResultsPackages() {
                     pt: "Predefinições dos módulos",
                   })}
                 </Button>
-                <Button data-tour="instance-results-packages-generate" onClick={openWizard} iconName="package">
+                <Button
+                  data-tour="instance-results-packages-generate"
+                  onClick={openWizard}
+                  iconName="package"
+                >
                   {t3({
                     en: "Generate new results package",
                     fr: "Générer un nouveau paquet de résultats",
@@ -188,14 +190,8 @@ export function InstanceResultsPackages() {
                           <Show when={run.id === instanceState.pinnedRunId}>
                             <PinnedBadge />
                           </Show>
-                          <Show when={run.id === latestReadyId()}>
-                            <Badge intent="neutral">
-                              {t3({
-                                en: "Latest",
-                                fr: "Dernier",
-                                pt: "Mais recente",
-                              })}
-                            </Badge>
+                          <Show when={run.attachedProjects.length > 0}>
+                            <Badge>{run.attachedProjects.length}</Badge>
                           </Show>
                         </div>
                         <div class="ui-text-caption">

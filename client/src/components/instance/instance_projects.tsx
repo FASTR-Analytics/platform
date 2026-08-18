@@ -19,7 +19,6 @@ import { PendingDeletions } from "./pending_deletions";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectsSortMode, setProjectsSortMode } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
-import { PinnedBadge } from "~/components/_shared/results_package/status";
 
 type Props = {
   canCreateProjects: boolean;

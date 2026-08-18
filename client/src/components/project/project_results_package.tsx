@@ -1,11 +1,10 @@
 import { t3, type RunListingItem } from "lib";
 import {
   Button,
-  Card,
   Checkbox,
   FrameTop,
   HeadingBar,
-  Select,
+  SelectSearch,
   createButtonAction,
   createQuery,
   getEditorWrapper,
@@ -84,7 +83,7 @@ export function ProjectResultsPackage() {
       >
         <div class="ui-pad ui-spy">
           <Show when={canAttachPackage()}>
-            <ConfigureCard />
+            <PackageSettings />
           </Show>
 
           <Show
@@ -134,7 +133,7 @@ export function ProjectResultsPackage() {
 // cancel — so the selection is local until "Use this package" confirms it.
 // No refetch after a repoint: `run_attached` moves `attachedRunId` and the
 // candidate resets to it.
-function ConfigureCard() {
+function PackageSettings() {
   const options = createQuery(() =>
     serverActions.listAttachableResultsPackages({ projectId: projectState.id }),
   );
@@ -144,7 +143,7 @@ function ConfigureCard() {
   };
   const runLabel = (id: string): string =>
     readyRuns().find((r) => r.id === id)?.label ??
-      (projectState.attachedRun?.id === id ? projectState.attachedRun.label : id);
+    (projectState.attachedRun?.id === id ? projectState.attachedRun.label : id);
 
   const selectOptions = createMemo((): SelectOption<string>[] => {
     const runs = readyRuns();
@@ -158,7 +157,11 @@ function ConfigureCard() {
       label: [
         r.label,
         r.id === projectState.attachedRunId
-          ? t3({ en: "in use", fr: "en cours d'utilisation", pt: "em utilização" })
+          ? t3({
+              en: "in use",
+              fr: "en cours d'utilisation",
+              pt: "em utilização",
+            })
           : undefined,
         r.id === instanceState.pinnedRunId
           ? t3({ en: "pinned", fr: "épinglé", pt: "fixado" })
@@ -170,7 +173,12 @@ function ConfigureCard() {
   });
 
   const [candidate, setCandidate] = createSignal<string | undefined>(undefined);
-  createEffect(on(() => projectState.attachedRunId, () => setCandidate(undefined)));
+  createEffect(
+    on(
+      () => projectState.attachedRunId,
+      () => setCandidate(undefined),
+    ),
+  );
   const selectedId = (): string | undefined =>
     candidate() ?? projectState.attachedRunId ?? undefined;
   const isDifferent = () =>
@@ -227,132 +235,82 @@ function ConfigureCard() {
   const locked = () => projectState.isLocked;
 
   return (
-    <Card
-      header={t3({
-        en: "Package settings",
-        fr: "Paramètres du paquet",
-        pt: "Definições do pacote",
-      })}
-    >
-      <div class="ui-spy">
-        <div class="ui-spy-sm" data-tour="results-package-picker">
-          <div class="ui-gap flex items-end">
-            <Select<string>
-              label={t3({
-                en: "Results package in use",
-                fr: "Paquet de résultats utilisé",
-                pt: "Pacote de resultados em utilização",
+    <div class="ui-spy">
+      <Show when={String(checkboxKey())} keyed>
+        {(_key) => (
+          <Checkbox
+            checked={projectState.followPinned}
+            onChange={(v) => setFollowPinned.click(v)}
+            disabled={locked() || setFollowPinned.state().status === "loading"}
+            label={t3({
+              en: "Always use the instance's pinned package",
+              fr: "Toujours utiliser le paquet épinglé de l'instance",
+              pt: "Usar sempre o pacote fixado da instância",
+            })}
+          />
+        )}
+      </Show>
+      <Show when={behindPin() && instanceState.pinnedRunId} keyed>
+        {(pinnedRunId) => (
+          <div class="ui-gap flex items-center">
+            <div class="text-warning flex-1 text-sm">
+              {t3({
+                en: "This project follows the pinned package but is currently on a different one.",
+                fr: "Ce projet suit le paquet épinglé mais se trouve actuellement sur un autre paquet.",
+                pt: "Este projeto segue o pacote fixado, mas está atualmente noutro pacote.",
               })}
-              value={selectedId()}
-              options={selectOptions()}
-              onChange={setCandidate}
-              disabled={options.state().status !== "ready" || locked()}
-              fullWidth
-              placeholder={t3({
-                en: "No package attached",
-                fr: "Aucun paquet rattaché",
-                pt: "Nenhum pacote anexado",
-              })}
-            />
+            </div>
             <Button
+              size="sm"
+              outline
               iconName="package"
-              onClick={() => attachPackage.click(selectedId() ?? "")}
+              onClick={() => attachPackage.click(pinnedRunId)}
               state={attachPackage.state()}
-              disabled={!isDifferent() || locked()}
+              disabled={locked()}
             >
               {t3({
-                en: "Use this package",
-                fr: "Utiliser ce paquet",
-                pt: "Usar este pacote",
+                en: "Switch to pinned package",
+                fr: "Basculer vers le paquet épinglé",
+                pt: "Mudar para o pacote fixado",
               })}
             </Button>
           </div>
-          <div class="text-base-content-muted text-sm">
-            {t3({
-              en: "Switching changes the data behind every visualization, report and slide deck in this project. You will see what would stop resolving before anything changes.",
-              fr: "Changer modifie les données derrière chaque visualisation, rapport et présentation de ce projet. Vous verrez ce qui cesserait de se résoudre avant toute modification.",
-              pt: "Mudar altera os dados por trás de cada visualização, relatório e apresentação deste projeto. Verá o que deixaria de se resolver antes de qualquer alteração.",
+        )}
+      </Show>
+      <Show when={!projectState.followPinned}>
+        <div class="ui-gap flex items-end" data-tour="results-package-picker">
+          <SelectSearch<string>
+            label={t3({
+              en: "Results package in use",
+              fr: "Paquet de résultats utilisé",
+              pt: "Pacote de resultados em utilização",
             })}
-          </div>
-        </div>
-
-        <div class="ui-spy-sm">
-          <Show when={String(checkboxKey())} keyed>
-            {(_key) => (
-              <Checkbox
-                checked={projectState.followPinned}
-                onChange={(v) => setFollowPinned.click(v)}
-                disabled={locked() || setFollowPinned.state().status === "loading"}
-                label={t3({
-                  en: "Always use the instance's pinned package",
-                  fr: "Toujours utiliser le paquet épinglé de l'instance",
-                  pt: "Usar sempre o pacote fixado da instância",
-                })}
-              />
-            )}
-          </Show>
-          <div class="text-base-content-muted text-sm">
-            <Show
-              when={instanceState.pinnedRunId}
-              keyed
-              fallback={t3({
-                en: "No package is pinned on this instance yet; the project will switch to one as soon as an administrator pins it.",
-                fr: "Aucun paquet n'est encore épinglé sur cette instance ; le projet y basculera dès qu'un administrateur en épinglera un.",
-                pt: "Ainda não há nenhum pacote fixado nesta instância; o projeto mudará para um assim que um administrador o fixar.",
-              })}
-            >
-              {(pinnedRunId) => (
-                <>
-                  {t3({
-                    en: "Pinned package:",
-                    fr: "Paquet épinglé :",
-                    pt: "Pacote fixado:",
-                  })}{" "}
-                  {runLabel(pinnedRunId)}.{" "}
-                  {t3({
-                    en: "Whenever an administrator pins a different package, this project switches to it.",
-                    fr: "Chaque fois qu'un administrateur épingle un autre paquet, ce projet y bascule.",
-                    pt: "Sempre que um administrador fixar outro pacote, este projeto muda para ele.",
-                  })}
-                </>
-              )}
-            </Show>{" "}
-            {t3({
-              en: "Choosing another package above turns this off.",
-              fr: "Choisir un autre paquet ci-dessus désactive cette option.",
-              pt: "Escolher outro pacote acima desativa esta opção.",
+            value={selectedId()}
+            options={selectOptions()}
+            onChange={setCandidate}
+            disabled={options.state().status !== "ready" || locked()}
+            fullWidth
+            placeholder={t3({
+              en: "No package attached",
+              fr: "Aucun paquet rattaché",
+              pt: "Nenhum pacote anexado",
             })}
-          </div>
-          <Show when={behindPin() && instanceState.pinnedRunId} keyed>
-            {(pinnedRunId) => (
-              <div class="ui-gap flex items-center">
-                <div class="text-warning flex-1 text-sm">
-                  {t3({
-                    en: "This project follows the pinned package but is currently on a different one.",
-                    fr: "Ce projet suit le paquet épinglé mais se trouve actuellement sur un autre paquet.",
-                    pt: "Este projeto segue o pacote fixado, mas está atualmente noutro pacote.",
-                  })}
-                </div>
-                <Button
-                  size="sm"
-                  outline
-                  iconName="package"
-                  onClick={() => attachPackage.click(pinnedRunId)}
-                  state={attachPackage.state()}
-                  disabled={locked()}
-                >
-                  {t3({
-                    en: "Switch to pinned package",
-                    fr: "Basculer vers le paquet épinglé",
-                    pt: "Mudar para o pacote fixado",
-                  })}
-                </Button>
-              </div>
-            )}
-          </Show>
+          />
+          <Button
+            iconName="package"
+            onClick={() => attachPackage.click(selectedId() ?? "")}
+            state={attachPackage.state()}
+            disabled={!isDifferent() || locked()}
+          >
+            {t3({
+              en: "Use this package",
+              fr: "Utiliser ce paquet",
+              pt: "Usar este pacote",
+            })}
+          </Button>
         </div>
-      </div>
-    </Card>
+      </Show>
+    </div>
   );
 }
 

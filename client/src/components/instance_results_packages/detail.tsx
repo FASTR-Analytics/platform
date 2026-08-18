@@ -8,6 +8,7 @@ import {
 } from "lib";
 import {
   Button,
+  Callout,
   createButtonAction,
   createDeleteAction,
   getEditorWrapper,
@@ -205,7 +206,11 @@ export function RunCatalogDetailPane(p: {
         );
       }
       await openAlert({
-        title: t3({ en: "Package pinned", fr: "Paquet épinglé", pt: "Pacote fixado" }),
+        title: t3({
+          en: "Package pinned",
+          fr: "Paquet épinglé",
+          pt: "Pacote fixado",
+        }),
         text: (
           <div class="ui-spy-sm">
             <For each={lines}>{(line) => <div>{line}</div>}</For>
@@ -275,20 +280,28 @@ export function RunCatalogDetailPane(p: {
   );
 
   const usageLine = (
-    <div class="ui-text-caption" data-tour="instance-results-packages-usage">
-      <Show
-        when={p.run.attachedProjects.length > 0}
-        fallback={t3({
-          en: "Not attached to any project",
-          fr: "Rattaché à aucun projet",
-          pt: "Não anexado a nenhum projeto",
-        })}
-      >
-        {`${t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}: ${p.run.attachedProjects
-          .map((project) => project.label)
-          .join(", ")}`}
-      </Show>
-    </div>
+    <Show
+      when={p.run.attachedProjects.length > 0}
+      fallback={
+        <div
+          class="ui-text-caption"
+          data-tour="instance-results-packages-usage"
+        >
+          {t3({
+            en: "Not attached to any project",
+            fr: "Rattaché à aucun projet",
+            pt: "Não anexado a nenhum projeto",
+          })}
+        </div>
+      }
+    >
+      <Callout data-tour="instance-results-packages-usage" noBorder>
+        <span class="font-700">
+          {t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}:
+        </span>{" "}
+        {p.run.attachedProjects.map((project) => project.label).join(", ")}
+      </Callout>
+    </Show>
   );
 
   return (
@@ -325,7 +338,9 @@ export function RunCatalogDetailPane(p: {
                       {(moduleId) => (
                         <ModuleProgressChip
                           label={moduleLabel(moduleId)}
-                          status={keyedProgress.moduleStatus[moduleId] ?? "pending"}
+                          status={
+                            keyedProgress.moduleStatus[moduleId] ?? "pending"
+                          }
                         />
                       )}
                     </For>
@@ -342,7 +357,9 @@ export function RunCatalogDetailPane(p: {
             </Match>
             <Match when={p.run.status === "failed"}>
               <div class="ui-spy-sm">
-                <FailedErrorDetail errorDetail={progress()?.errorDetail ?? null} />
+                <FailedErrorDetail
+                  errorDetail={progress()?.errorDetail ?? null}
+                />
                 {/* The module list comes from the stored progress, and viewers are
                     offered only for modules that started — a pending module never
                     got a workspace. A crash/pipeline failure publishes the partial

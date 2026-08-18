@@ -1,37 +1,19 @@
 # Plan: Results Runs — close-out
 
-**Status 2026-08-17: the fleet rollout is COMPLETE.** All 29 production
-instances (28 countries + demo/demo-fr; Nigeria last, 2026-08-17) are on
-1.66.8, backfilled, and rig-adjudicated PARITY GREEN (ethiopia RED-adjudicated
-by ruling — its single diff was the GROUP BY/PAE collision, fixed in 1.66.7).
-Only forward-looking work remains below. The build record, rollout-day
-rulings, rig-outcome taxonomy and the Nigeria procedure live in this file's
-git history (2026-08-03 → 2026-08-17 versions). Durable rulings live in
-[SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) (format spec,
-standing rules) and [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md);
-the rig outcome contract is the header of `validate_results_runs_parity.ts`.
+**Status 2026-08-18:** rollout COMPLETE. All 29 production instances are on
+1.67.0 (deployed from main), backfilled, rig-adjudicated PARITY GREEN, and
+wb-fastr-modules is pushed (`a1ffca1`; rollback target `3e2fa62`). The build
+record, rollout rulings and Nigeria procedure live in this file's git history
+(2026-08-03 → 2026-08-17). Durable rulings live in
+[SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) and
+[SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md); the rig outcome
+contract is the header of `validate_results_runs_parity.ts`.
 
-## Step 3 — close-out sequence
+## Now: settling period
 
-1. **wb-fastr-modules push.** Held until now because Nigeria on 1.65.0
-   resolved the modules repo's default branch at project creation
-   (`fetchModuleFiles` pins no gitRef there). Precondition met — the whole
-   fleet is on 1.66.8. Before pushing, record the revert target: the last
-   pushed commit is **`babd30d`** ("hfa carry-forward"; repo has no tags,
-   the batch will bury it). The push = the parked `e758c69` batch AND the
-   **m004/m005 duplicate-output rename** (both emit
-   `M4_selected_denominator_per_indicator.csv` with different content; each
-   plane arbitrated the collision differently — rename one output). Treat
-   the push as provisional until confirmed at prod.
-2. **tim-branch → main landing** — a pure fast-forward as of 2026-08-17
-   (main merged into tim-branch, `d9513e51`; typecheck + protocol gates
-   green). The next deploy from main is a real release: it runs instance
-   migrations 075–077 fleet-wide, bumps PO cache 14→16 (+ `po_detail_v8`,
-   cold viz caches on first load), and transforms manifests 4→5. Ship via
-   `./deploy_testing` first.
-3. **Settling period** on the full fleet before anything irreversible.
+Full fleet on 1.67.0 + modules HEAD. Nothing irreversible until settled.
 
-## Phase 4 — demolition + docs (after Step 3 + settling)
+## Phase 4 — demolition + docs (after settling)
 
 **Run an adversarial review panel before the irreversible part.** The parity
 rig proves query equivalence; it does NOT cover migration data-loss, dropped

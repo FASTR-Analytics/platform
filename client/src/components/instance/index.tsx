@@ -63,7 +63,11 @@ function canConfigureData(): boolean {
 
 // One gated, ordered list; the compact (icon-only) nav is a projection of it
 // so order and permission gates cannot drift between the two widths.
-function wideNavItems(): { id: InstanceTab; label: string; iconName: IconName }[] {
+function wideNavItems(): {
+  id: InstanceTab;
+  label: string;
+  iconName: IconName;
+}[] {
   const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
     {
       id: "projects",
@@ -90,13 +94,13 @@ function wideNavItems(): { id: InstanceTab; label: string; iconName: IconName }[
         fr: "Résultats",
         pt: "Resultados",
       }),
-      iconName: "chart",
+      iconName: "package",
     });
   }
   items.push({
     id: "assets",
     label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
-    iconName: "package",
+    iconName: "paperclip",
   });
   if (
     instanceState.currentUserIsGlobalAdmin ||
@@ -230,9 +234,7 @@ export default function Instance(p: Props) {
                   </div>
                 </div>
                 <Show when={instanceState.currentUserApproved}>
-                  <div
-                    class="flex flex-1 justify-center xl:hidden"
-                  >
+                  <div class="flex flex-1 justify-center xl:hidden">
                     <ButtonGroup
                       data-tour="instance-nav"
                       value={tab()}
@@ -241,9 +243,7 @@ export default function Instance(p: Props) {
                       itemWidth="50px"
                     />
                   </div>
-                  <div
-                    class="hidden flex-1 justify-center xl:flex"
-                  >
+                  <div class="hidden flex-1 justify-center xl:flex">
                     <ButtonGroup
                       data-tour="instance-nav"
                       value={tab()}

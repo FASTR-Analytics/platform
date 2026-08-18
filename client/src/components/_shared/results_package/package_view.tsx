@@ -66,29 +66,20 @@ export function ResultsPackageView(p: {
 
   return (
     <div class="ui-spy">
-      <div class="ui-gap flex items-center">
-        <div class="font-700 flex-1 truncate">{p.run.label}</div>
-        <Show when={p.run.id === instanceState.pinnedRunId}>
-          <PinnedBadge />
-        </Show>
-        <RunStatusBadge status={p.run.status} />
-        {p.headerActions}
+      <div class="ui-spy-sm">
+        <div class="ui-gap flex items-center">
+          <div class="font-700 flex-1 truncate text-lg">{p.run.label}</div>
+          <Show when={p.run.id === instanceState.pinnedRunId}>
+            <PinnedBadge />
+          </Show>
+          <RunStatusBadge status={p.run.status} />
+          {p.headerActions}
+        </div>
+
+        <ResultsPackageProvenanceLine run={p.run} />
       </div>
 
-      <ResultsPackageProvenanceLine run={p.run} />
-
       {p.headerNote}
-
-      <Show when={p.run.summary} keyed>
-        {(summary) => (
-          <div class="text-base-content-muted text-sm">
-            {summary.moduleIds.length}{" "}
-            {t3({ en: "modules", fr: "modules", pt: "módulos" })} ·{" "}
-            {summary.metricCount}{" "}
-            {t3({ en: "metrics", fr: "métriques", pt: "métricas" })}
-          </div>
-        )}
-      </Show>
 
       <ReadyModulesSection run={p.run} openViewer={openViewer} />
     </div>
@@ -98,7 +89,10 @@ export function ResultsPackageView(p: {
 type Viewer = typeof ViewScript | typeof ViewLogs;
 type OpenViewer = (element: Viewer, moduleId: string) => void;
 
-function ReadyModulesSection(p: { run: RunListingItem; openViewer: OpenViewer }) {
+function ReadyModulesSection(p: {
+  run: RunListingItem;
+  openViewer: OpenViewer;
+}) {
   // T2, immutable-by-identity (`state/instance/t2_runs.ts`): the run dir
   // never changes, so a revisit is a memory/IndexedDB hit. Hosts remount this
   // view keyed on the run, so each mount resolves once; the counter is the
@@ -140,7 +134,10 @@ function ReadyModulesSection(p: { run: RunListingItem; openViewer: OpenViewer })
               {(moduleId) => (
                 <div class="ui-gap-sm flex items-center text-sm">
                   <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <ViewerButtons moduleId={moduleId} openViewer={p.openViewer} />
+                  <ViewerButtons
+                    moduleId={moduleId}
+                    openViewer={p.openViewer}
+                  />
                 </div>
               )}
             </For>
@@ -205,7 +202,10 @@ function ModuleCard(p: {
       header={moduleLabel(p.module.moduleId)}
       headerRight={
         <div class="ui-gap-sm flex items-center">
-          <ViewerButtons moduleId={p.module.moduleId} openViewer={p.openViewer} />
+          <ViewerButtons
+            moduleId={p.module.moduleId}
+            openViewer={p.openViewer}
+          />
         </div>
       }
       footer={
@@ -213,7 +213,11 @@ function ModuleCard(p: {
           when={p.module.files.length > 0}
           fallback={
             <div class="text-base-content-muted text-sm">
-              {t3({ en: "No files", fr: "Aucun fichier", pt: "Nenhum ficheiro" })}
+              {t3({
+                en: "No files",
+                fr: "Aucun fichier",
+                pt: "Nenhum ficheiro",
+              })}
             </div>
           }
         >
@@ -236,7 +240,11 @@ function ModuleCard(p: {
                     )}
                     download={file.name}
                   >
-                    {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
+                    {t3({
+                      en: "Download",
+                      fr: "Télécharger",
+                      pt: "Transferir",
+                    })}
                   </Button>
                 </div>
               )}
@@ -282,11 +290,11 @@ export function FailedErrorDetail(p: { errorDetail: string | null }) {
   const [expanded, setExpanded] = createSignal(false);
   const detail = () =>
     p.errorDetail ??
-      t3({
-        en: "Generation failed",
-        fr: "Échec de la génération",
-        pt: "Falha na geração",
-      });
+    t3({
+      en: "Generation failed",
+      fr: "Échec de la génération",
+      pt: "Falha na geração",
+    });
   const isLong = () => detail().length > ERROR_CLAMP_CHARS;
   return (
     <div class="ui-spy-sm text-danger text-sm">
@@ -321,10 +329,10 @@ export function ResultsPackageProvenanceLine(p: { run: RunListingItem }) {
       {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
       {p.run.provenance === "synthetic-backfill"
         ? ` · ${t3({
-          en: "created from existing project results",
-          fr: "créé à partir des résultats existants du projet",
-          pt: "criado a partir dos resultados existentes do projeto",
-        })}`
+            en: "created from existing project results",
+            fr: "créé à partir des résultats existants du projet",
+            pt: "criado a partir dos resultados existentes do projeto",
+          })}`
         : ""}
       {p.run.summary?.diskSizeBytes != null
         ? ` · ${formatFileSize(p.run.summary.diskSizeBytes, 1)}`
