@@ -1,4 +1,4 @@
-import { createSignal, type Accessor } from "solid-js";
+import { createSignal, onMount, type Accessor } from "solid-js";
 import { t3, TC } from "lib";
 import {
   Button,
@@ -8,7 +8,9 @@ import {
   Input,
   RadioGroup,
   Select,
+  type StateHolder,
   StateHolderFormError,
+  StateHolderWrapper,
   getSelectOptions,
   openAlert,
   pickFileAsArrayBuffer,
@@ -24,8 +26,47 @@ import {
   type WorkbookShape,
 } from "./_xlsx_workbook";
 
+export type HfaWorkbookSource = { kind: "pick" } | { kind: "default" };
+
+const DEFAULT_INDICATORS_XLSX_URL =
+  "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/hfa_default_indicators.xlsx";
+
+async function fetchDefaultWorkbookShape(): Promise<StateHolder<WorkbookShape>> {
+  let buf: ArrayBuffer;
+  try {
+    const res = await fetch(`${DEFAULT_INDICATORS_XLSX_URL}?t=${Date.now()}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return {
+        status: "error",
+        err: t3({
+          en: `Could not fetch the default indicators from GitHub (${res.status} ${res.statusText}).`,
+          fr: `Impossible de récupérer les indicateurs par défaut depuis GitHub (${res.status} ${res.statusText}).`,
+          pt: `Não foi possível obter os indicadores predefinidos do GitHub (${res.status} ${res.statusText}).`,
+        }),
+      };
+    }
+    buf = await res.arrayBuffer();
+  } catch (e) {
+    return {
+      status: "error",
+      err: t3({
+        en: `Could not fetch the default indicators from GitHub: ${e instanceof Error ? e.message : String(e)}`,
+        fr: `Impossible de récupérer les indicateurs par défaut depuis GitHub : ${e instanceof Error ? e.message : String(e)}`,
+        pt: `Não foi possível obter os indicadores predefinidos do GitHub: ${e instanceof Error ? e.message : String(e)}`,
+      }),
+    };
+  }
+  const detected = detectHfaWorkbookShape(buf);
+  return detected.ok
+    ? { status: "ready", data: detected.shape }
+    : { status: "error", err: detected.err };
+}
+
 type Props = EditorComponentProps<
   {
+    source: HfaWorkbookSource;
     timePoints: string[];
     surveyVarNames: string[];
     showAi: Accessor<boolean>;
@@ -36,8 +77,7 @@ type Props = EditorComponentProps<
 
 type Step =
   | { name: "pick" }
-  | { name: "reconcile"; shape: WorkbookShape; buf: ArrayBuffer }
-  | { name: "done" };
+  | { name: "reconcile"; shape: WorkbookShape };
 
 export function HfaIndicatorsXlsxUploadForm(p: Props) {
   const [uploadMode, setUploadMode] = createSignal<"replace" | "add">("add");
@@ -53,7 +93,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
       return;
     }
     setParseErr(null);
-    setStep({ name: "reconcile", shape: detected.shape, buf });
+    setStep({ name: "reconcile", shape: detected.shape });
   }
 
   const [parseErr, setParseErr] = createSignal<string | null>(null);
@@ -63,11 +103,19 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
       panelChildren={
         <HeadingBar
           tonal
-          heading={t3({
-            en: "Import HFA Indicators from Excel",
-            fr: "Importer des indicateurs HFA depuis Excel",
-            pt: "Importar indicadores HFA a partir do Excel",
-          })}
+          heading={
+            p.source.kind === "default"
+              ? t3({
+                  en: "Import default HFA indicators",
+                  fr: "Importer les indicateurs HFA par défaut",
+                  pt: "Importar indicadores HFA predefinidos",
+                })
+              : t3({
+                  en: "Import HFA Indicators from Excel",
+                  fr: "Importer des indicateurs HFA depuis Excel",
+                  pt: "Importar indicadores HFA a partir do Excel",
+                })
+          }
           onBack={() => p.close(undefined)}
         >
           <Show when={!p.showAi()}>
@@ -80,7 +128,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
     >
       <div class="ui-pad ui-spy max-w-3xl">
         <Switch>
-          <Match when={step().name === "pick"}>
+          <Match when={step().name === "pick" && p.source.kind === "pick"}>
             <PickStep
               uploadMode={uploadMode()}
               onUploadModeChange={setUploadMode}
@@ -89,17 +137,23 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
               onCancel={() => p.close(undefined)}
             />
           </Match>
+          <Match when={step().name === "pick" && p.source.kind === "default"}>
+            <DefaultStep
+              uploadMode={uploadMode()}
+              onUploadModeChange={setUploadMode}
+              onContinue={(shape) => setStep({ name: "reconcile", shape })}
+              onCancel={() => p.close(undefined)}
+            />
+          </Match>
           <Match when={step().name === "reconcile"}>
             {(_) => {
               const s = step() as {
                 name: "reconcile";
                 shape: WorkbookShape;
-                buf: ArrayBuffer;
               };
               return (
                 <ReconcileStep
                   shape={s.shape}
-                  buf={s.buf}
                   uploadMode={uploadMode()}
                   timePoints={p.timePoints}
                   surveyVarNames={p.surveyVarNames}
@@ -115,7 +169,89 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   );
 }
 
-// ─── Step 1: pick file ────────────────────────────────────────────────────────
+// ─── Step 1: choose source + import mode ──────────────────────────────────────
+
+function ImportModeRadio(p: {
+  uploadMode: "replace" | "add";
+  onUploadModeChange: (v: "replace" | "add") => void;
+}) {
+  return (
+    <RadioGroup
+      label={t3({ en: "Import Mode", fr: "Mode d'importation", pt: "Modo de importação" })}
+      options={[
+        {
+          value: "add",
+          label: t3({ en: "Add to existing", fr: "Ajouter aux existants", pt: "Adicionar aos existentes" }),
+        },
+        {
+          value: "replace",
+          label: t3({
+            en: "Replace all existing",
+            fr: "Remplacer tous les existants",
+            pt: "Substituir todos os existentes",
+          }),
+        },
+      ]}
+      value={p.uploadMode}
+      onChange={(val) => p.onUploadModeChange(val as "replace" | "add")}
+    />
+  );
+}
+
+function DefaultStep(p: {
+  uploadMode: "replace" | "add";
+  onUploadModeChange: (v: "replace" | "add") => void;
+  onContinue: (shape: WorkbookShape) => void;
+  onCancel: () => void;
+}) {
+  const loadingState = (): StateHolder<WorkbookShape> => ({
+    status: "loading",
+    msg: t3({
+      en: "Fetching the default indicators from GitHub...",
+      fr: "Récupération des indicateurs par défaut depuis GitHub...",
+      pt: "A obter os indicadores predefinidos do GitHub...",
+    }),
+  });
+  const [workbook, setWorkbook] = createSignal<StateHolder<WorkbookShape>>(loadingState());
+  async function load() {
+    setWorkbook(loadingState());
+    setWorkbook(await fetchDefaultWorkbookShape());
+  }
+  onMount(load);
+
+  return (
+    <StateHolderWrapper
+      state={workbook()}
+      noPad
+      onErrorButton={{ label: t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" }), onClick: load }}
+      onErrorSecondaryButton={{ label: t3(TC.cancel), onClick: p.onCancel }}
+    >
+      {(shape) => (
+        <>
+          <div class="text-sm">
+            {t3({
+              en: `The default FASTR HFA indicator set was fetched from the FASTR resource hub on GitHub: ${shape.indicators.length} indicator(s) in ${shape.categories.length} category(ies).`,
+              fr: `L'ensemble d'indicateurs HFA FASTR par défaut a été récupéré depuis le hub de ressources FASTR sur GitHub : ${shape.indicators.length} indicateur(s) dans ${shape.categories.length} catégorie(s).`,
+              pt: `O conjunto predefinido de indicadores HFA FASTR foi obtido do hub de recursos FASTR no GitHub: ${shape.indicators.length} indicador(es) em ${shape.categories.length} categoria(s).`,
+            })}
+          </div>
+          <ImportModeRadio
+            uploadMode={p.uploadMode}
+            onUploadModeChange={p.onUploadModeChange}
+          />
+          <div class="ui-gap-sm flex">
+            <Button onClick={() => p.onContinue(shape)} iconName="chevronRight">
+              {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
+            </Button>
+            <Button onClick={p.onCancel} intent="neutral">
+              {t3(TC.cancel)}
+            </Button>
+          </div>
+        </>
+      )}
+    </StateHolderWrapper>
+  );
+}
 
 function PickStep(p: {
   uploadMode: "replace" | "add";
@@ -157,24 +293,9 @@ function PickStep(p: {
           </li>
         </ul>
       </div>
-      <RadioGroup
-        label={t3({ en: "Import Mode", fr: "Mode d'importation", pt: "Modo de importação" })}
-        options={[
-          {
-            value: "add",
-            label: t3({ en: "Add to existing", fr: "Ajouter aux existants", pt: "Adicionar aos existentes" }),
-          },
-          {
-            value: "replace",
-            label: t3({
-              en: "Replace all existing",
-              fr: "Remplacer tous les existants",
-              pt: "Substituir todos os existentes",
-            }),
-          },
-        ]}
-        value={p.uploadMode}
-        onChange={(val) => p.onUploadModeChange(val as "replace" | "add")}
+      <ImportModeRadio
+        uploadMode={p.uploadMode}
+        onUploadModeChange={p.onUploadModeChange}
       />
       <Show when={p.parseErr}>
         <div class="text-danger text-sm">{p.parseErr}</div>
@@ -218,7 +339,6 @@ function buildDefaultMapping(
 
 function ReconcileStep(p: {
   shape: WorkbookShape;
-  buf: ArrayBuffer;
   uploadMode: "replace" | "add";
   timePoints: string[]; // platform time points in sort order
   surveyVarNames: string[];

@@ -267,6 +267,21 @@ maintained by jsonb rewrites in the service-category mutations).
 `lib/hfa_indicator_labels.ts` is the single label source
 (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
+**HFA workbook import** (`hfa_indicators_xlsx_upload_form.tsx`) has two
+sources behind one flow: a picked `.xlsx`, or the **default indicator set**
+fetched client-side from the FASTR resource hub
+(`fastr-resource-hub/hfa_default_indicators.xlsx`, raw GitHub, cache-busted
+like the prompt library). Both parse in the browser
+(`detectHfaWorkbookShape`), then share the add/replace choice, the
+time-point reconcile step and `importHfaIndicatorsWorkbook`. Because
+`hfa_indicator_code.time_point` FKs `hfa_time_points`, code cannot be
+stored before at least one time point exists — so both import buttons are
+gated on time points (not on imported data; a data-less time point is
+fine, validation just reports missing survey variables until data lands),
+and later time points inherit the code via the create-time carry-forward.
+The default file is single-column positional (`r_code_1`), so with N time
+points the reconcile step offers apply-to-all / apply-to-one.
+
 **HFA variant groups** (2026-08-04) let one indicator carry a per-item
 response-option breakdown — "provides vaccination" × {campaign, routine,
 both} — without the items becoming indicators. Storage is one indicator row

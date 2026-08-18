@@ -38,7 +38,10 @@ import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
-import { HfaIndicatorsXlsxUploadForm } from "./hfa_indicators_xlsx_upload_form";
+import {
+  HfaIndicatorsXlsxUploadForm,
+  type HfaWorkbookSource,
+} from "./hfa_indicators_xlsx_upload_form";
 import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
 import { HfaVariantGroupsManager } from "./hfa_variant_groups_manager";
@@ -237,9 +240,9 @@ export function HfaIndicatorsManager(p: Props) {
 
   const noHfaDataMsg = () =>
     t3({
-      en: "No HFA data has been imported yet. Import HFA data to enable code editing and validation.",
-      fr: "Aucune donnée HFA n'a encore été importée. Importez des données HFA pour activer l'édition du code et la validation.",
-      pt: "Ainda não foram importados dados HFA. Importe dados HFA para ativar a edição e a validação do código.",
+      en: "No HFA time points have been defined yet. Add a time point (HFA → Time points) to enable code editing, validation, and import.",
+      fr: "Aucun point temporel HFA n'a encore été défini. Ajoutez un point temporel (Enquêtes FOSA → Points temporels) pour activer l'édition du code, la validation et l'importation.",
+      pt: "Ainda não foram definidos pontos temporais HFA. Adicione um ponto temporal (HFA → Pontos temporais) para ativar a edição do código, a validação e a importação.",
     });
 
   const surveyVarNames = createMemo(() => {
@@ -659,12 +662,18 @@ export function HfaIndicatorsManager(p: Props) {
     saveAs(blob, "hfa_indicators.xlsx");
   }
 
-  async function handleXlsxUpload() {
+  async function handleWorkbookImport(source: HfaWorkbookSource) {
     const timePoints = sortedTimePointLabels();
     if (timePoints === undefined) return;
     await openEditor({
       element: HfaIndicatorsXlsxUploadForm,
-      props: { timePoints, surveyVarNames: surveyVarNames(), showAi, openAi },
+      props: {
+        source,
+        timePoints,
+        surveyVarNames: surveyVarNames(),
+        showAi,
+        openAi,
+      },
     });
   }
 
@@ -1082,11 +1091,23 @@ export function HfaIndicatorsManager(p: Props) {
                           </Button>
                           <Button
                             iconName="upload"
-                            onClick={handleXlsxUpload}
+                            onClick={() => handleWorkbookImport({ kind: "pick" })}
                             disabled={!hfaDataAvailable()}
                             outline
                           >
                             {t3({ en: "Import Excel", fr: "Importer Excel", pt: "Importar Excel" })}
+                          </Button>
+                          <Button
+                            iconName="import"
+                            onClick={() => handleWorkbookImport({ kind: "default" })}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Import default indicators",
+                              fr: "Importer les indicateurs par défaut",
+                              pt: "Importar indicadores predefinidos",
+                            })}
                           </Button>
                         </div>
                         <Button
