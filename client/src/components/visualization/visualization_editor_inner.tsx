@@ -108,6 +108,19 @@ import {
   type ProjectAIViewState,
 } from "../project_ai/ai_views";
 
+// Input types with no native undo — they must not swallow the editor's Ctrl+Z.
+const NON_TEXT_INPUT_TYPES = new Set([
+  "radio",
+  "checkbox",
+  "button",
+  "submit",
+  "reset",
+  "range",
+  "color",
+  "file",
+  "image",
+]);
+
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
   projectStateSnapshot: ProjectState;
@@ -458,9 +471,18 @@ export function VisualizationEditorInner(p: InnerProps) {
     const scope = pointerScope();
     if (!aw || !scope) return out;
     const presencePeers = otherPeers();
+    const selfEmail = (aw.getLocalState()?.user as { email?: string } | undefined)
+      ?.email;
+    // One avatar per PERSON per tab, keyed on the awareness identity: a user
+    // with two tabs on this visualization holds two awareness states, and their
+    // own tabs must not show up as peers at all (same rule as the live-cursor
+    // overlay and otherPeers()).
+    const seen = new Set<string>();
     for (const [clientID, state] of aw.getStates()) {
       if (clientID === aw.clientID) continue;
-      const user = state.user as { name?: string; color?: string } | undefined;
+      const user = state.user as
+        | { name?: string; color?: string; email?: string }
+        | undefined;
       const vizTab = state.vizTab as
         | { scope: string; tab: "data" | "style" | "text" }
         | null
@@ -468,14 +490,18 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (!user?.name || !user.color || !vizTab || vizTab.scope !== scope) {
         continue;
       }
-      // Enrich with the presence entry's avatar image when we can match one
-      // (awareness carries only name/color); falls back to initials.
-      const match = presencePeers.find(
-        (pe) => pe.name === user.name && pe.color === user.color,
+      if (selfEmail !== undefined && user.email === selfEmail) continue;
+      const personKey = `${vizTab.tab}::${user.email ?? user.name}`;
+      if (seen.has(personKey)) continue;
+      seen.add(personKey);
+      // Enrich with the presence entry's avatar image (awareness carries no
+      // avatar URL); falls back to initials.
+      const match = presencePeers.find((pe) =>
+        user.email ? pe.email === user.email : pe.name === user.name
       );
       out[vizTab.tab].push({
         connectionId: String(clientID),
-        email: match?.email ?? "",
+        email: user.email ?? match?.email ?? "",
         name: user.name,
         color: user.color,
         avatarUrl: match?.avatarUrl,
@@ -542,20 +568,26 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
   // onKeyDown only fires for keydowns bubbling from a focused descendant — it
   // misses the common case where focus is on the chart preview / page body,
-  // which is why the button worked but the shortcut didn't). CodeMirror
-  // captions handle Ctrl+Z via their own keymap (popping this same shared
-  // stack); native inputs keep native undo.
+  // which is why the button worked but the shortcut didn't). Leaves text-editing
+  // contexts to their own undo: CodeMirror captions have a per-user undo keymap;
+  // native text inputs keep native undo. Radios/checkboxes are inputs too but
+  // have no native undo AND keep focus after a click, so ceding to them would
+  // dead-key the shortcut until the user clicked somewhere else.
+  function isTextEntryTarget(target: HTMLElement | null): boolean {
+    const el = target?.closest(
+      ".cm-editor, input, textarea, [contenteditable='true']",
+    );
+    if (!el) return false;
+    if (el instanceof HTMLInputElement) {
+      return !NON_TEXT_INPUT_TYPES.has(el.type);
+    }
+    return true;
+  }
   function handleEditorKeyDown(e: KeyboardEvent) {
     if (!undoMgr) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.key.toLowerCase() !== "z") return;
-    const target = e.target as HTMLElement | null;
-    if (
-      target &&
-      target.closest(".cm-editor, input, textarea, [contenteditable='true']")
-    ) {
-      return;
-    }
+    if (isTextEntryTarget(e.target as HTMLElement | null)) return;
     e.preventDefault();
     if (e.shiftKey) redo();
     else undo();
@@ -572,6 +604,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       {
         vizId: p.mode === "edit" ? p.poDetail.id : null,
         vizLabel: p.poDetail.label,
+        mode: p.mode,
       },
       {
         resultsValue: p.poDetail.resultsValue,
@@ -1101,6 +1134,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           <div
             class="ui-pad ui-gap flex items-center border-b"
             data-cursor-zone="header"
+            data-tour="viz-editor-toolbar"
           >
             <div class="ui-gap-sm flex items-center">
               <Switch>
@@ -1165,6 +1199,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   <Switch>
                     <Match when={p.mode === "create"}>
                       <Button
+                        id="viz-save-new-button"
                         intent="success"
                         onClick={saveAsNewVisualization}
                         iconName="save"
@@ -1179,6 +1214,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                     <Match when={true}>
                       <>
                         <Button
+                          id="viz-save-close-button"
                           intent="success"
                           onClick={saveAndClose.click}
                           state={saveAndClose.state()}
@@ -1495,6 +1531,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                               <div
                                 class="ui-pad h-full w-full overflow-auto"
                                 data-cursor-zone="preview-area"
+                                data-tour="viz-preview"
                               >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {

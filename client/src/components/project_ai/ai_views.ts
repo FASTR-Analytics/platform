@@ -80,6 +80,10 @@ export type EditingSlideContext = {
 export type EditingVisualizationParams = {
   vizId: string | null; // null for create/ephemeral modes without a persistent ID
   vizLabel: string;
+  // vizId alone can't separate create from ephemeral (both are null), and the
+  // editor's UI differs by mode — ephemeral applies back to a host slide/report
+  // instead of saving. Consumers (onboarding tours) need the distinction.
+  mode: "edit" | "create" | "ephemeral";
 };
 export type EditingVisualizationContext = {
   resultsValue: ResultsValue;

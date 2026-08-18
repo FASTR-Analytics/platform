@@ -125,7 +125,10 @@ function EntryCard(p: { entry: DashboardGridEntry; grid: Props }) {
   };
 
   return (
-    <div class="row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]">
+    <div
+      class="row-span-2 grid grid-rows-subgrid gap-y-1 ring-offset-[6px]"
+      data-tour="dashboard-item-card"
+    >
       <div class="ui-gap-sm flex items-end pb-1">
         <div class="font-400 text-base-content pointer-events-none text-xs italic select-none">
           {entry().label}

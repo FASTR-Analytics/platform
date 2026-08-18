@@ -7,12 +7,18 @@ import {
   openAlert,
   openComponent,
 } from "panther";
-import { Show, createSignal } from "solid-js";
+import { Show, createEffect, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { VisualizationEditor } from "../visualization";
 import { AddVisualization } from "./add_visualization";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { updateProjectView, vizSortMode, setVizSortMode } from "~/state/t4_ui";
+import {
+  updateProjectView,
+  vizSortMode,
+  setVizSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
+} from "~/state/t4_ui";
 import { SortControl } from "~/components/_shared/sort_control";
 import { projectState } from "~/state/project/t1_store";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
@@ -88,6 +94,15 @@ export function ProjectVisualizations(p: Props) {
     });
     // SSE will update projectState automatically
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "visualization") return;
+    const po = projectState.visualizations.find((v) => v.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!po) return;
+    void openVisualizationEditor(po);
+  });
 
   async function attempAddPresentationObject() {
     const res = await openComponent({
@@ -165,34 +180,44 @@ export function ProjectVisualizations(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
-        <HeadingBar
-          heading={t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" })}
-          searchText={searchText()}
-          setSearchText={setSearchText}
-          centerChildren={
-            <SortControl value={vizSortMode()} onChange={setVizSortMode} />
-          }
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="viz-header"
         >
-          <Show
-            when={
-              !projectState.isLocked && projectState.projectModules.length > 0
+          <HeadingBar
+            heading={t3({
+              en: "Visualizations",
+              fr: "Visualisations",
+              pt: "Visualizações",
+            })}
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            centerChildren={
+              <div data-tour="viz-sort">
+                <SortControl value={vizSortMode()} onChange={setVizSortMode} />
+              </div>
             }
           >
-            <div class="ui-gap-sm flex items-center">
-              {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
+            <Show
+              when={
+                !projectState.isLocked && projectState.projectModules.length > 0
+              }
+            >
+              <div class="ui-gap-sm flex items-center" data-tour="viz-create">
+                {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}
-              <Button onClick={attempAddPresentationObject} iconName="plus">
-                {t3({
-                  en: "Create visualization",
-                  fr: "Créer une visualisation",
-                  pt: "Criar visualização",
-                })}
-              </Button>
-            </div>
-          </Show>
-        </HeadingBar>
+                <Button onClick={attempAddPresentationObject} iconName="plus">
+                  {t3({
+                    en: "Create visualization",
+                    fr: "Créer une visualisation",
+                    pt: "Criar visualização",
+                  })}
+                </Button>
+              </div>
+            </Show>
+          </HeadingBar>
         </div>
       }
     >

@@ -11,9 +11,14 @@ import {
   createDeleteAction,
   type MenuItem,
 } from "panther";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
-import { dashboardSortMode, setDashboardSortMode } from "~/state/t4_ui";
+import {
+  dashboardSortMode,
+  setDashboardSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
+} from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 import { CreateDashboardModal } from "../dashboards/create_dashboard_modal";
@@ -62,6 +67,15 @@ export function ProjectDashboards(p: Props) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "dashboard") return;
+    const dashboard = projectState.dashboards.find((d) => d.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!dashboard) return;
+    void openDashboard(dashboard.id, dashboard.title);
+  });
 
   async function attemptCreate() {
     const res = await openComponent({
@@ -146,7 +160,11 @@ export function ProjectDashboards(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="dashboards-header"
+        >
           <HeadingBar
             heading={t3({
               en: "Dashboards",
@@ -156,14 +174,20 @@ export function ProjectDashboards(p: Props) {
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <SortControl
-                value={dashboardSortMode()}
-                onChange={setDashboardSortMode}
-              />
+              <div data-tour="dashboards-sort">
+                <SortControl
+                  value={dashboardSortMode()}
+                  onChange={setDashboardSortMode}
+                />
+              </div>
             }
           >
             <Show when={canConfigure()}>
-              <Button onClick={attemptCreate} iconName="plus">
+              <Button
+                id="dashboards-create-button"
+                onClick={attemptCreate}
+                iconName="plus"
+              >
                 {t3({
                   en: "Create dashboard",
                   fr: "Créer un tableau de bord",
@@ -178,6 +202,7 @@ export function ProjectDashboards(p: Props) {
       <div
         class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] content-start items-start overflow-auto"
         data-page-cursor-surface
+        data-tour="dashboards-grid"
         onClick={() => selection.clear()}
       >
         <For
@@ -201,48 +226,50 @@ export function ProjectDashboards(p: Props) {
           {(dashboard) => {
             const isSelected = () => selection.isSelected(dashboard.id);
             return (
-              <Card
-                pad="none"
-                selected={isSelected()}
-                onSelectToggle={(e) => selection.handleClick(dashboard.id, e)}
-                onClick={(e) => {
-                  e?.stopPropagation();
-                  selection.handleClick(dashboard.id, e, () =>
-                    openDashboard(dashboard.id, dashboard.title),
-                  );
-                }}
-                onContextMenu={(e) => handleContextMenu(e, dashboard)}
-              >
-                <div class="p-3">
-                  <div class="font-700 truncate text-base">
-                    {dashboard.title}
+              <div data-tour="dashboards-card">
+                <Card
+                  pad="none"
+                  selected={isSelected()}
+                  onSelectToggle={(e) => selection.handleClick(dashboard.id, e)}
+                  onClick={(e) => {
+                    e?.stopPropagation();
+                    selection.handleClick(dashboard.id, e, () =>
+                      openDashboard(dashboard.id, dashboard.title),
+                    );
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, dashboard)}
+                >
+                  <div class="p-3">
+                    <div class="font-700 truncate text-base">
+                      {dashboard.title}
+                    </div>
+                    <div class="ui-text-caption truncate font-mono">
+                      /{dashboard.slug}
+                    </div>
+                    <div class="ui-text-caption flex items-center justify-between">
+                      <span>
+                        {dashboard.itemCount}{" "}
+                        {t3({ en: "items", fr: "éléments", pt: "elementos" })}
+                      </span>
+                      <span
+                        class={
+                          dashboard.isPublic
+                            ? "text-success font-700"
+                            : "text-base-content-muted"
+                        }
+                      >
+                        {dashboard.isPublic
+                          ? t3({ en: "Public", fr: "Public", pt: "Público" })
+                          : t3({
+                              en: "Auth required",
+                              fr: "Authentification requise",
+                              pt: "Autenticação necessária",
+                            })}
+                      </span>
+                    </div>
                   </div>
-                  <div class="ui-text-caption truncate font-mono">
-                    /{dashboard.slug}
-                  </div>
-                  <div class="ui-text-caption flex items-center justify-between">
-                    <span>
-                      {dashboard.itemCount}{" "}
-                      {t3({ en: "items", fr: "éléments", pt: "elementos" })}
-                    </span>
-                    <span
-                      class={
-                        dashboard.isPublic
-                          ? "text-success font-700"
-                          : "text-base-content-muted"
-                      }
-                    >
-                      {dashboard.isPublic
-                        ? t3({ en: "Public", fr: "Public", pt: "Público" })
-                        : t3({
-                            en: "Auth required",
-                            fr: "Authentification requise",
-                            pt: "Autenticação necessária",
-                          })}
-                    </span>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             );
           }}
         </For>

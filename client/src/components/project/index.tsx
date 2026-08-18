@@ -6,10 +6,12 @@ import {
   Button,
   FrameLeft,
   FrameTop,
+  MenuTriggerWrapper,
   TabsNavigation,
   getEditorWrapper,
   openComponent,
   type ListItem,
+  type MenuItem,
 } from "panther";
 import { FeedbackForm } from "~/components/instance/feedback_form";
 import { createEffect, Match, Show, Switch } from "solid-js";
@@ -32,6 +34,8 @@ import {
   setShowAi,
   navCollapsed,
   setNavCollapsed,
+  pendingTourReplay,
+  setPendingTourReplay,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
 import { AIProjectWrapper } from "../project_ai";
@@ -40,6 +44,16 @@ import {
   projectAIViewController,
 } from "../project_ai/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  setupDashboardTours,
+  setupDeckTours,
+  setupReportTours,
+  setupResultsPackageTours,
+  setupSettingsTours,
+  setupVisualizationTours,
+} from "~/onboarding";
+import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
+import { getTourCatalogue } from "~/onboarding/catalogue";
 
 type Props = {
   projectId: string;
@@ -71,6 +85,31 @@ function ProjectInner() {
 
   const { openEditor: openProjectEditor, EditorWrapper: ProjectEditorWrapper } =
     getEditorWrapper();
+
+  // Destroyed with this component's reactive owner; the tour catalogue modal
+  // gets them as props, so nothing outlives a project switch.
+  const tourManagers = [
+    setupDeckTours(),
+    setupReportTours(),
+    setupVisualizationTours(),
+    setupDashboardTours(),
+    setupResultsPackageTours(),
+    setupSettingsTours(),
+  ];
+
+  // A replay requested from the instance-level catalogue. We only mount once
+  // projectState has hydrated (ProjectSSEBoundary gates on isReady), so the
+  // availability re-check is trustworthy; the instance modal already verified
+  // it, making a silent skip on mismatch a race-only safety net.
+  createEffect(() => {
+    const tourId = pendingTourReplay();
+    if (!tourId) return;
+    setPendingTourReplay(null);
+    const entry = getTourCatalogue().find((e) => e.id === tourId);
+    if (!entry || !entry.available(projectState)) return;
+    entry.navigate();
+    void tourManagers.find((m) => m.hasTour(tourId))?.start(tourId);
+  });
 
   const tabItems = (): ListItem<TabOption>[] => {
     const perms = projectState.thisUserPermissions;
@@ -177,23 +216,74 @@ function ProjectInner() {
                   }
                 >
                   <div class="ui-gap-sm flex items-center">
-                    <Button
-                      onClick={() =>
-                        openComponent({
-                          element: FeedbackForm,
-                          props: {
-                            projectLabel: projectState.label,
+                    <MenuTriggerWrapper
+                      items={
+                        [
+                          {
+                            label: t3({
+                              en: "Guided tours",
+                              fr: "Visites guidées",
+                              pt: "Visitas guiadas",
+                            }),
+                            icon: "slideshow",
+                            onClick: () =>
+                              void openComponent({
+                                element: TourCatalogueModal,
+                                props: { managers: tourManagers },
+                              }),
                           },
-                        })
+                          {
+                            label: t3({
+                              en: "Ask for help",
+                              fr: "Demander de l'aide",
+                              pt: "Pedir ajuda",
+                            }),
+                            icon: "lifebuoy",
+                            onClick: () =>
+                              void openComponent({
+                                element: FeedbackForm,
+                                props: {
+                                  projectLabel: projectState.label,
+                                  initialType: "help",
+                                },
+                              }),
+                          },
+                          {
+                            label: t3({
+                              en: "Send feedback",
+                              fr: "Envoyer un commentaire",
+                              pt: "Enviar comentários",
+                            }),
+                            icon: "pencil",
+                            onClick: () =>
+                              void openComponent({
+                                element: FeedbackForm,
+                                props: {
+                                  projectLabel: projectState.label,
+                                },
+                              }),
+                          },
+                          {
+                            label: t3({
+                              en: "Documentation",
+                              fr: "Documentation",
+                              pt: "Documentação",
+                            }),
+                            icon: "document",
+                            onClick: () =>
+                              window.open(
+                                "https://fastr-analytics.org",
+                                "_blank",
+                              ),
+                          },
+                        ] satisfies MenuItem[]
                       }
-                      outline
+                      position="bottom-end"
                     >
-                      {t3({
-                        en: "Send feedback",
-                        fr: "Envoyer un commentaire",
-                        pt: "Enviar comentários",
-                      })}
-                    </Button>
+                      <Button outline>
+                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                      </Button>
+                    </MenuTriggerWrapper>
                     <Show when={!showAi()}>
                       <Button
                         onClick={() => setShowAi(true)}

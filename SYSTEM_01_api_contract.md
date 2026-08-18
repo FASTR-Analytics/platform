@@ -12,7 +12,9 @@ globs:
   - lib/types/streaming.ts
   - main.ts
   - mint_pat.ts
+  - server/clerk_api.ts
   - server/db/instance/personal_access_tokens.ts
+  - server/db/instance/rename_user_email.ts
   - server/db/instance/users.ts
   - server/middleware/auth.ts
   - server/middleware/cache.ts

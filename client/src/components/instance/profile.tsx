@@ -12,9 +12,11 @@ import {
   StateHolderWrapper,
   createButtonAction,
   createQuery,
+  openComponent,
   KEY_COLOR_THEMES,
   type AlertComponentProps,
 } from "panther";
+import { ChangeEmailModal } from "./change_email_modal";
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
 
@@ -259,6 +261,40 @@ export function ProfileForm(
                       </Button>
                     </div>
                   </Show>
+                </div>
+              </Card>
+
+              {/* Email address */}
+              <Card
+                header={t3({
+                  en: "Email address",
+                  fr: "Adresse e-mail",
+                  pt: "Endereço de e-mail",
+                })}
+              >
+                <div class="ui-spy-sm">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base-content-muted flex-1 text-sm">
+                      {keyedUser.email}
+                    </span>
+                    <Button
+                      onClick={() =>
+                        openComponent({
+                          element: ChangeEmailModal,
+                          props: { currentEmail: keyedUser.email },
+                        })
+                      }
+                      outline
+                      size="sm"
+                      iconName="pencil"
+                    >
+                      {t3({
+                        en: "Change email",
+                        fr: "Changer d'e-mail",
+                        pt: "Alterar e-mail",
+                      })}
+                    </Button>
+                  </div>
                 </div>
               </Card>
 

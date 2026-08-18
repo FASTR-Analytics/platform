@@ -237,7 +237,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* HMIS */}
-              <div class="ui-spy">
+              <div class="ui-spy" data-tour="instance-data-hmis">
                 <div class="ui-spy-sm">
                   <div class="font-700 text-lg">
                     {t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
@@ -563,7 +563,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* HFA */}
-              <div class="ui-spy">
+              <div class="ui-spy" data-tour="instance-data-hfa">
                 <div class="ui-spy-sm">
                   <div class="font-700 text-lg">
                     {t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
@@ -884,7 +884,7 @@ export function InstanceData(p: Props) {
               </div>
 
               {/* ICEH */}
-              <div class="ui-spy">
+              <div class="ui-spy" data-tour="instance-data-iceh">
                 <div class="ui-spy-sm">
                   <div class="font-700 text-lg">
                     {t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}

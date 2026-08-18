@@ -139,7 +139,7 @@ export function SlideEditorPanelContent(p: Props) {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="flex w-full flex-none border-b">
+      <div class="flex w-full flex-none border-b" data-tour="slide-content-tabs">
         <div
           class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 border-r py-2 text-center"
           onClick={() => p.setContentTab("slide")}
@@ -155,6 +155,7 @@ export function SlideEditorPanelContent(p: Props) {
           class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 py-2 text-center"
           onClick={() => p.setContentTab("block")}
           data-selected={p.contentTab === "block"}
+          data-tour="slide-content-tab-block"
         >
           {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
         </div>

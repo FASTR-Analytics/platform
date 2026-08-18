@@ -39,9 +39,11 @@ import { InstanceResultsPackages } from "~/components/instance_results_packages"
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";
-import { FeedbackForm } from "./feedback_form";
+import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { ProfileForm } from "./profile";
+import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
+import { setupInstanceTours } from "~/onboarding";
 
 type InstanceTab =
   | "projects"
@@ -124,7 +126,7 @@ type Props = {
 };
 
 export default function Instance(p: Props) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [_tab, setTab] = createSignal<InstanceTab>("projects");
 
   const p_ = () => instanceState.currentUserPermissions;
@@ -140,6 +142,14 @@ export default function Instance(p: Props) {
     if (t === "users" && !canUsers) return "projects";
     return t;
   };
+
+  // First-visit tours for the instance tabs. The predicate keeps them from
+  // firing while a project page covers the instance UI.
+  const instanceTourManager = setupInstanceTours({
+    currentTab: tab,
+    instanceVisible: () =>
+      !getFirstString(searchParams.p) && instanceState.currentUserApproved,
+  });
 
   // post-login modals — wait until user is approved; skip inside a project.
   // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
@@ -177,10 +187,24 @@ export default function Instance(p: Props) {
     });
   }
 
-  async function openFeedback() {
+  async function openFeedback(initialType?: FeedbackType) {
     await openComponent({
       element: FeedbackForm,
-      props: {},
+      props: { initialType },
+    });
+  }
+
+  async function openTours() {
+    await openComponent({
+      element: TourCatalogueInstanceModal,
+      props: {
+        projects: instanceState.projects
+          .filter((project) => project.status === "ready")
+          .map((project) => ({ id: project.id, label: project.label })),
+        openProject: (projectId: string) => setSearchParams({ p: projectId }),
+        instanceManager: instanceTourManager,
+        openInstanceTab: setTab,
+      },
     });
   }
 
@@ -206,7 +230,10 @@ export default function Instance(p: Props) {
                   </div>
                 </div>
                 <Show when={instanceState.currentUserApproved}>
-                  <div class="flex flex-1 justify-center xl:hidden">
+                  <div
+                    class="flex flex-1 justify-center xl:hidden"
+                    data-tour="instance-nav"
+                  >
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
@@ -214,7 +241,10 @@ export default function Instance(p: Props) {
                       itemWidth="50px"
                     />
                   </div>
-                  <div class="hidden flex-1 justify-center xl:flex">
+                  <div
+                    class="hidden flex-1 justify-center xl:flex"
+                    data-tour="instance-nav"
+                  >
                     <ButtonGroup
                       value={tab()}
                       onChange={setTab}
@@ -224,52 +254,54 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                  <MenuTriggerWrapper
-                    items={
-                      [
-                        {
-                          label: "English",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                            if (getLanguage() === "en") return;
-                            window.location.reload();
+                  <div data-tour="instance-topbar-language">
+                    <MenuTriggerWrapper
+                      items={
+                        [
+                          {
+                            label: "English",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                              if (getLanguage() === "en") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                        {
-                          label: "Français",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                            if (getLanguage() === "fr") return;
-                            window.location.reload();
+                          {
+                            label: "Français",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                              if (getLanguage() === "fr") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                        {
-                          label: "Português",
-                          onClick: () => {
-                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                            if (getLanguage() === "pt") return;
-                            window.location.reload();
+                          {
+                            label: "Português",
+                            onClick: () => {
+                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                              if (getLanguage() === "pt") return;
+                              window.location.reload();
+                            },
                           },
-                        },
-                      ] satisfies MenuItem[]
-                    }
-                    position="bottom-end"
-                  >
-                    <Button intent="base-100">
-                      {
-                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
-                          getLanguage()
-                        ]
+                        ] satisfies MenuItem[]
                       }
-                    </Button>
-                  </MenuTriggerWrapper>
+                      position="bottom-end"
+                    >
+                      <Button intent="base-100">
+                        {
+                          ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                            getLanguage()
+                          ]
+                        }
+                      </Button>
+                    </MenuTriggerWrapper>
+                  </div>
                   <Show
                     when={
                       instanceState.currentUserApproved &&
                       whatsNewPostsForCurrentUser().length > 0
                     }
                   >
-                    <div class="relative">
+                    <div class="relative" data-tour="instance-topbar-whats-new">
                       <Button
                         onClick={openWhatsNewFeed}
                         iconName="bell"
@@ -281,11 +313,65 @@ export default function Instance(p: Props) {
                     </div>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <Button
-                      onClick={openFeedback}
-                      iconName="help"
-                      intent="base-100"
-                    />
+                    <div data-tour="instance-topbar-help">
+                      <MenuTriggerWrapper
+                        items={() => {
+                          const items: MenuItem[] = [];
+                          if (
+                            instanceState.projects.some(
+                              (project) => project.status === "ready",
+                            )
+                          ) {
+                            items.push({
+                              label: t3({
+                                en: "Guided tours",
+                                fr: "Visites guidées",
+                                pt: "Visitas guiadas",
+                              }),
+                              icon: "slideshow",
+                              onClick: () => void openTours(),
+                            });
+                          }
+                          items.push({
+                            label: t3({
+                              en: "Ask for help",
+                              fr: "Demander de l'aide",
+                              pt: "Pedir ajuda",
+                            }),
+                            icon: "lifebuoy",
+                            onClick: () => void openFeedback("help"),
+                          });
+                          items.push({
+                            label: t3({
+                              en: "Send feedback",
+                              fr: "Envoyer un commentaire",
+                              pt: "Enviar comentários",
+                            }),
+                            icon: "pencil",
+                            onClick: () => void openFeedback(),
+                          });
+                          items.push({
+                            label: t3({
+                              en: "Documentation",
+                              fr: "Documentation",
+                              pt: "Documentação",
+                            }),
+                            icon: "document",
+                            onClick: () =>
+                              window.open(
+                                "https://fastr-analytics.org",
+                                "_blank",
+                              ),
+                          });
+                          return items;
+                        }}
+                        position="bottom-end"
+                      >
+                        <Button intent="base-100">
+                          {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                        </Button>
+                      </MenuTriggerWrapper>
+                    </div>
                     <Button
                       onClick={openInstanceMeta}
                       iconName="versions"
@@ -294,6 +380,7 @@ export default function Instance(p: Props) {
                   </Show>
                   <div
                     class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
+                    data-tour="instance-topbar-profile"
                     onClick={openProfile}
                   >
                     <span class="text-primary inline-block w-5">

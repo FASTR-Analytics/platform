@@ -5,6 +5,7 @@ import type {
   PersonalAccessTokenSummary,
   ProjectPermission,
   ProjectUserRole,
+  RenameEmailInstanceResult,
   UserLog,
   UserPermission,
 } from "../../types/mod.ts";
@@ -149,6 +150,26 @@ export const userRouteRegistry = {
     method: "POST",
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
+  // Renames a user on THIS instance only (main DB + project attribution +
+  // live collab state). Fleet-internal: called machine-to-machine by
+  // renameUserEmailEverywhere with the status-api-key header, or by a local
+  // can_configure_users admin as a support fallback.
+  renameUserEmail: route({
+    path: "/user/rename-email",
+    method: "POST",
+    body: z.object({ oldEmail: z.string(), newEmail: z.string() }),
+    response: {} as { changed: boolean; projectsUpdated: number; projectsFailed: string[]; warnings: string[] },
+  }),
+  // Self-service: renames the CALLER's email in every instance that has it.
+  // Authorization is the Clerk ownership check (both addresses on the caller's
+  // account, new one verified), not a permission flag.
+  renameUserEmailEverywhere: route({
+    path: "/user/rename-email-everywhere",
+    method: "POST",
+    body: z.object({ oldEmail: z.string(), newEmail: z.string(), dryRun: z.boolean() }),
+    response: {} as { instances: RenameEmailInstanceResult[]; warnings: string[] },
+  }),
+  // Personal access tokens: self-service, always scoped to the caller.
   createPersonalAccessToken: route({
     path: "/personal-access-tokens",
     method: "POST",

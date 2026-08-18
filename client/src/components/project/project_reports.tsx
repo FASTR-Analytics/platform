@@ -33,6 +33,8 @@ import {
   setReportSelectedGroup,
   reportSortMode,
   setReportSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
 } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
@@ -98,6 +100,15 @@ export function ProjectReports(p: ExtendedProps) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "report") return;
+    const report = projectState.reports.find((r) => r.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!report) return;
+    void openReport(report.id, report.label);
+  });
 
   const [searchText, setSearchText] = createSignal<string>("");
 
@@ -433,26 +444,34 @@ export function ProjectReports(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="reports-header"
+        >
           <HeadingBar
             heading={t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" })}
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <SortControl
-                value={reportSortMode()}
-                onChange={setReportSortMode}
-              />
+              <div data-tour="reports-sort">
+                <SortControl
+                  value={reportSortMode()}
+                  onChange={setReportSortMode}
+                />
+              </div>
             }
           >
             <Show when={!projectState.isLocked}>
-              <Button onClick={attemptAddReport} iconName="plus">
-                {t3({
-                  en: "Create report",
-                  fr: "Créer un rapport",
-                  pt: "Criar relatório",
-                })}
-              </Button>
+              <div data-tour="reports-create">
+                <Button onClick={attemptAddReport} iconName="plus">
+                  {t3({
+                    en: "Create report",
+                    fr: "Créer un rapport",
+                    pt: "Criar relatório",
+                  })}
+                </Button>
+              </div>
             </Show>
           </HeadingBar>
         </div>
@@ -463,7 +482,11 @@ export function ProjectReports(p: ExtendedProps) {
         minWidth={170}
         maxWidth={300}
         panelChildren={
-          <div class="flex h-full w-full flex-col" data-cursor-zone="folders">
+          <div
+            class="flex h-full w-full flex-col"
+            data-cursor-zone="folders"
+            data-tour="reports-folders"
+          >
             <div class="border-b p-3">
               <Select
                 options={getGroupingOptions()}
@@ -511,6 +534,7 @@ export function ProjectReports(p: ExtendedProps) {
         <div
           class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
           data-page-cursor-surface
+          data-tour="reports-grid"
           onClick={() => selection.clear()}
         >
           <For
@@ -534,7 +558,10 @@ export function ProjectReports(p: ExtendedProps) {
             {(report) => {
               const isSelected = () => selection.isSelected(report.id);
               return (
-                <div class="row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1">
+                <div
+                  class="row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1"
+                  data-tour="reports-report-card"
+                >
                   <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                     {report.label}
                   </div>

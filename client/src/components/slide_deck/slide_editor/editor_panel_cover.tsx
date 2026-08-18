@@ -32,7 +32,7 @@ function getLogoVisibilityOptions(showByDefault: boolean) {
 
 export function SlideEditorPanelCover(p: Props) {
   return (
-    <div class="ui-pad ui-spy">
+    <div class="ui-pad ui-spy" data-tour="slide-cover-fields">
       <Select
         label={t3({ en: "Cover logos", fr: "Logos de couverture", pt: "Logótipos da capa" })}
         value={p.tempSlide.showLogos ?? "inherit"}

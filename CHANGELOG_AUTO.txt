@@ -1,3 +1,24 @@
+[TBD] [user] [fixed] - Fixed data imports occasionally freezing and never completing
+[TBD] [admin] [fixed] - Fixed rare hang during HMIS CSV data imports
+[TBD] [user] [added] - Change your email address from your profile settings
+[TBD] [user] [added] - Guided tours accessible from the Help menu in projects
+[TBD] [user] [added] - Guided tours accessible from the Help menu on the home page
+[TBD] [user] [added] - Help menu now offers guided tours, help requests, feedback, and documentation
+[TBD] [user] [added] - "Ask for help" option in the feedback form
+[TBD] [user] [changed] - Feedback form renamed to "Help & feedback" with a new help request type
+[TBD] [user] [changed] - Help button replaced with a Help menu offering multiple options
+[TBD] [user] [fixed] - Live cursors no longer show duplicates when you have multiple tabs open
+[TBD] [user] [fixed] - Your cursor disappears for collaborators when you switch to another window
+[TBD] [user] [fixed] - Collaborator click ripples no longer appear from disconnected sessions
+[TBD] [admin] [added] - Self-service email change across all instances from profile
+[TBD] [admin] [added] - Guided tours accessible from the Help menu
+[TBD] [admin] [added] - Help request option in the feedback form
+[TBD] [admin] [added] - Documentation link in the Help menu
+[TBD] [admin] [changed] - Help button replaced with a menu offering tours, help, feedback, and docs
+[TBD] [admin] [changed] - Feedback form renamed to "Help & feedback" with new help request type
+[TBD] [admin] [fixed] - Live cursors no longer duplicated when a user has multiple tabs open
+[TBD] [admin] [fixed] - Cursor disappears when switching away from a window or tab
+[TBD] [admin] [fixed] - Connection banner clears correctly when collaboration access is revoked
 [1.66.8] [user] [added] - Dropdown menus now support searching by typing to filter options
 [1.66.8] [user] [changed] - Multi-select dropdowns now support searching to find items faster
 [1.66.8] [user] [changed] - Indicator labels in selection lists are no longer truncated

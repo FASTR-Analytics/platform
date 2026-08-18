@@ -283,6 +283,16 @@ export type OtherUser = {
   isContactPerson: boolean;
 } & UserPermissions;
 
+/** Per-instance outcome of a fleet-wide email rename
+ *  (renameUserEmailEverywhere). "pending" appears only in dry runs. */
+export type RenameEmailInstanceResult = {
+  id: string;
+  status: "pending" | "updated" | "conflict" | "failed" | "unreachable";
+  projectsUpdated?: number;
+  projectsFailed?: string[];
+  error?: string;
+};
+
 export type PersonalAccessTokenSummary = {
   id: number;
   label: string;

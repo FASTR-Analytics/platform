@@ -48,7 +48,8 @@ export function PresentationObjectEditorPanelData(p: Props) {
   };
 
   return (
-    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
+    <div data-viz-panel-scroll
+      data-tour="viz-panel-data" class="ui-pad ui-spy h-full w-full overflow-auto">
       {/* <div class="h-0 text-right">
         <HelpButton id="viz-data-tab" />
       </div> */}

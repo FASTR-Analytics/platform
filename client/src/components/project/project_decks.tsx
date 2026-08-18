@@ -34,6 +34,8 @@ import {
   setDeckSelectedGroup,
   deckSortMode,
   setDeckSortMode,
+  pendingEditorOpen,
+  setPendingEditorOpen,
 } from "~/state/t4_ui";
 import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
@@ -79,6 +81,15 @@ export function ProjectDecks(p: ExtendedProps) {
       },
     });
   }
+
+  createEffect(() => {
+    const pending = pendingEditorOpen();
+    if (!pending || pending.kind !== "deck") return;
+    const deck = projectState.slideDecks.find((d) => d.id === pending.id);
+    setPendingEditorOpen(null);
+    if (!deck) return;
+    void openDeck(deck.id, deck.label);
+  });
 
   const [searchText, setSearchText] = createSignal<string>("");
 
@@ -419,7 +430,11 @@ export function ProjectDecks(p: ExtendedProps) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div
+          class="h-full w-full"
+          data-cursor-zone="header"
+          data-tour="decks-header"
+        >
           <HeadingBar
             heading={t3({
               en: "Slide decks",
@@ -429,21 +444,30 @@ export function ProjectDecks(p: ExtendedProps) {
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <SortControl value={deckSortMode()} onChange={setDeckSortMode} />
+              <div data-tour="decks-sort">
+                <SortControl
+                  value={deckSortMode()}
+                  onChange={setDeckSortMode}
+                />
+              </div>
             }
           >
             <Show
               when={
-                !projectState.isLocked && projectState.projectModules.length > 0
+                !projectState.isLocked &&
+                projectState.projectModules.length > 0 &&
+                projectState.thisUserPermissions.can_configure_slide_decks
               }
             >
-              <Button onClick={attemptAddDeck} iconName="plus">
-                {t3({
-                  en: "Create slide deck",
-                  fr: "Créer une présentation",
-                  pt: "Criar apresentação",
-                })}
-              </Button>
+              <div data-tour="decks-create">
+                <Button onClick={attemptAddDeck} iconName="plus">
+                  {t3({
+                    en: "Create slide deck",
+                    fr: "Créer une présentation",
+                    pt: "Criar apresentação",
+                  })}
+                </Button>
+              </div>
             </Show>
           </HeadingBar>
         </div>
@@ -466,7 +490,11 @@ export function ProjectDecks(p: ExtendedProps) {
           minWidth={170}
           maxWidth={300}
           panelChildren={
-            <div class="flex h-full w-full flex-col" data-cursor-zone="folders">
+            <div
+              class="flex h-full w-full flex-col"
+              data-cursor-zone="folders"
+              data-tour="decks-folders"
+            >
               <div class="border-b p-3">
                 <Select
                   options={getGroupingOptions()}
@@ -516,6 +544,7 @@ export function ProjectDecks(p: ExtendedProps) {
           <div
             class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
             data-page-cursor-surface
+            data-tour="decks-grid"
             onClick={() => selection.clear()}
           >
             <For
@@ -539,7 +568,10 @@ export function ProjectDecks(p: ExtendedProps) {
               {(deck) => {
                 const isSelected = () => selection.isSelected(deck.id);
                 return (
-                  <div class="row-span-2 grid grid-rows-subgrid gap-y-1">
+                  <div
+                    class="row-span-2 grid grid-rows-subgrid gap-y-1"
+                    data-tour="decks-deck-card"
+                  >
                     <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
                       {deck.label}
                     </div>

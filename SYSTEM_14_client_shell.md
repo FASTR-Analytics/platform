@@ -6,11 +6,13 @@ globs:
   - client/src/components/ConnectionStatus.tsx
   - client/src/components/HelpButton.tsx
   - client/src/components/email_opt_in_modal.tsx
+  - client/src/components/whats_new_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
   - client/src/components/whats_new_modal.tsx
   - client/src/components/project/index.tsx
   - client/src/index.tsx
+  - client/src/onboarding/**
   - client/src/routes/**
   - client/src/state/t4_connection_monitor.ts
   - client/src/state/t4_ui.ts
@@ -19,6 +21,8 @@ globs:
   - lib/types/whats_new.ts
   - server/routes/instance/whats_new.ts
   - lib/translate/**
+  - server/routes/instance/whats_new.ts
+  - server/routes/instance/onboarding.ts
 docs_absorbed:
 ---
 
@@ -26,8 +30,48 @@ docs_absorbed:
 
 SPA boot, the signal-based page maps (almost no URL routing), the
 language/calendar singletons and the app's translation conventions, UI
-preferences, connection monitoring, onboarding modals, and the help-button
-system. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+preferences, connection monitoring, onboarding modals, the help-button
+system, and the first-visit page tours (`client/src/onboarding/` — the
+`@njwse/roadtrip` tour manager, Clerk-backed seen-flags under
+`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell and,
+for the instance tabs, to the instance shell's tab signal via
+`setupInstanceTours`). The
+same directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` +
+`catalogue.ts`, opened from the project topbar), which replays or re-arms any
+tour: the project shell passes its six per-area managers to the modal as
+props (so they share its lifecycle) and each action is routed to its owning
+manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
+document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
+(persists until the target tab mounts and consumes it), and the slide tours
+chain a second-level `pendingSlideOpen` request that the deck editor consumes
+to open the first slide of the requested type. Tour availability is computed
+over a `TourProjectFacts` slice satisfied by both the live `projectState` and
+a fetched `ProjectDetail`, which powers the instance-level variant
+(`tour_catalogue_instance_modal.tsx`, opened from the instance topbar): it
+fetches every accessible project's detail, offers Play only for tours some
+project qualifies for (first qualifying project wins; slide-type presence is
+verified by searching the slide documents), and hands the chosen tour to the
+project shell via the `pendingTourReplay` signal, consumed after hydration.
+When no project qualifies the row names the project that came closest and
+shows its reason: `unavailableReason` returns a ranked `TourReason` (page
+access < edit permission < package < package content < locked < content <
+sub-content < slide type < view filter) and the highest rank across projects
+wins; the reason chains check the attached package before anything
+run-derived (modules, default visualizations), since those come from the
+package's manifest. Tours that open a data-loading editor (viz editor,
+report figures, dashboard items) additionally require an attached package;
+its extra "Instance" category plays the eight instance-tab tours in place via
+the instance manager. Both modals share the sidebar shell in
+`tour_catalogue_layout.tsx`. Every manager is created with the shared button
+labels (`tourLabels()`, merged by roadtrip under any per-tour labels) and
+`onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
+abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
+user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
+trigger, and for aborts the step reached and the reason — skip vs missing
+target); per-step events are not sent. Seen-state in the modals reads the
+Solid manager's reactive `hasSeen()` (the instance modal falls back to the
+Clerk storage adapter for project tours, whose managers are not mounted
+there). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
 against code 2026-07-17 (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

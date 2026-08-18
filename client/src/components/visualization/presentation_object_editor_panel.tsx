@@ -43,6 +43,7 @@ function TabButton(tp: {
   peers?: PresenceEntry[];
   onClick: () => void;
   borderRight?: boolean;
+  dataTour?: string;
 }) {
   return (
     <div
@@ -50,6 +51,7 @@ function TabButton(tp: {
       classList={{ "border-r": tp.borderRight }}
       onClick={tp.onClick}
       data-selected={tp.selected}
+      data-tour={tp.dataTour}
     >
       <div class="flex items-center justify-center gap-1.5">
         <span class="truncate">{tp.label}</span>
@@ -115,6 +117,7 @@ export function PresentationObjectEditorPanel(p: Props) {
           peers={p.tabPeers?.data}
           onClick={() => switchTab("data")}
           borderRight
+          dataTour="viz-tab-data"
         />
         <TabButton
           label={t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" })}
@@ -122,12 +125,14 @@ export function PresentationObjectEditorPanel(p: Props) {
           peers={p.tabPeers?.style}
           onClick={() => switchTab("style")}
           borderRight
+          dataTour="viz-tab-style"
         />
         <TabButton
           label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
           selected={tab() === "text"}
           peers={p.tabPeers?.text}
           onClick={() => switchTab("text")}
+          dataTour="viz-tab-text"
         />
       </div>
       <div class="h-0 w-full flex-1">

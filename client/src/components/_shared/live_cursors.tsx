@@ -10,6 +10,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { liveConnectionIds } from "~/state/project/collab";
 
 // =============================================================================
 // Figma-style live cursors — shared broadcaster + overlay
@@ -36,6 +37,21 @@ import { Portal } from "solid-js/web";
 // connected-but-idle cursors after 30s. Moving your own mouse close to a
 // peer's cursor re-reveals its faded chip (HOVER_REVEAL_PX proximity — the
 // overlay is pointer-events-none, so never DOM hover).
+//
+// ONE CURSOR PER PERSON is an invariant of the overlay, not a hope about how
+// people browse. Awareness is keyed per CONNECTION, and a user legitimately
+// holds several (a second tab, a reconnect overlapping the old socket's
+// teardown, a connection the server dropped whose state has not yet aged out
+// of the ~30s sweep) — each of which would otherwise draw its own arrow. So
+// the identity stamped into the "user" field (email + connectionId, from
+// state/project/collab.ts) gates rendering three ways: states from MY OWN
+// email never render (my other tabs are me, not a peer), states whose
+// connectionId is no longer in presence never render (the server deregisters
+// a closed socket and rebroadcasts within a round trip — far faster than the
+// awareness sweep), and whatever survives collapses to one sprite per email,
+// the most recently MOVED connection winning. The sender side backs this up:
+// tabbing or clicking away (visibilitychange, window blur, pointerleave)
+// clears the pointer outright, so an unfocused tab holds no cursor at all.
 //
 // CURSOR CHAT rides a second awareness field "pointerChat" ({ text } | null):
 // press "/" over a cursor surface to type a short message that streams live in
@@ -344,6 +360,7 @@ export function createPointerBroadcast(opts: {
   let trailingTimer: ReturnType<typeof setTimeout> | undefined;
   let lastSendTime = 0;
   let lastSentJson: string | undefined;
+  let lastSentAw: Awareness | undefined;
   // Lifetime click counter — rides on every pointer state (see the type) so a
   // trailing move re-send after a click carries the same value and dedupes.
   let clickCount = 0;
@@ -357,11 +374,17 @@ export function createPointerBroadcast(opts: {
       return;
     }
     const json = JSON.stringify(value);
-    if (json === lastSentJson) {
+    // The dedupe is per AWARENESS INSTANCE: `awareness` is reactive and can be
+    // swapped under a mounted broadcaster (a session torn down and reopened, a
+    // figure editor rebinding to its host). A fresh instance carries no pointer
+    // field, so a value-only dedupe would suppress the re-announce and leave a
+    // stationary user invisible to peers until they happened to move.
+    if (aw === lastSentAw && json === lastSentJson) {
       return;
     }
     // Safe after awareness destroy: getLocalState() is null → no-op field set.
     aw.setLocalStateField("pointer", value);
+    lastSentAw = aw;
     lastSentJson = json;
     lastSendTime = performance.now();
   }
@@ -473,6 +496,21 @@ export function createPointerBroadcast(opts: {
       schedule();
     }
   }
+  // Leaving the WINDOW is the same statement as leaving the tab: the mouse is
+  // somewhere else entirely, so the arrow parked at its last position reads as
+  // attention that isn't there. visibilitychange alone misses this — a tab
+  // stays "visible" while another window (or another monitor) has focus, which
+  // is exactly the side-by-side case where a user's second tab left a second
+  // cursor on everyone's screen. Focus re-broadcasts the resting position
+  // without waiting for a move.
+  function onWindowBlur() {
+    send(null);
+  }
+  function onWindowFocus() {
+    if (lastClientX !== undefined) {
+      schedule();
+    }
+  }
 
   onMount(() => {
     document.addEventListener("pointermove", onMove, { passive: true });
@@ -480,6 +518,8 @@ export function createPointerBroadcast(opts: {
     document.addEventListener("scroll", onScroll, true);
     document.documentElement.addEventListener("pointerleave", onLeaveDocument);
     document.addEventListener("visibilitychange", onVisibility);
+    globalThis.addEventListener("blur", onWindowBlur);
+    globalThis.addEventListener("focus", onWindowFocus);
     if (opts.hideWhileTyping) {
       document.addEventListener("keydown", onKeyDown, true);
     }
@@ -519,6 +559,8 @@ export function createPointerBroadcast(opts: {
       onLeaveDocument,
     );
     document.removeEventListener("visibilitychange", onVisibility);
+    globalThis.removeEventListener("blur", onWindowBlur);
+    globalThis.removeEventListener("focus", onWindowFocus);
     if (opts.hideWhileTyping) {
       document.removeEventListener("keydown", onKeyDown, true);
     }
@@ -552,6 +594,44 @@ type CursorSprite = {
   /** Live cursor-chat message, when the peer is typing/showing one. */
   chat?: string;
 };
+
+/** The identity `applySessionUser` (state/project/collab.ts) stamps into the
+ *  shared "user" awareness field. `email`/`connectionId` are absent only until
+ *  that client's first presence_state lands. */
+type CursorUser = {
+  name?: string;
+  color?: string;
+  email?: string;
+  connectionId?: string;
+};
+
+/** One arrow per PERSON, never per connection: a user with a second tab open
+ *  (or a connection the server has already dropped) must not appear twice.
+ *  Email is the identity; name+color is the pre-identity fallback. */
+function personKey(user: CursorUser): string {
+  return user.email ?? `${user.name}\u0000${user.color}`;
+}
+
+/** True when an awareness state belongs to the SAME PERSON as this client —
+ *  i.e. one of their own other tabs, which must never render as a peer. */
+function isOwnIdentity(aw: Awareness, user: CursorUser): boolean {
+  const mine = (aw.getLocalState()?.user as CursorUser | undefined)?.email;
+  return mine !== undefined && user.email === mine;
+}
+
+/** True when this state rides a connection the server no longer lists (tab
+ *  closed, socket died). Unknown connections are kept: a state predating the
+ *  identity stamp, or presence not yet arrived, is not evidence of death. */
+function isGoneConnection(
+  user: CursorUser,
+  live: ReadonlySet<string>,
+): boolean {
+  return (
+    user.connectionId !== undefined &&
+    live.size > 0 &&
+    !live.has(user.connectionId)
+  );
+}
 
 /**
  * Render remote collaborators' cursors. `accepts` both gates (wrong surface/
@@ -677,15 +757,19 @@ export function LiveCursorsOverlay(p: {
         // A grown click counter = this peer clicked since we last looked.
         if (pointer && typeof pointer.click === "number") {
           const seen = clickSeen.get(id);
+          const user = (state?.user ?? {}) as CursorUser;
           if (
             seen !== undefined &&
             pointer.click > seen &&
             id !== aw.clientID &&
-            !p.suppressed
+            !p.suppressed &&
+            // Same gates as the cursors themselves: my own other tab is me,
+            // and a dropped connection's trailing click is history.
+            !isOwnIdentity(aw, user) &&
+            !isGoneConnection(user, liveConnectionIds())
           ) {
-            const user = state?.user as { color?: string } | undefined;
             const pos = p.accepts(pointer);
-            if (pos && user?.color) {
+            if (pos && user.color) {
               spawnRipple(`${id}:${pointer.click}`, pos.x, pos.y, user.color);
             }
           }
@@ -716,15 +800,27 @@ export function LiveCursorsOverlay(p: {
     if (!aw || p.suppressed) {
       return [];
     }
+    const live = liveConnectionIds();
     const now = performance.now();
-    const out: CursorSprite[] = [];
+    // Keyed by person, not by connection — see personKey. When someone does
+    // hold two live connections (two tabs, or a reconnect racing the old
+    // socket's teardown), the one that moved most recently wins: only one hand
+    // is on a mouse, so the others are by definition stale. clientID breaks
+    // exact ties so every viewer picks the same one.
+    const byPerson = new Map<
+      string,
+      { sprite: CursorSprite; lastMoveAt: number }
+    >();
     for (const [clientID, state] of aw.getStates()) {
       if (clientID === aw.clientID) {
         continue;
       }
-      const user = state.user as { name?: string; color?: string } | undefined;
+      const user = state.user as CursorUser | undefined;
       const pointer = state.pointer as PointerAwarenessState | null | undefined;
       if (!user?.name || !user.color || pointer == null) {
+        continue;
+      }
+      if (isOwnIdentity(aw, user) || isGoneConnection(user, live)) {
         continue;
       }
       const chatState = state.pointerChat as
@@ -736,7 +832,8 @@ export function LiveCursorsOverlay(p: {
           ? chatState.text.slice(0, CHAT_MAX_LEN)
           : undefined;
       const info = moveInfo.get(clientID);
-      const idle = info ? now - info.lastMoveAt : 0;
+      const lastMoveAt = info ? info.lastMoveAt : now;
+      const idle = now - lastMoveAt;
       // An active chat message keeps the cursor (and its name) fully visible
       // even when the mouse itself has been still.
       if (idle > IDLE_HIDE_MS && !chat) {
@@ -746,22 +843,36 @@ export function LiveCursorsOverlay(p: {
       if (!pos) {
         continue;
       }
+      // Beaten by another connection of the same person (the accepts() gate
+      // above already dropped any that can't render here, so the winner is
+      // always one that actually maps onto this surface).
+      const held = byPerson.get(personKey(user));
+      if (
+        held &&
+        (held.lastMoveAt > lastMoveAt ||
+          (held.lastMoveAt === lastMoveAt && held.sprite.clientID > clientID))
+      ) {
+        continue;
+      }
       // Hover-reveal: your own mouse near the cursor brings a faded chip back.
       const m = mouse();
       const hovered =
         m !== undefined &&
         Math.hypot(m.x - pos.x, m.y - pos.y) < HOVER_REVEAL_PX;
-      out.push({
-        clientID,
-        name: user.name,
-        color: user.color,
-        x: pos.x,
-        y: pos.y,
-        chipVisible: idle < CHIP_FADE_MS || !!chat || hovered,
-        chat,
+      byPerson.set(personKey(user), {
+        lastMoveAt,
+        sprite: {
+          clientID,
+          name: user.name,
+          color: user.color,
+          x: pos.x,
+          y: pos.y,
+          chipVisible: idle < CHIP_FADE_MS || !!chat || hovered,
+          chat,
+        },
       });
     }
-    return out;
+    return [...byPerson.values()].map((held) => held.sprite);
   };
 
   return (

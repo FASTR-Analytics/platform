@@ -7,6 +7,7 @@ import {
 import type {
   ReportGroupingMode,
   SlideDeckGroupingMode,
+  SlideType,
   SortMode,
   VisualizationGroupingMode,
 } from "lib";
@@ -327,3 +328,54 @@ export const [headerOrContent, setHeaderOrContent] = createSignal<
 export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
   "policyHeaderFooter" | "content"
 >("content");
+
+// ============================================================================
+// Editor-open flags
+// ============================================================================
+
+// The dashboard editor renders as an overlay over the still-mounted project
+// shell and (unlike the deck/report/viz editors) sets no AI view, so nothing
+// outside it can tell it is open. Onboarding tours read this to know which
+// page the user is actually looking at.
+export const [dashboardEditorOpen, setDashboardEditorOpen] =
+  createSignal<boolean>(false);
+
+// The project results-package tab fetches its attached package on mount
+// instead of reading a store, so its tour anchors appear a network
+// round-trip after the tab itself does. This counts its settled fetches
+// (ready OR error; 0 while the first is in flight, reset to 0 on unmount).
+// The onboarding manager counts the tab as visible only while this is > 0,
+// so tour parts gated on those anchors are evaluated against the drawn page
+// rather than the loading one — evaluating at tab-entry excluded them, and
+// nothing re-checked once the fetch landed. A count rather than a flag so
+// that every later settle (a repoint) is a re-check too: a part that only
+// became possible mid-visit starts as soon as its anchor is on screen.
+export const [resultsPackageTabLoadCount, setResultsPackageTabLoadCount] =
+  createSignal<number>(0);
+
+// Request signal for opening a document editor from outside the tab
+// components (the tour catalogue modal). The openers live in private closures
+// inside each tab component, and inactive tabs are unmounted, so the request
+// must persist until the matching tab mounts and consumes it. Consumers clear
+// the signal BEFORE calling their opener (openProjectEditor only resolves when
+// the editor closes).
+export type PendingEditorOpen = {
+  kind: "deck" | "report" | "visualization" | "dashboard";
+  id: string;
+};
+export const [pendingEditorOpen, setPendingEditorOpen] =
+  createSignal<PendingEditorOpen | null>(null);
+
+// Second level of the same pattern: set alongside a pending "deck" request by
+// the tour catalogue's slide-tour replays, consumed by the deck editor once
+// its slides have loaded — it opens the first slide of this type.
+export const [pendingSlideOpen, setPendingSlideOpen] =
+  createSignal<SlideType | null>(null);
+
+// Top level of the chain: a tour replay requested from the instance-level
+// catalogue before any project shell exists. Set together with navigation to
+// `/?p=<projectId>`; the project shell consumes it after hydration and runs
+// the tour's own navigate + start.
+export const [pendingTourReplay, setPendingTourReplay] = createSignal<
+  string | null
+>(null);

@@ -101,62 +101,71 @@ export function InstanceUsers(p: Props) {
       <Match when={true}>
         <FrameTop
           panelChildren={
-            <HeadingBar
-              tonal
-              heading={t3({
-                en: "Users",
-                fr: "Utilisateurs",
-                pt: "Utilizadores",
-              })}
-            >
-              <div class="ui-gap-sm flex items-center">
-                <Show when={currentUserIsHUser()}>
-                  <Button
-                    onClick={() => setShowHUsers((v) => !v)}
-                    iconName={showHUsers() ? "eyeOff" : "eye"}
-                    outline
-                    onBackground="base-200"
+            <div class="h-full w-full" data-tour="instance-users-header">
+              <HeadingBar
+                tonal
+                heading={t3({
+                  en: "Users",
+                  fr: "Utilisateurs",
+                  pt: "Utilizadores",
+                })}
+              >
+                <div class="ui-gap-sm flex items-center">
+                  <Show when={currentUserIsHUser()}>
+                    <Button
+                      onClick={() => setShowHUsers((v) => !v)}
+                      iconName={showHUsers() ? "eyeOff" : "eye"}
+                      outline
+                      onBackground="base-200"
+                    >
+                      {showHUsers()
+                        ? t3({
+                            en: "Hide system users",
+                            fr: "Masquer les utilisateurs système",
+                            pt: "Ocultar utilizadores do sistema",
+                          })
+                        : t3({
+                            en: "Show system users",
+                            fr: "Afficher les utilisateurs système",
+                            pt: "Mostrar utilizadores do sistema",
+                          })}
+                    </Button>
+                  </Show>
+                  <div
+                    class="ui-gap-sm flex items-center"
+                    data-tour="instance-users-bulk"
                   >
-                    {showHUsers()
-                      ? t3({
-                          en: "Hide system users",
-                          fr: "Masquer les utilisateurs système",
-                          pt: "Ocultar utilizadores do sistema",
-                        })
-                      : t3({
-                          en: "Show system users",
-                          fr: "Afficher les utilisateurs système",
-                          pt: "Mostrar utilizadores do sistema",
-                        })}
-                  </Button>
-                </Show>
-                <Button onClick={downloadUsersCSV} iconName="download">
-                  {t3({
-                    en: "Download users",
-                    fr: "Télécharger les utilisateurs",
-                    pt: "Transferir utilizadores",
-                  })}
-                </Button>
-                <Button onClick={attemptBatchUploadUsers} iconName="upload">
-                  {t3({
-                    en: "Batch import from CSV",
-                    fr: "Importation groupée depuis CSV",
-                    pt: "Importação em lote a partir de CSV",
-                  })}
-                </Button>
-                <Button onClick={attemptAddUser} iconName="plus">
-                  {t3({
-                    en: "Add users",
-                    fr: "Ajouter des utilisateurs",
-                    pt: "Adicionar utilizadores",
-                  })}
-                </Button>
-              </div>
-            </HeadingBar>
+                    <Button onClick={downloadUsersCSV} iconName="download">
+                      {t3({
+                        en: "Download users",
+                        fr: "Télécharger les utilisateurs",
+                        pt: "Transferir utilizadores",
+                      })}
+                    </Button>
+                    <Button onClick={attemptBatchUploadUsers} iconName="upload">
+                      {t3({
+                        en: "Batch import from CSV",
+                        fr: "Importation groupée depuis CSV",
+                        pt: "Importação em lote a partir de CSV",
+                      })}
+                    </Button>
+                  </div>
+                  <div data-tour="instance-users-add">
+                    <Button onClick={attemptAddUser} iconName="plus">
+                      {t3({
+                        en: "Add users",
+                        fr: "Ajouter des utilisateurs",
+                        pt: "Adicionar utilizadores",
+                      })}
+                    </Button>
+                  </div>
+                </div>
+              </HeadingBar>
+            </div>
           }
         >
           <div class="ui-pad flex h-full w-full flex-col gap-4">
-            <div class="min-h-0 flex-1">
+            <div class="min-h-0 flex-1" data-tour="instance-users-table">
               <UserTable
                 users={instanceState.users}
                 logs={(() => {

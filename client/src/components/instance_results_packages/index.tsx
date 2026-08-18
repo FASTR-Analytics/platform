@@ -123,36 +123,45 @@ export function InstanceResultsPackages() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar
-            tonal
-            heading={t3({
-              en: "Results packages",
-              fr: "Paquets de résultats",
-              pt: "Pacotes de resultados",
-            })}
+          <div
+            class="h-full w-full"
+            data-tour="instance-results-packages-header"
           >
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                onClick={openModuleDefaults}
-                outline
-                onBackground="base-200"
-                iconName="settings"
-              >
-                {t3({
-                  en: "Module defaults",
-                  fr: "Paramètres par défaut des modules",
-                  pt: "Predefinições dos módulos",
-                })}
-              </Button>
-              <Button onClick={openWizard} iconName="package">
-                {t3({
-                  en: "Generate new results package",
-                  fr: "Générer un nouveau paquet de résultats",
-                  pt: "Gerar novo pacote de resultados",
-                })}
-              </Button>
-            </div>
-          </HeadingBar>
+            <HeadingBar
+              tonal
+              heading={t3({
+                en: "Results packages",
+                fr: "Paquets de résultats",
+                pt: "Pacotes de resultados",
+              })}
+            >
+              <div class="ui-gap-sm flex items-center">
+                <div data-tour="instance-results-packages-defaults">
+                  <Button
+                    onClick={openModuleDefaults}
+                    outline
+                    onBackground="base-200"
+                    iconName="settings"
+                  >
+                    {t3({
+                      en: "Module defaults",
+                      fr: "Paramètres par défaut des modules",
+                      pt: "Predefinições dos módulos",
+                    })}
+                  </Button>
+                </div>
+                <div data-tour="instance-results-packages-generate">
+                  <Button onClick={openWizard} iconName="package">
+                    {t3({
+                      en: "Generate new results package",
+                      fr: "Générer un nouveau paquet de résultats",
+                      pt: "Gerar novo pacote de resultados",
+                    })}
+                  </Button>
+                </div>
+              </div>
+            </HeadingBar>
+          </div>
         }
       >
         <FrameLeftResizable

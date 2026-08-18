@@ -40,6 +40,28 @@
    single-valued on purpose: mid-tone fills that hold on both bases — the
    shipped dark prototype never varied them. */
 
+/* Roadtrip onboarding tours — z below panther's AlertProvider modals (z-50)
+   so alerts always stack above an active tour. Popover text rides the app
+   tokens, which resolve per scheme. The dark-only overrides (a base-200
+   popover lifted off the dark base, a heavier scrim) take the same dual gate
+   as .cm-ySelection below. */
+:root {
+  --roadtrip-z: 40;
+  --roadtrip-accent: var(--color-primary);
+  --roadtrip-bg: var(--color-base-100);
+  --roadtrip-fg: var(--color-base-content);
+}
+:root[data-scheme="dark"] {
+  --roadtrip-bg: var(--color-base-200);
+  --roadtrip-scrim-color: rgb(0 0 0 / 0.65);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-scheme="system"] {
+    --roadtrip-bg: var(--color-base-200);
+    --roadtrip-scrim-color: rgb(0 0 0 / 0.65);
+  }
+}
+
 /* CodeMirror editors (slide text fields, report editor, version diffs) ship
    static defaults: white background, black caret, light-gray selection and
    gutter. Retheme them from the tokens unconditionally — the tokens resolve

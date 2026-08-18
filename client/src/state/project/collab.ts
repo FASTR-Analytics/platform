@@ -39,7 +39,8 @@ import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 // visualization) with reconnect catch-up. Mirrors the SSE manager
 // (t1_sse.tsx): a single module-level connection, exponential-backoff
 // reconnect that never gives up, and a reactive store consumers read from.
-// The `peers` list includes self; UI filters by `connectionId`.
+// The `peers` list is per CONNECTION and includes self; UI reads it through
+// otherPeers(), which collapses it to one entry per person.
 
 type CollabState = {
   connectionId: string | null;
@@ -54,10 +55,57 @@ const [collabStore, setCollabStore] = createStore<CollabState>({
 /** Reactive presence state for the current project (includes self). */
 export const collabState = collabStore;
 
-/** Peers other than this client, for rendering. */
+/** Which connection speaks for a person holding several (two tabs, or a
+ *  reconnect overlapping the old socket's teardown): the one actually applying
+ *  edits, else one that isn't idle, else the lowest connectionId so every
+ *  viewer picks the same one. */
+function presenceRank(p: PresenceEntry): number {
+  return (p.isEditing ? 2 : 0) + (p.idle ? 0 : 1);
+}
+
+/** Other PEOPLE in this project — one entry each, never one per connection.
+ *
+ *  Presence is connection-keyed, but every consumer (avatars, viewer chips,
+ *  "who has this open" borders, the AI busy-slide guard) is asking about
+ *  people: a user with a second tab must not appear twice, and their own tabs
+ *  must not appear at all — otherwise you see your own name as a collaborator
+ *  and the AI refuses to edit a slide because "you" have it open. Matches the
+ *  join/leave toasts, which have always keyed on email, and the live-cursor
+ *  overlay, which collapses the same way. */
 export function otherPeers(): PresenceEntry[] {
-  const self = collabStore.connectionId;
-  return collabStore.peers.filter((p) => p.connectionId !== self);
+  const self = collabStore.peers.find(
+    (p) => p.connectionId === collabStore.connectionId,
+  );
+  const byPerson = new Map<string, PresenceEntry>();
+  for (const p of collabStore.peers) {
+    if (p.connectionId === collabStore.connectionId) {
+      continue;
+    }
+    if (self && p.email === self.email) {
+      continue;
+    }
+    const held = byPerson.get(p.email);
+    if (
+      !held ||
+      presenceRank(p) > presenceRank(held) ||
+      (presenceRank(p) === presenceRank(held) &&
+        p.connectionId < held.connectionId)
+    ) {
+      byPerson.set(p.email, p);
+    }
+  }
+  return [...byPerson.values()];
+}
+
+/** Connection ids the server currently lists for this project (empty before
+ *  presence arrives — treat that as "unknown", never as "nobody"). Reactive.
+ *  The cursor overlay uses it to drop awareness states whose connection is
+ *  already gone: the server deregisters a connection and rebroadcasts presence
+ *  the instant its socket closes, whereas the Yjs awareness liveness sweep
+ *  needs ~30 s — long enough for a closed tab to keep a ghost cursor on
+ *  everyone's screen. */
+export function liveConnectionIds(): ReadonlySet<string> {
+  return new Set(collabStore.peers.map((p) => p.connectionId));
 }
 
 // Reactive "is the collab socket open right now" — for UI (live/offline save
@@ -109,14 +157,24 @@ export function docSaveFailing(
 // outages). The connection banner tells the user while retries run, and the
 // online/visibilitychange listeners below short-circuit the wait as soon as
 // the network or tab plausibly comes back.
+//
+// The ONE exception is an authorization refusal: the server closes with
+// COLLAB_CLOSE_UNAUTHORIZED (4403) — or 1008, the standard policy-violation
+// code — for a condition no amount of retrying can change. Those stop the loop
+// (see `unauthorized`) instead of burning a request every 30s, and on every tab
+// refocus, forever.
 const RETRY_EXPONENT_CAP = 5;
 const BASE_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000;
+const TERMINAL_CLOSE_CODES = new Set([4403, 1008]);
 
 let ws: WebSocket | undefined;
 let currentProjectId: string | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
+// Latched by a terminal close so nothing re-opens the socket until something
+// that could change the answer happens (forceCollabReconnect / a new project).
+let unauthorized = false;
 // Close-intent is tracked PER SOCKET, not as a module flag: a project switch
 // closes the old socket and immediately opens a new one, and the old socket's
 // onclose fires only later — a shared flag reset by openSocket would then read
@@ -190,26 +248,58 @@ export type SlideSession = {
 };
 
 /** This client's server-stamped identity, from its own presence entry. */
-function selfIdentity(): { name: string; color: string } | null {
+function selfIdentity(): {
+  connectionId: string;
+  email: string;
+  name: string;
+  color: string;
+} | null {
   const self = collabStore.peers.find(
     (p) => p.connectionId === collabStore.connectionId,
   );
-  return self ? { name: self.name, color: self.color } : null;
+  return self
+    ? {
+      connectionId: self.connectionId,
+      email: self.email,
+      name: self.name,
+      color: self.color,
+    }
+    : null;
 }
 
 function applySessionUser(awareness: Awareness): void {
   const id = selfIdentity();
-  if (id) {
-    awareness.setLocalStateField("user", {
-      name: id.name,
-      color: id.color,
-      // Selection-highlight color: y-codemirror paints the peer's selected
-      // RANGE with this as the background, so it must be translucent — the
-      // opaque presence color would black out the selected text. "33" = ~20%
-      // alpha on the hex color, matching the library's own fallback.
-      colorLight: id.color + "33",
-    });
+  if (!id) {
+    return;
   }
+  const next = {
+    name: id.name,
+    color: id.color,
+    // Selection-highlight color: y-codemirror paints the peer's selected
+    // RANGE with this as the background, so it must be translucent — the
+    // opaque presence color would black out the selected text. "33" = ~20%
+    // alpha on the hex color, matching the library's own fallback.
+    colorLight: id.color + "33",
+    // WHO this awareness state belongs to, and WHICH connection carries it.
+    // Both are already project-wide public in `presence_state` (same audience
+    // as awareness), and the cursor overlay needs them to guarantee one cursor
+    // per PERSON: `email` collapses a user's other tabs (and hides their own
+    // from themselves), `connectionId` lets a viewer drop states left behind by
+    // connections the server has already dropped — presence knows within one
+    // round trip, the Yjs liveness sweep takes ~30 s.
+    email: id.email,
+    connectionId: id.connectionId,
+  };
+  // Presence broadcasts land often (every peer view change); re-stamping an
+  // identical identity would ship an awareness update to everyone each time.
+  const prev = awareness.getLocalState()?.user as typeof next | undefined;
+  if (
+    prev && prev.name === next.name && prev.color === next.color &&
+    prev.email === next.email && prev.connectionId === next.connectionId
+  ) {
+    return;
+  }
+  awareness.setLocalStateField("user", next);
 }
 
 // Set once the deploy-boundary guard has decided to reload (see
@@ -994,16 +1084,27 @@ function openSocket(projectId: string): void {
     }
   };
 
-  socket.onclose = () => {
+  socket.onclose = (event) => {
     const intentional = intentionallyClosed.has(socket);
     if (ws === socket) {
       ws = undefined;
       setSocketOpen(false);
     }
-    if (!intentional) {
-      notifyCollabConnection("reconnecting");
-      scheduleReconnect();
+    if (intentional) {
+      return;
     }
+    // A close code the server only sends when this user may never hold this
+    // socket (not approved, no project access). Retrying cannot fix it, and the
+    // "reconnecting" banner would be both permanent and untrue — so stand down
+    // silently. A later grant/removal calls forceCollabReconnect (t1_store),
+    // which clears this and connects again.
+    if (TERMINAL_CLOSE_CODES.has(event.code)) {
+      unauthorized = true;
+      notifyCollabConnection("unauthorized");
+      return;
+    }
+    notifyCollabConnection("reconnecting");
+    scheduleReconnect();
   };
 
   socket.onerror = () => {
@@ -1012,7 +1113,7 @@ function openSocket(projectId: string): void {
 }
 
 function scheduleReconnect(): void {
-  if (!currentProjectId) {
+  if (!currentProjectId || unauthorized) {
     return;
   }
   attempts += 1;
@@ -1035,7 +1136,7 @@ function scheduleReconnect(): void {
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
 // when no project wants a connection or the socket is already up/connecting.
 function retryNow(): void {
-  if (!currentProjectId) {
+  if (!currentProjectId || unauthorized) {
     return;
   }
   if (ws && ws.readyState <= WebSocket.OPEN) {
@@ -1223,6 +1324,9 @@ export function forceCollabReconnect(reason: string): void {
     return;
   }
   console.log(`Collab: reconnecting (${reason})`);
+  // Clear a previous authorization refusal: permission/lock changes and
+  // project membership changes are exactly the events that can flip it.
+  unauthorized = false;
   hardClose();
   retryNow();
 }
@@ -1253,6 +1357,7 @@ export function connectCollab(projectId: string): void {
   hardClose();
   currentProjectId = projectId;
   attempts = 0;
+  unauthorized = false;
   setCollabStore({ connectionId: null, peers: [] });
   setSaveFailingKeys(new Set<string>());
   createProjectAwareness();

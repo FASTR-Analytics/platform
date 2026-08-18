@@ -435,7 +435,7 @@ export function SlideList(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-cursor-zone="header">
+        <div class="h-full w-full" data-cursor-zone="header" data-tour="deck-toolbar">
         <HeadingBar
           heading={p.deckLabel}
           onBack={() => p.handleClose()}
@@ -445,7 +445,7 @@ export function SlideList(p: Props) {
               peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
             />
             <Show when={p.slideIds.length > 0}>
-              <div class="w-32">
+              <div class="w-32" data-tour="deck-slide-size">
                 <Slider
                   value={slideSize()}
                   onChange={setSlideSize}
@@ -461,16 +461,21 @@ export function SlideList(p: Props) {
                 outline
                 onClick={() => setIsFillWidth(!isFillWidth())}
               />
-              <Button iconName="presentation" onClick={() => p.present()}>
+              <Button
+                id="deck-present-button"
+                iconName="presentation"
+                onClick={() => p.present()}
+              >
                 {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
               </Button>
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
-              <Button iconName="plus">
+              <Button id="deck-add-slide-button" iconName="plus">
                 {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
               </Button>
             </MenuTriggerWrapper>
             <Button
+              id="deck-settings-button"
               iconName="settings"
               outline
               onClick={() => p.handleOpenSettings()}
@@ -478,7 +483,7 @@ export function SlideList(p: Props) {
               {t3(TC.settings)}
             </Button>
             <MenuTriggerWrapper position="bottom-end" items={menuItems}>
-              <Button iconName="moreVertical" outline />
+              <Button id="deck-more-button" iconName="moreVertical" outline />
             </MenuTriggerWrapper>
             <Show when={!showAi()}>
               <Button
@@ -526,6 +531,10 @@ export function SlideList(p: Props) {
           </div>
         </Show>
         <Show when={!p.isLoading && p.slideIds.length > 0}>
+          {/* Wrapper exists so a tour can spotlight just the slides; the
+              scroll container above is full-height, which leaves a tour
+              popover nowhere to sit. */}
+          <div data-tour="deck-grid">
           <SortableVendor
             idField="id"
             items={sortableSlideItems()}
@@ -575,6 +584,7 @@ export function SlideList(p: Props) {
               );
             }}
           </SortableVendor>
+          </div>
         </Show>
       </div>
     </FrameTop>

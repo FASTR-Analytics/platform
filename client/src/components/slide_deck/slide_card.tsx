@@ -124,6 +124,7 @@ export function SlideCard(p: Props) {
     <div
       classList={{ "sortable-selected": p.isSelected }}
       style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
+      data-tour="deck-slide-card"
     >
       <div class="text-base-content mb-2 text-center text-sm">
         {p.index + 1}

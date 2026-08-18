@@ -14,7 +14,7 @@ type Props = {
 
 export function SlideEditorPanelSection(p: Props) {
   return (
-    <div class="ui-pad ui-spy">
+    <div class="ui-pad ui-spy" data-tour="slide-section-fields">
       <div class="ui-spy-sm">
         <CollabTextField
           session={p.session}

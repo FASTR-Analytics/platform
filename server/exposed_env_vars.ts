@@ -297,7 +297,9 @@ export const _BYPASS_AUTH = !!Deno.env.get("BYPASS_AUTH") && !_IS_PRODUCTION;
 // env itself and fails per-request, and a BYPASS_AUTH dev instance runs with
 // neither set. They are surfaced here for the headless OAuth resolver
 // (server/headless_auth.ts), which builds its own backend client and throws at
-// USE time — never at boot — if they are missing.
+// USE time — never at boot — if they are missing. The same applies to the
+// server's own Clerk Backend API calls (email-ownership checks in the
+// rename-email flow).
 export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY") ?? "";
 export const _CLERK_PUBLISHABLE_KEY = Deno.env.get("CLERK_PUBLISHABLE_KEY") ??
   "";

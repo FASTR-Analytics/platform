@@ -241,7 +241,10 @@ export function RunCatalogDetailPane(p: {
   };
 
   return (
-    <div class="ui-pad ui-spy h-full overflow-auto">
+    <div
+      class="ui-pad ui-spy h-full overflow-auto"
+      data-tour="instance-results-packages-card"
+    >
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
         <Show when={isPinned()}>
@@ -290,7 +293,10 @@ export function RunCatalogDetailPane(p: {
 
       <ResultsPackageProvenanceLine run={p.run} showDiskSize />
 
-      <div class="ui-text-caption">
+      <div
+        class="ui-text-caption"
+        data-tour="instance-results-packages-usage"
+      >
         <Show
           when={p.run.attachedProjects.length > 0}
           fallback={t3({

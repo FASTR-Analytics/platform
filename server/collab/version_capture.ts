@@ -383,6 +383,14 @@ export function editorFromGlobalUser(user: GlobalUser): VersionEditor {
   };
 }
 
+/** User email rename: re-key the editor in every open tracker session. */
+export function renameVersionEditorEmail(
+  oldEmail: string,
+  newEmail: string,
+): void {
+  tracker.renameEditorEmail(oldEmail, newEmail);
+}
+
 /** Record one attributed edit. For slides, pass the DECK id, not the slide id. */
 export function recordVersionEdit(
   projectId: string,

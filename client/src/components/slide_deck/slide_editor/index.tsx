@@ -992,14 +992,24 @@ export function SlideEditor(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-cursor-zone="header">
+          <div
+            class="h-full w-full"
+            data-cursor-zone="header"
+            data-tour="slide-editor-header"
+          >
             <HeadingBar
               heading={t3({
                 en: "Edit Slide",
                 fr: "Modifier la diapositive",
                 pt: "Editar diapositivo",
               })}
-              onBack={handleCancel}
+              leftChildren={
+                <Button
+                  id="slide-back-button"
+                  iconName="chevronLeft"
+                  onClick={handleCancel}
+                />
+              }
             >
               <div class="ui-gap-sm flex items-center">
                 {/* Who else is currently editing THIS slide (live presence). */}
@@ -1032,30 +1042,32 @@ export function SlideEditor(p: Props) {
                   <Button onClick={undo} iconName="undo" outline />
                   <Button onClick={redo} iconName="redo" outline />
                 </Show>
-                <Select
-                  options={[
-                    {
-                      value: "cover",
-                      label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
-                    },
-                    {
-                      value: "section",
-                      label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
-                    },
-                    {
-                      value: "content",
-                      label: t3({
-                        en: "Content",
-                        fr: "Contenu",
-                        pt: "Conteúdo",
-                      }),
-                    },
-                  ]}
-                  value={tempSlide.type}
-                  onChange={(v: string) =>
-                    handleTypeChange(v as "cover" | "section" | "content")
-                  }
-                />
+                <div data-tour="slide-type-select">
+                  <Select
+                    options={[
+                      {
+                        value: "cover",
+                        label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
+                      },
+                      {
+                        value: "section",
+                        label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
+                      },
+                      {
+                        value: "content",
+                        label: t3({
+                          en: "Content",
+                          fr: "Contenu",
+                          pt: "Conteúdo",
+                        }),
+                      },
+                    ]}
+                    value={tempSlide.type}
+                    onChange={(v: string) =>
+                      handleTypeChange(v as "cover" | "section" | "content")
+                    }
+                  />
+                </div>
                 <Show when={!showAi()}>
                   <Button
                     onClick={() => setShowAi(true)}
@@ -1075,7 +1087,11 @@ export function SlideEditor(p: Props) {
           minWidth={300}
           maxWidth={600}
           panelChildren={
-            <div class="h-full w-full" data-cursor-zone="panel">
+            <div
+              class="h-full w-full"
+              data-cursor-zone="panel"
+              data-tour="slide-panel"
+            >
               <SlideEditorPanel
                 projectId={p.projectId}
                 tempSlide={tempSlide}
@@ -1111,6 +1127,7 @@ export function SlideEditor(p: Props) {
           <div
             class="bg-base-200 h-full w-full overflow-auto"
             data-cursor-zone="canvas-area"
+            data-tour="slide-canvas"
           >
             <Show when={pageInputs().status === "loading"}>
               <div class="flex h-full items-center justify-center">

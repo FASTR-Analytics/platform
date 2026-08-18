@@ -22,7 +22,7 @@ export const emailRouteRegistry = {
     path: "/emails/help",
     method: "POST",
     body: z.object({
-      feedbackType: z.enum(["bug", "suggestion"]),
+      feedbackType: z.enum(["bug", "suggestion", "help"]),
       description: z.string(),
       projectLabel: z.string().optional(),
       images: z.array(z.object({

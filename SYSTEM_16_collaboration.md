@@ -113,9 +113,22 @@ avatar URL is self-reported).
   S1's inventory). Auth mirrors the SSE endpoint and completes **before** the
   upgrade (the auth middleware precedes `upgradeWebSocket` in the same chain,
   so no message can precede the check): origin check → Clerk auth (401) →
-  `globalUser.approved` (403) → `resolveProjectUserAccess` (the same shared
-  core REST/SSE use; 503/403) → admission requires ANY of
-  `can_view_slide_decks` / `can_view_reports` / `can_view_visualizations`.
+  `globalUser.approved` → `resolveProjectUserAccess` (the same shared
+  core REST/SSE use) → **admission is project access itself**: any member that
+  resolve step admits (i.e. ≥1 project permission), exactly the SSE contract.
+  Document permissions are deliberately NOT the admission boundary — presence
+  and page cursors are project-wide, and `PresenceEntry` carries identity plus
+  opaque document ids, never labels or content — so a data-only or
+  modules-only member joins presence and is refused every document family per
+  message. (Until 2026-07-30 admission required ANY of `can_view_slide_decks` /
+  `can_view_reports` / `can_view_visualizations`, which left every
+  narrow-permission member — data-only, metrics-only, module operator, settings
+  admin — in a permanent "Connection lost" retry loop.)
+  Authorization refusals are delivered as a **post-upgrade close** with
+  `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
+  browser cannot read a refused handshake (it surfaces as an unreadable 1006,
+  indistinguishable from a network drop); only the Origin check (403, never
+  upgrade for a foreign origin) and the retryable 503 stay pre-upgrade.
   The Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes
   bypass CORS); same-origin requests are additionally allowed, and requests
   with **no** Origin header pass (non-browser clients). Each message family
@@ -167,7 +180,13 @@ avatar URL is self-reported).
   `online` / tab-refocus events short-circuit the wait; a top-center banner
   ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
   shows "Connection lost — reconnecting…" (+ Reload) and flashes "Live again"
-  on recovery — never on a normal initial connect. Close-intent is tracked
+  on recovery — never on a normal initial connect. The **one** exception to
+  retrying forever is an authorization refusal (close 4403, or the standard
+  policy code 1008): `onclose` reads the code, latches `unauthorized`, and
+  stands down in the silent `"unauthorized"` state — no banner, since nothing
+  is broken and no retry could help. `forceCollabReconnect` (permission change,
+  lock change, project membership change) and connecting to a different project
+  clear the latch, so a later grant reconnects. Close-intent is tracked
   **per socket** (WeakSet) so a project switch can't mistake its own teardown
   for a failure and open a duplicate connection. `socket.onopen` re-sends
   presence, re-subscribes every open doc session, and re-announces project
@@ -194,8 +213,15 @@ avatar URL is self-reported).
   so a client clears them by omission; `avatarUrl` is the exception — sticky
   once provided. Every change broadcasts the full peer list to the project
   (`broadcastPresence(projectId)`).
-- Client: a Solid store mirrors `presence_state`; `otherPeers()` filters out
-  self by connectionId. Consumers: deck thumbnails, deck header + per-slide
+- Client: a Solid store mirrors `presence_state`. Presence is keyed per
+  CONNECTION, but every consumer asks about PEOPLE, so `otherPeers()` collapses
+  it: this user's own connections drop out entirely (their second tab is not a
+  collaborator — otherwise you see your own name in the avatar stack and the AI
+  busy-guard refuses to edit a slide because "you" have it open), and each
+  remaining person yields ONE entry — the connection that is `isEditing`, else
+  one that isn't `idle`, else the lowest connectionId so every viewer agrees.
+  Anything reading `collabState.peers` directly is asking about connections and
+  must say why. Consumers: deck thumbnails, deck header + per-slide
   cards via
   [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
   report + viz cards (same avatar stack filtered on `reportId`/`poId`), the
@@ -522,7 +548,10 @@ report / page).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur); `user` =
-identity (rewritten wholesale on every presence_state); `pointer` = live mouse
+identity — name/color/colorLight plus the `email` and `connectionId` the
+one-cursor-per-person rule below is built on (re-stamped on every
+presence_state, skipped when unchanged so identical identities don't broadcast);
+`pointer` = live mouse
 cursor (`PointerAwarenessState` — Figma-style cursors, coordinates in
 surface-relative spaces, throttled ~20 msg/s; also carries an optional `click`
 counter — bumped per primary-button press and shipped immediately, bypassing
@@ -538,6 +567,24 @@ awareness (below). Cursor name tags fade after ~4 s of stillness (hover near a
 cursor to reveal its name), idle cursors disappear after 30 s, and a cursor
 leaving the surface vanishes for everyone; the report editor sets
 `hideWhileTyping` so typing hides your pointer until the mouse moves.
+
+**One cursor per person, enforced not assumed.** Awareness is keyed per
+CONNECTION and a user legitimately holds several (second tab, a reconnect
+overlapping the old socket's teardown, a dropped connection whose state has not
+yet aged out of the ~30 s sweep), so the overlay gates on the `user` identity
+three ways: states carrying MY OWN email never render (my other tabs are me,
+not a peer), states whose `connectionId` is absent from the current
+`presence_state` never render (`liveConnectionIds()` — the server deregisters a
+closed socket and rebroadcasts presence within a round trip, an order of
+magnitude faster than the awareness sweep; an ABSENT connectionId means
+"unknown", never "dead"), and survivors collapse to one sprite per email with
+the most recently MOVED connection winning (clientID breaks exact ties, so
+every viewer picks the same one). Click ripples ride the same gates. The sender
+side backs this up: `visibilitychange` to hidden, window `blur` (a tab stays
+"visible" while another window or monitor has focus — the side-by-side case)
+and `pointerleave` each clear the pointer outright, so an unfocused tab holds
+no cursor at all; focus/visible re-broadcasts the resting position without
+waiting for a mouse move.
 
 **Project-level awareness — page cursors.** The project tab pages have no doc
 room, so their live cursors ride a dedicated PROJECT-scoped Awareness: one
@@ -578,6 +625,7 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WS can't connect / proxy unpatched               | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence.                                                                                          |
 | Socket drops mid-edit                            | Edits keep accumulating locally; banner + auto-reconnect forever (≤30 s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect → explicit save.|
+| User not allowed on the socket (lost project access, unapproved) | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the project keeps working. A later permission change calls `forceCollabReconnect`, which clears it. |
 | Server restarts mid-edit                         | Room state restored from `crdt_state` on next subscribe — including un-checkpointed edits.                                                                                                     |
 | Two users type in the same field                 | Character-level CRDT merge; both carets visible; per-user undo.                                                                                                                                |
 | Two users restructure the layout concurrently    | Per-key LWW can duplicate a block; `materializeSlide` dedupes deterministically on every client and the next push deletes the shadowed copy — self-healing.                                    |

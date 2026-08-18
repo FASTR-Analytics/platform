@@ -87,14 +87,16 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          tonal
-          heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
-        >
-          <Button id="select-file-button" iconName="upload">
-            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-          </Button>
-        </HeadingBar>
+        <div class="h-full w-full" data-tour="instance-assets-header">
+          <HeadingBar
+            tonal
+            heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
+          >
+            <Button id="select-file-button" iconName="upload">
+              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+            </Button>
+          </HeadingBar>
+        </div>
       }
     >
       <AssetFileSystem
@@ -160,14 +162,19 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <TabsNavigation
-              items={tabItems()}
-              value={active()}
-              onChange={setSelectedType}
-            />
+            <div class="h-full w-full" data-tour="instance-assets-tabs">
+              <TabsNavigation
+                items={tabItems()}
+                value={active()}
+                onChange={setSelectedType}
+              />
+            </div>
           }
         >
-          <div class="ui-pad h-full w-full overflow-auto">
+          <div
+            class="ui-pad h-full w-full overflow-auto"
+            data-tour="instance-assets-list"
+          >
             <AssetTable
               files={grouped().get(active()) ?? []}
               currentUserEmail={p.currentUserEmail}

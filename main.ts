@@ -70,8 +70,9 @@ import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
-import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
 import { routesWhatsNew } from "./server/routes/instance/whats_new.ts";
+import { routesOnboarding } from "./server/routes/instance/onboarding.ts";
+import { mcpHttpHandler } from "./server/mcp/mcp_endpoint.ts";
 
 await dbStartUp();
 
@@ -232,6 +233,7 @@ app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);
 app.route("/", routesCustomPrompts);
 app.route("/", routesWhatsNew);
+app.route("/", routesOnboarding);
 
 // The remote MCP endpoint (PLAN_112): URL + PAT header, nothing local. The
 // panther adapter handles auth (401/503), era routing, sessions, and

@@ -12,7 +12,7 @@ import {
   openComponent,
   type StateHolder,
 } from "panther";
-import { For, Show, createEffect, createSignal } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import {
   ResultsPackageContents,
   ResultsPackageProvenanceLine,
@@ -26,6 +26,7 @@ import { ResultsPackageCompatibilityModal } from "./results_package_compatibilit
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
+import { setResultsPackageTabLoadCount } from "~/state/t4_ui";
 
 // The project "Results package" surface (PLAN_RESULTS_RUNS Phase 3 item 4):
 // the package this project serves from, and — for an editor — the picker
@@ -95,6 +96,20 @@ export function ProjectResultsPackage() {
     );
   });
 
+  // Tell the onboarding manager when this surface is actually drawn: the
+  // attached card is a tour anchor that only exists once the fetch above has
+  // settled, and the manager evaluates its gates while the tab counts as
+  // visible. Every settle counts (a repoint's refetch included, so a part
+  // that needs the new card can start once it is on screen); reset on
+  // unmount so a revisit waits for its own fetch.
+  createEffect(() => {
+    if (attached().status !== "loading") {
+      setResultsPackageTabLoadCount((n) => n + 1);
+    }
+  });
+  onCleanup(() => setResultsPackageTabLoadCount(0));
+
+
   const attachPackage = createButtonAction(
     async (run: RunListingItem) => {
       const confirmed = await openComponent({
@@ -161,13 +176,15 @@ export function ProjectResultsPackage() {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar
-            heading={t3({
-              en: "Results package",
-              fr: "Paquet de résultats",
-              pt: "Pacote de resultados",
-            })}
-          />
+          <div class="h-full w-full" data-tour="results-package-header">
+            <HeadingBar
+              heading={t3({
+                en: "Results package",
+                fr: "Paquet de résultats",
+                pt: "Pacote de resultados",
+              })}
+            />
+          </div>
         }
       >
         <div class="ui-pad ui-spy">
@@ -293,7 +310,7 @@ export function ProjectResultsPackage() {
           </div>
 
           <Show when={canAttach()}>
-            <div class="ui-spy-sm">
+            <div class="ui-spy-sm" data-tour="results-package-picker">
               <h3 class="ui-text-heading">
                 {t3({
                   en: "Other results packages",
@@ -411,7 +428,10 @@ function AttachedPackageCard(p: {
     );
 
   return (
-    <div class="ui-pad ui-spy-sm border-primary rounded border">
+    <div
+      class="ui-pad ui-spy-sm border-primary rounded border"
+      data-tour="results-package-attached"
+    >
       <div class="ui-gap flex items-center">
         <div class="font-700 flex-1 truncate">{p.run.label}</div>
         <Badge intent="primary" variant="solid">
@@ -433,11 +453,16 @@ function AttachedPackageCard(p: {
         <AttachedScopeCoverageWarning runId={p.run.id} />
       </Show>
 
-      <ResultsPackageContents
-        run={p.run}
-        internals={internals()}
-        openEditor={p.openEditor}
-      />
+      {/* Wrapped at the call site, not inside the shared component: the
+          instance catalogue mounts the same contents and needs its own
+          anchor. */}
+      <div data-tour="results-package-contents">
+        <ResultsPackageContents
+          run={p.run}
+          internals={internals()}
+          openEditor={p.openEditor}
+        />
+      </div>
     </div>
   );
 }
