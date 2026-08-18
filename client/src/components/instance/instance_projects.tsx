@@ -174,7 +174,11 @@ export function InstanceProjects(p: Props) {
                     p.canCreateProjects
                   }
                 >
-                  <Button data-tour="instance-projects-create" onClick={attemptAddProject} iconName="plus">
+                  <Button
+                    data-tour="instance-projects-create"
+                    onClick={attemptAddProject}
+                    iconName="plus"
+                  >
                     {t3({
                       en: "Create project",
                       fr: "Créer un projet",
@@ -266,14 +270,6 @@ export function InstanceProjects(p: Props) {
                             {(label) => <div class="flex-1">{label()}</div>}
                           </Show>
                         </div>
-                        <Show
-                          when={
-                            project.attachedRunId !== null &&
-                            project.attachedRunId === instanceState.pinnedRunId
-                          }
-                        >
-                          <PinnedBadge />
-                        </Show>
                         <Show when={project.followPinned}>
                           <Badge intent="neutral">
                             {t3({
