@@ -371,6 +371,43 @@ from the data. The client editor pre-checks that a chosen
 numerator/denominator common id satisfies the calculated grammar (commons
 are free text, so not all are usable — a structural mismatch, not a bug).
 
+**Ruling — the additivity principle (Tim, 2026-08-19; the target model,
+not yet built).** *The pipeline only ever stores, adjusts, and aggregates
+additive facility-month counts. Anything non-additive is an expression over
+those counts, evaluated after aggregation. Nothing non-additive is ever
+stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
+pointers only. Consequences that follow from it and are ruled with it:
+
+- Calculated indicators collapse into common indicators. A common indicator
+  has a `type`: `base` (mapping to raws, SUM at extract; the only type
+  m001/m002 ever see) or `derived` (an expression over other commons,
+  evaluated by S9 AFTER aggregation: the SAME evaluator as the metric-wide
+  `postAggregationExpression`, its ingredients being row-restricted sums —
+  `SUM(count) FILTER (WHERE indicator_common_id = 'anc4')` — and its
+  expression coming from the run's indicator catalog). Derived ids are hosted
+  on every metric declared `formatAs: "indicator"` over `indicator_common_id`
+  (no new schema flag; the loader enforces SUM + no metric-wide PAE), and
+  there is ONE such metric in the HMIS family, over adjusted counts, with the
+  scorecard as a preset. Definitions are snapshotted into the run manifest,
+  so a package stays standalone and an edit still means a new run. Tracking
+  home: PLAN_COMMON_INDICATOR_TYPES.md.
+  Population-denominated rates are a distinct type because their grain is
+  area×month, not facility×month; population lives in its own store (see
+  S8's population section) and is expanded stock→flow (interpolated annual ÷
+  12 per month) at run capture, so downstream it sums like any count.
+- Presentation fields (`format_as`, thresholds, group, sort) live on the
+  common indicator; `format_as` is DISPLAY, the `type` carries pipeline
+  semantics — "percent" is not a pipeline property, "is a ratio of counts"
+  is.
+- DHIS2 percent indicators are never imported as values. The importer
+  decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
+  data-element operands → raws → base commons, and authors the indicator as
+  a `derived` common; a yearly denominator DE routes to the population
+  store. Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
+  indicators, `d2:` functions) are refused, not approximated.
+- The scorecard is a table preset over a count metric with derived ids on
+  display; it is not a module (`m008` retires under this model).
+
 **ICEH** stratifiers (`lib/types/iceh_strats.ts`) are a hardcoded
 compile-time dictionary mapping raw survey stratum labels to normalized
 ids. No UI, no mutations.

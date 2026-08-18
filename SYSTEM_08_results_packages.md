@@ -823,6 +823,10 @@ removes the legacy dirs.
 
 ## population.csv (the M8 scorecard input)
 
+Target model (ruled 2026-08-19, S5 "additivity principle", not yet built): a
+first-class instance population store, CSV then DHIS2 writers, expanded
+stock→flow into the run inputs at capture; this section describes today.
+
 `population.csv` is consumed only by **M8** (`m008`, the catalog-driven
 scorecard module, `scriptGenerationType: calculated_indicators`, authored in
 wb-fastr-modules). It reaches the sandbox as an **asset**
