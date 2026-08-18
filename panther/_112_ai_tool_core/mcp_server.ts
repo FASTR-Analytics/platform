@@ -33,10 +33,10 @@ import {
 } from "./mcp_types.ts";
 import { createMCPConnection, serveCoreOnStdio } from "./mcp_protocol.ts";
 
-const ORIENTATION_TOOL_NAME = "get_orientation";
-const ORIENTATION_RESOURCE_URI = "panther://orientation";
-const ORIENTATION_TOOL_DESCRIPTION =
-  "Read the orientation document: what exists in the app right now (live ids), the rules for operating it, and how to use the other tools. Call this before doing other work.";
+const OVERVIEW_TOOL_NAME = "get_overview";
+const OVERVIEW_RESOURCE_URI = "panther://overview";
+const OVERVIEW_TOOL_DESCRIPTION =
+  "Read the overview document: what exists in the app right now (live ids), the rules for operating it, and how to use the other tools. Call this before doing other work.";
 
 // Spec: tool names SHOULD be 1–128 chars from [A-Za-z0-9_.-]. Panther's
 // snake_case names comply; this catches a consumer inventing one with a
@@ -379,10 +379,10 @@ export function buildMCPServerCore(
     exposed.set(name, tool);
   }
   if (
-    config.groundingResource !== undefined && exposed.has(ORIENTATION_TOOL_NAME)
+    config.groundingResource !== undefined && exposed.has(OVERVIEW_TOOL_NAME)
   ) {
     throw new Error(
-      `createMCPServer: tool name "${ORIENTATION_TOOL_NAME}" collides with the built-in orientation tool (added because groundingResource is configured).`,
+      `createMCPServer: tool name "${OVERVIEW_TOOL_NAME}" collides with the built-in overview tool (added because groundingResource is configured).`,
     );
   }
 
@@ -435,10 +435,10 @@ export function buildMCPServerCore(
   }
   if (
     config.groundingResource !== undefined &&
-    resourceUris.has(ORIENTATION_RESOURCE_URI)
+    resourceUris.has(OVERVIEW_RESOURCE_URI)
   ) {
     throw new Error(
-      `createMCPServer: resource uri "${ORIENTATION_RESOURCE_URI}" collides with the built-in orientation resource.`,
+      `createMCPServer: resource uri "${OVERVIEW_RESOURCE_URI}" collides with the built-in overview resource.`,
     );
   }
 
@@ -458,7 +458,7 @@ export function buildMCPServerCore(
   const resolveGrounding = async (): Promise<string> => {
     const source = config.groundingResource;
     if (source === undefined) {
-      throw new MCPRequestError(-32002, "No orientation resource configured");
+      throw new MCPRequestError(-32002, "No overview resource configured");
     }
     return typeof source === "function" ? await source() : source;
   };
@@ -535,8 +535,8 @@ export function buildMCPServerCore(
   const toolDefs: MCPToolDef[] = [];
   if (config.groundingResource !== undefined) {
     toolDefs.push({
-      name: ORIENTATION_TOOL_NAME,
-      description: ORIENTATION_TOOL_DESCRIPTION,
+      name: OVERVIEW_TOOL_NAME,
+      description: OVERVIEW_TOOL_DESCRIPTION,
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
     });
@@ -692,7 +692,7 @@ export function buildMCPServerCore(
       const readyError = await awaitReady();
       if (readyError) return completeError(readyError);
       if (
-        name === ORIENTATION_TOOL_NAME && config.groundingResource !== undefined
+        name === OVERVIEW_TOOL_NAME && config.groundingResource !== undefined
       ) {
         try {
           return completeText(await resolveGrounding());
@@ -824,10 +824,10 @@ export function buildMCPServerCore(
       const list: Omit<MCPResourceConfig, "read">[] = [];
       if (config.groundingResource !== undefined) {
         list.push({
-          uri: ORIENTATION_RESOURCE_URI,
-          name: "orientation",
+          uri: OVERVIEW_RESOURCE_URI,
+          name: "overview",
           description:
-            "Orientation for operating this app: live ids, rules, tool usage.",
+            "Overview for operating this app: live ids, rules, tool usage.",
           mimeType: "text/markdown",
         });
       }
@@ -841,10 +841,10 @@ export function buildMCPServerCore(
 
     readResource: async (uri) => {
       if (
-        uri === ORIENTATION_RESOURCE_URI &&
+        uri === OVERVIEW_RESOURCE_URI &&
         config.groundingResource !== undefined
       ) {
-        // The orientation thunk reads live app state, so it waits for
+        // The overview thunk reads live app state, so it waits for
         // hydration like a tool call does.
         const readyError = await awaitReady();
         if (readyError) {

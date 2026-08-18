@@ -62,8 +62,8 @@ is the rulebook a consumer app must follow.
     the same `approvalPolicy` as the chat (an unapproved write in the exposed
     subset fails boot, not the allowlist's problem); grounding is a ≤2KB
     `instructions` pointer plus a `groundingResource` thunk (served as a
-    resource AND the `get_orientation` tool); slow hydration goes behind
-    `ready`, never blocks serving. Run `validateMCPServerConfig(config)` in the
+    resource AND the `get_overview` tool); slow hydration goes behind `ready`,
+    never blocks serving. Run `validateMCPServerConfig(config)` in the
     consumer's browser smoke test — it needs no Deno graph
 17. **Keep the headless subset's module graph browser-free at source** — the
     typecheck will NOT catch browser APIs (app graphs carry the `dom` lib) and

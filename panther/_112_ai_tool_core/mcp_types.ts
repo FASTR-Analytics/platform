@@ -48,14 +48,14 @@ export type CreateMCPServerConfig<TPrincipal = unknown> = {
   name: string;
   version: string;
   // ≤2KB pointer text riding the initialize result — critical rules first,
-  // ending with "read the orientation before working". The thunk is resolved
+  // ending with "read the overview before working". The thunk is resolved
   // per initialize and must be CHEAP (it answers inside the client's startup
   // timeout, before ready() has run) — live ids belong in groundingResource.
   instructions?: string | (() => string | Promise<string>);
   // Long-form grounding. Exposed BOTH as an MCP resource and as a
-  // get_orientation read tool — resources are user-attached, never
+  // get_overview read tool — resources are user-attached, never
   // model-fetched on their own, so the tool is what the model can actually
-  // call. The thunk is re-resolved per call, after ready(), so orientation
+  // call. The thunk is re-resolved per call, after ready(), so the overview
   // tracks the app's live state (which projects/decks/reports exist NOW).
   groundingResource?: string | (() => string | Promise<string>);
   // The same AIToolWithMetadata[] createAIChat takes. Only tools declaring
