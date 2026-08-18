@@ -31,6 +31,7 @@ globs:
   - server/routes/route-tracker.ts
   - server/routes/streaming.ts
   - server/routes/public/oauth_metadata.ts
+  - server/tests/headless_mount_test.ts
   - server/tests/headless_oauth_auth_test.ts
   - server/tests/pat_identity_parity_test.ts
 docs_absorbed:
@@ -425,7 +426,11 @@ Per-request isolation is exactly what the explicit form restores; both defaults
 are unchanged, so SPA callers (`createAllServerActions()`, global fetch) behave
 byte-identically. Pinned by `server/tests/pat_identity_parity_test.ts`, which
 drives the same route through the raw PAT app, an explicit transport, and a
-defaulted caller and asserts all three agree. Note there is NO compiler-enforced
+defaulted caller and asserts all three agree. The headless app's mount list
+and the allowlist are two hand-kept lists; `server/tests/headless_mount_test.ts`
+dispatches one request per allowlisted name into `headlessApp` and fails on
+any 404 (they drifted once — allowlisted run-keyed reads whose route file
+was never mounted 404'd silently through `/mcp`). Note there is NO compiler-enforced
 browser-free boundary in `lib/` either: the server typecheck carries the
 TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
 `document`/`window` reference in a `lib/` file passes `deno check main.ts` clean
