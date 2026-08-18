@@ -9,9 +9,11 @@ import { Tooltip } from "../../special_state/tooltip.tsx";
 import { Badge } from "../../display/badge.tsx";
 import { Button } from "../../form_inputs/mod.ts";
 import type { Intent } from "../../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../../data_attrs.ts";
 import type { ListItem } from "../../list_selection/list_item_types.ts";
 
-interface TabsNavigationProps<T extends string = string, M = never> {
+interface TabsNavigationProps<T extends string = string, M = never>
+  extends DataAttrs {
   items: ListItem<T, M>[];
   value: T;
   onChange: (value: T) => void;
@@ -27,6 +29,7 @@ interface TabsNavigationProps<T extends string = string, M = never> {
 export function TabsNavigation<T extends string = string, M = never>(
   p: TabsNavigationProps<T, M>,
 ) {
+  const [dataAttrs] = splitDataAttrs(p);
   const isVertical = p.vertical === true;
   const isCollapsed = () => p.collapsed === true && isVertical;
   const isCollapsible = p.collapsible === true && isVertical;
@@ -148,7 +151,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   };
 
   return (
-    <div class={containerClasses}>
+    <div {...dataAttrs} class={containerClasses}>
       <div class={rowClasses}>
         <For each={p.items}>
           {(item) => {

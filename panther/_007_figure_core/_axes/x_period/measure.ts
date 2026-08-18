@@ -6,6 +6,7 @@
 import type {
   MergedGridStyle,
   MergedXPeriodAxisStyle,
+  PeriodType,
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
@@ -15,6 +16,7 @@ import {
   getLargeLabelExemplar,
   getLargeLabelForms,
   getPeriodAxisInfo,
+  labelFitsOneBand,
 } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
@@ -50,19 +52,6 @@ export function measureXPeriodAxis(
     sx.showEveryNthTick,
   );
 
-  const autoCalculatedSkipInterval = calculateYearSkipInterval(
-    rc,
-    periodType,
-    periodAxisType,
-    periodIncrementWidth,
-    axisStyle,
-  );
-
-  const yearSkipInterval = Math.max(
-    sx.showEveryNthTick,
-    autoCalculatedSkipInterval,
-  );
-
   const heightIncludingXAxisStrokeWidth = gridStyle.axisStrokeWidth + maxTickH;
 
   const xAxisRcd = contentRcd.getAdjusted((prev) => ({
@@ -84,6 +73,23 @@ export function measureXPeriodAxis(
       )
       .dims.w(),
   }));
+  const shortestFormW = largeLabelForms[largeLabelForms.length - 1].w;
+
+  // Year-centered advances one increment per year with no grid stroke between
+  // periods; every other rung advances stroke + increment per period.
+  const isYearCentered = periodAxisType === "year-centered";
+  const widthPerYear = isYearCentered
+    ? periodIncrementWidth
+    : getPeriodsPerYear(periodType) *
+      (periodIncrementWidth + gridStyle.gridStrokeWidth);
+
+  const yearSkipInterval = Math.max(
+    sx.showEveryNthTick,
+    calculateYearSkipInterval(widthPerYear, shortestFormW),
+  );
+
+  const boundaryTicksEveryYear = !isYearCentered &&
+    labelFitsOneBand(widthPerYear - gridStyle.gridStrokeWidth, shortestFormW);
 
   return {
     subChartAreaWidth,
@@ -93,5 +99,17 @@ export function measureXPeriodAxis(
     periodAxisSmallTickH,
     largeLabelForms,
     yearSkipInterval,
+    labelSpan: widthPerYear * yearSkipInterval,
+    boundaryTicksEveryYear,
   };
+}
+
+function getPeriodsPerYear(periodType: PeriodType): number {
+  if (periodType === "year-month") {
+    return 12;
+  }
+  if (periodType === "year-quarter") {
+    return 4;
+  }
+  return 1;
 }

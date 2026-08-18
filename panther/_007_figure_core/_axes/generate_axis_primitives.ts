@@ -27,8 +27,10 @@ import { getScaleAxisTickPositions } from "./scale_tick_positions.ts";
 import {
   getLargePeriodLabel,
   getSmallPeriodLabelIfAny,
+  isLargePeriod,
+  labelFitsCell,
   pickLargeLabelForm,
-  shouldShowYearBoundary,
+  shouldLabelYear,
 } from "./x_period/helpers.ts";
 
 // Tick label alignment for scale axes. "center" centers every label on its
@@ -217,26 +219,25 @@ export function generateXPeriodAxisPrimitive(
   const ticks: ChartAxisPrimitive["ticks"] = [];
   const tickY = mx.xAxisRcd.y() + sg.axisStrokeWidth;
 
-  // Track large ticks (year boundaries) for large labels
+  // Full-height ticks bound the year-label cells. With boundaryTicksEveryYear
+  // every year start gets one and cells are single bands (labelled every Nth);
+  // otherwise only labelled starts get one and each cell spans N bands.
   let currentX = mx.periodAxisType === "year-centered"
     ? subChartAreaX
     : subChartAreaX + sg.gridStrokeWidth / 2;
   let prevLargeTickX: number | undefined = undefined;
   let prevLargeTickPeriodId: number | undefined = undefined;
-  const largeTicks: { leftX: number; rightX: number; periodId: number }[] = [];
+  const cells: { leftX: number; rightX: number; periodId: number }[] = [];
 
   // Loop through time points
   for (let i_val = 0; i_val < nTimePoints; i_val++) {
     const time = timeMin + i_val;
     const period = getPeriodIdFromTime(time, periodType);
-    const isLargeTick = mx.periodAxisType !== "year-centered" &&
-      (i_val === 0 ||
-        shouldShowYearBoundary(
-          period,
-          periodType,
-          mx.yearSkipInterval,
-          sx.calendar,
-        ));
+    const isYearStart = mx.periodAxisType !== "year-centered" &&
+      (i_val === 0 || isLargePeriod(period, periodType, sx.calendar));
+    const isLargeTick = isYearStart &&
+      (i_val === 0 || mx.boundaryTicksEveryYear ||
+        shouldLabelYear(period, periodType, mx.yearSkipInterval, sx.calendar));
 
     if (isLargeTick) {
       // Large tick (year boundary) - full height
@@ -250,7 +251,7 @@ export function generateXPeriodAxisPrimitive(
       });
 
       if (prevLargeTickX !== undefined && prevLargeTickPeriodId !== undefined) {
-        largeTicks.push({
+        cells.push({
           leftX: prevLargeTickX,
           rightX: currentX,
           periodId: prevLargeTickPeriodId,
@@ -316,7 +317,8 @@ export function generateXPeriodAxisPrimitive(
         // Year-centered: label every Nth
         if (i_val % mx.yearSkipInterval === 0) {
           const form = pickLargeLabelForm(
-            mx.periodIncrementWidth * mx.yearSkipInterval,
+            mx.labelSpan,
+            mx.labelSpan,
             mx.largeLabelForms,
           );
           const yearLabel = getLargePeriodLabel(period, form);
@@ -358,47 +360,64 @@ export function generateXPeriodAxisPrimitive(
   }
 
   if (prevLargeTickX !== undefined && prevLargeTickPeriodId !== undefined) {
-    largeTicks.push({
+    cells.push({
       leftX: prevLargeTickX,
       rightX: currentX,
       periodId: prevLargeTickPeriodId,
     });
   }
 
-  // Add large period labels (year labels spanning multiple periods)
-  if (largeTicks.length > 0) {
-    const minLargeTickSpace = Math.min(
-      ...largeTicks.map((lt) => lt.rightX - lt.leftX - sg.gridStrokeWidth),
+  // Year labels, one per labelled cell, centred between its bounding ticks.
+  // Under boundaryTicksEveryYear only every Nth band is labelled; otherwise
+  // every cell is (its left tick was placed on label parity, except the axis
+  // start, which keeps its label as the reader's anchor). One form serves the
+  // whole axis: the widest that fits every cell able to take at least the
+  // shortest form. A cell too narrow even for that — a sliver of a partial
+  // band at either edge — goes unlabelled rather than dragging the form down.
+  const shortestFormW = mx.largeLabelForms[mx.largeLabelForms.length - 1].w;
+  const labelledCells = cells
+    .map((cell) => ({
+      ...cell,
+      innerW: cell.rightX - cell.leftX - sg.gridStrokeWidth,
+    }))
+    .filter((cell) =>
+      (!mx.boundaryTicksEveryYear ||
+        shouldLabelYear(
+          cell.periodId,
+          periodType,
+          mx.yearSkipInterval,
+          sx.calendar,
+        )) &&
+      labelFitsCell(shortestFormW, cell.innerW)
     );
-    const form = pickLargeLabelForm(minLargeTickSpace, mx.largeLabelForms);
-
-    for (const largeTick of largeTicks) {
-      const mText = rc.mText(
-        getLargePeriodLabel(largeTick.periodId, form),
-        sx.text.xPeriodAxisTickLabels,
-        mx.periodIncrementWidth,
-      );
-      const spaceForLabel = largeTick.rightX - largeTick.leftX -
-        sg.gridStrokeWidth;
-      if (mText.dims.w() <= spaceForLabel) {
-        // Add a pseudo-tick for the large label (no tick line, just label)
-        ticks.push({
-          position: new Coordinates([
-            largeTick.leftX + (largeTick.rightX - largeTick.leftX) / 2,
-            mx.xAxisRcd.bottomY() - mText.dims.h(),
-          ]),
-          label: {
-            mText,
-            position: new Coordinates([
-              largeTick.leftX + (largeTick.rightX - largeTick.leftX) / 2,
-              mx.xAxisRcd.bottomY() - mText.dims.h(),
-            ]),
-            alignment: { h: "center", v: "top" },
-          },
-          value: largeTick.periodId,
-        });
-      }
+  const form = pickLargeLabelForm(
+    mx.labelSpan,
+    Math.min(...labelledCells.map((cell) => cell.innerW)),
+    mx.largeLabelForms,
+  );
+  for (const cell of labelledCells) {
+    const mText = rc.mText(
+      getLargePeriodLabel(cell.periodId, form),
+      sx.text.xPeriodAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    );
+    if (!labelFitsCell(mText.dims.w(), cell.innerW)) {
+      continue;
     }
+    const labelPos = new Coordinates([
+      (cell.leftX + cell.rightX) / 2,
+      mx.xAxisRcd.bottomY() - mText.dims.h(),
+    ]);
+    // Pseudo-tick carrying the label (no tick line)
+    ticks.push({
+      position: labelPos,
+      label: {
+        mText,
+        position: labelPos,
+        alignment: { h: "center", v: "top" },
+      },
+      value: cell.periodId,
+    });
   }
 
   // Axis line
