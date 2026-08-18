@@ -1,3 +1,33 @@
+[TBD] [user] [added] - Projects can now be scoped to a single admin area
+[TBD] [user] [added] - Project cards show attached results package and pinned/follows-pin badges
+[TBD] [user] [added] - Project cards display their scoped admin area
+[TBD] [user] [changed] - Data page now shows separate Configuration cards for HMIS and HFA
+[TBD] [user] [changed] - Admin area labels setting moved from Settings tab to Data page
+[TBD] [user] [changed] - Settings tab removed from main navigation
+[TBD] [user] [changed] - GeoJSON maps now managed separately for HMIS and HFA
+[TBD] [user] [changed] - Facility and admin area counts shown together on facility cards
+[TBD] [user] [changed] - Data page cards reorganized into General, HMIS, HFA, and ICEH sections
+[TBD] [user] [changed] - DHIS2 connection settings moved to the HMIS section of the Data page
+[TBD] [user] [changed] - Project comparison table now shows attached package name per project
+[TBD] [user] [changed] - Import status by indicator view integrated into imports panel
+[TBD] [user] [changed] - Module parameter inputs now show labels directly on fields
+[TBD] [user] [changed] - Viewer panels for files, logs, and scripts use a simpler back button
+[TBD] [user] [fixed] - File downloads with special characters in names now work correctly
+[TBD] [user] [changed] - File sizes displayed with consistent formatting across the platform
+[TBD] [admin] [added] - Projects can now be scoped to a single admin area
+[TBD] [admin] [added] - Project cards show attached results package and pinned/follows-pin badges
+[TBD] [admin] [changed] - Settings tab removed; configuration moved into the Data page per registry
+[TBD] [admin] [changed] - HMIS and HFA now have separate structure configuration and GeoJSON maps
+[TBD] [admin] [changed] - Admin area labels editor is now under a General section on the Data page
+[TBD] [admin] [changed] - Facility and admin area counts shown directly on facility cards per registry
+[TBD] [admin] [changed] - DHIS2 connection settings moved into the HMIS section of the Data page
+[TBD] [admin] [changed] - Import history by-indicator view integrated into imports surface instead of separate screen
+[TBD] [admin] [changed] - Results package detail panels use standardized badge styling for status
+[TBD] [admin] [changed] - Comparison table now shows each project's attached package name
+[TBD] [admin] [changed] - Module parameter inputs now show labels inline with the control
+[TBD] [admin] [changed] - File viewer, log viewer, and script viewer panels use back-arrow navigation
+[TBD] [admin] [fixed] - File download links now handle special characters in filenames correctly
+[TBD] [admin] [internal] - Consolidated navigation list so compact and wide views stay in sync
 [1.66.9] [user] [fixed] - Fixed data imports occasionally freezing and never completing
 [1.66.9] [admin] [fixed] - Fixed rare hang during HMIS CSV data imports
 [1.66.9] [user] [added] - Change your email address from your profile settings
