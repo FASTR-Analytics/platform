@@ -1,3 +1,9 @@
+[1.67.2] [user] [changed] - Guidance messages now say "attach a results package" instead of "enable a module"
+[1.67.2] [user] [fixed] - Improved readability of placeholder and status messages across the app
+[1.67.2] [user] [fixed] - Asset table now fills available screen height properly
+[1.67.2] [admin] [changed] - Guidance now says to attach a results package instead of enabling a module
+[1.67.2] [admin] [fixed] - Asset table now fills available screen height properly
+[1.67.2] [admin] [internal] - Consistent muted text styling across version history and slide views
 [1.67.1] [user] [changed] - Navigation icons updated for Results and Assets tabs
 [1.67.1] [user] [changed] - Results package list now shows project count instead of "Latest" badge
 [1.67.1] [user] [changed] - Package selector now supports search filtering
