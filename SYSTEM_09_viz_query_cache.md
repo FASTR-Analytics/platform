@@ -126,11 +126,13 @@ are deliberately absent.
 
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
 into `projectDb.unsafe` SQL, and the route body is attacker-controllable, so
-type shape alone is not enough. `genericLongFormFetchConfigSchema`
-([api-routes/project/presentation-objects.ts:45](lib/api-routes/project/presentation-objects.ts#L45))
-rejects at the route boundary (400); the imperative `validateFetchConfig`
-([validate_fetch_config.ts](lib/validate_fetch_config.ts)) re-guards in the
-handler. Both share the same primitives so they can't drift:
+type shape alone is not enough. `genericLongFormFetchConfigSchema` rejects at
+the route boundary (400) on BOTH mounts (project `getPresentationObjectItems`
+/ `getReplicantOptions`, run-keyed `getRunPresentationObjectItems`); the
+imperative `validateFetchConfig` re-guards in the shared handler body. Both
+live in [validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema
+moved there 2026-08-19, co-located with the guard) and share the same
+primitives so they can't drift:
 
 | Raw-interpolated field                        | Made safe by                                                                                                                                                                                                   |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
