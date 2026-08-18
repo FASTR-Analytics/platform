@@ -15,9 +15,10 @@ import { routeRegistry } from "lib";
 // forwards the raw incoming Authorization header off-instance (to
 // status-api.fastr-analytics.org), which would ship the user's credential to
 // an external service.
-// Exported for server/tests/headless_mount_test.ts, which proves every name
-// here is actually reachable through headlessApp (the allowlist and the
-// mount list are two lists; the test is what keeps them one).
+// Exported for validateHeadlessMounts (headless_app.ts), the dev-boot check
+// that every name here is actually reachable through headlessApp (the
+// allowlist and the mount list are two lists; the check is what keeps them
+// one).
 export const HEADLESS_ALLOWED_ROUTE_NAMES = [
   // getCurrentUser: not called by the lib tools — it is the parity test's
   // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only

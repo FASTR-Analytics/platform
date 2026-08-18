@@ -16,7 +16,8 @@ import {
 } from "./server/collab/version_capture.ts";
 import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
-import { _PORT } from "./server/exposed_env_vars.ts";
+import { _BYPASS_AUTH, _PORT } from "./server/exposed_env_vars.ts";
+import { validateHeadlessMounts } from "./server/headless_app.ts";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -281,6 +282,13 @@ app.get("*", (c) => {
 
 // Validate that all routes in the registry have been defined
 validateAllRoutesDefined();
+// Dev-only structural self-checks that need a booted app (fail-stop, same as
+// the route validation above). Gated on BYPASS_AUTH rather than !production
+// because the headless mount check is only decidable when the headless auth
+// middleware passes through (see validateHeadlessMounts).
+if (_BYPASS_AUTH) {
+  await validateHeadlessMounts();
+}
 
 // Process-level backstop for the serving phase. A single collaborative-editing
 // frame — or any other un-awaited async path — must never take down this

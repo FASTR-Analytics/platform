@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { routeRegistry } from "lib";
+import { HEADLESS_ALLOWED_ROUTE_NAMES } from "./middleware/headless_allowlist.ts";
 import {
   headlessAuthMiddleware,
   headlessRouteAllowlist,
@@ -52,4 +54,44 @@ export function headlessAppFetch(
   init: RequestInit,
 ): Promise<Response> {
   return Promise.resolve(headlessApp.request(input, init));
+}
+
+// Boot-time self-check (dev only — main.ts): every allowlisted route must be
+// MOUNTED above. The allowlist and the mount list are two hand-kept lists and
+// drifted once — allowlisted run-keyed reads whose route file was never
+// mounted 404'd silently through /mcp, because a 404 is a well-formed
+// response. One request per allowlisted name; any status but 404 means a
+// handler was reached (200, a zod 400 on the dummy body, a permission 403);
+// 404 means "allowlisted, not mounted" and boot fail-stops, like
+// validateAllRoutesDefined. Only meaningful under BYPASS_AUTH: with auth ON
+// the credential middleware answers 401 before routing, for mounted and
+// unmounted paths alike.
+export async function validateHeadlessMounts(): Promise<void> {
+  const unmounted: string[] = [];
+  for (const name of HEADLESS_ALLOWED_ROUTE_NAMES) {
+    const route = routeRegistry[name];
+    const path = route.path.replace(/:\w+/g, "x");
+    const method = route.method.toUpperCase();
+    const headers: Record<string, string> = {};
+    if (route.requiresProject) headers["Project-Id"] = "x";
+    const init: RequestInit = { method, headers };
+    if (method !== "GET") {
+      headers["content-type"] = "application/json";
+      init.body = "{}";
+    }
+    const res = await headlessApp.request(path, init);
+    await res.body?.cancel();
+    if (res.status === 404) unmounted.push(`${name} (${method} ${path})`);
+  }
+  if (unmounted.length > 0) {
+    console.error(
+      `❌ Headless routes allowlisted but NOT mounted in headlessApp — add the route file in server/headless_app.ts:\n${
+        unmounted.map((u) => `   - ${u}`).join("\n")
+      }\n`,
+    );
+    Deno.exit(1);
+  }
+  console.log(
+    `✅ All ${HEADLESS_ALLOWED_ROUTE_NAMES.length} allowlisted headless routes are mounted\n`,
+  );
 }
