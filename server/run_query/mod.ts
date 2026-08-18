@@ -19,6 +19,11 @@ export {
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "./virtual_defaults.ts";
 export {
+  readRunItems,
+  readRunResultsValueInfo,
+  resultsValueInfoQueue,
+} from "./run_data_reads.ts";
+export {
   datasetsVersionFromManifest,
   enrichMetricFromManifest,
   getDatasetFamilyFromRun,
@@ -40,6 +45,7 @@ export {
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   getRunReadContext,
+  getRunReadContextForRun,
   getRunVersionInfo,
   resolveMetricFromRun,
   type RunReadContext,

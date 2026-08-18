@@ -37,6 +37,7 @@ export {
 } from "./package_internals.ts";
 export {
   publishFailedRunDirOrSweep,
+  isRunIdShape,
   runDirPath,
   runInputFilePath,
   runManifestPath,

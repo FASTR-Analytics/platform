@@ -12,7 +12,7 @@ import {
   _MODULE_SCRIPT_FILE_NAME,
 } from "../exposed_env_vars.ts";
 import { getRunManifestCached } from "./manifest_cache.ts";
-import { runDirPath } from "./run_paths.ts";
+import { isRunIdShape, runDirPath } from "./run_paths.ts";
 
 // Reading a package's INTERNALS — the generated R script, the execution log,
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
@@ -30,20 +30,19 @@ import { runDirPath } from "./run_paths.ts";
 // What a package contains does not depend on who is asking; only the chrome
 // and the guard do. Hence: one reader, two guards.
 //
-// Path safety is enforced HERE rather than at each route, because these are
-// the only functions that turn caller-supplied strings into paths under the
-// runs volume. runId must be a UUID, moduleId must be in the module registry,
-// and a file name may not contain a path separator or `..` — a traversal
-// attempt is a typed failure, never a read outside the module's own dir.
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Path safety is enforced HERE rather than at each route, because these
+// (with the run-lens read context, run_query/run_read.ts) are the only
+// functions that turn caller-supplied strings into paths under the runs
+// volume. runId must be a UUID (isRunIdShape, run_paths.ts), moduleId must be
+// in the module registry, and a file name may not contain a path separator
+// or `..` — a traversal attempt is a typed failure, never a read outside the
+// module's own dir.
 
 function resolveOutputsDir(
   runId: string,
   moduleId: string,
 ): { success: true; dir: string } | { success: false; err: string } {
-  if (!UUID_RE.test(runId)) {
+  if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
   try {
@@ -146,7 +145,7 @@ export async function listRunModuleFiles(
 export async function readRunDetail(
   runId: string,
 ): Promise<APIResponseWithData<RunDetail>> {
-  if (!UUID_RE.test(runId)) {
+  if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
   let manifest;

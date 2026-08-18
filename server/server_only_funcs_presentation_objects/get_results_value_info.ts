@@ -26,7 +26,6 @@ import type { ItemsVersionInfo } from "./get_presentation_object_items.ts";
 export async function getResultsValueInfoForPresentationObject(
   mainDb: Sql,
   projectDb: Sql,
-  projectId: string,
   metricId: string,
   moduleLastRun: string,
   datasetsVersion: string,
@@ -60,7 +59,6 @@ export async function getResultsValueInfoForPresentationObject(
     const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
 
     return await buildResultsValueInfo(
-      projectId,
       metricId,
       resultsObjectId,
       resultsValue.datasetFamily,
@@ -84,7 +82,6 @@ export async function getResultsValueInfoForPresentationObject(
 // Shared status loop — one source for the ok / too_many_values /
 // no_values_available / error thresholds on both engines.
 export async function buildResultsValueInfo(
-  projectId: string,
   metricId: string,
   resultsObjectId: string,
   datasetFamily: DatasetType | undefined,
@@ -140,7 +137,6 @@ export async function buildResultsValueInfo(
       data: {
         resultsObjectId,
         metricId,
-        projectId,
         datasetFamily,
         ...versionInfo,
         periodBounds,

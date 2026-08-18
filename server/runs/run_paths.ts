@@ -7,6 +7,16 @@ import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 // atomically rename to runs/{runId} — a crashed generation leaves no readable
 // run, and immutability is enforced by construction.
 
+// The path-safety guard for a CALLER-supplied run id (URL params — the
+// package_internals reads and the run-lens read context). A run id is a
+// UUID; anything else must never reach a path under the runs volume.
+const RUN_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isRunIdShape(runId: string): boolean {
+  return RUN_ID_RE.test(runId);
+}
+
 export function runDirPath(runId: string): string {
   return join(_RUNS_DIR_PATH, runId);
 }

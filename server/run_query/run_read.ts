@@ -53,6 +53,7 @@ import {
   readRunInputJsonCached,
 } from "../runs/manifest_cache.ts";
 import {
+  isRunIdShape,
   runDirPath,
   runInputFilePath,
   runResultsObjectParquetPath,
@@ -103,6 +104,27 @@ export type RunReadContext = {
   scopeToken: string;
 };
 
+// The two lenses onto one read core. A read context is (run, scope): the
+// PROJECT lens resolves both from the project row — its attached run and its
+// AA2 — and is what every project-mounted data route uses; the RUN lens takes
+// the run id directly at national scope and is what the run-keyed instance
+// routes (and through them the pinned-package MCP surface) use. Everything
+// below the context is shared.
+
+async function buildRunReadContext(
+  runId: string,
+  adminArea2: string | null,
+): Promise<RunReadContext> {
+  const manifest = await getRunManifestCached(runId);
+  return {
+    runId,
+    runDir: runDirPath(runId),
+    manifest,
+    adminArea2,
+    scopeToken: projectScopeToken(adminArea2),
+  };
+}
+
 // Resolves the project's attached run via projects.run_id — the one and only
 // serving pointer. No run attached is a typed, expected state (projects await
 // their backfill synthesis or first wizard generation); a non-null pointer to
@@ -126,17 +148,30 @@ SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
         err: "No results package attached to this project",
       };
     }
-    const manifest = await getRunManifestCached(row.run_id);
     return {
       success: true,
-      data: {
-        runId: row.run_id,
-        runDir: runDirPath(row.run_id),
-        manifest,
-        adminArea2: row.admin_area_2,
-        scopeToken: projectScopeToken(row.admin_area_2),
-      },
+      data: await buildRunReadContext(row.run_id, row.admin_area_2),
     };
+  } catch (e) {
+    return {
+      success: false,
+      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
+    };
+  }
+}
+
+// The run lens: an explicit run id at national scope. Accepts any run id the
+// caller is authorized to read (the instance data bits) — an unreadable or
+// unknown run surfaces as the manifest read failing. The id is CALLER
+// supplied (a URL param) and becomes a path, so it is shape-checked first.
+export async function getRunReadContextForRun(
+  runId: string,
+): Promise<APIResponseWithData<RunReadContext>> {
+  if (!isRunIdShape(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
+  try {
+    return { success: true, data: await buildRunReadContext(runId, null) };
   } catch (e) {
     return {
       success: false,
@@ -854,7 +889,6 @@ export async function computeScopeFilters(
 
 export async function getPresentationObjectItemsFromRun(
   ctx: RunReadContext,
-  projectId: string,
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
@@ -896,7 +930,6 @@ export async function getPresentationObjectItemsFromRun(
       getIndicatorMetadata: () =>
         Promise.resolve(getIndicatorMetadataFromRun(ctx, ro.moduleId)),
     },
-    projectId,
     resultsObjectId,
     getResultsObjectTableName(resultsObjectId),
     queryContext,
@@ -970,7 +1003,6 @@ export async function getPossibleValuesFromRun(
 
 export async function getResultsValueInfoFromRun(
   ctx: RunReadContext,
-  projectId: string,
   metricId: string,
 ): Promise<APIResponseWithData<ResultsValueInfoForPresentationObject>> {
   const resResultsValue = resolveMetricFromRun(ctx, metricId);
@@ -985,7 +1017,6 @@ export async function getResultsValueInfoFromRun(
   const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
   return await buildResultsValueInfo(
-    projectId,
     metricId,
     resultsObjectId,
     resultsValue.datasetFamily,

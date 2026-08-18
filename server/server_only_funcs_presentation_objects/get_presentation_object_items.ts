@@ -43,7 +43,6 @@ export type ItemsVersionInfo = {
 // Postgres wrapper — probes and executes on the project DB.
 export async function getPresentationObjectItems(
   mainDb: Sql,
-  projectId: string,
   projectDb: Sql,
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
@@ -79,7 +78,6 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
           detectColumnExists(projectDb, table, column),
         getIndicatorMetadata: () => getIndicatorMetadata(projectDb, moduleId),
       },
-      projectId,
       resultsObjectId,
       tableName,
       queryContext,
@@ -92,7 +90,6 @@ SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
 
 export async function getPresentationObjectItemsCore(
   deps: ItemsQueryDeps,
-  projectId: string,
   resultsObjectId: string,
   tableName: string,
   queryContext: QueryContext,
@@ -168,7 +165,6 @@ export async function getPresentationObjectItemsCore(
     // treat as no data available (prevents null period crashes downstream)
     if (firstPeriodOption && !dateRange) {
       const ih: ItemsHolderPresentationObject = {
-        projectId,
         resultsObjectId,
         fetchConfig,
         ...versionInfo,
@@ -202,7 +198,6 @@ export async function getPresentationObjectItemsCore(
     // Check for special states
     if (rawItems.length > MAX_ITEMS) {
       const ih: ItemsHolderPresentationObject = {
-        projectId,
         resultsObjectId,
         fetchConfig,
         ...versionInfo,
@@ -214,7 +209,6 @@ export async function getPresentationObjectItemsCore(
 
     if (rawItems.length === 0) {
       const ih: ItemsHolderPresentationObject = {
-        projectId,
         resultsObjectId,
         fetchConfig,
         ...versionInfo,
@@ -225,7 +219,6 @@ export async function getPresentationObjectItemsCore(
     }
 
     const ih: ItemsHolderPresentationObject = {
-      projectId,
       resultsObjectId,
       fetchConfig,
       ...versionInfo,

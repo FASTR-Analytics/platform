@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { GenericLongFormFetchConfig } from "lib";
 import {
   getRunGenerationDefaultsConfig,
   updateRunGenerationDefaultsConfig,
@@ -19,6 +20,12 @@ import {
   readRunModuleScript,
   unpinRun,
 } from "../../runs/mod.ts";
+import {
+  getModuleWithConfigSelectionsFromManifest,
+  getRunReadContextForRun,
+  readRunItems,
+  readRunResultsValueInfo,
+} from "../../run_query/mod.ts";
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -184,6 +191,53 @@ defineRoute(
   log("getRunDetail"),
   async (c, { params }) => {
     return c.json(await readRunDetail(params.run_id));
+  },
+);
+
+// The run lens (run_query/run_read.ts): the same read bodies the
+// project-mounted data routes use, resolved from an explicit run id at
+// national scope. Package data is package contents, so `can_view_data`.
+defineRoute(
+  routesRunGeneration,
+  "getRunModuleWithConfigSelections",
+  requireGlobalPermission("can_view_data"),
+  log("getRunModuleWithConfigSelections"),
+  async (c, { params }) => {
+    const ctxRes = await getRunReadContextForRun(params.run_id);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json(
+      getModuleWithConfigSelectionsFromManifest(
+        ctxRes.data.manifest,
+        params.module_id,
+      ),
+    );
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "getRunPresentationObjectItems",
+  requireGlobalPermission("can_view_data"),
+  async (c, { params, body }) => {
+    const ctxRes = await getRunReadContextForRun(params.run_id);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json(
+      await readRunItems(ctxRes.data, {
+        resultsObjectId: body.resultsObjectId,
+        fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+      }),
+    );
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "getRunResultsValueInfo",
+  requireGlobalPermission("can_view_data"),
+  async (c, { params, body }) => {
+    const ctxRes = await getRunReadContextForRun(params.run_id);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json(await readRunResultsValueInfo(ctxRes.data, body.metricId));
   },
 );
 

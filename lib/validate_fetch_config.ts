@@ -1,6 +1,11 @@
-import { isRollupDimension } from "./rollup.ts";
+import { z } from "zod";
+import { isRollupDimension, ROLLUP_DIMENSIONS } from "./rollup.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./types/disaggregation_options.ts";
-import { valueFuncStrict } from "./types/_metric_installed.ts";
+import {
+  disaggregationOption,
+  periodFilterSchema,
+  valueFuncStrict,
+} from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
 // Every field below is interpolated into SQL run via projectDb.unsafe (see
@@ -106,6 +111,51 @@ export const INTEGER_FILTER_COLUMNS: ReadonlySet<string> = new Set([
 export function isValidIntegerFilterValue(v: string | number): boolean {
   return Number.isFinite(Number(v));
 }
+
+// The route-boundary schema for a fetch config, co-located with the
+// imperative validateFetchConfig below so the two halves can't drift (both
+// mounts of the data reads — project and run-keyed — validate with this).
+// SQL injection guards: these fields are interpolated into unsafe SQL.
+// groupBys / filters[].disOpt / replicateBy → closed enum (period options are
+// a subset); values[].prop → bare SQL identifier; postAggregationExpression →
+// safe arithmetic (charset + structural rules).
+const fetchConfigValuesItemSchema = z.object({
+  prop: z.string().regex(SQL_IDENTIFIER),
+  func: valueFuncStrict,
+});
+
+export const genericLongFormFetchConfigSchema = z.object({
+  values: z.array(fetchConfigValuesItemSchema),
+  groupBys: z.array(disaggregationOption),
+  filters: z.array(
+    z.object({
+      disOpt: disaggregationOption,
+      values: z.array(z.union([z.string(), z.number()])),
+    }).superRefine((filter, ctx) => {
+      // Mirror of the validateFetchConfig guard: integer-path columns are
+      // Number()-coerced and bare-interpolated, so non-numeric values would
+      // emit `col IN (NaN)` — invalid SQL.
+      if (!INTEGER_FILTER_COLUMNS.has(filter.disOpt)) return;
+      filter.values.forEach((v, i) => {
+        if (!isValidIntegerFilterValue(v)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["values", i],
+            message: `Non-numeric value for integer column '${filter.disOpt}'`,
+          });
+        }
+      });
+    }),
+  ),
+  periodFilter: periodFilterSchema,
+  periodFilterExactBounds: z.object({ min: z.number(), max: z.number() })
+    .optional(),
+  postAggregationExpression: z
+    .string()
+    .refine(isSafePostAggregationExpression)
+    .optional(),
+  rollupDim: z.enum(ROLLUP_DIMENSIONS).optional(),
+});
 
 // Disaggregation options that are FILTER-ONLY: valid in `filters`, never in
 // `groupBys` (nor client `disaggregateBy` slots). Grouping by a many-to-many

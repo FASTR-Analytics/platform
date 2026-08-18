@@ -22,8 +22,6 @@ const REPO = new URL("..", import.meta.url).pathname;
 const INSTANCE_SCHEMA = `${REPO}server/db/instance/_main_database.sql`;
 const PROJECT_SCHEMA = `${REPO}server/db/project/_project_database.sql`;
 
-const PROJECT_ID = "00000000-0000-0000-0000-000000000001";
-
 type Prepared = {
   fixture: Fixture;
   mainDb: Sql;
@@ -107,7 +105,6 @@ async function runMetricInfo(
   const res = await getResultsValueInfoForPresentationObject(
     p.mainDb,
     p.projectDb,
-    PROJECT_ID,
     metricId,
     "2026-01-01T00:00:00.000Z",
     "ds-v1"
@@ -169,7 +166,6 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
     validateFetchConfig(c.fetchConfig);
     res = await getPresentationObjectItems(
       p.mainDb,
-      PROJECT_ID,
       p.projectDb,
       p.fixture.resultsObjectId,
       c.fetchConfig,

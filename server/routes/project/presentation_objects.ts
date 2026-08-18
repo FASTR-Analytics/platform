@@ -28,29 +28,25 @@ import { requireProjectPermission } from "../../project_auth.ts";
 import { exceedsMaxReplicantOptions } from "../../server_only_funcs_presentation_objects/consts.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
-import { RequestQueue } from "../../utils/request_queue.ts";
 import {
-  _METRIC_INFO_CACHE,
   _PO_DETAIL_CACHE,
-  _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
 } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
-  findMissingRequiredGroupBys,
   findVirtualDefault,
   getAllPresentationObjectsWithVirtualDefaults,
   getAttachedManifestOrNull,
   getIndicatorMetadataFromRun,
-  getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
   getPossibleValuesFromRun,
   getPresentationObjectDetailFromRun,
-  getPresentationObjectItemsFromRun,
   getRawPeriodBoundsFromRun,
-  getResultsValueInfoFromRun,
   getRunReadContext,
   getRunVersionInfo,
+  readRunItems,
+  readRunResultsValueInfo,
+  resultsValueInfoQueue,
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "../../run_query/mod.ts";
 
@@ -62,15 +58,6 @@ import {
 // rig's baseline.
 
 export const routesPresentationObjects = new Hono();
-
-// Queue to limit concurrent PO items requests
-// With 20 DB connections, allow 10 concurrent PO items queries
-// This leaves headroom for auth and other lightweight queries
-const poItemsQueue = new RequestQueue(10);
-
-// Queue for Variable Info requests
-// These are lighter queries, but still need limiting during burst loads
-const resultsValueInfoQueue = new RequestQueue(15);
 
 // Virtual defaults (PLAN_RESULTS_RUNS item 5b) have no row: writes against
 // them are refused with the same messages the row guards used, and the
@@ -534,126 +521,14 @@ defineRoute(
   "getPresentationObjectItems",
   requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
-    const t0 = performance.now();
-    console.log(
-      `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: REQUEST received`,
-    );
-    validateFetchConfig(body.fetchConfig as GenericLongFormFetchConfig);
-
     const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
-    const runCtx = ctxRes.data;
-
-    const moduleId = getModuleIdForResultsObjectFromRun(
-      runCtx,
-      body.resultsObjectId,
-    );
-    if (moduleId === undefined) {
-      return c.json({
-        success: false,
-        err: `Unknown results object: ${body.resultsObjectId}`,
-      });
-    }
-    const versionParams = getRunVersionInfo(runCtx, moduleId);
-    if (versionParams.moduleLastRun === "unknown") {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
-    }
-
-    const missingRequired = findMissingRequiredGroupBys(
-      runCtx,
-      body.resultsObjectId,
-      (body.fetchConfig as GenericLongFormFetchConfig).groupBys,
-    );
-    if (missingRequired.length > 0) {
-      return c.json({
-        success: false,
-        err: `Required disaggregation option(s) not grouped: ${missingRequired.join(", ")}`,
-      });
-    }
-
-    // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
-    const existing = await _PO_ITEMS_CACHE.get(
-      {
-        runId: runCtx.runId,
+    return c.json(
+      await readRunItems(ctxRes.data, {
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
-        scopeToken: runCtx.scopeToken,
-      },
-      versionParams,
+      }),
     );
-    if (existing && existing.success === true) {
-      const t1 = performance.now();
-      const stats = poItemsQueue.getStats();
-      console.log(
-        `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: HIT (${(
-          t1 - t0
-        ).toFixed(
-          0,
-        )}ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-      );
-      return c.json(existing);
-    }
-
-    // Only queue on cache miss - the expensive query
-    const stats = poItemsQueue.getStats();
-    console.log(
-      `[SERVER] PO Items ${body.resultsObjectId.slice(
-        0,
-        8,
-      )}: ENTERING QUEUE [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-    );
-    const result = await poItemsQueue.enqueue(async () => {
-      const tQueue = performance.now();
-      console.log(
-        `[SERVER] PO Items ${body.resultsObjectId.slice(
-          0,
-          8,
-        )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
-      );
-      // Derived from the manifest, never from the client: the value shapes
-      // period-bound resolution but is absent from the cache hash, so a stale
-      // client detail (from a previously attached run) would poison this
-      // run's shared cache entry. physicalTimeColumn IS the most granular
-      // period column (the derivation inferMostGranularTimePeriodColumn
-      // reduces to it on the run plane).
-      const firstPeriodOption =
-        runCtx.manifest.resultsObjects.find(
-          (ro) => ro.id === body.resultsObjectId,
-        )?.physicalTimeColumn ?? undefined;
-      const newPromise = getPresentationObjectItemsFromRun(
-        runCtx,
-        c.var.ppk.projectId,
-        body.resultsObjectId,
-        body.fetchConfig as GenericLongFormFetchConfig,
-        firstPeriodOption,
-      );
-      _PO_ITEMS_CACHE.setPromise(
-        newPromise,
-        {
-          runId: runCtx.runId,
-          resultsObjectId: body.resultsObjectId,
-          fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
-          scopeToken: runCtx.scopeToken,
-        },
-        versionParams,
-      );
-      const res = await newPromise;
-      const t1 = performance.now();
-      const stats = poItemsQueue.getStats();
-      console.log(
-        `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}: MISS (${(
-          t1 - t0
-        ).toFixed(
-          0,
-        )}ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-      );
-      return res;
-    });
-
-    return c.json(result);
   },
 );
 
@@ -662,99 +537,9 @@ defineRoute(
   "getResultsValueInfoForPresentationObject",
   requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
-    const t0 = performance.now();
-
     const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
-    const runCtx = ctxRes.data;
-
-    const moduleId = getModuleIdForMetricFromRun(runCtx, body.metricId);
-    if (moduleId === undefined) {
-      return c.json({ success: false, err: `Unknown metric: ${body.metricId}` });
-    }
-    const versionParams = getRunVersionInfo(runCtx, moduleId);
-    if (versionParams.moduleLastRun === "unknown") {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
-    }
-
-    console.log(
-      `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: REQUEST received`,
-    );
-
-    // Check cache BEFORE queueing - prevents duplicates from consuming queue slots
-    const existing = await _METRIC_INFO_CACHE.get(
-      {
-        runId: runCtx.runId,
-        metricId: body.metricId,
-        scopeToken: runCtx.scopeToken,
-      },
-      versionParams,
-    );
-
-    if (existing && existing.success === true) {
-      const t1 = performance.now();
-      const stats = resultsValueInfoQueue.getStats();
-      console.log(
-        `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: HIT (${(
-          t1 - t0
-        ).toFixed(
-          0,
-        )}ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-      );
-      return c.json(existing);
-    }
-
-    // Only queue on cache miss
-    const stats = resultsValueInfoQueue.getStats();
-    console.log(
-      `[SERVER] Results Value Info ${body.metricId.slice(
-        0,
-        8,
-      )}: ENTERING QUEUE [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-    );
-
-    const result = await resultsValueInfoQueue.enqueue(async () => {
-      const tQueue = performance.now();
-      console.log(
-        `[SERVER] Results Value Info ${body.metricId.slice(
-          0,
-          8,
-        )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
-      );
-
-      const newPromise = getResultsValueInfoFromRun(
-        runCtx,
-        c.var.ppk.projectId,
-        body.metricId,
-      );
-
-      _METRIC_INFO_CACHE.setPromise(
-        newPromise,
-        {
-          runId: runCtx.runId,
-          metricId: body.metricId,
-          scopeToken: runCtx.scopeToken,
-        },
-        versionParams,
-      );
-
-      const res = await newPromise;
-      const t1 = performance.now();
-      const statsEnd = resultsValueInfoQueue.getStats();
-      console.log(
-        `[SERVER] Results Value Info ${body.metricId.slice(0, 8)}: MISS (${(
-          t1 - t0
-        ).toFixed(
-          0,
-        )}ms) [Queue: ${statsEnd.running}/${statsEnd.maxConcurrent} running, ${statsEnd.queued} waiting]`,
-      );
-      return res;
-    });
-
-    return c.json(result);
+    return c.json(await readRunResultsValueInfo(ctxRes.data, body.metricId));
   },
 );
 

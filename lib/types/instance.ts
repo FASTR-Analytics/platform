@@ -492,7 +492,6 @@ export type ItemsHolderResultsObject =
 
 export type ItemsHolderPresentationObject =
   & {
-    projectId: string;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
     moduleLastRun: string;

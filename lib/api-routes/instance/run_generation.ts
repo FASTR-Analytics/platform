@@ -6,13 +6,17 @@ import {
 } from "../../types/mod.ts";
 import type {
   FollowPinnedProject,
+  InstalledModuleWithConfigSelections,
+  ItemsHolderPresentationObject,
   PinResultsPackageResult,
+  ResultsValueInfoForPresentationObject,
   RunDetail,
   RunCatalogItem,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
   RunModuleFileListing,
 } from "../../types/mod.ts";
+import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
 import { route } from "../route-utils.ts";
 
 // Results-package launch wizard + catalogue (PLAN_RESULTS_RUNS item 2,
@@ -94,6 +98,36 @@ export const runGenerationRouteRegistry = {
     method: "GET",
     params: runModuleParamsSchema,
     response: {} as RunModuleFileListing,
+  }),
+  // One module's configuration as generated (the manifest's
+  // configSelections, definition-typed) — the AI tools' get_module_settings
+  // read, on both the copilot and MCP.
+  getRunModuleWithConfigSelections: route({
+    path: "/run_generation/run/:run_id/module/:module_id/config_selections",
+    method: "GET",
+    params: runModuleParamsSchema,
+    response: {} as InstalledModuleWithConfigSelections,
+  }),
+  // The run lens onto the package-data reads (S9): the same handler bodies
+  // as the project-mounted getPresentationObjectItems /
+  // getResultsValueInfoForPresentationObject, keyed by run id at national
+  // scope. What the pinned-package MCP surface reads metric data through.
+  getRunPresentationObjectItems: route({
+    path: "/run_generation/run/:run_id/presentation_object_items",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({
+      resultsObjectId: z.string(),
+      fetchConfig: genericLongFormFetchConfigSchema,
+    }),
+    response: {} as ItemsHolderPresentationObject,
+  }),
+  getRunResultsValueInfo: route({
+    path: "/run_generation/run/:run_id/results_value_info",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({ metricId: z.string() }),
+    response: {} as ResultsValueInfoForPresentationObject,
   }),
   // What a READY run contains: per-module settings (resolved server-side
   // from the manifest's configSelections) + outputs-dir file listing.

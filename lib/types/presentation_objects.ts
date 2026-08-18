@@ -108,7 +108,6 @@ export type DisaggregationPossibleValuesStatus =
 export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
   metricId: string;
-  projectId: string;
   // The metric's dataset family — selects which family's structure schema
   // labels its facility columns. Absent for iceh/unknown-family metrics.
   datasetFamily?: DatasetType;
