@@ -50,7 +50,6 @@ function getMinComfortableWidth(
   ) {
     if (inline.type === "break") return;
     if (inline.type === "code-inline") {
-      // A code span is one unbreakable word, in its own style and padding
       const advance = measureInlineCodeAdvance(
         rc,
         inline.text,

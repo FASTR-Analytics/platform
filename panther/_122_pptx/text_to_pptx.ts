@@ -283,7 +283,6 @@ function addHorizontalRuleToSlide(
 function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
   const runs: TextRun[] = [];
   const baseStyle = mFormattedText.baseStyle;
-  const baseFontSize = pixelsToPoints(baseStyle.fontSize);
   const baseColor = baseStyle.color;
   const baseCharSpacing = getCharSpacingPts(
     baseStyle.letterSpacing,
@@ -315,7 +314,7 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
 
       const options: Record<string, unknown> = {
         fontFace: mapFontForPptx(mText.ti.font.fontFamily),
-        fontSize: baseFontSize,
+        fontSize: pixelsToPoints(mText.ti.fontSize),
         color: Color.toHexNoHash(runColor),
         bold: isBold,
         italic: isItalic,
@@ -336,7 +335,6 @@ function formattedTextToRuns(mFormattedText: MeasuredFormattedText): TextRun[] {
         options.hyperlink = { url: run.link.url };
       }
 
-      // Inline code background → text highlight
       if (run.background) {
         options.highlight = Color.toHexNoHash(run.background.color);
       }

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  CustomFigureStyleOptions,
+  AlignH,
   CustomMarkdownStyleOptions,
   FigureInputs,
   ImageInputs,
@@ -12,12 +12,7 @@ import type {
   MarkdownRendererInput,
   TableInputs,
 } from "./deps.ts";
-import type {
-  FigureMap,
-  MarkdownInline,
-  ParsedMarkdownItem,
-  TableColumnAlign,
-} from "./types.ts";
+import type { FigureMap, MarkdownInline, ParsedMarkdownItem } from "./types.ts";
 
 export type ConvertedPageContent =
   | MarkdownRendererInput
@@ -183,12 +178,11 @@ function convertMarkdownTableToTableData(
   return tableData;
 }
 
-// GFM column alignment → per-column alignH on body cells and column headers.
-// Returned as a custom style so an app-level tableCells/tableColHeaders func
-// still supplies every other field.
+// A custom style rather than data, so an app-level tableCells /
+// tableColHeaders func still supplies every other field per column.
 function getTableAlignStyle(
-  align: (TableColumnAlign | undefined)[] | undefined,
-): CustomFigureStyleOptions | undefined {
+  align: (AlignH | undefined)[] | undefined,
+): TableInputs["style"] {
   if (!align) {
     return undefined;
   }

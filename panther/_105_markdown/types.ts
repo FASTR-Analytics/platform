@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
   Coordinates,
   CustomMarkdownStyleOptions,
   Dimensions,
@@ -18,8 +19,6 @@ import type {
 // =============================================================================
 // Markdown-it Token Type
 // =============================================================================
-
-export type TableColumnAlign = "left" | "center" | "right";
 
 export type MarkdownItToken = {
   type: string;
@@ -119,7 +118,7 @@ export type ParsedMarkdownItem =
       rows?: MarkdownInline[][][];
       // GFM column alignment (`:---`, `:---:`, `---:`), one entry per column;
       // undefined where the source gave none.
-      align?: (TableColumnAlign | undefined)[];
+      align?: (AlignH | undefined)[];
     }
   )
   & {
@@ -147,7 +146,7 @@ export type FormattedRun = {
 };
 
 // Inline `code` runs: their own text style (monospace by default) on a
-// padded, rounded background — the same look as HTML/Word.
+// padded, rounded background — the same look as the HTML renderer.
 export type InlineCodeStyle = {
   textInfo: TextInfoUnkeyed;
   backgroundColor: string;
@@ -170,10 +169,12 @@ export type MeasuredFormattedRun = {
     url: string;
   };
   // Padded background behind the run (inline code); the run's `x` is the
-  // background's left edge, text starts `paddingH` inside it.
+  // background's left edge, text starts `paddingLeft` inside it. Adjacent
+  // runs of one span share a box, so only its outer edges carry padding.
   background?: {
     color: string;
-    paddingH: number;
+    paddingLeft: number;
+    paddingRight: number;
     paddingV: number;
     radius: number;
   };

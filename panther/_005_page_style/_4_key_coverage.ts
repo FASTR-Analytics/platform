@@ -38,4 +38,7 @@ export type PageStyleKeyCoverage = {
       | keyof MergedFreeformStyle["text"]
     >
   >;
+  groups: AssertNoMissingKeys<
+    Exclude<keyof CustomPageStyleOptions, keyof PageStyleKeyCoverage | "text">
+  >;
 };

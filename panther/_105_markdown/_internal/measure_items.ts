@@ -33,6 +33,24 @@ export type MeasuredMarkdownItemsResult = {
   items: MeasuredMarkdownItem[];
 };
 
+// Inline code keeps the code text style but sizes relative to the surrounding
+// text (a code span in an h1 is h1-sized), the way the HTML renderer's
+// `--md-code-size` em ratio does.
+export function getInlineCodeStyle(
+  baseTextInfo: TextInfoUnkeyed,
+  style: MergedMarkdownStyle,
+): InlineCodeStyle {
+  const codeText = style.text.code;
+  return {
+    textInfo: {
+      ...codeText,
+      fontSize: baseTextInfo.fontSize * codeText.fontSize /
+        style.text.paragraph.fontSize,
+    },
+    backgroundColor: style.code.backgroundColor,
+  };
+}
+
 export function measureMarkdownItems(
   rc: RenderContext,
   bounds: RectCoordsDims,
@@ -493,24 +511,6 @@ function measureCodeBlock(
     },
     lines: measuredLines,
     contentPosition: new Coordinates({ x: contentX, y: contentY }),
-  };
-}
-
-// Inline code keeps the code text style but sizes relative to the surrounding
-// text (a code span in an h1 is h1-sized), the way the HTML renderer's
-// `--md-code-size` em ratio does.
-export function getInlineCodeStyle(
-  baseTextInfo: TextInfoUnkeyed,
-  style: MergedMarkdownStyle,
-): InlineCodeStyle {
-  const codeText = style.text.code;
-  return {
-    textInfo: {
-      ...codeText,
-      fontSize: baseTextInfo.fontSize * codeText.fontSize /
-        style.text.paragraph.fontSize,
-    },
-    backgroundColor: style.code.backgroundColor,
   };
 }
 

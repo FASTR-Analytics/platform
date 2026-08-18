@@ -35,6 +35,7 @@ import type {
   MergedYScaleAxisStyle,
   MergedYTextAxisStyle,
 } from "./_3_merged_style_return_types.ts";
+import type { DataLabelStyle } from "./style_func_types.ts";
 import type { FigureTextStyleKey } from "./text_style_keys.ts";
 
 type C<K extends keyof CustomFigureStyleOptions> = NonNullable<
@@ -47,16 +48,42 @@ type Missing<
   Exempt extends string = never,
 > = Exclude<MissingKeyPaths<C<K>, M>, Exempt>;
 
-// `content.<block>.func` is authored as `func` and merged as `getStyle`;
-// `content.dataLabel` is the shared cascade base folded into every block's
-// getStyle (`resolveDataLabelDefaults`); the three table blocks are merged
-// onto MergedTableStyle, not MergedContentStyle.
+// The three table blocks are merged onto MergedTableStyle, not
+// MergedContentStyle; `content.dataLabel` is the shared cascade base folded
+// into every block's getStyle (`resolveDataLabelDefaults`).
 type MergedContentAndTableBlocks =
   & MergedContentStyle
-  & Pick<
-    MergedTableStyle,
-    "tableCells" | "tableRowHeaders" | "tableColHeaders"
-  >;
+  & Pick<MergedTableStyle, "tableCells" | "tableRowHeaders" | "tableColHeaders">
+  & { dataLabel: DataLabelStyle };
+
+// A block's `func` is authored as options and merged as `getStyle`, so the
+// merged view of a block gets a `func` landing exactly when it has a getStyle.
+type MergedContentAuthoringView = {
+  [B in keyof MergedContentAndTableBlocks]:
+    & MergedContentAndTableBlocks[B]
+    & (MergedContentAndTableBlocks[B] extends { getStyle: infer G }
+      ? { func: G }
+      : unknown);
+};
+
+// The options object a `func` accepts, walked against what its getStyle
+// returns (the object arm of `Options | InfoFunc<Options> | "none"`).
+type FuncPayload<Block extends { func?: unknown }> = Exclude<
+  Extract<NonNullable<Block["func"]>, object>,
+  (...args: never[]) => unknown
+>;
+type FuncBlockKey = {
+  [K in keyof C<"content">]-?: NonNullable<C<"content">[K]> extends
+    { func?: unknown } ? K : never;
+}[keyof C<"content">];
+type FuncPayloadMissing = {
+  [K in FuncBlockKey]: MissingKeyPaths<
+    FuncPayload<NonNullable<C<"content">[K]>>,
+    ReturnType<MergedContentAuthoringView[K]["getStyle"]>
+  > extends infer U ? U extends string ? `${K}.func.${U}` : never : never;
+}[FuncBlockKey];
+// `lines.func.color` lands as `strokeColor` on LineStyle (getLineStyleFunc).
+type FuncPayloadExempt = "lines.func.color";
 
 // `table.alignV` is the table-wide fallback read straight from the option
 // levels inside the header/cell style funcs (style_func_types.ts), so it has
@@ -83,12 +110,9 @@ export type FigureStyleKeyCoverage = {
   yScaleAxis: AssertNoMissingKeys<
     Missing<"yScaleAxis", MergedYScaleAxisStyle>
   >;
-  content: AssertNoMissingKeys<
-    Missing<
-      "content",
-      MergedContentAndTableBlocks,
-      "dataLabel" | `${string}.func`
-    >
+  content: AssertNoMissingKeys<Missing<"content", MergedContentAuthoringView>>;
+  contentFuncPayloads: AssertNoMissingKeys<
+    Exclude<FuncPayloadMissing, FuncPayloadExempt>
   >;
   grid: AssertNoMissingKeys<Missing<"grid", MergedGridStyle>>;
   panes: AssertNoMissingKeys<Missing<"panes", MergedPaneStyle>>;
@@ -101,6 +125,16 @@ export type FigureStyleKeyCoverage = {
     Missing<"idealHeight", MergedIdealHeightStyle>
   >;
   text: AssertNoMissingKeys<Exclude<FigureTextStyleKey, MergedFigureTextKey>>;
+  // Every top-level group must be listed above (the two color funcs are
+  // consumed as functions, not merged as groups).
+  groups: AssertNoMissingKeys<
+    Exclude<
+      keyof CustomFigureStyleOptions,
+      | keyof FigureStyleKeyCoverage
+      | "seriesColorFunc"
+      | "valuesColorFunc"
+    >
+  >;
 };
 
 // Every FIGURE_TEXT_STYLE_KEYS entry must be picked into some merged `text`

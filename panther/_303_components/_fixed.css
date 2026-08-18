@@ -375,7 +375,7 @@
   --md-numbered-gap: 0.5em;
 
   /* code — the app look uses the app mono stack; the document model
-     defaults to Fira Mono (falling back to this stack) */
+     defaults to Roboto Mono too (falling back to this stack) */
   --md-code-family: var(--font-mono);
   --md-code-weight: var(--font-weight-400);
   --md-code-style: normal;

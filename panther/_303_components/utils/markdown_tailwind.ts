@@ -253,9 +253,8 @@ export function deriveMarkdownCssVars(
     "--md-bq-gap": `${em.blockquote.paragraphGap}em`,
     "--md-bq-my": `${em.margins.blockquote.top}em`,
 
-    // The model's code font (Fira Mono by default) may not be @font-face'd
-    // by the app; fall back to the app mono stack rather than the browser
-    // default face.
+    // The model's code font may not be @font-face'd by the app; fall back to
+    // the app mono stack rather than the browser default face.
     "--md-code-family":
       `"${merged.text.code.font.fontFamily}", var(--font-mono)`,
     "--md-code-weight": `${merged.text.code.font.weight}`,

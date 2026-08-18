@@ -17,9 +17,9 @@ export function typed<T>(value: T): T {
 // A style option is dead when it exists on the custom options type but no
 // merged type carries it (so no merge line can exist for it). Each style
 // module asserts `MissingKeyPaths<CustomGroup, MergedGroup>` is never; the
-// resulting union names every unmerged path, so the checker reports exactly
-// which option was added without being wired. Nested objects are walked;
-// unions, arrays and functions are leaves.
+// union holds every unmerged path and the checker reports one of them per
+// failing assertion. Nested objects are walked; unions, arrays and functions
+// are leaves.
 type IsPlainObject<T> = T extends (...args: never[]) => unknown ? false
   : T extends readonly unknown[] ? false
   : T extends object ? true

@@ -63,13 +63,11 @@ export function getBaseTextInfo(
   };
 }
 
-// `defaultFont` is a per-key default-level font adjustment applied under the
-// global/custom levels (e.g. markdown `text.code` defaults to a monospace).
 export function getTextInfo(
   cText: CustomStyleTextOptions | undefined,
   gText: CustomStyleTextOptions | undefined,
   baseText: TextInfo,
-  defaultFont?: FontInfoOptions,
+  keyDefaultFont?: FontInfoOptions,
 ): TextInfoUnkeyed {
   const rawColor = m(cText?.color, gText?.color, baseText.color);
   const rawLineHeight = m(
@@ -87,8 +85,8 @@ export function getTextInfo(
     gText?.letterSpacing,
     baseText.letterSpacing,
   );
-  const keyBaseFont = defaultFont
-    ? getAdjustedFont(baseText.font, defaultFont)
+  const keyBaseFont = keyDefaultFont
+    ? getAdjustedFont(baseText.font, keyDefaultFont)
     : baseText.font;
   return {
     font: getMergedFonts(cText, gText, keyBaseFont),

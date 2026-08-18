@@ -103,9 +103,25 @@ function completeError(text: string): MCPCallOutcome {
 
 // Same funnel as the chat loop: AIToolFailure (and any throw) reaches the
 // model as an isError result with a clean message — the model reads it and
-// recovers; a JSON-RPC error would not reach the model at all.
+// recovers; a JSON-RPC error is not guaranteed to (hosts surface protocol
+// errors as they see fit).
 function completeFromThrow(error: unknown): MCPCallOutcome {
   return completeError(toolThrowToResultParts(error).content);
+}
+
+// The one protocol error whose message is written for the model anyway: the
+// spec makes an unknown tool a -32602, and hosts that show the error text
+// (Claude Code renders "MCP error -32602: <message>" as the tool result) let
+// the model act on it. The model cannot call tools/list, and it cannot be
+// told WHY the name is unknown — a stale client catalog (the server's catalog
+// is fixed per core; a change is a deploy) is indistinguishable from a
+// hallucinated name — so the text states the fact and the one recovery step,
+// conditionally.
+function unknownToolError(name: string): MCPRequestError {
+  return new MCPRequestError(
+    -32602,
+    `Unknown tool: ${name}. It is not in this server's current tool list. If your tool list is stale, ask the user to refresh this connector's tools (or start a new conversation) and retry.`,
+  );
 }
 
 // Preview values routinely embed MODEL-SUPPLIED text (a report label, a body
@@ -686,7 +702,7 @@ export function buildMCPServerCore(
       }
       const tool = exposed.get(name);
       if (!tool) {
-        throw new MCPRequestError(-32602, `Unknown tool: ${name}`);
+        throw unknownToolError(name);
       }
       // Parse BEFORE anything else — the chat loop parses before propose and
       // this driver mirrors it. This is the "input validation is the
@@ -718,7 +734,7 @@ export function buildMCPServerCore(
       if (readyError) return completeError(readyError);
       const tool = exposed.get(name);
       if (!tool) {
-        throw new MCPRequestError(-32602, `Unknown tool: ${name}`);
+        throw unknownToolError(name);
       }
       // Parse on the resume leg too — requestState and args are
       // client-supplied input on this leg, exactly like the first.

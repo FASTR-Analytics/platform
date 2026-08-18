@@ -21,8 +21,9 @@ import type {
   MeasuredFormattedText,
 } from "../types.ts";
 
-// Inline code background box, in em of the code font size (mirrors the HTML
-// renderer's `px-[0.4em] py-[0.2em] rounded`).
+// Inline code background box, in em of the code font size (padding mirrors
+// the HTML renderer's `px-[0.4em] py-[0.2em]`; HTML's `rounded` is the app's
+// fixed --radius, approximated here as an em).
 const INLINE_CODE_PADDING_H_EM = 0.4;
 const INLINE_CODE_PADDING_V_EM = 0.2;
 const INLINE_CODE_RADIUS_EM = 0.25;
@@ -35,7 +36,10 @@ type Chunk = {
   text: string;
   style: FormattedRunStyle;
   link?: { url: string };
-  isCode: boolean;
+  // Code spans split into words like any run; the span's outer padding sits
+  // on its first and last chunk only, so a span wrapped across lines reads as
+  // one box sliced at the line edge (as CSS box-decoration-break: slice).
+  code?: { start: boolean; end: boolean };
   isSpace: boolean;
   isBreak: boolean;
 };
@@ -101,30 +105,6 @@ export function measureFormattedText(
 // renderFormattedText
 // =============================================================================
 
-type PlacedRun = { run: MeasuredFormattedRun; textX: number; runY: number };
-
-function placeRuns(
-  mText: MeasuredFormattedText,
-  position: Coordinates,
-): PlacedRun[] {
-  const placed: PlacedRun[] = [];
-  for (const line of mText.lines) {
-    const lineX = mText.alignH === "left"
-      ? position.x()
-      : mText.alignH === "right"
-      ? position.x() + mText.maxWidth - line.totalWidth
-      : position.x() + (mText.maxWidth - line.totalWidth) / 2;
-    const lineY = position.y() + line.y;
-    for (const run of line.runs) {
-      const runBaseline = run.mText.lines[0]?.y ?? 0;
-      const runY = lineY + line.maxBaseline - runBaseline;
-      const textX = lineX + run.x + (run.background?.paddingH ?? 0);
-      placed.push({ run, textX, runY });
-    }
-  }
-  return placed;
-}
-
 export function renderFormattedText(
   rc: RenderContext,
   mText: MeasuredFormattedText,
@@ -133,22 +113,9 @@ export function renderFormattedText(
   const placed = placeRuns(mText, position);
 
   // Backgrounds first, so a padded box on one line never covers the
-  // descenders of the line above.
-  for (const { run, textX, runY } of placed) {
-    if (run.background) {
-      rc.rRect(
-        {
-          x: textX - run.background.paddingH,
-          y: runY - run.background.paddingV,
-          w: run.mText.dims.w() + run.background.paddingH * 2,
-          h: run.mText.dims.h() + run.background.paddingV * 2,
-        },
-        {
-          fillColor: run.background.color,
-          rectRadius: run.background.radius,
-        },
-      );
-    }
+  // descenders of the line above. Adjacent runs of one code span share a box.
+  for (const box of coalesceBackgrounds(placed)) {
+    rc.rRect(box.rcd, { fillColor: box.color, rectRadius: box.radius });
   }
 
   for (const { run, textX, runY } of placed) {
@@ -180,16 +147,21 @@ export function renderFormattedText(
   }
 }
 
-// Line advance of an inline code span (text plus its background padding) —
-// the unbreakable-word width the autofit floor must respect.
+// Widest unbreakable unit of an inline code span (a word plus the padding it
+// carries) — what the autofit floor must respect.
 export function measureInlineCodeAdvance(
   rc: RenderContext,
   text: string,
   codeStyle: InlineCodeStyle,
 ): number {
-  const mText = rc.mText(text, codeStyle.textInfo, 99999);
-  return mText.dims.w() +
-    codeStyle.textInfo.fontSize * INLINE_CODE_PADDING_H_EM * 2;
+  const chunks = measureChunks(
+    rc,
+    splitRunsIntoChunks([{ text, style: "normal", isCode: true }]),
+    codeStyle.textInfo,
+    codeStyle.textInfo.color,
+    codeStyle,
+  );
+  return chunks.reduce((max, c) => c.isSpace ? max : Math.max(max, c.width), 0);
 }
 
 // =============================================================================
@@ -223,47 +195,99 @@ export function resolveRunStyle(
 // Internal Helpers
 // =============================================================================
 
+type PlacedRun = { run: MeasuredFormattedRun; textX: number; runY: number };
+
+type BackgroundBox = {
+  rcd: { x: number; y: number; w: number; h: number };
+  color: string;
+  radius: number;
+};
+
+function coalesceBackgrounds(placed: PlacedRun[]): BackgroundBox[] {
+  const boxes: BackgroundBox[] = [];
+  let open: BackgroundBox | undefined;
+  let openRunY: number | undefined;
+  for (const { run, textX, runY } of placed) {
+    const bg = run.background;
+    if (!bg) {
+      open = undefined;
+      continue;
+    }
+    const left = textX - bg.paddingLeft;
+    const right = textX + run.mText.dims.w() + bg.paddingRight;
+    const contiguous = open !== undefined && openRunY === runY &&
+      open.color === bg.color &&
+      Math.abs(open.rcd.x + open.rcd.w - left) < 0.01;
+    if (contiguous && open) {
+      open.rcd.w = right - open.rcd.x;
+      continue;
+    }
+    open = {
+      rcd: {
+        x: left,
+        y: runY - bg.paddingV,
+        w: right - left,
+        h: run.mText.dims.h() + bg.paddingV * 2,
+      },
+      color: bg.color,
+      radius: bg.radius,
+    };
+    openRunY = runY;
+    boxes.push(open);
+  }
+  return boxes;
+}
+
+function placeRuns(
+  mText: MeasuredFormattedText,
+  position: Coordinates,
+): PlacedRun[] {
+  const placed: PlacedRun[] = [];
+  for (const line of mText.lines) {
+    const lineX = mText.alignH === "left"
+      ? position.x()
+      : mText.alignH === "right"
+      ? position.x() + mText.maxWidth - line.totalWidth
+      : position.x() + (mText.maxWidth - line.totalWidth) / 2;
+    const lineY = position.y() + line.y;
+    for (const run of line.runs) {
+      const runBaseline = run.mText.lines[0]?.y ?? 0;
+      const runY = lineY + line.maxBaseline - runBaseline;
+      const textX = lineX + run.x + (run.background?.paddingLeft ?? 0);
+      placed.push({ run, textX, runY });
+    }
+  }
+  return placed;
+}
+
 function splitRunsIntoChunks(runs: FormattedRun[]): Chunk[] {
   const chunks: Chunk[] = [];
 
   for (const run of runs) {
-    if (run.isCode) {
-      chunks.push({
-        text: run.text,
-        style: run.style,
-        link: run.link,
-        isCode: true,
-        isSpace: false,
-        isBreak: false,
-      });
-      continue;
-    }
+    const parts = run.text.split(/(\s+|\n)/).filter((p) => p.length > 0);
 
-    const parts = run.text.split(/(\s+|\n)/);
-
-    for (const part of parts) {
-      if (part.length === 0) continue;
-
+    parts.forEach((part, i) => {
       if (part === "\n") {
         chunks.push({
           text: "",
           style: run.style,
           link: run.link,
-          isCode: false,
           isSpace: false,
           isBreak: true,
         });
-      } else {
-        chunks.push({
-          text: part,
-          style: run.style,
-          link: run.link,
-          isCode: false,
-          isSpace: /^\s+$/.test(part),
-          isBreak: false,
-        });
+        return;
       }
-    }
+      chunks.push({
+        text: part,
+        style: run.style,
+        link: run.link,
+        code: run.isCode
+          ? { start: i === 0, end: i === parts.length - 1 }
+          : undefined,
+        isSpace: /^\s+$/.test(part),
+        isBreak: false,
+      });
+    });
   }
 
   return chunks;
@@ -278,18 +302,26 @@ function measureChunks(
 ): MeasuredChunk[] {
   // Cache space measurement - space width is consistent across style variants
   const spaceMText = rc.mText(" ", baseStyle, 99999);
+  const codeSpaceMText = codeStyle
+    ? rc.mText(" ", codeStyle.textInfo, 99999)
+    : undefined;
 
   return chunks.map((chunk) => {
-    if (chunk.isCode && codeStyle) {
+    if (chunk.code && codeStyle && codeSpaceMText) {
       const ti = codeStyle.textInfo;
-      const mText = rc.mText(chunk.text, ti, 99999);
+      const mText = chunk.isSpace
+        ? codeSpaceMText
+        : rc.mText(chunk.text, ti, 99999);
+      const paddingH = ti.fontSize * INLINE_CODE_PADDING_H_EM;
       const background = {
         color: codeStyle.backgroundColor,
-        paddingH: ti.fontSize * INLINE_CODE_PADDING_H_EM,
+        paddingLeft: chunk.code.start ? paddingH : 0,
+        paddingRight: chunk.code.end ? paddingH : 0,
         paddingV: ti.fontSize * INLINE_CODE_PADDING_V_EM,
         radius: ti.fontSize * INLINE_CODE_RADIUS_EM,
       };
-      const width = mText.dims.w() + background.paddingH * 2;
+      const width = mText.dims.w() + background.paddingLeft +
+        background.paddingRight;
       return { ...chunk, mText, ti, width, background };
     }
     let ti = resolveRunStyle(baseStyle, chunk.style);
@@ -301,57 +333,55 @@ function measureChunks(
   });
 }
 
+// Lines break only at whitespace: chunks glued by a style boundary (`x`. or
+// **bold**tail) move to the next line together, and a glued run wider than the
+// line overflows like any single long word.
 function wrapIntoLines(
   chunks: MeasuredChunk[],
   maxWidth: number,
   linkUnderline: boolean,
 ): MeasuredFormattedLine[] {
   const lines: MeasuredFormattedLine[] = [];
-  let currentLine: MeasuredFormattedRun[] = [];
+  let current: MeasuredChunk[] = [];
   let lineWidth = 0;
 
-  for (const chunk of chunks) {
-    const chunkWidth = chunk.width;
+  const flush = () => {
+    lines.push(finalizeLine(current, linkUnderline));
+    current = [];
+    lineWidth = 0;
+  };
 
+  for (const chunk of chunks) {
     if (chunk.isBreak) {
-      lines.push(finalizeLine(currentLine, lineWidth));
-      currentLine = [];
-      lineWidth = 0;
+      flush();
       continue;
     }
 
-    if (lineWidth + chunkWidth > maxWidth && currentLine.length > 0) {
-      lines.push(finalizeLine(currentLine, lineWidth));
-      currentLine = [];
-      lineWidth = 0;
-
-      if (chunk.isSpace) continue;
+    if (lineWidth + chunk.width > maxWidth && current.length > 0) {
+      if (chunk.isSpace) {
+        flush();
+        continue;
+      }
+      const lastSpace = current.map((c) => c.isSpace).lastIndexOf(true);
+      if (lastSpace === current.length - 1) {
+        flush();
+      } else if (lastSpace >= 0) {
+        const glued = current.slice(lastSpace + 1);
+        current = current.slice(0, lastSpace + 1);
+        flush();
+        current = glued;
+        lineWidth = glued.reduce((w, c) => w + c.width, 0);
+      }
     }
 
-    if (!chunk.isSpace || currentLine.length > 0) {
-      const run: MeasuredFormattedRun = {
-        mText: chunk.mText,
-        x: lineWidth,
-      };
-      if (chunk.background) {
-        run.background = chunk.background;
-      }
-      if (chunk.link) {
-        run.link = chunk.link;
-        if (linkUnderline) {
-          run.underline = {
-            yOffset: chunk.ti.fontSize * 1.1,
-            color: chunk.ti.color,
-          };
-        }
-      }
-      currentLine.push(run);
-      lineWidth += chunkWidth;
+    if (!chunk.isSpace || current.length > 0) {
+      current.push(chunk);
+      lineWidth += chunk.width;
     }
   }
 
-  if (currentLine.length > 0) {
-    lines.push(finalizeLine(currentLine, lineWidth));
+  if (current.length > 0) {
+    flush();
   }
 
   if (lines.length === 0) {
@@ -362,17 +392,32 @@ function wrapIntoLines(
 }
 
 function finalizeLine(
-  runs: MeasuredFormattedRun[],
-  totalWidth: number,
+  chunks: MeasuredChunk[],
+  linkUnderline: boolean,
 ): MeasuredFormattedLine {
-  let trimmedWidth = totalWidth;
-  for (let i = runs.length - 1; i >= 0; i--) {
-    const runText = runs[i].mText.lines[0]?.text ?? "";
-    if (/^\s+$/.test(runText)) {
-      trimmedWidth -= runs[i].mText.dims.w();
-    } else {
-      break;
+  const runs: MeasuredFormattedRun[] = [];
+  let x = 0;
+  for (const chunk of chunks) {
+    const run: MeasuredFormattedRun = { mText: chunk.mText, x };
+    if (chunk.background) {
+      run.background = chunk.background;
     }
+    if (chunk.link) {
+      run.link = chunk.link;
+      if (linkUnderline) {
+        run.underline = {
+          yOffset: chunk.ti.fontSize * 1.1,
+          color: chunk.ti.color,
+        };
+      }
+    }
+    runs.push(run);
+    x += chunk.width;
+  }
+
+  let trimmedWidth = x;
+  for (let i = chunks.length - 1; i >= 0 && chunks[i].isSpace; i--) {
+    trimmedWidth -= chunks[i].width;
   }
 
   const maxBaseline = runs.reduce((max, run) => {

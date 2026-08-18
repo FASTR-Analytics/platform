@@ -16,9 +16,10 @@ const _DS = {
   },
 
   // Default-level font adjustments per text key (applied under global/custom).
-  // Every other key inherits the base font.
+  // Every other key inherits the base font. Weight is pinned so a light or
+  // heavy base never asks for a Roboto Mono weight the font map lacks.
   textFonts: {
-    code: typed<FontInfoOptions>({ fontFamily: "Fira Mono" }),
+    code: typed<FontInfoOptions>({ fontFamily: "Roboto Mono", weight: 400 }),
   },
 
   marginsEm: {

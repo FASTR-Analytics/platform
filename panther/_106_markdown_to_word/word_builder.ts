@@ -15,7 +15,6 @@ import type {
   ParsedMarkdownItem,
 } from "./deps.ts";
 import {
-  AlignmentType,
   BorderStyle,
   convertInchesToTwip,
   CustomMarkdownStyle,
@@ -742,19 +741,6 @@ function buildWordTable(
   const borderSize = merged.table.borderWidth * 8;
   const borderColor = merged.table.borderColor;
 
-  const cellAlignment = (
-    i: number,
-  ): (typeof AlignmentType)[keyof typeof AlignmentType] | undefined => {
-    const align = element.align?.[i];
-    return align === "center"
-      ? AlignmentType.CENTER
-      : align === "right"
-      ? AlignmentType.RIGHT
-      : align === "left"
-      ? AlignmentType.LEFT
-      : undefined;
-  };
-
   if (element.header && element.header.length > 0) {
     for (const headerRow of element.header) {
       const cells = headerRow.map(
@@ -763,7 +749,7 @@ function buildWordTable(
             children: [
               new Paragraph({
                 children: buildInlineContent(cellContent, merged),
-                alignment: cellAlignment(i),
+                alignment: element.align?.[i],
                 spacing: {
                   before: 0,
                   after: 0,
@@ -790,7 +776,7 @@ function buildWordTable(
             children: [
               new Paragraph({
                 children: buildInlineContent(cellContent, merged),
-                alignment: cellAlignment(i),
+                alignment: element.align?.[i],
                 spacing: {
                   before: 0,
                   after: 0,

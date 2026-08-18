@@ -3,13 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { MarkdownIt } from "./deps.ts";
+import { type AlignH, MarkdownIt } from "./deps.ts";
 import type {
   MarkdownInline,
   MarkdownItToken,
   ParsedMarkdown,
   ParsedMarkdownItem,
-  TableColumnAlign,
 } from "./types.ts";
 
 export function createMarkdownIt(options?: { html?: boolean }): MarkdownIt {
@@ -332,7 +331,7 @@ function parseTable(
 ): { item: ParsedMarkdownItem; endIndex: number } {
   const header: MarkdownInline[][][] = [];
   const rows: MarkdownInline[][][] = [];
-  const align: (TableColumnAlign | undefined)[] = [];
+  const align: (AlignH | undefined)[] = [];
   let currentTarget: MarkdownInline[][][] | undefined;
   let i = startIndex + 1; // Skip table_open
 
@@ -382,8 +381,8 @@ function parseTable(
 
 // markdown-it carries GFM column alignment as `style="text-align:center"` on
 // every th/td of the column.
-function getCellAlign(token: MarkdownItToken): TableColumnAlign | undefined {
+function getCellAlign(token: MarkdownItToken): AlignH | undefined {
   const style = token.attrs?.find(([name]) => name === "style")?.[1];
   const value = style?.match(/text-align:\s*(left|center|right)/)?.[1];
-  return value as TableColumnAlign | undefined;
+  return value as AlignH | undefined;
 }
