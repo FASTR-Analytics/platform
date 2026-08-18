@@ -1,3 +1,7 @@
+[TBD] [admin] [changed] - AI assistant on MCP now reads the instance's pinned results package instead of per-project data
+[TBD] [admin] [added] - New API routes for reading results package data directly by run ID
+[TBD] [admin] [changed] - MCP tools are now all read-only; project-specific tools removed from MCP surface
+[TBD] [admin] [internal] - Reorganized how AI tools access project and package data behind the scenes
 [1.67.3] [user] [added] - Import default HFA indicators from FASTR resource hub
 [1.67.3] [user] [changed] - Guidance message now directs users to add time points first
 [1.67.3] [admin] [added] - Import default HFA indicators from FASTR resource hub on GitHub
