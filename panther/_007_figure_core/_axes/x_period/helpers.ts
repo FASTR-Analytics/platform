@@ -468,25 +468,23 @@ function getMaxWidthWord(
 //
 // Two independent decisions, both sized against the label ladder:
 //   - skip interval N: label every Nth year band, so adjacent labels keep
-//     _LABEL_GAP_PX of air between them (centre-to-centre distance N*bandW
-//     must clear label width + gap).
+//     labelGap of air between them (centre-to-centre distance N*bandW must
+//     clear label width + gap).
 //   - boundary ticks: a full-height tick at EVERY year start whenever the
-//     shortest label physically fits inside one band between two ticks
-//     (label + _LABEL_BAND_PAD_PX each side). Only when it does not do we
-//     fall back to widening the labelled cell to N bands, which is the one
-//     case where a year boundary tick is dropped.
-// Fixed pixel margins rather than a proportional slack: a multiplier tuned for
-// "22" over-penalises the wider FY forms and skipped where there was room.
-const _LABEL_GAP_PX = 8;
-const _LABEL_BAND_PAD_PX = 1;
+//     shortest label physically fits inside one band between two ticks. Only
+//     when it does not do we fall back to widening the labelled cell to N
+//     bands, which is the one case where a year boundary tick is dropped.
+// labelGap is em-based (see measure.ts) so it rides the figure's fit scale
+// exactly like the label it separates — never a raw pixel constant.
 
 const _SKIP_INTERVALS = [1, 2, 5, 10, 20, 50, 100];
 
 export function calculateYearSkipInterval(
   widthPerYear: number,
   shortestFormW: number,
+  labelGap: number,
 ): number {
-  const minWidthNeeded = shortestFormW + _LABEL_GAP_PX;
+  const minWidthNeeded = shortestFormW + labelGap;
   for (const interval of _SKIP_INTERVALS) {
     if (widthPerYear * interval >= minWidthNeeded) {
       return interval;
@@ -495,11 +493,8 @@ export function calculateYearSkipInterval(
   return _SKIP_INTERVALS[_SKIP_INTERVALS.length - 1];
 }
 
-export function labelFitsOneBand(
-  cellInnerW: number,
-  shortestFormW: number,
-): boolean {
-  return shortestFormW + 2 * _LABEL_BAND_PAD_PX <= cellInnerW;
+export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
+  return labelW <= cellInnerW;
 }
 
 // Widest form that keeps the gap to its neighbours (labelSpan = centre-to-centre
@@ -507,21 +502,15 @@ export function labelFitsOneBand(
 export function pickLargeLabelForm(
   labelSpan: number,
   cellInnerW: number,
+  labelGap: number,
   forms: { form: LargeLabelForm; w: number }[],
 ): LargeLabelForm {
   for (const f of forms) {
-    if (
-      f.w + _LABEL_GAP_PX <= labelSpan &&
-      f.w + 2 * _LABEL_BAND_PAD_PX <= cellInnerW
-    ) {
+    if (f.w + labelGap <= labelSpan && labelFitsCell(f.w, cellInnerW)) {
       return f.form;
     }
   }
   return forms[forms.length - 1].form;
-}
-
-export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
-  return labelW + 2 * _LABEL_BAND_PAD_PX <= cellInnerW;
 }
 
 export function shouldLabelYear(

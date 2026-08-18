@@ -30,6 +30,8 @@ export type XPeriodAxisMeasuredInfo = {
   yearSkipInterval: number;
   // Centre-to-centre distance between labelled years (N * band width).
   labelSpan: number;
+  // Minimum air between neighbouring year labels, em-based (scales with fit).
+  labelGap: number;
   // Non-year-centered only. True: a full-height tick at every year start and
   // year labels sit inside their own band. False (label wider than a band):
   // full-height ticks only at labelled starts, label centred in the N-band cell.

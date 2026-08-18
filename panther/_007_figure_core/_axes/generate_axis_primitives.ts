@@ -319,6 +319,7 @@ export function generateXPeriodAxisPrimitive(
           const form = pickLargeLabelForm(
             mx.labelSpan,
             mx.labelSpan,
+            mx.labelGap,
             mx.largeLabelForms,
           );
           const yearLabel = getLargePeriodLabel(period, form);
@@ -393,6 +394,7 @@ export function generateXPeriodAxisPrimitive(
   const form = pickLargeLabelForm(
     mx.labelSpan,
     Math.min(...labelledCells.map((cell) => cell.innerW)),
+    mx.labelGap,
     mx.largeLabelForms,
   );
   for (const cell of labelledCells) {

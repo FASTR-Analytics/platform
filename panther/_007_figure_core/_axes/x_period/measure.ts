@@ -16,9 +16,13 @@ import {
   getLargeLabelExemplar,
   getLargeLabelForms,
   getPeriodAxisInfo,
-  labelFitsOneBand,
+  labelFitsCell,
 } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
+
+// Air kept between neighbouring year labels, in ems of the tick-label font so
+// it scales with the figure like everything else on the axis.
+const _LABEL_GAP_EM = 0.6;
 
 export function measureXPeriodAxis(
   rc: RenderContext,
@@ -83,13 +87,14 @@ export function measureXPeriodAxis(
     : getPeriodsPerYear(periodType) *
       (periodIncrementWidth + gridStyle.gridStrokeWidth);
 
+  const labelGap = _LABEL_GAP_EM * sx.text.xPeriodAxisTickLabels.fontSize;
   const yearSkipInterval = Math.max(
     sx.showEveryNthTick,
-    calculateYearSkipInterval(widthPerYear, shortestFormW),
+    calculateYearSkipInterval(widthPerYear, shortestFormW, labelGap),
   );
 
   const boundaryTicksEveryYear = !isYearCentered &&
-    labelFitsOneBand(widthPerYear - gridStyle.gridStrokeWidth, shortestFormW);
+    labelFitsCell(shortestFormW, widthPerYear - gridStyle.gridStrokeWidth);
 
   return {
     subChartAreaWidth,
@@ -100,6 +105,7 @@ export function measureXPeriodAxis(
     largeLabelForms,
     yearSkipInterval,
     labelSpan: widthPerYear * yearSkipInterval,
+    labelGap,
     boundaryTicksEveryYear,
   };
 }
