@@ -63,6 +63,7 @@ export type IconName =
   | "moreVertical"
   | "move"
   | "package"
+  | "paperclip"
   | "pencil"
   | "photo"
   | "plus"
