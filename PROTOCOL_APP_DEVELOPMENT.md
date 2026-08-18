@@ -112,8 +112,8 @@ Boot is ~15s cold (migrations sweep every project DB) and ~3s warm.
 ```
 
 ```bash
-./mcp_probe local get_projects
-./mcp_probe local get_orientation '{"projectId":"39b790d8-…"}'
+./mcp_probe local get_orientation
+./mcp_probe local get_metric_data '{"metricId":"m10-02-01"}'
 FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim --list
 ```
 
@@ -192,11 +192,12 @@ Target: `testing-tim` (app port 9151, Postgres 19151),
 
 ### A deploy target proves only as much as the data on it
 
-`get_projects` returning nothing on an unseeded instance is the correct answer,
-not a bug — it means the only claim that target supports is "the new bytes boot
-and serve." Before treating an instance as a verification rung, confirm it
-carries a project with known data, and a user whose primary email matches the
-credential you connect with.
+`get_orientation` reporting "no results package is pinned" on an unseeded
+instance is the correct answer, not a bug — it means the only claim that target
+supports is "the new bytes boot and serve." Before treating an instance as a
+verification rung, confirm it carries a PINNED package with known data, and a
+user (with instance `can_view_data`) whose primary email matches the credential
+you connect with.
 
 **Verify with disposable fixtures**: create what you need, use it, delete it.
 Never arrange a fixture by editing an existing named row, and never by writing
@@ -221,15 +222,17 @@ Claude cannot register itself and "Connect" spins and fails), and the
 unauthenticated `401` challenge. On local dev with `BYPASS_AUTH` that last check
 returns 200 and says so; anywhere else a non-401 is a real finding.
 
-**The exposed surface is the AI assistant's *shared* tools**: 17 reads plus one
-write, `create_report`. The browser-only editor tools — live slide/report/viz
-editing, navigation, ask-the-user — are SPA-only by design and must stay out.
+**The exposed surface is the AI assistant's *shared* tools over the pinned
+package**: 10 reads, no writes (S13 principle 2). Project content and the
+browser-only editor tools — visualizations, decks, reports, live editing,
+navigation, ask-the-user — are SPA-only by design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
-DB reads, the query/formatting layer, orientation and prompt assembly, project
-access resolution, and the permission gates on `get_module_r_script` /
-`get_module_log`. It does **not** exercise ingestion, module execution, viz or
-slide authoring, exports, client rendering, or SSE — drive those with Playwright
+the run-keyed package reads (items, value info, script, logs, settings), the
+query/formatting layer, orientation and prompt assembly, the pin resolution,
+and the instance `can_view_data` / `can_view_logs` gates. It does **not**
+exercise ingestion, module execution, viz or slide authoring, exports, client
+rendering, project access, or SSE — drive those with Playwright
 against testing-tim.
 
 **Writes.** `approvalMode: "delegate"` means the gate is the client's own

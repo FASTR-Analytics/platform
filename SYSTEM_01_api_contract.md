@@ -415,11 +415,12 @@ a confused-deputy shape with no per-request isolation. What is now sanctioned is
 the opposite shape: an **explicit per-context transport**, passed as an argument
 and never registered anywhere. `createAllServerActions(transport?)` takes one,
 and `ServerActionTransport.fetchImpl?` lets it dispatch **in-process** rather
-than over the network. The `/mcp` endpoint builds one per (PAT, project) context
-carrying that caller's own token, with `fetchImpl: patAppFetch` — so every
-action runs the real PAT middleware chain (verify + `last_used_at` stamp,
-deny-by-default allowlist, zod validation, `requireProjectPermission` incl.
-locked-project write denial, logging) with no loopback HTTP and no shared state.
+than over the network. The `/mcp` endpoint builds one per (token, pinned
+package) context carrying that caller's own token, with `fetchImpl:
+headlessAppFetch` — so every action runs the real headless middleware chain
+(verify + `last_used_at` stamp, deny-by-default allowlist, zod validation,
+`requireGlobalPermission` on the run-keyed package reads, logging) with no
+loopback HTTP and no shared state.
 Per-request isolation is exactly what the explicit form restores; both defaults
 are unchanged, so SPA callers (`createAllServerActions()`, global fetch) behave
 byte-identically. Pinned by `server/tests/pat_identity_parity_test.ts`, which

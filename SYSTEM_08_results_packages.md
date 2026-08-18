@@ -208,7 +208,8 @@ run's manifest and parquet.
 
 `routes/project/modules.ts` is read-only and, since Phase 3 item 3, holds only
 what a project MEMBER may read from the attached run's manifest:
-`getResultsObjectItems` (raw preview) and `getModuleWithConfigSelections`.
+`getResultsObjectItems` (raw preview) — module settings moved to the run-keyed
+mount on 2026-08-19 (`getRunModuleWithConfigSelections`, see below).
 Instance level: `routes/instance/modules.ts` (`compareProjects`) and
 `routes/instance/run_generation.ts` — the wizard's
 defaults/module-options/launch, plus the catalogue listing (instance-T1's
@@ -352,15 +353,17 @@ deliberate:
   `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what
   lets the project tab render the pin for editors without
   `can_configure_data`.
-- **MCP (future).** The pin is what an instance-level, project-less MCP
-  surface would resolve "which package?" against. Today's shared tools
-  are still project-keyed (they call projectId-mounted routes), so an
-  instance-mode surface needs run-keyed reads first; and it must read
-  `getPinnedRunId` per call — the MCP context cache holds `InstanceState`
-  (incl. `pinnedRunId`) for 30 s per principal. Since 2026-08-18 everything
-  a package CONTAINS is already run-keyed (detail/script/logs/files under the
-  instance data bits); the one remaining step is a run-keyed metric-data
-  read (`run_id` + explicit no-scope token, no project DB).
+- **MCP reads the pin** (shipped 2026-08-19, PLAN_MCP_PINNED_PACKAGE). The
+  `/mcp` surface is instance-level and project-less: every tool reads the
+  pinned package at national scope through the run-keyed instance routes,
+  gated on instance `can_view_data`; no project or package id appears in
+  any tool schema. It reads `getPinnedRunId` from the DB on EVERY call
+  (never the 30 s cached `InstanceState` copy), so a pin-move is visible on
+  the next call; its context cache is keyed `(token, runId)`. No pin is a
+  typed state: `get_orientation` still answers (naming the fix — an admin
+  with `can_configure_data` pins one), the package tools fail with the same
+  sentence. Deploying to an instance with MCP users and no pin therefore
+  takes their data tools dark until someone pins. Prose in S13 principle 2.
 
 **Exploring a package is ONE capability, mounted ONCE** (Tim's ruling
 2026-08-18, superseding the 2026-07-30 two-mount design). Every read of what
@@ -389,18 +392,41 @@ generating/failed runs itself; the project tab puts its AA2 scope warning in
 invalidates it because a ready run dir never changes; bump the cache name
 when `RunDetail` changes shape). Script/log bytes stay T3.
 
-The same rule governs the AI tools: `getSharedToolsForModules` takes a
-`getAttachedRunId` RESOLVER, never a runId from the model — inside a project
-there is exactly one correct package, and resolving at call time means a
-mid-conversation repoint moves the tools with it (the SPA snapshots project
-T1; the MCP host reads its cached context, a bounded 30 s window). The
-headless allowlist admits `getRunModuleScript`/`getRunModuleLogs`: a leaked
-PAT reaches exactly what its user's own instance bits already reach in the
-UI. An instance-level copilot/MCP connector resolves to the pinned package
-and can already read everything the package CONTAINS run-keyed; what it
-still lacks is a run-keyed METRIC-DATA read (today's `get_metric_data` goes
-through project-mounted routes and a project read context) — see "MCP
-(future)" under the pinned-package rulings.
+The same rule governs the AI tools: the shared tools' `AIToolEnv`
+(`lib/ai_tools/env.ts`) is bound to ONE package at construction — a runId
+never comes from the model. The SPA env resolves the project's
+`attachedRunId` from project T1 at call time, so a mid-conversation repoint
+moves the tools with it; the `/mcp` env is bound to the pin resolved for
+that call. Module SETTINGS follow script/logs onto the run-keyed mount
+(`getRunModuleWithConfigSelections`, `can_view_data`; the project-mounted
+`getModuleWithConfigSelections` — sole consumer the AI tool — is deleted,
+so a project member without the instance bit loses `get_module_settings` in
+the copilot exactly as the package tab already hides settings from them).
+The headless allowlist admits exactly the run-keyed package reads
+(`getRunPresentationObjectItems`, `getRunResultsValueInfo`,
+`getRunModuleScript`, `getRunModuleLogs`,
+`getRunModuleWithConfigSelections`): a leaked PAT reaches exactly what its
+user's own instance bits already reach in the UI.
+
+**Metric DATA is package contents too — one read core, two lenses**
+(2026-08-19). A `RunReadContext` is (run, scope). The PROJECT lens
+(`getRunReadContext(mainDb, projectId)`) resolves both from the project row
+— attached run + AA2 — and is what the project-mounted data routes use; the
+RUN lens (`getRunReadContextForRun(runId)`) takes the id directly at national
+scope, shape-checks it (`isRunIdShape`, run_paths.ts — a caller-supplied id
+becomes a path) and accepts any readable run the caller's instance bits
+admit (no READY check — same exposure as `getRunDetail`; the pin itself is
+ready-only by the pin's ready gate). Everything below the context is shared:
+the items / value-info handler bodies live once in
+`run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are
+mounted twice — `getPresentationObjectItems` /
+`getResultsValueInfoForPresentationObject` (project) and
+`getRunPresentationObjectItems` / `getRunResultsValueInfo` (instance,
+`can_view_data`). Caches were already keyed `runId + scopeToken`, so the run
+mount and national projects share entries. "Both" — a project route also
+accepting a runId — is ruled out: redundant when it equals the attached run,
+a hole (project auth over any package, bypassing the instance bit and AA2)
+when it does not.
 
 **A project's own package** rides project T1: `ProjectState.attachedRun`
 (`RunListingItem | null`, beside `attachedRunId`), pushed on `starting`

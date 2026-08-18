@@ -703,7 +703,13 @@ the immutable results-run manifest, not a cross-DB version fold).
 Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
 work against the 20-connection pool; the cache check happens _before_ queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
-coalesce.
+coalesce. Since 2026-08-19 the items and value-info handler bodies (cache
+check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
+`server/run_query/run_data_reads.ts` and are mounted twice — the project
+routes here and the run-keyed instance routes (`getRunPresentationObjectItems`
+/ `getRunResultsValueInfo`, `can_view_data`; S8 "one core, two lenses"). The
+replicant-options route stays project-only and imports the shared
+value-info queue.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

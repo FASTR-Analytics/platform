@@ -61,12 +61,31 @@ the query pipeline the data tools call is **S9**.
    traverse a proxy; nothing else server-side talks to Anthropic.
 2. **Tools run over the same serverActions the human UI uses** — in the browser
    SPA, or headlessly at the remote MCP endpoint (`server/mcp/`, mounted at
-   `/mcp`, over the same shared `lib/ai_tools` factories) — so the AI inherits
-   the user's permissions for free (Clerk session in the SPA, personal access
-   token at `/mcp`, whose actions dispatch in-process through the full PAT
-   middleware chain — see S1) and can never do what the user can't. The `/mcp`
-   surface is stateless above the wire: one connector serves every project the
-   caller can access, and every project tool takes an explicit `projectId`.
+   `/mcp`) — so the AI inherits the user's permissions for free (Clerk session
+   in the SPA, personal access token at `/mcp`, whose actions dispatch
+   in-process through the full PAT middleware chain — see S1) and can never do
+   what the user can't. **Two classes of tool, one env seam** (2026-08-19):
+   `lib/ai_tools` holds exactly the tools BOTH surfaces expose (metrics ×2,
+   modules ×4, methodology docs ×2, `get_info`) over `AIToolEnv` — a package
+   data source bound at construction (items, value info, module
+   script/logs/settings; no project or run id ever crosses the seam or
+   appears in a schema). The SPA binds a project (`clientAIToolEnvFor(
+   projectId)`, cache-backed, the attached package resolved from project T1
+   at call time; `ClientAIToolEnv` adds the project-content getters) and
+   concatenates its own client tools (project content — visualizations,
+   slide decks, reports, `get_slide` — plus editors, navigation, drafts) in
+   [build_tools.ts](client/src/components/project_ai/build_tools.ts); `/mcp`
+   binds the instance's **pinned** results package (national scope, run-keyed
+   instance routes, gate = instance `can_view_data`) and exposes only the
+   shared tools + `get_orientation` — 10 read-only tools, no `projectId`, no
+   writes. The `/mcp` surface is stateless above the wire: the pin is read
+   from the DB on every call (a pin-move is visible on the next call;
+   orientation answers without a pin), and package tools are boot-time
+   templates bound per call via panther's `bindAITool` because panther
+   caches a principal's tool set per core. The system prompt splits the same
+   way: shared grounding blocks in `lib/ai_tools/build_system_prompt.ts`,
+   each surface assembling its own context — the SPA's assembled prompt is
+   byte-stable across navigation (prompt-cache breakpoint).
 3. **Editors expose live mutators via the view registry's context** — each
    editing view's live context carries the editor's store getters/setters
    ([ai_views.ts](client/src/components/project_ai/ai_views.ts)), so the AI
