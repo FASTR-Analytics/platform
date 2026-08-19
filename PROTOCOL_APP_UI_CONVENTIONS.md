@@ -97,7 +97,7 @@ extensions, diff tints, Clerk appearance).
   chain to the app tokens.
 - **There is no inverted chrome anywhere.** Every header is a flush or tonal
   `HeadingBar` that follows the scheme, so no surface in this app pins its
-  `color-scheme` — don't reintroduce one.
+  `color-scheme` — don't introduce one.
 - **No `text-white` / `bg-white`** — they are not tokens and break the dark
   palette. Constant contrast over media/data is an inline style beside its
   inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
@@ -239,8 +239,8 @@ App-specific only — the general styling prohibitions are in PROTOCOL_UI_STYLIN
   schemes is deliberate — it is a `light-dark()` pair otherwise.
 - Don't write a `:root[data-scheme="dark"]` rule without its
   `@media (prefers-color-scheme: dark) :root[data-scheme="system"]` twin.
-- Don't build an inverted surface — nothing in this app pins its
-  `color-scheme` any more.
+- Don't build an inverted surface — no surface in this app pins its
+  `color-scheme`.
 - Don't hand-roll cards, selection circles, context menus, delete
   confirmations, or the running-stripe animation — `Card` (with
   `selected`/`onSelectToggle`), `showMenu`, `createDeleteAction` and

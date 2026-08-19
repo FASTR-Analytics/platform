@@ -221,21 +221,40 @@ export function Products() {
     instanceState.pinnedRunId !== null &&
     instanceState.readyPackages.some((x) => x.id === instanceState.pinnedRunId);
 
-  const createProduct = createButtonAction(
-    (type: ProductType) =>
-      serverActions.createProduct({ type, folderId: currentFolderId() }),
-    async (data) => {
-      const product = instanceState.products.find(
-        (x) => x.id === data.productId,
-      );
-      // The SSE echo normally lands first; if it has not, the pending-open
-      // request picks the new product up as soon as it arrives.
-      if (product) {
-        await openProduct(product);
-      } else {
-        setPendingEditorOpen({ productId: data.productId });
-      }
-    },
+  async function openCreatedProduct(data: { productId: string }) {
+    const product = instanceState.products.find((x) => x.id === data.productId);
+    // The SSE echo normally lands first; if it has not, the pending-open
+    // request picks the new product up as soon as it arrives.
+    if (product) {
+      await openProduct(product);
+    } else {
+      setPendingEditorOpen({ productId: data.productId });
+    }
+  }
+
+  // ONE ACTION PER BUTTON, deliberately — they must not share an instance.
+  // createButtonAction owns both a `state` signal and a request-id guard that
+  // drops the callback of any but the most recent click. Shared, that means
+  // one click spins both buttons, and a second click while the first is in
+  // flight silently discards the first product's open — the row is created,
+  // but its editor never appears, which reads as the wrong button having
+  // fired. Separate instances give each type its own state and its own lane.
+  const createDeck = createButtonAction(
+    () =>
+      serverActions.createProduct({
+        type: "slide_deck",
+        folderId: currentFolderId(),
+      }),
+    openCreatedProduct,
+  );
+
+  const createReport = createButtonAction(
+    () =>
+      serverActions.createProduct({
+        type: "report",
+        folderId: currentFolderId(),
+      }),
+    openCreatedProduct,
   );
 
   async function openSettings(product: ProductSummary) {
@@ -434,8 +453,8 @@ export function Products() {
       </Show>
       <Button
         data-tour="products-new-deck"
-        onClick={() => createProduct.click("slide_deck")}
-        state={createProduct.state()}
+        onClick={createDeck.click}
+        state={createDeck.state()}
         disabled={!canCreateProduct()}
         iconName="plus"
       >
@@ -447,8 +466,8 @@ export function Products() {
       </Button>
       <Button
         data-tour="products-new-report"
-        onClick={() => createProduct.click("report")}
-        state={createProduct.state()}
+        onClick={createReport.click}
+        state={createReport.state()}
         disabled={!canCreateProduct()}
         iconName="plus"
       >

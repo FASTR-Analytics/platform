@@ -29,47 +29,45 @@ language/calendar singletons and the app's translation conventions, UI
 preferences, connection monitoring, onboarding modals, the help-button
 system, and the first-visit page tours (`client/src/onboarding/` — the
 `@njwse/roadtrip` tour manager, Clerk-backed seen-flags under
-`unsafeMetadata.onboarding`, wired to `projectTab` in the project shell and,
-for the instance tabs, to the instance shell's tab signal via
-`setupInstanceTours`). The
-same directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` +
-`catalogue.ts`, opened from the project topbar), which replays or re-arms any
-tour: the project shell passes its six per-area managers to the modal as
-props (so they share its lifecycle) and each action is routed to its owning
-manager via roadtrip's `hasTour(id)`; editor tours reach the tab-local
-document editors through the `pendingEditorOpen` request signal in `t4_ui.ts`
-(persists until the target tab mounts and consumes it), and the slide tours
-chain a second-level `pendingSlideOpen` request that the deck editor consumes
-to open the first slide of the requested type. Tour availability is computed
-over a `TourProjectFacts` slice satisfied by both the live `projectState` and
-a fetched `ProjectDetail`, which powers the instance-level variant
-(`tour_catalogue_instance_modal.tsx`, opened from the instance topbar): it
-fetches every accessible project's detail, offers Play only for tours some
-project qualifies for (first qualifying project wins; slide-type presence is
-verified by searching the slide documents), and hands the chosen tour to the
-project shell via the `pendingTourReplay` signal, consumed after hydration.
-When no project qualifies the row names the project that came closest and
-shows its reason: `unavailableReason` returns a ranked `TourReason` (page
-access < edit permission < package < package content < locked < content <
-sub-content < slide type < view filter) and the highest rank across projects
-wins; the reason chains check the attached package before anything
-run-derived (modules, default visualizations), since those come from the
-package's manifest. Tours that open a data-loading editor (viz editor,
-report figures, dashboard items) additionally require an attached package;
-its extra "Instance" category plays the eight instance-tab tours in place via
-the instance manager. Both modals share the sidebar shell in
-`tour_catalogue_layout.tsx`. Every manager is created with the shared button
-labels (`tourLabels()`, merged by roadtrip under any per-tour labels) and
-`onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
-abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
-user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
+`unsafeMetadata.onboarding`). There is **ONE manager for the whole app**,
+built by `setupTours()` and mounted from the instance shell, which hands it
+the permission-normalized tab accessor plus an approved-visibility gate so a
+tour can never fire behind the sign-in wall. The product editors are overlays
+on that same shell, so one manager is also one run-at-a-time lock — opening a
+deck mid-tour hands over cleanly instead of two tours overlapping. A tour's
+`pages` predicate must be true only while its page is actually visible (tab
+active AND permission granted), or the tour fires, finds no targets, and is
+marked seen invisibly; because the editors keep the shell's tab on
+`products`, the page-level predicates additionally exclude the editing views
+and the copilot's view controller (`copilotViewController.current()`) is what
+actually tracks where the user is. The same directory hosts the tour
+catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, sidebar shell in
+`tour_catalogue_layout.tsx`, opened from the instance topbar), which replays
+or re-arms any of the 21 tours across five areas (Products, Explore, Decks,
+Reports, Instance). Play always routes through the `pendingTourReplay` signal:
+the modal sets it, then `entry.navigate(openInstanceTab)` switches tab and —
+for the deeper tours — asks the Products page to open a product via the
+`pendingEditorOpen` request signal in `t4_ui.ts` (persists until the page
+mounts and consumes it), with the slide tours chaining a second-level
+`pendingSlideOpen` the deck editor consumes to open the first slide of the
+requested type; `setupTours()` starts the tour once its own page is active,
+which for the editor tours is several frames after `navigate()`. Availability
+is state-only over T1 — `available()` must not probe the DOM, since the tour's
+page is usually unmounted when it is evaluated — with a plain
+`unavailableReason()` string shown in place of the Play button. The three
+slide-tour rows are the exception: slide types live only in the slide
+documents, so the modal runs a cache-first `findDeckWithSlideOfType` search on
+mount and the row list waits for it. The manager is created with the shared
+button labels (`tourLabels()`, merged by roadtrip under any per-tour labels)
+and `onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start /
+finish / abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) →
+the user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
 trigger, and for aborts the step reached and the reason — skip vs missing
-target); per-step events are not sent. Seen-state in the modals reads the
-Solid manager's reactive `hasSeen()` (the instance modal falls back to the
-Clerk storage adapter for project tours, whose managers are not mounted
-there). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
-against code 2026-07-17 (first review cycle, review-only; absorbs
-DOC_TRANSLATION + DOC_HELP_BUTTONS).
+target); per-step events are not sent. Seen-state in the modal reads the Solid
+manager's reactive `hasSeen()`, so the pill updates on hydration and after a
+tour finishes with no manual invalidation. Plus stewardship of the ~240-file
+`t3` call-site surface. Reviewed against code 2026-07-17 (first review cycle,
+review-only; absorbs DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
 Boundaries: the generic translation rules (`TranslatableString`, `t3` vs
 `resolveTS`, fallback-to-English, `Record<Language, T>` formatting lookups) are
@@ -94,15 +92,19 @@ but reviewed here.
 
 Panther style globals are set before first render; language/calendar resolve
 _during_ render of the logged-in tree (localStorage → instance config) and apply
-via full page reload. Only two URL-addressable surfaces (`/d/:slug`, `?p=`);
-every other page transition is a signal. UI prefs persist via localStorage and
+via full page reload. One URL-addressable page (`/access-tokens`) and one
+deep-link parameter (`?product=`); every page transition is a signal. UI prefs
+persist via localStorage and
 never enter fetch configs or cache hashes. Every user-visible string is a
 `TranslatableString` resolved by `t3`.
 
 ## Boot
 
 `client/src/index.tsx` runs exactly three panther setters before
-`render(<App />)`: `setKeyColors(_KEY_COLORS)`, `setBaseText`,
+`render(<App />)`: `setKeyColors(_KEY_COLORS, undefined,
+{ remapNearBlackOnDark: true })` (the opt-in flips module-authored near-black
+literals to the dark baseContent, which would otherwise vanish on a dark base),
+`setBaseText(BASE_TEXT_OPTIONS)`,
 `setGlobalStyle(GLOBAL_STYLE_OPTIONS)` — the latter two **deep-imported from
 `generate_visualization/get_style_from_po/_0_common`** (S10-owned files), so
 figure styling and app chrome share one source; that deep import is load-bearing
@@ -113,7 +115,8 @@ for boot.
 file), which:
 
 - holds the module-level Clerk singleton (`new Clerk(publishableKey)` from
-  `VITE_CLERK_PUBLISHABLE_KEY`), and a `_BYPASS_AUTH` dev path that skips Clerk
+  `VITE_CLERK_PUBLISHABLE_KEY`), and a `bypassAuth` dev path
+  (`VITE_BYPASS_AUTH === "true"` AND a non-production build) that skips Clerk
   entirely and synthesizes a dev user (`"en"`/`"gregorian"`);
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
@@ -132,30 +135,37 @@ pre-render (Open items).
 
 ## Routing & page maps
 
-The URL surface is deliberately minimal — three routes in `app.tsx`: `/d/:slug`
-(the public dashboard viewer, S12), `/access-tokens` (the unlisted Clerk-gated
-PAT panel, `routes/access_tokens.tsx` — reached only by knowing the URL), and
-`/*` (the logged-in app). Note `/mcp` is the server's headless MCP endpoint and
-never reaches the SPA. Within the app, exactly one URL parameter matters:
-**`?p=<projectId>`** selects project-vs-instance
-(`components/instance/index.tsx` switches on `searchParams.p`); "back to
-instance" is `navigate("/")`.
+The URL surface is deliberately minimal — two routes in `app.tsx`:
+`/access-tokens` (the unlisted Clerk-gated PAT panel,
+`routes/access_tokens.tsx` — reached only by knowing the URL) and `/*` (the
+logged-in app). Note `/mcp` is the server's headless MCP endpoint and never
+reaches the SPA. Within the app, exactly one URL parameter matters:
+**`?product=<id>`** (`_PRODUCT_QUERY_PARAM` + `productDeepLinkHref` in
+`t4_ui.ts`, so page, cards and copilot all spell it the same way), which opens
+that product's editor over the Products page. `components/products/index.tsx`
+consumes it in an effect that immediately clears the parameter and converts it
+into the same `pendingEditorOpen` request the tour catalogue and the copilot
+use — one opener, one place that waits for hydration; once the store is ready
+and the id is still absent the request is dropped as a dead link. There is no
+shim for older link shapes.
 
 Everything else is a **signal-driven switchboard**, never the URL:
 
 - `components/instance/index.tsx` — a local `_tab` signal filtered through a
-  permission-guarded derivation selects Data / Assets / Users / Settings /
-  Projects. This file also hosts the language menu and the onboarding-modal
-  effect (below).
-- `components/project/index.tsx` — the page is the **persisted** `projectTab()`
-  signal from `t4_ui` (localStorage-backed, so reloads land on the same tab);
-  changes go through `updateProjectView`, and an `AIContextSync` component
-  mirrors the current tab into the AI context (S13). Its `HeadingBar` brands
-  the project's AA2 scope (PLAN_1_PROJECT_AA2_SCOPE §6): when
-  `projectState.adminArea2` is set, a small badge with the area name renders
-  beside the label; national projects show nothing extra. The instance
-  projects list (`instance_projects.tsx`, S15) carries the same badge off
-  `ProjectSummary.adminArea2`.
+  permission-guarded derivation (an inaccessible tab falls back to
+  `products`) selects Products / Explore / Data / Results (`results_packages`)
+  / Assets / Users — Products first and the default, Products and Explore
+  always present, the other four gated on their permissions. This file also hosts the
+  language menu, the tour manager (`setupTours`), the tour catalogue modal and
+  the onboarding-modal effect (below). The tab signal is deliberately NOT
+  persisted — a reload lands on Products.
+- The product editors are overlays opened over the Products page, not tabs, so
+  the shell's tab stays on `products` while one is open. A product's AA2 scope
+  is branded on its card (`components/products/product_card.tsx`): when
+  `product.adminArea2` is set a small badge with the area name renders beside
+  the label; national products show nothing extra. Scope semantics are S9's
+  ([SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) §AA2 scope
+  injection).
 
 ## Language, calendar & translation
 
@@ -173,19 +183,18 @@ primitives:
   `@timroberton/panther`; owns `LANGUAGE_STORAGE_KEY`, the app's **calendar
   singleton** (`setCalendar`/`getCalendar`, default `"gregorian"`), and
   `pickLang(language, ts)` — an explicit-language resolver used only by the
-  viz-generation pipeline (`build_figure_inputs`, conditional formatting), not
-  shell UI.
-- **`common.ts`** — the `TC` object of shared strings (25 keys: `cancel`,
+  viz-generation pipeline (`generate_visualization/conditional_formatting.ts`),
+  not shell UI.
+- **`common.ts`** — the `TC` object of shared strings (24 keys: `cancel`,
   `save`, `download`, `delete`, `edit`, `done`, `update`, `settings`, `email`,
   `national`, `columns`, `rows`, `loading`, `loadingFiles`, `loadingAssets`,
-  `fetchingData`, `general`, `label`, `folder`, `goBackToProject`,
-  `mustEnterName`, and four `disaggregation_disabled_*` messages), all with `pt`
-  entries.
+  `fetchingData`, `general`, `label`, `folder`, `mustEnterName`, and four
+  `disaggregation_disabled_*` messages), all with `pt` entries.
 - **`types.ts` / `mod.ts`** — re-export `TranslatableString`, `Language`,
   `resolveTS` from panther.
 
 There is no translation build step and no string-key table — translations are
-**inline `{ en, fr, pt? }` literals at the call site** (~252 client files call
+**inline `{ en, fr, pt? }` literals at the call site** (~239 client files call
 `t3`), plus `TC`. There is deliberately no `isFrench()` helper; conditional
 language logic uses `getLanguage()`.
 
@@ -204,20 +213,34 @@ language logic uses `getLanguage()`.
   UI; for domain terms (admin area, indicator, slide deck) copy the established
   translation from existing `t3` calls, don't invent.
 
-Whether every literal is well-formed across the 252-file surface is the standing
+Whether every literal is well-formed across the 239-file surface is the standing
 §4.3.6 audit (SYSTEMS.md), not re-checked per cycle.
 
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: `projectTab`, `navCollapsed`, five `*SortMode` prefs
-(`SortMode = "name" | "recent"` from `lib/types/sort.ts`),
-grouping/selected-group/`hideUnreadyVisualizations` for viz, decks, and reports,
-with `updateProjectView` as the consolidated updater. In-memory only
-(deliberately not persisted): `fitWithin`, `showAi`, `headerOrContent`,
-`policyHeaderOrContent`, `showModules`, `moduleLatestCommits`. The rule these
-encode: **display-only preferences stay in T4 — they never enter fetch configs
-or cache hashes** (the roll-up sentinel lesson, SYSTEM_09).
+then the signal: the one product list's `productsSortMode`
+(`ProductSortMode = "recent" | "label"`, `lib/types/products.ts`),
+`productsTypeFilter` (`null` = both types) and `productsSelectedFolder` (`null`
+= the sidebar's "All products" root, not "unfoldered"), plus `navCollapsed` and
+the tri-state `scheme` preference. `updateProductsView` is the consolidated
+updater — one entry point, so a copilot view tool never reaches past this file
+into individual setters. Stored sort/filter values are unvalidated on read:
+they only feed comparisons, so an unknown value degrades to "no match" rather
+than throwing. `scheme` rides panther's `data-scheme` contract
+(`"system" | "light" | "dark"`, applied at module scope so it is on `<html>`
+before first paint, with the legacy boolean `darkMode` key migrated in);
+`darkMode()` is the resolved-as-rendered accessor for JS consumers.
+
+In-memory only (deliberately not persisted): `fitWithin`, `showAi`,
+`headerOrContent`, `policyHeaderOrContent`, the Explore tab's `exploreRunId` /
+`exploreAdminArea2` pair (ephemeral by ruling — the package Select starts at
+the pin and the scope picker at national; these are module-level signals purely
+so the pair survives a tab switch within one session), and the three-level
+editor-open request chain `pendingEditorOpen` → `pendingSlideOpen` →
+`pendingTourReplay`. The rule these encode: **display-only preferences stay in
+T4 — they never enter fetch configs or cache hashes** (the roll-up sentinel
+lesson, SYSTEM_09).
 
 ## Connection monitoring (`state/t4_connection_monitor.ts`)
 
@@ -235,8 +258,9 @@ sequentially opens `EmailOptInModal` (writes
 `clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
 `OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
 `WhatsNewModal` — a multi-page release-notes popup. The sequence is guarded to
-run ONCE per signed-in user id (the effect's reactive deps re-fire it on every
-return from a project, which would otherwise re-open the modals). Posts are
+run ONCE per signed-in user id (the approval store re-fires the effect, which
+would otherwise re-open the modals and displace whatever the alert slot
+holds). Posts are
 authored in the Admin-Website, fetched by `server/routes/instance/whats_new.ts`
 from status-api (60s in-memory cache, fail-silent, 30s backoff after a failed
 fetch) and pre-filtered server-side to
@@ -286,7 +310,7 @@ deep-links via `getHelpUrl` (site URL, `/fr` prefix when
 are [PROTOCOL_APP_HELP_BUTTONS.md](PROTOCOL_APP_HELP_BUTTONS.md). Coverage
 today: **EN/FR only** (a `pt` user gets English content and the English site),
 and exactly **one** of the 41 targets has a button in the UI (`viz-data-tab`, in
-the PO editor's data panel).
+the figure editor's data panel).
 
 ## Open items
 

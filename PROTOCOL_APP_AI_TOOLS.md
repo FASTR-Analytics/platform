@@ -13,7 +13,9 @@ transformation bugs, and AI inputs are storage-compatible by construction.
 
 Source of truth: `configDStrict` in
 [lib/types/_metric_installed.ts](lib/types/_metric_installed.ts) (and
-`presentationObjectConfigTStrict` for `config.t`).
+`presentationObjectConfigTStrict`, in
+[lib/types/\_presentation_object_config.ts](lib/types/_presentation_object_config.ts),
+for `config.t`).
 
 ```ts
 // lib/types/ai_input.ts

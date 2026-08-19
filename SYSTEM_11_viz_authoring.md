@@ -370,12 +370,12 @@ changed something.
   renders wrong. The open question is prune-on-save versus keep-latent, and it
   turns on whether re-adding a dimension later should silently recover its old
   order (keep) or start clean (prune).
-- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`
-  and `forms_editors/conflict_resolution_modal.tsx` (the conflict protocol they
-  served died with the standalone visualization row — the slide editor has its
-  own); `lib/types/dimension_definitions.ts` (barrel-exported, zero uses);
+- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
+  `lib/types/dimension_definitions.ts` (barrel-exported, zero uses);
   `ReplicateByOptionsSelect`; the `allReplicants` download branch.
-- **Stale white-fill comment**: `visualization_editor_inner.tsx:612-613` claims
+  (`forms_editors/conflict_resolution_modal.tsx` is NOT dead — it is the slide
+  editor's per-slide conflict modal, S12.)
+- **Stale white-fill comment**: `visualization_editor_inner.tsx:612` claims
   `getFigureAsCanvas` fills white pending a panther flag — current panther no
   longer fills; verify transparent PNG end-to-end and update or delete.
 - **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.

@@ -46,8 +46,8 @@ client/src/state/
 
 ## T1 — SSE store
 
-**ONE store, one channel.** There is no project tier: everything the app pushes
-rides the instance channel (D8).
+**ONE store, one channel.** Everything the app pushes rides the instance
+channel (D8).
 
 | Concern                          | File                                                |
 | -------------------------------- | --------------------------------------------------- |
@@ -166,11 +166,12 @@ per-row summary carries the row's `lastUpdated`, so the registry message and
 the cache-version index cannot disagree; `last_updated` is emitted for
 `slides` only.
 
-**What is NOT on the channel any more.** The run-derived catalog (modules,
-metrics, indicator lists, HFA taxonomy, presets, module dirty state) left SSE
-entirely for the immutable T2 `run_authoring_context` keyed by `runId` — a
-run's contents cannot change, so there is nothing to push. Products carry no
-`isLocked` / role / follow-the-pin fields (D2/D5).
+**What deliberately does NOT ride the channel.** Everything run-derived —
+modules, metrics, indicator lists, HFA taxonomy, presets — is served by the
+immutable T2 `run_authoring_context` keyed by `runId` instead: a package's
+contents cannot change, so there is nothing to push. A product row carries only
+what a product IS (label, folder, package, scope, stamp) — no lock, no role, no
+follow-the-pin flag (D2/D5).
 
 ### The collab WS store — T1-adjacent
 
@@ -370,7 +371,7 @@ reactive, not cached, no state files. **Upload attempts are always T3
 component-local** — transient per-user workflow state (signal + polling), not
 shared.
 
-Every T3 read is instance- or run-level; there is no project tier. Structure
+Every T3 read is instance- or run-level. Structure
 upload attempts (in the structure dataset
 component), HMIS import runs + ledger (`instance_dataset_hmis/imports/` — the
 ledger is a full-table read fetched only while its tab is showing, so it is
@@ -406,10 +407,11 @@ deliberately not persisted), the `schemePref` appearance preference, `showAi`,
 `?product=<id>` query-param name lives here too (`_PRODUCT_QUERY_PARAM`), since
 the page consumes it into `pendingEditorOpen`.
 
-Per-browser AI residue from before the restructure (`ai-conv*` keyed by old
-project ids, `ai-documents/<projectId>`, `panther-ai-settings-{projectId}`) is
-accepted, not migrated (D8) — `clear_caches.ts` keeps only the `ai-conv` /
-`ai-documents` prefixes across a data-cache clear.
+`clear_caches.ts` splits IndexedDB on two prefixes and nothing else:
+`ai-conv` / `ai-documents` are the ONLY keys a data-cache clear keeps, and the
+only keys an AI-cache clear touches. Everything else is a T2 entry a re-fetch
+reproduces, so no key shape has to be reasoned about — a stale one is simply
+unreachable and gets swept by the next clear.
 
 ## T5 — component-local
 
@@ -419,6 +421,5 @@ form inputs, AI chat drafts. Dies on unmount; no files.
 ## Open items
 
 - **Dead exports in `t4_ui.ts`** (S14): `updateProductsView` (+ its
-  `ProductsViewStateUpdates` type) has zero callers — the batched writer
-  existed for the deleted `switch_tab` navigation tool — and `navCollapsed` /
-  `setNavCollapsed` outlived the vertical project nav. Delete or re-wire.
+  `ProductsViewStateUpdates` type), `navCollapsed` and `setNavCollapsed` all
+  have zero callers. Delete or re-wire.
