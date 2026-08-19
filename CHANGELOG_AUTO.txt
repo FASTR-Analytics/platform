@@ -1,19 +1,19 @@
-[TBD] [user] [added] - AI assistant now shows period coverage for your data
-[TBD] [user] [added] - AI assistant can follow step-by-step recipes for building ICEH equity profiles
-[TBD] [user] [added] - AI assistant now shows indicator threshold and direction info when querying data
-[TBD] [user] [changed] - AI assistant gives clearer guidance on which filters and options are required for charts
-[TBD] [user] [changed] - AI assistant now specifies which dimension to pick a value from when a chart requires a selection
-[TBD] [admin] [changed] - AI copilot now shows period coverage instead of module count
-[TBD] [admin] [changed] - AI copilot displays indicator threshold and direction info in data results
-[TBD] [admin] [changed] - Module inspection tools (scripts, logs, settings) now available only in the web app, not via external API connections
-[TBD] [admin] [added] - ICEH equity profile recipe is now a web-app-only reference doc
-[TBD] [admin] [changed] - External API connections renamed "get_orientation" to "get_overview"
-[TBD] [admin] [changed] - External API access tokens can no longer read module scripts, logs, or settings
-[TBD] [admin] [added] - Metric data results now include full period coverage range for context
-[TBD] [admin] [changed] - AI assistant on MCP now reads the instance's pinned results package instead of per-project data
-[TBD] [admin] [added] - New API routes for reading results package data directly by run ID
-[TBD] [admin] [changed] - MCP tools are now all read-only; project-specific tools removed from MCP surface
-[TBD] [admin] [internal] - Reorganized how AI tools access project and package data behind the scenes
+[1.67.4] [user] [added] - AI assistant now shows period coverage for your data
+[1.67.4] [user] [added] - AI assistant can follow step-by-step recipes for building ICEH equity profiles
+[1.67.4] [user] [added] - AI assistant now shows indicator threshold and direction info when querying data
+[1.67.4] [user] [changed] - AI assistant gives clearer guidance on which filters and options are required for charts
+[1.67.4] [user] [changed] - AI assistant now specifies which dimension to pick a value from when a chart requires a selection
+[1.67.4] [admin] [changed] - AI copilot now shows period coverage instead of module count
+[1.67.4] [admin] [changed] - AI copilot displays indicator threshold and direction info in data results
+[1.67.4] [admin] [changed] - Module inspection tools (scripts, logs, settings) now available only in the web app, not via external API connections
+[1.67.4] [admin] [added] - ICEH equity profile recipe is now a web-app-only reference doc
+[1.67.4] [admin] [changed] - External API connections renamed "get_orientation" to "get_overview"
+[1.67.4] [admin] [changed] - External API access tokens can no longer read module scripts, logs, or settings
+[1.67.4] [admin] [added] - Metric data results now include full period coverage range for context
+[1.67.4] [admin] [changed] - AI assistant on MCP now reads the instance's pinned results package instead of per-project data
+[1.67.4] [admin] [added] - New API routes for reading results package data directly by run ID
+[1.67.4] [admin] [changed] - MCP tools are now all read-only; project-specific tools removed from MCP surface
+[1.67.4] [admin] [internal] - Reorganized how AI tools access project and package data behind the scenes
 [1.67.3] [user] [added] - Import default HFA indicators from FASTR resource hub
 [1.67.3] [user] [changed] - Guidance message now directs users to add time points first
 [1.67.3] [admin] [added] - Import default HFA indicators from FASTR resource hub on GitHub
