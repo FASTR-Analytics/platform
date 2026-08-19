@@ -67,17 +67,14 @@ Boot completes (or fails if any validation fails)
 
 ```text
 server/db/migrations/
-├── instance/              # SQL migrations - main DB
-├── project/               # SQL migrations - project DBs
+├── instance/              # SQL + TypeScript migrations - main DB
+├── consolidation/         # planning cores shared by a .ts migration and its gate
 └── data_transforms/       # JSON data transforms - one file per type
-    ├── po_config.ts
-    ├── module_definition.ts
-    ├── metric.ts
+    ├── po_config.ts       # the shared figure-config shape helpers
     ├── slide_deck_config.ts
     ├── slide_config.ts
-    ├── dashboard_config.ts
-    ├── dashboard_items.ts
     ├── instance_config.ts
+    ├── runs_summary.ts
     ├── reports.ts
     └── _figure_block.ts   # shared: re-validates stored FigureBlock snapshots
 ```
@@ -305,10 +302,11 @@ The two **version** rows are principle 4 unchanged. The **absent / unreadable**
 rows — manifest or input mirror — must not fail boot, and the reason is
 concrete: backups are pg dumps, so a restore
 brings `runs` catalogue rows back while the package directories are still
-absent. The existing degrade paths are deliberate and stay — `getRunReadContext`
-returns a typed "Results run unavailable", and `projects.ts` degrades the
-project shell to empty lists on purpose so authored decks, reports and
-dashboards stay reachable. Do not "fix" that catch. Consequence to accept: on
+absent. The existing degrade paths are deliberate and stay — the run reads
+return a typed "Results run unavailable", and `getRunAuthoringContext` degrades
+to empty lists on purpose so authored decks and reports stay reachable and
+their stored figure bundles keep rendering. Do not "fix" that catch.
+Consequence to accept: on
 the **load** path a shape-drift defect also lands in that catch, so it is
 visible only in the log.
 
@@ -371,16 +369,14 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 
 **Catalog of write paths:**
 
-| Table.Column                  | File                                        | Functions                                                                                                     | Schema                            |
-|-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
-| `presentation_objects.config` | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `presentationObjectConfigSchema`  |
-| `modules.module_definition`   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `moduleDefinitionInstalledSchema` |
-| `metrics.*`                   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `metricStrict`                    |
-| `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
-| `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
-| `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
+| Table.Column          | File                                | Functions                                                          | Schema                    |
+|-----------------------|-------------------------------------|--------------------------------------------------------------------|---------------------------|
+| `slide_decks.config`  | `server/db/products/slide_decks.ts` | `updateSlideDeckConfig`, `duplicateDeckDetail`                      | `slideDeckConfigSchema`   |
+| `slides.config`       | `server/db/products/slides.ts`      | `createSlide`, `updateSlide`                                        | `slideConfigSchema`       |
+| `reports.figures`     | `server/db/products/reports.ts`     | `updateReportFigures`                                               | `reportFiguresSchema`     |
+| `reports.images`      | `server/db/products/reports.ts`     | `updateReportImages`                                                | `reportImagesSchema`      |
+| `reports.config`      | `server/db/products/reports.ts`     | `updateReportConfig`                                                | `reportConfigSchema`      |
+| `instance_config.*`   | `server/db/instance/config.ts`      | `setStructureSchema`, `updateAdminAreaLabelsConfig`, `updateAiContextConfig` | Type-specific schemas |
 
 **Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
 
@@ -418,13 +414,14 @@ External input is validated at the point it enters the system:
 
 For table/column structure changes.
 
-Location: `server/db/migrations/instance/` and `server/db/migrations/project/`
+Location: `server/db/migrations/instance/` — the only migration directory. There
+is one database.
 
 Naming: `NNN_description.sql`
 
 ### The Golden Rule: Idempotency
 
-**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`, `_project_database.sql`) represents the current state — migrations run on top of it, so they must handle the case where their changes already exist.
+**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`) represents the current state — migrations run on top of it, so they must handle the case where their changes already exist.
 
 Common patterns:
 
@@ -467,7 +464,7 @@ END $$;
 
 ### Other Rules
 
-- Update live schema files too (`_main_database.sql`, `_project_database.sql`)
+- Update the live schema file too (`_main_database.sql`)
 - Don't rewrite old migrations — fix forward
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
 - SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
@@ -475,6 +472,38 @@ END $$;
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 
 **Use JSON data transforms for:** Transforming data in JSON columns.
+
+### TypeScript Migrations
+
+A migration that has to READ data to decide what to write — cross-database
+copies, id remapping, anything a single SQL statement cannot express — is a
+`.ts` file in the same directory, sorted by the same filename ordering,
+recorded in the same `schema_migrations` row, run in the same one-transaction
+rule as a `.sql` file.
+
+The rules that make it safe:
+
+- **Register it in `TS_MIGRATIONS`** (`server/db/migrations/runner.ts`), a
+  literal-keyed static import map so `deno check main.ts` covers the migration.
+  The runner THROWS on an unregistered `.ts` file rather than skipping it — a
+  silently skipped migration is the one failure mode that would not announce
+  itself.
+- **Signature is `(tx: Sql) => Promise<void>`.** `tx` is the migration
+  transaction and the only handle to the database being migrated. Every
+  statement — in the migration and in everything it calls — goes through it.
+- **THROW on failure, never `Deno.exit`.** The runner is the single rollback +
+  fail-stop funnel, exactly as it is for a `.sql` file.
+- **`./validate_migrations` ignores `.ts` files by construction** (it globs
+  `*.sql`). A `.ts` migration changes data, not schema, so the
+  idempotency-of-schema check has nothing to say about it — verify it by
+  EXECUTING it against a throwaway Postgres seeded with realistic legacy data,
+  and diff the resulting schema against the base to prove a migrated instance
+  and a fresh one converge.
+- **Share the planning core with the pre-deploy gate.** If a migration is
+  risky enough to want a dry-run, factor the read-and-decide half into a pure
+  function the migration executes and the gate only reports
+  (`server/db/migrations/consolidation/plan.ts` is the worked example). What
+  gets gated is then the thing that runs.
 
 ---
 
@@ -502,7 +531,6 @@ Non-prefixed type files contain plain TypeScript types that are not stored/valid
 | Viz config (d/s schemas)      | `lib/types/_metric_installed.ts`            | (embedded in above + PO config)     |
 | Slide deck config             | `lib/types/_slide_deck_config.ts`           | `slide_decks.config`                |
 | Slide config                  | `lib/types/_slide_config.ts`                | `slides.config`                     |
-| Dashboard config              | `lib/types/_dashboard_config.ts`            | `dashboards.config`                 |
 | Report config                 | `lib/types/reports.ts`                      | `reports.config`                    |
 | Instance configs              | `lib/types/instance.ts`                     | `instance_config.config_json_value` |
 
