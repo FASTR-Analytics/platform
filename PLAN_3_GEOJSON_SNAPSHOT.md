@@ -83,15 +83,16 @@ portability blocker. Fixing it is the heart of this plan.
    stamps: families+levels present, feature counts, source `uploaded_at`.
    **Additive-optional** — no `manifestSchemaVersion` bump; readers tolerate
    absence.
-2. **Read path.** A project-scoped route resolves `projects.run_id` and serves
-   the attached run's geojson. Packages are immutable → serve with
+2. **Read path.** A RUN-KEYED route (`/run_generation/run/:run_id/geojson/...`,
+   beside the other run-keyed reads — the project lens is gone) serves that
+   package's geojson. Packages are immutable → serve with
    `Cache-Control: immutable`, client cache keyed by runId. `build_figure_inputs`
    (and both capture sites) repoint to the run-scoped store. Fallback for
    geojson-less packages (pre-capture wizard runs, backfills without capture):
    the current live instance read — the status quo, not a regression; the next
    regeneration heals it.
-3. **Cache coherence: free.** Every project cache already keys on the attached
-   runId; new run = new geometry version. No cache-fold work.
+3. **Cache coherence: free.** Every figure cache already keys on the runId the
+   product carries; new run = new geometry version. No cache-fold work.
 4. **Snapshot-local stable-id match key.** `area_id` and the render join key
    become parent-qualified snapshot-local ids — not instance FKs, not bare
    names. Fixes the name-collision class and portability in one move. **Must
@@ -217,7 +218,7 @@ Implements §2 items 1–3 and 5:
   **documented exception** to "backfill from frozen project data": the live
   blob is exactly what those projects render today, so capturing it is
   render-equivalent by definition.
-- Project-scoped serving route (resolve `projects.run_id` → run file), gzip +
+- Run-keyed serving route (`:run_id` → run file), gzip +
   `Cache-Control: immutable`; client run-geo store keyed by runId.
 - Repoint `resolveGeoJson` in `build_figure_inputs.ts` and both capture sites;
   delete the `kind:'level'` freeze fallback. **PLAN_2 already threaded the

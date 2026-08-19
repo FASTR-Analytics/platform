@@ -129,10 +129,11 @@ App (`wb-fastr`):
   stamps collapse to `getIndicatorMappingsVersion` (rename to indicators
   version), SSE summary fields, client T2 cache
   (`state/instance/t2_indicators.ts`).
-- Run capture (`db/project/datasets_in_project_hmis.ts`): extract SQL is
+- Run capture (`server/runs/capture_inputs/hmis.ts`): extract SQL is
   base-only (`WHERE type='base'` via mappings, unchanged shape); the
-  attach-time "referenced common absent" check becomes "every ingredient of
-  every derived resolves to a mapped base or another derived".
+  "referenced common absent" check becomes "every ingredient of
+  every derived resolves to a mapped base or another derived", judged at
+  GENERATION time — there is no attach step any more.
   `prepare_inputs.ts` writes ONE mirror `indicators.json` (v2 rows: id,
   label, type, expression, format_as, thresholds, group, sort) — the
   `calculated_indicators_snapshot.json` writer goes.
