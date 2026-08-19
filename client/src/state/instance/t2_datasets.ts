@@ -44,11 +44,10 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   // structureLastUpdated closes the hole where a facility re-import changes
   // the admin tree without any other key moving; the undefined case (no
   // structure yet) is guarded with an explicit token
-  versionKey: (params, _pds) =>
+  versionKey: (params) =>
     `${params.versionId}_${params.indicatorMappingsVersion}_${
       params.structureLastUpdated ?? "no-structure"
     }`,
-  pdsNotRequired: true,
 });
 
 export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
@@ -127,7 +126,6 @@ const _DATASET_HFA_DISPLAY_INFO_CACHE = createReactiveCache<
   name: "dataset_hfa_display_info",
   uniquenessKeys: () => ["hfa"],
   versionKey: (params) => params.cacheHash,
-  pdsNotRequired: true,
 });
 
 export async function getDatasetHfaDisplayInfoFromCacheOrFetch(
@@ -163,7 +161,6 @@ const _DATASET_ICEH_DISPLAY_INFO_CACHE = createReactiveCache<
   name: "dataset_iceh_display_info",
   uniquenessKeys: () => ["iceh"],
   versionKey: (params) => params.cacheHash,
-  pdsNotRequired: true,
 });
 
 export async function getDatasetIcehDisplayInfoFromCacheOrFetch(
@@ -193,7 +190,6 @@ const _HFA_DICTIONARY_CACHE = createReactiveCache<
   name: "hfa_dictionary",
   uniquenessKeys: () => ["hfa_dictionary"],
   versionKey: (params) => params.hfaCacheHash,
-  pdsNotRequired: true,
 });
 
 export async function getHfaDictionaryFromCacheOrFetch(hfaCacheHash: string) {

@@ -16,7 +16,7 @@ health (RMNCH). A user imports a Retriever extract (a results CSV + an indicator
 dictionary) for **one country**; FASTR stores it and makes it queryable.
 
 Key facts:
-- **Single country per instance/project.** A wealth quintile means the poorest 20% of
+- **Single country per instance.** A wealth quintile means the poorest 20% of
   *that* country; estimates are not comparable across countries.
 - **Pre-aggregated, not microdata.** The Retriever already computes coverage for each
   subgroup. FASTR never has the per-person rows.

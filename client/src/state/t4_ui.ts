@@ -4,55 +4,81 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type {
-  ReportGroupingMode,
-  SlideDeckGroupingMode,
-  SlideType,
-  SortMode,
-  VisualizationGroupingMode,
-} from "lib";
+import type { ProductSortMode, ProductType, SlideType } from "lib";
 
 // ============================================================================
-// Project View State
+// Products page
 // ============================================================================
 
-// Active tab selection
-const ALL_TAB_OPTIONS = [
-  "reports",
-  "decks",
-  "dashboards",
-  "visualizations",
-  "metrics",
-  "results_package",
-  "settings",
-  "cache",
-] as const;
+// The deep-link parameter: `?product=<id>` opens that product's editor over
+// the Products page (D16). It replaces `?p=` / `?d=`; old links in the wild
+// break, deliberately, with no shim. Named here so the page, the cards and
+// the copilot all spell it the same way.
+export const _PRODUCT_QUERY_PARAM = "product";
 
-export type TabOption = (typeof ALL_TAB_OPTIONS)[number];
-
-// Checked, unlike the sort/grouping modes below: this is the one stored value
-// that feeds a lookup which THROWS on a miss (PROJECT_TAB_TO_VIEW ->
-// panther's setView, from a mount effect with no ErrorBoundary above it, so
-// the throw also skips every effect queued after it). A value written by a
-// build that spelled a tab differently — or holding a removed tab like
-// "modules"/"data" — would take the project page down with no error surface;
-// the modes below only feed comparisons and degrade.
-const storedTab = localStorage.getItem("projectTab");
-const initialTab: TabOption =
-  storedTab !== null &&
-  (ALL_TAB_OPTIONS as readonly string[]).includes(storedTab)
-    ? (storedTab as TabOption)
-    : "visualizations";
-
-export const [projectTab, setProjectTabInternal] =
-  createSignal<TabOption>(initialTab);
-
-export function setProjectTab(tab: TabOption) {
-  localStorage.setItem("projectTab", tab);
-  setProjectTabInternal(tab);
+export function productDeepLinkHref(productId: string): string {
+  return `/?${_PRODUCT_QUERY_PARAM}=${productId}`;
 }
 
-// Project navigation collapsed state
+// Sort and filter for the one product list. Unvalidated on read, like the
+// modes they replace: they only feed comparisons, so an unknown stored value
+// degrades to "no match" rather than throwing.
+const storedProductsSortMode = localStorage.getItem(
+  "productsSortMode",
+) as ProductSortMode | null;
+export const [productsSortMode, setProductsSortModeInternal] =
+  createSignal<ProductSortMode>(storedProductsSortMode ?? "recent");
+export function setProductsSortMode(mode: ProductSortMode) {
+  localStorage.setItem("productsSortMode", mode);
+  setProductsSortModeInternal(mode);
+}
+
+// null = both types.
+const storedProductsTypeFilter = localStorage.getItem(
+  "productsTypeFilter",
+) as ProductType | null;
+export const [productsTypeFilter, setProductsTypeFilterInternal] = createSignal<
+  ProductType | null
+>(storedProductsTypeFilter);
+export function setProductsTypeFilter(type: ProductType | null) {
+  if (type === null) {
+    localStorage.removeItem("productsTypeFilter");
+  } else {
+    localStorage.setItem("productsTypeFilter", type);
+  }
+  setProductsTypeFilterInternal(type);
+}
+
+// null = "All products" (the folder sidebar's root row), not "unfoldered".
+const storedProductsSelectedFolder = localStorage.getItem(
+  "productsSelectedFolder",
+);
+export const [productsSelectedFolder, setProductsSelectedFolderInternal] =
+  createSignal<string | null>(storedProductsSelectedFolder);
+export function setProductsSelectedFolder(folderId: string | null) {
+  if (folderId === null) {
+    localStorage.removeItem("productsSelectedFolder");
+  } else {
+    localStorage.setItem("productsSelectedFolder", folderId);
+  }
+  setProductsSelectedFolderInternal(folderId);
+}
+
+// ============================================================================
+// Explore tab
+// ============================================================================
+
+// The Explore tab's (package, scope) pair. EPHEMERAL by ruling (D6) — the
+// package Select starts at the pin and the scope picker at national, and
+// neither is persisted; these are module-level signals purely so the pair
+// survives a tab switch within one session. `null` runId = "not chosen yet,
+// use the pin".
+export const [exploreRunId, setExploreRunId] = createSignal<string | null>(null);
+export const [exploreAdminArea2, setExploreAdminArea2] = createSignal<
+  string | null
+>(null);
+
+// Navigation collapsed state
 const storedNavCollapsed = localStorage.getItem("navCollapsed");
 
 export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
@@ -64,193 +90,27 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
-// List sort modes (defaults chosen to match each list's current server order)
-const storedProjectsSortMode = localStorage.getItem(
-  "projectsSortMode",
-) as SortMode | null;
-export const [projectsSortMode, setProjectsSortModeInternal] =
-  createSignal<SortMode>(storedProjectsSortMode ?? "name");
-export function setProjectsSortMode(mode: SortMode) {
-  localStorage.setItem("projectsSortMode", mode);
-  setProjectsSortModeInternal(mode);
-}
-
-const storedVizSortMode = localStorage.getItem(
-  "vizSortMode",
-) as SortMode | null;
-export const [vizSortMode, setVizSortModeInternal] = createSignal<SortMode>(
-  storedVizSortMode ?? "name",
-);
-export function setVizSortMode(mode: SortMode) {
-  localStorage.setItem("vizSortMode", mode);
-  setVizSortModeInternal(mode);
-}
-
-const storedDeckSortMode = localStorage.getItem(
-  "deckSortMode",
-) as SortMode | null;
-export const [deckSortMode, setDeckSortModeInternal] = createSignal<SortMode>(
-  storedDeckSortMode ?? "recent",
-);
-export function setDeckSortMode(mode: SortMode) {
-  localStorage.setItem("deckSortMode", mode);
-  setDeckSortModeInternal(mode);
-}
-
-const storedReportSortMode = localStorage.getItem(
-  "reportSortMode",
-) as SortMode | null;
-export const [reportSortMode, setReportSortModeInternal] =
-  createSignal<SortMode>(storedReportSortMode ?? "recent");
-export function setReportSortMode(mode: SortMode) {
-  localStorage.setItem("reportSortMode", mode);
-  setReportSortModeInternal(mode);
-}
-
-const storedDashboardSortMode = localStorage.getItem(
-  "dashboardSortMode",
-) as SortMode | null;
-export const [dashboardSortMode, setDashboardSortModeInternal] =
-  createSignal<SortMode>(storedDashboardSortMode ?? "recent");
-export function setDashboardSortMode(mode: SortMode) {
-  localStorage.setItem("dashboardSortMode", mode);
-  setDashboardSortModeInternal(mode);
-}
-
-// Visualization grouping/filtering
-const storedGroupingMode = localStorage.getItem(
-  "vizGroupingMode",
-) as VisualizationGroupingMode | null;
-
-export const [vizGroupingMode, setVizGroupingModeInternal] =
-  createSignal<VisualizationGroupingMode>(storedGroupingMode ?? "folders");
-
-export function setVizGroupingMode(mode: VisualizationGroupingMode) {
-  localStorage.setItem("vizGroupingMode", mode);
-  setVizGroupingModeInternal(mode);
-}
-
-const storedSelectedGroup = localStorage.getItem("vizSelectedGroup");
-
-export const [vizSelectedGroup, setVizSelectedGroupInternal] = createSignal<
-  string | null
->(storedSelectedGroup);
-
-export function setVizSelectedGroup(group: string | null) {
-  if (group === null) {
-    localStorage.removeItem("vizSelectedGroup");
-  } else {
-    localStorage.setItem("vizSelectedGroup", group);
-  }
-  setVizSelectedGroupInternal(group);
-}
-
-const storedHideUnreadyViz =
-  localStorage.getItem("hideUnreadyVisualizations") === "true";
-
-export const [hideUnreadyVisualizations, setHideUnreadyVisualizationsInternal] =
-  createSignal<boolean>(storedHideUnreadyViz);
-
-export function setHideUnreadyVisualizations(value: boolean) {
-  localStorage.setItem("hideUnreadyVisualizations", value.toString());
-  setHideUnreadyVisualizationsInternal(value);
-}
-
-// Slide deck grouping/filtering
-const storedDeckGroupingMode = localStorage.getItem(
-  "deckGroupingMode",
-) as SlideDeckGroupingMode | null;
-
-export const [deckGroupingMode, setDeckGroupingModeInternal] =
-  createSignal<SlideDeckGroupingMode>(storedDeckGroupingMode ?? "folders");
-
-export function setDeckGroupingMode(mode: SlideDeckGroupingMode) {
-  localStorage.setItem("deckGroupingMode", mode);
-  setDeckGroupingModeInternal(mode);
-}
-
-const storedDeckSelectedGroup = localStorage.getItem("deckSelectedGroup");
-
-export const [deckSelectedGroup, setDeckSelectedGroupInternal] = createSignal<
-  string | null
->(storedDeckSelectedGroup);
-
-export function setDeckSelectedGroup(group: string | null) {
-  if (group === null) {
-    localStorage.removeItem("deckSelectedGroup");
-  } else {
-    localStorage.setItem("deckSelectedGroup", group);
-  }
-  setDeckSelectedGroupInternal(group);
-}
-
-// Report grouping/filtering
-const storedReportGroupingMode = localStorage.getItem(
-  "reportGroupingMode",
-) as ReportGroupingMode | null;
-
-export const [reportGroupingMode, setReportGroupingModeInternal] =
-  createSignal<ReportGroupingMode>(storedReportGroupingMode ?? "folders");
-
-export function setReportGroupingMode(mode: ReportGroupingMode) {
-  localStorage.setItem("reportGroupingMode", mode);
-  setReportGroupingModeInternal(mode);
-}
-
-const storedReportSelectedGroup = localStorage.getItem("reportSelectedGroup");
-
-export const [reportSelectedGroup, setReportSelectedGroupInternal] =
-  createSignal<string | null>(storedReportSelectedGroup);
-
-export function setReportSelectedGroup(group: string | null) {
-  if (group === null) {
-    localStorage.removeItem("reportSelectedGroup");
-  } else {
-    localStorage.setItem("reportSelectedGroup", group);
-  }
-  setReportSelectedGroupInternal(group);
-}
-
-// Consolidated updater for project view state
-export type ProjectViewStateUpdates = {
-  tab?: TabOption;
-  vizGroupingMode?: VisualizationGroupingMode;
-  vizSelectedGroup?: string | null;
-  hideUnreadyVisualizations?: boolean;
-  deckGroupingMode?: SlideDeckGroupingMode;
-  deckSelectedGroup?: string | null;
-  reportGroupingMode?: ReportGroupingMode;
-  reportSelectedGroup?: string | null;
+// Consolidated updater — one entry point for the copilot's view tools, so a
+// tool never reaches past this file into individual setters.
+export type ProductsViewStateUpdates = {
+  productsSortMode?: ProductSortMode;
+  productsTypeFilter?: ProductType | null;
+  productsSelectedFolder?: string | null;
   fitWithin?: "fit-within" | "fit-width";
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
   policyHeaderOrContent?: "policyHeaderFooter" | "content";
 };
 
-export function updateProjectView(updates: ProjectViewStateUpdates) {
-  if (updates.tab !== undefined) {
-    setProjectTab(updates.tab);
+export function updateProductsView(updates: ProductsViewStateUpdates) {
+  if (updates.productsSortMode !== undefined) {
+    setProductsSortMode(updates.productsSortMode);
   }
-  if (updates.vizGroupingMode !== undefined) {
-    setVizGroupingMode(updates.vizGroupingMode);
+  if (updates.productsTypeFilter !== undefined) {
+    setProductsTypeFilter(updates.productsTypeFilter);
   }
-  if (updates.vizSelectedGroup !== undefined) {
-    setVizSelectedGroup(updates.vizSelectedGroup);
-  }
-  if (updates.hideUnreadyVisualizations !== undefined) {
-    setHideUnreadyVisualizations(updates.hideUnreadyVisualizations);
-  }
-  if (updates.deckGroupingMode !== undefined) {
-    setDeckGroupingMode(updates.deckGroupingMode);
-  }
-  if (updates.deckSelectedGroup !== undefined) {
-    setDeckSelectedGroup(updates.deckSelectedGroup);
-  }
-  if (updates.reportGroupingMode !== undefined) {
-    setReportGroupingMode(updates.reportGroupingMode);
-  }
-  if (updates.reportSelectedGroup !== undefined) {
-    setReportSelectedGroup(updates.reportSelectedGroup);
+  if (updates.productsSelectedFolder !== undefined) {
+    setProductsSelectedFolder(updates.productsSelectedFolder);
   }
   if (updates.fitWithin !== undefined) {
     setFitWithin(updates.fitWithin);
@@ -333,49 +193,28 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
 // Editor-open flags
 // ============================================================================
 
-// The dashboard editor renders as an overlay over the still-mounted project
-// shell and (unlike the deck/report/viz editors) sets no AI view, so nothing
-// outside it can tell it is open. Onboarding tours read this to know which
-// page the user is actually looking at.
-export const [dashboardEditorOpen, setDashboardEditorOpen] =
-  createSignal<boolean>(false);
-
-// The project results-package tab fetches its attached package on mount
-// instead of reading a store, so its tour anchors appear a network
-// round-trip after the tab itself does. This counts its settled fetches
-// (ready OR error; 0 while the first is in flight, reset to 0 on unmount).
-// The onboarding manager counts the tab as visible only while this is > 0,
-// so tour parts gated on those anchors are evaluated against the drawn page
-// rather than the loading one — evaluating at tab-entry excluded them, and
-// nothing re-checked once the fetch landed. A count rather than a flag so
-// that every later settle (a repoint) is a re-check too: a part that only
-// became possible mid-visit starts as soon as its anchor is on screen.
-export const [resultsPackageTabLoadCount, setResultsPackageTabLoadCount] =
-  createSignal<number>(0);
-
-// Request signal for opening a document editor from outside the tab
-// components (the tour catalogue modal). The openers live in private closures
-// inside each tab component, and inactive tabs are unmounted, so the request
-// must persist until the matching tab mounts and consumes it. Consumers clear
-// the signal BEFORE calling their opener (openProjectEditor only resolves when
-// the editor closes).
+// Request signal for opening a product's editor from outside the Products
+// page (the tour catalogue modal, the copilot, a `?product=` deep link). The
+// opener lives in a private closure inside the page, so the request must
+// persist until the page mounts and consumes it. Consumers clear the signal
+// BEFORE calling their opener (which only resolves when the editor closes).
+// One kind, because there is one: the product id says whether a deck editor
+// or a report editor opens.
 export type PendingEditorOpen = {
-  kind: "deck" | "report" | "visualization" | "dashboard";
-  id: string;
+  productId: string;
 };
 export const [pendingEditorOpen, setPendingEditorOpen] =
   createSignal<PendingEditorOpen | null>(null);
 
-// Second level of the same pattern: set alongside a pending "deck" request by
+// Second level of the same pattern: set alongside a pending deck request by
 // the tour catalogue's slide-tour replays, consumed by the deck editor once
 // its slides have loaded — it opens the first slide of this type.
 export const [pendingSlideOpen, setPendingSlideOpen] =
   createSignal<SlideType | null>(null);
 
-// Top level of the chain: a tour replay requested from the instance-level
-// catalogue before any project shell exists. Set together with navigation to
-// `/?p=<projectId>`; the project shell consumes it after hydration and runs
-// the tour's own navigate + start.
+// Top level of the chain: a tour replay requested before the product editor
+// that hosts it exists. Set together with a `pendingEditorOpen`; the editor
+// consumes it after hydration and runs the tour's own navigate + start.
 export const [pendingTourReplay, setPendingTourReplay] = createSignal<
   string | null
 >(null);

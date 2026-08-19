@@ -1,60 +1,57 @@
 import { get, set, del } from "idb-keyval";
 
-export type ProjectDocument = {
+// Anthropic file ids for documents the user has attached to the copilot, held
+// per browser. ONE conversation scope: the copilot is a single instance-level
+// mount (§2.6), so there is nothing left to key these by — the old
+// `ai-documents/<projectId>` residue in a returning user's IndexedDB is
+// accepted and never migrated (D8).
+const _KEY = "ai-documents/copilot";
+
+export type CopilotDocument = {
   assetFilename: string;
   anthropicFileId: string;
 };
 
-type ProjectDocumentsData = {
-  documents: ProjectDocument[];
+type CopilotDocumentsData = {
+  documents: CopilotDocument[];
   lastUpdated: string;
 };
 
-function getKey(projectId: string): string {
-  return `ai-documents/${projectId}`;
-}
-
-export async function getDocumentsForProject(
-  projectId: string
-): Promise<ProjectDocument[]> {
-  const data = await get<ProjectDocumentsData>(getKey(projectId));
+export async function getCopilotDocuments(): Promise<CopilotDocument[]> {
+  const data = await get<CopilotDocumentsData>(_KEY);
   return data?.documents ?? [];
 }
 
-export async function setDocumentsForProject(
-  projectId: string,
-  documents: ProjectDocument[]
+export async function setCopilotDocuments(
+  documents: CopilotDocument[],
 ): Promise<void> {
-  await set(getKey(projectId), {
+  await set(_KEY, {
     documents,
     lastUpdated: new Date().toISOString(),
-  } satisfies ProjectDocumentsData);
+  } satisfies CopilotDocumentsData);
 }
 
-export async function clearDocumentsForProject(
-  projectId: string
-): Promise<void> {
-  await del(getKey(projectId));
+export async function clearCopilotDocuments(): Promise<void> {
+  await del(_KEY);
 }
 
-export async function addDocumentToProject(
-  projectId: string,
-  document: ProjectDocument
+export async function addCopilotDocument(
+  document: CopilotDocument,
 ): Promise<void> {
-  const existing = await getDocumentsForProject(projectId);
+  const existing = await getCopilotDocuments();
   const alreadyExists = existing.some(
-    (d) => d.assetFilename === document.assetFilename
+    (d) => d.assetFilename === document.assetFilename,
   );
   if (!alreadyExists) {
-    await setDocumentsForProject(projectId, [...existing, document]);
+    await setCopilotDocuments([...existing, document]);
   }
 }
 
-export async function removeDocumentFromProject(
-  projectId: string,
-  assetFilename: string
+export async function removeCopilotDocument(
+  assetFilename: string,
 ): Promise<void> {
-  const existing = await getDocumentsForProject(projectId);
-  const filtered = existing.filter((d) => d.assetFilename !== assetFilename);
-  await setDocumentsForProject(projectId, filtered);
+  const existing = await getCopilotDocuments();
+  await setCopilotDocuments(
+    existing.filter((d) => d.assetFilename !== assetFilename),
+  );
 }

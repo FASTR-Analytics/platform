@@ -2,21 +2,27 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  PackageScope,
   ReplicantOptionsForPresentationObject,
   hashFetchConfig,
+  scopeToken,
 } from "lib";
-import {
-  responseRunVersionMatches,
-  runVersionKey,
-} from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
 
-export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
+// The valid values of a figure's replicant dimension, under one PackageScope.
+//
+// Version key CONSTANT, identity in the UNIQUENESS key: a package is immutable
+// and a scope is just another axis of the question, so `(runId, scopeToken)`
+// leads the key rather than versioning it (D8 — `runVersionKey` and the
+// response-side identity guard both die with it). A response can no longer
+// land under a key it does not belong to, because the key already names the
+// package and scope it was asked for.
+const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   {
-    projectId: string;
-    resultsObjectId: string;
+    scope: PackageScope;
+    metricId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
   },
@@ -24,52 +30,39 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
 >({
   name: "replicant_options",
   uniquenessKeys: (params) => [
-    params.projectId,
-    params.resultsObjectId,
+    params.scope.runId,
+    scopeToken(params.scope.adminArea2),
+    params.metricId,
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
   ],
-  versionKey: (_params, pds) => runVersionKey(pds),
-  responseMatchesVersion: (data, version) =>
-    responseRunVersionMatches(data, version),
+  versionKey: () => "immutable",
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(
-  projectId: string,
-  resultsObjectId: string,
+  scope: PackageScope,
+  metricId: string,
   replicateBy: DisaggregationOption,
   fetchConfig: GenericLongFormFetchConfig,
 ): Promise<APIResponseWithData<ReplicantOptionsForPresentationObject>> {
-  const { data, version } = await _REPLICANT_OPTIONS_CACHE.get({
-    projectId,
-    resultsObjectId,
-    replicateBy,
-    fetchConfig,
-  });
+  const params = { scope, metricId, replicateBy, fetchConfig };
+  const { data, version } = await _REPLICANT_OPTIONS_CACHE.get(params);
 
   if (data) {
     return { success: true, data } as const;
   }
 
   const newPromise = resultsValueInfoQueue.enqueue(() =>
-    serverActions.getReplicantOptions({
-      projectId,
-      resultsObjectId,
+    serverActions.getRunReplicantOptions({
+      run_id: scope.runId,
+      metricId,
       replicateBy,
       fetchConfig,
+      adminArea2: scope.adminArea2,
     })
   );
 
-  _REPLICANT_OPTIONS_CACHE.setPromise(
-    newPromise,
-    {
-      projectId,
-      resultsObjectId,
-      replicateBy,
-      fetchConfig,
-    },
-    version,
-  );
+  _REPLICANT_OPTIONS_CACHE.setPromise(newPromise, params, version);
 
   return await newPromise;
 }

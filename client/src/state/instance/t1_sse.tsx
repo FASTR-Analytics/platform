@@ -1,4 +1,4 @@
-import type { InstanceSseMessage, RunProgress } from "lib";
+import type { InstanceSseMessage, LastUpdateTableName, RunProgress } from "lib";
 import { t3 } from "lib";
 import { Show, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
@@ -9,7 +9,11 @@ import {
   initInstanceState,
   resetInstanceState,
   updateInstanceConfig,
-  updateInstanceProjects,
+  updateInstanceFolders,
+  updateInstanceLastUpdated,
+  updateInstanceReadyPackages,
+  upsertInstanceProducts,
+  removeInstanceProducts,
   updateInstanceUsers,
   updateInstanceAssets,
   updateInstanceGeoJsonMaps,
@@ -21,15 +25,15 @@ import {
   updateInstanceIndicators,
   updateInstanceDatasets,
   updateCurrentUser,
-  updateProjectsLastUpdated,
 } from "./t1_store";
+import { connectCollab, disconnectCollab } from "./collab";
 
 // Live results-package generation (Q-B): ephemeral execution state, not T1 —
-// like the project channel's copies these go to listeners and never touch
-// the store. (The catalogue LISTING is T1 via the projects pattern:
-// `runs_catalog_updated` is a data-free timestamp and the boundary below
-// fetches `runsCatalog` per user.) The server only sends these two to
-// can_configure_data users, so a non-admin's listeners simply never fire.
+// these go to listeners and never touch the store. (The catalogue LISTING is
+// T1 via the signal-plus-own-fetch pattern: `runs_catalog_updated` is a
+// data-free nonce and the boundary below fetches `runsCatalog` per user.) The
+// server only sends these two to can_configure_data users, so a non-admin's
+// listeners simply never fire.
 type InstanceRunProgressListener = (
   runId: string,
   progress: RunProgress,
@@ -57,6 +61,35 @@ export function addInstanceRScriptListener(
   return () => rScriptListeners.delete(listener);
 }
 
+// The sanctioned imperative side-channel (S3 / PROTOCOL_APP_STATE): entity
+// change notification for consumers that must react to a change WITHOUT
+// subscribing to the store — the copilot feeds them into the conversation.
+// Fires for both stamp carriers: the `last_updated` message (slides) and the
+// per-row `products_upserted` summary, whose own `lastUpdated` IS the
+// products table's stamp.
+type LastUpdatedListener = (
+  tableName: LastUpdateTableName,
+  ids: string[],
+  timestamp: string,
+) => void;
+
+const lastUpdatedListeners = new Set<LastUpdatedListener>();
+
+export function addLastUpdatedListener(listener: LastUpdatedListener): () => void {
+  lastUpdatedListeners.add(listener);
+  return () => lastUpdatedListeners.delete(listener);
+}
+
+function fireLastUpdatedListeners(
+  tableName: LastUpdateTableName,
+  ids: string[],
+  timestamp: string,
+): void {
+  for (const listener of lastUpdatedListeners) {
+    listener(tableName, ids, timestamp);
+  }
+}
+
 // Retries never give up: past the threshold the ladder keeps trying at the
 // capped delay forever (a dead connection would otherwise freeze T1 behind a
 // working-looking UI, with `isReady` never unset). The threshold only decides
@@ -74,6 +107,11 @@ let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let connectionAttempts = 0;
 let shouldBeConnected = false;
+// Was the CURRENT connection admitted as an approved user? The server withholds
+// products, folders, ready packages and the roster from an unapproved
+// connection, and it decides that once, at connect. So an approval that lands
+// mid-session needs a new connection, not just a store update (D8).
+let connectedAsApproved = false;
 
 const [connectionDown, setConnectionDown] = createSignal(false);
 
@@ -133,14 +171,39 @@ export function connectInstanceSSE(): void {
 
     switch (msg.type) {
       case "starting":
+        // Recorded BEFORE the store write: the approval effect below reads it
+        // to tell "this connection was opened unapproved and needs a fresh
+        // payload" from "already approved, nothing to redo".
+        connectedAsApproved = msg.data.currentUserApproved;
         initInstanceState(msg.data);
         preloadGeoJson(msg.data.geojsonMaps);
         break;
       case "config_updated":
         updateInstanceConfig(msg.data);
         break;
-      case "projects_last_updated":
-        updateProjectsLastUpdated(msg.data);
+      case "products_upserted":
+        upsertInstanceProducts(msg.data.products);
+        for (const product of msg.data.products) {
+          fireLastUpdatedListeners("products", [product.id], product.lastUpdated);
+        }
+        break;
+      case "products_deleted":
+        removeInstanceProducts(msg.data.ids);
+        break;
+      case "folders_updated":
+        updateInstanceFolders(msg.data.folders);
+        break;
+      case "last_updated":
+        updateInstanceLastUpdated(
+          msg.data.tableName,
+          msg.data.ids,
+          msg.data.lastUpdated,
+        );
+        fireLastUpdatedListeners(
+          msg.data.tableName,
+          msg.data.ids,
+          msg.data.lastUpdated,
+        );
         break;
       case "users_updated":
         updateInstanceUsers(msg.data);
@@ -211,8 +274,21 @@ export function disconnectInstanceSSE(): void {
     evtSource = null;
   }
   connectionAttempts = 0;
+  connectedAsApproved = false;
   setConnectionDown(false);
   resetInstanceState();
+}
+
+// The unapproved → approved transition (D8). Everything approval unlocks is
+// decided per CONNECTION server-side, so re-open it; collab is opened at the
+// same time because an unapproved user was never allowed on that socket.
+// The reset inside the disconnect flips `currentUserApproved` back to false
+// for one tick — the approval effect below no-ops on that, and re-runs when
+// the new `starting` payload lands.
+export function reconnectForApproval(): void {
+  disconnectInstanceSSE();
+  connectInstanceSSE();
+  connectCollab();
 }
 
 // ============================================================================
@@ -221,38 +297,76 @@ export function disconnectInstanceSSE(): void {
 
 export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
-  onCleanup(() => disconnectInstanceSSE());
+  onCleanup(() => {
+    disconnectInstanceSSE();
+    disconnectCollab();
+  });
 
-  // Refetch projects when version changes
-  // defer: true skips initial run (starting message already has correct projects)
-  // AbortController tracks staleness - tryCatchServer doesn't support external abort,
-  // but we check aborted flag before updating state to ignore stale responses
+  // The collab socket is instance-wide and admits approved users only (D8), so
+  // approval is the one thing it waits on. No `defer` — an already-approved
+  // user connects on the first `starting`.
+  //
+  // Nothing here DISCONNECTS collab on a false reading: `currentUserApproved`
+  // goes false transiently on every reconnect (the store reset), and a real
+  // de-approval is closed server-side (`closeConnectionsForEmail`), which is
+  // the authority anyway.
   createEffect(on(
-    () => instanceState.projectsLastUpdated,
+    () => instanceState.currentUserApproved,
+    (approved) => {
+      if (!approved) {
+        return;
+      }
+      if (!connectedAsApproved) {
+        reconnectForApproval();
+        return;
+      }
+      connectCollab();
+    },
+  ));
+
+  // Ready packages: the `runsCatalog` idiom exactly (D8 / §2.4) — filled by
+  // `starting`, refetched on the EXISTING `runs_catalog_updated` nonce, no
+  // message type of its own. Unlike the catalogue below it is gated on
+  // APPROVAL, not on can_configure_data: a ready package's label is what
+  // every product card and the package picker show (the deliberate revision
+  // of Q-B, `lib/types/instance_sse.ts`). Tracking the flag live means an
+  // approval also fills the list without waiting for the next nonce.
+  createEffect(on(
+    () => [instanceState.runsCatalogSignal, instanceState.currentUserApproved] as const,
     () => {
       const controller = new AbortController();
       onCleanup(() => controller.abort());
 
-      serverActions.getMyProjects({}).then((res) => {
+      if (!instanceState.currentUserApproved) {
+        updateInstanceReadyPackages([]);
+        return;
+      }
+      serverActions.listAttachableResultsPackages({}).then((res) => {
         if (controller.signal.aborted) return;
         if (res.success) {
-          updateInstanceProjects(res.data);
+          updateInstanceReadyPackages(
+            res.data.map((run) => ({
+              id: run.id,
+              label: run.label,
+              createdAt: run.createdAt,
+            })),
+          );
         } else {
-          console.error("Failed to fetch projects:", res.err);
+          console.error("Failed to fetch ready packages:", res.err);
         }
       });
     },
     { defer: true }
   ));
 
-  // Runs catalogue: same shape as the projects fetch above (the broadcast is
-  // a data-free nonce — run labels must not fan out, Q-B). Also tracks
-  // the user's OWN entitlement, so a mid-session grant fetches the catalogue
-  // and a revocation clears it — no reconnect needed. defer: true skips only
-  // the mount-time run; the server stamps a FRESH nonce in every `starting`
-  // payload, so this refetches after every reconnect — DELIBERATE, the
-  // self-healing path for backfill runs and missed signals (the payload fill
-  // prevents an empty flash while it resolves).
+  // Runs catalogue: the same shape (the broadcast is a data-free nonce — run
+  // labels must not fan out, Q-B). Also tracks the user's OWN entitlement, so
+  // a mid-session grant fetches the catalogue and a revocation clears it — no
+  // reconnect needed. defer: true skips only the mount-time run; the server
+  // stamps a FRESH nonce in every `starting` payload, so this refetches after
+  // every reconnect — DELIBERATE, the self-healing path for backfill runs and
+  // missed signals (the payload fill prevents an empty flash while it
+  // resolves).
   createEffect(on(
     () => [instanceState.runsCatalogSignal, canSeeRunsCatalog()] as const,
     () => {

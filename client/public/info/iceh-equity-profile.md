@@ -3,7 +3,7 @@
 Load this (via `get_info`) when a user asks to create an ICEH / Countdown equity
 profile. It is the recipe for building one as an in-app **report** — a markdown
 narrative with embedded live figures — and works for **any country**: it reads
-whatever ICEH (Retriever) survey data has been imported into the current project
+whatever ICEH (Retriever) survey data the current results package captured
 and reproduces the closest achievable version of the standard profile (the Cameroon
 DHS 2018 / Countdown-to-2030 profile is the reference).
 
@@ -13,7 +13,7 @@ DHS 2018 / Countdown-to-2030 profile is the reference).
 
 Create a report titled **"Equity profile — [country] ([most recent survey year])"** that
 reproduces the structure and content of an ICEH/Countdown RMNCH equity profile,
-using **only the data already imported into this project** and the two ICEH
+using **only the data the results package already holds** and the two ICEH
 metrics described below. Discover what is available first, then build the report,
 then write the narrative around the figures. Skip any element whose data is
 missing rather than inventing it.
@@ -37,7 +37,7 @@ short narrative with key messages and definitions.
 
 All figures in this report come from module **M9 (ICEH Survey Data Analysis)**.
 Before building anything, call your metric/data tools to list the actual
-`iceh_indicator` values, `strat` values, and years present in this project — the
+`iceh_indicator` values, `strat` values, and years present in the package — the
 set varies by country and by what the user pulled from the ICEH Retriever.
 
 **1. `m9-01-01` — "ICEH Estimate"** (coverage / prevalence)
@@ -63,7 +63,7 @@ set varies by country and by what the user pulled from the ICEH Retriever.
 `national`, `area` (urban/rural), `wealth_quintiles` (Q1 poorest → Q5 richest),
 `wealth_deciles` (D01 → D10), `womans_education`, `womans_education_4_groups`,
 `womans_age_current`, `womans_age_at_birth`, `sex`, `subnational_unit` (regions).
-Only those actually present in this project's data are usable.
+Only those actually present in the package's data are usable.
 
 ## Report structure to produce
 

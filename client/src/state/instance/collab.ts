@@ -4,16 +4,13 @@ import {
   type CollabClientMessage,
   type CollabServerMessage,
   parseJsonOrThrow,
-  PO_CONFIG_MAP_KEY,
   type PresenceEntry,
-  type PresentationObjectConfig,
   type PresenceView,
   type ReportDocContent,
   type Slide,
   slideDocRoot,
   type SyncReportOpts,
   type SyncSlideOpts,
-  syncFigureConfigToMap,
   syncReportRegistries,
   syncReportToDoc,
   syncSlideToDoc,
@@ -34,13 +31,14 @@ import {
 } from "~/components/_shared/presence_toasts";
 import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 
-// Client manager for the per-project collaboration WebSocket: presence,
-// idle detection, and the three CRDT session families (slide / report /
-// visualization) with reconnect catch-up. Mirrors the SSE manager
-// (t1_sse.tsx): a single module-level connection, exponential-backoff
-// reconnect that never gives up, and a reactive store consumers read from.
-// The `peers` list is per CONNECTION and includes self; UI reads it through
-// otherPeers(), which collapses it to one entry per person.
+// Client manager for the instance-wide collaboration WebSocket: presence,
+// idle detection, and the two CRDT session families (slide / report) with
+// reconnect catch-up. Mirrors the SSE manager (t1_sse.tsx): a single
+// module-level connection, exponential-backoff reconnect that never gives up,
+// and a reactive store consumers read from. The `peers` list is per
+// CONNECTION and includes self; UI reads it through otherPeers(), which
+// collapses it to one entry per person, or peersInProduct(id), since presence
+// is keyed by PRODUCT (D8).
 
 type CollabState = {
   connectionId: string | null;
@@ -52,7 +50,7 @@ const [collabStore, setCollabStore] = createStore<CollabState>({
   peers: [],
 });
 
-/** Reactive presence state for the current project (includes self). */
+/** Reactive presence state for the instance connection (includes self). */
 export const collabState = collabStore;
 
 /** Which connection speaks for a person holding several (two tabs, or a
@@ -63,7 +61,7 @@ function presenceRank(p: PresenceEntry): number {
   return (p.isEditing ? 2 : 0) + (p.idle ? 0 : 1);
 }
 
-/** Other PEOPLE in this project — one entry each, never one per connection.
+/** Other PEOPLE on this instance — one entry each, never one per connection.
  *
  *  Presence is connection-keyed, but every consumer (avatars, viewer chips,
  *  "who has this open" borders, the AI busy-slide guard) is asking about
@@ -97,7 +95,16 @@ export function otherPeers(): PresenceEntry[] {
   return [...byPerson.values()];
 }
 
-/** Connection ids the server currently lists for this project (empty before
+/** Other people currently inside one product — the socket is instance-wide,
+ *  so every card and header filters the roster down to its own product
+ *  (presence is keyed by PRODUCT, and a product id IS its deck/report id). */
+export function peersInProduct(productId: string): PresenceEntry[] {
+  return otherPeers().filter(
+    (p) => p.deckId === productId || p.reportId === productId,
+  );
+}
+
+/** Connection ids the server currently lists (empty before
  *  presence arrives — treat that as "unknown", never as "nobody"). Reactive.
  *  The cursor overlay uses it to drop awareness states whose connection is
  *  already gone: the server deregisters a connection and rebroadcasts presence
@@ -146,7 +153,7 @@ function setDocSaveFailing(
 /** Reactive: true while the server room for this document reports failing
  *  checkpoint saves (edits relay live but nothing persists until recovery). */
 export function docSaveFailing(
-  docType: "slide" | "report" | "po",
+  docType: "slide" | "report",
   docId: string,
 ): boolean {
   return saveFailingKeys().has(`${docType}::${docId}`);
@@ -169,13 +176,15 @@ const MAX_RETRY_DELAY = 30000;
 const TERMINAL_CLOSE_CODES = new Set([4403, 1008]);
 
 let ws: WebSocket | undefined;
-let currentProjectId: string | undefined;
+// Is a connection WANTED? (There is one socket per signed-in approved user
+// for the whole session — no project id to key it by any more.)
+let wantConnection = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
 // Latched by a terminal close so nothing re-opens the socket until something
-// that could change the answer happens (forceCollabReconnect / a new project).
+// that could change the answer happens (reconnectCollab).
 let unauthorized = false;
-// Close-intent is tracked PER SOCKET, not as a module flag: a project switch
+// Close-intent is tracked PER SOCKET, not as a module flag: a reconnect
 // closes the old socket and immediately opens a new one, and the old socket's
 // onclose fires only later — a shared flag reset by openSocket would then read
 // "unintentional" and schedule a spurious duplicate reconnect.
@@ -189,7 +198,6 @@ let view: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
-  poId?: string;
   editingFigureId?: string;
 } = {};
 
@@ -281,7 +289,7 @@ function applySessionUser(awareness: Awareness): void {
     // alpha on the hex color, matching the library's own fallback.
     colorLight: id.color + "33",
     // WHO this awareness state belongs to, and WHICH connection carries it.
-    // Both are already project-wide public in `presence_state` (same audience
+    // Both are already public in `presence_state` (same audience
     // as awareness), and the cursor overlay needs them to guarantee one cursor
     // per PERSON: `email` collapses a user's other tabs (and hides their own
     // from themselves), `connectionId` lets a viewer drop states left behind by
@@ -594,211 +602,6 @@ export function closeReportSession(reportId: string): void {
   destroyReportSession(s);
 }
 
-// ── Visualization (presentation object) CRDT sessions ────────────────────────
-// Mirrors the report sessions over the po_* message family. The editor binds its
-// form to the config Y.Map via the figure-config bridge; caption Y.Texts are
-// bound with yCollab CodeMirrors. Local edits transact with `localOrigin` so a
-// per-editor Y.UndoManager can track only this user's changes.
-
-type InternalPoSession = {
-  poId: string;
-  doc: Y.Doc;
-  awareness: Awareness;
-  localOrigin: object;
-  ready: boolean;
-  onRemote: () => void;
-  /** See InternalSlideSession.onError. */
-  onError?: (message: string, fatal?: boolean) => void;
-};
-
-const poSessions = new Map<string, InternalPoSession>();
-
-/** Handle to a live visualization config document, returned by openPoSession. */
-export type PoSession = {
-  doc: Y.Doc;
-  /** The config root Y.Map — bind the editor form + caption CodeMirrors here. */
-  configMap: Y.Map<unknown>;
-  /** Yjs awareness for this visualization — local + remote carets/selection. */
-  awareness: Awareness;
-  /** Transaction origin for this client's local writes — pass to Y.UndoManager
-   *  `trackedOrigins` so undo/redo only affects this user's edits. */
-  localOrigin: object;
-  isReady: () => boolean;
-  /** Ready AND the socket is currently open — see SlideSession.isLive. */
-  isLive: () => boolean;
-  /** Diff the editor's working config onto the shared doc (mergeable ops). */
-  pushLocal: (config: PresentationObjectConfig) => void;
-  close: () => void;
-};
-
-function subscribePoOnSocket(s: InternalPoSession): void {
-  sendCollab({
-    type: "po_subscribe",
-    data: { poId: s.poId, stateVector: bytesToBase64(Y.encodeStateVector(s.doc)) },
-  });
-}
-
-function destroyPoSession(s: InternalPoSession): void {
-  poSessions.delete(s.poId);
-  setDocSaveFailing("po", s.poId, false);
-  try {
-    removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
-    s.awareness.destroy();
-  } catch (err) {
-    console.error("Collab: po awareness destroy failed", err);
-  }
-  try {
-    s.doc.destroy();
-  } catch (err) {
-    console.error("Collab: po doc destroy failed", err);
-  }
-}
-
-export function openPoSession(
-  poId: string,
-  onRemote: () => void,
-  onError?: (message: string, fatal?: boolean) => void,
-): PoSession {
-  const prior = poSessions.get(poId);
-  if (prior) {
-    destroyPoSession(prior);
-  }
-
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  const s: InternalPoSession = {
-    poId,
-    doc,
-    awareness,
-    localOrigin: {},
-    ready: false,
-    onRemote,
-    onError,
-  };
-  poSessions.set(poId, s);
-
-  doc.on("update", (update: Uint8Array, origin: unknown) => {
-    // Updates applied from the server must not be shipped back.
-    if (origin === SLIDE_REMOTE_ORIGIN) {
-      return;
-    }
-    sendCollab({
-      type: "po_update",
-      data: { poId, update: bytesToBase64(update) },
-    });
-  });
-
-  awareness.on(
-    "update",
-    (
-      changes: { added: number[]; updated: number[]; removed: number[] },
-      origin: unknown,
-    ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
-        return;
-      }
-      const changed = [
-        ...changes.added,
-        ...changes.updated,
-        ...changes.removed,
-      ];
-      const update = encodeAwarenessUpdate(awareness, changed);
-      sendCollab({
-        type: "po_awareness_update",
-        data: { poId, update: bytesToBase64(update) },
-      });
-    },
-  );
-
-  subscribePoOnSocket(s);
-
-  return {
-    doc,
-    configMap: doc.getMap<unknown>(PO_CONFIG_MAP_KEY),
-    awareness,
-    localOrigin: s.localOrigin,
-    isReady: () => s.ready,
-    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
-    pushLocal: (config: PresentationObjectConfig) => {
-      if (!s.ready) {
-        return;
-      }
-      doc.transact(
-        () => syncFigureConfigToMap(doc.getMap<unknown>(PO_CONFIG_MAP_KEY), config),
-        s.localOrigin,
-      );
-    },
-    close: () => closePoSession(poId),
-  };
-}
-
-export function closePoSession(poId: string): void {
-  const s = poSessions.get(poId);
-  if (!s) {
-    return;
-  }
-  sendCollab({ type: "po_unsubscribe", data: { poId } });
-  destroyPoSession(s);
-}
-
-function handlePoServerMessage(msg: CollabServerMessage): boolean {
-  if (msg.type === "po_sync") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      // Sync resets save health; the server re-sends failing state right after
-      // when the room is still failing.
-      setDocSaveFailing("po", msg.data.poId, false);
-      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
-      s.ready = true;
-      // Two-way sync: push anything the server is missing (guarded — a
-      // missing/malformed stateVector must not break onRemote).
-      try {
-        if (msg.data.stateVector) {
-          const diff = Y.encodeStateAsUpdate(
-            s.doc,
-            base64ToBytes(msg.data.stateVector),
-          );
-          if (diff.length > 2) {
-            sendCollab({
-              type: "po_update",
-              data: { poId: msg.data.poId, update: bytesToBase64(diff) },
-            });
-          }
-        }
-      } catch {
-        // Skip the catch-up; the next local edit's push re-syncs anyway.
-      }
-      s.onRemote();
-    }
-    return true;
-  }
-  if (msg.type === "po_update") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
-      s.onRemote();
-    }
-    return true;
-  }
-  if (msg.type === "po_error") {
-    poSessions.get(msg.data.poId)?.onError?.(msg.data.message, msg.data.fatal);
-    return true;
-  }
-  if (msg.type === "po_awareness") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      applyAwarenessUpdate(
-        s.awareness,
-        base64ToBytes(msg.data.update),
-        AWARENESS_REMOTE_ORIGIN,
-      );
-    }
-    return true;
-  }
-  return false;
-}
-
 function handleReportServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "report_sync") {
     const s = reportSessions.get(msg.data.reportId);
@@ -922,10 +725,10 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   return false;
 }
 
-function collabWsUrl(projectId: string): string {
+function collabWsUrl(): string {
   // _SERVER_HOST is "" in production (same origin) and an http URL in dev.
   const origin = _SERVER_HOST || globalThis.location.origin;
-  return origin.replace(/^http/, "ws") + `/project_collab/${projectId}`;
+  return origin.replace(/^http/, "ws") + "/collab";
 }
 
 function sendPresence(): void {
@@ -989,8 +792,8 @@ function maybeReloadOnServerVersionChange(serverVersion: string): void {
   window.location.reload();
 }
 
-function openSocket(projectId: string): void {
-  const socket = new WebSocket(collabWsUrl(projectId));
+function openSocket(): void {
+  const socket = new WebSocket(collabWsUrl());
   ws = socket;
 
   socket.onopen = () => {
@@ -1006,24 +809,6 @@ function openSocket(projectId: string): void {
     }
     for (const s of reportSessions.values()) {
       subscribeReportOnSocket(s);
-    }
-    for (const s of poSessions.values()) {
-      subscribePoOnSocket(s);
-    }
-    // Re-announce the project-scoped awareness: unlike doc sessions there is
-    // no subscribe to trigger it, and peers who swept us during an outage
-    // would otherwise wait ~15s for the internal renewal.
-    if (projectAw) {
-      sendCollab({
-        type: "project_awareness_update",
-        data: {
-          update: bytesToBase64(
-            encodeAwarenessUpdate(projectAw.awareness, [
-              projectAw.awareness.clientID,
-            ]),
-          ),
-        },
-      });
     }
   };
 
@@ -1055,32 +840,16 @@ function openSocket(projectId: string): void {
       for (const s of reportSessions.values()) {
         applySessionUser(s.awareness);
       }
-      for (const s of poSessions.values()) {
-        applySessionUser(s.awareness);
-      }
-      if (projectAw) {
-        applySessionUser(projectAw.awareness);
-      }
       // "Alice joined this deck" toasts — scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
-    } else if (msg.type === "project_awareness") {
-      if (projectAw) {
-        applyAwarenessUpdate(
-          projectAw.awareness,
-          base64ToBytes(msg.data.update),
-          AWARENESS_REMOTE_ORIGIN,
-        );
-      }
     } else if (msg.type === "doc_save_state") {
       // Room checkpoint health — editors surface "not saving" instead of
       // claiming "Live" while the server can't persist.
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
     } else if (msg.type === "pong") {
       // Liveness only — receipt was already recorded above.
-    } else if (
-      !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
-    ) {
-      handlePoServerMessage(msg);
+    } else if (!handleSlideServerMessage(msg)) {
+      handleReportServerMessage(msg);
     }
   };
 
@@ -1094,10 +863,10 @@ function openSocket(projectId: string): void {
       return;
     }
     // A close code the server only sends when this user may never hold this
-    // socket (not approved, no project access). Retrying cannot fix it, and the
-    // "reconnecting" banner would be both permanent and untrue — so stand down
-    // silently. A later grant/removal calls forceCollabReconnect (t1_store),
-    // which clears this and connects again.
+    // socket (not approved). Retrying cannot fix it, and the "reconnecting"
+    // banner would be both permanent and untrue — so stand down silently. A
+    // later approval reconnects the whole realtime layer (reconnectForApproval
+    // in t1_sse), which clears this and connects again.
     if (TERMINAL_CLOSE_CODES.has(event.code)) {
       unauthorized = true;
       notifyCollabConnection("unauthorized");
@@ -1113,7 +882,7 @@ function openSocket(projectId: string): void {
 }
 
 function scheduleReconnect(): void {
-  if (!currentProjectId || unauthorized) {
+  if (!wantConnection || unauthorized) {
     return;
   }
   attempts += 1;
@@ -1124,19 +893,18 @@ function scheduleReconnect(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
   }
-  const projectId = currentProjectId;
   reconnectTimer = setTimeout(() => {
-    if (currentProjectId === projectId) {
-      openSocket(projectId);
+    if (wantConnection) {
+      openSocket();
     }
   }, delay);
 }
 
 // Reconnect NOW when the network or the tab plausibly came back — skips the
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
-// when no project wants a connection or the socket is already up/connecting.
+// when no connection is wanted or the socket is already up/connecting.
 function retryNow(): void {
-  if (!currentProjectId || unauthorized) {
+  if (!wantConnection || unauthorized) {
     return;
   }
   if (ws && ws.readyState <= WebSocket.OPEN) {
@@ -1147,7 +915,7 @@ function retryNow(): void {
     clearTimeout(reconnectTimer);
     reconnectTimer = undefined;
   }
-  openSocket(currentProjectId);
+  openSocket();
 }
 window.addEventListener("online", retryNow);
 document.addEventListener("visibilitychange", () => {
@@ -1197,7 +965,7 @@ setInterval(() => {
 
 // ── Connection liveness watchdog (client-side heartbeat) ────────────────────
 // The SERVER side of dead-peer detection is Deno's protocol-level ping
-// (idleTimeout: 30 in project-collab.ts). Browsers can neither observe
+// (idleTimeout: 30 in routes/collab.ts). Browsers can neither observe
 // protocol pings nor send their own, so when the path dies silently under
 // this tab (NAT drop, server hard-kill, network switch) the socket keeps
 // LOOKING open for however long TCP takes to notice — editors claim "Live",
@@ -1234,69 +1002,6 @@ setInterval(() => {
   }, PONG_DEADLINE_MS);
 }, PING_INTERVAL_MS);
 
-// ── Project-level awareness (page cursors) ──────────────────────────────────
-// The project tab pages have no doc room, so their live cursors ride a
-// dedicated PROJECT-scoped Awareness: local field writes relay opaquely to
-// every other admitted connection in the project (project_awareness_update /
-// project_awareness — presence-class visibility, never persisted). Field
-// registry is the same as the session awarenesses (pointer/pointerChat/user).
-// One instance per connectCollab, destroyed on disconnectCollab.
-
-let projectAw: { doc: Y.Doc; awareness: Awareness } | undefined;
-const [projectAwSig, setProjectAwSig] = createSignal<Awareness | undefined>(
-  undefined,
-);
-/** Reactive accessor for the project-scoped awareness (null when no project
- *  connection is wanted). Consumers: ProjectPageCursors. */
-export const projectAwareness = projectAwSig;
-
-function createProjectAwareness(): void {
-  destroyProjectAwareness();
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  awareness.on(
-    "update",
-    (
-      changes: { added: number[]; updated: number[]; removed: number[] },
-      origin: unknown,
-    ) => {
-      // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
-        return;
-      }
-      const changed = [
-        ...changes.added,
-        ...changes.updated,
-        ...changes.removed,
-      ];
-      const update = encodeAwarenessUpdate(awareness, changed);
-      sendCollab({
-        type: "project_awareness_update",
-        data: { update: bytesToBase64(update) },
-      });
-    },
-  );
-  projectAw = { doc, awareness };
-  setProjectAwSig(awareness);
-}
-
-function destroyProjectAwareness(): void {
-  if (!projectAw) {
-    return;
-  }
-  // Best-effort removal broadcast for peers (no-op when the socket is gone).
-  removeAwarenessStates(
-    projectAw.awareness,
-    [projectAw.awareness.clientID],
-    "local",
-  );
-  projectAw.awareness.destroy();
-  projectAw.doc.destroy();
-  projectAw = undefined;
-  setProjectAwSig(undefined);
-}
-
 function hardClose(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -1310,22 +1015,21 @@ function hardClose(): void {
   }
 }
 
-/** Tear down and immediately re-open the collab socket. Needed when this
- *  user's project permissions (or the project lock) change while connected:
- *  the server snapshots authorization once per connection, so a live grant
- *  or revoke never reaches an open socket — a viewer-connected editor keeps
- *  getting non-fatal "No edit permission" rejections while its local doc
+/** Tear down and immediately re-open the collab socket. The server snapshots
+ *  authorization once per connection, so anything that changes this user's
+ *  standing never reaches an open socket on its own — a stale-auth editor
+ *  keeps getting non-fatal "No edit permission" rejections while its local doc
  *  diverges. Reconnecting re-derives auth server-side; onopen re-subscribes
  *  every open session and the two-way sync pushes any local ops the server
  *  is missing (edits typed during the stale window get saved, not lost).
- *  No-op when no project connection is wanted. */
-export function forceCollabReconnect(reason: string): void {
-  if (!currentProjectId) {
+ *  No-op when no connection is wanted. */
+export function reconnectCollab(reason: string): void {
+  if (!wantConnection) {
     return;
   }
   console.log(`Collab: reconnecting (${reason})`);
-  // Clear a previous authorization refusal: permission/lock changes and
-  // project membership changes are exactly the events that can flip it.
+  // Clear a previous authorization refusal: an approval is exactly the event
+  // that flips it.
   unauthorized = false;
   hardClose();
   retryNow();
@@ -1345,49 +1049,44 @@ export function reconnectForStaleEditAuth(): void {
     return;
   }
   lastStaleAuthReconnectAt = now;
-  forceCollabReconnect("edit rejected but permissions say editable");
+  reconnectCollab("edit rejected but permissions say editable");
 }
 
-export function connectCollab(projectId: string): void {
-  if (
-    currentProjectId === projectId && ws && ws.readyState <= WebSocket.OPEN
-  ) {
+/** Open the one instance-wide socket. Idempotent — the instance boundary calls
+ *  it whenever approval is (re)established, which includes reconnect paths
+ *  where a socket is already up. */
+export function connectCollab(): void {
+  if (wantConnection && ws && ws.readyState <= WebSocket.OPEN) {
     return;
   }
   hardClose();
-  currentProjectId = projectId;
+  wantConnection = true;
   attempts = 0;
   unauthorized = false;
   setCollabStore({ connectionId: null, peers: [] });
   setSaveFailingKeys(new Set<string>());
-  createProjectAwareness();
   // Initial connect (not a drop) — the banner stays hidden in this state; a
   // failure moves it to "reconnecting" via onclose.
   notifyCollabConnection("connecting");
-  openSocket(projectId);
+  openSocket();
 }
 
 export function disconnectCollab(): void {
-  // Destroy sessions and the project awareness BEFORE closing the socket:
-  // their teardown broadcasts awareness REMOVALS (removeAwarenessStates →
-  // update handler → send), which must ship on the still-open socket so
-  // peers clear our cursors instantly instead of waiting for the ~30s
-  // liveness sweep. (A hard tab close still leaves that sweep as the
-  // fallback — nothing can be sent then.)
+  // Destroy sessions BEFORE closing the socket: their teardown broadcasts
+  // awareness REMOVALS (removeAwarenessStates → update handler → send), which
+  // must ship on the still-open socket so peers clear our cursors instantly
+  // instead of waiting for the ~30s liveness sweep. (A hard tab close still
+  // leaves that sweep as the fallback — nothing can be sent then.)
   for (const s of [...slideSessions.values()]) {
     destroySlideSession(s);
   }
   for (const s of [...reportSessions.values()]) {
     destroyReportSession(s);
   }
-  for (const s of [...poSessions.values()]) {
-    destroyPoSession(s);
-  }
-  destroyProjectAwareness();
   hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");
-  currentProjectId = undefined;
+  wantConnection = false;
   attempts = 0;
   avatarUrl = undefined;
   view = {};
@@ -1408,7 +1107,6 @@ export function setCollabView(next: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
-  poId?: string;
   editingFigureId?: string;
 }): void {
   view = next;

@@ -1,6 +1,9 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { _USER_PERMISSIONS_DEFAULT_NO_ACCESS } from "lib";
 import type {
   FacilityFamily,
+  Folder,
+  LastUpdateTableName,
   StructureSchema,
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -10,8 +13,9 @@ import type {
   AssetInfo,
   GeoJsonMapSummary,
   OtherUser,
-  ProjectSummary,
+  ProductSummary,
   FigureLocalization,
+  ReadyPackage,
   RunCatalogItem,
 } from "lib";
 
@@ -19,10 +23,10 @@ import type {
 // Store
 // ============================================================================
 
-// Hoisted so resetInstanceState can reconcile back to it — the instance
-// sibling of EMPTY_PROJECT_STATE. `isReady: false` included: a disconnect
-// must never leave the previous user's state renderable (Clerk cross-tab
-// user switch unmounts/remounts the boundary without a reload).
+// Hoisted so resetInstanceState can reconcile back to it. `isReady: false`
+// included: a disconnect must never leave the previous user's state
+// renderable (Clerk cross-tab user switch unmounts/remounts the boundary
+// without a reload).
 const EMPTY_INSTANCE_STATE: InstanceState = {
   isReady: false,
   instanceName: "",
@@ -34,8 +38,14 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   structureSchemaHfa: null,
   dhis2ConnectionUrl: null,
   adminAreaLabels: {},
-  projects: [],
-  projectsLastUpdated: "",
+  aiContext: "",
+  products: [],
+  folders: [],
+  readyPackages: [],
+  lastUpdated: {
+    products: {},
+    slides: {},
+  },
   users: [],
   assets: [],
   geojsonMaps: [],
@@ -66,15 +76,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
-  currentUserPermissions: {
-    can_configure_users: false,
-    can_view_users: false,
-    can_view_logs: false,
-    can_configure_settings: false,
-    can_configure_data: false,
-    can_view_data: false,
-    can_create_projects: false,
-  },
+  currentUserPermissions: structuredClone(_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
 };
 
 const [instanceState, setInstanceState] = createStore<InstanceState>(
@@ -86,6 +88,16 @@ export { instanceState };
 // ============================================================================
 // Snapshot-read getters (for caches and async code) — named getSnapshot*
 // ============================================================================
+
+// The whole store, unwrapped. Read by the T2 caches' version-key callbacks
+// (they run inside async code, where a tracked read would subscribe the
+// caller's effect to fields it never asked for). A consumer inside a
+// createEffect must still make its own TRACKED read of the version field on
+// the live `instanceState` proxy before its first await — cache-internal
+// reads are untracked by construction.
+export function getSnapshotInstanceState(): InstanceState {
+  return unwrap(instanceState);
+}
 
 export function getSnapshotInstanceCountryIso3(): string | undefined {
   return unwrap(instanceState).countryIso3;
@@ -109,10 +121,9 @@ export function initInstanceState(data: InstanceState): void {
   setInstanceState(reconcile(data));
 }
 
-// Mirrors resetProjectState: called from disconnectInstanceSSE so a boundary
-// unmount (incl. the Clerk-listener user-switch path, which does NOT reload)
-// never lets the next user render the previous user's permissions, roster or
-// catalogue.
+// Called from disconnectInstanceSSE so a boundary unmount (incl. the
+// Clerk-listener user-switch path, which does NOT reload) never lets the next
+// user render the previous user's products, permissions, roster or catalogue.
 export function resetInstanceState(): void {
   setInstanceState(reconcile(structuredClone(EMPTY_INSTANCE_STATE)));
 }
@@ -126,6 +137,7 @@ export function updateInstanceConfig(data: InstanceConfig): void {
   setInstanceState("structureSchemaHfa", reconcile(data.structureSchemaHfa));
   setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
   setInstanceState("dhis2ConnectionUrl", data.dhis2ConnectionUrl);
+  setInstanceState("aiContext", data.aiContext);
 }
 
 // The shared-surface depth: the deepest level either registry uses. Surfaces
@@ -160,12 +172,80 @@ export function structureSchemaForFamily(family: FacilityFamily): StructureSchem
   return schema ?? FALLBACK_STRUCTURE_SCHEMA;
 }
 
-export function updateInstanceProjects(projects: ProjectSummary[]): void {
-  setInstanceState("projects", reconcile(projects));
+// ============================================================================
+// Products, folders, ready packages
+// ============================================================================
+
+// PER ROW, never a list replacement: `products_upserted` carries only the
+// products that actually changed (a deck-heavy instance would otherwise
+// re-send every card on every collab checkpoint). An existing row is
+// reconciled in place so surviving cards keep their identity; a new one is
+// appended.
+//
+// A product's own version stamp rides its summary — there is no
+// `last_updated` message for the `products` table — so the cache-version
+// index is maintained from the summary here, in the same update.
+export function upsertInstanceProducts(products: ProductSummary[]): void {
+  for (const product of products) {
+    const index = instanceState.products.findIndex((p) => p.id === product.id);
+    if (index === -1) {
+      setInstanceState("products", instanceState.products.length, product);
+    } else {
+      setInstanceState("products", index, reconcile(product));
+    }
+    setInstanceState("lastUpdated", "products", product.id, product.lastUpdated);
+  }
 }
 
-export function updateProjectsLastUpdated(lastUpdated: string): void {
-  setInstanceState("projectsLastUpdated", lastUpdated);
+export function removeInstanceProducts(ids: string[]): void {
+  const removed = new Set(ids);
+  const snapshot = unwrap(instanceState);
+  setInstanceState(
+    "products",
+    reconcile(snapshot.products.filter((p) => !removed.has(p.id))),
+  );
+  // Reconcile, not a merged partial: a store set with a plain object MERGES,
+  // so a rebuilt record would leave the dead keys behind.
+  const stamps = { ...snapshot.lastUpdated.products };
+  for (const id of ids) {
+    delete stamps[id];
+  }
+  setInstanceState("lastUpdated", "products", reconcile(stamps));
+}
+
+export function updateInstanceFolders(folders: Folder[]): void {
+  setInstanceState("folders", reconcile(folders));
+}
+
+export function updateInstanceReadyPackages(packages: ReadyPackage[]): void {
+  setInstanceState("readyPackages", reconcile(packages));
+}
+
+// The cache-version index (S3 "the last_updated → SSE → cache triangle").
+// Carries `slides` only: a product's stamp comes from its own summary above.
+export function updateInstanceLastUpdated(
+  tableName: LastUpdateTableName,
+  ids: string[],
+  lastUpdated: string,
+): void {
+  for (const id of ids) {
+    setInstanceState("lastUpdated", tableName, id, lastUpdated);
+  }
+}
+
+// Live derived lookup: the editors read their product's label, package and
+// scope from the T1 row (D16 — never from a snapshot taken at open), so a
+// reattach or scope change mid-edit moves the figures' authoring context and
+// lights the stale badges.
+export function productById(id: string): ProductSummary | undefined {
+  return instanceState.products.find((p) => p.id === id);
+}
+
+// The ONE product-surface edit gate (D2: every approved user is a full editor
+// of every product). A later permission model replaces this function, not
+// twenty scattered checks.
+export function canEditProducts(): boolean {
+  return instanceState.currentUserApproved;
 }
 
 export function updateInstanceUsers(users: OtherUser[]): void {
@@ -251,17 +331,8 @@ export function updateCurrentUser(me: OtherUser | undefined): void {
             can_configure_settings: me.can_configure_settings,
             can_configure_data: me.can_configure_data,
             can_view_data: me.can_view_data,
-            can_create_projects: me.can_create_projects,
           }
-        : {
-            can_configure_users: false,
-            can_view_users: false,
-            can_view_logs: false,
-            can_configure_settings: false,
-            can_configure_data: false,
-            can_view_data: false,
-            can_create_projects: false,
-          },
+        : structuredClone(_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
     ),
   );
 }

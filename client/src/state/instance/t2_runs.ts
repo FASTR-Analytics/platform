@@ -3,7 +3,7 @@ import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
 // What a READY results package contains (per-module settings + files), keyed
-// by runId alone. Immutable-by-identity like `project/t2_images.ts`: a ready
+// by runId alone. Immutable-by-identity like `products/t2_images.ts`: a ready
 // run dir never changes and `ready` is terminal, so the version key is a
 // constant and nothing ever invalidates an entry — a deleted run's entry is
 // simply never read again. Bump the name whenever RunDetail changes shape
@@ -12,7 +12,6 @@ const _RUN_DETAIL_CACHE = createReactiveCache<{ runId: string }, RunDetail>({
   name: "run_detail",
   uniquenessKeys: (params) => [params.runId],
   versionKey: () => "immutable",
-  pdsNotRequired: true,
 });
 
 export async function getRunDetailFromCacheOrFetch(runId: string) {

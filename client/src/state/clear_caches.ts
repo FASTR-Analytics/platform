@@ -1,45 +1,13 @@
 import { keys, del } from "idb-keyval";
 import { clearGeoJsonMemoryCache } from "./instance/t2_geojson";
 
+// The AI prefixes are the ONE thing kept across a data-cache clear (and the
+// one thing an AI-cache clear touches): everything else in IndexedDB is a T2
+// cache entry that a re-fetch reproduces. Cache NAMES are otherwise
+// unchanged by the products restructure — the deploy flush clears every
+// non-AI key on a version change anyway, so pre-restructure entries under the
+// old key shapes are gone by the time the new code reads them (D8).
 const AI_PREFIXES = ["ai-conv", "ai-documents"];
-
-export type ClientVizCacheStatus = {
-  id: string;
-  poDetailCached: boolean;
-  metricInfoCached: boolean;
-  poItemsCount: number;
-  replicantOptionsCount: number;
-};
-
-export async function getClientVizCacheStatuses(
-  projectId: string,
-  visualizations: { id: string; metricId: string; resultsObjectId: string | undefined }[],
-): Promise<ClientVizCacheStatus[]> {
-  const allKeys = (await keys()).filter((k): k is string => typeof k === "string");
-
-  return visualizations.map((viz) => {
-    const poDetailPrefix = `po_detail/${projectId}|${viz.id}::`;
-    const metricInfoPrefix = `metric_info/${projectId}|${viz.metricId}::`;
-    const poItemsPrefix = viz.resultsObjectId
-      ? `po_items/${projectId}|${viz.resultsObjectId}|`
-      : null;
-    const replicantPrefix = viz.resultsObjectId
-      ? `replicant_options/${projectId}|${viz.resultsObjectId}|`
-      : null;
-
-    return {
-      id: viz.id,
-      poDetailCached: allKeys.some((k) => k.startsWith(poDetailPrefix)),
-      metricInfoCached: allKeys.some((k) => k.startsWith(metricInfoPrefix)),
-      poItemsCount: poItemsPrefix
-        ? allKeys.filter((k) => k.startsWith(poItemsPrefix)).length
-        : 0,
-      replicantOptionsCount: replicantPrefix
-        ? allKeys.filter((k) => k.startsWith(replicantPrefix)).length
-        : 0,
-    };
-  });
-}
 
 export async function clearDataCache(): Promise<void> {
   clearGeoJsonMemoryCache();
