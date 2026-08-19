@@ -3,13 +3,11 @@ import type {
   GlobalUser,
   OtherUser,
   PersonalAccessTokenSummary,
-  ProjectPermission,
-  ProjectUserRole,
   RenameEmailInstanceResult,
   UserLog,
   UserPermission,
 } from "../../types/mod.ts";
-import { PROJECT_PERMISSIONS, USER_PERMISSIONS } from "../../types/mod.ts";
+import { USER_PERMISSIONS } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 const emailParamsSchema = z.object({ email: z.string() });
@@ -26,13 +24,6 @@ const userPermissionsSchema = z
     >,
   )
   .partial();
-const projectPermissionsSchema = z
-  .object(
-    Object.fromEntries(
-      PROJECT_PERMISSIONS.map((k) => [k, z.boolean()]),
-    ) as Record<ProjectPermission, z.ZodBoolean>,
-  )
-  .partial();
 
 export const userRouteRegistry = {
   getCurrentUser: route({
@@ -40,25 +31,11 @@ export const userRouteRegistry = {
     method: "GET",
     response: {} as GlobalUser,
   }),
-  // The caller's own accessible projects (PLAN_112: the /mcp get_projects
-  // tool) — admins/H_USERS see all (central-reporting gated to H_USERS),
-  // others see projects where they hold >=1 can_* flag. Grants nothing beyond
-  // what resolveProjectUserAccess would allow per project.
-  getProjectsForUser: route({
-    path: "/projects-for-user",
-    method: "GET",
-    response: {} as {
-      id: string;
-      label: string;
-      role: string;
-      isLocked: boolean;
-    }[],
-  }),
   getOtherUser: route({
     path: "/user/:email",
     method: "GET",
     params: emailParamsSchema,
-    response: {} as { user: OtherUser; projectUserRoles: ProjectUserRole[] },
+    response: {} as { user: OtherUser },
   }),
   addUsers: route({
     path: "/user",
@@ -107,28 +84,6 @@ export const userRouteRegistry = {
       permissions: userPermissionsSchema,
     }),
   }),
-  getUserDefaultProjectPermissions: route({
-    path: "/user/:email/default-project-permissions",
-    method: "GET",
-    params: emailParamsSchema,
-    response: {} as { permissions: Record<ProjectPermission, boolean> },
-  }),
-  updateUserDefaultProjectPermissions: route({
-    path: "/user/default-project-permissions",
-    method: "POST",
-    body: z.object({
-      email: z.string(),
-      permissions: projectPermissionsSchema,
-    }),
-  }),
-  bulkUpdateUserDefaultProjectPermissions: route({
-    path: "/user/default-project-permissions/bulk",
-    method: "POST",
-    body: z.object({
-      emails: z.array(z.string()),
-      permissions: projectPermissionsSchema,
-    }),
-  }),
   getAiUsage: route({
     path: "/user/ai-usage",
     method: "GET",
@@ -150,15 +105,16 @@ export const userRouteRegistry = {
     method: "POST",
     body: z.object({ email: z.string(), isContactPerson: z.boolean() }),
   }),
-  // Renames a user on THIS instance only (main DB + project attribution +
-  // live collab state). Fleet-internal: called machine-to-machine by
-  // renameUserEmailEverywhere with the status-api-key header, or by a local
-  // can_configure_users admin as a support fallback.
+  // Renames a user on THIS instance only (main DB — including the product
+  // and version attribution columns — plus live collab state). Fleet-internal:
+  // called machine-to-machine by renameUserEmailEverywhere with the
+  // status-api-key header, or by a local can_configure_users admin as a
+  // support fallback.
   renameUserEmail: route({
     path: "/user/rename-email",
     method: "POST",
     body: z.object({ oldEmail: z.string(), newEmail: z.string() }),
-    response: {} as { changed: boolean; projectsUpdated: number; projectsFailed: string[]; warnings: string[] },
+    response: {} as { changed: boolean; warnings: string[] },
   }),
   // Self-service: renames the CALLER's email in every instance that has it.
   // Authorization is the Clerk ownership check (both addresses on the caller's

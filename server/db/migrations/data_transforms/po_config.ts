@@ -1,18 +1,14 @@
 // =============================================================================
-// DATA TRANSFORM: presentation_objects.config
+// DATA TRANSFORM: figure configs (PresentationObjectConfig vocabulary)
 // =============================================================================
 //
-// Table:    presentation_objects
-// Column:   config (JSON)
 // Schema:   lib/types/_presentation_object_config.ts
 //           → presentationObjectConfigSchema
 //
-// HOW THIS WORKS:
-// - Runs at startup in a transaction
-// - For each row: validate against current schema
-// - If valid: skip (no work needed)
-// - If invalid: apply transform blocks, validate, write
-// - If any row fails validation after transforms: rollback, boot fails
+// This file owns no table sweep of its own: a figure config is always EMBEDDED
+// (slide figure blocks, report figures), so the sweeps live in slide_config.ts
+// and reports.ts and call in here through _figure_block.ts. The blocks below
+// are the shared, ordered, idempotent transform vocabulary they all apply.
 //
 // TRANSFORM BLOCKS:
 // 1. periodOpt → timeseriesGrouping
@@ -53,10 +49,7 @@ import {
   type ConditionalFormattingScale,
   flattenCf,
   LEGACY_CF_PRESETS,
-  presentationObjectConfigSchema,
 } from "lib";
-import type { Sql } from "postgres";
-import { _PO_DETAIL_CACHE } from "../../../routes/caches/visualizations.ts";
 
 const RELATIVE_FILTER_TYPES = new Set([
   "last_n_months",
@@ -481,47 +474,4 @@ export function transformPOConfigData(
   c.t = t;
 
   return c;
-}
-
-export async function migratePOConfigs(
-  tx: Sql,
-  projectId: string,
-): Promise<MigrationStats> {
-  const rows = await tx<{ id: string; config: string }[]>`
-    SELECT id, config FROM presentation_objects
-  `;
-  const now = new Date().toISOString();
-  let rowsTransformed = 0;
-
-  for (const row of rows) {
-    const config = JSON.parse(row.config);
-
-    // Already valid? Skip — unless legacy keys (which safeParse silently
-    // strips) still need the rename.
-    if (
-      presentationObjectConfigSchema.safeParse(config).success &&
-      !configNeedsForcedTransform(config)
-    ) {
-      continue;
-    }
-
-    const transformed = transformPOConfigData(config);
-
-    // Validate against current schema — throws if invalid
-    const validated = presentationObjectConfigSchema.parse(transformed);
-
-    // Write + update last_updated (invalidates cache)
-    await tx`
-      UPDATE presentation_objects
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
-      WHERE id = ${row.id}
-    `;
-
-    // Clear Valkey cache for this specific PO
-    _PO_DETAIL_CACHE.clear({ projectId, presentationObjectId: row.id });
-
-    rowsTransformed++;
-  }
-
-  return { rowsChecked: rows.length, rowsTransformed };
 }

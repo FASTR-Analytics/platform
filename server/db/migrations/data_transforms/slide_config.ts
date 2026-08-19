@@ -165,7 +165,6 @@ function transformOneLayoutNode(
 
 export async function migrateSlideConfigs(
   tx: Sql,
-  _projectId: string,
   countryIso3: string,
 ): Promise<MigrationStats> {
   // countryIso3 is read once at startup from the main DB (db_startup) and threaded

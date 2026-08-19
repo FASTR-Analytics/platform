@@ -107,7 +107,6 @@ export type { MigrationStats };
 
 export async function migrateSlideDeckConfigs(
   tx: Sql,
-  _projectId: string,
 ): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string | null }[]>`
     SELECT id, config FROM slide_decks
@@ -267,10 +266,16 @@ export async function migrateSlideDeckConfigs(
 
     const validated = slideDeckConfigSchema.parse(config);
 
+    // The deck's freshness marker lives on its products row (the deck detail
+    // table carries content only), so the content write and the bump are two
+    // statements in the one transform transaction.
     await tx`
       UPDATE slide_decks
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
+      SET config = ${JSON.stringify(validated)}
       WHERE id = ${row.id}
+    `;
+    await tx`
+      UPDATE products SET last_updated = ${now} WHERE id = ${row.id}
     `;
     rowsTransformed++;
   }

@@ -1,13 +1,18 @@
-import { LastUpdateTableName } from "lib";
-import { notifyProjectV2 } from "./notify_project_v2.ts";
+import type { LastUpdateTableName } from "lib";
+import { notifyInstanceUpdate } from "./notify_instance_updated.ts";
 
+// Carries `slides` only. A product's own stamp rides its `products_upserted`
+// summary (notifyInstanceProductsUpserted), so emitting it here too would
+// version the same read twice.
 export function notifyLastUpdated(
-  projectId: string,
   tableName: LastUpdateTableName,
   ids: string[],
-  lastUpdated: string
+  lastUpdated: string,
 ) {
-  notifyProjectV2(projectId, {
+  if (ids.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({
     type: "last_updated",
     data: { tableName, ids, lastUpdated },
   });

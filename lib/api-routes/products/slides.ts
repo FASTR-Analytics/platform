@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { route } from "../route-utils.ts";
 import { slideConfigSchema } from "../../types/_slide_config.ts";
-import type { SlideWithMeta, SlidePosition } from "../../types/slides.ts";
+import type { SlidePosition, SlideWithMeta } from "../../types/slides.ts";
 
-// deck_id and slide_id are nanoids (generateUniqueDeckId / generateUniqueSlideId), not UUIDs
+// deck_id and slide_id are short nanoids, never uuids (D14).
 const deckIdParamsSchema = z.object({ deck_id: z.string() });
 const slideIdParamsSchema = z.object({ slide_id: z.string() });
 
@@ -28,7 +28,6 @@ export const slideRouteRegistry = {
     method: "GET",
     params: deckIdParamsSchema,
     response: {} as SlideWithMeta[],
-    requiresProject: true,
   }),
 
   getSlide: route({
@@ -36,7 +35,6 @@ export const slideRouteRegistry = {
     method: "GET",
     params: slideIdParamsSchema,
     response: {} as SlideWithMeta,
-    requiresProject: true,
   }),
 
   createSlide: route({
@@ -51,7 +49,6 @@ export const slideRouteRegistry = {
       slideId: string;
       lastUpdated: string;
     },
-    requiresProject: true,
   }),
 
   updateSlide: route({
@@ -66,7 +63,6 @@ export const slideRouteRegistry = {
     response: {} as {
       lastUpdated: string;
     },
-    requiresProject: true,
   }),
 
   deleteSlides: route({
@@ -81,7 +77,6 @@ export const slideRouteRegistry = {
       deletedCount: number;
       lastUpdated: string;
     },
-    requiresProject: true,
   }),
 
   duplicateSlides: route({
@@ -93,7 +88,6 @@ export const slideRouteRegistry = {
       newSlideIds: string[];
       lastUpdated: string;
     },
-    requiresProject: true,
   }),
 
   moveSlides: route({
@@ -108,6 +102,22 @@ export const slideRouteRegistry = {
       slides: SlideWithMeta[];
       lastUpdated: string;
     },
-    requiresProject: true,
+  }),
+
+  // The cross-deck reuse path — there is no figure library (D3). Bundles are
+  // copied verbatim, so a copied figure shows stale under the target deck when
+  // the two products' (package, scope) pairs differ (D4).
+  copySlidesToDeck: route({
+    path: "/slides/:deck_id/copy-to-deck",
+    method: "POST",
+    params: deckIdParamsSchema,
+    body: z.object({
+      slideIds: z.array(z.string()),
+      targetDeckId: z.string(),
+    }),
+    response: {} as {
+      newSlideIds: string[];
+      lastUpdated: string;
+    },
   }),
 } as const;

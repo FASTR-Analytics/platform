@@ -17,10 +17,7 @@ import {
   _INSTANCE_COUNTRY_ISO3,
   _RUNS_DIR_PATH,
 } from "./exposed_env_vars.ts";
-import {
-  runInstanceMigrations,
-  runProjectMigrations,
-} from "./db/migrations/runner.ts";
+import { runInstanceMigrations } from "./db/migrations/runner.ts";
 import {
   getPgConnectionFromCacheOrNew,
   markStaleRunningDatasetHfaImportRuns,
@@ -28,15 +25,11 @@ import {
   markStaleRunningDatasetIcehImportRuns,
 } from "./db/mod.ts";
 import type { Sql } from "postgres";
-import {
-  migratePOConfigs,
-  type MigrationStats,
-} from "./db/migrations/data_transforms/po_config.ts";
+import type { MigrationStats } from "./db/migrations/data_transforms/po_config.ts";
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
 import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
-import { migrateDashboardConfigs } from "./db/migrations/data_transforms/dashboard_config.ts";
-import { migrateDashboardItems } from "./db/migrations/data_transforms/dashboard_items.ts";
+import { migrateRunSummaries } from "./db/migrations/data_transforms/runs_summary.ts";
 import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 
 export async function dbStartUp() {
@@ -89,38 +82,23 @@ ${userInserts}
       `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
     );
   }
-  // Instance data transforms — on main database
-  await runInstanceDataTransforms(sqlMain);
-
   // Instance-level country, threaded into the figure backfill so backfilled
   // bundles carry the real countryIso3 (drives Nigeria admin-area relabelling +
   // admin replicant labels). New captures read it from the live instance store;
   // the backfill cannot, so it gets it here.
   const instanceCountryIso3 = _INSTANCE_COUNTRY_ISO3;
 
-  const projects = await sqlMain<
-    { id: string; label: string }[]
-  >`SELECT id, label FROM projects`;
-  for (const project of projects) {
-    const projectDb = getPgConnectionFromCacheOrNew(
-      project.id,
-      "READ_AND_WRITE",
-    );
-    // Must run BEFORE project migrations: migration 023 drops dashboards.slug,
-    // so the registry copy has to happen while the column still exists.
-    await backfillDashboardSlugsToMain(sqlMain, projectDb, project.id);
-    await runProjectMigrations(projectDb);
-
-    // Project data transforms — each in its own transaction
-    await runProjectDataTransforms(project.id, projectDb, instanceCountryIso3);
-  }
+  // JSON data transforms, on the main database. Strictly AFTER
+  // runInstanceMigrations: migration 080 is what populates products / decks /
+  // slides / reports on an instance coming from the project layer, so the
+  // sweeps would otherwise see an empty (or, on the consolidating boot,
+  // half-built) product plane.
+  await runInstanceDataTransforms(sqlMain, instanceCountryIso3);
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
   // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
   // 'generating' catalog rows failed (their worker died with the previous
-  // process). Projects without a run serve the typed "no run attached" state
-  // until the backfill synthesizer (synthesize_run.ts) or a wizard generation
-  // attaches one.
+  // process).
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
   await resetDuckDbSpillDir();
@@ -228,28 +206,22 @@ type MigrationResult = {
   error?: Error;
 };
 
-type InstanceMigrationFn = (tx: Sql) => Promise<MigrationStats>;
-type ProjectMigrationFn = (
+type InstanceMigrationFn = (
   tx: Sql,
-  projectId: string,
   countryIso3: string,
 ) => Promise<MigrationStats>;
 
 const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
   { name: "instance_config", fn: migrateInstanceConfigs },
-];
-
-const PROJECT_DATA_TRANSFORMS: { name: string; fn: ProjectMigrationFn }[] = [
-  { name: "po_config", fn: migratePOConfigs },
+  { name: "runs_summary", fn: migrateRunSummaries },
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
   { name: "reports", fn: migrateReports },
-  { name: "dashboard_config", fn: migrateDashboardConfigs },
-  { name: "dashboard_items", fn: migrateDashboardItems },
 ];
 
 async function runInstanceDataTransforms(
   mainDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
+  countryIso3: string,
 ): Promise<void> {
   const results: MigrationResult[] = [];
 
@@ -257,7 +229,7 @@ async function runInstanceDataTransforms(
     try {
       let stats: MigrationStats | undefined;
       await mainDb.begin(async (tx) => {
-        stats = await fn(tx);
+        stats = await fn(tx, countryIso3);
       });
       results.push({ name, success: true, stats });
     } catch (err) {
@@ -269,7 +241,7 @@ async function runInstanceDataTransforms(
     }
   }
 
-  logMigrationResults("instance", results);
+  logMigrationResults(results);
 
   if (results.some((r) => !r.success)) {
     console.error(
@@ -279,56 +251,16 @@ async function runInstanceDataTransforms(
   }
 }
 
-async function runProjectDataTransforms(
-  projectId: string,
-  projectDb: ReturnType<typeof getPgConnectionFromCacheOrNew>,
-  countryIso3: string,
-): Promise<void> {
-  const results: MigrationResult[] = [];
-
-  for (const { name, fn } of PROJECT_DATA_TRANSFORMS) {
-    try {
-      let stats: MigrationStats | undefined;
-      await projectDb.begin(async (tx) => {
-        stats = await fn(tx, projectId, countryIso3);
-      });
-      results.push({ name, success: true, stats });
-    } catch (err) {
-      results.push({
-        name,
-        success: false,
-        error: err instanceof Error ? err : new Error(String(err)),
-      });
-    }
-  }
-
-  // Log results
-  logMigrationResults(projectId, results);
-
-  // Exit if any failed
-  if (results.some((r) => !r.success)) {
-    console.error(
-      `\n[migration] FAILED — Server will not start. Fix the issues above and redeploy.\n`,
-    );
-    Deno.exit(1);
-  }
-}
-
-function logMigrationResults(
-  projectId: string,
-  results: MigrationResult[],
-): void {
+function logMigrationResults(results: MigrationResult[]): void {
   const hasFailures = results.some((r) => !r.success);
   const totalChecked = results.reduce((sum, r) => sum + (r.stats?.rowsChecked ?? 0), 0);
   const totalTransformed = results.reduce((sum, r) => sum + (r.stats?.rowsTransformed ?? 0), 0);
 
   // Always log a summary line
   if (hasFailures) {
-    console.log(`[migration] Project ${projectId.slice(0, 8)}... FAILED`);
-  } else if (totalTransformed > 0) {
-    console.log(`[migration] Project ${projectId.slice(0, 8)}... ${totalChecked} checked, ${totalTransformed} transformed`);
+    console.log(`[migration] Data transforms FAILED`);
   } else {
-    console.log(`[migration] Project ${projectId.slice(0, 8)}... ${totalChecked} checked, 0 transformed`);
+    console.log(`[migration] Data transforms ${totalChecked} checked, ${totalTransformed} transformed`);
   }
 
   // Show details only when there are transforms or failures
@@ -397,40 +329,4 @@ VALUES
   ${valueRows.join(",\n  ")}
 ON CONFLICT (indicator_common_id) DO NOTHING;
 `;
-}
-
-// =============================================================================
-// TEMPORARY: Remove once every instance has deployed past the dashboard-slug
-// move (project migration 023 drops dashboards.slug). The public slug now lives
-// in the main DB (dashboard_slugs); this copies each existing project's slugs
-// into that registry BEFORE 023 removes the column, so existing public
-// dashboard links keep resolving under the new /d/:slug routing. Idempotent:
-// once the column is gone (re-deploy / fresh DB) it does nothing.
-// =============================================================================
-async function backfillDashboardSlugsToMain(
-  mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
-): Promise<void> {
-  const hasSlug = await projectDb`
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'dashboards' AND column_name = 'slug'
-  `;
-  if (hasSlug.length === 0) return;
-
-  const rows = await projectDb<{ id: string; slug: string }[]>`
-    SELECT id, slug FROM dashboards
-  `;
-  for (const row of rows) {
-    const res = await mainDb`
-      INSERT INTO dashboard_slugs (slug, project_id, dashboard_id)
-      VALUES (${row.slug}, ${projectId}, ${row.id})
-      ON CONFLICT DO NOTHING
-    `;
-    if (res.count === 0) {
-      console.warn(
-        `[dashboard-slug-backfill] slug "${row.slug}" (project ${projectId.slice(0, 8)}, dashboard ${row.id}) not registered — already taken globally. Re-slug it to restore its public link.`,
-      );
-    }
-  }
 }

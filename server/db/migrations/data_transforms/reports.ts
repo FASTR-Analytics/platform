@@ -33,7 +33,6 @@ import {
 
 export async function migrateReports(
   tx: Sql,
-  _projectId: string,
   countryIso3: string,
 ): Promise<MigrationStats> {
   const localization = getTransformLocalization(countryIso3);
@@ -101,13 +100,18 @@ export async function migrateReports(
       continue;
     }
 
+    // The report's freshness marker lives on its products row (the report
+    // detail table carries content only), so the content write and the bump
+    // are two statements in the one transform transaction.
     await tx`
       UPDATE reports
       SET config = ${validated.config},
           figures = ${validated.figures},
-          images = ${validated.images},
-          last_updated = ${now}
+          images = ${validated.images}
       WHERE id = ${row.id}
+    `;
+    await tx`
+      UPDATE products SET last_updated = ${now} WHERE id = ${row.id}
     `;
     rowsTransformed++;
   }

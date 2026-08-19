@@ -4,11 +4,71 @@ import type { GlobalUser, UserPermission } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { _STATUS_API_KEY } from "../exposed_env_vars.ts";
-import { getGlobalUser } from "../project_auth.ts";
+import { getGlobalUser } from "../auth/global_user.ts";
 
 type RequireGlobalPermissionOptions = {
   requireAdmin?: boolean;
 };
+
+/**
+ * The product surface's guard: signed in AND approved. Nothing finer
+ * (PLAN_PRODUCTS_RESTRUCTURE D2 — every approved user is a full editor of
+ * every product; the permission system is rebuilt later).
+ *
+ * It guards product/folder CRUD, the run-keyed figure-data reads, the
+ * authoring context, the ready-package list, the Explore tab's reads, the
+ * copilot `/ai` mounts and the collab socket. `requireGlobalPermission()` is
+ * NOT this: its zero-permission form never checks `approved`, and its 31 call
+ * sites keep exactly the semantics they have today.
+ *
+ * DOCTRINE (SYSTEM_01): the product id in the path IS the authority. A future
+ * permission scheme must replace this ONE guard with a product-aware one —
+ * never scatter per-handler checks behind it.
+ */
+export function requireApprovedUser() {
+  return createMiddleware<{
+    Variables: {
+      globalUser: GlobalUser;
+      mainDb: Sql;
+    };
+  }>(async (c: Context, next: () => Promise<void>) => {
+    if (c.req.method === "OPTIONS") {
+      await next();
+      return;
+    }
+
+    try {
+      const globalUser = await getGlobalUser(c);
+      if (globalUser === "NOT_AUTHENTICATED") {
+        c.status(401);
+        return c.json({
+          success: false,
+          err: "Authentication required",
+          authError: true,
+        });
+      }
+
+      if (!globalUser.approved) {
+        c.status(403);
+        return c.json({
+          success: false,
+          err: "Your account is awaiting approval",
+        });
+      }
+
+      c.set("globalUser", globalUser);
+      c.set("mainDb", getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE"));
+      await next();
+    } catch (error) {
+      console.error("Database error in requireApprovedUser:", error);
+      c.status(503);
+      return c.json({
+        success: false,
+        err: "Service temporarily unavailable",
+      });
+    }
+  });
+}
 
 export function requireGlobalPermission(
   firstArg?: RequireGlobalPermissionOptions | UserPermission,

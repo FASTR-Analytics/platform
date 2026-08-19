@@ -11,7 +11,6 @@ export function route<
   TParams extends z.ZodType | undefined = undefined,
   TBody extends z.ZodType | undefined = undefined,
   TResponse = never,
-  TRequiresProject extends boolean = false,
   TIsStreaming extends boolean = false
 >(config: {
   path: TPath;
@@ -19,7 +18,6 @@ export function route<
   params?: TParams;
   body?: TBody;
   response?: TResponse;
-  requiresProject?: TRequiresProject;
   isStreaming?: TIsStreaming;
   timeoutMs?: number;
 }) {
@@ -30,8 +28,6 @@ export function route<
 
   if (config.params !== undefined) result.params = config.params;
   if (config.body !== undefined) result.body = config.body;
-  if (config.requiresProject !== undefined)
-    result.requiresProject = config.requiresProject;
   if (config.isStreaming !== undefined) result.isStreaming = config.isStreaming;
   if (config.timeoutMs !== undefined) result.timeoutMs = config.timeoutMs;
 
@@ -49,7 +45,6 @@ export function route<
     params: TParams extends z.ZodType ? z.infer<TParams> : never;
     body: TBody extends z.ZodType ? z.infer<TBody> : never;
     response: InferredResponse;
-    requiresProject: TRequiresProject;
     isStreaming: TIsStreaming;
     timeoutMs: number | undefined;
   };

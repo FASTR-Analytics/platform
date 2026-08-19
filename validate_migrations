@@ -100,14 +100,10 @@ validate "instance" "migration_test_instance" \
     "$SCRIPT_DIR/server/db/instance/_main_database.sql" \
     "$SCRIPT_DIR/server/db/migrations/instance"
 
-validate "project" "migration_test_project" \
-    "$SCRIPT_DIR/server/db/project/_project_database.sql" \
-    "$SCRIPT_DIR/server/db/migrations/project"
-
 echo ""
 echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
 echo "║              MIGRATION VALIDATION PASSED                     ║"
 echo "║                                                              ║"
-echo "║  Instance + project migrations ran successfully              ║"
-echo "║  Schemas unchanged (all migrations idempotent)               ║"
+echo "║  Instance migrations ran successfully                        ║"
+echo "║  Schema unchanged (all migrations idempotent)                ║"
 echo "╚══════════════════════════════════════════════════════════════╝\033[0m"

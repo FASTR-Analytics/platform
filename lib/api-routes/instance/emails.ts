@@ -7,6 +7,8 @@ import { route } from "../route-utils.ts";
 export const emailRecipientsSchema = z.array(z.email()).min(1).max(50);
 
 export const emailRouteRegistry = {
+  // The recipient roster is the instance roster now that projects are gone
+  // (D2, a named consequence of the permissive model).
   sendSlideDeckEmail: route({
     path: "/emails/slide-deck",
     method: "POST",
@@ -16,7 +18,6 @@ export const emailRouteRegistry = {
       attachment: z.object({ content: z.string(), filename: z.string() }),
     }),
     response: {} as { sent: boolean; failedRecipients?: string[] },
-    requiresProject: true,
   }),
   sendHelpEmail: route({
     path: "/emails/help",
@@ -24,7 +25,8 @@ export const emailRouteRegistry = {
     body: z.object({
       feedbackType: z.enum(["bug", "suggestion", "help"]),
       description: z.string(),
-      projectLabel: z.string().optional(),
+      // Where in the app the report came from — the open product, the tab.
+      context: z.string().optional(),
       images: z.array(z.object({
         content: z.string(),
         filename: z.string(),

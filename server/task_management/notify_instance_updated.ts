@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
 import type {
   AssetInfo,
+  Folder,
   GeoJsonMapSummary,
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -8,6 +9,7 @@ import type {
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
+  ProductSummary,
   RunProgress,
 } from "lib";
 import {
@@ -51,8 +53,29 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
   notifyInstanceConfigUpdated(config);
 }
 
-export function notifyInstanceProjectsLastUpdated(lastUpdated: string) {
-  notifyInstanceUpdate({ type: "projects_last_updated", data: lastUpdated });
+// The ONE product-list message. Per-row, not whole-list: every product
+// mutation route and every collab checkpoint emits the summary for the ids it
+// touched, so a keystroke checkpoint on one deck never re-sends the whole
+// instance's cards. A summary's own `lastUpdated` is what versions that
+// product's detail cache — there is no separate `last_updated` emit for it.
+export function notifyInstanceProductsUpserted(products: ProductSummary[]) {
+  if (products.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({ type: "products_upserted", data: { products } });
+}
+
+export function notifyInstanceProductsDeleted(ids: string[]) {
+  if (ids.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({ type: "products_deleted", data: { ids } });
+}
+
+// Folders are few and change rarely, so the whole list rides each change —
+// the per-row treatment products need buys nothing here.
+export function notifyInstanceFoldersUpdated(folders: Folder[]) {
+  notifyInstanceUpdate({ type: "folders_updated", data: { folders } });
 }
 
 export function notifyInstanceUsersUpdated(users: OtherUser[]) {

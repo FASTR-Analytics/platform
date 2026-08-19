@@ -5,15 +5,18 @@ import {
   runGenerationStep2ResultSchema,
 } from "../../types/mod.ts";
 import type {
-  FollowPinnedProject,
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
+  ItemsHolderResultsObject,
   PinResultsPackageResult,
+  ReplicantOptionsForPresentationObject,
   ResultsValueInfoForPresentationObject,
+  RunAuthoringContext,
   RunDetail,
   RunCatalogItem,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
+  RunListingItem,
   RunModuleFileListing,
 } from "../../types/mod.ts";
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
@@ -59,12 +62,11 @@ export const runGenerationRouteRegistry = {
     method: "DELETE",
     params: z.object({ run_id: z.string() }),
   }),
-  // The instance's pinned package (SYSTEM_08 "The pinned package
-  // + followers"): an explicit act on a ready run that also physically
-  // repoints every follow-pinned project; the response says which followers
-  // moved, were skipped (locked) or failed. Unpin is run-keyed — it clears
-  // the pin only if this run IS the pin — and moves nothing. The follower
-  // listing feeds the pin confirm, so an admin sees who will move.
+  // The instance's pinned package. It moves NO product row: there are no
+  // followers (D5 overrules the SYSTEM_08 follower model). The pin serves
+  // exactly three things — the /mcp door, the Explore tab's default package,
+  // and the DEFAULT run_id for a NEW product. Pin/unpin therefore touch only
+  // runs.pinned, under the existing advisory lock.
   pinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
     method: "POST",
@@ -76,10 +78,14 @@ export const runGenerationRouteRegistry = {
     method: "DELETE",
     params: z.object({ run_id: z.string() }),
   }),
-  listFollowPinnedProjects: route({
-    path: "/run_generation/pin/followers",
+  // The product package picker's options: every ready package, newest first
+  // (the attached one included — a Select needs its current value listed).
+  // Approved-user, unlike the rest of this registry: a ready package's label
+  // is what every product card shows.
+  listAttachableResultsPackages: route({
+    path: "/run_generation/attachable",
     method: "GET",
-    response: {} as FollowPinnedProject[],
+    response: {} as RunListingItem[],
   }),
   getRunModuleScript: route({
     path: "/run_generation/run/:run_id/module/:module_id/script",
@@ -108,10 +114,12 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // The run lens onto the package-data reads (S9): the same handler bodies
-  // as the project-mounted getPresentationObjectItems /
-  // getResultsValueInfoForPresentationObject, keyed by run id at national
-  // scope. What the pinned-package MCP surface reads metric data through.
+  // THE figure-data mount (D7). There is no project lens any more: the caller
+  // supplies the (runId, adminArea2) pair its product carries, and `null`
+  // adminArea2 means national. Guarded requireApprovedUser() plus a
+  // runs.status = 'ready' gate; /mcp reaches them at national scope, so the
+  // headless allowlist stays byte-identical. adminArea2 is shape-validated
+  // and escaped server-side exactly as the project lens did.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",
@@ -119,6 +127,7 @@ export const runGenerationRouteRegistry = {
     body: z.object({
       resultsObjectId: z.string(),
       fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: z.string().nullable(),
     }),
     response: {} as ItemsHolderPresentationObject,
   }),
@@ -126,8 +135,45 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/run/:run_id/results_value_info",
     method: "POST",
     params: z.object({ run_id: z.string() }),
-    body: z.object({ metricId: z.string() }),
+    body: z.object({
+      metricId: z.string(),
+      adminArea2: z.string().nullable(),
+    }),
     response: {} as ResultsValueInfoForPresentationObject,
+  }),
+  getRunReplicantOptions: route({
+    path: "/run_generation/run/:run_id/replicant_options",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({
+      metricId: z.string(),
+      fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: z.string().nullable(),
+    }),
+    response: {} as ReplicantOptionsForPresentationObject,
+  }),
+  // The raw results-object preview (was the project-mounted
+  // getResultsObjectItems).
+  getRunResultsObjectItems: route({
+    path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
+    method: "GET",
+    // results_object_id is a module-defined filename (e.g.
+    // "M10_hfa_results.csv"), not a uuid.
+    params: z.object({
+      run_id: z.string(),
+      results_object_id: z.string(),
+    }),
+    response: {} as ItemsHolderResultsObject,
+  }),
+  // Everything an author needs FROM a package — a pure function of the run
+  // directory, so the client caches it forever by runId (D7). Carries no
+  // scope: scope changes what a query RETURNS, never what exists to author
+  // against.
+  getRunAuthoringContext: route({
+    path: "/run_generation/run/:run_id/authoring_context",
+    method: "GET",
+    params: z.object({ run_id: z.string() }),
+    response: {} as RunAuthoringContext,
   }),
   // What a READY run contains: per-module settings (resolved server-side
   // from the manifest's configSelections) + outputs-dir file listing.
@@ -163,14 +209,13 @@ export const runGenerationRouteRegistry = {
   // ephemeral modal — nothing is persisted before this call); the route
   // mints the runs catalog row (status 'generating') and spawns the
   // generate_run worker. The run owns its whole lifecycle from this point —
-  // progress arrives over instance SSE (the catalogue) and project SSE
-  // (run_progress / run_attached) for each attach target.
+  // progress arrives over instance SSE. A generation PRODUCES a package;
+  // products point at it afterwards, so there are no attach targets (D5).
   launchRunGeneration: route({
     path: "/run_generation/launch",
     method: "POST",
     body: z.object({
       label: z.string().min(1).max(200),
-      attachTargetProjectIds: z.array(z.uuid()),
       step1Result: runGenerationStep1ResultSchema,
       step2Result: runGenerationStep2ResultSchema,
     }),
