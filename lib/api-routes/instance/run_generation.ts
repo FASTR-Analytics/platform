@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  disaggregationOption,
   runGenerationDefaultsSchema,
   runGenerationStep1ResultSchema,
   runGenerationStep2ResultSchema,
@@ -16,7 +17,7 @@ import type {
   RunCatalogItem,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
-  RunListingItem,
+  ReadyPackage,
   RunModuleFileListing,
 } from "../../types/mod.ts";
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
@@ -82,10 +83,19 @@ export const runGenerationRouteRegistry = {
   // (the attached one included — a Select needs its current value listed).
   // Approved-user, unlike the rest of this registry: a ready package's label
   // is what every product card shows.
+  //
+  // Deliberately the NARROW `ReadyPackage`, not `RunListingItem`: the wide row
+  // carries `progress`, `summary` and `provenance` — generation telemetry,
+  // which SYSTEM_03's Q-B still keeps to can_configure_data. D8 widened
+  // exactly one thing to approved users, the package LABEL, and this response
+  // is that widening's whole surface. It is also the shape
+  // `InstanceState.readyPackages` holds, so the `starting` fill and this
+  // refetch (on the existing `runs_catalog_updated` nonce) agree by
+  // construction instead of the client narrowing one of them by hand.
   listAttachableResultsPackages: route({
     path: "/run_generation/attachable",
     method: "GET",
-    response: {} as RunListingItem[],
+    response: {} as ReadyPackage[],
   }),
   getRunModuleScript: route({
     path: "/run_generation/run/:run_id/module/:module_id/script",
@@ -141,12 +151,18 @@ export const runGenerationRouteRegistry = {
     }),
     response: {} as ResultsValueInfoForPresentationObject,
   }),
+  // The replicant dimension's option list — what bounds the per-value figure
+  // fan-out before any items query runs. `replicateBy` is the dimension being
+  // replicated (a column reference in the generated SQL, so it is validated
+  // against the disaggregation enum); the results object is the metric's,
+  // resolved from the manifest server-side.
   getRunReplicantOptions: route({
     path: "/run_generation/run/:run_id/replicant_options",
     method: "POST",
     params: z.object({ run_id: z.string() }),
     body: z.object({
       metricId: z.string(),
+      replicateBy: disaggregationOption,
       fetchConfig: genericLongFormFetchConfigSchema,
       adminArea2: z.string().nullable(),
     }),

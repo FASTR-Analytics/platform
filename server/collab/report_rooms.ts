@@ -62,9 +62,9 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
   // ops; the transaction origin tells us WHO (a RoomConn's identity for collab
   // edits, the versionEditor tag applyToLiveRoom sets for HTTP-routed writes,
   // nothing for restores).
-  onDocCreated: (projectId, reportId, doc) => {
+  onDocCreated: (reportId, doc) => {
     const text = findReportBodyText(doc);
-    initLedger(projectId, reportId, text.toString());
+    initLedger(reportId, text.toString());
     text.observe((event, transaction) => {
       const origin = transaction.origin as
         | { identity?: VersionEditor; versionEditor?: VersionEditor }
@@ -84,24 +84,22 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
           ops.push({ delete: d.delete });
         }
       }
-      applyBodyDelta(projectId, reportId, ops, email);
+      applyBodyDelta(reportId, ops, email);
     });
   },
-  onDocClosed: (projectId, reportId) => dropLedger(projectId, reportId),
+  onDocClosed: (reportId) => dropLedger(reportId),
 };
 
 export type ReportRoomDeps = DocRoomDeps<ReportDocContent>;
 
 /** A client opens a report for (read-only or editing) collaboration. */
 export function subscribeReport(
-  projectId: string,
   reportId: string,
   conn: RoomConn,
   clientStateVectorB64: string,
   deps: ReportRoomDeps,
 ): Promise<void> {
   return subscribeDoc(
-    projectId,
     reportId,
     conn,
     clientStateVectorB64,
@@ -112,50 +110,37 @@ export function subscribeReport(
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */
 export function applyReportUpdate(
-  projectId: string,
   reportId: string,
   conn: RoomConn,
   updateB64: string,
 ): void {
-  applyDocUpdate(projectId, reportId, conn, updateB64, reportAdapter);
+  applyDocUpdate(reportId, conn, updateB64, reportAdapter);
 }
 
 /** Relay a Yjs awareness (cursor/selection) update to the other room members. */
 export function relayReportAwareness(
-  projectId: string,
   reportId: string,
   sender: RoomConn,
   updateB64: string,
 ): void {
-  relayDocAwareness(projectId, reportId, sender, updateB64, reportAdapter);
+  relayDocAwareness(reportId, sender, updateB64, reportAdapter);
 }
 
-export function unsubscribeReport(
-  projectId: string,
-  reportId: string,
-  conn: RoomConn,
-): void {
-  unsubscribeDoc(projectId, DOC_TYPE, reportId, conn);
+export function unsubscribeReport(reportId: string, conn: RoomConn): void {
+  unsubscribeDoc(DOC_TYPE, reportId, conn);
 }
 
 /** Persist a report room's un-checkpointed edits now (no-op when none).
  *  False ⇒ the checkpoint failed and the DB row is NOT current (see
  *  flushRoomForDoc). */
-export function flushReportRoom(
-  projectId: string,
-  reportId: string,
-): Promise<boolean> {
-  return flushRoomForDoc(projectId, DOC_TYPE, reportId);
+export function flushReportRoom(reportId: string): Promise<boolean> {
+  return flushRoomForDoc(DOC_TYPE, reportId);
 }
 
 /** Discard a report's live room without checkpointing — call when the report
  *  row is deleted (see closeRoomsForDoc in doc_rooms.ts). */
-export function closeReportRoom(
-  projectId: string,
-  reportId: string,
-  message: string,
-): void {
-  closeRoomsForDoc(projectId, DOC_TYPE, reportId, message);
+export function closeReportRoom(reportId: string, message: string): void {
+  closeRoomsForDoc(DOC_TYPE, reportId, message);
 }
 
 /** Route a non-collab report save (the body/figures/images HTTP routes)
@@ -165,13 +150,11 @@ export function closeReportRoom(
  *  direct DB write. `editor` attributes the write to version history; omit
  *  for restores (they version themselves explicitly). */
 export function applyReportToLiveRoom(
-  projectId: string,
   reportId: string,
   partial: Partial<ReportDocContent>,
   editor?: VersionEditor,
 ): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
-    projectId,
     DOC_TYPE,
     reportId,
     (doc) => {

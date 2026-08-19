@@ -1,16 +1,10 @@
 import { Sql } from "postgres";
 import { type APIResponseWithData, type Folder } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { type DBFolder } from "../instance/_main_database_types.ts";
 
 // Folders are the one flat organising level over `products` (D1) — no
 // nesting, no per-type namespace, no manual ordering.
-
-type DBFolder = {
-  id: string;
-  label: string;
-  color: string | null;
-  last_updated: string;
-};
 
 function rowToFolder(row: DBFolder): Folder {
   return {

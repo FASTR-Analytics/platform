@@ -23,7 +23,7 @@ export function getSharedToolsForMetrics(
     createAITool({
       name: "get_available_metrics",
       description:
-        "Get all available metrics from installed modules. Returns metric IDs, labels, summaries, disaggregation options, and visualization presets. Use get_metric_data for detailed information about a specific metric.",
+        "Get all available metrics in the results package. Returns metric IDs, labels, summaries, disaggregation options, and figure presets. Use get_metric_data for detailed information about a specific metric.",
       inputSchema: z.object({}),
       handler: async () => {
         return formatMetricsListForAI(metrics, icehIndicators, hfaTaxonomy);
@@ -40,7 +40,7 @@ export function getSharedToolsForMetrics(
     createAITool({
       name: "get_metric_data",
       description:
-        "Query data from a metric WITHOUT creating a visualization. Returns CSV data with dimension summary, plus detailed metric context (methodology, interpretation, typical ranges, caveats). Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before visualizing, (3) checking available values for filters.",
+        "Query data from a metric WITHOUT creating a figure. Returns CSV data with dimension summary, plus detailed metric context (methodology, interpretation, typical ranges, caveats). Required disaggregations are automatically included. Use for: (1) answering data questions directly, (2) exploring data before building a figure, (3) checking available values for filters.",
       inputSchema: AiMetricQuerySchema,
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find((m) => m.id === input.metricId);

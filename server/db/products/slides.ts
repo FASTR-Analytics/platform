@@ -8,15 +8,8 @@ import {
   slideConfigSchema,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { type DBSlide } from "../instance/_main_database_types.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
-
-type DBSlide = {
-  id: string;
-  slide_deck_id: string;
-  sort_order: number;
-  config: string;
-  last_updated: string;
-};
 
 // Get all slides for a deck (ordered)
 export async function getSlides(
@@ -39,6 +32,25 @@ export async function getSlides(
     }));
 
     return { success: true, data: slides };
+  });
+}
+
+// The instance-wide slide id → last_updated index, for the SSE `starting`
+// payload's `lastUpdated.slides` (SYSTEM_03's last_updated → SSE → cache
+// triangle). Products need no equivalent: a product's stamp rides its own
+// `products_upserted` summary, so the list IS the index.
+export async function listSlideLastUpdated(
+  mainDb: Sql,
+): Promise<APIResponseWithData<Record<string, string>>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const rows = await mainDb<{ id: string; last_updated: string }[]>`
+      SELECT id, last_updated FROM slides
+    `;
+    const index: Record<string, string> = {};
+    for (const row of rows) {
+      index[row.id] = row.last_updated;
+    }
+    return { success: true, data: index };
   });
 }
 

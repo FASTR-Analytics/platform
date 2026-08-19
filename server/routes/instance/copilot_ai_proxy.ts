@@ -1,19 +1,18 @@
 import { Hono } from "hono";
-import { requireProjectPermission } from "../../project_auth.ts";
-import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
+import { anthropicMessagesHandler } from "../anthropic_messages_proxy.ts";
 
-export const routesAiProxy = new Hono();
+export const routesCopilotAiProxy = new Hono();
 
-// Project-level AI proxy — guard + usage attribution only; the passthrough,
-// governance, and beta policy are in anthropic_messages_proxy.ts (shared
-// with the instance proxy).
-routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {
-  return await proxyAnthropicMessages({
-    parseBody: () => c.req.json(),
-    clientBetaHeader: c.req.header("anthropic-beta"),
-    userEmail: c.var.globalUser.email,
-    unlimitedAi: c.var.globalUser.unlimitedAi,
-    projectId: c.var.ppk.projectId,
-    mainDb: c.var.mainDb,
-  });
-});
+// The copilot proxy, mounted at /ai — one instance-level mount for the
+// Products page and both editor overlays (D15). Guarded by
+// requireApprovedUser() and nothing finer: the copilot reads and writes
+// products, and every approved user is a full editor of every product (D2).
+// The passthrough, governance, and beta policy are in
+// anthropic_messages_proxy.ts, whose handler this shares verbatim with the
+// HFA indicator manager's mount (routes/instance/ai_proxy.ts).
+routesCopilotAiProxy.post(
+  "/v1/messages",
+  requireApprovedUser(),
+  anthropicMessagesHandler,
+);

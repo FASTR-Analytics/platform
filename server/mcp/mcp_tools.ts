@@ -116,10 +116,10 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
 
   // The 2 package tools, bound: the outer tool is the boot-time template
   // (static schema); resolve() runs per call, reads the pin, and hands back
-  // the inner tool from that package's context — authorization (instance
-  // can_view_data) runs inside resolvePackageContext on every cold resolve,
-  // and every data access runs through the headless middleware chain
-  // regardless.
+  // the inner tool from that package's context. Authorization is the
+  // can_view_data door inside resolvePackageContext — the ONE gate on this
+  // surface (see the note there); every data access still dispatches through
+  // the headless middleware chain, which re-judges the credential itself.
   const boundPackageTools = TEMPLATE_TOOLS.map((template) =>
     bindAITool(template, async () => {
       const ctx = await requirePinnedPackageContext(principal);

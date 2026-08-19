@@ -25,7 +25,7 @@ export const AiMetricQuerySchema = z.object({
   metricId: z
     .string()
     .describe(
-      "The unique ID of the metric to query. This metric must exist in the project's data.",
+      "The unique ID of the metric to query. This metric must exist in the results package.",
     ),
   disaggregations: z
     .array(configDStrict.shape.disaggregateBy.element.shape.disOpt)
@@ -67,7 +67,7 @@ export const AiTextBlockSchema = z.object({
   markdown: z
     .string()
     .describe(
-      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.`,
+      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset.`,
     )
     .refine(
       (text) => {
@@ -80,32 +80,20 @@ export const AiTextBlockSchema = z.object({
     ),
 });
 
-export const AiFigureFromVisualizationSchema = z.object({
-  type: z.literal("from_visualization"),
-  visualizationId: z
-    .string()
-    .describe(
-      "The unique ID of an existing visualization/presentation object to clone into this slide. The visualization must already exist in the project.",
-    ),
-  replicant: z
-    .string()
-    .optional()
-    .describe(
-      "Optional: If the source visualization uses replication (e.g., one chart per region), specify which replicant value to show. For example, 'North' to show only the North region's chart.",
-    ),
-});
-
+// There is no from_visualization block: a figure is authored from a metric and
+// a preset, and the only other way to reuse one is copying the slide that
+// holds it (D3 — there are no visualization products and no figure library).
 export const AiFigureFromMetricSchema = z.object({
   type: z.literal("from_metric"),
   metricId: z
     .string()
     .describe(
-      "The unique ID of the metric to visualize. Must exist in the project's data.",
+      "The unique ID of the metric to visualize. Must exist in the results package.",
     ),
   vizPresetId: z
     .string()
     .describe(
-      "The ID of a pre-defined visualization preset for this metric. Get available preset IDs from get_available_metrics.",
+      "The ID of a pre-defined figure preset for this metric. Get available preset IDs from get_available_metrics.",
     ),
   chartTitle: z.string().max(200).describe("Title displayed above the figure"),
   selectedReplicant: z
@@ -234,10 +222,7 @@ export type AiVizConfigUpdate = z.infer<typeof AiVizConfigUpdateSchema>;
 
 // Union schemas
 
-export const AiFigureBlockInputSchema = z.union([
-  AiFigureFromVisualizationSchema,
-  AiFigureFromMetricSchema,
-]);
+export const AiFigureBlockInputSchema = AiFigureFromMetricSchema;
 
 export const AiContentBlockInputSchema = z.union([
   AiTextBlockSchema,
@@ -353,9 +338,6 @@ export const AiSlideInputSchema = z.union([
 // Inferred types (single source of truth)
 
 export type AiTextBlock = z.infer<typeof AiTextBlockSchema>;
-export type AiFigureFromVisualization = z.infer<
-  typeof AiFigureFromVisualizationSchema
->;
 export type AiMetricQuery = z.infer<typeof AiMetricQuerySchema>;
 export type AiFigureFromMetric = z.infer<typeof AiFigureFromMetricSchema>;
 export type AiFigureBlockInput = z.infer<typeof AiFigureBlockInputSchema>;

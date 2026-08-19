@@ -20,8 +20,8 @@ import {
   getPinnedRunId,
   getRunListingItem,
 } from "../db/instance/run_generation.ts";
-import { buildGlobalUserFromDb } from "../project_auth.ts";
-import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import { buildGlobalUserFromDb } from "../auth/global_user.ts";
+import { buildInstanceStateWithoutProducts } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
 import { getRunManifestCached } from "../runs/manifest_cache.ts";
 import {
@@ -29,7 +29,7 @@ import {
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
-  getProjectDatasetsFromManifest,
+  getRunDatasetsFromManifest,
 } from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
 import {
@@ -40,11 +40,11 @@ import {
   _INSTANCE_NAME,
 } from "../exposed_env_vars.ts";
 
-// The /mcp endpoint reads the instance's PINNED results package (S8 "The
-// pinned package + followers"): every tool call resolves the pin, and this
-// cache is PURELY performance — correctness never depends on it. The pin is
-// read from the DB on EVERY call (never from the 30 s InstanceState copy), so
-// a pin-move is visible on the next call; the context behind a given
+// The /mcp endpoint reads the instance's PINNED results package (S8): every
+// tool call resolves the pin, and this cache is PURELY performance —
+// correctness never depends on it. The pin is read from the DB on EVERY call
+// (never from the 30 s InstanceState copy), so a pin-move is visible on the
+// next call; the context behind a given
 // (token, runId) is what the cache holds. Keyed by token because a context
 // captures server actions bound to the building request's credential — a
 // revoked token's context ages out in <=30 s and every dispatch through it
@@ -145,7 +145,10 @@ export async function resolveInstanceState(
   if (cached) return cached;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const globalUser = await resolveGlobalUser(principal);
-  const res = await buildInstanceState(mainDb, globalUser);
+  // The grounding half only: /mcp reads instance facts (country, terminology,
+  // dataset coverage) and never a product, so the products list — and with it
+  // every report's preview body — stays out of this per-principal cache.
+  const res = await buildInstanceStateWithoutProducts(mainDb, globalUser);
   if (!res.success) {
     throw new Error(`Could not load instance state: ${res.err}`);
   }
@@ -244,9 +247,14 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: the run-keyed routes enforce can_view_data on every
-  // dispatch regardless; judging it here gives the model one clean failure
-  // instead of a permission error on each tool.
+  // THE DOOR CHECK — LOAD-BEARING, DO NOT DELETE. It is the ONLY place
+  // can_view_data is judged for the whole /mcp surface. The run-keyed
+  // figure-data routes the tools dispatch through are guarded
+  // requireApprovedUser() (D2 — approved, nothing finer), so they do NOT
+  // back this check up: delete it as "redundant" and every approved account
+  // reads the instance's results data over MCP. /mcp keeps the stricter bit
+  // because it is a package read, and package reads never joined the
+  // permissive product tier.
   const globalUser = await resolveGlobalUser(principal);
   if (
     !globalUser.isGlobalAdmin && !globalUser.thisUserPermissions.can_view_data
@@ -268,8 +276,8 @@ export async function resolvePackageContext(
   }
   const run = runRes.data;
 
-  // The same manifest-derived catalog getProjectDetail builds for a project's
-  // attached package (db/project/projects.ts) — one derivation, two callers.
+  // The same manifest-derived catalog the run authoring context builds
+  // (run_read.ts) — one derivation, two callers.
   const manifest = await getRunManifestCached(runId);
   const runInputs = { runId, manifest };
   const metrics = getMetricsWithStatusFromManifest(manifest);
@@ -280,7 +288,7 @@ export async function resolvePackageContext(
   );
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
-    datasets: getProjectDatasetsFromManifest(manifest),
+    datasets: getRunDatasetsFromManifest(manifest),
     commonIndicators: await getCommonIndicatorsFromManifestInputs(runInputs),
     icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),

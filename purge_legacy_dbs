@@ -1,0 +1,275 @@
+#!/bin/bash
+
+# FINAL, IRREVERSIBLE CLEANUP after the products restructure has settled
+# (PLAN_PRODUCTS_RESTRUCTURE §5 step 6). Per instance it removes the two things
+# migration 080 deliberately left on disk:
+#
+#   1. every UUID-named Postgres database (the per-project databases; also the
+#      long-standing orphaned UUID databases of abandoned projects), keeping
+#      `main`, `postgres` and the `template*` databases
+#   2. every `sandbox/<uuid>` directory whose name is NOT a row in `runs.id`
+#      (the legacy per-project workspaces; results packages live in the same
+#      directory keyed by run id, which is why the runs table is the filter)
+#
+# NEVER TOUCHED, at any point: `.tmp-*` (an in-flight generation's workspace —
+# the atomic-rename target), `.duckdb-spill`, and anything named `restore_*`.
+# Entries that are not UUID-shaped are ignored by construction.
+#
+# THIS DESTROYS THE ROLLBACK PATH. Until it runs, `./restore_main` can put an
+# instance back on the previous image because the project databases are intact.
+# After it runs, the products tables are the only copy of that data. Wait days
+# after the rollout, confirm the fleet is settled, and only then purge.
+#
+# Usage:
+#   ./purge_legacy_dbs <instance> [<instance>...]            # dry-run (default)
+#   ./purge_legacy_dbs --sizes <instance>                    # dry-run + du
+#   ./purge_legacy_dbs --confirm <instance> [<instance>...]  # actually purge
+#
+# DRY-RUN BY DEFAULT: without --confirm it lists every database and directory
+# it would remove, per instance, and removes nothing. With --confirm it prints
+# the same list first, then asks you to type PURGE once before touching
+# anything. The lists are written to the run's log dir as <instance>.dbs /
+# <instance>.dirs, and the purge pass acts on exactly those files.
+
+set -u -o pipefail
+
+SSH_HOST="wb-server"
+
+SSH_OPTS=(-o ConnectTimeout=15 -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=15m)
+sshx() {
+    local attempt rc
+    for attempt in 1 2 3; do
+        command ssh "${SSH_OPTS[@]}" "$@"
+        rc=$?
+        [ "$rc" -ne 255 ] && return "$rc"
+        echo "  (ssh connection failed — retry $attempt/3 in 15s)" >&2
+        sleep 15
+    done
+    return 255
+}
+
+usage() {
+    echo "Usage: ./purge_legacy_dbs [--sizes] [--confirm] <instance> [<instance>...]"
+    echo "  e.g. ./purge_legacy_dbs sierraleone            # dry-run, lists everything"
+    echo "       ./purge_legacy_dbs --confirm sierraleone  # actually purge"
+    exit 1
+}
+
+CONFIRM=false
+SHOW_SIZES=false
+INSTANCES=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --confirm) CONFIRM=true; shift ;;
+        --sizes) SHOW_SIZES=true; shift ;;
+        -*) echo "ERROR: unknown option: $1"; usage ;;
+        *) INSTANCES+=("$1"); shift ;;
+    esac
+done
+
+[ "${#INSTANCES[@]}" -ge 1 ] || usage
+
+# Bare 8-4-4-4-12 hex. Both a project database name and a run directory name are
+# exactly this; `.tmp-<uuid>`, `.duckdb-spill` and `restore_*` never match.
+UUID_RE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+is_uuid() {
+    [[ "$1" =~ $UUID_RE ]]
+}
+
+psql_main() {
+    local instance="$1" query="$2"
+    sshx "$SSH_HOST" "docker exec ${instance}-postgres psql -U postgres -d main -t -A -c \"$query\""
+}
+
+psql_postgres() {
+    local instance="$1" query="$2"
+    sshx "$SSH_HOST" "docker exec ${instance}-postgres psql -U postgres -d postgres -t -A -v ON_ERROR_STOP=1 -c \"$query\""
+}
+
+LOG_DIR="rollout_logs/purge-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$LOG_DIR"
+exec > >(tee -a "$LOG_DIR/console.log") 2>&1
+
+echo "Legacy purge — instances: ${INSTANCES[*]}"
+echo "Logs: $LOG_DIR/"
+if [ "$CONFIRM" = false ]; then
+    echo ""
+    echo "DRY-RUN — nothing is removed. Add --confirm to purge."
+fi
+
+# ── Pass 1: enumerate everything, print it, and write the plan files ────────
+
+PLANNED=()
+
+for INSTANCE in "${INSTANCES[@]}"; do
+    echo ""
+    echo "════════ $INSTANCE ════════"
+
+    DBS_FILE="$LOG_DIR/$INSTANCE.dbs"
+    DIRS_FILE="$LOG_DIR/$INSTANCE.dirs"
+    SANDBOX_FILE="$LOG_DIR/$INSTANCE.sandbox"
+    : > "$DBS_FILE"
+    : > "$DIRS_FILE"
+    : > "$SANDBOX_FILE"
+
+    # The purge is only safe once the restructure has actually landed here: a
+    # surviving `projects` table means 081 never ran and the project databases
+    # are still the live data.
+    PROJECTS_TABLE=$(psql_main "$INSTANCE" "SELECT COALESCE(to_regclass('public.projects')::text, 'dropped')") || {
+        echo "  ERROR: could not query main on $INSTANCE — skipping."
+        continue
+    }
+    if [ "$PROJECTS_TABLE" != "dropped" ]; then
+        echo "  REFUSING: the 'projects' table still exists — this instance has"
+        echo "  NOT been migrated. Roll it out first, let it settle, then purge."
+        continue
+    fi
+
+    # ── Databases ───────────────────────────────────────────────────────────
+    ALL_DBS=$(psql_postgres "$INSTANCE" "SELECT datname FROM pg_database WHERE datname NOT IN ('main', 'postgres') AND datname NOT LIKE 'template%' ORDER BY datname") || {
+        echo "  ERROR: could not list databases on $INSTANCE — skipping."
+        continue
+    }
+    DB_COUNT=0
+    SKIPPED_DBS=""
+    for DB in $ALL_DBS; do
+        if is_uuid "$DB"; then
+            echo "$DB" >> "$DBS_FILE"
+            DB_COUNT=$((DB_COUNT + 1))
+        else
+            SKIPPED_DBS="$SKIPPED_DBS $DB"
+        fi
+    done
+
+    echo "  databases to DROP: $DB_COUNT"
+    while read -r DB; do
+        echo "      $DB"
+    done < "$DBS_FILE"
+    if [ -n "$SKIPPED_DBS" ]; then
+        echo "  databases left alone (not UUID-named):$SKIPPED_DBS"
+    fi
+
+    # ── Sandbox directories ─────────────────────────────────────────────────
+    SANDBOX_SRC=$(sshx "$SSH_HOST" "docker inspect $INSTANCE --format '{{range .Mounts}}{{if eq .Destination \"/app/sandbox\"}}{{.Source}}{{end}}{{end}}' 2>/dev/null" || true)
+    if [ -z "$SANDBOX_SRC" ]; then
+        echo "  WARNING: could not resolve the sandbox mount — no directory purge here."
+        PLANNED+=("$INSTANCE")
+        continue
+    fi
+    echo "$SANDBOX_SRC" > "$SANDBOX_FILE"
+    echo "  sandbox: $SANDBOX_SRC"
+
+    RUN_IDS=$(psql_main "$INSTANCE" "SELECT id FROM runs") || {
+        echo "  ERROR: could not list runs — no directory purge here."
+        PLANNED+=("$INSTANCE")
+        continue
+    }
+
+    ENTRIES=$(sshx "$SSH_HOST" "ls -1 '$SANDBOX_SRC' 2>/dev/null" || true)
+    DIR_COUNT=0
+    KEPT_RUNS=0
+    for ENTRY in $ENTRIES; do
+        case "$ENTRY" in
+            .tmp-*|.duckdb-spill|restore_*)
+                # Explicit, load-bearing exclusions: an in-flight generation
+                # workspace, DuckDB's spill directory, and any restore staging.
+                continue
+                ;;
+        esac
+        is_uuid "$ENTRY" || continue
+        if echo "$RUN_IDS" | grep -qx "$ENTRY"; then
+            KEPT_RUNS=$((KEPT_RUNS + 1))
+            continue
+        fi
+        echo "$ENTRY" >> "$DIRS_FILE"
+        DIR_COUNT=$((DIR_COUNT + 1))
+    done
+
+    echo "  sandbox dirs to REMOVE: $DIR_COUNT ($KEPT_RUNS kept — they are rows in runs.id)"
+    while read -r ENTRY; do
+        if [ "$SHOW_SIZES" = true ]; then
+            SIZE=$(sshx "$SSH_HOST" "du -sh '$SANDBOX_SRC/$ENTRY' 2>/dev/null | cut -f1" || true)
+            echo "      $ENTRY  ${SIZE:-?}"
+        else
+            echo "      $ENTRY"
+        fi
+    done < "$DIRS_FILE"
+
+    PLANNED+=("$INSTANCE")
+done
+
+if [ "$CONFIRM" = false ]; then
+    echo ""
+    echo "════════ DRY-RUN COMPLETE ════════"
+    echo "  Nothing was removed. Re-run with --confirm to purge the lists above."
+    exit 0
+fi
+
+if [ "${#PLANNED[@]}" -eq 0 ]; then
+    echo ""
+    echo "No instance is eligible for purging. Nothing was removed."
+    exit 1
+fi
+
+# ── Pass 2: purge exactly what pass 1 wrote down ────────────────────────────
+
+echo ""
+echo "This PERMANENTLY drops the databases and removes the directories listed"
+echo "above, on: ${PLANNED[*]}"
+echo "It destroys the ./restore_main rollback path for those instances."
+read -r -p "Type PURGE to proceed: " TYPED
+[ "$TYPED" = "PURGE" ] || { echo "Aborted — nothing was removed."; exit 1; }
+
+DROPPED_TOTAL=0
+REMOVED_TOTAL=0
+FAILED=()
+
+for INSTANCE in "${PLANNED[@]}"; do
+    echo ""
+    echo "════════ purging $INSTANCE ════════"
+
+    while read -r DB; do
+        if psql_postgres "$INSTANCE" "DROP DATABASE IF EXISTS \\\"$DB\\\" WITH (FORCE)" >/dev/null; then
+            echo "  dropped  $DB"
+            DROPPED_TOTAL=$((DROPPED_TOTAL + 1))
+        else
+            echo "  FAILED   $DB"
+            FAILED+=("$INSTANCE db $DB")
+        fi
+    done < "$LOG_DIR/$INSTANCE.dbs"
+
+    SANDBOX_SRC=$(cat "$LOG_DIR/$INSTANCE.sandbox")
+    if [ -z "$SANDBOX_SRC" ]; then
+        continue
+    fi
+    while read -r ENTRY; do
+        # Re-assert the shape at the moment of deletion: this is the last gate
+        # before an `rm -rf` on a production volume.
+        if ! is_uuid "$ENTRY"; then
+            echo "  SKIPPED  $ENTRY (not UUID-shaped)"
+            continue
+        fi
+        if sshx "$SSH_HOST" "rm -rf '$SANDBOX_SRC/$ENTRY'"; then
+            echo "  removed  $ENTRY"
+            REMOVED_TOTAL=$((REMOVED_TOTAL + 1))
+        else
+            echo "  FAILED   $ENTRY"
+            FAILED+=("$INSTANCE dir $ENTRY")
+        fi
+    done < "$LOG_DIR/$INSTANCE.dirs"
+done
+
+echo ""
+echo "════════ PURGE COMPLETE ════════"
+echo "  Databases dropped:   $DROPPED_TOTAL"
+echo "  Directories removed: $REMOVED_TOTAL"
+echo "  Logs:                $LOG_DIR/"
+if [ "${#FAILED[@]}" -gt 0 ]; then
+    echo "  FAILED:"
+    for ITEM in "${FAILED[@]}"; do
+        echo "      $ITEM"
+    done
+    exit 1
+fi

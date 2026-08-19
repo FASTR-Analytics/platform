@@ -3,7 +3,8 @@ import {
   runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
-  type FollowPinnedProject,
+  type ProductType,
+  type ReadyPackage,
   type RunCatalogItem,
   type RunCatalogStatus,
   type RunListingItem,
@@ -13,14 +14,19 @@ import {
 } from "lib";
 
 // The runs catalog (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3 items 1 and
-// 3). The first section is the read surface: the instance catalogue listing
-// and the guarded hard delete, plus the project surface's attached-run row.
+// 3). The first section is the read surface: the instance catalogue listing,
+// the guarded hard delete and the picker's ready-package options.
 //
 // The last section is the runs-catalog execution state the pipeline writes:
 // the 'generating' row minted at launch, worker progress updates, the
-// ready-publish transaction (status flip + projects.run_id repoint of every
-// attach target), and failure marking. These are worker/host internals, so
-// they throw instead of returning APIResponse envelopes.
+// ready-publish flip, and failure marking. These are worker/host internals,
+// so they throw instead of returning APIResponse envelopes.
+//
+// What POINTS at a run lives on `products.run_id` (D5): a product is attached
+// to exactly one package, the pointer is written by db/products/products.ts's
+// setProductPackage, and there are no followers — the pin moves no product
+// row. This file only READS that column, for the catalogue's "in use by"
+// column and the delete guard.
 
 type RunListingRow = {
   id: string;
@@ -61,29 +67,32 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
 }
 
 // The instance catalogue (Phase 3 item 3): every run on the instance, newest
-// first, each with the projects currently pointing at it. Those pointers are
-// both the "attached projects" column and the delete guard's subject, so
-// they come from projects.run_id — the serving pointer — never from the
-// summary's launch-time attach selection, which says nothing about where a
-// run ended up.
+// first, each with the products currently pointing at it. Those pointers are
+// both the "in use by" column and the delete guard's subject, so they come
+// from products.run_id — the serving pointer — never from anything the
+// generation recorded at launch, which says nothing about where a run ended
+// up.
 export async function listRunCatalog(
   mainDb: Sql,
 ): Promise<APIResponseWithData<RunCatalogItem[]>> {
   try {
     const rows = await mainDb<
-      (RunListingRow & { attached_projects: { id: string; label: string }[] })[]
+      (RunListingRow & {
+        attached_products: { type: ProductType; id: string; label: string }[];
+      })[]
     >`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress,
   COALESCE(
     (
-      SELECT json_agg(json_build_object('id', p.id, 'label', p.label)
-        ORDER BY p.label)
-      FROM projects p
+      SELECT json_agg(
+        json_build_object('type', p.type, 'id', p.id, 'label', p.label)
+        ORDER BY p.type, p.label)
+      FROM products p
       WHERE p.run_id = r.id
     ),
     '[]'::json
-  ) AS attached_projects
+  ) AS attached_products
 FROM runs r
 ORDER BY r.created_at DESC
 `;
@@ -91,7 +100,7 @@ ORDER BY r.created_at DESC
       success: true,
       data: rows.map((row) => ({
         ...toRunListingItem(row),
-        attachedProjects: row.attached_projects,
+        attachedProducts: row.attached_products,
       })),
     };
   } catch (e) {
@@ -104,12 +113,12 @@ ORDER BY r.created_at DESC
 }
 
 // Guarded hard delete's DB half (Q1 ruling: ONE act, no archived state). The
-// guard is IN the DELETE so a project cannot attach between a check and the
+// guard is IN the DELETE so a product cannot attach between a check and the
 // delete; a refusal re-reads the row to say WHY. The caller
 // (server/runs/delete_run.ts) owns the run dir and cache purge and only runs
 // them once this returns deleted. The pinned refusal is a code guard by
 // necessity — a boolean column carries no FK protection the way
-// projects.run_id does (SYSTEM_08 "Delete protection is a code guard").
+// products.run_id does (SYSTEM_08 "Delete protection is a code guard").
 export async function deleteRunCatalogRow(
   mainDb: Sql,
   runId: string,
@@ -120,17 +129,15 @@ DELETE FROM runs
 WHERE id = ${runId}
   AND status <> 'generating'
   AND NOT pinned
-  AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.run_id = ${runId})
+  AND NOT EXISTS (SELECT 1 FROM products p WHERE p.run_id = ${runId})
 RETURNING id
 `;
     if (deleted.length > 0) {
       return { success: true };
     }
     const row = (
-      await mainDb<{ status: string; pinned: boolean; attached_count: number }[]>`
-SELECT r.status, r.pinned,
-  (SELECT COUNT(*)::int FROM projects p WHERE p.run_id = r.id) AS attached_count
-FROM runs r WHERE r.id = ${runId}
+      await mainDb<{ status: string; pinned: boolean }[]>`
+SELECT r.status, r.pinned FROM runs r WHERE r.id = ${runId}
 `
     ).at(0);
     if (row === undefined) {
@@ -151,7 +158,7 @@ FROM runs r WHERE r.id = ${runId}
     return {
       success: false,
       err:
-        "This results package is in use — point every project using it at another package first",
+        "This results package is in use — point every deck and report using it at another package first",
     };
   } catch (e) {
     return {
@@ -162,10 +169,9 @@ FROM runs r WHERE r.id = ${runId}
   }
 }
 
-// One catalogue row by id — the `attachedRun` half of a project's
-// starting/run_attached payloads (a run belongs to no project, so the row is
-// read from the runs table, never denormalised onto projects). null when no
-// such run: the typed absent state, not an error.
+// One catalogue row by id, for the surfaces that hold a run id and need its
+// label/summary (the /mcp context cache). null when no such run: the typed
+// absent state, not an error.
 export async function getRunListingItem(
   mainDb: Sql,
   runId: string,
@@ -189,23 +195,35 @@ WHERE r.id = ${runId}
   }
 }
 
-// The picker's options: every ready package on the instance, newest first,
-// the attached one included (a Select lists its current value). A narrowing
-// of the instance catalogue rather than a different fact — the same rows,
-// without the catalogue's housekeeping columns, for a surface whose only act
-// is a repoint.
-export async function listAttachableRunsForProject(
+// Every ready package on the instance, newest first, narrowed to the three
+// columns approved users may see: id, label, createdAt. ONE query behind two
+// surfaces — the instance SSE `starting` fill (InstanceState.readyPackages,
+// build_instance_state.ts) and the product package picker's refetch on the
+// runs_catalog_updated nonce (listAttachableResultsPackages) — so the two can
+// never disagree about what is attachable.
+//
+// Deliberately NOT the catalogue row: `summary`, `progress` and `provenance`
+// are generation telemetry, which SYSTEM_03's Q-B keeps to
+// can_configure_data. D8 widened exactly one thing to approved users, the
+// package label.
+export async function listAttachableRuns(
   mainDb: Sql,
-): Promise<APIResponseWithData<RunListingItem[]>> {
+): Promise<APIResponseWithData<ReadyPackage[]>> {
   try {
-    const rows = await mainDb<RunListingRow[]>`
-SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
-  r.summary, r.progress
+    const rows = await mainDb<{ id: string; label: string; created_at: Date }[]>`
+SELECT r.id, r.label, r.created_at
 FROM runs r
 WHERE r.status = 'ready'
 ORDER BY r.created_at DESC
 `;
-    return { success: true, data: rows.map(toRunListingItem) };
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        label: r.label,
+        createdAt: r.created_at.toISOString(),
+      })),
+    };
   } catch (e) {
     return {
       success: false,
@@ -215,57 +233,14 @@ ORDER BY r.created_at DESC
   }
 }
 
-// The repoint itself: the publish transaction's pointer UPDATE minus the
-// status flip (§2.6 — swapping packages is an UPDATE plus an SSE notify).
-//
-// The ready gate is IN the UPDATE, so a candidate cannot fail or be deleted
-// between the compatibility report and the write; the `projects.run_id` FK
-// (migration 065, no cascade) closes the other side of that race — a
-// concurrent delete of this run blocks on the FK's row lock and then hits its
-// own not-referenced guard. A refused write re-reads to say which reason.
-export async function setProjectAttachedRun(
-  mainDb: Sql,
-  projectId: string,
-  runId: string,
-): Promise<APIResponseNoData> {
-  try {
-    const updated = await mainDb<{ id: string }[]>`
-UPDATE projects p SET run_id = r.id
-FROM runs r
-WHERE p.id = ${projectId} AND r.id = ${runId} AND r.status = 'ready'
-RETURNING p.id
-`;
-    if (updated.length > 0) {
-      return { success: true };
-    }
-    const row = (
-      await mainDb<{ status: string }[]>`
-SELECT status FROM runs WHERE id = ${runId}
-`
-    ).at(0);
-    if (row === undefined) {
-      return { success: false, err: "Results package not found" };
-    }
-    if (row.status !== "ready") {
-      return {
-        success: false,
-        err: "This results package is not ready to be used",
-      };
-    }
-    return { success: false, err: "Project not found" };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem attaching results package: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
+///////////////////////////////////////////////////////////////////////////////
+// The pinned package (D5 — the pin, and nothing else)
+///////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////
-// The pinned package + follower subscriptions (rulings: SYSTEM_08 "The
-// pinned package + followers")
-///////////////////////////////////////////////////////////////////////////////
+// The pin serves exactly three things: the /mcp door, the Explore tab's
+// default package, and the DEFAULT run_id for a NEW product. It moves NO
+// product row — `follow_pinned` is not a concept (D5 overrules the SYSTEM_08
+// follower model), so pin and unpin touch `runs.pinned` alone.
 
 // Every pin write takes this transaction-scoped advisory lock, so pin-moves
 // and unpins serialize (last write wins) instead of the loser tripping the
@@ -278,10 +253,10 @@ const PINNED_RUN_ADVISORY_LOCK_KEY = 727402;
 // (`runs_one_pinned`) per row as an UPDATE proceeds, so `SET pinned = (id =
 // $1) WHERE pinned OR id = $1` trips it whenever the new row is visited
 // before the old. The ready gate is IN the pinning UPDATE exactly as in
-// setProjectAttachedRun — a run that failed or was deleted between the click
-// and the write cannot become pinned — and a zero-row second UPDATE throws
-// to roll the unpin back, so a bad target leaves the current pin untouched.
-// The re-read then says why.
+// setProductPackage — a run that failed or was deleted between the click and
+// the write cannot become pinned — and a zero-row second UPDATE throws to
+// roll the unpin back, so a bad target leaves the current pin untouched. The
+// re-read then says why.
 export async function setPinnedRun(
   mainDb: Sql,
   runId: string,
@@ -378,160 +353,6 @@ export async function getPinnedRunId(
   }
 }
 
-export async function getProjectAttachedRunId(
-  mainDb: Sql,
-  projectId: string,
-): Promise<APIResponseWithData<string | null>> {
-  try {
-    const row = (
-      await mainDb<{ run_id: string | null }[]>`
-SELECT run_id FROM projects WHERE id = ${projectId}
-`
-    ).at(0);
-    return row === undefined
-      ? { success: false, err: "Project not found" }
-      : { success: true, data: row.run_id };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem reading this project's results package: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-// The follower roster — for the pin-move loop and for the pin confirm. The
-// loop skips locked projects (a roster-time snapshot; the lock refusal itself
-// is route middleware, not an attach-layer gate) and ones already on the
-// target.
-export async function listFollowPinnedProjects(
-  mainDb: Sql,
-): Promise<APIResponseWithData<FollowPinnedProject[]>> {
-  try {
-    const rows = await mainDb<
-      { id: string; label: string; is_locked: boolean; run_id: string | null }[]
-    >`
-SELECT id, label, is_locked, run_id FROM projects WHERE follow_pinned
-ORDER BY label
-`;
-    return {
-      success: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        label: r.label,
-        isLocked: r.is_locked,
-        runId: r.run_id,
-      })),
-    };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem listing projects that follow the pinned package: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-// The follower repoint: setProjectAttachedRun's UPDATE plus `r.pinned` in
-// the gate, so a pin-move loop that has been superseded (another pin-move
-// or an unpin landed while it was running) writes NOTHING and learns it —
-// "pin_moved" — instead of moving a project onto a package that is no
-// longer the pin. Verified by execution: two overlapping loops cannot
-// leave a follower on the older target, whichever writes last.
-export async function setProjectAttachedRunIfPinned(
-  mainDb: Sql,
-  projectId: string,
-  runId: string,
-): Promise<APIResponseWithData<"attached" | "pin_moved">> {
-  try {
-    const updated = await mainDb<{ id: string }[]>`
-UPDATE projects p SET run_id = r.id
-FROM runs r
-WHERE p.id = ${projectId} AND r.id = ${runId} AND r.status = 'ready' AND r.pinned
-RETURNING p.id
-`;
-    if (updated.length > 0) {
-      return { success: true, data: "attached" };
-    }
-    const stillPinned = await mainDb<{ id: string }[]>`
-SELECT id FROM runs WHERE id = ${runId} AND pinned
-`;
-    if (stillPinned.length === 0) {
-      return { success: true, data: "pin_moved" };
-    }
-    return { success: false, err: "Project not found" };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem attaching results package: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-// The flag write only — the enable-time attach and the notify are
-// server/runs/pin_run.ts's. Returns label + isLocked so the caller can push
-// project_config_updated without a second read (the updateProject pattern).
-export async function setProjectFollowPinned(
-  mainDb: Sql,
-  projectId: string,
-  follow: boolean,
-): Promise<APIResponseWithData<{ label: string; isLocked: boolean }>> {
-  try {
-    const row = (
-      await mainDb<{ label: string; is_locked: boolean }[]>`
-UPDATE projects SET follow_pinned = ${follow} WHERE id = ${projectId}
-RETURNING label, is_locked
-`
-    ).at(0);
-    return row === undefined
-      ? { success: false, err: "Project not found" }
-      : { success: true, data: { label: row.label, isLocked: row.is_locked } };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem updating follow-pinned setting: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
-// A MANUAL attach to anything but the current pin ends the subscription
-// (SYSTEM_08 "Manual attach overrides the subscription"). One statement so
-// the "is this the pin?" test and the clear cannot straddle a pin-move.
-// data = the project's label + isLocked when the flag was actually cleared
-// (the caller pushes project_config_updated), null when nothing changed.
-// The follower loop never calls this — it repoints through
-// setProjectAttachedRunIfPinned.
-export async function clearFollowPinnedIfNotPin(
-  mainDb: Sql,
-  projectId: string,
-  attachedRunId: string,
-): Promise<APIResponseWithData<{ label: string; isLocked: boolean } | null>> {
-  try {
-    const row = (
-      await mainDb<{ label: string; is_locked: boolean }[]>`
-UPDATE projects SET follow_pinned = FALSE
-WHERE id = ${projectId} AND follow_pinned
-  AND NOT EXISTS (SELECT 1 FROM runs WHERE id = ${attachedRunId} AND pinned)
-RETURNING label, is_locked
-`
-    ).at(0);
-    return {
-      success: true,
-      data: row === undefined
-        ? null
-        : { label: row.label, isLocked: row.is_locked },
-    };
-  } catch (e) {
-    return {
-      success: false,
-      err: "Problem updating follow-pinned setting: " +
-        (e instanceof Error ? e.message : ""),
-    };
-  }
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Runs-catalog execution state (the pipeline's writes)
 ///////////////////////////////////////////////////////////////////////////////
@@ -555,59 +376,6 @@ VALUES (
 `;
 }
 
-// The launch concurrency guard's DB half (the in-memory registry is the
-// synchronous half): the projects a generation would repoint at publish are
-// its attach targets, so a launch is refused while any selected target is
-// already a target of a generating run. Targets live in the summary JSON —
-// the catalog deliberately has no project columns.
-export async function getGeneratingRunIdForAttachTargets(
-  mainDb: Sql,
-  projectIds: string[],
-): Promise<string | undefined> {
-  if (projectIds.length === 0) {
-    return undefined;
-  }
-  const rows = await mainDb<{ id: string }[]>`
-SELECT id FROM runs
-WHERE status = 'generating'
-  AND EXISTS (
-    SELECT 1
-    FROM jsonb_array_elements_text(
-      summary::jsonb -> 'attachTargetProjectIds'
-    ) AS target(project_id)
-    WHERE target.project_id = ANY(${projectIds})
-  )
-`;
-  return rows.at(0)?.id;
-}
-
-// Launch-time eligibility of the confirm step's attach selection: a target
-// must still exist, be 'ready' (not copying, not scheduled for deletion) and
-// be unlocked — the same set the wizard's multi-select offers, re-checked
-// because the selection is made before launch. Returns a display name per
-// ineligible target (its label, or the id when the project is gone).
-export async function getIneligibleAttachTargetNames(
-  mainDb: Sql,
-  projectIds: string[],
-): Promise<string[]> {
-  if (projectIds.length === 0) {
-    return [];
-  }
-  const rows = await mainDb<
-    { id: string; label: string; status: string; is_locked: boolean }[]
-  >`
-SELECT id, label, status, is_locked FROM projects WHERE id = ANY(${projectIds})
-`;
-  const byId = new Map(rows.map((r) => [r.id, r]));
-  return projectIds.flatMap((projectId) => {
-    const row = byId.get(projectId);
-    if (row === undefined) {
-      return [projectId];
-    }
-    return row.status !== "ready" || row.is_locked ? [row.label] : [];
-  });
-}
-
 export async function updateRunProgress(
   mainDb: Sql,
   runId: string,
@@ -618,36 +386,26 @@ UPDATE runs SET progress = ${JSON.stringify(progress)} WHERE id = ${runId}
 `;
 }
 
-// Ready-publish: exactly one transaction after the atomic rename — status
-// flip, final summary/progress, and the projects.run_id repoint of every
-// attach target together, so readers can never observe a ready run without
-// the pointers (or vice versa). Zero targets is normal: a run generated
-// without an attach selection is published and attached later from the
-// project picker.
+// Ready-publish, after the atomic rename: the status flip plus the final
+// summary/progress, in one statement. A generation PRODUCES a package and
+// repoints nothing (D5) — products point at it afterwards, from the product's
+// own package picker — so there is no pointer write to keep atomic with the
+// flip and no transaction to wrap it in.
 export async function publishReadyRun(
   mainDb: Sql,
   args: {
     runId: string;
-    attachTargetProjectIds: string[];
     summary: RunSummary;
     progress: RunProgress;
   },
 ): Promise<void> {
-  await mainDb.begin(async (sql) => {
-    await sql`
+  await mainDb`
 UPDATE runs SET
   status = 'ready',
   summary = ${JSON.stringify(args.summary)},
   progress = ${JSON.stringify(args.progress)}
 WHERE id = ${args.runId}
 `;
-    if (args.attachTargetProjectIds.length > 0) {
-      await sql`
-UPDATE projects SET run_id = ${args.runId}
-WHERE id = ANY(${args.attachTargetProjectIds})
-`;
-    }
-  });
 }
 
 // Marks a generation failed, stamping errorDetail (and the current module's

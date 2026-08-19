@@ -150,32 +150,6 @@ export type ModuleConfigSelections = {
   parameterSelections: Record<string, string>;
 };
 
-export type CompareProjectsModuleParameter = {
-  replacementString: string;
-  description: string;
-  value: string;
-};
-
-// Sourced from each project's attached results package manifest. The
-// dirty-state and per-half definition stamps died with the dirty machine —
-// a package records one generation, at one module git ref.
-export type CompareProjectsModule = {
-  id: string;
-  lastRunAt: string;
-  lastRunGitRef?: string;
-  parameters: CompareProjectsModuleParameter[];
-};
-
-export type CompareProjectsData = {
-  projects: {
-    id: string;
-    label: string;
-    // The attached package's manifest label; null = no package, or unreadable.
-    packageLabel: string | null;
-    modules: CompareProjectsModule[];
-  }[];
-};
-
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {
   return {
     period_id: t3({ en: "Monthly", fr: "Mensuel", pt: "Mensal" }),

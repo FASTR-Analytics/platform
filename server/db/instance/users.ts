@@ -5,20 +5,13 @@ import {
   OtherUser,
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   buildUserPermissionsFromRow,
-  type ProjectUserRole,
   type BatchUser,
   type UserPermission,
-  type ProjectPermission,
-  PROJECT_PERMISSIONS,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
-import {
-  type DBProject,
-  type DBProjectUserRole,
-  DBUser,
-} from "./_main_database_types.ts";
+import { DBUser } from "./_main_database_types.ts";
 
 // Writes the user's name from Clerk on their first login. The WHERE first_name IS NULL
 // ensures this is a no-op on every subsequent call, so it's safe to fire-and-forget.
@@ -39,9 +32,7 @@ export async function syncUserName(
 export async function getOtherUser(
   mainDb: Sql,
   email: string,
-): Promise<
-  APIResponseWithData<{ user: OtherUser; projectUserRoles: ProjectUserRole[] }>
-> {
+): Promise<APIResponseWithData<{ user: OtherUser }>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawUser = (
       await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`
@@ -49,26 +40,6 @@ export async function getOtherUser(
     if (rawUser === undefined) {
       throw new Error("No matching user");
     }
-    const rawProjects = await mainDb<
-      DBProject[]
-    >`SELECT * FROM projects ORDER BY LOWER(label)`;
-    const rawUserRoles = await mainDb<
-      DBProjectUserRole[]
-    >`SELECT * FROM project_user_roles WHERE email = ${email}`;
-    const projectUserRoles = rawProjects.map<ProjectUserRole>((rawProject) => {
-      const pur = rawUserRoles.find((pur) => pur.project_id === rawProject.id);
-      return {
-        projectId: rawProject.id,
-        projectLabel: rawProject.label,
-        role: rawUser.is_admin
-          ? "editor"
-          : !pur
-            ? "none"
-            : pur.role === "editor"
-              ? "editor"
-              : "viewer",
-      };
-    });
     const user: OtherUser = {
       email,
       isGlobalAdmin: rawUser.is_admin,
@@ -78,7 +49,7 @@ export async function getOtherUser(
         ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
         : buildUserPermissionsFromRow(rawUser)),
     };
-    return { success: true, data: { user, projectUserRoles } };
+    return { success: true, data: { user } };
   });
 }
 
@@ -182,8 +153,7 @@ export async function getUserPermissions(
         can_view_logs,
         can_configure_settings,
         can_configure_data,
-        can_view_data,
-        can_create_projects
+        can_view_data
       FROM users
       WHERE email=${email}`
     ).at(0);
@@ -194,85 +164,6 @@ export async function getUserPermissions(
       success: true,
       data: { permissions: row },
     };
-  });
-}
-
-export async function getUserDefaultProjectPermissions(
-  mainDb: Sql,
-  email: string,
-): Promise<
-  APIResponseWithData<{ permissions: Record<ProjectPermission, boolean> }>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await mainDb<Record<string, boolean>[]>`SELECT
-        default_project_can_configure_settings,
-        default_project_can_create_backups,
-        default_project_can_restore_backups,
-        default_project_can_configure_modules,
-        default_project_can_run_modules,
-        default_project_can_configure_users,
-        default_project_can_configure_visualizations,
-        default_project_can_view_visualizations,
-        default_project_can_configure_reports,
-        default_project_can_view_reports,
-        default_project_can_configure_slide_decks,
-        default_project_can_view_slide_decks,
-        default_project_can_configure_data,
-        default_project_can_view_data,
-        default_project_can_view_metrics,
-        default_project_can_view_logs,
-        default_project_can_view_script_code
-      FROM users
-      WHERE email=${email}`
-    ).at(0);
-
-    if (!row) throw new Error("User not found");
-
-    const permissions = Object.fromEntries(
-      PROJECT_PERMISSIONS.map((k) => [k, row[`default_project_${k}`]]),
-    ) as Record<ProjectPermission, boolean>;
-
-    return { success: true, data: { permissions } };
-  });
-}
-
-export async function updateUserDefaultProjectPermissions(
-  mainDb: Sql,
-  email: string,
-  permissions: Partial<Record<ProjectPermission, boolean>>,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const prefixed = Object.fromEntries(
-      Object.entries(permissions).map(([k, v]) => [`default_project_${k}`, v]),
-    );
-    await mainDb`
-      UPDATE users
-      SET ${mainDb(prefixed)}
-      WHERE email = ${email}
-    `;
-    return { success: true };
-  });
-}
-
-export async function bulkUpdateUserDefaultProjectPermissions(
-  mainDb: Sql,
-  emails: string[],
-  permissions: Partial<Record<ProjectPermission, boolean>>,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (Object.keys(permissions).length === 0) {
-      return { success: true };
-    }
-    const prefixed = Object.fromEntries(
-      Object.entries(permissions).map(([k, v]) => [`default_project_${k}`, v]),
-    );
-    await mainDb`
-      UPDATE users
-      SET ${mainDb(prefixed)}
-      WHERE email = ANY(${emails})
-    `;
-    return { success: true };
   });
 }
 

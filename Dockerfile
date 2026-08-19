@@ -26,14 +26,6 @@ COPY server server
 COPY client_dist client_dist
 COPY main.ts main.ts
 
-# Operator tooling (PLAN_RESULTS_RUNS item 7, review finding 18): the run
-# backfill and the parity rig ship in the image so both can run on a prod
-# host via docker exec:
-#   docker exec <server> deno run -A -c deno.json backfill_runs.ts
-#   docker exec <server> deno run -A -c deno.json validate_results_runs_parity.ts --run
-COPY backfill_runs.ts backfill_runs.ts
-COPY validate_results_runs_parity.ts validate_results_runs_parity.ts
-
 RUN mkdir /app/databases
 RUN mkdir /app/sandbox
 

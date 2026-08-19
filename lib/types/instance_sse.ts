@@ -45,6 +45,9 @@ export type InstanceState = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
+  // The copilot's instance-level grounding (D15). Rides the config event with
+  // the rest, so a settings edit reaches every open copilot without a refetch.
+  aiContext: string;
 
   // Products and folders — the Drive-like list every approved user sees.
   // Withheld from an unapproved connection by the same roster rule as `users`.
@@ -139,6 +142,10 @@ export type InstanceConfig = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
+  // The one instance-level copilot grounding blob (D15) — what the per-project
+  // ai_context columns were consolidated into. Editable on the settings page
+  // behind can_configure_settings; "" when unset.
+  aiContext: string;
 };
 
 export type InstanceStructureSummary = {

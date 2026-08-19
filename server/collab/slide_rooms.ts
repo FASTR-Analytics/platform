@@ -74,12 +74,12 @@ const slideAdapter: DocRoomAdapter<Slide> = {
   // HTTP-routed writes; restores carry neither and are not recorded). Ops are
   // classified (added / structurally removed / text deleted) so the version
   // diff can attribute deletions exactly instead of to every element editor.
-  onDocCreated: (projectId, slideId, doc) => {
+  onDocCreated: (slideId, doc) => {
     // Per-character authorship: one ledger per text element (the slide
     // analogue of the report body ledger — exact per-span deletion
     // attribution even when several people delete in the same textbox).
     for (const { elementKey, text } of listSlideDocTextElements(doc)) {
-      ensureSlideElementLedger(projectId, slideId, elementKey, text);
+      ensureSlideElementLedger(slideId, elementKey, text);
     }
     observeSlideDocElements(doc, (touches, origin) => {
       const o = origin as
@@ -91,7 +91,6 @@ const slideAdapter: DocRoomAdapter<Slide> = {
       // unattributed writes (restores) apply with email null.
       for (const td of touches.textDeltas) {
         applySlideElementDelta(
-          projectId,
           slideId,
           td.elementKey,
           td.delta,
@@ -112,49 +111,30 @@ const slideAdapter: DocRoomAdapter<Slide> = {
           if (text === undefined) {
             continue; // not a text element
           }
-          initSeededSlideElementLedger(
-            projectId,
-            slideId,
-            elementKey,
-            text,
-            email,
-          );
+          initSeededSlideElementLedger(slideId, elementKey, text, email);
         }
       }
       if (email === null) {
         return;
       }
       for (const elementKey of touches.touched) {
-        recordSlideElementTouch(projectId, slideId, elementKey, email, "touched");
+        recordSlideElementTouch(slideId, elementKey, email, "touched");
       }
       for (const elementKey of touches.added) {
-        recordSlideElementTouch(projectId, slideId, elementKey, email, "added");
+        recordSlideElementTouch(slideId, elementKey, email, "added");
       }
       for (const elementKey of touches.removed) {
-        recordSlideElementTouch(
-          projectId,
-          slideId,
-          elementKey,
-          email,
-          "removed",
-        );
+        recordSlideElementTouch(slideId, elementKey, email, "removed");
       }
       for (const elementKey of touches.textDeleted) {
-        recordSlideElementTouch(
-          projectId,
-          slideId,
-          elementKey,
-          email,
-          "textDeleted",
-        );
+        recordSlideElementTouch(slideId, elementKey, email, "textDeleted");
       }
     });
   },
   // Room finalized ≠ version written (the empty-grace window runs after):
   // ledgers with attribution must survive for the snapshot; only view-only
   // (uninformative) ones drop here. writeVersion compacts/drops the rest.
-  onDocClosed: (projectId, slideId) =>
-    pruneUninformativeSlideElementLedgers(projectId, slideId),
+  onDocClosed: (slideId) => pruneUninformativeSlideElementLedgers(slideId),
 };
 
 export type SlideRoomDeps = {
@@ -185,14 +165,12 @@ function toDocDeps(deps: SlideRoomDeps): DocRoomDeps<Slide> {
 
 /** A client opens a slide for (read-only or editing) collaboration. */
 export function subscribeSlide(
-  projectId: string,
   slideId: string,
   conn: RoomConn,
   clientStateVectorB64: string,
   deps: SlideRoomDeps,
 ): Promise<void> {
   return subscribeDoc(
-    projectId,
     slideId,
     conn,
     clientStateVectorB64,
@@ -203,54 +181,41 @@ export function subscribeSlide(
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */
 export function applySlideUpdate(
-  projectId: string,
   slideId: string,
   conn: RoomConn,
   updateB64: string,
 ): void {
-  applyDocUpdate(projectId, slideId, conn, updateB64, slideAdapter);
+  applyDocUpdate(slideId, conn, updateB64, slideAdapter);
 }
 
 /** Relay a Yjs awareness (cursor/selection) update to the other room members. */
 export function relayAwareness(
-  projectId: string,
   slideId: string,
   sender: RoomConn,
   updateB64: string,
 ): void {
-  relayDocAwareness(projectId, slideId, sender, updateB64, slideAdapter);
+  relayDocAwareness(slideId, sender, updateB64, slideAdapter);
 }
 
-export function unsubscribeSlide(
-  projectId: string,
-  slideId: string,
-  conn: RoomConn,
-): void {
-  unsubscribeDoc(projectId, DOC_TYPE, slideId, conn);
+export function unsubscribeSlide(slideId: string, conn: RoomConn): void {
+  unsubscribeDoc(DOC_TYPE, slideId, conn);
 }
 
 /** Persist a slide room's un-checkpointed edits now (no-op when none).
  *  False ⇒ the checkpoint failed and the DB row is NOT current (see
  *  flushRoomForDoc). */
-export function flushSlideRoom(
-  projectId: string,
-  slideId: string,
-): Promise<boolean> {
-  return flushRoomForDoc(projectId, DOC_TYPE, slideId);
+export function flushSlideRoom(slideId: string): Promise<boolean> {
+  return flushRoomForDoc(DOC_TYPE, slideId);
 }
 
 /** Discard a slide's live room without checkpointing — call when the slide
  *  row is deleted or replaced (see closeRoomsForDoc in doc_rooms.ts). */
-export function closeSlideRoom(
-  projectId: string,
-  slideId: string,
-  message: string,
-): void {
-  closeRoomsForDoc(projectId, DOC_TYPE, slideId, message);
+export function closeSlideRoom(slideId: string, message: string): void {
+  closeRoomsForDoc(DOC_TYPE, slideId, message);
   // The slide row is gone/replaced — its text authorship has nothing left to
   // attribute (deletion of the whole slide is attributed at slide level).
-  dropSlideElementLedgers(projectId, slideId);
-  clearSlideElementTouches(projectId, slideId);
+  dropSlideElementLedgers(slideId);
+  clearSlideElementTouches(slideId);
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see
@@ -258,13 +223,11 @@ export function closeSlideRoom(
  *  fall back to a direct DB write). `editor` attributes the write to version
  *  history; omit for restores (they version themselves explicitly). */
 export function applySlideToLiveRoom(
-  projectId: string,
   slideId: string,
   slide: Slide,
   editor?: VersionEditor,
 ): Promise<LiveRoomApplyResult> {
   return applyToLiveRoom(
-    projectId,
     DOC_TYPE,
     slideId,
     (doc) => syncSlideToDoc(doc, slide),

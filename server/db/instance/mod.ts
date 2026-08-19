@@ -20,5 +20,4 @@ export * from "./hfa_facility_weights.ts";
 export * from "./hfa_indicators.ts";
 export * from "./calculated_indicators.ts";
 export * from "./custom_prompts.ts";
-export * from "./dashboard_slugs.ts";
 export * from "./personal_access_tokens.ts";

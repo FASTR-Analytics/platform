@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { _FEEDBACK_EMAIL_RECIPIENTS } from "lib";
 import { _INSTANCE_ID, _SEND_GRID_API } from "../../exposed_env_vars.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { requireProjectPermission } from "../../project_auth.ts";
+import {
+  requireApprovedUser,
+  requireGlobalPermission,
+} from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { log } from "../../middleware/logging.ts";
 
@@ -76,10 +78,13 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   }
 }
 
+// The recipient roster is the instance roster now that projects are gone — a
+// named consequence of the permissive model (D2). The route validates the
+// addresses; who may send is the product guard, nothing finer.
 defineRoute(
   routesEmails,
   "sendSlideDeckEmail",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   log("sendSlideDeckEmail"),
   async (c, { body }) => {
     const { recipients, message, attachment } = body;
@@ -127,7 +132,7 @@ defineRoute(
   requireGlobalPermission(),
   log("sendHelpEmail"),
   async (c, { body }) => {
-    const { feedbackType, description, projectLabel, images } = body;
+    const { feedbackType, description, context, images } = body;
     const userEmail = c.var.globalUser.email;
 
     const typeLabel = {
@@ -135,9 +140,10 @@ defineRoute(
       suggestion: "Suggestion",
       help: "Help Request",
     }[feedbackType];
-    const projectLine = projectLabel ? ` (Project: ${projectLabel})` : "";
-    const projectHtmlLine = projectLabel
-      ? `<p><strong>Project:</strong> ${escapeHtml(projectLabel)}</p>`
+    // Where in the app the report came from — the open product, the tab.
+    const contextLine = context ? ` (Context: ${context})` : "";
+    const contextHtmlLine = context
+      ? `<p><strong>Context:</strong> ${escapeHtml(context)}</p>`
       : "";
 
     const ackSentence = {
@@ -163,13 +169,13 @@ defineRoute(
   <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${escapeHtml(description).replace(/\n/g, "<br>")}</p>
 </div>`.trim();
 
-    const internalPlainText = `New ${typeLabel} from ${userEmail}${projectLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
+    const internalPlainText = `New ${typeLabel} from ${userEmail}${contextLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
 
     const internalHtml = `
 <div style="font-family: sans-serif; color: #333;">
   <p><strong>Type:</strong> ${typeLabel}</p>
   <p><strong>From:</strong> ${escapeHtml(userEmail)}</p>
-  ${projectHtmlLine}
+  ${contextHtmlLine}
   <p><strong>Instance:</strong> ${_INSTANCE_ID}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p><strong>Description:</strong></p>

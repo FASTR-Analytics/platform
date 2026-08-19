@@ -2,16 +2,13 @@ import { Sql } from "postgres";
 import { getStoredDhis2CredentialsInfo } from "./instance_dhis2_credentials.ts";
 import {
   APIResponseWithData,
-  H_USERS,
   InstanceDetail,
   OtherUser,
-  ProjectSummary,
   throwIfErrWithData,
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   buildUserPermissionsFromRow,
   type DatasetType,
   type FacilityFamily,
-  type GlobalUser,
   type InstanceDatasetsSummary,
   type InstanceIndicatorsSummary,
   type InstanceStructureSummary,
@@ -23,14 +20,14 @@ import {
   _INSTANCE_NAME,
 } from "../../exposed_env_vars.ts";
 import { detectHasAnyRows, tryCatchDatabaseAsync } from "./../utils.ts";
-import {
-  DBUser,
-  type DBProject,
-  type DBProjectUserRole,
-} from "./_main_database_types.ts";
+import { DBUser } from "./_main_database_types.ts";
 import { getAssetsForInstance } from "./assets.ts";
 import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
-import { getAdminAreaLabelsConfig, getStructureSchema } from "./config.ts";
+import {
+  getAdminAreaLabelsConfig,
+  getAiContextConfig,
+  getStructureSchema,
+} from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import {
   countQueuedDatasetHmisImportRuns,
@@ -283,83 +280,8 @@ export async function getInstanceDatasetsSummary(
   };
 }
 
-export async function getProjectsForUser(
-  mainDb: Sql,
-  globalUser: GlobalUser,
-): Promise<ProjectSummary[]> {
-  if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
-    return (
-      await mainDb<(DBProject & { last_activity_at: Date | null; run_label: string | null })[]>`
-        SELECT p.*, la.last_activity_at, r.label AS run_label
-        FROM projects p
-        LEFT JOIN runs r ON r.id = p.run_id
-        LEFT JOIN (
-          SELECT project_id, MAX(timestamp) as last_activity_at
-          FROM user_logs
-          WHERE project_id IS NOT NULL
-          GROUP BY project_id
-        ) la ON la.project_id = p.id
-        ORDER BY LOWER(p.label)
-      `
-    ).map<ProjectSummary>((p) => ({
-      id: p.id,
-      label: p.label,
-      thisUserRole: "editor",
-      isLocked: p.is_locked,
-      isCentralReporting: p.is_central_reporting,
-      adminArea2: p.admin_area_2,
-      status: p.status as ProjectSummary["status"],
-      attachedRunId: p.run_id,
-      attachedRunLabel: p.run_label,
-      followPinned: p.follow_pinned,
-      lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
-      deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
-    }));
-  }
-
-  return (
-    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null; run_label: string | null })[]>`
-      SELECT pur.*, p.*, la.last_activity_at, r.label AS run_label
-      FROM project_user_roles pur
-      JOIN projects p ON pur.project_id = p.id
-      LEFT JOIN runs r ON r.id = p.run_id
-      LEFT JOIN (
-        SELECT project_id, MAX(timestamp) as last_activity_at
-        FROM user_logs
-        WHERE project_id IS NOT NULL
-        GROUP BY project_id
-      ) la ON la.project_id = p.id
-      WHERE pur.email = ${globalUser.email}
-      AND p.is_central_reporting = FALSE
-      AND (
-        pur.can_configure_settings OR pur.can_create_backups OR pur.can_restore_backups OR
-        pur.can_configure_modules OR pur.can_run_modules OR pur.can_configure_users OR
-        pur.can_configure_visualizations OR pur.can_view_visualizations OR
-        pur.can_configure_reports OR pur.can_view_reports OR
-        pur.can_configure_slide_decks OR pur.can_view_slide_decks OR
-        pur.can_configure_data OR pur.can_view_data OR pur.can_view_metrics OR pur.can_view_logs
-      )
-      ORDER BY LOWER(p.label)
-    `
-  ).map<ProjectSummary>((p) => ({
-    id: p.id,
-    label: p.label,
-    thisUserRole: p.role === "editor" ? "editor" : "viewer",
-    isLocked: p.is_locked,
-    isCentralReporting: false,
-    adminArea2: p.admin_area_2,
-    status: p.status as ProjectSummary["status"],
-    attachedRunId: p.run_id,
-    attachedRunLabel: p.run_label,
-    followPinned: p.follow_pinned,
-    lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
-    deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
-  }));
-}
-
 export async function getInstanceDetail(
   mainDb: Sql,
-  globalUser: GlobalUser,
 ): Promise<APIResponseWithData<InstanceDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     // The per-family structure schemas. A missing row (near-zero probability,
@@ -374,6 +296,11 @@ export async function getInstanceDetail(
     const adminAreaLabelsRes = await getAdminAreaLabelsConfig(mainDb);
     throwIfErrWithData(adminAreaLabelsRes);
     const adminAreaLabels = adminAreaLabelsRes.data;
+
+    // Absent on a fresh instance (080 only writes it when a project had one),
+    // which reads as "" rather than an error — an unset grounding blob must
+    // not break the settings page or the prompt.
+    const aiContextRes = await getAiContextConfig(mainDb);
 
     // Per-family counts + last-updated, shared with the SSE structure summary
     const structureSummary = await getInstanceStructureSummary(mainDb);
@@ -409,8 +336,6 @@ export async function getInstanceDetail(
       return resAssets;
     }
 
-const projectSummaries = await getProjectsForUser(mainDb, globalUser);
-
     const datasetsWithData: DatasetType[] = [];
     if (await detectHasAnyRows(mainDb, "dataset_hmis")) {
       datasetsWithData.push("hmis");
@@ -431,9 +356,6 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
 
     const users = await getInstanceUsers(mainDb);
 
-    // Get cache version for indicators (includes counts to detect deletions)
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
       instanceName: _INSTANCE_NAME,
@@ -452,13 +374,13 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       assets: resAssets.data,
       dhis2ConnectionUrl:
         (await getStoredDhis2CredentialsInfo(mainDb))?.url ?? null,
+      aiContext: aiContextRes.success ? aiContextRes.data : "",
       geojsonMaps: await getGeoJsonMapSummaries(mainDb),
       datasetsWithData,
       datasetVersions: {
         hmis: hmisVersion,
         hfa: hfaTimePointCount > 0 ? hfaTimePointCount : undefined,
       },
-      projects: projectSummaries,
       users,
     };
     return { success: true, data: instanceDetails };

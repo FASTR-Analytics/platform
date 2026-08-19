@@ -165,7 +165,7 @@ prompt = (
     "- Write in plain, non-technical English — no code names, function names, or developer jargon\n"
     "- Describe what changed in terms of behaviour or capability, not what code was edited\n"
     "- Bad example: 'Refactored aggregation middleware to use async iterators' — Good example: 'Improved performance when processing large datasets'\n"
-    "- Bad example: 'Added index to project_datasets table' — Good example: 'Faster dataset loading for projects with many uploads'\n"
+    "- Bad example: 'Added index to products table' — Good example: 'Faster loading for instances with many slide decks and reports'\n"
     "- Keep each line short — aim for under 10 words per description but go over if needed\n"
     "- If no meaningful changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation."

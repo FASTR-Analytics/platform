@@ -9,8 +9,8 @@ export type InfoCatalogTopic = {
 // asset at /info/<topic>.md (client/public/info/). A surface passes the list
 // it exposes to getSharedToolsForInfo (which whitelists the fetch path
 // against it) and to buildSystemPrompt (which renders it). SPA-only topics
-// (recipes that presuppose authoring tools) live in
-// client/src/components/project_ai/ai_tools/client_info_topics.ts. Add a
+// (recipes that presuppose product-authoring tools) live in
+// client/src/components/copilot/ai_tools/client_info_topics.ts. Add a
 // shared topic: drop a markdown file in client/public/info/ and add an entry
 // here.
 export const INFO_TOPICS: InfoCatalogTopic[] = [

@@ -1,0 +1,187 @@
+#!/bin/bash
+
+# ROLLBACK for the products restructure (PLAN_PRODUCTS_RESTRUCTURE §5 step 4 /
+# "Rollback"): restores one instance's `main` database from a named status-api
+# dump and puts the instance back on its previous server image.
+#
+# THE DUMP IS NOT OPTIONAL. Migration 081 drops `projects`, `project_user_roles`,
+# `dashboard_slugs`, the three log tables' `project_id` columns and the 18
+# `users.default_project_*` / `can_create_projects` columns. The previous image
+# reads all of them at boot, so it CANNOT start against a post-081 `main` —
+# reverting the image alone leaves the instance down. The only rollback is:
+# restore the pre-migration `main` dump, THEN start the previous image.
+#
+# The per-project databases are untouched by the rollout (080 only reads them)
+# and are still on disk until ./purge_legacy_dbs runs, so restoring `main`
+# restores a coherent instance. Once ./purge_legacy_dbs has run, this script
+# can no longer bring a working instance back — that is the point of no return.
+#
+# Per instance it: stops the app container → drops and recreates `main` through
+# `docker exec psql -d postgres` (WITH (FORCE), so live backends do not block
+# the drop) → pipes the dump into `psql -d main` → points the instance at the
+# previous image and starts it → polls /health_check.
+#
+# REHEARSE IT ONCE ON testing-tim BEFORE THE FLEET (§4 gate).
+#
+# Usage:
+#   ./restore_main <instance> <dump-file> --previous-version <v> [--confirm]
+#   ./restore_main testing-tim main-2026-08-19.sql.gz --previous-version 1.67.5 --confirm
+#
+# DRY-RUN BY DEFAULT: without --confirm it validates the dump, resolves the
+# images and prints the exact commands it would run, and changes nothing.
+#
+# The dump may be plain SQL (.sql) or gzipped (.sql.gz / .gz).
+
+set -u -o pipefail
+
+SSH_HOST="wb-server"
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-300}"
+
+SSH_OPTS=(-o ConnectTimeout=15 -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=15m)
+sshx() {
+    local attempt rc
+    for attempt in 1 2 3; do
+        command ssh "${SSH_OPTS[@]}" "$@"
+        rc=$?
+        [ "$rc" -ne 255 ] && return "$rc"
+        echo "  (ssh connection failed — retry $attempt/3 in 15s)" >&2
+        sleep 15
+    done
+    return 255
+}
+
+usage() {
+    echo "Usage: ./restore_main <instance> <dump-file> --previous-version <v> [--confirm]"
+    echo "  e.g. ./restore_main testing-tim main-2026-08-19.sql.gz --previous-version 1.67.5"
+    echo "       (dry-run; add --confirm to actually drop and restore 'main')"
+    exit 1
+}
+
+INSTANCE=""
+DUMP_FILE=""
+PREV_VERSION=""
+CONFIRM=false
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --previous-version) PREV_VERSION="${2:-}"; shift 2 ;;
+        --confirm) CONFIRM=true; shift ;;
+        -*) echo "ERROR: unknown option: $1"; usage ;;
+        *)
+            if [ -z "$INSTANCE" ]; then INSTANCE="$1"
+            elif [ -z "$DUMP_FILE" ]; then DUMP_FILE="$1"
+            else echo "ERROR: unexpected argument: $1"; usage
+            fi
+            shift
+            ;;
+    esac
+done
+
+[ -n "$INSTANCE" ] || usage
+[ -n "$DUMP_FILE" ] || usage
+[ -n "$PREV_VERSION" ] || { echo "ERROR: --previous-version <v> is required."; usage; }
+[ -f "$DUMP_FILE" ] || { echo "ERROR: no such dump file: $DUMP_FILE"; exit 1; }
+[ -s "$DUMP_FILE" ] || { echo "ERROR: dump file is empty: $DUMP_FILE"; exit 1; }
+
+PREV_IMAGE_TAG="timroberton/comb:wb-fastr-server-v$PREV_VERSION"
+PG_CONTAINER="$INSTANCE-postgres"
+
+case "$DUMP_FILE" in
+    *.gz) CAT_CMD="gzip -dc" ;;
+    *)    CAT_CMD="cat" ;;
+esac
+
+# A dump that does not create the schema would leave an empty `main` and a
+# permanently broken instance, so check it looks like one before dropping.
+if ! $CAT_CMD "$DUMP_FILE" | head -c 200000 | grep -qi "CREATE TABLE"; then
+    echo "ERROR: $DUMP_FILE has no CREATE TABLE in its first 200KB — is it a"
+    echo "       schema+data dump of 'main'? Refusing to drop the database."
+    exit 1
+fi
+DUMP_SIZE=$(wc -c < "$DUMP_FILE" | tr -d ' ')
+
+echo "Restore 'main' on $INSTANCE"
+echo "  dump:           $DUMP_FILE (${DUMP_SIZE} bytes, decompress: $CAT_CMD)"
+echo "  postgres:       $PG_CONTAINER"
+echo "  previous image: $PREV_IMAGE_TAG"
+
+SHOW_JSON=$(sshx "$SSH_HOST" "wb c show $INSTANCE --json") ||
+    { echo "ERROR: wb c show failed — does '$INSTANCE' exist? (wb c list)"; exit 1; }
+PORT=$(echo "$SHOW_JSON" | jq -r '.port')
+[ -n "$PORT" ] && [ "$PORT" != "null" ] ||
+    { echo "ERROR: could not determine port from: $SHOW_JSON"; exit 1; }
+CURRENT_IMAGE=$(sshx "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE 2>/dev/null" || true)
+echo "  port:           $PORT (currently on ${CURRENT_IMAGE:-<not running>})"
+
+sshx "$SSH_HOST" "docker manifest inspect $PREV_IMAGE_TAG >/dev/null 2>&1" ||
+    { echo "ERROR: $PREV_IMAGE_TAG not found on the registry."; exit 1; }
+
+if [ "$CONFIRM" = false ]; then
+    echo ""
+    echo "DRY-RUN — nothing changed. --confirm would run, in order:"
+    echo "  ssh $SSH_HOST 'docker stop $INSTANCE'"
+    echo "  ssh $SSH_HOST \"docker exec $PG_CONTAINER psql -U postgres -d postgres -c 'DROP DATABASE main WITH (FORCE)'\""
+    echo "  ssh $SSH_HOST \"docker exec $PG_CONTAINER psql -U postgres -d postgres -c 'CREATE DATABASE main'\""
+    echo "  $CAT_CMD $DUMP_FILE | ssh $SSH_HOST \"docker exec -i $PG_CONTAINER psql -U postgres -d main -v ON_ERROR_STOP=1 -q\""
+    echo "  ssh $SSH_HOST 'wb c update $INSTANCE --server $PREV_VERSION && wb pull && wb restart $INSTANCE'"
+    echo ""
+    echo "Re-run with --confirm to perform the restore."
+    exit 0
+fi
+
+echo ""
+echo "This DROPS the live 'main' database on $INSTANCE and replaces it with the"
+echo "dump above. Everything written to 'main' since the dump is lost."
+read -r -p "Type the instance name to proceed: " TYPED
+[ "$TYPED" = "$INSTANCE" ] || { echo "Aborted."; exit 1; }
+
+echo ""
+echo "── 1. Stopping the app container ──"
+# The app container, not the postgres one: `main` cannot be dropped while the
+# server holds pooled connections to it, and the server must not come back up
+# against a half-restored database.
+sshx "$SSH_HOST" "docker stop $INSTANCE" || { echo "ERROR: docker stop $INSTANCE failed"; exit 1; }
+
+echo "── 2. Dropping and recreating 'main' ──"
+sshx "$SSH_HOST" "docker exec $PG_CONTAINER psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS main WITH (FORCE)'" ||
+    { echo "ERROR: DROP DATABASE main failed — the instance is stopped and 'main' may still exist. Re-run."; exit 1; }
+sshx "$SSH_HOST" "docker exec $PG_CONTAINER psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE main'" ||
+    { echo "ERROR: CREATE DATABASE main failed — 'main' is GONE. Re-run this script; do not start the instance."; exit 1; }
+
+echo "── 3. Piping the dump into 'main' ──"
+if ! $CAT_CMD "$DUMP_FILE" | sshx "$SSH_HOST" "docker exec -i $PG_CONTAINER psql -U postgres -d main -v ON_ERROR_STOP=1 -q"; then
+    echo "ERROR: the restore failed part-way. 'main' is incomplete — do NOT start"
+    echo "       the instance. Fix the dump and re-run this script."
+    exit 1
+fi
+
+echo "── 4. Starting the previous image ──"
+sshx "$SSH_HOST" "wb c update $INSTANCE --server $PREV_VERSION && wb pull && wb restart $INSTANCE" ||
+    { echo "ERROR: could not start $PREV_IMAGE_TAG"; exit 1; }
+
+echo "── 5. Polling health (timeout ${HEALTH_TIMEOUT_SECONDS}s) ──"
+if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
+deadline=$((SECONDS + TIMEOUT))
+while [ "$SECONDS" -lt "$deadline" ]; do
+    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    case "$body" in
+        *'"running":true'*) exit 0 ;;
+    esac
+    sleep 5
+done
+exit 1
+REMOTE
+then
+    sshx "$SSH_HOST" "docker logs --tail 80 $INSTANCE" || true
+    echo "ERROR: no healthy /health_check within ${HEALTH_TIMEOUT_SECONDS}s (log tail above)."
+    exit 1
+fi
+
+RUNNING_IMAGE=$(sshx "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE")
+echo ""
+echo "════════ RESTORE COMPLETE ════════"
+echo "  Instance: $INSTANCE"
+echo "  Image:    $RUNNING_IMAGE"
+echo "  'main' restored from $DUMP_FILE; the per-project databases were never"
+echo "  touched by the rollout, so the instance is back on its pre-restructure"
+echo "  state as of the dump."

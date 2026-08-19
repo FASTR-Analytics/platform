@@ -1,27 +1,21 @@
 import { Hono } from "hono";
 import {
   copyReportFromVersion,
-  createReport,
-  deleteReport,
-  duplicateReport,
-  getAllReports,
   getReportDetail,
   getReportVersion,
   getReportVersionLineage,
   insertReportVersion,
   latestReportVersionHash,
   listReportVersions,
-  moveReportToFolder,
   restoreReportContent,
+  updateProductLabel,
   updateReportBody,
   updateReportConfig,
   updateReportFigures,
   updateReportImages,
-  updateReportLabel,
 } from "../../db/mod.ts";
 import {
   applyReportToLiveRoom,
-  closeReportRoom,
   flushReportRoom,
 } from "../../collab/report_rooms.ts";
 import { compactTombstones } from "../../collab/authorship.ts";
@@ -38,104 +32,23 @@ import {
   reportImagesSchema,
   stripTombstoneRuns,
 } from "lib";
-import { requireProjectPermission } from "../../project_auth.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { log } from "../../middleware/logging.ts";
-import { notifyLastUpdated } from "../../task_management/mod.ts";
-import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
+import { notifyProductsUpserted } from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesReports = new Hono();
 
-defineRoute(
-  routesReports,
-  "getAllReports",
-  requireProjectPermission("can_view_reports"),
-  async (c) => {
-    const res = await getAllReports(c.var.ppk.projectDb);
-    return c.json(res);
-  },
-);
+// Report CONTENT and versions only — label, folder, package, scope, duplicate
+// and delete are the shared product routes (./products.ts). report_id IS the
+// product id, and requireApprovedUser() is the whole guard (D2).
 
 defineRoute(
   routesReports,
   "getReportDetail",
-  requireProjectPermission("can_view_reports"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await getReportDetail(c.var.ppk.projectDb, params.report_id);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesReports,
-  "createReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  log("createReport"),
-  async (c, { body }) => {
-    const res = await createReport(
-      c.var.ppk.projectDb,
-      body.label,
-      body.folderId,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [res.data.reportId],
-      res.data.lastUpdated,
-    );
-
-    const reportsRes = await getAllReports(c.var.ppk.projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-    }
-
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesReports,
-  "updateReportLabel",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  async (c, { params, body }) => {
-    const res = await updateReportLabel(
-      c.var.ppk.projectDb,
-      params.report_id,
-      body.label,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "report",
-      params.report_id,
-      editorFromGlobalUser(c.var.globalUser),
-    );
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated,
-    );
-
-    const reportsRes = await getAllReports(c.var.ppk.projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-    }
-
+    const res = await getReportDetail(c.var.mainDb, params.report_id);
     return c.json(res);
   },
 );
@@ -143,21 +56,17 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportBody",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     // While a collab room is live for this report, the room's doc is
     // authoritative: a direct DB write would be silently overwritten by the
     // room's next checkpoint. Route the save through the room instead — the
     // change merges into the shared doc (relayed live to connected editors)
     // and the room checkpoints it immediately (which fires its own SSE
-    // notifications). Merging into the live doc IS the conflict resolution,
-    // so the room path reports conflicted: false.
+    // notifications, products_upserted included). Merging into the live doc IS
+    // the conflict resolution, so the room path reports conflicted: false.
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applyReportToLiveRoom(
-      c.var.ppk.projectId,
       params.report_id,
       { body: body.body },
       editor,
@@ -178,7 +87,7 @@ defineRoute(
     }
 
     const res = await updateReportBody(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
       body.body,
       body.expectedLastUpdated,
@@ -188,21 +97,11 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
+    recordVersionEdit("report", params.report_id, editor);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated,
-    );
-
-    // Re-broadcast the summary list so the list-card preview (derived from the
-    // body) stays fresh.
-    const reportsRes = await getAllReports(c.var.ppk.projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-    }
+    // The summary carries the card preview, which derives from the body — so
+    // the re-broadcast keeps the Products page fresh as well as the cache.
+    await notifyProductsUpserted(c.var.mainDb, [params.report_id]);
 
     return c.json(res);
   },
@@ -211,17 +110,13 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportFigures",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applyReportToLiveRoom(
-      c.var.ppk.projectId,
       params.report_id,
-      { figures: body.figures as any },
+      { figures: body.figures },
       editor,
     );
     if (roomRes.status === "saved") {
@@ -239,22 +134,17 @@ defineRoute(
     }
 
     const res = await updateReportFigures(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
-      body.figures as any,
+      body.figures,
     );
     if (!res.success) {
       return c.json(res);
     }
 
-    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
+    recordVersionEdit("report", params.report_id, editor);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated,
-    );
+    await notifyProductsUpserted(c.var.mainDb, [params.report_id]);
 
     return c.json(res);
   },
@@ -263,15 +153,11 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportImages",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     // Live-room chokepoint — see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applyReportToLiveRoom(
-      c.var.ppk.projectId,
       params.report_id,
       { images: body.images },
       editor,
@@ -291,7 +177,7 @@ defineRoute(
     }
 
     const res = await updateReportImages(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
       body.images,
     );
@@ -299,14 +185,9 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(c.var.ppk.projectId, "report", params.report_id, editor);
+    recordVersionEdit("report", params.report_id, editor);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated,
-    );
+    await notifyProductsUpserted(c.var.mainDb, [params.report_id]);
 
     return c.json(res);
   },
@@ -315,13 +196,10 @@ defineRoute(
 defineRoute(
   routesReports,
   "updateReportConfig",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await updateReportConfig(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
       body.config,
     );
@@ -329,91 +207,8 @@ defineRoute(
       return c.json(res);
     }
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [params.report_id],
-      res.data.lastUpdated,
-    );
+    await notifyProductsUpserted(c.var.mainDb, [params.report_id]);
 
-    const reportsRes = await getAllReports(c.var.ppk.projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-    }
-
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesReports,
-  "moveReportToFolder",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  async (c, { params, body }) => {
-    const res = await moveReportToFolder(
-      c.var.ppk.projectDb,
-      params.report_id,
-      body.folderId,
-    );
-    if (res.success) {
-      const reportsRes = await getAllReports(c.var.ppk.projectDb);
-      if (reportsRes.success) {
-        notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-      }
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesReports,
-  "duplicateReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  async (c, { params, body }) => {
-    const res = await duplicateReport(
-      c.var.ppk.projectDb,
-      params.report_id,
-      body.label,
-      body.folderId,
-    );
-    if (res.success) {
-      const reportsRes = await getAllReports(c.var.ppk.projectDb);
-      if (reportsRes.success) {
-        notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-      }
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesReports,
-  "deleteReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  log("deleteReport"),
-  async (c, { params }) => {
-    const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
-    if (res.success) {
-      // A live room left behind would fail its checkpoints forever — discard.
-      closeReportRoom(
-        c.var.ppk.projectId,
-        params.report_id,
-        "This report was deleted",
-      );
-      const reportsRes = await getAllReports(c.var.ppk.projectDb);
-      if (reportsRes.success) {
-        notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-      }
-    }
     return c.json(res);
   },
 );
@@ -421,9 +216,9 @@ defineRoute(
 defineRoute(
   routesReports,
   "listReportVersions",
-  requireProjectPermission("can_view_reports"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await listReportVersions(c.var.ppk.projectDb, params.report_id);
+    const res = await listReportVersions(c.var.mainDb, params.report_id);
     return c.json(res);
   },
 );
@@ -431,10 +226,10 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportVersion",
-  requireProjectPermission("can_view_reports"),
+  requireApprovedUser(),
   async (c, { params }) => {
     const res = await getReportVersion(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
       params.version_id,
     );
@@ -445,10 +240,10 @@ defineRoute(
 defineRoute(
   routesReports,
   "getReportVersionLineage",
-  requireProjectPermission("can_view_reports"),
+  requireApprovedUser(),
   async (c, { params }) => {
     const res = await getReportVersionLineage(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.report_id,
       params.version_id,
     );
@@ -459,18 +254,14 @@ defineRoute(
 defineRoute(
   routesReports,
   "restoreReportVersion",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   log("restoreReportVersion"),
   async (c, { params }) => {
-    const projectId = c.var.ppk.projectId;
-    const projectDb = c.var.ppk.projectDb;
+    const mainDb = c.var.mainDb;
     const restorer = editorFromGlobalUser(c.var.globalUser);
 
     const versionRes = await getReportVersion(
-      projectDb,
+      mainDb,
       params.report_id,
       params.version_id,
     );
@@ -501,7 +292,7 @@ defineRoute(
     // A FAILED flush means the row is stale, so the "safety" version would not
     // actually contain the current state — abort rather than overwrite the
     // document with a snapshot while promising a rollback point we don't have.
-    if (!await flushReportRoom(projectId, params.report_id)) {
+    if (!await flushReportRoom(params.report_id)) {
       return c.json({
         success: false as const,
         err:
@@ -512,10 +303,10 @@ defineRoute(
     // Absorb the open editing session's attribution into the safety version;
     // left in the tracker it would hash-dedup against the restored state
     // later and those editors would never appear in any version.
-    const drained = drainVersionEditors(projectId, "report", params.report_id);
+    const drained = drainVersionEditors("report", params.report_id);
     const reinjectDrained = () => {
       for (const e of drained) {
-        recordVersionEdit(projectId, "report", params.report_id, e);
+        recordVersionEdit("report", params.report_id, e);
       }
     };
 
@@ -523,7 +314,7 @@ defineRoute(
     // overwritten (skipped when it's already the newest stored version).
     let current;
     try {
-      current = await loadReportVersionData(projectId, params.report_id);
+      current = await loadReportVersionData(params.report_id);
     } catch (error) {
       reinjectDrained();
       return c.json({
@@ -535,13 +326,10 @@ defineRoute(
       return c.json({ success: false as const, err: "Report not found" });
     }
     const currentHash = reportContentHash(current);
-    const latestRes = await latestReportVersionHash(
-      projectDb,
-      params.report_id,
-    );
+    const latestRes = await latestReportVersionHash(mainDb, params.report_id);
     const safetyCreatedAt = new Date().toISOString();
     if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
-      const safetyRes = await insertReportVersion(projectDb, {
+      const safetyRes = await insertReportVersion(mainDb, {
         reportId: params.report_id,
         createdAt: safetyCreatedAt,
         label: current.label,
@@ -561,7 +349,7 @@ defineRoute(
     // Apply the snapshot through a live room when one exists, so co-editors
     // follow the restore live. No editor param: the restore versions itself
     // below instead of going through the session tracker.
-    const roomRes = await applyReportToLiveRoom(projectId, params.report_id, {
+    const roomRes = await applyReportToLiveRoom(params.report_id, {
       body: version.body,
       figures,
       images,
@@ -582,17 +370,17 @@ defineRoute(
     let lastUpdated: string;
     if (roomRes.status === "saved") {
       lastUpdated = roomRes.lastUpdated;
-      // The label is not part of the room doc — restore it directly. A failed
-      // label write means the restore is PARTIAL: report it as a failure (the
-      // safety version exists; retrying is safe) and record no restored-state
-      // version that would misrepresent the DB.
-      const labelRes = await updateReportLabel(
-        projectDb,
+      // The label lives on the `products` row, not in the room doc — restore
+      // it directly. A failed label write means the restore is PARTIAL: report
+      // it as a failure (the safety version exists; retrying is safe) and
+      // record no restored-state version that would misrepresent the DB.
+      const labelRes = await updateProductLabel(
+        mainDb,
         params.report_id,
         version.label,
       );
       if (!labelRes.success) {
-        notifyLastUpdated(projectId, "reports", [params.report_id], lastUpdated);
+        await notifyProductsUpserted(mainDb, [params.report_id]);
         return c.json({
           success: false as const,
           err:
@@ -601,7 +389,7 @@ defineRoute(
       }
       lastUpdated = labelRes.data.lastUpdated;
     } else {
-      const res = await restoreReportContent(projectDb, params.report_id, {
+      const res = await restoreReportContent(mainDb, params.report_id, {
         label: version.label,
         body: version.body,
         figures,
@@ -619,7 +407,7 @@ defineRoute(
     // ONE definition of the report hash field set — so it matches what a
     // later capture computes from the DB (a divergent hash here would break
     // the dedup chain and duplicate versions).
-    const restoredRes = await insertReportVersion(projectDb, {
+    const restoredRes = await insertReportVersion(mainDb, {
       reportId: params.report_id,
       // Strictly after the safety version even within one millisecond — the
       // two are ordered by (created_at, id) everywhere, and a tie would let
@@ -653,13 +441,9 @@ defineRoute(
     // A room-path restore floods the live ledger with unknown-deleter
     // tombstones from the body rewrite — they must not leak into the next
     // session's version.
-    compactTombstones(projectId, params.report_id);
+    compactTombstones(params.report_id);
 
-    notifyLastUpdated(projectId, "reports", [params.report_id], lastUpdated);
-    const reportsRes = await getAllReports(projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(projectId, reportsRes.data);
-    }
+    await notifyProductsUpserted(mainDb, [params.report_id]);
 
     return c.json({ success: true as const, data: { lastUpdated } });
   },
@@ -668,33 +452,24 @@ defineRoute(
 defineRoute(
   routesReports,
   "copyReportVersion",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  requireApprovedUser(),
   log("copyReportVersion"),
   async (c, { params, body }) => {
-    const res = await copyReportFromVersion(
-      c.var.ppk.projectDb,
-      params.report_id,
-      params.version_id,
-      body.label,
-      body.folderId,
-    );
+    // "Restore as copy" mints a NEW product, so it carries a label and folder
+    // like createProduct does — and inherits the source report's (run_id,
+    // scope) pair verbatim (D4).
+    const res = await copyReportFromVersion(c.var.mainDb, {
+      reportId: params.report_id,
+      versionId: params.version_id,
+      label: body.label,
+      folderId: body.folderId,
+      createdBy: c.var.globalUser.email,
+    });
     if (!res.success) {
       return c.json(res);
     }
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [res.data.newReportId],
-      res.data.lastUpdated,
-    );
-    const reportsRes = await getAllReports(c.var.ppk.projectDb);
-    if (reportsRes.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
-    }
+    await notifyProductsUpserted(c.var.mainDb, [res.data.productId]);
 
     return c.json(res);
   },

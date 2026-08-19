@@ -172,6 +172,47 @@ export async function updateAdminAreaLabelsConfig(
   });
 }
 
+// The instance's AI context (D15): free prose an admin writes on the settings
+// page, prepended to the copilot's system prompt. ONE instance-level string —
+// the per-project contexts were concatenated into it by migration 080, which
+// is also where the storage encoding comes from: the value is a plain string
+// JSON-encoded into config_json_value like every other instance_config row.
+// Absent = empty, never an error: a missing context must not break the prompt.
+export async function getAiContextConfig(
+  mainDb: Sql
+): Promise<APIResponseWithData<string>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const result = await mainDb<{ config_json_value: string }[]>`
+      SELECT config_json_value
+      FROM instance_config
+      WHERE config_key = 'ai_context'
+    `;
+
+    if (result.length === 0) {
+      return { success: true, data: "" };
+    }
+
+    return { success: true, data: String(JSON.parse(result[0].config_json_value)) };
+  });
+}
+
+export async function updateAiContextConfig(
+  mainDb: Sql,
+  aiContext: string
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const value = JSON.stringify(aiContext);
+    await mainDb`
+      INSERT INTO instance_config (config_key, config_json_value)
+      VALUES ('ai_context', ${value})
+      ON CONFLICT (config_key)
+      DO UPDATE SET config_json_value = ${value}
+    `;
+
+    return { success: true };
+  });
+}
+
 // The results-package wizard's instance defaults (PLAN_RESULTS_RUNS Phase 3
 // item 1, §3.5): the starting values an admin saved in the module-defaults
 // editor (S8). Absent — or stored under a shape an older build wrote —

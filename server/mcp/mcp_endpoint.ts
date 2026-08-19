@@ -12,8 +12,8 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // package): any Claude client connects with just the instance URL
 // (https://<instance>/mcp) and a PAT in the Authorization header. Stateless
 // above the wire (D1): identity rides every request, every tool call reads
-// the instance's CURRENT pinned results package (no project or package id in
-// any schema), authorization runs per call. All tools are read-only. The
+// the instance's CURRENT pinned results package (no package id in any
+// schema), authorization runs per call. All tools are read-only. The
 // panther adapter owns the wire (both protocol eras, sessions, elicitation);
 // the D3 thunk below binds one tool set per authenticated principal.
 //

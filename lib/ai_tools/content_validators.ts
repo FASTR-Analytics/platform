@@ -11,7 +11,7 @@ import type { AIToolEnv } from "./env.ts";
 
 // The metric-query validators both surfaces run (get_metric_data). The
 // slide/report content validators are SPA-only and live in the client
-// (project_ai/ai_tools/validators/content_validators.ts); the two
+// (copilot/ai_tools/validators/content_validators.ts); the two
 // primitives below are exported because that file's validatePresetOverrides
 // composes them — one filter validator and one date-range validator for
 // every startDate/endDate surface, never a second copy.

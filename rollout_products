@@ -1,0 +1,300 @@
+#!/bin/bash
+
+# Fleet rollout for the products restructure (PLAN_PRODUCTS_RESTRUCTURE §5
+# step 5). Runs from the local machine; per instance it:
+#
+#   1. preflights (instance exists, disk headroom on its data volume, a NAMED
+#      status-api backup exists — the rollback path is `./restore_main` with
+#      that dump plus the previous image, and the previous image CANNOT boot
+#      after migration 081 without it)
+#   2. points the instance at the target server image (wb c update /
+#      wb restart), which runs migrations 000→081 + the instance JSON
+#      transforms inside the boot transaction
+#   3. polls /health_check until the server boots — a migration failure
+#      fail-stops the boot, so an unhealthy instance means the consolidation
+#      rolled back and the instance is still on its pre-restructure schema
+#   4. post-checks: the project layer is gone (`projects` dropped by 081) and
+#      the actual products / folders / slides / versions match EXACTLY what
+#      ./validate_consolidation.ts planned for that instance
+#
+# Failure policy: any failure HALTS the whole run. Unlike the results-packages
+# rollout there is no "records and continues" class — a post-check mismatch
+# means the migration produced something other than what the gate approved,
+# and every later instance would reproduce it. Rollback is `./restore_main`
+# (the named dump + the previous image), per instance.
+#
+# Usage:
+#   ./rollout_products --expect rollout_logs/consolidation_plan.json <instance> [<instance>...]
+#   ./rollout_products --expect rollout_logs/consolidation_plan.json --deploy sierraleone uganda
+#
+# DRY-RUN BY DEFAULT: without --deploy it preflights every instance and prints
+# the counts it would verify, and touches nothing. --deploy is what updates
+# images and runs the migration.
+#
+# Options:
+#   --expect <file>   planned counts from ./validate_consolidation.ts --json
+#                     (required; the gate's numbers, not re-derived ones)
+#   --deploy          actually update + restart + post-check
+#   --version <v>     server version to roll out (default: the VERSION file)
+#   MIN_FREE_GB       data-volume headroom, default 10
+#   SKIP_BACKUP_CHECK=1  bypass the backup preflight (only for an instance
+#                     whose dump you have verified by hand)
+
+set -u -o pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SSH_HOST="wb-server"
+HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-600}"
+MIN_FREE_GB="${MIN_FREE_GB:-10}"
+SKIP_BACKUP_CHECK="${SKIP_BACKUP_CHECK:-0}"
+
+# All remote calls go through one multiplexed ssh connection (ControlMaster):
+# parallel terminals otherwise open enough concurrent handshakes to trip
+# sshd's MaxStartups and get refused. Exit 255 (ssh-level failure, command
+# never returned) is retried; remote command failures pass through untouched.
+SSH_OPTS=(-o ConnectTimeout=15 -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=15m)
+sshx() {
+    local attempt rc
+    for attempt in 1 2 3; do
+        command ssh "${SSH_OPTS[@]}" "$@"
+        rc=$?
+        [ "$rc" -ne 255 ] && return "$rc"
+        echo "  (ssh connection failed — retry $attempt/3 in 15s)" >&2
+        sleep 15
+    done
+    return 255
+}
+
+usage() {
+    echo "Usage: ./rollout_products --expect <plan.json> [--deploy] [--version <v>] <instance> [<instance>...]"
+    echo "  e.g. ./rollout_products --expect rollout_logs/consolidation_plan.json sierraleone       # dry-run"
+    echo "       ./rollout_products --expect rollout_logs/consolidation_plan.json --deploy sierraleone"
+    exit 1
+}
+
+EXPECT_FILE=""
+DEPLOY=false
+VERSION=""
+INSTANCES=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --expect) EXPECT_FILE="${2:-}"; shift 2 ;;
+        --version) VERSION="${2:-}"; shift 2 ;;
+        --deploy) DEPLOY=true; shift ;;
+        -*) echo "ERROR: unknown option: $1"; usage ;;
+        *) INSTANCES+=("$1"); shift ;;
+    esac
+done
+
+[ -n "$EXPECT_FILE" ] || { echo "ERROR: --expect <plan.json> is required."; usage; }
+[ -f "$EXPECT_FILE" ] || { echo "ERROR: no such plan file: $EXPECT_FILE"; exit 1; }
+[ "${#INSTANCES[@]}" -ge 1 ] || usage
+
+if [ -z "$VERSION" ]; then
+    VERSION="$(cat "$SCRIPT_DIR/VERSION")"
+fi
+IMAGE_TAG="timroberton/comb:wb-fastr-server-v$VERSION"
+
+LOG_DIR="rollout_logs/products-$VERSION-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$LOG_DIR"
+
+# Mirror everything shown on the console into the run's log dir as well.
+exec > >(tee -a "$LOG_DIR/console.log") 2>&1
+
+fail() {
+    local instance="$1" phase="$2" msg="$3"
+    echo ""
+    echo "ROLLOUT HALTED at instance '$instance', phase '$phase'"
+    echo "  $msg"
+    echo "  Logs: $LOG_DIR/"
+    echo "  Instances completed before the halt: ${COMPLETED[*]:-none}"
+    echo "  Rollback for a migrated instance is ./restore_main <instance>"
+    echo "  <dump> --previous-version <v> --confirm (the named dump is NOT"
+    echo "  optional — the previous image cannot boot after 081 without it)."
+    exit 1
+}
+
+psql_main() {
+    local instance="$1" query="$2"
+    sshx "$SSH_HOST" "docker exec ${instance}-postgres psql -U postgres -d main -t -A -c \"$query\""
+}
+
+expected() {
+    local instance="$1" key="$2"
+    jq -r --arg i "$instance" --arg k "$key" '.[$i][$k] // empty' "$EXPECT_FILE"
+}
+
+check_count() {
+    local instance="$1" label="$2" query="$3" want="$4"
+    local got
+    got=$(psql_main "$instance" "$query") ||
+        fail "$instance" "post-check" "could not query $label"
+    if [ "$got" != "$want" ]; then
+        fail "$instance" "post-check" "$label: got $got, the dry-run planned $want"
+    fi
+    printf "    %-16s %s\n" "$label" "$got"
+}
+
+echo "Products rollout: $IMAGE_TAG"
+echo "Instances (in order): ${INSTANCES[*]}"
+echo "Planned counts: $EXPECT_FILE"
+echo "Logs: $LOG_DIR/"
+if [ "$DEPLOY" = false ]; then
+    echo ""
+    echo "DRY-RUN — preflight only. Nothing is updated, restarted or migrated."
+    echo "Add --deploy to roll out."
+fi
+
+# Every named instance must appear in the gate's plan file: an instance the
+# dry-run never checked is an instance that was never gated.
+for INSTANCE in "${INSTANCES[@]}"; do
+    if [ -z "$(expected "$INSTANCE" products)" ]; then
+        echo "ERROR: '$INSTANCE' has no entry in $EXPECT_FILE — it was never gated."
+        echo "       Run ./validate_consolidation.ts --json $EXPECT_FILE first."
+        exit 1
+    fi
+done
+
+# Verify the image tag exists on the registry before touching any instance.
+if ! sshx "$SSH_HOST" "docker manifest inspect $IMAGE_TAG >/dev/null 2>&1"; then
+    echo "ERROR: $IMAGE_TAG not found on the registry. Push it first (./deploy)."
+    exit 1
+fi
+
+COMPLETED=()
+
+for INSTANCE in "${INSTANCES[@]}"; do
+    echo ""
+    echo "════════ $INSTANCE ════════"
+
+    # ── 1. Preflight ────────────────────────────────────────────────────────
+    SHOW_JSON=$(sshx "$SSH_HOST" "wb c show $INSTANCE --json") ||
+        fail "$INSTANCE" "preflight" "wb c show failed — does the instance exist? (wb c list)"
+    PORT=$(echo "$SHOW_JSON" | jq -r '.port')
+    [ -n "$PORT" ] && [ "$PORT" != "null" ] ||
+        fail "$INSTANCE" "preflight" "could not determine port from: $SHOW_JSON"
+
+    CURRENT_IMAGE=$(sshx "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE 2>/dev/null" || true)
+    echo "Port $PORT, currently on ${CURRENT_IMAGE:-<not running>}"
+
+    SANDBOX_SRC=$(sshx "$SSH_HOST" "docker inspect $INSTANCE --format '{{range .Mounts}}{{if eq .Destination \"/app/sandbox\"}}{{.Source}}{{end}}{{end}}' 2>/dev/null" || true)
+    if [ -n "$SANDBOX_SRC" ]; then
+        FREE_GB=$(sshx "$SSH_HOST" "df -BG --output=avail '$SANDBOX_SRC' | tail -1 | tr -dc '0-9'")
+        echo "Data volume free: ${FREE_GB}G (min ${MIN_FREE_GB}G)"
+        [ "$FREE_GB" -ge "$MIN_FREE_GB" ] ||
+            fail "$INSTANCE" "preflight" "only ${FREE_GB}G free on $SANDBOX_SRC (need ${MIN_FREE_GB}G)"
+    else
+        echo "WARNING: could not resolve sandbox mount — skipping disk check"
+    fi
+
+    # The rollback path is the named dump + the previous image, and the
+    # previous image cannot boot after 081. Refuse to migrate an instance whose
+    # dump you have not confirmed.
+    if [ "$SKIP_BACKUP_CHECK" != "1" ] && [ "$DEPLOY" = true ]; then
+        echo ""
+        echo "Rollback pre-check for $INSTANCE:"
+        echo "  A NAMED status-api dump of 'main' taken from ${CURRENT_IMAGE:-the current image}"
+        echo "  must be on disk locally BEFORE this instance is migrated (§5 step 4)."
+        read -r -p "  Confirm the dump exists and ./restore_main was rehearsed [yes/no]: " CONFIRM
+        [ "$CONFIRM" = "yes" ] ||
+            fail "$INSTANCE" "preflight" "no confirmed rollback dump — take one, then re-run"
+    fi
+
+    echo ""
+    echo "  Planned by the dry-run:"
+    printf "    %-16s %s\n" "products" "$(expected "$INSTANCE" products)"
+    printf "    %-16s %s\n" "slide_decks" "$(expected "$INSTANCE" slideDecks)"
+    printf "    %-16s %s\n" "reports" "$(expected "$INSTANCE" reports)"
+    printf "    %-16s %s\n" "folders" "$(expected "$INSTANCE" folders)"
+    printf "    %-16s %s\n" "slides" "$(expected "$INSTANCE" slides)"
+
+    if [ "$DEPLOY" = false ]; then
+        echo "  DRY-RUN: preflight OK, not deploying."
+        COMPLETED+=("$INSTANCE")
+        continue
+    fi
+
+    # ── 2. Update + health ──────────────────────────────────────────────────
+    if [ "$CURRENT_IMAGE" = "$IMAGE_TAG" ]; then
+        echo "Already on $VERSION — skipping update/restart"
+    else
+        sshx "$SSH_HOST" "wb c update $INSTANCE --server $VERSION && wb restart $INSTANCE" ||
+            fail "$INSTANCE" "update" "wb c update / wb restart failed"
+    fi
+
+    echo "Polling health (timeout ${HEALTH_TIMEOUT_SECONDS}s) — the consolidation runs inside this boot..."
+    # No sshx retry here: the heredoc stdin is consumed on the first attempt,
+    # and a retried empty stdin would make the remote bash exit 0 — a FALSE
+    # healthy. A 255 here fails the health gate, which is the safe direction.
+    if ! command ssh "${SSH_OPTS[@]}" "$SSH_HOST" "PORT='$PORT' TIMEOUT='$HEALTH_TIMEOUT_SECONDS' bash -s" <<'REMOTE'
+deadline=$((SECONDS + TIMEOUT))
+while [ "$SECONDS" -lt "$deadline" ]; do
+    body=$(curl -sfm 5 "http://localhost:$PORT/health_check" || true)
+    case "$body" in
+        *'"running":true'*) exit 0 ;;
+    esac
+    sleep 5
+done
+exit 1
+REMOTE
+    then
+        sshx "$SSH_HOST" "docker logs --tail 120 $INSTANCE" > "$LOG_DIR/$INSTANCE-boot.log" 2>&1 || true
+        tail -40 "$LOG_DIR/$INSTANCE-boot.log" || true
+        fail "$INSTANCE" "health" "no healthy /health_check within ${HEALTH_TIMEOUT_SECONDS}s. A migration failure fail-stops the boot and rolls the transaction back, so the instance is still on its pre-restructure schema (full log: $LOG_DIR/$INSTANCE-boot.log)"
+    fi
+    echo "Healthy."
+
+    # Keep the boot log: it carries the per-project 080 consolidate lines.
+    sshx "$SSH_HOST" "docker logs --tail 500 $INSTANCE" > "$LOG_DIR/$INSTANCE-boot.log" 2>&1 || true
+
+    RUNNING_IMAGE=$(sshx "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE")
+    [ "$RUNNING_IMAGE" = "$IMAGE_TAG" ] ||
+        fail "$INSTANCE" "update" "running image is $RUNNING_IMAGE, expected $IMAGE_TAG"
+
+    # ── 3. Post-check: the project layer is gone ────────────────────────────
+    PROJECTS_TABLE=$(psql_main "$INSTANCE" "SELECT COALESCE(to_regclass('public.projects')::text, 'dropped')") ||
+        fail "$INSTANCE" "post-check" "could not query main"
+    [ "$PROJECTS_TABLE" = "dropped" ] ||
+        fail "$INSTANCE" "post-check" "the projects table still exists — migration 081 did not run"
+
+    APPLIED_081=$(psql_main "$INSTANCE" "SELECT count(*) FROM schema_migrations WHERE migration_id = '081_drop_project_layer'")
+    [ "$APPLIED_081" = "1" ] ||
+        fail "$INSTANCE" "post-check" "081_drop_project_layer is not recorded in schema_migrations"
+
+    # ── 4. Post-check: counts vs the gated plan ─────────────────────────────
+    echo "  Actual after migration:"
+    check_count "$INSTANCE" "products" "SELECT count(*) FROM products" "$(expected "$INSTANCE" products)"
+    check_count "$INSTANCE" "slide_decks" "SELECT count(*) FROM products WHERE type = 'slide_deck'" "$(expected "$INSTANCE" slideDecks)"
+    check_count "$INSTANCE" "reports" "SELECT count(*) FROM products WHERE type = 'report'" "$(expected "$INSTANCE" reports)"
+    check_count "$INSTANCE" "folders" "SELECT count(*) FROM folders" "$(expected "$INSTANCE" folders)"
+    check_count "$INSTANCE" "slides" "SELECT count(*) FROM slides" "$(expected "$INSTANCE" slides)"
+    check_count "$INSTANCE" "deck_versions" "SELECT count(*) FROM deck_versions" "$(expected "$INSTANCE" deckVersions)"
+    check_count "$INSTANCE" "report_versions" "SELECT count(*) FROM report_versions" "$(expected "$INSTANCE" reportVersions)"
+
+    # Every product must point at a package, and every folder must be reachable
+    # — the two invariants 079's DDL cannot express on its own.
+    ORPHAN_RUNS=$(psql_main "$INSTANCE" "SELECT count(*) FROM products p WHERE NOT EXISTS (SELECT 1 FROM runs r WHERE r.id = p.run_id)")
+    [ "$ORPHAN_RUNS" = "0" ] ||
+        fail "$INSTANCE" "post-check" "$ORPHAN_RUNS product(s) point at a package that does not exist"
+
+    echo "$INSTANCE COMPLETE: migrated + post-checked against the gated plan."
+    COMPLETED+=("$INSTANCE")
+done
+
+echo ""
+if [ "$DEPLOY" = false ]; then
+    echo "════════ DRY-RUN COMPLETE ════════"
+    echo "  Image:       $IMAGE_TAG (not applied)"
+    echo "  Preflighted: ${COMPLETED[*]:-none}"
+    echo "  Re-run with --deploy to roll out."
+else
+    echo "════════ PRODUCTS ROLLOUT COMPLETE ════════"
+    echo "  Image:       $IMAGE_TAG"
+    echo "  Instances:   ${COMPLETED[*]:-none}"
+    echo "  Logs:        $LOG_DIR/"
+    echo ""
+    echo "The old project databases and legacy sandbox/<uuid> dirs are STILL ON"
+    echo "DISK — they are the rollback path. Let this settle for days, then run"
+    echo "./purge_legacy_dbs (§5 step 6)."
+fi

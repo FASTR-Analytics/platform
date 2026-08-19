@@ -7,6 +7,7 @@ export * from "./convert_period_value.ts";
 export * from "./derive_default_visualizations.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./dataset_family.ts";
+export * from "./figure_package_issue.ts";
 export * from "./disaggregation_labels.ts";
 export * from "./hfa_indicator_labels.ts";
 export * from "./hfa_r_code_analysis.ts";

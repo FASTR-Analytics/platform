@@ -1,4 +1,3 @@
-import { join } from "@std/path";
 import { Sql } from "postgres";
 import {
   _INSTANCE_ID,
@@ -33,26 +32,6 @@ async function getDiskStats(): Promise<DiskStats | null> {
   } catch {
     console.warn("[disk_space] getDiskStats failed");
     return null;
-  }
-}
-
-async function getProjectSandboxBytes(projectId: string): Promise<number> {
-  try {
-    const projectDir = join(_SANDBOX_DIR_PATH, projectId);
-    const cmd = new Deno.Command("du", {
-      args: ["--block-size=1", "-s", projectDir],
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const { code, stdout } = await cmd.output();
-    if (code !== 0) return 0;
-    const val = parseInt(
-      new TextDecoder().decode(stdout).trim().split(/\s+/)[0] ?? "0",
-      10,
-    );
-    return isNaN(val) ? 0 : val;
-  } catch {
-    return 0;
   }
 }
 
@@ -122,7 +101,7 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
   return true;
 }
 
-const MIN_FREE_BYTES_FOR_NEW_PROJECT = 500 * 1024 * 1024; // 500 MB
+const MIN_FREE_BYTES_INSTANCE = 500 * 1024 * 1024; // 500 MB
 const MIN_FREE_BYTES_FOR_MODULE_RUN = 200 * 1024 * 1024; // 200 MB
 
 const DATASET_TABLE_NAMES: Record<string, string> = {
@@ -130,7 +109,10 @@ const DATASET_TABLE_NAMES: Record<string, string> = {
   hfa: "dataset_hfa",
 };
 
-export async function checkSpaceForNewProject(): Promise<{
+// The instance-wide free-space check behind /disk_space: no per-product or
+// per-run sizing, just "is the volume close enough to full that the user
+// should be warned before starting work".
+export async function checkInstanceDiskSpace(): Promise<{
   ok: boolean;
   availableGB?: number;
   resizeTriggered?: boolean;
@@ -138,7 +120,7 @@ export async function checkSpaceForNewProject(): Promise<{
   const stats = await getDiskStats();
   if (stats === null) return { ok: true };
   const resizeTriggered = maybeRequestVolumeResize(stats);
-  if (stats.availBytes < MIN_FREE_BYTES_FOR_NEW_PROJECT) {
+  if (stats.availBytes < MIN_FREE_BYTES_INSTANCE) {
     return { ok: false, availableGB: toGB(stats.availBytes), resizeTriggered };
   }
   return { ok: true };
@@ -180,38 +162,6 @@ export async function checkSpaceForDataset(
   }
 
   const required = Math.ceil(tableBytes * 1.5); // CSV export ~1.5× Postgres binary size
-  if (required > 0 && required >= stats.availBytes) {
-    return {
-      ok: false,
-      requiredGB: toGB(required),
-      availableGB: toGB(stats.availBytes),
-      resizeTriggered,
-    };
-  }
-  return { ok: true };
-}
-
-export async function checkSpaceForCopyProject(
-  mainDb: Sql,
-  projectId: string,
-): Promise<{ ok: boolean; requiredGB?: number; availableGB?: number; resizeTriggered?: boolean }> {
-  const stats = await getDiskStats();
-  if (stats === null) return { ok: true };
-  const resizeTriggered = maybeRequestVolumeResize(stats);
-
-  let dbBytes = 0;
-  try {
-    const rows = await mainDb<[{ size: bigint }]>`
-      SELECT pg_database_size(${projectId}) AS size
-    `;
-    dbBytes = Number(rows[0]?.size ?? 0);
-  } catch {
-    // fail open
-  }
-
-  const sandboxBytes = await getProjectSandboxBytes(projectId);
-  const required = dbBytes + sandboxBytes;
-
   if (required > 0 && required >= stats.availBytes) {
     return {
       ok: false,

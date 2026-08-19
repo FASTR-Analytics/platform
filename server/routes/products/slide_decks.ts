@@ -1,22 +1,17 @@
 import { Hono } from "hono";
 import {
-  getAllSlideDecks,
-  getSlideDeckDetail,
-  createSlideDeck,
-  updateSlideDeckLabel,
-  updateSlideDeckPlan,
-  updateSlideDeckConfig,
-  moveSlideDeckToFolder,
-  duplicateSlideDeck,
-  deleteSlideDeck,
   copyDeckFromVersion,
   getDeckVersion,
+  getSlideDeckDetail,
   insertDeckVersion,
   latestDeckVersionHash,
   listDeckVersions,
   planDeckRestore,
+  remapCollidingSlideIds,
   restoreDeckStructure,
   updateSlide,
+  updateSlideDeckConfig,
+  updateSlideDeckPlan,
 } from "../../db/mod.ts";
 import {
   applySlideToLiveRoom,
@@ -40,110 +35,35 @@ import {
   compactSlideElementTombstones,
   snapshotSlideElementAuthors,
 } from "../../collab/authorship.ts";
-import { remapCollidingSlideIds } from "../../db/mod.ts";
-import { requireProjectPermission } from "../../project_auth.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { log } from "../../middleware/logging.ts";
-import { notifyLastUpdated } from "../../task_management/mod.ts";
-import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
+import {
+  notifyLastUpdated,
+  notifyProductsUpserted,
+} from "../../task_management/mod.ts";
 import {
   type DeckVersionSlide,
   listSlideConfigTextElements,
   type Slide,
   slideConfigSchema,
-  SlideDeckConfig,
+  type SlideDeckConfig,
   slideDeckConfigSchema,
 } from "lib";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlideDecks = new Hono();
 
-defineRoute(
-  routesSlideDecks,
-  "getAllSlideDecks",
-  requireProjectPermission("can_view_slide_decks"),
-  async (c) => {
-    const res = await getAllSlideDecks(c.var.ppk.projectDb);
-    return c.json(res);
-  },
-);
+// Deck CONTENT and versions only — label, folder, package, scope, duplicate
+// and delete are the shared product routes (./products.ts). deck_id IS the
+// product id, and requireApprovedUser() is the whole guard: the id in the path
+// is the authority (D2).
 
 defineRoute(
   routesSlideDecks,
   "getSlideDeckDetail",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await getSlideDeckDetail(c.var.ppk.projectDb, params.deck_id);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesSlideDecks,
-  "createSlideDeck",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
-  log("createSlideDeck"),
-  async (c, { body }) => {
-    const res = await createSlideDeck(
-      c.var.ppk.projectDb,
-      body.label,
-      body.folderId,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [res.data.deckId],
-      res.data.lastUpdated,
-    );
-
-    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-    if (decksRes.success) {
-      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-    }
-
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesSlideDecks,
-  "updateSlideDeckLabel",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
-  async (c, { params, body }) => {
-    const res = await updateSlideDeckLabel(
-      c.var.ppk.projectDb,
-      params.deck_id,
-      body.label,
-    );
-    if (!res.success) {
-      return c.json(res);
-    }
-
-    const editor = editorFromGlobalUser(c.var.globalUser);
-    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
-    recordDeckSettingsEdited(c.var.ppk.projectId, params.deck_id, editor.email);
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
-
-    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-    if (decksRes.success) {
-      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-    }
-
+    const res = await getSlideDeckDetail(c.var.mainDb, params.deck_id);
     return c.json(res);
   },
 );
@@ -151,13 +71,10 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "updateSlideDeckPlan",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await updateSlideDeckPlan(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       body.plan,
     );
@@ -165,12 +82,7 @@ defineRoute(
       return c.json(res);
     }
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
     return c.json(res);
   },
@@ -179,13 +91,10 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "updateSlideDeckConfig",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await updateSlideDeckConfig(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       body.config as SlideDeckConfig,
     );
@@ -194,102 +103,11 @@ defineRoute(
     }
 
     const editor = editorFromGlobalUser(c.var.globalUser);
-    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
-    recordDeckSettingsEdited(c.var.ppk.projectId, params.deck_id, editor.email);
+    recordVersionEdit("deck", params.deck_id, editor);
+    recordDeckSettingsEdited(params.deck_id, editor.email);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
-    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-    if (decksRes.success) {
-      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-    }
-
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesSlideDecks,
-  "moveSlideDeckToFolder",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
-  async (c, { params, body }) => {
-    const res = await moveSlideDeckToFolder(
-      c.var.ppk.projectDb,
-      params.deck_id,
-      body.folderId,
-    );
-    if (res.success) {
-      const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-      if (decksRes.success) {
-        notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-      }
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesSlideDecks,
-  "duplicateSlideDeck",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
-  async (c, { params, body }) => {
-    const res = await duplicateSlideDeck(
-      c.var.ppk.projectDb,
-      params.deck_id,
-      body.label,
-      body.folderId,
-    );
-    if (res.success) {
-      const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-      if (decksRes.success) {
-        notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-      }
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesSlideDecks,
-  "deleteSlideDeck",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
-  log("deleteSlideDeck"),
-  async (c, { params }) => {
-    // Slide ids must be read BEFORE the delete (CASCADE removes the rows) so
-    // their live rooms can be discarded — a room left behind would fail its
-    // checkpoints forever. A transient fetch failure must therefore abort the
-    // delete (deleting anyway would leave every live room a zombie); only the
-    // deck-already-gone case proceeds, as an idempotent no-op delete.
-    const deckRes = await getSlideDeckDetail(c.var.ppk.projectDb, params.deck_id);
-    if (!deckRes.success && deckRes.err !== "Slide deck not found") {
-      return c.json(deckRes);
-    }
-    const slideIds = deckRes.success ? deckRes.data.slideIds : [];
-
-    const res = await deleteSlideDeck(c.var.ppk.projectDb, params.deck_id);
-    if (res.success) {
-      for (const slideId of slideIds) {
-        closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
-      }
-      const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-      if (decksRes.success) {
-        notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-      }
-    }
     return c.json(res);
   },
 );
@@ -297,9 +115,9 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "listDeckVersions",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await listDeckVersions(c.var.ppk.projectDb, params.deck_id);
+    const res = await listDeckVersions(c.var.mainDb, params.deck_id);
     return c.json(res);
   },
 );
@@ -307,10 +125,10 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "getDeckVersion",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   async (c, { params }) => {
     const res = await getDeckVersion(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       params.version_id,
     );
@@ -321,18 +139,14 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "restoreDeckVersion",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   log("restoreDeckVersion"),
   async (c, { params }) => {
-    const projectId = c.var.ppk.projectId;
-    const projectDb = c.var.ppk.projectDb;
+    const mainDb = c.var.mainDb;
     const restorer = editorFromGlobalUser(c.var.globalUser);
 
     const versionRes = await getDeckVersion(
-      projectDb,
+      mainDb,
       params.deck_id,
       params.version_id,
     );
@@ -369,7 +183,7 @@ defineRoute(
 
     // Persist any un-checkpointed live-room edits FIRST — the safety snapshot
     // below reads the DB, and live slide rooms can be up to 1.5s ahead of it.
-    const idsRes = await getSlideDeckDetail(projectDb, params.deck_id);
+    const idsRes = await getSlideDeckDetail(mainDb, params.deck_id);
     if (!idsRes.success) {
       return c.json(idsRes);
     }
@@ -377,7 +191,7 @@ defineRoute(
     // would not contain the current state — abort rather than overwrite the
     // deck while promising a rollback point we don't have.
     for (const slideId of idsRes.data.slideIds) {
-      if (!await flushSlideRoom(projectId, slideId)) {
+      if (!await flushSlideRoom(slideId)) {
         return c.json({
           success: false as const,
           err:
@@ -390,20 +204,20 @@ defineRoute(
     // left in the tracker it would hash-dedup against the restored state
     // later and those editors would never appear in any version. The
     // per-slide ledger travels with it.
-    const drained = drainVersionEditors(projectId, "deck", params.deck_id);
-    const drainedSlideEditors = drainDeckLedger(projectId, params.deck_id);
+    const drained = drainVersionEditors("deck", params.deck_id);
+    const drainedSlideEditors = drainDeckLedger(params.deck_id);
     const reinjectDrained = () => {
       for (const e of drained) {
-        recordVersionEdit(projectId, "deck", params.deck_id, e);
+        recordVersionEdit("deck", params.deck_id, e);
       }
-      restoreDeckLedger(projectId, params.deck_id, drainedSlideEditors);
+      restoreDeckLedger(params.deck_id, drainedSlideEditors);
     };
 
     // Safety version: the current state is preserved before anything is
     // overwritten (skipped when it's already the newest stored version).
     let current;
     try {
-      current = await loadDeckVersionData(projectId, params.deck_id);
+      current = await loadDeckVersionData(params.deck_id);
     } catch (error) {
       reinjectDrained();
       return c.json({
@@ -423,7 +237,6 @@ defineRoute(
         const sl = drainedSlideEditors.slides[s.id];
         if (!sl) continue;
         const authors = snapshotSlideElementAuthors(
-          projectId,
           s.id,
           listSlideConfigTextElements(s.config),
         );
@@ -432,9 +245,9 @@ defineRoute(
     }
     const safetyCreatedAt = new Date().toISOString();
     const currentHash = hashVersionData(current);
-    const latestRes = await latestDeckVersionHash(projectDb, params.deck_id);
+    const latestRes = await latestDeckVersionHash(mainDb, params.deck_id);
     if (currentHash !== (latestRes.success ? latestRes.data.hash : null)) {
-      const safetyRes = await insertDeckVersion(projectDb, {
+      const safetyRes = await insertDeckVersion(mainDb, {
         deckId: params.deck_id,
         createdAt: safetyCreatedAt,
         label: current.label,
@@ -452,11 +265,7 @@ defineRoute(
       // for exactly the elements it captured (mirrors writeVersion).
       for (const s of current.slides) {
         const captured = drainedSlideEditors?.slides[s.id]?.elementAuthors;
-        compactSlideElementTombstones(
-          projectId,
-          s.id,
-          Object.keys(captured ?? {}),
-        );
+        compactSlideElementTombstones(s.id, Object.keys(captured ?? {}));
       }
     }
 
@@ -469,7 +278,7 @@ defineRoute(
       current.slides.map((s) => s.id),
       snapshotSlides,
     );
-    const remapRes = await remapCollidingSlideIds(projectDb, plan);
+    const remapRes = await remapCollidingSlideIds(mainDb, plan);
     if (!remapRes.success) {
       reinjectDrained();
       return c.json(remapRes);
@@ -481,14 +290,14 @@ defineRoute(
     // row (re-inserted). Rooms of surviving slides stay alive: the restore
     // merges through them below, so co-editors follow it live.
     for (const id of plan.toDelete) {
-      closeSlideRoom(projectId, id, "This slide was removed by a version restore");
+      closeSlideRoom(id, "This slide was removed by a version restore");
     }
     for (const s of plan.toInsert) {
-      closeSlideRoom(projectId, s.id, "This slide was replaced by a version restore");
+      closeSlideRoom(s.id, "This slide was replaced by a version restore");
     }
 
     const structRes = await restoreDeckStructure(
-      projectDb,
+      mainDb,
       params.deck_id,
       version.label,
       deckConfig,
@@ -511,11 +320,7 @@ defineRoute(
     // restored-state version claiming the full snapshot, nor report success.
     const failedSlideIds: string[] = [];
     for (const s of plan.toUpdate) {
-      const roomRes = await applySlideToLiveRoom(
-        projectId,
-        s.id,
-        s.config,
-      );
+      const roomRes = await applySlideToLiveRoom(s.id, s.config);
       if (roomRes.status === "saved") {
         lastUpdated = roomRes.lastUpdated;
       } else if (roomRes.status === "save_failed") {
@@ -523,7 +328,13 @@ defineRoute(
         // no direct-write fallback (the room owns persistence).
         failedSlideIds.push(s.id);
       } else {
-        const res = await updateSlide(projectDb, s.id, s.config, undefined, undefined);
+        const res = await updateSlide(
+          mainDb,
+          s.id,
+          s.config,
+          undefined,
+          undefined,
+        );
         if (res.success) {
           lastUpdated = res.data.lastUpdated;
         } else {
@@ -539,12 +350,8 @@ defineRoute(
         ...plan.toUpdate.map((s) => s.id),
       ]),
     ];
-    notifyLastUpdated(projectId, "slides", touchedSlideIds, lastUpdated);
-    notifyLastUpdated(projectId, "slide_decks", [params.deck_id], lastUpdated);
-    const decksRes = await getAllSlideDecks(projectDb);
-    if (decksRes.success) {
-      notifyProjectSlideDecksUpdated(projectId, decksRes.data);
-    }
+    notifyLastUpdated("slides", touchedSlideIds, lastUpdated);
+    await notifyProductsUpserted(mainDb, [params.deck_id]);
 
     if (failedSlideIds.length > 0) {
       // The deck is partially restored. The safety version exists and the
@@ -567,7 +374,7 @@ defineRoute(
       deckConfig,
       slides: restoredSlides,
     };
-    const restoredRes = await insertDeckVersion(projectDb, {
+    const restoredRes = await insertDeckVersion(mainDb, {
       deckId: params.deck_id,
       // Strictly after the safety version even within one millisecond — the
       // two are ordered by (created_at, id) everywhere, and a tie would let
@@ -589,7 +396,7 @@ defineRoute(
     // like the report route's compactTombstones, they must not leak into the
     // next session's version as phantom removed spans.
     for (const s of plan.toUpdate) {
-      compactSlideElementTombstones(projectId, s.id);
+      compactSlideElementTombstones(s.id);
     }
 
     return c.json({ success: true as const, data: { lastUpdated } });
@@ -599,33 +406,24 @@ defineRoute(
 defineRoute(
   routesSlideDecks,
   "copyDeckVersion",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   log("copyDeckVersion"),
   async (c, { params, body }) => {
-    const res = await copyDeckFromVersion(
-      c.var.ppk.projectDb,
-      params.deck_id,
-      params.version_id,
-      body.label,
-      body.folderId,
-    );
+    // "Restore as copy" mints a NEW product, so it carries a label and folder
+    // like createProduct does — and inherits the source deck's (run_id, scope)
+    // pair verbatim (D4).
+    const res = await copyDeckFromVersion(c.var.mainDb, {
+      deckId: params.deck_id,
+      versionId: params.version_id,
+      label: body.label,
+      folderId: body.folderId,
+      createdBy: c.var.globalUser.email,
+    });
     if (!res.success) {
       return c.json(res);
     }
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [res.data.newDeckId],
-      res.data.lastUpdated,
-    );
-    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
-    if (decksRes.success) {
-      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
-    }
+    await notifyProductsUpserted(c.var.mainDb, [res.data.productId]);
 
     return c.json(res);
   },

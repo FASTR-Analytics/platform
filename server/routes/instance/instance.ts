@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { InstanceMeta } from "lib";
 import {
   getInstanceDetail,
-  getProjectsForUser,
   setStructureSchema,
   updateAdminAreaLabelsConfig,
+  updateAiContextConfig,
 } from "../../db/mod.ts";
 import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import {
@@ -22,7 +22,7 @@ import {
 import { log } from "../../middleware/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { checkSpaceForNewProject } from "../../utils/disk_space.ts";
+import { checkInstanceDiskSpace } from "../../utils/disk_space.ts";
 
 export const routesInstance = new Hono();
 
@@ -58,18 +58,8 @@ defineRoute(
   requireGlobalPermission(),
   log("getInstanceDetail"),
   async (c) => {
-    const res = await getInstanceDetail(c.var.mainDb, c.var.globalUser);
+    const res = await getInstanceDetail(c.var.mainDb);
     return c.json(res);
-  },
-);
-
-defineRoute(
-  routesInstance,
-  "getMyProjects",
-  requireGlobalPermission(),
-  async (c) => {
-    const projects = await getProjectsForUser(c.var.mainDb, c.var.globalUser);
-    return c.json({ success: true, data: projects });
   },
 );
 
@@ -101,7 +91,21 @@ defineRoute(
   },
 );
 
+defineRoute(
+  routesInstance,
+  "updateAiContextConfig",
+  requireGlobalPermission("can_configure_settings"),
+  log("updateAiContextConfig"),
+  async (c, { body }) => {
+    const res = await updateAiContextConfig(c.var.mainDb, body.aiContext);
+    if (res.success) {
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+    }
+    return c.json(res);
+  },
+);
+
 defineRoute(routesInstance, "getDiskSpace", requireGlobalPermission(), async (c) => {
-  const res = await checkSpaceForNewProject();
+  const res = await checkInstanceDiskSpace();
   return c.json({ success: true, data: { ok: res.ok, availableGB: res.availableGB } });
 });

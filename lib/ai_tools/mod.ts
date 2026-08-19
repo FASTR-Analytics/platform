@@ -1,6 +1,6 @@
 // The AI tools BOTH surfaces expose — the SPA copilot and the /mcp endpoint —
 // over one package-bound env (env.ts). SPA-only tools and their formatters
-// live in client/src/components/project_ai/ai_tools/.
+// live in client/src/components/copilot/ai_tools/.
 export * from "./env.ts";
 export * from "./build_system_prompt.ts";
 export * from "./info_catalog.ts";

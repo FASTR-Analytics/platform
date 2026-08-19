@@ -1,4 +1,6 @@
+import type { Context } from "hono";
 import type { Sql } from "postgres";
+import type { GlobalUser } from "lib";
 import {
   AddAiUsageLog,
   GetInstanceWeeklyTokenUsage,
@@ -14,12 +16,16 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../exposed_env_vars.ts";
 
-// The ONE Anthropic /v1/messages passthrough, shared by the project proxy
-// (mounted at /ai, per-project usage attribution) and the instance proxy
-// (mounted at /ai-instance, null project_id; powers the HFA Indicator
-// Manager assistant). Governance (daily-user + weekly-instance token
-// limits), usage logging, and the beta-header policy live here so the two
-// mounts cannot drift.
+// The ONE Anthropic /v1/messages passthrough. Two mounts, ONE handler
+// (D15): /ai is the copilot (requireApprovedUser) and /ai-instance is the HFA
+// Indicator Manager's own assistant (can_configure_data) — the guard is the
+// only difference, so the bodies cannot drift. Governance (daily-user +
+// weekly-instance token limits), usage logging, and the beta-header policy
+// live here.
+//
+// Usage is attributed to the signed-in user and nothing finer: there is no
+// product dimension on `ai_usage_logs` (the project column died with the
+// project layer), and the token limits are user/instance-scoped anyway.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
 // envelope — the browser Anthropic SDK parses them (see SYSTEM_13).
@@ -44,9 +50,23 @@ type ProxyArgs = {
   clientBetaHeader: string | undefined;
   userEmail: string;
   unlimitedAi: boolean;
-  projectId: string | null;
   mainDb: Sql;
 };
+
+// The handler both mounts register. Everything it needs is what the guards
+// already set (`globalUser`, `mainDb`), so the two mounts differ ONLY in the
+// middleware in front of this function.
+export function anthropicMessagesHandler(
+  c: Context<{ Variables: { globalUser: GlobalUser; mainDb: Sql } }>,
+): Promise<Response> {
+  return proxyAnthropicMessages({
+    parseBody: () => c.req.json(),
+    clientBetaHeader: c.req.header("anthropic-beta"),
+    userEmail: c.var.globalUser.email,
+    unlimitedAi: c.var.globalUser.unlimitedAi,
+    mainDb: c.var.mainDb,
+  });
+}
 
 export async function proxyAnthropicMessages(
   args: ProxyArgs,
@@ -65,7 +85,7 @@ export async function proxyAnthropicMessages(
 }
 
 async function runProxy(args: ProxyArgs): Promise<Response> {
-  const { clientBetaHeader, userEmail, unlimitedAi, projectId, mainDb } = args;
+  const { clientBetaHeader, userEmail, unlimitedAi, mainDb } = args;
   const { stream = false, ...rest } = await args.parseBody();
   const model = typeof rest.model === "string" ? rest.model : "unknown";
 
@@ -172,7 +192,6 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
       AddAiUsageLog(
         mainDb,
         userEmail,
-        projectId,
         model,
         inputTokens,
         outputTokens,
@@ -261,7 +280,6 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   AddAiUsageLog(
     mainDb,
     userEmail,
-    projectId,
     model,
     inputTokens,
     outputTokens,

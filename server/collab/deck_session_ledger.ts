@@ -42,8 +42,8 @@ const ledgers = new Map<string, DeckLedger>();
 // INVARIANT: drainDeckLedger only pulls (and clears) element touches for
 // slides present in the deck ledger's `slides` map. That is safe because
 // every attributed element touch is paired with a recordSlideEdited — the
-// slide-room deps' onEdit (project-collab.ts depsForSlide) fires it for
-// every attributed room edit, the same edits the observer records. An
+// slide-room deps' onEdit (routes/instance/collab.ts depsForSlide) fires it
+// for every attributed room edit, the same edits the observer records. An
 // element touch without that pairing would never drain and never clear.
 type ElementTouch = {
   touched: Set<string>;
@@ -58,16 +58,16 @@ const elementTouches = new Map<string, Map<string, ElementTouch>>();
 const SLIDE_CAP = 500;
 const ELEMENTS_PER_SLIDE_CAP = 100;
 
-function key(projectId: string, deckId: string): string {
-  return `${projectId}::deck::${deckId}`;
+function key(deckId: string): string {
+  return `deck::${deckId}`;
 }
 
-function slideKey(projectId: string, slideId: string): string {
-  return `${projectId}::slide::${slideId}`;
+function slideKey(slideId: string): string {
+  return `slide::${slideId}`;
 }
 
-function ledgerFor(projectId: string, deckId: string): DeckLedger {
-  const k = key(projectId, deckId);
+function ledgerFor(deckId: string): DeckLedger {
+  const k = key(deckId);
   let ledger = ledgers.get(k);
   if (!ledger) {
     ledger = { slides: new Map(), settings: new Set(), reordered: new Set() };
@@ -89,50 +89,46 @@ function touchFor(ledger: DeckLedger, slideId: string): SlideTouch | null {
 }
 
 function record(
-  projectId: string,
   deckId: string,
   slideId: string,
   kind: keyof SlideTouch,
   email: string,
 ): void {
-  const touch = touchFor(ledgerFor(projectId, deckId), slideId);
+  const touch = touchFor(ledgerFor(deckId), slideId);
   if (!touch) {
     // SLIDE_CAP rejected this slide, so it can never appear in a drain — and
     // element touches (keyed by slide id alone) would then never clear,
     // leaking into whichever LATER session first records this slide and
     // attributing old-window edits to someone else's version. Drop them with
     // it: this is the one path that breaks the pairing invariant above.
-    clearSlideElementTouches(projectId, slideId);
+    clearSlideElementTouches(slideId);
     return;
   }
   (touch[kind] ??= new Set()).add(email);
 }
 
 export function recordSlideEdited(
-  projectId: string,
   deckId: string,
   slideId: string,
   email: string,
 ): void {
-  record(projectId, deckId, slideId, "edited", email);
+  record(deckId, slideId, "edited", email);
 }
 
 export function recordSlideAdded(
-  projectId: string,
   deckId: string,
   slideId: string,
   email: string,
 ): void {
-  record(projectId, deckId, slideId, "added", email);
+  record(deckId, slideId, "added", email);
 }
 
 export function recordSlideRemoved(
-  projectId: string,
   deckId: string,
   slideId: string,
   email: string,
 ): void {
-  record(projectId, deckId, slideId, "removed", email);
+  record(deckId, slideId, "removed", email);
 }
 
 /** Element-level touch from the slide-room observer ("field:header",
@@ -140,13 +136,12 @@ export function recordSlideRemoved(
  *  ledger's entry for that slide at drain time. `kind` classifies the op:
  *  "touched" (any edit), "added"/"removed" (structural), "textDeleted". */
 export function recordSlideElementTouch(
-  projectId: string,
   slideId: string,
   elementKey: string,
   email: string,
   kind: keyof ElementTouch,
 ): void {
-  const k = slideKey(projectId, slideId);
+  const k = slideKey(slideId);
   let elements = elementTouches.get(k);
   if (!elements) {
     elements = new Map();
@@ -172,27 +167,19 @@ export function recordSlideElementTouch(
  *  keyed by slide id alone, so left behind they would drain into whichever
  *  LATER session first records a slide with this id (3-char ids get reused),
  *  attributing old-window edits to someone else's version. */
-export function clearSlideElementTouches(
-  projectId: string,
-  slideId: string,
-): void {
-  elementTouches.delete(slideKey(projectId, slideId));
+export function clearSlideElementTouches(slideId: string): void {
+  elementTouches.delete(slideKey(slideId));
 }
 
 export function recordDeckSettingsEdited(
-  projectId: string,
   deckId: string,
   email: string,
 ): void {
-  ledgerFor(projectId, deckId).settings.add(email);
+  ledgerFor(deckId).settings.add(email);
 }
 
-export function recordDeckReordered(
-  projectId: string,
-  deckId: string,
-  email: string,
-): void {
-  ledgerFor(projectId, deckId).reordered.add(email);
+export function recordDeckReordered(deckId: string, email: string): void {
+  ledgerFor(deckId).reordered.add(email);
 }
 
 function renameInSet(set: Set<string> | undefined, oldEmail: string, newEmail: string): void {
@@ -226,11 +213,8 @@ export function renameDeckLedgerEmails(oldEmail: string, newEmail: string): void
 
 /** Freeze + clear the deck's open session ledger — called when a version is
  *  written. Returns null when nothing was recorded. */
-export function drainDeckLedger(
-  projectId: string,
-  deckId: string,
-): DeckSlideEditors | null {
-  const k = key(projectId, deckId);
+export function drainDeckLedger(deckId: string): DeckSlideEditors | null {
+  const k = key(deckId);
   const ledger = ledgers.get(k);
   if (!ledger) {
     return null;
@@ -239,7 +223,7 @@ export function drainDeckLedger(
   const slides: DeckSlideEditors["slides"] = {};
   for (const [slideId, touch] of ledger.slides) {
     // Pull (and clear) the slide's element-level touches along with it.
-    const sk = slideKey(projectId, slideId);
+    const sk = slideKey(slideId);
     const elementMap = elementTouches.get(sk);
     elementTouches.delete(sk);
     const elements: Record<string, string[]> = {};
@@ -286,18 +270,17 @@ export function drainDeckLedger(
 /** Merge a drained ledger back — used when the version insert that consumed
  *  it failed, so the attribution retries with the next write. */
 export function restoreDeckLedger(
-  projectId: string,
   deckId: string,
   drained: DeckSlideEditors | null,
 ): void {
   if (!drained) {
     return;
   }
-  const ledger = ledgerFor(projectId, deckId);
+  const ledger = ledgerFor(deckId);
   for (const [slideId, touch] of Object.entries(drained.slides)) {
     for (const kind of ["edited", "added", "removed"] as const) {
       for (const email of touch[kind] ?? []) {
-        record(projectId, deckId, slideId, kind, email);
+        record(deckId, slideId, kind, email);
       }
     }
     const elementKinds = [
@@ -309,7 +292,7 @@ export function restoreDeckLedger(
     for (const [field, kind] of elementKinds) {
       for (const [elementKey, emails] of Object.entries(touch[field] ?? {})) {
         for (const email of emails) {
-          recordSlideElementTouch(projectId, slideId, elementKey, email, kind);
+          recordSlideElementTouch(slideId, elementKey, email, kind);
         }
       }
     }

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  copySlidesToDeck,
   createSlide,
   deleteSlides,
   duplicateSlides,
@@ -24,19 +25,26 @@ import {
   recordSlideRemoved,
 } from "../../collab/deck_session_ledger.ts";
 import { log } from "../../middleware/logging.ts";
-import { requireProjectPermission } from "../../project_auth.ts";
-import { notifyLastUpdated } from "../../task_management/mod.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
+import {
+  notifyLastUpdated,
+  notifyProductsUpserted,
+} from "../../task_management/mod.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlides = new Hono();
+
+// Slides are a deck's content, so every write here notifies twice: the slide
+// rows carry their own `last_updated` version (the ONLY table that still
+// does), and the deck is a product, so its summary rides products_upserted.
 
 // Get all slides
 defineRoute(
   routesSlides,
   "getSlides",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await getSlides(c.var.ppk.projectDb, params.deck_id);
+    const res = await getSlides(c.var.mainDb, params.deck_id);
     return c.json(res);
   },
 );
@@ -45,9 +53,9 @@ defineRoute(
 defineRoute(
   routesSlides,
   "getSlide",
-  requireProjectPermission("can_view_slide_decks"),
+  requireApprovedUser(),
   async (c, { params }) => {
-    const res = await getSlide(c.var.ppk.projectDb, params.slide_id);
+    const res = await getSlide(c.var.mainDb, params.slide_id);
     return c.json(res);
   },
 );
@@ -56,13 +64,10 @@ defineRoute(
 defineRoute(
   routesSlides,
   "createSlide",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await createSlide(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       body.position,
       body.slide as Slide,
@@ -72,27 +77,11 @@ defineRoute(
     }
 
     const editor = editorFromGlobalUser(c.var.globalUser);
-    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, editor);
-    recordSlideAdded(
-      c.var.ppk.projectId,
-      params.deck_id,
-      res.data.slideId,
-      editor.email,
-    );
+    recordVersionEdit("deck", params.deck_id, editor);
+    recordSlideAdded(params.deck_id, res.data.slideId, editor.email);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slides",
-      [res.data.slideId],
-      res.data.lastUpdated,
-    );
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
+    notifyLastUpdated("slides", [res.data.slideId], res.data.lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
     return c.json(res);
   },
@@ -102,10 +91,7 @@ defineRoute(
 defineRoute(
   routesSlides,
   "updateSlide",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     // While a collab room is live for this slide, the room's doc is
     // authoritative: a direct DB write would be silently overwritten by the
@@ -114,7 +100,7 @@ defineRoute(
     // and the room checkpoints it immediately. The expectedLastUpdated
     // conflict check doesn't apply on this path: merging into the live doc IS
     // the conflict resolution. (The room's checkpoint fires its own SSE
-    // notifications.)
+    // notifications, products_upserted included.)
     // The route body schema validated this before the handler ran, which
     // matters here: Yjs transactions don't roll back, so malformed content
     // would partially mutate the shared doc (vandalizing co-editors' view) and
@@ -122,12 +108,7 @@ defineRoute(
     // branded-LayoutNode gap only (see the schema note in lib/api-routes).
     const slide = body.slide as Slide;
     const editor = editorFromGlobalUser(c.var.globalUser);
-    const roomRes = await applySlideToLiveRoom(
-      c.var.ppk.projectId,
-      params.slide_id,
-      slide,
-      editor,
-    );
+    const roomRes = await applySlideToLiveRoom(params.slide_id, slide, editor);
     if (roomRes.status === "saved") {
       return c.json({
         success: true as const,
@@ -144,7 +125,7 @@ defineRoute(
     }
 
     const res = await updateSlide(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.slide_id,
       slide,
       body.expectedLastUpdated,
@@ -154,22 +135,18 @@ defineRoute(
       return c.json(res);
     }
 
-    recordVersionEdit(c.var.ppk.projectId, "deck", res.data.deckId, editor);
-    recordSlideEdited(
-      c.var.ppk.projectId,
-      res.data.deckId,
-      params.slide_id,
-      editor.email,
-    );
+    recordVersionEdit("deck", res.data.deckId, editor);
+    recordSlideEdited(res.data.deckId, params.slide_id, editor.email);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slides",
-      [params.slide_id],
-      res.data.lastUpdated,
-    );
+    notifyLastUpdated("slides", [params.slide_id], res.data.lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [res.data.deckId]);
 
-    return c.json(res);
+    // `deckId` was only needed to attribute and broadcast — the caller opened
+    // the deck to get here.
+    return c.json({
+      success: true as const,
+      data: { lastUpdated: res.data.lastUpdated },
+    });
   },
 );
 
@@ -177,19 +154,12 @@ defineRoute(
 defineRoute(
   routesSlides,
   "deleteSlides",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   log("deleteSlides"),
   async (c, { params, body }) => {
     const lastUpdated = new Date().toISOString();
 
-    const res = await deleteSlides(
-      c.var.ppk.projectDb,
-      params.deck_id,
-      body.slideIds,
-    );
+    const res = await deleteSlides(c.var.mainDb, params.deck_id, body.slideIds);
     if (!res.success) {
       return c.json(res);
     }
@@ -203,43 +173,22 @@ defineRoute(
     // A live room left on a deleted slide would fail its checkpoints forever
     // (and clobber any future row re-created with the same id) — discard.
     for (const slideId of deletedIds) {
-      closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
+      closeSlideRoom(slideId, "This slide was deleted");
     }
 
     const deleteEditor = editorFromGlobalUser(c.var.globalUser);
     if (deletedIds.length > 0) {
-      recordVersionEdit(
-        c.var.ppk.projectId,
-        "deck",
-        params.deck_id,
-        deleteEditor,
-      );
+      recordVersionEdit("deck", params.deck_id, deleteEditor);
     }
     for (const slideId of deletedIds) {
-      recordSlideRemoved(
-        c.var.ppk.projectId,
-        params.deck_id,
-        slideId,
-        deleteEditor.email,
-      );
+      recordSlideRemoved(params.deck_id, slideId, deleteEditor.email);
     }
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slides",
-      deletedIds,
-      lastUpdated,
-    );
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      lastUpdated,
-    );
+    notifyLastUpdated("slides", deletedIds, lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
     return c.json({
-      success: true,
+      success: true as const,
       data: { ...res.data, lastUpdated },
     });
   },
@@ -249,13 +198,10 @@ defineRoute(
 defineRoute(
   routesSlides,
   "duplicateSlides",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await duplicateSlides(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       body.slideIds,
     );
@@ -264,36 +210,13 @@ defineRoute(
     }
 
     const duplicateEditor = editorFromGlobalUser(c.var.globalUser);
-    recordVersionEdit(
-      c.var.ppk.projectId,
-      "deck",
-      params.deck_id,
-      duplicateEditor,
-    );
+    recordVersionEdit("deck", params.deck_id, duplicateEditor);
     for (const slideId of res.data.newSlideIds) {
-      recordSlideAdded(
-        c.var.ppk.projectId,
-        params.deck_id,
-        slideId,
-        duplicateEditor.email,
-      );
+      recordSlideAdded(params.deck_id, slideId, duplicateEditor.email);
     }
 
-    for (const slideId of res.data.newSlideIds) {
-      notifyLastUpdated(
-        c.var.ppk.projectId,
-        "slides",
-        [slideId],
-        res.data.lastUpdated,
-      );
-    }
-
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
+    notifyLastUpdated("slides", res.data.newSlideIds, res.data.lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
     return c.json(res);
   },
@@ -303,13 +226,10 @@ defineRoute(
 defineRoute(
   routesSlides,
   "moveSlides",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_slide_decks",
-  ),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const res = await moveSlides(
-      c.var.ppk.projectDb,
+      c.var.mainDb,
       params.deck_id,
       body.slideIds,
       body.position,
@@ -319,22 +239,45 @@ defineRoute(
     }
 
     const moveEditor = editorFromGlobalUser(c.var.globalUser);
-    recordVersionEdit(c.var.ppk.projectId, "deck", params.deck_id, moveEditor);
-    recordDeckReordered(c.var.ppk.projectId, params.deck_id, moveEditor.email);
+    recordVersionEdit("deck", params.deck_id, moveEditor);
+    recordDeckReordered(params.deck_id, moveEditor.email);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slides",
-      body.slideIds,
-      res.data.lastUpdated,
-    );
+    notifyLastUpdated("slides", body.slideIds, res.data.lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [params.deck_id]);
 
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "slide_decks",
-      [params.deck_id],
-      res.data.lastUpdated,
-    );
+    return c.json(res);
+  },
+);
+
+// Copy slides into another deck
+defineRoute(
+  routesSlides,
+  "copySlidesToDeck",
+  requireApprovedUser(),
+  log("copySlidesToDeck"),
+  async (c, { body }) => {
+    // The cross-deck reuse path — there is no figure library (D3). Slide ids
+    // are unique instance-wide, so the source deck in the path is addressing
+    // only; the copies land in the TARGET deck, which is what every write and
+    // notification below names. Bundles are copied verbatim, so a copied
+    // figure shows stale under the target when the two products' (package,
+    // scope) pairs differ (D4).
+    const res = await copySlidesToDeck(c.var.mainDb, {
+      slideIds: body.slideIds,
+      targetDeckId: body.targetDeckId,
+    });
+    if (!res.success) {
+      return c.json(res);
+    }
+
+    const copyEditor = editorFromGlobalUser(c.var.globalUser);
+    recordVersionEdit("deck", body.targetDeckId, copyEditor);
+    for (const slideId of res.data.newSlideIds) {
+      recordSlideAdded(body.targetDeckId, slideId, copyEditor.email);
+    }
+
+    notifyLastUpdated("slides", res.data.newSlideIds, res.data.lastUpdated);
+    await notifyProductsUpserted(c.var.mainDb, [body.targetDeckId]);
 
     return c.json(res);
   },

@@ -101,6 +101,10 @@ export type InstanceDetail = {
   // the instance payload (and the config SSE) rather than being fetched per
   // page view — the Data page shows it as at-a-glance state.
   dhis2ConnectionUrl: string | null;
+  // The instance-level copilot grounding (D15) — the settings textarea's
+  // value, "" when unset. Rides the payload for the same reason the DHIS2 URL
+  // does: the settings page shows it without a second fetch.
+  aiContext: string;
   structure:
     | {
       hmis: StructureFamilyCounts;

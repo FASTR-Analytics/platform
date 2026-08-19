@@ -14,9 +14,11 @@ import type {
 } from "lib";
 import {
   getAdminAreaLabelsConfig,
+  getAiContextConfig,
   getStructureSchema,
 } from "../db/instance/config.ts";
 import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
+import { getProductSummaries } from "../db/products/products.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
@@ -34,12 +36,14 @@ export function notifyInstanceConfigUpdated(config: InstanceConfig) {
 // missing schema row (near-zero probability, guarded by the pre-deploy check)
 // broadcasts as null rather than suppressing the event.
 export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
-  const [hmisRes, hfaRes, labelsRes, dhis2Info] = await Promise.all([
-    getStructureSchema(mainDb, "hmis"),
-    getStructureSchema(mainDb, "hfa"),
-    getAdminAreaLabelsConfig(mainDb),
-    getStoredDhis2CredentialsInfo(mainDb),
-  ]);
+  const [hmisRes, hfaRes, labelsRes, dhis2Info, aiContextRes] = await Promise
+    .all([
+      getStructureSchema(mainDb, "hmis"),
+      getStructureSchema(mainDb, "hfa"),
+      getAdminAreaLabelsConfig(mainDb),
+      getStoredDhis2CredentialsInfo(mainDb),
+      getAiContextConfig(mainDb),
+    ]);
   if (labelsRes.success === false) {
     return;
   }
@@ -49,6 +53,7 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
     countryIso3: _INSTANCE_COUNTRY_ISO3,
     adminAreaLabels: labelsRes.data,
     dhis2ConnectionUrl: dhis2Info?.url ?? null,
+    aiContext: aiContextRes.success ? aiContextRes.data : "",
   };
   notifyInstanceConfigUpdated(config);
 }
@@ -63,6 +68,29 @@ export function notifyInstanceProductsUpserted(products: ProductSummary[]) {
     return;
   }
   notifyInstanceUpdate({ type: "products_upserted", data: { products } });
+}
+
+// The one re-read-and-broadcast path, shared by every product mutation route
+// and every collab checkpoint: a caller that just wrote a product hands over
+// the ids it touched and this fetches the summaries the wire needs. The write
+// has already committed, so a failed re-read is logged and swallowed — losing
+// a broadcast costs a client one stale card until its next event, while
+// throwing here would turn a succeeded write into a failed request.
+export async function notifyProductsUpserted(
+  mainDb: Sql,
+  productIds: string[],
+): Promise<void> {
+  if (productIds.length === 0) {
+    return;
+  }
+  const res = await getProductSummaries(mainDb, productIds);
+  if (!res.success) {
+    console.error(
+      `[notify] product summary broadcast failed for ${productIds.join(", ")}: ${res.err}`,
+    );
+    return;
+  }
+  notifyInstanceProductsUpserted(res.data);
 }
 
 export function notifyInstanceProductsDeleted(ids: string[]) {

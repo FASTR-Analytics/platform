@@ -27,37 +27,14 @@ import {
 } from "../migrations/data_transforms/_figure_block.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
+  type DBDeckVersion,
+  type DBReportVersion,
+} from "../instance/_main_database_types.ts";
+import {
   generateUniqueProductId,
   generateUniqueSlideId,
 } from "../../utils/id_generation.ts";
 import { reSequence } from "./slides.ts";
-
-type DBReportVersion = {
-  id: string;
-  report_id: string;
-  created_at: string;
-  label: string;
-  body: string;
-  figures: string;
-  images: string;
-  editors: string;
-  content_hash: string;
-  restored_from_version_id: string | null;
-  body_authors: string | null;
-};
-
-type DBDeckVersion = {
-  id: string;
-  deck_id: string;
-  created_at: string;
-  label: string;
-  deck_config: string;
-  slides: string;
-  editors: string;
-  content_hash: string;
-  restored_from_version_id: string | null;
-  slide_editors: string | null;
-};
 
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
@@ -341,7 +318,7 @@ export async function copyReportFromVersion(
     folderId: string | null;
     createdBy: string;
   },
-): Promise<APIResponseWithData<{ newReportId: string; lastUpdated: string }>> {
+): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const version = (
       await mainDb<DBReportVersion[]>`
@@ -387,7 +364,7 @@ export async function copyReportFromVersion(
         )
       `,
     ]);
-    return { success: true, data: { newReportId, lastUpdated } };
+    return { success: true, data: { productId: newReportId, lastUpdated } };
   });
 }
 
@@ -678,7 +655,7 @@ export async function copyDeckFromVersion(
     folderId: string | null;
     createdBy: string;
   },
-): Promise<APIResponseWithData<{ newDeckId: string; lastUpdated: string }>> {
+): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const version = (
       await mainDb<DBDeckVersion[]>`
@@ -745,6 +722,6 @@ export async function copyDeckFromVersion(
       ),
     ]);
 
-    return { success: true, data: { newDeckId, lastUpdated } };
+    return { success: true, data: { productId: newDeckId, lastUpdated } };
   });
 }

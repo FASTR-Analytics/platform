@@ -33,6 +33,14 @@ export const instanceRouteRegistry = {
     method: "POST",
     body: instanceConfigAdminAreaLabelsSchema,
   }),
+  // The instance-level copilot grounding (D15). There is no getter: the value
+  // rides InstanceState with the rest of the config, so the settings textarea
+  // reads it from the store and only ever writes here.
+  updateAiContextConfig: route({
+    path: "/update_ai_context_config",
+    method: "POST",
+    body: z.object({ aiContext: z.string().max(20000) }),
+  }),
   getDiskSpace: route({
     path: "/disk_space",
     method: "GET",

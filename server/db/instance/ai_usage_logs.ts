@@ -22,7 +22,6 @@ export async function IncrementInstanceWeeklyTokenUsage(mainDb: Sql, tokens: num
 export async function AddAiUsageLog(
     mainDb: Sql,
     user_email: string,
-    project_id: string | null,
     model: string,
     input_tokens: number,
     output_tokens: number,
@@ -31,10 +30,10 @@ export async function AddAiUsageLog(
 ): Promise<void> {
     await mainDb`
 INSERT INTO ai_usage_logs
-    (user_email, project_id, model, input_tokens, output_tokens,
+    (user_email, model, input_tokens, output_tokens,
      cache_read_input_tokens, cache_creation_input_tokens)
 VALUES
-    (${user_email}, ${project_id}, ${model}, ${input_tokens}, ${output_tokens},
+    (${user_email}, ${model}, ${input_tokens}, ${output_tokens},
      ${cache_read_input_tokens}, ${cache_creation_input_tokens})
     `;
 }

@@ -98,7 +98,6 @@ export type ResultsValueInfoForPresentationObject = {
 // Discriminated union for replicant option states
 export type ReplicantOptionsForPresentationObject =
   & {
-    projectId: string;
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;

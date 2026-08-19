@@ -52,8 +52,8 @@ const ledgers = new Map<string, Ledger>();
 // is created (the loader runs before the doc exists).
 const pendingInit = new Map<string, AuthorRun[] | null>();
 
-function key(projectId: string, reportId: string): string {
-  return `${projectId}::report::${reportId}`;
+function key(reportId: string): string {
+  return `report::${reportId}`;
 }
 
 function isTombstone(r: AuthorRun): boolean {
@@ -107,22 +107,17 @@ function capTombstones(runs: AuthorRun[]): AuthorRun[] {
 
 /** Stash the persisted runs read by the room loader; consumed by initLedger. */
 export function stashPersistedAuthors(
-  projectId: string,
   reportId: string,
   runs: AuthorRun[] | null,
 ): void {
-  pendingInit.set(key(projectId, reportId), runs);
+  pendingInit.set(key(reportId), runs);
 }
 
 /** Start the ledger for a (re)created room doc. Uses the stashed persisted
  *  runs when they align with the body (tombstones included — they belong to
  *  the still-open version window); otherwise everything starts unknown. */
-export function initLedger(
-  projectId: string,
-  reportId: string,
-  body: string,
-): void {
-  const k = key(projectId, reportId);
+export function initLedger(reportId: string, body: string): void {
+  const k = key(reportId);
   const persisted = pendingInit.get(k) ?? null;
   pendingInit.delete(k);
   if (persisted && liveLen(persisted) === body.length) {
@@ -143,12 +138,11 @@ export type BodyDeltaOp =
 /** Apply one Y.Text delta to the ledger. `email` = the editor whose
  *  transaction produced it (null for unattributed writes like restores). */
 export function applyBodyDelta(
-  projectId: string,
   reportId: string,
   delta: BodyDeltaOp[],
   email: string | null,
 ): void {
-  applyDeltaToLedger(key(projectId, reportId), delta, email);
+  applyDeltaToLedger(key(reportId), delta, email);
 }
 
 function applyDeltaToLedger(
@@ -248,11 +242,10 @@ function applyDeltaToLedger(
  *  ledger's mirrored body EXACTLY matches the body being persisted (never
  *  persist a misaligned ledger). */
 export function getAuthorRuns(
-  projectId: string,
   reportId: string,
   body: string,
 ): AuthorRun[] | null {
-  return runsForKey(key(projectId, reportId), body);
+  return runsForKey(key(reportId), body);
 }
 
 function runsForKey(k: string, body: string): AuthorRun[] | null {
@@ -275,8 +268,8 @@ function runsForKey(k: string, body: string): AuthorRun[] | null {
 /** Drop all tombstones — called right after a version snapshotted them, so
  *  the ledger's tombstones always describe "deletions since the last
  *  version". No-op when no room is live. */
-export function compactTombstones(projectId: string, reportId: string): void {
-  compactKey(key(projectId, reportId));
+export function compactTombstones(reportId: string): void {
+  compactKey(key(reportId));
 }
 
 function compactKey(k: string): void {
@@ -290,8 +283,8 @@ function compactKey(k: string): void {
   });
 }
 
-export function dropLedger(projectId: string, reportId: string): void {
-  const k = key(projectId, reportId);
+export function dropLedger(reportId: string): void {
+  const k = key(reportId);
   ledgers.delete(k);
   pendingInit.delete(k);
 }
@@ -327,16 +320,12 @@ export function renameAuthorEmails(oldEmail: string, newEmail: string): void {
 // In-memory only; the version window is the deck version (snapshot at drain,
 // compact after the version insert succeeds).
 
-function slideElementLedgerKey(
-  projectId: string,
-  slideId: string,
-  elementKey: string,
-): string {
-  return `${projectId}::slideel::${slideId}::${elementKey}`;
+function slideElementLedgerKey(slideId: string, elementKey: string): string {
+  return `slideel::${slideId}::${elementKey}`;
 }
 
-function slideElementPrefix(projectId: string, slideId: string): string {
-  return `${projectId}::slideel::${slideId}::`;
+function slideElementPrefix(slideId: string): string {
+  return `slideel::${slideId}::`;
 }
 
 /** Start a text element's ledger at room create — but only when none exists
@@ -344,12 +333,11 @@ function slideElementPrefix(projectId: string, slideId: string): string {
  *  version window (close + reopen before the version write) must keep its
  *  accumulated tombstones. */
 export function ensureSlideElementLedger(
-  projectId: string,
   slideId: string,
   elementKey: string,
   body: string,
 ): void {
-  const k = slideElementLedgerKey(projectId, slideId, elementKey);
+  const k = slideElementLedgerKey(slideId, elementKey);
   const existing = ledgers.get(k);
   if (existing && existing.body === body) {
     return;
@@ -369,13 +357,12 @@ export function ensureSlideElementLedger(
  *  snapshot validates against the NEW block's text, so the old runs could
  *  only misalign or pollute its ghost. */
 export function initSeededSlideElementLedger(
-  projectId: string,
   slideId: string,
   elementKey: string,
   text: string,
   email: string | null,
 ): void {
-  ledgers.set(slideElementLedgerKey(projectId, slideId, elementKey), {
+  ledgers.set(slideElementLedgerKey(slideId, elementKey), {
     runs: text.length > 0 ? [{ len: text.length, email }] : [],
     body: text,
   });
@@ -387,14 +374,13 @@ export function initSeededSlideElementLedger(
  *  unknown (aligned for FUTURE deltas — this transaction's ops are lost,
  *  never misattributed). */
 export function applySlideElementDelta(
-  projectId: string,
   slideId: string,
   elementKey: string,
   delta: BodyDeltaOp[],
   email: string | null,
   postText: string,
 ): void {
-  const k = slideElementLedgerKey(projectId, slideId, elementKey);
+  const k = slideElementLedgerKey(slideId, elementKey);
   if (!ledgers.has(k)) {
     const insertOnly = delta.length > 0 && delta.every((op) => "insert" in op);
     ledgers.set(k, { runs: [], body: "" });
@@ -415,14 +401,13 @@ export function applySlideElementDelta(
  *  carry no information (single unknown-author live run, no tombstones) are
  *  omitted. */
 export function snapshotSlideElementAuthors(
-  projectId: string,
   slideId: string,
   elementTexts: Record<string, string>,
 ): Record<string, AuthorRun[]> {
   const out: Record<string, AuthorRun[]> = {};
   for (const [elementKey, body] of Object.entries(elementTexts)) {
     const runs = runsForKey(
-      slideElementLedgerKey(projectId, slideId, elementKey),
+      slideElementLedgerKey(slideId, elementKey),
       body,
     );
     if (!runs || runs.length === 0) {
@@ -442,17 +427,16 @@ export function snapshotSlideElementAuthors(
  *  captured: an element whose ledger didn't validate at snapshot time keeps
  *  its tombstones for the next window instead of losing them. */
 export function compactSlideElementTombstones(
-  projectId: string,
   slideId: string,
   onlyElementKeys?: Iterable<string>,
 ): void {
   if (onlyElementKeys !== undefined) {
     for (const elementKey of onlyElementKeys) {
-      compactKey(slideElementLedgerKey(projectId, slideId, elementKey));
+      compactKey(slideElementLedgerKey(slideId, elementKey));
     }
     return;
   }
-  const prefix = slideElementPrefix(projectId, slideId);
+  const prefix = slideElementPrefix(slideId);
   for (const k of ledgers.keys()) {
     if (k.startsWith(prefix)) {
       compactKey(k);
@@ -462,11 +446,8 @@ export function compactSlideElementTombstones(
 
 /** Discard all of a slide's element ledgers — the slide row was deleted or
  *  replaced (nothing left to attribute). */
-export function dropSlideElementLedgers(
-  projectId: string,
-  slideId: string,
-): void {
-  const prefix = slideElementPrefix(projectId, slideId);
+export function dropSlideElementLedgers(slideId: string): void {
+  const prefix = slideElementPrefix(slideId);
   for (const k of [...ledgers.keys()]) {
     if (k.startsWith(prefix)) {
       ledgers.delete(k);
@@ -479,11 +460,8 @@ export function dropSlideElementLedgers(
  *  tombstones or attributed runs must survive until the deck version writes
  *  (up to the empty-grace + idle window later); writeVersion compacts and
  *  drops closed-room ledgers after the snapshot. */
-export function pruneUninformativeSlideElementLedgers(
-  projectId: string,
-  slideId: string,
-): void {
-  const prefix = slideElementPrefix(projectId, slideId);
+export function pruneUninformativeSlideElementLedgers(slideId: string): void {
+  const prefix = slideElementPrefix(slideId);
   for (const [k, ledger] of [...ledgers.entries()]) {
     if (!k.startsWith(prefix)) {
       continue;

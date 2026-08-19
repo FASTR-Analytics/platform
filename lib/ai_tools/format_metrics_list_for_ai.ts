@@ -114,7 +114,7 @@ export function formatMetricsListForAI(
     }
 
     if (metric.vizPresets && metric.vizPresets.length > 0) {
-      lines.push(`  Visualization presets:`);
+      lines.push(`  Figure presets:`);
       for (const preset of metric.vizPresets) {
         const dateFormat = preset.config.d.timeseriesGrouping === "year"
           ? "YYYY"

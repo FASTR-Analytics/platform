@@ -5,29 +5,26 @@ import {
   getCustomPromptsForUser,
   updateCustomPrompt,
 } from "../../db/mod.ts";
-import { requireGlobalPermission } from "../../middleware/userPermission.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesCustomPrompts = new Hono();
 
-// requireGlobalPermission() with no permissions only authenticates — it never
-// checks `approved` (unlike requireProjectPermission). Prompts are a
-// prompt-injection surface (country-scoped ones are offered to every user's
-// copilot), so every handler rejects unapproved users, and publishing or
-// re-scoping to "country" is admin-only.
+// Prompts are a prompt-injection surface — a country-scoped one is offered to
+// every user's copilot — so approval is the bar, not mere authentication.
+// That used to be four hand-rolled `!globalUser.approved` checks behind a
+// zero-permission requireGlobalPermission(), because no guard expressed it;
+// requireApprovedUser() now does, and D2's doctrine is that the guard carries
+// the rule and handlers never re-check it. Publishing or re-scoping to
+// "country" stays admin-only, checked in the handler because it is a
+// per-BODY rule, not a per-route one.
 
-defineRoute(routesCustomPrompts, "getCustomPrompts", requireGlobalPermission(), async (c) => {
-  if (!c.var.globalUser.approved) {
-    return c.json({ success: false, err: "User is not approved" }, 403);
-  }
+defineRoute(routesCustomPrompts, "getCustomPrompts", requireApprovedUser(), async (c) => {
   const prompts = await getCustomPromptsForUser(c.var.mainDb, c.var.globalUser.email);
   return c.json({ success: true, data: prompts });
 });
 
-defineRoute(routesCustomPrompts, "createCustomPrompt", requireGlobalPermission(), async (c, { body }) => {
-  if (!c.var.globalUser.approved) {
-    return c.json({ success: false, err: "User is not approved" }, 403);
-  }
+defineRoute(routesCustomPrompts, "createCustomPrompt", requireApprovedUser(), async (c, { body }) => {
   if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
     return c.json({ success: false, err: "Country-scoped prompts require admin access" }, 403);
   }
@@ -42,10 +39,7 @@ defineRoute(routesCustomPrompts, "createCustomPrompt", requireGlobalPermission()
   return c.json({ success: true, data: prompt });
 });
 
-defineRoute(routesCustomPrompts, "updateCustomPrompt", requireGlobalPermission(), async (c, { params, body }) => {
-  if (!c.var.globalUser.approved) {
-    return c.json({ success: false, err: "User is not approved" }, 403);
-  }
+defineRoute(routesCustomPrompts, "updateCustomPrompt", requireApprovedUser(), async (c, { params, body }) => {
   if (body.scope === "country" && !c.var.globalUser.isGlobalAdmin) {
     return c.json({ success: false, err: "Country-scoped prompts require admin access" }, 403);
   }
@@ -62,10 +56,7 @@ defineRoute(routesCustomPrompts, "updateCustomPrompt", requireGlobalPermission()
   return c.json({ success: true, data: prompt });
 });
 
-defineRoute(routesCustomPrompts, "deleteCustomPrompt", requireGlobalPermission(), async (c, { params }) => {
-  if (!c.var.globalUser.approved) {
-    return c.json({ success: false, err: "User is not approved" }, 403);
-  }
+defineRoute(routesCustomPrompts, "deleteCustomPrompt", requireApprovedUser(), async (c, { params }) => {
   const deleted = await deleteCustomPrompt(
     c.var.mainDb,
     params.id,

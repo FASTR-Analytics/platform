@@ -38,19 +38,13 @@ export type VersionTrackerDeps = {
    *  gone (session dropped); any transient failure must THROW instead so the
    *  session merges back and retries on the next sweep. */
   loadPayload: (
-    projectId: string,
     kind: VersionKind,
     docId: string,
   ) => Promise<VersionPayload | null>;
   /** content_hash of the newest stored version, or null when none exist. */
-  latestHash: (
-    projectId: string,
-    kind: VersionKind,
-    docId: string,
-  ) => Promise<string | null>;
+  latestHash: (kind: VersionKind, docId: string) => Promise<string | null>;
   /** Insert the version (and prune). Returns false on failure (retry later). */
   writeVersion: (
-    projectId: string,
     kind: VersionKind,
     docId: string,
     payload: VersionPayload,
@@ -63,7 +57,6 @@ export type VersionTrackerDeps = {
    *  (drainEditors). NOT called when a failed write merges the session back:
    *  the retried flush reports the merged session instead. Must not throw. */
   onSessionEnd?: (session: {
-    projectId: string;
     kind: VersionKind;
     docId: string;
     editors: VersionEditor[];
@@ -83,7 +76,6 @@ const DEFAULT_MAX_SESSION_MS = 45 * 60_000;
 const DEFAULT_EMPTY_GRACE_MS = 2 * 60_000;
 
 type Accumulator = {
-  projectId: string;
   kind: VersionKind;
   docId: string;
   editors: Map<string, string>; // email -> name
@@ -94,22 +86,17 @@ type Accumulator = {
 
 export type VersionTracker = {
   recordEdit: (
-    projectId: string,
     kind: VersionKind,
     docId: string,
     editor: VersionEditor,
   ) => void;
   /** The collab room for this document just emptied — start the grace timer. */
-  noteRoomEmpty: (projectId: string, kind: VersionKind, docId: string) => void;
+  noteRoomEmpty: (kind: VersionKind, docId: string) => void;
   /** Remove the document's open session and return its editors. Used by the
    *  restore routes: the safety version they write absorbs the open session's
    *  attribution (otherwise those editors would never appear in any version —
    *  the post-restore flush would hash-dedup against the restored state). */
-  drainEditors: (
-    projectId: string,
-    kind: VersionKind,
-    docId: string,
-  ) => VersionEditor[];
+  drainEditors: (kind: VersionKind, docId: string) => VersionEditor[];
   /** Flush every session whose end condition is met. Run on an interval. */
   sweep: () => Promise<void>;
   /** Flush every open session unconditionally (graceful shutdown). */
@@ -129,17 +116,16 @@ export function createVersionTracker(
 
   const accumulators = new Map<string, Accumulator>();
 
-  function accKey(projectId: string, kind: VersionKind, docId: string): string {
-    return `${projectId}::${kind}::${docId}`;
+  function accKey(kind: VersionKind, docId: string): string {
+    return `${kind}::${docId}`;
   }
 
   function recordEdit(
-    projectId: string,
     kind: VersionKind,
     docId: string,
     editor: VersionEditor,
   ): void {
-    const key = accKey(projectId, kind, docId);
+    const key = accKey(kind, docId);
     const now = deps.now();
     const acc = accumulators.get(key);
     if (acc) {
@@ -149,7 +135,6 @@ export function createVersionTracker(
       acc.roomEmptyAt = null;
     } else {
       accumulators.set(key, {
-        projectId,
         kind,
         docId,
         editors: new Map([[editor.email, editor.name]]),
@@ -160,12 +145,8 @@ export function createVersionTracker(
     }
   }
 
-  function noteRoomEmpty(
-    projectId: string,
-    kind: VersionKind,
-    docId: string,
-  ): void {
-    const acc = accumulators.get(accKey(projectId, kind, docId));
+  function noteRoomEmpty(kind: VersionKind, docId: string): void {
+    const acc = accumulators.get(accKey(kind, docId));
     if (acc) {
       acc.roomEmptyAt = deps.now();
     }
@@ -177,7 +158,6 @@ export function createVersionTracker(
 
   function noteSessionEnd(acc: Accumulator): void {
     deps.onSessionEnd?.({
-      projectId: acc.projectId,
       kind: acc.kind,
       docId: acc.docId,
       editors: accEditors(acc),
@@ -185,12 +165,8 @@ export function createVersionTracker(
     });
   }
 
-  function drainEditors(
-    projectId: string,
-    kind: VersionKind,
-    docId: string,
-  ): VersionEditor[] {
-    const key = accKey(projectId, kind, docId);
+  function drainEditors(kind: VersionKind, docId: string): VersionEditor[] {
+    const key = accKey(kind, docId);
     const acc = accumulators.get(key);
     if (!acc) {
       return [];
@@ -217,7 +193,7 @@ export function createVersionTracker(
   }
 
   function mergeBack(acc: Accumulator): void {
-    const key = accKey(acc.projectId, acc.kind, acc.docId);
+    const key = accKey(acc.kind, acc.docId);
     const fresh = accumulators.get(key);
     if (!fresh) {
       accumulators.set(key, acc);
@@ -235,14 +211,14 @@ export function createVersionTracker(
   }
 
   async function flush(acc: Accumulator): Promise<void> {
-    const { projectId, kind, docId } = acc;
+    const { kind, docId } = acc;
     try {
-      const payload = await deps.loadPayload(projectId, kind, docId);
+      const payload = await deps.loadPayload(kind, docId);
       if (payload === null) {
         noteSessionEnd(acc);
         return; // document deleted — drop the session
       }
-      const latest = await deps.latestHash(projectId, kind, docId);
+      const latest = await deps.latestHash(kind, docId);
       if (latest !== null && latest === payload.contentHash) {
         noteSessionEnd(acc);
         return; // no net change
@@ -250,7 +226,6 @@ export function createVersionTracker(
       const editors = accEditors(acc);
       const createdAt = new Date(deps.now()).toISOString();
       const ok = await deps.writeVersion(
-        projectId,
         kind,
         docId,
         payload,

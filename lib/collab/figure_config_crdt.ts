@@ -1,15 +1,17 @@
 // =============================================================================
-// Figure-config CRDT bridge (Yjs) — shared by both visualization-collab surfaces
+// Figure-config CRDT bridge (Yjs) — every embedded figure's editable config
 // =============================================================================
 //
-// A visualization's editable config is `PresentationObjectConfig = { d, s, t }`.
-// This module maps it onto a Y.Map so two people editing the SAME config in the
-// visualization editor merge field-by-field (different fields never clobber),
-// with same-field last-writer-wins and character-level merge on the three free-
-// text fields. It is a bridge over a Y.MAP (not a whole Y.Doc), so the identical
-// code binds both:
-//   * the standalone PO room's doc root   — doc.getMap("config")
-//   * a figure node inside a slide/report — the node's "figConfig" nested map
+// A figure's editable config is `PresentationObjectConfig = { d, s, t }`. This
+// module maps it onto a Y.Map so two people editing the SAME figure merge
+// field-by-field (different fields never clobber), with same-field
+// last-writer-wins and character-level merge on the three free-text fields.
+//
+// It is a bridge over a Y.MAP (not a whole Y.Doc) because a figure is always a
+// NODE inside its product's document — the node's "figConfig" nested map, in
+// the slide or report doc. There is no standalone visualization document and
+// no PO room (PLAN_PRODUCTS_RESTRUCTURE D3): in-slide figure co-editing binds
+// to the SLIDE doc.
 //
 // Shape (configMap is the map handed in):
 //   "d": Y.Map  — query config. Primitives (type, timeseriesGrouping, ...) are
@@ -33,11 +35,6 @@ import {
   presentationObjectConfigSchema,
 } from "../types/_presentation_object_config.ts";
 import { setOpaqueByValue, setScalar, syncText } from "./crdt_util.ts";
-
-/** The Y.Doc map key holding a standalone visualization's config (the PO room
- *  doc root). Shared by the server adapter and the client session so they never
- *  drift. Slide/report figure nodes instead nest the config under "figConfig". */
-export const PO_CONFIG_MAP_KEY = "config";
 
 const SECTIONS = ["d", "s", "t"] as const;
 type Section = (typeof SECTIONS)[number];
@@ -200,7 +197,7 @@ function syncSection(
 
 /** Diff a full config onto the map (minimal mergeable ops). Idempotent — a
  *  no-op when the map already matches, so it is safe to call unconditionally
- *  (the standalone editor's full-store push, like the slide editor's). */
+ *  (the embedded figure editor's full-store push). */
 export function syncFigureConfigToMap(
   configMap: Y.Map<unknown>,
   config: PresentationObjectConfig,

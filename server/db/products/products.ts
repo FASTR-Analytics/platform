@@ -13,6 +13,7 @@ import {
   type TranslatableString,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
+import { type DBProduct } from "../instance/_main_database_types.ts";
 import { generateUniqueProductId } from "../../utils/id_generation.ts";
 import { duplicateDeckDetail, parseDeckConfig } from "./slide_decks.ts";
 import { duplicateReportDetail, parseReportConfig } from "./reports.ts";
@@ -47,18 +48,6 @@ const COPY_SUFFIX: TranslatableString = {
   en: "copy",
   fr: "copie",
   pt: "cópia",
-};
-
-type DBProduct = {
-  id: string;
-  type: ProductType;
-  label: string;
-  folder_id: string | null;
-  run_id: string;
-  admin_area_2: string | null;
-  created_by: string | null;
-  created_at: string | null;
-  last_updated: string;
 };
 
 // The summary row: the `products` registry plus the per-type slice each
@@ -374,9 +363,7 @@ export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
   createdBy: string,
-): Promise<
-  APIResponseWithData<{ newProductId: string; lastUpdated: string }>
-> {
+): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const source = (
       await mainDb<DBProduct[]>`
@@ -413,6 +400,6 @@ export async function duplicateProduct(
       await duplicateReportDetail(sql, productId, newProductId);
     });
 
-    return { success: true, data: { newProductId, lastUpdated } };
+    return { success: true, data: { productId: newProductId, lastUpdated } };
   });
 }

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
-import { requireProjectPermission } from "../../project_auth.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   _ANTHROPIC_API_KEY,
   _ANTHROPIC_API_URL,
@@ -8,14 +8,17 @@ import {
 
 export const routesAiFiles = new Hono();
 
-// The Anthropic Files endpoint. _ANTHROPIC_API_URL is the /v1/messages
-// endpoint, so the Files URL is derived from the same origin rather than
-// re-hardcoding a host.
+// The Anthropic Files endpoint, mounted at /ai alongside the copilot proxy
+// and guarded the same way — requireApprovedUser() (D2/D15). The files are
+// instance assets; nothing here was ever project-scoped beyond the guard.
+//
+// _ANTHROPIC_API_URL is the /v1/messages endpoint, so the Files URL is
+// derived from the same origin rather than re-hardcoding a host.
 const ANTHROPIC_FILES_URL = new URL("/v1/files", _ANTHROPIC_API_URL).toString();
 const FILES_API_BETA_HEADER = "files-api-2025-04-14";
 
 // POST /files - Upload a file from assets to Anthropic
-routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
+routesAiFiles.post("/files", requireApprovedUser(), async (c) => {
   const apiKey = _ANTHROPIC_API_KEY;
 
   const body = await c.req.json();
@@ -64,7 +67,7 @@ routesAiFiles.post("/files", requireProjectPermission(), async (c) => {
 });
 
 // GET /files/:file_id - Get file metadata from Anthropic
-routesAiFiles.get("/files/:file_id", requireProjectPermission(), async (c) => {
+routesAiFiles.get("/files/:file_id", requireApprovedUser(), async (c) => {
   const apiKey = _ANTHROPIC_API_KEY;
 
   const fileId = c.req.param("file_id");
@@ -88,7 +91,7 @@ routesAiFiles.get("/files/:file_id", requireProjectPermission(), async (c) => {
 // DELETE /files/:file_id - Delete file from Anthropic
 routesAiFiles.delete(
   "/files/:file_id",
-  requireProjectPermission(),
+  requireApprovedUser(),
   async (c) => {
     const apiKey = _ANTHROPIC_API_KEY;
 
