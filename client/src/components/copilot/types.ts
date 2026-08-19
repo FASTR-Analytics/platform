@@ -1,4 +1,4 @@
-import type { AiContentSlideInput, FigureBlock } from "lib";
+import type { FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
 import type { SkippedRange } from "~/components/report/rebase_edits";
 
@@ -37,23 +37,4 @@ export type ReportEditorSelection = {
   fromLine: number; // 1-based
   toLine: number;
   text: string; // selected text ("" when empty)
-};
-
-export type DraftContent =
-  | {
-      type: "slide";
-      input: AiContentSlideInput;
-    }
-  | {
-      type: "viz";
-      input: AiContentSlideInput;
-    }
-  | null;
-
-// View state lives on projectAIViewController (ai_views.ts), a module-level
-// singleton — not on this Solid context. Import projectAIViewController
-// directly for current()/setView()/clearView()/notify()/markAIEdit().
-export type AIProjectContextValue = {
-  draftContent: () => DraftContent;
-  setDraftContent: (content: DraftContent) => void;
 };

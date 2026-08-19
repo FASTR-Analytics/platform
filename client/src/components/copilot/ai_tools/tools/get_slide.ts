@@ -2,17 +2,14 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { MetricWithStatus } from "lib";
 import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
-import { clientAIToolEnvFor } from "../client_env";
+import { copilotAIToolEnv } from "../client_env";
 
 // DELIBERATE availableIn omission: get_slide reads by explicit slideId and
 // works from any view (e.g. while editing a report that references deck
 // content) — this is the historical guard-bypass made explicit, not an
 // accident.
-export function createGetSlideTool(
-  projectId: string,
-  metrics: MetricWithStatus[],
-) {
-  const env = clientAIToolEnvFor(projectId);
+export function createGetSlideTool(metrics: MetricWithStatus[]) {
+  const env = copilotAIToolEnv;
   return createAITool({
     name: "get_slide",
     description:

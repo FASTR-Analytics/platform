@@ -1,10 +1,10 @@
-import { t3, TC, type SlideDeckFolder, type SlideDeckSummary } from "lib";
+import { t3, TC, type Folder, type ProductSummary } from "lib";
 import { Button, Input, RadioGroup, Select, type SelectOption } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 
 type Props = {
-  decks: SlideDeckSummary[];
-  folders: SlideDeckFolder[];
+  decks: Extract<ProductSummary, { type: "slide_deck" }>[];
+  folders: Folder[];
   selectedDeckId: string;
   onSelectDeck: (deckId: string) => void;
   isCreatingNew: boolean;
@@ -62,7 +62,7 @@ export function DeckSelector(p: Props) {
       <div class="ui-spy-sm">
         <Show when={folderOptions().length > 0}>
           <Select
-            label={t3({ en: "Slide deck folder", fr: "Dossier de présentation", pt: "Pasta da apresentação" })}
+            label={t3({ en: "Folder", fr: "Dossier", pt: "Pasta" })}
             value={selectedFolderId()}
             options={folderOptions()}
             onChange={setSelectedFolderId}

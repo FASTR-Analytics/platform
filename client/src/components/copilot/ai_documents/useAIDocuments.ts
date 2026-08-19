@@ -1,10 +1,10 @@
 import { createSignal, onMount } from "solid-js";
 import { openComponent } from "panther";
 import {
-  getDocumentsForProject,
-  removeDocumentFromProject,
-  type ProjectDocument,
-} from "~/state/project/t4_ai_documents";
+  getCopilotDocuments,
+  removeCopilotDocument,
+  type CopilotDocument,
+} from "~/state/products/t4_ai_documents";
 import { _SERVER_HOST } from "~/server_actions";
 import { AIDocumentSelectorModal } from "./AIDocumentSelectorModal";
 
@@ -12,41 +12,33 @@ import { AIDocumentSelectorModal } from "./AIDocumentSelectorModal";
 // Each browser uploads its own copy (its own file_id), so deleting on remove
 // frees the orphan without affecting any other browser's reference. Failures
 // are swallowed — the local removal below must still proceed.
-async function deleteAnthropicFile(projectId: string, fileId: string) {
+async function deleteAnthropicFile(fileId: string) {
   try {
     await fetch(`${_SERVER_HOST}/ai/files/${fileId}`, {
       method: "DELETE",
       credentials: "include",
-      headers: { "Project-Id": projectId },
     });
   } catch {
     // ignore — orphan cleanup is not critical
   }
 }
 
-type UseAIDocumentsOptions = {
-  projectId: string;
-};
-
-export function useAIDocuments(options: UseAIDocumentsOptions) {
-  const [documents, setDocuments] = createSignal<ProjectDocument[]>([]);
+export function useAIDocuments() {
+  const [documents, setDocuments] = createSignal<CopilotDocument[]>([]);
 
   async function loadDocuments() {
-    const docs = await getDocumentsForProject(options.projectId);
-    setDocuments(docs);
+    setDocuments(await getCopilotDocuments());
   }
 
   onMount(loadDocuments);
 
   async function openSelector() {
     const result = await openComponent<
-      { projectId: string },
-      ProjectDocument[] | undefined
+      Record<string, never>,
+      CopilotDocument[] | undefined
     >({
       element: AIDocumentSelectorModal,
-      props: {
-        projectId: options.projectId,
-      },
+      props: {},
     });
 
     if (result) {
@@ -57,9 +49,9 @@ export function useAIDocuments(options: UseAIDocumentsOptions) {
   async function removeDocument(assetFilename: string) {
     const doc = documents().find((d) => d.assetFilename === assetFilename);
     if (doc) {
-      await deleteAnthropicFile(options.projectId, doc.anthropicFileId);
+      await deleteAnthropicFile(doc.anthropicFileId);
     }
-    await removeDocumentFromProject(options.projectId, assetFilename);
+    await removeCopilotDocument(assetFilename);
     await loadDocuments();
   }
 

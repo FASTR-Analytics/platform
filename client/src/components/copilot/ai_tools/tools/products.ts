@@ -1,25 +1,46 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { ReportSummary } from "lib";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
+import { copilotViewController } from "~/components/copilot/ai_views";
+import { formatProductsListForAI } from "./_internal/format_products_list_for_ai";
 
-// Project content: the project's reports (SPA-only). create_report is the
-// copilot's one non-editor write — approval-gated.
-function formatReportsListForAI(reports: ReportSummary[]): string {
-  if (reports.length === 0) return "No reports exist yet.";
-  return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
-}
-
-export function getClientToolsForReports(
-  projectId: string,
-  reports: ReportSummary[],
-) {
+// The product registry, as the copilot reads and writes it: a product is a
+// slide deck or a report, filed in a folder and attached to one results
+// package (D3/D16). The lists come from T1 — the instance SSE channel keeps
+// them current, so there is no list route to call. `create_report` is the
+// copilot's one non-editor write, approval-gated.
+export function getClientToolsForProducts() {
   return [
     createAITool({
-      name: "get_available_reports",
-      description: "Get a list of all reports with their IDs and labels.",
+      name: "get_available_slide_decks",
+      description:
+        "Get all slide decks, with their IDs, folder, and the results package and scope each serves from.",
       inputSchema: z.object({}),
-      handler: async () => formatReportsListForAI(reports),
+      handler: async () =>
+        formatProductsListForAI(
+          instanceState.products,
+          "slide_deck",
+          instanceState.folders,
+          instanceState.readyPackages,
+        ),
+      inProgressLabel: "Getting available slide decks...",
+      completionMessage: "Retrieved slide decks list",
+      kind: "read",
+    }),
+
+    createAITool({
+      name: "get_available_reports",
+      description:
+        "Get all reports, with their IDs, folder, and the results package and scope each serves from.",
+      inputSchema: z.object({}),
+      handler: async () =>
+        formatProductsListForAI(
+          instanceState.products,
+          "report",
+          instanceState.folders,
+          instanceState.readyPackages,
+        ),
       inProgressLabel: "Getting available reports...",
       completionMessage: "Retrieved reports list",
       kind: "read",
@@ -32,7 +53,6 @@ export function getClientToolsForReports(
       inputSchema: z.object({ reportId: z.string() }),
       handler: async (input) => {
         const res = await serverActions.getReportDetail({
-          projectId,
           report_id: input.reportId,
         });
         if (!res.success) throw new AIToolFailure(res.err);
@@ -64,7 +84,7 @@ export function getClientToolsForReports(
     createAITool({
       name: "create_report",
       description:
-        "Create a new report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
+        "Create a new report with a label and a markdown body. The report is attached to the instance's pinned results package; the user reattaches it in product settings if they want another one. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
       inputSchema: z.object({
         label: z.string(),
         markdown: z.string(),
@@ -87,25 +107,42 @@ export function getClientToolsForReports(
             diff: { before: "", after: input.markdown },
           },
           commit: async () => {
-            const createRes = await serverActions.createReport({
-              projectId,
-              label: input.label,
+            // The server mints the row (label "Untitled report", folder NULL,
+            // run_id = the pin) and the label is a separate product-registry
+            // write — one id namespace, one authority (D1/D16).
+            const createRes = await serverActions.createProduct({
+              type: "report",
               folderId: null,
             });
             if (!createRes.success) throw new AIToolFailure(createRes.err);
+            const productId = createRes.data.productId;
+            // One mark covers all three writes: marks are TTL-scoped and never
+            // consumed at drain, and the three `products_upserted` echoes land
+            // milliseconds apart.
+            copilotViewController.markAIEdit(`product:${productId}`);
+
+            const labelRes = await serverActions.updateProductLabel({
+              product_id: productId,
+              label: input.label,
+            });
+            if (!labelRes.success) {
+              throw new AIToolFailure(
+                `Report created (id: ${productId}) but failed to set its label: ${labelRes.err}`,
+              );
+            }
+
             const bodyRes = await serverActions.updateReportBody({
-              projectId,
-              report_id: createRes.data.reportId,
+              report_id: productId,
               body: input.markdown,
-              expectedLastUpdated: createRes.data.lastUpdated,
+              expectedLastUpdated: labelRes.data.lastUpdated,
               overwrite: true,
             });
             if (!bodyRes.success) {
               throw new AIToolFailure(
-                `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`,
+                `Report created (id: ${productId}) but failed to set body: ${bodyRes.err}`,
               );
             }
-            return `Created report "${input.label}" (id: ${createRes.data.reportId}).`;
+            return `Created report "${input.label}" (id: ${productId}).`;
           },
         }),
       },

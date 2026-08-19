@@ -30,7 +30,7 @@ function containsMarkdownTable(text: string): boolean {
 export function validateNoMarkdownTables(markdown: string): void {
   if (containsMarkdownTable(markdown)) {
     throw new AIToolFailure(
-      "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.",
+      "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset.",
     );
   }
 }

@@ -1,10 +1,10 @@
 import { AIToolFailure } from "panther";
-import { otherPeers } from "~/state/project/collab";
+import { otherPeers } from "~/state/instance/collab";
 
 // Refuse an AI edit to a slide another collaborator currently has OPEN in the
 // editor (PresenceEntry.slideId is set on editor open, cleared on close), to
 // avoid overwriting their live in-progress work. otherPeers() excludes this
-// user and is project-wide, so it works from the AI chat context. Best-effort:
+// user and is instance-wide, so it works from the AI chat context. Best-effort:
 // if collab/presence isn't connected, otherPeers() is empty and edits proceed
 // (we can't know who is editing). The thrown message is surfaced to the AI,
 // which relays it to the user — matching every other tool refusal.

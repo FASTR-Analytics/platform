@@ -12,7 +12,6 @@ import {
   type Slide,
   type ContentBlock,
   type MetricWithStatus,
-  type AiContentBlockInput,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
@@ -24,7 +23,6 @@ import {
   normalizeSpans,
 } from "~/components/slide_deck/slide_ai/layout_spec_helpers";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
-import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import {
   validateMaxContentBlocks,
@@ -33,9 +31,9 @@ import {
 } from "../validators/content_validators";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
-  projectAIViewController,
-  projectAIViews,
-} from "~/components/project_ai/ai_views";
+  copilotViewController,
+  copilotViews,
+} from "~/components/copilot/ai_views";
 
 function throwSlideUpdateError(err: string): never {
   if (err === "CONFLICT") {
@@ -53,13 +51,16 @@ function throwSlideUpdateError(err: string): never {
 const DECK_LEVEL_NOTE =
   " If the user has a single slide open in the slide editor, they must close it first — deck-level changes are only available from the deck view.";
 
-export function getClientToolsForSlides(
-  projectId: string,
-  metrics: MetricWithStatus[],
-) {
+// A figure is `{ metricId, config }` resolved under the deck's own results
+// package and scope (D3) — there is no figure library to point at, so every
+// figure block starts from a metric and one of that metric's presets.
+const FIGURE_SOURCE_NOTE =
+  "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";
+
+export function getClientToolsForSlides(metrics: MetricWithStatus[]) {
   return [
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "get_deck",
       description:
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck." +
@@ -68,11 +69,11 @@ export function getClientToolsForSlides(
       availableIn: ["editing_slide_deck"],
       kind: "read",
       handler: async (_input, view) => {
-        return await getDeckSummaryForAI(projectId, view.context.getSlideIds());
+        return await getDeckSummaryForAI(view.context.getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
-        const view = projectAIViewController.current();
+        const view = copilotViewController.current();
         if (view.id !== "editing_slide_deck") return "Retrieved deck";
         return `Retrieved deck with ${view.context.getSlideIds().length} slide(s)`;
       },
@@ -80,13 +81,14 @@ export function getClientToolsForSlides(
 
     // The one non-view-gated slides tool — reads by explicit slideId from
     // any view.
-    createGetSlideTool(projectId, metrics),
+    createGetSlideTool(metrics),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "create_slide",
       description:
-        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures).\n\nFor content blocks, you have three figure source options:\n- from_visualization: Clone an existing saved visualization (created via Presentations section). If the source visualization uses replication (e.g., one chart per region or per indicator), specify which replicant value to show.\n- from_metric: Create a new chart directly from metric data. IMPORTANT: Always call get_metric_data FIRST to see available disaggregations, filters, and time ranges before creating from_metric blocks. The output provides exact parameter guidance.\n- text: Markdown text content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type visualization preset." +
+        "Create a new slide and insert it into the deck at a specified position. Supports three slide types: 'cover' (title slide), 'section' (section divider), and 'content' (main content with text and/or figures)." +
+        FIGURE_SOURCE_NOTE +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
         position: z
@@ -124,18 +126,22 @@ export function getClientToolsForSlides(
           validateSlideTotalWordCount(textBlocks);
         }
 
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, view.context.getDeckConfig());
+        const convertedSlide = await convertAiInputToSlide(
+          view.context.getScope(),
+          input.slide,
+          metrics,
+          view.context.getDeckConfig(),
+        );
 
         const res = await serverActions.createSlide({
-          projectId,
           deck_id: view.params.deckId,
           position: input.position,
           slide: convertedSlide,
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
-        projectAIViewController.markAIEdit(`slide:${res.data.slideId}`);
-        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
+        copilotViewController.markAIEdit(`slide:${res.data.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -146,10 +152,11 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "replace_slide",
       description:
-        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout).\n\nIMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead." +
+        "Completely replace an existing slide with new content from scratch. This regenerates the entire slide including layout optimization. WARNING: This destroys any manual layout customizations. Use this ONLY when:\n- Rebuilding a slide from scratch with different structure\n- Changing slide types (content → section, etc.)\n\nFor layout changes on existing content, prefer modify_slide_layout which preserves existing blocks. For content updates, prefer update_slide_content (preserves layout)." +
+        FIGURE_SOURCE_NOTE +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
@@ -182,25 +189,29 @@ export function getClientToolsForSlides(
           validateSlideTotalWordCount(textBlocks);
         }
 
-        const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, view.context.getDeckConfig());
+        const convertedSlide = await convertAiInputToSlide(
+          view.context.getScope(),
+          input.slide,
+          metrics,
+          view.context.getDeckConfig(),
+        );
 
         // Optimistic concurrency: read the slide's current version so a save
         // that raced another user's edit fails loudly instead of overwriting.
         const currentRes = await serverActions.getSlide({
-          projectId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
 
         const res = await serverActions.updateSlide({
-          projectId,
           slide_id: input.slideId,
           slide: convertedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
-        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
       },
@@ -210,21 +221,22 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "update_slide_content",
       description:
-        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions) without rebuilding it, use update_figure (pass this slideId + the figure's blockId). To add/remove blocks or change layout arrangement, use modify_slide_layout instead. IMPORTANT: When creating from_metric blocks, always call get_metric_data FIRST to see available options. Markdown tables are NOT allowed - use a from_metric block with a table-type preset (vizPresetId) instead." +
+        "Update specific content blocks within a slide while preserving the layout structure. Only the specified blocks are replaced; all other blocks and the layout structure remain unchanged. Use block IDs from get_slide to target specific text or figure blocks for replacement. NOTE: this REPLACES a block with new content (rebuilding a figure from scratch); to merely tweak an existing figure's config (replicant, filters, captions) without rebuilding it, use update_figure (pass this slideId + the figure's blockId). To add/remove blocks or change layout arrangement, use modify_slide_layout instead." +
+        FIGURE_SOURCE_NOTE +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         updates: z.array(z.object({
           blockId: z.string().describe("Block ID (3-char alphanumeric, e.g. 't2n'). Get these from get_slide."),
-          newContent: AiContentBlockInputSchema.describe("The new content for this block. Can be text (markdown), a figure from an existing visualization, or a figure from metric data. The block type can be changed."),
+          newContent: AiContentBlockInputSchema.describe("The new content for this block: markdown text, or a figure built from a metric + preset. The block type can be changed."),
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         for (const update of input.updates) {
@@ -234,13 +246,12 @@ export function getClientToolsForSlides(
         }
 
         const currentRes = await serverActions.getSlide({
-          projectId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
 
         const updatedSlide = await getSlideWithUpdatedBlocks(
-          projectId,
+          view.context.getScope(),
           currentRes.data.slide,
           input.updates,
           metrics,
@@ -256,14 +267,14 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.updateSlide({
-          projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
-        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         const blockIds = input.updates.map(u => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
@@ -273,7 +284,7 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "update_slide_header",
       description:
         "Update just the header of a content slide without modifying its content or layout. Use this for simple header changes like fixing typos or rewording. Much faster and safer than replace_slide for header-only changes. For cover slides, use replace_slide to update the title." +
@@ -284,11 +295,10 @@ export function getClientToolsForSlides(
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
-          projectId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
@@ -304,14 +314,14 @@ export function getClientToolsForSlides(
         const updatedSlide = { ...slide, header: input.newHeader };
 
         const res = await serverActions.updateSlide({
-          projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
-        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
@@ -320,7 +330,7 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "modify_slide_layout",
       description:
         "Modify the layout and/or blocks of a content slide. Use this to: add new blocks, remove blocks, rearrange blocks, or change column widths. The layout specifies ALL blocks that will be on the slide — any existing blocks not referenced are REMOVED. Use block IDs from get_slide to keep existing blocks; provide inline content for new blocks. Prefer balanced spans (e.g. 6+6 or 8+4) unless the user requests specific proportions.\n\nTo change what's IN a block → use update_slide_content.\nTo change which blocks EXIST or how they're ARRANGED → use this tool." +
@@ -342,11 +352,10 @@ export function getClientToolsForSlides(
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
-          projectId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
@@ -383,6 +392,7 @@ export function getClientToolsForSlides(
 
         const normalizedSpans = normalizeSpans(input.layout);
 
+        const scope = view.context.getScope();
         const generateId = createIdGeneratorForLayout(currentSlide.layout);
         const resolvedRows: Array<
           Array<{ id: string; block: ContentBlock; span: number }>
@@ -410,31 +420,20 @@ export function getClientToolsForSlides(
                 );
               }
               resolvedRow.push({ id: cell.block, block: existing, span });
+            } else if (cell.block.type === "text") {
+              validateNoMarkdownTables(cell.block.markdown);
+              resolvedRow.push({
+                id: generateId(),
+                block: cell.block,
+                span,
+              });
             } else {
-              const newBlockInput = cell.block as AiContentBlockInput;
-              if (newBlockInput.type === "text") {
-                validateNoMarkdownTables(newBlockInput.markdown);
-                resolvedRow.push({
-                  id: generateId(),
-                  block: newBlockInput,
-                  span,
-                });
-              } else if (newBlockInput.type === "from_visualization") {
-                const figureBlock = await resolveFigureFromVisualization(
-                  projectId,
-                  newBlockInput,
-                );
-                resolvedRow.push({ id: generateId(), block: figureBlock, span });
-              } else if (newBlockInput.type === "from_metric") {
-                const figureBlock = await resolveFigureFromMetric(
-                  projectId,
-                  newBlockInput,
-                  metrics,
-                );
-                resolvedRow.push({ id: generateId(), block: figureBlock, span });
-              } else {
-                throw new Error("Unsupported block type");
-              }
+              const figureBlock = await resolveFigureFromMetric(
+                scope,
+                cell.block,
+                metrics,
+              );
+              resolvedRow.push({ id: generateId(), block: figureBlock, span });
             }
           }
           resolvedRows.push(resolvedRow);
@@ -461,14 +460,14 @@ export function getClientToolsForSlides(
         validateSlideTotalWordCount(allTextBlocks);
 
         const res = await serverActions.updateSlide({
-          projectId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
         });
         if (!res.success) throwSlideUpdateError(res.err);
 
-        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {
@@ -485,7 +484,7 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "delete_slides",
       description:
         "Permanently remove one or more slides from the deck. The slides are deleted immediately and cannot be recovered. Remaining slides will maintain their relative order." +
@@ -511,16 +510,15 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.deleteSlides({
-          projectId,
           deck_id: view.params.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
         for (const slideId of res.data.deletedIds) {
-          projectAIViewController.markAIEdit(`slide:${slideId}`);
+          copilotViewController.markAIEdit(`slide:${slideId}`);
         }
-        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -531,10 +529,10 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "duplicate_slides",
       description:
-        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs." +
+        "Create copies of one or more slides. All duplicates are inserted after the last original slide (preserving their relative order). The duplicated slides have identical content but receive new unique IDs. This is also the only way to reuse a figure: there is no figure library, so copying the slide that holds it is how a figure is reused." +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
         slideIds: z
@@ -555,16 +553,15 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.duplicateSlides({
-          projectId,
           deck_id: view.params.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new AIToolFailure(res.err);
 
         for (const slideId of res.data.newSlideIds) {
-          projectAIViewController.markAIEdit(`slide:${slideId}`);
+          copilotViewController.markAIEdit(`slide:${slideId}`);
         }
-        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
@@ -575,7 +572,7 @@ export function getClientToolsForSlides(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "move_slides",
       description:
         "Reposition one or more slides to a new location in the deck. This is the recommended way to reorder slides, as it's safer and more precise than trying to recreate the entire deck. The moved slides will maintain their relative order to each other." +
@@ -609,7 +606,6 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.moveSlides({
-          projectId,
           deck_id: view.params.deckId,
           slideIds: input.slideIds,
           position: input.position,
@@ -617,9 +613,9 @@ export function getClientToolsForSlides(
         if (!res.success) throw new AIToolFailure(res.err);
 
         for (const slideId of input.slideIds) {
-          projectAIViewController.markAIEdit(`slide:${slideId}`);
+          copilotViewController.markAIEdit(`slide:${slideId}`);
         }
-        projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
         return `Moved ${input.slideIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },

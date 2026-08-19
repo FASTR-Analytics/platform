@@ -4,7 +4,6 @@ import {
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
   periodFilterHasBounds,
-  type AiContentBlockInput,
   type ContentBlock,
   type FigureBundle,
   type MetricWithStatus,
@@ -12,7 +11,7 @@ import {
   type ResultsValueInfoForPresentationObject,
   type Slide,
 } from "lib";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { AIToolFailure, createAITool } from "panther";
 import type { LayoutNode } from "panther";
 import {
@@ -26,16 +25,16 @@ import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
 import {
-  projectAIViewController,
-  projectAIViews,
-} from "~/components/project_ai/ai_views";
+  copilotViewController,
+  copilotViews,
+} from "~/components/copilot/ai_views";
 import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
-import { clientAIToolEnvFor } from "../client_env";
+import { copilotAIToolEnv } from "../client_env";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   extractBlocksFromLayout,
@@ -47,7 +46,6 @@ import {
   normalizeSpans,
 } from "~/components/slide_deck/slide_ai/layout_spec_helpers";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
-import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { serverActions } from "~/server_actions";
 
@@ -70,13 +68,10 @@ function replaceFigureBundleInLayout(
   return { ...slide, layout: walk(slide.layout) };
 }
 
-export function getClientToolsForSlideEditor(
-  projectId: string,
-  metrics: MetricWithStatus[],
-) {
+export function getClientToolsForSlideEditor(metrics: MetricWithStatus[]) {
   return [
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "get_slide_editor",
       description:
         "Get the current content and structure of the slide being edited. Shows live state from the editor (including unsaved changes). ALWAYS call this first when starting to help with a slide.",
@@ -85,7 +80,7 @@ export function getClientToolsForSlideEditor(
       kind: "read",
       handler: async (_input, view) => {
         const slide = view.context.getTempSlide();
-        const simplified = await simplifySlideForAI(clientAIToolEnvFor(projectId), slide, metrics);
+        const simplified = await simplifySlideForAI(copilotAIToolEnv, slide, metrics);
 
         const lines: string[] = [];
         lines.push("# SLIDE EDITOR");
@@ -106,7 +101,7 @@ export function getClientToolsForSlideEditor(
       completionMessage: "Retrieved slide",
     }),
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "update_slide_editor",
       description:
         "Update the slide content. Provide an `update` object whose `type` matches the slide's type (shown by get_slide_editor), with only the fields you want to change. Changes are LOCAL (preview only) until user clicks Save. Use get_slide_editor first to see current state and block IDs.",
@@ -149,7 +144,7 @@ export function getClientToolsForSlideEditor(
                 )
                 .optional()
                 .describe(
-                  `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (different metric/viz, or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits, and a from_visualization replacement silently resets the replicant to the saved viz's default rather than to a value you choose. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
+                  `REPLACE specific blocks by ID with new content. Max ${MAX_CONTENT_BLOCKS} blocks. Use this to swap a block for a DIFFERENT figure (a different metric or a different chart type) or to change a text block. To merely TWEAK an existing figure (e.g. its replicant, filters, captions), use update_figure instead — replacing a figure block here REBUILDS it from scratch and DISCARDS any prior edits. No markdown tables - use a from_metric block with a table-type preset (vizPresetId) instead. Mutually exclusive with layoutChange.`,
                 ),
               layoutChange: z
                 .object({
@@ -243,7 +238,7 @@ export function getClientToolsForSlideEditor(
               }
             }
             updated = (await getSlideWithUpdatedBlocks(
-              projectId,
+              ctx.getScope(),
               updated,
               u.blockUpdates,
               metrics,
@@ -311,39 +306,24 @@ export function getClientToolsForSlideEditor(
                     );
                   }
                   resolvedRow.push({ id: cell.block, block: existing, span });
+                } else if (cell.block.type === "text") {
+                  validateNoMarkdownTables(cell.block.markdown);
+                  resolvedRow.push({
+                    id: generateId(),
+                    block: cell.block,
+                    span,
+                  });
                 } else {
-                  const newBlockInput = cell.block as AiContentBlockInput;
-                  if (newBlockInput.type === "text") {
-                    validateNoMarkdownTables(newBlockInput.markdown);
-                    resolvedRow.push({
-                      id: generateId(),
-                      block: newBlockInput,
-                      span,
-                    });
-                  } else if (newBlockInput.type === "from_visualization") {
-                    const figureBlock = await resolveFigureFromVisualization(
-                      projectId,
-                      newBlockInput,
-                    );
-                    resolvedRow.push({
-                      id: generateId(),
-                      block: figureBlock,
-                      span,
-                    });
-                  } else if (newBlockInput.type === "from_metric") {
-                    const figureBlock = await resolveFigureFromMetric(
-                      projectId,
-                      newBlockInput,
-                      metrics,
-                    );
-                    resolvedRow.push({
-                      id: generateId(),
-                      block: figureBlock,
-                      span,
-                    });
-                  } else {
-                    throw new Error("Unsupported block type");
-                  }
+                  const figureBlock = await resolveFigureFromMetric(
+                    ctx.getScope(),
+                    cell.block,
+                    metrics,
+                  );
+                  resolvedRow.push({
+                    id: generateId(),
+                    block: figureBlock,
+                    span,
+                  });
                 }
               }
               resolvedRows.push(resolvedRow);
@@ -385,10 +365,10 @@ export function getClientToolsForSlideEditor(
       },
     }),
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "update_figure",
       description:
-        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions), regardless of how it was created. Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric/from_visualization block to change type). In the slide editor, changes are LOCAL (preview only) until the user clicks Save; at the deck level the slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
+        "Edit an existing FIGURE block in place — THE tool for changing anything about a figure already on a slide (the replicant, filters, disaggregation, period, captions). Works BOTH inside the slide editor and at the deck level (pass slideId when at the deck level; omit it in the editor). Provide the figure's blockId and only the fields to change (e.g. selectedReplicantValue, filterBy, disaggregateBy, periodFilter, caption); everything else is preserved and the data is re-queried automatically under the deck's results package and scope. To CHANGE A REPLICANT, always use this — it validates the value against the available options and errors clearly. The figure's chart type cannot be changed here (recreate via a from_metric block to change type). In the slide editor, changes are LOCAL (preview only) until the user clicks Save; at the deck level the slide is saved immediately. To edit a figure embedded in a REPORT, use update_report_figure instead.",
       inputSchema: z.object({
         slideId: z.string().optional().describe(
           "Required at the DECK level (from get_deck/get_slide). Omit inside the slide editor — the open slide is used.",
@@ -408,10 +388,11 @@ export function getClientToolsForSlideEditor(
               "config (replicant, filters, disaggregation, period, captions); it " +
               "cannot change the metric/indicator or chart type. To show a " +
               "different indicator or chart, replace the block with a new " +
-              "from_metric/from_visualization figure (blockUpdates in " +
-              "update_slide_editor, or replace_slide).",
+              "from_metric figure (blockUpdates in update_slide_editor, or " +
+              "replace_slide).",
           );
         }
+        const scope = view.context.getScope();
 
         // Load the target slide: the live editor slide, or a saved deck slide by id.
         let slide: Slide;
@@ -422,7 +403,7 @@ export function getClientToolsForSlideEditor(
           if (!input.slideId) {
             throw new AIToolFailure("slideId is required to update a figure at the deck level.");
           }
-          const slideRes = await serverActions.getSlide({ projectId, slide_id: input.slideId });
+          const slideRes = await serverActions.getSlide({ slide_id: input.slideId });
           if (!slideRes.success) throw new AIToolFailure(slideRes.err);
           slide = slideRes.data.slide;
           expectedLastUpdated = slideRes.data.lastUpdated;
@@ -452,7 +433,9 @@ export function getClientToolsForSlideEditor(
 
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this project.`);
+          throw new AIToolFailure(
+            `Metric "${bundle.metricId}" is not in the results package this deck is attached to.`,
+          );
         }
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
@@ -464,7 +447,7 @@ export function getClientToolsForSlideEditor(
           !bundle.config.d.timeseriesGrouping
         ) {
           throw new AIToolFailure(
-            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via a from_metric block). No changes were applied.",
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the figure editor (or the figure must be recreated via a from_metric block). No changes were applied.",
           );
         }
 
@@ -483,7 +466,7 @@ export function getClientToolsForSlideEditor(
           | undefined;
         if (needsBounds || needsPossibleValues) {
           const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-            projectId,
+            scope,
             bundle.metricId,
           );
           if (infoRes.success) {
@@ -511,11 +494,11 @@ export function getClientToolsForSlideEditor(
         const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
           ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
           : undefined;
-        await validateMetricInputs(clientAIToolEnvFor(projectId), bundle.metricId, filters, periodFilter);
+        await validateMetricInputs(copilotAIToolEnv, bundle.metricId, filters, periodFilter);
 
         const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 
-        const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
+        const newBundle = await resolveBundleFromMetricAndConfig(scope, metric, newConfig);
 
         // Slot-collision check needs the data's real dateRange (degeneracy) so it
         // matches the renderer exactly — run it post-resolve, still before commit.
@@ -531,7 +514,6 @@ export function getClientToolsForSlideEditor(
           return `Updated figure ${input.blockId}.\n${reportText}\nThe preview will update automatically. User must click "Save" to persist changes.`;
         }
         const saveRes = await serverActions.updateSlide({
-          projectId,
           slide_id: input.slideId!,
           slide: updatedSlide,
           expectedLastUpdated,
@@ -543,7 +525,8 @@ export function getClientToolsForSlideEditor(
               : saveRes.err,
           );
         }
-        projectAIViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`slide:${input.slideId}`);
+        copilotViewController.markAIEdit(`product:${view.params.deckId}`);
         return `Updated figure ${input.blockId} in slide ${input.slideId}.\n${reportText}`;
       },
       inProgressLabel: "Updating figure...",

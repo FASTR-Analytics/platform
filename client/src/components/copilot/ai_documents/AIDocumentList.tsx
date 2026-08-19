@@ -1,9 +1,9 @@
 import { Icon } from "panther";
 import { Show, For } from "solid-js";
-import type { ProjectDocument } from "~/state/project/t4_ai_documents";
+import type { CopilotDocument } from "~/state/products/t4_ai_documents";
 
 export function AIDocumentList(p: {
-  documents: ProjectDocument[];
+  documents: CopilotDocument[];
   onRemove: (assetFilename: string) => void;
 }) {
   return (

@@ -17,14 +17,13 @@ import {
   resolveBundleFromMetricAndConfig,
   validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { projectAIViews } from "~/components/project_ai/ai_views";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
+import { copilotViews } from "~/components/copilot/ai_views";
 import { formatLineRanges } from "~/components/report/rebase_edits";
-import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "lib";
-import { clientAIToolEnvFor } from "../client_env";
+import { copilotAIToolEnv } from "../client_env";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -203,13 +202,10 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   return `- ${parts.join(" · ")}`;
 }
 
-export function getClientToolsForReportEditor(
-  projectId: string,
-  metrics: MetricWithStatus[],
-) {
+export function getClientToolsForReportEditor(metrics: MetricWithStatus[]) {
   return [
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "get_report_editor",
       description:
         "Get the report's current markdown body, a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
@@ -254,7 +250,7 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "get_report_figure",
       description:
         "Get the FULL configuration of one report figure: its metric, type, " +
@@ -289,7 +285,7 @@ export function getClientToolsForReportEditor(
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
         return await formatFigureConfigForAI(
-          clientAIToolEnvFor(projectId),
+          copilotAIToolEnv,
           metric,
           bundle.config,
           bundle.dateRange,
@@ -300,7 +296,7 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "update_report_figure",
       description:
         "Edit an existing report FIGURE's CONFIGURATION in place — the tool for " +
@@ -354,11 +350,12 @@ export function getClientToolsForReportEditor(
               "show a different indicator or chart, use replace_figure.",
           );
         }
+        const scope = ctx.getScope();
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
           throw new AIToolFailure(
-            `Metric "${bundle.metricId}" not found in this project.`,
+            `Metric "${bundle.metricId}" is not in the results package this report is attached to.`,
           );
         }
 
@@ -369,7 +366,7 @@ export function getClientToolsForReportEditor(
           !bundle.config.d.timeseriesGrouping
         ) {
           throw new AIToolFailure(
-            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the visualization editor (or the figure must be recreated via replace_figure). No changes were applied.",
+            "This figure's stored config is a timeseries with no period grouping, which cannot render. It cannot be repaired here — the user must fix it in the figure editor (or the figure must be recreated via replace_figure). No changes were applied.",
           );
         }
 
@@ -386,7 +383,7 @@ export function getClientToolsForReportEditor(
           | undefined;
         if (needsBounds || needsPossibleValues) {
           const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-            projectId,
+            scope,
             bundle.metricId,
           );
           if (infoRes.success) {
@@ -421,7 +418,7 @@ export function getClientToolsForReportEditor(
               }
             : undefined;
         await validateMetricInputs(
-          clientAIToolEnvFor(projectId),
+          copilotAIToolEnv,
           bundle.metricId,
           filters,
           periodFilter,
@@ -435,7 +432,7 @@ export function getClientToolsForReportEditor(
         );
 
         const newBundle = await resolveBundleFromMetricAndConfig(
-          projectId,
+          scope,
           metric,
           newConfig,
         );
@@ -464,7 +461,7 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "rewrite_report",
       description:
         "Propose a full rewrite of the report body. The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. No raw HTML.",
@@ -504,7 +501,7 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "rewrite_section",
       description:
         "Propose rewriting one heading-bounded section (from its heading to the next heading of the same or higher level). Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). newMarkdown must include the section heading. The user reviews a diff.",
@@ -557,7 +554,7 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "replace_text",
       description:
         "Propose a targeted edit: replace an exact run of text (oldText) with newText. oldText must match the current body VERBATIM (whitespace and markdown included) and occur exactly once — if it appears multiple times, pass occurrenceIndex (1-based) or include more surrounding text to make it unique. Use this for small/sentence-level edits, or to act on the user's current selection. Keep any figure/image tokens you intend to retain. The user reviews a diff and accepts or rejects — nothing is applied silently.",
@@ -610,10 +607,10 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "insert_figure",
       description:
-        "Propose inserting a live data figure. The `figure` is either a `from_visualization` block (clone a saved visualization by id — get ids from get_available_visualizations) or a `from_metric` block (build a NEW chart from a metric + preset — get metricIds/presets from get_available_metrics), exactly like slide figures. Optionally place it after a heading (afterHeading — must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
+        "Propose inserting a live data figure. The `figure` is a `from_metric` block — a NEW chart built from a metric + one of its presets (get metricIds/presets from get_available_metrics), exactly like slide figures; it resolves under the report's results package and scope. Optionally place it after a heading (afterHeading — must match an existing heading's text, or the call errors; omit to append at the end) and give a caption. The user reviews a diff; on accept the figure is added to the report and its token inserted.",
       inputSchema: z.object({
         figure: AiFigureBlockInputSchema,
         caption: z.string().optional(),
@@ -624,10 +621,11 @@ export function getClientToolsForReportEditor(
       approval: {
         propose: async (input, view) => {
           const ctx = view.context;
-          const figureBlock =
-            input.figure.type === "from_visualization"
-              ? await resolveFigureFromVisualization(projectId, input.figure)
-              : await resolveFigureFromMetric(projectId, input.figure, metrics);
+          const figureBlock = await resolveFigureFromMetric(
+            ctx.getScope(),
+            input.figure,
+            metrics,
+          );
           const id = crypto.randomUUID();
           const caption = sanitizeCaption(input.caption ?? "");
           const token = `![${caption}](figure:${id})`;
@@ -667,10 +665,10 @@ export function getClientToolsForReportEditor(
     }),
 
     createAITool({
-      viewRegistry: projectAIViews,
+      viewRegistry: copilotViews,
       name: "replace_figure",
       description:
-        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style union as insert_figure (from_visualization to clone a saved viz, or from_metric to build a new chart). The caption is kept unless you pass a new `caption` — note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
+        "Propose replacing the chart behind an existing report figure. figureId is one of the figure:<id> tokens (from get_report_editor). The replacement `figure` is the same slide-style `from_metric` block as insert_figure (a metric + one of its presets). The caption is kept unless you pass a new `caption` — note that if this figure is embedded more than once, a new `caption` is applied to EVERY embed of it, so omit `caption` when you only mean to change the chart. The token is swapped in place, so the user reviews a diff and accepts or rejects. To merely TWEAK an existing figure (its replicant, filters, disaggregation, period, or captions) WITHOUT changing the underlying chart, use update_report_figure instead — replacing here rebuilds the figure and resets settings like the replicant.",
       inputSchema: z.object({
         figureId: z.string(),
         figure: AiFigureBlockInputSchema,
@@ -695,10 +693,11 @@ export function getClientToolsForReportEditor(
               `Figure "${input.figureId}" is registered but its token isn't in the body. Call get_report_editor.`,
             );
           }
-          const figureBlock =
-            input.figure.type === "from_visualization"
-              ? await resolveFigureFromVisualization(projectId, input.figure)
-              : await resolveFigureFromMetric(projectId, input.figure, metrics);
+          const figureBlock = await resolveFigureFromMetric(
+            ctx.getScope(),
+            input.figure,
+            metrics,
+          );
           const newId = crypto.randomUUID();
           const overrideCaption =
             input.caption !== undefined

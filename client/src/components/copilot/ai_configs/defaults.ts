@@ -5,14 +5,15 @@ export const DEFAULT_BUILTIN_TOOLS = { webSearch: true, webFetch: true };
 
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
-export function createProjectSDKClient(projectId: string) {
+// The `/ai` proxy is guarded requireApprovedUser() and logs usage against the
+// caller's email — there is no project header any more (D2/D15).
+export function createCopilotSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`
     : `${window.location.origin}/ai`;
   return new Anthropic({
     apiKey: "not-needed",
     baseURL,
-    defaultHeaders: { "Project-Id": projectId },
     dangerouslyAllowBrowser: true,
     fetch: async (url: RequestInfo | URL, init?: RequestInit) => {
       const response = await globalThis.fetch(url, init);

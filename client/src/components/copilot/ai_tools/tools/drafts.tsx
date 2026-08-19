@@ -1,8 +1,6 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
-  AiFigureFromVisualizationSchema,
-  AiFigureFromMetricSchema,
   AiCoverSlideSchema,
   AiSectionSlideSchema,
   AiContentSlideSchema,
@@ -17,69 +15,20 @@ import {
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
-import { DraftVisualizationPreview } from "../DraftVisualizationPreview";
+import { copilotViewController } from "~/components/copilot/ai_views";
+import { requireCopilotScope } from "~/components/copilot/authoring_context";
 import { DraftSlidePreview } from "../DraftSlidePreview";
 
-export function getClientToolsForDrafts(
-  projectId: string,
-  metrics: MetricWithStatus[],
-) {
+// A draft resolves under whatever pair the copilot is currently bound to: the
+// open deck's while the deck editor is up, else the pin at national scope. The
+// second case is why AddToDeckModal re-resolves before writing — a draft built
+// against the pin must not be written into a deck on another package (D15).
+export function getClientToolsForDrafts(metrics: MetricWithStatus[]) {
   return [
-    createAITool({
-      name: "show_draft_visualization_to_user",
-      description:
-        "Show an ad-hoc visualization preview to the user inline in the chat. Use this to display chart ideas, explore data visually, or when the user asks to see something charted. The user can then choose to edit/save it as a visualization or add it to a slide deck.\n\nSupports two figure sources:\n- from_visualization: Show an existing saved visualization (by ID). Use 'replicant' to show a specific variant.\n- from_metric: Create a new chart from metric data. IMPORTANT: Always call get_metric_data FIRST to understand available disaggregations and filters before using from_metric.",
-      inputSchema: z.object({
-        title: z
-          .string()
-          .max(200)
-          .describe("Title for the visualization preview"),
-        figure: z
-          .union([AiFigureFromVisualizationSchema, AiFigureFromMetricSchema])
-          .describe(
-            "The figure source: either from_visualization (existing viz by ID) or from_metric (new chart from metric data).",
-          ),
-      }),
-      kind: "read",
-      handler: async (input) => {
-        const fig = input.figure;
-        if (fig.type === "from_metric") {
-          try {
-            await resolveFigureFromMetric(projectId, fig, metrics);
-          } catch (err) {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            throw new AIToolFailure(`Failed to create visualization from metric "${fig.metricId}" with preset "${fig.vizPresetId}": ${errMsg}`);
-          }
-        } else {
-          const res = await getPODetailFromCacheorFetch(projectId, fig.visualizationId);
-          if (!res.success) {
-            throw new AIToolFailure(`Failed to load visualization "${fig.visualizationId}": ${res.err}`);
-          }
-        }
-        return "Visualization preview displayed to user.";
-      },
-      displayComponent: (props: {
-        input: { title: string; figure: z.infer<typeof AiFigureFromVisualizationSchema> | z.infer<typeof AiFigureFromMetricSchema> };
-      }) => {
-        return (
-          <DraftVisualizationPreview
-            projectId={projectId}
-            title={props.input.title}
-            figure={props.input.figure}
-            metrics={metrics}
-          />
-        );
-      },
-      inProgressLabel: "Creating visualization preview...",
-      completionMessage: "Visualization preview shown",
-    }),
-
     createAITool({
       name: "show_draft_slide_to_user",
       description:
-        `Show an ad-hoc slide preview to the user inline in the chat. Use this to propose slide content, display ideas, or when the user asks to see a slide mockup. The user can then add it to a slide deck.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_visualization for existing vizs, from_metric for new charts (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type visualization preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
+        `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. The user can then add it to a slide deck.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({
         slide: z
           .union([AiCoverSlideSchema, AiSectionSlideSchema, AiContentSlideSchema])
@@ -89,14 +38,15 @@ export function getClientToolsForDrafts(
       }),
       kind: "read",
       handler: async (input) => {
+        const scope = requireCopilotScope();
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
           for (const block of input.slide.blocks) {
             if (block.type === "text") {
               validateNoMarkdownTables(block.markdown);
-            } else if (block.type === "from_metric") {
+            } else {
               try {
-                await resolveFigureFromMetric(projectId, block, metrics);
+                await resolveFigureFromMetric(scope, block, metrics);
               } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 throw new AIToolFailure(`Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`);
@@ -104,18 +54,17 @@ export function getClientToolsForDrafts(
             }
           }
         }
-        const view = projectAIViewController.current();
+        const view = copilotViewController.current();
         const deckConfig = view.id === "editing_slide_deck"
           ? view.context.getDeckConfig()
           : getStartingConfigForSlideDeck("Draft");
         const convertedSlide = await convertAiInputToSlide(
-          projectId,
+          scope,
           input.slide,
           metrics,
           deckConfig,
         );
         const renderRes = await convertSlideToPageInputs(
-          projectId,
           convertedSlide,
           undefined,
           deckConfig,
@@ -130,7 +79,6 @@ export function getClientToolsForDrafts(
       }) => {
         return (
           <DraftSlidePreview
-            projectId={projectId}
             slideInput={props.input.slide}
             metrics={metrics}
           />

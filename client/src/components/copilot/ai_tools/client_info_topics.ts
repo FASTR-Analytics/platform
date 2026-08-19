@@ -8,7 +8,7 @@ const CLIENT_INFO_TOPICS: InfoCatalogTopic[] = [
     topic: "iceh-equity-profile",
     title: "ICEH equity profile — report recipe",
     description:
-      "Step-by-step recipe for building an ICEH/Countdown equity profile as a report from a project's imported survey data. Load when asked to create an ICEH equity profile.",
+      "Step-by-step recipe for building an ICEH/Countdown equity profile as a report from the instance's imported survey data. Load when asked to create an ICEH equity profile.",
   },
 ];
 

@@ -20,24 +20,22 @@ import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload"
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
 import {
-  addDocumentToProject,
-  getDocumentsForProject,
-  removeDocumentFromProject,
-  type ProjectDocument,
-} from "~/state/project/t4_ai_documents";
+  addCopilotDocument,
+  getCopilotDocuments,
+  removeCopilotDocument,
+  type CopilotDocument,
+} from "~/state/products/t4_ai_documents";
 
-type Props = {
-  projectId: string;
-};
+type Props = Record<string, never>;
 
-type ReturnType = ProjectDocument[] | undefined;
+type ReturnType = CopilotDocument[] | undefined;
 
 export function AIDocumentSelectorModal(
   p: AlertComponentProps<Props, ReturnType>,
 ) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedFiles, setSelectedFiles] = createSignal<string[]>([]);
-  const [existingDocs, setExistingDocs] = createSignal<ProjectDocument[]>([]);
+  const [existingDocs, setExistingDocs] = createSignal<CopilotDocument[]>([]);
 
   let uppy: Uppy | undefined;
 
@@ -54,7 +52,7 @@ export function AIDocumentSelectorModal(
   );
 
   onMount(async () => {
-    const existing = await getDocumentsForProject(p.projectId);
+    const existing = await getCopilotDocuments();
 
     setExistingDocs(existing);
 
@@ -99,21 +97,21 @@ export function AIDocumentSelectorModal(
       const toRemove = existingFilenames.filter((f) => !selected.includes(f));
 
       for (const filename of toRemove) {
-        await removeDocumentFromProject(p.projectId, filename);
+        await removeCopilotDocument(filename);
       }
 
       for (const filename of toAdd) {
-        const result = await uploadAssetToAnthropic(p.projectId, filename);
+        const result = await uploadAssetToAnthropic(filename);
         if (!result.success) {
           return { success: false as const, err: result.error };
         }
-        await addDocumentToProject(p.projectId, {
+        await addCopilotDocument({
           assetFilename: filename,
           anthropicFileId: result.file_id,
         });
       }
 
-      const finalDocs = await getDocumentsForProject(p.projectId);
+      const finalDocs = await getCopilotDocuments();
       return { success: true as const, data: finalDocs };
     },
     (data) => {
@@ -210,7 +208,6 @@ export function AIDocumentSelectorModal(
 }
 
 async function uploadAssetToAnthropic(
-  projectId: string,
   assetFilename: string,
 ): Promise<
   { success: true; file_id: string } | { success: false; error: string }
@@ -221,7 +218,6 @@ async function uploadAssetToAnthropic(
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        "Project-Id": projectId,
       },
       body: JSON.stringify({ assetFilename }),
     });

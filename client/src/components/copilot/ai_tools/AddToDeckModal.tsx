@@ -1,22 +1,28 @@
-import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib";
+import { productScope, t3, type ProductSummary, type Slide } from "lib";
 import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
-import { createSignal } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { reportDraftSlideAdded } from "./add_slide_to_deck";
+import { reresolveSlideFiguresUnderScope } from "./reresolve_slide_figures";
 import { DeckSelector } from "./DeckSelector";
 
 type Props = {
-  projectId: string;
   slide: Slide;
-  slideDecks: SlideDeckSummary[];
-  slideDeckFolders: SlideDeckFolder[];
 };
 
 type ReturnType = { deckId: string } | undefined;
 
 export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
+  const decks = createMemo(() =>
+    instanceState.products.filter(
+      (product): product is Extract<ProductSummary, { type: "slide_deck" }> =>
+        product.type === "slide_deck",
+    )
+  );
+
   const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
-    p.slideDecks.length > 0 ? p.slideDecks[0].id : "",
+    decks().length > 0 ? decks()[0].id : "",
   );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
@@ -32,23 +38,55 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
         if (!label) {
           return { success: false as const, err: "Please enter a deck name" };
         }
-        const createRes = await serverActions.createSlideDeck({
-          projectId: p.projectId,
-          label,
+        // The server mints the row and resolves run_id from the pin (D16); the
+        // label is a separate product-registry write.
+        const createRes = await serverActions.createProduct({
+          type: "slide_deck",
+          folderId: null,
         });
         if (!createRes.success) {
           return createRes;
         }
-        deckId = createRes.data.deckId;
+        deckId = createRes.data.productId;
+        const labelRes = await serverActions.updateProductLabel({
+          product_id: deckId,
+          label,
+        });
+        if (!labelRes.success) {
+          return labelRes;
+        }
       } else {
         deckId = selectedDeckId();
       }
 
+      // The draft was resolved under the copilot's pair at draft time — the
+      // pin at national scope, since this modal only opens when NO deck editor
+      // is up. The target deck may sit on another package or another admin
+      // area, so its figures are re-queried under the deck's own pair before
+      // the write (D15).
+      const target = instanceState.products.find((product) =>
+        product.id === deckId
+      );
+      if (!target) {
+        return { success: false as const, err: "That slide deck no longer exists" };
+      }
+      let slide: Slide;
+      try {
+        slide = await reresolveSlideFiguresUnderScope(
+          p.slide,
+          productScope(target),
+        );
+      } catch (err) {
+        return {
+          success: false as const,
+          err: err instanceof Error ? err.message : "Could not prepare the slide for this deck",
+        };
+      }
+
       const addRes = await serverActions.createSlide({
-        projectId: p.projectId,
         deck_id: deckId,
         position: { toEnd: true },
-        slide: p.slide,
+        slide,
       });
 
       if (!addRes.success) {
@@ -76,8 +114,8 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
       }
     >
       <DeckSelector
-        decks={p.slideDecks}
-        folders={p.slideDeckFolders}
+        decks={decks()}
+        folders={instanceState.folders}
         selectedDeckId={selectedDeckId()}
         onSelectDeck={setSelectedDeckId}
         isCreatingNew={isCreatingNew()}

@@ -1,22 +1,21 @@
 import { defineAIInteractions, interaction } from "panther";
-import type {
-  EditingSlideDeckContext,
-  EditingSlideParams,
-} from "./ai_views";
+import type { ProductType } from "lib";
+import type { EditingSlideDeckContext, EditingSlideParams } from "./ai_views";
 
-// The copilot's interaction registry (rung 4, PLAN_FUTURE_AI_ADOPTIONS.md
-// feature 3) — replaces the hand-rolled pendingInteractions queue +
-// reduceInteractions/formatInteraction pipeline. Reduction semantics are
-// preserved from the pre-rung-4 reducer: per-view relevance via relevantIn,
-// payload×view reductions via filter, and the same digest wording (the
-// engine renders each format return as one "- " bullet under the
-// "User actions since last message:" prefix). Echo keys close the SSE
-// self-echo loop: persist-path AI write tools mark the same keys via
-// projectAIViewController.markAIEdit, so the AI's own server writes no
-// longer come back as fake user actions.
-export const projectAIInteractions = defineAIInteractions({
-  // SSE: any slides-table row change. One line per distinct slide, kept only
-  // when that slide is in the deck being edited (or IS the open slide).
+// The copilot's interaction registry: what the USER did since the last
+// message. Producers call `copilotViewController.notify(...)` — the instance
+// SSE side-channel (index.tsx) and the editors/selection UIs. The engine owns
+// the transactional drain at turn creation and the reduction pipeline
+// (relevantIn / per-entry filter / coalesce per id), plus a coalesced
+// `__navigation` line.
+//
+// Echo keys close the SSE self-echo loop: every persist-path write tool marks
+// the same keys via `copilotViewController.markAIEdit`, so the AI's own server
+// writes are dropped at drain instead of coming back as fake user actions.
+export const copilotInteractions = defineAIInteractions({
+  // SSE `last_updated("slides")`: any slides-table row change. One line per
+  // distinct slide, kept only when that slide is in the deck being edited (or
+  // IS the open slide).
   edited_slide: interaction<{ slideId: string }>({
     relevantIn: ["editing_slide_deck", "editing_slide"],
     filter: (p, view) => {
@@ -36,27 +35,38 @@ export const projectAIInteractions = defineAIInteractions({
     format: (p) => `Edited slide ${p.slideId}`,
     echoKey: (p) => `slide:${p.slideId}`,
   }),
-  // SSE: any slide_decks-table row change (create/delete/duplicate/move all
-  // bump the deck row). The deckId payload exists for echo suppression; the
-  // digest line is deliberately unchanged from the pre-rung-4 wording.
-  deck_structure_changed: interaction<{ deckId: string }>({
-    relevantIn: ["editing_slide_deck"],
-    format: () =>
-      "Slide deck structure changed (slides added, removed, or reordered)",
-    echoKey: (p) => `deck:${p.deckId}`,
+  // SSE `products_upserted`: ONE message for every product change, so ONE
+  // interaction — a deck's row bumps on every slide write AND on a rename,
+  // reattach or scope change, and a report's on every body save. Reported in
+  // every view (a product the user is not looking at can still change under a
+  // collaborator), one line per distinct product.
+  product_updated: interaction<{
+    productId: string;
+    type: ProductType;
+    label: string;
+  }>({
+    coalesce: (entries) => {
+      const seen = new Set<string>();
+      return entries.filter((e) =>
+        seen.has(e.productId) ? false : (seen.add(e.productId), true),
+      );
+    },
+    format: (p) =>
+      p.type === "slide_deck"
+        ? `Slide deck "${p.label}" changed (slides added, removed or reordered, or its settings changed)`
+        : `Report "${p.label}" changed`,
+    echoKey: (p) => `product:${p.productId}`,
   }),
+  selected_products: interaction<{ productIds: string[] }>({
+    relevantIn: ["viewing_products"],
+    format: (p) => `Selected products: ${p.productIds.join(", ")}`,
+  }),
+  // The deck editor's slide list. The open deck's CURRENT selection also rides
+  // the view instructions; this reports the act of selecting since the last
+  // message.
   selected_slides: interaction<{ slideIds: string[] }>({
-    relevantIn: ["viewing_slide_decks"],
+    relevantIn: ["editing_slide_deck"],
     format: (p) => `Selected slides: ${p.slideIds.join(", ")}`,
-  }),
-  selected_visualizations: interaction<{ vizIds: string[] }>({
-    relevantIn: ["viewing_visualizations"],
-    format: (p) => `Selected visualizations: ${p.vizIds.join(", ")}`,
-  }),
-  edited_viz_locally: interaction({
-    relevantIn: ["editing_visualization"],
-    format: () =>
-      "User made local changes to the visualization config (unsaved)",
   }),
   edited_slide_locally: interaction({
     relevantIn: ["editing_slide"],
@@ -67,29 +77,14 @@ export const projectAIInteractions = defineAIInteractions({
     format: () =>
       "User edited the report body (re-read with get_report_editor before proposing edits)",
   }),
-  // SSE: presentation_objects-table row change (was a "custom" free-text
-  // message pre-rung-4; typed so it can carry an echo key). Reported in
-  // every view, one line per distinct visualization.
-  visualization_updated: interaction<{ vizId: string; label: string }>({
-    coalesce: (entries) => {
-      const seen = new Set<string>();
-      return entries.filter((e) =>
-        seen.has(e.vizId) ? false : (seen.add(e.vizId), true),
-      );
-    },
-    format: (p) => `Visualization "${p.label}" updated`,
-    echoKey: (p) => `viz:${p.vizId}`,
-  }),
-  // App-notified (not SSE): the user accepted an AI draft into a deck via
-  // the preview card / AddToDeckModal. The write's SSE echoes are marked as
-  // AI edits (the content is the AI's), so without this line the model would
-  // never learn its draft was accepted — notify carries the true signal
-  // instead of letting a generic "deck structure changed" misreport it.
+  // App-notified (not SSE): the user accepted an AI draft into a deck via the
+  // preview card / AddToDeckModal. The write's SSE echoes are marked as AI
+  // edits (the content is the AI's), so without this line the model would
+  // never learn its draft was accepted.
   draft_added_to_deck: interaction<{ slideId: string; deckId: string }>({
     format: (p) =>
       `User added the AI-drafted slide to a slide deck (new slide ${p.slideId}, deck ${p.deckId})`,
   }),
 });
 
-export type ProjectAIInteractionDefs =
-  (typeof projectAIInteractions)["_defs"];
+export type CopilotInteractionDefs = (typeof copilotInteractions)["_defs"];

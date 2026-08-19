@@ -1,74 +1,58 @@
-import type {
-  HfaTaxonomyForAI,
-  InstalledModuleSummary,
-  MetricWithStatus,
-  PresentationObjectSummary,
-  ReportSummary,
-  SlideDeckSummary,
-} from "lib";
 import {
   getSharedToolsForInfo,
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import { clientAIToolEnvFor } from "./ai_tools/client_env";
+import { copilotAuthoringContext } from "./authoring_context";
+import { copilotAIToolEnv } from "./ai_tools/client_env";
+import { withSourceHeader } from "./ai_tools/source_header";
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getClientToolsForModules } from "./ai_tools/tools/modules";
+import { getClientToolsForProducts } from "./ai_tools/tools/products";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
-import { getClientToolsForReports } from "./ai_tools/tools/reports";
-import { getClientToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
 import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getClientToolsForSlides } from "./ai_tools/tools/slides";
-import { getClientToolsForVisualizations } from "./ai_tools/tools/visualizations";
-import { getClientToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
-import { getClientToolsForNavigation } from "./ai_tools/tools/navigation";
-
-type BuildToolsParams = {
-  projectId: string;
-  modules: InstalledModuleSummary[];
-  metrics: MetricWithStatus[];
-  icehIndicators: { id: string; label: string; category: string }[];
-  hfaTaxonomy: HfaTaxonomyForAI;
-  visualizations: PresentationObjectSummary[];
-  slideDecks: SlideDeckSummary[];
-  reports: ReportSummary[];
-};
 
 // The copilot's tool set = the SHARED tools (lib/ai_tools — the same
-// definitions the /mcp surface exposes, over the env bound to this project)
-// + the CLIENT tools (project content, editors, navigation, drafts). Array
-// order is the tool-catalog order and the catalog is a prompt-cache input —
-// keep it stable.
-export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =
-    params;
-  const env = clientAIToolEnvFor(projectId);
+// definitions the /mcp surface exposes, over the env bound to whichever
+// (package, scope) pair the copilot currently serves) + the CLIENT tools
+// (product registry, module internals, editors, drafts). Array order is the
+// tool-catalog order and the catalog is a prompt-cache input — keep it stable.
+//
+// The arrays passed here are the authoring-context STORE's, captured once and
+// reconciled in place — see authoring_context.ts for why that is what keeps
+// the tools live across a package switch.
+//
+// Only the shared metric tools get the source header, exactly as at /mcp: they
+// are the ones that read the package. The methodology docs are fetched from
+// GitHub and the client tools name their own product.
+export function buildCopilotTools() {
+  const env = copilotAIToolEnv;
+  const ctx = copilotAuthoringContext;
 
   return [
-    // Shared metric tools, bound to this project's package.
-    ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
+    ...getSharedToolsForMetrics(
+      env,
+      ctx.metrics,
+      ctx.icehIndicators,
+      ctx.hfaTaxonomy,
+    ).map((tool) => withSourceHeader(tool)),
     // Module internals of that package (SPA-only)
-    ...getClientToolsForModules(projectId, modules, metrics),
-    // Project content
-    ...getClientToolsForVisualizations(projectId, visualizations, metrics),
-    ...getClientToolsForSlideDecks(slideDecks),
-    ...getClientToolsForReports(projectId, reports),
+    ...getClientToolsForModules(ctx.modules, ctx.metrics),
+    // The product registry
+    ...getClientToolsForProducts(),
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(SPA_INFO_TOPICS),
 
     // View-gated tools (createAITool with viewRegistry + availableIn)
-    ...getClientToolsForSlides(projectId, metrics),
-    ...getClientToolsForSlideEditor(projectId, metrics),
-    ...getClientToolsForReportEditor(projectId, metrics),
-    ...getClientToolsForVizEditor(projectId, metrics),
+    ...getClientToolsForSlides(ctx.metrics),
+    ...getClientToolsForSlideEditor(ctx.metrics),
+    ...getClientToolsForReportEditor(ctx.metrics),
 
-    // Navigation tools - always available
-    ...getClientToolsForNavigation(),
-
-    // Draft preview tools - always available
-    ...getClientToolsForDrafts(projectId, metrics),
+    // Draft previews - always available
+    ...getClientToolsForDrafts(ctx.metrics),
 
     // Interactive tools
     createAskUserQuestionsTool(),

@@ -5,46 +5,66 @@ import {
   buildSystemPrompt,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
-  type ProjectState,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
+import {
+  copilotAuthoringContext,
+  describeCopilotPackage,
+  describeCopilotScope,
+} from "./authoring_context";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
-// build_system_prompt.ts) plus the project's own prose — its name, what its
-// package holds, viz/deck/report counts, aiContext. BYTE-STABLE across
-// navigation: no view/mode argument — per-view instructions (below) ride
-// each view's instructions in ai_views.ts as a per-turn ephemeral section,
-// so the prompt-cache breakpoint keeps hitting when the user just switches
-// tabs/editors.
+// build_system_prompt.ts) plus the instance's own prose — the results package
+// the copilot is currently serving, the product counts, and the instance-level
+// `ai_context` (D15; there is no per-project context any more).
+//
+// BYTE-STABLE across navigation WITHIN one package: no view/mode argument —
+// per-view instructions ride each view's instructions in ai_views.ts as a
+// per-turn ephemeral section. Opening a product on a DIFFERENT package
+// legitimately rewrites the package-grounding half and busts the prompt-cache
+// breakpoint once; that is the price of grounding the model in the package it
+// is actually reading, and the per-result source header (ai_tools/
+// source_header.ts) carries the same fact into the transcript.
 export function buildSystemPromptForContext(
   instance: InstanceState,
-  projectState: ProjectState,
   toolCatalog: string,
 ): string {
+  const pkg = describeCopilotPackage();
+  const deckCount = instance.products.filter((p) =>
+    p.type === "slide_deck"
+  ).length;
+  const reportCount = instance.products.filter((p) =>
+    p.type === "report"
+  ).length;
+
   const sections: string[] = [
     ...buildInstanceContextSections(instance),
-    "# Project",
+    "# Results package",
     "",
-    `**Name:** ${projectState.label}`,
+    `**Package:** ${pkg.label}${pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`}`,
+    `**Scope:** ${describeCopilotScope()}`,
     ...buildPackageGroundingSections({
       calendar: instance.instanceCalendar,
-      datasets: projectState.projectDatasets,
-      commonIndicators: projectState.commonIndicators,
-      icehIndicators: projectState.icehIndicators,
+      datasets: copilotAuthoringContext.datasets,
+      commonIndicators: copilotAuthoringContext.commonIndicators,
+      icehIndicators: copilotAuthoringContext.icehIndicators,
     }),
     ...buildDataCoverageSections(instance),
     "",
-    `**Available visualizations:** ${projectState.visualizations.length} (use get_available_visualizations for details)`,
-    `**Available slide decks:** ${projectState.slideDecks.length} (use get_available_slide_decks for details)`,
-    `**Available reports:** ${projectState.reports.length} (use get_available_reports for details)`,
+    "# Products",
+    "",
+    "A product is a slide deck or a report. Each one is filed in a folder and attached to exactly one results package at one scope; every figure inside it is resolved under that pair.",
+    "",
+    `**Slide decks:** ${deckCount} (use get_available_slide_decks for details)`,
+    `**Reports:** ${reportCount} (use get_available_reports for details)`,
   ];
-  if (projectState.aiContext.trim()) {
+  if (instance.aiContext.trim()) {
     sections.push("");
-    sections.push("# Additional Project Context");
+    sections.push("# Additional Context");
     sections.push("");
-    sections.push(projectState.aiContext.trim());
+    sections.push(instance.aiContext.trim());
   }
   sections.push("");
   sections.push("---");
@@ -55,7 +75,7 @@ export function buildSystemPromptForContext(
     toolCatalog,
     infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
-      "You are an AI assistant helping users explore, analyze, and present their health data. You can query data, show draft visualizations, and help create slide decks.",
+      "You are an AI assistant helping users explore, analyze, and present their health data. You can query data, draft slides and figures, and help build slide decks and reports.",
     extraCorePrinciples: [
       "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
     ],
@@ -66,139 +86,61 @@ export function buildSystemPromptForContext(
 // ── Viewing mode instructions ──
 // Each function below is used as a view's instructions in ai_views.ts.
 
-export function getViewingVisualizationsInstructions(): string {
-  return `# Current View: Visualizations Library
+export function getViewingProductsInstructions(): string {
+  return `# Current View: Products
 
-The user is browsing their saved visualizations.
-
-## Primary Tools (most relevant here)
-
-**get_available_visualizations** - List all saved visualizations
-**get_visualization_data** - Get data for a specific visualization by ID
-
-## Actions
-
-- Help explore existing visualizations
-- Answer questions about visualizations
-- Suggest new visualizations to create`;
-}
-
-export function getViewingSlideDecksInstructions(): string {
-  return `# Current View: Slide Decks Library
-
-The user is browsing their slide decks.
-
-## Actions
-
-- Help explore existing slide decks
-- Answer questions about deck content
-- Suggest new decks to create`;
-}
-
-export function getViewingReportsInstructions(): string {
-  return `# Current View: Reports Library
-
-The user is browsing their long-form reports (markdown documents with embedded live data figures).
+The user is browsing their products — slide decks and reports — in folders.
 
 ## Primary Tools (most relevant here)
 
-**get_available_reports** - List all reports
+**get_available_slide_decks** - List all slide decks with their package and scope
+**get_available_reports** - List all reports with their package and scope
 **get_report** - Get a report's full markdown body + embedded figure/image ids
 **create_report** - Create a new report from a markdown body
 
 ## Actions
 
-- Help explore existing reports
+- Help explore existing decks and reports
 - Draft a new report (use create_report with well-structured markdown: headings, paragraphs, lists, tables)
-- Do NOT put raw HTML in report bodies; for live data tables/charts, the user inserts figures via the editor`;
+- Do NOT put raw HTML in report bodies; for live data tables/charts, figures are inserted in the report editor
+- Figures are created INSIDE a deck or a report. To propose one here, use show_draft_slide_to_user — the user can then add it to a deck of their choice.`;
+}
+
+export function getViewingExploreInstructions(): string {
+  return `# Current View: Explore
+
+The user is browsing metrics and their default figures for a results package,
+outside any product. Nothing here is saved: it is a gallery for looking at the
+data and reading indicator definitions.
+
+## Primary Tools (most relevant here)
+
+**get_available_metrics** - List all metrics with disaggregation options and presets
+**get_metric_data** - Query raw data for a metric (returns CSV)
+**get_available_modules** / **get_module_r_script** / **get_module_log** - How a metric was produced
+**get_methodology_docs_list** / **get_methodology_doc_content** - Read a methodology document
+
+## Actions
+
+- Help explore available metrics and explain methodologies
+- Query and analyze metric data
+- Propose a figure with show_draft_slide_to_user; the user adds it to a deck when they want to keep it`;
 }
 
 export function getEditingReportInstructions(reportLabel: string): string {
   return `# Current View: Editing Report "${reportLabel}"
 
 The user is editing a long-form report (markdown body + embedded live figures).
+Every figure in this report resolves under the report's own results package and
+scope; you do not choose the package, and no tool takes one.
 
 ## How editing works
 
 - Every TEXT edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
 - **Figure edits are different from text edits.** update_report_figure applies straight to the live preview and saves — it is NOT staged as a diff (the figure's body token doesn't change). Body/text edits and figure inserts ARE staged for accept/reject.
 - Prefer **rewrite_section** for targeted changes; use **rewrite_report** only for whole-document restructures.
-- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization.
+- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a metric + preset.
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
-}
-
-export function getViewingMetricsInstructions(): string {
-  return `# Current View: Metrics Section
-
-The user is viewing available metrics/indicators.
-
-## Primary Tools (most relevant here)
-
-**get_available_metrics** - List all metrics with disaggregation options
-**get_metric_data** - Query raw data for a metric (returns CSV)
-
-## Actions
-
-- Help explore available metrics
-- Query and analyze metric data
-- Explain methodologies`;
-}
-
-export function getViewingResultsPackageInstructions(): string {
-  return `# Current View: Results Package
-
-The user is viewing the project's attached results package (an immutable run
-of analysis-module outputs: per-module parameters, output files, scripts and
-logs) and, for editors, the picker that switches the project to another
-package or follows the instance's pinned one. Packages are generated on the
-instance shell, not here.
-
-## Primary Tools (most relevant here)
-
-**get_available_modules** - List the package's modules with status
-**get_module_r_script** - View R script for a module
-**get_module_log** - View execution log for a module
-**get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document
-
-## Actions
-
-- Help explore the package's modules
-- Explain module methodologies
-- Answer questions about module status and results`;
-}
-
-export function getViewingSettingsInstructions(): string {
-  return `# Current View: Project Settings
-
-The user is viewing project settings (users, roles, configuration).
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
-}
-
-export function getViewingDashboardsInstructions(): string {
-  return `# Current View: Dashboards
-
-The user is viewing the project's dashboards.
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
-}
-
-export function getViewingCacheInstructions(): string {
-  return `# Current View: Cache (developer tab)
-
-The user is viewing the developer cache tab.
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
 }
 
 // ── Editing mode instructions ──
@@ -207,6 +149,9 @@ export function getEditingSlideDeckInstructions(deckLabel: string): string {
   return `# Current Mode: Editing Slide Deck
 
 You're editing: "${deckLabel}"
+
+Every figure in this deck resolves under the deck's own results package and
+scope; you do not choose the package, and no tool takes one.
 
 ## Slide Types
 
@@ -217,17 +162,20 @@ You're editing: "${deckLabel}"
 ## Content Blocks
 
 **Text (markdown):** { "type": "text", "markdown": "..." }
-**From visualization:** { "type": "from_visualization", "visualizationId": "uuid" }
 **From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
 
-**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.
+A figure is always a metric plus one of that metric's presets — there is no
+figure library to clone from. To reuse a figure, duplicate the slide that
+holds it.
+
+**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.
 
 ## Text Length Guidelines
 
 **Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
 **Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
 
-Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
+Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
 
 ## Communication Style
 
@@ -278,45 +226,12 @@ You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
 **Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
 **Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
 
-Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
+Keep text concise and focused. Slides with figures should have less text. Use bullet points, not paragraphs.
 
 ## Important
 
 - Changes are previewed immediately but NOT saved automatically
 - The user must click Save to persist changes
 - For content slides, use block IDs from get_slide_editor to target specific blocks
-- IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.`;
-}
-
-export function getEditingVisualizationInstructions(vizLabel: string): string {
-  return `# Current Mode: Editing Visualization
-
-You're editing: "${vizLabel}"
-
-## Primary Tools (for this visualization)
-
-**get_viz_editor** - Get current config + data for this visualization
-**update_viz_config** - Modify this visualization's configuration
-
-## What You Can Modify
-
-- Chart type and layout
-- Period selections
-- Disaggregations
-- Filters
-- Captions and labels
-- Formatting options
-
-## Workflow
-
-1. Call get_viz_editor FIRST to see current config and data
-2. Suggest changes based on what would improve the visualization
-3. Use update_viz_config to apply changes
-4. Changes are LOCAL until the user saves - remind them to save if satisfied
-
-## Important
-
-- Changes are previewed immediately but NOT saved automatically
-- Always explain what changes you're making and why
-- The user must click Save to persist changes`;
+- IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type preset.`;
 }

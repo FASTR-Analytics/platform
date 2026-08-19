@@ -26,8 +26,8 @@ import {
 } from "solid-js";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
-import { projectState } from "~/state/project/t1_store";
+import { copilotViewController } from "~/components/copilot/ai_views";
+import { requireCopilotScope } from "~/components/copilot/authoring_context";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
@@ -37,7 +37,6 @@ type SlideState = {
 };
 
 type Props = {
-  projectId: string;
   slideInput: AiSlideInput;
   metrics: MetricWithStatus[];
 };
@@ -49,7 +48,7 @@ export function DraftSlidePreview(p: Props) {
   });
 
   function getDeckConfig(): SlideDeckConfig {
-    const view = projectAIViewController.current();
+    const view = copilotViewController.current();
     if (view.id === "editing_slide_deck") {
       return view.context.getDeckConfig();
     }
@@ -60,13 +59,12 @@ export function DraftSlidePreview(p: Props) {
     try {
       const deckConfig = getDeckConfig();
       const convertedSlide = await convertAiInputToSlide(
-        p.projectId,
+        requireCopilotScope(),
         p.slideInput,
         p.metrics,
         deckConfig,
       );
       const renderRes = await convertSlideToPageInputs(
-        p.projectId,
         convertedSlide,
         undefined,
         deckConfig,
@@ -100,7 +98,7 @@ export function DraftSlidePreview(p: Props) {
         pageInputs: state.data.pageInputs,
         onAddToDeck: handleAddToDeck,
         addToDeckLabel:
-          projectAIViewController.current().id === "editing_slide_deck"
+          copilotViewController.current().id === "editing_slide_deck"
             ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
             : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" }),
       },
@@ -110,10 +108,9 @@ export function DraftSlidePreview(p: Props) {
   async function handleAddToDeck() {
     const state = slideState();
     if (state.status !== "ready") return;
-    const view = projectAIViewController.current();
+    const view = copilotViewController.current();
     if (view.id === "editing_slide_deck") {
       await addSlideDirectlyToDeck(
-        p.projectId,
         state.data.convertedSlide,
         view.params.deckId,
       );
@@ -121,10 +118,7 @@ export function DraftSlidePreview(p: Props) {
       await openComponent({
         element: AddToDeckModal,
         props: {
-          projectId: p.projectId,
           slide: state.data.convertedSlide,
-          slideDecks: projectState.slideDecks,
-          slideDeckFolders: projectState.slideDeckFolders,
         },
       });
     }
@@ -142,7 +136,7 @@ export function DraftSlidePreview(p: Props) {
           </div>
         </div>
         {/* Actions are hidden on error — the card still renders so the error
-            message is visible (mirrors DraftVisualizationPreview) instead of
+            message is visible instead of
             the whole preview vanishing under a "slide preview shown" line. */}
         <Show when={slideState().status !== "error"}>
           <div class="flex gap-1.5 border-t p-1.5">
@@ -153,7 +147,7 @@ export function DraftSlidePreview(p: Props) {
               onClick={openExpandedView}
             />
             <Button size="sm" outline onClick={handleAddToDeck}>
-              {projectAIViewController.current().id === "editing_slide_deck"
+              {copilotViewController.current().id === "editing_slide_deck"
                 ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
                 : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
             </Button>

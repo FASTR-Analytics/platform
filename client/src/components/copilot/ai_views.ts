@@ -1,65 +1,63 @@
 import { createAIViewController, defineAIViews, view } from "panther";
-import type { AIViewController, AIViewState, AIViewVoidKeys } from "panther";
-import { t3, TC } from "lib";
+import type { AIViewController, AIViewState } from "panther";
+import { t3 } from "lib";
 import type {
   FigureBlock,
   ImageBlock,
-  PresentationObjectConfig,
-  ResultsValue,
+  PackageScope,
   Slide,
   SlideDeckConfig,
   SlideType,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
-import type { TabOption } from "~/state/t4_ui";
+import { instanceState } from "~/state/instance/t1_store";
 import type {
   ReportEditorSelection,
   ReportEditProposal,
   ReportEditProposalResult,
 } from "./types";
-import {
-  projectAIInteractions,
-  type ProjectAIInteractionDefs,
-} from "./interactions";
+import { copilotInteractions, type CopilotInteractionDefs } from "./interactions";
 import {
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
-  getEditingVisualizationInstructions,
-  getViewingCacheInstructions,
-  getViewingDashboardsInstructions,
-  getViewingMetricsInstructions,
-  getViewingReportsInstructions,
-  getViewingResultsPackageInstructions,
-  getViewingSettingsInstructions,
-  getViewingSlideDecksInstructions,
-  getViewingVisualizationsInstructions,
+  getViewingExploreInstructions,
+  getViewingProductsInstructions,
 } from "./build_system_prompt";
 
 ////////////////////////////////////////////////////////////////////////////////
-// PROJECT COPILOT — AI VIEW REGISTRY (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md)
+// COPILOT — AI VIEW REGISTRY
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Replaces the 13-arm AIContext union's interpretation duty. TParams is the
-// serializable, model-visible half (view-label text, tool narrowing);
-// TContext is the live payload (editor store getters/setters) delivered to
-// tool handlers opaquely — mirrors the old AIContext* shapes 1:1, just split.
+// Five views (D15): the two instance pages the copilot is mounted over, plus
+// the three product editors. TParams is the serializable, model-visible half
+// (view-label text, tool narrowing); TContext is the live payload (the
+// editor's store getters/setters, and the open product's PackageScope)
+// delivered to tool handlers opaquely.
+//
+// There is no tab → view map any more: Data / Results / Assets / Users are
+// outside the copilot's mount, so the only navigation sync sites are the two
+// pages and each editor's mount/teardown.
 //
 // instructions carries what used to be build_system_prompt.ts's per-mode
-// `getModeInstructions` switch (still exported from there, verbatim content)
-// PLUS the two live bits that used to ride getEphemeralContext's mode string
-// (deck's selected slide ids; report editor's selection preview) — both
-// review-finding-1-safe: nothing here changes tool-handler behavior, only
-// where the text is assembled. instructionsDelivery stays the default
-// "ephemeral" everywhere: the `system` accessor (build_system_prompt.ts) no
-// longer takes a mode/view argument at all, so it is byte-stable across
-// navigation.
+// switch (still exported from there, verbatim) PLUS the live bits that used to
+// ride the old mode string (the deck's selected slide ids; the report editor's
+// selection preview). instructionsDelivery stays the default "ephemeral"
+// everywhere: the `system` accessor takes no view argument at all, so it is
+// byte-stable across navigation within one package.
+
+// Every editing view carries the open product's pair. It rides the opaque
+// CONTEXT half deliberately: no run id crosses the tool seam and none appears
+// in a tool schema (D15) — the env reads it here instead.
+export type OpenProductScope = {
+  getScope: () => PackageScope;
+};
 
 export type EditingSlideDeckParams = {
   deckId: string;
   deckLabel: string;
 };
-export type EditingSlideDeckContext = {
+export type EditingSlideDeckContext = OpenProductScope & {
   getDeckConfig: () => SlideDeckConfig;
   getSlideIds: () => string[];
   getSelectedSlideIds: () => string[];
@@ -72,23 +70,9 @@ export type EditingSlideParams = {
   deckId: string;
   deckLabel: string;
 };
-export type EditingSlideContext = {
+export type EditingSlideContext = OpenProductScope & {
   getTempSlide: () => Slide;
   setTempSlide: SetStoreFunction<Slide>;
-};
-
-export type EditingVisualizationParams = {
-  vizId: string | null; // null for create/ephemeral modes without a persistent ID
-  vizLabel: string;
-  // vizId alone can't separate create from ephemeral (both are null), and the
-  // editor's UI differs by mode — ephemeral applies back to a host slide/report
-  // instead of saving. Consumers (onboarding tours) need the distinction.
-  mode: "edit" | "create" | "ephemeral";
-};
-export type EditingVisualizationContext = {
-  resultsValue: ResultsValue;
-  getTempConfig: () => PresentationObjectConfig;
-  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
 
 export type EditingReportParams = {
@@ -96,7 +80,7 @@ export type EditingReportParams = {
   reportLabel: string;
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
-export type EditingReportContext = {
+export type EditingReportContext = OpenProductScope & {
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
@@ -105,44 +89,18 @@ export type EditingReportContext = {
   applyFigureUpdate: (figureId: string, block: FigureBlock) => Promise<boolean>;
 };
 
-export const projectAIViews = defineAIViews({
-  viewing_visualizations: view({
-    label: () => getViewingVisualizationsInstructionsLabel(),
-    instructions: () => getViewingVisualizationsInstructions(),
+export const copilotViews = defineAIViews({
+  viewing_products: view({
+    label: () => getViewingProductsLabel(),
+    instructions: () => getViewingProductsInstructions(),
   }),
-  viewing_slide_decks: view({
-    label: () => getViewingSlideDecksInstructionsLabel(),
-    instructions: () => getViewingSlideDecksInstructions(),
+  viewing_explore: view({
+    label: () => getViewingExploreLabel(),
+    instructions: () => getViewingExploreInstructions(),
   }),
-  viewing_reports: view({
-    label: () => getViewingReportsInstructionsLabel(),
-    instructions: () => getViewingReportsInstructions(),
-  }),
-  viewing_metrics: view({
-    label: () => getViewingMetricsInstructionsLabel(),
-    instructions: () => getViewingMetricsInstructions(),
-  }),
-  viewing_results_package: view({
-    label: () => getViewingResultsPackageInstructionsLabel(),
-    instructions: () => getViewingResultsPackageInstructions(),
-  }),
-  viewing_settings: view({
-    label: () => getViewingSettingsInstructionsLabel(),
-    instructions: () => getViewingSettingsInstructions(),
-  }),
-  viewing_dashboards: view({
-    label: () => getViewingDashboardsInstructionsLabel(),
-    instructions: () => getViewingDashboardsInstructions(),
-  }),
-  viewing_cache: view({
-    label: () => getViewingCacheInstructionsLabel(),
-    instructions: () => getViewingCacheInstructions(),
-  }),
-  // The editing_* instructions each carry the entity IDS the old
-  // getEphemeralContext mode string exposed (deckId / slideId / vizId /
-  // reportId) — ids are the model's cross-turn correlation handle (tools
-  // RETURN ids; labels are not unique), and the viz editor's "unsaved"
-  // signal tells the model the draft has no persistent id yet.
+  // The editing_* instructions each carry the entity IDS the old mode string
+  // exposed (deckId / slideId / reportId) — ids are the model's cross-turn
+  // correlation handle (tools RETURN ids; labels are not unique).
   editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
     label: (params) => params.deckLabel,
     instructions: (params, context) => {
@@ -156,14 +114,6 @@ export const projectAIViews = defineAIViews({
     label: (params) => params.slideLabel,
     instructions: (params) =>
       `${getEditingSlideInstructions(params.slideLabel, params.deckLabel)}\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`,
-  }),
-  editing_visualization: view<
-    EditingVisualizationParams,
-    EditingVisualizationContext
-  >({
-    label: (params) => params.vizLabel,
-    instructions: (params) =>
-      `${getEditingVisualizationInstructions(params.vizLabel)}\n\nvizId: ${params.vizId ?? "unsaved"}`,
   }),
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
@@ -180,127 +130,82 @@ export const projectAIViews = defineAIViews({
   }),
 });
 
-// Concise, UI-facing labels (chat-pane header subtext) for the nine
-// no-params viewing_* views — byte-identical to the pre-views
-// chat_pane.tsx titleSubtext() switch cases.
-function getViewingVisualizationsInstructionsLabel(): string {
-  return t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" });
+// Concise, UI-facing labels (chat-pane header subtext) for the two no-params
+// viewing_* views.
+function getViewingProductsLabel(): string {
+  return t3({ en: "Products", fr: "Produits", pt: "Produtos" });
 }
-function getViewingSlideDecksInstructionsLabel(): string {
-  return t3({ en: "Slide Decks", fr: "Présentations", pt: "Apresentações" });
-}
-function getViewingReportsInstructionsLabel(): string {
-  return t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" });
-}
-function getViewingMetricsInstructionsLabel(): string {
-  return t3({ en: "Metrics", fr: "Métriques", pt: "Métricas" });
-}
-function getViewingResultsPackageInstructionsLabel(): string {
-  return t3({
-    en: "Results package",
-    fr: "Paquet de résultats",
-    pt: "Pacote de resultados",
-  });
-}
-function getViewingSettingsInstructionsLabel(): string {
-  return t3(TC.settings);
-}
-function getViewingDashboardsInstructionsLabel(): string {
-  return t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" });
-}
-function getViewingCacheInstructionsLabel(): string {
-  return t3({ en: "Cache", fr: "Cache", pt: "Cache" });
+function getViewingExploreLabel(): string {
+  return t3({ en: "Explore", fr: "Explorer", pt: "Explorar" });
 }
 
-export type ProjectAIViewDefs = (typeof projectAIViews)["_defs"];
-export type ProjectAIViewId = keyof ProjectAIViewDefs;
-export type ProjectAIViewState = AIViewState<ProjectAIViewDefs>;
+export type CopilotViewDefs = (typeof copilotViews)["_defs"];
+export type CopilotViewId = keyof CopilotViewDefs;
+export type CopilotViewState = AIViewState<CopilotViewDefs>;
 
-export const projectAIViewController: AIViewController<
-  ProjectAIViewDefs,
-  ProjectAIInteractionDefs
-> = createAIViewController(projectAIViews, {
-  fallback: "viewing_visualizations",
-  interactions: projectAIInteractions,
+export const copilotViewController: AIViewController<
+  CopilotViewDefs,
+  CopilotInteractionDefs
+> = createAIViewController(copilotViews, {
+  fallback: "viewing_products",
+  interactions: copilotInteractions,
 });
 
-// Typed tab → view map (feature 1): a new TabOption that forgets an entry
-// here fails typecheck instead of silently leaving the AI context stale (the
-// bug class the 2026-07-17 viewing_dashboards/viewing_cache fix closed by
-// hand). Values are constrained to void-params views so AIContextSync can
-// call setView(map[tab]) with no arguments. Consumed by project/index.tsx.
-export const PROJECT_TAB_TO_VIEW: Record<
-  TabOption,
-  AIViewVoidKeys<ProjectAIViewDefs>
-> = {
-  visualizations: "viewing_visualizations",
-  decks: "viewing_slide_decks",
-  reports: "viewing_reports",
-  metrics: "viewing_metrics",
-  results_package: "viewing_results_package",
-  settings: "viewing_settings",
-  dashboards: "viewing_dashboards",
-  cache: "viewing_cache",
-};
-
-// Restores a previously-captured view state verbatim (params + live
-// context), for the "returnToContext" stack pattern nested editors use today
-// (deck editor → slide editor → figure editor, etc.). A generic
-// `setView(state.id, state.params, state.context)` helper cannot typecheck —
-// TypeScript cannot correlate a discriminated union's fields through a
-// second generic call (the same reason views.ts's OWN setView takes
-// positional args instead of a state object) — but a manual switch narrows
-// `state` to each concrete member, so every branch below is fully typed with
-// no casts.
-export function restoreProjectAIView(state: ProjectAIViewState): void {
+// THE env resolver (D15). While a product editor is open the copilot serves
+// that product's package and scope — read from the view's live context, so a
+// reattach or scope change mid-edit moves the copilot with the editor. With no
+// editor open there is no product to take a pair from, so it falls back to the
+// instance pin at national scope (the same pair /mcp binds). null = neither.
+//
+// REACTIVE: `current` is the controller's state signal, so a caller inside a
+// tracking scope re-runs on every setView.
+export function resolveCopilotScope(): PackageScope | null {
+  const state = copilotViewController.current();
   switch (state.id) {
-    case "viewing_visualizations":
-      projectAIViewController.setView("viewing_visualizations");
+    case "editing_slide_deck":
+    case "editing_slide":
+    case "editing_report":
+      return state.context.getScope();
+    case "viewing_products":
+    case "viewing_explore": {
+      const pinnedRunId = instanceState.pinnedRunId;
+      return pinnedRunId === null
+        ? null
+        : { runId: pinnedRunId, adminArea2: null };
+    }
+  }
+}
+
+// Restores a previously-captured view state verbatim (params + live context),
+// for the "returnToContext" stack the nested editors use (deck editor → slide
+// editor). A generic `setView(state.id, state.params, state.context)` helper
+// cannot typecheck — TypeScript cannot correlate a discriminated union's
+// fields through a second generic call — but a manual switch narrows `state`
+// to each concrete member, so every branch below is fully typed with no casts.
+export function restoreCopilotView(state: CopilotViewState): void {
+  switch (state.id) {
+    case "viewing_products":
+      copilotViewController.setView("viewing_products");
       return;
-    case "viewing_slide_decks":
-      projectAIViewController.setView("viewing_slide_decks");
-      return;
-    case "viewing_reports":
-      projectAIViewController.setView("viewing_reports");
-      return;
-    case "viewing_metrics":
-      projectAIViewController.setView("viewing_metrics");
-      return;
-    case "viewing_results_package":
-      projectAIViewController.setView("viewing_results_package");
-      return;
-    case "viewing_settings":
-      projectAIViewController.setView("viewing_settings");
-      return;
-    case "viewing_dashboards":
-      projectAIViewController.setView("viewing_dashboards");
-      return;
-    case "viewing_cache":
-      projectAIViewController.setView("viewing_cache");
+    case "viewing_explore":
+      copilotViewController.setView("viewing_explore");
       return;
     case "editing_slide_deck":
-      projectAIViewController.setView(
+      copilotViewController.setView(
         "editing_slide_deck",
         state.params,
         state.context,
       );
       return;
     case "editing_slide":
-      projectAIViewController.setView(
+      copilotViewController.setView(
         "editing_slide",
         state.params,
         state.context,
       );
       return;
-    case "editing_visualization":
-      projectAIViewController.setView(
-        "editing_visualization",
-        state.params,
-        state.context,
-      );
-      return;
     case "editing_report":
-      projectAIViewController.setView(
+      copilotViewController.setView(
         "editing_report",
         state.params,
         state.context,

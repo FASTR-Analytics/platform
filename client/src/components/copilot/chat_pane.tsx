@@ -24,14 +24,14 @@ import {
   Show,
   type Accessor,
 } from "solid-js";
-import { projectAIViewController } from "./ai_views";
+import { copilotViewController } from "./ai_views";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/SaveableUserTextRenderer";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
-import { projectState } from "~/state/project/t1_store";
+import { copilotAuthoringContext } from "./authoring_context";
 
 const RESET_RE = /will reset at ([^".}]+)/i;
 
@@ -297,10 +297,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         openComponent<AIDebugPanelProps, void>({
           element: AIDebugPanel,
           props: {
-            metrics: projectState.metrics,
-            icehIndicators: projectState.icehIndicators,
-            hfaTaxonomy: projectState.hfaTaxonomy,
-            visualizations: projectState.visualizations,
+            metrics: copilotAuthoringContext.metrics,
+            icehIndicators: copilotAuthoringContext.icehIndicators,
+            hfaTaxonomy: copilotAuthoringContext.hfaTaxonomy,
           },
         }),
     },
@@ -321,7 +320,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   ];
 
   const placeholder = () => {
-    const view = projectAIViewController.current();
+    const view = copilotViewController.current();
     switch (view.id) {
       case "editing_slide_deck":
         return t3({
@@ -335,26 +334,14 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           fr: "Posez une question sur cette diapositive...",
           pt: "Faça uma pergunta sobre este diapositivo...",
         });
-      case "editing_visualization":
-        return t3({
-          en: "Ask about this visualization...",
-          fr: "Posez une question sur cette visualisation...",
-          pt: "Faça uma pergunta sobre esta visualização...",
-        });
       case "editing_report":
         return t3({
           en: "Ask about this report...",
           fr: "Posez une question sur ce rapport...",
           pt: "Faça uma pergunta sobre este relatório...",
         });
-      case "viewing_visualizations":
-      case "viewing_slide_decks":
-      case "viewing_reports":
-      case "viewing_metrics":
-      case "viewing_results_package":
-      case "viewing_settings":
-      case "viewing_dashboards":
-      case "viewing_cache":
+      case "viewing_products":
+      case "viewing_explore":
         return t3({
           en: "Explore your data...",
           fr: "Explorez vos données...",
@@ -369,7 +356,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   // The per-mode label switch moved onto the view registry (ai_views.ts) —
   // the controller resolves the current view's label.
-  const titleSubtext = () => projectAIViewController.currentLabel();
+  const titleSubtext = () => copilotViewController.currentLabel();
 
   type AiUsageData = {
     tokensUsedToday: number;

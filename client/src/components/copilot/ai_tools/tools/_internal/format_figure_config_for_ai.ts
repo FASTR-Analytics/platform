@@ -66,7 +66,7 @@ export async function formatFigureConfigForAI(
       );
       if (resOpts.success) {
         const optRes = await env.getReplicantOptions(
-          metric.resultsObjectId,
+          metric.id,
           replicateBy,
           resOpts.data,
         );
