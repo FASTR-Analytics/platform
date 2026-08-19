@@ -11,6 +11,11 @@
   },
   {
     "id": "guard-before-deps",
+    "file": "client/src/components/copilot/ai_documents/AIDocumentSelectorModal.tsx",
+    "text": "effect body opens with a conditional"
+  },
+  {
+    "id": "guard-before-deps",
     "file": "client/src/components/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
@@ -35,23 +40,28 @@
     "text": "effect body opens with a conditional"
   },
   {
-    "id": "guard-before-deps",
-    "file": "client/src/components/project_ai/ai_documents/AIDocumentSelectorModal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
     "id": "raw-loading-signal",
     "file": "client/src/components/slide_deck/index.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/email_opt_in_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(false);"
+    "file": "client/src/components/copilot/ai_documents/AIDocumentSelectorModal.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance/pending_deletions.tsx",
+    "file": "client/src/components/copilot/ai_prompt_library/PromptLibraryModal.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/copilot/ai_prompt_library/SaveToPromptLibraryModal.tsx",
+    "text": "const [error, setError] = createSignal(\"\");"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/email_opt_in_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(false);"
   },
   {
@@ -73,20 +83,5 @@
     "id": "raw-loading-signal",
     "file": "client/src/components/instance_geojson/geojson_edit_modal.tsx",
     "text": "const [error, setError] = createSignal<string | null>(null);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/project_ai/ai_documents/AIDocumentSelectorModal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/project_ai/ai_prompt_library/PromptLibraryModal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/project_ai/ai_prompt_library/SaveToPromptLibraryModal.tsx",
-    "text": "const [error, setError] = createSignal(\"\");"
   }
 ]
