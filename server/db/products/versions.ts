@@ -19,7 +19,6 @@ import {
   slideDeckConfigSchema,
   type VersionEditor,
 } from "lib";
-import { DBDeckVersion, DBReportVersion } from "./_project_database_types.ts";
 import {
   type FigureBlockMut,
   type SlideLayoutNodeLike,
@@ -28,11 +27,37 @@ import {
 } from "../migrations/data_transforms/_figure_block.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
-  generateUniqueDeckId,
-  generateUniqueReportId,
+  generateUniqueProductId,
   generateUniqueSlideId,
 } from "../../utils/id_generation.ts";
 import { reSequence } from "./slides.ts";
+
+type DBReportVersion = {
+  id: string;
+  report_id: string;
+  created_at: string;
+  label: string;
+  body: string;
+  figures: string;
+  images: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+  body_authors: string | null;
+};
+
+type DBDeckVersion = {
+  id: string;
+  deck_id: string;
+  created_at: string;
+  label: string;
+  deck_config: string;
+  slides: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+  slide_editors: string | null;
+};
 
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
@@ -83,7 +108,7 @@ function upgradeSnapshotSlideConfig<T>(config: T): T {
 // ---------------------------------------------------------------------------
 
 export async function insertReportVersion(
-  projectDb: Sql,
+  mainDb: Sql,
   args: {
     reportId: string;
     createdAt: string;
@@ -99,7 +124,7 @@ export async function insertReportVersion(
 ): Promise<APIResponseWithData<{ versionId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const versionId = crypto.randomUUID();
-    await projectDb`
+    await mainDb`
       INSERT INTO report_versions
         (id, report_id, created_at, label, body, figures, images, editors, content_hash, restored_from_version_id, body_authors)
       VALUES (
@@ -116,7 +141,7 @@ export async function insertReportVersion(
         ${args.bodyAuthors ? JSON.stringify(args.bodyAuthors) : null}
       )
     `;
-    await projectDb`
+    await mainDb`
       DELETE FROM report_versions
       WHERE report_id = ${args.reportId} AND id NOT IN (
         SELECT id FROM report_versions
@@ -130,12 +155,12 @@ export async function insertReportVersion(
 }
 
 export async function latestReportVersionHash(
-  projectDb: Sql,
+  mainDb: Sql,
   reportId: string,
 ): Promise<APIResponseWithData<{ hash: string | null }>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await projectDb<{ content_hash: string }[]>`
+      await mainDb<{ content_hash: string }[]>`
         SELECT content_hash FROM report_versions
         WHERE report_id = ${reportId}
         ORDER BY created_at DESC, id DESC
@@ -147,11 +172,11 @@ export async function latestReportVersionHash(
 }
 
 export async function listReportVersions(
-  projectDb: Sql,
+  mainDb: Sql,
   reportId: string,
 ): Promise<APIResponseWithData<ReportVersionSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await projectDb<
+    const rows = await mainDb<
       (Pick<DBReportVersion, "id" | "created_at" | "editors" | "restored_from_version_id"> & {
         size_bytes: number;
       })[]
@@ -176,13 +201,13 @@ export async function listReportVersions(
 }
 
 export async function getReportVersion(
-  projectDb: Sql,
+  mainDb: Sql,
   reportId: string,
   versionId: string,
 ): Promise<APIResponseWithData<ReportVersionDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await projectDb<DBReportVersion[]>`
+      await mainDb<DBReportVersion[]>`
         SELECT * FROM report_versions
         WHERE id = ${versionId} AND report_id = ${reportId}
       `
@@ -218,7 +243,7 @@ export async function getReportVersion(
  *  Diffing adjacent steps attributes each changed section to the editing
  *  session that introduced it. */
 export async function getReportVersionLineage(
-  projectDb: Sql,
+  mainDb: Sql,
   reportId: string,
   versionId: string,
 ): Promise<APIResponseWithData<ReportVersionLineageStep[]>> {
@@ -228,7 +253,7 @@ export async function getReportVersionLineage(
       "id" | "created_at" | "editors" | "body" | "body_authors"
     >;
     const base = (
-      await projectDb<LineageRow[]>`
+      await mainDb<LineageRow[]>`
         SELECT id, created_at, editors, body, body_authors FROM report_versions
         WHERE id = ${versionId} AND report_id = ${reportId}
       `
@@ -239,7 +264,7 @@ export async function getReportVersionLineage(
     // Strictly after the base by the SAME (created_at, id) order every other
     // version query uses — a plain created_at >= would pull in an equal-stamp
     // version that the list actually shows as OLDER, reversing a diff step.
-    const newer = await projectDb<LineageRow[]>`
+    const newer = await mainDb<LineageRow[]>`
       SELECT id, created_at, editors, body, body_authors FROM report_versions
       WHERE report_id = ${reportId}
         AND (created_at, id) > (${base.created_at}, ${base.id})
@@ -259,10 +284,10 @@ export async function getReportVersionLineage(
 }
 
 /** Overwrite a report's content with a version snapshot (restore, no-room
- *  path). One UPDATE: bumping last_updated alone auto-invalidates any stored
- *  crdt_state, so the next collab open re-seeds from this content. */
+ *  path). Bumping the product's last_updated alone auto-invalidates any
+ *  stored crdt_state, so the next collab open re-seeds from this content. */
 export async function restoreReportContent(
-  projectDb: Sql,
+  mainDb: Sql,
   reportId: string,
   content: {
     label: string;
@@ -273,45 +298,63 @@ export async function restoreReportContent(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await projectDb`
-      UPDATE reports
-      SET label = ${content.label},
-          body = ${content.body},
-          figures = ${JSON.stringify(reportFiguresSchema.parse(upgradeSnapshotFigures(content.figures)))},
-          images = ${JSON.stringify(reportImagesSchema.parse(content.images))},
-          last_updated = ${lastUpdated}
-      WHERE id = ${reportId}
-      RETURNING id
-    `;
-    if (rows.length === 0) {
+    const figures = JSON.stringify(
+      reportFiguresSchema.parse(upgradeSnapshotFigures(content.figures)),
+    );
+    const images = JSON.stringify(
+      reportImagesSchema.parse(content.images),
+    );
+    const updated = await mainDb.begin(async (sql) => {
+      const rows = await sql`
+        UPDATE reports
+        SET body = ${content.body},
+            figures = ${figures},
+            images = ${images}
+        WHERE id = ${reportId}
+        RETURNING id
+      `;
+      await sql`
+        UPDATE products
+        SET label = ${content.label}, last_updated = ${lastUpdated}
+        WHERE id = ${reportId}
+      `;
+      return rows.length > 0;
+    });
+    if (!updated) {
       throw new Error("Report not found");
     }
     return { success: true, data: { lastUpdated } };
   });
 }
 
-/** "Restore as copy": create a brand-new report from a version snapshot.
- *  Carries the source report's current config (versions don't store config). */
+/** "Restore as copy": create a brand-new report PRODUCT from a version
+ *  snapshot. Carries the source report's current config (versions don't store
+ *  config) and — via INSERT … SELECT — the source product's `(run_id,
+ *  admin_area_2)` pair verbatim, so the copy's figures are exactly as fresh
+ *  as the original's. */
 export async function copyReportFromVersion(
-  projectDb: Sql,
-  reportId: string,
-  versionId: string,
-  label: string,
-  folderId?: string | null,
+  mainDb: Sql,
+  args: {
+    reportId: string;
+    versionId: string;
+    label: string;
+    folderId: string | null;
+    createdBy: string;
+  },
 ): Promise<APIResponseWithData<{ newReportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const version = (
-      await projectDb<DBReportVersion[]>`
+      await mainDb<DBReportVersion[]>`
         SELECT * FROM report_versions
-        WHERE id = ${versionId} AND report_id = ${reportId}
+        WHERE id = ${args.versionId} AND report_id = ${args.reportId}
       `
     ).at(0);
     if (!version) {
       throw new Error("Version not found");
     }
     const source = (
-      await projectDb<{ config: string | null }[]>`
-        SELECT config FROM reports WHERE id = ${reportId}
+      await mainDb<{ config: string | null }[]>`
+        SELECT config FROM reports WHERE id = ${args.reportId}
       `
     ).at(0);
 
@@ -322,21 +365,28 @@ export async function copyReportFromVersion(
     );
     const images = reportImagesSchema.parse(parseJsonOrThrow(version.images));
 
-    const newReportId = await generateUniqueReportId(projectDb);
+    const newReportId = await generateUniqueProductId(mainDb);
     const lastUpdated = new Date().toISOString();
-    await projectDb`
-      INSERT INTO reports (id, label, body, figures, images, config, folder_id, last_updated)
-      VALUES (
-        ${newReportId},
-        ${label.trim()},
-        ${version.body},
-        ${JSON.stringify(figures)},
-        ${JSON.stringify(images)},
-        ${source?.config ?? null},
-        ${folderId ?? null},
-        ${lastUpdated}
-      )
-    `;
+    await mainDb.begin((sql) => [
+      sql`
+        INSERT INTO products
+          (id, type, label, folder_id, run_id, admin_area_2, created_by, created_at, last_updated)
+        SELECT
+          ${newReportId}, 'report', ${args.label.trim()}, ${args.folderId},
+          run_id, admin_area_2, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+        FROM products WHERE id = ${args.reportId}
+      `,
+      sql`
+        INSERT INTO reports (id, body, figures, images, config)
+        VALUES (
+          ${newReportId},
+          ${version.body},
+          ${JSON.stringify(figures)},
+          ${JSON.stringify(images)},
+          ${source?.config ?? null}
+        )
+      `,
+    ]);
     return { success: true, data: { newReportId, lastUpdated } };
   });
 }
@@ -346,7 +396,7 @@ export async function copyReportFromVersion(
 // ---------------------------------------------------------------------------
 
 export async function insertDeckVersion(
-  projectDb: Sql,
+  mainDb: Sql,
   args: {
     deckId: string;
     createdAt: string;
@@ -361,7 +411,7 @@ export async function insertDeckVersion(
 ): Promise<APIResponseWithData<{ versionId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const versionId = crypto.randomUUID();
-    await projectDb`
+    await mainDb`
       INSERT INTO deck_versions
         (id, deck_id, created_at, label, deck_config, slides, editors, content_hash, restored_from_version_id, slide_editors)
       VALUES (
@@ -377,7 +427,7 @@ export async function insertDeckVersion(
         ${args.slideEditors ? JSON.stringify(args.slideEditors) : null}
       )
     `;
-    await projectDb`
+    await mainDb`
       DELETE FROM deck_versions
       WHERE deck_id = ${args.deckId} AND id NOT IN (
         SELECT id FROM deck_versions
@@ -391,12 +441,12 @@ export async function insertDeckVersion(
 }
 
 export async function latestDeckVersionHash(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
 ): Promise<APIResponseWithData<{ hash: string | null }>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await projectDb<{ content_hash: string }[]>`
+      await mainDb<{ content_hash: string }[]>`
         SELECT content_hash FROM deck_versions
         WHERE deck_id = ${deckId}
         ORDER BY created_at DESC, id DESC
@@ -408,11 +458,11 @@ export async function latestDeckVersionHash(
 }
 
 export async function listDeckVersions(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
 ): Promise<APIResponseWithData<DeckVersionSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rows = await projectDb<
+    const rows = await mainDb<
       (Pick<DBDeckVersion, "id" | "created_at" | "editors" | "restored_from_version_id"> & {
         size_bytes: number;
         slide_count: number;
@@ -440,13 +490,13 @@ export async function listDeckVersions(
 }
 
 export async function getDeckVersion(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   versionId: string,
 ): Promise<APIResponseWithData<DeckVersionDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await projectDb<DBDeckVersion[]>`
+      await mainDb<DBDeckVersion[]>`
         SELECT * FROM deck_versions
         WHERE id = ${versionId} AND deck_id = ${deckId}
       `
@@ -512,7 +562,7 @@ export function planDeckRestore(
  *  discarded anyway). Call BEFORE closing rooms — the colliding id's live room
  *  belongs to another deck and must not be touched. */
 export async function remapCollidingSlideIds(
-  projectDb: Sql,
+  mainDb: Sql,
   plan: DeckRestorePlan,
 ): Promise<APIResponseWithData<{ plan: DeckRestorePlan; remapped: number }>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -522,7 +572,7 @@ export async function remapCollidingSlideIds(
     }
     const colliding = new Set(
       (
-        await projectDb<{ id: string }[]>`
+        await mainDb<{ id: string }[]>`
           SELECT id FROM slides WHERE id = ANY(${ids})
         `
       ).map((r) => r.id),
@@ -539,9 +589,9 @@ export async function remapCollidingSlideIds(
         toInsert.push(s);
         continue;
       }
-      let freshId = await generateUniqueSlideId(projectDb);
+      let freshId = await generateUniqueSlideId(mainDb);
       while (taken.has(freshId)) {
-        freshId = await generateUniqueSlideId(projectDb);
+        freshId = await generateUniqueSlideId(mainDb);
       }
       taken.add(freshId);
       toInsert.push({ ...s, id: freshId });
@@ -563,7 +613,7 @@ export async function remapCollidingSlideIds(
  *  restore live. Safe ordering: checkpoints never write sort_order, so a
  *  straggler room checkpoint after this transaction can only touch config. */
 export async function restoreDeckStructure(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   label: string,
   deckConfig: SlideDeckConfig,
@@ -576,7 +626,7 @@ export async function restoreDeckStructure(
       JSON.stringify(slideConfigSchema.parse(s.config))
     );
 
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       ...(plan.toDelete.length > 0
         ? [
           sql`
@@ -599,9 +649,12 @@ export async function restoreDeckStructure(
       ),
       sql`
         UPDATE slide_decks
-        SET label = ${label},
-            config = ${JSON.stringify(parsedConfig)},
-            last_updated = ${lastUpdated}
+        SET config = ${JSON.stringify(parsedConfig)}
+        WHERE id = ${deckId}
+      `,
+      sql`
+        UPDATE products
+        SET label = ${label}, last_updated = ${lastUpdated}
         WHERE id = ${deckId}
       `,
       reSequence(sql, deckId),
@@ -611,20 +664,26 @@ export async function restoreDeckStructure(
   });
 }
 
-/** "Restore as copy": create a brand-new deck (+ slides with FRESH ids — the
- *  originals may still exist in the source deck) from a version snapshot. */
+/** "Restore as copy": create a brand-new deck PRODUCT (+ slides with FRESH
+ *  ids — the originals may still exist in the source deck) from a version
+ *  snapshot. The source product's `(run_id, admin_area_2)` pair is cloned
+ *  verbatim by INSERT … SELECT, so the copy's figures are exactly as fresh as
+ *  the original's. */
 export async function copyDeckFromVersion(
-  projectDb: Sql,
-  deckId: string,
-  versionId: string,
-  label: string,
-  folderId?: string | null,
+  mainDb: Sql,
+  args: {
+    deckId: string;
+    versionId: string;
+    label: string;
+    folderId: string | null;
+    createdBy: string;
+  },
 ): Promise<APIResponseWithData<{ newDeckId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const version = (
-      await projectDb<DBDeckVersion[]>`
+      await mainDb<DBDeckVersion[]>`
         SELECT * FROM deck_versions
-        WHERE id = ${versionId} AND deck_id = ${deckId}
+        WHERE id = ${args.versionId} AND deck_id = ${args.deckId}
       `
     ).at(0);
     if (!version) {
@@ -632,7 +691,7 @@ export async function copyDeckFromVersion(
     }
 
     const config = parseJsonOrThrow<SlideDeckConfig>(version.deck_config);
-    config.label = label.trim();
+    config.label = args.label.trim();
     const slides = parseJsonOrThrow<DeckVersionSlide[]>(version.slides)
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder);
@@ -644,13 +703,13 @@ export async function copyDeckFromVersion(
     const parsedSlideConfigs = slides.map((s) =>
       JSON.stringify(slideConfigSchema.parse(upgradeSnapshotSlideConfig(s.config)))
     );
-    const newDeckId = await generateUniqueDeckId(projectDb);
+    const newDeckId = await generateUniqueProductId(mainDb);
     // generateUniqueSlideId only checks LIVE rows — none of this batch is
     // inserted yet, so also dedupe within the batch itself.
     const newSlideIds: string[] = [];
     const taken = new Set<string>();
     while (newSlideIds.length < slides.length) {
-      const id = await generateUniqueSlideId(projectDb);
+      const id = await generateUniqueSlideId(mainDb);
       if (taken.has(id)) {
         continue;
       }
@@ -659,17 +718,18 @@ export async function copyDeckFromVersion(
     }
     const lastUpdated = new Date().toISOString();
 
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       sql`
-        INSERT INTO slide_decks (id, label, plan, config, folder_id, last_updated)
-        VALUES (
-          ${newDeckId},
-          ${label.trim()},
-          '',
-          ${parsedDeckConfig},
-          ${folderId ?? null},
-          ${lastUpdated}
-        )
+        INSERT INTO products
+          (id, type, label, folder_id, run_id, admin_area_2, created_by, created_at, last_updated)
+        SELECT
+          ${newDeckId}, 'slide_deck', ${args.label.trim()}, ${args.folderId},
+          run_id, admin_area_2, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+        FROM products WHERE id = ${args.deckId}
+      `,
+      sql`
+        INSERT INTO slide_decks (id, plan, config)
+        VALUES (${newDeckId}, '', ${parsedDeckConfig})
       `,
       ...slides.map((slide, i) =>
         sql`

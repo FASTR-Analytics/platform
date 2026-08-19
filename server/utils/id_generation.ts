@@ -1,17 +1,15 @@
 import { customAlphabet } from "nanoid";
 import type { Sql } from "postgres";
 
+// ONE generator length for every short id in the app (D14). 4 chars over this
+// 31-char alphabet is 923,521 combinations; 3 chars (29,791) was fine when the
+// namespace was one project's rows and is not when it is the whole instance's.
+// Existing 3-char ids are kept as they are — ids are never length-validated,
+// and registry params stay z.string(), never z.uuid().
 const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
-const generateId = customAlphabet(alphabet, 3);
+const generateId = customAlphabet(alphabet, 4);
 
-type IdTable =
-  | "slide_decks"
-  | "slides"
-  | "reports"
-  | "presentation_objects"
-  | "dashboards"
-  | "dashboard_items"
-  | "dashboard_item_groups";
+type IdTable = "products" | "slides";
 
 // Table name is interpolated from the closed IdTable union (compile-time
 // literals only), per the SYSTEM_02 SQL-safety rule; the id rides as a
@@ -34,30 +32,11 @@ async function generateUniqueIdForTable(
   );
 }
 
-export function generateUniqueDeckId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "slide_decks");
+// Decks and reports share one id namespace — they are both rows in `products`.
+export function generateUniqueProductId(db: Sql): Promise<string> {
+  return generateUniqueIdForTable(db, "products");
 }
 
 export function generateUniqueSlideId(db: Sql): Promise<string> {
   return generateUniqueIdForTable(db, "slides");
-}
-
-export function generateUniqueReportId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "reports");
-}
-
-export function generateUniquePresentationObjectId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "presentation_objects");
-}
-
-export function generateUniqueDashboardId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "dashboards");
-}
-
-export function generateUniqueDashboardItemId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "dashboard_items");
-}
-
-export function generateUniqueDashboardItemGroupId(db: Sql): Promise<string> {
-  return generateUniqueIdForTable(db, "dashboard_item_groups");
 }

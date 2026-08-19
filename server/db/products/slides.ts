@@ -7,17 +7,24 @@ import {
   SlideWithMeta,
   slideConfigSchema,
 } from "lib";
-import { DBSlide } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
 
+type DBSlide = {
+  id: string;
+  slide_deck_id: string;
+  sort_order: number;
+  config: string;
+  last_updated: string;
+};
+
 // Get all slides for a deck (ordered)
 export async function getSlides(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string
 ): Promise<APIResponseWithData<SlideWithMeta[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    const rawSlides = await projectDb<DBSlide[]>`
+    const rawSlides = await mainDb<DBSlide[]>`
       SELECT * FROM slides
       WHERE slide_deck_id = ${deckId}
       ORDER BY sort_order
@@ -37,12 +44,12 @@ export async function getSlides(
 
 // Get single slide
 export async function getSlide(
-  projectDb: Sql,
+  mainDb: Sql,
   slideId: string
 ): Promise<APIResponseWithData<SlideWithMeta>> {
   return await tryCatchDatabaseAsync(async () => {
     const rawSlide = (
-      await projectDb<DBSlide[]>`
+      await mainDb<DBSlide[]>`
         SELECT * FROM slides WHERE id = ${slideId}
       `
     ).at(0);
@@ -53,7 +60,7 @@ export async function getSlide(
 
     // Get index by counting slides before this one
     const indexResult = (
-      await projectDb<{ idx: number }[]>`
+      await mainDb<{ idx: number }[]>`
         SELECT COUNT(*) as idx
         FROM slides
         WHERE slide_deck_id = ${rawSlide.slide_deck_id} AND sort_order < ${rawSlide.sort_order}
@@ -74,20 +81,20 @@ export async function getSlide(
 
 // Create slide
 export async function createSlide(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   position: SlidePosition,
   slide: Slide
 ): Promise<APIResponseWithData<{ slideId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const slideId = await generateUniqueSlideId(projectDb);
+    const slideId = await generateUniqueSlideId(mainDb);
     const lastUpdated = new Date().toISOString();
 
     let newSortOrder: number;
 
     if ("toEnd" in position) {
       const maxResult = (
-        await projectDb<{ max_sort_order: number | null }[]>`
+        await mainDb<{ max_sort_order: number | null }[]>`
           SELECT max(sort_order) AS max_sort_order FROM slides
           WHERE slide_deck_id = ${deckId}
         `
@@ -95,7 +102,7 @@ export async function createSlide(
       newSortOrder = (maxResult?.max_sort_order ?? 0) + 10;
     } else if ("toStart" in position) {
       const minResult = (
-        await projectDb<{ min_sort_order: number | null }[]>`
+        await mainDb<{ min_sort_order: number | null }[]>`
           SELECT min(sort_order) AS min_sort_order FROM slides
           WHERE slide_deck_id = ${deckId}
         `
@@ -103,7 +110,7 @@ export async function createSlide(
       newSortOrder = (minResult?.min_sort_order ?? 10) - 5;
     } else if ("after" in position) {
       const afterSlide = (
-        await projectDb<{ sort_order: number }[]>`
+        await mainDb<{ sort_order: number }[]>`
           SELECT sort_order FROM slides
           WHERE id = ${position.after} AND slide_deck_id = ${deckId}
         `
@@ -115,7 +122,7 @@ export async function createSlide(
     } else {
       // before
       const beforeSlide = (
-        await projectDb<{ sort_order: number }[]>`
+        await mainDb<{ sort_order: number }[]>`
           SELECT sort_order FROM slides
           WHERE id = ${position.before} AND slide_deck_id = ${deckId}
         `
@@ -126,7 +133,7 @@ export async function createSlide(
       newSortOrder = beforeSlide.sort_order - 5;
     }
 
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       sql`
         INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
         VALUES (
@@ -138,7 +145,7 @@ export async function createSlide(
         )
       `,
       sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${deckId}
       `,
       reSequence(sql, deckId),
@@ -154,7 +161,7 @@ export async function createSlide(
 // Update slide (also returns the deck id so callers can attribute the edit to
 // the deck's version history without a second lookup)
 export async function updateSlide(
-  projectDb: Sql,
+  mainDb: Sql,
   slideId: string,
   slide: Slide,
   expectedLastUpdated: string | undefined,
@@ -163,7 +170,7 @@ export async function updateSlide(
   return await tryCatchDatabaseAsync(async () => {
     // Get slide_deck_id and last_updated for conflict check
     const existingSlide = (
-      await projectDb<{ slide_deck_id: string; last_updated: string }[]>`
+      await mainDb<{ slide_deck_id: string; last_updated: string }[]>`
         SELECT slide_deck_id, last_updated FROM slides WHERE id = ${slideId}
       `
     ).at(0);
@@ -186,14 +193,14 @@ export async function updateSlide(
 
     const lastUpdated = new Date().toISOString();
 
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       sql`
         UPDATE slides
         SET config = ${JSON.stringify(slideConfigSchema.parse(slide))}, last_updated = ${lastUpdated}
         WHERE id = ${slideId}
       `,
       sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${existingSlide.slide_deck_id}
       `,
     ]);
@@ -210,12 +217,12 @@ export async function updateSlide(
 // slide's last_updated; otherwise the slide was edited outside collab since the
 // state was saved, so the room must re-seed from config instead.
 export async function getSlideCrdtState(
-  projectDb: Sql,
+  mainDb: Sql,
   slideId: string
 ): Promise<APIResponseWithData<{ state: string | null }>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
-      await projectDb<
+      await mainDb<
         {
           crdt_state: string | null;
           crdt_state_last_updated: string | null;
@@ -240,15 +247,17 @@ export async function getSlideCrdtState(
 
 // Collab checkpoint: persist the materialized slide config AND the Yjs CRDT
 // state atomically (collab is authoritative, so this always overwrites — no
-// conflict check). crdt_state_last_updated is stamped equal to last_updated so
-// the state reads back as current until a non-collab edit bumps last_updated.
+// conflict check). crdt_state_last_updated is stamped equal to the SLIDE's
+// last_updated (the slide is the collab document; the deck product's stamp is
+// bumped in the same transaction for the products list) so the state reads
+// back as current until a non-collab edit bumps last_updated.
 // Plain write — POLICY LIVES IN THE CALLER (the slide room's save closure in
-// routes/project/project-collab.ts): `slide` must already be schema-parsed,
+// routes/instance/collab.ts): `slide` must already be schema-parsed,
 // and `crdtTrusted` says whether the doc materializes to exactly `slide`.
 // Untrusted → crdt_state_last_updated stamped NULL, so the next room open
 // re-seeds from config instead of restoring a doc that disagrees with the row.
 export async function saveSlideCheckpoint(
-  projectDb: Sql,
+  mainDb: Sql,
   slideId: string,
   slide: Slide,
   crdtState: string,
@@ -256,7 +265,7 @@ export async function saveSlideCheckpoint(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const existing = (
-      await projectDb<{ slide_deck_id: string }[]>`
+      await mainDb<{ slide_deck_id: string }[]>`
         SELECT slide_deck_id FROM slides WHERE id = ${slideId}
       `
     ).at(0);
@@ -267,7 +276,7 @@ export async function saveSlideCheckpoint(
 
     const lastUpdated = new Date().toISOString();
 
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       sql`
         UPDATE slides
         SET config = ${JSON.stringify(slide)},
@@ -277,7 +286,7 @@ export async function saveSlideCheckpoint(
         WHERE id = ${slideId}
       `,
       sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${existing.slide_deck_id}
       `,
     ]);
@@ -287,25 +296,25 @@ export async function saveSlideCheckpoint(
 }
 
 // Delete slides. Returns the ids ACTUALLY deleted — the delete is scoped to
-// this deck, so a requested id that belongs to another deck (3-char ids get
-// reused) is a no-op here and must not have its room closed or its removal
+// this deck, so a requested id that belongs to another deck (short nanoid ids
+// get reused) is a no-op here and must not have its room closed or its removal
 // attributed.
 export async function deleteSlides(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   slideIds: string[]
 ): Promise<APIResponseWithData<{ deletedIds: string[]; deletedCount: number }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
 
-    const deletedIds = await projectDb.begin(async (sql) => {
+    const deletedIds = await mainDb.begin(async (sql) => {
       const deleted = await sql<{ id: string }[]>`
         DELETE FROM slides
         WHERE slide_deck_id = ${deckId} AND id = ANY(${slideIds})
         RETURNING id
       `;
       await sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${deckId}
       `;
       await reSequence(sql, deckId);
@@ -321,7 +330,7 @@ export async function deleteSlides(
 
 // Duplicate slides
 export async function duplicateSlides(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   slideIds: string[]
 ): Promise<APIResponseWithData<{ newSlideIds: string[]; lastUpdated: string }>> {
@@ -330,7 +339,7 @@ export async function duplicateSlides(
     const newSlideIds: string[] = [];
 
     // Fetch original slides
-    const originalSlides = await projectDb<{ id: string; config: string; sort_order: number }[]>`
+    const originalSlides = await mainDb<{ id: string; config: string; sort_order: number }[]>`
       SELECT id, config, sort_order FROM slides
       WHERE slide_deck_id = ${deckId} AND id = ANY(${slideIds})
       ORDER BY sort_order
@@ -341,7 +350,7 @@ export async function duplicateSlides(
 
     // Shift all slides after the last original to make room for duplicates
     const numDuplicates = originalSlides.length;
-    await projectDb`
+    await mainDb`
       UPDATE slides
       SET sort_order = sort_order + ${numDuplicates * 10}
       WHERE slide_deck_id = ${deckId} AND sort_order > ${maxOriginalSortOrder}
@@ -350,10 +359,10 @@ export async function duplicateSlides(
     // Insert duplicates right after the last original
     for (let i = 0; i < originalSlides.length; i++) {
       const original = originalSlides[i];
-      const newSlideId = await generateUniqueSlideId(projectDb);
+      const newSlideId = await generateUniqueSlideId(mainDb);
       const newSortOrder = maxOriginalSortOrder + 1 + i;
 
-      await projectDb`
+      await mainDb`
         INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
         VALUES (
           ${newSlideId},
@@ -368,9 +377,9 @@ export async function duplicateSlides(
     }
 
     // Update deck and resequence
-    await projectDb.begin((sql) => [
+    await mainDb.begin((sql) => [
       sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${deckId}
       `,
       reSequence(sql, deckId),

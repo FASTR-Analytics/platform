@@ -1,42 +1,32 @@
 import { ensureDir } from "@std/fs";
-import { dirname, join } from "@std/path";
+import { dirname } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
-import {
-  APIResponseNoData,
   APIResponseWithData,
   getEnabledOptionalFacilityColumns,
   StructureSchema,
   isValidPeriodId,
   throwIfErrWithData,
   type CalculatedIndicator,
-  type DatasetHmisInfoInProject,
-  type DatasetType,
+  type RunDatasetHmisInfo,
 } from "lib";
-import { DBIndicator } from "../instance/_main_database_types.ts";
-import { getCalculatedIndicators } from "../instance/calculated_indicators.ts";
-import {
-  getStructureSchema,
-} from "../instance/config.ts";
-import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
-import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
+import { DBIndicator } from "../../db/instance/_main_database_types.ts";
+import { getCalculatedIndicators } from "../../db/instance/calculated_indicators.ts";
+import { getStructureSchema } from "../../db/instance/config.ts";
+import { getCurrentDatasetHmisVersion } from "../../db/instance/dataset_hmis.ts";
+import { assertNoRunningDatasetHmisImportRun } from "../../db/instance/dataset_hmis_import_runs.ts";
 import {
   getCalculatedIndicatorsVersion,
   getIndicatorMappingsVersion,
-} from "../instance/instance.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+} from "../../db/instance/instance.ts";
+import { tryCatchDatabaseAsync } from "../../db/utils.ts";
 
-// Where a dataset attach writes its extract CSV, per caller (the item-4
-// per-caller pattern, extended to the COPY TO by work item 7): the Postgres
-// server executes `COPY … TO postgresPath` (a path inside the Postgres
-// container), and denoPath is the SAME file as this process sees it. The
-// two must resolve to one file through the container mounts. createProject
-// passes the sandbox pair (the legacy dual-write plane); the run pipeline
-// passes the run tmp dir pair and mirrors the extract back into the sandbox.
+// Where a run generation writes its extract CSV: the Postgres server executes
+// `COPY … TO postgresPath` (a path inside the Postgres container), and
+// denoPath is the SAME file as this process sees it. The two must resolve to
+// one file through the container mounts; the run pipeline passes the run tmp
+// dir pair.
 export type DatasetCsvTarget = {
   postgresPath: string;
   denoPath: string;
@@ -55,16 +45,14 @@ export async function ensureDatasetCsvTargetDir(
 
 // computeDatasetHmisRunCapture does every instance-DB read, validation, and
 // the COPY TO export — and returns the captured rows the caller needs (run
-// input mirrors, script-generation inputs, manifest datasets info) WITHOUT
-// touching any project DB. Capture is always the FULL dataset — entire
-// period range, all indicators, all admin areas, all facility
-// types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03):
-// the R scripts need the full dataset to compute correctly, and per-project
-// subsetting is an attach-time query filter, never a generation input.
+// input mirrors, script-generation inputs, manifest datasets info). Capture is
+// always the FULL dataset — entire period range, all indicators, all admin
+// areas, all facility types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling
+// 2026-08-03): the R scripts need the full dataset to compute correctly, and
+// subsetting is a read-time query filter, never a generation input.
 
-// The facilities_{hmis,hfa} column set, in project-table order — the run's
-// facilities parquet is built from these rows directly (no project table to
-// export from under the no-dual-write model).
+// The facilities_{hmis,hfa} column set — the run's facilities parquet is built
+// from these rows directly.
 export const PROJECT_FACILITY_COLUMN_NAMES = [
   "facility_id",
   "admin_area_4",
@@ -98,7 +86,7 @@ export type ProjectFacilityRow = {
 };
 
 export type DatasetHmisRunCapture = {
-  info: DatasetHmisInfoInProject;
+  info: RunDatasetHmisInfo;
   lastUpdated: string;
   indicators: {
     indicator_common_id: string;
@@ -108,42 +96,6 @@ export type DatasetHmisRunCapture = {
   calculatedIndicators: CalculatedIndicator[];
 };
 
-// The calculated_indicators_snapshot row shape (denormalized denom) — shared
-// by the project-DB apply above and the run input JSON export.
-export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
-  calculated_indicator_id: string;
-  label: string;
-  group_label: string;
-  sort_order: number;
-  num_indicator_id: string;
-  denom_kind: string;
-  denom_indicator_id: string | null;
-  denom_population_type: string | null;
-  denom_population_multiplier: number | null;
-  format_as: string;
-  threshold_direction: string;
-  threshold_green: number;
-  threshold_yellow: number;
-} {
-  return {
-    calculated_indicator_id: ci.calculated_indicator_id,
-    label: ci.label,
-    group_label: ci.group_label,
-    sort_order: ci.sort_order,
-    num_indicator_id: ci.num_indicator_id,
-    denom_kind: ci.denom.kind,
-    denom_indicator_id: ci.denom.kind === "indicator" ? ci.denom.indicator_id : null,
-    denom_population_type:
-      ci.denom.kind === "population" ? ci.denom.population_type : null,
-    denom_population_multiplier:
-      ci.denom.kind === "population" ? ci.denom.multiplier : null,
-    format_as: ci.format_as,
-    threshold_direction: ci.threshold_direction,
-    threshold_green: ci.threshold_green,
-    threshold_yellow: ci.threshold_yellow,
-  };
-}
-
 export async function computeDatasetHmisRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
@@ -151,7 +103,7 @@ export async function computeDatasetHmisRunCapture(
 ): Promise<APIResponseWithData<DatasetHmisRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // A per-pair DHIS2 run mutates dataset_hmis for hours; exporting during
-    // one would copy torn mid-run data into the project stamped with the
+    // one would copy torn mid-run data into the package stamped with the
     // settled version id. Refuse up front (this also gives the clear error
     // on a first-ever import, when the only version row is still hidden).
     // A run *launching* mid-export remains possible — that window existed
@@ -159,10 +111,8 @@ export async function computeDatasetHmisRunCapture(
     // self-signals via the staleness marker at run end.
     await assertNoRunningDatasetHmisImportRun(mainDb);
 
-    // Validate BEFORE removing the existing attachment — a validation
-    // failure after the remove would leave the project detached with
-    // modules still clean and clients unnotified. The version is also the
-    // staleness marker, so it must be captured before the export.
+    // The version is the staleness marker, so it must be captured before the
+    // export.
     if (onProgress) await onProgress(0.1, "Validating configuration...");
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
@@ -236,7 +186,7 @@ export async function computeDatasetHmisRunCapture(
     throwIfErrWithData(resCalculatedIndicators);
     const calculatedIndicators = resCalculatedIndicators.data;
 
-    const info: DatasetHmisInfoInProject = {
+    const info: RunDatasetHmisInfo = {
       version,
       totalRows,
       structureLastUpdated,
@@ -301,63 +251,6 @@ WHERE EXISTS (
       },
     };
   });
-}
-
-export async function removeDatasetFromProject(
-  projectDb: Sql,
-  projectId: string,
-  datasetType: DatasetType
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Fully clear the per-dataset-type tables so "disable" actually disables.
-    // The code order matters for HFA: snapshot-code FKs into snapshot-indicators.
-    await projectDb.begin((sql) => [
-      sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
-      ...(datasetType === "hmis"
-        ? [
-            sql`DELETE FROM indicators`,
-            sql`DELETE FROM facilities_hmis`,
-            sql`DELETE FROM calculated_indicators_snapshot`,
-          ]
-        : datasetType === "hfa"
-          ? [
-              sql`DELETE FROM hfa_indicator_code_snapshot`,
-              sql`DELETE FROM hfa_indicators_snapshot`,
-              sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-              sql`DELETE FROM indicators_hfa`,
-              sql`DELETE FROM facilities_hfa`,
-            ]
-          : datasetType === "iceh"
-            ? [sql`DELETE FROM iceh_indicators_snapshot`]
-            : []),
-    ]);
-    try {
-      const datasetFilePath = getDatasetFilePath(projectId, datasetType);
-      await Deno.remove(datasetFilePath);
-    } catch {
-      //
-    }
-    return { success: true };
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-export function getDatasetFilePath(
-  projectId: string,
-  datasetType: DatasetType
-): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets", `${datasetType}.csv`);
 }
 
 function getDatasetHmisExportStatement(

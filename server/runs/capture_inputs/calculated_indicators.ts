@@ -1,56 +1,37 @@
-import { Sql } from "postgres";
-import type { CalculatedIndicator, PopulationType } from "lib";
+import type { CalculatedIndicator } from "lib";
 
-type DBCalculatedIndicatorSnapshot = {
+// The calculated_indicators_snapshot row shape (denormalized denom) — the
+// shape the HMIS capture writes into the run's input JSON.
+export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
   calculated_indicator_id: string;
   label: string;
   group_label: string;
   sort_order: number;
   num_indicator_id: string;
-  denom_kind: "none" | "indicator" | "population";
+  denom_kind: string;
   denom_indicator_id: string | null;
-  denom_population_type: PopulationType | null;
+  denom_population_type: string | null;
   denom_population_multiplier: number | null;
-  format_as: "percent" | "number" | "rate_per_10k";
-  threshold_direction: "higher_is_better" | "lower_is_better";
+  format_as: string;
+  threshold_direction: string;
   threshold_green: number;
   threshold_yellow: number;
-};
-
-function dbRowToCalculatedIndicator(
-  row: DBCalculatedIndicatorSnapshot,
-): CalculatedIndicator {
-  let denom: CalculatedIndicator["denom"];
-  if (row.denom_kind === "none") {
-    denom = { kind: "none" };
-  } else if (row.denom_kind === "indicator") {
-    denom = { kind: "indicator", indicator_id: row.denom_indicator_id! };
-  } else {
-    denom = {
-      kind: "population",
-      population_type: row.denom_population_type!,
-      multiplier: row.denom_population_multiplier!,
-    };
-  }
+} {
   return {
-    calculated_indicator_id: row.calculated_indicator_id,
-    label: row.label,
-    group_label: row.group_label,
-    sort_order: row.sort_order,
-    num_indicator_id: row.num_indicator_id,
-    denom,
-    format_as: row.format_as,
-    threshold_direction: row.threshold_direction,
-    threshold_green: row.threshold_green,
-    threshold_yellow: row.threshold_yellow,
+    calculated_indicator_id: ci.calculated_indicator_id,
+    label: ci.label,
+    group_label: ci.group_label,
+    sort_order: ci.sort_order,
+    num_indicator_id: ci.num_indicator_id,
+    denom_kind: ci.denom.kind,
+    denom_indicator_id: ci.denom.kind === "indicator" ? ci.denom.indicator_id : null,
+    denom_population_type:
+      ci.denom.kind === "population" ? ci.denom.population_type : null,
+    denom_population_multiplier:
+      ci.denom.kind === "population" ? ci.denom.multiplier : null,
+    format_as: ci.format_as,
+    threshold_direction: ci.threshold_direction,
+    threshold_green: ci.threshold_green,
+    threshold_yellow: ci.threshold_yellow,
   };
-}
-
-export async function getAllCalculatedIndicatorsFromSnapshot(
-  projectDb: Sql,
-): Promise<CalculatedIndicator[]> {
-  const rows = await projectDb<DBCalculatedIndicatorSnapshot[]>`
-    SELECT * FROM calculated_indicators_snapshot ORDER BY sort_order, calculated_indicator_id
-  `;
-  return rows.map(dbRowToCalculatedIndicator);
 }

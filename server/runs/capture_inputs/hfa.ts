@@ -1,22 +1,11 @@
 import { Sql } from "postgres";
-import { type HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 import {
   APIResponseWithData,
-  composeHfaIndicatorLabel,
-  DatasetHfaInfoInProject,
-  getHfaIndicatorMeasure,
   throwIfErrWithData,
-  type HfaIndicator,
-  type HfaIndicatorCode,
-  type HfaIndicatorCategory,
-  type HfaIndicatorServiceCategory,
-  type HfaIndicatorSubCategory,
-  type HfaTaxonomyForAI,
+  type RunDatasetHfaInfo,
 } from "lib";
-import {
-  getStructureSchema,
-} from "../instance/config.ts";
-import { computeHfaCacheHash } from "../instance/dataset_hfa.ts";
+import { getStructureSchema } from "../../db/instance/config.ts";
+import { computeHfaCacheHash } from "../../db/instance/dataset_hfa.ts";
 import {
   DBHfaIndicator,
   DBHfaIndicatorCategory,
@@ -24,19 +13,15 @@ import {
   DBHfaIndicatorSubCategory,
   DBHfaIndicatorVariantGroup,
   DBHfaIndicatorVariantItem,
-  dbRowToHfaIndicator,
-  dbRowToHfaIndicatorCategory,
-  dbRowToHfaIndicatorServiceCategory,
-  dbRowToHfaIndicatorSubCategory,
-} from "../instance/hfa_indicators.ts";
-import { getHfaIndicatorsVersion } from "../instance/instance.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+} from "../../db/instance/hfa_indicators.ts";
+import { getHfaIndicatorsVersion } from "../../db/instance/instance.ts";
+import { tryCatchDatabaseAsync } from "../../db/utils.ts";
 import {
   ensureDatasetCsvTargetDir,
   PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
   type ProjectFacilityRow,
-} from "./datasets_in_project_hmis.ts";
+} from "./hmis.ts";
 
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
 // instance reads + COPY export and returns every captured row set. Capture
@@ -45,7 +30,7 @@ import {
 // ruling 2026-08-03).
 
 export type DatasetHfaRunCapture = {
-  info: DatasetHfaInfoInProject;
+  info: RunDatasetHfaInfo;
   lastUpdated: string;
   facilities: ProjectFacilityRow[];
   indicatorsHfa: { var_name: string; example_values: string }[];
@@ -81,15 +66,13 @@ export async function computeDatasetHfaRunCapture(
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<DatasetHfaRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Validate and capture staleness metadata BEFORE removing the existing
-    // attachment: a failure after the remove leaves the project detached
-    // with modules still clean and clients unnotified, and a hash captured
-    // after the export can mask a concurrent instance import (new hash
-    // stored against pre-import CSV data).
+    // Validate and capture staleness metadata BEFORE exporting: a hash
+    // captured after the export can mask a concurrent instance import (new
+    // hash stored against pre-import CSV data).
     if (onProgress) await onProgress(0.1, "Validating configuration...");
     const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
     if (!hasData) {
-      throw new Error("No HFA data available to add to project");
+      throw new Error("No HFA data available to capture into a run");
     }
 
     // The HFA registry's structure schema (depth + columns)
@@ -120,8 +103,8 @@ export async function computeDatasetHfaRunCapture(
     `
     ).filter((c) => indicatorVarNames.has(c.var_name));
 
-    // Staleness metadata — stored in datasets.info so the client can detect
-    // when the project's export is behind the instance.
+    // Staleness metadata — stored in the run manifest's datasets info so a
+    // reader can detect when the package's capture is behind the instance.
     const hfaTimePointRowsForHash = await mainDb<
       { label: string; sort_order: number; imported_at: string | null }[]
     >`
@@ -156,7 +139,7 @@ export async function computeDatasetHfaRunCapture(
     // columns (ownership/type/custom) are intentionally excluded here: the
     // R script has no computational use for them, and chart disaggregation
     // by these attributes is served entirely by a query-time join against
-    // facilities_hfa (see metric_enricher.ts / cte_manager.ts), not by
+    // facilities_hfa (see cte_manager.ts), not by
     // values carried through the module's own dataset export.
     const exportStatement = `
 SELECT
@@ -218,13 +201,13 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     `
     ).filter((c) => indicatorVarNames.has(c.var_name));
 
-    const info: DatasetHfaInfoInProject = {
+    const info: RunDatasetHfaInfo = {
       hfaCacheHash,
       hfaIndicatorsVersion,
       structureLastUpdated,
     };
 
-    // Fetch facilities from main database for the project/run capture
+    // Fetch facilities from main database for the run capture
     const facilities = (await mainDb.unsafe(
       `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
     )) as ProjectFacilityRow[];
@@ -301,158 +284,5 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       },
     };
   });
-}
-
-// ============================================================================
-// Snapshot readers (consumed by run_module_iterator + script preview)
-// ============================================================================
-
-type DBHfaIndicatorCodeSnapshot = {
-  var_name: string;
-  time_point: string;
-  r_code: string;
-  r_filter_code: string | null;
-};
-
-export async function getAllHfaIndicatorCategoriesFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaIndicatorCategory[]> {
-  const rows = await projectDb<DBHfaIndicatorCategory[]>`
-    SELECT id, label, sort_order FROM hfa_indicator_categories_snapshot ORDER BY sort_order, label
-  `;
-  return rows.map(dbRowToHfaIndicatorCategory);
-}
-
-export async function getAllHfaIndicatorSubCategoriesFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaIndicatorSubCategory[]> {
-  const rows = await projectDb<DBHfaIndicatorSubCategory[]>`
-    SELECT id, category_id, label, sort_order FROM hfa_indicator_sub_categories_snapshot ORDER BY category_id, sort_order, label
-  `;
-  return rows.map(dbRowToHfaIndicatorSubCategory);
-}
-
-export async function getAllHfaIndicatorServiceCategoriesFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaIndicatorServiceCategory[]> {
-  const rows = await projectDb<DBHfaIndicatorServiceCategory[]>`
-    SELECT id, label, sort_order FROM hfa_indicator_service_categories_snapshot ORDER BY sort_order, label
-  `;
-  return rows.map(dbRowToHfaIndicatorServiceCategory);
-}
-
-// Per-variable sentinel classification for the module generator (layer 3),
-// read back from the project snapshot written at HFA-export time. Empty for
-// projects exported before layer 1 shipped → generator falls back to the
-// hardcoded set.
-export async function getHfaSentinelRowsFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaSentinelRow[]> {
-  const rows = await projectDb<{
-    var_name: string;
-    value: string;
-    sentinel_class: string;
-    is_numeric: boolean;
-  }[]>`
-    SELECT var_name, value, sentinel_class, is_numeric
-    FROM hfa_variable_values_snapshot
-  `;
-  return rows.map((r) => ({
-    varName: r.var_name,
-    value: r.value,
-    sentinelClass: r.sentinel_class,
-    isNumeric: r.is_numeric,
-  }));
-}
-
-export async function getAllHfaIndicatorsFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaIndicator[]> {
-  const rows = await projectDb<DBHfaIndicator[]>`
-    SELECT
-      i.var_name,
-      i.category_id,
-      i.sub_category_id,
-      i.service_category_ids,
-      i.short_label,
-      i.definition,
-      i.type,
-      i.aggregation,
-      i.sort_order,
-      '' as updated_at,
-      false as has_syntax_error,
-      true as code_consistent,
-      null as variant_group_id
-    FROM hfa_indicators_snapshot i
-    LEFT JOIN hfa_indicator_categories_snapshot c ON i.category_id = c.id
-    LEFT JOIN hfa_indicator_sub_categories_snapshot sc ON i.sub_category_id = sc.id
-    ORDER BY COALESCE(c.sort_order, 999999), COALESCE(sc.sort_order, 999999), i.sort_order, i.var_name
-  `;
-  return rows.map(dbRowToHfaIndicator);
-}
-
-// Full HFA indicator taxonomy for the AI. Indicators + categories +
-// sub-categories + service categories come from the project snapshot (so they
-// respect this project's service-category scoping); time points are
-// instance-wide (`hfa_time_points`), restricted to those actually imported.
-export async function getHfaTaxonomyForAI(
-  mainDb: Sql,
-  projectDb: Sql,
-): Promise<HfaTaxonomyForAI> {
-  const [categories, subCategories, serviceCategories, indicators, timePointRows] =
-    await Promise.all([
-      getAllHfaIndicatorCategoriesFromSnapshot(projectDb),
-      getAllHfaIndicatorSubCategoriesFromSnapshot(projectDb),
-      getAllHfaIndicatorServiceCategoriesFromSnapshot(projectDb),
-      getAllHfaIndicatorsFromSnapshot(projectDb),
-      mainDb<{ label: string; period_id: string }[]>`
-        SELECT label, period_id FROM hfa_time_points
-        WHERE imported_at IS NOT NULL
-        ORDER BY sort_order
-      `,
-    ]);
-  return {
-    categories: categories.map((c) => ({ id: c.id, label: c.label })),
-    subCategories: subCategories.map((s) => ({
-      id: s.id,
-      categoryId: s.categoryId,
-      label: s.label,
-    })),
-    serviceCategories: serviceCategories.map((s) => ({ id: s.id, label: s.label })),
-    // Frozen pg plane: the project snapshot tables predate the variant feature,
-    // so variant data is always empty here.
-    variantGroups: [],
-    variantItems: [],
-    timePoints: timePointRows.map((t) => ({
-      id: t.label,
-      label: t.label,
-      periodId: t.period_id,
-    })),
-    indicators: indicators.map((i) => ({
-      id: i.varName,
-      label: composeHfaIndicatorLabel(i, "full"),
-      measure: getHfaIndicatorMeasure(i.type, i.aggregation).label.en,
-      categoryId: i.categoryId,
-      subCategoryId: i.subCategoryId,
-      serviceCategoryIds: i.serviceCategoryIds,
-      variantGroupId: i.variantGroupId,
-    })),
-  };
-}
-
-export async function getAllHfaIndicatorCodeFromSnapshot(
-  projectDb: Sql,
-): Promise<HfaIndicatorCode[]> {
-  const rows = await projectDb<DBHfaIndicatorCodeSnapshot[]>`
-    SELECT var_name, time_point, r_code, r_filter_code
-    FROM hfa_indicator_code_snapshot
-    ORDER BY var_name, time_point
-  `;
-  return rows.map((r) => ({
-    varName: r.var_name,
-    timePoint: r.time_point,
-    rCode: r.r_code,
-    rFilterCode: r.r_filter_code ?? undefined,
-  }));
 }
 

@@ -1,6 +1,5 @@
 import { Sql } from "postgres";
 import { APIResponseWithData, SlideWithMeta } from "lib";
-import { DBSlide } from "./_project_database_types.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { getSlides } from "./slides.ts";
 
@@ -11,7 +10,7 @@ type MovePosition =
   | { toEnd: true };
 
 export async function moveSlides(
-  projectDb: Sql,
+  mainDb: Sql,
   deckId: string,
   slideIds: string[],
   position: MovePosition
@@ -20,7 +19,7 @@ export async function moveSlides(
     const lastUpdated = new Date().toISOString();
 
     // Get all current slides
-    const allSlidesRes = await getSlides(projectDb, deckId);
+    const allSlidesRes = await getSlides(mainDb, deckId);
     if (!allSlidesRes.success) throw new Error("Failed to get slides");
 
     const allSlides = allSlidesRes.data;
@@ -64,7 +63,7 @@ export async function moveSlides(
     ];
 
     // Update sort_order in DB
-    await projectDb.begin(async (sql) => {
+    await mainDb.begin(async (sql) => {
       for (let i = 0; i < reordered.length; i++) {
         await sql`
           UPDATE slides SET sort_order = ${(i + 1) * 10}
@@ -73,13 +72,13 @@ export async function moveSlides(
       }
 
       await sql`
-        UPDATE slide_decks SET last_updated = ${lastUpdated}
+        UPDATE products SET last_updated = ${lastUpdated}
         WHERE id = ${deckId}
       `;
     });
 
     // Return new order
-    const result = await getSlides(projectDb, deckId);
+    const result = await getSlides(mainDb, deckId);
     if (!result.success) {
       throw new Error("Failed to fetch reordered slides");
     }
