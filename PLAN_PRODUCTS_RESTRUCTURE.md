@@ -470,8 +470,11 @@ descriptions, view instructions, `client_info_topics.ts`,
 `client/src/components/products/`: folder sidebar (with the "General"
 pseudo-group), type filter chips (deck / report), search, one sort pref,
 mixed product cards (type icon, label, package label from T1 `readyPackages` +
-scope badge, last updated), `${kind}:${id}` multi-select with per-kind batch
-dispatch. **Create = two buttons, no modal:** "New deck" / "New report" insert
+scope badge, last updated), multi-select on the PLAIN product id — the
+`${kind}:${id}` composite this plan first specified was a hangover from the
+per-type routes: D1 gives products one registry and one id namespace, and
+`deleteProducts` / `moveProductsToFolder` are cross-type batch routes, so
+there is nothing left to dispatch per kind. **Create = two buttons, no modal:** "New deck" / "New report" insert
 the `products` row + detail row in one transaction (label "Untitled deck" /
 "Untitled report" localised, `folder_id` = the sidebar's current folder or
 NULL, `run_id` = the pin resolved server-side, `admin_area_2` NULL) and the
