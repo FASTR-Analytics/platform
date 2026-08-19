@@ -170,15 +170,20 @@ export const runGenerationRouteRegistry = {
   }),
   // The raw results-object preview (was the project-mounted
   // getResultsObjectItems).
+  // SCOPED like the other three, not national: getResultsObjectItemsFromRun
+  // applies computeScopeFilters internally, so the raw preview of an AA2
+  // product's results object must carry that product's area or it silently
+  // shows national rows — which is what the project lens used to supply.
   getRunResultsObjectItems: route({
     path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
-    method: "GET",
+    method: "POST",
     // results_object_id is a module-defined filename (e.g.
     // "M10_hfa_results.csv"), not a uuid.
     params: z.object({
       run_id: z.string(),
       results_object_id: z.string(),
     }),
+    body: z.object({ adminArea2: z.string().nullable() }),
     response: {} as ItemsHolderResultsObject,
   }),
   // Everything an author needs FROM a package — a pure function of the run

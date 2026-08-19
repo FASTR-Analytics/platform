@@ -306,16 +306,21 @@ defineRoute(
   },
 );
 
-// The raw results-object preview (S8 read surface). A GET with no body, so it
-// carries no scope and reads the package NATIONALLY — the preview answers
-// "what is in this file", not "what does my product show".
+// The raw results-object preview (S8 read surface). SCOPED like every other
+// figure-data read: getResultsObjectItemsFromRun applies computeScopeFilters
+// itself, so passing null here would show an AA2 product's preview national
+// rows — the project lens used to supply that area, and the pair replaces it.
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",
   requireApprovedUser(),
   log("getRunResultsObjectItems"),
-  async (c, { params }) => {
-    const ctxRes = await getReadyRunReadContext(c.var.mainDb, params.run_id, null);
+  async (c, { params, body }) => {
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
     if (ctxRes.success === false) return c.json(ctxRes);
     return c.json(
       await getResultsObjectItemsFromRun(
