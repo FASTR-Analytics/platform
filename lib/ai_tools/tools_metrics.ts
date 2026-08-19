@@ -6,15 +6,9 @@ import type {
   MetricWithStatus,
 } from "../types/mod.ts";
 import { AiMetricQuerySchema } from "../types/ai_input.ts";
-import {
-  getMetricDataForAI,
-  inferPeriodFilter,
-} from "./format_metric_data_for_ai.ts";
+import { getMetricDataForAI } from "./format_metric_data_for_ai.ts";
 import { formatMetricsListForAI } from "./format_metrics_list_for_ai.ts";
-import {
-  validateAiMetricQuery,
-  validateMetricInputs,
-} from "./content_validators.ts";
+import { validateAiMetricQuery } from "./content_validators.ts";
 import type { AIToolEnv } from "./env.ts";
 
 type IcehIndicator = { id: string; label: string; category: string };
@@ -51,13 +45,6 @@ export function getSharedToolsForMetrics(
       handler: async (input: AiMetricQuery) => {
         const metric = metrics.find((m) => m.id === input.metricId);
         validateAiMetricQuery(input, metric);
-        const periodFilter = inferPeriodFilter(input.startDate, input.endDate);
-        await validateMetricInputs(
-          env,
-          input.metricId,
-          input.filters,
-          periodFilter,
-        );
         return await getMetricDataForAI(
           env,
           input,

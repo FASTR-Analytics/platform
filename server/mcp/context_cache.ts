@@ -279,6 +279,7 @@ export async function resolvePackageContext(
     await getHfaTimePointsForAI(mainDb),
   );
   const grounding: PackageGrounding = {
+    calendar: manifest.calendar,
     datasets: getProjectDatasetsFromManifest(manifest),
     commonIndicators: await getCommonIndicatorsFromManifestInputs(runInputs),
     icehIndicators,

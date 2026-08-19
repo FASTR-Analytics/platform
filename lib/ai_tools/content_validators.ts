@@ -2,6 +2,7 @@ import type {
   AiMetricQuery,
   DisaggregationOption,
   MetricWithStatus,
+  ResultsValueInfoForPresentationObject,
 } from "../types/mod.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { convertPeriodValue } from "../convert_period_value.ts";
@@ -135,6 +136,9 @@ export function validateDateRange(
   }
 }
 
+// The fetching form, for callers that hold only an env (the edit paths). The
+// get_metric_data read already holds the value info for its coverage line and
+// calls validateMetricInputsAgainstValueInfo directly — one fetch, not two.
 export async function validateMetricInputs(
   env: AIToolEnv,
   metricId: string,
@@ -145,6 +149,21 @@ export async function validateMetricInputs(
 
   const metricInfoRes = await env.getResultsValueInfo(metricId);
   if (!metricInfoRes.success) return;
+  validateMetricInputsAgainstValueInfo(
+    metricInfoRes.data,
+    metricId,
+    filters,
+    periodFilter,
+  );
+}
+
+export function validateMetricInputsAgainstValueInfo(
+  valueInfo: ResultsValueInfoForPresentationObject,
+  metricId: string,
+  filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
+  periodFilter?: { min: number; max: number },
+): void {
+  if (!filters?.length && !periodFilter) return;
 
   // getResultsValueInfo writes one entry per real dimension of the metric
   // (whatever its value status), so an ABSENT key means the dimension is not in
@@ -153,12 +172,9 @@ export async function validateMetricInputs(
   // update_viz_config) run this validator and nothing else, so a filter on a
   // non-existent column would otherwise pass and build a broken fetch config.
   // The create paths already reject it earlier via validateFilters.
-  const availableDims = Object.keys(
-    metricInfoRes.data.disaggregationPossibleValues,
-  );
+  const availableDims = Object.keys(valueInfo.disaggregationPossibleValues);
   for (const filter of filters ?? []) {
-    const dimValues =
-      metricInfoRes.data.disaggregationPossibleValues[filter.disOpt];
+    const dimValues = valueInfo.disaggregationPossibleValues[filter.disOpt];
     if (dimValues === undefined) {
       throw new AIToolFailure(
         `Filter dimension "${filter.disOpt}" is not available for metric "${metricId}". ` +
@@ -186,8 +202,8 @@ export async function validateMetricInputs(
     }
   }
 
-  if (periodFilter && metricInfoRes.data.periodBounds) {
-    const bounds = metricInfoRes.data.periodBounds;
+  if (periodFilter && valueInfo.periodBounds) {
+    const bounds = valueInfo.periodBounds;
     const boundsFmt = inferPeriodFormatFromValue(bounds.min);
     if (boundsFmt !== undefined) {
       const filterMin = convertPeriodValue(periodFilter.min, boundsFmt, false);

@@ -1,6 +1,7 @@
 import { getCountryLabel } from "../consts.ts";
 import type { DatasetInProject } from "../types/datasets_in_project.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
+import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
@@ -77,9 +78,6 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
   }
 
   sections.push(`**Instance:** ${instance.instanceName}`);
-  sections.push(
-    `**Calendar:** ${instance.instanceCalendar} (period ids like 202503 are year+month in this calendar)`,
-  );
   sections.push("");
 
   sections.push("# Terminology");
@@ -188,12 +186,17 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
 // manifest (the pinned package on /mcp) — the caller maps to this shape.
 
 export type PackageGrounding = {
+  // The calendar the package's period ids are in — a package fact, captured
+  // into the run manifest at finalize (`manifest.calendar`, never the env
+  // global). The SPA's attached package was generated on this instance, so it
+  // passes the instance calendar.
+  calendar: InstanceCalendar;
   datasets: DatasetInProject[];
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
-  // The package's overall period range across its results objects (null =
-  // no time-indexed results). Omitted when the caller cannot know it — the
-  // SPA holds no manifest client-side; /mcp reads it from the manifest.
+  // The package's overall period range at its finest time grain (null = no
+  // time-indexed results). Omitted when the caller cannot know it — the SPA
+  // holds no manifest client-side; /mcp reads it from the manifest.
   periodCoverage?: PeriodBounds | null;
 };
 
@@ -201,6 +204,10 @@ export function buildPackageGroundingSections(
   grounding: PackageGrounding,
 ): string[] {
   const sections: string[] = [];
+  sections.push("");
+  sections.push(
+    `**Calendar:** ${grounding.calendar} (period ids like 202503 are year+month in this calendar)`,
+  );
   const hmisDataset = grounding.datasets.find(
     (d) => d.datasetType === "hmis",
   );
@@ -252,7 +259,7 @@ export function buildPackageGroundingSections(
         ? "**Period coverage:** no time-indexed results"
         : `**Period coverage:** ${
           inferPeriodFormatFromValue(grounding.periodCoverage.min) ?? "unknown"
-        } ${grounding.periodCoverage.min} to ${grounding.periodCoverage.max} (the widest range across the package's results; each metric states its own in get_metric_data)`,
+        } ${grounding.periodCoverage.min} to ${grounding.periodCoverage.max} (the range of the package's finest-grained results; coarser-grained results may reach further — each metric states its own in get_metric_data)`,
     );
   }
   return sections;

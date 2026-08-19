@@ -29,6 +29,7 @@ export function buildSystemPromptForContext(
     "",
     `**Name:** ${projectState.label}`,
     ...buildPackageGroundingSections({
+      calendar: instance.instanceCalendar,
       datasets: projectState.projectDatasets,
       commonIndicators: projectState.commonIndicators,
       icehIndicators: projectState.icehIndicators,

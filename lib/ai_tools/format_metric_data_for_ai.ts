@@ -20,6 +20,7 @@ import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
+import { validateMetricInputsAgainstValueInfo } from "./content_validators.ts";
 
 export function inferPeriodFilter(
   startDate: number | undefined,
@@ -51,11 +52,32 @@ export async function getMetricDataForAI(
     disOpt: DisaggregationOption;
     values: (string | number)[];
   }[];
-  const periodFilter = periodFilterOverride ??
-    inferPeriodFilter(startDate, endDate);
+  const dateRangeFilter = inferPeriodFilter(startDate, endDate);
+  const periodFilter = periodFilterOverride ?? dateRangeFilter;
 
   const metric = metrics.find((m) => m.id === metricId);
   if (!metric) throw new AIToolFailure(`Metric "${metricId}" not found`);
+
+  // ONE value-info read serves two purposes: validating the query's filters
+  // and date range against the metric's real dimensions and bounds (fail
+  // fast, before the items query — a caller-supplied periodFilterOverride is
+  // engine-typed, not a model input, and is not checked), and the "Period
+  // coverage" line — the metric's FULL range, independent of this query's
+  // filters, which lets the model tell "the data ends here" from "I didn't
+  // ask for later periods". Context, not data: a failed read skips both
+  // rather than failing the tool.
+  const valueInfoRes = await env.getResultsValueInfo(metricId);
+  if (valueInfoRes.success) {
+    validateMetricInputsAgainstValueInfo(
+      valueInfoRes.data,
+      metricId,
+      filters,
+      dateRangeFilter,
+    );
+  }
+  const periodCoverage = valueInfoRes.success
+    ? valueInfoRes.data.periodBounds ?? null
+    : undefined;
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const requiredDisaggregationOptions = metric.disaggregationOptions
@@ -100,26 +122,15 @@ export async function getMetricDataForAI(
         rollupDim: undefined,
       };
 
-  // Value info rides alongside the items: its periodBounds is the metric's
-  // FULL period coverage (the results object's range, independent of this
-  // query's filters) — what lets the model tell "the data ends here" from "I
-  // didn't ask for later periods". Context, not data: a failed read omits the
-  // line rather than failing the tool.
-  const [res, valueInfoRes] = await Promise.all([
-    env.getItems({
-      resultsObjectId: metric.resultsObjectId,
-      fetchConfig,
-      firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
-    }),
-    env.getResultsValueInfo(metricId),
-  ]);
+  const res = await env.getItems({
+    resultsObjectId: metric.resultsObjectId,
+    fetchConfig,
+    firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
+  });
   if (!res.success) {
     throw new AIToolFailure(res.err);
   }
   const itemsHolder = res.data;
-  const periodCoverage = valueInfoRes.success
-    ? valueInfoRes.data.periodBounds ?? null
-    : undefined;
 
   const indicatorMetadata = itemsHolder.status === "ok"
     ? itemsHolder.indicatorMetadata
