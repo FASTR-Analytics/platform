@@ -314,8 +314,8 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
 - **Invalidation:** none, explicitly. A write bumps a version column; the next
   read recomputes `versionHash`, mismatches, misses, recomputes. Explicit
   `.clear()` is reserved for migration data-transforms that rewrite rows in
-  place (the only call sites: `data_transforms/po_config.ts`,
-  `data_transforms/metric.ts`); `.clearAll()` currently has zero call sites.
+  place (the only call site: `data_transforms/po_config.ts`); `.clearAll()`
+  currently has zero call sites.
 - **TTLs are generous — the cache is version-gated, not time-gated.** `READ_TTL`
   30 days, refreshed on every `get` (so TTL is NOT a reliable invalidation
   backstop: a hot stale-version entry never expires, it just keeps missing);

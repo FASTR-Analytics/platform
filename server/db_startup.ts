@@ -1,11 +1,9 @@
 import {
   _COMMON_INDICATORS,
   H_USERS,
-  MODULE_REGISTRY,
   type InstanceConfigAdminAreaLabels,
   type StructureSchema,
 } from "lib";
-import { uninstallModule } from "./db/project/modules.ts";
 import { escapeSqlString } from "./db/utils.ts";
 import {
   evictRunFromManifestCache,
@@ -34,8 +32,6 @@ import {
   migratePOConfigs,
   type MigrationStats,
 } from "./db/migrations/data_transforms/po_config.ts";
-import { migrateModuleDefinitions } from "./db/migrations/data_transforms/module_definition.ts";
-import { migrateMetricsColumns } from "./db/migrations/data_transforms/metric.ts";
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
 import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
@@ -117,19 +113,6 @@ ${userInserts}
 
     // Project data transforms — each in its own transaction
     await runProjectDataTransforms(project.id, projectDb, instanceCountryIso3);
-
-    // =========================================================================
-    // TEMPORARY: Remove after all ~5 production instances have been updated
-    // Added: 2025-05-20 for hfa001 → m010 rename
-    // This uninstalls any modules not in MODULE_REGISTRY (orphaned modules)
-    // =========================================================================
-    await cleanupOrphanModules(projectDb);
-
-    // =========================================================================
-    // TEMPORARY: Remove after all production instances have been updated
-    // Added: 2026-06-10 — see cleanupOrphanedPresentationObjects
-    // =========================================================================
-    await cleanupOrphanedPresentationObjects(projectDb);
   }
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
@@ -258,8 +241,6 @@ const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
 
 const PROJECT_DATA_TRANSFORMS: { name: string; fn: ProjectMigrationFn }[] = [
   { name: "po_config", fn: migratePOConfigs },
-  { name: "module_definition", fn: migrateModuleDefinitions },
-  { name: "metrics_columns", fn: migrateMetricsColumns },
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
   { name: "reports", fn: migrateReports },
@@ -451,41 +432,5 @@ async function backfillDashboardSlugsToMain(
         `[dashboard-slug-backfill] slug "${row.slug}" (project ${projectId.slice(0, 8)}, dashboard ${row.id}) not registered — already taken globally. Re-slug it to restore its public link.`,
       );
     }
-  }
-}
-
-// =============================================================================
-// TEMPORARY: Remove this function after all ~5 production instances updated
-// Added: 2025-05-20 for hfa001 → m010 rename
-// =============================================================================
-async function cleanupOrphanModules(projectDb: Sql): Promise<void> {
-  const validIds = MODULE_REGISTRY.map((m) => m.id);
-  const installed = await projectDb<{ id: string }[]>`SELECT id FROM modules`;
-
-  for (const mod of installed) {
-    if (!validIds.includes(mod.id as typeof validIds[number])) {
-      console.log(`[cleanup] Removing orphan module: ${mod.id}`);
-      await uninstallModule(projectDb, mod.id);
-    }
-  }
-}
-
-// =============================================================================
-// TEMPORARY: Remove this function after all production instances updated
-// Added: 2026-06-10 — purge presentation objects whose metric no longer exists
-// in the project (orphaned by uninstalls/metric renames before install/update/
-// uninstall purged them). 240 such rows found across 21 instances.
-// =============================================================================
-async function cleanupOrphanedPresentationObjects(
-  projectDb: Sql,
-): Promise<void> {
-  const del = await projectDb`
-    DELETE FROM presentation_objects
-    WHERE metric_id NOT IN (SELECT id FROM metrics)
-  `;
-  if (del.count > 0) {
-    console.log(
-      `[cleanup] Removed ${del.count} orphaned visualization(s) with no matching metric`,
-    );
   }
 }

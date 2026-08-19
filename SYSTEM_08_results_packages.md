@@ -78,8 +78,8 @@ together"); that repo is not documented here.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `server/module_loader/**`; `server/github/**`; ALL of `db/project/modules.ts`
-(now just the installed-definition blob helper the manifest builder shares, the
-config-selections parser, and the boot sweep's `uninstallModule`);
+(now just the installed-definition blob helper the manifest builder shares and
+the config-selections parser);
 `server/runs/**` + `worker_routines/generate_run/**` (the results-package
 pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
@@ -192,12 +192,15 @@ project-DB catalog too — item 0 the per-module dual-write
 (`upsertModuleCatalogForGeneratedRun`, the `ro_*` COPY, the
 `defaultPresentationObjects: []` compat key), item 1 the `installModule` call in
 project creation, which left the function itself an orphan (deleted here, item
-5). What survives in `db/project/modules.ts` is three things, none of them a
-catalog write path: `prepareModuleDefinitionForStorage` (the installed
-monolingual blob, now built straight into the manifest by
-`generate_run/pipeline.ts`), `parseModuleConfigSelections`, and
-`uninstallModule` — reached only by `db_startup.ts`'s temporary orphan-module
-cleanup sweep, which is why the orphaned-PO purge lives with it.
+5). What survives in `db/project/modules.ts` is two things, neither a catalog
+write path: `prepareModuleDefinitionForStorage` (the installed monolingual
+blob, now built straight into the manifest by `generate_run/pipeline.ts`) and
+`parseModuleConfigSelections`. Nothing reads or polices the frozen project
+tables at boot any more: the orphan-module / orphaned-PO sweeps and the
+`metrics_columns` / `module_definition` transforms were deleted on 2026-08-19
+because they judged live visualizations against a table no code writes — the
+orphaned-PO sweep deleted every visualization in any project created after
+the dual-write ended.
 
 So the `modules` / `results_objects` / `metrics` rows and the `ro_*` tables in
 every project DB are **frozen**: written by images before the cutover, read by
