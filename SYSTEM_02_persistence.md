@@ -297,12 +297,12 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
 5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
-   same runner), then the eight project data transforms in fixed order
-   (`po_config`, `module_definition`, `metrics_columns`, `slide_deck_config`,
-   `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
-   its own transaction, fail-stop; plus explicitly-`TEMPORARY` cleanup sweeps
-   (orphan modules, orphaned POs, dashboard-slug backfill) that self-identify in
-   the file.
+   same runner), then the six project data transforms in fixed order
+   (`po_config`, `slide_deck_config`, `slide_config`, `reports`,
+   `dashboard_config`, `dashboard_items`), each in its own transaction,
+   fail-stop; plus the explicitly-`TEMPORARY` dashboard-slug backfill that
+   self-identifies in the file. No boot step reads or polices the frozen
+   project `modules` / `metrics` tables (SYSTEM_08).
 
 SQL migrations must be idempotent because the base schema files
 (`_main_database.sql`, `_project_database.sql`) represent current state and new
