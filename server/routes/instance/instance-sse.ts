@@ -53,8 +53,9 @@ routesInstanceSSE.get(
 
       try {
         // 1. Build initial state from database (while queuing any concurrent
-        // messages). Extracted to buildInstanceState (PLAN_112 step 3) so the
-        // /mcp context cache grounds on the same state — payload unchanged.
+        // messages). buildInstanceState is the full payload; the /mcp context
+        // cache grounds on its product-free half instead
+        // (buildInstanceStateWithoutProducts).
         const res = await buildInstanceState(mainDb, globalUser);
         if (!res.success) {
           await stream.writeSSE({
@@ -82,24 +83,30 @@ routesInstanceSSE.get(
 
         // Per-user message filter: this endpoint is guarded by
         // requireGlobalPermission() — every logged-in user, approved or not.
-        // Two per-message rules, both LIVE (every `users_updated` passing
-        // through the forward loop carries the full roster with permission
-        // rows, and the connection's own email never changes, so re-finding
-        // it in each roster is sufficient):
+        // Three per-message rules, all LIVE off the SAME re-derivation (every
+        // `users_updated` passing through the forward loop carries the full
+        // roster with permission rows, and the connection's own email never
+        // changes, so re-finding it in each roster is sufficient):
         //   - Q-B: `run_progress`/`r_script` (run labels, module ids, R error
         //     detail) go to instance data admins only — a mid-session grant
         //     starts the stream, a revocation stops it, no reconnect.
         //   - Roster: an UNAPPROVED connection (its user absent from the
         //     roster) gets `users_updated` rewritten to `[]` — the roster is
         //     an enumeration surface (emails, names, permission maps) with no
-        //     consumer on the pending-approval screen. The moment the user
-        //     appears in a roster payload, that same message flows through
-        //     whole, and the client's own-email re-derivation flips them
-        //     approved and fills the roster in one step. The starting payload
-        //     applies the same rule (buildInstanceState).
+        //     consumer on the pending-approval screen.
+        //   - Product plane: the same absent-from-roster test drops
+        //     `products_upserted` / `products_deleted` / `folders_updated` /
+        //     `last_updated`, matching the withholding buildInstanceState
+        //     applies to the starting payload. The unapproved→approved
+        //     transition is handled CLIENT-side (reconnectForApproval rebuilds
+        //     the whole payload), so this filter only has to be right at
+        //     connect time and to re-derive on each roster change; a revoked
+        //     user stops receiving products on the next `users_updated`
+        //     without a reconnect.
         // Returns the message to write (possibly rewritten) or null to drop.
         let canSeeRunMessages = instanceState.currentUserIsGlobalAdmin ||
           instanceState.currentUserPermissions.can_configure_data;
+        let isApproved = instanceState.currentUserApproved;
         const forwardable = (
           msg: InstanceSseMessage,
         ): InstanceSseMessage | null => {
@@ -109,10 +116,19 @@ routesInstanceSSE.get(
             );
             canSeeRunMessages = (me?.isGlobalAdmin ?? false) ||
               (me?.can_configure_data ?? false);
+            isApproved = me !== undefined;
             return me === undefined ? { type: "users_updated", data: [] } : msg;
           }
           if (msg.type === "run_progress" || msg.type === "r_script") {
             return canSeeRunMessages ? msg : null;
+          }
+          if (
+            msg.type === "products_upserted" ||
+            msg.type === "products_deleted" ||
+            msg.type === "folders_updated" ||
+            msg.type === "last_updated"
+          ) {
+            return isApproved ? msg : null;
           }
           return msg;
         };
