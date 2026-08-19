@@ -387,8 +387,11 @@ per-project disk gates, `getMyProjects` / `getProjectsForUser` /
 `getOtherUser.projectUserRoles`, the pg read plane (`results_value_resolver.ts`,
 `metric_enricher.ts` minus three survivors, `get_indicator_metadata.ts`, the
 pg wrappers, the dead `db/utils.ts` probes), `backfill_runs.ts`,
-`validate_results_runs_parity.ts`, `synthesize_run.ts`,
-`validate_figure_bundle_backfill.ts`, `rollout_fleet` / `rollout_backfill` /
+`validate_results_runs_parity.ts`, `synthesizeRunForProject` and the
+project-DB branch of `exportPgTableToParquet` (NOT the whole
+`runs/synthesize_run.ts` / `runs/pg_export.ts` files — `buildRunPackageIntoTmp`,
+`readCsvHeaders` and `exportRowsToParquet` are called by the LIVE generation
+pipeline), `validate_figure_bundle_backfill.ts`, `rollout_fleet` / `rollout_backfill` /
 `rollout_nigeria` + their Dockerfile COPY lines, the ~20 project-page tours,
 `_project_database.sql` + the 41 project migration files + the runner's
 project mode + `validate_migrations`' project half. **Visualization plane:**
@@ -662,7 +665,12 @@ lastUpdated }`; `starting` carries the full `products` + `folders` +
 `readyPackages` + `lastUpdated` map. `readyPackages` follows the `runsCatalog`
 idiom exactly — a `starting` fill plus the EXISTING `runs_catalog_updated`
 nonce triggering a `listAttachableResultsPackages` refetch (no new message
-type). The client `lastUpdated` map (`{ products, slides }`) is the
+type). **That route returns `ReadyPackage[]` (`{ id, label, createdAt }`), NOT
+`RunListingItem[]`** — the wide row carries `progress` / `summary` /
+`provenance`, which is generation telemetry and stays at `can_configure_data`
+under Q-B; the package LABEL is the whole of what D8 widens to approved users.
+The `starting` fill and the refetch therefore agree by construction instead of
+the client narrowing one of them by hand. The client `lastUpdated` map (`{ products, slides }`) is the
 cache-version INDEX (`LastUpdateTableName`, file renamed
 `lib/types/last_updated_tables.ts`, = `products | slides`).
 `notifyLastUpdated(tableName, ids, ts)` (no projectId). `buildInstanceState`
@@ -808,13 +816,19 @@ Valkey prefix moves.
 `prepare_inputs.ts:13-22` imports `calculatedIndicatorToSnapshotRow`,
 `computeDataset{Hfa,Hmis,Iceh}RunCapture`, `dbRowToHfaIndicator`,
 `PROJECT_FACILITY_COLUMN_NAMES`, `ProjectFacilityRow`, `DatasetCsvTarget` (from
-`datasets_in_project_*.ts`, `calculated_indicators_snapshot.ts`,
-`_project_database_types.ts`); `pipeline.ts:13` imports
-`prepareModuleDefinitionForStorage` (`modules.ts`); `run_read.ts:49-50`,
-`package_internals.ts:9`, `disaggregation_availability.ts:3-5` import
+`datasets_in_project_*.ts` and `_project_database_types.ts` — NOT from
+`calculated_indicators_snapshot.ts`, whose only content is a project-DB reader
+that dies; `calculatedIndicatorToSnapshotRow` lives in
+`datasets_in_project_hmis.ts`, and `dbRowToHfaIndicator` is already in
+`db/instance/hfa_indicators.ts` and does not move); `pipeline.ts:13` imports
+`prepareModuleDefinitionForStorage` (`modules.ts`); `run_query/run_read.ts:49-50`,
+`runs/package_internals.ts:9`, `runs/disaggregation_availability.ts:3-5` import
 `inferMostGranularTimePeriodColumn`, `getEnabledFacilityDisaggregationOptions`,
 `PHYSICAL_DISAGGREGATION_COLUMNS` (`metric_enricher.ts`) and
-`parseModuleConfigSelections` (`modules.ts`); `db/utils.ts` keeps
+`parseModuleConfigSelections` (`modules.ts`); `PROJECT_FACILITY_COLUMN_NAMES` /
+`ProjectFacilityRow` are renamed `RUN_FACILITY_COLUMN_NAMES` / `RunFacilityRow`
+on the way (run-capture code must not carry project vocabulary past the §4
+grep); `db/utils.ts` keeps
 `escapeSqlString`, `tryCatchDatabaseAsync`, `getResultsObjectTableName`
 (`run_read.ts:46`), `detectHasAnyRows` (live on main, `instance.ts:231-237`).
 Relocate to `server/runs/capture_inputs/{hmis,hfa,iceh,calculated_indicators}.ts`
@@ -954,8 +968,11 @@ green, dev DB consolidated by 080, app runs against it.
    re-judged under DuckDB (the 3 `err` cases are `validateFetchConfig` and
    survive); PROTOCOL_APP_QUERY_RIG "verified controls" restated.
 2. Delete `backfill_runs.ts`, `validate_results_runs_parity.ts`,
-   `validate_figure_bundle_backfill.ts`, `synthesize_run.ts` (+ `pg_export.ts`
-   if orphaned), `rollout_fleet/backfill/nigeria`, Dockerfile COPY lines 34-35;
+   `validate_figure_bundle_backfill.ts`, `rollout_fleet/backfill/nigeria`,
+   Dockerfile COPY lines 34-35; and, inside `server/runs/`, `synthesizeRunForProject`
+   + the project-DB branch of `exportPgTableToParquet` (their files SURVIVE —
+   the generation pipeline calls `buildRunPackageIntoTmp`, `readCsvHeaders`
+   and `exportRowsToParquet`);
    add `validate_consolidation.ts`, `rollout_products`, `restore_main`,
    `purge_legacy_dbs`; `.github/scripts/sync-docs.sh` terminology line 141
    ("Product", "Folder"; drop "Project"/"Data window"/"Dashboard") + the
