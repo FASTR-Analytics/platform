@@ -8,7 +8,13 @@ import type {
 export type Case = {
   name: string;
   fixture: string;
+  // The manifest's calendar for this case — a package generated on an
+  // Ethiopian-calendar instance carries "ethiopian" and the read path takes it
+  // from there, never from a process global.
   calendar?: InstanceCalendar;
+  // The caller's admin-area-2 scope (D7). Absent = national, the identity the
+  // whole rest of the corpus runs at.
+  adminArea2?: string;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
   entry?: "items" | "possibleValues" | "metricInfo";
@@ -607,15 +613,16 @@ const EXPLICIT_CASES: Case[] = [
       groupBys: ["facility_type"],
     },
     // Record counts: hospital = f1(2)+f4(2), clinic = f2(1)+f3(2),
-    // health_post = f5(1). Counts are STRINGS: COUNT returns bigint, which the
-    // driver hands back untransformed — pre-existing behavior for every COUNT
-    // metric (only the __n_* columns carry a ::int cast), pinned not blessed.
+    // health_post = f5(1). Counts are NUMBERS: COUNT returns BIGINT and the
+    // DuckDB executor resolves BigInt to number (throwing outside the safe
+    // range) rather than handing back the driver's string, so a COUNT metric
+    // now reaches the client as a number like every other value.
     expect: {
       status: "ok",
       rows: [
-        { facility_type: "hospital", facility_id: "4" },
-        { facility_type: "clinic", facility_id: "3" },
-        { facility_type: "health_post", facility_id: "1" },
+        { facility_type: "hospital", facility_id: 4 },
+        { facility_type: "clinic", facility_id: 3 },
+        { facility_type: "health_post", facility_id: 1 },
       ],
     },
   },
@@ -635,9 +642,9 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { facility_type: "hospital", facility_id: "3", __n_facility_id: 2 },
-        { facility_type: "clinic", facility_id: "4", __n_facility_id: 2 },
-        { facility_type: "health_post", facility_id: "1", __n_facility_id: 1 },
+        { facility_type: "hospital", facility_id: 3, __n_facility_id: 2 },
+        { facility_type: "clinic", facility_id: 4, __n_facility_id: 2 },
+        { facility_type: "health_post", facility_id: 1, __n_facility_id: 1 },
       ],
     },
   },
@@ -733,13 +740,14 @@ const EXPLICIT_CASES: Case[] = [
     entry: "possibleValues",
     disOpt: "hfa_variant_item",
     fetchConfig: { ...base(), groupBys: [] },
-    // The pg plane has no item-label source (labels come from the run
-    // snapshot files in the live plane), so ids label themselves here.
+    // Labels come from the package's own variant-item mirror through the
+    // manifest's stamped indicator catalog — an item whose id is not in the
+    // catalog would fall back to labelling itself.
     expect: {
       values: [
-        { id: "campaign", label: "campaign" },
-        { id: "piped", label: "piped" },
-        { id: "routine", label: "routine" },
+        { id: "campaign", label: "Campaign" },
+        { id: "piped", label: "Piped" },
+        { id: "routine", label: "Routine" },
       ],
     },
   },
@@ -1025,6 +1033,155 @@ const EXPLICIT_CASES: Case[] = [
   },
 ];
 
+// ── Admin-area-2 scope (D7) ─────────────────────────────────────────────────
+//
+// Scope is the second half of a read context, and it is applied by INJECTING
+// filters the caller never sent — so every case here is paired with the
+// national reading of the same query, and the echoed fetchConfig assertion in
+// the runner covers all of them at once. The three branches of
+// computeScopeFilters each get a pair: RO carries admin_area_2 (direct), RO
+// carries only a child column (derived from the facilities parquet), RO
+// carries no admin column at all (the blessed unfiltered case) — plus the
+// fail-CLOSED branch, where the derivation cannot run.
+const SCOPE_CASES: Case[] = [
+  {
+    name: "scope: RO carrying admin_area_2 is filtered directly",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    // National returns both areas (35 / 17) — see the group-by case above.
+    expect: { status: "ok", rows: [{ admin_area_2: "A2_south", value: 17 }] },
+  },
+  {
+    name: "scope: the direct filter also bounds a child-level grouping",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    // National holds A3_alpha 30 and A3_beta 5 as well.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_gamma", value: 10 },
+        { admin_area_3: "A3_delta", value: 7 },
+      ],
+    },
+  },
+  {
+    name: "scope: national option list offers every area",
+    fixture: "hmis_monthly",
+    entry: "possibleValues",
+    disOpt: "admin_area_2",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      values: [
+        { id: "A2_north", label: "A2_north" },
+        { id: "A2_south", label: "A2_south" },
+      ],
+    },
+  },
+  {
+    name: "scope: scoped option list offers only the scoped area",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    entry: "possibleValues",
+    disOpt: "admin_area_2",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The option list is a data query like any other, so scope reaches it —
+    // otherwise a scoped product would offer a filter value with no rows.
+    expect: { values: [{ id: "A2_south", label: "A2_south" }] },
+  },
+  {
+    name: "scope: metric info option lists are national by default",
+    fixture: "hmis_monthly",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      dimStatus: { disOpt: "admin_area_2", status: "ok", namedCount: 2 },
+    },
+  },
+  {
+    name: "scope: metric info option lists narrow under scope",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The scope rides the context, not the arguments, so it reaches the whole
+    // metric-info payload — the client's replicant lists included.
+    expect: {
+      dimStatus: { disOpt: "admin_area_2", status: "ok", namedCount: 1 },
+    },
+  },
+  {
+    name: "scope: admin3-only RO is unfiltered when national",
+    fixture: "hmis_admin3_only",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_alpha", value: 10 },
+        { admin_area_3: "A3_beta", value: 5 },
+        { admin_area_3: "A3_gamma", value: 7 },
+        { admin_area_3: "A3_delta", value: 1 },
+      ],
+    },
+  },
+  {
+    name: "scope: admin3-only RO filters by children DERIVED from the facilities parquet",
+    fixture: "hmis_admin3_only",
+    adminArea2: "A2_south",
+    // A2_south's children are A3_gamma (f3) and A3_delta (f4, f5); the
+    // derivation matches by NAME, and the values it finds become the filter.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_gamma", value: 7 },
+        { admin_area_3: "A3_delta", value: 1 },
+      ],
+    },
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+  },
+  {
+    name: "scope: derivation-less package is national when unscoped",
+    fixture: "admin3_no_family",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_alpha", value: 10 },
+        { admin_area_3: "A3_gamma", value: 7 },
+      ],
+    },
+  },
+  {
+    name: "scope: an admin RO whose scope cannot be derived fails CLOSED",
+    fixture: "admin3_no_family",
+    adminArea2: "A2_south",
+    // The module's sources are all upstream results objects, so its family —
+    // and with it the facilities parquet the derivation needs — is
+    // undeclarable. The sentinel filter matches nothing: blank is wrong
+    // visibly, national data under a regional heading is wrong silently.
+    expect: { status: "no_data_available" },
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+  },
+  {
+    name: "scope: an RO with no admin column at all stays unfiltered",
+    fixture: "hfa_variants",
+    adminArea2: "A2_south",
+    // The one blessed unfiltered case. Identical to the national reading of
+    // the same group-by (38 / 6 / 2) — a national RO carries no area to
+    // filter on, and refusing to serve it would blank every scoped product.
+    fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
+        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
+        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+      ],
+    },
+  },
+];
+
 // The one genuinely calendar-dependent derivation. F1 holds 202401 (23),
 // 202402 (25), 202403 (4). Gregorian puts all three in Q1; the Ethiopian
 // quarter boundaries (2–4 / 5–7 / 8–10 / 11–1) split month 1 from months 2–3.
@@ -1035,6 +1192,39 @@ const QUARTER_DERIVATION: Case[] = [
     calendar: "gregorian",
     fetchConfig: { ...base(), groupBys: ["quarter_id"] },
     expect: { status: "ok", rows: [{ quarter_id: 20241, value: 52 }] },
+  },
+  {
+    // The other half of the quarter derivation, and the only case that can see
+    // it: `(period_id / 100) * 10 + q` needs INTEGER division, and F1's months
+    // 1-3 hide the defect because the fraction they carry is too small to
+    // reach the quarter digit. Months 10 and 12 both belong to Q4.
+    name: "period_id → derived quarter_id (gregorian): late months land in Q4",
+    fixture: "hmis_late_months",
+    calendar: "gregorian",
+    fetchConfig: { ...base(), groupBys: ["quarter_id"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { quarter_id: 20241, value: 1 },
+        { quarter_id: 20244, value: 6 },
+      ],
+    },
+  },
+  {
+    // Ethiopian months 11-1 are Q1 of the NEXT year, so month 12 rolls the
+    // year over — the branch that divides AND adds before multiplying.
+    name: "period_id → derived quarter_id (ethiopian): month 12 rolls into next year's Q1",
+    fixture: "hmis_late_months",
+    calendar: "ethiopian",
+    fetchConfig: { ...base(), groupBys: ["quarter_id"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { quarter_id: 20241, value: 1 },
+        { quarter_id: 20244, value: 2 },
+        { quarter_id: 20251, value: 4 },
+      ],
+    },
   },
   {
     name: "period_id → derived quarter_id (ethiopian): month 1 splits from months 2-3",
@@ -1053,6 +1243,7 @@ const QUARTER_DERIVATION: Case[] = [
 
 export const CASES: Case[] = [
   ...EXPLICIT_CASES,
+  ...SCOPE_CASES,
   ...PERIOD_MATRIX,
   ...QUARTER_DERIVATION,
 ];

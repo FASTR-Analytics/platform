@@ -57,9 +57,12 @@ export function blankFoldedRef(columnRef: string): string {
  * Two conditions. `usesBlankSentinel` is the semantic one: integer and
  * period-derived columns have no blank state, and a multi-membership column's
  * blank cell yields no row to fold. The type check is the mechanical one — the
- * fold emits trim() and returns a text sentinel from the CASE, neither of
- * which Postgres will accept on an integer or numeric column, and disaggregation
- * columns are only text by convention (module authors declare the type).
+ * fold emits trim() and returns a text sentinel from the CASE, and
+ * disaggregation columns are only text by convention (module authors declare
+ * the type). DuckDB would implicitly cast rather than refuse, which makes the
+ * type check MORE load-bearing than it was under Postgres, not less: the query
+ * rig can no longer prove it by breaking it (PROTOCOL_APP_QUERY_RIG records
+ * that lost control), so it has to be reasoned about here.
  */
 export function shouldFoldBlank(
   disOpt: string,

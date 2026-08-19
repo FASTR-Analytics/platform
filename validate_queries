@@ -1,21 +1,20 @@
 #!/bin/bash
 
-# S9 query test rig — stands up a throwaway Postgres, seeds declarative
-# fixtures, and runs the PRODUCTION query machinery in ./server against them.
-# Companion to ./validate_migrations, which proves base schema ≡ base +
-# migrations (this rig therefore loads only the base schema files).
+# S9 query test rig — seeds declarative fixtures as throwaway RESULTS PACKAGES
+# (parquet + manifest) and runs the PRODUCTION run-read machinery in ./server
+# against them. Companion to ./validate_migrations, which proves base schema ≡
+# base + migrations.
+#
+# No container: the read plane is DuckDB-over-parquet, which is in-process, so
+# the rig needs nothing but a scratch directory.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONTAINER_NAME="wb-fastr-query-rig-$$"
-DB_PORT=54330
-DB_PASS="testpass"
+RIG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/wb-fastr-query-rig.XXXXXX")"
 
 cleanup() {
-    echo "Cleaning up..."
-    docker stop "$CONTAINER_NAME" 2>/dev/null || true
-    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
+    rm -rf "$RIG_DIR"
 }
 
 trap cleanup EXIT
@@ -29,40 +28,30 @@ fail() {
     echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 }
 
-echo "Starting temporary postgres container..."
-docker run -d \
-    --name "$CONTAINER_NAME" \
-    -e POSTGRES_PASSWORD="$DB_PASS" \
-    -p "$DB_PORT:5432" \
-    postgres:17.4 > /dev/null
-
-echo "Waiting for postgres to be ready..."
-for i in {1..30}; do
-    if docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; then
-        break
-    fi
-    sleep 0.5
-done
-
-# Importing server/db/mod.ts pulls in exposed_env_vars.ts, which reads Deno.env
-# at module load and throws on anything missing. These are dummies pointing at
-# the throwaway container — the real .env is deliberately NOT sourced, so the
-# rig cannot reach a live database even by accident.
+# Importing the server modules pulls in exposed_env_vars.ts, which reads
+# Deno.env at module load and throws on anything missing. These are dummies —
+# the real .env is deliberately NOT sourced, so the rig cannot reach a live
+# database or a live instance's results packages even by accident. Packages are
+# written under SANDBOX_DIR_PATH (= _RUNS_DIR_PATH), which is the scratch dir
+# above and is deleted on exit.
 export INSTANCE_NAME="query_rig"
 export INSTANCE_ID="query_rig"
 export INSTANCE_LANGUAGE="en"
+# The process calendar reaches the query engine through nothing at all — a
+# package carries its own calendar in the manifest — so this is only here to
+# satisfy the boot-time env check.
 export INSTANCE_CALENDAR="gregorian"
 # Not NGA: Nigeria triggers format_nigeria_admin_label's special-case admin-area
 # label cleaning, which would silently shift query-case expectations.
 export ISO_COUNTRY_CODE="KEN"
-export SANDBOX_DIR_PATH="/tmp/query_rig/sandbox"
-export SANDBOX_DIR_PATH_EXTERNAL="/tmp/query_rig/sandbox"
-export SANDBOX_DIR_PATH_POSTGRES_INTERNAL="/tmp/query_rig/sandbox"
-export ASSETS_DIR_PATH="/tmp/query_rig/assets"
-export DATABASE_FOLDER="/tmp/query_rig/databases"
+export SANDBOX_DIR_PATH="$RIG_DIR/packages"
+export SANDBOX_DIR_PATH_EXTERNAL="$RIG_DIR/packages"
+export SANDBOX_DIR_PATH_POSTGRES_INTERNAL="$RIG_DIR/packages"
+export ASSETS_DIR_PATH="$RIG_DIR/assets"
+export DATABASE_FOLDER="$RIG_DIR/databases"
 export PG_HOST="127.0.0.1"
-export PG_PORT="$DB_PORT"
-export PG_PASSWORD="$DB_PASS"
+export PG_PORT="1"
+export PG_PASSWORD="unused"
 export ANTHROPIC_API_URL="http://localhost:0"
 export ANTHROPIC_API_KEY="unused"
 export STATUS_API_KEY="unused"
