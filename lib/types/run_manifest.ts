@@ -105,14 +105,15 @@ export const runMetricAvailabilitySchema = z.object({
 });
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
-// Inputs record per dataset family — the version stamps and windowing the
-// project datasets table holds today (datasets.info), captured at finalize.
-export const runDatasetSchema = z.object({
+// Inputs record per dataset family — the version stamps captured at finalize.
+// The raw manifest row; `info` is opaque here and typed per family by the
+// RunDataset projection (lib/types/run_datasets.ts) that readers consume.
+export const runManifestDatasetSchema = z.object({
   datasetType: z.string(),
   lastUpdated: z.string(),
   info: z.unknown(),
 });
-export type RunDataset = z.infer<typeof runDatasetSchema>;
+export type RunManifestDataset = z.infer<typeof runManifestDatasetSchema>;
 
 // Pinned copy of an instance asset the run's modules declare (stored at
 // inputs/assets/{fileName}), hashed so the run records exactly which asset
@@ -181,7 +182,7 @@ export const runManifestSchema = z.object({
   structureSchemaHmis: structureColumnsSchema.nullable(),
   structureSchemaHfa: structureColumnsSchema.nullable(),
 
-  datasets: z.array(runDatasetSchema),
+  datasets: z.array(runManifestDatasetSchema),
   facilitiesTables: z.array(runFacilitiesTableSchema),
   assets: z.array(runAssetSchema),
   modules: z.array(runModuleSchema),

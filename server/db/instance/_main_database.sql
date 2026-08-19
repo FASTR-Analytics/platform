@@ -1,5 +1,5 @@
 -- ============================================================================
--- USER AND PROJECT MANAGEMENT
+-- USER MANAGEMENT
 -- ============================================================================
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
@@ -13,26 +13,8 @@ CREATE TABLE users (
   can_configure_settings boolean NOT NULL DEFAULT FALSE,
   can_configure_data boolean NOT NULL DEFAULT FALSE,
   can_view_data boolean NOT NULL DEFAULT FALSE,
-  can_create_projects boolean NOT NULL DEFAULT FALSE,
   first_name text,
   last_name text,
-  default_project_can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  default_project_can_create_backups boolean NOT NULL DEFAULT FALSE,
-  default_project_can_restore_backups boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_modules boolean NOT NULL DEFAULT FALSE,
-  default_project_can_run_modules boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_users boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_visualizations boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_visualizations boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_reports boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_reports boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_slide_decks boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_slide_decks boolean NOT NULL DEFAULT FALSE,
-  default_project_can_configure_data boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_data boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_metrics boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_logs boolean NOT NULL DEFAULT FALSE,
-  default_project_can_view_script_code boolean NOT NULL DEFAULT FALSE,
   daily_token_usage integer NOT NULL DEFAULT 0,
   daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
   unlimited_ai boolean NOT NULL DEFAULT false,
@@ -41,8 +23,8 @@ CREATE TABLE users (
 
 -- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
 -- status: generating | ready | failed | retired. A referenced run is
--- undeletable via the projects.run_id FK (no cascade). progress is the run
--- pipeline's worker-updated JSON (RunProgress), pushed over project SSE.
+-- undeletable via the products.run_id FK (no cascade). progress is the run
+-- pipeline's worker-updated JSON (RunProgress), pushed over instance SSE.
 CREATE TABLE runs (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,
@@ -58,20 +40,6 @@ CREATE TABLE runs (
 -- At most one pinned package per instance (SYSTEM_08 "The pinned package + followers").
 CREATE UNIQUE INDEX runs_one_pinned ON runs (pinned) WHERE pinned;
 
-CREATE TABLE projects (
-  id text PRIMARY KEY NOT NULL,
-  label text NOT NULL,
-  ai_context text NOT NULL,
-  is_locked boolean NOT NULL DEFAULT FALSE,
-  is_central_reporting boolean NOT NULL DEFAULT FALSE,
-  status text NOT NULL DEFAULT 'ready',
-  deletion_scheduled_at TIMESTAMPTZ,
-  run_id text,
-  admin_area_2 text,
-  follow_pinned boolean NOT NULL DEFAULT FALSE,
-  FOREIGN KEY (run_id) REFERENCES runs(id)
-);
-
 CREATE TABLE user_logs (
   id SERIAL PRIMARY KEY,
   user_email text NOT NULL,
@@ -79,25 +47,19 @@ CREATE TABLE user_logs (
   endpoint text NOT NULL,
   endpoint_result text NOT NULL,
   details text,
-  project_id text,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
-
-CREATE INDEX idx_user_logs_project_id ON user_logs(project_id) WHERE project_id IS NOT NULL;
 
 CREATE TABLE ai_usage_logs (
   id SERIAL PRIMARY KEY,
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   user_email text NOT NULL,
-  project_id text,
   model text NOT NULL,
   input_tokens integer NOT NULL DEFAULT 0,
   output_tokens integer NOT NULL DEFAULT 0,
   cache_read_input_tokens integer NOT NULL DEFAULT 0,
   cache_creation_input_tokens integer NOT NULL DEFAULT 0,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_ai_usage_logs_user_email ON ai_usage_logs(user_email);
@@ -114,7 +76,6 @@ CREATE TABLE ai_limit_hits (
   PRIMARY KEY (user_email, limit_type, hit_date)
 );
 
-CREATE INDEX idx_ai_usage_logs_project_id ON ai_usage_logs(project_id);
 CREATE INDEX idx_ai_usage_logs_timestamp ON ai_usage_logs(timestamp DESC);
 
 CREATE TABLE user_logs_aggregate (
@@ -122,49 +83,117 @@ CREATE TABLE user_logs_aggregate (
   user_email TEXT NOT NULL,
   endpoint TEXT NOT NULL,
   endpoint_result TEXT NOT NULL,
-  project_id TEXT,
   week_start DATE NOT NULL,
   count INTEGER NOT NULL DEFAULT 0,
-  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX idx_user_logs_aggregate_unique
-ON user_logs_aggregate (user_email, endpoint, endpoint_result, COALESCE(project_id, ''), week_start);
+ON user_logs_aggregate (user_email, endpoint, endpoint_result, week_start);
 
 CREATE TABLE instance_config (
   config_key text PRIMARY KEY NOT NULL,
   config_json_value text NOT NULL
 );
 
-CREATE TABLE project_user_roles (
-  email text NOT NULL,
-  project_id text NOT NULL,
-  role text NOT NULL,
-  can_configure_settings boolean NOT NULL DEFAULT FALSE,
-  can_create_backups boolean NOT NULL DEFAULT FALSE,
-  can_restore_backups boolean NOT NULL DEFAULT FALSE,
-  can_configure_modules boolean NOT NULL DEFAULT FALSE,
-  can_run_modules boolean NOT NULL DEFAULT FALSE,
-  can_configure_users boolean NOT NULL DEFAULT FALSE,
-  can_configure_visualizations boolean NOT NULL DEFAULT FALSE,
-  can_view_visualizations boolean NOT NULL DEFAULT FALSE,
-  can_configure_reports boolean NOT NULL DEFAULT FALSE,
-  can_view_reports boolean NOT NULL DEFAULT FALSE,
-  can_configure_slide_decks boolean NOT NULL DEFAULT FALSE,
-  can_view_slide_decks boolean NOT NULL DEFAULT FALSE,
-  can_configure_data boolean NOT NULL DEFAULT FALSE,
-  can_view_data boolean NOT NULL DEFAULT FALSE,
-  can_view_metrics boolean NOT NULL DEFAULT FALSE,
-  can_view_logs boolean NOT NULL DEFAULT FALSE,
-  can_view_script_code boolean NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (email, project_id),
-  FOREIGN KEY (email) REFERENCES users (email) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+-- ============================================================================
+-- PRODUCTS AND FOLDERS
+-- ============================================================================
+
+-- A product is a slide deck or a report. `products` is the registry every
+-- cross-type operation goes through (list, folder move, delete, package
+-- reattach, "in use by"); the per-type detail tables hang off it by the same
+-- id. `last_updated` is THE product version — every content mutation and every
+-- metadata write bumps it in the same transaction.
+
+CREATE TABLE folders (
+  id text PRIMARY KEY NOT NULL,        -- uuid
+  label text NOT NULL,
+  color text,
+  last_updated text NOT NULL
 );
 
-CREATE INDEX idx_project_user_roles_email ON project_user_roles(email);
-CREATE INDEX idx_project_user_roles_project_id ON project_user_roles(project_id);
+CREATE TABLE products (
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
+  type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
+  label text NOT NULL,
+  folder_id text REFERENCES folders(id) ON DELETE SET NULL,
+  run_id text NOT NULL REFERENCES runs(id),  -- no cascade: the delete-run guard
+  admin_area_2 text,                   -- NULL = national
+  created_by text,                     -- email; NULL = pre-restructure product
+  created_at text,                     -- NULL = pre-restructure product
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_products_folder_id ON products(folder_id);
+CREATE INDEX idx_products_run_id ON products(run_id);
+CREATE INDEX idx_products_type ON products(type);
+CREATE INDEX idx_products_last_updated ON products(last_updated);
+
+CREATE TABLE slide_decks (
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  plan text,
+  config text
+);
+
+CREATE TABLE slides (
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid
+  slide_deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  sort_order integer NOT NULL,
+  config text NOT NULL,
+  last_updated text NOT NULL,          -- per-slide optimistic lock + slide cache
+  crdt_state text,
+  crdt_state_last_updated text
+);
+
+CREATE INDEX idx_slides_deck_id ON slides(slide_deck_id);
+CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX idx_slides_last_updated ON slides(last_updated);
+
+CREATE TABLE reports (
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  body text NOT NULL DEFAULT '',
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  config text,
+  crdt_state text,
+  crdt_state_last_updated text,
+  body_authors text
+);
+
+-- One row = one editing-session version: full content snapshot + the editors
+-- who contributed during that window (JSON [{email, name}]). Deduped by
+-- content_hash against the newest version; newest 100 kept per document.
+CREATE TABLE report_versions (
+  id text PRIMARY KEY NOT NULL,
+  report_id text NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  body text NOT NULL,
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  body_authors text
+);
+
+CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);
+
+CREATE TABLE deck_versions (
+  id text PRIMARY KEY NOT NULL,
+  deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  deck_config text NOT NULL,
+  slides text NOT NULL,
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  slide_editors text
+);
+
+CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
 
 -- ============================================================================
 -- ADMINISTRATIVE STRUCTURE
@@ -746,24 +775,6 @@ CREATE TABLE custom_prompts (
 );
 CREATE INDEX idx_custom_prompts_created_by ON custom_prompts(created_by);
 CREATE INDEX idx_custom_prompts_scope ON custom_prompts(scope);
-
--- ============================================================================
--- DASHBOARD SLUGS
--- ============================================================================
-
--- Global registry mapping a public dashboard slug to its (project, dashboard).
--- Dashboards live in per-project databases and their id is only unique within a
--- project, so the slug (globally unique) is what lets the public route resolve a
--- bare /d/:slug URL to the right project DB without a projectId in the path.
-CREATE TABLE dashboard_slugs (
-  slug text PRIMARY KEY NOT NULL,
-  project_id text NOT NULL,
-  dashboard_id text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT NOW(),
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  UNIQUE (project_id, dashboard_id)
-);
-CREATE INDEX idx_dashboard_slugs_project ON dashboard_slugs(project_id);
 
 -- ============================================================================
 -- ICEH DATA

@@ -5,9 +5,21 @@ import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
-import type { ProjectSummary } from "./projects.ts";
+import type { LastUpdateTableName } from "./last_updated_tables.ts";
+import type { Folder, ProductSummary } from "./products.ts";
 import type { RunCatalogItem, RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
+
+// A ready results package, as offered by the product package picker and the
+// Explore tab. Deliberately NOT gated on can_configure_data: a package label
+// is approved-user data, since every product card shows the label of the
+// package it serves from. This is a considered revision of SYSTEM_03's Q-B
+// ("run labels must not fan out"), which now covers generation telemetry only.
+export type ReadyPackage = {
+  id: string;
+  label: string;
+  createdAt: string;
+};
 
 // ============================================================================
 // Instance SSE State
@@ -34,16 +46,25 @@ export type InstanceState = {
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
 
-  // Lists (sent as full arrays on change)
-  projects: ProjectSummary[];
-  projectsLastUpdated: string;
+  // Products and folders — the Drive-like list every approved user sees.
+  // Withheld from an unapproved connection by the same roster rule as `users`.
+  // `products` is maintained PER ROW (`products_upserted` / `products_deleted`)
+  // rather than as a whole-list broadcast: a deck-heavy instance would
+  // otherwise re-send every card on every keystroke checkpoint.
+  products: ProductSummary[];
+  folders: Folder[];
+  readyPackages: ReadyPackage[];
+  // The cache-version index: `lastUpdated.products[id]` versions a deck/report
+  // detail read, `lastUpdated.slides[id]` versions a slide read
+  // (SYSTEM_03 "the last_updated → SSE → cache triangle").
+  lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
   // [] for an unapproved connection (its user absent from the roster), in
   // the starting payload and every users_updated, until a roster names them
   // — routesInstanceSSE / buildInstanceState.
   users: OtherUser[];
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
-  // Per-user, the `projects` pattern (Q-B: run labels must not fan out).
+  // Per-user (Q-B: generation telemetry must not fan out).
   // Filled at build for can_configure_data / global-admin callers ([] for
   // everyone else); after that, `runs_catalog_updated` broadcasts only a
   // data-free nonce and each entitled client refetches via listRunCatalog,
@@ -58,11 +79,11 @@ export type InstanceState = {
   runsCatalogSignal: string;
   // The at-most-one package the instance blesses (SYSTEM_08 "The pinned
   // package + followers"); null = nothing pinned. The ONE field every
-  // Pinned badge derives from (catalogue, project card, picker). Broadcast
+  // Pinned badge derives from (catalogue, product card, picker). Broadcast
   // to EVERY client (unlike runsCatalog): a bare run id is not sensitive —
-  // a project member already sees the id of the package their project
-  // serves from — and the project tab needs it for editors without
-  // can_configure_data.
+  // an approved user already sees the id of the package each product serves
+  // from. It is also the DEFAULT package for a new product (D5) and the
+  // Explore tab's starting package (D6); it does NOT move any product row.
   pinnedRunId: string | null;
 
   // Summaries (lightweight aggregates)
@@ -168,13 +189,15 @@ export type InstanceDatasetsSummary = {
 // from each `users_updated` passing through the forward loop, so grants and
 // revocations take effect without a reconnect. Per-message filtering is
 // acceptable ONLY because these are ephemeral telemetry — durable per-user
-// state (`runsCatalog`, `projects`) instead broadcasts a data-free signal
+// state (`runsCatalog`) instead broadcasts a data-free signal
 // and lets each client fetch its own view through a per-request-guarded
 // route. `pinned_run_updated` is neither: a plain unfiltered broadcast of a
 // bare run id (see `pinnedRunId`), the same class as `config_updated`.
-// This is the ONLY channel generation telemetry rides: a project is
-// attached only once a run is ready, so it has no live view to feed (C2
-// ruling, 2026-08-16 — the per-attach-target project copies were deleted).
+// This is the ONLY channel there is — the project channel died with projects.
+//
+// `readyPackages` has no message of its own: it follows the `runsCatalog`
+// idiom exactly, filled in `starting` and refetched on the existing
+// `runs_catalog_updated` nonce.
 export type InstanceSseMessage =
   | { type: "starting"; data: InstanceState }
   | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
@@ -183,7 +206,21 @@ export type InstanceSseMessage =
       data: { runId: string; moduleId: string; text: string };
     }
   | { type: "config_updated"; data: InstanceConfig }
-  | { type: "projects_last_updated"; data: string }
+  // The ONLY product-list message: per-row, emitted by every product mutation
+  // route and every collab checkpoint.
+  | { type: "products_upserted"; data: { products: ProductSummary[] } }
+  | { type: "products_deleted"; data: { ids: string[] } }
+  | { type: "folders_updated"; data: { folders: Folder[] } }
+  // Carries `slides` only. A product's own stamp rides its `products_upserted`
+  // summary, so emitting it here as well would version the same read twice.
+  | {
+      type: "last_updated";
+      data: {
+        tableName: LastUpdateTableName;
+        ids: string[];
+        lastUpdated: string;
+      };
+    }
   | { type: "users_updated"; data: OtherUser[] }
   // Data-free nonce signal only — the catalogue itself is fetched per user.
   | { type: "runs_catalog_updated"; data: string }

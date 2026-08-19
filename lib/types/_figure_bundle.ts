@@ -113,6 +113,17 @@ export type JsonArrayItem = z.infer<typeof jsonArrayItemSchema>;
 
 // ── Bundle schema ────────────────────────────────────────────────────────────
 
+// `scope` and `provenance.runId` are the pair the bundle was RESOLVED under
+// (PLAN_PRODUCTS_RESTRUCTURE D4). Both are required — a figure whose pair does
+// not match its product's is STALE and offers an "Update to <package>" action;
+// a bundle that could not say which pair it came from could not be judged. 080
+// stamps them into every live and version-snapshot figure block, so a missing
+// key is a fail-loud parse error, never something to default.
+//
+// The pair lives HERE and not in `config`: it is a data-plane fact, so it must
+// stay out of the fetch hash (SYSTEM_09). `getRollupRowLabel` reads
+// `bundle.scope`, never a global store — which is what makes an export label
+// its roll-up row correctly outside any authoring shell.
 export const figureBundleSchema = z.strictObject({
   config: presentationObjectConfigSchema,
   items: z.array(jsonArrayItemSchema),
@@ -122,8 +133,12 @@ export const figureBundleSchema = z.strictObject({
   geo: geoRefSchema.optional(),
   localization: figureLocalizationSchema,
   metricId: z.string(),
+  scope: z.strictObject({
+    adminArea2: z.string().nullable(),
+  }),
   snapshotAt: z.string(),
   provenance: z.strictObject({
+    runId: z.string(),
     moduleLastRun: z.string(),
     datasetsVersion: z.string(),
   }),

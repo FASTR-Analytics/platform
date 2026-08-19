@@ -305,26 +305,6 @@ export type SlidePosition =
   | { toEnd: true };
 
 // Slide deck folders
-export type SlideDeckFolder = {
-  id: string;
-  label: string;
-  color: string | null;
-  description: string | null;
-  sortOrder: number;
-};
-
-export type SlideDeckGroupingMode = "folders" | "flat";
-
-// Slide deck summary (list view)
-export type SlideDeckSummary = {
-  id: string;
-  label: string;
-  folderId: string | null;
-  firstSlideId: string | null;
-  config: SlideDeckConfig;
-  lastUpdated: string;
-};
-
 // Slide deck detail (for rendering)
 export type SlideDeckDetail = {
   id: string;

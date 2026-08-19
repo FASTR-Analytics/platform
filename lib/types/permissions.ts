@@ -1,4 +1,15 @@
-import type { TranslatableString } from "../translate/types.ts";
+// =============================================================================
+// Permissions — six instance flags, and nothing else
+// =============================================================================
+//
+// The project tier died with projects (PLAN_PRODUCTS_RESTRUCTURE D2). The
+// product surface is guarded by `requireApprovedUser()`: signed in AND
+// approved, full editor of everything. These six flags keep guarding exactly
+// the surfaces they guarded before — users, logs, settings, and the data /
+// results-package plane — with unchanged semantics.
+//
+// The permission system is rebuilt later (§8). Nothing new is designed here.
+// =============================================================================
 
 export type UserPermissions = {
   can_configure_users: boolean;
@@ -7,32 +18,9 @@ export type UserPermissions = {
   can_configure_settings: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
-  can_create_projects: boolean;
 };
 
 export type UserPermission = keyof UserPermissions;
-
-export type ProjectUserPermissions = {
-  can_configure_settings: boolean;
-  can_create_backups: boolean;
-  can_restore_backups: boolean;
-  can_configure_modules: boolean;
-  can_run_modules: boolean;
-  can_configure_users: boolean;
-  can_configure_visualizations: boolean;
-  can_view_visualizations: boolean;
-  can_configure_reports: boolean;
-  can_view_reports: boolean;
-  can_configure_slide_decks: boolean;
-  can_view_slide_decks: boolean;
-  can_configure_data: boolean;
-  can_view_data: boolean;
-  can_view_metrics: boolean;
-  can_view_logs: boolean;
-  can_view_script_code: boolean;
-};
-
-export type ProjectPermission = keyof ProjectUserPermissions;
 
 export const USER_PERMISSIONS = [
   "can_configure_users",
@@ -41,7 +29,6 @@ export const USER_PERMISSIONS = [
   "can_configure_settings",
   "can_configure_data",
   "can_view_data",
-  "can_create_projects",
 ] as const satisfies readonly UserPermission[];
 
 type _AssertUserExhaustive =
@@ -51,33 +38,6 @@ type _AssertUserExhaustive =
 const _userCheck: _AssertUserExhaustive = true;
 void _userCheck;
 
-export const PROJECT_PERMISSIONS = [
-  "can_configure_settings",
-  "can_create_backups",
-  "can_restore_backups",
-  "can_configure_modules",
-  "can_run_modules",
-  "can_configure_users",
-  "can_configure_visualizations",
-  "can_view_visualizations",
-  "can_configure_reports",
-  "can_view_reports",
-  "can_configure_slide_decks",
-  "can_view_slide_decks",
-  "can_configure_data",
-  "can_view_data",
-  "can_view_metrics",
-  "can_view_logs",
-  "can_view_script_code",
-] as const satisfies readonly ProjectPermission[];
-
-type _AssertProjectExhaustive =
-  Exclude<ProjectPermission, (typeof PROJECT_PERMISSIONS)[number]> extends never
-    ? true
-    : "ERROR: PROJECT_PERMISSIONS array is missing a permission key";
-const _projectCheck: _AssertProjectExhaustive = true;
-void _projectCheck;
-
 export const _USER_PERMISSIONS_DEFAULT_NO_ACCESS: UserPermissions = {
   can_configure_users: false,
   can_view_users: false,
@@ -85,7 +45,6 @@ export const _USER_PERMISSIONS_DEFAULT_NO_ACCESS: UserPermissions = {
   can_configure_settings: false,
   can_configure_data: false,
   can_view_data: false,
-  can_create_projects: false,
 };
 
 export const _USER_PERMISSIONS_DEFAULT_FULL_ACCESS: UserPermissions = {
@@ -95,7 +54,6 @@ export const _USER_PERMISSIONS_DEFAULT_FULL_ACCESS: UserPermissions = {
   can_configure_settings: true,
   can_configure_data: true,
   can_view_data: true,
-  can_create_projects: true,
 };
 
 export function buildUserPermissionsFromRow(
@@ -111,115 +69,3 @@ export function buildUserPermissionsFromRow(
     }),
   ) as UserPermissions;
 }
-
-export function buildProjectPermissionsFromRow(
-  row: Record<string, unknown>,
-): ProjectUserPermissions {
-  return Object.fromEntries(
-    PROJECT_PERMISSIONS.map((k) => {
-      const val = row[k];
-      if (val === undefined) {
-        console.warn(`buildProjectPermissionsFromRow: missing column "${k}" — defaulting to false`);
-      }
-      return [k, !!val];
-    }),
-  ) as ProjectUserPermissions;
-}
-
-export const _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS = {
-  can_configure_settings: false,
-  can_create_backups: false,
-  can_restore_backups: false,
-  can_configure_modules: false,
-  can_run_modules: false,
-  can_configure_users: false,
-  can_configure_visualizations: false,
-  can_view_visualizations: false,
-  can_configure_reports: false,
-  can_view_reports: false,
-  can_configure_slide_decks: false,
-  can_view_slide_decks: false,
-  can_configure_data: false,
-  can_view_data: false,
-  can_view_metrics: false,
-  can_view_logs: false,
-  can_view_script_code: false,
-};
-
-export const _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS = {
-  can_configure_settings: true,
-  can_create_backups: true,
-  can_restore_backups: true,
-  can_configure_modules: true,
-  can_run_modules: true,
-  can_configure_users: true,
-  can_configure_visualizations: true,
-  can_view_visualizations: true,
-  can_configure_reports: true,
-  can_view_reports: true,
-  can_configure_slide_decks: true,
-  can_view_slide_decks: true,
-  can_configure_data: true,
-  can_view_data: true,
-  can_view_metrics: true,
-  can_view_logs: true,
-  can_view_script_code: true,
-};
-
-export const PERMISSION_PRESETS: {
-  label: TranslatableString;
-  permissions: Record<ProjectPermission, boolean>;
-}[] = [
-  {
-    label: { en: "No access", fr: "Aucun accès", pt: "Sem acesso" },
-    permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
-  },
-  {
-    label: { en: "Viewer", fr: "Lecteur", pt: "Leitor" },
-    permissions: {
-      can_configure_settings: false,
-      can_create_backups: false,
-      can_restore_backups: false,
-      can_configure_modules: false,
-      can_run_modules: false,
-      can_configure_users: false,
-      can_configure_visualizations: false,
-      can_view_visualizations: true,
-      can_configure_reports: false,
-      can_view_reports: true,
-      can_configure_slide_decks: false,
-      can_view_slide_decks: true,
-      can_configure_data: false,
-      can_view_data: true,
-      can_view_metrics: true,
-      can_view_logs: false,
-      can_view_script_code: false,
-    },
-  },
-  {
-    label: { en: "Editor", fr: "Éditeur", pt: "Editor" },
-    permissions: {
-      can_configure_settings: false,
-      can_create_backups: false,
-      can_restore_backups: false,
-      can_configure_modules: false,
-      can_run_modules: false,
-      can_configure_users: false,
-      can_configure_visualizations: true,
-      can_view_visualizations: true,
-      can_configure_reports: true,
-      can_view_reports: true,
-      can_configure_slide_decks: true,
-      can_view_slide_decks: true,
-      can_configure_data: false,
-      can_view_data: true,
-      can_view_metrics: true,
-      can_view_logs: false,
-      can_view_script_code: false,
-    },
-  },
-  {
-    label: { en: "Admin", fr: "Administrateur", pt: "Administrador" },
-    permissions: _PROJECT_USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  },
-];

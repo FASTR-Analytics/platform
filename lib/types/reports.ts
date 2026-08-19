@@ -36,35 +36,15 @@ export const reportImagesSchema = z.record(z.string(), imageBlockSchema);
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
-export type ReportGroupingMode = "folders" | "flat";
-
-export type ReportFolder = {
-  id: string;
-  label: string;
-  color: string | null;
-  description: string | null;
-  sortOrder: number;
-};
-
-// Cheap, server-computed preview shown on the report list card. Lives on the
-// (lightweight) summary so it rides the existing `reports_updated` SSE path — no
-// per-card detail fetch. Derived entirely from the markdown body.
+// Cheap, server-computed preview shown on the report product card. Lives on
+// the (lightweight) ProductSummary so it rides the `products_upserted` SSE
+// path — no per-card detail fetch. Derived entirely from the markdown body.
 export type ReportPreviewLine = { text: string; headingLevel: number }; // 0 = body
 
 export type ReportPreview = {
   lines: ReportPreviewLine[]; // first few body lines, markdown stripped, headings flagged
   figureCount: number;
   imageCount: number;
-};
-
-// List view
-export type ReportSummary = {
-  id: string;
-  label: string;
-  folderId: string | null;
-  config: ReportConfig;
-  preview: ReportPreview;
-  lastUpdated: string;
 };
 
 function stripInlineMarkdown(s: string): string {
