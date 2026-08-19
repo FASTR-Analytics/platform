@@ -130,14 +130,12 @@ export function notifyInstanceDatasetsUpdated(data: InstanceDatasetsSummary) {
   notifyInstanceUpdate({ type: "datasets_updated", data });
 }
 
-// The catalogue's T1 signal (the projects_last_updated pattern): a data-free
-// signal broadcast — each entitled client refetches via listRunCatalog,
-// whose guard is evaluated per request, so nothing sensitive rides the wire
-// and no per-connection filtering is needed. Fired by every in-process
-// catalogue mutation — launch (incl. its row-created-then-failed path),
-// delete, worker finalize/fail/crash, attach/repoint, and the
-// projects.run_id/label movers (project force-delete, copy completion,
-// rename). The backfill synthesizer is a separate process, so its runs
+// The catalogue's T1 signal: a data-free signal broadcast — each entitled
+// client refetches via listRunCatalog, whose guard is evaluated per request,
+// so nothing sensitive rides the wire and no per-connection filtering is
+// needed. Fired by every in-process catalogue mutation — launch (incl. its
+// row-created-then-failed path), delete, worker finalize/fail/crash, and
+// pin/unpin. The backfill synthesizer is a separate process, so its runs
 // surface on the next reconnect instead (plan ruling 2).
 //
 // The value is a NONCE, not a timestamp: two mutations in the same
@@ -153,18 +151,17 @@ export function notifyInstanceRunsCatalogUpdated() {
   });
 }
 
-// The pinned package moved or was cleared (SYSTEM_08 "The pinned package
-// + followers"). Plain unfiltered broadcast — a bare run id is not
-// sensitive, and it is the one field every Pinned badge derives from.
-// Callers ALSO re-nonce the catalogue (a pin-move moves attachedProjects).
+// The pinned package moved or was cleared (SYSTEM_08 "The pinned package").
+// Plain unfiltered broadcast — a bare run id is not sensitive, and it is the
+// one field every Pinned badge derives from. Callers ALSO re-nonce the
+// catalogue (the pinned column is part of the listing).
 export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
   notifyInstanceUpdate({ type: "pinned_run_updated", data: { pinnedRunId } });
 }
 
-// Results-package generation telemetry, for the instance catalogue (Q-B) —
-// the ONLY channel it rides: a project is attached only once a run is
-// ready, so no project channel has a live view to feed. routesInstanceSSE
-// drops both messages for callers without can_configure_data (live filter).
+// Results-package generation telemetry, for the instance catalogue (Q-B).
+// routesInstanceSSE drops both messages for callers without
+// can_configure_data (live filter).
 export function notifyInstanceRunProgress(runId: string, progress: RunProgress) {
   notifyInstanceUpdate({ type: "run_progress", data: { runId, progress } });
 }

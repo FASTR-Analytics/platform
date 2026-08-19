@@ -64,9 +64,13 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // configs disaggregated by a PAE ingredient previously had DuckDB bind the
 // expression to the raw grouped value instead of the aggregate; cached "13"
 // items hold those numbers.
-// "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE) — payloads are computed
-// under the project's scope and the keys gain a scopeToken segment; "14"
-// entries were keyed without it.
+// "15": AA2 scope (SYSTEM_09 "AA2 scope injection") — payloads are computed
+// under the caller's admin-area-2 scope and the keys gain a scopeToken
+// segment; "14" entries were keyed without it.
+// "16": the per-family structure split (PLAN_2, commit 3d320bb4). Admin-area
+// trees, geojson and structure config became per-family, so the labels an
+// items payload carries for its areas now resolve against the owning family's
+// tree; "15" entries were labelled from the single shared tree.
 const PO_CACHE_VERSION = "16";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS

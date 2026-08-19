@@ -12,8 +12,7 @@ import type { RunManifest } from "./types/run_manifest.ts";
 //
 // Reattach never blocks (D5: a product points at one package and the user
 // updates figures one by one or all), so this is a per-figure REASON shown on
-// the figure, not a pre-flight report over a project's whole authored set —
-// the shape the deleted buildResultsPackageCompatibilityReport had.
+// the figure, never a pre-flight report over a whole authored set.
 
 // Every dimension a stored config asks the package for: grouping, filtering
 // and replication all resolve against the same per-results-object option list

@@ -1286,8 +1286,8 @@ export async function bulkUpdateHfaIndicatorValidation(
     await mainDb.begin(async (sql) => {
       for (const u of updates) {
         // Deliberately no updated_at bump: these flags are display-only editor
-        // metadata (never copied into project snapshots), and bumping would
-        // spuriously flag every project's HFA dataset as stale.
+        // metadata (never captured into a run's snapshot), and bumping would
+        // spuriously flag every package's HFA capture as stale.
         await sql`
           UPDATE hfa_indicators
           SET has_syntax_error = ${u.hasSyntaxError},

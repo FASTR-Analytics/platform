@@ -243,12 +243,11 @@ defineRoute(
 // The figure-data mount (D7) — approved users
 ///////////////////////////////////////////////////////////////////////////////
 
-// There is no project lens any more: the caller supplies the (runId,
-// adminArea2) pair its product carries, and `null` adminArea2 means national.
-// getReadyRunReadContext shape-checks BOTH halves (both reach generated SQL
-// or a filesystem path) and gates on runs.status = 'ready'. /mcp reaches
-// these at national scope through the headless allowlist, which is unchanged
-// — the new field is nullable.
+// The caller supplies the (runId, adminArea2) pair its product carries, and
+// `null` adminArea2 means national. getReadyRunReadContext shape-checks BOTH
+// halves (both reach generated SQL or a filesystem path) and gates on
+// runs.status = 'ready'. /mcp reaches these at national scope through the
+// headless allowlist.
 
 defineRoute(
   routesRunGeneration,
@@ -309,7 +308,7 @@ defineRoute(
 // The raw results-object preview (S8 read surface). SCOPED like every other
 // figure-data read: getResultsObjectItemsFromRun applies computeScopeFilters
 // itself, so passing null here would show an AA2 product's preview national
-// rows — the project lens used to supply that area, and the pair replaces it.
+// rows.
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",

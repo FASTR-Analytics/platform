@@ -8,8 +8,8 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // step of a generation (wizard, or the backfill synthesizer), the ONLY thing
 // readers consult at query time. Precomputed, never probed: every fact the
 // read path used to discover via per-request column probes is stamped here.
-// Identity is in the artifact: runId required, and no projectId or any other
-// instance FK inside run files (§9 layer rule).
+// Identity is in the artifact: runId required, and no instance FK of any kind
+// inside run files (§9 layer rule).
 
 // 3: gained `indicators` — the per-module resolved indicator catalog, so the
 // read path stops re-deriving it from the input mirrors on every request.
@@ -56,11 +56,10 @@ export const runResultsObjectSchema = z.object({
 export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 
 // Module catalog entry — the installed definition verbatim (raw JSON string,
-// exactly as the project-DB modules table stores it, so existing parsers
-// apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
-// fields: schema-present from the first manifest, computed only by real
-// wizard generation; synthesized backfill runs carry null and are never
-// reuse sources.
+// so the definition parsers apply to it unchanged). inputKey/outputFileHashes
+// are the §3.7 memoization fields: schema-present from the first manifest,
+// computed only by real wizard generation; synthesized backfill runs carry
+// null and are never reuse sources.
 export const runModuleSchema = z.object({
   id: z.string(),
   moduleDefinition: z.string(),
@@ -72,10 +71,10 @@ export const runModuleSchema = z.object({
 });
 export type RunModule = z.infer<typeof runModuleSchema>;
 
-// Metric catalog entry — the project-DB metrics row verbatim (snake_case
-// field names kept so ResultsValue construction reuses the DBMetric path),
-// plus the build-time datasetFamily stamp (camelCase marks it as derived at
-// finalize via getDatasetFamily, not a DB column; null = no single family).
+// Metric catalog entry — the module's authored metric row verbatim (snake_case
+// field names, the shape ResultsValue construction parses), plus the
+// build-time datasetFamily stamp (camelCase marks it as derived at finalize
+// via getDatasetFamily, not an authored field; null = no single family).
 export const runMetricSchema = z.object({
   datasetFamily: runDatasetFamilySchema.nullable(),
   id: z.string(),
@@ -198,16 +197,9 @@ export const runManifestSchema = z.object({
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
 // Stored in the instance-DB runs catalog row (runs.summary) for listing —
-// DB-side, so project references are fine here (the layer rule only forbids
+// DB-side, so instance references are fine here (the layer rule only forbids
 // instance FKs inside run FILES).
 //
-// Run identity (Q-A ruling): an instance-generated run has no source
-// project, so there is no sourceProjectId. `backfillSourceProjectId` is
-// stamped by the backfill synthesizer and ONLY by it — the rig gates a
-// project iff its attached run is that project's own backfill run.
-// `attachTargetProjectIds` is the wizard's launch-time attach selection: the
-// projects the publish transaction repoints, and the key the launch
-// concurrency guard uses.
 // `diskSizeBytes` is the package's total file size, summed by the shared
 // builder over the finished tmp dir — both writers stamp it, so every run
 // minted from Phase 3 item 3 onwards carries one. Null is a run written

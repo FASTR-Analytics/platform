@@ -297,9 +297,9 @@ export async function getInstanceDetail(
     throwIfErrWithData(adminAreaLabelsRes);
     const adminAreaLabels = adminAreaLabelsRes.data;
 
-    // Absent on a fresh instance (080 only writes it when a project had one),
-    // which reads as "" rather than an error — an unset grounding blob must
-    // not break the settings page or the prompt.
+    // Absent until an admin writes one, which reads as "" rather than an
+    // error — an unset grounding blob must not break the settings page or the
+    // prompt.
     const aiContextRes = await getAiContextConfig(mainDb);
 
     // Per-family counts + last-updated, shared with the SSE structure summary

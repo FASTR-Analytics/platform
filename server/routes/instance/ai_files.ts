@@ -10,7 +10,7 @@ export const routesAiFiles = new Hono();
 
 // The Anthropic Files endpoint, mounted at /ai alongside the copilot proxy
 // and guarded the same way — requireApprovedUser() (D2/D15). The files are
-// instance assets; nothing here was ever project-scoped beyond the guard.
+// instance assets.
 //
 // _ANTHROPIC_API_URL is the /v1/messages endpoint, so the Files URL is
 // derived from the same origin rather than re-hardcoding a host.

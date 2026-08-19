@@ -7,9 +7,8 @@
 //
 // It has two distinct jobs, and both need the same list:
 //
-//   - REPAIR of data written before the declaration existed: project migration
-//     039 (metrics table, SQL literal — the one copy that cannot import this),
-//     manifest_transform block 2 (run manifests), and the figure-block sweep
+//   - REPAIR of data written before the declaration existed:
+//     manifest_transform block 2 (run manifests) and the figure-block sweep
 //     (stored bundles).
 //   - NORMALIZATION of definitions arriving now, in validateDefinition
 //     (server/module_loader/load_module.ts). A definition resolved at an older

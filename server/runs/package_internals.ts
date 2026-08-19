@@ -18,8 +18,7 @@ import { isRunIdShape, runDirPath } from "./run_paths.ts";
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
 //
 // These reads are run-keyed and mounted ONCE (routes/instance/
-// run_generation.ts, Tim's ruling 2026-08-18 superseding the 2026-07-30
-// per-project mount): a package is instance-level data, so what it contains
+// run_generation.ts): a package is instance-level data, so what it contains
 // is gated on the instance data bits — `can_view_data` for the script and the
 // raw files, `can_view_logs` for the log — wherever it is explored (the
 // catalogue, the AI tools, MCP). What a package contains does not depend on

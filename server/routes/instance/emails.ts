@@ -78,9 +78,9 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   }
 }
 
-// The recipient roster is the instance roster now that projects are gone — a
-// named consequence of the permissive model (D2). The route validates the
-// addresses; who may send is the product guard, nothing finer.
+// The recipient roster is the instance roster — a named consequence of the
+// permissive model (D2). The route validates the addresses; who may send is
+// the product guard, nothing finer.
 defineRoute(
   routesEmails,
   "sendSlideDeckEmail",

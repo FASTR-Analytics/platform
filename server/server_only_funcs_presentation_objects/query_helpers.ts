@@ -28,8 +28,7 @@ import { escapeSqlString } from "../db/utils.ts";
 // to be spelled out — a tab-only cell would otherwise stay unfolded here while
 // JS `.trim()` still stripped it from the options list, which is precisely the
 // chart-group-with-no-filter-option defect this whole mechanism exists to kill.
-// Two-arg trim(), not btrim(): this SQL runs on BOTH engines (Postgres and
-// DuckDB-over-parquet share the builders) and DuckDB has no btrim. Both accept
+// Two-arg trim(), not btrim(): DuckDB has no btrim, and it accepts
 // trim(string, chars) and E'…' escape strings (verified by execution).
 const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
 
@@ -59,10 +58,10 @@ export function blankFoldedRef(columnRef: string): string {
  * blank cell yields no row to fold. The type check is the mechanical one — the
  * fold emits trim() and returns a text sentinel from the CASE, and
  * disaggregation columns are only text by convention (module authors declare
- * the type). DuckDB would implicitly cast rather than refuse, which makes the
- * type check MORE load-bearing than it was under Postgres, not less: the query
- * rig can no longer prove it by breaking it (PROTOCOL_APP_QUERY_RIG records
- * that lost control), so it has to be reasoned about here.
+ * the type). DuckDB implicitly casts rather than refusing, so a wrong check
+ * fails silently and the query rig cannot prove it by breaking it
+ * (PROTOCOL_APP_QUERY_RIG records that lost control) — it has to be reasoned
+ * about here.
  */
 export function shouldFoldBlank(
   disOpt: string,
@@ -95,8 +94,8 @@ export function blankPredicate(columnRef: string): string {
  * m8 scorecard shape: `value = numerator / denominator` disaggregated by
  * `denominator`). The inner query then emits BOTH the grouped column and a
  * same-named aggregate alias, and the PAE wrapper's bare references against
- * that subquery are ambiguous — Postgres errors, DuckDB silently binds the
- * raw grouped value instead of the aggregate ingredient. Colliding columns
+ * that subquery are ambiguous — DuckDB silently binds the raw grouped value
+ * instead of the aggregate ingredient, with no error. Colliding columns
  * are therefore SELECTed as `__dis_<col>` in the inner query (selectRef) and
  * re-aliased back in the wrapper (applyPostAggregationExpression); both sites
  * derive from THIS function and must agree, or the wrapper re-projects a
@@ -556,8 +555,8 @@ export function emitsSampleN(queryContext: QueryContext): boolean {
  * facility × time_point: a table spanning two survey rounds without grouping by
  * round would otherwise report double the sample. The facility_id reference is
  * table-qualified because the facilities CTE joins in a column of the same name
- * (buildSelectQuery's LEFT JOIN) — unqualified, Postgres rejects it as
- * ambiguous on every facility-column disaggregation.
+ * (buildSelectQuery's LEFT JOIN) — unqualified, the reference is ambiguous on
+ * every facility-column disaggregation.
  *
  * Two rules, and the split is load-bearing:
  *

@@ -142,9 +142,8 @@ export type InstanceConfig = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
-  // The one instance-level copilot grounding blob (D15) — what the per-project
-  // ai_context columns were consolidated into. Editable on the settings page
-  // behind can_configure_settings; "" when unset.
+  // The one instance-level copilot grounding blob (D15). Editable on the
+  // settings page behind can_configure_settings; "" when unset.
   aiContext: string;
 };
 
@@ -200,7 +199,7 @@ export type InstanceDatasetsSummary = {
 // and lets each client fetch its own view through a per-request-guarded
 // route. `pinned_run_updated` is neither: a plain unfiltered broadcast of a
 // bare run id (see `pinnedRunId`), the same class as `config_updated`.
-// This is the ONLY channel there is — the project channel died with projects.
+// This is the ONLY SSE channel the app has.
 //
 // `readyPackages` has no message of its own: it follows the `runsCatalog`
 // idiom exactly, filled in `starting` and refetched on the existing

@@ -30,8 +30,8 @@
 // resolves), and first-subscribes re-check the registry, the connection's
 // liveness and the cancellation tombstones after the async load.
 //
-// Rooms are keyed `docType::docId` — instance-wide, since products dissolved
-// the project tier (PLAN_PRODUCTS_RESTRUCTURE D8).
+// Rooms are keyed `docType::docId` — instance-wide, one room per product
+// document (PLAN_PRODUCTS_RESTRUCTURE D8).
 
 import * as Y from "yjs";
 import {
@@ -354,7 +354,7 @@ export async function subscribeDoc<T>(
       if (loaded.crdtState) {
         // Restore the exact prior Yjs doc (survives server restart cleanly).
         // Corrupt/incompatible stored state must never throw here: this runs on
-        // the shared server process, so a bad row would crash every project.
+        // the shared server process, so a bad row would crash every room.
         try {
           Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
           restored = true;

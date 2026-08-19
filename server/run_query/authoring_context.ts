@@ -10,11 +10,9 @@ import {
 import { deriveVirtualDefaults } from "./virtual_defaults.ts";
 
 // Everything an author needs FROM a package (PLAN_PRODUCTS_RESTRUCTURE D7) —
-// the projection the deleted getProjectDetail used to build per project,
-// re-cut as a pure function of the RUN DIRECTORY: the manifest plus the input
-// mirrors captured beside it. No database read, no project row, no scope, so
-// the payload is immutable by identity (runId) and the client caches it
-// forever.
+// a pure function of the RUN DIRECTORY: the manifest plus the input mirrors
+// captured beside it. No database read and no scope, so the payload is
+// immutable by identity (runId) and the client caches it forever.
 //
 // What it deliberately does NOT carry: hfaTaxonomy.timePoints (HFA survey
 // rounds are instance-wide T1 state — freezing an instance fact into an

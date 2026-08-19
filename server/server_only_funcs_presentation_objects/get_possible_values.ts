@@ -25,9 +25,9 @@ import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 
 // Deterministic option ordering, pinned in TS (PLAN_RESULTS_RUNS §2.4 delta
-// 3): Postgres orders text by DB collation, DuckDB by binary — so the SQL
-// ORDER BY (kept for a stable LIMIT cutoff) is re-sorted here with ONE
-// defined comparator, making both engines emit identical lists.
+// 3): the SQL ORDER BY is kept only for a stable LIMIT cutoff, and the list
+// is re-sorted here with ONE defined comparator, so what the client sees
+// never depends on the engine's collation.
 //
 // Hand-rolled, NOT Intl.Collator: ICU tailoring shifts across runtime
 // upgrades (a Deno bump reordered a leading-space value relative to "dhis2"),

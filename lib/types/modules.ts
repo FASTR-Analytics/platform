@@ -79,7 +79,7 @@ export type MetricWithStatus = ResultsValue & {
 };
 
 // The attached run's module catalog entry as the client sees it (built from
-// the run manifest — no live project-DB state).
+// the run manifest — no live DB state).
 export type InstalledModuleSummary = {
   id: ModuleId;
   label: string;

@@ -23,9 +23,9 @@ import {
 // weekly-instance token limits), usage logging, and the beta-header policy
 // live here.
 //
-// Usage is attributed to the signed-in user and nothing finer: there is no
-// product dimension on `ai_usage_logs` (the project column died with the
-// project layer), and the token limits are user/instance-scoped anyway.
+// Usage is attributed to the signed-in user and nothing finer: `ai_usage_logs`
+// has no product dimension, and the token limits are user/instance-scoped
+// anyway.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
 // envelope — the browser Anthropic SDK parses them (see SYSTEM_13).

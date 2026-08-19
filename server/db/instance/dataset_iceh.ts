@@ -19,7 +19,7 @@ export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
   // newer run completed — only its ended_at moves), and MAX(ended_at) alone
   // misses launches. Two consumers depend on "hash changes iff import state
   // changed": the client display cache (instance.ts) and the results-run
-  // capture staleness hash (datasets_in_project_iceh.ts).
+  // capture staleness hash (runs/capture_inputs/iceh.ts).
   const runFacts = (
     await mainDb<{ latest: string | null; last_ended: string | null }[]>`
       SELECT

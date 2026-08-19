@@ -90,9 +90,8 @@ ${userInserts}
 
   // JSON data transforms, on the main database. Strictly AFTER
   // runInstanceMigrations: migration 080 is what populates products / decks /
-  // slides / reports on an instance coming from the project layer, so the
-  // sweeps would otherwise see an empty (or, on the consolidating boot,
-  // half-built) product plane.
+  // slides / reports, so the sweeps would otherwise see an empty (or, on the
+  // consolidating boot, half-built) product plane.
   await runInstanceDataTransforms(sqlMain, instanceCountryIso3);
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a

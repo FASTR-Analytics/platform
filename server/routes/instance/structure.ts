@@ -58,7 +58,7 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 defineRoute(
   routesStructure,
   "listAdminArea2s",
-  // Any authenticated user — feeds the project scope picker (see registry).
+  // Any authenticated user — feeds the scope picker (see registry).
   requireGlobalPermission(),
   log("listAdminArea2s"),
   async (c) => {

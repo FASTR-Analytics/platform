@@ -8,7 +8,7 @@ import {
 } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
-// Every field below is interpolated into SQL run via projectDb.unsafe (see
+// Every field below is interpolated straight into the generated SQL (see
 // server_only_funcs_presentation_objects/query_helpers.ts and
 // get_possible_values.ts). The app client only ever sends closed-vocabulary
 // values, but the route body is attacker-controllable, so these are the SQL
@@ -42,8 +42,8 @@ const PAE_ALLOWED_FUNCS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Validates a post-aggregation expression before it is interpolated into
- * projectDb.unsafe SQL. The charset (SAFE_EXPRESSION) can't tell `numerator /
+ * Validates a post-aggregation expression before it is interpolated into the
+ * generated SQL. The charset (SAFE_EXPRESSION) can't tell `numerator /
  * denominator` from `(select secret from t)` or `pg_sleep(60)`, so on top of it
  * we enforce two structural invariants that every legitimate (arithmetic) PAE
  * holds but injections break:
@@ -113,8 +113,8 @@ export function isValidIntegerFilterValue(v: string | number): boolean {
 }
 
 // The route-boundary schema for a fetch config, co-located with the
-// imperative validateFetchConfig below so the two halves can't drift (both
-// mounts of the data reads — project and run-keyed — validate with this).
+// imperative validateFetchConfig below so the two halves can't drift — every
+// data read validates with this.
 // SQL injection guards: these fields are interpolated into unsafe SQL.
 // groupBys / filters[].disOpt / replicateBy → closed enum (period options are
 // a subset); values[].prop → bare SQL identifier; postAggregationExpression →

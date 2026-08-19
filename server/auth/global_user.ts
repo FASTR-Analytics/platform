@@ -10,8 +10,7 @@
 // `approved` is the load-bearing field: `_OPEN_ACCESS || !!usersRow`. It is
 // what `requireApprovedUser()` gates the whole product surface on
 // (PLAN_PRODUCTS_RESTRUCTURE D2) — the six instance permission flags say
-// nothing about approval, and before the restructure the project path was the
-// only place approval was enforced.
+// nothing about approval.
 // =============================================================================
 
 import type { Context } from "hono";

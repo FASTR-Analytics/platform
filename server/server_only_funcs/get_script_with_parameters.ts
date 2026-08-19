@@ -13,10 +13,9 @@ import {
 } from "./get_script_with_parameters_hfa.ts";
 
 // datasetsDirPath = where the generated script finds dataset extract CSVs,
-// relative to the module's working directory. Per-caller: the legacy sandbox
-// layout puts them at "../datasets" (sandbox/{projectId}/datasets beside each
-// module dir); a run workspace (runs/{runId}/outputs/{moduleId}) reads
-// "../../inputs/datasets" (§2.1 run layout).
+// relative to the module's working directory: a run workspace
+// (runs/{runId}/outputs/{moduleId}) reads "../../inputs/datasets" (§2.1 run
+// layout).
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,

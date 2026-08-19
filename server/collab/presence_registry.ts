@@ -6,11 +6,11 @@ import type { CollabServerMessage, PresenceEntry, PresenceView } from "lib";
 //
 // Presence is scoped to the PRODUCT a peer has open — the deck (`deckId`) or
 // report (`reportId`) it is editing — not to the connection at large
-// (PLAN_PRODUCTS_RESTRUCTURE D8: the project tier is gone, and with it the
-// project-wide page-awareness relay, the list-page cursors and the card
-// presence avatars). A connection that is not inside a product belongs to no
-// presence group and neither sends nor receives peer lists; opening one moves
-// it, which broadcasts both the group it left and the group it joined.
+// (PLAN_PRODUCTS_RESTRUCTURE D8: there is no instance-wide page-awareness
+// relay, no list-page cursors and no card presence avatars). A connection
+// that is not inside a product belongs to no presence group and neither sends
+// nor receives peer lists; opening one moves it, which broadcasts both the
+// group it left and the group it joined.
 
 type Sender = {
   send: (data: string) => void;

@@ -92,22 +92,21 @@ export type RunReadContext = {
   manifest: RunManifest;
   // The caller's admin-area-2 identity (the `admin_area_2` of the product the
   // figure lives in); null = national. Scopes every read through the FromRun
-  // wrappers (PLAN_1_PROJECT_AA2_SCOPE §3).
+  // wrappers (SYSTEM_09 "AA2 scope injection").
   adminArea2: string | null;
   scopeToken: string;
 };
 
 // ONE lens onto the read core (PLAN_PRODUCTS_RESTRUCTURE D7): a read context
-// is the (run, scope) pair the CALLER supplies — there is no project row to
-// resolve it from any more. Both halves arrive over the wire, so both are
-// shape-checked here, once, before anything interpolates them.
+// is the (run, scope) pair the CALLER supplies. Both halves arrive over the
+// wire, so both are shape-checked here, once, before anything interpolates
+// them.
 //
 // runId becomes a filesystem path; adminArea2 becomes a SQL string literal
 // (escapeSqlString'd at the two interpolation sites in computeScopeFilters /
 // buildWhereClause) and a Valkey key segment (scopeToken percent-encodes it).
-// The `min(1)` shape is the one the project route enforced when the value was
-// written to projects.admin_area_2: an empty string is neither national (that
-// is `null`) nor a real area, and would silently scope to nothing.
+// An empty string is rejected: it is neither national (that is `null`) nor a
+// real area, and would silently scope to nothing.
 
 function adminArea2ShapeInvalidMsg(
   adminArea2: string | null,
@@ -742,7 +741,7 @@ function versionInfoFor(ctx: RunReadContext, moduleId: string) {
   };
 }
 
-// ── Admin-area-2 scope (PLAN_1_PROJECT_AA2_SCOPE §3) ─────────────────────────
+// ── Admin-area-2 scope (SYSTEM_09 "AA2 scope injection") ─────────────────────
 
 // Derived child values are immutable per run, so they memo like manifests:
 // FIFO cap for memory, evicted only when the run is deleted.

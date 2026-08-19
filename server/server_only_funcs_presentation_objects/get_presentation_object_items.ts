@@ -23,10 +23,11 @@ export type ItemsQueryDeps = {
 export type ItemsVersionInfo = {
   moduleLastRun: string;
   datasetsVersion: string;
-  // Set by the run read path (the cache identity, PLAN_RESULTS_RUNS §2.5);
-  // absent from the Postgres wrappers (the parity rig's baseline).
+  // Set by the run read path: the cache identity (PLAN_RESULTS_RUNS §2.5) and
+  // the scope the payload was computed under (SYSTEM_09 "AA2 scope
+  // injection"). The PO caches refuse to store a payload missing either
+  // rather than mis-key it.
   runId?: string;
-  // Set by the run read path beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
   scopeToken?: string;
 };
 

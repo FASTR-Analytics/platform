@@ -5,10 +5,9 @@
 // A pure function of the run directory: which modules ran, which metrics they
 // produced and whether each is available, which datasets were captured, the
 // indicator vocabularies, and the presets (the default visualizations derived
-// from the manifest). This is the projection `getProjectDetail` used to build
-// per project — but a package is immutable, so keyed by `runId` alone it is
-// immutable by identity, which is what lets the client cache it forever
-// (PLAN_PRODUCTS_RESTRUCTURE D7).
+// from the manifest). A package is immutable, so keyed by `runId` alone this
+// payload is immutable by identity, which is what lets the client cache it
+// forever (PLAN_PRODUCTS_RESTRUCTURE D7).
 //
 // It carries NO scope: scope changes what a figure QUERY returns, never what
 // exists to author against. And no `timePoints` on the taxonomy — HFA survey

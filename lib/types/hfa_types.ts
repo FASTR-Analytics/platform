@@ -74,10 +74,11 @@ export const EMPTY_HFA_TAXONOMY: HfaTaxonomyForAI = {
 };
 
 // Full HFA indicator taxonomy surfaced to the AI (get_available_metrics).
-// Sourced from the per-project snapshot tables, so it reflects the project's
-// service-category scoping. Categories/sub-categories/service-categories carry
-// their IDs so the model can query the hfa_category / hfa_sub_category /
-// hfa_service_category disaggregations; indicators reference those IDs.
+// Sourced from the snapshot files captured into the run, so it reflects that
+// package's service-category scoping. Categories/sub-categories/service-
+// categories carry their IDs so the model can query the hfa_category /
+// hfa_sub_category / hfa_service_category disaggregations; indicators
+// reference those IDs.
 export type HfaTaxonomyForAI = {
   categories: { id: string; label: string }[];
   subCategories: { id: string; categoryId: string; label: string }[];
@@ -87,8 +88,8 @@ export type HfaTaxonomyForAI = {
   variantGroups: { id: string; label: string }[];
   variantItems: { id: string; groupId: string; label: string }[];
   // Time points are instance-wide (the whole instance shares HFA survey
-  // rounds), not project-scoped. `id` is the time_point value used in data /
-  // filters (the label PK); `periodId` is the period it maps to.
+  // rounds). `id` is the time_point value used in data / filters (the label
+  // PK); `periodId` is the period it maps to.
   timePoints: { id: string; label: string; periodId: string }[];
   indicators: {
     id: string;

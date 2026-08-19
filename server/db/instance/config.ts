@@ -173,10 +173,9 @@ export async function updateAdminAreaLabelsConfig(
 }
 
 // The instance's AI context (D15): free prose an admin writes on the settings
-// page, prepended to the copilot's system prompt. ONE instance-level string —
-// the per-project contexts were concatenated into it by migration 080, which
-// is also where the storage encoding comes from: the value is a plain string
-// JSON-encoded into config_json_value like every other instance_config row.
+// page, prepended to the copilot's system prompt. ONE instance-level string,
+// stored like every other instance_config row: a plain string JSON-encoded
+// into config_json_value.
 // Absent = empty, never an error: a missing context must not break the prompt.
 export async function getAiContextConfig(
   mainDb: Sql

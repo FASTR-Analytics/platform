@@ -2,11 +2,10 @@
 // Permissions — six instance flags, and nothing else
 // =============================================================================
 //
-// The project tier died with projects (PLAN_PRODUCTS_RESTRUCTURE D2). The
-// product surface is guarded by `requireApprovedUser()`: signed in AND
-// approved, full editor of everything. These six flags keep guarding exactly
-// the surfaces they guarded before — users, logs, settings, and the data /
-// results-package plane — with unchanged semantics.
+// The product surface is guarded by `requireApprovedUser()`
+// (PLAN_PRODUCTS_RESTRUCTURE D2): signed in AND approved, full editor of
+// everything. These six flags guard the rest — users, logs, settings, and the
+// data / results-package plane.
 //
 // The permission system is rebuilt later (§8). Nothing new is designed here.
 // =============================================================================

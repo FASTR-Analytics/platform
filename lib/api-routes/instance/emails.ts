@@ -7,8 +7,8 @@ import { route } from "../route-utils.ts";
 export const emailRecipientsSchema = z.array(z.email()).min(1).max(50);
 
 export const emailRouteRegistry = {
-  // The recipient roster is the instance roster now that projects are gone
-  // (D2, a named consequence of the permissive model).
+  // The recipient roster is the instance roster (D2, a named consequence of
+  // the permissive model).
   sendSlideDeckEmail: route({
     path: "/emails/slide-deck",
     method: "POST",

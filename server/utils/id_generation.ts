@@ -2,8 +2,8 @@ import { customAlphabet } from "nanoid";
 import type { Sql } from "postgres";
 
 // ONE generator length for every short id in the app (D14). 4 chars over this
-// 31-char alphabet is 923,521 combinations; 3 chars (29,791) was fine when the
-// namespace was one project's rows and is not when it is the whole instance's.
+// 31-char alphabet is 923,521 combinations, against a namespace of every row
+// on the instance (3 chars would be 29,791).
 // Existing 3-char ids are kept as they are — ids are never length-validated,
 // and registry params stay z.string(), never z.uuid().
 const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
