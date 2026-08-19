@@ -217,8 +217,6 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 export type RunSummary = {
   manifestSchemaVersion: number;
   provenance: RunProvenance;
-  backfillSourceProjectId: string | null;
-  attachTargetProjectIds: string[];
   moduleIds: string[];
   metricCount: number;
   totalRowCount: number;

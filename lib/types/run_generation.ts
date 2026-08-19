@@ -3,6 +3,7 @@ import type { DatasetType } from "./datasets.ts";
 import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type { ModuleParameter } from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
+import type { ProductType } from "./products.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
@@ -10,12 +11,13 @@ import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 // results are client-local until launch sends them in one body; nothing is
 // persisted server-side before that) and the run pipeline (execution state
 // lives on the runs catalog row: runs.status + runs.progress). The wizard is
-// entered from the instance shell: generation is an instance-level act, and
-// a run attaches to projects rather than belonging to one.
+// entered from the instance shell: generation is an instance-level act. A
+// generation PRODUCES a package; products point at it afterwards, so there are
+// no attach targets (D5).
 
 // Step 1 — choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
-// 2026-08-03) — subsetting is a per-project attach-time concern, never a
+// 2026-08-03) — subsetting is a read-time scope concern, never a
 // generation-time one.
 export const runGenerationStep1ResultSchema = z.object({
   hmis: z.boolean(),
@@ -86,8 +88,7 @@ export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
 // Runs-catalog listing row, rendered wherever a package is listed. Which
 // package is PINNED is not a listing column: it is one instance T1 fact,
-// `pinnedRunId` (SYSTEM_08 "The pinned package + followers"), so every
-// surface derives the badge from the same field.
+// `pinnedRunId`, so every surface derives the badge from the same field.
 export type RunListingItem = {
   id: string;
   label: string;
@@ -99,31 +100,20 @@ export type RunListingItem = {
   progress: RunProgress | null;
 };
 
-// A project subscribed to the pinned package, as the pin confirm lists them
-// and the pin-move loop visits them.
-export type FollowPinnedProject = {
-  id: string;
-  label: string;
-  isLocked: boolean;
-  runId: string | null;
-};
-
-// Outcome of a pin-move: which follow-pinned projects were physically
-// repointed, which were skipped because locked, which failed to attach
-// (project labels — the admin-facing summary), and whether the loop stopped
-// early because another pin-move or an unpin superseded it.
+// Outcome of a pin. The pin moves NO product row — there are no followers
+// (PLAN_PRODUCTS_RESTRUCTURE D5 overrules the SYSTEM_08 follower model), so
+// this says only whether the flag ended up where the admin asked, and whether
+// another pin-move or an unpin superseded this one mid-flight.
 export type PinResultsPackageResult = {
-  repointed: string[];
-  skippedLocked: string[];
-  failed: string[];
+  pinned: boolean;
   supersededMidway: boolean;
 };
 
-// The instance catalogue row (Phase 3 item 3): every run on the instance,
-// plus the projects currently pointing at it — which is both the "attached
-// projects" column and the reason a run cannot be deleted.
+// The instance catalogue row: every run on the instance, plus the products
+// currently pointing at it — which is both the "in use by" column and the
+// reason a run cannot be deleted.
 export type RunCatalogItem = RunListingItem & {
-  attachedProjects: { id: string; label: string }[];
+  attachedProducts: { type: ProductType; id: string; label: string }[];
 };
 
 // What one READY package contains, wherever it is explored: settings
@@ -138,30 +128,18 @@ export type RunDetail = {
   }[];
 };
 
-// One module's raw output files inside a package. Named rather than inlined
-// because the same listing is served by two mounts under two permission
-// models — the instance catalogue by runId, a project by its own attached
-// package (see server/runs/package_internals.ts).
+// One module's raw output files inside a package (see
+// server/runs/package_internals.ts).
 export type RunModuleFileListing = {
   files: { name: string; sizeBytes: number }[];
 };
 
-// The §2.6 compatibility report (Phase 3 item 4): what a project's AUTHORED
-// visualizations would lose if it repointed at a candidate package, shown
-// before the repoint rather than discovered afterwards. Every answer is a
-// manifest lookup — no data queries.
-//
-// Virtual default visualizations are excluded by construction: they are
-// projections of whichever package is attached, so they cannot be
-// incompatible with one.
-//
-// One issue per visualization, in resolution order: a missing metric makes
-// its availability stamp and its dimensions unanswerable, so the first thing
-// that fails is what gets reported.
-export type ResultsPackageCompatibilityIssue = {
-  presentationObjectId: string;
-  label: string;
-} & (
+// One figure's reason for not resolving under a package, shown ON THAT FIGURE
+// after a reattach rather than in a pre-flight report (D4: reattach never
+// blocks). Resolution order — a missing metric makes its availability stamp
+// and its dimensions unanswerable, so the first thing that fails is what gets
+// reported. Manifest lookups only, no data queries.
+export type FigurePackageIssue =
   | { kind: "metric_not_in_package"; metricId: string }
   | { kind: "metric_unavailable"; metricId: string; reason: string | null }
   | {
@@ -169,33 +147,12 @@ export type ResultsPackageCompatibilityIssue = {
     disaggregationOptions: DisaggregationOption[];
     // Labels the missing dimensions with the owning family's column labels
     datasetFamily?: DatasetType;
-  }
-);
-
-export type ResultsPackageCompatibilityReport = {
-  runId: string;
-  runLabel: string;
-  authoredVisualizationCount: number;
-  issues: ResultsPackageCompatibilityIssue[];
-  // Whether the package's facilities data contains the project's Admin Area 2
-  // scope (PLAN_1_PROJECT_AA2_SCOPE §6). null = national project (nothing to
-  // check); "no_facilities_data" = the package has no facilities parquet to
-  // check against (e.g. ICEH-only) — a distinct state, not "uncovered".
-  projectAdminArea2Coverage:
-    | "covered"
-    | "uncovered"
-    | "no_facilities_data"
-    | null;
-  // Echoed so the UI can name the area in the warning.
-  projectAdminArea2: string | null;
-};
+  };
 
 // Worker-updated pipeline progress (runs.progress JSON), pushed on every
-// state change over BOTH project SSE (each attach target) and instance SSE
-// (the catalogue, filtered to can_configure_data — Q-B): a run launched with
-// no attach targets has no project channel at all. moduleOrder is execution
-// order; the reuse plan is readable from it (§3.7 UX: per-module
-// reused/will-run).
+// state change over instance SSE (the catalogue, filtered to
+// can_configure_data — Q-B). moduleOrder is execution order; the reuse plan
+// is readable from it (§3.7 UX: per-module reused/will-run).
 export const runModuleProgressStatusSchema = z.enum([
   "pending",
   "reused",

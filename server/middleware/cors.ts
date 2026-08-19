@@ -7,7 +7,6 @@ export const corsMiddleware = cors({
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
   allowHeaders: [
     "Content-Type",
-    "Project-Id",
     "Upload-Length",
     "Upload-Offset",
     "Upload-Metadata",

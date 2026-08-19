@@ -1,5 +1,5 @@
 import { getCountryLabel } from "../consts.ts";
-import type { DatasetInProject } from "../types/datasets_in_project.ts";
+import type { RunDataset } from "../types/run_datasets.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
@@ -9,8 +9,8 @@ import type { InfoCatalogTopic } from "./info_catalog.ts";
 // The shared halves of the AI system prompt — what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
-// prose (the SPA: the project's name, viz/deck/report counts, aiContext —
-// client/src/components/project_ai/build_system_prompt.ts; /mcp: the pinned
+// prose (the SPA: the instance ai_context and the deck/report counts —
+// client/src/components/copilot/build_system_prompt.ts; /mcp: the pinned
 // package — server/mcp/mcp_tools.ts), then hands it to buildSystemPrompt.
 //
 // The SPA's assembled prompt is BYTE-STABLE across navigation (per-view
@@ -182,8 +182,8 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
 
 // ── Package grounding: what ONE results package holds ──
 //
-// Derivable from either a project's state (its attached package) or a run
-// manifest (the pinned package on /mcp) — the caller maps to this shape.
+// Derivable from either the open product's package (the SPA) or the pinned
+// package's manifest (/mcp) — the caller maps to this shape.
 
 export type PackageGrounding = {
   // The calendar the package's period ids are in — a package fact, captured
@@ -191,7 +191,7 @@ export type PackageGrounding = {
   // global). The SPA's attached package was generated on this instance, so it
   // passes the instance calendar.
   calendar: InstanceCalendar;
-  datasets: DatasetInProject[];
+  datasets: RunDataset[];
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
   // The package's overall period range at its finest time grain (null = no
