@@ -3,28 +3,15 @@ system: 11
 name: Visualization Authoring UI
 globs:
   - client/src/components/NotAvailableBox.tsx
-  - client/src/components/PresentationObjectMiniDisplay.tsx
-  - client/src/components/PresentationObjectPanelDisplay.tsx
-  - client/src/components/ReplicateByOptions.tsx
   - client/src/components/_editor_snapshot.ts
+  - client/src/components/explore/**
+  - client/src/components/figure_editor/**
+  - client/src/components/figures/**
   - client/src/components/forms_editors/confirm_update.tsx
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/components/forms_editors/custom_series_styles.tsx
   - client/src/components/forms_editors/download_presentation_object.tsx
   - client/src/components/forms_editors/view_results_object.tsx
-  - client/src/components/project/add_visualization/index.tsx
-  - client/src/components/project/add_visualization/metric_card.tsx
-  - client/src/components/project/add_visualization/module_sidebar.tsx
-  - client/src/components/project/add_visualization/step_1_metric.tsx
-  - client/src/components/project/add_visualization/step_2_preset.tsx
-  - client/src/components/project/add_visualization/step_3_configure.tsx
-  - client/src/components/project/add_visualization/type_card.tsx
-  - client/src/components/project/edit_folder_modal.tsx
-  - client/src/components/project/move_to_folder_modal.tsx
-  - client/src/components/project/preset_preview.tsx
-  - client/src/components/project/project_metrics.tsx
-  - client/src/components/project/project_visualizations.tsx
-  - client/src/components/visualization/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
@@ -42,102 +29,108 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
-  - lib/types/visualization_folders.ts
-  - server/db/project/presentation_objects.ts
-  - server/db/project/visualization_folders.ts
-  - server/routes/project/visualization_folders.ts
 docs_absorbed:
 ---
 
 # S11 — Visualization Authoring UI
 
-The live PO editor (edit/create/ephemeral modes), the visualization library, and
-PO CRUD with conflict resolution.
+The embedded figure editor, the metric → preset wizard that creates figures, and
+the Explore tab that browses a package's presets standalone.
 
 ## Scope
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`components/visualization/**` (editor core + panel tabs, ~6.2k LOC);
-`PresentationObjectPanelDisplay` / `MiniDisplay` / `ReplicateByOptions` /
-`NotAvailableBox` / `_editor_snapshot.ts`;
-`components/project/add_visualization/**` + `preset_preview.tsx` +
-`project_visualizations.tsx` + `project_metrics.tsx` + folder modals;
-forms_editors viz modals; server PO/folder CRUD
-(`db/project/{presentation_objects,visualization_folders}.ts` + the
-`visualization_folders` route file — the `presentation_objects` route file is
-S9-owned, S11 a mandatory reader); lib config semantics
-(`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
-families, the conditional-formatting family). S11 is also a mandatory reader of
-`t2_presentation_objects.ts` (S9-owned — SYSTEMS.md §4.1); `withReplicant` lives
-in kernel-owned `lib/utils.ts` (S00).
+`components/figure_editor/**` (editor core + the three panel tabs + conditional
+formatting + `stale_figure_badge.tsx` + `figure_mini_display.tsx` +
+`replicate_by_options.tsx`); `components/figures/insert_figure/**` (the metric
+wizard and the preset-gallery pieces); `components/explore/**` (the Explore
+page, `add_to_product_modal.tsx`, `metric_details_modal.tsx`);
+`NotAvailableBox` / `_editor_snapshot.ts`; the forms_editors figure modals; lib
+config semantics (`normalize_po_config.ts`, `convert_visualization_type.ts`, the
+PO config type families, the conditional-formatting family). S11 is a mandatory
+reader of `client/src/state/products/t2_figure_data.ts` (S9-owned — SYSTEMS.md
+§4.1) and of `_shared/scope_picker.tsx` (S12's `_shared/**` glob);
+`withReplicant` lives in kernel-owned `lib/utils.ts` (S00).
 
 ## Contract
 
-The three-mode editor (notably _ephemeral_ mode) is the authoring surface
-dashboards/slides/reports plug into; the AI plugs in via AIContext mutators, not
-ephemeral mode. The save path normalizes client-side and enforces the
-`expectedLastUpdated` conflict protocol; default visualizations are
-server-protected against update/delete. Reactivity is deep-tracked at both sites
-— the refetch effect (`trackStore(tempConfig.d)`) and the figureInputs memo
-(`JSON.stringify` over `tempConfig.s`/`.t`) — so new config fields need no
-wiring at either; the hand-enumerated dependency lists that used to live there
-(and regressed twice in one day) were deliberately removed. Do not add one back.
+**A figure is `{ metricId, config }` resolved under its product's PackageScope**
+(D3) — there is no visualization you can open, save, duplicate or point at, so
+this system authors figures INSIDE a product and never owns a row. Three
+surfaces, one editor: the slide editor, the report editor and Explore each hand
+the embedded editor a metric, a config and a pair, and take back the edited
+config. `PresentationObjectConfig` stays the figure-config type name; renaming
+the PO vocabulary is a separate refactor (out of scope, plan §8).
 
-## The three-mode editor
+Reactivity is deep-tracked at both sites — the refetch effect
+(`trackStore(tempConfig.d)`) and the figureInputs memo (`JSON.stringify` over
+`tempConfig.s`/`.t`) — so new config fields need no wiring at either; the
+hand-enumerated dependency lists that used to live there (and regressed twice in
+one day) were deliberately removed. Do not add one back.
 
-[components/visualization/index.tsx](client/src/components/visualization/index.tsx)
-dispatches a discriminated props union on `mode`, each variant with its own
-return type through `close`:
+## The embedded editor
 
-| Mode        | Gets                                                | Fetches                                      | Returns                                       |
-| ----------- | --------------------------------------------------- | -------------------------------------------- | --------------------------------------------- |
-| `edit`      | `presentationObjectId`                              | PO detail + resultsValueInfo (`Promise.all`) | `{deleted}` \| `{saved}` \| undefined         |
-| `create`    | `label` + `configSnapshot` + `resultsValueSnapshot` | resultsValueInfo only                        | `{created: {presentationObjectId, folderId}}` |
-| `ephemeral` | same snapshots as create                            | resultsValueInfo only                        | `{updated: {config}}`                         |
+[components/figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)
+has exactly **one mode**. Props: `label`, `scope` (the product's
+`PackageScope`), `metric`, `configSnapshot`, `authoringContext`, and an optional
+`collabBinding`. Its whole job before mounting `VisualizationEditorInner` is to
+resolve the metric's queryable shape (`resultsValueInfo` — which filter and
+disaggregation options exist and their possible values) **under the host's
+pair**; that read is scope-dependent, which is why it lives here rather than in
+the host.
 
-Create and ephemeral build a **synthetic `PresentationObjectDetail`** (`id: ""`,
-`lastUpdated: ""`) around their snapshots so `VisualizationEditorInner` sees one
-`poDetail` shape for all three modes. Ephemeral **never touches the server**:
-Apply closes with a **normalized** config (`getConfigForSave()`), and the caller
-owns storage. The four ephemeral callers: `slide_editor/index.tsx` (edits
-`figureBlock.bundle.config`, then re-queries items and rebuilds the bundle),
-`dashboard_editor.tsx` ×2 (item + group edit, each running its reconcile step),
-`report/index.tsx` (rebuilds the figure block). Edit mode has exactly one caller
-(`project_visualizations.tsx`); create is used by the library, the metrics page,
-and the wizard flows.
+It closes with `{ updated: { config } }` or `undefined` — the caller owns
+storage, always. Apply normalizes client-side (`getConfigForSave()` =
+`normalizePOConfigForStorage`). Three callers, one shape each:
+`slide_editor/index.tsx` (edits `figureBlock.bundle.config`, then re-queries
+items and rebuilds the bundle), `report/index.tsx` (rebuilds the figure block),
+and `explore/index.tsx` (drops the result — Explore owns no rows, so it passes a
+`structuredClone` of the preset's config so an exploratory edit cannot rewrite
+the run's preset for every other reader of the same authoring context).
+
+**Live co-editing changes the button set, not the mode.** With a
+`collabBinding` that is ready AND live, the header shows a "Live" badge, undo /
+redo, and a single Back button that commits (streamed edits cannot be
+discarded); without one it shows Apply / Cancel gated on `needsSave()`. The
+binding co-edits the figure's config IN the host document's `figConfig` Y.Map —
+there is no standalone room, because a figure has no document of its own (S16).
 
 **Snapshot isolation.**
 [\_editor_snapshot.ts](client/src/components/_editor_snapshot.ts):
 `snap = structuredClone(unwrap(value))` — unwrap escapes the store proxy,
 structuredClone severs aliasing, so the open editor is frozen against live store
-churn and editor writes can't mutate the store. All 8 `snapshotForVizEditor`
-callers pass `projectStateSnapshot`; inside, the draft is cloned again
-(`createStore(structuredClone(poDetail.config))`). (`instanceDetailSnapshot` is
-emitted at every site but has zero consumers — Open item.)
+churn and editor writes can't mutate the store. Inside the editor the draft is
+cloned again (`createStore(structuredClone(p.configSnapshot))`). What is
+deliberately NOT snapshotted is the product's pair: the host reads `runId` /
+`adminArea2` live off the T1 products row and passes them down, so a reattach
+mid-edit moves the editor's reads with it (D16).
 
 ## Draft state & the refetch contract
 
-- **`tempConfig`** is a Solid store cloned from `poDetail.config`. The panel
-  writes through **`manuallyUpdateTempConfig`**, which forwards to
-  `setTempConfig` then fires `notifyAI({type: "edited_viz_locally"})`. Raw
-  `setTempConfig` is reserved for (a) the replicant auto-resolution commit-back
-  — wrapped in the `isAutoResolvingReplicant` flag so `needsSave` doesn't treat
-  it as a user edit — and (b) the AIContext registration (AI writes mark dirty
-  but don't echo an interaction back to the AI).
+- **`tempConfig`** is a Solid store cloned from `p.configSnapshot`.
+  `manuallyUpdateTempConfig` is now a direct alias of `setTempConfig`: the
+  copilot is told about figure edits by the HOST, not here — the editor sits
+  inside `editing_slide` / `editing_report`, and the host's own "edited locally"
+  interaction fires when it applies the coherent bundle.
 - **`needsSave`**: a `trackStore(tempConfig)` effect (deep-tracks the whole
-  store), skipping first run and auto-resolution; cleared only on successful
-  save.
+  store), skipping first run and the replicant auto-resolution commit-back
+  (guarded by the `isAutoResolvingReplicant` flag so it is not read as a user
+  edit). It gates the Apply/Cancel pair; under live collab there is nothing to
+  gate, since every keystroke is already in the host doc.
 - **The refetch effect**
-  ([visualization_editor_inner.tsx](client/src/components/visualization/visualization_editor_inner.tsx),
-  ~:654) re-queries items when `tempConfig.d` changes, via
-  `trackStore(tempConfig.d)` plus a tracked `runVersionKey` read so the preview
-  refetches when module output changes mid-edit. The trackStore replaced a
-  hand-maintained dependency list that regressed twice in one day when fields
-  moved between nesting levels — every current and future `d` field is
-  fetch-tracked automatically. Superseded fetches are dropped via a monotonic
-  `itemsFetchRunId`.
-- **The figureInputs memo** (inner, ~:1403) deep-tracks ALL of `tempConfig.s`
+  ([visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx))
+  re-queries items when `tempConfig.d` changes, via `trackStore(tempConfig.d)`
+  **plus a tracked read of the product's pair** — the host passes
+  `PackageScope` live from T1, so reattaching the product mid-edit refetches the
+  preview under the new package. There is no version key: a package is
+  immutable, so the pair leads the items cache's uniqueness key and a reattach
+  is a different ENTRY rather than an invalidation (S9).
+  The trackStore replaced a hand-maintained dependency list that regressed twice
+  in one day when fields moved between nesting levels — every current and future
+  `d` field is fetch-tracked automatically. Superseded fetches are dropped via a
+  monotonic `itemsFetchRunId`.
+- **The figureInputs memo** deep-tracks ALL of `tempConfig.s`
   and `.t` via `void JSON.stringify(...)` (recursive reads subscribe to every
   nested property, including in-place-reconciled collaborator edits). Net
   contract: `d.*` changes refetch; `s.*`/`t.*` changes re-render locally only.
@@ -150,61 +143,54 @@ emitted at every site but has zero consumers — Open item.)
   select a replicant" fallback, and `too_many_items` (20,000-point message) /
   `no_data_available` statuses.
 
-## Save, conflict & default-viz protections
+## Resolution and staleness
 
-- **Normalization is client-side only.** `getConfigForSave()` =
-  `normalizePOConfigForStorage(unwrap(tempConfig), resultsValue)`; the server
-  route only re-parses via `presentationObjectConfigSchema.parse` — it does not
-  normalize. Save-as-new normalizes a second time (idempotent — this also covers
-  the AI draft-preview path, which opens the same modal).
-- **Conflict protocol.** `saveFunc` posts
-  `expectedLastUpdated =
-  lastKnownServerTimestamp()`; the server
-  ([db/project/presentation_objects.ts:298-312](server/db/project/presentation_objects.ts#L298-L312))
-  returns `err: "CONFLICT"` + `currentLastUpdated` when the row moved and
-  `overwrite` isn't set. The client opens `ConflictResolutionModal` with four
-  outcomes: **overwrite** (`saveFunc(true)`), **save_as_new** (creates
-  `"{label} (copy)"` in the same folder), **view_theirs** (discard + close),
-  **cancel** (keep editing). The timestamp signal advances on every successful
-  save.
-- **Default visualizations** are protected at both tiers: server refuses
-  label/config updates and deletes (including the **batch** period-filter
-  update, which refuses the whole batch if any selected id is a default); the
-  client never opens them in edit mode (the library reroutes to a create-mode
-  copy, `"Copy of {label}"`), hides save/delete, and shows a "Default" badge.
-- Mutations fire `notifyLastUpdated(projectId, "presentation_objects", …)` +
-  `notifyProjectVisualizationsUpdated` (S3 triangle); folder mutations push the
-  refreshed folder list.
+**`resolveBundleFromMetricAndConfig(scope, metric, config)`** is THE
+metric-keyed resolver (S10's glob, `generate_visualization/`): validate the
+replicant, re-query items, assemble a `FigureBundle` stamped with the pair it
+resolved under. There is no from-visualization entry point, because a
+visualization is not a thing you can point at — the metric wizard, a preset, the
+editor's Apply, the D4 update action and the AI create/edit tools all come
+through it.
 
-## AIContext lifecycle
+Two policies, deliberately different, one file apart:
+`resolveBundleFromMetricAndConfig` validates the replicant **strictly**
+(`assertReplicantValid` throws) so the model gets the valid-value list back;
+`resolveFigureBundleInteractively` **auto-defaults** an unset or no-longer-valid
+replicant and returns `{ ok: false, reason }` rather than throwing, because its
+callers show that reason in place — on the figure — never in a modal that loses
+track of which figure it was about.
 
-`onMount` registers
-`{mode: "editing_visualization", vizId (null for
-create/ephemeral), getTempConfig, setTempConfig}`;
-`onCleanup` restores `returnToContext ?? {mode: "viewing_visualizations"}`. The
-S13 tools (`ai_tools/tools/visualization_editor.tsx`) read the live draft
-(`get_viz_editor`) and write through `update_viz_config`, whose input schema is
-**derived from the storage schemas** and whose validation runs entirely before
-any store write (a throw means nothing changed); the AI has **no save path** —
-persistence is exclusively the human Save button. `project_visualizations`,
-`project_metrics`, and the slide editor pass `returnToContext`; the dashboard
-and report editors don't (Open item).
+**The stale badge** ([stale_figure_badge.tsx](client/src/components/figure_editor/stale_figure_badge.tsx))
+is the whole compatibility mechanism (D4): the predicate is S10's
+`isFigureBundleStale`, and the badge offers exactly one action — re-resolve this
+figure under the product's CURRENT pair, through the interactive resolver. The
+metric lookup in the target package's authoring context IS the "metric not in
+this package" check, which is why reattach and scope change never block and have
+no pre-flight anywhere. A failure shows `figurePackageIssueForMetrics`'s reason
+(`lib/figure_package_issue.ts`, manifest-only, shared with the server) on that
+figure and leaves the old bundle in place. The file also exports
+`UpdateAllFiguresButton` (the editor-header counterpart with its count),
+`ProductScopeBadge`, and `packageLabel(runId)` — which falls back to a short id,
+because a product keeps pointing at exactly the package it was attached to even
+after that package leaves the ready list.
 
 ## Downloads
 
-One `download()` action (blocked while dirty and while items aren't ready): PNG
-rendered at the canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920
-(not the on-screen reflow canvas); formatted table CSV via S10's
-`getTableExportAoa` with BOM; underlying-data CSV (re-queries items); JSON
-definition; a results-file viewer. The multi-replicant branch is disabled
-(`allReplicants` hard-coded false — Open item). The JSON definition serializes
-`p.poDetail.config` — the open-time snapshot — so it exports the pre-edit config
-even right after a save (Open item).
+One `download()` action (blocked while items aren't ready): PNG rendered at the
+canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920 (not the on-screen
+reflow canvas); formatted table CSV via S10's `getTableExportAoa` with BOM;
+underlying-data CSV (re-queries items); JSON definition; a results-file viewer.
+The multi-replicant branch is disabled (`allReplicants` hard-coded false — Open
+item). The JSON definition is `{label, metricId, runId, adminArea2, config}`
+read off the LIVE draft: a figure has no id of its own, so `{metricId, config}`
+plus the pair it resolves under is the whole definition.
 
-## The add-visualization wizard
+## The metric wizard
 
-`AddVisualization` is a 3-step stepper — **Metric** (module sidebar +
-`MetricCard` grid; a card is selectable only when single-variant and
+`InsertFigureModal` ([figures/insert_figure/](client/src/components/figures/insert_figure/index.tsx))
+is a 3-step stepper fed by a `RunAuthoringContext` — **Metric** (module
+sidebar + `MetricCard` grid; a card is selectable only when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
 `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting a
@@ -212,52 +198,59 @@ real preset skips step 3) → **Configure** (five `TypeCard`s gated by
 `get_PRESENTATION_SELECT_OPTIONS` — timeseries needs a period column, map needs
 an admin-level disaggregation; table/chart/pie are always offered; required
 disaggregations are checked+disabled; `FILTER_ONLY_DISAGGREGATION_OPTIONS`
-excluded). Preset saves resolve `t` TranslatableStrings via `t3` **at creation
-time** — stored PO text fields are plain strings. Custom saves go through
-`getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
-display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
-wizard never persists** — it closes with `{label, resultsValue, config}` and its
-five callers decide: library/metrics open the editor in create mode;
-dashboard/report/slide editors build a figure block directly.
+excluded). Preset selections resolve `t` TranslatableStrings via `t3` **at
+creation time** — stored figure text fields are plain strings. Custom
+selections go through `getStartingConfigForPresentationObject` (type defaults
+from `VIZ_TYPE_CONFIG`, display slots assigned via
+`getNextAvailableDisaggregationDisplayOption`).
 
-## The library page
+**The wizard never persists and never resolves** — it closes with
+`{ metric, config }`, and the caller resolves that under ITS OWN product's pair.
+`preselectedMetricId` skips straight to the preset step. Only the preview
+fetches need the `scope` prop; metrics, modules and presets all come from the
+authoring context, which carries no scope. Three callers: the slide editor, the
+report editor, and Explore's "Custom figure…".
 
-`ProjectVisualizations` (Pattern C list page) + `PresentationObjectPanelDisplay`
-(995 LOC — group sidebar + card grid):
+## The Explore tab
 
-- **Grouping modes** `folders | module | metric | flat`, persisted in `t4_ui`
-  signals (`vizGroupingMode`, `vizSelectedGroup`, `vizSortMode`,
-  `hideUnreadyVisualizations`); final display order is client-side
-  `sortBySortMode`, not the server ORDER BY. Folders mode synthesizes
-  `_defaults` and `_unfiled` ("General") groups; sub-grouping by
-  module/metric/variant per mode.
-- **Selection & bulk ops** via panther `createSelectionController` (selection
-  changes notify the AI): move-to-folder, edit-common-properties (batch
-  period-filter — uses the FIRST viz's period bounds for the whole selection,
-  Open item), create-slides (blocked for multi-select with replicants),
-  duplicate, delete (parallel per-id). Folder CRUD (rename/color/delete — delete
-  moves POs to General via FK `ON DELETE SET NULL`).
-- **Card components:** `PresentationObjectMiniDisplay` = live thumbnail
-  (versioned on `lastUpdated.presentation_objects[id]`, monotonic run-id guard,
-  dirty-state placeholders, `"[INFO] "`-prefixed errors render as
-  `NotAvailableBox`); `PresentationObjectPanelDisplay` cards carry
-  REPLICATED/FILTERED/AI/Default badges; `NotAvailableBox` = dumb placeholder.
-  Unready metrics keep their cards selectable/deletable with the fill variant.
+`components/explore/index.tsx` is the standalone place to look at a chart (D6):
+the same module sidebar, metric cards and preset previews the wizard uses,
+rendered as a page over an **ephemeral** `(package, scope)` pair. The package
+`Select` is the T1 `readyPackages` list (stable options, prefilled with the
+pin); the scope picker defaults national. Both live in `t4_ui` signals so a tab
+switch doesn't lose them, and neither is persisted or written to any product.
+The picker keeps its own working `ScopeSelection` so "Single, no area chosen
+yet" is a real interim state — only a COMPLETE selection reaches the pair,
+otherwise every gallery preview would refetch at national the moment the user
+clicked the radio.
 
-## Server CRUD
+Presets are **not products**: no rows, no detail read. A preset is
+`{ metricId, config }` derived from the manifest and served inside
+`getRunAuthoringContext.presets`; the gallery for a metric is its slice of that
+list, sorted by `sortOrder`, rendered through the same run-keyed items read as
+everything else. Per metric the header offers **Details**
+(`metric_details_modal.tsx`, moved here — Explore is where approved users browse
+metric definitions now), **Custom figure…** (the wizard), and for a selected
+preset **Configure** (the embedded editor, ephemerally) and **Add to deck /
+report…** (`add_to_product_modal.tsx`, which re-resolves the figure under the
+TARGET product's pair before writing it).
 
-[db/project/presentation_objects.ts](server/db/project/presentation_objects.ts)
-(574 LOC, 13 exports): create (3-char nanoid id, config re-parsed before store),
-duplicate (copies the raw config string verbatim, never default), list
-(`ORDER BY is_default_visualization DESC, sort_order, LOWER(label)`;
-strict-parses every row), detail (rebuilds `resultsValue` via metric
-resolution), label/config/delete with default-viz refusals, the batch
-period-filter transaction (pre-checks and refuses default rows), and
-`getVisualizationsListForAI` — S13-serving code living in this S11 file (its
-sole caller is `routes/project/ai_tools.ts`). Folder CRUD in
-`db/project/visualization_folders.ts` + 6 routes in
-[routes/project/visualization_folders.ts](server/routes/project/visualization_folders.ts),
-all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
+## Thumbnails
+
+`FigureMiniDisplay` ([figure_mini_display.tsx](client/src/components/figure_editor/figure_mini_display.tsx))
+is the live thumbnail of `{ metricId, config }` under one `PackageScope` — the
+preset gallery, the Explore cards, any small preview that is not the editor.
+There is **no per-id detail read behind it**: a figure is not a row, so the
+caller supplies the metric from the run's authoring context. It drives
+`getFigureInputsFromCacheOrFetch_AsyncGenerator` and guards against racing
+re-runs with a monotonic `fetchRunId` **inside** the generator loop, since the
+generator yields more than once (the same idiom as the editor's
+`itemsFetchRunId`). `"[INFO] "`-prefixed errors render as `NotAvailableBox`, the
+dumb placeholder.
+
+There is **no server CRUD in this system**. Figures are stored inside slides and
+reports (S12); presets are derived from the run manifest (S8) and served inside
+`getRunAuthoringContext`; the data reads are S9's run-keyed routes.
 
 ## lib config semantics
 
@@ -345,16 +338,19 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
 
 ## Replicant machinery
 
-`ReplicateByOptions.tsx` exports a sidebar `SelectList` variant (viz editor) and
-a `Select` dropdown variant (`inline_replicant_selector.tsx`,
-`select_visualization_for_slide.tsx`). Both fetch replicant options through the
-S9 cache (`getReplicantOptionsFromCacheOrFetch`) with
-`excludeReplicantFilter: true`, deep-tracked `filterBy`/`periodFilter` reads,
-and a tracked `moduleDataVersionKey`; statuses `too_many_values` (>500) /
-`no_values_available` / `error` are surfaced inline. Labels get Nigeria-admin
+`replicate_by_options.tsx` exports two shells over one fetch effect:
+`ReplicateByOptionsList` (the full-height `SelectList` beside the editor
+preview) and `ReplicateByOptionsSelect` (the compact `Select`; zero consumers
+today — Open item). Both fetch through the S9 cache
+(`getReplicantOptionsFromCacheOrFetch`) with `excludeReplicantFilter: true`,
+deep-tracked `filterBy`/`periodFilter` reads, and a tracked read of `p.scope` —
+re-read inside the effect, not destructured, so a package or scope change
+re-queries. There is no version key: the cache is keyed
+`(runId, scopeToken, …)`, so a scope or package change lands on a DIFFERENT
+entry rather than invalidating this one (D8). Statuses `too_many_values` (>500)
+/ `no_values_available` / `error` are surfaced inline. Labels get Nigeria-admin
 cleaning (`formatReplicantLabelForDisplay`), re-sorted only when cleaning
-changed something. The dropdown variant publishes the full option list to its
-parent (the slide modal's "All replicants (N)" count).
+changed something.
 
 ## Open items
 
@@ -365,23 +361,6 @@ parent (the slide modal's "All replicants (N)" count).
   on save needs a ruling; unreachable today (no `"indicator"` metric surface
   resolves `rate_per_10k` in practice), noted while fixing the rate
   formatters (PLAN_EFFECTIVE_FORMAT F9).
-- **Batch edit-common-properties uses the first viz's period bounds** for a
-  heterogeneous selection — a shared periodFilter may be format-mismatched for
-  other metrics and later fail the schema refine.
-- **AI-created unfiled vizzes are invisible in folders mode** (excluded from
-  `_defaults`/`_unfiled`, absent from user folders); user-folder counts
-  inconsistently don't exclude `createdByAI`. Intentionality needs a ruling.
-- **AI context not restored after dashboard/report ephemeral edits** — both omit
-  `returnToContext`, so closing resets to `viewing_visualizations` while the
-  user is still inside the report/dashboard editor (overlaps the parked
-  view-mode-tools refactor).
-- **JSON-definition download exports the open-time config** — after a save it
-  still serializes the pre-edit `p.poDetail.config`.
-- **Edit-mode close type hole**: edit-mode "Save as new" closes with `{created}`
-  (outside `EditModeReturn`); benign today, unenforced contract.
-- **Duplicate cold fetch of PO detail in edit mode** — two concurrent
-  `getPODetailFromCacheorFetch` calls; the reactive-cache inflight dedupe is
-  check-then-set, so a cold open can double-fetch.
 - **Custom value orders are never pruned — ruling pending.**
   `normalizePOConfigForStorage` canonicalizes roll-up flags at save but does not
   touch `s.customValueOrder`, so entries survive for dimensions that were
@@ -391,25 +370,14 @@ parent (the slide modal's "All replicants (N)" count).
   renders wrong. The open question is prune-on-save versus keep-latent, and it
   turns on whether re-adding a dimension later should silently recover its old
   order (keep) or start clean (prune).
-- **Dead reorder feature**: `reorderPresentationObjects` +
-  `reorderVisualizationFolders` (registry + routes + db functions) have zero
-  client callers; `sort_order` is only written by folder-create.
-- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
-  `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); db
-  `getAllPresentationObjectsForModule` + `getPresentationObjectLastUpdated`;
-  `VisualizationGroupingMode`'s `"type"` member (never offered, unhandled);
-  `instanceDetailSnapshot` (cloned at all 9 sites, read nowhere); the
-  `allReplicants` download branch.
-- **Stale white-fill comment**: inner:555-558 claims `getFigureAsCanvas` fills
-  white pending a panther flag — current panther no longer fills; verify
-  transparent PNG end-to-end and update or delete.
-- **Duplicated ~45-line fetch effect** in the two `ReplicateByOptions*`
-  components; `MetricsByModule` type duplicated in `project_metrics.tsx`.
-- **i18n gaps**: hardcoded "Visualize" (`project_metrics.tsx:217`), "Replicant"
-  (`inline_replicant_selector.tsx:26`), "Default" sub-group label,
-  DuplicateVisualization/CreateSlide progress strings, `window.alert` in
-  `custom_series_styles.tsx`.
-- Commented-out remnants: AI create-from-prompt + backup blocks
-  (`project_visualizations.tsx`), `attemptDeleteFromError`
-  (`visualization/index.tsx`), font-size sliders (`panel_text.tsx`),
-  disaggregation chips (`metric_card.tsx`), "ownership" grouping option.
+- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`
+  and `forms_editors/conflict_resolution_modal.tsx` (the conflict protocol they
+  served died with the standalone visualization row — the slide editor has its
+  own); `lib/types/dimension_definitions.ts` (barrel-exported, zero uses);
+  `ReplicateByOptionsSelect`; the `allReplicants` download branch.
+- **Stale white-fill comment**: `visualization_editor_inner.tsx:612-613` claims
+  `getFigureAsCanvas` fills white pending a panther flag — current panther no
+  longer fills; verify transparent PNG end-to-end and update or delete.
+- **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.
+- Commented-out remnants: font-size sliders (`panel_text.tsx`), disaggregation
+  chips (`insert_figure/metric_card.tsx`).

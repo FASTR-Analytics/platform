@@ -26,8 +26,8 @@ traversing all of it:
 3. **Clerk sign-in + consent**, matched to a FASTR user on **primary email**
 4. A **deployed instance** over TLS, serving the built client and real config
 5. **Per-call credential verification** — every tool call, not once at connect
-6. **Project-access and permission resolution** for that identity
-7. A **tool returning real project data**
+6. **Pin resolution and the `can_view_data` door check** for that identity
+7. A **tool returning real results-package data**
 
 Each rung below is defined by **which links it skips**. A rung is not "less
 thorough"; it is blind to specific links, and you have to know which.
@@ -97,7 +97,7 @@ deno task dev   # server on :8000, /mcp mounted exactly as in production
 cd client && npm run dev   # SPA on :3000, hot-reloads
 ```
 
-Boot is ~15s cold (migrations sweep every project DB) and ~3s warm, plus
+Boot is a few seconds (one migration pass on `main`), plus
 ~2s for the dev-only self-checks: the route validation, the headless mount
 check, and the whole server test suite (`deno task test`, run as a
 subprocess) — a failing test fail-stops the boot, so a red test is never
@@ -229,16 +229,16 @@ returns 200 and says so; anywhere else a non-401 is a real finding.
 
 **The exposed surface is the AI assistant's *shared* tools over the pinned
 package**: 6 reads, no writes (S13 principle 2). Module internals (script,
-logs, settings), project content and the browser-only editor tools —
-visualizations, decks, reports, live editing, navigation, ask-the-user — are
+logs, settings), product content and the browser-only editor tools —
+decks, reports, live editing, navigation, ask-the-user — are
 SPA-only by design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
 the run-keyed metric reads (items, value info), the query/formatting layer,
 `get_overview` and prompt assembly, the pin resolution, and the instance
 `can_view_data` gate. It does **not**
-exercise ingestion, module execution, viz or slide authoring, exports, client
-rendering, project access, or SSE — drive those with Playwright
+exercise ingestion, module execution, figure or slide authoring, exports, client
+rendering, or SSE — drive those with Playwright
 against testing-tim.
 
 **Writes.** `approvalMode: "delegate"` means the gate is the client's own
@@ -267,8 +267,9 @@ grep -rn "getRunModule" server/middleware/headless_allowlist.ts          # the a
 
 ## Rung 3 — read-only DB access
 
-Connection recipes, credentials, the live-vs-orphaned project rule and the two
-schema generations live in [PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md).
+Connection recipes and credentials live in
+[PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md) — one database per instance,
+`main`.
 That document is written for production instances; the same commands work
 against any `testing*` instance by swapping the container name.
 
@@ -284,7 +285,7 @@ connection per table will trip the host's connection limits and start returning
 Locally the equivalent is free and needs no SSH — prefer it:
 
 ```bash
-docker exec pg psql -U postgres -d main -c 'SELECT id, label, status FROM projects;'
+docker exec pg psql -U postgres -d main -c 'SELECT id, type, label, run_id FROM products;'
 ./pg_connect   # interactive psql on the local main DB
 ```
 

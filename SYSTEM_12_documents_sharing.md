@@ -5,106 +5,93 @@ globs:
   - client/src/components/PasswordGate.tsx
   - client/src/components/_markdown_guide.tsx
   - client/src/components/_shared/**
-  - client/src/components/dashboards/**
   - client/src/components/forms_editors/edit_label.tsx
   - client/src/components/layout_editor/**
-  - client/src/components/project/add_deck.tsx
-  - client/src/components/project/add_report.tsx
-  - client/src/components/project/duplicate_deck_modal.tsx
-  - client/src/components/project/duplicate_report_modal.tsx
-  - client/src/components/project/edit_deck_folder_modal.tsx
-  - client/src/components/project/edit_report_folder_modal.tsx
-  - client/src/components/project/move_deck_to_folder_modal.tsx
-  - client/src/components/project/move_report_to_folder_modal.tsx
-  - client/src/components/project/project_dashboards.tsx
-  - client/src/components/project/project_decks.tsx
-  - client/src/components/project/project_reports.tsx
-  - client/src/components/public_viewer/**
+  - client/src/components/products/**
   - client/src/components/report/**
   - client/src/components/slide_deck/*.ts
   - client/src/components/slide_deck/*.tsx
   - client/src/components/slide_deck/slide_editor/**
   - client/src/components/slide_deck/slide_transforms/**
   - client/src/components/slide_deck/style_editor/**
-  - client/src/state/project/t2_dashboards.ts
-  - client/src/state/project/t2_slide_decks.ts
-  - client/src/state/project/t2_slides.ts
-  - lib/types/_dashboard_config.ts
+  - client/src/state/products/t2_report_detail.ts
+  - client/src/state/products/t2_slide_deck_detail.ts
+  - client/src/state/products/t2_slides.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
-  - lib/types/dashboard.ts
+  - lib/types/products.ts
   - lib/types/reports.ts
   - lib/types/slides.ts
-  - server/db/instance/dashboard_slugs.ts
-  - server/db/project/dashboards.ts
-  - server/db/project/move_slides.ts
-  - server/db/project/report_folders.ts
-  - server/db/project/reports.ts
-  - server/db/project/slide_deck_folders.ts
-  - server/db/project/slide_decks.ts
-  - server/db/project/slides.ts
-  - server/routes/project/dashboards.ts
-  - server/routes/project/emails.ts
-  - server/routes/project/report_folders.ts
-  - server/routes/project/reports.ts
-  - server/routes/project/slide_deck_folders.ts
-  - server/routes/project/slide_decks.ts
-  - server/routes/project/slides.ts
-  - server/routes/public/dashboard.ts
+  - server/db/products/**
+  - server/routes/instance/emails.ts
+  - server/routes/products/**
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
-# S12 — Documents & Sharing
+# S12 — Products & Folders
 
-The three figure-snapshot-embedding artifact types — slide decks, markdown
-reports, and dashboards — plus the public slug-addressed viewer and the
-SendGrid email egress. The render/export engines themselves are S10's; S12
-owns the artifacts, their storage, and the export *triggers*.
+**A product is a slide deck or a report.** This system owns the `products`
+registry every cross-type operation goes through, the flat `folders` level over
+it, the two per-type detail families, the Drive-like page they live on, and the
+SendGrid email egress. The render/export engines themselves are S10's; S12 owns
+the artifacts, their storage, and the export *triggers*.
 
 ## Scope
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-Client: `components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/`
-(one file, imported only by the slide editor), `components/report/**`,
-`components/dashboards/**`, `components/public_viewer/**`, the
-deck/report/dashboard list pages + modals in `components/project/`,
-`state/project/{t2_slides,t2_slide_decks,t2_dashboards}.ts`. Server: CRUD for
-all three families + folders, `db/instance/dashboard_slugs.ts`,
-`routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
-mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
-boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
-(hardcodes 7 tables — Open item). Lib: slide/report/dashboard types incl.
-`buildPublicDashboardBundle` and `buildReportPreview`. Custody wrinkle: the
-`_shared/**` glob also carries `dhis2_credentials/` (all consumers are
-S5/S6/S7 surfaces — SYSTEM_07 documents it) and `sort_control.tsx`
-(shell furniture — flagged in SYSTEM_14); the three logo files are genuinely
-S12's (Open item: settle the manifest).
+Client: `components/products/**` (the page, the card, the ONE settings surface,
+the three modals), `components/slide_deck/**` minus `slide_ai/` (S13),
+`layout_editor/` (one file, imported only by the slide editor),
+`components/report/**`, `state/products/{t2_slides,t2_slide_deck_detail,
+t2_report_detail}.ts`. Server: `db/products/**` and `routes/products/**` whole
+(S12 owns the files, S16 the collab/version slice riding them — SYSTEMS.md
+§4.1), `routes/instance/emails.ts`, `server/utils/id_generation.ts`. Lib:
+`types/products.ts` plus the slide/report types incl. `buildReportPreview`.
+Custody wrinkle: the `_shared/**` glob also carries `dhis2_credentials/` (all
+consumers are S5/S6/S7 surfaces — SYSTEM_07 documents it), `scope_picker.tsx`
+(S11/S12 seam), `sort_control.tsx` (shell furniture — flagged in SYSTEM_14) and
+the collab client UI (S16); the three logo files are genuinely S12's (Open
+item: settle the manifest).
 
 ## Contract
 
-All three families persist CLIENT-built `FigureBlock` bundles (the server
-never recomputes figures); the figure-snapshot lifecycle is owned upstream by
-S10. **Three concurrency philosophies, one per family**: slides = per-row
-**opt-in optimistic lock** (`expectedLastUpdated` → `err: "CONFLICT"`; both
-the human editor and the AI tools send it); reports body = **always-write
-last-write-wins** returning an advisory `conflicted` flag → non-blocking
-banner; dashboards = **no conflict detection at all** (zero
-`expectedLastUpdated` in the family). **S16 overlays the first two**: when a
-live collab room exists for a slide or report, the mutating routes offer the
-save to the room first (`applySlideToLiveRoom` / `applyReportToLiveRoom`) and
-the CRDT merge is the conflict resolution — the philosophies below engage only
-when no room is live. The collab checkpoint functions and additive columns
-(`saveSlideCheckpoint` / `saveReportCheckpoint`, `crdt_state` /
-`crdt_state_last_updated` / `body_authors`) ride this system's
-`server/db/project/{reports,slides,slide_decks}.ts`, and the version-history
-routes ride its route files — S12 owns the files, S16 the feature (SYSTEMS.md
-§4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Reads are
-guarded by `can_view_*`,
-mutations by `can_configure_*` + `preventAccessToLockedProjects` — dashboards
-have no flags of their own and ride the slide-deck pair (Open item). The
-public viewer is the app's only unauthenticated product surface (cross-cutting
-audit SYSTEMS.md §4.3.9).
+**One registry, one id namespace.** `products` (id, type ∈
+`{slide_deck, report}`, label, folder_id, `run_id NOT NULL`, admin_area_2,
+created_by, created_at, last_updated) plus per-type detail tables keyed by the
+SAME id with `ON DELETE CASCADE`. Every cross-type operation — list, folder
+move, delete, package reattach, "in use by", the id space — is one query
+against `products`, which is exactly why two independent tables were rejected
+(D1). `products.last_updated` is THE product version: every content mutation
+and every metadata write bumps it in the same transaction, and it keys the
+detail cache.
+
+**Access is permissive and uniform.** Every route in the family is guarded by
+`requireApprovedUser()` and nothing finer — signed in AND approved makes you a
+full editor of every product (D2). **The product id in the path IS the
+authority**: never add a per-handler permission check behind that guard, because
+a future permission scheme replaces the guard itself with a product-aware one
+(SYSTEM_01). `products.created_by` is recorded so that later owner/sharing model
+has its join key; nothing reads it for access today.
+
+**Both families persist CLIENT-built `FigureBlock` bundles** (the server never
+recomputes figures); the figure-snapshot lifecycle is owned upstream by S10.
+**Two concurrency philosophies, one per family**: slides = per-row **opt-in
+optimistic lock** (`expectedLastUpdated` → `err: "CONFLICT"`; both the human
+editor and the AI tools send it); reports body = **always-write
+last-write-wins** returning an advisory `conflicted` flag → non-blocking banner.
+**S16 overlays both**: when a live collab room exists for a slide or report, the
+mutating routes offer the save to the room first (`applySlideToLiveRoom` /
+`applyReportToLiveRoom`) and the CRDT merge is the conflict resolution — the
+philosophies below engage only when no room is live. The collab checkpoint
+functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
+`crdt_state` / `crdt_state_last_updated` / `body_authors`) ride
+`server/db/products/{reports,slides}.ts` and the version-history routes ride the
+route files — S12 owns the files, S16 the feature
+([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)).
+
+**There is no unauthenticated surface in this system.** Decks email a PDF and
+reports download; nothing is served by slug.
 
 ## Slide decks
 

@@ -6,23 +6,19 @@ globs:
   - client/src/components/ConnectionStatus.tsx
   - client/src/components/HelpButton.tsx
   - client/src/components/email_opt_in_modal.tsx
-  - client/src/components/whats_new_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
   - client/src/components/whats_new_modal.tsx
-  - client/src/components/project/index.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
   - client/src/routes/**
   - client/src/state/t4_connection_monitor.ts
   - client/src/state/t4_ui.ts
   - lib/help/**
-  - lib/types/sort.ts
-  - lib/types/whats_new.ts
-  - server/routes/instance/whats_new.ts
   - lib/translate/**
-  - server/routes/instance/whats_new.ts
+  - lib/types/whats_new.ts
   - server/routes/instance/onboarding.ts
+  - server/routes/instance/whats_new.ts
 docs_absorbed:
 ---
 

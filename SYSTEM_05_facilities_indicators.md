@@ -53,9 +53,9 @@ Boundaries: dataset stage→integrate is **S6** (it validates against S5's
 dictionaries and facilities); the DHIS2 HTTP adapter is **S7** (S5 calls it
 for org units); module runs that EXECUTE the HFA indicator R code and the
 calculated-indicator definitions are **S8**; the query pipeline that joins
-facilities/geojson at render time is **S9**. Projects never read this
-system live — everything crosses into project DBs via attach-time snapshots
-(S6's seam).
+facilities/geojson at render time is **S9**. A results package never reads this
+system live — everything crosses into a package through the run capture that
+runs at generation (`server/runs/capture_inputs/**`, S6's seam).
 
 ## Structure ELT (facility/admin import)
 
@@ -199,7 +199,7 @@ rows are names, and the name is the join key everywhere (S9 maps, geojson
 wizard warns but cannot fix. The two registries' name-spaces are
 independent and are never reconciled (migration 076; the legacy shared
 `admin_areas_1..4` tables are frozen, readerless, and dropped by
-PLAN_REMOVE_OLD_STRUCTURE_TABLES.md). Project AA2 scope is deliberately
+PLAN_REMOVE_OLD_STRUCTURE_TABLES.md). A product's AA2 scope is deliberately
 registry-agnostic: the name is matched against whichever registry each
 results object belongs to, at read time.
 
@@ -244,7 +244,7 @@ which module R scripts reference by literal id — defaults cannot be
 deleted). The mapping is editable from either side (replace-list on save).
 Raw ids are S6's staging validation surface; `dataset_hmis` stores raw ids
 (FK RESTRICT — data blocks raw deletion); raw→common aggregation (SUM
-across mapped raws) happens at project attach. New ids are charset-checked
+across mapped raws) happens at run capture. New ids are charset-checked
 (no `, ; :` — they corrupt the STRING_AGG read projection and the CSV
 round-trip); existing ids are grandfathered. Common-indicator deletion
 refuses with a listing when calculated indicators reference the id
@@ -322,7 +322,7 @@ into R is metadata-driven only. Item ids therefore carry the strict
 `^[a-z][a-z0-9_]{0,63}$` grammar. Group/item edits do not touch any
 `updated_at`, so they are folded directly into `getHfaIndicatorsVersion`'s
 hash the way the category label tables are — without that, variant
-authoring is invisible to the SSE→cache triangle and to the project
+authoring is invisible to the SSE→cache triangle and to the run-capture
 staleness stamp.
 
 **HFA R-code analysis has ONE source of truth**:
@@ -334,12 +334,12 @@ the previous drift (two whitelists, server not stripping comments) made
 editor-green code hard-fail whole module runs. lib compiles into both
 runtimes: keep it pure (no Deno/UI imports). The editor's persisted
 `has_syntax_error`/`code_consistent` flags are display-only advisory
-metadata: they are NOT copied into project snapshots (the snapshot reader
+metadata: they are NOT copied into a run's captured inputs (the capture reader
 hardcodes them), and bulk validation updates deliberately do NOT bump
-`updated_at` (a bump would spuriously flag every project's HFA dataset
+`updated_at` (a bump would spuriously flag every package's HFA capture
 stale). Warnings (lone `=`) are a distinct severity and never persist as
-errors. The R-code lifecycle: instance edits → project HFA-data refresh
-snapshots indicators+taxonomy+code → S8's module run builds a
+errors. The R-code lifecycle: instance edits → the run capture snapshots
+indicators+taxonomy+code → S8's module run builds a
 cross-indicator dependency graph (topological sort, cycles rejected) and
 splices each round's code into `case_when` branches;
 `STOP_IF_INDICATOR_FAILS` (default TRUE) makes one invalid indicator kill
@@ -365,9 +365,9 @@ directions) and carry the strictest id grammar
 (`^[a-z][a-z0-9_]{0,63}$` — interpolated into generated R and emitted as
 synthetic `indicator_common_id` values in results). Denominator = none |
 another common indicator | population type × multiplier
-(`assertValidPopulationType` at the write boundary). Snapshotted per
-project at HMIS attach; attach refuses if a referenced common is absent
-from the data. The client editor pre-checks that a chosen
+(`assertValidPopulationType` at the write boundary). Snapshotted into each
+package by the HMIS run capture, which refuses if a referenced common is
+absent from the data. The client editor pre-checks that a chosen
 numerator/denominator common id satisfies the calculated grammar (commons
 are free text, so not all are usable — a structural mismatch, not a bug).
 
@@ -557,7 +557,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   DHIS2 scoped-delete scope — there is no per-row source marker on
   facilities (also flagged in SYSTEM_06).
 - `hfa_indicator_code` is not independently hashed: code changes are
-  visible to project staleness only because `saveHfaIndicatorFull` bumps
+  visible to run-capture staleness only because `saveHfaIndicatorFull` bumps
   the indicator row. Any new code-mutation path must do the same.
 - The named FK constraints from migration 048 are no longer used by any
   `SET CONSTRAINTS` call — the migration comments overstate; verify before
@@ -573,7 +573,7 @@ Every config mutation re-reads all configs and pushes one consolidated
 - **Decision needed:** the M10 value object and
   `M10_hfa_response_status.csv` no longer share a denominator — a facility
   can hold a determinate 0 for an indicator while its per-variable status
-  reads `missing` or `dont_know`, so a dashboard can show "22% have X
+  reads `missing` or `dont_know`, so one product can show "22% have X
   (n=9)" beside "55% missing" for the same indicator. Either the status
   object gains an indicator-level "contributed to the denominator"
   classification, or the per-variable reading is documented as answering a

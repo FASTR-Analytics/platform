@@ -5,7 +5,7 @@ globs:
   - client/src/exports/**
   - client/src/generate_slide_deck/**
   - client/src/generate_visualization/**
-  - client/src/state/project/t2_images.ts
+  - client/src/state/products/t2_images.ts
   - lib/brand_presets.ts
   - lib/indicator_format_metrics.ts
   - lib/key_colors.ts

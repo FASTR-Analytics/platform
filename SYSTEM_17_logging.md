@@ -32,8 +32,8 @@ handler (so only authorized requests write rows). Mechanics:
   headers minus `authorization`/`cookie`, and the body — with a two-rung
   64 KiB truncation ladder (first the body collapses to
   `{ _truncated, bytes }`, then the whole details blob).
-- User email resolves `globalUser → projectUser → "unknown"`; `project_id`
-  from `c.var.ppk`. Users with `approved === false` are skipped.
+- User email comes from `c.var.globalUser`, else `"unknown"`; there is no
+  tenancy column on a log row. Users with `approved === false` are skipped.
 - Fire-and-forget (`.catch(() => {})`) and the whole middleware body is
   wrapped in try/catch — logging must never break a response.
 
@@ -51,7 +51,7 @@ Admin-Website document-activity views.
 [server/db/instance/user_logs.ts](server/db/instance/user_logs.ts).
 `DeleteOldLogs` (boot + 24 h cron, wired in `db_startup.ts`) transactionally
 rolls rows older than 7 days into `user_logs_aggregate`, keyed
-`(user_email, endpoint, endpoint_result, COALESCE(project_id,''), week_start)`
+`(user_email, endpoint, endpoint_result, week_start)`
 with additive `ON CONFLICT` counts, then deletes the raw rows. **Exception:
 `getCurrentUser` rows are never aggregated and never deleted** — they are the
 forever-retained sign-in trail behind "last active", the health endpoints,
@@ -64,8 +64,8 @@ de-log the `getCurrentUser` route.
   "Last active" column (`instance_users.tsx`).
 - S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):
   `/user_logs` (getCurrentUser trail), `/user_logs_all`,
-  `/user_logs_aggregate`, plus `/health_check`, `/project_activity`,
-  `/user_activity` derived views. S15 owns the file; S17 is a mandatory
+  `/user_logs_aggregate`, plus `/health_check` and the `/user_activity`
+  derived view. S15 owns the file; S17 is a mandatory
   reader of the queries.
 - Admin-Website (separate repo) — fetches the health endpoints per instance
   (and via its `/all/:endpoint` aggregate proxy) for sign-in heatmaps,
@@ -75,15 +75,16 @@ de-log the `getCurrentUser` route.
 
 ## Coverage conventions
 
-`log()` is **not** applied to every route (~180 of 267): coverage is a
+`log()` is **not** applied to every route (172 of 222): coverage is a
 deliberate audit-value judgment, re-baselined against fleet-wide volume data
 2026-08-03 (all-history aggregate across 35 instances):
 
-- **Logged**: instance-level admin/config/data mutations, project lifecycle,
-  dataset import steps, user/permission changes, and audit-worthy document
-  events (create/delete/duplicate of reports, decks, slides, POs; version
+- **Logged**: instance-level admin/config/data mutations, results-package
+  generation and deletion,
+  dataset import steps, user/permission changes, and audit-worthy product
+  events (create/delete/duplicate of reports, decks, slides; version
   restore/copy).
-- **Deliberately unlogged**: project-level reads (`getAllReports`,
+- **Deliberately unlogged**: product reads (`getReportDetail`,
   `getSlides`, …), high-frequency editor autosaves (`updateSlide`,
   `updateReportBody`, …— edit activity comes from the S16 session rows
   instead), and folder/move/reorder churn.
@@ -97,10 +98,7 @@ deliberate audit-value judgment, re-baselined against fleet-wide volume data
 
 ## Open items
 
-- Log labels that drift from registry keys: `log("getModuleLogs")` /
-  `log("getModuleScript")` vs registry `getLogs` / `getScript` — filtering by
-  route name silently misses them.
 - Logged routes with zero rows ever across the fleet (client never calls
   them): `getInstanceDetail`, `getGeoJsonMaps`, `searchDhis2Indicators`,
-  `searchDhis2DataElements`, `getProjectLogs` (the dead chain S15 also
-  flags) — candidates for route removal, not just log removal.
+  `searchDhis2DataElements` — candidates for route removal, not just log
+  removal.

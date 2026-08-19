@@ -26,7 +26,7 @@ jobs, or any scripted run. Those cannot complete an OAuth sign-in on their own
 (there is no interactive prompt to approve it), so a header is the only option.
 This is why PATs are not going away.
 
-No repo checkout, no local process, no per-project configuration. **One
+No repo checkout, no local process, nothing to configure per country. **One
 connection reads the instance's pinned results package** — the package an
 instance admin has blessed as the national one — at national scope. There is
 nothing to pick per question.
@@ -38,9 +38,9 @@ nothing to pick per question.
 The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI
 Assistant's **shared** metric tools — the same tool definitions the in-app chat
 uses to query data — over the pinned package: **6 read-only tools, no writes**.
-Module internals (R scripts, logs, settings), project content (visualizations,
-slide decks, reports) and the browser-only editor tools are **not** exposed —
-they are the in-app assistant's, belong to a project, or need a live browser
+Module internals (R scripts, logs, settings), the content of your decks and
+reports, and the browser-only editor tools are **not** exposed —
+they are the in-app assistant's, or need a live browser
 tab.
 
 | Area      | Tools                                                                  |
@@ -49,7 +49,7 @@ tab.
 | Metrics   | `get_available_metrics`, `get_metric_data` (CSV output)                |
 | Reference | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info` |
 
-No tool takes a project or package id: every call reads whatever package is
+No tool takes a package id: every call reads whatever package is
 pinned **right now** (an admin re-pinning moves the connector on the next
 call). Reading a package needs the instance permission **can_view_data**;
 global admins always have it.
@@ -207,8 +207,9 @@ Then ask naturally:
 - The assistant discovers ids with `get_available_metrics`; it should never
   invent an id. If it does, correct it and point it at the discovery tool.
 - Every tool is read-only — nothing you ask can change anything in FASTR.
-- The data is the **national** package: there is no per-project scope here. For
-  a project's own visualizations, decks and reports, use the in-app assistant.
+- The data is the pinned package at **national** scope: there is no area scope
+  here. To work on a deck or a report — or on figures under a state or district
+  scope — use the in-app assistant.
 
 ---
 

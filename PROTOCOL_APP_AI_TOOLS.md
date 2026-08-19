@@ -1,6 +1,6 @@
 # PROTOCOL_APP_AI_TOOLS — authoring AI tool input schemas
 
-The recipe for writing Zod input schemas for AI tools (project copilot, HFA
+The recipe for writing Zod input schemas for AI tools (the copilot, the HFA
 assistant, and any future surface). The architecture — where validation is
 enforced, which derived schemas exist — is
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
@@ -28,10 +28,9 @@ export const AiMetricQuerySchema = z.object({
 ```
 
 Existing derived surfaces to copy from: `AiMetricQuerySchema` and
-`AiFigureConfigPatchSchema`/`LayoutSpecSchema` (lib/types/ai_input.ts). The
-viz editor's `AiVizConfigUpdateSchema` is `.extend()` of the base patch
-schema (adds `type` + `timeseriesGrouping`), not a parallel copy — follow
-that pattern when a surface needs extra fields.
+`AiFigureConfigPatchSchema`/`LayoutSpecSchema` (lib/types/ai_input.ts). When a
+surface needs extra fields, `.extend()` the base patch schema — never write a
+parallel copy.
 
 ## The forbidden zone
 
@@ -70,8 +69,10 @@ endDate: z.number().optional(),
   storage constraints (enums, `.min(1)`) for free.
 - **Layer 2 — data-dependent (runtime)**: anything requiring fetched data or
   runtime state — is this disOpt available for THIS metric? do these filter
-  values exist? is the range within real data bounds? Lives in
-  `client/src/components/project_ai/ai_tools/validators/content_validators.ts`
+  values exist? is the range within real data bounds? Metric-query checks both
+  surfaces run live in `lib/ai_tools/content_validators.ts`; the SPA-only
+  slide/report content checks live in
+  `client/src/components/copilot/ai_tools/validators/content_validators.ts`
   (and `report_validators.ts` for report bodies), called from handlers.
 
 Rule: if validation needs data, it's Layer 2; if it's types and structure,

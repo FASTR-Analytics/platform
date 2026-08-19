@@ -2,28 +2,20 @@
 system: 13
 name: AI Copilot & Usage Governance
 globs:
-  - client/src/components/project_ai/**
-  - client/src/components/slide_deck/slide_ai/build_config_from_metric.ts
-  - client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts
-  - client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts
-  - client/src/components/slide_deck/slide_ai/get_deck_summary.ts
-  - client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts
-  - client/src/components/slide_deck/slide_ai/layout_spec_helpers.ts
-  - client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts
-  - client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts
-  - client/src/state/project/t4_ai_documents.ts
+  - client/src/components/copilot/**
+  - client/src/components/slide_deck/slide_ai/**
+  - client/src/state/products/t4_ai_documents.ts
   - lib/ai_tools/**
-  - server/mcp/**
   - lib/types/ai_input.ts
   - lib/types/custom_prompts.ts
   - server/db/instance/ai_usage_logs.ts
   - server/db/instance/custom_prompts.ts
+  - server/mcp/**
   - server/routes/anthropic_messages_proxy.ts
-  - server/routes/instance/custom_prompts.ts
-  - server/routes/project/ai_files.ts
+  - server/routes/instance/ai_files.ts
   - server/routes/instance/ai_proxy.ts
-  - server/routes/project/ai_proxy.ts
-  - server/routes/project/ai_tools.ts
+  - server/routes/instance/copilot_ai_proxy.ts
+  - server/routes/instance/custom_prompts.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_tools_source_header_test.ts
 ---

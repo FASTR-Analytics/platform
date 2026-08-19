@@ -55,14 +55,16 @@ wb-fastr/
 ├── server/                    # Hono backend
 │   ├── routes/                # API endpoints
 │   │   ├── instance/          # Instance-level routes
-│   │   └── project/           # Project-level routes
+│   │   └── products/          # Product (deck/report) routes
 │   ├── db/                    # Database schemas & access
-│   │   ├── instance/          # Main database tables
-│   │   ├── project/           # Per-project database tables
-│   │   └── migrations/        # Migration runner
+│   │   ├── instance/          # Main database tables + base schema
+│   │   ├── products/          # Products registry + per-type detail tables
+│   │   └── migrations/        # Migration runner (.sql + .ts)
 │   ├── middleware/            # Auth, CORS, cache, static
-│   ├── task_management/       # Dependency tracking & execution
+│   ├── task_management/       # SSE notify hub + instance state builder
 │   ├── worker_routines/       # Background job processors
+│   ├── runs/                  # Results packages: format, capture, pin, delete
+│   ├── run_query/             # DuckDB read path over a package
 │   ├── dhis2/                 # DHIS2 integration
 │   ├── github/ + module_loader/  # Module fetch + validation
 │   └── server_only_funcs_presentation_objects/  # Viz query engine
@@ -77,34 +79,32 @@ wb-fastr/
     └── assets/                # Uploaded files
 ```
 
-### Multi-Database System
+### One Database (`main`)
 
-**Main Database** (`main`)
+Everything Postgres holds is in one database per instance (see
+[SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)):
 
-- User management
-- Instance configuration
-- Project metadata
+- User management and instance configuration
 - Shared structural data (indicators, facilities, admin areas)
-- Dataset upload attempts and versions
+- Datasets, upload attempts, import runs and versions
+- The `runs` catalogue (results packages) and the pin
+- The **products registry** — `products` (slide decks and reports, one id
+  namespace) plus `folders`, `slide_decks`/`slides`, `reports`, and the two
+  version tables
 
-**Project Databases** (per-project, named by the bare project UUID, e.g.
-`f47ac10b-...` — **not** `project_{uuid}`; see
-[SYSTEM_02_persistence.md](SYSTEM_02_persistence.md))
-
-- Project-specific data isolation
-- Module instances and configurations
-- Presentation objects (visualizations)
-- Reports
-- Results objects from module execution
-- AI interpretations
+**Results themselves are never in Postgres.** A results package is an immutable
+directory on the runs volume (parquet + manifest), and every figure read runs
+DuckDB over it.
 
 ### Data Processing Pipeline
 
 1. **Import**: CSV/DHIS2 upload → multi-step validation → staging → integration
-2. **Processing**: Module execution → R scripts in Docker containers → results
-   storage
-3. **Visualization**: Presentation objects → Canvas rendering
-4. **Reporting**: Multi-viz reports → PDF/PPT/DOCX export
+2. **Capture + compute**: the generation wizard captures the full datasets into
+   a run workspace → R scripts in Docker containers → parquet + manifest →
+   an immutable results package
+3. **Authoring**: a product points at one package + one scope; figures are
+   `{ metricId, config }` resolved under that pair and stored as FigureBundles
+4. **Reporting**: decks and reports → PDF/PPT/XLSX/DOCX export
 5. **AI Analysis**: Optional Claude interpretation of charts/data
 
 ### Module System
@@ -113,25 +113,20 @@ wb-fastr/
 
 - Authored in the separate `wb-fastr-modules` repo (R scripts + metadata;
   `deno task build` there regenerates each `definition.json`)
-- Fetched from GitHub and validated at install via `server/github/` +
+- Fetched from GitHub and validated at generation time via `server/github/` +
   `server/module_loader/` (see
   [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md))
-
-**Module Instances**
-
-- Per-project installations of module definitions
-- User-configured parameters
-- Dependency tracking
-- Dirty state management (triggers re-execution)
+- **Nothing is "installed"**: a module is compiled into a package at generation,
+  and its status is the package manifest's availability stamp
 
 **Execution Flow**
 
-1. Task manager identifies dirty modules
-2. Worker routine instantiated in background
-3. R script executed in Docker container
-4. Results stored in project database
-5. SSE notification to client
-6. Dependent modules marked dirty
+1. An admin configures a generation in the wizard and launches it
+2. The `generate_run` worker prepares inputs, resolves the module DAG, and runs
+   each module in a Docker container
+3. Finalize writes parquet + `manifest.json`; the run dir is renamed atomically
+4. The catalogue row flips to `ready` and the instance SSE nonce fires
+5. Products point at the package from their own package picker
 
 ### Key Features
 
@@ -143,17 +138,19 @@ wb-fastr/
 - Version control and comparison
 - DHIS2 integration
 
-**Visualization**
+**Products**
 
-- Presentation objects (charts, maps, tables)
-- Dynamic querying with filters
-- Period selection and disaggregation
-- Custom Canvas-based rendering
+- Slide decks and reports, in folders, on one Drive-like page
+- Each carries one `(results package, admin area 2)` scope
+- Figures (charts, maps, tables) authored in place from the package's presets
+  or the metric wizard, and stale-badged per figure when the pair moves
+- The Explore tab browses a package's presets standalone
 
 **Access Control**
 
-- Role-based: viewer/editor/admin
-- Project-level isolation
+- Signed in + approved = full editor of every product (`requireApprovedUser()`)
+- Six instance permission flags for users, logs, settings and the data /
+  results-package plane
 - Clerk authentication
 - Optional open access mode
 
@@ -165,10 +162,11 @@ wb-fastr/
 
 **Real-time Updates**
 
-- Server-Sent Events for task lifecycle + cache invalidation (progress is
+- ONE instance Server-Sent Events channel: per-row product upserts, folders,
+  slide stamps, generation telemetry, cache invalidation (import progress is
   polled by the client)
+- ONE instance collaboration WebSocket for live co-editing
 - Background worker coordination
-- Live dirty state synchronization
 
 ## State Management
 
@@ -180,26 +178,29 @@ wb-fastr/
 
 ## API Routes
 
-**Instance Routes** (cross-project)
+**Instance Routes** (`lib/api-routes/instance/`, `server/routes/instance/`)
 
-- `/instance/*` - Instance config, user management
-- `/users/*` - User roles and permissions
+- `/instance/*` - Instance config, settings, AI context
+- `/users/*` - Users and their six permission flags
 - `/structure/*` - Admin areas, facilities, indicators
 - `/datasets/*` - Dataset upload and management
 - `/upload/*` - TUS file upload endpoints
 - `/assets/*` - Static file serving
+- `/run_generation/*` - Results packages: catalogue, generation, the pin,
+  package internals, and the run-keyed figure-data reads + authoring context
+- `/instance_updates` - the SSE stream · `/collab` - the collaboration WebSocket
+- `/ai`, `/ai-instance` - Anthropic proxies · `/mcp` - the remote MCP endpoint
 
-**Project Routes** (project-specific)
+**Product Routes** (`lib/api-routes/products/`, `server/routes/products/`)
 
-- `/project/*` - Project metadata and settings
-- `/modules/*` - Module installation and execution
-- `/presentation_objects/*` - Visualization configs
-- `/reports/*` - Report generation
-- `/ai/*` - AI analysis
+- `/products/*` - shared cross-type routes: create, label, folder, package,
+  scope, duplicate, delete (batch)
+- `/folders/*` - folder CRUD
+- `/slide-decks/*`, `/slides/*`, `/reports/*` - per-type CONTENT and versions
 
 **Cache Routes**
 
-- `/caches/*` - Cache invalidation endpoints
+- `/caches/*` - Cache instances (not routes; see the S9 open item)
 
 ## Development
 
@@ -286,12 +287,11 @@ that area.
 
 - [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md) — registry-as-contract,
   `defineRoute`, `APIResponse` envelope, streaming sub-protocol, Clerk, the two
-  permission guards, `Project-Id` scoping, special modes
+  guards, the **path-id-is-the-authority doctrine**, special modes
   ([PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md) is the add-a-route recipe)
 - [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — connections,
-  DB-function shape, error funnel, **SQL-safety rule** (authoritative for the
-  multi-DB naming/connection model), migration machinery + fail-stop boot,
-  backup/restore mechanics
+  DB-function shape, error funnel, **SQL-safety rule**, the SQL + TypeScript
+  migration chain, fail-stop boot
 - [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) —
   BroadcastChannel→SSE, notify catalog, the `last_updated → SSE → cache`
   triangle, `TimCacheC` version-hash keying + implicit invalidation
@@ -305,7 +305,7 @@ that area.
 - [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md) — results
   packages & module execution: **the authoritative run-directory + manifest
   format spec**, the wizard-configured whole-DAG generation pipeline, R
-  execution, the package catalogue and project attachment, population.csv
+  execution, the package catalogue, the pin, population.csv
   ([PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) is the
   write-a-worker recipe)
 - [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md) — AI copilot: Anthropic
@@ -313,9 +313,10 @@ that area.
   registry/controller contract,
   tool schemas ([PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md) is the
   schema-authoring recipe)
-- [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — viz query &
+- [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) — figure query &
   cache: config → SQL (CTEManager, roll-up row, post-aggregation),
-  period/disaggregation semantics, PO caches
+  period/disaggregation semantics, AA2 scope injection, the
+  `(runId, scopeToken)` caches
   ([PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md) is the add-a-case
   recipe for `./validate_queries`)
 - [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — SQL migrations +
@@ -421,12 +422,14 @@ the plan.
   user's setting vanishes with no error. Required in lockstep: a transform
   block, a forced skip-gate (PROTOCOL_APP_MIGRATIONS.md "Skip-Gate Gotcha"), and
   the authored `definition.json` files when the github schema changes.
-- **Changing a cached payload's SHAPE needs a cache-prefix bump.** Valkey
-  version hashes track row `last_updated`, not code — a deploy that adds a field
-  keeps serving old-shape payloads for unmodified rows (e.g. `po_detail` →
-  `po_detail_v2`). When a shape changes, enumerate all three persistence layers:
-  DB JSON (migration), Valkey (prefix), stored FigureInputs (force block in the
-  slide_config sweep).
+- **Changing a cached payload's SHAPE needs an explicit version/prefix bump.**
+  A cache key never tracks code — a deploy that adds a field keeps serving
+  old-shape payloads. Server-side the knob is `PO_CACHE_VERSION`
+  (SYSTEM_03/SYSTEM_09); client-side it is the `createReactiveCache` `name`
+  (e.g. the run authoring context, versioned on a constant). When a shape
+  changes, enumerate all three persistence layers: DB JSON (migration), Valkey
+  (`PO_CACHE_VERSION`), stored FigureBundles (force block in the slide_config /
+  reports sweeps).
 - **Keep display-only preferences out of fetch configs and cache hashes.** A
   render knob in the data layer means spurious refetches and gets frozen into
   stored figure snapshots (the roll-up position/two-sentinel lesson —
@@ -448,22 +451,24 @@ the plan.
 
 ### Database Migrations
 
-- Instance migrations: `/server/db/migrations/instance/`
-- Project migrations: `/server/db/migrations/project/`
-- Auto-run at startup via `db_startup.ts`
+- One directory: `/server/db/migrations/instance/`, `.sql` and `.ts` sorted
+  together. A `.ts` migration MUST be registered in `TS_MIGRATIONS`
+  (`migrations/runner.ts`) or the runner throws.
+- Auto-run at startup via `db_startup.ts`, one pass on `main`, fail-stop.
 
 ### Worker Routines
 
 Background processors for:
 
-- `run_module/` - R script execution in Docker
-- `integrate_hmis_data/` - HMIS data integration
-- `integrate_hfa_data/` - HFA data integration
-- `stage_*_data_*/` - Dataset staging
-- `import_hmis_data_dhis2/` - Scheduled DHIS2 HMIS imports
+- `generate_run/` - whole-DAG results-package generation (R in Docker)
+- `import_hmis_data_csv/` - HMIS CSV stage → gate → integrate
+- `import_hmis_data_dhis2/` - DHIS2 HMIS imports, incl. the scheduled tick
+- `import_hfa_data_csv/` - HFA CSV + XLSForm import
+- `import_iceh_data/` - ICEH zip import
 
 Each uses Web Workers for non-blocking execution; the client polls status
-routes for progress, and SSE signals lifecycle/cache events.
+routes for import progress, and SSE signals lifecycle/cache events and
+generation telemetry.
 
 ### Route Registry
 

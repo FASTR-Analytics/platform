@@ -21,6 +21,7 @@ import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   notifyInstanceProductsDeleted,
   notifyInstanceProductsUpserted,
+  notifyInstanceRunsCatalogUpdated,
   notifyProductsUpserted,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -194,6 +195,12 @@ defineRoute(
     }
 
     await notifyProductsUpserted(c.var.mainDb, [params.product_id]);
+    // A repoint changes the catalogue's "in use by" column and therefore which
+    // packages are deletable, so the catalogue has to re-fetch. Without this
+    // an admin reads a package as unused, clicks delete and is refused by the
+    // guard inside the DELETE — the one outcome the catalogue's copy promises
+    // will never be a mystery.
+    notifyInstanceRunsCatalogUpdated();
 
     return c.json(res);
   },

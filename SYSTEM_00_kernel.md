@@ -26,8 +26,8 @@ absorbed).
 **`lib/mod.ts`** — the barrel behind the bare `"lib"` specifier, which both
 tiers resolve to this file (`deno.json` `imports` for the server;
 `client/tsconfig.json` `paths` via the `vite-tsconfig-paths` plugin for the
-client — note `"lib"` is NOT in `vite.config.ts`'s manual alias list). ~479
-files import it (120 server, 359 client). 24 `export *` lines re-exporting the
+client — note `"lib"` is NOT in `vite.config.ts`'s manual alias list). ~489
+files import it (151 server, 338 client). 37 `export *` lines re-exporting the
 whole `lib/` surface, including `types/mod.ts` and `api-routes/mod.ts`. Because
 everything the barrel reaches is compiled into **both** tiers, anything imported
 here from panther must exist in both panther barrels (`mod.deno.ts` and
@@ -44,8 +44,10 @@ holds, side by side: the `APIResponse` envelope types +
 `InstanceMeta`/`InstanceDetail` and the instance-config zod schemas —
 admin-area labels and the per-family `structureSchemaSchema` /
 `structureColumnsSchema` with `getEnabledOptionalFacilityColumns`,
-`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface); `GlobalUser`/`ProjectUser`/`OtherUser`/user-log types + the dev-mode
-user factories (S1/S15); generic table-column and CSV-import wizard types
+`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface);
+`GlobalUser`/`OtherUser`/user-log types + `createDevGlobalUser` (S1/S15 — the
+one identity row left since products dissolved the project user tier);
+generic table-column and CSV-import wizard types
 (`CsvDetails`, `Mappings`, `Conflicts` — S5/S6); and the `ItemsHolder*` payload
 types, including `ItemsHolderPresentationObject` whose fields are cache-version
 ingredients (S9 — the `datasetsVersion` doc-comment there is load-bearing).
@@ -89,7 +91,7 @@ the `@timroberton/panther` / `"panther"` specifiers — never deep paths. Anythi
 
 ## Open items
 
-- **Decoupling — split `server/exposed_env_vars.ts`.** A 42-importer nexus
+- **Decoupling — split `server/exposed_env_vars.ts`.** A 55-importer nexus
   carrying five systems' constants plus import-time `setLanguage`/`setCalendar`
   side effects. Per-domain constant modules + an explicit init call, so
   importing a staging-table name doesn't silently configure the calendar.
@@ -97,14 +99,10 @@ the `@timroberton/panther` / `"panther"` specifiers — never deep paths. Anythi
   `_BYPASS_AUTH` use `!!Deno.env.get(...)` — any non-empty value is true, so
   `OPEN_ACCESS=false` in an env file ENABLES open access. Parse the value
   (`=== "true"`) or fail on unexpected values.
-- **Decoupling — two deep panther imports bypass the `mod.ui.ts` barrel.**
-  `slide_deck/slide_list.tsx` and `dashboards/dashboard_item_grid.tsx` both
-  reach into
-  `panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx`. Route
-  them through the barrel.
+- **Decoupling — one deep panther import bypasses the `mod.ui.ts` barrel.**
+  `slide_deck/slide_list.tsx` reaches into
+  `panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx`. Route it
+  through the barrel.
 - **Dead code (zero importers):** `_IMAGE_DIMENSIONS` in `lib/consts.ts`.
-- **Cruft in `lib/types/instance.ts`:** `ProjectUser.role` is marked "delete
-  after implementing new system" — the permission flags shipped but the legacy
-  field still has ~6 live consumers (`projects.ts`, `users.ts`,
-  `add_project.tsx`, …), so deletion needs a consumer migration first; also the
-  commented-out `ItemsHolderDatasetAA2sAndIndicators` block.
+- **Cruft in `lib/types/instance.ts`:** the commented-out
+  `ItemsHolderDatasetAA2sAndIndicators` block.

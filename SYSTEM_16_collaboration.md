@@ -2,14 +2,13 @@
 system: 16
 name: Realtime Collaboration & Version History
 globs:
-  - server/collab/**
-  - lib/collab/**
   - client/src/components/version_history/**
-  - client/src/state/project/collab.ts
+  - client/src/state/instance/collab.ts
+  - lib/collab/**
   - lib/types/collab.ts
   - lib/types/versions.ts
-  - server/db/project/versions.ts
-  - server/routes/project/project-collab.ts
+  - server/collab/**
+  - server/routes/instance/collab.ts
 ---
 
 # S16 — Realtime Collaboration & Version History

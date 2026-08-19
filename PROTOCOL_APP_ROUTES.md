@@ -17,15 +17,15 @@
 ### 1. Declare the route in the registry
 
 Add a `route({...})` entry to the right `lib/api-routes/*` feature registry
-(`instance/` or `project/`; new feature file → spread it into `combined.ts`).
+(`instance/` or `products/`; new feature file → spread it into `combined.ts`).
 
 ```ts
-createReport: route({
-  path: "/reports",
-  method: "POST",
-  body: z.object({ label: z.string(), ...folderBodyFields }),
-  response: {} as { reportId: string; lastUpdated: string },
-  requiresProject: true,
+updateReportConfig: route({
+  path: "/reports/:report_id/config",
+  method: "PUT",
+  params: reportIdParamsSchema,          // z.object({ report_id: z.string() })
+  body: z.object({ config: reportConfigSchema }),
+  response: {} as { lastUpdated: string },
 }),
 ```
 
@@ -35,8 +35,9 @@ createReport: route({
 - `response` is a compile-time phantom (`{} as T`); omit it for a no-data route.
   For a sometimes-absent payload use `X | null`, never `X | undefined`
   (optional-parameter inference silently strips the `undefined`).
-- Set `requiresProject: true` on every project route — that is what makes the
-  client emit the `Project-Id` header the project guard reads.
+- **Everything the route acts on is in the URL.** There is no scoping header;
+  the id in the path is the whole addressing story. A body key that is also a
+  path placeholder fails boot (the client strips it from the body).
 - Don't add `z.unknown()` body fields to dodge writing a schema; the only
   sanctioned uses are the sentinel-encoded passthroughs
   (PROTOCOL_APP_MIGRATIONS.md).
@@ -49,28 +50,16 @@ filename):
 ```ts
 defineRoute(
   routesReports,
-  "createReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
+  "updateReportConfig",
+  requireApprovedUser(),
   async (c, { params, body }) => {
-    const res = await createReport(
-      c.var.ppk.projectDb,
-      body.label,
-      body.folderId,
+    const res = await updateReportConfig(
+      c.var.mainDb,
+      params.report_id,
+      body.config,
     );
     if (!res.success) return c.json(res);
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [res.data.reportId],
-      res.data.lastUpdated,
-    );
-    const list = await getAllReports(c.var.ppk.projectDb);
-    if (list.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, list.data);
-    }
+    await notifyProductsUpserted(c.var.mainDb, [params.report_id]);
     return c.json(res);
   },
 );
@@ -82,25 +71,33 @@ The thin-handler shape is invariant: **call one DB fn returning an `APIResponse`
 (that's the DB layer, S2); never hand-build `{ success: true, data }` when the
 DB function already returns an envelope; never cast the return to `any` — a type
 error at the `defineRoute` call means the registry and implementation disagree.
-`server/routes/project/reports.ts` is the canonical example file; the notify
-recipe (row-level `last_updated` + whole-list broadcast) is S3's mutation
-recipe.
+`server/routes/products/reports.ts` is the canonical example file; the notify
+recipe is S3's mutation recipe — for a product write it is
+`notifyProductsUpserted(mainDb, [id])`, plus
+`notifyLastUpdated("slides", [slideId], ts)` when a slide row moved.
 
 ### 3. Pick the guard
 
 Every `defineRoute` gets one — a route with no guard is public-by-accident
-(Clerk populates, it never rejects).
+(Clerk populates, it never rejects). **There are two, and the choice is between
+them, not among many:**
 
-- Instance route → `requireGlobalPermission(...UserPermission)`.
-- Project route → `requireProjectPermission(...ProjectPermission)`, and scope
-  ALL DB work to `c.var.ppk.projectDb` / `c.var.ppk.projectId` — never a project
-  id from the body/params (confused-deputy/IDOR).
+- **Product surface** → `requireApprovedUser()`, which takes no arguments.
+  Product/folder CRUD, the run-keyed figure-data reads, the authoring context,
+  the package picker's options, the Explore tab's reads, the copilot mounts.
+  Act on the id the path names, from `c.var.mainDb`.
+- **Everything else** → `requireGlobalPermission(...UserPermission)` — users,
+  logs, settings, and the data / results-package plane. Admin-only →
+  `{ requireAdmin: true }`.
 - Permission keys come from `lib/types/permissions.ts` only. Adding a key? Add
-  it there (type + array + `build*FromRow`), plus the DB column migration.
-- Admin-only → `{ requireAdmin: true }`. Editing routes that must respect locked
-  projects → `{ preventAccessToLockedProjects: true }` (opt-in, not global).
-- Zero permission keys = "any authenticated (project) member" — real but weak;
-  be deliberate.
+  it there (type + array + `buildUserPermissionsFromRow`), plus the DB column
+  migration.
+- Zero permission keys (`requireGlobalPermission()`) = "any authenticated
+  caller, approved or not" — real but weak; if you meant "approved", say
+  `requireApprovedUser()`.
+- **Never add a per-handler access check behind the guard.** With a permissive
+  product tier there is nothing finer to check, and a scattered check is what a
+  future product-aware guard would have to unpick (S1 doctrine).
 - Prefer a granular permission or `requireAdmin` over any new
   `H_USERS.includes()` check.
 
@@ -113,8 +110,7 @@ Every `defineRoute` gets one — a route with no guard is public-by-accident
 - Boot the server: `validateAllRoutesDefined()` exits(1) on a
   missing/extra/duplicate route — confirm
   `✅ All N routes correctly implemented`.
-- The client action now exists: `args` = path params + `projectId` (if
-  required) + body keys.
+- The client action now exists: `args` = path params + body keys.
 
 ## Streaming variant
 
@@ -130,7 +126,8 @@ timeout.
 ## Off-registry escape hatch
 
 There is none. Raw `.get`/`.post` on a `Hono()` is allowed only for the
-enumerated inventory in SYSTEM_01 (SSE, Anthropic passthrough, TUS, public
-dashboard, health, export_central, the two CSV exports). A new endpoint that
+enumerated inventory in SYSTEM_01 (SSE, the collab WebSocket, Anthropic
+passthrough, TUS, health, OAuth discovery, `/mcp`, the two CSV exports). A new
+endpoint that
 "can't fit the registry" is a design smell — bring it to the inventory
 discussion, don't just add it.

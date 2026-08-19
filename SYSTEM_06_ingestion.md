@@ -19,8 +19,8 @@ globs:
   - lib/types/dataset_iceh.ts
   - lib/types/dataset_iceh_import.ts
   - lib/types/datasets.ts
-  - lib/types/datasets_in_project.ts
   - lib/types/dhis2.ts
+  - lib/types/run_datasets.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hfa_import_runs.ts
   - server/db/instance/dataset_hmis.ts
@@ -30,13 +30,10 @@ globs:
   - server/db/instance/dataset_hmis_scheduled_imports.ts
   - server/db/instance/dataset_iceh.ts
   - server/db/instance/dataset_iceh_import_runs.ts
-  - server/db/project/calculated_indicators_snapshot.ts
-  - server/db/project/datasets_in_project_hfa.ts
-  - server/db/project/datasets_in_project_hmis.ts
-  - server/db/project/datasets_in_project_iceh.ts
   - server/routes/instance/datasets.ts
   - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
+  - server/runs/capture_inputs/**
   - server/server_only_funcs_csvs/**
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -49,7 +46,7 @@ globs:
 
 The stage→integrate machinery for the three dataset families — HMIS (CSV +
 DHIS2), HFA (CSV + XLSForm), ICEH (zip) — plus their wizards, the import-run
-state machines, and the per-project attach/snapshot seam. Every family is
+state machines, and the run-capture seam. Every family is
 import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phases A–C); only the
 structure family (S5) still uses upload attempts. Reviewed against code
 2026-07-02 (fixes in `80a9996e`, `958132fd`, `b012ad3d`).
@@ -373,26 +370,37 @@ callback re-parses the new bytes).
   schema hash in the uniqueness keys; HFA/ICEH use server-provided cache
   hashes from the T1 SSE store.
 
-## Project attach/snapshot seam
+## The run-capture seam (`server/runs/capture_inputs/**`)
 
-Attach = wipe + re-export, per family: validate and capture staleness
-metadata FIRST (hash-after-export could mask a concurrent instance import),
-then `removeDatasetFromProject`, then COPY main-DB data to
-`{SANDBOX}/{projectId}/datasets/{type}.csv`, then one projectDb transaction
-writing `datasets(dataset_type, info, last_updated)` + snapshot tables.
-Attach concurrency is an in-memory `_datasetLocks` set keyed
-`{projectId}_{datasetType}` in the route.
+**A dataset reaches a reader only through a results package.** There is one
+crossing, and it happens once per generation: `computeDataset{Hmis,Hfa,Iceh}RunCapture`
+does every instance-DB read, every validation, and the `COPY … TO` export into
+the run's workspace, then returns the captured rows the pipeline needs (run
+input mirrors, script-generation inputs, manifest dataset info). The wizard's
+choose-data step is what drives it (`generate_run/prepare_inputs.ts`, S8); once
+a package is published nothing re-reads main for its data.
 
-- Snapshot tables are the metadata twins of the CSVs:
-  `calculated_indicators_snapshot` (HMIS), `hfa_indicator*_snapshot` (HFA,
-  service-category-scoped), `iceh_indicators_snapshot`. Modules read
-  `../datasets/{type}.csv`; PO metadata and module runs read the snapshots.
-- **Project-level attach/staleness UI is gone** (PLAN_RESULTS_RUNS item 5):
-  datasets reach a project only as results-package run inputs — the wizard's
-  choose-data step drives the same attach/export functions
-  (`generate_run/prepare_inputs.ts`), and the run captures dataset version
-  stamps in its manifest. The dirty cascade and the per-dataset staleness
-  indicators died with the Data tab.
+- **Staleness metadata is captured BEFORE the export**, never after: a
+  hash-after-export could be taken after a concurrent instance import committed,
+  masking the staleness forever. The HMIS capture additionally refuses outright
+  while a DHIS2 import run is `running` (`assertNoRunningDatasetHmisImportRun`),
+  because a per-pair run mutates `dataset_hmis` for hours and would otherwise
+  copy torn mid-run data into a package stamped with the settled version id.
+  A run *launching* mid-export still self-signals through the staleness marker
+  at run end.
+- **Capture is always the FULL dataset** — entire period range, all indicators,
+  all admin areas, all facility types and ownerships. The R scripts need the
+  whole dataset to compute correctly, and subsetting is a read-time query
+  filter, never a generation input.
+- The `DatasetCsvTarget` pair (`postgresPath` / `denoPath`) is how the two
+  processes name one file: Postgres executes `COPY … TO` against a path inside
+  its own container while this process reads the same bytes through the mount.
+  `ensureDatasetCsvTargetDir` creates and `0o777`s the parent first.
+- The metadata twins of the CSVs ride the capture return rather than a table:
+  `calculatedIndicatorToSnapshotRow` (HMIS), the HFA indicator/taxonomy rows
+  (service-category-scoped), the ICEH indicator rows. `RUN_FACILITY_COLUMN_NAMES`
+  / `RunFacilityRow` name the facility column set the run's facilities parquet is
+  built from — run-capture code deliberately carries no project vocabulary.
 
 ## Traps
 
