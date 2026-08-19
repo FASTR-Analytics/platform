@@ -16,7 +16,6 @@ export const onboardingRouteRegistry = {
       stepIndex: z.number().int().min(0).optional(),
       stepId: z.string().max(100).optional(),
       reason: z.enum(["skip", "timeout", "programmatic"]).optional(),
-      projectId: z.string().max(100).optional(),
     }),
   }),
 } as const;

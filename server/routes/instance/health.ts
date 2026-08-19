@@ -1,6 +1,5 @@
 import { Context, Hono } from "hono";
 import {
-  DBProject,
   DBUser,
   getCurrentDatasetHmisMaxVersionId,
   GetAiLimitHits,
@@ -38,10 +37,6 @@ routesHealth.get("/health_check", async (c) => {
       firstName: u.first_name,
       lastName: u.last_name,
     }));
-  const projects = await mainDb<
-    DBProject[]
-  >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
-
   // A generation in flight = a 'generating' row in the runs catalog (the
   // legacy per-module running map died with the dirty machine).
   const hasRunningModules =
@@ -78,7 +73,6 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
     totalUsers: users.length,
     adminUsers,
     serverUsers: users.map((u: DBUser) => u.email),
-    projects: projects.map((p) => p.label),
     lastUserLog: lastLog
       ? {
           userEmail: lastLog.user_email,
@@ -99,34 +93,12 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
   });
 });
 
-routesHealth.get("/projects", async (c) => {
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const projects = await mainDb<
-    { id: string; label: string }[]
-  >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
-  return c.json({ projects });
-});
-
 routesHealth.get("/user_logs", async (c) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const logs = await mainDb<
     UserLog[]
-  >`SELECT user_email, endpoint, timestamp, project_id FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
+  >`SELECT user_email, endpoint, timestamp FROM user_logs WHERE endpoint = 'getCurrentUser' ORDER BY timestamp DESC`;
   return c.json({ logs });
-});
-
-routesHealth.get("/project_activity", async (c) => {
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const sevenDaysAgo = new Date(
-    Date.now() - 7 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const rows = await mainDb<{ project_id: string; count: string }[]>`
-    SELECT project_id, COUNT(*)::text AS count
-    FROM user_logs
-    WHERE project_id IS NOT NULL AND timestamp >= ${sevenDaysAgo}
-    GROUP BY project_id
-  `;
-  return c.json({ projectActivity: rows });
 });
 
 routesHealth.get("/user_activity", async (c) => {
@@ -152,9 +124,8 @@ routesHealth.get("/user_logs_all", async (c: Context) => {
       endpoint: string;
       endpoint_result: string;
       timestamp: string;
-      project_id: string | null;
     }[]
-  >`SELECT user_email, endpoint, endpoint_result, timestamp::text, project_id FROM user_logs ORDER BY timestamp DESC`;
+  >`SELECT user_email, endpoint, endpoint_result, timestamp::text FROM user_logs ORDER BY timestamp DESC`;
   return c.json({ logs });
 });
 
@@ -166,11 +137,10 @@ routesHealth.get("/user_logs_aggregate", async (c: Context) => {
       user_email: string;
       endpoint: string;
       endpoint_result: string;
-      project_id: string | null;
       week_start: string;
       count: number;
     }[]
-  >`SELECT id, user_email, endpoint, endpoint_result, project_id, week_start::text, count FROM user_logs_aggregate ORDER BY week_start DESC`;
+  >`SELECT id, user_email, endpoint, endpoint_result, week_start::text, count FROM user_logs_aggregate ORDER BY week_start DESC`;
   return c.json({ logs });
 });
 

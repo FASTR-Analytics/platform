@@ -23,8 +23,8 @@ import { routesUsers } from "./routes/instance/users.ts";
 // allowlist (middleware/headless_allowlist.ts) remains the authority on which
 // individual routes a headless caller can reach. Since 2026-08-19 those are
 // the run-keyed package reads (routes/instance/run_generation.ts) and the
-// whoami; the project route files are gone from this mount with the
-// project-scoped /mcp surface.
+// whoami — the only mount there has ever been since /mcp became the pinned
+// dialect.
 export const headlessApp = new Hono();
 //@ts-ignore - middleware typed loosely, same as authMiddleware in main.ts
 headlessApp.use("*", headlessAuthMiddleware);

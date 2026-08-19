@@ -7,8 +7,7 @@ import { _CLERK_PUBLISHABLE_KEY } from "../../exposed_env_vars.ts";
 // connectors, Claude Desktop) fetches to learn that /mcp is a protected
 // resource and WHICH authorization server guards it. They must be reachable
 // WITHOUT credentials — they are the thing a client reads *before* it has any.
-// main.ts therefore registers them ahead of the global Clerk middleware, next
-// to the public dashboard routes.
+// main.ts therefore registers them ahead of the global Clerk middleware.
 //
 // FASTR is only the resource server here. Clerk is the authorization server:
 // it owns /authorize, /token and (with dynamic client registration enabled)

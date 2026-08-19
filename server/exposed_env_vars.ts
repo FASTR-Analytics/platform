@@ -147,14 +147,14 @@ if (_ASSETS_DIR_PATH === undefined) {
 // should say what it stores, not repeat the directory's legacy name.
 //
 // Sharing one directory is safe because nothing treats its entries as a
-// homogeneous set: every consumer addresses a NAMED entry — a `{projectId}`
-// dir, the `.tmp-{runId}` prefix (the boot sweep's only filter), or
-// `.duckdb-spill`. Package dirs are freshly minted UUIDs, so they can never
-// collide with a project id.
+// homogeneous set: every consumer addresses a NAMED entry — a legacy
+// `{projectId}` dir, the `.tmp-{runId}` prefix (the boot sweep's only filter),
+// or `.duckdb-spill`. Package dirs are freshly minted UUIDs, so they can never
+// collide with a legacy dir's name.
 //
-// End state: once Phase 4 removes the legacy per-project dirs, this directory
-// holds only packages and both it and the `SANDBOX_DIR_PATH*` vars get renamed
-// to runs — at which point these three aliases collapse into them.
+// End state: once `purge_legacy_dbs` removes the legacy per-project dirs, this
+// directory holds only packages and both it and the `SANDBOX_DIR_PATH*` vars
+// get renamed to runs — at which point these three aliases collapse into them.
 export const _RUNS_DIR_PATH = _SANDBOX_DIR_PATH;
 export const _RUNS_DIR_PATH_EXTERNAL = _SANDBOX_DIR_PATH_EXTERNAL;
 export const _RUNS_DIR_PATH_POSTGRES_INTERNAL =
@@ -192,7 +192,7 @@ if (Number.isNaN(_PORT)) {
 
 /** Browser origins allowed to call this API with credentials (CLIENT_ORIGIN,
  *  comma-separated). Shared by the HTTP CORS middleware and the collab
- *  WebSocket's Origin allowlist (project-collab.ts) — WS handshakes are not
+ *  WebSocket's Origin allowlist (routes/instance/collab.ts) — WS handshakes are not
  *  subject to CORS, so the socket enforces this list itself. */
 export const _CLIENT_ORIGINS = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
   "http://localhost:3000",
