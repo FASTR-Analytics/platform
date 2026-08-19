@@ -1,3 +1,8 @@
+[1.67.5] [user] [changed] - AI assistant now gives more accurate period coverage descriptions for metrics
+[1.67.5] [user] [fixed] - AI assistant validates filters before fetching data, catching errors faster
+[1.67.5] [admin] [fixed] - AI now validates metric filters before fetching data, failing faster on bad queries
+[1.67.5] [admin] [changed] - AI period coverage description now reflects finest-grained results more accurately
+[1.67.5] [admin] [internal] - Calendar context moved from instance-level to package-level in AI prompts
 [1.67.4] [user] [added] - AI assistant now shows period coverage for your data
 [1.67.4] [user] [added] - AI assistant can follow step-by-step recipes for building ICEH equity profiles
 [1.67.4] [user] [added] - AI assistant now shows indicator threshold and direction info when querying data
